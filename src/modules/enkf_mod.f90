@@ -62,6 +62,7 @@ module enkf_mod
   end type struct_enkfInterpInfo
 
   integer, external :: get_max_rss
+  logical :: debug
 
 contains
 
@@ -893,12 +894,14 @@ contains
                                               modulationFactor )
                     pert_r4 = memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
                                         meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-if ( latIndex == myLatBeg .and. lonIndex == myLonBeg ) then
-  write(*,*) 'maziar: MEAN INCR, varName=', gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex),', levIndex=', levIndex, ', stepIndex=', stepIndex
-  write(*,*) 'maziar: mean trial=', meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-  write(*,*) 'maziar: original member pert=', pert_r4
-  write(*,*) 'maziar: modulationFactor=', modulationFactor
-end if
+
+                    if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. debug ) then
+                      write(*,*) 'maziar: MEAN INCR, varName=', gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex),', levIndex=', levIndex, ', stepIndex=', stepIndex
+                      write(*,*) 'maziar: modulationFactor=', modulationFactor
+                      write(*,*) 'maziar: mean trial=', meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+                      write(*,*) 'maziar: original member pert=', pert_r4
+                    end if
+
                     pert_r4 = pert_r4 * real(modulationFactor,4)
 
                     memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + &
@@ -906,11 +909,12 @@ end if
                     meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
                          meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
                          weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r4
-if ( latIndex == myLatBeg .and. lonIndex == myLonBeg ) then
-  write(*,*) 'maziar: modulated member pert=', pert_r4
-  write(*,*) 'maziar: memberIndexInModEns=',  memberIndexInModEns
-  write(*,*) 'maziar: mean increment=',  meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-end if
+
+                    if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. debug ) then
+                      write(*,*) 'maziar: modulated member pert=', pert_r4
+                      write(*,*) 'maziar: memberIndexInModEns=',  memberIndexInModEns
+                      write(*,*) 'maziar: mean increment=',  meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+                    end if
 
                   end do
                 end do
@@ -1735,7 +1739,7 @@ end if
   subroutine enkf_getModulatedState( stateVector_in, stateVectorMeanTrl, &
                                      vLocalizeLengthScale, numRetainedEigen, nEns, &
                                      eigenVectorColumnIndex, &
-                                     stateVector_out )
+                                     stateVector_out, debug_opt )
     !
     !:Purpose: Compute vertical localization matrix, and the corresponding
     !          eigenvectors/eigenvalues, to obtain modulated stateVector.
@@ -1750,6 +1754,7 @@ end if
     integer, intent(in) :: nEns
     integer, intent(in) :: eigenVectorColumnIndex
     type(struct_gsv), intent(inout) :: stateVector_out
+    logical, optional   :: debug_opt
 
     ! Locals:
     real(8)          :: modulationFactor
@@ -1773,6 +1778,12 @@ end if
       call utl_abort('enkf_getModulatedState: no vertical localization')
     end if
 
+    if ( present(debug_opt) ) then
+      debug = debug_opt
+    else
+      debug = .false.
+    end if
+
     ! Compute perturbation by subtracting ensMean
     call gsv_copy(stateVector_in, stateVector_out)
     call gsv_add(stateVectorMeanTrl, stateVector_out, scaleFactor_opt=-1.0d0)
@@ -1781,8 +1792,6 @@ end if
     lon2 = stateVector_out%myLonEnd
     lat1 = stateVector_out%myLatBeg
     lat2 = stateVector_out%myLatEnd
-write(*,*) 'maziar: lat1=', lat1
-write(*,*) 'maziar: lon1=', lon1
 
     ! Compute modulated member perturbation from original member perturbation:
     !   v'_k = (Nens*nLamda/(Nens - 1))^1/2 * Lambda^1/2 * E * x'_k
@@ -1800,33 +1809,37 @@ write(*,*) 'maziar: lon1=', lon1
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do levIndex = 1, nlev_out
-if ( latIndex == lat1 .and. lonIndex == lon1 ) then
-  write(*,*) 'maziar: varName=', varName,', levIndex=', levIndex, ', stepIndex=', stepIndex
-  if ( varName /= 'Z_T ' .and. varName /= 'Z_M ' .and. varName /= 'P_T ' .and. varName /= 'P_M ' ) write(*,*) 'maziar: mean field=', field_mean_r4(lonIndex,latIndex,levIndex,stepIndex)
-  write(*,*) 'maziar: original pert field=', field_out_r4(lonIndex,latIndex,levIndex,stepIndex)
-end if
-            ! maziar: does this cover all cases?
-            if ( nlev_out == 1 ) then
-              eigenVectorLevelIndex = nLev
-            else
-              eigenVectorLevelIndex = levIndex
-            end if
 
-            call getModulationFactor( stateVector_in%vco, eigenVectorLevelIndex, &
-                                      eigenVectorColumnIndex, numRetainedEigen, &
-                                      nEns, vLocalizeLengthScale, &
-                                      modulationFactor )
-if ( latIndex == lat1 .and. lonIndex == lon1 ) then
-  write(*,*) 'maziar: modulationFactor=', modulationFactor
-end if
+              if ( latIndex == lat1 .and. lonIndex == lon1 .and. debug ) then
+                write(*,*) 'maziar: lat1=', lat1, ', lon1=', lon1
+                write(*,*) 'maziar: varName=', varName,', levIndex=', levIndex, ', stepIndex=', stepIndex
+                if ( varName /= 'Z_T ' .and. varName /= 'Z_M ' .and. varName /= 'P_T ' .and. varName /= 'P_M ' ) write(*,*) 'maziar: mean field=', field_mean_r4(lonIndex,latIndex,levIndex,stepIndex)
+                write(*,*) 'maziar: original pert field=', field_out_r4(lonIndex,latIndex,levIndex,stepIndex)
+              end if
 
-            field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
-                               field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
-                               real(modulationFactor,4)
+              ! maziar: does this cover all cases?
+              if ( nlev_out == 1 ) then
+                eigenVectorLevelIndex = nLev
+              else
+                eigenVectorLevelIndex = levIndex
+              end if
 
-if ( latIndex == lat1 .and. lonIndex == lon1 ) then
-  write(*,*) 'maziar: modulated pert field=', field_out_r4(lonIndex,latIndex,levIndex,stepIndex)
-end if
+              call getModulationFactor( stateVector_in%vco, eigenVectorLevelIndex, &
+                                        eigenVectorColumnIndex, numRetainedEigen, &
+                                        nEns, vLocalizeLengthScale, &
+                                        modulationFactor )
+
+              if ( latIndex == lat1 .and. lonIndex == lon1 .and. debug ) then
+                write(*,*) 'maziar: modulationFactor=', modulationFactor
+              end if
+
+              field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
+                                 field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
+                                 real(modulationFactor,4)
+
+              if ( latIndex == lat1 .and. lonIndex == lon1 .and. debug ) then
+                write(*,*) 'maziar: modulated pert field=', field_out_r4(lonIndex,latIndex,levIndex,stepIndex)
+              end if
 
             end do
           end do
@@ -1921,9 +1934,6 @@ end if
         call utl_abort('getModulationFactor: verticalLocalizationMat is rank deficient=')
       end if
     end if
-
-!write(*,*) 'maziar: eigenVectors=', eigenVectors(eigenVectorLevelIndex,eigenVectorColumnIndex)
-!write(*,*) 'maziar: eigenValues=', eigenValues(eigenVectorColumnIndex)
 
     modulationFactor = eigenVectors(eigenVectorLevelIndex,eigenVectorColumnIndex) * &
                        eigenValues(eigenVectorColumnIndex) ** 0.5 * &

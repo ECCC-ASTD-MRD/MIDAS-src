@@ -108,6 +108,7 @@ program midas_letkf
   logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
   logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
   logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
+  logical  :: debug
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
   real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
@@ -122,7 +123,7 @@ program midas_letkf
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                      obsTimeInterpType, mpiDistribution, etiket_anl, &
-                     numRetainedEigen
+                     numRetainedEigen, debug
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -177,6 +178,7 @@ program midas_letkf
   mpiDistribution       = 'ROUNDROBIN'
   etiket_anl            = 'ENS_ANL'
   numRetainedEigen      = 0
+  debug                 = .false.
 
   !- 1.2 Read the namelist
   nulnam = 0
@@ -415,11 +417,12 @@ program midas_letkf
       call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
                                    vLocalize, numRetainedEigen, nEns, &
                                    eigenVectorIndex, &
-                                   stateVector4Dmod )
-
-      call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
-      write(*,*) 'maziar: max(Psfc)=', maxval(field_Psfc)
-      write(*,*) 'maziar: min(Psfc)=', minval(field_Psfc)
+                                   stateVector4Dmod, debug_opt=debug )
+      if ( debug ) then
+        call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
+        write(*,*) 'maziar: max(Psfc)=', maxval(field_Psfc)
+        write(*,*) 'maziar: min(Psfc)=', minval(field_Psfc)
+      end if
 
       call gsv_copy(stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
       if (nwpFields) then
