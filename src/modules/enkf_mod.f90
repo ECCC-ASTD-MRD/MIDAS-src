@@ -389,8 +389,8 @@ contains
           ! Compute value of localization function
           ! Horizontal
           localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
-          ! Vertical - use pressures at the grid point (not obs) location
-          if (vLocalize > 0.0d0) then
+          ! Vertical when NOT using modulated ensembles - use pressures at the grid point (not obs) location
+          if ( vLocalize > 0.0d0 .and. numRetainedEigen == 0 ) then
             distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
             localization = localization * lfn_Response(distance,vLocalize)
           end if
