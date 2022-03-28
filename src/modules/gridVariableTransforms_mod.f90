@@ -1963,7 +1963,7 @@ CONTAINS
           do latIndex = 1, stateVector%nj
             do lonIndex = 1, stateVector%ni
               if (stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
-                analysis_ptr(lonIndex,latIndex, levIndex, stepIndex) = input_ptr(lonIndex, latIndex, levIndex, stepIndex)
+                analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = input_ptr(lonIndex, latIndex, levIndex, stepIndex)
               else
                 analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = trial_ptr(lonIndex, latIndex, levIndex, stepIndex)
               end if
@@ -1975,21 +1975,60 @@ CONTAINS
             rms = 0.0d0
             numCorrect = 0
             maxAbsCorr = 0.0d0
-            do latIndex = 2, stateVector%nj-1
-              do lonIndex = 2, stateVector%ni-1
-                if (.not. stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
-                  basic = (analysis_ptr(lonIndex + 1, latIndex    , levIndex, stepIndex) + &
-                           analysis_ptr(lonIndex - 1, latIndex    , levIndex, stepIndex) + &
-                           analysis_ptr(lonIndex    , latIndex + 1, levIndex, stepIndex) + &
-                           analysis_ptr(lonIndex    , latIndex - 1, levIndex, stepIndex)) / 4.0d0
-                  correc = factor * (basic - analysis_ptr(lonIndex, latIndex, levIndex, stepIndex))
-                  analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
-                  rms = rms + correc * correc
-                  numCorrect = numCorrect + 1
-                  if(abs(correc) > maxAbsCorr) maxAbsCorr = abs(correc)
-                end if
+	    
+	    if(outputVarName == 'TM') then
+
+              do latIndex = 2, stateVector%nj/2-1
+                do lonIndex = 2, stateVector%ni-1
+                  if (.not. stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
+                    basic = (analysis_ptr(lonIndex + 1, latIndex    , levIndex, stepIndex) + &
+                             analysis_ptr(lonIndex - 1, latIndex    , levIndex, stepIndex) + &
+                             analysis_ptr(lonIndex    , latIndex + 1, levIndex, stepIndex) + &
+                             analysis_ptr(lonIndex    , latIndex - 1, levIndex, stepIndex)) / 4.0d0
+                    correc = factor * (basic - analysis_ptr(lonIndex, latIndex, levIndex, stepIndex))
+                    analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
+                    rms = rms + correc * correc
+                    numCorrect = numCorrect + 1
+                    if(abs(correc) > maxAbsCorr) maxAbsCorr = abs(correc)
+                  end if
+                end do
               end do
-            end do
+
+              do latIndex = stateVector%nj/2 + 2, stateVector%nj-1
+                do lonIndex = 2, stateVector%ni-1
+                  if (.not. stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
+                    basic = (analysis_ptr(lonIndex + 1, latIndex    , levIndex, stepIndex) + &
+                             analysis_ptr(lonIndex - 1, latIndex    , levIndex, stepIndex) + &
+                             analysis_ptr(lonIndex    , latIndex + 1, levIndex, stepIndex) + &
+                             analysis_ptr(lonIndex    , latIndex - 1, levIndex, stepIndex)) / 4.0d0
+                    correc = factor * (basic - analysis_ptr(lonIndex, latIndex, levIndex, stepIndex))
+                    analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
+                    rms = rms + correc * correc
+                    numCorrect = numCorrect + 1
+                    if(abs(correc) > maxAbsCorr) maxAbsCorr = abs(correc)
+                  end if
+                end do
+              end do
+	    
+	    else
+	    
+              do latIndex = 2, stateVector%nj-1
+                do lonIndex = 2, stateVector%ni-1
+                  if (.not. stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
+                    basic = (analysis_ptr(lonIndex + 1, latIndex    , levIndex, stepIndex) + &
+                             analysis_ptr(lonIndex - 1, latIndex    , levIndex, stepIndex) + &
+                             analysis_ptr(lonIndex    , latIndex + 1, levIndex, stepIndex) + &
+                             analysis_ptr(lonIndex    , latIndex - 1, levIndex, stepIndex)) / 4.0d0
+                    correc = factor * (basic - analysis_ptr(lonIndex, latIndex, levIndex, stepIndex))
+                    analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) = analysis_ptr(lonIndex, latIndex, levIndex, stepIndex) + correc
+                    rms = rms + correc * correc
+                    numCorrect = numCorrect + 1
+                    if(abs(correc) > maxAbsCorr) maxAbsCorr = abs(correc)
+                  end if
+                end do
+              end do
+	    
+	    end if  
 
             if( orca12 ) then
               ! Periodicity in the X direction
