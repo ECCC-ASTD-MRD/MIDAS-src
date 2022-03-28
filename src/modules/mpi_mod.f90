@@ -137,11 +137,11 @@ module mpi_mod
     real(8), allocatable :: allvalues(:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call tmg_start(109,'MPI_SUMSCA_BARR')
+    call utl_tmg_start(109,'--MPI_SUMSCA_BARR')
     if(mpi_doBarrier) call rpn_comm_barrier(comm,ierr)
     call tmg_stop(109)
 
-    call tmg_start(16,'allreduce_sum8')
+    call utl_tmg_start(16,'--allreduce_sum8')
 
     ! determine number of processors in the communicating group
     call rpn_comm_size(comm,nsize,ierr)
@@ -177,11 +177,11 @@ module mpi_mod
     real(8), allocatable :: all_sendRecvVector(:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call tmg_start(109,'MPI_SUMSCA_BARR')
+    call utl_tmg_start(109,'--MPI_SUMSCA_BARR')
     if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
     call tmg_stop(109)
 
-    call tmg_start(16,'allreduce_sum8')
+    call utl_tmg_start(16,'--allreduce_sum8')
 
     numElements = size(sendRecvVector)
 
@@ -222,11 +222,11 @@ module mpi_mod
     real(8), allocatable :: all_sendRecvVector(:,:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call tmg_start(109,'MPI_SUMSCA_BARR')
+    call utl_tmg_start(109,'--MPI_SUMSCA_BARR')
     if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
     call tmg_stop(109)
 
-    call tmg_start(16,'allreduce_sum8')
+    call utl_tmg_start(16,'--allreduce_sum8')
 
     numElements1 = size(sendRecvVector,1)
     numElements2 = size(sendRecvVector,2)
@@ -270,11 +270,11 @@ module mpi_mod
     real(8), allocatable :: all_sendRecvVector(:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call tmg_start(109,'MPI_SUMSCA_BARR')
+    call utl_tmg_start(109,'--MPI_SUMSCA_BARR')
     if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
     call tmg_stop(109)
 
-    call tmg_start(16,'allreduce_sum8')
+    call utl_tmg_start(16,'--allreduce_sum8')
 
     numElements = size(sendVector)
 
@@ -318,11 +318,11 @@ module mpi_mod
     real(8), allocatable :: all_sendRecvVector(:,:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call tmg_start(109,'MPI_SUMSCA_BARR')
+    call utl_tmg_start(109,'--MPI_SUMSCA_BARR')
     if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
     call tmg_stop(109)
 
-    call tmg_start(16,'allreduce_sum8')
+    call utl_tmg_start(16,'--allreduce_sum8')
 
     numElements1 = size(sendVector,1)
     numElements2 = size(sendVector,2)
@@ -367,11 +367,11 @@ module mpi_mod
     real(8), allocatable :: all_sendRecvVector(:,:,:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call tmg_start(109,'MPI_SUMSCA_BARR')
+    call utl_tmg_start(109,'--MPI_SUMSCA_BARR')
     if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
     call tmg_stop(109)
 
-    call tmg_start(16,'allreduce_sum8')
+    call utl_tmg_start(16,'--allreduce_sum8')
 
     numElements1 = size(sendVector,1)
     numElements2 = size(sendVector,2)

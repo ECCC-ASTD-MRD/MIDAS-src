@@ -69,20 +69,20 @@ program midas_gencoeff
   ! MPI initialization
   call mpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_GENCOEFF' )
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
+  call utl_tmg_start(0,'MAIN')
 
  
   ! 1. Top level setup
   call ram_setup()
  
   ! Do initial set up
-  call tmg_start(2,'SETUP')
+  call utl_tmg_start(2,'--SETUP')
   call gencoeff_setup('VAR') ! obsColumnMode
   call tmg_stop(2)
 
-  call tmg_start(3,'TRIALS')
+  call utl_tmg_start(3,'--TRIALS')
 
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
@@ -107,55 +107,55 @@ program midas_gencoeff
   !
   ! Remove bias correction if requested
   !
-  call tmg_start(4,'REMOVE_BCOR')
+  call utl_tmg_start(4,'--REMOVE_BCOR')
   call bcs_removeBiasCorrection(obsSpaceData,"TO")
   call tmg_stop(4)
 
-  call tmg_start(5,'REMOVE_OUTLIERS')
+  call utl_tmg_start(5,'--REMOVE_OUTLIERS')
   call bcs_removeOutliers(obsSpaceData)
   call tmg_stop(5)
    
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute observation innovations
-  call tmg_start(6,'COMP_INOV')
+  call utl_tmg_start(6,'--COMP_INOV')
   call inn_computeInnovation(columnTrlOnAnlIncLev,obsSpaceData)
   call tmg_stop(6)
   
   !
   ! Refresh bias correction if requested
   !
-  call tmg_start(8,'REFRESH_BCOR')
+  call utl_tmg_start(8,'--REFRESH_BCOR')
   call bcs_refreshBiasCorrection(obsSpaceData,columnTrlOnAnlIncLev)
   call tmg_stop(8)
 
-  call tmg_start(9,'REGRESSION')
+  call utl_tmg_start(9,'--REGRESSION')
   call bcs_do_regression(columnTrlOnAnlIncLev,obsSpaceData)
   call tmg_stop(9)
 
   ! Write coefficients to file
-  call tmg_start(12,'WRITECOEFFS')
+  call utl_tmg_start(12,'--WRITECOEFFS')
   call bcs_writebias()
   call tmg_stop(12)
 
   !
   ! output O-F statistics befor bias coorection
   !
-  call tmg_start(13,'STATS')
+  call utl_tmg_start(13,'--STATS')
   call bcs_computeResidualsStatistics(obsSpaceData,"_raw")
   call tmg_stop(13)
   !
   ! fill OBS_BCOR with computed bias correction
   !
-  call tmg_start(15,'COMPBIAS')
+  call utl_tmg_start(15,'--COMPBIAS')
   call bcs_calcBias(obsSpaceData,columnTrlOnAnlIncLev)
   call tmg_stop(15)
 
   !
   ! output  O-F statistics after bias coorection
   !
-  call tmg_start(13,'STATS')
-  call  bcs_computeResidualsStatistics(obsSpaceData,"_corrected")
+  call utl_tmg_start(13,'--STATS')
+  call bcs_computeResidualsStatistics(obsSpaceData,"_corrected")
   call tmg_stop(13)
 
   ! Deallocate internal bias correction structures 
@@ -168,9 +168,9 @@ program midas_gencoeff
 
   istamp = exfin('GENCOEFF','FIN','NON')
 
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_GENCOEFF' )
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 

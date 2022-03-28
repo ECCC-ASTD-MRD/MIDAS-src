@@ -928,7 +928,7 @@ module calcStatsGlb_mod
     real(8) :: dfact,dfact2,dsummed
     integer :: ensIndex,ila_mpilocal,ila_mpiglobal,jn,jm,jk1,jk2,latIndex,nsize,ierr
 
-    call tmg_start(3,'CALCCORRELATIONS')
+    call utl_tmg_start(3,'--CALCCORRELATIONS')
 
     corns(:,:,:) = 0.0d0
     do ensIndex = 1, nens
@@ -1047,7 +1047,7 @@ module calcStatsGlb_mod
     integer :: ensIndex, ila_mpilocal, ila_mpiglobal, jn, jm, jk1, jk2
     integer :: levIndex, latIndex, nsize, ierr
 
-    call tmg_start(3,'CALCCORRELATIONS2')
+    call utl_tmg_start(3,'--CALCCORRELATIONS2')
 
     corns(:,:,:) = 0.0d0
     do ensIndex = 1, nens
@@ -2420,7 +2420,7 @@ module calcStatsGlb_mod
     real(8) :: member(myLonBeg:myLonEnd,myLatBeg:myLatend,nkgdimens)
 
     ! Convert from U/V to PSI/CHI and spectrally filter all fields
-    call tmg_start(2,'UV_TO_PSICHI')
+    call utl_tmg_start(2,'--UV_TO_PSICHI')
     dla2   = ec_ra * ec_ra
     do ensIndex=1,nens
       write(*,*) '  doing u/v -> psi/chi and spectral filter for member ', ensIndex

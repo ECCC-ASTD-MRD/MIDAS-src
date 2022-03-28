@@ -313,7 +313,7 @@ contains
       beSilent = .true.
     end if
 
-    call tmg_start(192,'calcHeight_gsv_nl (czp)')
+    call utl_tmg_start(192,'--calcHeight_gsv_nl (czp)')
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_nl (czp): START'
 
@@ -723,7 +723,7 @@ contains
       beSilent = .true.
     end if
 
-    call tmg_start(193,'calcHeight_gsv_tl (czp)')
+    call utl_tmg_start(193,'--calcHeight_gsv_tl (czp)')
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_tl (czp): START'
 
@@ -999,7 +999,7 @@ contains
       beSilent = .true.
     end if
 
-    call tmg_start(194,'calcHeight_gsv_ad (czp)')
+    call utl_tmg_start(194,'--calcHeight_gsv_ad (czp)')
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_ad (czp): START'
 
@@ -2066,7 +2066,7 @@ contains
       beSilent = .true.
     end if
 
-    call tmg_start(193,'calcHeight_col_tl (czp)')
+    call utl_tmg_start(193,'--calcHeight_col_tl (czp)')
 
     if (.not.beSilent) then
       write(*,*) 'calcHeight_col_tl (czp): START'
@@ -2282,7 +2282,7 @@ contains
       beSilent = .true.
     end if
 
-    call tmg_start(194,'calcHeight_col_ad (czp)')
+    call utl_tmg_start(194,'--calcHeight_col_ad (czp)')
 
     if (.not.beSilent) then
       write(*,*) 'calcHeight_col_ad (czp): START'

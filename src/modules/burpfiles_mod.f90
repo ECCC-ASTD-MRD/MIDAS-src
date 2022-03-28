@@ -245,7 +245,7 @@ contains
     ! locals
     integer :: headerIndex
 
-    call tmg_start(93,'POST_UPDATEBRP')
+    call utl_tmg_start(93,'--POST_UPDATEBRP')
 
     write(*,*)
     write(*,*) 'brpf_updateFile: Starting'

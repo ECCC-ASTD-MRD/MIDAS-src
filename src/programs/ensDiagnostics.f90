@@ -51,8 +51,8 @@ program midas_ensDiagnostics
 
   call ver_printNameAndVersion('ensDiagnostics','Program to estimate imbalance in a model integration')
   call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_ENSDIAG')
-  call tmg_start(1,'MAIN')
+  call tmg_init(mpi_myid, 'TMG_INFO')
+  call utl_tmg_start(0,'MAIN')
   ! Avoid printing lots of stuff to listing for std file I/O
   ierr = fstopc('MSGLVL','ERRORS',0)
 
@@ -216,8 +216,8 @@ program midas_ensDiagnostics
     ierr= fclos(unitNum)
   end if
 
-  call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_ENSDIAG')  
+  call tmg_stop(0)
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr)
 
 end program midas_ensDiagnostics      

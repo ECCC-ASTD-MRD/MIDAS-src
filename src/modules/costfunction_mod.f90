@@ -106,7 +106,7 @@ contains
 
     logical :: printJoTovsPerChannelSensor
 
-    call tmg_start(81,'SUMJO')
+    call utl_tmg_start(81,'--SUMJO')
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt

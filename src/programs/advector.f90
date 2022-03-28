@@ -77,8 +77,8 @@ program midas_advector
   call mpi_initialize
 
   !- 1.2 timings
-  call tmg_init(mpi_myid, 'TMG_ADVECTOR' )
-  call tmg_start(1,'MAIN')
+  call tmg_init(mpi_myid, 'TMG_INFO')
+  call utl_tmg_start(0,'MAIN')
 
   !- 1.3 Read namelist options
   fileToAdvec           = 'missing'
@@ -249,8 +249,8 @@ program midas_advector
   !
   write(*,*)
   write(*,*) '> midas-advector: Ending'
-  call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_ADVECTOR' )
+  call tmg_stop(0)
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 

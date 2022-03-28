@@ -75,9 +75,9 @@ program midas_ensembleH
   !- 0. MPI, TMG initialization
   !
   call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_ENSEMBLEH' )
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
+  call utl_tmg_start(0,'MAIN')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Avoid printing lots of stuff to listing for std file I/O
@@ -122,7 +122,7 @@ program midas_ensembleH
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  call tmg_start(4,'SETUPOBS')
+  call utl_tmg_start(4,'--SETUPOBS')
   ! read in the observations
   call inn_setupObs( obsSpaceData, hco_ens, obsColumnMode, obsMpiStrategy, midasMode )
 
@@ -158,7 +158,7 @@ program midas_ensembleH
   do memberIndex = 1, nEns
     write(*,*) ''
     write(*,*) 'midas-ensembleH: read member ', memberIndex
-    call tmg_start(3,'READ_ENSEMBLE')
+    call utl_tmg_start(3,'--READ_ENSEMBLE')
     call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, copyToRamDisk_opt=.false.  )
     call gsv_readFile( stateVector, ensFileName, ' ', ' ', containsFullField=.true., &
                        readHeightSfc_opt=.true. )
@@ -170,7 +170,7 @@ program midas_ensembleH
     write(*,*) ''
     write(*,*) 'midas-ensembleH: call s2c_nl for member ', memberIndex
     write(*,*) ''
-    call tmg_start(6,'SETUP_COLS')
+    call utl_tmg_start(6,'--SETUP_COLS')
     dealloc = .false.
     if ( memberIndex == nEns ) dealloc = .true.
     call s2c_nl( stateVector_tiles, obsSpaceData, column, hco_ens, timeInterpType='LINEAR', dealloc_opt=dealloc )
@@ -179,7 +179,7 @@ program midas_ensembleH
     write(*,*) ''
     write(*,*) 'midas-ensembleH: apply nonlinear H to member ', memberIndex
     write(*,*) ''
-    call tmg_start(7,'OBSOPER')
+    call utl_tmg_start(7,'--OBSOPER')
     beSilent = .true.
     if ( memberIndex == 1 ) beSilent = .false.
     call inn_computeInnovation(column, obsSpaceData, beSilent_opt=beSilent)
@@ -194,7 +194,7 @@ program midas_ensembleH
   call gsv_deallocate( stateVector )
 
   ! Clean and globally communicate obs-related data, then write to files
-  call tmg_start(8,'OBS&HX_MPIANDWRITE')
+  call utl_tmg_start(8,'--OBS&HX_MPIANDWRITE')
   call eob_allGather(ensObs,ensObs_mpiglobal)
   call eob_writeToFiles(ensObs_mpiglobal)
   call tmg_stop(8)
@@ -203,9 +203,9 @@ program midas_ensembleH
   !- MPI, tmg finalize
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_ENSEMBLEH' )
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'

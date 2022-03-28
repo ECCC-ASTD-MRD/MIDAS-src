@@ -59,9 +59,9 @@ program midas_ensPostProcess
   !- 0. MPI, TMG and misc. initialization
   !
   call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_LETKF')
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
+  call utl_tmg_start(0,'MAIN')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Avoid printing lots of stuff to listing for std file I/O
@@ -193,7 +193,7 @@ program midas_ensPostProcess
   end if
 
   !- 4. Post processing of the analysis results (if desired) and write everything to files
-  call tmg_start(8,'LETKF-postProcess')
+  call utl_tmg_start(8,'--LETKF-postProcess')
   call epp_postProcess(ensembleTrl, ensembleAnl, &
                        stateVectorHeightSfc, stateVectorCtrlTrl, &
                        writeTrlEnsemble)
@@ -203,9 +203,9 @@ program midas_ensPostProcess
   !- 5. MPI, tmg finalize
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_LETKF')
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'

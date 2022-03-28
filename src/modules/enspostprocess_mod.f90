@@ -304,7 +304,7 @@ contains
       !- Impose limits on humidity *before* recentering, if requested
       if (huLimitsBeforeRecenter) then
         if (imposeSaturationLimit .or. imposeRttovHuLimits) then
-          call tmg_start(102,'LETKF-imposeHulimits')
+          call utl_tmg_start(102,'--LETKF-imposeHulimits')
           if (mpi_myid == 0) write(*,*) ''
           if (mpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the humidity of analysis ensemble'
           if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
@@ -334,7 +334,7 @@ contains
       !- Impose limits on humidity *after* recentering, if requested
       if (.not.huLimitsBeforeRecenter) then
         if (imposeSaturationLimit .or. imposeRttovHuLimits) then
-          call tmg_start(102,'LETKF-imposeHulimits')
+          call utl_tmg_start(102,'--LETKF-imposeHulimits')
           if (mpi_myid == 0) write(*,*) ''
           if (mpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the humidity of analysis ensemble'
           if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
@@ -399,7 +399,7 @@ contains
         end if
         write(*,*) 'epp_postProcess: randomSeed for additive inflation set to ', &
              randomSeedRandomPert
-        call tmg_start(101,'LETKF-randomPert')
+        call utl_tmg_start(101,'--LETKF-randomPert')
         if (ens_isAllocated(ensembleTrl)) then
           call epp_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, &
                randomSeedRandomPert, useMemberAsHuRefState)
@@ -444,7 +444,7 @@ contains
           end if
           write(*,*) 'epp_postProcess: randomSeed for additive inflation set to ', &
                randomSeedRandomPert
-          call tmg_start(101,'LETKF-randomPert')
+          call utl_tmg_start(101,'--LETKF-randomPert')
           call epp_addRandomPert(ensembleAnlSubSample, stateVectorMeanTrl,  &
                                  alphaRandomPertSubSample, randomSeedRandomPert, &
                                  useMemberAsHuRefState)
@@ -600,7 +600,7 @@ contains
     !
     !- Output everything
     !
-    call tmg_start(4,'LETKF-writeOutput')
+    call utl_tmg_start(4,'--LETKF-writeOutput')
 
     !- Output ens stddev and mean in trialrms, analrms and analpertrms files
 
@@ -628,7 +628,7 @@ contains
 
       ! output the trial ensemble if requested (because it was interpolated)
       if (writeTrlEnsemble) then
-        call tmg_start(104,'LETKF-writeEns')
+        call utl_tmg_start(104,'--LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleTrl, '.', '', etiket_trl, 'P',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
@@ -739,7 +739,7 @@ contains
         end do
 
         !- Output all ensemble member increments
-        call tmg_start(104,'LETKF-writeEns')
+        call utl_tmg_start(104,'--LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlInc, '.', '', etiket_inc, 'R',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
@@ -768,7 +768,7 @@ contains
 
       !- Output all ensemble member analyses
       ! convert transformed to model variables for analysis and trial ensembles
-      call tmg_start(104,'LETKF-writeEns')
+      call utl_tmg_start(104,'--LETKF-writeEns')
       if (.not. outputOnlyEnsMean) then
         call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
@@ -804,7 +804,7 @@ contains
         end do
 
         ! Output the sub-sampled analysis ensemble members
-        call tmg_start(104,'LETKF-writeEns')
+        call utl_tmg_start(104,'--LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', etiket_anl, 'A',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
@@ -813,7 +813,7 @@ contains
         call tmg_stop(104)
 
         ! Output the sub-sampled ensemble increments (include MeanAnl Psfc)
-        call tmg_start(104,'LETKF-writeEns')
+        call utl_tmg_start(104,'--LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlIncSubSample, 'subspace', '', etiket_inc, 'R',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
@@ -834,7 +834,7 @@ contains
       if (writeSubSampleUnPert) then
 
         ! Output the sub-sampled analysis ensemble members
-        call tmg_start(104,'LETKF-writeEns')
+        call utl_tmg_start(104,'--LETKF-writeEns')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', etiket_anl, 'A',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &

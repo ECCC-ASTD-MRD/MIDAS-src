@@ -76,9 +76,9 @@ program midas_randomPert
   !- 0. MPI, tmg initialization
   !
   call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_RANDOMPERT' )
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
+  call utl_tmg_start(0,'MAIN')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ierr = fstopc('MSGLVL','ERRORS',0)
@@ -214,7 +214,7 @@ program midas_randomPert
 
     !- 4.1.1 Create a random control vector in spectral space
 
-    call tmg_start(32, 'RANDOM_GEN')
+    call utl_tmg_start(32, '--RANDOM_GEN')
     if( mpiTopoIndependent ) then
       !- Global vector (for testing different mpi topology, less efficient)
       do cvIndex = 1, cvm_nvadim_mpiglobal
@@ -409,12 +409,12 @@ program midas_randomPert
   deallocate(controlVector_mpiglobal)  
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(1)
+  call tmg_stop(0)
 
   !
   !- 6.  MPI, tmg finalize
   !  
-  call tmg_terminate(mpi_myid, 'TMG_RANDOMPERT' )
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'

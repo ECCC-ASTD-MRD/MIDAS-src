@@ -1277,7 +1277,7 @@ contains
     !- 1.  Set some options
     !
     if (verbose) write(*,*) 'Entering lst_transform1d'
-    call tmg_start(24,'LST_FFT')
+    call utl_tmg_start(24,'--LST_FFT')
 
     !- 1.1 Transform Direction
     select case (trim(TransformDirection))
@@ -1381,7 +1381,7 @@ contains
     !- 1.  Set some options
     !
     if (verbose) write(*,*) 'Entering lst_transform1d_kij'
-    call tmg_start(24,'LST_FFT')
+    call utl_tmg_start(24,'--LST_FFT')
 
     !- 1.1 Transform Direction
     select case (trim(TransformDirection))
@@ -1476,7 +1476,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mpi_npex-1)
@@ -1527,7 +1527,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
 
     nsize = lst%lonPerPE * lst%maxLevCount * lst%latPerPE
     if (mpi_npex > 1) then
@@ -1560,7 +1560,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,lonIndex,lonIndex2)
     do yourid = 0, (mpi_npex-1)
@@ -1624,7 +1624,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do levIndex = lst%myLevBeg, lst%myLevEnd
@@ -1675,7 +1675,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
 
     nsize = lst%lonPerPE*lst%maxLevCount*lst%latPerPE
     if (mpi_npex > 1) then
@@ -1708,7 +1708,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(28,'TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
     
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2,lonIndex,lonIndex2,latIndex,latIndex2)
     do yourid = 0, (mpi_npex-1)
@@ -1771,7 +1771,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LatToM'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(27,'TRANSP_2D_MtoLAT')
+    call utl_tmg_start(27,'--TRANSP_2D_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mpi_npey-1)
@@ -1844,7 +1844,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LatToM_kij'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(27,'TRANSP_2D_MtoLAT')
+    call utl_tmg_start(27,'--TRANSP_2D_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mpi_npey-1)
@@ -1917,7 +1917,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_MToLat'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(27,'TRANSP_2D_MtoLAT')
+    call utl_tmg_start(27,'--TRANSP_2D_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mpi_npey-1)
@@ -1990,7 +1990,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_MToLat_kij'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(27,'TRANSP_2D_MtoLAT')
+    call utl_tmg_start(27,'--TRANSP_2D_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
     do yourid = 0, (mpi_npey-1)
@@ -2064,7 +2064,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToN'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(26,'TRANSP_2D_LEVtoN')
+    call utl_tmg_start(26,'--TRANSP_2D_LEVtoN')
 
     !$OMP PARALLEL DO PRIVATE(yourid,mIndex,levIndex,levIndex2,nIndex,icount)
     do yourid = 0, (mpi_npex-1)
@@ -2127,7 +2127,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_LevToN_kij'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(26,'TRANSP_2D_LEVtoN')
+    call utl_tmg_start(26,'--TRANSP_2D_LEVtoN')
 
     !$OMP PARALLEL DO PRIVATE(yourid,mIndex,levIndex,levIndex2,nIndex,icount)
     do yourid = 0, (mpi_npex-1)
@@ -2190,7 +2190,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_NToLev'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(26,'TRANSP_2D_LEVtoN')
+    call utl_tmg_start(26,'--TRANSP_2D_LEVtoN')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mpi_npex-1)
@@ -2258,7 +2258,7 @@ contains
     if (verbose) write(*,*) 'Entering transpose2d_NToLev_kij'
     call rpn_comm_barrier("GRID",ierr)
 
-    call tmg_start(26,'TRANSP_2D_LEVtoN')
+    call utl_tmg_start(26,'--TRANSP_2D_LEVtoN')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do yourid = 0, (mpi_npex-1)

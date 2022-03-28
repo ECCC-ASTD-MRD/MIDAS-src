@@ -133,7 +133,7 @@ contains
       real(4) :: heightInterp_r4, heightIntersect_r4, heightDiff_r4
 
       ! find the interpolated height 
-      call tmg_start(197,'heightBilinearInterp')
+      call utl_tmg_start(197,'--heightBilinearInterp')
       call heightBilinearInterp(lat, lon, hco, heightField2D, heightInterp_r4)
       call tmg_stop(197)
 
@@ -143,12 +143,12 @@ contains
 
         numIteration = numIteration + 1
 
-        call tmg_start(196,'findIntersectLatlon')
+        call utl_tmg_start(196,'--findIntersectLatlon')
         call findIntersectLatlon(obsSpaceData, headerIndex, heightInterp_r4, azimuthAngle, latSlant, lonSlant)
         call tmg_stop(196)
 
         ! find the interpolated height 
-        call tmg_start(197,'heightBilinearInterp')
+        call utl_tmg_start(197,'--heightBilinearInterp')
         call heightBilinearInterp(latSlant, lonSlant, hco, heightField2D, heightIntersect_r4)
         call tmg_stop(197)
 

@@ -2521,7 +2521,7 @@ CONTAINS
         !  MPI communication: from 1 ensemble member per process to 1 lat-lon tile per process  
         if (readFilePE(memberIndex) == (mpi_nprocs-1) .or. memberIndex == ens%numMembers) then
 
-          call tmg_start(13,'PRE_SUENS_COMM')
+          call utl_tmg_start(13,'--PRE_SUENS_COMM')
           batchnum = ceiling(dble(memberIndex)/dble(mpi_nprocs))
 
           ! determine which tasks have something to send and let everyone know
@@ -2595,7 +2595,7 @@ CONTAINS
               gd_recv_r4(:,:,:,1) = gd_send_r4(:,:,:,1)
             end if
 
-            call tmg_start(110,'ENS_TO_ONELEV')
+            call utl_tmg_start(110,'--ENS_TO_ONELEV')
             !$OMP PARALLEL DO PRIVATE(kCount,memberIndex2,yourid)
             do kCount = 1, numLevelsToSend2
               do memberIndex2 = 1+(batchnum-1)*mpi_nprocs, memberIndex
@@ -2784,7 +2784,7 @@ CONTAINS
         !  MPI communication: from 1 lat-lon tile per process to 1 ensemble member per process
         if (writeFilePE(memberIndex) == 0) then
 
-          call tmg_start(13,'PRE_SUENS_COMM')
+          call utl_tmg_start(13,'--PRE_SUENS_COMM')
           batchnum = ceiling(dble(memberIndex + mpi_nprocs - 1)/dble(mpi_nprocs))
 
           do kIndexBeg = 1, numK, numLevelsToSend

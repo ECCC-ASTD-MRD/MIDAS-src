@@ -295,7 +295,7 @@ contains
       case ('HI')
 
         !- 2.1 Time-Mean Homogeneous and Isotropic...
-        call tmg_start(50,'B_HI')
+        call utl_tmg_start(50,'--B_HI')
         if ( globalGrid ) then
           call bhi_bsqrt( subVector,        &  ! IN
                           statevector_temp, &  ! OUT
@@ -310,7 +310,7 @@ contains
       case ('LATB')
 
         !- 2.2 Time-Mean Lat-Bands...
-        call tmg_start(50,'B_HI')
+        call utl_tmg_start(50,'--B_HI')
         if ( globalGrid ) then
           call blb_bsqrt( subVector,       & ! IN
                           statevector_temp ) ! OUT
@@ -320,7 +320,7 @@ contains
       case ('CHM')
 
         !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
-        call tmg_start(123,'B_CHM')
+        call utl_tmg_start(123,'--B_CHM')
         if ( globalGrid ) then
           call bchm_bsqrt( subVector,        &  ! IN
                            statevector_temp, &  ! OUT
@@ -337,7 +337,7 @@ contains
       case ('ENS')
 
         !- 2.5 Flow-dependent Ensemble-Based
-        call tmg_start(60,'B_ENS')
+        call utl_tmg_start(60,'--B_ENS')
         call ben_bsqrt( bmatInstanceID(bmatIndex), subVector, & ! IN
                         statevector_temp,                     & ! OUT
                         useFSOFcst_opt, stateVectorRef_opt )    ! IN
@@ -405,7 +405,7 @@ contains
       case ('ENS')
 
         !- 2.1 Flow-dependent Ensemble-Based
-        call tmg_start(61,'B_ENS_T')
+        call utl_tmg_start(61,'--B_ENS_T')
 
         call ben_bsqrtad( bmatInstanceID(bmatIndex), statevector_temp, &  ! IN
                           subVector,                                   &  ! OUT
@@ -421,7 +421,7 @@ contains
       case ('CHM')
 
         !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
-        call tmg_start(124,'B_CHM_T')
+        call utl_tmg_start(124,'--B_CHM_T')
         if ( globalGrid ) then
           call bchm_bsqrtad( statevector_temp, &  ! IN
                              subVector,        &  ! OUT
@@ -432,7 +432,7 @@ contains
       case ('LATB')
 
         !- 2.4 Time-Mean Lat-Bands...
-        call tmg_start(51,'B_HI_T')
+        call utl_tmg_start(51,'--B_HI_T')
         if ( globalGrid ) then
           call blb_bsqrtad( statevector_temp, & ! IN
                             subVector )         ! OUT
@@ -442,7 +442,7 @@ contains
       case ('HI')
 
         !- 2.5 Time-Mean Homogeneous and Isotropic...
-        call tmg_start(51,'B_HI_T')
+        call utl_tmg_start(51,'--B_HI_T')
         if ( globalGrid ) then
           call bhi_bsqrtad( statevector_temp, &  ! IN
                             subVector,        &  ! OUT

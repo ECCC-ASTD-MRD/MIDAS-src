@@ -131,7 +131,7 @@ CONTAINS
 
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleFactorCC,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
 
-    call tmg_start(15,'BHI_SETUP')
+    call utl_tmg_start(15,'--BHI_SETUP')
     if(mpi_myid == 0) write(*,*) 'bhi_setup: starting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -2778,7 +2778,7 @@ CONTAINS
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call tmg_start(59,'BHI_COMM')
+    call utl_tmg_start(59,'--BHI_COMM')
     call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
                          cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
     call tmg_stop(59)
@@ -2907,7 +2907,7 @@ CONTAINS
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call tmg_start(59,'BHI_COMM')
+    call utl_tmg_start(59,'--BHI_COMM')
     call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_real4",  &
                          cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_real4", 0, "GRID", ierr )
     call tmg_stop(59)
@@ -3184,7 +3184,7 @@ CONTAINS
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_start(55,'BHI_SPEREE') 
+    call utl_tmg_start(55,'--BHI_SPEREE') 
     call gst_setID(gstID)
     call gst_speree(sp,gd)
     call gst_setID(gstID2)
@@ -3245,7 +3245,7 @@ CONTAINS
 
     sp(:,:,:) = 0.0d0
 
-    call tmg_start(56,'BHI_REESPE') 
+    call utl_tmg_start(56,'--BHI_REESPE') 
     call gst_setID(gstID)
     call gst_reespe(sp,gd)
     call tmg_stop(56) 
@@ -3274,7 +3274,7 @@ CONTAINS
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_start(57,'BHI_SPGD_SPGDA')
+    call utl_tmg_start(57,'--BHI_SPGD_SPGDA')
     call gst_setID(gstID)
     call gst_spgd(sp,gd,nlev_M)
     call tmg_stop(57)
@@ -3323,7 +3323,7 @@ CONTAINS
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_start(57,'BHI_SPGD_SPGDA')
+    call utl_tmg_start(57,'--BHI_SPGD_SPGDA')
     call gst_setID(gstID)
     call gst_spgda(sp,gd,nlev_M)
     call tmg_stop(57)
@@ -3342,7 +3342,7 @@ CONTAINS
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_start(55,'BHI_SPEREE') 
+    call utl_tmg_start(55,'--BHI_SPEREE') 
     call gst_setID(gstID)
     call gst_speree(sp,gd)
     call tmg_stop(55) 
@@ -3399,7 +3399,7 @@ CONTAINS
     enddo
     !$OMP END PARALLEL DO 
 
-    call tmg_start(56,'BHI_REESPE') 
+    call utl_tmg_start(56,'--BHI_REESPE') 
     call gst_setID(gstID)
     call gst_reespe(sp,gd)
     call gst_setID(gstID2)

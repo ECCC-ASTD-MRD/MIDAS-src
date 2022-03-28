@@ -231,7 +231,7 @@ contains
     integer             :: headerIndex, idatyp, sensorIndex, instrumentIndex
     logical             :: irDataPresent
 
-    call tmg_start(3,'BGCHECKIR')
+    call utl_tmg_start(3,'--BGCHECKIR')
 
     irDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')

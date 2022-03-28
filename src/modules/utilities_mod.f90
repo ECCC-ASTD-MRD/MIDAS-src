@@ -39,6 +39,7 @@ module utilities_mod
   public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt
+  public :: utl_tmg_start
 
   ! module interfaces
   ! -----------------
@@ -2521,7 +2522,7 @@ contains
 
     write(*,*) 'utl_copyFile: copy from ', trim(filein), ' to ', trim(fileout)
 
-    call tmg_start(170,'CopyFile')
+    call utl_tmg_start(170,'CopyFile')
 
     unitin=10
     open(unit=unitin, file=trim(filein), status='OLD', form='UNFORMATTED', &
@@ -2766,5 +2767,30 @@ contains
     deallocate(realRandomArray)
 
   end subroutine utl_randomOrderInt
+
+  !--------------------------------------------------------------------------
+  ! utl_tmg_start
+  !--------------------------------------------------------------------------
+  subroutine utl_tmg_start(blockIndex, blockLabel)
+    ! :Purpose: Wrapper for rpnlib subroutine tmg_start
+
+    implicit none
+
+    ! Arguments:
+    integer,          intent(in) :: blockIndex
+    character(len=*), intent(in) :: blockLabel
+
+    ! Locals:
+    integer            :: labelLength
+    integer, parameter :: labelPaddedLength = 30
+    character(len=labelPaddedLength) :: blockLabelPadded
+
+    blockLabelPadded = '..............................'
+    labelLength = min(len_trim(blockLabel), labelPaddedLength)
+    blockLabelPadded(1:labelLength) = blockLabel(1:labelLength)
+
+    call tmg_start(blockIndex, blockLabelPadded)
+
+  end subroutine utl_tmg_start
   
 end module utilities_mod

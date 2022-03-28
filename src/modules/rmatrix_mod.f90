@@ -256,7 +256,7 @@ module rMatrix_mod
         end do
       end do
       ! Calculation of R**-1/2
-      call tmg_start(95,'RMAT_MATSQRT')
+      call utl_tmg_start(95,'--RMAT_MATSQRT')
       call utl_matSqrt(Rsub,nsubset,-1.d0,.false.)
       call tmg_stop(95)
       allocate(R_tovs(indexTovs)%Rmat(nsubset,nsubset))
@@ -267,7 +267,7 @@ module rMatrix_mod
       end do
     end if
 
-    call tmg_start(96,'RMAT_MATMUL')
+    call utl_tmg_start(96,'--RMAT_MATMUL')
     alpha = 1.d0
     beta = 0.d0
     obsOut = 0.d0

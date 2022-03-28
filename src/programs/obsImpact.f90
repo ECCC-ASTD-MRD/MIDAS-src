@@ -91,11 +91,11 @@ program midas_obsimpact
   ! MPI initilization
   call mpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_OBSIMPACT' )
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
+  call utl_tmg_start(0,'MAIN')
 
-  call tmg_start(2,'PREMIN')
+  call utl_tmg_start(2,'--PREMIN')
 
   if (mpi_myid == 0) then
     call utl_writeStatus('VAR3D_BEG')
@@ -254,9 +254,9 @@ program midas_obsimpact
     call utl_writeStatus('VAR3D_END')
   endif
 
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_OBSIMPACT' )
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr)
 
@@ -554,7 +554,7 @@ contains
              /,10X,"IMPRES =",I3,2X,"NITER = ",I3,2X,"NSIM = ",I3)') zxmin,zdf1,zeps,impres,itermax,isimmax
 
     ! Do the minimization
-    call tmg_start(70,'QN')
+    call utl_tmg_start(70,'--QN')
     call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim, zhat,  &
                    zjsp, gradJ, zxmin, zdf1, zeps, impres, nulout, imode,   &
                    itermax,isimmax, iztrl, vatra, nmtra, intunused, rspunused,  &
@@ -701,7 +701,7 @@ contains
     type(struct_vco), pointer :: vco_anl
     if (indic == 1 .or. indic == 4) call tmg_stop(70)
 
-    call tmg_start(80,'MIN_SIMVAR')
+    call utl_tmg_start(80,'--MIN_SIMVAR')
     if (indic /= 1) then ! No action taken if indic == 1
       fso_nsim = fso_nsim + 1
 
@@ -724,10 +724,10 @@ contains
 
       call bmat_sqrtB(ahat_vhat,nvadim_mpilocal,statevector)
 
-      call tmg_start(30,'OBS_INTERP')
+      call utl_tmg_start(30,'--OBS_INTERP')
       call s2c_tl(statevector,column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
       call tmg_stop(30)
-      call tmg_start(40,'OBS_TL')
+      call utl_tmg_start(40,'--OBS_TL')
       call oop_Htl(column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,fso_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
       call tmg_stop(40)
 
@@ -750,11 +750,11 @@ contains
 
       call col_zero(column_ptr)
 
-      call tmg_start(41,'OBS_AD')
+      call utl_tmg_start(41,'--OBS_AD')
       call oop_Had(column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)   ! Put in column : H_vert**T R**-1 (Hdx)
       call tmg_stop(41)
 
-      call tmg_start(31,'OBS_INTERPAD')
+      call utl_tmg_start(31,'--OBS_INTERPAD')
       call s2c_ad(statevector,column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx)
       call tmg_stop(31)
 
@@ -767,7 +767,7 @@ contains
       end if
     end if
     call tmg_stop(80)
-    if (indic == 1 .or. indic == 4) call tmg_start(70,'QN')
+    if (indic == 1 .or. indic == 4) call utl_tmg_start(70,'--QN')
 
     if (mpi_myid == 0) write(*,*) 'end of simvar'
 

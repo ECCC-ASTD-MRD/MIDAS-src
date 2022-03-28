@@ -223,7 +223,7 @@ CONTAINS
     ! Compute the analysis
     if( mpi_myid == 0 ) write(*,*) ''
     if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: compute the analysis'
-    call tmg_start(181,'INC_COMPUTEANL')
+    call utl_tmg_start(181,'--INC_COMPUTEANL')
 
     ! Interpolate low-res increments to high-res and add to the initial state
     call gsv_allocate( stateVectorHighRes, tim_nstepobs, hco_trl, vco_trl, &
@@ -356,7 +356,7 @@ CONTAINS
     call gvt_transform(stateVectorAnal, 'AllTransformedToModel', allowOverWrite_opt = .true.)
 
     ! Impose limits on humidity analysis
-    call tmg_start(182, 'INC_QLIMITS')
+    call utl_tmg_start(182, '--INC_QLIMITS')
     write(*,*) 'inc_analPostProcessing: calling qlim_saturationLimit'
     call qlim_saturationLimit(stateVectorAnal)
     if (imposeRttovHuLimits) call qlim_rttovLimit(stateVectorAnal)
@@ -449,7 +449,7 @@ CONTAINS
                       varNames_opt=varNames )
 
     ! Recompute increments and write out the files in parallel with respect to time steps
-    call tmg_start(183,'INC_WRITEANLMREHM')
+    call utl_tmg_start(183,'--INC_WRITEANLMREHM')
     call gsv_copy(stateVectorAnal, stateVectorIncHighRes)
     call gsv_add(stateVectorTrial, stateVectorIncHighRes, -1.0d0)
 

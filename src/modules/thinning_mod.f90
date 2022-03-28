@@ -3748,7 +3748,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     call thn_QsortInt(qualityMpi,headerIndexSorted)
 
     validMpi(:) = .false.
-    call tmg_start(144,'bruteThinning')
+    call utl_tmg_start(144,'--bruteThinning')
     STNIDLOOP: do stnIdIndex = 1, numStnId
       write(*,*) 'thn_satWindsByDistance: applying thinning for: ', &
                  trim(stnidList(stnIdIndex))
@@ -3778,7 +3778,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
           ! On compte le nombre d'observations qui sont deja
           ! selectionnees avec les memes parametres 'obsStepIndex' et 'obsLayerIndex'
           ! que l'observation consideree ici.
-          call tmg_start(145,'countLoop')
+          call utl_tmg_start(145,'--countLoop')
           obsAlreadySameStep = .false.
           OBSLOOP2: do obsIndex2 = 1, numSelected
             headerIndex2 = headerIndexSelected(obsIndex2)
@@ -3796,7 +3796,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
           call tmg_stop(145)
 
           if ( obsAlreadySameStep ) then
-            call tmg_start(146,'distanceLoop')
+            call utl_tmg_start(146,'--distanceLoop')
             ! Calcule les distances entre la donnee courante et toutes celles choisies 
             ! precedemment.
             skipThisObs = .false.
@@ -3849,7 +3849,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     call tmg_stop(144)
 
     ! communicate values of validMpi computed on each mpi task
-    call tmg_start(147,'reduceKeepObs')
+    call utl_tmg_start(147,'--reduceKeepObs')
     nsize = numHeaderMaxMpi * mpi_nprocs
     call rpn_comm_allReduce(validMpi, validMpi2, nsize, 'mpi_logical', &
                             'mpi_lor','grid',ierr)

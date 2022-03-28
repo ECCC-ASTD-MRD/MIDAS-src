@@ -56,16 +56,16 @@ program midas_pseudoSSTobs
   ! MPI initialization
   call mpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_pseudoSSTobs')
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
+  call utl_tmg_start(0,'MAIN')
  
   ! 1. Top level setup
 
   call ram_setup()
  
   ! Do initial set up
-  call tmg_start(2,'SETUP')
+  call utl_tmg_start(2,'--SETUP')
   call pseudoSSTobs_setup()
   call tmg_stop(2)
 
@@ -76,9 +76,9 @@ program midas_pseudoSSTobs
 
   istamp = exfin('pseudoSSTobs','FIN','NON')
 
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_pseudoSSTobs')
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 

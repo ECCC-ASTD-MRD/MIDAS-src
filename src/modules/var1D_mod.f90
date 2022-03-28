@@ -102,7 +102,7 @@ contains
  
     NAMELIST /NAMVAR1D/ scaleFactor, scaleFactorLQ
 
-    call tmg_start(15,'BHI1D_SETUP')
+    call utl_tmg_start(15,'--BHI1D_SETUP')
     if(mpi_myid == 0) write(*,*) 'var1D_setup: Starting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
@@ -624,7 +624,7 @@ contains
       select case( trim(bmatTypeList(bmatIndex)) )
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
-        call tmg_start(50,'B_HI')
+        call utl_tmg_start(50,'--B_HI')
         call var1D_bsqrtHi( subVector,   &  ! IN
                             column,      &  ! OUT
                             obsspacedata )  ! IN
@@ -660,7 +660,7 @@ contains
       select case( trim(bmatTypeList(bmatIndex)) )
       case ('HI')
         !- 2.5 Time-Mean Homogeneous and Isotropic...
-        call tmg_start(51,'B_HI_T')
+        call utl_tmg_start(51,'--B_HI_T')
         call var1D_bsqrtHiAd( subvector, &  ! IN
                               column,    &  ! OUT
                               obsData )     ! IN

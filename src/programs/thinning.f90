@@ -49,8 +49,8 @@ program midas_thinning
   ! MPI initilization
   call mpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_THIN' )
-  call tmg_start(1,'MAIN')
+  call tmg_init(mpi_myid, 'TMG_INFO')
+  call utl_tmg_start(0,'MAIN')
 
   ! 1. Top level setup
 
@@ -69,9 +69,9 @@ program midas_thinning
   call filt_setup('bgck')
 
   !- Read observations
-  call tmg_start(2,'READ_OBS')
+  call utl_tmg_start(1,'--Read_Obs')
   call obsf_readFiles( obsSpaceData )
-  call tmg_stop(2)
+  call tmg_stop(1)
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -120,8 +120,8 @@ program midas_thinning
   !- deallocate obsSpaceData
   call obs_finalize(obsSpaceData)
 
-  call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_THIN' )
+  call tmg_stop(0)
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr)
 

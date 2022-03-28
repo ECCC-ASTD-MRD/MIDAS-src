@@ -213,7 +213,7 @@ module BmatrixChem_mod
        return
     end if
 
-    call tmg_start(120,'bchm_SETUP')
+    call utl_tmg_start(120,'--bchm_SETUP')
 
     numvar3d = 0
     numvar2d = 0
@@ -2207,7 +2207,7 @@ module BmatrixChem_mod
     integer :: levelIndex, lonIndex, latIndex
     real(8), target  :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim)
 
-    call tmg_start(82,'bchm_SPA2GD1')
+    call utl_tmg_start(82,'--bchm_SPA2GD1')
 
     ! maybe not needed:
     sp(:,:,:) = 0.0d0
@@ -2281,13 +2281,13 @@ module BmatrixChem_mod
     enddo
 !$OMP END PARALLEL DO
 
-    call tmg_start(127,'bchm_SPEREE')
+    call utl_tmg_start(127,'--bchm_SPEREE')
     call gst_setID(gstID)
     call gst_speree(sp,gd)
     call gst_setID(gstID2)
     call tmg_stop(127)
 
-    call tmg_start(85,'bchm_SPA2GD2')
+    call utl_tmg_start(85,'--bchm_SPA2GD2')
 
 !$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,lonIndex)
     do levelIndex = 1, nkgdim
@@ -2344,7 +2344,7 @@ module BmatrixChem_mod
     enddo
 !$OMP END PARALLEL DO
 
-   call tmg_start(85,'bchm_SPA2GD2')
+   call utl_tmg_start(85,'--bchm_SPA2GD2')
 
 !$OMP PARALLEL DO PRIVATE(latIndex,levelIndex,lonIndex)
    do levelIndex = 1, nkgdim
@@ -2358,12 +2358,12 @@ module BmatrixChem_mod
 
     call tmg_stop(85)
 
-    call tmg_start(86,'bchm_REESPE')
+    call utl_tmg_start(86,'--bchm_REESPE')
     call gst_setID(gstID)
     call gst_speree_ad(sp,gd)
     call tmg_stop(86)
 
-    call tmg_start(82,'bchm_SPA2GD1')
+    call utl_tmg_start(82,'--bchm_SPA2GD1')
 
     hiControlVector_out(:,:,:) = 0.0d0
     sq2 = sqrt(2.0d0)
@@ -2875,7 +2875,7 @@ module BmatrixChem_mod
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call tmg_start(128,'bchm_COMM')
+    call utl_tmg_start(128,'--bchm_COMM')
     call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
                          cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
     call tmg_stop(128)
@@ -3011,7 +3011,7 @@ module BmatrixChem_mod
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call tmg_start(128,'bchm_COMM')
+    call utl_tmg_start(128,'--bchm_COMM')
     call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_real4",  &
                          cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_real4", 0, "GRID", ierr )
     call tmg_stop(128)

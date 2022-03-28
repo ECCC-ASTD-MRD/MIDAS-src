@@ -100,7 +100,7 @@ CONTAINS
     
     NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, useImplicit, scaleFactor, stddevMode, homogeneous_std
 
-    call tmg_start(17,'BDIFF_SETUP')
+    call utl_tmg_start(17,'--BDIFF_SETUP')
     if(mpi_myid == 0) write(*,*) myName//': starting'
     if(mpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 

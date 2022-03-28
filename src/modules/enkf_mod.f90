@@ -305,7 +305,7 @@ contains
       !
       ! First post all recv instructions for communication of weights
       !
-      call tmg_start(103,'LETKF-commWeights')
+      call utl_tmg_start(103,'--LETKF-commWeights')
       numSend = 0
       numRecv = 0
       do latLonIndex = 1, myNumLatLonRecv
@@ -350,7 +350,7 @@ contains
         end if
 
         ! Get list of nearby observations and distances to gridpoint
-        call tmg_start(9,'LETKF-getLocalBodyIndices')
+        call utl_tmg_start(9,'--LETKF-getLocalBodyIndices')
         numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
                                               distances, anlLat, anlLon, anlVertLocation,  &
                                               hLocalize(hLocIndex), vLocalize, numLocalObsFound)
@@ -360,14 +360,14 @@ contains
         end if
         call tmg_stop(9)
 
-        call tmg_start(91,'LETKF-calcWeights')
+        call utl_tmg_start(91,'--LETKF-calcWeights')
 
         ! Extract initial quantities YbTinvR and first term of PaInv (YbTinvR*Yb)
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
 
           ! Compute value of localization function
-          call tmg_start(18,'LETKF-locFunction')
+          call utl_tmg_start(18,'--LETKF-locFunction')
           ! Horizontal
           localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
           ! Vertical - use pressures at the grid point (not obs) location
@@ -412,7 +412,7 @@ contains
 
             ! Compute Pa and sqrt(Pa) matrices from PaInv
             Pa(:,:) = PaInv(:,:)
-            call tmg_start(90,'LETKF-eigenDecomp')
+            call utl_tmg_start(90,'--LETKF-eigenDecomp')
             call utl_matInverse(Pa, nEns, inverseSqrt_opt=PaSqrt)
             call tmg_stop(90)
 
@@ -446,7 +446,7 @@ contains
             !
 
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-            call tmg_start(90,'LETKF-eigenDecomp')
+            call utl_tmg_start(90,'--LETKF-eigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
             call tmg_stop(90)
@@ -495,7 +495,7 @@ contains
             do subEnsIndex = 1, numSubEns
 
               ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
-              call tmg_start(90,'LETKF-eigenDecomp')
+              call utl_tmg_start(90,'--LETKF-eigenDecomp')
               do memberIndexCV2 = 1, nEnsIndependentPerSubEns
                 memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
                 do memberIndexCV1 = 1, nEnsIndependentPerSubEns
@@ -572,7 +572,7 @@ contains
             !
 
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-            call tmg_start(90,'LETKF-eigenDecomp')
+            call utl_tmg_start(90,'--LETKF-eigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
             call tmg_stop(90)
@@ -622,7 +622,7 @@ contains
             do subEnsIndex = 1, numSubEns
 
               ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
-              call tmg_start(90,'LETKF-eigenDecomp')
+              call utl_tmg_start(90,'--LETKF-eigenDecomp')
               do memberIndexCV2 = 1, nEnsIndependentPerSubEns
                 memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
                 do memberIndexCV1 = 1, nEnsIndependentPerSubEns
@@ -721,7 +721,7 @@ contains
         !
         ! Now post all send instructions (each lat-lon may be sent to multiple tasks)
         !
-        call tmg_start(103,'LETKF-commWeights')
+        call utl_tmg_start(103,'--LETKF-commWeights')
         latIndex = myLatIndexesSend(latLonIndex)
         lonIndex = myLonIndexesSend(latLonIndex)
         do procIndex = 1, myNumProcIndexesSend(latLonIndex)
@@ -747,7 +747,7 @@ contains
       !
       ! Wait for communiations to finish before continuing
       !
-      call tmg_start(103,'LETKF-commWeights')
+      call utl_tmg_start(103,'--LETKF-commWeights')
       if (firstTime) write(*,*) 'numSend/Recv = ', numSend, numRecv
       firstTime = .false.
 
@@ -764,14 +764,14 @@ contains
       !
       ! Interpolate weights from coarse to full resolution
       !
-      call tmg_start(92,'LETKF-interpolateWeights')
+      call utl_tmg_start(92,'--LETKF-interpolateWeights')
       if (wInterpInfo%latLonStep > 1) then
         call enkf_interpWeights(wInterpInfo, weightsMean)
         call enkf_interpWeights(wInterpInfo, weightsMembers)
       end if
       call tmg_stop(92)
 
-      call tmg_start(100,'LETKF-applyWeights')
+      call utl_tmg_start(100,'--LETKF-applyWeights')
 
       !
       ! Apply the weights to compute the ensemble mean and members
@@ -880,7 +880,7 @@ contains
       write(*,*) '                      Therefore will keep closest obs only.'
     end if
 
-    call tmg_start(19,'LETKF-barr')
+    call utl_tmg_start(19,'--LETKF-barr')
     call rpn_comm_barrier('GRID',ierr)
     call tmg_stop(19)
 
@@ -1205,7 +1205,7 @@ contains
     integer, allocatable :: allNumLatLonRecv(:)
     integer, allocatable :: allLatIndexesRecv(:,:), allLonIndexesRecv(:,:)
 
-    call tmg_start(94,'LETKFgetMpiTags')
+    call utl_tmg_start(94,'--LETKFgetMpiTags')
     write(*,*) 'enkf_LETKFgetMpiGlobalTags: Starting'
 
     ni = size(latLonTagMpiGlobal,1)

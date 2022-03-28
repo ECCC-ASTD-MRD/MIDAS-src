@@ -449,7 +449,7 @@ contains
 
         errorStatus = errorStatus_success
 
-        call tmg_start(83,'RTTOV_SETUP')
+        call utl_tmg_start(83,'--RTTOV_SETUP')
         write(*,*) " sensorIndex,tvs_nchan(sensorIndex)",  sensorIndex,tvs_nchan(sensorIndex)
         call tvs_rttov_read_coefs(errorStatus(1), tvs_coefs(sensorIndex), tvs_opts(sensorIndex), tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex), tvs_listSensors(:,sensorIndex))
         if (errorStatus(1) /= errorStatus_success) then

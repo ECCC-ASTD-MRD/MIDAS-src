@@ -131,7 +131,7 @@ contains
       return
     end if
 
-    call tmg_start(33,'BGCHECK_CSR')
+    call utl_tmg_start(33,'--BGCHECK_CSR')
     write(*,*) ' CSRBG QC PROGRAM STARTS ....'
     ! Read Namelist
     call csrbg_init()

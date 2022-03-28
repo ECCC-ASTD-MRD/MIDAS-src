@@ -133,9 +133,9 @@ contains
     !
     !- Read the observations from files
     !
-    call tmg_start(11,'READ_OBS')
+    call utl_tmg_start(1,'--Read_Obs')
     call obsf_readFiles( obsSpaceData )
-    call tmg_stop(11)
+    call tmg_stop(1)
 
     !
     !- Initialize GPS processing
@@ -246,7 +246,7 @@ contains
       if (mpi_myid == 0) write(*,nml=naminn)
     end if
 
-    call tmg_start(10,'SETUPCOLUMN')
+    call utl_tmg_start(10,'--SETUPCOLUMN')
 
     if ( present(deallocInterpInfoNL_opt) ) then
       deallocInterpInfoNL = deallocInterpInfoNL_opt
@@ -317,7 +317,7 @@ contains
     write(*,*)
     write(*,*) 'inn_setupColumnsOnAnlIncLev: START'
 
-    call tmg_start(10,'SETUPCOLUMN')
+    call utl_tmg_start(10,'--SETUPCOLUMN')
 
     !
     !- Data copying from columnh to columnTrlOnAnlIncLev
@@ -551,7 +551,7 @@ contains
     !
     !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in destObsColumn column
     !
-    call tmg_start(48,'NL_OBS_OPER')
+    call utl_tmg_start(48,'--NL_OBS_OPER')
     
     ! Radiosondes
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'UA', destObsColumn)

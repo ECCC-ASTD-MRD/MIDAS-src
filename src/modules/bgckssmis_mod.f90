@@ -2882,7 +2882,7 @@ contains
 
     write(*,*) 'ssbg_bgCheckSSMIS: Starting'
 
-    call tmg_start(30,'BGCHECK_SSMIS')
+    call utl_tmg_start(30,'--BGCHECK_SSMIS')
     otherDataPresent = .false.
     ssmisDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')

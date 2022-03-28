@@ -44,8 +44,8 @@ program midas_ominusf
   call mpi_initialize
 
   !- 1.1 timings
-  call tmg_init(mpi_myid, 'TMG_OMINUSF' )
-  call tmg_start(1,'MAIN')
+  call tmg_init(mpi_myid, 'TMG_INFO')
+  call utl_tmg_start(0,'MAIN')
 
   if ( mpi_myid == 0 ) then
     call utl_writeStatus('VAR3D_BEG')
@@ -93,8 +93,8 @@ program midas_ominusf
   write(*,*) '> midas-OminusF: Ending'
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
-  call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_OMINUSF' )
+  call tmg_stop(0)
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr)
 

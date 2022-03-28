@@ -101,8 +101,8 @@ program midas_diagBmatrix
 
   ! MPI, tmg initialization
   call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_DIAGBMATRIX' )
-  call tmg_start(1,'MAIN')
+  call tmg_init(mpi_myid, 'TMG_INFO')
+  call utl_tmg_start(0,'MAIN')
   ierr = fstopc('MSGLVL','ERRORS',0)
 
   ! Set default values for namelist NAMDIAG parameters
@@ -707,8 +707,8 @@ program midas_diagBmatrix
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! MPI, tmg finalize
-  call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_DIAGBMATRIX' )
+  call tmg_stop(0)
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) ' --------------------------------'

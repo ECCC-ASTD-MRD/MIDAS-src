@@ -127,7 +127,7 @@ contains
     NAMELIST /NAMBLB/ntrunc, scaleFactor, scaleFactorLQ, scaleTG, TweakTG,  &
          stddevMode, filterStddev, blendMeanStddev, zeroTropicsCrossCorr, rvlocpsichittps, rvloclq
 
-    call tmg_start(52,'BLB_SETUP')
+    call utl_tmg_start(52,'--BLB_SETUP')
     if ( mpi_myid == 0 ) write(*,*) 'blb_setup: starting'
     if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -2296,7 +2296,7 @@ contains
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call tmg_start(59,'BLB_COMM')
+    call utl_tmg_start(59,'--BLB_COMM')
     call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
                          cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
     call tmg_stop(59)
@@ -2429,7 +2429,7 @@ contains
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call tmg_start(59,'BLB_COMM')
+    call utl_tmg_start(59,'--BLB_COMM')
     call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_real4",  &
                          cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_real4", 0, "GRID", ierr )
     call tmg_stop(59)
@@ -2632,7 +2632,7 @@ contains
 
     do jLatBand = 1, numLatBand
 
-      call tmg_start(53,'BLB_SPA2GD1')
+      call utl_tmg_start(53,'--BLB_SPA2GD1')
       sp(:,:,:) = 0.0d0
 !$OMP PARALLEL DO PRIVATE(jn,jm,jlev,ila_mpiglobal,ila_mpilocal,zsp2,zsp,icount)
       do jn = mynBeg, mynEnd, mynSkip
@@ -2683,7 +2683,7 @@ contains
 !$OMP END PARALLEL DO
       call tmg_stop(53)
 
-      call tmg_start(57,'BLB_SPEREE') 
+      call utl_tmg_start(57,'--BLB_SPEREE') 
 !$OMP PARALLEL DO PRIVATE(JLEV)
       do jlev = 1, nkgdim
         gd(:,:,jlev) = 0.0d0
@@ -2693,7 +2693,7 @@ contains
       call gst_speree(sp,gd)
       call tmg_stop(57) 
 
-      call tmg_start(54,'BLB_SPA2GD2')
+      call utl_tmg_start(54,'--BLB_SPA2GD2')
 !$OMP PARALLEL DO PRIVATE(jlat,jlev,jlon)
       do jlev = 1, nkgdim
         if ( jlev == nspositTG ) then
@@ -2725,7 +2725,7 @@ contains
     deallocate(zsp2)
 
     ! convert final result from PSI/CHI to U/V
-    call tmg_start(58,'BLB_REESPE') 
+    call utl_tmg_start(58,'--BLB_REESPE') 
     call gst_setID(gstID)
     call gst_reespe(sp,gd_out)
     call tmg_stop(58) 
@@ -2744,7 +2744,7 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    call tmg_start(56,'BLB_SPGD_SPGDA') 
+    call utl_tmg_start(56,'--BLB_SPGD_SPGDA') 
 !$OMP PARALLEL DO PRIVATE(JLEV)
     do jlev = 1, 2*nlev_M
       gd_out(:,:,jlev) = 0.0d0
@@ -2783,7 +2783,7 @@ contains
 
     ! adjoint of convert final result from PSI/CHI to U/V
 
-    call tmg_start(56,'BLB_SPGD_SPGDA') 
+    call utl_tmg_start(56,'--BLB_SPGD_SPGDA') 
     call gst_setID(gstID)
     call gst_spgda(sp,gd_in2,nLev_M)
     call tmg_stop(56) 
@@ -2800,14 +2800,14 @@ contains
     end do
 !$OMP END PARALLEL DO
 
-    call tmg_start(57,'BLB_SPEREE') 
+    call utl_tmg_start(57,'--BLB_SPEREE') 
     call gst_setID(gstID)
     call gst_speree(sp,gd_in2)
     call tmg_stop(57) 
 
     do jLatBand = 1, numLatBand
 
-      call tmg_start(54,'BLB_SPA2GD2')
+      call utl_tmg_start(54,'--BLB_SPA2GD2')
 !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
       do jlev = 1, nkgdim
         do jlat = myLatBeg, myLatEnd
@@ -2833,12 +2833,12 @@ contains
 !$OMP END PARALLEL DO 
       call tmg_stop(54)
 
-      call tmg_start(58,'BLB_REESPE') 
+      call utl_tmg_start(58,'--BLB_REESPE') 
       call gst_setID(gstID)
       call gst_reespe(sp,gd)
       call tmg_stop(58) 
 
-      call tmg_start(53,'BLB_SPA2GD1')
+      call utl_tmg_start(53,'--BLB_SPA2GD1')
 
       hiControlVector_out(:,:,:,jLatBand) = 0.0d0
       sq2 = sqrt(2.0d0)

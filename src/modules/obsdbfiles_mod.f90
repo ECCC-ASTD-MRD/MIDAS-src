@@ -797,7 +797,7 @@ contains
 
     namelist/namObsDbUpdate/ numberUpdateItems, updateItemList
 
-    call tmg_start(97,'obdf_updateFile')
+    call utl_tmg_start(97,'--obdf_updateFile')
 
     write(*,*)
     write(*,*) 'odbf_updateFile: Starting'

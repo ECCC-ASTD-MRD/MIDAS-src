@@ -215,7 +215,7 @@ CONTAINS
     write(*,*) '--Starting subroutine minimize--'
     write(*,*) '--------------------------------'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call tmg_start(3,'MIN')
+    call utl_tmg_start(3,'--MIN')
 
     initializeForOuterLoop = .true.
     outerLoopIndex = outerLoopIndex_in
@@ -430,7 +430,7 @@ CONTAINS
           iitnovqc = min(nwoqcv - iterdone,itermax)
           isimnovqc = isimmax
           lvarqc = .false.
-          call tmg_start(70,'QN')
+          call utl_tmg_start(70,'--QN')
 
           zeps1 = zeps0
 
@@ -462,7 +462,7 @@ CONTAINS
         endif
 
         ! Now do main minimization with var-QC
-        call tmg_start(70,'QN')
+        call utl_tmg_start(70,'--QN')
 
         if ( outerLoopIndex > 1 ) imode = 2
 
@@ -591,7 +591,7 @@ CONTAINS
 
     if (na_indic  ==  1 .or. na_indic  ==  4) call tmg_stop(70)
 
-    call tmg_start(80,'MIN_SIMVAR')
+    call utl_tmg_start(80,'--MIN_SIMVAR')
     if (na_indic .ne. 1) then ! No action taken if na_indic == 1
        min_nsim = min_nsim + 1
 
@@ -622,13 +622,13 @@ CONTAINS
          call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 
          ! put in columnAnlInc H_horiz dx
-         call tmg_start(30,'OBS_INTERP')
+         call utl_tmg_start(30,'--OBS_INTERP')
          call s2c_tl(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)
          call tmg_stop(30)
        end if
 
        ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-       call tmg_start(40,'OBS_TL')
+       call utl_tmg_start(40,'--OBS_TL')
        call oop_Htl(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,min_nsim, &
                     initializeLinearization_opt=initializeForOuterLoop) 
        call tmg_stop(40)
@@ -673,7 +673,7 @@ CONTAINS
        call col_zero(columnAnlInc_ptr)
 
        ! Put in column : -H_vert**T R**-1 (d-Hdx)
-       call tmg_start(41,'OBS_AD')
+       call utl_tmg_start(41,'--OBS_AD')
        call oop_Had(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr, &
                     initializeLinearization_opt=initializeForOuterLoop)
        call tmg_stop(41)
@@ -682,7 +682,7 @@ CONTAINS
        if (oneDVarMode) then
          ! no interpolation needed for 1Dvar case
        else
-         call tmg_start(31,'OBS_INTERPAD')
+         call utl_tmg_start(31,'--OBS_INTERPAD')
          call s2c_ad(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)
          call tmg_stop(31)
        end if
@@ -703,7 +703,7 @@ CONTAINS
        endif
     endif
     call tmg_stop(80)
-    if (na_indic  ==  1 .or. na_indic  ==  4) call tmg_start(70,'QN')
+    if (na_indic  ==  1 .or. na_indic  ==  4) call utl_tmg_start(70,'--QN')
 
     initializeForOuterLoop = .false.
 
@@ -879,10 +879,10 @@ CONTAINS
 
     if (status == 0) then
       if (mpi_myid == 0) write(*,*) 'Read  Hessian in min_hessianIO from file ', cfname
-      call tmg_start(88,'MIN_READHESS')
+      call utl_tmg_start(88,'--MIN_READHESS')
     elseif (status == 1) then
       if (mpi_myid == 0) write(*,*) 'Write Hessian in min_hessianIO to file ', cfname
-      call tmg_start(94,'MIN_WRITEHESS')
+      call utl_tmg_start(94,'--MIN_WRITEHESS')
     else
       call utl_abort('min_hessianIO: status not valid ')
     endif
@@ -902,7 +902,7 @@ CONTAINS
          ierr = fnom(ireslun,cfname,'FTN+SEQ+UNF+OLD+R/O',0)
 
          !- Checking version number
-         call tmg_start(98,'MIN_READHESS_IO')
+         call utl_tmg_start(98,'--MIN_READHESS_IO')
          read (ireslun) cl_version, i1gc
          call tmg_stop(98)
          if (trim(cl_version) == 'V5') then
@@ -922,7 +922,7 @@ CONTAINS
             call utl_abort('min_hessianIO: Inconsistant input hessian')
          endif
 
-         call tmg_start(98,'MIN_READHESS_IO')
+         call utl_tmg_start(98,'--MIN_READHESS_IO')
          rewind (ireslun)
 
          read(ireslun) cl_version,i1gc,nsim,ibrpstamp,zeps1,zdf1,itertot,isimtot,ivadim,itrunc
@@ -952,12 +952,12 @@ CONTAINS
       do jvec = 1, ictrlvec
  
          if (mpi_myid == 0) then
-            call tmg_start(98,'MIN_READHESS_IO')
+            call utl_tmg_start(98,'--MIN_READHESS_IO')
             read(ireslun) vatravec_r4_mpiglobal
             call tmg_stop(98)
          end if
 
-         call tmg_start(119,'MIN_READHESS_REDUCE')
+         call utl_tmg_start(119,'--MIN_READHESS_REDUCE')
          call bmat_reduceToMPILocal_r4( vatra_r4,            & ! OUT
                                         vatravec_r4_mpiglobal) ! IN (contains data only on proc 0)
          call tmg_stop(119)
@@ -987,7 +987,7 @@ CONTAINS
          if (mpi_myid == 0) then 
             write(*,*) 'min_hessianIO : reading vazxbar'
             allocate(vazxbar_mpiglobal(nvadim_mpiglobal))
-            call tmg_start(98,'MIN_READHESS_IO')
+            call utl_tmg_start(98,'--MIN_READHESS_IO')
             read(ireslun) vazxbar_mpiglobal
             call tmg_stop(98)
          else
@@ -1003,7 +1003,7 @@ CONTAINS
          if (mpi_myid == 0) then 
             write(*,*) 'min_hessianIO : reading vazx'
             allocate(vazx_mpiglobal(nvadim_mpiglobal))
-            call tmg_start(98,'MIN_READHESS_IO')
+            call utl_tmg_start(98,'--MIN_READHESS_IO')
             read(ireslun) vazx_mpiglobal
             call tmg_stop(98)
          else
@@ -1031,7 +1031,7 @@ CONTAINS
       itrunc=0
       iztrl_io(1: 5) = iztrl(:)
       iztrl_io(6:10) = 0 ! dummy values for hessian size legacy purposes
-      call tmg_start(76,'MIN_WRITEHESS_IO')
+      call utl_tmg_start(76,'--MIN_WRITEHESS_IO')
       if(mpi_myid == 0) write(ireslun) cl_version,k1gc,nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,nvadim_mpiglobal,itrunc
       if(mpi_myid == 0) write(ireslun) nvamaj,iztrl_io
       call tmg_stop(76)
@@ -1053,7 +1053,7 @@ CONTAINS
         !$OMP END PARALLEL DO
         call bmat_expandToMPIGlobal_r4( vatra_r4,              & ! IN
                                         vatravec_r4_mpiglobal )  ! OUT
-        call tmg_start(76,'MIN_WRITEHESS_IO')
+        call utl_tmg_start(76,'--MIN_WRITEHESS_IO')
         if (mpi_myid == 0) write(ireslun) vatravec_r4_mpiglobal
         call tmg_stop(76)
       enddo
@@ -1068,7 +1068,7 @@ CONTAINS
       end if
       call bmat_expandToMPIGlobal( vazxbar,          & ! IN
                                    vazxbar_mpiglobal ) ! OUT
-      call tmg_start(76,'MIN_WRITEHESS_IO')
+      call utl_tmg_start(76,'--MIN_WRITEHESS_IO')
       if (mpi_myid == 0) write(ireslun) vazxbar_mpiglobal(1:nvadim_mpiglobal)
       call tmg_stop(76)
       deallocate(vazxbar_mpiglobal)
@@ -1081,7 +1081,7 @@ CONTAINS
       end if
       call bmat_expandToMPIGlobal( vazx,          & ! IN
                                    vazx_mpiglobal ) ! OUT
-      call tmg_start(76,'MIN_WRITEHESS_IO')
+      call utl_tmg_start(76,'--MIN_WRITEHESS_IO')
       if (mpi_myid == 0) write(ireslun) vazx_mpiglobal(1:nvadim_mpiglobal)
       call tmg_stop(76)
       deallocate(vazx_mpiglobal)

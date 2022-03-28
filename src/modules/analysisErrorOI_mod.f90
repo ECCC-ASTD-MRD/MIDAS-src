@@ -652,7 +652,7 @@ contains
 
     real(8) :: obsLonInRad, obsLatInRad, maxLcorr
 
-    call tmg_start(189,'AER_findObs')
+    call utl_tmg_start(189,'--AER_findObs')
 
     maxLcorr = maxval( Lcorr(:,:) )
 

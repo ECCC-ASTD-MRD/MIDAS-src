@@ -5256,7 +5256,7 @@ end subroutine bennartz
     logical                       :: mwDataPresent
 
 
-    call tmg_start(33,'BGCHECK_MW')
+    call utl_tmg_start(33,'--BGCHECK_MW')
     mwDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER0: do

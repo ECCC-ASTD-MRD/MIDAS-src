@@ -83,7 +83,7 @@ module backgroundCheck_mod
       return
     end if
      
-    call tmg_start(3, myName )
+    call utl_tmg_start(3, '--bgck_bgcheck_conv')
 
     new_bgck_sw = .false.
 

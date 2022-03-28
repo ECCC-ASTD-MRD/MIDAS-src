@@ -122,10 +122,10 @@ program midas_letkf
   !- 0. MPI, TMG and misc. initialization
   !
   call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_LETKF' )
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
-  call tmg_start(2,'LETKF-preAnl')
+  call utl_tmg_start(0,'MAIN')
+  call utl_tmg_start(2,'--LETKF-preAnl')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Avoid printing lots of stuff to listing for std file I/O
@@ -344,7 +344,7 @@ program midas_letkf
                  timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
 
     ! Compute Y-H(X) in OBS_OMP
-    call tmg_start(6,'LETKF-obsOperators')
+    call utl_tmg_start(6,'--LETKF-obsOperators')
     call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
     call tmg_stop(6)
 
@@ -379,7 +379,7 @@ program midas_letkf
   call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
                timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
   call tvs_allocTransmission(col_getNumLev(column,'TH')) ! this will cause radiative transmission profiles to be stored for use in eob_setVertLocation
-  call tmg_start(6,'LETKF-obsOperators')
+  call utl_tmg_start(6,'--LETKF-obsOperators')
   call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.false.)
   call tmg_stop(6)
 
@@ -452,7 +452,7 @@ program midas_letkf
   call ens_copy(ensembleTrl,ensembleAnl)
 
   !- 4.3 Setup for interpolating weights from coarse to full resolution
-  call tmg_start(92,'LETKF-interpolateWeights')
+  call utl_tmg_start(92,'--LETKF-interpolateWeights')
   call enkf_setupInterpInfo(wInterpInfo, stateVectorMeanAnl%hco, weightLatLonStep,  &
                             stateVectorMeanAnl%myLonBeg, stateVectorMeanAnl%myLonEnd,  &
                             stateVectorMeanAnl%myLatBeg, stateVectorMeanAnl%myLatEnd)
@@ -461,7 +461,7 @@ program midas_letkf
   !
   !- 5. Main calculation of ensemble analyses
   !
-  call tmg_start(3,'LETKF-doAnalysis')
+  call utl_tmg_start(3,'--LETKF-doAnalysis')
   call enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
                           ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
                           stateVectorMeanAnl, &
@@ -488,7 +488,7 @@ program midas_letkf
   end if
   call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
                timeInterpType=obsTimeInterpType )
-  call tmg_start(6,'LETKF-obsOperators')
+  call utl_tmg_start(6,'--LETKF-obsOperators')
   call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMA, beSilent_opt=.false.)
   call tmg_stop(6)
 
@@ -517,7 +517,7 @@ program midas_letkf
                              readHeightSfc_opt=.false. )
     end do
 
-    call tmg_start(8,'LETKF-postProcess')
+    call utl_tmg_start(8,'--LETKF-postProcess')
     call epp_postProcess(ensembleTrl, ensembleAnl, stateVectorHeightSfc, stateVectorCtrlTrl, &
                          writeTrlEnsemble=.false., outputOnlyEnsMean_opt=outputOnlyEnsMean)
     call tmg_stop(8)
@@ -526,7 +526,7 @@ program midas_letkf
     if (mpi_myid == 0) then
       write(*,*) 'midas-letkf: No ensemble post-processing requested, so just write the raw analysis ensemble'
     end if
-    call tmg_start(104,'LETKF-writeEns')
+    call utl_tmg_start(104,'--LETKF-writeEns')
     if (.not. outputOnlyEnsMean) then
       call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
                              numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
@@ -540,9 +540,9 @@ program midas_letkf
   !- 8. MPI, tmg finalize
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_LETKF' )
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'

@@ -299,7 +299,7 @@ contains
       
       errorstatus   = 0
       emissivity_tl(:)%emis_in = 0.0d0
-      call tmg_start(87,'rttov_tl')
+      call utl_tmg_start(87,'--rttov_tl')
       call rttov_parallel_tl(                                     &
            errorstatus,                                           & ! out
            chanprof,                                              & ! in
@@ -591,7 +591,7 @@ contains
       emissivity_ad(:) % emis_in = 0.0d0
       emissivity_ad(:) % emis_out = 0.0d0
   
-      call tmg_start(84,'rttov_ad')
+      call utl_tmg_start(84,'--rttov_ad')
       call rttov_parallel_ad(                               &
            errorstatus,                                     & ! out
            chanprof,                                        & ! in

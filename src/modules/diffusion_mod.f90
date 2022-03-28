@@ -611,7 +611,7 @@ contains
     real(8) :: xlast( (diff(diffID)%myLonBeg-1):(diff(diffID)%myLonEnd+1), (diff(diffID)%myLatBeg-1):(diff(diffID)%myLatEnd+1) )
     real(8), allocatable :: sendBufLon(:), recvBufLon(:), sendBufLat(:), recvBufLat(:)
 
-    call tmg_start(185, 'diffusion_explicit' )
+    call utl_tmg_start(185, '--diffusion_explicit' )
 
     lonPerPE = diff(diffID)%lonPerPE
     latPerPE = diff(diffID)%latPerPE
@@ -874,7 +874,7 @@ contains
     integer :: allLatBeg(mpi_nprocs), allLatEnd(mpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
 
-    call tmg_start(188,'diff-transposeLatToLon')
+    call utl_tmg_start(188,'--diff-transposeLatToLon')
 
     call rpn_comm_allgather(diff(diffID)%myLonBeg_transpose,1,'mpi_integer',       &
                             allLonBeg                      ,1,'mpi_integer','GRID',ierr)
@@ -942,7 +942,7 @@ contains
     integer :: allLatBeg(mpi_nprocs), allLatEnd(mpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
 
-    call tmg_start(189,'diff-transposeLonToLat')
+    call utl_tmg_start(189,'--diff-transposeLonToLat')
 
     call rpn_comm_allgather(diff(diffID)%myLonBeg_transpose,1,'mpi_integer',       &
                             allLonBeg                      ,1,'mpi_integer','GRID',ierr)
@@ -1009,7 +1009,7 @@ contains
     real(8) :: xlast( diff(diffID)%ni, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
     real(8) :: dp( diff(diffID)%ni )
 
-    call tmg_start(186,'diffusion_implicitx')
+    call utl_tmg_start(186,'--diffusion_implicitx')
 
     !$OMP PARALLEL DO PRIVATE( latIndex, lonIndex )
     do latIndex = diff(diffID)%myLatBeg, diff(diffID)%myLatEnd
@@ -1078,7 +1078,7 @@ contains
     !      ordered (diff(diffID)%nj,diff(diffID)%ni) and
     !      NOT (diff(diffID)%ni,diff(diffID)%nj) as in the rest of the code!
 
-    call tmg_start(187,'diffusion_implicity')
+    call utl_tmg_start(187,'--diffusion_implicity')
 
     !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex)
     do latIndex = 1, diff (diffID)%nj

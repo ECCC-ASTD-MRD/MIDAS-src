@@ -71,23 +71,20 @@ program midas_diagHBHt
   ! MPI initilization
   call mpi_initialize 
 
-  call tmg_init(mpi_myid, 'TMG_VAR' )
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
+  call utl_tmg_start(0,'MAIN')
 
   varMode='analysis'
 
   call ram_setup
 
   ! Do initial set up
-  call tmg_start(2,'PREMIN')
+  call utl_tmg_start(2,'--PREMIN')
 
   obsMpiStrategy = 'LIKESPLITFILES'
 
   call var_setup('VAR') ! obsColumnMode
-  call tmg_stop(2)
-
-  call tmg_start(2,'PREMIN')
 
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
@@ -137,9 +134,9 @@ program midas_diagHBHt
 
   istamp = exfin('diagHBHt','FIN','NON')
 
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_VAR' )
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 

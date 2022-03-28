@@ -651,7 +651,7 @@ CONTAINS
        end do
 !$OMP END PARALLEL DO
 
-       call tmg_start(64,'LOC_SPECTRAL')
+       call utl_tmg_start(64,'--LOC_SPECTRAL')
        
        if (lsp%global) then
           call gst_setID(lsp%gstID)
@@ -804,7 +804,7 @@ CONTAINS
 
       sp_vhLoc(:,:,levIndex,:) = 0.d0 ! needed, not everything is set
 
-      call tmg_start(64,'LOC_SPECTRAL')
+      call utl_tmg_start(64,'--LOC_SPECTRAL')
 
       if (lsp%global) then
         call gst_setID(lsp%gstID)

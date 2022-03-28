@@ -80,7 +80,7 @@ CONTAINS
 
     integer :: nEnsOverDimension, nLev
 
-    call tmg_start(130,'LOC_SETUP')
+    call utl_tmg_start(130,'--LOC_SETUP')
 
     if (verbose) write(*,*) 'Entering loc_Setup'
 
