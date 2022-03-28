@@ -196,7 +196,7 @@ contains
     type (struct_obs), intent(in)        :: obsSpaceData
     integer, intent(out)                 :: cvDim_out
     ! locals:
-    integer :: levelIndex, nulnam, ierr
+    integer :: levelIndex, ierr
     integer, external ::  fnom, fclos
     integer :: status, Vcode_anl
     logical :: fileExists
@@ -206,8 +206,7 @@ contains
     type(struct_vco), pointer :: vco_anl
     character(len=18) :: oneDBmatLand = './Bmatrix_land.bin'
     character(len=17) :: oneDBmatSea  = './Bmatrix_sea.bin'
-    integer :: extractDate, locationIndex, countGood, headerIndex
-    integer :: bodyStart, bodyEnd, bodyIndex
+    integer :: extractDate, locationIndex
     logical,save :: firstCall=.true.
     real(8), allocatable :: bMatrix(:,:)
 
@@ -340,32 +339,24 @@ contains
     type(struct_vco), pointer :: vco_ens => null()
     type(struct_hco), pointer :: hco_ens => null()
     type(struct_gsv)          :: stateVector, stateVectorMean
-    type(struct_columnData)   :: column
-   
     integer, allocatable :: dateStampList(:)
     character(len=12) :: hInterpolationDegree ! select degree of horizontal interpolation (if needed)
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
     integer :: levIndex1, levIndex2
     integer :: offset, status, numStep, ierr
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
-    real(8) :: scaleFactor_SF, ZR, zcorr
+    real(8) :: scaleFactor_SF, ZR
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
     real(8),pointer :: pressureProfileFile_M(:), pressureProfileInc_M(:)
     real(8) :: pSurfRef
     integer :: nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd
     integer :: ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
-    integer :: myMemberBeg, myMemberEnd, myMemberCount
-    integer :: maxMyMemberCount, nEnsOverDimension
     integer :: nLevEns_M, nLevEns_T
     integer :: nLevInc_M, nLevInc_T
     integer :: topLevIndex_M, topLevIndex_T
     integer :: ensDateStampOfValidity
     integer :: idate, itime
     integer, external :: newdate
-    character(len=4) :: varNameALFA(1)
-    character(len=4), parameter  :: varNameALFAatmMM(1) = [ 'ALFA' ]
-    character(len=4), parameter  :: varNameALFAatmTH(1) = [ 'ALFT' ]
-    character(len=4), parameter  :: varNameALFAsfc(1)   = [ 'ALFS' ]
     character(len=4), pointer :: varNames(:)
     real(8) :: logP1, logP2
     real(8), pointer :: currentProfile(:), meanProfile(:)
@@ -385,11 +376,9 @@ contains
       return
     end if
     
-    bmat1D_varCount =  numIncludeAnlVar
+    bmat1D_varCount = numIncludeAnlVar
     allocate( bmat1D_varList(bmat1D_varCount) )
     bmat1D_varList(1:bmat1D_varCount) = IncludeAnlVar(1:numIncludeAnlVar)
-
-    call lfn_Setup('FifthOrder')
 
     !- 1.1 Number of time step bins
     numStep = tim_nstepobsinc
@@ -433,14 +422,11 @@ contains
       call fln_ensfileName(ensFileName, ensPathName, memberIndex_opt=1)
       write(*,*) "before vco_SetupFromFile"
       call vco_SetupFromFile(vco_file, ensFileName)
-      write(*,*) "before gsv_allocate"
       call gsv_allocate(stateVector, numStep, hco_in, vco_in,  &
            hInterpolateDegree_opt="LINEAR", &
            dataKind_opt=4, &
            dateStamp_opt=tim_getDateStamp(), beSilent_opt=.false.)
-      write(*,*) "before gsv_readfromFile"
       call gsv_readFromFile(stateVector, ensFileName, "", "")
-      write(*,*) "before gsv_varNamesList"
       call gsv_varNamesList(varNames, stateVector)
       write(*,*) "bmat1D_setupBEns: variable names : ", varNames
     end if
@@ -536,13 +522,6 @@ contains
 
     !- 1.5 Bmatrix Weight
     if (vco_in%Vcode == 5002 .or. vco_in%Vcode == 5005) then
-      if (nLevEns_M > 0) then
-        ! Multi-level or momentum-level-only analysis
-        varNameALFA(:) = varNameALFAatmMM(:)
-      else
-        ! Thermo-level-only analysis
-        varNameALFA(:) = varNameALFAatmTH(:)
-      end if
       allocate(scaleFactor_M(nLevEns_M))
       allocate(scaleFactor_T(nLevEns_T))
       do levIndex = 1, nLevEns_T
@@ -570,7 +549,6 @@ contains
       scaleFactor_SF = scaleFactor_T(nLevEns_T)
 
     else ! vco_in%Vcode == 0
-      varNameALFA(:) = varNameALFAsfc(:)
       if (scaleFactorEns(1) > 0.0d0) then 
         scaleFactor_SF = sqrt(scaleFactorEns(1))
       else
@@ -583,12 +561,6 @@ contains
     call mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
     !- 1.6 Localization
-    
-    call mpivar_setup_levels(nEns,myMemberBeg,myMemberEnd,myMemberCount)
-    call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
-         1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
-    nEnsOverDimension = mpi_npex * maxMyMemberCount
-
     if ( vLocalize <= 0.0d0 .and. (nLevInc_M > 1 .or. nLevInc_T > 1) ) then
       call utl_abort('bmat1D_setubBEns: Invalid VERTICAL localization length scale')
     end if     
@@ -613,7 +585,7 @@ contains
          varNames_opt = includeAnlVar(1:numIncludeAnlVar), &
          hInterpolateDegree_opt = hInterpolationDegree)
     write(*,*) "Read ensemble members"
-    call ens_readEnsemble(ensPerts, ensPathName, biPeriodic=.false.,         &
+    call ens_readEnsemble(ensPerts, ensPathName, biPeriodic=.false.,       &
                           vco_file_opt = vco_ens,                          &
                           varNames_opt = includeAnlVar(1:numIncludeAnlVar))
     
@@ -654,7 +626,7 @@ contains
       currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1), varName_opt=bmat1D_varList(varIndex))
       nkgdim = nkgdim + size(currentProfile)
     end do
-    write(*,*) "nkgdim", nkgdim
+    write(*,*) "bmat1D_setupBEns: nkgdim", nkgdim
     cvDim_out = nkgdim * var1D_validHeaderCount
     currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1) )
     allocate (subIndex(nkgdim))
@@ -666,11 +638,10 @@ contains
           nkgdim = nkgdim + 1
           subIndex(nkgdim) = levIndex
           varNameCv(nkgdim) = trim( bmat1D_varList(varIndex) )
-          if (mpi_myId == 0) write(*,*) "bmat1D_setupBEns: x ", bmat1D_varList(varIndex), nkgdim, levIndex
+          if (mpi_myId == 0) write(*,*) "bmat1D_setupBEns:  bmat1D_varList ", bmat1D_varList(varIndex), nkgdim, levIndex
         end if
       end do
     end do
-    write(*,*) "nkgdim", nkgdim
     
     call ens_deallocate( ensPerts )
     allocate(bSqrtEns(var1D_validHeaderCount,nkgdim,nkgdim))
@@ -678,36 +649,20 @@ contains
     allocate( lineVector(1,nkgdim) )
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
-      !write(*,*) "compute covariance", columnIndex,headerIndex
-!      offset = 0
-!      do varIndex = 1, numIncludeAnlVar
-      meanProfile => col_getColumn(meanColumn, headerIndex) !, varName_opt=bmat1D_varList(varIndex))
+      meanProfile => col_getColumn(meanColumn, headerIndex)
       do memberIndex = 1, nEns
         currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex)
         lineVector(1,:) = currentProfile(subIndex(:)) - meanProfile(subIndex(:))
-        !if (mpi_myId == 0 .and. columnIndex==1) then
-        !  write(*,*) "nkgdim", nkgdim,size(currentProfile),size(meanProfile)
-        !  do levIndex = 1, nkgdim
-        !    write(*,*) "bmat1D_setupBEns: lineVector ",headerIndex,levIndex,subIndex(levIndex),lineVector(1,levIndex), &
-        !      col_getVarNameFromK(ensColumns(memberIndex),subIndex(levIndex)), currentProfile(subIndex(levIndex)), &
-        !      col_getVarNameFromK(meanColumn,subIndex(levIndex)), meanProfile(subIndex(levIndex))
-        !  end do
-        !end if
         bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) + &
             matmul(transpose(lineVector),lineVector)
       end do
-      !end do
     end do
     deallocate(lineVector)
     allocate(meanPressureProfile(nkgdim))
+    call lfn_Setup('FifthOrder')
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) / (nEns - 1)
-      !if (mpi_myId==0) then
-      !  do levIndex = 1, nkgdim
-      !    write(*,'(A4,1x,i12,1x,i12,1x,e14.6)') "bmat1D_setupBEns: COVZ",headerIndex,levIndex,bSqrtEns(headerIndex,levIndex,levIndex)
-      !  end do
-      !end if
       if (vLocalize > 0.0d0) then
         do levIndex1 = 1, nkgdim
           levIndex2 = subIndex(levIndex1)
@@ -875,7 +830,7 @@ contains
   !--------------------------------------------------------------------------
   ! bmat1D_bSqrtEns
   !--------------------------------------------------------------------------
-  subroutine bmat1D_bSqrtEns(controlVector_in, column, obsSpaceData)
+  subroutine bmat1D_bSqrtEns(controlVector_in, column)
     !
     ! :Purpose: Ensemble component of B square root in 1DVar mode
     !
@@ -883,7 +838,6 @@ contains
     ! arguments:
     real(8), intent(in)                    :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
-    type(struct_obs), intent(in)           :: obsSpaceData
     ! locals:
     integer :: headerIndex, varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
@@ -913,7 +867,7 @@ contains
   !--------------------------------------------------------------------------
   ! bmat1D_bSqrtEnsAd
   !--------------------------------------------------------------------------
-  subroutine bmat1D_bSqrtEnsAd(controlVector_in, column, obsSpaceData)
+  subroutine bmat1D_bSqrtEnsAd(controlVector_in, column)
     !
     ! :Purpose: Ensemble component of B square root in 1DVar mode
     !
@@ -921,7 +875,6 @@ contains
     ! arguments:
     real(8), intent(inout)                 :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
-    type(struct_obs), intent(in)           :: obsSpaceData
     ! locals:
     integer :: headerIndex, varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
@@ -985,16 +938,15 @@ contains
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
         call tmg_start(50,'B_HI')
-        call bmat1D_bsqrtHi( subVector,   &  ! IN
-                            column,      &  ! OUT
+        call bmat1D_bsqrtHi( subVector,   & ! IN
+                            column,       & ! OUT
                             obsspacedata )  ! IN
         call tmg_stop(50)
       case ('ENS')
         !- 1.2 Ensemble based
         call tmg_start(50,'B_ENS')
-        call bmat1D_bsqrtEns( subVector,   &  ! IN
-                             column,      &  ! OUT
-                             obsspacedata )  ! IN
+        call bmat1D_bsqrtEns( subVector,  &  ! IN
+                              column)        ! OUT
         call tmg_stop(50)
       case default
         call utl_abort( 'bmat1D_sqrtB: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
@@ -1036,8 +988,7 @@ contains
         !- Ensemble based
         call tmg_start(51,'B_ENS_T')
         call bmat1D_bsqrtEnsAd( subvector, &  ! IN
-                               column,    &  ! OUT
-                               obSSpaceData )     ! IN
+                                column )      ! OUT
         call tmg_stop(51)
       case default
         call utl_abort( 'bmat1D_sqrtBT: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
