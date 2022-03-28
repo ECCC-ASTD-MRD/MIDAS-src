@@ -1024,7 +1024,7 @@ contains
     integer,                 intent(in)    :: nvadim_mpilocal
     ! compute increment from control vector (multiply by B^1/2)
     call bmat1D_sqrtB(incr_cv, nvadim_mpilocal, column, obsSpaceData)
-    call cvt_transform(column, columnTrlOnAnlIncLev, 'PsfcToP_tl')
+    call cvt_transform(column, 'ZandP_tl', columnTrlOnAnlIncLev)
 
   end subroutine bmat1D_get1DVarIncrement
 
