@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * A modified way of computing Liebmann on yin/yang parts of the global grid (#613 and !577)
  * Added warnings on the usage on DEBUG mode (#615 and !573)
  * Added an option dump cores in case of runtime errors in UnitTests (#602 and !568)
  * Enable interpolation of sea-ice analysis in program `SSTbias` (#600 and !556)
