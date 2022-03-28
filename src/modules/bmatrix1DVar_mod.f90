@@ -599,19 +599,17 @@ contains
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true. )
-
     do memberIndex = 1, nEns
       write(*,*) "Copy member ", memberIndex
       call ens_copyMember(ensPerts, stateVector, memberIndex)
       write(*,*) "interpolate member ", memberIndex
       call col_setVco(ensColumns(memberIndex), vco_ens)
       call col_allocate(ensColumns(memberIndex), obs_numheader(obsSpaceData),  &
-                    mpiLocal_opt=.true., setToZero_opt=.true.)
+                        mpiLocal_opt=.true., setToZero_opt=.true.)
       call s2c_nl( stateVector, obsSpaceData, ensColumns(memberIndex), hco_in, &
-                     timeInterpType="NEAREST" )
+                   timeInterpType="NEAREST" )
       call gsv_add(statevector, statevectorMean, scaleFactor_opt=(1.d0/nEns))
     end do
-
     call col_setVco(meanColumn, vco_ens)
     call col_allocate(meanColumn, obs_numheader(obsSpaceData),  &
             mpiLocal_opt=.true., setToZero_opt=.true.)
@@ -646,7 +644,8 @@ contains
     call ens_deallocate( ensPerts )
     allocate(bSqrtEns(var1D_validHeaderCount,nkgdim,nkgdim))
     bSqrtEns(:,:,:) = 0.d0
-    allocate( lineVector(1,nkgdim) )
+    allocate(lineVector(1,nkgdim))
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,memberIndex,meanProfile,currentProfile,lineVector)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       meanProfile => col_getColumn(meanColumn, headerIndex)
@@ -657,9 +656,11 @@ contains
             matmul(transpose(lineVector),lineVector)
       end do
     end do
+    !$OMP END PARALLEL DO
     deallocate(lineVector)
     allocate(meanPressureProfile(nkgdim))
     call lfn_Setup('FifthOrder')
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,meanPressureProfile,levIndex1,levIndex2,varLevel,offset,logP1,logP2,zr)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) / (nEns - 1)
@@ -696,6 +697,7 @@ contains
       end if
       call utl_matsqrt(bSqrtEns(headerIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
+    !$OMP END PARALLEL DO
     deallocate(subIndex) 
     deallocate(varNameCv)
     deallocate(meanPressureProfile)
@@ -739,6 +741,7 @@ contains
       return
     end if
     allocate(oneDProfile(nkgdim))
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn,latitude,surfaceType,latitudeBandIndex)
     do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
       latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radian 
@@ -762,6 +765,7 @@ contains
         call utl_abort('bmat1D_bSqrtHi: inconsistency between Bmatrix and statevector size')
       end if
     end do
+    !$OMP END PARALLEL DO
     deallocate(oneDProfile)
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtHi: done'
@@ -794,6 +798,7 @@ contains
       return
     end if
     allocate(oneDProfile(nkgdim))
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn,latitude,surfaceType,latitudeBandIndex)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       offset = 0
@@ -820,6 +825,7 @@ contains
              matmul(bSqrtLand(latitudeBandIndex(1),:,:), oneDProfile)
       end if
     end do
+    !$OMP END PARALLEL DO
     deallocate(oneDProfile)
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtHiAd: done'
@@ -845,6 +851,7 @@ contains
     integer :: offset
 
     allocate(oneDProfile(nkgdim))
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn)
     do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
       oneDProfile(:) = matmul(bSqrtEns(headerIndex, :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
@@ -860,6 +867,7 @@ contains
         call utl_abort('bmat1D_bSqrtEns: inconsistency between Bmatrix and statevector size')
       end if
     end do
+    !$OMP END PARALLEL DO
     deallocate(oneDProfile)
 
   end subroutine bmat1D_bSqrtEns
@@ -888,6 +896,7 @@ contains
       return
     end if
     allocate(oneDProfile(nkgdim))
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       offset = 0
@@ -904,6 +913,7 @@ contains
              controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) + &
              matmul(bSqrtEns(headerIndex,:,:), oneDProfile)
     end do
+    !$OMP END PARALLEL DO
     deallocate(oneDProfile)
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: done'
