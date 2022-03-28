@@ -933,12 +933,13 @@ contains
     do fileIndex = 1, obsf_nfiles
 
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
-      if ( trim(obsFileType) == 'SQLITE' .and. .not. odbf_isActive() )  then
-        call sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
-      else if ( trim(obsFileType) == 'SQLITE' .and. odbf_isActive())  then
-      ! Potentially modify obsf_determineSplitFileType to include odb file type
-        write(*,*) 'obsf_addCloudParametersAndEmissivity: odb is active. ObsSpaceData header level variables, including'// &
-                   'Cloud and Emissivity in the MIDAS Header columns are updated from odbf_updateFile'
+      if ( trim(obsFileType) == 'SQLITE' )  then
+        if ( .not. odbf_isActive() ) then
+          ! The sqlf_addCloudParametersandEmissivity subrountine only adds cloud and emissivity obsSpacedata variables into 
+          ! SQLite files. These variables and other ObsSpaceData header level variables are added/updated in ObsDb files using a
+          ! seperate subroutine called odbf_updateMidasHeaderTable.
+          call sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
+        end if
       else if ( trim(obsFileType) == 'BURP' ) then 
         call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
       else  
