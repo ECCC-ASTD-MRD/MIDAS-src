@@ -383,6 +383,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="glbGrdSpaceL_ppp"/>
+    <FAMILY  name="glbGrdSpaceL_ppp">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="lam_xc40"/>
     <FAMILY  name="lam_xc40">
       <SUBMITS sub_name="UnitTest"/>
