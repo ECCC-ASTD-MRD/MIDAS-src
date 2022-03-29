@@ -2976,7 +2976,7 @@ contains
     character(len=128) :: errorMessage
     real(8) :: vector(1,numPredictors), predictor(numPredictors),correlation(numPredictors,numPredictors)
     real(8) :: sigma(numPredictors)
-
+    integer :: iuncov=0, iuncorr=0
 
     write(*,*) "entering bcs_outputCvOmPPred"
 
@@ -3136,25 +3136,29 @@ contains
       deallocate(OmFBiasMpiGLobal)
       deallocate(predBiasMpiGLobal)
       if (mpi_myId == 0) then
+        call utl_open_asciifile("covarianceMatrix_" // trim(tvs_instrumentName(sensorIndex)) //  &
+             "_" // trim(tvs_satelliteName(sensorIndex)) // ".dat", iuncov)
+        call utl_open_asciifile("correlationMatrix_" // trim(tvs_instrumentName(sensorIndex)) //  &
+             "_" // trim(tvs_satelliteName(sensorIndex)) // ".dat", iuncorr)
         do channelIndex = 1, nchans
           if (countMpiGlobal(channelIndex) > 1) then
             matrixMpiGlobal(channelIndex,:,:) = matrixMpiGlobal(channelIndex,:,:) / countMpiGlobal(channelIndex)
-            write(*,*) "OmF Pred covariance Matrix for channel ", &
+           
+            write(iuncov,*) "OmF Pred covariance Matrix for channel ", &
                  bias(sensorIndex)%chans(channelIndex)%channelNum, "instrument ", &
                  trim(tvs_instrumentName(sensorIndex))," ", &
                  trim(tvs_satelliteName(sensorIndex))
-            write(*,'(10x,A6)',advance="no") "OmF"
+            write(iuncov,'(10x,A6)',advance="no") "OmF"
             do predictorIndex = 2, numPredictors
-              write(*,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
+              write(iuncov,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
             end do
-            write(*,*)
-            write(*,'(A6)',advance="no") "Omf"
-            write(*,'(100f12.6)') matrixMpiGlobal(channelIndex,1,:)
+            write(iuncov,*)
+            write(iuncov,'(A6)',advance="no") "Omf"
+            write(iuncov,'(100f12.6)') matrixMpiGlobal(channelIndex,1,:)
             do predictorIndex = 2, numPredictors
-              write(*,'(A6)',advance="no") predTab(predictorIndex)
-              write(*,'(100f12.6)') matrixMpiGlobal(channelIndex,predictorIndex,:)
+              write(iuncov,'(A6)',advance="no") predTab(predictorIndex)
+              write(iuncov,'(100f12.6)') matrixMpiGlobal(channelIndex,predictorIndex,:)
             end do
-
             sigma(:) = 0
             do predictorIndex = 1,numPredictors
               if ( matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex) >0.d0) &
@@ -3167,26 +3171,25 @@ contains
                      (sigma(predictorIndex) * sigma(predictorIndex2) )
               end do
             end do
-      
-            write(*,*) "OmF Pred correlation Matrix for channel ", &
+            write(iuncorr,*) "OmF Pred correlation Matrix for channel ", &
                  bias(sensorIndex)%chans(channelIndex)%channelNum,"instrument ", &
                  trim(tvs_instrumentName(sensorIndex))," ", &
                  trim(tvs_satelliteName(sensorIndex))
-            write(*,'(10x,A6)',advance="no") "OmF"
+            write(iuncorr,'(10x,A6)',advance="no") "OmF"
             do predictorIndex = 2, numPredictors
-              write(*,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
+              write(iuncorr,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
             end do
-            write(*,*)
-            write(*,'(A6)',advance="no") "Omf"
-            write(*,'(100f12.6)') correlation(1,:)
+            write(iuncorr,*)
+            write(iuncorr,'(A6)',advance="no") "Omf"
+            write(iuncorr,'(100f12.6)') correlation(1,:)
             do predictorIndex = 2, numPredictors
-              write(*,'(A6)',advance="no") predTab(predictorIndex)
-              write(*,'(100f12.6)') correlation(predictorIndex,:)
+              write(iuncorr,'(A6)',advance="no") predTab(predictorIndex)
+              write(iuncorr,'(100f12.6)') correlation(predictorIndex,:)
             end do
-            
           end if
-       
         end do
+        close(iuncov)
+        close(iuncorr)
       end if
           
       deallocate(countMpiGlobal)
