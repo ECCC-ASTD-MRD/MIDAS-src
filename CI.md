@@ -71,6 +71,15 @@ confirm that it has been configured correctly by looking at the
 [runners page of the
 project](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/runners).
 
+### Concurrency
+
+For several pipeline jobs can be run concurrently by the runner, one
+must edit the file `${HOME}/.gitlab-runner/config.toml' to set:
+```
+concurrent = 10
+```
+We only test `10` as a value.
+
 ### Registering, step by step
 
 You can do a step by step configuration by following the instructions
