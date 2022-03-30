@@ -85,8 +85,8 @@ elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
     echo "... loading craype-hugepages16M"
     module load craype-hugepages16M
 elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
-    echo "... loading rpn/code-tools/ENV/cdt-1.5.5-inteloneapi-2022.1.2"
-    . r.load.dot rpn/code-tools/ENV/cdt-1.5.5-inteloneapi-2022.1.2
+    echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2"
+    . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
     exit 1
