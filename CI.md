@@ -128,7 +128,7 @@ if [ "\${gitlabrunner_exists}" != true ]; then
 #!/bin/bash
 set -ex
 
-env --ignore-environment LOGNAME="\\\${LOGNAME}" USER="\\\${USER}" HOME="\\\${HOME}" PATH=/bin:/usr/bin /home/sici000/bin/gitlab-runner-science-9.5.2 run --log-level debug run 2>&1 | ts "%F %T%z"
+env --ignore-environment LOGNAME="\\\${LOGNAME}" USER="\\\${USER}" HOME="\\\${HOME}" PATH=/bin:/usr/bin /home/sici000/bin/gitlab-runner-science-9.5.2 --log-level debug run 2>&1 | ts "%F %T%z"
 ENDOFGITLABRUNNER
 
     ord_soumet \\\${TMPDIR}/gitlab_runner -mach \${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
