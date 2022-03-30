@@ -1976,7 +1976,7 @@ CONTAINS
             numCorrect = 0
             maxAbsCorr = 0.0d0
 	    
-	    if(outputVarName == 'TM') then
+	    if(stateVector%hco%grtyp == 'U') then
 
               do latIndex = 2, stateVector%nj/2-1
                 do lonIndex = 2, stateVector%ni-1

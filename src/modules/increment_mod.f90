@@ -334,15 +334,18 @@ CONTAINS
                       allocHeight_opt = .false., allocPressure_opt = .false.)
     call gsv_copy(stateVectorUpdateHighRes, stateVectorAnal, &
                   allowVarMismatch_opt = .true., allowTimeMismatch_opt = .true.)
+      
+    if (gsv_varExist(stateVectorAnal, 'GL')) then
+      ! Impose limits [0,1] on sea ice concentration analysis
+      call gsv_getField(stateVectorAnal, oceanIce_ptr, 'GL')
+      oceanIce_ptr(:,:,:,:) = min(oceanIce_ptr(:,:,:,:), 1.0d0)
+      oceanIce_ptr(:,:,:,:) = max(oceanIce_ptr(:,:,:,:), 0.0d0)
+    end if
 
     if (applyLiebmann) then
     
       ! Start the variable transformations
       if (gsv_varExist(stateVectorAnal, 'GL')) then
-        ! Impose limits [0,1] on sea ice concentration analysis
-        call gsv_getField(stateVectorAnal, oceanIce_ptr, 'GL')
-        oceanIce_ptr(:,:,:,:) = min(oceanIce_ptr(:,:,:,:), 1.0d0)
-        oceanIce_ptr(:,:,:,:) = max(oceanIce_ptr(:,:,:,:), 0.0d0)
         if (gsv_varExist(stateVectorAnal, 'LG')) then
           ! Compute the continuous sea ice concentration field (LG)
           call gvt_transform(stateVectorAnal, 'oceanIceContinuous', stateVectorRef_opt = stateVectorTrial, varName_opt = 'LG')
