@@ -4,6 +4,7 @@ variables:
     SSM_PACKAGES: /home/sanl888/data_maestro/ords/midas/gitlab-ci/packages
     LISTINGS_ARCHIVE: /home/sanl888/data_maestro/eccc-ppp4/UnitTests/midas/listings
     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2"
+    ORD_SOUMET_ARGS: "-cpus 1 -m 10G -w 60 -mach ${ORDENV_TRUEHOST}"
 
 stages:
    - build
@@ -58,10 +59,13 @@ monitor_tests:
 
 splitobs_burp_tests:
    stage: test
+   variables:
+       ORD_SOUMET_ARGS: "-cpus 1 -m 32G -w 240 -mach ${ORDENV_TRUEHOST}"
+       WORKDIR: ${HOME}/data_maestro/${ORDENV_TRUEHOST}/splitobs/work_${CI_BUILD_ID}
    script:
      - cd tools/splitobs
      - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
-     - ./unittest_batch burp
+     - ./unittest burp
    only:
      - tags
    tags:
@@ -69,10 +73,13 @@ splitobs_burp_tests:
 
 splitobs_rdb_tests:
    stage: test
+   variables:
+       ORD_SOUMET_ARGS: "-cpus 1 -m 32G -w 240 -mach ${ORDENV_TRUEHOST}"
+       WORKDIR: ${HOME}/data_maestro/${ORDENV_TRUEHOST}/splitobs/work_${CI_BUILD_ID}
    script:
      - cd tools/splitobs
      - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
-     - ./unittest_batch rdb
+     - ./unittest rdb
    only:
      - tags
    tags:
