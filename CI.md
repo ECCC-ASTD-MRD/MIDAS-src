@@ -34,15 +34,25 @@ But, a copy has already been installed here:
 /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64
 ```
 
+### The CMC-owned running
+
+@phc001 worked on a Gitlab runner which can submit jobs.  The path to
+that runner is:
+```
+/home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64
+```
+It allows to specify resources for a ̀ord_soumet` job submission
+through variables `ORD_SOUMET_*`.
+
 Then a runner has to be registered to the GitLab server.  You must
 execute that command:
 ```bash
-/home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 register \
+/home/sici000/bin/gitlab-runner-science-9.5.2 register        \
          --non-interactive                                    \
-         --url https://gitlab.science.gc.ca/ci                \
+         --url https://gitlab.science.gc.ca                   \
          --registration-token ${GITLAB_CI_TOKEN}              \
          --description "GitLab runner running under user '${USER}' on '${TRUE_HOST}'."    \
-         --run-untagged                                       \
+         --tag-list  hpcr-u2                                  \
          --executor shell                                     \
          --builds-dir   ${HOME}/data_maestro/ords/midas/gitlab-ci/builds \
          --cache-dir    ${HOME}/data_maestro/ords/midas/gitlab-ci/cache
@@ -69,7 +79,7 @@ below.
 Then, one has to [register the
 runner](https://docs.gitlab.com/runner/register) with the command:
 ```bash
-/home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 register
+/home/sici000/bin/gitlab-runner-science-9.5.2 register
 ```
 The program will ask for the `gitlab-ci coordinator URL' which is in
 our case:
@@ -87,9 +97,9 @@ Runner for 'erv000' connected to 'gitlab.science.gc.ca:atmospheric-data-assimila
 
 It will ask for tags which you can ignore.  The next question is the
 `executor` for which we want a `ssh` and you put
-`eccc-ppp4.science.gc.ca` as the `SSH server address` when asked, then
+`ppp6.science.gc.ca` as the `SSH server address` when asked, then
 the script will be executed by doing a SSH connection to
-`eccc-ppp4.science.gc.ca`.
+`ppp6.science.gc.ca`.
 
 The last questions are the port of the SSH server which is `22` and DO
 NOT ENTER YOUR PASSWORD, just do return and it will ask you the path
@@ -104,7 +114,7 @@ cat > ~/bin/gitlab_runner.sh <<EOF
 #!/bin/bash
 set -ex
 
-runhost=\${1:-ppp5}
+runhost=\${1:-ppp6}
 qname=dev_daemon
 
 gitlabrunner_exists=true
@@ -118,14 +128,14 @@ if [ "\${gitlabrunner_exists}" != true ]; then
 #!/bin/bash
 set -ex
 
-env --ignore-environment LOGNAME="\\\${LOGNAME}" USER="\\\${USER}" HOME="\\\${HOME}" PATH=/bin:/usr/bin /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 run --log-level debug run 2>&1 | ts "%F %T%z"
+env --ignore-environment LOGNAME="\\\${LOGNAME}" USER="\\\${USER}" HOME="\\\${HOME}" PATH=/bin:/usr/bin /home/sici000/bin/gitlab-runner-science-9.5.2 run --log-level debug run 2>&1 | ts "%F %T%z"
 ENDOFGITLABRUNNER
 
-    ord_soumet \\\${TMPDIR}/gitlab_runner -mach eccc-\${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
+    ord_soumet \\\${TMPDIR}/gitlab_runner -mach \${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
     rm \\\${TMPDIR}/gitlab_runner
 ENDOFGITLABRUNNERSUBMIT
 
-    cat \${TMPDIR}/gitlab_runner_submit | ssh eccc-\${runhost} bash --login
+    cat \${TMPDIR}/gitlab_runner_submit | ssh \${runhost} bash --login
 
     rm \${TMPDIR}/gitlab_runner_submit
 fi
@@ -134,14 +144,14 @@ chmod +x ~/bin/gitlab_runner.sh
 ~/bin/gitlab_runner.sh
 ```
 
-This script will launch a job on the queue `dev_daemon` (which has no time limit) on `eccc-ppp4`.
+This script will launch a job on the queue `dev_daemon` (which has no time limit) on `ppp6`.
 
 ### Maintain the runner with `hcron`
 
 To install a `hcron` rule to check if the gitlab runner is running, do this
 ```bash
-mkdir -pv ~/.hcron/hcron-dev1.science.gc.ca/events/ppp5
-cat > ~/.hcron/hcron1.science.gc.ca/events/ppp5/gitlab-runner <<EOF
+mkdir -pv ~/.hcron/hcron-dev1.science.gc.ca/events/ppp6
+cat > ~/.hcron/hcron1.science.gc.ca/events/ppp6/gitlab-runner <<EOF
 as_user=
 host=\$HCRON_EVENT_NAME[1]
 command=echo ~/bin/gitlab_runner.sh | bash --login
