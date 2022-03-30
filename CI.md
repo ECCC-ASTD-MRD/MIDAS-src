@@ -121,32 +121,27 @@ We suggest to launch the GitLab Runner in the daemon queue of one of the PPPs.  
 [ ! -d ~/bin ] && mkdir -v ~/bin
 cat > ~/bin/gitlab_runner.sh <<EOF
 #!/bin/bash
+
 set -ex
 
 runhost=\${1:-ppp6}
 qname=dev_daemon
 
 gitlabrunner_exists=true
-jobst -c \${runhost} -q \${qname} -u \${USER} | grep gitlab_runner || gitlabrunner_exists=false
+ssh \${runhost} \$(which qstat) -u \${USER} | awk "\\\$3 ~ /\${qname}/" | grep gitlab || gitlabrunner_exists=false
 
 if [ "\${gitlabrunner_exists}" != true ]; then
-    cat > \${TMPDIR}/gitlab_runner_submit <<ENDOFGITLABRUNNERSUBMIT
+    cat > \${TMPDIR}/gitlab_runner <<ENDOFGITLABRUNNER
 #!/bin/bash
 
-    cat > \\\${TMPDIR}/gitlab_runner <<ENDOFGITLABRUNNER
-#!/bin/bash
 set -ex
 
-env --ignore-environment LOGNAME="\\\${LOGNAME}" USER="\\\${USER}" HOME="\\\${HOME}" PATH=/bin:/usr/bin /home/sici000/bin/gitlab-runner-science-9.5.2 --log-level debug run 2>&1 | ts "%F %T%z"
+/home/sici000/bin/gitlab-runner-science-9.5.2 --log-level debug run
 ENDOFGITLABRUNNER
 
-    ord_soumet \\\${TMPDIR}/gitlab_runner -mach \${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
-    rm \\\${TMPDIR}/gitlab_runner
-ENDOFGITLABRUNNERSUBMIT
+    ord_soumet \${TMPDIR}/gitlab_runner -mach \${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
 
-    cat \${TMPDIR}/gitlab_runner_submit | ssh \${runhost} bash --login
-
-    rm \${TMPDIR}/gitlab_runner_submit
+    rm \${TMPDIR}/gitlab_runner
 fi
 EOF
 chmod +x ~/bin/gitlab_runner.sh
@@ -160,9 +155,9 @@ This script will launch a job on the queue `dev_daemon` (which has no time limit
 To install a `hcron` rule to check if the gitlab runner is running, do this
 ```bash
 mkdir -pv ~/.hcron/hcron-dev6.science.gc.ca/events/ppp6
-cat > ~/.hcron/hcron6.science.gc.ca/events/ppp6/gitlab-runner <<EOF
+cat > ~/.hcron/hcron-dev6.science.gc.ca/events/ppp6/gitlab-runner <<EOF
 as_user=
-host=\$HCRON_EVENT_NAME[1]
+host=ppp6.science.gc.ca
 command=echo ~/bin/gitlab_runner.sh | bash --login
 notify_email=
 notify_message=
