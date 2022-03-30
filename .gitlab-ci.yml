@@ -11,11 +11,6 @@ stages:
    - doc
    - deploy
 
-## The program 'gitlab-runner' must be found in the PATH to get the artifacts collecting working.
-#before_script:
-#    - ln -svf /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin
-#    - ln -svf gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin/gitlab-runner
-
 midas_build:
   stage: build
   script:
