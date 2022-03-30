@@ -159,8 +159,8 @@ This script will launch a job on the queue `dev_daemon` (which has no time limit
 
 To install a `hcron` rule to check if the gitlab runner is running, do this
 ```bash
-mkdir -pv ~/.hcron/hcron-dev1.science.gc.ca/events/ppp6
-cat > ~/.hcron/hcron1.science.gc.ca/events/ppp6/gitlab-runner <<EOF
+mkdir -pv ~/.hcron/hcron-dev6.science.gc.ca/events/ppp6
+cat > ~/.hcron/hcron6.science.gc.ca/events/ppp6/gitlab-runner <<EOF
 as_user=
 host=\$HCRON_EVENT_NAME[1]
 command=echo ~/bin/gitlab_runner.sh | bash --login
@@ -172,5 +172,5 @@ when_hour=*
 when_minute=$((RANDOM % 60 ))
 when_dow=*
 EOF
-ssh hcron-dev5 hcron reload
+ssh hcron-dev6 hcron reload
 ```
