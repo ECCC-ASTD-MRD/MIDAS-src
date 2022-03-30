@@ -22,8 +22,8 @@ midas_build:
     - cd src/programs
     - ./compile_all_plat.sh $MIDAS_ABS
   only:
-    - master
-    - v_3.6
+    - main
+    - v_3.7
   tags:
     - hpcr-u1
 
@@ -33,8 +33,8 @@ monitor_build:
     - cd tools/monitor
     - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
   only:
-    - master
-    - v_3.6
+    - main
+    - v_3.7
   tags:
     - hpcr-u1
 
@@ -44,8 +44,8 @@ monitor_tests:
      - cd tools/monitor
      - ./test.sh $MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
    only:
-     - master
-     - v_3.6
+     - main
+     - v_3.7
    tags:
      - hpcr-u1
 
@@ -91,8 +91,8 @@ midas_tests:
      - rm ~/.suites/${suite}
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
-     - master
-     - v_3.6
+     - main
+     - v_3.7
    tags:
      - hpcr-u1
 
@@ -102,8 +102,8 @@ findTrials_tests:
      - cd tools/findTrials
      - ./midas.findTrials --unittest
    only:
-     - master
-     - v_3.6
+     - main
+     - v_3.7
    tags:
      - hpcr-u1
 
@@ -118,8 +118,8 @@ doc_sphinx:
   - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
   only:
-    - master
-    - v_3.6
+    - main
+    - v_3.7
   tags:
     - hpcr-u1
 
