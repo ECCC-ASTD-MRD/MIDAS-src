@@ -51,9 +51,9 @@ execute that command:
          --non-interactive                                    \
          --url https://gitlab.science.gc.ca                   \
          --registration-token ${GITLAB_CI_TOKEN}              \
-         --description "GitLab runner running under user '${USER}' on '${TRUE_HOST}'."    \
+         --description "GitLab runner running under user '${USER}' on '${TRUE_HOST}' using 'ordsoumet' executor."    \
          --tag-list  hpcr-u2                                  \
-         --executor shell                                     \
+         --executor  ordsoumet                                \
          --builds-dir   ${HOME}/data_maestro/ords/midas/gitlab-ci/builds \
          --cache-dir    ${HOME}/data_maestro/ords/midas/gitlab-ci/cache
 ```
