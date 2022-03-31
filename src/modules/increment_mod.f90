@@ -48,6 +48,7 @@ module increment_mod
   logical  :: imposeRttovHuLimits, useAnalIncMask
   character(len=12) :: etiket_anlm, etiket_rehm, etiket_rebm
   character(len=12) :: hInterpolationDegree
+  logical  :: applyLiebmann
 
 CONTAINS
 
@@ -65,7 +66,7 @@ CONTAINS
     logical, save :: nmlAlreadyRead = .false.
     NAMELIST /NAMINC/ writeHiresIncrement, etiket_rehm, etiket_anlm, &
          etiket_rebm, writeNumBits, imposeRttovHuLimits, hInterpolationDegree, &
-         useAnalIncMask
+         useAnalIncMask, applyLiebmann
 
     if ( .not. nmlAlreadyRead ) then
       nmlAlreadyRead = .true.
@@ -79,7 +80,8 @@ CONTAINS
       etiket_anlm = 'ANALYSIS'
       writeNumBits = 16
       hInterpolationDegree = 'LINEAR'
-
+      applyLiebmann = .false.
+      
       if ( .not. utl_isNamelistPresent('NAMINC','./flnml') ) then
         if ( mpi_myid == 0 ) then
           write(*,*) 'NAMINC is missing in the namelist. The default values will be taken.'
@@ -332,24 +334,30 @@ CONTAINS
                       allocHeight_opt = .false., allocPressure_opt = .false.)
     call gsv_copy(stateVectorUpdateHighRes, stateVectorAnal, &
                   allowVarMismatch_opt = .true., allowTimeMismatch_opt = .true.)
-
-    ! Start the variable transformations
+      
     if (gsv_varExist(stateVectorAnal, 'GL')) then
       ! Impose limits [0,1] on sea ice concentration analysis
       call gsv_getField(stateVectorAnal, oceanIce_ptr, 'GL')
       oceanIce_ptr(:,:,:,:) = min(oceanIce_ptr(:,:,:,:), 1.0d0)
       oceanIce_ptr(:,:,:,:) = max(oceanIce_ptr(:,:,:,:), 0.0d0)
-      if (gsv_varExist(stateVectorAnal, 'LG' ) ) then
-        ! Compute the continuous sea ice concentration field (LG)
-        call gvt_transform( stateVectorAnal, 'oceanIceContinuous', stateVectorRef_opt = stateVectorTrial, varName_opt = 'LG' )
-      end if
     end if
 
-    ! Start the variable transformations
-    if( gsv_varExist(stateVectorAnal,'TM') ) then
-      call gsv_getField( stateVectorAnal, oceanIce_ptr, 'TM' )
-      ! Compute the continuous SST field (TM)
-      call gvt_transform( stateVectorAnal, 'oceanIceContinuous', stateVectorRef_opt = stateVectorTrial, varName_opt = 'TM' )
+    if (applyLiebmann) then
+    
+      ! Start the variable transformations
+      if (gsv_varExist(stateVectorAnal, 'GL')) then
+        if (gsv_varExist(stateVectorAnal, 'LG')) then
+          ! Compute the continuous sea ice concentration field (LG)
+          call gvt_transform(stateVectorAnal, 'oceanIceContinuous', stateVectorRef_opt = stateVectorTrial, varName_opt = 'LG')
+        end if
+      end if
+    
+      ! Start the variable transformations
+      if( gsv_varExist(stateVectorAnal,'TM') ) then
+        ! Compute the continuous SST field (TM)
+        call gvt_transform(stateVectorAnal, 'oceanIceContinuous', stateVectorRef_opt = stateVectorTrial, varName_opt = 'TM')
+      end if
+      
     end if
 
     ! Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR) for analysis
