@@ -127,6 +127,7 @@ clean_midas_abs:
    stage: clean
    script:
      - mkdir -pv $MIDAS_ABS_ARCHIVE
+     - echo Moving programs for version $(./midas.version.sh) in $MIDAS_ABS to $MIDAS_ABS_ARCHIVE
      - mv $MIDAS_ABS/midas*$(./midas.version.sh).Abs $MIDAS_ABS_ARCHIVE
    only:
      - main
