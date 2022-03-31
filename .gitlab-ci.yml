@@ -1,6 +1,7 @@
 variables:
     # CI_DEBUG_TRACE: "true"
     MIDAS_ABS: /home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
+    MIDAS_ABS_ARCHIVE: /home/sanl888/data_maestro/ppp5/midas/gitlab-ci/abs
     SSM_PACKAGES: /home/sanl888/data_maestro/ords/midas/gitlab-ci/packages
     LISTINGS_ARCHIVE: /home/sanl888/data_maestro/eccc-ppp4/UnitTests/midas/listings
     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2"
@@ -9,6 +10,7 @@ variables:
 stages:
    - build
    - test
+   - clean
    - doc
    - deploy
 
@@ -113,6 +115,18 @@ findTrials_tests:
    script:
      - cd tools/findTrials
      - ./midas.findTrials --unittest
+   only:
+     - main
+     - v_3.7
+     - tags
+   tags:
+     - hpcr-u2
+
+clean_midas_abs:
+   stage: clean
+   script:
+     - mkdir -pv $MIDAS_ABS_ARCHIVE
+     - mv $MIDAS_ABS/midas*$(./midas.version.sh).Abs $MIDAS_ABS_ARCHIVE
    only:
      - main
      - v_3.7
