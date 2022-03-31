@@ -68,6 +68,7 @@ splitobs_burp_tests:
      - ./unittest burp
    only:
      - tags
+     - 596-installing-the-ci-on-hpcr-u2
    tags:
      - hpcr-u2
 
@@ -82,6 +83,7 @@ splitobs_rdb_tests:
      - ./unittest rdb
    only:
      - tags
+     - 596-installing-the-ci-on-hpcr-u2
    tags:
      - hpcr-u2
 
