@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * `make help` provide default values for environment variables (#625 and !581)
  * Added an option dump cores in case of runtime errors in UnitTests (#602 and !567)
  * Enable interpolation of sea-ice analysis in program `SSTbias` (#600 and !556)
  * Migrate the "main" branch to `rhel-8-icelake-64` (#594 and !557)
