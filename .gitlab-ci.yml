@@ -20,6 +20,7 @@ midas_build:
   only:
     - main
     - v_3.7
+    - tags
   tags:
     - hpcr-u2
 
@@ -31,6 +32,7 @@ monitor_build:
   only:
     - main
     - v_3.7
+    - tags
   tags:
     - hpcr-u2
 
@@ -42,6 +44,7 @@ monitor_tests:
    only:
      - main
      - v_3.7
+     - tags
    tags:
      - hpcr-u2
 
@@ -99,6 +102,7 @@ midas_tests:
    only:
      - main
      - v_3.7
+     - tags
    tags:
      - hpcr-u2
 
@@ -110,6 +114,7 @@ findTrials_tests:
    only:
      - main
      - v_3.7
+     - tags
    tags:
      - hpcr-u2
 
@@ -126,6 +131,7 @@ findTrials_tests:
 ##   only:
 ##     - main
 ##     - v_3.7
+##     - tags
 ##   tags:
 ##     - hpcr-u2
 
