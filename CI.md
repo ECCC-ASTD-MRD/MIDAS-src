@@ -34,16 +34,26 @@ But, a copy has already been installed here:
 /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64
 ```
 
+### The CMC-owned running
+
+@phc001 worked on a Gitlab runner which can submit jobs.  The path to
+that runner is:
+```
+/home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64
+```
+It allows to specify resources for a ̀ord_soumet` job submission
+through variables `ORD_SOUMET_*`.
+
 Then a runner has to be registered to the GitLab server.  You must
 execute that command:
 ```bash
-/home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 register \
+/home/sici000/bin/gitlab-runner-science-9.5.2 register        \
          --non-interactive                                    \
-         --url https://gitlab.science.gc.ca/ci                \
+         --url https://gitlab.science.gc.ca                   \
          --registration-token ${GITLAB_CI_TOKEN}              \
-         --description "GitLab runner running under user '${USER}' on '${TRUE_HOST}'."    \
-         --run-untagged                                       \
-         --executor shell                                     \
+         --description "GitLab runner running under user '${USER}' on '${TRUE_HOST}' using 'ordsoumet' executor."    \
+         --tag-list  hpcr-u2                                  \
+         --executor  ordsoumet                                \
          --builds-dir   ${HOME}/data_maestro/ords/midas/gitlab-ci/builds \
          --cache-dir    ${HOME}/data_maestro/ords/midas/gitlab-ci/cache
 ```
@@ -61,6 +71,15 @@ confirm that it has been configured correctly by looking at the
 [runners page of the
 project](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/runners).
 
+### Concurrency
+
+For several pipeline jobs can be run concurrently by the runner, one
+must edit the file `${HOME}/.gitlab-runner/config.toml' to set:
+```
+concurrent = 10
+```
+We only test `10` as a value.
+
 ### Registering, step by step
 
 You can do a step by step configuration by following the instructions
@@ -69,7 +88,7 @@ below.
 Then, one has to [register the
 runner](https://docs.gitlab.com/runner/register) with the command:
 ```bash
-/home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 register
+/home/sici000/bin/gitlab-runner-science-9.5.2 register
 ```
 The program will ask for the `gitlab-ci coordinator URL' which is in
 our case:
@@ -87,9 +106,9 @@ Runner for 'erv000' connected to 'gitlab.science.gc.ca:atmospheric-data-assimila
 
 It will ask for tags which you can ignore.  The next question is the
 `executor` for which we want a `ssh` and you put
-`eccc-ppp4.science.gc.ca` as the `SSH server address` when asked, then
+`ppp6.science.gc.ca` as the `SSH server address` when asked, then
 the script will be executed by doing a SSH connection to
-`eccc-ppp4.science.gc.ca`.
+`ppp6.science.gc.ca`.
 
 The last questions are the port of the SSH server which is `22` and DO
 NOT ENTER YOUR PASSWORD, just do return and it will ask you the path
@@ -102,48 +121,43 @@ We suggest to launch the GitLab Runner in the daemon queue of one of the PPPs.  
 [ ! -d ~/bin ] && mkdir -v ~/bin
 cat > ~/bin/gitlab_runner.sh <<EOF
 #!/bin/bash
+
 set -ex
 
-runhost=\${1:-ppp4}
+runhost=\${1:-ppp6}
 qname=dev_daemon
 
 gitlabrunner_exists=true
-jobst -c \${runhost} -q \${qname} -u \${USER} | grep gitlab_runner || gitlabrunner_exists=false
+ssh \${runhost} \$(which qstat) -u \${USER} | awk "\\\$3 ~ /\${qname}/" | grep gitlab || gitlabrunner_exists=false
 
 if [ "\${gitlabrunner_exists}" != true ]; then
-    cat > \${TMPDIR}/gitlab_runner_submit <<ENDOFGITLABRUNNERSUBMIT
+    cat > \${TMPDIR}/gitlab_runner <<ENDOFGITLABRUNNER
 #!/bin/bash
 
-    cat > \\\${TMPDIR}/gitlab_runner <<ENDOFGITLABRUNNER
-#!/bin/bash
 set -ex
 
-env --ignore-environment LOGNAME="\\\${LOGNAME}" USER="\\\${USER}" HOME="\\\${HOME}" PATH=/bin:/usr/bin /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 run --log-level debug run 2>&1 | ts "%F %T%z"
+/home/sici000/bin/gitlab-runner-science-9.5.2 --log-level debug run
 ENDOFGITLABRUNNER
 
-    ord_soumet \\\${TMPDIR}/gitlab_runner -mach eccc-\${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
-    rm \\\${TMPDIR}/gitlab_runner
-ENDOFGITLABRUNNERSUBMIT
+    ord_soumet \${TMPDIR}/gitlab_runner -mach \${runhost} -queue \${qname} -cpus 1 -w \$((90*24*60))
 
-    cat \${TMPDIR}/gitlab_runner_submit | ssh eccc-\${runhost} bash --login
-
-    rm \${TMPDIR}/gitlab_runner_submit
+    rm \${TMPDIR}/gitlab_runner
 fi
 EOF
 chmod +x ~/bin/gitlab_runner.sh
 ~/bin/gitlab_runner.sh
 ```
 
-This script will launch a job on the queue `dev_daemon` (which has no time limit) on `eccc-ppp4`.
+This script will launch a job on the queue `dev_daemon` (which has no time limit) on `ppp6`.
 
 ### Maintain the runner with `hcron`
 
 To install a `hcron` rule to check if the gitlab runner is running, do this
 ```bash
-mkdir -pv ~/.hcron/hcron-dev1.science.gc.ca/events/eccc-ppp4
-cat > ~/.hcron/hcron1.science.gc.ca/events/eccc-ppp4/gitlab-runner <<EOF
+mkdir -pv ~/.hcron/hcron-dev6.science.gc.ca/events/ppp6
+cat > ~/.hcron/hcron-dev6.science.gc.ca/events/ppp6/gitlab-runner <<EOF
 as_user=
-host=\$HCRON_EVENT_NAME[1]
+host=ppp6.science.gc.ca
 command=echo ~/bin/gitlab_runner.sh | bash --login
 notify_email=
 notify_message=
@@ -153,5 +167,5 @@ when_hour=*
 when_minute=$((RANDOM % 60 ))
 when_dow=*
 EOF
-ssh hcron-dev1 hcron reload
+ssh hcron-dev6 hcron reload
 ```
