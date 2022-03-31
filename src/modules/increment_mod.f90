@@ -354,7 +354,6 @@ CONTAINS
     
       ! Start the variable transformations
       if( gsv_varExist(stateVectorAnal,'TM') ) then
-        call gsv_getField( stateVectorAnal, oceanIce_ptr, 'TM' )
         ! Compute the continuous SST field (TM)
         call gvt_transform(stateVectorAnal, 'oceanIceContinuous', stateVectorRef_opt = stateVectorTrial, varName_opt = 'TM')
       end if
