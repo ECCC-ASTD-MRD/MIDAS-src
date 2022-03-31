@@ -23,6 +23,7 @@ midas_build:
     - main
     - v_3.7
     - tags
+    - 596-installing-the-ci-on-hpcr-u2
   tags:
     - hpcr-u2
 
@@ -131,6 +132,7 @@ clean_midas_abs:
      - main
      - v_3.7
      - tags
+     - 596-installing-the-ci-on-hpcr-u2
    tags:
      - hpcr-u2
 
