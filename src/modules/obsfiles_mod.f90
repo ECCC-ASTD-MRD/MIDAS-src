@@ -44,6 +44,8 @@ module obsFiles_mod
   use biasCorrectionConv_mod
   use clib_interfaces_mod
   use tovs_nl_mod 
+  use ensembleobservations_mod
+
   implicit none
   save
   private
@@ -186,15 +188,16 @@ contains
   end subroutine obsf_readFiles
 
 
-  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt, writeDiagFiles_opt)
+  subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt, writeDiagFiles_opt, ensObs_opt)
     implicit none
 
     ! arguments
-    type(struct_obs)  :: obsSpaceData
-    real(8), optional :: HXens_mpiglobal_opt(:,:)
-    logical, optional :: asciDumpObs_opt
-    logical, optional :: writeDiagFiles_opt
-
+    type(struct_obs)           :: obsSpaceData
+    real(8), optional          :: HXens_mpiglobal_opt(:,:)
+    logical, optional          :: asciDumpObs_opt
+    logical, optional          :: writeDiagFiles_opt
+    type(struct_eob), optional :: ensObs_opt          
+  
     ! locals
     integer           :: fileIndex, fnom, fclos, nulnam, ierr
     character(len=10) :: obsFileType, sfFileName
@@ -274,17 +277,18 @@ contains
       sfFileName = 'sf'
     end if
 
-    if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag )
+    if (lwritediagsql) then 
+       call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag, ensObs_opt=ensObs_opt )
+    end if
 
     if ( present(asciDumpObs_opt) ) then
-      if ( asciDumpObs_opt ) then
-        if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' .or. mpi_myid == 0   ) then
-          ! all processors write to files only for BURP and SQLITE    
-          call obsf_writeAsciDump(obsSpaceData)
-        end if
-      end if
+       if ( asciDumpObs_opt ) then
+          if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' .or. mpi_myid == 0   ) then
+             ! all processors write to files only for BURP and SQLITE    
+             call obsf_writeAsciDump(obsSpaceData)
+          end if
 
-    end if
+       end if
 
     call utl_tmg_stop(10)
 

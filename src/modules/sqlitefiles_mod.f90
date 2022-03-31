@@ -30,6 +30,7 @@ module sqliteFiles_mod
   use codePrecision_mod
   use obsUtil_mod
   use obsVariableTransforms_mod
+  use ensembleObservations_mod
 
   implicit none
   save
@@ -270,16 +271,17 @@ module sqliteFiles_mod
   !--------------------------------------------------------------------------
   ! sqlf_writeSqlDiagFiles
   !--------------------------------------------------------------------------
-  subroutine sqlf_writeSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag)
+  subroutine sqlf_writeSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag, ensObs_opt)
     implicit none
     ! arguments
     type (struct_obs), intent(inout) :: obsSpaceData
     character(len=*), intent(in)     :: sfFileName ! fileName acronym used for surface obs file
     logical                          :: onlyAssimObs, addFSOdiag
+    type(struct_eob), optional       :: ensObs_opt ! object for trial and analysis members in obsspace
 
     call utl_tmg_start(15,'----WriteSqlDiagFiles')
     
-    call sqlr_writeAllSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag)
+    call sqlr_writeAllSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag, ensObs_opt)
     
     call utl_tmg_stop(15)
 
