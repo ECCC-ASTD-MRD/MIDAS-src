@@ -679,11 +679,11 @@ contains
                                        gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: yourid,ila,icount,nsize,ierr,jlev,jlev2
 
-    call utl_tmg_start(113,'--GST_NTOLEV_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(113)
+    call tmg_stop(152)
 
-    call utl_tmg_start(26,'--TRANSP_2D_NtoLEV')
+    call utl_tmg_start(153,'low-level--gst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount)
     do yourid = 0, (mpi_npex-1)
@@ -697,7 +697,6 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(21,'--ALLTOALL_2D_NtoLEV')
     nsize = gst(gstID)%maxMyNla * 2 * gst(gstID)%maxMyLevCount
     if(mpi_npex.gt.1) then
       call rpn_comm_alltoall(sp_send, nsize, pre_specTransMpiReal,  &
@@ -705,7 +704,6 @@ contains
     else
       sp_recv(:,:,:,1) = sp_send(:,:,:,1)
     endif
-    call tmg_stop(21)
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount,ila)
     do yourid = 0, (mpi_npex-1)
@@ -720,7 +718,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(26)
+    call tmg_stop(153)
 
   end subroutine transpose2d_NtoLev
 
@@ -740,11 +738,11 @@ contains
                                        gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: yourid,ila,icount,nsize,ierr,jlev,jlev2
 
-    call utl_tmg_start(114,'--GST_LEVTON_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(114)
+    call tmg_stop(152)
 
-    call utl_tmg_start(26,'--TRANSP_2D_NtoLEV')
+    call utl_tmg_start(153,'low-level--gst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount,ila)
     do yourid = 0, (mpi_npex-1)
@@ -760,7 +758,6 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(21,'--ALLTOALL_2D_NtoLEV')
     nsize = gst(gstID)%maxMyNla * 2 * gst(gstID)%maxMyLevCount
     if(mpi_npex.gt.1) then
       call rpn_comm_alltoall(sp_send, nsize, pre_specTransMpiReal,  &
@@ -768,7 +765,6 @@ contains
     else
       sp_recv(:,:,:,1) = sp_send(:,:,:,1)
     endif
-    call tmg_stop(21)
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlev,jlev2,icount)
     do yourid = 0, (mpi_npex-1)
@@ -782,7 +778,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(26)
+    call tmg_stop(153)
 
   end subroutine transpose2d_LevtoN
 
@@ -803,11 +799,11 @@ contains
                                        gst(gstID)%maxMyLevCount, mpi_npey)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlev2,jlat,jlat2
 
-    call utl_tmg_start(20,'--GST_TRANSPOSE_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('NS',ierr)
-    call tmg_stop(20)
+    call tmg_stop(152)
 
-    call utl_tmg_start(27,'--TRANSP_2D_MtoLAT')
+    call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
@@ -828,7 +824,6 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(22,'--ALLTOALL_2D_MtoLAT')
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npey.gt.1) then
       call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
@@ -836,7 +831,6 @@ contains
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
-    call tmg_stop(22)
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
@@ -856,7 +850,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(27)
+    call tmg_stop(154)
 
   end subroutine transpose2d_MtoLat
 
@@ -878,11 +872,11 @@ contains
     call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
     call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
 
-    call utl_tmg_start(115,'--GST_MTOLAT_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('NS',ierr)
-    call tmg_stop(115)
+    call tmg_stop(152)
 
-    call utl_tmg_start(27,'--TRANSP_2D_MtoLAT')
+    call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
@@ -902,7 +896,6 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(22,'--ALLTOALL_2D_MtoLAT')
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npey.gt.1) then
       call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
@@ -910,7 +903,6 @@ contains
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
-    call tmg_stop(22)
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
@@ -929,7 +921,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(27)
+    call tmg_stop(154)
 
   end subroutine transpose2d_MtoLat_kij
 
@@ -950,11 +942,11 @@ contains
                                        gst(gstID)%maxMyLevCount, mpi_npey)
     integer :: yourid,jm,jm2,icount,nsize,ierr,jlev,jlev2,jlat,jlat2
 
-    call utl_tmg_start(20,'--GST_TRANSPOSE_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('NS',ierr)
-    call tmg_stop(20)
+    call tmg_stop(152)
 
-    call utl_tmg_start(27,'--TRANSP_2D_MtoLAT')
+    call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
@@ -975,7 +967,6 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(22,'--ALLTOALL_2D_MtoLAT')
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npey.gt.1) then
       call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
@@ -983,7 +974,6 @@ contains
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
-    call tmg_stop(22)
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,jlev2,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
@@ -1003,7 +993,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(27)
+    call tmg_stop(154)
 
   end subroutine transpose2d_LattoM
 
@@ -1025,11 +1015,11 @@ contains
     call utl_reAllocate(gd_send, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
     call utl_reAllocate(gd_recv, gst(gstID)%maxMyLevCount, gst(gstID)%maxmCount, 2, gst(gstID)%latPerPEmax, mpi_npey)
 
-    call utl_tmg_start(116,'--GST_LATTOM_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('NS',ierr)
-    call tmg_stop(116)
+    call tmg_stop(152)
 
-    call utl_tmg_start(27,'--TRANSP_2D_MtoLAT')
+    call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
@@ -1049,7 +1039,6 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(22,'--ALLTOALL_2D_MtoLAT')
     nsize = gst(gstID)%maxmCount * 2 * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npey.gt.1) then
       call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
@@ -1057,7 +1046,6 @@ contains
     else
       gd_recv(:,:,:,:,1) = gd_send(:,:,:,:,1)
     endif
-    call tmg_stop(22)
 
     !$OMP PARALLEL DO PRIVATE(yourid,jlat,jlat2,jlev,icount,jm,jm2)
     do yourid = 0, (mpi_npey-1)
@@ -1076,7 +1064,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(27)
+    call tmg_stop(154)
 
   end subroutine transpose2d_LattoM_kij
 
@@ -1097,11 +1085,11 @@ contains
                                        gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: youridP1,nsize,ierr,jlev,jlev2
 
-    call utl_tmg_start(20,'--GST_TRANSPOSE_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(20)
+    call tmg_stop(152)
 
-    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
     do jlev = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
@@ -1114,7 +1102,6 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(25,'--ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npex.gt.1) then
       call rpn_comm_alltoall(gd_send,nsize,pre_specTransMpiReal,  &
@@ -1122,7 +1109,6 @@ contains
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
-    call tmg_stop(25)
 
     !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
     do youridP1 = 1, mpi_npex
@@ -1133,7 +1119,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(28)
+    call tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon
 
@@ -1150,13 +1136,12 @@ contains
     ! Locals:
     integer :: nsize,ierr
 
-    call utl_tmg_start(117,'--GST_LEVTOLON_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(117)
+    call tmg_stop(152)
 
-    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
-    call utl_tmg_start(25,'--ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mpi_npex.gt.1) then
       call mpi_alltoall(pgd_in,  1, gst(gstID)%sendType_LevToLon,  &
@@ -1164,9 +1149,8 @@ contains
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
-    call tmg_stop(25)
 
-    call tmg_stop(28)
+    call tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon_kij_mpitypes8
 
@@ -1187,13 +1171,12 @@ contains
     real(4) :: pgd_out_r4(gst(gstID)%nk, gst(gstID)%myLonBeg:gst(gstID)%myLonEnd, &
                           gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
-    call utl_tmg_start(117,'--GST_LEVTOLON_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(117)
+    call tmg_stop(152)
 
-    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
-    call utl_tmg_start(25,'--ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mpi_npex.gt.1) then
       pgd_in_r4(:,:,:) = pgd_in(:,:,:)
@@ -1203,9 +1186,8 @@ contains
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
-    call tmg_stop(25)
 
-    call tmg_stop(28)
+    call tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon_kij_mpitypes4
 
@@ -1226,11 +1208,11 @@ contains
                                        gst(gstID)%latPerPEmax, mpi_npex)
     integer :: youridP1, nsize, ierr, yourNumLev
 
-    call utl_tmg_start(117,'--GST_LEVTOLON_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(117)
+    call tmg_stop(152)
 
-    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(youridP1)
     do youridP1 = 1, mpi_npex
@@ -1240,7 +1222,6 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(25,'--ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npex.gt.1) then
       call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,   &
@@ -1248,9 +1229,7 @@ contains
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
-    call tmg_stop(25)
 
-    call utl_tmg_start(111,'--LEVtoLON_KIJ_SHUFFLE2')
     !$OMP PARALLEL DO PRIVATE(youridP1,yourNumLev)
     do youridP1 = 1, mpi_npex
       yourNumLev = gst(gstID)%allLevEnd(youridP1) - gst(gstID)%allLevBeg(youridP1) + 1
@@ -1258,9 +1237,8 @@ contains
            gd_recv(1:yourNumLev, 1:gst(gstID)%lonPerPE, 1:gst(gstID)%latPerPE, youridP1)
     enddo
     !$OMP END PARALLEL DO
-    call tmg_stop(111)
 
-    call tmg_stop(28)
+    call tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon_kij
 
@@ -1281,11 +1259,11 @@ contains
                                        gst(gstID)%maxMyLevCount, mpi_npex)
     integer :: youridP1,nsize,ierr,jlev,jlev2
 
-    call utl_tmg_start(20,'--GST_TRANSPOSE_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(20)
+    call tmg_stop(152)
 
-    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
     do youridP1 = 1, mpi_npex
@@ -1298,7 +1276,6 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(25,'--ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npex.gt.1) then
       call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
@@ -1306,7 +1283,6 @@ contains
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
-    call tmg_stop(25)
 
     !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
     do jlev = gst(gstID)%myLevBeg, gst(gstID)%myLevEnd
@@ -1318,7 +1294,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(28)
+    call tmg_stop(155)
 
   end subroutine transpose2d_LontoLev
 
@@ -1335,16 +1311,12 @@ contains
     ! Locals:
     integer :: nsize, ierr
 
-    call utl_tmg_start(118,'--GST_LONTOLEV_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(118)
+    call tmg_stop(152)
 
-    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
-    call utl_tmg_start(112,'--LEVtoLON_KIJ_SHUFFLE3')
-    call tmg_stop(112)
-
-    call utl_tmg_start(25,'--ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mpi_npex.gt.1) then
       call mpi_alltoall(pgd_in,  1, gst(gstID)%sendType_LonToLev,  &
@@ -1352,9 +1324,8 @@ contains
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
-    call tmg_stop(25)
 
-    call tmg_stop(28)
+    call tmg_stop(155)
 
   end subroutine transpose2d_LontoLev_kij_mpitypes8
 
@@ -1375,16 +1346,12 @@ contains
     real(4) :: pgd_out_r4(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
                           gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
 
-    call utl_tmg_start(118,'--GST_LONTOLEV_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(118)
+    call tmg_stop(152)
 
-    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
-    call utl_tmg_start(112,'--LEVtoLON_KIJ_SHUFFLE3')
-    call tmg_stop(112)
-
-    call utl_tmg_start(25,'--ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPE * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPE
     if(mpi_npex.gt.1) then
       pgd_in_r4(:,:,:) = pgd_in(:,:,:)
@@ -1394,9 +1361,8 @@ contains
     else
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
-    call tmg_stop(25)
 
-    call tmg_stop(28)
+    call tmg_stop(155)
 
   end subroutine transpose2d_LontoLev_kij_mpitypes4
 
@@ -1417,13 +1383,12 @@ contains
                                        gst(gstID)%latPerPEmax, mpi_npex)
     integer :: youridP1,nsize,ierr,jlev,jlev2,yourNumLev
 
-    call utl_tmg_start(118,'--GST_LONTOLEV_BARR')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(118)
+    call tmg_stop(152)
 
-    call utl_tmg_start(28,'--TRANSP_2D_LEVtoLON')
+    call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
-    call utl_tmg_start(112,'--LEVtoLON_KIJ_SHUFFLE3')
     !$OMP PARALLEL DO PRIVATE(youridP1,yourNumLev)
     do youridP1 = 1, mpi_npex
       yourNumLev = gst(gstID)%allLevEnd(youridP1) - gst(gstID)%allLevBeg(youridP1) + 1
@@ -1432,9 +1397,7 @@ contains
            pgd_in(gst(gstID)%allLevBeg(youridP1):gst(gstID)%allLevEnd(youridP1),:,:)
     enddo
     !$OMP END PARALLEL DO
-    call tmg_stop(112)
 
-    call utl_tmg_start(25,'--ALLTOALL_2D_LEVtoLON')
     nsize = gst(gstID)%lonPerPEmax * gst(gstID)%maxMyLevCount * gst(gstID)%latPerPEmax
     if(mpi_npex.gt.1) then
       call rpn_comm_alltoall(gd_send, nsize, pre_specTransMpiReal,  &
@@ -1442,7 +1405,6 @@ contains
     else
       gd_recv(:,:,:,1) = gd_send(:,:,:,1)
     endif
-    call tmg_stop(25)
 
     !$OMP PARALLEL DO PRIVATE(youridP1,jlev,jlev2)
     do youridP1 = 1, mpi_npex
@@ -1451,7 +1413,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(28)
+    call tmg_stop(155)
 
   end subroutine transpose2d_LontoLev_kij
 
@@ -1611,9 +1573,9 @@ contains
     call transpose2d_NtoLev(psp,psp2)
 
     ! 1.2 Inverse Legendre transform
-    call utl_tmg_start(23,'--GST_LT')
+    call utl_tmg_start(150,'low-level--gst_lt')
     call spgdpar(psp2,pgd2,nflev)
-    call tmg_stop(23)
+    call tmg_stop(150)
     deallocate(psp2)
 
     ! 1.3 Transpose data along npey from M to Latitudes
@@ -1632,9 +1594,9 @@ contains
     !$OMP END PARALLEL DO
 
     ! 2.2 Apply the FFT 
-    call utl_tmg_start(24,'--GST_FFT')
+    call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,+1)
-    call tmg_stop(24)
+    call tmg_stop(151)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
     call transpose2d_LevtoLon(pgd3,pgd)
@@ -1680,18 +1642,18 @@ contains
     call transpose2d_LontoLev(pgd,pgd3)
 
     ! 1. Fourier transform all fields for all latitudes
-    call utl_tmg_start(24,'--GST_FFT')
+    call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,-1)
-    call tmg_stop(24)
+    call tmg_stop(151)
 
     ! Transpose data along npey from Latitudes to M
     call transpose2d_LattoM(pgd3,pgd2)
     deallocate(pgd3)
 
     ! 2. Direct Legendre transform including wind transformations
-    call utl_tmg_start(23,'--GST_LT')
+    call utl_tmg_start(150,'low-level--gst_lt')
     call gdsppar(psp2,pgd2,nflev)
-    call tmg_stop(23)
+    call tmg_stop(150)
     deallocate(pgd2)
 
     ! Transpose data along npex from Levels to N
@@ -2023,18 +1985,18 @@ contains
     call transpose2d_LontoLev(pgd,pgd3)
 
     ! Fourier transform all fields for all latitudes
-    call utl_tmg_start(24,'--GST_FFT')
+    call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,-1)
-    call tmg_stop(24)
+    call tmg_stop(151)
 
     ! Transpose data along npey from Latitudes to M
     call transpose2d_LattoM(pgd3,pgd2)
     deallocate(pgd3)
 
     ! Direct Legendre transform including wind transformations
-    call utl_tmg_start(23,'--GST_LT')
+    call utl_tmg_start(150,'low-level--gst_lt')
     call spgdapar(psp2,pgd2,nflev)
-    call tmg_stop(23)
+    call tmg_stop(150)
     deallocate(pgd2)
 
     ! Transpose data along npex from Levels to N
@@ -2290,9 +2252,9 @@ contains
     call transpose2d_NtoLev(psp,psp2)
 
     ! 1.1 Inverse Legendre transform (lon -> m)
-    call utl_tmg_start(23,'--GST_LT')
+    call utl_tmg_start(150,'low-level--gst_lt')
     call spereepar(psp2,pgd2)
-    call tmg_stop(23)
+    call tmg_stop(150)
     deallocate(psp2)
 
     ! 1.2 Transpose data along npey from M to Latitudes
@@ -2311,9 +2273,9 @@ contains
     !$OMP END PARALLEL DO
 
     ! 2.2 Apply the inverse FFT 
-    call utl_tmg_start(24,'--GST_FFT')
+    call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,+1)
-    call tmg_stop(24)
+    call tmg_stop(151)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
     call transpose2d_LevtoLon(pgd3,pgd)
@@ -2334,9 +2296,9 @@ contains
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
     integer :: jlat, jk, jlon, ierr
 
-    call utl_tmg_start(105,'--BARR_SPEREE_KIJ_START')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(105)
+    call tmg_stop(152)
 
     allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
     allocate(pgd2(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmcount, gst(gstID)%nj))
@@ -2348,11 +2310,9 @@ contains
     call transpose2d_NtoLev(psp,psp2)
 
     ! 1.1 Inverse Legendre transform (lon -> m)
-    call utl_tmg_start(23,'--GST_LT')
-    call utl_tmg_start(122,'--GST_SPEREEPAR_KIJ')
+    call utl_tmg_start(150,'low-level--gst_lt')
     call spereepar_kij(psp2,pgd2)
-    call tmg_stop(122)
-    call tmg_stop(23)
+    call tmg_stop(150)
     deallocate(psp2)
 
     ! 1.2 Transpose data along npey from M to Latitudes
@@ -2371,9 +2331,9 @@ contains
     !$OMP END PARALLEL DO
 
     ! 2.2 Apply the inverse FFT 
-    call utl_tmg_start(24,'--GST_FFT')
+    call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar_kij(pgd3,+1)
-    call tmg_stop(24)
+    call tmg_stop(151)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
     if( gst(gstID)%lonLatDivisible ) then
@@ -2387,9 +2347,9 @@ contains
     end if
     deallocate(pgd3)
 
-    call utl_tmg_start(106,'--BARR_SPEREE_KIJ_END')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(106)
+    call tmg_stop(152)
 
   end subroutine gst_speree_kij
 
@@ -2427,18 +2387,18 @@ contains
     call transpose2d_LontoLev(pgd,pgd3)
 
     ! 1. Apply the FFT
-    call utl_tmg_start(24,'--GST_FFT')
+    call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,-1)
-    call tmg_stop(24)
+    call tmg_stop(151)
 
     ! Transpose data along npey from Latitudes to M
     call transpose2d_LattoM(pgd3,pgd2)
     deallocate(pgd3)
 
     ! 2. Direct Legendre transform
-    call utl_tmg_start(23,'--GST_LT')
+    call utl_tmg_start(150,'low-level--gst_lt')
     call reespepar(pgd2,psp2)
-    call tmg_stop(23)
+    call tmg_stop(150)
     deallocate(pgd2)
 
     ! Transpose data along npex from Levels to N
@@ -2460,9 +2420,9 @@ contains
     real(8), allocatable :: psp2(:,:,:),pgd2(:,:,:),pgd3(:,:,:)
     integer :: ierr
 
-    call utl_tmg_start(107,'--BARR_REESPE_KIJ_START')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(107)
+    call tmg_stop(152)
 
     allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
     allocate(pgd2(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmcount, gst(gstID)%nj))
@@ -2480,29 +2440,27 @@ contains
     end if
 
     ! 1. Apply the FFT
-    call utl_tmg_start(24,'--GST_FFT')
+    call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar_kij(pgd3,-1)
-    call tmg_stop(24)
+    call tmg_stop(151)
 
     ! Transpose data along npey from Latitudes to M
     call transpose2d_LattoM_kij(pgd3,pgd2)
     deallocate(pgd3)
 
     ! 2. Direct Legendre transform
-    call utl_tmg_start(23,'--GST_LT')
-    call utl_tmg_start(121,'--GST_REESPEPAR_KIJ')
+    call utl_tmg_start(150,'low-level--gst_lt')
     call reespepar_kij(pgd2,psp2)
-    call tmg_stop(121)
-    call tmg_stop(23)
+    call tmg_stop(150)
     deallocate(pgd2)
 
     ! Transpose data along npex from Levels to N
     call transpose2d_LevtoN(psp2,psp)
     deallocate(psp2)
 
-    call utl_tmg_start(108,'--BARR_REESPE_KIJ_END')
+    call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(108)
+    call tmg_stop(152)
 
   end subroutine gst_reespe_kij
 

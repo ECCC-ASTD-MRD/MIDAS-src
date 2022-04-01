@@ -69,7 +69,7 @@ program midas_adjointTest
 
   !- 1.2 timings
   call tmg_init(mpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'MAIN')
+  call utl_tmg_start(0,'Main')
 
   !- 1.3 RAM disk usage
   call ram_setup

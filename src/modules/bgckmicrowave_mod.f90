@@ -5256,7 +5256,7 @@ end subroutine bennartz
     logical                       :: mwDataPresent
 
 
-    call utl_tmg_start(33,'--BGCHECK_MW')
+    call utl_tmg_start(118,'--BgckMicrowave')
     mwDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER0: do
@@ -5384,7 +5384,7 @@ end subroutine bennartz
                       actualNumChannel, numObsToProcess, tvs_satelliteName(1:tvs_nsensors), & 
                       .TRUE.)
 
-    call tmg_stop(33)
+    call tmg_stop(118)
 
   end subroutine mwbg_bgCheckMW 
 

@@ -190,7 +190,7 @@ module sqliteFiles_mod
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
 
-    call utl_tmg_start(97,'--POST_UPDATESQL')
+    call utl_tmg_start(13,'----UpdateSqliteFile')
     write(*,*) myName//' Starting'
     write(*,*) myName//': FileName   : ',trim(fileName)
     write(*,*) myName//': FamilyType : ',FamilyType
@@ -211,7 +211,7 @@ module sqliteFiles_mod
     write(*,*)'                '//trim(myName)//'    END               '
     write(*,*)'================================================='
     write(*,*)' '
-    call tmg_stop(97)
+    call tmg_stop(13)
 
   end subroutine sqlf_updateFile
 
@@ -231,7 +231,6 @@ module sqliteFiles_mod
     ! locals
     character(len=*), parameter :: myName = 'sqlf_cleanFile'
 
-    call utl_tmg_start(96,'--POST_CLEANSQL')
     write(*,*) myName//': Starting'
     write(*,*) myName//': FileName   : ',trim(fileName)
     write(*,*) myName//': FamilyType : ',FamilyType
@@ -239,7 +238,7 @@ module sqliteFiles_mod
     call sqlr_cleanSqlite(db, fileName)
 
     write(*,*)myName//': Finished'
-    call tmg_stop(96)
+
   end subroutine sqlf_cleanFile
 
   !--------------------------------------------------------------------------
@@ -279,11 +278,11 @@ module sqliteFiles_mod
     character(len=*), intent(in)     :: sfFileName ! fileName acronym used for surface obs file
     logical                          :: onlyAssimObs, addFSOdiag
 
-    call utl_tmg_start(99,'--sqlf_writeSqlDiagFiles: TOTAL: ')
+    call utl_tmg_start(15,'----WriteSqlDiagFiles')
     
     call sqlr_writeAllSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag)
     
-    call tmg_stop(99)
+    call tmg_stop(15)
 
   end subroutine sqlf_writeSqlDiagFiles
 

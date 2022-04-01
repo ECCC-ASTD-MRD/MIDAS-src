@@ -131,7 +131,6 @@ CONTAINS
 
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleFactorCC,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
 
-    call utl_tmg_start(15,'--BHI_SETUP')
     if(mpi_myid == 0) write(*,*) 'bhi_setup: starting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -181,7 +180,6 @@ CONTAINS
     if ( sum( scaleFactor( 1 : maxNumLevels ) ) == 0.0d0 ) then
       if ( mpi_myid == 0 ) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
-      call tmg_stop(15)
       return
     end if
 
@@ -240,7 +238,6 @@ CONTAINS
     if ( trim(bhi_mode) == 'BackgroundCheck' ) then
        cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r ose_compute_HBHT_ensemble) 
                         ! that Bhi is used
-       call tmg_stop(15)
        return
     end if
 
@@ -368,8 +365,6 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'END OF BHI_SETUP'
 
     initialized = .true.
-
-    call tmg_stop(15)
 
   END SUBROUTINE BHI_setup
 
@@ -2778,10 +2773,8 @@ CONTAINS
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call utl_tmg_start(59,'--BHI_COMM')
     call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_double_precision",  &
                          cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_double_precision", 0, "GRID", ierr )
-    call tmg_stop(59)
 
     deallocate(cv_maxmpilocal)
 
@@ -2907,10 +2900,8 @@ CONTAINS
     cv_maxmpilocal(:) = 0.0d0
     cv_maxmpilocal(1:cvDim_mpilocal) = cv_mpilocal(1:cvDim_mpilocal)
 
-    call utl_tmg_start(59,'--BHI_COMM')
     call rpn_comm_gather(cv_maxmpilocal,    cvDim_maxmpilocal, "mpi_real4",  &
                          cv_allmaxmpilocal, cvDim_maxmpilocal, "mpi_real4", 0, "GRID", ierr )
-    call tmg_stop(59)
 
     deallocate(cv_maxmpilocal)
 
@@ -3184,12 +3175,10 @@ CONTAINS
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(55,'--BHI_SPEREE') 
     call gst_setID(gstID)
     call gst_speree(sp,gd)
     call gst_setID(gstID2)
     call gst_speree(sptb,tb0)
-    call tmg_stop(55) 
 
     !$OMP PARALLEL DO PRIVATE(jlat,zcoriolis,jlev,jlon,zp)
     do jlat = myLatBeg, myLatEnd
@@ -3245,10 +3234,8 @@ CONTAINS
 
     sp(:,:,:) = 0.0d0
 
-    call utl_tmg_start(56,'--BHI_REESPE') 
     call gst_setID(gstID)
     call gst_reespe(sp,gd)
-    call tmg_stop(56) 
 
     dla2   = ec_ra * ec_ra
     dl1sa2 = 1.d0/dla2
@@ -3274,10 +3261,8 @@ CONTAINS
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(57,'--BHI_SPGD_SPGDA')
     call gst_setID(gstID)
     call gst_spgd(sp,gd,nlev_M)
-    call tmg_stop(57)
 
     !$OMP PARALLEL DO PRIVATE(JLAT,JLEV,JLON)
     do jlev = 1, nkgdim
@@ -3323,10 +3308,8 @@ CONTAINS
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(57,'--BHI_SPGD_SPGDA')
     call gst_setID(gstID)
     call gst_spgda(sp,gd,nlev_M)
-    call tmg_stop(57)
 
     dla2   = ec_ra * ec_ra
     dl1sa2 = 1.d0/dla2
@@ -3342,10 +3325,8 @@ CONTAINS
     enddo
     !$OMP END PARALLEL DO
 
-    call utl_tmg_start(55,'--BHI_SPEREE') 
     call gst_setID(gstID)
     call gst_speree(sp,gd)
-    call tmg_stop(55) 
 
     zgdpsi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositVO:(nspositVO+nlev_M-1))
     zgdchi(myLonBeg:,myLatBeg:,1:) => gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nspositDI:(nspositDI+nlev_M-1))
@@ -3399,12 +3380,10 @@ CONTAINS
     enddo
     !$OMP END PARALLEL DO 
 
-    call utl_tmg_start(56,'--BHI_REESPE') 
     call gst_setID(gstID)
     call gst_reespe(sp,gd)
     call gst_setID(gstID2)
     call gst_reespe(sptb,tb0)
-    call tmg_stop(56) 
 
     hiControlVector_out(:,:,:) = 0.0d0
     sq2 = sqrt(2.0d0)

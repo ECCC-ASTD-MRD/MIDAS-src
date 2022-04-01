@@ -61,7 +61,7 @@ program midas_ensPostProcess
   call mpi_initialize
   call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'MAIN')
+  call utl_tmg_start(0,'Main')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Avoid printing lots of stuff to listing for std file I/O
@@ -157,6 +157,8 @@ program midas_ensPostProcess
 
   !- 3. Allocate and read ensembles
 
+  call utl_tmg_start(2,'--ReadEnsemble')
+
   !- Allocate ensembles, read the Anl ensemble
   if (readAnlEnsemble) then
     call fln_ensFileName(ensFileName, ensPathNameAnl, resetFileInfo_opt=.true.)
@@ -173,6 +175,8 @@ program midas_ensPostProcess
     call ens_readEnsemble(ensembleTrl, ensPathNameTrl, biPeriodic=.false.)
 
   end if
+
+  call tmg_stop(2)
 
   !- Allocate and read the Trl control member
   if (readTrlEnsemble .and. readAnlEnsemble) then
@@ -193,11 +197,9 @@ program midas_ensPostProcess
   end if
 
   !- 4. Post processing of the analysis results (if desired) and write everything to files
-  call utl_tmg_start(8,'--LETKF-postProcess')
   call epp_postProcess(ensembleTrl, ensembleAnl, &
                        stateVectorHeightSfc, stateVectorCtrlTrl, &
                        writeTrlEnsemble)
-  call tmg_stop(8)
 
   !
   !- 5. MPI, tmg finalize

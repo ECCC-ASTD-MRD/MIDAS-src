@@ -102,7 +102,7 @@ program midas_diagBmatrix
   ! MPI, tmg initialization
   call mpi_initialize
   call tmg_init(mpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'MAIN')
+  call utl_tmg_start(0,'Main')
   ierr = fstopc('MSGLVL','ERRORS',0)
 
   ! Set default values for namelist NAMDIAG parameters

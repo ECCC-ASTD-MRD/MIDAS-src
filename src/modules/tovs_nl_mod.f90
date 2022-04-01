@@ -449,14 +449,14 @@ contains
 
         errorStatus = errorStatus_success
 
-        call utl_tmg_start(83,'--RTTOV_SETUP')
+        call utl_tmg_start(16,'----RttovSetup')
         write(*,*) " sensorIndex,tvs_nchan(sensorIndex)",  sensorIndex,tvs_nchan(sensorIndex)
         call tvs_rttov_read_coefs(errorStatus(1), tvs_coefs(sensorIndex), tvs_opts(sensorIndex), tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex), tvs_listSensors(:,sensorIndex))
         if (errorStatus(1) /= errorStatus_success) then
           write(*,*) 'tvs_rttov_read_coefs: fatal error reading coefficients',errorStatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
           call utl_abort('tvs_setupAlloc')
         end if
-        call tmg_stop(83)
+        call tmg_stop(16)
 
         tvs_opts(sensorIndex) % rt_ir % ozone_data = ( tvs_coefs(sensorIndex) % coef % nozone > 0 ) ! profil d'ozone disponible
 

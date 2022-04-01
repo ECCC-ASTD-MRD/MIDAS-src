@@ -92,6 +92,8 @@ contains
     write(*,FMT=9000)
 9000 FORMAT(/,1x,' INN_SETUPOBS - Initialisation of observations',/,1x,3('- -----------'))
 
+    call utl_tmg_start(10,'--Observations')
+
     !
     !- Setup de the mode
     !
@@ -133,9 +135,9 @@ contains
     !
     !- Read the observations from files
     !
-    call utl_tmg_start(1,'--Read_Obs')
+    call utl_tmg_start(11,'----ReadObsFiles')
     call obsf_readFiles( obsSpaceData )
-    call tmg_stop(1)
+    call tmg_stop(11)
 
     !
     !- Initialize GPS processing
@@ -194,6 +196,8 @@ contains
       if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
     end if
 
+    call tmg_stop(10)
+
   end subroutine inn_setupobs
 
   !--------------------------------------------------------------------------
@@ -246,8 +250,6 @@ contains
       if (mpi_myid == 0) write(*,nml=naminn)
     end if
 
-    call utl_tmg_start(10,'--SETUPCOLUMN')
-
     if ( present(deallocInterpInfoNL_opt) ) then
       deallocInterpInfoNL = deallocInterpInfoNL_opt
     else
@@ -293,8 +295,6 @@ contains
       nullify(onecolumn)
     end if
 
-    call tmg_stop(10)
-
     write(*,*) 'inn_setupColumnsOnTrlLev: END'
 
   end subroutine inn_setupColumnsOnTrlLev
@@ -316,8 +316,6 @@ contains
 
     write(*,*)
     write(*,*) 'inn_setupColumnsOnAnlIncLev: START'
-
-    call utl_tmg_start(10,'--SETUPCOLUMN')
 
     !
     !- Data copying from columnh to columnTrlOnAnlIncLev
@@ -464,8 +462,6 @@ contains
       write(*,*) 'HeightSfc:', columnTrlOnAnlIncLev%heightSfc(1)
     end if
 
-    call tmg_stop(10)
-
     write(*,*) 'inn_setupColumnsOnAnlIncLev: END'
 
   end subroutine inn_setupColumnsOnAnlIncLev
@@ -493,6 +489,8 @@ contains
     integer :: destObsColumn, get_max_rss
     logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent
     logical, save :: lgpdata = .false.
+
+    call utl_tmg_start(10,'--Observations')
 
     write(*,*)
     write(*,*) '--Starting subroutine inn_computeInnovation--'
@@ -551,7 +549,7 @@ contains
     !
     !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in destObsColumn column
     !
-    call utl_tmg_start(48,'--NL_OBS_OPER')
+    call utl_tmg_start(17,'----ObsOper_NL')
     
     ! Radiosondes
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'UA', destObsColumn)
@@ -650,7 +648,7 @@ contains
       end if
     end if
 
-    call tmg_stop(48)
+    call tmg_stop(17)
 
     ! Save as OBS_WORK : R**-1/2 (d)
     call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,destObsColumn)
@@ -670,6 +668,8 @@ contains
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) '--Done subroutine inn_computeInnovation--'
+
+    call tmg_stop(10)
 
   end subroutine inn_computeInnovation
 

@@ -69,7 +69,7 @@ program midas_analysisErrorOI
 
   call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'MAIN')
+  call utl_tmg_start(0,'Main')
 
   varMode='analysis'
 

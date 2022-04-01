@@ -97,7 +97,9 @@ contains
 
     if (.not. doThinning) return
 
+    call utl_tmg_start(114,'--ObsThinning')
     call thn_surfaceInTime(obsdat, step, deltmax, useBlackList)
+    call tmg_stop(114)
 
   end subroutine thn_thinSurface
 
@@ -145,7 +147,9 @@ contains
       if (mpi_myid == 0) write(*,nml=thin_raobs)
     end if
 
+    call utl_tmg_start(114,'--ObsThinning')
     call thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES)
+    call tmg_stop(114)
 
   end subroutine thn_thinRaobs
 
@@ -191,7 +195,9 @@ contains
       if (mpi_myid == 0) write(*,nml=thin_aircraft)
     end if
 
+    call utl_tmg_start(114,'--ObsThinning')
     call thn_aircraftByBoxes(obsdat, 'AI', deltmax)
+    call tmg_stop(114)
 
   end subroutine thn_thinAircraft
 
@@ -239,7 +245,9 @@ contains
       if (mpi_myid == 0) write(*,nml=thin_satwind)
     end if
 
+    call utl_tmg_start(114,'--ObsThinning')
     call thn_satWindsByDistance(obsdat, 'SW', deltemps, deldist)
+    call tmg_stop(114)
 
   end subroutine thn_thinSatWinds
 
@@ -291,7 +299,9 @@ contains
       if (mpi_myid == 0) write(*,nml=thin_gpsro)
     end if
 
+    call utl_tmg_start(114,'--ObsThinning')
     call thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing, gpsroVarNo)
+    call tmg_stop(114)
 
   end subroutine thn_thinGpsRo
 
@@ -341,7 +351,9 @@ contains
       if (mpi_myid == 0) write(*,nml=thin_gbgps)
     end if
 
+    call utl_tmg_start(114,'--ObsThinning')
     call thn_gbgpsByDistance(obsdat, deltemps, deldist, removeUncorrected)
+    call tmg_stop(114)
 
   end subroutine thn_thinGbGps
 
@@ -388,7 +400,9 @@ contains
     end if
 
     if (keepNthVertical > 0) then
+      call utl_tmg_start(114,'--ObsThinning')
       call thn_keepNthObs(obsdat, 'AL', keepNthVertical)
+      call tmg_stop(114)
     end if
 
   end subroutine thn_thinAladin
@@ -438,7 +452,9 @@ contains
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call utl_tmg_start(114,'--ObsThinning')
     call thn_csrByLatLonBoxes(obsdat, deltax, deltrad)
+    call tmg_stop(114)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine thn_thinCSR
@@ -488,7 +504,9 @@ contains
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call utl_tmg_start(114,'--ObsThinning')
     call thn_scatByLatLonBoxes(obsdat, deltax, deltmax)
+    call tmg_stop(114)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine thn_thinScat
@@ -537,6 +555,7 @@ contains
       if (mpi_myid == 0) write(*,nml=thin_tovs)
     end if
 
+    call utl_tmg_start(114,'--ObsThinning')
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('amsua'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -547,6 +566,7 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call tmg_stop(114)
 
   end subroutine thn_thinTovs
 
@@ -597,6 +617,7 @@ contains
       if (mpi_myid == 0) write(*,nml=thin_hyper)
     end if
 
+    call utl_tmg_start(114,'--ObsThinning')
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                 'TO', codtyp_get_codtyp('airs'))
@@ -610,6 +631,7 @@ contains
     call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                 'TO', codtyp_get_codtyp('crisfsr'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call tmg_stop(114)
 
   end subroutine thn_thinHyper
 
@@ -3748,7 +3770,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     call thn_QsortInt(qualityMpi,headerIndexSorted)
 
     validMpi(:) = .false.
-    call utl_tmg_start(144,'--bruteThinning')
     STNIDLOOP: do stnIdIndex = 1, numStnId
       write(*,*) 'thn_satWindsByDistance: applying thinning for: ', &
                  trim(stnidList(stnIdIndex))
@@ -3778,7 +3799,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
           ! On compte le nombre d'observations qui sont deja
           ! selectionnees avec les memes parametres 'obsStepIndex' et 'obsLayerIndex'
           ! que l'observation consideree ici.
-          call utl_tmg_start(145,'--countLoop')
           obsAlreadySameStep = .false.
           OBSLOOP2: do obsIndex2 = 1, numSelected
             headerIndex2 = headerIndexSelected(obsIndex2)
@@ -3786,17 +3806,14 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
               if ( (obsLatBurpFileMpi(headerIndex1) == obsLatBurpFileMpi(headerIndex2)) .and. &
                    (obsLonBurpFileMpi(headerIndex1) == obsLonBurpFileMpi(headerIndex2)) ) then
                 ! Si une observation selectionnee porte deja le meme lat, lon, layer et step.
-                call tmg_stop(145)
                 cycle OBSLOOP1
               end if
               obsAlreadySameStep = .true.
               exit OBSLOOP2
             end if
           end do OBSLOOP2
-          call tmg_stop(145)
 
           if ( obsAlreadySameStep ) then
-            call utl_tmg_start(146,'--distanceLoop')
             ! Calcule les distances entre la donnee courante et toutes celles choisies 
             ! precedemment.
             skipThisObs = .false.
@@ -3817,7 +3834,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                 end if
               end if
             end do OBSLOOP3
-            call tmg_stop(146)
 
             if ( .not. skipThisObs ) then
 
@@ -3846,14 +3862,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       
       end do LAYERLOOP
     end do STNIDLOOP
-    call tmg_stop(144)
 
     ! communicate values of validMpi computed on each mpi task
-    call utl_tmg_start(147,'--reduceKeepObs')
     nsize = numHeaderMaxMpi * mpi_nprocs
     call rpn_comm_allReduce(validMpi, validMpi2, nsize, 'mpi_logical', &
                             'mpi_lor','grid',ierr)
-    call tmg_stop(147)
 
     ! Update local copy of valid from global mpi version
     headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi

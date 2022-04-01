@@ -611,8 +611,6 @@ contains
     real(8) :: xlast( (diff(diffID)%myLonBeg-1):(diff(diffID)%myLonEnd+1), (diff(diffID)%myLatBeg-1):(diff(diffID)%myLatEnd+1) )
     real(8), allocatable :: sendBufLon(:), recvBufLon(:), sendBufLat(:), recvBufLat(:)
 
-    call utl_tmg_start(185, '--diffusion_explicit' )
-
     lonPerPE = diff(diffID)%lonPerPE
     latPerPE = diff(diffID)%latPerPE
 
@@ -770,8 +768,6 @@ contains
     deallocate(sendBufLat)
     deallocate(recvBufLat)
 
-    call tmg_stop(185)
-
   end subroutine diffusion_explicit
 
 
@@ -874,8 +870,6 @@ contains
     integer :: allLatBeg(mpi_nprocs), allLatEnd(mpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
 
-    call utl_tmg_start(188,'--diff-transposeLatToLon')
-
     call rpn_comm_allgather(diff(diffID)%myLonBeg_transpose,1,'mpi_integer',       &
                             allLonBeg                      ,1,'mpi_integer','GRID',ierr)
     call rpn_comm_allgather(diff(diffID)%myLonEnd_transpose,1,'mpi_integer',       &
@@ -919,8 +913,6 @@ contains
     deallocate(xsend)
     deallocate(xrecv)
 
-    call tmg_stop(188)
-
   end subroutine transposeLatToLonBands
 
   
@@ -941,8 +933,6 @@ contains
     integer :: allLonBeg(mpi_nprocs), allLonEnd(mpi_nprocs)
     integer :: allLatBeg(mpi_nprocs), allLatEnd(mpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
-
-    call utl_tmg_start(189,'--diff-transposeLonToLat')
 
     call rpn_comm_allgather(diff(diffID)%myLonBeg_transpose,1,'mpi_integer',       &
                             allLonBeg                      ,1,'mpi_integer','GRID',ierr)
@@ -987,8 +977,6 @@ contains
     deallocate(xsend)
     deallocate(xrecv)
 
-    call tmg_stop(189)
-
   end subroutine transposeLonToLatBands
 
   
@@ -1008,8 +996,6 @@ contains
     integer :: latIndex, lonIndex, iterIndex
     real(8) :: xlast( diff(diffID)%ni, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
     real(8) :: dp( diff(diffID)%ni )
-
-    call utl_tmg_start(186,'--diffusion_implicitx')
 
     !$OMP PARALLEL DO PRIVATE( latIndex, lonIndex )
     do latIndex = diff(diffID)%myLatBeg, diff(diffID)%myLatEnd
@@ -1052,8 +1038,6 @@ contains
       xout ( diff(diffID)%ni, latIndex ) = xin ( diff(diffID)%ni, latIndex )
     end do
 
-    call tmg_stop(186)
-
   end subroutine diffusion1x_implicit
 
 
@@ -1077,8 +1061,6 @@ contains
     ! NOTE:for improved efficiency, the 2D fields used internally are
     !      ordered (diff(diffID)%nj,diff(diffID)%ni) and
     !      NOT (diff(diffID)%ni,diff(diffID)%nj) as in the rest of the code!
-
-    call utl_tmg_start(187,'--diffusion_implicity')
 
     !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex)
     do latIndex = 1, diff (diffID)%nj
@@ -1120,8 +1102,6 @@ contains
       xout( lonIndex, 1 )                    = xin ( lonIndex, 1 )
       xout( lonIndex, diff (diffID)%nj ) = xin ( lonIndex, diff (diffID)%nj )
     end do
-
-    call tmg_stop(187)
 
   end subroutine diffusion1y_implicit
 

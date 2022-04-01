@@ -187,102 +187,107 @@ contains
 
 
   subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt, writeDiagFiles_opt)
-  implicit none
+    implicit none
 
-  ! arguments
-  type(struct_obs)  :: obsSpaceData
-  real(8), optional :: HXens_mpiglobal_opt(:,:)
-  logical, optional :: asciDumpObs_opt
-  logical, optional :: writeDiagFiles_opt
+    ! arguments
+    type(struct_obs)  :: obsSpaceData
+    real(8), optional :: HXens_mpiglobal_opt(:,:)
+    logical, optional :: asciDumpObs_opt
+    logical, optional :: writeDiagFiles_opt
 
-  ! locals
-  integer           :: fileIndex, fnom, fclos, nulnam, ierr
-  character(len=10) :: obsFileType, sfFileName
-  character(len=*), parameter :: myName = 'obsf_writeFiles'
-  character(len=*), parameter :: myWarning = myName //' WARNING: '
+    ! locals
+    integer           :: fileIndex, fnom, fclos, nulnam, ierr
+    character(len=10) :: obsFileType, sfFileName
+    character(len=*), parameter :: myName = 'obsf_writeFiles'
+    character(len=*), parameter :: myWarning = myName //' WARNING: '
 
-  ! namelist variables
-  logical :: lwritediagsql
-  logical :: onlyAssimObs
-  logical :: addFSOdiag
+    ! namelist variables
+    logical :: lwritediagsql
+    logical :: onlyAssimObs
+    logical :: addFSOdiag
 
-  namelist /namwritediag/lwritediagsql,onlyAssimObs,addFSOdiag
+    namelist /namwritediag/lwritediagsql,onlyAssimObs,addFSOdiag
 
-  if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
+    call utl_tmg_start(10,'--Observations')
+
+    if ( .not.initialized ) call utl_abort('obsf_writeFiles: obsFiles_mod not initialized!')
  
-  call obsf_determineFileType(obsFileType)
+    call obsf_determineFileType(obsFileType)
 
-  nulnam=0
-  lwritediagsql = .false.
-  onlyAssimObs = .false.
-  addFSOdiag = .false.
-  ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-  read(nulnam,nml=namwritediag,iostat=ierr)
-  if (ierr /= 0) write(*,*) myWarning//' namwritediag is missing in the namelist. The default value will be taken.'
-  if (mpi_myid == 0) write(*,nml = namwritediag)
-  if (present(writeDiagFiles_opt)) then
-    lwritediagsql = lwritediagsql .and. writeDiagFiles_opt
-  end if
-  ierr=fclos(nulnam)
-
-  if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
-
-    if (trim(obsFileMode) == 'analysis') call ovt_transformResiduals(obsSpaceData, obs_oma)
-    if (trim(obsFileMode) /= 'prepcma' .and. trim(obsFileMode) /= 'thinning') then
-      call ovt_transformResiduals(obsSpaceData, obs_omp)
+    nulnam=0
+    lwritediagsql = .false.
+    onlyAssimObs = .false.
+    addFSOdiag = .false.
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namwritediag,iostat=ierr)
+    if (ierr /= 0) write(*,*) myWarning//' namwritediag is missing in the namelist. The default value will be taken.'
+    if (mpi_myid == 0) write(*,nml = namwritediag)
+    if (present(writeDiagFiles_opt)) then
+      lwritediagsql = lwritediagsql .and. writeDiagFiles_opt
     end if
-    if (trim(obsFileMode) == 'analysis' .or. trim(obsFileMode) == 'FSO') call obsu_setassflg(obsSpaceData)
-    if (trim(obsFileMode) /= 'prepcma' .and. trim(obsFileMode) /= 'thinning') then
-      call obsu_updateSourceVariablesFlag(obsSpaceData)
+    ierr=fclos(nulnam)
+
+    if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
+
+      if (trim(obsFileMode) == 'analysis') call ovt_transformResiduals(obsSpaceData, obs_oma)
+      if (trim(obsFileMode) /= 'prepcma' .and. trim(obsFileMode) /= 'thinning') then
+        call ovt_transformResiduals(obsSpaceData, obs_omp)
+      end if
+      if (trim(obsFileMode) == 'analysis' .or. trim(obsFileMode) == 'FSO') call obsu_setassflg(obsSpaceData)
+      if (trim(obsFileMode) /= 'prepcma' .and. trim(obsFileMode) /= 'thinning') then
+        call obsu_updateSourceVariablesFlag(obsSpaceData)
+      end if
+      if (trim(obsFileMode) /= 'prepcma') call ovt_transformResiduals(obsSpaceData, obs_omp)
+      if (trim(obsFileMode) /= 'prepcma') call obsu_updateSourceVariablesFlag(obsSpaceData)
+
+      do fileIndex = 1, obsf_nfiles
+        call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+
+        if ( obsFileType == 'BURP'   ) then
+          call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
+                                fileIndex )
+        else if ( obsFileType == 'SQLITE' ) then
+          if (odbf_isActive()) then
+            call odbf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
+                                  obsf_cfamtyp(fileIndex), fileIndex )
+          else
+            call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
+                                  obsf_cfamtyp(fileIndex), fileIndex )
+          end if
+        end if
+      end do
+
+      if ( present(HXens_mpiglobal_opt) .and. mpi_myid == 0 ) then
+        call obsf_writeHX(obsSpaceData, HXens_mpiglobal_opt)
+      end if
+
+    else if ( obsFileType == 'CMA' ) then
+
+      ! only 1 mpi task should do the writing
+      if( mpi_myid == 0 ) call cma_writeFiles( obsSpaceData, HXens_mpiglobal_opt )
+
     end if
-    if (trim(obsFileMode) /= 'prepcma') call ovt_transformResiduals(obsSpaceData, obs_omp)
-    if (trim(obsFileMode) /= 'prepcma') call obsu_updateSourceVariablesFlag(obsSpaceData)
 
-    do fileIndex = 1, obsf_nfiles
-      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+    if ( index(obsf_getFileName('SF'), 'sfc') > 0 ) then
+      sfFileName = 'sfc'
+    else
+      sfFileName = 'sf'
+    end if
 
-      if ( obsFileType == 'BURP'   ) then
-        call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
-                              fileIndex )
-      else if ( obsFileType == 'SQLITE' ) then
-        if (odbf_isActive()) then
-          call odbf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
-                                obsf_cfamtyp(fileIndex), fileIndex )
-        else
-          call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
-                                obsf_cfamtyp(fileIndex), fileIndex )
+    if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag )
+
+    if ( present(asciDumpObs_opt) ) then
+      if ( asciDumpObs_opt ) then
+        if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' .or. mpi_myid == 0   ) then
+          ! all processors write to files only for BURP and SQLITE    
+          call obsf_writeAsciDump(obsSpaceData)
         end if
       end if
-    end do
 
-    if ( present(HXens_mpiglobal_opt) .and. mpi_myid == 0 ) then
-      call obsf_writeHX(obsSpaceData, HXens_mpiglobal_opt)
     end if
 
-  else if ( obsFileType == 'CMA' ) then
+    call tmg_stop(10)
 
-    ! only 1 mpi task should do the writing
-    if( mpi_myid == 0 ) call cma_writeFiles( obsSpaceData, HXens_mpiglobal_opt )
-
-  end if
-
-  if ( index(obsf_getFileName('SF'), 'sfc') > 0 ) then
-    sfFileName = 'sfc'
-  else
-    sfFileName = 'sf'
-  end if
-
-  if (lwritediagsql) call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag )
-
-  if ( present(asciDumpObs_opt) ) then
-    if ( asciDumpObs_opt ) then
-      if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' .or. mpi_myid == 0   ) then
-        ! all processors write to files only for BURP and SQLITE    
-        call obsf_writeAsciDump(obsSpaceData)
-      end if
-    end if
-
-  end if
   end subroutine obsf_writeFiles
 
 

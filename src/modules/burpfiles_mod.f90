@@ -245,7 +245,7 @@ contains
     ! locals
     integer :: headerIndex
 
-    call utl_tmg_start(93,'--POST_UPDATEBRP')
+    call utl_tmg_start(12,'----UpdateBurpFile')
 
     write(*,*)
     write(*,*) 'brpf_updateFile: Starting'
@@ -265,7 +265,7 @@ contains
     write(*,*) 'brpf_updateFile: Done'
     write(*,*)
 
-    call tmg_stop(93)
+    call tmg_stop(12)
 
   end subroutine brpf_updateFile
 

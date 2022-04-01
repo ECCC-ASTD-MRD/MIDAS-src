@@ -80,8 +80,6 @@ CONTAINS
 
     integer :: nEnsOverDimension, nLev
 
-    call utl_tmg_start(130,'--LOC_SETUP')
-
     if (verbose) write(*,*) 'Entering loc_Setup'
 
     !
@@ -121,8 +119,6 @@ CONTAINS
     !- 3.  Ending
     !
     loc%initialized = .true.
-
-    call tmg_stop(130)
 
   end subroutine loc_setup
 

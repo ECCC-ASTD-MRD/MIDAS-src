@@ -71,18 +71,14 @@ program midas_gencoeff
 
   call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'MAIN')
+  call utl_tmg_start(0,'Main')
 
  
   ! 1. Top level setup
   call ram_setup()
  
   ! Do initial set up
-  call utl_tmg_start(2,'--SETUP')
   call gencoeff_setup('VAR') ! obsColumnMode
-  call tmg_stop(2)
-
-  call utl_tmg_start(3,'--TRIALS')
 
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
@@ -102,64 +98,45 @@ program midas_gencoeff
                                    stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  call tmg_stop(3)
+  call utl_tmg_start(110,'--BiasCorrection')
 
-  !
   ! Remove bias correction if requested
-  !
-  call utl_tmg_start(4,'--REMOVE_BCOR')
   call bcs_removeBiasCorrection(obsSpaceData,"TO")
-  call tmg_stop(4)
 
-  call utl_tmg_start(5,'--REMOVE_OUTLIERS')
   call bcs_removeOutliers(obsSpaceData)
-  call tmg_stop(5)
-   
+
+  call tmg_stop(110)
+
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Compute observation innovations
-  call utl_tmg_start(6,'--COMP_INOV')
   call inn_computeInnovation(columnTrlOnAnlIncLev,obsSpaceData)
-  call tmg_stop(6)
   
-  !
-  ! Refresh bias correction if requested
-  !
-  call utl_tmg_start(8,'--REFRESH_BCOR')
-  call bcs_refreshBiasCorrection(obsSpaceData,columnTrlOnAnlIncLev)
-  call tmg_stop(8)
+  call utl_tmg_start(110,'--BiasCorrection')
 
-  call utl_tmg_start(9,'--REGRESSION')
+  ! Refresh bias correction if requested
+  call bcs_refreshBiasCorrection(obsSpaceData,columnTrlOnAnlIncLev)
+
+  call utl_tmg_start(111,'----Regression')
   call bcs_do_regression(columnTrlOnAnlIncLev,obsSpaceData)
-  call tmg_stop(9)
+  call tmg_stop(111)
 
   ! Write coefficients to file
-  call utl_tmg_start(12,'--WRITECOEFFS')
   call bcs_writebias()
-  call tmg_stop(12)
 
-  !
   ! output O-F statistics befor bias coorection
-  !
-  call utl_tmg_start(13,'--STATS')
   call bcs_computeResidualsStatistics(obsSpaceData,"_raw")
-  call tmg_stop(13)
-  !
-  ! fill OBS_BCOR with computed bias correction
-  !
-  call utl_tmg_start(15,'--COMPBIAS')
-  call bcs_calcBias(obsSpaceData,columnTrlOnAnlIncLev)
-  call tmg_stop(15)
 
-  !
+  ! fill OBS_BCOR with computed bias correction
+  call bcs_calcBias(obsSpaceData,columnTrlOnAnlIncLev)
+
   ! output  O-F statistics after bias coorection
-  !
-  call utl_tmg_start(13,'--STATS')
   call bcs_computeResidualsStatistics(obsSpaceData,"_corrected")
-  call tmg_stop(13)
 
   ! Deallocate internal bias correction structures 
   call bcs_finalize()
+
+  call tmg_stop(110)
 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)

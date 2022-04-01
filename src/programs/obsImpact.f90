@@ -93,9 +93,7 @@ program midas_obsimpact
 
   call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'MAIN')
-
-  call utl_tmg_start(2,'--PREMIN')
+  call utl_tmg_start(0,'Main')
 
   if (mpi_myid == 0) then
     call utl_writeStatus('VAR3D_BEG')
@@ -223,7 +221,6 @@ program midas_obsimpact
 
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
-  call tmg_stop(2)
 
   ! Perform forecast sensitivity to observation calculation using ensemble approach 
   call fso_ensemble(columnTrlOnAnlIncLev,obsSpaceData)
@@ -508,6 +505,8 @@ contains
     integer                         :: nulout = 6
 
    
+    call utl_tmg_start(90,'--Minimization')
+
     if (mpi_myid == 0) write(*,*) 'fso_minimize: starting'
 
     nmtra = (4 + 2*nvamaj)*nvadim
@@ -539,7 +538,9 @@ contains
     zxmin = epsilon(zxmin)
     ! initial gradient calculation
     indic = 2
+    call utl_tmg_start(91,'----QuasiNewton')
     call simvar(indic,nvadim,zhat,zjsp,gradJ)
+    call tmg_stop(91)
     zdf1 =  rdf1fac * abs(zjsp)
 
     ! print amplitude of initial gradient and cost function value
@@ -554,12 +555,12 @@ contains
              /,10X,"IMPRES =",I3,2X,"NITER = ",I3,2X,"NSIM = ",I3)') zxmin,zdf1,zeps,impres,itermax,isimmax
 
     ! Do the minimization
-    call utl_tmg_start(70,'--QN')
+    call utl_tmg_start(91,'----QuasiNewton')
     call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim, zhat,  &
                    zjsp, gradJ, zxmin, zdf1, zeps, impres, nulout, imode,   &
                    itermax,isimmax, iztrl, vatra, nmtra, intunused, rspunused,  &
                    zspunused)
-    call tmg_stop(70)
+    call tmg_stop(91)
     call fool_optimizer(obsSpaceData)
 
     write(*,'(//,20X,20("*"),2X    &
@@ -571,6 +572,8 @@ contains
 
     deallocate(vatra)
     deallocate(gradJ)
+
+    call tmg_stop(90)
 
   end subroutine fso_minimize
 
@@ -699,9 +702,10 @@ contains
     real(8) :: Jb, Jobs
     type(struct_gsv) :: statevector
     type(struct_vco), pointer :: vco_anl
-    if (indic == 1 .or. indic == 4) call tmg_stop(70)
 
-    call utl_tmg_start(80,'--MIN_SIMVAR')
+    call tmg_stop(91)
+    call tmg_stop(90)
+
     if (indic /= 1) then ! No action taken if indic == 1
       fso_nsim = fso_nsim + 1
 
@@ -724,18 +728,20 @@ contains
 
       call bmat_sqrtB(ahat_vhat,nvadim_mpilocal,statevector)
 
-      call utl_tmg_start(30,'--OBS_INTERP')
       call s2c_tl(statevector,column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! put in column H_horiz dx
-      call tmg_stop(30)
-      call utl_tmg_start(40,'--OBS_TL')
+      call utl_tmg_start(10,'--Observations')
+      call utl_tmg_start(18,'----ObsOper_TL')
       call oop_Htl(column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,fso_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-      call tmg_stop(40)
 
       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Save as OBS_WORK : R**-1/2 (Hdx)
+      call tmg_stop(18)
+      call tmg_stop(10)
 
       call cfn_calcJo(obsSpaceData_ptr)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (Hdx)**2
 
       Jobs = 0.d0
+      call utl_tmg_start(90,'--Minimization')
+      call utl_tmg_start(92,'----SumCostFunction')
       call cfn_sumJo(obsSpaceData_ptr,Jobs)
       Jtotal = Jb + Jobs
       if (indic == 3) then
@@ -745,18 +751,22 @@ contains
         Jtotal = Jb + Jobs
         if (mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') Jb,Jobs,Jtotal
       end if
+      call tmg_stop(92)
+      call tmg_stop(90)
 
+      call utl_tmg_start(10,'--Observations')
       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (Hdx)
+      call tmg_stop(10)
 
       call col_zero(column_ptr)
 
-      call utl_tmg_start(41,'--OBS_AD')
+      call utl_tmg_start(10,'--Observations')
+      call utl_tmg_start(19,'----ObsOper_AD')
       call oop_Had(column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)   ! Put in column : H_vert**T R**-1 (Hdx)
-      call tmg_stop(41)
+      call tmg_stop(19)
+      call tmg_stop(10)
 
-      call utl_tmg_start(31,'--OBS_INTERPAD')
       call s2c_ad(statevector,column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx)
-      call tmg_stop(31)
 
       gradJ(:) = 0.d0
       call bmat_sqrtBT(gradJ,nvadim_mpilocal,statevector)
@@ -766,8 +776,9 @@ contains
         gradJ(1:nvadim_mpilocal) = zhat(1:nvadim_mpilocal) + gradJ(1:nvadim_mpilocal)
       end if
     end if
-    call tmg_stop(80)
-    if (indic == 1 .or. indic == 4) call utl_tmg_start(70,'--QN')
+
+    call utl_tmg_start(90,'--Minimization')
+    call utl_tmg_start(91,'----QuasiNewton')
 
     if (mpi_myid == 0) write(*,*) 'end of simvar'
 

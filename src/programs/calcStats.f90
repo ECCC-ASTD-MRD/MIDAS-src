@@ -61,7 +61,7 @@ program midas_calcstats
   call mpi_initialize
   call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'MAIN')
+  call utl_tmg_start(0,'Main')
 
   ! Setup the ramdisk directory (if supplied)
   call ram_setup

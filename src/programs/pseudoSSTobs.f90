@@ -58,16 +58,14 @@ program midas_pseudoSSTobs
 
   call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'MAIN')
+  call utl_tmg_start(0,'Main')
  
   ! 1. Top level setup
 
   call ram_setup()
  
   ! Do initial set up
-  call utl_tmg_start(2,'--SETUP')
   call pseudoSSTobs_setup()
-  call tmg_stop(2)
 
   call oobs_pseudoSST(hco_anl, vco_anl, iceFractionThreshold, outputSST, outputFreshWaterST, &
                       seaiceThinning, outputFileName, etiket, seaWaterThreshold)

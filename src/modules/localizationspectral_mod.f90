@@ -651,8 +651,6 @@ CONTAINS
        end do
 !$OMP END PARALLEL DO
 
-       call utl_tmg_start(64,'--LOC_SPECTRAL')
-       
        if (lsp%global) then
           call gst_setID(lsp%gstID)
           call gst_speree_kij(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,stepIndex,:,:))
@@ -663,8 +661,6 @@ CONTAINS
                                 ensAmplitude_oneLev(:,stepIndex,:,:), & ! OUT
                                 kind, lsp%nEnsOverDimension)        ! IN
        end if
-
-       call tmg_stop(64)
 
     end do ! Loop on levels
 
@@ -804,8 +800,6 @@ CONTAINS
 
       sp_vhLoc(:,:,levIndex,:) = 0.d0 ! needed, not everything is set
 
-      call utl_tmg_start(64,'--LOC_SPECTRAL')
-
       if (lsp%global) then
         call gst_setID(lsp%gstID)
         call gst_speree_kij_ad(sp_vhLoc(:,:,levIndex,:),ensAmplitude_oneLev(:,stepIndex,:,:))
@@ -816,8 +810,6 @@ CONTAINS
                               ensAmplitude_oneLev(:,stepIndex,:,:), & ! IN
                               kind, lsp%nEnsOverDimension )       ! IN
         end if
-
-        call tmg_stop(64)
 
      end do
 

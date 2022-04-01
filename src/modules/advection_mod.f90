@@ -1383,7 +1383,7 @@ CONTAINS
 
           ! gather the global field to be interpolated on all tasks
           call rpn_comm_barrier('GRID',ierr)
-          call utl_tmg_start(141,'--ADV_GSV_COMM')
+          call utl_tmg_start(141,'----ADV_GSV_Comm')
           nsize = adv%lonPerPE*adv%latPerPE
           call rpn_comm_allgather(field4D(:,:,levIndex,adv%timeStepIndexSource(stepIndexAF)), nsize, "mpi_double_precision",  &
                                   field2D_mpiglobal_tiles(:,:,:), nsize, "mpi_double_precision",  &
@@ -1391,7 +1391,7 @@ CONTAINS
           call tmg_stop(141)
 
           ! rearrange gathered fields for convenience
-          call utl_tmg_start(142,'--ADV_GSV_SHUFFLING')
+          call utl_tmg_start(142,'----ADV_GSV_Shuffling')
           !$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal)
           do procIDy = 0, (mpi_npey-1)
             do procIDx = 0, (mpi_npex-1)
@@ -1413,7 +1413,7 @@ CONTAINS
 
         end if
 
-        call utl_tmg_start(143,'--ADV_GSV_CALC')
+        call utl_tmg_start(143,'----ADV_GSV_Calc')
 
         !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,lonIndex2,latIndex2,lonIndex2_p1,latIndex2_p1)
         do latIndex = adv%myLatBeg, adv%myLatEnd

@@ -77,7 +77,7 @@ program midas_ensembleH
   call mpi_initialize
   call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'MAIN')
+  call utl_tmg_start(0,'Main')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Avoid printing lots of stuff to listing for std file I/O
@@ -122,13 +122,11 @@ program midas_ensembleH
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  call utl_tmg_start(4,'--SETUPOBS')
   ! read in the observations
   call inn_setupObs( obsSpaceData, hco_ens, obsColumnMode, obsMpiStrategy, midasMode )
 
   ! Initialize obs error covariances
   call oer_setObsErrors(obsSpaceData, midasMode)
-  call tmg_stop(4)
 
   call col_setup
   call col_setVco(column, vco_ens)
@@ -158,32 +156,28 @@ program midas_ensembleH
   do memberIndex = 1, nEns
     write(*,*) ''
     write(*,*) 'midas-ensembleH: read member ', memberIndex
-    call utl_tmg_start(3,'--READ_ENSEMBLE')
+    call utl_tmg_start(2,'--ReadEnsemble')
     call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, copyToRamDisk_opt=.false.  )
     call gsv_readFile( stateVector, ensFileName, ' ', ' ', containsFullField=.true., &
                        readHeightSfc_opt=.true. )
     call gsv_fileUnitsToStateUnits( stateVector, containsFullField=.true. )
 
     call gsv_transposeVarsLevsToTiles(statevector, statevector_tiles)
-    call tmg_stop(3)
+    call tmg_stop(2)
 
     write(*,*) ''
     write(*,*) 'midas-ensembleH: call s2c_nl for member ', memberIndex
     write(*,*) ''
-    call utl_tmg_start(6,'--SETUP_COLS')
     dealloc = .false.
     if ( memberIndex == nEns ) dealloc = .true.
     call s2c_nl( stateVector_tiles, obsSpaceData, column, hco_ens, timeInterpType='LINEAR', dealloc_opt=dealloc )
-    call tmg_stop(6)
 
     write(*,*) ''
     write(*,*) 'midas-ensembleH: apply nonlinear H to member ', memberIndex
     write(*,*) ''
-    call utl_tmg_start(7,'--OBSOPER')
     beSilent = .true.
     if ( memberIndex == 1 ) beSilent = .false.
     call inn_computeInnovation(column, obsSpaceData, beSilent_opt=beSilent)
-    call tmg_stop(7)
 
     ! Copy to ensObs: Y-HX for this member
     call eob_setYb(ensObs, memberIndex)
@@ -194,10 +188,8 @@ program midas_ensembleH
   call gsv_deallocate( stateVector )
 
   ! Clean and globally communicate obs-related data, then write to files
-  call utl_tmg_start(8,'--OBS&HX_MPIANDWRITE')
   call eob_allGather(ensObs,ensObs_mpiglobal)
   call eob_writeToFiles(ensObs_mpiglobal)
-  call tmg_stop(8)
 
   !
   !- MPI, tmg finalize

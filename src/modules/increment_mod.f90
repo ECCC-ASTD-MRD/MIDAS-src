@@ -137,6 +137,9 @@ CONTAINS
     write(*,*) 'inc_computeHighResAnalysis: STARTING'
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
+    call utl_tmg_start(80,'--Increment')
+    call utl_tmg_start(81,'----ComputeHighResAnalysis')
+
     ! Set/Read values for the namelist NAMINC
     call readNameList
 
@@ -223,7 +226,6 @@ CONTAINS
     ! Compute the analysis
     if( mpi_myid == 0 ) write(*,*) ''
     if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: compute the analysis'
-    call utl_tmg_start(181,'--INC_COMPUTEANL')
 
     ! Interpolate low-res increments to high-res and add to the initial state
     call gsv_allocate( stateVectorHighRes, tim_nstepobs, hco_trl, vco_trl, &
@@ -252,7 +254,6 @@ CONTAINS
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes)
       end if
     end if
-    call tmg_stop(181)
 
     call gsv_copy( stateVectorHighRes, stateVectorUpdateHighRes, &
                    allowVarMismatch_opt=.true.)
@@ -260,6 +261,9 @@ CONTAINS
 
     if ( gsv_isAllocated(statevectorPsfc) ) call gsv_deallocate(statevectorPsfc)
     if ( gsv_isAllocated(statevector_mask) ) call gsv_deallocate(statevector_mask)
+
+    call tmg_stop(81)
+    call tmg_stop(80)
 
     write(*,*) 'inc_computeHighResAnalysis: END'
 
@@ -293,6 +297,9 @@ CONTAINS
 
     write(*,*) 'inc_analPostProcessing: STARTING'
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+
+    call utl_tmg_start(80,'--Increment')
+    call utl_tmg_start(82,'----AnalPostProcessing')
 
     ! Re-read trials to make stateVectorTrial with degraded timesteps available
     hco_trl => gsv_getHco(stateVectorUpdateHighRes)
@@ -356,17 +363,18 @@ CONTAINS
     call gvt_transform(stateVectorAnal, 'AllTransformedToModel', allowOverWrite_opt = .true.)
 
     ! Impose limits on humidity analysis
-    call utl_tmg_start(182, '--INC_QLIMITS')
     write(*,*) 'inc_analPostProcessing: calling qlim_saturationLimit'
     call qlim_saturationLimit(stateVectorAnal)
     if (imposeRttovHuLimits) call qlim_rttovLimit(stateVectorAnal)
-    call tmg_stop(182)
 
     if (gsv_varKindExist('CH')) then
       ! Apply boundaries to analysis of CH kind variables as needed.
       write(*,*) 'inc_analPostProcessing: applying minimum values to analysis for variables of CH kind'
       call gvt_transform(stateVectorAnal, 'CH_bounds')
     end if
+
+    call tmg_stop(82)
+    call tmg_stop(80)
 
     write(*,*) 'inc_analPostProcessing: END'
 
@@ -411,6 +419,9 @@ CONTAINS
     write(*,*) 'inc_writeIncAndAnalHighRes: STARTING'
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
+    call utl_tmg_start(80,'--Increment')
+    call utl_tmg_start(83,'----WriteIncAndAnalHighRes')
+
     ! Setup timeCoord module (date read from trial file)
     numStep = tim_nstepobsinc
     allocate(dateStampList(numStep))
@@ -449,7 +460,6 @@ CONTAINS
                       varNames_opt=varNames )
 
     ! Recompute increments and write out the files in parallel with respect to time steps
-    call utl_tmg_start(183,'--INC_WRITEANLMREHM')
     call gsv_copy(stateVectorAnal, stateVectorIncHighRes)
     call gsv_add(stateVectorTrial, stateVectorIncHighRes, -1.0d0)
 
@@ -541,7 +551,6 @@ CONTAINS
       end if
 
     end do batch_loop
-    call tmg_stop(183)
 
     call gsv_deallocate(stateVectorAnal)
     if (gsv_varExist(varName='P0')) then
@@ -549,6 +558,9 @@ CONTAINS
     end if
     call gsv_deallocate(stateVectorIncHighRes)
     call gsv_deallocate(stateVectorTrial)
+
+    call tmg_stop(83)
+    call tmg_stop(80)
 
     write(*,*) 'inc_writeIncAndAnalHighRes: END'
 
@@ -568,6 +580,9 @@ CONTAINS
     type(struct_gsv) :: statevector_incr
     integer          :: nvadim_mpilocal
 
+    call utl_tmg_start(80,'--Increment')
+    call utl_tmg_start(84,'----GetIncrement')
+
     ! compute increment from control vector (multiply by B^1/2)
     call bmat_sqrtB( incr_cv, nvadim_mpilocal, statevector_incr )
 
@@ -584,6 +599,9 @@ CONTAINS
                               'VortDivToPsiChi')  ! IN
        end if
     end if
+
+    call tmg_stop(84)
+    call tmg_stop(80)
 
   end subroutine inc_getIncrement
 
@@ -609,6 +627,9 @@ CONTAINS
 
     if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrement: STARTING'
 
+    call utl_tmg_start(80,'--Increment')
+    call utl_tmg_start(85,'----WriteIncrement')
+
     ! loop over times for which increment is computed
     do stepIndex = 1, tim_nstepobsinc
       if (gsv_isAllocated(statevector_incr)) then
@@ -629,6 +650,9 @@ CONTAINS
                               containsFullField_opt=.false. )
       end if
     end do
+
+    call tmg_stop(85)
+    call tmg_stop(80)
 
     if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrement: END'
 
@@ -653,6 +677,9 @@ CONTAINS
 
     if(mpi_myid == 0) write(*,*) 'inc_writeAnalysis: STARTING'
 
+    call utl_tmg_start(80,'--Increment')
+    call utl_tmg_start(86,'----WriteAnalysis')
+
     !
     !- Set/Read values for the namelist NAMINC
     !
@@ -676,6 +703,9 @@ CONTAINS
              ip3_opt = 0, stepIndex_opt = stepIndex, containsFullField_opt=.true. )
       end if
     end do
+
+    call tmg_stop(86)
+    call tmg_stop(80)
 
   end subroutine inc_writeAnalysis
 

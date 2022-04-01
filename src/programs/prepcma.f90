@@ -75,7 +75,7 @@ program midas_prepcma
 
   !- 1.1 timings
   call tmg_init(mpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'MAIN')
+  call utl_tmg_start(0,'Main')
 
   if ( mpi_myid == 0 ) call utl_writeStatus('PREPCMA_BEG')
 
@@ -104,6 +104,8 @@ program midas_prepcma
   !- RAM disk usage
   call ram_setup
 
+  call utl_tmg_start(10,'--Observations')
+
   !- Set up list of elements to be assimilated and flags for rejection (from namelist)
   call filt_setup('prepcma')
 
@@ -115,9 +117,9 @@ program midas_prepcma
   call obs_initialize( obsSpaceData, mpi_local=obsf_filesSplit() )
 
   !- Read observations
-  call utl_tmg_start(1,'--Read_Obs')
+  call utl_tmg_start(11,'----ReadObsFiles')
   call obsf_readFiles( obsSpaceData )
-  call tmg_stop(1)
+  call tmg_stop(11)
 
   numHeader = obs_numheader(obsSpaceData)
   numBody   = obs_numbody(obsSpaceData)
@@ -148,6 +150,8 @@ program midas_prepcma
 
   !- Call suprep again to 'black list' channels according to 'util' column of stats_tovs
   if (applySatUtil) call filt_suprep(obsSpaceData)
+
+  call tmg_stop(10)
 
   !- Setup timeCoord module
   call tim_setup()

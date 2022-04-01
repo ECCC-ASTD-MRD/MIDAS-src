@@ -83,7 +83,7 @@ module backgroundCheck_mod
       return
     end if
      
-    call utl_tmg_start(3, '--bgck_bgcheck_conv')
+    call utl_tmg_start(117,'--BgckConventional')
 
     new_bgck_sw = .false.
 
@@ -119,7 +119,7 @@ module backgroundCheck_mod
 
     call osd_ObsSpaceDiag( obsSpaceData, columnTrlOnAnlIncLev, hco_anl, analysisMode_opt = .false. )
 
-    call tmg_stop(3)
+    call tmg_stop(117)
 
   end subroutine bgck_bgcheck_conv
 

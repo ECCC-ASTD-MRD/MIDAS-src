@@ -231,7 +231,7 @@ contains
     integer             :: headerIndex, idatyp, sensorIndex, instrumentIndex
     logical             :: irDataPresent
 
-    call utl_tmg_start(3,'--BGCHECKIR')
+    call utl_tmg_start(115,'--BgckInfrared')
 
     irDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
@@ -294,7 +294,7 @@ contains
     end do
     deallocate (nobir)
 
-    call tmg_stop(3)
+    call tmg_stop(115)
 
   end subroutine irbg_bgCheckIR
 

@@ -2522,7 +2522,7 @@ contains
 
     write(*,*) 'utl_copyFile: copy from ', trim(filein), ' to ', trim(fileout)
 
-    call utl_tmg_start(170,'CopyFile')
+    call utl_tmg_start(175,'low-level--utl_copyFile')
 
     unitin=10
     open(unit=unitin, file=trim(filein), status='OLD', form='UNFORMATTED', &
@@ -2573,7 +2573,7 @@ contains
       end if
     end if
 
-    call tmg_stop(170)
+    call tmg_stop(175)
 
   end function utl_copyFile
 
@@ -2782,10 +2782,10 @@ contains
 
     ! Locals:
     integer            :: labelLength
-    integer, parameter :: labelPaddedLength = 30
+    integer, parameter :: labelPaddedLength = 40
     character(len=labelPaddedLength) :: blockLabelPadded
 
-    blockLabelPadded = '..............................'
+    blockLabelPadded = '........................................'
     labelLength = min(len_trim(blockLabel), labelPaddedLength)
     blockLabelPadded(1:labelLength) = blockLabel(1:labelLength)
 

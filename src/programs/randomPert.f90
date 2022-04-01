@@ -78,7 +78,7 @@ program midas_randomPert
   call mpi_initialize
   call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call utl_tmg_start(0,'MAIN')
+  call utl_tmg_start(0,'Main')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ierr = fstopc('MSGLVL','ERRORS',0)
@@ -214,7 +214,6 @@ program midas_randomPert
 
     !- 4.1.1 Create a random control vector in spectral space
 
-    call utl_tmg_start(32, '--RANDOM_GEN')
     if( mpiTopoIndependent ) then
       !- Global vector (for testing different mpi topology, less efficient)
       do cvIndex = 1, cvm_nvadim_mpiglobal
@@ -227,7 +226,6 @@ program midas_randomPert
         controlVector(cvIndex) = rng_gaussian()
       end do
     end if
-    call tmg_stop(32)
 
     !- 4.1.2 Transform to control variables in physical space
     call bmat_sqrtB(controlVector, cvm_nvadim, & ! IN

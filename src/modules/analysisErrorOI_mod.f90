@@ -652,7 +652,7 @@ contains
 
     real(8) :: obsLonInRad, obsLatInRad, maxLcorr
 
-    call utl_tmg_start(189,'--AER_findObs')
+    call utl_tmg_start(122,'--AnalErrOI_FindObs')
 
     maxLcorr = maxval( Lcorr(:,:) )
 
@@ -760,7 +760,7 @@ contains
 
     end do HEADER_LOOP
 
-    call tmg_stop(189)
+    call tmg_stop(122)
 
   end subroutine findObs
 

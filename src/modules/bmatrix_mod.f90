@@ -91,6 +91,8 @@ contains
 
     logical :: active
 
+    call utl_tmg_start(50,'--Bmatrix')
+
     !
     !- 1.  Get/Check the analysis grid info
     !
@@ -242,6 +244,8 @@ contains
       call utl_abort('bmat_setup: The control vector has zero length. No B matrix has been set up.')
     end if
 
+    call tmg_stop(50)
+
   end subroutine bmat_setup
 
   !--------------------------------------------------------------------------
@@ -269,6 +273,8 @@ contains
     type(struct_gsv) :: statevector_temp
     character(len=4), pointer :: varNames(:)
 
+    call utl_tmg_start(50,'--Bmatrix')
+
     !
     !- 1.  Set analysis increment to zero and allocate a temporary statevector
     !
@@ -295,7 +301,7 @@ contains
       case ('HI')
 
         !- 2.1 Time-Mean Homogeneous and Isotropic...
-        call utl_tmg_start(50,'--B_HI')
+        call utl_tmg_start(52,'----B_HI_TL')
         if ( globalGrid ) then
           call bhi_bsqrt( subVector,        &  ! IN
                           statevector_temp, &  ! OUT
@@ -305,43 +311,45 @@ contains
                            statevector_temp, &  ! OUT
                            stateVectorRef_opt ) ! IN
         end if
-        call tmg_stop(50)
+        call tmg_stop(52)
 
       case ('LATB')
 
         !- 2.2 Time-Mean Lat-Bands...
-        call utl_tmg_start(50,'--B_HI')
+        call utl_tmg_start(52,'----B_HI_TL')
         if ( globalGrid ) then
           call blb_bsqrt( subVector,       & ! IN
                           statevector_temp ) ! OUT
         end if
-        call tmg_stop(50)
+        call tmg_stop(52)
 
       case ('CHM')
 
         !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
-        call utl_tmg_start(123,'--B_CHM')
+        call utl_tmg_start(68,'----B_CHM_TL')
         if ( globalGrid ) then
           call bchm_bsqrt( subVector,        &  ! IN
                            statevector_temp, &  ! OUT
                            stateVectorRef_opt ) ! IN
         end if
-        call tmg_stop(123)
+        call tmg_stop(68)
 
       case ('DIFF')
 
         !- 2.4 Covariances modelled using a diffusion operator.
+        call utl_tmg_start(66,'----B_DIFF_TL')
         call bdiff_bsqrt( subVector,       & ! IN
                           statevector_temp ) ! OUT
+        call tmg_stop(66)
 
       case ('ENS')
 
         !- 2.5 Flow-dependent Ensemble-Based
-        call utl_tmg_start(60,'--B_ENS')
+        call utl_tmg_start(57,'----B_ENS_TL')
         call ben_bsqrt( bmatInstanceID(bmatIndex), subVector, & ! IN
                         statevector_temp,                     & ! OUT
                         useFSOFcst_opt, stateVectorRef_opt )    ! IN
-        call tmg_stop(60)
+        call tmg_stop(57)
 
       end select
 
@@ -354,6 +362,8 @@ contains
     end do bmat_loop
 
     call gsv_deallocate( statevector_temp )
+
+    call tmg_stop(50)
 
   end subroutine bmat_sqrtB
 
@@ -381,6 +391,8 @@ contains
     type(struct_gsv) :: statevector_temp
     character(len=4), pointer :: varNames(:)
 
+    call utl_tmg_start(50,'--Bmatrix')
+
     nullify(varNames)
     call gsv_varNamesList(varNames, statevector)
     call gsv_allocate( statevector_temp, statevector%numStep,            &
@@ -405,7 +417,7 @@ contains
       case ('ENS')
 
         !- 2.1 Flow-dependent Ensemble-Based
-        call utl_tmg_start(61,'--B_ENS_T')
+        call utl_tmg_start(61,'----B_ENS_AD')
 
         call ben_bsqrtad( bmatInstanceID(bmatIndex), statevector_temp, &  ! IN
                           subVector,                                   &  ! OUT
@@ -415,34 +427,36 @@ contains
       case ('DIFF')
 
         !- 2.2 Covariances modelled using a diffusion operator.
+        call utl_tmg_start(67,'----B_DIFF_AD')
         call bdiff_bsqrtad( statevector_temp, & ! IN
                             subVector )         ! OUT
+        call tmg_stop(67)
  
       case ('CHM')
 
         !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
-        call utl_tmg_start(124,'--B_CHM_T')
+        call utl_tmg_start(69,'----B_CHM_AD')
         if ( globalGrid ) then
           call bchm_bsqrtad( statevector_temp, &  ! IN
                              subVector,        &  ! OUT
                              stateVectorRef_opt ) ! IN
         end if
-        call tmg_stop(124)
+        call tmg_stop(69)
 
       case ('LATB')
 
         !- 2.4 Time-Mean Lat-Bands...
-        call utl_tmg_start(51,'--B_HI_T')
+        call utl_tmg_start(53,'----B_HI_AD')
         if ( globalGrid ) then
           call blb_bsqrtad( statevector_temp, & ! IN
                             subVector )         ! OUT
         end if
-        call tmg_stop(51)
+        call tmg_stop(53)
 
       case ('HI')
 
         !- 2.5 Time-Mean Homogeneous and Isotropic...
-        call utl_tmg_start(51,'--B_HI_T')
+        call utl_tmg_start(53,'----B_HI_AD')
         if ( globalGrid ) then
           call bhi_bsqrtad( statevector_temp, &  ! IN
                             subVector,        &  ! OUT
@@ -452,13 +466,15 @@ contains
                               subVector,        &  ! OUT
                               stateVectorRef_opt ) ! IN
         end if
-        call tmg_stop(51)
+        call tmg_stop(53)
 
       end select
 
     end do bmat_loop
 
     call gsv_deallocate( statevector_temp )
+
+    call tmg_stop(50)
 
   end subroutine bmat_sqrtBT
 

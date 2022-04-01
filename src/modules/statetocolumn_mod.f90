@@ -638,9 +638,9 @@ contains
                          stateVector%hco, stateVector%vco, &
                          mpi_local_opt=.false., &
                          dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/) )
-      call utl_tmg_start(198,'--s2c_height3DGather')
+      call utl_tmg_start(32,'------s2c_Slant')
       call gsv_transposeTilesToMpiGlobal(stateVector_1Step, stateVector_Tiles_1Step)
-      call tmg_stop(198)
+      call tmg_stop(32)
       call gsv_getField(stateVector_1Step,height3D_T_r4,'Z_T')
       call gsv_getField(stateVector_1Step,height3D_M_r4,'Z_M')
     
@@ -717,13 +717,13 @@ contains
             end if
 
             ! calculate lat/lon along the line of sight
-            call utl_tmg_start(199,'--slp_calcLatLonTovs')
+            call utl_tmg_start(32,'------s2c_Slant')
             call slp_calcLatLonTovs( obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                      height3D_T_r4, height3D_M_r4,               & ! IN
                                      latLev_T, lonLev_T,                         & ! OUT
                                      latLev_M, lonLev_M,                         & ! OUT
                                      latLev_S, lonLev_S             )              ! OUT
-            call tmg_stop(199)
+            call tmg_stop(32)
 
           else if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
             if ( firstHeaderSlantPathRO ) then
@@ -733,13 +733,13 @@ contains
             end if
 
             ! Calculate lat/lon along the GPSRO obs
-            call utl_tmg_start(191,'--slp_calcLatLonRO')
+            call utl_tmg_start(32,'------s2c_Slant')
             call slp_calcLatLonRO( obsSpaceData, stateVector%hco, headerIndex, & ! IN
                                    height3D_T_r4, height3D_M_r4,               & ! IN
                                    latLev_T, lonLev_T,                         & ! OUT
                                    latLev_M, lonLev_M,                         & ! OUT
                                    latLev_S, lonLev_S                          ) ! OUT
-            call tmg_stop(191)
+            call tmg_stop(32)
           else if (codeType == codtyp_get_codtyp('radar') .and. SlantRA ) then
             if ( firstHeaderSlantPathRA ) then
               write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for RADAR. stepIndex=', &
@@ -768,7 +768,7 @@ contains
                               headerIndex, rejectOutsideObs, & ! IN
                               latLev_T, lonLev_T,            & ! IN/OUT
                               latLev_M, lonLev_M,            & ! IN/OUT
-                              latLev_S, lonLev_S )             ! IN/OUT 
+                              latLev_S, lonLev_S )             ! IN/OUT
 
           ! put the lat/lon from TH/MM levels to kIndex
           do kIndex = allkBeg(1), stateVector%nk
@@ -826,7 +826,6 @@ contains
         end do
 
         ! loop to send (at most) 1 level to (at most) all other mpi tasks
-        call utl_tmg_start(190,'--s2c_slantMpiComm')
         do kIndexCount = 1, maxkCount
 
           sendsizes(:) = 0
@@ -857,14 +856,12 @@ contains
             recvsizes(:) = 0
           end if
 
-          call utl_tmg_start(195,'--s2c_slantAlltoAll')
           call mpi_alltoallv(lat_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
                              lat_recv_r8, recvsizes, recvdispls, mpi_datyp_real8,  &
                              mpi_comm_grid, ierr)
           call mpi_alltoallv(lon_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
                              lon_recv_r8, recvsizes, recvdispls, mpi_datyp_real8,  &
                              mpi_comm_grid, ierr)
-          call tmg_stop(195)
 
           do procIndex = 1, mpi_nprocs
             ! all tasks copy the received step data into correct slot
@@ -878,7 +875,6 @@ contains
           end do
 
         end do ! kIndexCount
-        call tmg_stop(190)
 
         deallocate(lon_send_r8)
         deallocate(lon_recv_r8)
@@ -1015,7 +1011,6 @@ contains
       end if
     end if
 
-    call utl_tmg_start(173,'--S2CNL_SETUPROTLL')
     do stepIndex = 1, numStep
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex, headerIndex, lat_deg_r4, lon_deg_r4, ierr, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
       !$OMP subGridIndex, numSubGridsForInterp, subGridForInterp, lat, lon, latRot, lonRot, footprintRadius_r4, numGridpt)
@@ -1090,7 +1085,6 @@ contains
       end do ! procIndex
       !$OMP END PARALLEL DO
     end do ! stepIndex
-    call tmg_stop(173)
 
     numGridptTotal = 0
     do stepIndex = 1, numStep
@@ -1119,7 +1113,7 @@ contains
     allocate( interpInfo%lonIndexDepot(numGridptTotal) )
     allocate( interpInfo%interpWeightDepot(numGridptTotal) )
 
-    call utl_tmg_start(175,'--S2CNL_SETUPWEIGHTS')
+    call utl_tmg_start(33,'------s2c_SetupWeights')
     !$OMP PARALLEL DO PRIVATE (procIndex, stepIndex, kIndex, headerIndex, footprintRadius_r4, numGridpt)
     do procIndex = 1, mpi_nprocs
       do stepIndex = 1, numStep
@@ -1138,7 +1132,7 @@ contains
       end do ! stepIndex
     end do ! procIndex
     !$OMP END PARALLEL DO
-    call tmg_stop(175)
+    call tmg_stop(33)
 
     ! reject obs in obsSpaceData if any processor has zero weight
     ! called when a mask exists to catch land contaminated ocean obs
@@ -1229,12 +1223,12 @@ contains
     character(len=4)     :: varName
     character(len=4), pointer :: varNames(:)
 
-    if ( mpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
-    call utl_tmg_start(167,'--S2C_TL')
+    call utl_tmg_start(30,'--StateToColumn')
 
-    call utl_tmg_start(160,'--S2C_BARR')
+    if ( mpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
+    call utl_tmg_start(36,'----s2c_TL')
+
     call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(160)
 
     if ( .not. gsv_isAllocated(stateVector_in) ) then 
       call utl_abort('s2c_tl: stateVector must be allocated')
@@ -1276,9 +1270,13 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
+      call tmg_stop(36)
+      call utl_tmg_start(31,'----s2c_Setups')
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                 1, numHeader, timeInterpType_tlad,  rejectOutsideObs, &
                                 inputStateVectorType='tl' )
+      call tmg_stop(31)
+      call utl_tmg_start(36,'----s2c_TL')
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -1314,7 +1312,7 @@ contains
           call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV,kIndex)
         end if
 
-        call utl_tmg_start(161,'--S2CTL_HINTERP')
+        call utl_tmg_start(37,'------s2c_TL_Hinterp')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader, headerIndex)
         step_loop: do stepIndex = 1, numStep
           if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
@@ -1341,7 +1339,7 @@ contains
 
         end do step_loop
         !$OMP END PARALLEL DO
-        call tmg_stop(161)
+        call tmg_stop(37)
 
         ! interpolate in time to the columns destined for all procs and one level/variable
         do procIndex = 1, mpi_nprocs
@@ -1368,11 +1366,8 @@ contains
 
       end if ! if kIndex <= mykEnd
 
-      call utl_tmg_start(160,'--S2C_BARR')
       call rpn_comm_barrier('GRID',ierr)
-      call tmg_stop(160)
 
-      call utl_tmg_start(163,'--S2CTL_ALLTOALL')
       ! mpi communication: alltoall for one level/variable
       nsize = numHeaderMax
       if(mpi_nprocs > 1) then
@@ -1381,7 +1376,6 @@ contains
       else
         cols_recv(:,1) = cols_send(:,1)
       end if
-      call tmg_stop(163)
 
       ! reorganize ensemble of distributed columns
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, varName, levIndex, allCols_ptr, headerIndex)
@@ -1420,7 +1414,9 @@ contains
     
     if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
 
-    call tmg_stop(167)
+    call tmg_stop(36)
+
+    call tmg_stop(30)
 
   end subroutine s2c_tl
 
@@ -1456,12 +1452,12 @@ contains
     logical              :: rejectOutsideObs
     character(len=4), pointer :: varNames(:)
 
-    if(mpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
-    call utl_tmg_start(168,'--S2C_AD')
+    call utl_tmg_start(30,'--StateToColumn')
 
-    call utl_tmg_start(160,'--S2C_BARR')
+    if(mpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
+    call utl_tmg_start(38,'----s2c_AD')
+
     call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(160)
 
     if ( .not. gsv_isAllocated(stateVector_out) ) then 
       call utl_abort('s2c_ad: stateVector must be allocated')
@@ -1498,9 +1494,13 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
+      call tmg_stop(38)
+      call utl_tmg_start(31,'----s2c_Setups')
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                 1, numHeader, timeInterpType_tlad, rejectOutsideObs,  &
                                 inputStateVectorType='ad' )
+      call tmg_stop(31)
+      call utl_tmg_start(38,'----s2c_AD')
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -1543,11 +1543,8 @@ contains
       end do proc_loop
       !$OMP END PARALLEL DO
 
-      call utl_tmg_start(160,'--S2C_BARR')
       call rpn_comm_barrier('GRID',ierr)
-      call tmg_stop(160)
 
-      call utl_tmg_start(164,'--S2CAD_ALLTOALL')
       ! mpi communication: alltoall for one level/variable
       nsize = numHeaderMax
       if(mpi_nprocs > 1) then
@@ -1556,7 +1553,6 @@ contains
       else
         cols_recv(:,1) = cols_send(:,1)
       end if
-      call tmg_stop(164)
 
       if ( kIndex <= stateVector_VarsLevs%mykEnd ) then
         varName = gsv_getVarNameFromK(statevector,kIndex)
@@ -1583,7 +1579,7 @@ contains
           end do
         end do
 
-        call utl_tmg_start(162,'--S2CAD_HINTERP')
+        call utl_tmg_start(39,'------s2c_AD_Hinterp')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader)
         step_loop: do stepIndex = 1, numStep
           if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
@@ -1610,7 +1606,7 @@ contains
 
         end do step_loop
         !$OMP END PARALLEL DO
-        call tmg_stop(162)
+        call tmg_stop(39)
 
       end if ! if kIndex <= mykEnd
 
@@ -1620,9 +1616,7 @@ contains
     deallocate(cols_send)
     deallocate(cols_recv)
 
-    call utl_tmg_start(160,'--S2C_BARR')
     call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(160)
 
     call gsv_transposeTilesToVarsLevsAd( statevector_VarsLevs, statevector )
 
@@ -1638,7 +1632,9 @@ contains
 
     if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
 
-    call tmg_stop(168)
+    call tmg_stop(38)
+
+    call tmg_stop(30)
 
   end subroutine s2c_ad
 
@@ -1684,7 +1680,8 @@ contains
     logical              :: dealloc, moveObsAtPole, rejectOutsideObs
     character(len=4), pointer :: varNames(:)
 
-    call utl_tmg_start(169,'--S2C_NL')
+    call utl_tmg_start(30,'--StateToColumn')
+    call utl_tmg_start(34,'----s2c_NL')
 
     write(*,*) 's2c_nl: STARTING'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1712,12 +1709,8 @@ contains
     ! check the column and statevector have same nk/varNameList
     call checkColumnStatevectorMatch(column,statevector)
 
-    call utl_tmg_start(171,'--s2c_nl_calcPandZ')
-
     ! calculate delP_T/delP_M and del Z_T/Z_M on the grid
     call gvt_transform( statevector, 'ZandP_nl' )
-
-    call tmg_stop(171)
 
     nullify(varNames)
     call gsv_varNamesList(varNames, statevector)
@@ -1731,7 +1724,8 @@ contains
     numStep = stateVector_VarsLevs%numStep
 
     if ( .not. interpInfo_nl%initialized ) then
-      call utl_tmg_start(165,'--S2CNL_SETUPS')
+      call tmg_stop(34)
+      call utl_tmg_start(31,'----s2c_Setups')
       ! also reject obs outside (LAM) domain and optionally move obs near 
       ! numerical pole to first/last analysis grid latitude
       call latlonChecksAnlGrid( obsSpaceData, hco_core, moveObsAtPole )
@@ -1739,7 +1733,8 @@ contains
       ! Do not reject obs for global domain
       rejectOutsideObs = .not. stateVector_VarsLevs%hco%global
       write(*,*) 's2c_nl: rejectOutsideObs = ', rejectOutsideObs
-      call tmg_stop(165)
+      call tmg_stop(31)
+      call utl_tmg_start(34,'----s2c_NL')
 
     end if
 
@@ -1773,7 +1768,8 @@ contains
                               allHeaderIndexBeg,1,'mpi_integer','grid',ierr)
 
       if ( .not. interpInfo_nl%initialized ) then
-        call utl_tmg_start(165,'--S2CNL_SETUPS')
+        call tmg_stop(34)
+        call utl_tmg_start(31,'----s2c_Setups')
 
         ! compute and collect all obs grids onto all mpi tasks
         call s2c_setupInterpInfo( interpInfo_nl, obsSpaceData, stateVector_VarsLevs,  &
@@ -1787,7 +1783,8 @@ contains
                        stepIndex, interpInfo_nl%allNumHeaderUsed(stepIndex,:)
           end do
         end if
-        call tmg_stop(165)
+        call tmg_stop(31)
+        call utl_tmg_start(34,'----s2c_NL')
       end if
 
       ! arrays for interpolated column for 1 level/variable and each time step
@@ -1818,7 +1815,7 @@ contains
             call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV_r4,kIndex)
           end if
 
-          call utl_tmg_start(166,'--S2CNL_HINTERP')
+          call utl_tmg_start(35,'------s2c_NL_Hinterp')
           step_loop: do stepIndex = 1, numStep
             if ( maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
 
@@ -1845,7 +1842,7 @@ contains
             !$OMP END PARALLEL DO
 
           end do step_loop
-          call tmg_stop(166)
+          call tmg_stop(35)
 
           ! interpolate in time to the columns destined for all procs and one level/variable
           do procIndex = 1, mpi_nprocs
@@ -1872,12 +1869,9 @@ contains
 
         end if ! if kIndex <= mykEnd
 
-        call utl_tmg_start(160,'--S2C_BARR')
         call rpn_comm_barrier('GRID',ierr)
-        call tmg_stop(160)
 
         ! mpi communication: alltoall for one level/variable
-        call utl_tmg_start(172,'--s2c_nl_allToAll')
         nsize = numHeaderMax
         if(mpi_nprocs > 1) then
           call rpn_comm_alltoall(cols_send, nsize, 'MPI_REAL8',  &
@@ -1885,7 +1879,6 @@ contains
         else
           cols_recv(:,1) = cols_send(:,1)
         end if
-        call tmg_stop(172)
 
         ! reorganize ensemble of distributed columns
         !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex, headerIndex2)
@@ -1992,7 +1985,9 @@ contains
     write(*,*) 's2c_nl: FINISHED'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    call tmg_stop(169)
+    call tmg_stop(34)
+
+    call tmg_stop(30)
 
   end subroutine s2c_nl
 
@@ -2479,6 +2474,8 @@ contains
     integer :: varIndex
     character(len=4) :: varName
 
+    call utl_tmg_start(30,'--StateToColumn')
+
     ! Note: We assume here the all the obs between the poles and the last grid points
     !       (i.e. outside the grid) have been moved within the grid by suprep
 
@@ -2588,6 +2585,8 @@ contains
 
     deallocate(zgd)
 
+    call tmg_stop(30)
+
   end subroutine s2c_bgcheck_bilin
 
   !--------------------------------------------------------------------------
@@ -2625,6 +2624,8 @@ contains
     integer :: ilev,lonIndex,latIndex,i,j
 
     real(8) :: DLDX, DLDY, DLDP, DLW1, DLW2, DLW3, DLW4
+
+    call utl_tmg_start(30,'--StateToColumn')
 
     ! Find near lat/long grid points
 
@@ -2682,6 +2683,8 @@ contains
                       + DLW3 * field(lonIndex,latIndex+1,ilev+1)  &
                       + DLW4 * field(lonIndex+1,latIndex+1,ilev+1))                               
     end do
+
+    call tmg_stop(30)
 
   end subroutine s2c_column_hbilin
 
@@ -2851,7 +2854,6 @@ contains
     logical, allocatable :: allRejectObs(:,:), allRejectObsMpiGlobal(:,:)
 
     write(*,*) 's2c_rejectZeroWeightObs: Starting'
-    call utl_tmg_start(174,'--S2C_rejectZeroWeightObs')
 
     numHeader = obs_numheader(obsSpaceData)
     call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
@@ -2911,7 +2913,6 @@ contains
     deallocate(allRejectObs)
     deallocate(allRejectObsMpiGlobal)
 
-    call tmg_stop(174)
     write(*,*) 's2c_rejectZeroWeightObs: Finished'
 
   end subroutine s2c_rejectZeroWeightObs
@@ -3768,6 +3769,8 @@ contains
     integer :: indexBeg, indexEnd, gridptIndex
     integer :: subGridIndex, maxGridpt
 
+    call utl_tmg_start(30,'--StateToColumn')
+
     maxGridpt = size( interpWeight )
 
     gridptCount = 0
@@ -3800,6 +3803,8 @@ contains
       end do
 
     end do subGrid_loop
+
+    call tmg_stop(30)
 
   end subroutine s2c_getWeightsAndGridPointIndexes
 
