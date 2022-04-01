@@ -102,7 +102,8 @@ contains
  
     NAMELIST /NAMVAR1D/ scaleFactor, scaleFactorLQ
 
-    call tmg_start(15,'BHI1D_SETUP')
+    call utl_tmg_start(50,'--Bmatrix')
+    call utl_tmg_start(51,'----B_HI_Setup')
     if(mpi_myid == 0) write(*,*) 'var1D_setup: Starting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
@@ -126,7 +127,8 @@ contains
     if ( sum( scaleFactor( 1 : maxNumLevels ) ) == 0.0d0 ) then
       if ( mpi_myid == 0 ) write(*,*) 'var1D_setup: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
-      call tmg_stop(15)
+      call tmg_stop(51)
+      call tmg_stop(50)
       return
     end if
     do levelIndex = 1, maxNumLevels
@@ -225,7 +227,11 @@ contains
     write(*,*) 'var1D_setup: var1D_validHeaderCount, obs_numHeader(obsdat)', var1D_validHeaderCount, obs_numHeader(obsdat)
     cvDim_out = nkgdim * var1D_validHeaderCount
     cvDim_mpilocal = cvDim_out
+
     initialized = .true.
+
+    call tmg_stop(51)
+    call tmg_stop(50)
 
   end subroutine var1D_setup
   
@@ -615,6 +621,9 @@ contains
     ! locals:
     integer :: bmatIndex
     real(8), pointer :: subVector(:)
+
+    call utl_tmg_start(50,'--Bmatrix')
+
     !
     !- 1.  Compute the analysis increment
     !
@@ -624,15 +633,17 @@ contains
       select case( trim(bmatTypeList(bmatIndex)) )
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
-        call tmg_start(50,'B_HI')
+        call utl_tmg_start(52,'----B_HI_TL')
         call var1D_bsqrtHi( subVector,   &  ! IN
                             column,      &  ! OUT
                             obsspacedata )  ! IN
-        call tmg_stop(50)
+        call tmg_stop(52)
       case default
         call utl_abort( 'var1D_sqrtB: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
     end do bmat_loop
+
+    call tmg_stop(50)
 
   end subroutine var1D_sqrtB
 
@@ -653,6 +664,9 @@ contains
     ! locals:
     integer :: bmatIndex
     real(8), pointer :: subVector(:)
+
+    call utl_tmg_start(50,'--Bmatrix')
+
     ! Process components in opposite order as forward calculation
     bmat_loop: do bmatIndex = numBmat, 1, -1
       if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
@@ -660,15 +674,17 @@ contains
       select case( trim(bmatTypeList(bmatIndex)) )
       case ('HI')
         !- 2.5 Time-Mean Homogeneous and Isotropic...
-        call tmg_start(51,'B_HI_T')
+        call utl_tmg_start(53,'----B_HI_AD')
         call var1D_bsqrtHiAd( subvector, &  ! IN
                               column,    &  ! OUT
                               obsData )     ! IN
-        call tmg_stop(51)
+        call tmg_stop(53)
       case default
         call utl_abort( 'var1D_sqrtBT: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
     end do bmat_loop
+
+    call tmg_stop(50)
 
   end subroutine var1D_sqrtBT
 

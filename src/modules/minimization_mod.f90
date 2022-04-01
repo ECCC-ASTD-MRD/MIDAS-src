@@ -127,6 +127,8 @@ CONTAINS
     integer :: ierr,nulnam
     integer,external :: fnom,fclos
 
+    call utl_tmg_start(90,'--Minimization')
+
     if ( nvadim_mpilocal_in /= cvm_nvadim ) then
       write(*,*) 'nvadim_mpilocal_in,cvm_nvadim=',nvadim_mpilocal_in,cvm_nvadim
       call utl_abort('min_setup: control vector dimension not consistent')
@@ -180,6 +182,8 @@ CONTAINS
 
     initialized=.true.
 
+    call tmg_stop(90)
+
   end subroutine min_setup
 
 
@@ -211,11 +215,12 @@ CONTAINS
     type(struct_columnData) :: columnAnlInc
     integer                 :: get_max_rss
 
+    call utl_tmg_start(90,'--Minimization')
+
     write(*,*) '--------------------------------'
     write(*,*) '--Starting subroutine minimize--'
     write(*,*) '--------------------------------'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call tmg_start(3,'MIN')
 
     initializeForOuterLoop = .true.
     outerLoopIndex = outerLoopIndex_in
@@ -263,10 +268,10 @@ CONTAINS
 
     deallocate(controlVectorIncrSumZero)
 
-    call tmg_stop(3)
-
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) '--Done subroutine minimize--'
+
+    call tmg_stop(90)
 
   end subroutine min_minimize
 
@@ -389,7 +394,9 @@ CONTAINS
         llvarqc = lvarqc
 
         if ( nwoqcv > 0 ) lvarqc = .false.
+        call utl_tmg_start(91,'----QuasiNewton')
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
+        call tmg_stop(91)
 
         lvarqc = llvarqc
       endif
@@ -400,9 +407,11 @@ CONTAINS
       llvarqc = lvarqc
       if ( nwoqcv > 0 .and. outerLoopIndex == 1 ) lvarqc = .false.
       INDIC =2
+      call utl_tmg_start(91,'----QuasiNewton')
       call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
+      call tmg_stop(91)
       lvarqc = llvarqc
-
+      
       if ( outerLoopIndex == 1 ) zdf1 = rdf1fac * ABS(zjsp)
 
       CALL PRSCAL(nvadim_mpilocal,VAZG,VAZG,DLGNORM)
@@ -430,7 +439,7 @@ CONTAINS
           iitnovqc = min(nwoqcv - iterdone,itermax)
           isimnovqc = isimmax
           lvarqc = .false.
-          call tmg_start(70,'QN')
+          call utl_tmg_start(91,'----QuasiNewton')
 
           zeps1 = zeps0
 
@@ -438,7 +447,7 @@ CONTAINS
               zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
               iitnovqc, isimnovqc ,iztrl, vatra, nmtra, intUnused,   &
               zzsunused, dlds)
-          call tmg_stop(70)
+          call tmg_stop(91)
           call fool_optimizer(obsSpaceData)
 
           isimnovqc = isimnovqc - 1
@@ -454,7 +463,9 @@ CONTAINS
           if ((imode == 4 .or. imode == 1) .and. itertot < itermax) then
             imode = 2
             INDIC = 2
+            call utl_tmg_start(91,'----QuasiNewton')
             call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
+            call tmg_stop(91)
           else
             write(*,*) 'minimization_mod: qna_n1qn3 imode = ', imode
             call utl_abort('minimization_mod: qna_n1qn3 mode not equal to 1 or 4')
@@ -462,7 +473,7 @@ CONTAINS
         endif
 
         ! Now do main minimization with var-QC
-        call tmg_start(70,'QN')
+        call utl_tmg_start(91,'----QuasiNewton')
 
         if ( outerLoopIndex > 1 ) imode = 2
 
@@ -472,7 +483,7 @@ CONTAINS
             zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
             itermaxtodo,isimmax, iztrl, vatra, nmtra, intUnused, zzsunused,   &
             dlds)
-        call tmg_stop(70)
+        call tmg_stop(91)
         call fool_optimizer(obsSpaceData)
 
         itertot = itertot + itermaxtodo
@@ -528,6 +539,8 @@ CONTAINS
 
     real(8) :: vazx(:)
 
+    call utl_tmg_start(90,'--Minimization')
+
     if ( lwrthess ) then
       ! Write out the Hessian to file
       if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -550,6 +563,8 @@ CONTAINS
     if ( lwrthess ) then
       deallocate(vatra)
     end if
+
+    call tmg_stop(90)
 
   end subroutine min_writeHessian
 
@@ -589,9 +604,9 @@ CONTAINS
     type(struct_gsv), save :: statevector
     type(struct_vco), pointer :: vco_anl
 
-    if (na_indic  ==  1 .or. na_indic  ==  4) call tmg_stop(70)
+    call tmg_stop(91)
+    call tmg_stop(90)
 
-    call tmg_start(80,'MIN_SIMVAR')
     if (na_indic .ne. 1) then ! No action taken if na_indic == 1
        min_nsim = min_nsim + 1
 
@@ -622,16 +637,16 @@ CONTAINS
          call bmat_sqrtB(da_v,nvadim_mpilocal,statevector)
 
          ! put in columnAnlInc H_horiz dx
-         call tmg_start(30,'OBS_INTERP')
          call s2c_tl(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)
-         call tmg_stop(30)
        end if
 
        ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
-       call tmg_start(40,'OBS_TL')
+       call utl_tmg_start(10,'--Observations')
+       call utl_tmg_start(18,'----ObsOper_TL')
        call oop_Htl(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,min_nsim, &
                     initializeLinearization_opt=initializeForOuterLoop) 
-       call tmg_stop(40)
+       call tmg_stop(18)
+       call tmg_stop(10)
 
        ! Calculate OBS_OMA from OBS_WORK : d-Hdx
        call res_compute(obsSpaceData_ptr)  
@@ -639,7 +654,9 @@ CONTAINS
        call bcs_calcbias_tl(da_v,OBS_OMA,obsSpaceData_ptr,columnTrlOnAnlIncLev_ptr)
 
        ! Save as OBS_WORK : R**-1/2 (d-Hdx)
+       call utl_tmg_start(10,'--Observations')
        call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_OMA)  
+       call tmg_stop(10)
 
        ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
        call cfn_calcJo(obsSpaceData_ptr) 
@@ -650,6 +667,8 @@ CONTAINS
        endif
 
        dl_Jo = 0.d0
+       call utl_tmg_start(90,'--Minimization')
+       call utl_tmg_start(92,'----SumCostFunction')
        call cfn_sumJo(obsSpaceData_ptr,dl_Jo)
        da_J = dl_Jb + dl_Jo
        if (na_indic  ==  3) then
@@ -659,9 +678,13 @@ CONTAINS
           da_J = dl_Jb + dl_Jo
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
+       call tmg_stop(92)
+       call tmg_stop(90)
 
        ! Modify OBS_WORK : R**-1 (d-Hdx)
+       call utl_tmg_start(10,'--Observations')
        call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  
+       call tmg_stop(10)
 
        IF ( LVARQC ) THEN
          call vqc_ad(obsSpaceData_ptr)
@@ -673,18 +696,18 @@ CONTAINS
        call col_zero(columnAnlInc_ptr)
 
        ! Put in column : -H_vert**T R**-1 (d-Hdx)
-       call tmg_start(41,'OBS_AD')
+       call utl_tmg_start(10,'--Observations')
+       call utl_tmg_start(19,'----ObsOper_AD')
        call oop_Had(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr, &
                     initializeLinearization_opt=initializeForOuterLoop)
-       call tmg_stop(41)
+       call tmg_stop(19)
+       call tmg_stop(10)
 
        ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
        if (oneDVarMode) then
          ! no interpolation needed for 1Dvar case
        else
-         call tmg_start(31,'OBS_INTERPAD')
          call s2c_ad(statevector,columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)
-         call tmg_stop(31)
        end if
 
        da_gradJ(:) = 0.d0
@@ -702,8 +725,9 @@ CONTAINS
          da_gradJ(1:nvadim_mpilocal) = dl_v(1:nvadim_mpilocal) + da_gradJ(1:nvadim_mpilocal)
        endif
     endif
-    call tmg_stop(80)
-    if (na_indic  ==  1 .or. na_indic  ==  4) call tmg_start(70,'QN')
+
+    call utl_tmg_start(90,'--Minimization')
+    call utl_tmg_start(91,'----QuasiNewton')
 
     initializeForOuterLoop = .false.
 
@@ -879,10 +903,10 @@ CONTAINS
 
     if (status == 0) then
       if (mpi_myid == 0) write(*,*) 'Read  Hessian in min_hessianIO from file ', cfname
-      call tmg_start(88,'MIN_READHESS')
+      call utl_tmg_start(93,'----ReadHess')
     elseif (status == 1) then
       if (mpi_myid == 0) write(*,*) 'Write Hessian in min_hessianIO to file ', cfname
-      call tmg_start(94,'MIN_WRITEHESS')
+      call utl_tmg_start(94,'----WriteHess')
     else
       call utl_abort('min_hessianIO: status not valid ')
     endif
@@ -902,9 +926,7 @@ CONTAINS
          ierr = fnom(ireslun,cfname,'FTN+SEQ+UNF+OLD+R/O',0)
 
          !- Checking version number
-         call tmg_start(98,'MIN_READHESS_IO')
          read (ireslun) cl_version, i1gc
-         call tmg_stop(98)
          if (trim(cl_version) == 'V5') then
             write(*,*) 'min_hessianIO: using single precision V5 Hessian'
          else if (trim(cl_version) == 'V4') then
@@ -922,12 +944,10 @@ CONTAINS
             call utl_abort('min_hessianIO: Inconsistant input hessian')
          endif
 
-         call tmg_start(98,'MIN_READHESS_IO')
          rewind (ireslun)
 
          read(ireslun) cl_version,i1gc,nsim,ibrpstamp,zeps1,zdf1,itertot,isimtot,ivadim,itrunc
          read(ireslun) ivamaj,iztrl_io
-         call tmg_stop(98)
          if ((ivamaj.ne.nvamaj).or.(nvadim_mpiglobal.ne.ivadim)) then
             write(*,*) nvamaj,ivamaj,nvadim_mpiglobal,ivadim
             call utl_abort('min_hessianIO : ERROR, size of V5 Hessian not consistent')
@@ -952,15 +972,11 @@ CONTAINS
       do jvec = 1, ictrlvec
  
          if (mpi_myid == 0) then
-            call tmg_start(98,'MIN_READHESS_IO')
             read(ireslun) vatravec_r4_mpiglobal
-            call tmg_stop(98)
          end if
 
-         call tmg_start(119,'MIN_READHESS_REDUCE')
          call bmat_reduceToMPILocal_r4( vatra_r4,            & ! OUT
                                         vatravec_r4_mpiglobal) ! IN (contains data only on proc 0)
-         call tmg_stop(119)
          !$OMP PARALLEL DO PRIVATE(ii)
          do ii = 1, nvadim_mpilocal
            vatra((jvec-1)*nvadim_mpilocal+ii) = real(vatra_r4(ii),8)
@@ -987,9 +1003,7 @@ CONTAINS
          if (mpi_myid == 0) then 
             write(*,*) 'min_hessianIO : reading vazxbar'
             allocate(vazxbar_mpiglobal(nvadim_mpiglobal))
-            call tmg_start(98,'MIN_READHESS_IO')
             read(ireslun) vazxbar_mpiglobal
-            call tmg_stop(98)
          else
             allocate(vazxbar_mpiglobal(1))
          end if
@@ -1003,9 +1017,7 @@ CONTAINS
          if (mpi_myid == 0) then 
             write(*,*) 'min_hessianIO : reading vazx'
             allocate(vazx_mpiglobal(nvadim_mpiglobal))
-            call tmg_start(98,'MIN_READHESS_IO')
             read(ireslun) vazx_mpiglobal
-            call tmg_stop(98)
          else
             allocate(vazx_mpiglobal(1))
          end if
@@ -1031,10 +1043,8 @@ CONTAINS
       itrunc=0
       iztrl_io(1: 5) = iztrl(:)
       iztrl_io(6:10) = 0 ! dummy values for hessian size legacy purposes
-      call tmg_start(76,'MIN_WRITEHESS_IO')
       if(mpi_myid == 0) write(ireslun) cl_version,k1gc,nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,nvadim_mpiglobal,itrunc
       if(mpi_myid == 0) write(ireslun) nvamaj,iztrl_io
-      call tmg_stop(76)
 
       !- Write the Hessian
       if (mpi_myid == 0) then
@@ -1053,9 +1063,7 @@ CONTAINS
         !$OMP END PARALLEL DO
         call bmat_expandToMPIGlobal_r4( vatra_r4,              & ! IN
                                         vatravec_r4_mpiglobal )  ! OUT
-        call tmg_start(76,'MIN_WRITEHESS_IO')
         if (mpi_myid == 0) write(ireslun) vatravec_r4_mpiglobal
-        call tmg_stop(76)
       enddo
       deallocate(vatravec_r4_mpiglobal)
       deallocate(vatra_r4)
@@ -1068,9 +1076,7 @@ CONTAINS
       end if
       call bmat_expandToMPIGlobal( vazxbar,          & ! IN
                                    vazxbar_mpiglobal ) ! OUT
-      call tmg_start(76,'MIN_WRITEHESS_IO')
       if (mpi_myid == 0) write(ireslun) vazxbar_mpiglobal(1:nvadim_mpiglobal)
-      call tmg_stop(76)
       deallocate(vazxbar_mpiglobal)
 
       !- Write VAZX
@@ -1081,9 +1087,7 @@ CONTAINS
       end if
       call bmat_expandToMPIGlobal( vazx,          & ! IN
                                    vazx_mpiglobal ) ! OUT
-      call tmg_start(76,'MIN_WRITEHESS_IO')
       if (mpi_myid == 0) write(ireslun) vazx_mpiglobal(1:nvadim_mpiglobal)
-      call tmg_stop(76)
       deallocate(vazx_mpiglobal)
 
       !- Close the Hessian matrix file
@@ -1093,7 +1097,7 @@ CONTAINS
     endif
 
     if (status == 0) then
-      call tmg_stop(88)
+      call tmg_stop(93)
     elseif (status == 1) then
       call tmg_stop(94)
     endif

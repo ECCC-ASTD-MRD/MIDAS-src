@@ -248,7 +248,7 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering ben_Setup'
 
-    call tmg_start(12,'BEN_SETUP')
+    call utl_tmg_start(54,'----B_ENS_Setup')
 
     !- Set the module mode
     if ( present(mode_opt) ) then
@@ -400,7 +400,7 @@ CONTAINS
     allocate(cvDimPerInstance(nInstance))
     cvDimPerInstance(:) = cvDimStorage(1:nInstance)
 
-    call tmg_stop(12)
+    call tmg_stop(54)
 
   end subroutine ben_setup
 
@@ -887,14 +887,14 @@ CONTAINS
         bEns(instanceIndex)%dateStampListAdvectedFields(1) = tim_getDatestamp()
         bEns(instanceIndex)%dateStampListAdvectedFields(2) = bEns(instanceIndex)%dateStampList(bEns(instanceIndex)%numStep)
         delT_hour = bEns(instanceIndex)%fsoLeadTime/real(bEns(instanceIndex)%numStepAdvectFSOFcst-1,8) ! time between winds
-        call tmg_start(135,'BEN_SETUP_ADVEC_FSO')
+        call utl_tmg_start(55,'------B_ENS_SetupAdvecFSO')
         call adv_setup( bEns(instanceIndex)%adv_amplitudeFSOFcst,                                   & ! OUT
                         'fromFirstTimeIndex', bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens,                 & ! IN
                         bEns(instanceIndex)%numStepAmplitudeFSOFcst, bEns(instanceIndex)%dateStampListAdvectedFields,   & ! IN
                         bEns(instanceIndex)%numStepAdvectFSOFcst, delT_hour, advectFactorFSOFcst_M, & ! IN
                         'MMLevsOnly',                                           & ! IN
                         steeringFlowFilename_opt=trim(bEns(instanceIndex)%ensPathName)//'/forecast_for_advection' ) ! IN
-        call tmg_stop(135)
+        call tmg_stop(55)
         deallocate(advectFactorFSOFcst_M)
       end if
     else
@@ -924,7 +924,7 @@ CONTAINS
       call ens_copyEnsMean(bEns(instanceIndex)%ensPerts(1), & ! IN
                            statevector_ensMean4D  )   ! OUT
 
-      call tmg_start(136,'BEN_SETUP_ADVEC_ANL')
+      call utl_tmg_start(56,'------B_ENS_SetupAdvecAnl')
 
       select case(trim(bEns(instanceIndex)%advectTypeAssimWindow))
       case ('amplitude')
@@ -994,7 +994,7 @@ CONTAINS
         call utl_abort('ben_setupOneInstance')
       end select
 
-      call tmg_stop(136)
+      call tmg_stop(56)
 
       deallocate(advectFactorAssimWindow_M)
 
@@ -1023,10 +1023,8 @@ CONTAINS
       end if
 
       !- Do the advection of all the members
-      call tmg_start(137,'BEN_ADVEC_ENSPERT_TL')
       call adv_ensemble_tl( bEns(instanceIndex)%ensPerts(1), &       ! INOUT
                             bEns(instanceIndex)%adv_ensPerts, bEns(instanceIndex)%nEns ) ! IN
-      call tmg_stop(137)
 
       !- If wanted, write the advected ensemble perturbations for member #1
       if (bEns(instanceIndex)%advDiagnostic) then
@@ -1859,9 +1857,7 @@ CONTAINS
     logical   :: immediateReturn
     logical   :: useFSOFcst
 
-    call tmg_start(67,'BEN_BARR')
     if (mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(67)
 
     !
     !- 1.  Tests
@@ -1922,21 +1918,19 @@ CONTAINS
     do waveBandIndex = 1, bEns(instanceIndex)%nWaveBand !  Loop on WaveBand (for ScaleDependent Localization)
 
       ! 2.1 Compute the ensemble amplitudes
+      call utl_tmg_start(60,'------LocSpectral_TL')
       call loc_Lsqrt(bEns(instanceIndex)%locStorage(waveBandIndex),controlVector_in, & ! IN
-                     ensAmplitude_ptr,                                             & ! OUT
+                     ensAmplitude_ptr,                                               & ! OUT
                      amp3dStepIndex)                                                   ! IN
+      call tmg_stop(60)
 
       ! 2.2 Advect the amplitudes
       if      (bEns(instanceIndex)%advectAmplitudeFSOFcst   .and. useFSOFcst) then
-        call tmg_start(131,'BEN_ADVEC_AMP_FSO_TL')
         call adv_ensemble_tl( ensAmplitude_ptr,                                                  & ! INOUT
                               bEns(instanceIndex)%adv_amplitudeFSOFcst, bEns(instanceIndex)%nEns )   ! IN
-        call tmg_stop(131)
       else if (bEns(instanceIndex)%advectAmplitudeAssimWindow .and. .not. useFSOFcst) then
-        call tmg_start(133,'BEN_ADVEC_AMP_ANL_TL')
         call adv_ensemble_tl( ensAmplitude_ptr,                                                    & ! INOUT
                               bEns(instanceIndex)%adv_amplitudeAssimWindow, bEns(instanceIndex)%nEns ) ! IN
-        call tmg_stop(133)
       end if
 
       if ( bEns(instanceIndex)%keepAmplitude .and. waveBandIndex == 1 ) then
@@ -1959,10 +1953,8 @@ CONTAINS
 
     ! 2.5 Advect Increments
     if ( bEns(instanceIndex)%advectEnsPertAnlInc ) then
-      call tmg_start(138,'BEN_ADVEC_ANLINC_TL')
       call adv_statevector_tl( statevector,                      & ! INOUT
                                bEns(instanceIndex)%adv_analInc )   ! IN
-      call tmg_stop(138)
     end if
 
     !
@@ -2004,9 +1996,7 @@ CONTAINS
     !
     !- 1.  Tests
     !
-    call tmg_start(67,'BEN_BARR')
     if (mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(67)
 
     if (.not. bEns(instanceIndex)%initialized) then
       if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: bMatrixEnsemble not initialized'
@@ -2042,10 +2032,8 @@ CONTAINS
 
     ! 2.5 Advect Increments
     if ( bEns(instanceIndex)%advectEnsPertAnlInc ) then
-      call tmg_start(139,'BEN_ADVEC_ANLINC_AD')
       call adv_statevector_ad( statevector,  & ! INOUT
                                bEns(instanceIndex)%adv_analInc )   ! IN
-      call tmg_stop(139)
     end if
 
     ! 2.4 Apply the Std. Dev (if needed)
@@ -2081,21 +2069,19 @@ CONTAINS
 
       ! 2.2 Advect the  amplitudes
       if      (bEns(instanceIndex)%advectAmplitudeFSOFcst .and. useFSOFcst) then
-        call tmg_start(132,'BEN_ADVEC_AMP_FSO_AD')
         call adv_ensemble_ad( ensAmplitude_ptr,          & ! INOUT
                               bEns(instanceIndex)%adv_amplitudeFSOFcst, bEns(instanceIndex)%nEns )   ! IN
-        call tmg_stop(132)
       else if (bEns(instanceIndex)%advectAmplitudeAssimWindow .and. .not. useFSOFcst) then
-        call tmg_start(134,'BEN_ADVEC_AMP_ANL_AD')
         call adv_ensemble_ad( ensAmplitude_ptr,                                                    & ! INOUT
                               bEns(instanceIndex)%adv_amplitudeAssimWindow, bEns(instanceIndex)%nEns ) ! IN
-        call tmg_stop(134)
       end if
 
       ! 2.1 Compute the ensemble amplitudes
+      call utl_tmg_start(64,'------LocSpectral_AD')
       call loc_LsqrtAd(bEns(instanceIndex)%locStorage(waveBandIndex),ensAmplitude_ptr, & ! IN
-                       controlVector_out,                                                & ! OUT
-                       amp3dStepIndex)                                                     ! IN
+                       controlVector_out,                                              & ! OUT
+                       amp3dStepIndex)                                                   ! IN
+      call tmg_stop(64)
 
     end do ! Loop on WaveBand
 
@@ -2135,7 +2121,7 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering ben_addEnsMember'
 
-    call tmg_start(62,'ADDMEM')
+    call utl_tmg_start(58,'------AddMem_TL')
 
     if (present(useFSOFcst_opt)) then
       useFSOFcst = useFSOFcst_opt
@@ -2169,8 +2155,6 @@ CONTAINS
         increment_out2(:,:,latIndex) = 0.0d0
       end do
       !$OMP END PARALLEL DO
-
-      call tmg_start(66,'ADDMEM_PREPAMP')
 
       if ( vnl_varLevelFromVarname(varName) /= 'SF' .and. &
            vnl_varLevelFromVarname(varName) == vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1)) ) then
@@ -2240,9 +2224,8 @@ CONTAINS
       else
         call utl_abort('ben_addEnsMember: unknown value of varLevel')
       end if
-      call tmg_stop(66)
 
-      call tmg_start(77,'ADDMEM_INNER')
+      call utl_tmg_start(59,'--------AddMemInner_TL')
 
       ensMemberAll_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(waveBandIndex),levIndex)
       !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex,stepIndex2,stepIndex_amp,memberIndex)
@@ -2267,7 +2250,7 @@ CONTAINS
       end do ! latIndex
       !$OMP END PARALLEL DO
 
-      call tmg_stop(77)
+      call tmg_stop(59)
 
       ! compute increment level from amplitude/member level
       if (vnl_varLevelFromVarname(varName) == 'SF') then
@@ -2310,7 +2293,7 @@ CONTAINS
     deallocate(ensAmplitude_MT)
     deallocate(increment_out2)
 
-    call tmg_stop(62)
+    call tmg_stop(58)
 
   end subroutine addEnsMember
 
@@ -2342,7 +2325,7 @@ CONTAINS
 
     if (verbose) write(*,*) 'Entering ben_addEnsMemberAd'
 
-    call tmg_start(63,'ADDMEMAD')
+    call utl_tmg_start(62,'------AddMem_AD')
 
     if (present(useFSOFcst_opt)) then
       useFSOFcst = useFSOFcst_opt
@@ -2368,14 +2351,12 @@ CONTAINS
     allocate(increment_in2(bEns(instanceIndex)%numStep,bEns(instanceIndex)%myLonBeg:bEns(instanceIndex)%myLonEnd,bEns(instanceIndex)%myLatBeg:bEns(instanceIndex)%myLatEnd))
 
     ! set output ensemble Amplitude to zero
-    call tmg_start(69,'ADDMEMAD_ZERO')
     !$OMP PARALLEL DO PRIVATE (levIndex, ensAmplitude_oneLev)
     do levIndex = 1, ens_getNumLev(ensAmplitude,vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1)))
       ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,levIndex)
       ensAmplitude_oneLev(:,:,:,:) = 0.0d0
     end do
     !$OMP END PARALLEL DO
-    call tmg_stop(69)
 
     do levIndex = 1, ens_getNumK(bEns(instanceIndex)%ensPerts(waveBandIndex))
 
@@ -2396,7 +2377,6 @@ CONTAINS
       end if
       lev2 = lev - 1 + topLevOffset
 
-      call tmg_start(65,'ADDMEMAD_SHUFFLE')
       if (varName == 'LQ' .and. bEns(instanceIndex)%ensShouldNotContainLQvarName) then
         if (gsv_getDataKind(statevector_in) == 4) then
           call gsv_getField(statevector_in, increment_in_r4, 'HU')
@@ -2420,7 +2400,6 @@ CONTAINS
         end if
       end do
       !$OMP END PARALLEL DO
-      call tmg_stop(65)
 
       ensMemberAll_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(waveBandIndex),levIndex)
       !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex, stepIndex2, stepIndex_amp, &
@@ -2429,7 +2408,7 @@ CONTAINS
       do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
         do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
 
-          if (omp_get_thread_num() == 0) call tmg_start(78,'ADDMEMAD_INNER')
+          if (omp_get_thread_num() == 0) call utl_tmg_start(63,'--------AddMemInner_AD')
           ensAmplitude_MT(:,:) = 0.0d0
           do stepIndex = stepBeg, stepEnd
             stepIndex2 = stepIndex - stepBeg + 1
@@ -2445,11 +2424,10 @@ CONTAINS
                 increment_in2(stepIndex2,lonIndex,latIndex) * dble(ensMemberAll_r4(memberIndex,stepIndex,lonIndex,latIndex))
             end do ! memberIndex
           end do ! stepIndex
-          if (omp_get_thread_num() == 0) call tmg_stop(78)
+          if (omp_get_thread_num() == 0) call tmg_stop(63)
 
           ! transform thermo/momentum level amplitude sensitivites appropriately
 
-          if (omp_get_thread_num() == 0) call tmg_start(68,'ADDMEMAD_PREPAMP')
           if ( varLevel /= 'SF' .and. &
                varLevel == varLevelAlfa ) then
             ! The non-surface variable varName is on the same levels than the amplitude field
@@ -2518,7 +2496,6 @@ CONTAINS
           else
             call utl_abort('ben_addEnsMemberAd: unknown value of varLevel')
           end if
-          if (omp_get_thread_num() == 0) call tmg_stop(68)
 
         end do ! lonIndex
       end do ! latIndex
@@ -2529,7 +2506,7 @@ CONTAINS
     deallocate(ensAmplitude_MT)
     deallocate(increment_in2)
 
-    call tmg_stop(63)
+    call tmg_stop(62)
 
   end subroutine addEnsMemberAd
 

@@ -106,8 +106,6 @@ contains
 
     logical :: printJoTovsPerChannelSensor
 
-    call tmg_start(81,'SUMJO')
-
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
@@ -309,8 +307,6 @@ contains
       end if
 
     end if
-
-    call tmg_stop(81)
 
   end subroutine cfn_sumJo
 

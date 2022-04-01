@@ -72,8 +72,8 @@ program midas_obsSelection
   call mpi_initialize
 
   !- 1.1 timings
-  call tmg_init(mpi_myid, 'TMG_OBSSELECTION' )
-  call tmg_start(1,'MAIN')
+  call tmg_init(mpi_myid, 'TMG_INFO')
+  call utl_tmg_start(0,'Main')
 
   !- 1.2 Read the namelist for obsSelection program (if it exists)
   doThinning = .false.
@@ -294,7 +294,7 @@ program midas_obsSelection
 
   call rpn_comm_finalize(ierr)
 
-  call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_OMINUSF' )
+  call tmg_stop(0)
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
 end program midas_obsSelection

@@ -63,18 +63,16 @@ program midas_sstBias
   ! MPI initialization
   call mpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_SSTbias' )
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
+  call utl_tmg_start(0,'Main')
  
   ! 1. Top level setup
 
   call ram_setup()
  
   ! Do initial set up
-  call tmg_start(2,'SETUP')
   call SSTbias_setup( 'VAR', dateStamp ) ! obsColumnMode
-  call tmg_stop(2)
   
   call sstb_computeBias( obsSpaceData, hco_anl, vco_anl, iceFractionThreshold, searchRadius, &
                          column, numberSensors, sensorList, dateStamp, maxBias, numberPointsBG, &
@@ -99,9 +97,9 @@ program midas_sstBias
 
   istamp = exfin('SSTBIAS','FIN','NON')
 
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_SSTbias' )
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 

@@ -72,9 +72,9 @@ program midas_var1D
   ! MPI initialization
   call mpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_VAR' )
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1, 'MAIN')
+  call utl_tmg_start(0,'Main')
 
   write(*,*)
   write(*,*) 'Real Kind used for computing the increment =', pre_incrReal
@@ -86,7 +86,6 @@ program midas_var1D
   call ram_setup
 
   ! Do initial set up
-  call tmg_start(2, 'PREMIN')
 
   obsMpiStrategy = 'LIKESPLITFILES'
 
@@ -138,7 +137,6 @@ program midas_var1D
   ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, varMode) ! IN
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(2)
 
   ! Initialize list of analyzed variables.
   call gsv_setup
@@ -206,19 +204,15 @@ program midas_var1D
   call var1D_transferColumnToYGrid( stateVectorIncr, obsSpaceData, columnAnlInc)
 
   ! output the analysis increment
-  call tmg_start(6, 'WRITEINCR')
   call inc_writeIncrement( stateVectorIncr)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-  call tmg_stop(6)
 
   ! compute and write the analysis (as well as the increment on the trial grid)
-  call tmg_start(18, 'ADDINCREMENT')
   call var1d_transferColumnToYGrid(stateVectorAnalysis, obsSpaceData, columnTrlOnAnlIncLev)
 
   if (mpi_myId == 0) call gsv_add(statevectorIncr, statevectorAnalysis)
 
   call inc_writeAnalysis(stateVectorAnalysis)
-  call tmg_stop(18)
 
   ! Deallocate memory related to B matrices
   call var1D_finalize()
@@ -253,9 +247,9 @@ program midas_var1D
   ! Job termination
   istamp = exfin('VAR1D','FIN','NON')
 
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_VAR' )
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 

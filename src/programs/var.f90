@@ -97,9 +97,9 @@ program midas_var
   ! MPI initialization
   call mpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_VAR' )
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
+  call utl_tmg_start(0,'Main')
 
   if (mpi_myid == 0) then
     clmsg = 'VAR3D_BEG'
@@ -112,7 +112,6 @@ program midas_var
   call ram_setup
 
   ! Do initial set up
-  call tmg_start(2,'PREMIN')
 
   ! Set/Read values for the namelist NAMVAR
   ! Setting default namelist variable values
@@ -236,7 +235,6 @@ program midas_var
   end if
   call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-  call tmg_stop(2)
 
   numInnerLoopIterDone = 0
 
@@ -335,7 +333,6 @@ program midas_var
 
     ! prepare to write incremnt when no outer-loop, or sum of increments at last
     ! outer-loop iteration.
-    call tmg_start(6,'WRITEINCR')
     if ( numOuterLoopIterations > 1 .and. &
          outerLoopIndex == numOuterLoopIterations ) then
 
@@ -354,7 +351,6 @@ program midas_var
                                ip3ForWriteToFile_opt=0 ) ! IN
     end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call tmg_stop(6)
 
     call gsv_deallocate( stateVectorIncr )
 
@@ -403,11 +399,9 @@ program midas_var
   call gsv_deallocate( stateVectorUpdateHighRes )
 
   ! compute and write the analysis (as well as the increment on the trial grid)
-  call tmg_start(18,'ADDINCREMENT')
   call inc_writeIncAndAnalHighRes( stateVectorTrial, stateVectorPsfc, &
                                    stateVectorAnal )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-  call tmg_stop(18)
 
   if (mpi_myid == 0) then
     clmsg = 'REBM_DONE'
@@ -445,9 +439,9 @@ program midas_var
     call utl_writeStatus(clmsg)
   end if
 
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_VAR' )
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 

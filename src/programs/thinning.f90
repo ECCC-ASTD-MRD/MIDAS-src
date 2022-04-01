@@ -49,14 +49,16 @@ program midas_thinning
   ! MPI initilization
   call mpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_THIN' )
-  call tmg_start(1,'MAIN')
+  call tmg_init(mpi_myid, 'TMG_INFO')
+  call utl_tmg_start(0,'Main')
 
   ! 1. Top level setup
 
   call ram_setup
 
   ! 2. configuration the job
+
+  call utl_tmg_start(10,'--Observations')
 
   !- Initialize observation file names
   call obsf_setup( dateStamp, 'thinning' )
@@ -69,9 +71,9 @@ program midas_thinning
   call filt_setup('bgck')
 
   !- Read observations
-  call tmg_start(2,'READ_OBS')
+  call utl_tmg_start(11,'----ReadObsFiles')
   call obsf_readFiles( obsSpaceData )
-  call tmg_stop(2)
+  call tmg_stop(11)
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -80,6 +82,8 @@ program midas_thinning
 
   !- Select the elements to "assimilate" and apply rejection flags
   call filt_suprep( obsSpaceData )
+
+  call tmg_stop(10)
 
   !- Setup timeCoord module
   call tim_setup()
@@ -120,8 +124,8 @@ program midas_thinning
   !- deallocate obsSpaceData
   call obs_finalize(obsSpaceData)
 
-  call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_THIN' )
+  call tmg_stop(0)
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr)
 

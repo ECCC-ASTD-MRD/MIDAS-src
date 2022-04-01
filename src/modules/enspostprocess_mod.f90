@@ -304,7 +304,6 @@ contains
       !- Impose limits on humidity *before* recentering, if requested
       if (huLimitsBeforeRecenter) then
         if (imposeSaturationLimit .or. imposeRttovHuLimits) then
-          call tmg_start(102,'LETKF-imposeHulimits')
           if (mpi_myid == 0) write(*,*) ''
           if (mpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the humidity of analysis ensemble'
           if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
@@ -314,7 +313,6 @@ contains
           ! And recompute analysis mean
           call ens_computeMean(ensembleAnl)
           call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
-          call tmg_stop(102)
         end if
       end if
 
@@ -334,7 +332,6 @@ contains
       !- Impose limits on humidity *after* recentering, if requested
       if (.not.huLimitsBeforeRecenter) then
         if (imposeSaturationLimit .or. imposeRttovHuLimits) then
-          call tmg_start(102,'LETKF-imposeHulimits')
           if (mpi_myid == 0) write(*,*) ''
           if (mpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the humidity of analysis ensemble'
           if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
@@ -344,7 +341,6 @@ contains
           ! And recompute analysis mean
           call ens_computeMean(ensembleAnl)
           call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
-          call tmg_stop(102)
         end if
       end if
 
@@ -399,7 +395,6 @@ contains
         end if
         write(*,*) 'epp_postProcess: randomSeed for additive inflation set to ', &
              randomSeedRandomPert
-        call tmg_start(101,'LETKF-randomPert')
         if (ens_isAllocated(ensembleTrl)) then
           call epp_addRandomPert(ensembleAnl, stateVectorMeanTrl, alphaRandomPert, &
                randomSeedRandomPert, useMemberAsHuRefState)
@@ -407,7 +402,6 @@ contains
           call epp_addRandomPert(ensembleAnl, stateVectorMeanAnl, alphaRandomPert, &
                randomSeedRandomPert, useMemberAsHuRefState)
         end if
-        call tmg_stop(101)
       end if
 
       !- Recompute the analysis spread stddev after inflation and humidity limits
@@ -444,11 +438,9 @@ contains
           end if
           write(*,*) 'epp_postProcess: randomSeed for additive inflation set to ', &
                randomSeedRandomPert
-          call tmg_start(101,'LETKF-randomPert')
           call epp_addRandomPert(ensembleAnlSubSample, stateVectorMeanTrl,  &
                                  alphaRandomPertSubSample, randomSeedRandomPert, &
                                  useMemberAsHuRefState)
-          call tmg_stop(101)
         end if
 
         ! Compute analysis mean of sub-sampled ensemble
@@ -600,7 +592,6 @@ contains
     !
     !- Output everything
     !
-    call tmg_start(4,'LETKF-writeOutput')
 
     !- Output ens stddev and mean in trialrms, analrms and analpertrms files
 
@@ -609,6 +600,7 @@ contains
 
     if (ens_isAllocated(ensembleTrl)) then
       ! output trialmean, trialrms
+      call utl_tmg_start(5,'--WriteEnsMeanRms')
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialmean'
       call ens_copyMaskToGsv(ensembleTrl, stateVectorMeanTrl)
@@ -625,16 +617,17 @@ contains
                            stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
       outFileName = trim(outFileName) // '_ascii'
       call epp_printRmsStats(stateVectorStdDevTrl,outFileName,elapsed=0.0D0,ftype='F',nEns=nEns)
+      call tmg_stop(5)
 
       ! output the trial ensemble if requested (because it was interpolated)
       if (writeTrlEnsemble) then
-        call tmg_start(104,'LETKF-writeEns')
+        call utl_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleTrl, '.', '', etiket_trl, 'P',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.true.)
         end if
-        call tmg_stop(104)
+        call tmg_stop(3)
       end if
     end if
 
@@ -663,6 +656,7 @@ contains
       end if
       
       ! output analmean, analrms
+      call utl_tmg_start(5,'--WriteEnsMeanRms')
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analmean'
       call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
@@ -719,9 +713,11 @@ contains
         outFileName = trim(outFileName) // '_ascii'
         call epp_printRmsStats(stateVectorStdDevAnlPert,outFileName,elapsed=0.0D0,ftype='P',nEns=nEns)
       end if
+      call tmg_stop(5)
 
       !- Output the ensemble mean increment (include MeanAnl Psfc) and ensemble increments
       if (ens_isAllocated(ensembleTrl)) then
+        call utl_tmg_start(5,'--WriteEnsMeanRms')
         ! output ensemble mean increment
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
         call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanInc)
@@ -737,9 +733,10 @@ contains
                                  stepIndex_opt=stepIndex, containsFullField_opt=.true.)
           end if
         end do
+        call tmg_stop(5)
 
         !- Output all ensemble member increments
-        call tmg_start(104,'LETKF-writeEns')
+        call utl_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlInc, '.', '', etiket_inc, 'R',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
@@ -751,11 +748,12 @@ contains
                                        ensPath='.')
           end if
         end if
-        call tmg_stop(104)
+        call tmg_stop(3)
 
       end if ! allocated(ensembleTrl)
 
       ! output ensemble mean analysis state
+      call utl_tmg_start(5,'--WriteEnsMeanRms')
       call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp(), 0 )
       call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
       ! here we assume 4 digits for the ensemble member!!!!
@@ -765,19 +763,21 @@ contains
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
+      call tmg_stop(5)
 
       !- Output all ensemble member analyses
       ! convert transformed to model variables for analysis and trial ensembles
-      call tmg_start(104,'LETKF-writeEns')
+      call utl_tmg_start(3,'--WriteEnsemble')
       if (.not. outputOnlyEnsMean) then
         call ens_writeEnsemble(ensembleAnl, '.', '', etiket_anl, 'A',  &
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.true.)
       end if
-      call tmg_stop(104)
+      call tmg_stop(3)
 
       !- Output the sub-sampled ensemble analyses and increments
       if (writeSubSample) then
+        call utl_tmg_start(5,'--WriteEnsMeanRms')
         ! Output the ensemble mean increment (include MeanAnl Psfc)
         call fln_ensAnlFileName( outFileName, 'subspace', tim_getDateStamp(), 0, ensFileNameSuffix_opt='inc' )
         ! here we assume 4 digits for the ensemble member!!!!
@@ -802,18 +802,19 @@ contains
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
+        call tmg_stop(3)
 
         ! Output the sub-sampled analysis ensemble members
-        call tmg_start(104,'LETKF-writeEns')
+        call utl_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlSubSample, 'subspace', '', etiket_anl, 'A',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.true.)
         end if
-        call tmg_stop(104)
+        call tmg_stop(3)
 
         ! Output the sub-sampled ensemble increments (include MeanAnl Psfc)
-        call tmg_start(104,'LETKF-writeEns')
+        call utl_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlIncSubSample, 'subspace', '', etiket_inc, 'R',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
@@ -826,7 +827,7 @@ contains
                                        ensPath='subspace')
           end if
         end if
-        call tmg_stop(104)
+        call tmg_stop(3)
 
       end if ! writeSubSample
 
@@ -834,19 +835,17 @@ contains
       if (writeSubSampleUnPert) then
 
         ! Output the sub-sampled analysis ensemble members
-        call tmg_start(104,'LETKF-writeEns')
+        call utl_tmg_start(3,'--WriteEnsemble')
         if (.not. outputOnlyEnsMean) then
           call ens_writeEnsemble(ensembleAnlSubSampleUnPert, 'subspace_unpert', '', etiket_anl, 'A',  &
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.true.)
         end if
-        call tmg_stop(104)
+        call tmg_stop(3)
 
       end if
 
     end if ! ens_isAllocated(ensembleAnl)
-
-    call tmg_stop(4)
 
   end subroutine epp_postProcess
 
@@ -1062,6 +1061,8 @@ contains
     character(len=4), pointer :: varNamesWithLQ(:)
     character(len=4) :: varName
 
+    call utl_tmg_start(4,'--AddEnsRandomPert')
+
     ! Determine middle timestep
     middleStepIndex = (tim_nstepobsinc + 1) / 2
 
@@ -1105,8 +1106,10 @@ contains
 
     hco_core => hco_randomPert
     if (firstCall) then
+      call tmg_stop(4) ! stop counter, since Bmat has it's own counters
       call bmat_setup(hco_randomPert, hco_core, vco_randomPert)
       firstCall = .false.
+      call utl_tmg_start(4,'--AddEnsRandomPert')
     end if
     call gvt_setup(hco_randomPert, hco_core, vco_randomPert)
 
@@ -1167,6 +1170,7 @@ contains
       end do
       call bmat_reduceToMPILocal( controlVector, controlVector_mpiglobal )
 
+      call tmg_stop(4) ! stop counter, since Bmat has it's own counters
       if (ens_varExist(ensembleAnl,'HU') .and. .not.useMemberAsHuRefState) then
         ! Use supplied reference state for LQ to HU conversion
         call bmat_sqrtB(controlVector, cvm_nvadim, &       ! IN
@@ -1177,6 +1181,8 @@ contains
         call bmat_sqrtB(controlVector, cvm_nvadim, &   ! IN
                         stateVectorPerturbation)       ! OUT
       end if
+      call utl_tmg_start(4,'--AddEnsRandomPert')
+
       call gsv_interpolate(stateVectorPerturbation, stateVectorPerturbationInterp, &
                            PsfcReference_opt=PsfcReference)
 
@@ -1242,6 +1248,8 @@ contains
     if (gsv_isAllocated(stateVectorHuRefStateInterp)) then
       call gsv_deallocate(stateVectorHuRefStateInterp)
     end if
+
+    call tmg_stop(4)
 
   end subroutine epp_addRandomPert
 

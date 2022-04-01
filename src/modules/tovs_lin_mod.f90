@@ -299,7 +299,6 @@ contains
       
       errorstatus   = 0
       emissivity_tl(:)%emis_in = 0.0d0
-      call tmg_start(87,'rttov_tl')
       call rttov_parallel_tl(                                     &
            errorstatus,                                           & ! out
            chanprof,                                              & ! in
@@ -322,8 +321,6 @@ contains
         write(*,*) 'temperature increment profile=',profilesdata_tl(1) % t(:)
         call utl_abort('tovs_rttov_tl')
       end if
-
-      call tmg_stop(87)
 
       !  2.4  Store hx in obsSpaceData,OBS_WORK
       
@@ -591,7 +588,6 @@ contains
       emissivity_ad(:) % emis_in = 0.0d0
       emissivity_ad(:) % emis_out = 0.0d0
   
-      call tmg_start(84,'rttov_ad')
       call rttov_parallel_ad(                               &
            errorstatus,                                     & ! out
            chanprof,                                        & ! in
@@ -612,8 +608,6 @@ contains
         Write(*,*) "Error in rttov_parallel_ad", errorstatus
         call utl_abort('tvslin_rttov_ad')
       end if
-
-      call tmg_stop(84)
 
       !   2.0  Store adjoints in columnData object
       tt_ad(:,:) = 0.d0

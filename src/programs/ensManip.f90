@@ -97,9 +97,9 @@ program midas_ensManip
   !- 0. MPI, TMG initialization
   !
   call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_ENSMANIP')
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
+  call utl_tmg_start(0,'Main')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Avoid printing lots of stuff to listing for std file I/O
@@ -208,7 +208,7 @@ program midas_ensManip
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !- 2.5 Setup and read the ensemble
-  call tmg_start(2,'READ_ENSEMBLE')
+  call utl_tmg_start(2,'--ReadEnsemble')
   call ens_allocate(ensemble, nEns, numStep, hco, vco, dateStampList, &
                     hInterpolateDegree_opt = hInterpolationDegree)
   makeBiPeriodic = .false.
@@ -245,7 +245,6 @@ program midas_ensManip
   !- 3.1 Compute and output the ensemble mean, if requested
   if (trim(alternativeEnsembleMean) == '' .or. output_ensemble_mean) then
     !- Compute ensemble mean
-    call tmg_start(3,'COMPUTE_MEAN')
     call ens_computeMean(ensemble)
     if (imposeSaturationLimitOnInputs .or. imposeRttovHuLimitsOnInputs) then
       do subEnsIndex = 1, ens_getNumSubEns(ensemble)
@@ -256,12 +255,10 @@ program midas_ensManip
       end do
     end if
 
-    call tmg_stop(3)
   end if
 
   if ( output_ensemble_mean ) then
     !- Output the ensemble mean
-    call tmg_start(4,'OUTPUT_MEAN')
     call ens_copyEnsMean(ensemble, statevector_mean)
 
     ! Filename for ensemble mean
@@ -274,17 +271,12 @@ program midas_ensManip
                            containsFullField_opt=.true.)
     end do
 
-    call tmg_stop(4)
   end if
 
   !- 3.2 Compute and output the ensemble spread stddev, if requested
   if ( output_ensemble_stddev ) then
     ! Compute the ensemble stddev and put in statevector_stddev
-    call tmg_start(6,'COMPUTE_STDDEV')
     call ens_computeStdDev(ensemble)
-    call tmg_stop(6)
-
-    call tmg_start(7,'OUTPUT_STDDEV')
     call ens_copyEnsStdDev(ensemble, statevector_stddev)
 
     ! Filename for ensemble stddev
@@ -297,7 +289,6 @@ program midas_ensManip
                            stepIndex_opt = stepIndex, typvar_opt = 'P' , numBits_opt = numBits )
     end do
 
-    call tmg_stop(7)
   end if
 
   if ( output_ensemble_perturbations .and. recenter ) then
@@ -306,17 +297,15 @@ program midas_ensManip
 
   !- 3.2 Output the ensemble perturbations, if requested
   if ( output_ensemble_perturbations ) then
-    call tmg_start(8,'OUTPUT_PERTURBATIONS')
+    call utl_tmg_start(3,'--WriteEnsemble')
     call ens_removeMean(ensemble)
     call ens_writeEnsemble(ensemble, '.', 'pert_', 'ENSPERT', 'P', numBits_opt = numBits)
-    call tmg_stop(8)
+    call tmg_stop(3)
   end if
 
   !- 3.3 Ensemble recentering
   if (recenter) then
     ! read recentering mean in file '${DATE}_recenteringmean'
-    call tmg_start(10,'READ_RECENTERINGMEAN')
-
     recenteringMeanFileName = './' // trim(ensFileBaseName) // '_recenteringmean'
 
     call gsv_allocate(statevector_recenteringMean, numStep, hco, vco,         &
@@ -335,8 +324,6 @@ program midas_ensManip
     if ( imposeSaturationLimitOnInputs ) call qlim_saturationLimit(statevector_recenteringMean)
     if ( imposeRttovHuLimitsOnInputs   ) call qlim_rttovLimit     (statevector_recenteringMean)
 
-    call tmg_stop(10)
-
     if (recenterEnsembleControlMember) then
       call fln_ensFileName( controlMemberFileNameIn, ensPathName, memberIndex_opt = 0, shouldExist_opt = .true.)
       call fln_ensFileName( controlMemberFileNameout, '.', memberIndex_opt = 0, ensFileNamePrefix_opt = 'recentered_', &
@@ -345,7 +332,6 @@ program midas_ensManip
 
     if (trim(alternativeEnsembleMean) /= '') then
       ! read ensemble center in file '${ensFileBaseName}_${alternativeEnsembleMean}'
-      call tmg_start(11,'READ_ALTERNATIVEENSEMBLEMEAN')
 
       ! Filename for ensemble center
       alternativeEnsembleMeanFileName = './' // trim(ensFileBaseName) // trim(alternativeEnsembleMean)
@@ -366,9 +352,6 @@ program midas_ensManip
       if ( imposeSaturationLimitOnInputs ) call qlim_saturationLimit(statevector_alternativeEnsembleMean)
       if ( imposeSaturationLimitOnInputs ) call qlim_rttovLimit     (statevector_alternativeEnsembleMean)
 
-      call tmg_stop(11)
-
-      call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
       call ens_recenter(ensemble,statevector_recenteringMean,    &
                         recenteringCoeff_opt=recentering_coeff,  &
                         scaleFactor_opt=scaleFactor,             &
@@ -382,8 +365,6 @@ program midas_ensManip
         if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensemble)
       end if
 
-      call tmg_stop(12)
-
       if (recenterEnsembleControlMember) then
         call recenterState(ensemble,controlMemberFileNameIn, controlMemberFileNameout,                             &
                            statevector_recenteringMean, recentering_coeff, ensembleControlMemberEtiket,            &
@@ -396,7 +377,6 @@ program midas_ensManip
 
       end if
     else
-      call tmg_start(12,'RECENTER_ENSEMBLE_MEMBERS')
       call ens_recenter(ensemble,statevector_recenteringMean,   &
                         recenteringCoeff_opt=recentering_coeff, &
                         scaleFactor_opt=scaleFactor)
@@ -409,7 +389,6 @@ program midas_ensManip
         if ( imposeSaturationLimit ) call qlim_saturationLimit(ensemble)
         if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensemble)
       end if
-      call tmg_stop(12)
 
       if (recenterEnsembleControlMember) then
         call recenterState(ensemble, controlMemberFileNameIn, controlMemberFileNameout,                 &
@@ -422,19 +401,19 @@ program midas_ensManip
       end if
     end if ! end of 'else' related to 'if (trim(alternativeEnsembleMean) /= '')'
 
-    call tmg_start(130,'OUTPUT_RECENTER_MEMBERS')
+    call utl_tmg_start(3,'--WriteEnsemble')
     call ens_writeEnsemble(ensemble, '.', 'recentered_', ensembleEtiketOutput, ensembleTypVarOutput,  &
                            numBits_opt = numBits, etiketAppendMemberNumber_opt = ensembleEtiketOutputAppendMemberNumber)
-    call tmg_stop(130)
+    call tmg_stop(3)
   end if ! end of 'if (recenter)'
 
   !
   !- 4.  MPI, tmg finalize
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_ENSMANIP' )
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'

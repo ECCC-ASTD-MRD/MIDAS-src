@@ -59,9 +59,9 @@ program midas_calcstats
 
   !- 1.1 MPI and TMG
   call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_CALCSTATS')
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
+  call utl_tmg_start(0,'Main')
 
   ! Setup the ramdisk directory (if supplied)
   call ram_setup
@@ -167,9 +167,9 @@ program midas_calcstats
   !
   !- 4.  MPI, tmg finalize
   !  
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_CALCSTATS')
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
 end program midas_calcstats

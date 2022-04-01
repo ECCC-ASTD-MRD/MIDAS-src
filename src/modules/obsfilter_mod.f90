@@ -265,6 +265,8 @@ contains
     integer :: idburp, ivnm, iflg, ibad, iknt, iknt_mpiglobal, ilansea
     logical :: llok, llrej, llbogus
 
+    call utl_tmg_start(22,'----ObsFiltSuprep')
+
     if(mpi_myid == 0) write(*,*) 'starting subroutine filt_suprep'
 
     iknt = 0
@@ -359,6 +361,8 @@ contains
     if (iknt_mpiglobal == 0 ) then
        call utl_abort('SUPREP. NO DATA TO BE ASSIMILATED')
     end if
+
+    call tmg_stop(22)
 
   end subroutine filt_suprep
 

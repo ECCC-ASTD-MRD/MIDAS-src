@@ -67,9 +67,9 @@ program midas_analysisErrorOI
     call utl_abort(myName//': this version of the code should only be used with one mpi task.')
   end if
 
-  call tmg_init(mpi_myid, 'TMG_ANALYSISERROROI' )
+  call tmg_init(mpi_myid, 'TMG_INFO')
 
-  call tmg_start(1,'MAIN')
+  call utl_tmg_start(0,'Main')
 
   varMode='analysis'
 
@@ -186,9 +186,9 @@ program midas_analysisErrorOI
   !
   istamp = exfin('ANALYSISERROROI','FIN','NON')
 
-  call tmg_stop(1)
+  call tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_ANALYSISERROROI' )
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 

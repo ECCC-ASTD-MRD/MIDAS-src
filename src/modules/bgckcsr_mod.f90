@@ -131,7 +131,7 @@ contains
       return
     end if
 
-    call tmg_start(33,'BGCHECK_CSR')
+    call utl_tmg_start(116,'--BgckCSR')
     write(*,*) ' CSRBG QC PROGRAM STARTS ....'
     ! Read Namelist
     call csrbg_init()
@@ -181,7 +181,7 @@ contains
     write(*,*) "Ciel non clair                     " , categorieRejet(7)
     write(*,*) "*******"
 
-    call tmg_stop(33)
+    call tmg_stop(116)
   end subroutine csrbg_bgCheckCSR
 
   !--------------------------------------------------------------------------
