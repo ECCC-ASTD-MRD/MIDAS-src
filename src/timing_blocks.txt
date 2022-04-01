@@ -1,6 +1,6 @@
 To get a good idea of current use of timing blocks within MIDAS the following command can be used:
 
-grep -irh 'call utl_tmg_start' | grep -v grep | sed 's/^.*tmg_start\(.*\)/\1/gI' | sed 's/(//g' | sed 's/)//g' | sort -n -u
+grep -irh 'call utl_tmg_start' |grep -v grep| sed 's/^.*tmg_start\(.*\)/\1/gI' | sed 's/(//g' | sed 's/)//g' | sort -u | sort -n
 
   0, 'Main'
   1, '--ReadTrials'
@@ -97,7 +97,6 @@ grep -irh 'call utl_tmg_start' | grep -v grep | sed 's/^.*tmg_start\(.*\)/\1/gI'
 143, '----ADV_GSV_Calc'
 
 150, 'low-level--gst_lt'
-150, 'low-level--lst_fft'
 151, 'low-level--gst_fft'
 151, 'low-level--lst_fft'
 152, 'low-level--gst_barr'
