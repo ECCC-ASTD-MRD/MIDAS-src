@@ -26,9 +26,6 @@ elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
     export I_MPI_FC=ifort
     export I_MPI_CC=icc
     export I_MPI_CXX=icpc
-
-    ## this is needed to create tmpdirs on all nodes
-    pbsdsh :
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
