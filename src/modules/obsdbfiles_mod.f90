@@ -39,7 +39,6 @@ module obsdbFiles_mod
   ! Public subroutines and functions:
   public :: odbf_isActive, odbf_readFile, odbf_updateFile
 
- 
   ! Arrays used to match obsDB column names with obsSpaceData column names
 
   integer, parameter :: lenSqlName    = 60
@@ -102,7 +101,6 @@ contains
     implicit none
 
     ! locals
-    
     
     integer            :: nulfile, ierr
     integer, external  :: fnom, fclos
@@ -332,7 +330,7 @@ contains
               countMatchRow = countMatchRow + 1
               midasHeadNamesList(1,countMatchRow) = trim(readDBColumn)              
               midasHeadNamesList(2,countMatchRow) = trim(readObsSpaceColumn)
-            end select
+          end select
         end do
 
       else if (index(trim(readline),'MIDAS_BODY TABLE INFO BEGINS') > 0) then
@@ -1756,7 +1754,6 @@ contains
     character(len=*), intent(in)    :: familyType 
     integer,          intent(in)    :: fileIndex
     
-
     ! locals:
     type(fSQL_STATUS)    :: stat ! sqlite error status
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
@@ -1993,7 +1990,6 @@ contains
     character(len=5000)  :: tableInsertColumnList
     character(len=6), parameter  :: midasTableType='body' ! Define the type of MIDAS table: header/body
     
-
     ! namelist variables
     integer,          save :: numberUpdateItems  ! number of items to use from the list
     character(len=4), save :: updateItemList(15) ! obsSpace column names used to update the file
@@ -2353,7 +2349,6 @@ contains
     character(len=*), intent(in)             :: midasTableKeySqlName
     integer, optional, intent(in)            :: numMidasTableRequired_opt
 
-
     ! locals:
     type(fSQL_STATUS)                :: stat ! sqlite error status
     type(fSQL_DATABASE)              :: db   ! sqlite file handle
@@ -2376,7 +2371,7 @@ contains
     end do
 
     if ( all(midasColumnExists(:)) ) then
-      write(*,*) 'odbf_addColumnsMidasTable: No additional columns are updated'
+      write(*,*) 'odbf_addColumnsMidasTable: No additional columns need to be added to this table'
     else
       write(*,*) 'odbf_addColumnsMidasTable: Additional MIDAS ' // trim(midasTableType) // ' columns will be created'
 
