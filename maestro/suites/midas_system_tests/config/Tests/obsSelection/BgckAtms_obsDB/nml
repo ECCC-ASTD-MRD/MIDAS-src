@@ -27,7 +27,7 @@
    updateItemList(2)='VTOP'
    updateItemList(3)='ECF'
    updateItemList(4)='VCF'
-	 updateItemList(5)='HE'
+   updateItemList(5)='HE'
    updateItemList(6)='NCO2'
    updateItemList(7)='ZTSR'
    updateItemList(8)='ZTM'
