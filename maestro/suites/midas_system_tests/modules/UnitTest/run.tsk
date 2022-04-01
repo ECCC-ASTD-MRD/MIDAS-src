@@ -14,7 +14,10 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
     . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
+    set +x
+    echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2
     . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2
+    set -x
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
