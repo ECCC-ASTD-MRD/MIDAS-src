@@ -11,7 +11,7 @@
         -  The asterisk symbol "*" after the MIDAS ObsSpaceData column names in the MIDAS Table indicates the column names are 
            mandatory  
  
- Last updated: 2022/01/17
+ Last updated: 2022/04/01
 
  ObsDB Columns                     MIDAS ObsSpaceData     BUFR ID           Unit             Description
 -----OBS_HEADER TABLE INFO BEGINS--------------------------------------------------------------------------------------------------------------------
