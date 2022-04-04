@@ -156,12 +156,13 @@ clean_midas_abs:
 ssm:
   stage: deploy
   script:
+    - version=$(./midas.version.sh) ## This version number contains the 'v_'
     - ./set_resources_def.sh
     - . maestro/suites/midas_system_tests/set_machine_list.dot
     ## remove the 'v_' from the tag name since MIDAS domains do not contain 'v_' but starts with the number
     - VERSION=$(./midas.version.sh | cut -c3-)
     - cd ssm
-    - ./build_packages --midas-abs ${MIDAS_ABS} --packages ${SSM_PACKAGES}/${VERSION}
+    - ./build_packages --midas-abs ${MIDAS_ABS_ARCHIVE}/${version} --packages ${SSM_PACKAGES}/${VERSION}
     ## For this command to work, we must put in '/home/sanl000/.ssh/authorized_keys' this:
     ##     no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,command="/home/sanl000/bin/ssh_command ${SSH_ORIGINAL_COMMAND}" ssh-rsa .... sanl888@hpci-util
     - ssh sanl000@${MACHINE_PPP} /home/sanl000/ssm/ssm_publish midas ${VERSION} ${SSM_PACKAGES}/${VERSION}
