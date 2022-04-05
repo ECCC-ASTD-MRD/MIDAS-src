@@ -27,7 +27,7 @@ OPT_LEVEL = 2
 install : # defining default target
 
 splitobs_rhel-8-icelake-64: version.h $(SRC)
-	. r.load.dot rpn/code-tools/ENV/cdt-1.5.5-inteloneapi-2022.1.2; \
+	. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2; \
 	make splitobs_libs_20220204
 
 splitobs_libs_20220204: version.h $(SRC)

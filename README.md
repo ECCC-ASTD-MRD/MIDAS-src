@@ -474,20 +474,27 @@ file](CI.md).
 
 ## Cleaning of the programs directory
 
-The programs compiled in the CI pipeline are moved into the directory:
+The programs compiled in the CI pipeline are copied into the directory:
 ```
 /home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
 ```
 
-Once in a while, we must clean this directory to save them elsewhere
-to avoid filing the `ords` directory of user `sanl888`.
+If everything goes as planned they should be moved automatically to
+```
+/home/sanl888/data_maestro/ppp5/midas/gitlab-ci/abs
+```
 
-The script
+But, if the files do not get moved automatically, they may fill the
+`ords` directory.
+
+Once in a while, we must clean this directory and move the programs
+elsewhere to avoid filing the `ords` directory of user `sanl888`.
+
+You can use the script
 ```
 /home/sanl888/data_maestro/ords/midas/gitlab-ci/abs/move_abs.sh
 ```
-moves the MIDAS programs to
+which moves the MIDAS programs to
 ```
-/home/sanl888/data_maestro/eccc-ppp4/midas/gitlab-ci/abs
+/home/sanl888/data_maestro/ppp5/midas/gitlab-ci/abs
 ```
-and links them to keep a reference.
