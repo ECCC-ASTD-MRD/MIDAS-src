@@ -163,7 +163,7 @@ program midas_ensembleH
     call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, copyToRamDisk_opt=.false.  )
     call gio_readFile( stateVector, ensFileName, ' ', ' ', containsFullField=.true., &
                        readHeightSfc_opt=.true. )
-    call gio_fileUnitsToStateUnits( stateVector, containsFullField=.true. )
+    call gsv_FileUnitsToStateUnits( stateVector, containsFullField=.true. )
 
     call gsv_transposeVarsLevsToTiles(statevector, statevector_tiles)
     call tmg_stop(3)

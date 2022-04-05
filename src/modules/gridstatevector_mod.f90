@@ -46,7 +46,7 @@ module gridStateVector_mod
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
   public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK, gsv_getMpiIdFromK, gsv_hPad
   public :: gsv_writeToFile
-  public :: gsv_modifyVarName
+  public :: gsv_fileUnitsToStateUnits, gsv_modifyVarName
   public :: gsv_hInterpolate, gsv_hInterpolate_r4, gsv_vInterpolate, gsv_vInterpolate_r4
   public :: gsv_transposeTilesToStep, gsv_transposeStepToTiles, gsv_transposeTilesToMpiGlobal
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd
@@ -2968,6 +2968,112 @@ module gridStateVector_mod
   end function gsv_getHco_physics
 
   !--------------------------------------------------------------------------
+  ! gsv_fileUnitsToStateUnits
+  !--------------------------------------------------------------------------
+  subroutine gsv_fileUnitsToStateUnits(statevector, containsFullField, stepIndex_opt)
+    !
+    !:Purpose: Unit conversion needed after reading rpn standard file
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv)            :: statevector
+    logical                     :: containsFullField
+    integer, optional           :: stepIndex_opt
+
+    ! Locals:
+    real(4), pointer :: field_r4_ptr(:,:,:,:)
+    real(8) :: multFactor
+    integer :: stepIndex, stepIndexBeg, stepIndexEnd, kIndex
+    character(len=4) :: varName
+
+    if ( present(stepIndex_opt) ) then
+      stepIndexBeg = stepIndex_opt
+      stepIndexEnd = stepIndex_opt
+    else
+      stepIndexBeg = 1
+      stepIndexEnd = statevector%numStep
+    end if
+
+    call gsv_getField(statevector,field_r4_ptr)
+
+    step_loop: do stepIndex = stepIndexBeg, stepIndexEnd
+
+      ! Do unit conversion for all variables
+      do kIndex = statevector%mykBeg, statevector%mykEnd
+        varName = gsv_getVarNameFromK(statevector,kIndex)
+
+        if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
+          multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
+        else if ( trim(varName) == 'P0' ) then
+          multFactor = mpc_pa_per_mbar_r8 ! hPa -> Pa
+        else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' ) then 
+          if ( gsv_conversionVarKindCHtoMicrograms ) then
+            if ( trim(varName) == 'TO3' .or. trim(varName) == 'O3L' ) then
+              ! Convert from volume mixing ratio to micrograms/kg
+              ! Standard ozone input would not require this conversion as it is already in micrograms/kg
+              multFactor = 1.0d9*vnl_varMassFromVarName(trim(varName)) &
+                           /mpc_molar_mass_dry_air_r8 ! vmr -> micrograms/kg
+            else
+              multFactor = 1.0d0 ! no conversion
+            end if
+          else
+            multFactor = 1.0d0 ! no conversion
+          end if
+        else
+          multFactor = 1.0d0 ! no conversion
+        end if
+        write(*,*) 'DBGmad conversion ', varName, multFactor
+
+        if ( multFactor /= 1.0d0 ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = real( multFactor * field_r4_ptr(:,:,kIndex,stepIndex), 4 )
+        end if
+
+        if ( trim(varName) == 'TT' .and. containsFullField ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) +  &
+                                                     mpc_k_c_degree_offset_r8, 4 )
+        end if
+
+        if ( trim(varName) == 'TM' .and. containsFullField ) then
+          if (maxval(field_r4_ptr(:,:,kIndex,stepIndex)) < 50.0) then
+            field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + &
+                                                       mpc_k_c_degree_offset_r8, 4 )
+          end if
+        end if
+
+        if ( trim(varName) == 'VIS' .and. containsFullField ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = min(field_r4_ptr(:,:,kIndex,stepIndex),mpc_maximum_vis_r4)
+        end if
+
+        if ( vnl_varKindFromVarname(trim(varName)) == 'CH' .and. containsFullField ) then 
+          if ( gsv_minValVarKindCH(vnl_varListIndex(varName)) > 1.01*mpc_missingValue_r8 ) &
+            field_r4_ptr(:,:,kIndex,stepIndex) = max( field_r4_ptr(:,:,kIndex,stepIndex), &
+              real(gsv_minValVarKindCH(vnl_varListIndex(trim(varName)))) )
+        end if
+
+        if ( trim(varName) == 'PR' .and. containsFullField ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = max(field_r4_ptr(:,:,kIndex,stepIndex),0.0)
+        end if
+      end do
+
+      ! Do unit conversion for extra copy of winds, if present
+      if ( statevector%extraUVallocated ) then
+        multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
+
+        !$OMP PARALLEL DO PRIVATE (kIndex)
+        do kIndex = statevector%myUVkBeg, statevector%myUVkEnd
+          statevector%gdUV(kIndex)%r4(:,:,stepIndex) =  &
+               real( multFactor * statevector%gdUV(kIndex)%r4(:,:,stepIndex), 4 )
+        end do
+        !$OMP END PARALLEL DO
+
+      end if
+
+    end do step_loop
+
+  end subroutine gsv_fileUnitsToStateUnits
+
+  !--------------------------------------------------------------------------
   ! gsv_transposeVarsLevsToTiles
   !--------------------------------------------------------------------------
   subroutine gsv_transposeVarsLevsToTiles(statevector_in, statevector_out)
@@ -5148,6 +5254,7 @@ module gridStateVector_mod
 
         hco_physics => statevector%hco_physics 
         if (.not. associated(hco_physics)) then
+          write(*,*) 'DEBUG mad001', statevector%onPhysicsGrid(:)
           call utl_abort('writeTicTacToc: hco_physics not associated')
         end if
         ip1      =  hco_physics%ig1

@@ -2495,7 +2495,7 @@ CONTAINS
           end if
 
           ! unit conversion
-          call gio_fileUnitsToStateUnits(statevector_member_r4, containsFullField)
+          call gsv_FileUnitsToStateUnits(statevector_member_r4, containsFullField)
 
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then
