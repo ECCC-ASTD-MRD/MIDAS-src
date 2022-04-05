@@ -1,20 +1,18 @@
 variables:
     # CI_DEBUG_TRACE: "true"
     MIDAS_ABS: /home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
+    MIDAS_ABS_ARCHIVE: /home/sanl888/data_maestro/ppp5/midas/gitlab-ci/abs
     SSM_PACKAGES: /home/sanl888/data_maestro/ords/midas/gitlab-ci/packages
-    LISTINGS_ARCHIVE: /home/sanl888/data_maestro/eccc-ppp4/UnitTests/midas/listings
+    LISTINGS_ARCHIVE: /home/sanl888/data_maestro/ppp5/UnitTests/midas/listings
     SEQ_MAESTRO_SHORTCUT: ". ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2"
+    ORD_SOUMET_ARGS: "-jn midas_ci -cpus 1 -m 10G -w 60 -mach ${ORDENV_TRUEHOST}"
 
 stages:
    - build
    - test
+   - clean
    - doc
    - deploy
-
-## The program 'gitlab-runner' must be found in the PATH to get the artifacts collecting working.
-#before_script:
-#    - ln -svf /home/sidr000/bin/gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin
-#    - ln -svf gitlab-ci-multi-runner-linux-amd64 ${TMPDIR}/bin/gitlab-runner
 
 midas_build:
   stage: build
@@ -22,10 +20,11 @@ midas_build:
     - cd src
     - MIDAS_COMPILE_DIR_MAIN=$MIDAS_ABS MIDAS_ABS_LEAFDIR='./' MIDAS_COMPILE_CLEAN=true ./midas_build
   only:
-    - master
-    - v_3.6
+    - main
+    - v_3.7
+    - tags
   tags:
-    - hpcr-u1
+    - hpcr-u2
 
 monitor_build:
   stage: build
@@ -33,10 +32,11 @@ monitor_build:
     - cd tools/monitor
     - make install PGM=$MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
   only:
-    - master
-    - v_3.6
+    - main
+    - v_3.7
+    - tags
   tags:
-    - hpcr-u1
+    - hpcr-u2
 
 monitor_tests:
    stage: test
@@ -44,10 +44,11 @@ monitor_tests:
      - cd tools/monitor
      - ./test.sh $MIDAS_ABS/midas.monitor_$(../../midas.version.sh).Abs
    only:
-     - master
-     - v_3.6
+     - main
+     - v_3.7
+     - tags
    tags:
-     - hpcr-u1
+     - hpcr-u2
 
 ## The program 'midas.splitobs' is compiled in 'midas_build' so we don't need to compile it explicitely here
 ## splitobs_build:
@@ -56,25 +57,37 @@ monitor_tests:
 ##      - cd tools/splitobs
 ##      - make install PGM=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
 ##    tags:
-##      - hpcr-u1
+##      - hpcr-u2
 
-## splitobs_burp_tests:
-##    stage: test
-##    script:
-##      - cd tools/splitobs
-##      - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
-##      - ./unittest_batch burp
-##    tags:
-##      - hpcr-u1
-##
-## splitobs_rdb_tests:
-##    stage: test
-##    script:
-##      - cd tools/splitobs
-##      - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
-##      - ./unittest_batch rdb
-##    tags:
-##      - hpcr-u1
+splitobs_burp_tests:
+   stage: test
+   variables:
+       ORD_SOUMET_ARGS: "-jn burp_splitobs_ci -cpus 1 -m 32G -w 240 -mach ${ORDENV_TRUEHOST}"
+   script:
+     - cd tools/splitobs
+     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+     - export WORKDIR=${HOME}/data_maestro/${ORDENV_TRUEHOST}/splitobs/work_burp_${CI_BUILD_ID}
+     - ./unittest burp
+     - rm -rf ${WORKDIR}
+   only:
+     - tags
+   tags:
+     - hpcr-u2
+
+splitobs_rdb_tests:
+   stage: test
+   variables:
+       ORD_SOUMET_ARGS: "-jn rdb_splitobs_ci -cpus 1 -m 32G -w 240 -mach ${ORDENV_TRUEHOST}"
+   script:
+     - cd tools/splitobs
+     - export SPLITOBS=$MIDAS_ABS/midas.splitobs_${ORDENV_PLAT}-$(../../midas.version.sh).Abs
+     - export WORKDIR=${HOME}/data_maestro/${ORDENV_TRUEHOST}/splitobs/work_rdb_${CI_BUILD_ID}
+     - ./unittest rdb
+     - rm -rf ${WORKDIR}
+   only:
+     - tags
+   tags:
+     - hpcr-u2
 
 midas_tests:
    stage: test
@@ -91,10 +104,11 @@ midas_tests:
      - rm ~/.suites/${suite}
      - rmdir ~/data_maestro/ords/maestro/$suite
    only:
-     - master
-     - v_3.6
+     - main
+     - v_3.7
+     - tags
    tags:
-     - hpcr-u1
+     - hpcr-u2
 
 findTrials_tests:
    stage: test
@@ -102,39 +116,58 @@ findTrials_tests:
      - cd tools/findTrials
      - ./midas.findTrials --unittest
    only:
-     - master
-     - v_3.6
+     - main
+     - v_3.7
+     - tags
    tags:
-     - hpcr-u1
+     - hpcr-u2
 
-doc_sphinx:
-  stage: doc
-  variables:
-    docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
-    midasdoc: /home/sanl888/public_html/midas-sphinx-doc
-  script:
-  - cd scripts/sphinx
-  - ./build_html.sh ../../src $midasdoc/$docname
-  - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
-  - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
-  only:
-    - master
-    - v_3.6
-  tags:
-    - hpcr-u1
+clean_midas_abs:
+   stage: clean
+   script:
+     - version=$(./midas.version.sh)
+     - mkdir -pv $MIDAS_ABS_ARCHIVE/${version}
+     - echo Moving programs for version ${version} in $MIDAS_ABS to $MIDAS_ABS_ARCHIVE
+     - mv $MIDAS_ABS/midas*${version}.Abs $MIDAS_ABS_ARCHIVE/${version}
+   only:
+     - main
+     - v_3.7
+     - tags
+   tags:
+     - hpcr-u2
 
-## ssm:
-##   stage: deploy
+## doc_sphinx:
+##   stage: doc
+##   variables:
+##     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
+##     midasdoc: /home/sanl888/public_html/midas-sphinx-doc
 ##   script:
-##     - ./set_resources_def.sh
-##     - . maestro/suites/midas_system_tests/set_machine_list.dot
-##     ## remove the 'v_' from the tag name since MIDAS domains do not contain 'v_' but starts with the number
-##     - VERSION=$(./midas.version.sh | cut -c3-)
-##     - cd ssm
-##     - ./build_packages --midas-abs ${MIDAS_ABS} --packages ${SSM_PACKAGES}/${VERSION}
-##     ## For this command to work, we must put in '/home/sanl000/.ssh/authorized_keys' this:
-##     ##     no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,command="/home/sanl000/bin/ssh_command ${SSH_ORIGINAL_COMMAND}" ssh-rsa .... sanl888@hpci-util
-##     - ssh sanl000@${MACHINE_PPP} /home/sanl000/ssm/ssm_publish midas ${VERSION} ${SSM_PACKAGES}/${VERSION}
-##     - rm -rf ${SSM_PACKAGES}/${VERSION}
+##   - cd scripts/sphinx
+##   - ./build_html.sh ../../src $midasdoc/$docname
+##   - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
+##   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
+##   only:
+##     - main
+##     - v_3.7
+##     - tags
 ##   tags:
-##     - hpcr-u1
+##     - hpcr-u2
+
+ssm:
+  stage: deploy
+  script:
+    - version=$(./midas.version.sh) ## This version number contains the 'v_'
+    - ./set_resources_def.sh
+    - . maestro/suites/midas_system_tests/set_machine_list.dot
+    ## remove the 'v_' from the tag name since MIDAS domains do not contain 'v_' but starts with the number
+    - VERSION=$(./midas.version.sh | cut -c3-)
+    - cd ssm
+    - ./build_packages --midas-abs ${MIDAS_ABS_ARCHIVE}/${version} --packages ${SSM_PACKAGES}/${VERSION}
+    ## For this command to work, we must put in '/home/sanl000/.ssh/authorized_keys' this:
+    ##     no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty,command="/home/sanl000/bin/ssh_command ${SSH_ORIGINAL_COMMAND}" ssh-rsa .... sanl888@hpci-util
+    - ssh sanl000@${MACHINE_PPP} /home/sanl000/ssm/ssm_publish midas ${VERSION} ${SSM_PACKAGES}/${VERSION}
+    - rm -rf ${SSM_PACKAGES}/${VERSION}
+  only:
+    - tags
+  tags:
+    - hpcr-u2

@@ -57,30 +57,14 @@ if [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
     echo export FOR_DISABLE_KMP_MALLOC=0 >> load_env.sh
 elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
     ## loading OpenMPI 3.1.2 (the binaries must be compiled with too)
-    cat >> load_env.sh <<EOF
-
-. ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
-. ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
-. ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
-EOF
+    . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
+    . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
+    . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    # instead of loading the whole OneAPI Intel compiler environment, we only load the essential
-    # things to be able to run
-    #    see https://gitlab.science.gc.ca/hpc/hpcr_upgrade_2/issues/72#note_412503
-    cat >> load_env.sh <<EOF
-. /fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/compiler/2022.0.2/env/vars.sh
-. /fs/ssm/main/opt/intelcomp/master/inteloneapi_2022.1.2_multi/oneapi/mpi/2021.5.1/env/vars.sh
-export I_MPI_F77=ifort
-export I_MPI_F90=ifort
-export I_MPI_FC=ifort
-export I_MPI_CC=icc
-export I_MPI_CXX=icpc
-
-## this is needed to create tmpdirs on all nodes
-pbsdsh :
-
-EOF
-
+    set +x
+    echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2
+    . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2
+    set -x
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1

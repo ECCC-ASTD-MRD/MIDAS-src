@@ -143,6 +143,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * removes of `compile_*.sh`, associated files and old env. variable retrocompatibility (#612 and !569)
 
+## [3.7.1]
+
+### Added
+
+ * Activate the CI on HPCR-U2 (#596 and !582)
+
+### Changed
+
+ * Remove `pbsdsh :` (#628 and !584)
+
 ## [3.7.0]
 
 ### Added
@@ -157,6 +167,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * updated compiler SSM package (#624 and !580)
  * Several improvements (#614 and #618 and !574):
    * convert all scripts to Python 3
    * upgrade to `maestro/1.8.2`
@@ -887,7 +898,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.1...HEAD
+[3.7.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0...v_3.7.1
 [3.7.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.8...v_3.7.0
 [3.6.8]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.7...v_3.6.8
 [3.6.7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.6.6...v_3.6.7
