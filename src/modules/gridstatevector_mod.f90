@@ -52,7 +52,7 @@ module gridStateVector_mod
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd
   public :: gsv_transposeVarsLevsToTiles
   public :: gsv_getField, gsv_getFieldUV, gsv_setFieldUV
-  public :: gsv_getHeightSfc, gsv_isAssocHeightSfc, gsv_setHeightSfc
+  public :: gsv_getHeightSfc, gsv_isAssocHeightSfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D
   public :: gsv_copyHeightSfc
@@ -2881,20 +2881,6 @@ module gridStateVector_mod
     end if
 
   end function gsv_getHeightSfc
-
-  !--------------------------------------------------------------------------
-  ! gsv_getHeightSfc
-  !--------------------------------------------------------------------------
-  subroutine gsv_setHeightSfc(statevector, heightSfc)
-    implicit none
-
-    ! Arguments
-    type(struct_gsv), intent(inout) ::  statevector      ! statevector
-    real(8), intent(in)    ::  heightSfc(:,:)
-
-    statevector%HeightSfc = heightSfc
-
-  end subroutine gsv_setHeightSfc
 
   !--------------------------------------------------------------------------
   ! gsv_getDateStamp
