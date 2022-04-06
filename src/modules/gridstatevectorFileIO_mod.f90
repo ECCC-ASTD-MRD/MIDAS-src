@@ -548,7 +548,7 @@ module gridStateVectorFileIO_mod
     character(len=12) :: etiket_var
 
     real(4), pointer :: field_r4_ptr(:,:,:,:)
-    real(4), pointer :: gd2d_file_r4(:,:)
+    real(4), pointer :: gd2d_file_r4(:,:), gd2d_r4_UV_ptr(:,:,:)
     real(8), pointer :: heightSfc_ptr(:,:)
     real(4), allocatable :: gd2d_var_r4(:,:)
     integer, allocatable :: mask(:,:)
@@ -900,16 +900,16 @@ module gridStateVectorFileIO_mod
             ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
                           datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                           typvar_in,'VV')
-            call gsv_setFieldUV(statevector, &
-                   gd2d_file_r4(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj), &
-                   kIndex, stepIndex)
+            call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, kIndex)
+            gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj, stepIndex) &
+                 = gd2d_file_r4(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj)
           else if (varName == 'VV') then
             ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
                           datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                           typvar_in,'UU')
-            call gsv_setFieldUV(statevector, &
-                   gd2d_file_r4(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj), &
-                   kIndex, stepIndex)
+            call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, kIndex)
+            gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj, stepIndex) &
+                 = gd2d_file_r4(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj)
           end if
         end if
 

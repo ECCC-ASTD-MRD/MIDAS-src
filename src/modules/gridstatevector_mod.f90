@@ -51,7 +51,7 @@ module gridStateVector_mod
   public :: gsv_transposeTilesToStep, gsv_transposeStepToTiles, gsv_transposeTilesToMpiGlobal
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd
   public :: gsv_transposeVarsLevsToTiles
-  public :: gsv_getField, gsv_getFieldUV, gsv_setFieldUV
+  public :: gsv_getField, gsv_getFieldUV
   public :: gsv_getHeightSfc, gsv_isAssocHeightSfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D
@@ -77,11 +77,6 @@ module gridStateVector_mod
     module procedure gsv_getFieldUVWrapper_r4
     module procedure gsv_getFieldUVWrapper_r8
   end interface gsv_getFieldUV
-
-  interface gsv_setFieldUV
-    module procedure gsv_setFieldUV_r4
-    module procedure gsv_setFieldUV_r8
-  end interface gsv_setFieldUV
 
   type struct_gdUV
     real(8), pointer :: r8(:,:,:) => null()
@@ -2812,34 +2807,6 @@ module gridStateVector_mod
     end if
 
   end subroutine gsv_getFieldUV_r48
-
-  !--------------------------------------------------------------------------
-  ! gsv_setFieldUV_r4
-  !--------------------------------------------------------------------------
-  subroutine gsv_setFieldUV_r4(statevector, uvField, kIndex, stepIndex)
-    implicit none
-
-    ! Arguments
-    type(struct_gsv), intent(in)          :: statevector
-    real(4), intent(in)          :: uvField(:,:)
-    integer, intent(in)                   :: kIndex, stepIndex
-
-    statevector%gdUV(kIndex)%r4(:,:,stepIndex) = uvField
-  end subroutine gsv_setFieldUV_r4
-
-  !--------------------------------------------------------------------------
-  ! gsv_setFieldUV_r8
-  !--------------------------------------------------------------------------
-  subroutine gsv_setFieldUV_r8(statevector, uvField, kIndex, stepIndex)
-    implicit none
-
-    ! Arguments
-    type(struct_gsv), intent(in)          :: statevector
-    real(8), intent(in)          :: uvField(:,:)
-    integer, intent(in)                   :: kIndex, stepIndex
-
-    statevector%gdUV(kIndex)%r8(:,:,stepIndex) = uvField
-  end subroutine gsv_setFieldUV_r8
 
   !--------------------------------------------------------------------------
   ! gsv_isAssocHeightSfc
