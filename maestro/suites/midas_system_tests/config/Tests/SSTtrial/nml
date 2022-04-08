@@ -1,0 +1,41 @@
+ &NAMTIME
+  dstepobs      = 24.0d0
+  dstepobsinc   = 24.0d0
+  dwindowsize   = 24.0d0
+  referencetime = 'start'
+/
+ &NAMSTATE
+  ANLVAR(1) = 'TM'
+/
+ &NAMDIMO
+   NMXOBS=2500000,
+   NDATAMX=2500000
+/
+ &NAMFILT
+  NELEMS = 1,
+  NLIST(1)=22042,
+  NFLAGS=6,
+  NLISTFLG(1)=2
+  NLISTFLG(2)=3
+  NLISTFLG(3)=4
+  NLISTFLG(4)=10
+  NLISTFLG(5)=11
+  NLISTFLG(6)=12
+/
+ &NAMSSTTRIAL
+  etiketAnalysis='3D-Var'
+  nmonthsClim=12
+  datestampClim(1)=280988000
+  datestampClim(2)=281657600
+  datestampClim(3)=282284000
+  datestampClim(4)=282953600
+  datestampClim(5)=283601600
+  datestampClim(6)=284271200
+  datestampClim(7)=284919200
+  datestampClim(8)=285588800
+  datestampClim(9)=286258400
+  datestampClim(10)=286906400
+  datestampClim(11)=287576000
+  datestampClim(12)=288224000
+  alphaClim=0.983
+/ 
