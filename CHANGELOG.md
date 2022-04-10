@@ -108,6 +108,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Change to some environment variable naming convention: start with `MIDAS_`
    (#255, #443 and !317)
    * Retrocompatibility maintained until next release
+ * Modify treatment of GPSRO, from nml-based to data-based. This allows processing combined refractivity and bending profiles. Each profile must still be pure Ref or Bend. 
 
 ### Fixed
 

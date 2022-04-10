@@ -2098,7 +2098,7 @@ contains
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
     !
-    integer headerIndex, IDATYP, bodyIndex, iProfile
+    integer headerIndex, IDATYP, bodyIndex, iProfile, varNum
     REAL*8 zLat, Lat, sLat
     REAL*8 zLon, Lon
     REAL*8 zAzm
@@ -2175,6 +2175,7 @@ contains
           !
         IF (ASSIM) then
           iProfile=gps_iprofile_from_index(headerIndex)
+          varNum = gps_vRO_IndexPrf(iProfile, 2)
              !
              !     *        Basic geometric variables of the profile:
              !
@@ -2245,7 +2246,7 @@ contains
               AZMV(NH1)= zAzm
               ZOBS(NH1)= obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
                    !     *              Reference value:
-              IF (LEVELGPSRO==1) then
+              IF (varNum == bufr_nebd) then
                 ZREF(NH1) = 0.025d0*exp(-(H(NH1)-Rad)/6500.d0)
               ELSE
                 ZREF(NH1) = 300.d0*exp(-H(NH1)/6500.d0)
@@ -2255,7 +2256,7 @@ contains
              !
              !     *        Apply the observation operator:
              !
-          IF (LEVELGPSRO==1) then
+          IF (varNum == bufr_nebd) then
             call GPS_BNDOPV1(H, AZMV, NH, PRF, RSTV)
           ELSE
             call GPS_REFOPV (H,       NH, PRF, RSTV)
@@ -2280,13 +2281,13 @@ contains
              !     *        intended to be used for these data.
              !
           DH = 5000.d0
-          if (LEVELGPSRO==1) then
+          if (varNum == bufr_nebd) then
             ZMIN=0.01D0
           else
             ZMIN=0.002D0
           end if
 
-          if (LEVELGPSRO==2) then
+          if (varNum == bufr_nerf) then
             if (trim(gpsroError) == 'DYNAMIC') then
               do NH1 = 1, NH
                 SUM0=1.d-30
@@ -2378,7 +2379,7 @@ contains
             IF (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
               NH1 = NH1 + 1
               H1 = H(NH1)
-              if (LEVELGPSRO == 1) then
+              if (varNum == bufr_nebd) then
                  H1 = H1 - Rad
                  F2 = 0.5d0*(erf((H1-22000.d0)/5000.d0)+1.d0)
               else

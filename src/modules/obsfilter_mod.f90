@@ -1408,10 +1408,10 @@ end subroutine filt_topoAISW
     logical                 :: beSilent
     !
     INTEGER :: INDEX_HEADER, IDATYP, INDEX_BODY
-    INTEGER :: JL, ISAT, IQLF, iProfile, varNum, IFLG
+    INTEGER :: JL, ISAT, IQLF, iProfile, IFLG, varNum, IDSC
     REAL(8) :: ZMT, Rad, Geo, AZM
     REAL(8) :: HNH1, HSF, HTP, HMIN, HMAX, ZOBS, ZREF, ZSAT
-    LOGICAL :: LLEV, LOBS, LNOM, LSAT, LAZM, LALL
+    LOGICAL :: LLEV, LOBS, LNOM, LSAT, LAZM, LALL, LDSC
     !
     if (.not.beSilent) then
       write(*,*)
@@ -1470,7 +1470,8 @@ end subroutine filt_topoAISW
           ! Altitude and reference order of magnitude value:
           !
           HNH1= obs_bodyElem_r(obsSpaceData,OBS_PPP,INDEX_BODY)
-          if (HNH1 > 6000000) then
+          varNum = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
+          if (varNum == bufr_nebd) then
             HNH1=HNH1-Rad
             ZREF = 0.025d0*exp(-HNH1/6500.d0)
             LAZM = (-0.1d0 < AZM .AND. AZM < 360.1)
@@ -1499,6 +1500,14 @@ end subroutine filt_topoAISW
             IFLG = obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY)
             call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY, IBSET(IFLG,11))
           end if
+          ! Do not assimilate bending in mode levelgpsro = 2:
+          if (varNum == bufr_nebd .and. levelgpsro == 2) then
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
+          endif
+          ! Do not assimilate refractivity in mode levelgpsro = 1:
+          if (varNum == bufr_nerf .and. levelgpsro == 1) then
+            call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
+          endif
         end do BODY
       end if
     end do HEADER
@@ -1506,8 +1515,7 @@ end subroutine filt_topoAISW
     ! List to enumerate and cross-link GPSRO headers 0 <= iProfile < gps_numROProfiles):
     !
     if (gps_numROProfiles > 0) then
-      if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles))
-      if(.not.allocated(gps_vRO_varNum)) allocate(gps_vRO_varNum(gps_numROProfiles))
+      if(.not.allocated(gps_vRO_IndexPrf)) allocate(gps_vRO_IndexPrf(gps_numROProfiles, 10))
       iProfile=0
       !
       ! Loop over all header indices of the 'RO' family:
@@ -1522,7 +1530,15 @@ end subroutine filt_topoAISW
         IDATYP = obs_headElem_i(obsSpaceData,OBS_ITY,INDEX_HEADER)
         if ( IDATYP == 169 ) then
           iProfile=iProfile+1
-          gps_vRO_IndexPrf(iProfile)=INDEX_HEADER
+          gps_vRO_IndexPrf(iProfile, 1) = INDEX_HEADER
+          ISAT = obs_headElem_i(obsSpaceData,OBS_SAT ,INDEX_HEADER)
+          IQLF = obs_headElem_i(obsSpaceData,OBS_ROQF,INDEX_HEADER)
+          LDSC = .not.btest(IQLF,16-3)
+          if (LDSC) then
+            IDSC = 0
+          else
+            IDSC = 1
+          end if
           varNum = -1
           call obs_set_current_body_list(obsSpaceData, INDEX_HEADER)
           !
@@ -1535,7 +1551,10 @@ end subroutine filt_topoAISW
             varNum = obs_bodyElem_i(obsSpaceData,OBS_VNM,INDEX_BODY)
             if (varNum > 0) exit BODY2
           end do BODY2
-          gps_vRO_varNum(iProfile) = varNum
+          gps_vRO_IndexPrf(iProfile, 2) = varNum
+          gps_vRO_IndexPrf(iProfile, 3) = ISAT
+          gps_vRO_IndexPrf(iProfile, 4) = IDSC
+          write(*,*)'RO Prf', gps_numROProfiles, iProfile, varNum, ISAT, IDSC
         end if
       end do HEADER2
     end if

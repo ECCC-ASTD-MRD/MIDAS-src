@@ -33,7 +33,7 @@ module gps_mod
   public :: gps_profile, gps_profilezd, gps_diff
 
   ! public variables
-  public :: gps_numROProfiles, gps_vRO_IndexPrf, gps_vRO_Jacobian, gps_vRO_lJac, gps_vRO_varNum
+  public :: gps_numROProfiles, gps_vRO_IndexPrf, gps_vRO_Jacobian, gps_vRO_lJac
   public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, BGCKBAND, WGPS
   public :: gpsroError, gpsroBNorm
   public :: gpsgravitysrf, p_tc, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
@@ -201,8 +201,7 @@ module gps_mod
 ! Values determined by input data:
 !
   integer                                :: gps_numROProfiles
-  integer         , allocatable          :: gps_vRO_IndexPrf(:)    ! index for each profile
-  integer         , allocatable          :: gps_vRO_varNum(:)    
+  integer         , allocatable          :: gps_vRO_IndexPrf(:,:)   ! index for each profile
   real*8          , allocatable          :: gps_vRO_Jacobian(:,:,:)
   logical         , allocatable          :: gps_vRO_lJac(:)
 
@@ -2953,8 +2952,8 @@ contains
     integer i
 
     gps_iprofile_from_index=-1
-    do i=1,size(gps_vRO_IndexPrf)
-       if (index.eq.gps_vRO_IndexPrf(i)) then
+    do i=1,gps_numROProfiles
+       if (index.eq.gps_vRO_IndexPrf(i, 1)) then
           gps_iprofile_from_index=i
           return
        end if

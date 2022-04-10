@@ -1332,7 +1332,7 @@ module obsSpaceErrorStdDev_mod
     type(struct_obs)        :: lobsSpaceData
 
     ! Locals:
-      INTEGER INDEX_HEADER, IDATYP, INDEX_BODY, iProfile
+      INTEGER INDEX_HEADER, IDATYP, INDEX_BODY, iProfile, varNum
       REAL*8 zLat, Lat, sLat
       REAL*8 zLon, Lon
       REAL*8 zAzm !, Azm
@@ -1403,6 +1403,8 @@ module obsSpaceErrorStdDev_mod
 
          IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
          IF ( IDATYP .EQ. 169 ) THEN
+            iProfile = gps_iprofile_from_index(index_header)
+            varNum = gps_vRO_IndexPrf(iProfile, 2)
 
             ! Scan for requested data values of the profile, and count them
             
@@ -1488,7 +1490,7 @@ module obsSpaceErrorStdDev_mod
 
                   ! Apply the observation operator:
 
-                  IF (LEVELGPSRO.EQ.1) THEN
+                  IF (varNum == bufr_nebd) THEN
                      CALL GPS_BNDOPV1(H, AZMV, NH, PRF, RSTV)
                   ELSE
                      CALL GPS_REFOPV (H,       NH, PRF, RSTV)

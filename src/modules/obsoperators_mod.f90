@@ -1094,7 +1094,7 @@ contains
        !
        if (.not.assim) cycle HEADER
        iProfile = gps_iprofile_from_index(headerIndex)
-       varNum   = gps_vRO_varNum(iProfile)
+       varNum   = gps_vRO_IndexPrf(iProfile, 2)
        !
        ! Basic geometric variables of the profile:
        !
@@ -1219,7 +1219,7 @@ contains
              !
              ! Per profile (PJOB) cumulatives:
              !
-             pjob= pjob+ pjo1
+             pjob= pjob + pjo1
              !
              if (firstheader .and. .not.beSilent) then
                 write(*,  &
@@ -3526,7 +3526,7 @@ contains
         ! If assimilations are requested, prepare and apply the observation operator
         ASSIMILATE: if (assim) then
           iProfile = gps_iprofile_from_index(headerIndex)
-          varNum = gps_vRO_varNum(iProfile)
+          varNum = gps_vRO_IndexPrf(iProfile, 2)
 
           ! Profile at the observation location:
           ! Basic geometric variables of the profile:

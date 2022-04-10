@@ -503,7 +503,7 @@ module backgroundCheck_mod
       real(8) :: HNH1, ZOBS, ZMHX, ZOMF, ZREF, ZOER, Rad
 
       integer :: headerIndex
-      integer :: IDATYP
+      integer :: IDATYP, iProfile, varNum
       integer :: IDATA   , IDATEND, bodyIndex
       integer :: NGPSLEV
       integer :: stat, iversion
@@ -530,6 +530,8 @@ module backgroundCheck_mod
 
          IDATYP = obs_headElem_i(obsData,OBS_ITY,headerIndex)
          IF ( IDATYP == 169 ) THEN
+            iProfile = gps_iprofile_from_index(headerIndex)
+            varNum = gps_vRO_IndexPrf(iProfile, 2)
 
             ! Basic geometric variables of the profile
             
@@ -545,7 +547,7 @@ module backgroundCheck_mod
             do bodyIndex= IDATA, IDATEND
                if ( obs_bodyElem_i( obsData, OBS_ASS, bodyIndex ) == obs_assimilated ) then
                   HNH1 = obs_bodyElem_r( obsData, OBS_PPP, bodyIndex )
-                  if ( LEVELGPSRO == 1 ) HNH1 = HNH1-Rad
+                  if ( varNum == bufr_nebd ) HNH1 = HNH1-Rad
 
                   ! Increment OMF = Y - H(x)
 
@@ -559,7 +561,7 @@ module backgroundCheck_mod
 
                   ! Reference order of magnitude value:
 
-                  if ( LEVELGPSRO == 1 ) then
+                  if ( varNum == bufr_nebd ) then
                      ZREF = 0.025d0*exp(-HNH1/6500.d0)
                   else
                      if ( .not. gpsroBNorm ) then
