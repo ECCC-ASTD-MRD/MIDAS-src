@@ -239,7 +239,7 @@ contains
     end if
     
     if (writeBinsToFile .and. (mpi_local .or. mpi_myid == 0) ) then
-      call gsv_writeToFile(gbi%statevector_bin2d, './gridBinning.fst', & ! IN
+      call gio_writeToFile(gbi%statevector_bin2d, './gridBinning.fst', & ! IN
                            'BINNING')                                    ! IN
     end if
 

@@ -487,7 +487,7 @@ module SSTbias_mod
     end do
     
     call rpn_comm_barrier('GRID', ierr)
-    call gsv_writeToFile(stateVector, outputFileName, 'B_'//sensor//'_'//extension)
+    call gio_writeToFile(stateVector, outputFileName, 'B_'//sensor//'_'//extension)
     
     deallocate(gridPointIndexes)
     deallocate(positionArray)

@@ -270,7 +270,7 @@ program midas_ensManip
 
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
-      call gsv_writeToFile(statevector_mean, ensFileName, 'ENSMEAN',                            &
+      call gio_writeToFile(statevector_mean, ensFileName, 'ENSMEAN',                            &
                            stepIndex_opt = stepIndex, typvar_opt = 'P', numBits_opt = numBits,  &
                            containsFullField_opt=.true.)
     end do
@@ -294,7 +294,7 @@ program midas_ensManip
     ! Output the ensemble stddev
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
-      call gsv_writeToFile(statevector_stddev, ensFileName, 'ENSSTDDEV',                       &
+      call gio_writeToFile(statevector_stddev, ensFileName, 'ENSSTDDEV',                       &
                            stepIndex_opt = stepIndex, typvar_opt = 'P' , numBits_opt = numBits )
     end do
 
@@ -552,7 +552,7 @@ contains
     ! Output the recentered ensemble control member
     do stepIndex = 1, numStep
       if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: write recentered ensemble control member for time step: ',stepIndex
-      call gsv_writeToFile( statevector_ensembleControlMember, trim(fileNameOut), etiket, &
+      call gio_writeToFile( statevector_ensembleControlMember, trim(fileNameOut), etiket, &
                             stepIndex_opt = stepIndex, typvar_opt = typvar , numBits_opt = numBits_opt, &
                             containsFullField_opt = .true. )
     end do

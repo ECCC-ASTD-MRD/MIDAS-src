@@ -2888,14 +2888,14 @@ CONTAINS
             end if
           end if
 
-          ! The routine 'gsv_writeToFile' ignores the supplied
+          ! The routine 'gio_writeToFile' ignores the supplied
           ! argument for the etiket, here 'etiketStr', if
           ! 'statevector_member_r4%etiket' is different from
           ! 'UNDEFINED'.  So we must define it explicitely in the
           ! 'statevector_member_r4'.
           statevector_member_r4%etiket = etiketStr
 
-          call gsv_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
+          call gio_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
                                 typvar_opt = typvar, numBits_opt = numBits_opt,  &
                                 containsFullField_opt = containsFullField )
 

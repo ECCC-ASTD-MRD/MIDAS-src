@@ -27,6 +27,7 @@ program midas_randomPert
   use ramDisk_mod
   use controlVector_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use bmatrix_mod
   use verticalCoord_mod
   use horizontalCoord_mod
@@ -47,7 +48,7 @@ program midas_randomPert
   integer :: fclos, fnom, fstopc, newdate, nstamp, ierr, status
   integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, nkgdim
   integer :: idate, itime, ndate, nulnam
-  integer :: get_max_rss, n_grid_point, n_grid_point_glb
+  integer :: n_grid_point, n_grid_point_glb
 
   integer :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
   integer :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
@@ -387,7 +388,7 @@ program midas_randomPert
     clfiname = './pert_'//trim(cldate)//'_'//trim(clmember)
     if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: processing clfiname= ', clfiname
 
-    call gsv_writeToFile(statevector, clfiname, out_etiket,      & ! IN
+    call gio_writeToFile(statevector, clfiname, out_etiket,      & ! IN
                          numBits_opt=numBits, unitConversion_opt=.true.)  ! IN
 
     call gsv_deallocate(statevector)

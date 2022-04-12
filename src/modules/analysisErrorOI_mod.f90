@@ -618,7 +618,7 @@ contains
     deallocate( Lcorr )
     deallocate( lonInRad, latInRad )
 
-    call gsv_writeToFile( stateVectorAnal, './anlm_000m', '', typvar_opt='A@', &
+    call gio_writeToFile( stateVectorAnal, './anlm_000m', '', typvar_opt='A@', &
                           containsFullField_opt=.true. )
 
     call gsv_deallocate( stateVectorBkGnd )
@@ -895,7 +895,7 @@ contains
 
     end do HEADER_LOOP
 
-    call gsv_writeToFile( stateVectorAnal, './anlm_000m', '', typvar_opt='A@', &
+    call gio_writeToFile( stateVectorAnal, './anlm_000m', '', typvar_opt='A@', &
                           containsFullField_opt=.true. )
 
     call gsv_deallocate( stateVectorBkGnd )
