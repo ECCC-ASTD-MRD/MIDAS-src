@@ -2970,15 +2970,14 @@ contains
     integer :: idatyp, indxtovs, iSensor, chanIndx, Iobs, ierr
     Real(8):: OmF
     real(8), allocatable :: OmFBias(:), Matrix(:,:,:), PredBias(:,:)
-    integer, allocatable :: Count(:)
-    real(8), allocatable :: OmFBiasMpiGLobal(:), MatrixMpiGLobal(:,:,:), PredBiasMpiGLobal(:,:)
-    integer, allocatable :: CountMpiGlobal(:)
-    character(len=128) :: errorMessage
+    integer, allocatable :: Count(:), CountMpiGlobal(:)
+    real(8), allocatable :: OmFBiasMpiGlobal(:), predBiasMpiGlobal(:,:), MatrixMpiGLobal(:,:,:)
+    character(len=128)   :: errorMessage
     real(8) :: vector(1,numPredictors), predictor(numPredictors),correlation(numPredictors,numPredictors)
     real(8) :: sigma(numPredictors)
     integer :: iuncov=0, iuncorr=0
 
-    write(*,*) "entering bcs_outputCvOmPPred"
+    write(*,*) "bcs_outputCvOmPPred: Starting"
 
     SENSORS:do sensorIndex = 1, tvs_nsensors
   
@@ -3021,7 +3020,6 @@ contains
           if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY1 
           call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
           if (chanindx > 0) then
-            !print *,"xx",iSensor,bodyIndex,headerIndex,chanIndx
             OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
             OmFBias(chanIndx) = OmFBias(chanIndx) + OmF
             count(chanIndx) = count(chanIndx) + 1
@@ -3030,25 +3028,17 @@ contains
           end if
         end do BODY1
       end do HEADER1
+
       allocate(omfBiasMpiGlobal(nchans))
       allocate(countMpiGlobal(nchans))
       allocate(predBiasMpiGlobal(nchans,numPredictors))
 
-      call rpn_comm_reduce(OmFBias, omfBiasMpiGlobal, size(omfBiasMpiGlobal), "mpi_double_precision", "MPI_SUM", 0, "GRID", ierr)
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 1", ierr 
-        call utl_abort(errorMessage)
-      end if
-
-      call rpn_comm_reduce(predBias, predBiasMpiGlobal, size(predBiasMpiGlobal), "mpi_double_precision", "MPI_SUM", 0, "GRID", ierr)
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 2", ierr 
-        call utl_abort(errorMessage)
-      end if
+      call mpi_reduce_sumR8_1d(OmFBias, omfBiasMpiGlobal, 0, "GRID" )
+      call mpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal, 0, "GRID" )
 
       call rpn_comm_reduce(count, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
       if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 3", ierr 
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 1", ierr 
         call utl_abort(errorMessage)
       end if
 
@@ -3067,12 +3057,12 @@ contains
       end if
       call rpn_comm_bcast(predBiasMpiGlobal, size(predBiasMpiGlobal), "mpi_double_precision", 0, "GRID", ierr)
       if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 5", ierr 
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 3", ierr 
         call utl_abort(errorMessage)
       end if
       call rpn_comm_bcast(countMpiGlobal, size(countMpiGlobal), "mpi_integer", 0, "GRID", ierr)
       if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 5", ierr 
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 4", ierr 
         call utl_abort(errorMessage)
       end if
 
@@ -3127,11 +3117,7 @@ contains
       end if
 
       ! communication MPI pour tout avoir sur tache 0
-      call rpn_comm_reduce(Matrix, matrixMpiGlobal, size(Matrix), "mpi_double_precision", "MPI_SUM", 0, "GRID", ierr)
-      if (ierr /= 0) then
-        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 6", ierr 
-        call utl_abort(errorMessage)
-      end if
+      call mpi_reduce_sumR8_3d(matrix, matrixMpiGlobal, 0, "GRID" )
       deallocate(matrix)
       deallocate(OmFBiasMpiGLobal)
       deallocate(predBiasMpiGLobal)
