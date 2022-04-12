@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import sys
@@ -7,19 +7,19 @@ import subprocess, os
 minimumTimingLimit = 3.0
 
 if len(sys.argv) < 2 or sys.argv[1] == "--help" or sys.argv[1] == "-h":
-    print ""
-    print " #***************************************************************************#"
-    print " #                                                                           #"
-    print " # timingTool.sh                                                             #"
-    print " #                                                                           #"
-    print " # example of usage for comparing 2 listing files:                           #"
-    print " #                                                                           #"
-    print " # timingTool.sh file1 file2 1 > timings1.dat  # extracts timings from file1 #"
-    print " # timingTool.sh file2 file1 2 > timings2.dat  # extracts timings from file2 #"
-    print " # xxdiff timings1.dat timings2.dat                                          #"
-    print " #                                                                           #"
-    print " #***************************************************************************#"
-    print ""
+    print()
+    print(" #***************************************************************************#")
+    print(" #                                                                           #")
+    print(" # timingTool.py                                                             #")
+    print(" #                                                                           #")
+    print(" # example of usage for comparing 2 listing files:                           #")
+    print(" #                                                                           #")
+    print(" # timingTool.py file1 file2 1 > timings1.dat  # extracts timings from file1 #")
+    print(" # timingTool.py file2 file1 2 > timings2.dat  # extracts timings from file2 #")
+    print(" # xxdiff timings1.dat timings2.dat                                          #")
+    print(" #                                                                           #")
+    print(" #***************************************************************************#")
+    print()
     exit()
 
 
@@ -41,16 +41,16 @@ if len(sys.argv) > 3:
 else:
     exptOrder = "1"
 
-print "Processing the file: ", filename
+print(f"Processing the file: {filename}")
 if filename2:
-    print "Reference file supplied: ", filename2
+    print(f"Reference file supplied: {filename2}")
     if exptOrder == "2":
-        print "Reference file used first for constructing label list"
+        print("Reference file used first for constructing label list")
     else:
-        print "Main file used first for constructing label list"
+        print("Main file used first for constructing label list")
 
 if not os.path.exists(filename):
-    print "The file does not exist!"
+    print("The file does not exist!")
     exit()
 
 allLines = []
@@ -158,14 +158,14 @@ for label in labelList:
     timingLists.append((timingList))
     countLists.append((countList))
 
-print " "
-print '{:30}'.format('LABEL'), '{:>8}'.format('minTime'), '{:>8}'.format('maxTime'), '{:>8}'.format('meanTime'), '{:>10}'.format('minCount'), '{:>10}'.format('maxCount'), '{:>10}'.format('meanCount')
-print '{:30}'.format('====='), '{:>8}'.format('======='), '{:>8}'.format('======='), '{:>8}'.format('========'), '{:>10}'.format('========'), '{:>10}'.format('========'), '{:>10}'.format('=========')
+print()
+print('{:30}'.format('LABEL'), '{:>8}'.format('minTime'), '{:>8}'.format('maxTime'), '{:>8}'.format('meanTime'), '{:>10}'.format('minCount'), '{:>10}'.format('maxCount'), '{:>10}'.format('meanCount'))
+print('{:30}'.format('====='), '{:>8}'.format('======='), '{:>8}'.format('======='), '{:>8}'.format('========'), '{:>10}'.format('========'), '{:>10}'.format('========'), '{:>10}'.format('========='))
 for listIndex in range(0,len(labelList)):
-    print '{:30}'.format(labelList[listIndex]), \
+    print('{:30}'.format(labelList[listIndex]), \
           '{:8.2f}'.format(minTimingList[listIndex]), \
           '{:8.2f}'.format(maxTimingList[listIndex]), \
           '{:8.2f}'.format(meanTimingList[listIndex]), \
           '{:10d}'.format(minCountList[listIndex]),  \
           '{:10d}'.format(maxCountList[listIndex]),  \
-          '{:10d}'.format(meanCountList[listIndex])
+          '{:10d}'.format(round(meanCountList[listIndex])))
