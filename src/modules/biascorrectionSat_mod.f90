@@ -2976,6 +2976,7 @@ contains
     real(8) :: vector(1,numPredictors), predictor(numPredictors),correlation(numPredictors,numPredictors)
     real(8) :: sigma(numPredictors)
     integer :: iuncov=0, iuncorr=0
+    integer, external :: fclos
 
     write(*,*) "bcs_outputCvOmPPred: Starting"
 
@@ -3174,8 +3175,8 @@ contains
             end do
           end if
         end do
-        close(iuncov)
-        close(iuncorr)
+        ierr = fclos(iuncov)
+        ierr = fclos(iuncorr)
       end if
           
       deallocate(countMpiGlobal)
