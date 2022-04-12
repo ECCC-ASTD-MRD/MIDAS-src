@@ -223,11 +223,7 @@ module mpi_mod
     real(8), allocatable :: all_sendRecvVector(:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call tmg_start(171,'low-level--mpi_allreduce_barr')
     if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
-    call tmg_stop(171)
-
-    call tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements = size(sendVector)
 
@@ -251,8 +247,6 @@ module mpi_mod
     if ( rank == root ) recvVector(:) = sum(all_sendRecvVector(:,:),2)
     deallocate(all_sendRecvVector)
 
-    call tmg_stop(170)
-
   end subroutine mpi_reduce_sumR8_1d
  
   
@@ -271,11 +265,7 @@ module mpi_mod
     real(8), allocatable :: all_sendRecvVector(:,:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call tmg_start(171,'low-level--mpi_allreduce_barr')
     if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
-    call tmg_stop(171)
-
-    call tmg_start(170,'low-level--mpi_allreduce_sum8')
 
     numElements1 = size(sendVector,1)
     numElements2 = size(sendVector,2)
@@ -300,8 +290,6 @@ module mpi_mod
     if ( rank == root ) recvVector(:,:) = sum(all_sendRecvVector(:,:,:),3)
     deallocate(all_sendRecvVector)
 
-    call tmg_stop(170)
-
   end subroutine mpi_reduce_sumR8_2d
 
 
@@ -320,12 +308,8 @@ module mpi_mod
     real(8), allocatable :: all_sendRecvVector(:,:,:,:)
 
     ! do a barrier so that timing on reduce operation is accurate
-    call tmg_start(171,'low-level--mpi_allreduce_barr')
     if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
-    call tmg_stop(171)
-
-    call tmg_start(170,'low-level--mpi_allreduce_sum8')
-
+    
     numElements1 = size(sendVector,1)
     numElements2 = size(sendVector,2)
     numElements3 = size(sendVector,3)
@@ -349,8 +333,6 @@ module mpi_mod
     ! sum the values on the "root" mpi task
     if ( rank == root ) recvVector(:,:,:) = sum(all_sendRecvVector(:,:,:,:),4)
     deallocate(all_sendRecvVector)
-
-    call tmg_stop(170)
 
   end subroutine mpi_reduce_sumR8_3d
   
