@@ -77,6 +77,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * split `gridstatevector_mod`: high-level I/O routines moved in `gridstatevectorFileIO_mod` (#599)
+   * new namelist `NAMSTIO`: variable `interpToPhysicsGrid` moved from `NAMSTATE` (only `ensPostProcess/trialMeanRmsLAM` use non default value)
  * Allow combined use of GPSRO refractivity and bending profiles when `LEVELGPSRO=3` (#569 and !587)
  * `oop_HheightCoordObs` replaces `oop_Hzp` to compute simulated geometric-height based observations and similar for adjoint (#593 and !571)
  * Applying humidity limits within outer-loop consistent with no outer-loop; write total increment with outer-loop to `rebm_*`; avoid dealloc interpInfo_nl with outer-loop (#585 and !549)

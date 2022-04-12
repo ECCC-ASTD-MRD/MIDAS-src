@@ -251,7 +251,6 @@ module gridStateVectorFileIO_mod
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
                       hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
 
-    write(*,*) 'DBGmad calling gsv_hInterpolate_r4'
     call gsv_hInterpolate_r4(statevector_file_r4, statevector_hinterp_r4)
 
     call gsv_deallocate(statevector_file_r4)
@@ -259,7 +258,6 @@ module gridStateVectorFileIO_mod
     !-- 3.0 Unit conversion
 
     if ( unitConversion ) then
-      write(*,*) 'DBGmad calling gsv_fileUnitsToStateUnits'
       call gsv_fileUnitsToStateUnits( statevector_hinterp_r4, containsFullField )
     end if
 
@@ -272,7 +270,6 @@ module gridStateVectorFileIO_mod
                       dataKind_opt=8, allocHeightSfc_opt=readHeightSfc,               &
                       varNames_opt=varNamesToRead )
 
-    write(*,*) 'DBGmad calling gsv_transposeVarsLevsToTiles'
     call gsv_transposeVarsLevsToTiles(statevector_hinterp_r4, statevector_tiles)
 
     call gsv_deallocate(statevector_hinterp_r4)
@@ -286,14 +283,12 @@ module gridStateVectorFileIO_mod
                       allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead )
 
     if (present(PsfcReference_opt) ) then
-      write(*,*) 'DBGmad PsfcReference_opt present, caling gsv_vInterpolate'
       allocate(PsfcReference3D(statevector_tiles%myLonBeg:statevector_tiles%myLonEnd, &
                                statevector_tiles%myLatBeg:statevector_tiles%myLatEnd,1))
       PsfcReference3D(:,:,1) = PsfcReference_opt(:,:)
       call gsv_vInterpolate(statevector_tiles,statevector_vinterp,PsfcReference_opt=PsfcReference3D)
       deallocate(PsfcReference3D)
     else
-      write(*,*) 'DBGmad PsfcReference_opt not present, caling gsv_vInterpolate'
       call gsv_vInterpolate(statevector_tiles,statevector_vinterp)
     end if
 
@@ -1768,6 +1763,5 @@ module gridStateVectorFileIO_mod
     end if
 
   end subroutine writeTicTacToc
-
 
 end module gridStateVectorFileIO_mod

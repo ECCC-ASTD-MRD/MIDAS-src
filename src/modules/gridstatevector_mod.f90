@@ -2990,7 +2990,6 @@ module gridStateVector_mod
         else
           multFactor = 1.0d0 ! no conversion
         end if
-        write(*,*) 'DBGmad conversion ', varName, multFactor
 
         if ( multFactor /= 1.0d0 ) then
           field_r4_ptr(:,:,kIndex,stepIndex) = real( multFactor * field_r4_ptr(:,:,kIndex,stepIndex), 4 )
