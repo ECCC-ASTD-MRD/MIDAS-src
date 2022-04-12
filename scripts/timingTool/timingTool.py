@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
@@ -50,7 +49,7 @@ if filename2:
     else:
         print "Main file used first for constructing label list"
 
-if not os.path.isfile(filename):
+if not os.path.exists(filename):
     print "The file does not exist!"
     exit()
 
