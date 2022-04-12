@@ -1206,7 +1206,7 @@ module gridStateVectorFileIO_mod
     character(len=4), pointer :: varNamesToRead(:)
     character(len=4)  :: varLevel
     logical :: iDoWriting, unitConversion, containsFullField
-    real(8), pointer :: field_r8(:,:,:,:)
+    real(8), pointer :: field_r8(:,:,:,:), heightSfc_ptr(:,:)
     real(4), pointer :: field_r4(:,:,:,:)
     logical :: interpToPhysicsGrid
     NAMELIST /NAMSTIO/interpToPhysicsGrid
@@ -1388,13 +1388,13 @@ module gridStateVectorFileIO_mod
 
     ! Write surface height, if requested
     if ( present(writeHeightSfc_opt) ) then
-      if ( writeHeightSfc_opt .and. associated(statevector%HeightSfc) ) then
+      if ( writeHeightSfc_opt .and. gsv_isAssocHeightSfc(statevector) ) then
         write(*,*) 'gio_writeToFile: writing surface height'
-
+        heightSfc_ptr => gsv_getHeightSfc(statevector)
         ! MPI communication
         gd_send_r4(1:statevector%lonPerPE, &
                    1:statevector%latPerPE) =  &
-             real(statevector%HeightSfc(statevector%myLonBeg:statevector%myLonEnd, &
+             real(heightSfc_ptr(statevector%myLonBeg:statevector%myLonEnd, &
                                     statevector%myLatBeg:statevector%myLatEnd),4)
         if ( (mpi_nprocs > 1) .and. statevector%mpi_local ) then
           nsize = statevector%lonPerPEmax * statevector%latPerPEmax
