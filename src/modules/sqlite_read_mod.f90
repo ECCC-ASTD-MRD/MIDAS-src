@@ -231,25 +231,23 @@ contains
     integer                  :: numberRows ,  numberColumns
     real, allocatable        :: matdata(:,:)
     REAL(pre_obsReal) :: CFRAC,MOYRAD,STDRAD
-    character(len=*), parameter :: myName = 'sqlr_readSqlite_avhrr'
-    character(len=*), parameter :: myWarning = '****** '// myName //': WARNING: '
 
-    write(*,*) myName//': fileName : ', trim(fileName)
+    write(*,*) 'sqlr_readSqlite_avhrr: fileName : ', trim(fileName)
 
     call fSQL_open(db, trim(fileName) ,stat)
     if (fSQL_error(stat) /= FSQL_OK) then
-      call utl_abort(myName//': fSQL_open '//fSQL_errmsg(stat))
+      call utl_abort('sqlr_readSqlite_avhrr: fSQL_open '//fSQL_errmsg(stat))
     end if
 
     if (sqlr_doesSQLTableExist(db,'avhrr')) then
-      write(*,*) myName//': Table avhrr does not exist :  ... return  '
+      write(*,*) 'sqlr_readSqlite_avhrr: Table avhrr does not exist :  ... return  '
       return
     end if
-    write(*,*) myName//': Table avhrr exists: insert contents into obsdat '
+    write(*,*) 'sqlr_readSqlite_avhrr: Table avhrr exists: insert contents into obsdat '
 
     querySqlite = ' select mean_radiance,stddev_radiance,fractionClearPixels from avhrr where id_obs = ? '
     call fSQL_prepare(db, querySqlite , stmt, stat)
-    write(*,*) myName//': obs_getNchanAvhr=',obs_getNchanAvhrr()
+    write(*,*) 'sqlr_readSqlite_avhrr: obs_getNchanAvhr=',obs_getNchanAvhrr()
     do headerIndex = headerIndexBegin, headerIndexEnd
       obsIdo = obs_headPrimaryKey(obsdat, headerIndex)
       call fSQL_bind_param(stmt, param_index = 1, int_var  =  obsIdo)
@@ -349,7 +347,6 @@ contains
     character(len=256),allocatable :: listElemArray(:)
     integer,allocatable            :: listElemArrayInteger(:)
     integer                  :: numberBitsOff, numberBitsOn, bitsOff(15), bitsOn(15), numberRows, numberColumns
-    character(len=*), parameter :: myName = 'sqlr_readSqlite'
     namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLairs/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
@@ -365,6 +362,7 @@ contains
     namelist /NAMSQLsw/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLro/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLsfc/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /namReadSST/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLsc/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLpr/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
@@ -372,16 +370,16 @@ contains
     namelist /NAMSQLradar/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLradvel/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
 
-    write(*,*) myName//': fileName   : ', trim(fileName)
-    write(*,*) myName//': familyType : ', trim(familyType)
+    write(*,*) 'sqlr_readSqlite: fileName   : ', trim(fileName)
+    write(*,*) 'sqlr_readSqlite: familyType : ', trim(familyType)
     call fSQL_open(db, trim(fileName) ,stat)
     if (fSQL_error(stat) /= FSQL_OK) then
-      call utl_abort(myName//': fSQL_open '//fSQL_errmsg(stat))
+      call utl_abort('sqlr_readSqlite: fSQL_open '//fSQL_errmsg(stat))
     end if
 
     query = "select schema from rdb4_schema ;"
     rdbSchema = sqlr_query(db,trim(query))
-    write(*,'(4a)') myName//' rdbSchema is ---> ', trim(rdbSchema)
+    write(*,'(4a)') 'sqlr_readSqlite: rdbSchema is ---> ', trim(rdbSchema)
 
     sqlExtraHeader = ''
     sqlExtraDat    = ''
@@ -393,7 +391,7 @@ contains
     bitsOff =  0
     numberBitsOn = 0
     bitsOn = 0
-
+    
     if (trim(familyType) == 'TO') then
       write(listElem,*) bufr_nbt3
       numberElem = 1
@@ -425,134 +423,134 @@ contains
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLua, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLua)
       case ('ai')
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLai, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLai)
       case ('sw')
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLsw, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLsw)
       case ('pr')
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLpr, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml =  NAMSQLpr)
       case ('al')  
         columnsHeader = trim(columnsHeader)//", id_prof"
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLal, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml =  NAMSQLal)
       case ('ro')     
         columnsHeader = trim(columnsHeader)//",ro_qc_flag, geoid_undulation, earth_local_rad_curv, id_sat, azimuth"
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLro, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLro)
       case ('sf')
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsfc, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLsfc)
       case ('sst')
         columnsHeader = trim(columnsHeader)//", solar_zenith "
         vertCoordFact = 0
         vertCoordType = 1
-        read(nulnam, nml = NAMSQLsfc, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLsfc)
+        read(nulnam, nml = namReadSST, iostat = ierr)
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (mpi_myid == 0) write(*, nml = namReadSST)
       case ('scat')
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsc, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLsc)
       case('airs')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         write(columnsData,'(a,f3.2,a)') trim(columnsData)//", ifnull(surf_emiss,", tvs_defaultEmissivity, "), bias_corr "
         read(nulnam, nml = NAMSQLairs, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLairs)
       case('iasi')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth, FANION_QUAL_IASI_SYS_IND, INDIC_NDX_QUAL_GEOM "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLiasi, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLiasi)
       case('cris')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLcris, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLcris)
       case('crisfsr')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss "
         read(nulnam, nml = NAMSQLcrisfsr, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLcrisfsr)
       case('amsua')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLamsua, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLamsua)
       case('amsub')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLamsub, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLamsub)
       case('atms')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLatms, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLatms)
       case('ssmi')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLssmi, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml = NAMSQLssmi)
       case('csr')
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLcsr, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml =  NAMSQLcsr)
       case('gl')
         read(nulnam, nml = NAMSQLgl, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml =  NAMSQLgl)
       case('gl_ascat')
         columnsHeader = trim(columnsHeader)//", track_cell_no, mod_wind_spd "
         read(nulnam, nml = NAMSQLgl, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml =  NAMSQLgl)
       case('ra')
         read(nulnam, nml = NAMSQLradar, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml =  NAMSQLradar) 
       case('radvel')
         columnsHeader = trim(columnsHeader) 
         ! add  range to data columns to read
         columnsData = trim(columnsData)//", range "
         read(nulnam, nml = NAMSQLradvel, iostat = ierr)
-        if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
         if (mpi_myid == 0) write(*, nml =  NAMSQLradvel)
       case DEFAULT
-        call utl_abort(myName//': Unsupported  SCHEMA in SQLITE file!'//trim(rdbSchema))
+        call utl_abort('sqlr_readSqlite: Unsupported  SCHEMA in SQLITE file!'//trim(rdbSchema))
     end select
     ierr=fclos(nulnam)
 
@@ -589,14 +587,16 @@ contains
     !ordering of data that will get read in matdata, bodyPrimaryKeys and bodyHeadKeys
     sqlDataOrder = ' order by id_obs, varno, id_data' 
 
-    selectIDs  = "select id_data, id_obs"
-    selectData = "select "//trim(columnsData)
-    csqlcrit = trim(csqlcrit)//" or flag is null) and varno in ("//trim(listElem)//")"//trim(sqlExtraDat)//trim(SQLNull)
+    selectIDs  = 'select id_data, id_obs'
+    selectData = 'select '//trim(columnsData)
+    csqlcrit = trim(csqlcrit)//' or flag is null) and varno in ('//trim(listElem)//')'//trim(sqlExtraDat)//trim(SQLNull)
+    
     !it is very important that queryIDs and queryData be identical except for the column names being selected
-    queryIDs  =  trim(selectIDs)//trim(" from data where ")//trim(csqlcrit)//trim(sqlDataOrder)//trim(sqlLimit)//";"
-    queryData = trim(selectData)//trim(" from data where ")//trim(csqlcrit)//trim(sqlDataOrder)//trim(sqlLimit)//";"
-    write(*,'(4a)') myName//': ',trim(rdbSchema),' queryIDs     --> ', trim(queryIDs)
-    write(*,'(4a)') myName//': ',trim(rdbSchema),' queryData    --> ', trim(queryData)
+    queryIDs  =  trim(selectIDs)//trim(' from data where ')//trim(csqlcrit)//trim(sqlDataOrder)//trim(sqlLimit)//';'
+    queryData = trim(selectData)//trim(' from data where ')//trim(csqlcrit)//trim(sqlDataOrder)//trim(sqlLimit)//';'
+    
+    write(*,'(4a)') 'sqlr_readSqlite: ', trim(rdbSchema), ' queryIDs     --> ', trim(queryIDs)
+    write(*,'(4a)') 'sqlr_readSqlite: ', trim(rdbSchema), ' queryData    --> ', trim(queryData)
     !the first queryHeader is printed below in the BODY loop
 
     if (trim(rdbSchema)=='pr' .or. trim(rdbSchema)=='sf' .or. trim(rdbSchema)=='sst') then
@@ -616,12 +616,12 @@ contains
     bodyIndex = obs_numBody(obsdat)
     numHeader = obs_numHeader(obsdat)
     numBody   = obs_numBody(obsdat)
-    write(*,*) myName//': DEBUT numheader  =', numHeader
-    write(*,*) myName//': DEBUT numbody    =', numBody
+    write(*,*) 'sqlr_readSqlite: DEBUT numheader  =', numHeader
+    write(*,*) 'sqlr_readSqlite: DEBUT numbody    =', numBody
     call fSQL_get_many(stmt2, nrows=numberRows, ncols=numberColumns, mode=FSQL_REAL8)
-    write(*,*) myName//':  numberRows numberColumns =', numberRows, numberColumns
-    write(*,*) myName//':  rdbSchema = ', rdbSchema
-    write(*,*) myName//': =========================================='
+    write(*,*) 'sqlr_readSqlite:  numberRows numberColumns =', numberRows, numberColumns
+    write(*,*) 'sqlr_readSqlite:  rdbSchema = ', rdbSchema
+    write(*,*) 'sqlr_readSqlite: =========================================='
     allocate(matdata(numberRows, numberColumns))
     matdata = 0.0d0
     call fSQL_fill_matrix(stmt2, matdata)
@@ -658,7 +658,7 @@ contains
     obsNlv = 0
     numBodyKeys = size(bodyPrimaryKeys)
     if (numBodyKeys /= numberRows) then
-      call utl_abort(myName//': number of body keys not equal to number of rows in matdata')
+      call utl_abort('sqlr_readSqlite: number of body keys not equal to number of rows in matdata')
     end if 
     call fSQL_begin(db)
     BODY: do rowIndex = 1, numBodyKeys
@@ -676,13 +676,18 @@ contains
         firstBodyIndexOfThisBatch = bodyIndex
 
         !we read the associated header
-        queryHeader = "select "//trim(columnsHeader)//" from header "//trim(sqlExtraHeader)//" where id_obs = ? "
+        if (trim(sqlExtraHeader) == '') then
+	  queryHeader = 'select '//trim(columnsHeader)//' from header '//trim(sqlExtraHeader)//' where id_obs = ? '
+	else
+	  queryHeader = 'select '//trim(columnsHeader)//' from header '//trim(sqlExtraHeader)//' and id_obs = ? '
+	end if  
+			   
         if (rowIndex == 1) then
-          write(*,'(4a)') myName//': ',trim(rdbSchema),' first queryHeader    --> ', trim(queryHeader)
+          write(*,'(4a)') 'sqlr_readSqlite: ',trim(rdbSchema),' first queryHeader    --> ', trim(queryHeader)
         end if
         call fSQL_prepare(db, queryHeader, stmt, stat)
         if (fSQL_error(stat)  /= FSQL_OK) then
-          write(*,*) myName//': problem reading header entry. Query: ', trim(queryHeader)
+          write(*,*) 'sqlr_readSqlite: problem reading header entry. Query: ', trim(queryHeader)
           call sqlr_handleError(stat, 'fSQL_prepare')
         end if
          
@@ -950,9 +955,9 @@ contains
     deallocate(matdata)
     numHeader = obs_numHeader(obsdat)
     numBody   = obs_numBody(obsdat)
-    write(*,*) myName//': FIN numheader  =', numHeader
-    write(*,*) myName//': FIN numbody    =', numBody
-    write(*,*) myName//': fin header '
+    write(*,*) 'sqlr_readSqlite: FIN numheader  =', numHeader
+    write(*,*) 'sqlr_readSqlite: FIN numbody    =', numBody
+    write(*,*) 'sqlr_readSqlite: fin header '
 
     call fSQL_close(db, stat) 
     if (fSQL_error(stat) /= FSQL_OK) then
@@ -1039,12 +1044,10 @@ contains
     character(len = 356)        :: itemChar, columnNameChar
     logical                     :: back
     real                        :: romp, obsValue, scaleFactor
-    character(len=*), parameter :: myName = 'sqlr_updateSqlite'
-    character(len=*), parameter :: myWarning = '****** '// myName //': WARNING: '
     namelist/namSQLUpdate/ numberUpdateItems,      itemUpdateList,     &
                            numberUpdateItemsRadar, itemUpdateListRadar
 
-    write(*,*) myName//': Starting ===================  '
+    write(*,*) 'sqlr_updateSqlite: Starting ===================  '
 
     ! set default values of namelist variables
     itemUpdateList(:) = ''
@@ -1056,7 +1059,7 @@ contains
     nulnam = 0
     ierr   = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam,nml = namSQLUpdate, iostat = ierr)
-    if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+    if (ierr /= 0) call utl_abort('sqlr_updateSqlite: Error reading namelist')
     if (mpi_myid == 0) write(*, nml = namSQLUpdate)
     ierr = fclos(nulnam)
 
@@ -1068,10 +1071,10 @@ contains
       end do
     end if
 
-    write(*,*) myName//': family type   = ', trim(familyType)
-    write(*,*) myName//': number of items to update: ', numberUpdateItems
-    write(*,*) myName//': file name     = ', trim(fileName)
-    write(*,*) myName//': missing value = ', MPC_missingValue_R8    
+    write(*,*) 'sqlr_updateSqlite: family type   = ', trim(familyType)
+    write(*,*) 'sqlr_updateSqlite: number of items to update: ', numberUpdateItems
+    write(*,*) 'sqlr_updateSqlite: file name     = ', trim(fileName)
+    write(*,*) 'sqlr_updateSqlite: missing value = ', MPC_missingValue_R8    
 
     ! create query
     itemChar='  '
@@ -1079,7 +1082,7 @@ contains
     do itemIndex = 1, numberUpdateItems
     
       item = itemUpdateList(itemIndex)
-      write(*,*) myName//': updating ', itemIndex, trim(item)
+      write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, trim(item)
       select case(item)
         case('OMA')
           updateList(itemIndex) = OBS_OMA
@@ -1106,13 +1109,13 @@ contains
           updateList(itemIndex) = OBS_PPP
           columnName = 'vcoord'
         case DEFAULT
-          call utl_abort(myName//': invalid item '// columnName //' EXIT sqlr_updateSQL!!!')
+          call utl_abort('sqlr_updateSqlite: invalid item '// columnName //' EXIT sqlr_updateSQL!!!')
       end select
       
       if (sqlu_sqlColumnExists(fileName, 'data', columnName) == .true.) then
         itemChar = trim(itemChar)//','// trim(columnName) // trim(' = ? ')
       else
-        write(*,*) myWarning//': column '// columnName// &
+        write(*,*) 'sqlr_updateSqlite: column '// columnName// &
                    ' does not exist in the file '//trim(fileName)
       end if	
     end do
@@ -1124,7 +1127,7 @@ contains
     
     query = ' update data set flag = ? '//trim(itemChar)
     query = trim(query)//' where id_data = ?  ;'
-    write(*,*) myName//': update query --->  ', query
+    write(*,*) 'sqlr_updateSqlite: update query --->  ', query
     call fSQL_do_many(db, 'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;')
     call fSQL_prepare(db, query , stmt, stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'fSQL_prepare : ')
@@ -1215,9 +1218,9 @@ contains
 
     call fSQL_commit(db, stat)
     if (fSQL_error(stat)  /= FSQL_OK) then
-      call sqlr_handleError(stat, myName//'fSQL_commit')
+      call sqlr_handleError(stat, 'sqlr_updateSqlite: fSQL_commit')
     end if
-    write(*,*) myName//': End ===================  ', trim(familyType)
+    write(*,*) 'sqlr_updateSqlite: End ===================  ', trim(familyType)
 
   end subroutine sqlr_updateSqlite
 
@@ -1238,13 +1241,11 @@ contains
     integer                :: numberInsert, headerIndex, obsIdo, obsIdf
     integer                :: NCO2
     real                   :: ETOP,VTOP,ECF,VCF,HE,ZTSR,ZTM,ZTGM,ZLQM,ZPS
-    character(len=*), parameter :: myName    = 'sqlr_addCloudParametersandEmissivity'
-    character(len=*), parameter :: myWarning = '****** '// myName //': WARNING: '
 
     query = 'create table if not exists cld_params(id_obs integer,ETOP real,VTOP real, &
          ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
     query=trim(query)
-    write(*,*) myName//': create query = ', trim(query)
+    write(*,*) 'sqlr_addCloudParametersandEmissivity: create query = ', trim(query)
 
     call fSQL_do(db, trim(query), stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'fSQL_do : ')
@@ -1294,7 +1295,7 @@ contains
 
     call fSQL_finalize(stmt)
     call fSQL_commit(db)
-    write(*,'(a,i8)') myName//': NUMBER OF INSERTIONS ----> ', numberInsert
+    write(*,'(a,i8)') 'sqlr_addCloudParametersandEmissivity: NUMBER OF INSERTIONS ----> ', numberInsert
 
   end subroutine sqlr_addCloudParametersandEmissivity
 
@@ -1320,10 +1321,9 @@ contains
     integer(8)             :: bodyPrimaryKey, headPrimaryKey
     character(len = 256)   :: query
     logical                :: llok    
-    character(len=*), parameter :: myName = 'sqlr_insertSqlite'
     namelist/namSQLInsert/ numberInsertItems, itemInsertList
 
-    write(*,*)  myName//': --- Starting ---   '
+    write(*,*)  'sqlr_insertSqlite: --- Starting ---   '
     numHeader = obs_numHeader(obsdat)
     write(*,*) ' FAMILY ---> ', trim(familyType), '  headerIndex  ----> ', numHeader
     write(*,*) ' fileName -> ', trim(fileName)
@@ -1335,7 +1335,7 @@ contains
     nulnam = 0
     ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml = namSQLInsert, iostat = ierr)
-    if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+    if (ierr /= 0) call utl_abort('sqlr_insertSqlite: Error reading namelist')
     if (mpi_myid == 0) write(*, nml = namSQLInsert)
     ierr=fclos(nulnam)
 
@@ -1465,7 +1465,7 @@ contains
 
     call fSQL_finalize(stmt)
     call fSQL_commit(db)
-    write(*,'(3a,i8)') myName//': FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ', numberInsert
+    write(*,'(3a,i8)') 'sqlr_insertSqlite: FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ', numberInsert
 
   end subroutine sqlr_insertSqlite
 
@@ -1483,15 +1483,13 @@ contains
     character(len=*),    intent(in) :: fileName
 
     ! locals
-    character(len=*), parameter :: myError = 'sqlr_cleanSqlite: ERROR: '
-
     character(len = 128) :: query
     type(fSQL_STATEMENT) :: statement ! prepared statement for SQLite
     type(fSQL_STATUS)    :: status
 
     call fSQL_open(db, fileName, status)
     if (fSQL_error(status) /= FSQL_OK) then
-      write(*,*) myError, fSQL_errmsg(status)
+      write(*,*) 'sqlr_cleanSqlite: ERROR: ', fSQL_errmsg(status)
     end if
     ! Mark for deletion all records with bit 11 (2048) set
     query = ' delete from data where flag & 2048;'
@@ -1502,7 +1500,7 @@ contains
     call fSQL_exec_stmt(statement)
     call fSQL_finalize(statement)
     call fSQL_commit(db)
-    write(*,*) '  closed database -->', trim(FileName)
+    write(*,*) 'sqlr_cleanSqlite: closed database -->', trim(FileName)
     call fSQL_close(db, status)
   end subroutine sqlr_cleanSqlite
 
@@ -1773,8 +1771,6 @@ contains
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
     logical                :: writeHeader
-    character(len=*), parameter :: myName = 'sqlr_writeSqlDiagFile'
-    character(len=*), parameter :: myWarning = myName //': WARNING: '
         
     ! determine initial idData,idObs to ensure unique values across mpi tasks
     call getInitialIdObsData(obsDat, obsFamily, idObs, idData, codeTypeList_opt)
@@ -1798,8 +1794,8 @@ contains
 
     fileNameDir = trim(ram_getRamDiskDir())
     if (fileNameDir == ' ') &
-    write(*,*) myWarning//' The program may be slow creating many sqlite files in the same directory.'
-    write(*,*) myWarning//' Please, use the ram disk option prior to MIDAS run!'
+    write(*,*) 'sqlr_writeSqlDiagFile: WARNING! The program may be slow creating many sqlite files in the same directory.'
+    write(*,*) 'sqlr_writeSqlDiagFile: WARNING! Please, use the ram disk option prior to MIDAS run!'
 
     if (obs_mpiLocal(obsdat)) then
       write(cmyidy,'(I4.4)') (mpi_myidy + 1)
@@ -1812,9 +1808,9 @@ contains
     
     fileName = trim(fileNameDir) // 'obs/dia' // trim(instrumentFileName) // '_' // trim(fileNameExtention)
 
-    write(*,*) myName//': Creating file: ', trim(fileName)
+    write(*,*) 'sqlr_writeSqlDiagFile: Creating file: ', trim(fileName)
     call fSQL_open(db, fileName, stat)
-    if (fSQL_error(stat) /= FSQL_OK) write(*,*) myName//': fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
+    if (fSQL_error(stat) /= FSQL_OK) write(*,*) 'sqlr_writeSqlDiagFile: fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
 
     ! Create the tables HEADER and DATA
     if (addFSOdiag) then
@@ -1832,7 +1828,7 @@ contains
     end if
     
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_do_many with query: '//trim(queryCreate))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreate))
     
     if (addFSOdiag) then
        queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
@@ -1844,14 +1840,14 @@ contains
     
     queryHeader = 'insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev) values(?,?,?,?,?,?,?,?); '
 
-    write(*,*) myName//': Insert query Data   = ', trim(queryData)
-    write(*,*) myName//': Insert query Header = ', trim(queryHeader)
+    write(*,*) 'sqlr_writeSqlDiagFile: Insert query Data   = ', trim(queryData)
+    write(*,*) 'sqlr_writeSqlDiagFile: Insert query Header = ', trim(queryHeader)
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_prepare: ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_prepare: ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
     
     numberInsertions = 0
     call obs_set_current_header_list(obsdat, obsFamily)
@@ -2028,7 +2024,7 @@ contains
     
     call fSQL_finalize (stmtData)
 
-    write(*,*) myName// ': Observation Family: ', obsFamily,', number of insertions: ', numberInsertions
+    write(*,*) 'sqlr_writeSqlDiagFile: Observation Family: ', obsFamily,', number of insertions: ', numberInsertions
 
     call fSQL_commit(db)
     call fSQL_close(db, stat)
@@ -2116,10 +2112,8 @@ contains
     character(len = 12)    :: idStation
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
-    character(len=*), parameter :: myName = 'sqlr_writePseudoSSTobs'
-    character(len=*), parameter :: myWarning = myName //': WARNING: '
         
-    write(*,*) myName//': starting...'
+    write(*,*) 'sqlr_writePseudoSSTobs: starting...'
      
     ! determine initial idData,idObs to ensure unique values across mpi tasks
     call getInitialIdObsData(obsData, obsFamily, idObs, idData)
@@ -2139,8 +2133,8 @@ contains
 
     fileNameDir = trim(ram_getRamDiskDir())
     if (fileNameDir == ' ') then
-      write(*,*) myWarning//' The program may be slow creating many sqlite files in the same directory.'
-      write(*,*) myWarning//' Please, use the ram disk option prior to MIDAS run!'
+      write(*,*) 'sqlr_writePseudoSSTobs: WARNING! The program may be slow creating many sqlite files in the same directory.'
+      write(*,*) 'sqlr_writePseudoSSTobs: WARNING! Please, use the ram disk option prior to MIDAS run!'
     end if  
 
     if (obs_mpiLocal(obsData)) then
@@ -2153,9 +2147,9 @@ contains
     end if
     
 
-    write(*,*) myName//': Creating file: ', trim(fileName)
+    write(*,*) 'sqlr_writePseudoSSTobs: Creating file: ', trim(fileName)
     call fSQL_open(db, fileName, stat)
-    if (fSQL_error(stat) /= FSQL_OK) write(*,*) myName//': fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
+    if (fSQL_error(stat) /= FSQL_OK) write(*,*) 'sqlr_writePseudoSSTobs: fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
 
     ! Create the tables HEADER and DATA
     queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
@@ -2167,31 +2161,31 @@ contains
                      &create table rdb4_schema(schema varchar(9));'
     
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_do_many with query: '//trim(queryCreate))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreate))
     call fSQL_do_many(db, queryCreateAdd, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_do_many with query: '//trim(queryCreateAdd))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreateAdd))
     
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
                 &obs_error) values(?,?,?,?,?,?,?,?,?,?,?,?);'
 
-    write(*,*) myName//': Insert query Data   = ', trim(queryData)
-    write(*,*) myName//': Insert query Header = ', trim(queryHeader)
+    write(*,*) 'sqlr_writePseudoSSTobs: Insert query Data   = ', trim(queryData)
+    write(*,*) 'sqlr_writePseudoSSTobs: Insert query Header = ', trim(queryHeader)
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     queryRDBSchema = ' insert into rdb4_schema values(?); '
     queryResume = ' insert into resume (date, time, run) values(?,?,?); '
-    write(*,*) myName//': Insert query rdb4_schema: ', trim(queryRDBSchema)
-    write(*,*) myName//': Insert query resume: ', trim(queryResume)
+    write(*,*) 'sqlr_writePseudoSSTobs: Insert query rdb4_schema: ', trim(queryRDBSchema)
+    write(*,*) 'sqlr_writePseudoSSTobs: Insert query resume: ', trim(queryResume)
      
     call fSQL_prepare(db, queryRDBSchema, stmtRDBSchema, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     call fSQL_prepare(db, queryResume, stmtResume, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     
     numberInsertions = 0
 
@@ -2279,7 +2273,7 @@ contains
     
     call fSQL_finalize(stmtData)
 
-    write(*,*) myName// ': Observation Family: ', obsFamily,', number of insertions: ', numberInsertions
+    write(*,*) 'sqlr_writePseudoSSTobs: Observation Family: ', obsFamily,', number of insertions: ', numberInsertions
 
     call fSQL_bind_param(stmtRDBSchema, param_index = 1, char_var  = 'sf')
     call fSQL_exec_stmt (stmtRDBSchema)
@@ -2325,16 +2319,14 @@ contains
     character(len=30)      :: fileNameExtention
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
-    character(len=*), parameter :: myName = 'sqlr_writeEmptyPseudoSSTobsFile'
-    character(len=*), parameter :: myWarning = myName //': WARNING: '
         
     ! determine initial idData,idObs to ensure unique values across mpi tasks
     call getInitialIdObsData(obsData, obsFamily, idObs, idData)
     
     fileNameDir = trim(ram_getRamDiskDir())
     if (fileNameDir == ' ') &
-    write(*,*) myWarning//' The program may be slow creating many sqlite files in the same directory.'
-    write(*,*) myWarning//' Please, use the ram disk option prior to MIDAS run!'
+    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: WARNING! The program may be slow creating many sqlite files in the same directory.'
+    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: WARNING! Please, use the ram disk option prior to MIDAS run!'
 
     if (obs_mpiLocal(obsData)) then
       write(cmyidy,'(I4.4)') (mpi_myidy + 1)
@@ -2347,9 +2339,9 @@ contains
     
     fileName = trim(fileNameDir) // 'obs/' // trim(instrumentFileName) // '_' // trim(fileNameExtention)
 
-    write(*,*) myName//': Creating file: ', trim(fileName)
+    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Creating file: ', trim(fileName)
     call fSQL_open(db, fileName, stat)
-    if (fSQL_error(stat) /= FSQL_OK) write(*,*) myName//': fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
+    if (fSQL_error(stat) /= FSQL_OK) write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_open: ', fSQL_errmsg(stat),' filename: '//trim(fileName)
 
     ! Create the tables HEADER and DATA
     queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
@@ -2361,31 +2353,31 @@ contains
                      &create table rdb4_schema(schema varchar(9));'
     
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_do_many with query: '//trim(queryCreate))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreate))
     call fSQL_do_many(db, queryCreateAdd, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_do_many with query: '//trim(queryCreateAdd))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreateAdd))
     
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
                 &obs_error) values(?,?,?,?,?,?,?,?,?,?,?,?);'
 
-    write(*,*) myName//': Insert query Data   = ', trim(queryData)
-    write(*,*) myName//': Insert query Header = ', trim(queryHeader)
+    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query Data   = ', trim(queryData)
+    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query Header = ', trim(queryHeader)
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     queryRDBSchema = ' insert into rdb4_schema values(?); '
     queryResume = ' insert into resume (date, time, run) values(?,?,?); '
-    write(*,*) myName//': Insert query rdb4_schema: ', trim(queryRDBSchema)
-    write(*,*) myName//': Insert query resume: ', trim(queryResume)
+    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query rdb4_schema: ', trim(queryRDBSchema)
+    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query resume: ', trim(queryResume)
      
     call fSQL_prepare(db, queryRDBSchema, stmtRDBSchema, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     call fSQL_prepare(db, queryResume, stmtResume, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, myName//': fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     
     call fSQL_bind_param(stmtRDBSchema, param_index = 1, char_var  = 'sf')
     call fSQL_exec_stmt (stmtRDBSchema)
