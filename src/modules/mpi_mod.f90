@@ -33,6 +33,7 @@ module mpi_mod
   public :: mpi_initialize,mpi_getptopo
   public :: mpi_allreduce_sumreal8scalar,mpi_allgather_string
   public :: mpi_allreduce_sumR8_1d
+  public :: mpi_reduce_sumR8_1d, mpi_reduce_sumR8_2d, mpi_reduce_sumR8_3d
 
   integer :: mpi_myid   = 0
   integer :: mpi_nprocs = 0
@@ -207,7 +208,153 @@ module mpi_mod
 
   end subroutine mpi_allreduce_sumR8_1d
  
+  subroutine mpi_reduce_sumR8_1d( sendVector, recvVector, root, comm )
+    !
+    ! :Purpose: Perform sum of 1d array over all MPI tasks.
+    !
+    implicit none
+
+    real(8)         , intent(in)  :: sendVector(:) ! 1-D vector to be summed over all mpi tasks
+    real(8)         , intent(out) :: recvVector(:) ! 1-D vector to be summed over all mpi tasks
+    integer         , intent(in)  :: root          ! mpi task id where data is put
+    character(len=*), intent(in)  :: comm          ! rpn_comm communicator
+
+    integer :: nprocs_mpi, numElements, ierr, rank
+    real(8), allocatable :: all_sendRecvVector(:,:)
+
+    ! do a barrier so that timing on reduce operation is accurate
+    call tmg_start(171,'low-level--mpi_allreduce_barr')
+    if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
+    call tmg_stop(171)
+
+    call tmg_start(170,'low-level--mpi_allreduce_sum8')
+
+    numElements = size(sendVector)
+
+    ! determine number of processors in the communicating group
+    call rpn_comm_size(comm,nprocs_mpi,ierr)
+
+    ! determine rank of group
+    call rpn_comm_rank(comm,rank,ierr)
+
+    ! gather vectors to be added onto 1 processor
+    if ( rank == root ) then
+      allocate(all_sendRecvVector(numElements,0:nprocs_mpi-1))
+    else
+      allocate(all_sendRecvVector(1,1))
+    end if
+    call rpn_comm_gather(sendVector        , numElements, "mpi_double_precision", &
+                         all_sendRecvVector, numElements, "mpi_double_precision", &
+                         root, comm, ierr)
+
+    ! sum the values on the "root" mpi task
+    if ( rank == root ) recvVector(:) = sum(all_sendRecvVector(:,:),2)
+    deallocate(all_sendRecvVector)
+
+    call tmg_stop(170)
+
+  end subroutine mpi_reduce_sumR8_1d
+ 
   
+  subroutine mpi_reduce_sumR8_2d( sendVector, recvVector, root, comm )
+    !
+    ! :Purpose: Perform sum of 2d array over all MPI tasks.
+    !
+    implicit none
+
+    real(8)         , intent(in)  :: sendVector(:,:) ! 2-D vector to be summed over all mpi tasks
+    real(8)         , intent(out) :: recvVector(:,:) ! 2-D vector to be summed over all mpi tasks
+    integer         , intent(in)  :: root            ! mpi task id where data will be put
+    character(len=*), intent(in)  :: comm            ! rpn_comm communicator
+
+    integer :: nprocs_mpi, numElements1, numElements2, ierr, rank
+    real(8), allocatable :: all_sendRecvVector(:,:,:)
+
+    ! do a barrier so that timing on reduce operation is accurate
+    call tmg_start(171,'low-level--mpi_allreduce_barr')
+    if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
+    call tmg_stop(171)
+
+    call tmg_start(170,'low-level--mpi_allreduce_sum8')
+
+    numElements1 = size(sendVector,1)
+    numElements2 = size(sendVector,2)
+
+    ! determine number of processors in the communicating group
+    call rpn_comm_size(comm,nprocs_mpi,ierr)
+
+    ! determine rank of group
+    call rpn_comm_rank(comm,rank,ierr)
+
+    ! gather vectors to be added onto 1 processor
+    if ( rank == root ) then
+      allocate(all_sendRecvVector(numElements1,numElements2,0:nprocs_mpi-1))
+    else
+      allocate(all_sendRecvVector(1,1,1))
+    end if
+    call rpn_comm_gather(sendVector        , numElements1*numElements2, "mpi_double_precision", &
+                         all_sendRecvVector, numElements1*numElements2, "mpi_double_precision", &
+                         root, comm, ierr)
+
+    ! sum the values on the "root" mpi task
+    if ( rank == root ) recvVector(:,:) = sum(all_sendRecvVector(:,:,:),3)
+    deallocate(all_sendRecvVector)
+
+    call tmg_stop(170)
+
+  end subroutine mpi_reduce_sumR8_2d
+
+
+  subroutine mpi_reduce_sumR8_3d( sendVector, recvVector, root, comm )
+    !
+    ! :Purpose: Perform sum of 3d array over all MPI tasks.
+    !
+    implicit none
+
+    real(8)         , intent(in)  :: sendVector(:,:,:) ! 3-D vector to be summed over all mpi tasks
+    real(8)         , intent(out) :: recvVector(:,:,:) ! 3-D vector to be summed over all mpi tasks
+    integer         , intent(in)  :: root              ! mpi task id where data is put
+    character(len=*), intent(in)  :: comm              ! rpn_comm communicator
+
+    integer :: nprocs_mpi, numElements1, numElements2, numElements3, ierr, rank
+    real(8), allocatable :: all_sendRecvVector(:,:,:,:)
+
+    ! do a barrier so that timing on reduce operation is accurate
+    call tmg_start(171,'low-level--mpi_allreduce_barr')
+    if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
+    call tmg_stop(171)
+
+    call tmg_start(170,'low-level--mpi_allreduce_sum8')
+
+    numElements1 = size(sendVector,1)
+    numElements2 = size(sendVector,2)
+    numElements3 = size(sendVector,3)
+
+    ! determine number of processors in the communicating group
+    call rpn_comm_size(comm,nprocs_mpi,ierr)
+
+    ! determine rank of group
+    call rpn_comm_rank(comm,rank,ierr)
+
+    ! gather vectors to be added onto 1 processor
+    if ( rank == root ) then
+      allocate(all_sendRecvVector(numElements1,numElements2,numElements3,0:nprocs_mpi-1))
+    else
+      allocate(all_sendRecvVector(1,1,1,1))
+    end if
+    call rpn_comm_gather(sendVector        , numElements1*numElements2*numElements3, "mpi_double_precision", &
+                         all_sendRecvVector, numElements1*numElements2*numElements3, "mpi_double_precision", &
+                         root, comm, ierr)
+
+    ! sum the values on the "root" mpi task
+    if ( rank == root ) recvVector(:,:,:) = sum(all_sendRecvVector(:,:,:,:),4)
+    deallocate(all_sendRecvVector)
+
+    call tmg_stop(170)
+
+  end subroutine mpi_reduce_sumR8_3d
+  
+
   subroutine mpi_allgather_string( str_list, str_list_all, nlist, nchar, nproc, comm, ierr )
     ! 
     ! :Purpose: Performs the MPI 'allgather' routine for an array of strings
