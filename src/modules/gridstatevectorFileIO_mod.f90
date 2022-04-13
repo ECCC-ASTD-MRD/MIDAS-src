@@ -48,6 +48,10 @@ module gridStateVectorFileIO_mod
   subroutine gio_readFromFile(statevector_out, fileName, etiket_in, typvar_in, stepIndex_opt,  &
                               unitConversion_opt, PsfcReference_opt, readHeightSfc_opt,   &
                               containsFullField_opt, vcoFileIn_opt)
+    !
+    ! :Purpose: Read an RPN standard file and put the contents into a
+    !           stateVector object. Main high level wrapper subroutine.
+    !
     implicit none
 
     ! arguments
@@ -193,9 +197,14 @@ module gridStateVectorFileIO_mod
   subroutine readFromFileAndInterpToTiles(statevector_out, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField, PsfcReference_opt)
+    !
+    ! :Purpose: Read an RPN standard file and put the contents into a
+    !           stateVector object. Wrapper subroutine that also proceed with
+    !           distributed interpolation on MPI tiles.
+    !
+    ! :Note: this routine currently only works correctly for reading FULL FIELDS,
+    !        not increments or perturbations... because of the HU -> LQ conversion
     implicit none
-    ! Note this routine currently only works correctly for reading FULL FIELDS,
-    ! not increments or perturbations... because of the HU -> LQ conversion
 
     ! arguments
     type(struct_gsv)              :: statevector_out
@@ -311,9 +320,14 @@ module gridStateVectorFileIO_mod
   subroutine readFromFileAndTransposeToTiles(statevector_out, fileName,  &
              etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField)
+    !
+    ! :Purpose: Read an RPN standard file and put the contents into a
+    !           stateVector object. Wrapper subroutine that also proceed with
+    !           distributed transposition on MPI tiles.
+    !
+    ! :Note: this routine currently only works correctly for reading FULL FIELDS,
+    !        not increments or perturbations... because of the HU -> LQ conversion
     implicit none
-    ! Note this routine currently only works correctly for reading FULL FIELDS,
-    ! not increments or perturbations... because of the HU -> LQ conversion
 
     ! arguments
     type(struct_gsv)              :: statevector_out
@@ -383,6 +397,11 @@ module gridStateVectorFileIO_mod
   subroutine readFromFileAndInterp1Proc(statevector_out_r4, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField)
+    !
+    ! :Purpose: Read an RPN standard file and put the contents into a
+    !           stateVector object. Wrapper subroutine that also proceed with
+    !           (serial) interpolation.
+    !
     implicit none
 
     ! arguments
@@ -473,6 +492,10 @@ module gridStateVectorFileIO_mod
   subroutine readFromFileOnly(statevector_out, fileName,  &
              etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField)
+    !
+    ! :Purpose: Read an RPN standard file and put the contents into a
+    !           stateVector object.  Wrapper subroutine
+    !
     implicit none
 
     ! arguments
@@ -511,7 +534,8 @@ module gridStateVectorFileIO_mod
                           ignoreDate_opt)
     !
     ! :Purpose: Read an RPN standard file and put the contents into a
-    !           stateVector object.
+    !           stateVector object.  Low level subroutine that does the actual
+    !           file reading.
     !
     implicit none
 
@@ -945,7 +969,8 @@ module gridStateVectorFileIO_mod
   ! gio_getMaskLAM
   !--------------------------------------------------------------------------
   subroutine gio_getMaskLAM(statevector_mask, hco_ptr, vco_ptr, hInterpolateDegree_opt)
-    !:Purpose: To read a LAM mask from a file (./analinc_mask by default).
+    !
+    ! :Purpose: To read a LAM mask from a file (./analinc_mask by default).
     !
     implicit none
 
@@ -978,7 +1003,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   subroutine gio_readTrials(stateVectorTrialIn)
     !
-    !:Purpose: Reading trials
+    ! :Purpose: Reading trials
     !
     implicit none
 
@@ -1166,6 +1191,9 @@ module gridStateVectorFileIO_mod
   subroutine gio_writeToFile(statevector_in, fileName, etiket_in, scaleFactor_opt, ip3_opt, &
        stepIndex_opt, typvar_opt, HUcontainsLQ_opt, unitConversion_opt, writeHeightSfc_opt,  &
        numBits_opt, containsFullField_opt)
+    !
+    ! :Purpose: Write a statevector object to an RPN standard file.
+    !
     implicit none
 
     ! arguments
@@ -1633,6 +1661,10 @@ module gridStateVectorFileIO_mod
   ! writeTicTacToc
   !--------------------------------------------------------------------------
   subroutine writeTicTacToc(statevector,iun,etiket)
+    !
+    ! :Purpose: Write a statevector object grid descriptors to an RPN standard
+    !           file.
+    !
     implicit none
 
     type(struct_gsv)    :: statevector
@@ -1770,7 +1802,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   subroutine gio_fileUnitsToStateUnits(statevector, containsFullField, stepIndex_opt)
     !
-    !:Purpose: Unit conversion needed after reading rpn standard file
+    ! :Purpose: Unit conversion needed after reading RPN standard file
     !
     implicit none
 
