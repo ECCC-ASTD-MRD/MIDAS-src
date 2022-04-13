@@ -1866,7 +1866,6 @@ contains
     integer  :: iSensor, iChannel, iPredictor, iScan
     integer  :: jSensor, iChannel2
     integer  :: nulfile_inc, nulfile_fov, ierr
-    integer, external  :: fnom, fclos
     real(8), pointer :: cv_bias(:)
     real(8), target  :: dummy4Pointer(1)
     character(len=80) :: BgFileName
@@ -2187,7 +2186,7 @@ contains
     implicit none
 
     ! Locals:
-    integer            :: iuncoef, numPred
+    integer            :: iuncoef, numPred, ierr
     character(len=80)  :: filename
     character(len=80)  :: instrName, satNamecoeff
     integer :: sensorIndex, nchans, nscan, nfov, kpred, kFov, jChan
@@ -2206,7 +2205,6 @@ contains
         instrName = InstrNameinCoeffFile(tvs_instrumentName(sensorIndex))
         satNamecoeff = SatNameinCoeffFile(tvs_satelliteName(sensorIndex)) 
 
-        iuncoef = 0
         filename = './anlcoeffs_' // trim(instrName)  
         call utl_open_asciifile(filename, iuncoef)
         nfov = bias(sensorIndex)%numScan
@@ -2222,10 +2220,9 @@ contains
           end if
         end do
 
-        close(iuncoef) 
+        ierr = fclos(iuncoef) 
 
         if (outCoeffCov) then
-          iuncoef = 0
           filename = './anlcoeffsCov_' // trim(instrName)  
           call utl_open_asciifile(filename, iuncoef)
           do jChan = 1, nchans
@@ -2239,7 +2236,7 @@ contains
               end do
             end if
           end do
-          close(iuncoef) 
+          ierr = fclos(iuncoef) 
         end if
 
       end do SENSORS
@@ -2975,8 +2972,7 @@ contains
     character(len=128)   :: errorMessage
     real(8) :: vector(1,numPredictors), predictor(numPredictors),correlation(numPredictors,numPredictors)
     real(8) :: sigma(numPredictors)
-    integer :: iuncov=0, iuncorr=0
-    integer, external :: fclos
+    integer :: iuncov, iuncorr
 
     write(*,*) "bcs_outputCvOmPPred: Starting"
 
