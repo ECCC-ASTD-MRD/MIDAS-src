@@ -62,7 +62,7 @@ with open(filename, "r") as ins:
         allLines.append(line.rstrip('\n'))
 
 allLines2 = []
-if os.path.isfile(filename2):
+if os.path.exists(filename2):
     with open(filename2, "r") as ins2:
         for line in ins2:
             strIndex = line.find(" TMG:")
@@ -80,14 +80,14 @@ if exptOrder == "1":
             labelListOrig.append(label)
 
     # add new labels from reference file, if supplied
-    if os.path.isfile(filename2):
+    if os.path.exists(filename2):
         for line in allLines2:
             label = line.partition("LABEL=")[2].partition(",")[0].strip()
             if label not in labelListOrig:
                 labelListOrig.append(label)
 else:
     # start with reference file
-    if os.path.isfile(filename2):
+    if os.path.exists(filename2):
         for line in allLines2:
             label = line.partition("LABEL=")[2].partition(",")[0].strip()
             if label not in labelListOrig:
