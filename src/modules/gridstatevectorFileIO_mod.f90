@@ -1780,7 +1780,7 @@ module gridStateVectorFileIO_mod
     integer, optional           :: stepIndex_opt
 
     ! Locals:
-    real(4), pointer :: field_r4_ptr(:,:,:,:)
+    real(4), pointer :: field_r4_ptr(:,:,:,:), fieldUV_r4_ptr(:,:,:)
     real(8) :: multFactor
     integer :: stepIndex, stepIndexBeg, stepIndexEnd, kIndex
     character(len=4) :: varName
@@ -1857,10 +1857,12 @@ module gridStateVectorFileIO_mod
       if ( statevector%extraUVallocated ) then
         multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
 
-        !$OMP PARALLEL DO PRIVATE (kIndex)
+        !$OMP PARALLEL DO PRIVATE (kIndex, fieldUV_r4_ptr)
         do kIndex = statevector%myUVkBeg, statevector%myUVkEnd
-          statevector%gdUV(kIndex)%r4(:,:,stepIndex) =  &
-               real( multFactor * statevector%gdUV(kIndex)%r4(:,:,stepIndex), 4 )
+          nullify(fieldUV_r4_ptr)
+          call gsv_getFieldUV(statevector,fieldUV_r4_ptr,kIndex)
+          fieldUV_r4_ptr(:,:,stepIndex) =  &
+               real( multFactor * fieldUV_r4_ptr(:,:,stepIndex), 4)
         end do
         !$OMP END PARALLEL DO
 
