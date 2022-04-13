@@ -37,6 +37,7 @@ module gridStateVectorFileIO_mod
   public :: gio_readMaskFromFile
   public :: gio_getMaskLAM
   public :: gio_writeToFile
+  public :: gio_fileUnitsToStateUnits
 
   integer, external :: get_max_rss
 
@@ -258,7 +259,7 @@ module gridStateVectorFileIO_mod
     !-- 3.0 Unit conversion
 
     if ( unitConversion ) then
-      call gsv_fileUnitsToStateUnits( statevector_hinterp_r4, containsFullField )
+      call gio_fileUnitsToStateUnits( statevector_hinterp_r4, containsFullField )
     end if
 
     !-- 4.0 MPI communication from vars/levels to lat/lon tiles
@@ -354,7 +355,7 @@ module gridStateVectorFileIO_mod
 
     !-- 2.0 Unit conversion
     if ( unitConversion ) then
-      call gsv_fileUnitsToStateUnits( statevector_file_r4, containsFullField )
+      call gio_fileUnitsToStateUnits( statevector_file_r4, containsFullField )
     end if
 
     !-- 3.0 MPI communication from vars/levels to lat/lon tiles
@@ -441,7 +442,7 @@ module gridStateVectorFileIO_mod
     !-- 3.0 Unit conversion (must come before vertical interp to get Psfc in Pascals)
 
     if ( unitConversion ) then
-      call gsv_fileUnitsToStateUnits( statevector_hinterp_r4, containsFullField )
+      call gio_fileUnitsToStateUnits( statevector_hinterp_r4, containsFullField )
     end if
 
     !-- 4.0 Vertical interpolation
@@ -495,7 +496,7 @@ module gridStateVectorFileIO_mod
                        containsFullField, readHeightSfc_opt=readHeightSfc, stepIndex_opt=stepIndex )
 
     if ( unitConversion ) then
-      call gsv_fileUnitsToStateUnits( statevector_out, containsFullField, stepIndex_opt=stepIndex )
+      call gio_fileUnitsToStateUnits( statevector_out, containsFullField, stepIndex_opt=stepIndex )
     end if
 
     write(*,*) 'readFromFileOnly: END'
@@ -1763,5 +1764,110 @@ module gridStateVectorFileIO_mod
     end if
 
   end subroutine writeTicTacToc
+
+  !--------------------------------------------------------------------------
+  ! gio_fileUnitsToStateUnits
+  !--------------------------------------------------------------------------
+  subroutine gio_fileUnitsToStateUnits(statevector, containsFullField, stepIndex_opt)
+    !
+    !:Purpose: Unit conversion needed after reading rpn standard file
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv)            :: statevector
+    logical                     :: containsFullField
+    integer, optional           :: stepIndex_opt
+
+    ! Locals:
+    real(4), pointer :: field_r4_ptr(:,:,:,:)
+    real(8) :: multFactor
+    integer :: stepIndex, stepIndexBeg, stepIndexEnd, kIndex
+    character(len=4) :: varName
+
+    if ( present(stepIndex_opt) ) then
+      stepIndexBeg = stepIndex_opt
+      stepIndexEnd = stepIndex_opt
+    else
+      stepIndexBeg = 1
+      stepIndexEnd = statevector%numStep
+    end if
+
+    call gsv_getField(statevector,field_r4_ptr)
+
+    step_loop: do stepIndex = stepIndexBeg, stepIndexEnd
+
+      ! Do unit conversion for all variables
+      do kIndex = statevector%mykBeg, statevector%mykEnd
+        varName = gsv_getVarNameFromK(statevector,kIndex)
+
+        if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
+          multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
+        else if ( trim(varName) == 'P0' ) then
+          multFactor = mpc_pa_per_mbar_r8 ! hPa -> Pa
+        else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' ) then 
+          if ( gsv_conversionVarKindCHtoMicrograms ) then
+            if ( trim(varName) == 'TO3' .or. trim(varName) == 'O3L' ) then
+              ! Convert from volume mixing ratio to micrograms/kg
+              ! Standard ozone input would not require this conversion as it is already in micrograms/kg
+              multFactor = 1.0d9*vnl_varMassFromVarName(trim(varName)) &
+                           /mpc_molar_mass_dry_air_r8 ! vmr -> micrograms/kg
+            else
+              multFactor = 1.0d0 ! no conversion
+            end if
+          else
+            multFactor = 1.0d0 ! no conversion
+          end if
+        else
+          multFactor = 1.0d0 ! no conversion
+        end if
+
+        if ( multFactor /= 1.0d0 ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = real( multFactor * field_r4_ptr(:,:,kIndex,stepIndex), 4 )
+        end if
+
+        if ( trim(varName) == 'TT' .and. containsFullField ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) +  &
+                                                     mpc_k_c_degree_offset_r8, 4 )
+        end if
+
+        if ( trim(varName) == 'TM' .and. containsFullField ) then
+          if (maxval(field_r4_ptr(:,:,kIndex,stepIndex)) < 50.0) then
+            field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + &
+                                                       mpc_k_c_degree_offset_r8, 4 )
+          end if
+        end if
+
+        if ( trim(varName) == 'VIS' .and. containsFullField ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = min(field_r4_ptr(:,:,kIndex,stepIndex),mpc_maximum_vis_r4)
+        end if
+
+        if ( vnl_varKindFromVarname(trim(varName)) == 'CH' .and. containsFullField ) then 
+          if ( gsv_minValVarKindCH(vnl_varListIndex(varName)) > 1.01*mpc_missingValue_r8 ) &
+            field_r4_ptr(:,:,kIndex,stepIndex) = max( field_r4_ptr(:,:,kIndex,stepIndex), &
+              real(gsv_minValVarKindCH(vnl_varListIndex(trim(varName)))) )
+        end if
+
+        if ( trim(varName) == 'PR' .and. containsFullField ) then
+          field_r4_ptr(:,:,kIndex,stepIndex) = max(field_r4_ptr(:,:,kIndex,stepIndex),0.0)
+        end if
+      end do
+
+      ! Do unit conversion for extra copy of winds, if present
+      if ( statevector%extraUVallocated ) then
+        multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
+
+        !$OMP PARALLEL DO PRIVATE (kIndex)
+        do kIndex = statevector%myUVkBeg, statevector%myUVkEnd
+          statevector%gdUV(kIndex)%r4(:,:,stepIndex) =  &
+               real( multFactor * statevector%gdUV(kIndex)%r4(:,:,stepIndex), 4 )
+        end do
+        !$OMP END PARALLEL DO
+
+      end if
+
+    end do step_loop
+
+  end subroutine gio_fileUnitsToStateUnits
 
 end module gridStateVectorFileIO_mod
