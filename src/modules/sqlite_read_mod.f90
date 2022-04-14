@@ -677,9 +677,9 @@ contains
 
         !we read the associated header
         if (trim(sqlExtraHeader) == '') then
-	  queryHeader = 'select '//trim(columnsHeader)//' from header '//trim(sqlExtraHeader)//' where id_obs = ? '
+	  queryHeader = 'select '//trim(columnsHeader)//' from header where id_obs = ? '
 	else
-	  queryHeader = 'select '//trim(columnsHeader)//' from header '//trim(sqlExtraHeader)//' and id_obs = ? '
+	  queryHeader = 'select '//trim(columnsHeader)//' from header where '//trim(sqlExtraHeader)//' and id_obs = ? '
 	end if  
 			   
         if (rowIndex == 1) then
