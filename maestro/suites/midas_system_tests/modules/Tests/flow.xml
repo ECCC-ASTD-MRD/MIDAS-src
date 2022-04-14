@@ -175,6 +175,11 @@
     <FAMILY  name="BgckCsr">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
+    </FAMILY>    
+    <SUBMITS sub_name="BgckRadvel"/>
+    <FAMILY  name="BgckRadvel">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
     </FAMILY>
     <SUBMITS sub_name="conv"/>
     <FAMILY  name="conv">

@@ -629,6 +629,7 @@ module backgroundCheck_mod
     real(8), parameter :: zzdcrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
     real(8), parameter :: zchcrit(3) = (/  9.00D0, 16.00D0, 25.00D0 /)
     real(8), parameter :: zLogViscrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
+    real(8), parameter :: radvelcrit(3) = (/ 8.00D0, 20.00D0, 30.00D0 /)
 
     !real(8) :: zuvcrit(3) = (/ 10.00D0, 20.00D0, 30.00D0 /)
     real(8) :: zuvcrit(3)
@@ -834,7 +835,18 @@ module backgroundCheck_mod
         isetflag =3
       end if
          
-    end if
+    else if ( kvnam == bufr_radvel ) then
+    
+      ! Set flag for  Doppler Velocity (Radvel)
+      if ( zbgchk >= radvelcrit(1) .and. zbgchk < radvelcrit(2) ) then
+        isetflag = 1
+      else if ( zbgchk >= radvelcrit(2) .and. zbgchk < radvelcrit(3) ) then
+        isetflag = 2
+      else if ( zbgchk >= radvelcrit(3) ) then
+        isetflag = 3
+      end if
+
+    end if 
 
     return
   
