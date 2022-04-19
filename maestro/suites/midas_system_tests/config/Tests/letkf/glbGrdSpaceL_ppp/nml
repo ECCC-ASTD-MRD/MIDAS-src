@@ -1,7 +1,7 @@
  &NAMLETKF
    algorithm                = 'LETKF-ME'
    ensPostProcessing        = .true.
-   NENS                     = 10
+   NENS                     = 20
    MAXNUMLOCALOBS           = 10000
    WEIGHTLATLONSTEP         = 10
    HLOCALIZE                = 2000.0D0
@@ -19,10 +19,10 @@
  &namEnsPostProcModule
    alphaRTPP                = 0.00D0
    alphaRTPS                = 0.00D0
-   alphaRandomPert          = 0.33D0
+   alphaRandomPert          = 0.00D0
    alphaRandomPertSubSample = 0.66D0
-   imposeSaturationLimit    = .true.
-   imposeRttovHuLimits      = .true.
+   imposeSaturationLimit    = .false.
+   imposeRttovHuLimits      = .false.
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .false.
