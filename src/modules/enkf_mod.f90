@@ -231,14 +231,15 @@ contains
     call ens_computeMean(ensembleTrl)
     call ens_copyEnsMean(ensembleTrl, stateVectorMeanTrl)
 
-    ! Quantities needed for CVLETKF and CVLETKF-PERTOBS
-    if (trim(algorithm) == 'CVLETKF' .or. trim(algorithm) == 'CVLETKF-PERTOBS') then
+    ! Quantities needed for CVLETKF and CVLETKF-PERTOBS and CVLETKF-ME
+    if ( trim(algorithm) == 'CVLETKF' .or. trim(algorithm) == 'CVLETKF-PERTOBS' .or. &
+         trim(algorithm) == 'CVLETKF-ME' ) then
       nEnsPerSubEns = nEns / numSubEns
       if ( (nEnsPerSubEns * numSubEns) /= nEns ) then
         call utl_abort('enkf_LETKFanalyses: ensemble size not divisible by numSubEnsembles')
       end if
       if (numSubEns <= 1) then
-        call utl_abort('enkf_LETKFanalyses: for CVLETKF(-PERTOBS) algorithm, numSubEns must be greater than 1')
+        call utl_abort('enkf_LETKFanalyses: for CVLETKF(-PERTOBS)(-ME) algorithm, numSubEns must be greater than 1')
       end if
       nEnsIndependentPerSubEns = nEns - nEnsPerSubEns
       allocate(YbTinvRYb_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
@@ -296,7 +297,7 @@ contains
         write(*,*) 'memberIndexSubEnsComp = '
         write(*,*) memberIndexSubEnsComp(:,subEnsIndex)
       end do
-    end if ! if CVLETKF(-PERTOBS) algorithm
+    end if ! if CVLETKF(-PERTOBS)(-ME) algorithm
 
     call lfn_Setup(LocFunctionWanted='FifthOrder')
 
@@ -574,6 +575,132 @@ contains
               tolerance = 1.0D-50
               call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
               call utl_tmg_stop(104)
+
+              ! Loop over members within the current sub-ensemble being updated
+              do memberIndexCV = 1, nEnsPerSubEns
+
+                ! This is index of member being updated
+                memberIndex = memberIndexSubEns(memberIndexCV, subEnsIndex)
+
+                ! E^T * YbTinvRYb
+                weightsTemp(:) = 0.0d0
+                do memberIndex2 = 1, matrixRank
+                  do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+                    memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+                    weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
+                                                eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
+                                                YbTinvRYb(memberIndex1,memberIndex)
+                  end do
+                end do
+
+                ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
+
+                do memberIndex1 = 1, matrixRank
+                  weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
+                                              ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns - 1,8)) -   &
+                                                1.0D0/sqrt(eigenValues_CV(memberIndex1) +  &
+                                                           real(nEnsIndependentPerSubEns - 1,8)) )
+                  weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
+                                              eigenValues_CV(memberIndex1)
+                end do
+
+                ! E * previous_result
+                weightsMembersLatLon(:,memberIndex,latLonIndex) = 0.0d0
+                do memberIndex2 = 1, matrixRank
+                  do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+                    memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+                    weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) =   &
+                         weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) +   &
+                         eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
+                         weightsTemp(memberIndex2)
+                  end do
+                end do
+
+                ! -1 * (Nens-1)^1/2 * previous_result
+                weightsMembersLatLon(:,memberIndex,latLonIndex) =  &
+                     -1.0D0 * sqrt(real(nEnsIndependentPerSubEns - 1,8)) *  &
+                     weightsMembersLatLon(:,memberIndex,latLonIndex)
+
+                ! I + previous_result
+                weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) =  &
+                     1.0D0 + weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
+
+              end do ! memberIndexCV
+            end do ! subEnsIndex
+
+            ! Remove the weights mean computed over the columns
+            do memberIndex = 1, nEns
+              weightsMembersLatLon(memberIndex,:,latLonIndex) =  &
+                   weightsMembersLatLon(memberIndex,:,latLonIndex) - &
+                   sum(weightsMembersLatLon(memberIndex,:,latLonIndex))/real(nEns,8)
+            end do
+
+          else if (trim(algorithm) == 'CVLETKF-ME') then
+            !
+            ! Weight calculation for cross-validation LETKF algorithm
+            !
+
+            ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
+            call tmg_start(90,'LETKF-eigenDecomp')
+            tolerance = 1.0D-50
+            call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
+            call tmg_stop(90)
+            !if (matrixRank < (nEns-1)) then
+            !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
+            !end if
+
+            ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
+            weightsTemp(:) = 0.0d0
+            do localObsIndex = 1, numLocalObs
+              bodyIndex = localBodyIndices(localObsIndex)
+              do memberIndex = 1, nEns
+                weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                           YbTinvR(memberIndex,localObsIndex) *  &
+                                           ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                             ensObs_mpiglobal%meanYb(bodyIndex) )
+              end do
+            end do
+            weightsTemp2(:) = 0.0d0
+            do memberIndex2 = 1, matrixRank
+              do memberIndex1 = 1, nEns
+                weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                             eigenVectors(memberIndex1,memberIndex2) *  &
+                                             weightsTemp(memberIndex1)
+              end do
+            end do
+            do memberIndex = 1, matrixRank
+              weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                                          1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
+            end do
+            weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
+            do memberIndex2 = 1, matrixRank
+              do memberIndex1 = 1, nEns
+                weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                     weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                     eigenVectors(memberIndex1,memberIndex2) *  &
+                     weightsTemp2(memberIndex2)
+              end do
+            end do
+
+            ! Compute ensemble perturbation weights: 
+            ! Wa = [ I - (Nens-1)^1/2 * E * 
+            !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
+            !        E^T * YbTinvRYb ]
+            ! Loop over sub-ensembles
+            do subEnsIndex = 1, numSubEns
+
+              ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
+              call tmg_start(90,'LETKF-eigenDecomp')
+              do memberIndexCV2 = 1, nEnsIndependentPerSubEns
+                memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
+                do memberIndexCV1 = 1, nEnsIndependentPerSubEns
+                  memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+                  YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb(memberIndex1,memberIndex2)
+                end do
+              end do
+              tolerance = 1.0D-50
+              call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
+              call tmg_stop(90)
 
               ! Loop over members within the current sub-ensemble being updated
               do memberIndexCV = 1, nEnsPerSubEns

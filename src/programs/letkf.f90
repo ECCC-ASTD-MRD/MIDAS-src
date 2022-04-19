@@ -200,14 +200,22 @@ program midas_letkf
     minDistanceToLand = minDistanceToLand * 1000.0D0 ! convert from km to m
   end if
 
-  if (trim(algorithm) /= 'LETKF' .and. trim(algorithm) /= 'CVLETKF' .and.  &
-      trim(algorithm) /= 'CVLETKF-PERTOBS' .and. &
-      trim(algorithm) /= 'LETKF-ME') then
+  if ( trim(algorithm) /= 'LETKF'           .and. &
+       trim(algorithm) /= 'CVLETKF'         .and. &
+       trim(algorithm) /= 'CVLETKF-PERTOBS' .and. &
+       trim(algorithm) /= 'LETKF-ME'        .and. &
+       trim(algorithm) /= 'CVLETKF-ME' ) then
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
   end if
 
-  if ( trim(algorithm) == 'LETKF-ME' .and. numRetainedEigen < 1 ) then
-    call utl_abort('midas-letkf: numRetainedEigen should be equal or greater than one for LETKF algorithm: ' // trim(algorithm))
+  if ( trim(algorithm) == 'LETKF-ME' .or. trim(algorithm) == 'CVLETKF-ME' ) then
+    if ( numRetainedEigen < 1 ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+                                               'equal or greater than one for LETKF algorithm: ' // &
+                                               trim(algorithm))
+  else
+    if ( numRetainedEigen /= 0 ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+                                                'equal to zero for LETKF algorithm: ' // &
+                                                trim(algorithm))
   end if
 
   !
@@ -460,7 +468,6 @@ program midas_letkf
   if (trim(algorithm) == 'CVLETKF-PERTOBS') then
     randomSeedObs = 1 + mmpi_myid
     call eob_calcRandPert(ensObs, randomSeedObs)
-    if ( numRetainedEigen > 0 ) call eob_calcRandPert(ensObsGain, randomSeedObs)
   end if
 
   ! Apply obs operators to ensemble mean background for several purposes
