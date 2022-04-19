@@ -454,7 +454,7 @@ contains
   end subroutine tim_getStepObsIndex
   
   !----------------------------------------------------------------------------------------
-  ! tim_ddmmyyyy
+  ! tim_dateStampToDDMMYYYY
   !----------------------------------------------------------------------------------------
   subroutine tim_dateStampToDDMMYYYY(dateStamp, dd, mm, ndays, yyyy)
     !
