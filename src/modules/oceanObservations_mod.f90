@@ -46,9 +46,9 @@ module oceanObservations_mod
   integer, external :: fnom, fclos  
 
   ! mpi topology
-  integer           :: myLatBeg, myLatEnd
-  integer           :: myLonBeg, myLonEnd
-  integer           :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
+  integer :: myLatBeg, myLatEnd
+  integer :: myLonBeg, myLonEnd
+  integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
 
   contains
 
@@ -64,15 +64,15 @@ module oceanObservations_mod
     implicit none
     
     ! Arguments
-    type(struct_hco)       , intent(inout), pointer :: hco                  ! horizontal grid structure
-    type(struct_vco)       , intent(in)   , pointer :: vco                  ! vertical grid structure
-    real(4)                , intent(in)             :: iceFractionThreshold ! consider no ice condition below this threshold
-    real(4)                , intent(in)             :: outputSST            ! output SST value for pseudo observations
-    real(4)                , intent(in)             :: outputFreshWaterST   ! output fresh water surface temperature for pseudo observations
-    integer                , intent(in)             :: iceThinning          ! generate pseudo obs in every 'iceThinning' points   
-    character(len=20)      , intent(in)             :: outputFileName    
-    character(len=20)      , intent(in)             :: etiket    
-    real(4)                , intent(in)             :: seaWaterThreshold    ! to distinguish inland water from sea water  
+    type(struct_hco) , intent(inout), pointer :: hco                  ! horizontal grid structure
+    type(struct_vco) , intent(in)   , pointer :: vco                  ! vertical grid structure
+    real(4)          , intent(in)             :: iceFractionThreshold ! consider no ice condition below this threshold
+    real(4)          , intent(in)             :: outputSST            ! output SST value for pseudo observations
+    real(4)          , intent(in)             :: outputFreshWaterST   ! output fresh water surface temperature for pseudo observations
+    integer          , intent(in)             :: iceThinning          ! generate pseudo obs in every 'iceThinning' points   
+    character(len=20), intent(in)             :: outputFileName    
+    character(len=20), intent(in)             :: etiket    
+    real(4)          , intent(in)             :: seaWaterThreshold    ! to distinguish inland water from sea water  
     
     ! Locals:
     type(struct_gsv)            :: stateVector_ice, stateVector_seaWater

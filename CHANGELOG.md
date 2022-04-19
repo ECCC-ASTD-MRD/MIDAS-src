@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * A new program computing SST background field (#619 and !586)
  * Add ability to compute and output innovation-predictor covariances and correlations in genCoeff.Abs (#603 and !578)
  * Add MIDAS header table to obsDB files. (#575 and !570)
  * A modified way of computing Liebmann on yin/yang parts of the global grid (#613 and !577)

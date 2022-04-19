@@ -90,6 +90,11 @@ SSTbias.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
                 $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
+SSTtrial.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
+                rttov_parallel rttov_main rttov_emis_atlas rttov_other\
+                $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
+
+#--------------------------------------
 thinning.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 		rttov_hdf rttov_parallel rttov_main rttov_emis_atlas rttov_other\
 		$(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random 
