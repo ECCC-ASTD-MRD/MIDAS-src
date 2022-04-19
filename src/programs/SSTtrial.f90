@@ -54,7 +54,6 @@ program midas_sstTrial
   call mpi_initialize
 
   call tmg_init(mpi_myid, 'TMG_INFO')
-  
   call tmg_start(0,'Main')
   
   ! 1. Top level setup
