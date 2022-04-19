@@ -464,9 +464,11 @@ contains
     
     implicit none
   
+    ! arguments
     integer, intent(in)  :: dateStamp
     integer, intent(inout) :: dd, mm, ndays, yyyy
     
+    ! locals
     character(len=8)            :: yyyymmdd
     character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     integer                     :: ndaysM(12)    
