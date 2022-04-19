@@ -24,7 +24,6 @@
 /
  &NAMSSTTRIAL
   etiketAnalysis='3D-Var'
-  nmonthsClim=12
   datestampClim(1)=280988000
   datestampClim(2)=281657600
   datestampClim(3)=282284000

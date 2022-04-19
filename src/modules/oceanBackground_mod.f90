@@ -42,17 +42,11 @@ module oceanBackground_mod
   ! External functions
   integer, external :: fnom, fclos  
 
-  ! mpi topology
-  integer :: myLatBeg, myLatEnd
-  integer :: myLonBeg, myLonEnd
-  integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
-
   contains
 
   !----------------------------------------------------------------------------------------
   ! obgd_computeSSTrial
   !----------------------------------------------------------------------------------------
-  
   subroutine obgd_computeSSTrial(hco, vco, nextTrialDateStamp, analysisDateStamp, &
                                  nmonthsClim, datestampClim, alphaClim, etiketAnalysis)
     !
@@ -82,10 +76,6 @@ module oceanBackground_mod
     
     write(*,*) 'obgd_computeSSTrial: starting...'  
       
-    ! get mpi topology
-    call mpivar_setup_lonbands(hco % ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
-    call mpivar_setup_latbands(hco % nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
-
     ! get SST analysis
     call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, datestamp_opt = analysisDateStamp, &
                       mpi_local_opt = .true., varNames_opt = (/'TM'/))
@@ -98,8 +88,8 @@ module oceanBackground_mod
 
     ! compute background state
     ! xb(t) = (xa(t-1) - xclim(t-1))*alpha + xclim(t)
-    do lonIndex = myLonBeg, myLonEnd 
-      do latIndex = myLatBeg, myLatEnd
+    do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd 
+      do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
         stateVector_ptr(lonIndex, latIndex, 1) = (stateVector_ptr(lonIndex, latIndex, 1) - climatology_m1(lonIndex, latIndex)) * &
                                                  alphaClim + climatology(lonIndex, latIndex)
       end do
@@ -114,7 +104,6 @@ module oceanBackground_mod
   !----------------------------------------------------------------------------------------
   ! obgd_getClimatology
   !----------------------------------------------------------------------------------------
- 
   subroutine obgd_getClimatology(dateStamp, hco, vco, nmonthsClim, datestampClim, output)
     !
     !: Purpose: 1) to read SST climatological fields from a std file
@@ -138,7 +127,7 @@ module oceanBackground_mod
     real(4), pointer :: clim_ptr(:, :, :), clim_nextMonth_ptr(:, :, :)
     integer          :: lonIndex, latIndex
    
-    call tim_ddmmyyyy(dateStamp, day, month, ndays, yyyy)
+    call tim_dateStampToDDMMYYYY(dateStamp, day, month, ndays, yyyy)
     write(*,'(a,3i5,a,i12,a)') 'obgd_getClimatology: interpolating climatology for day/month/year (datestamp): ', &
     day, month, yyyy, '(', datestamp, ')'
 
@@ -166,8 +155,8 @@ module oceanBackground_mod
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_nextMonth, clim_nextMonth_ptr)
 
-    do lonIndex = myLonBeg, myLonEnd 
-      do latIndex = myLatBeg, myLatEnd
+    do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd 
+      do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
         output(lonIndex, latIndex) = clim_ptr(lonIndex, latIndex, 1) + real(day - 1) / real(ndays - 1) * &
                                      (clim_nextMonth_ptr(lonIndex, latIndex, 1) - clim_ptr(lonIndex, latIndex, 1))	 
       end do

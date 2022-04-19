@@ -35,7 +35,7 @@ module timeCoord_mod
   ! public procedures
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
-  public :: tim_getDateStampFromFile, tim_ddmmyyyy
+  public :: tim_getDateStampFromFile, tim_dateStampToDDMMYYYY
 
   character(len=4) :: varNameForDate
   character(len=6) ::  tim_referencetime
@@ -456,8 +456,7 @@ contains
   !----------------------------------------------------------------------------------------
   ! tim_ddmmyyyy
   !----------------------------------------------------------------------------------------
-  
-  subroutine tim_ddmmyyyy(dateStamp, dd, mm, ndays, yyyy)
+  subroutine tim_dateStampToDDMMYYYY(dateStamp, dd, mm, ndays, yyyy)
     !
     !: Purpose: to get day (DD), month (MM), number of days in this month 
     !           and year (YYYY) from dateStamp
@@ -486,12 +485,12 @@ contains
     if (mm == 2 .and. mod(yyyy,4)==0) ndaysM(mm) = 29
     ndays = ndaysM(mm)
     
-    write(*,*) 'tim_ddmmyyyy:  date = ', prntdate
-    write(*,*) 'tim_ddmmyyyy:  year = ', yyyy
-    write(*,'(a,i5,a,i5,a)') 'tim_ddmmyyyy: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)' 
-    write(*,*) 'tim_ddmmyyyy:   day = ', dd
-    write(*,*) 'tim_ddmmyyyy:  time = ', prnttime
+    write(*,*) 'tim_dateStampToDDMMYYYY:  date = ', prntdate
+    write(*,*) 'tim_dateStampToDDMMYYYY:  year = ', yyyy
+    write(*,'(a,i5,a,i5,a)') 'tim_dateStampToDDMMYYYY: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)' 
+    write(*,*) 'tim_dateStampToDDMMYYYY:   day = ', dd
+    write(*,*) 'tim_dateStampToDDMMYYYY:  time = ', prnttime
   
-  end subroutine tim_ddmmyyyy
+  end subroutine tim_dateStampToDDMMYYYY
 
 end module timeCoord_mod

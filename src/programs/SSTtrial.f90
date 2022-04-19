@@ -39,10 +39,10 @@ program midas_sstTrial
   type(struct_vco), pointer :: vco_anl => null()
   integer                   :: nextTrialDateStamp ! output: datestamp for the next trial field
   integer                   :: analysisDateStamp  !  input: datastamp from the latest analysis
+  integer, parameter        :: nmonthsClim = 12   ! number of climatological fields
 
   ! namelist variables
   character(len=10) :: etiketAnalysis    ! etiket in the analysis file for grid setup
-  integer           :: nmonthsClim       ! number of climatological fields (= 12)
   integer           :: datestampClim(12) ! datestamps of input climatology fields 
   real(4)           :: alphaClim         ! scalling factor to relax towards climatology
   
@@ -53,18 +53,18 @@ program midas_sstTrial
   ! MPI initialization
   call mpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_SSTbias' )
-
-  call tmg_start(1,'MAIN')
- 
+  call tmg_init(mpi_myid, 'TMG_INFO')
+  
+  call tmg_start(0,'Main')
+  
   ! 1. Top level setup
 
   call ram_setup()
  
   ! Do initial set up
-  call tmg_start(2,'SETUP')
+  call tmg_start(1,'Setup')
   call SSTtrial_setup(nextTrialDateStamp, analysisDateStamp)
-  call tmg_stop(2)
+  call tmg_stop(1)
   
   call obgd_computeSSTrial(hco_anl, vco_anl, nextTrialDateStamp, analysisDateStamp, &
                            nmonthsClim, datestampClim, alphaClim, etiketAnalysis)
@@ -72,8 +72,8 @@ program midas_sstTrial
   ! 3. Job termination
 
   istamp = exfin('SSTTRIAL','FIN','NON')
-  call tmg_stop(1)
-  call tmg_terminate(mpi_myid, 'TMG_SSTbias' )
+  call tmg_stop(0)
+  call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   contains
@@ -81,7 +81,6 @@ program midas_sstTrial
   !----------------------------------------------------------------------------------------
   ! SSTtrial_setup
   !----------------------------------------------------------------------------------------
-
   subroutine SSTtrial_setup(nextTrialDateStamp, analysisDateStamp)
     !
     ! :Purpose:  Control of the preprocessing of trial
@@ -97,7 +96,7 @@ program midas_sstTrial
     type(struct_hco), pointer   :: hco_core => null()
     character(len=*), parameter :: gridFile = './analysis'
     integer                     :: prntdate, prnttime, imode, newdate, indexMonth
-    namelist /namSSTtrial/ etiketAnalysis, nmonthsClim, datestampClim, alphaClim
+    namelist /namSSTtrial/ etiketAnalysis, datestampClim, alphaClim
         
     write(*,*) ''
     write(*,*) '-------------------------------------------------'
@@ -106,7 +105,6 @@ program midas_sstTrial
  
     ! namelist variables default values
     etiketAnalysis = ''
-    nmonthsClim = 12
     datestampClim(:) = 0
     alphaClim = 0.983
     
