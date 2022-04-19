@@ -467,19 +467,13 @@ contains
             ! Weight calculation for standard LETKF algorithm with modulated ensemble
             !
 
-            ! Add second term of PaInv
-            PaInv(:,:) = YbTinvRYb(:,:)
-            do memberIndex = 1, nEnsUsed
-              PaInv(memberIndex,memberIndex) = PaInv(memberIndex,memberIndex) + real(nEnsUsed - 1,8)
-            end do
-
-            ! Compute Pa and sqrt(Pa) matrices from PaInv
-            Pa(:,:) = PaInv(:,:)
+            ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
             call tmg_start(90,'LETKF-eigenDecomp')
-            call utl_matInverse(Pa, nEnsUsed)
+            tolerance = 1.0D-50
+            call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
             call tmg_stop(90)
 
-            ! Compute ensemble mean local weights as Pa * YbTinvR * (obs - meanYb)
+            ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
             weightsTemp(:) = 0.0d0
             do localObsIndex = 1, numLocalObs
               bodyIndex = localBodyIndices(localObsIndex)
@@ -490,13 +484,25 @@ contains
                                              ensObs_mpiglobal%meanYb(bodyIndex) )
               end do
             end do
-
+            weightsTemp2(:) = 0.0d0
+            do memberIndex2 = 1, matrixRank
+              do memberIndex1 = 1, nEnsUsed
+                weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                             eigenVectors(memberIndex1,memberIndex2) *  &
+                                             weightsTemp(memberIndex1)
+              end do
+            end do
+            do memberIndex = 1, matrixRank
+              weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                                          1.0D0/(eigenValues(memberIndex) + real(nEnsUsed - 1,8))
+            end do
             weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
-            do memberIndex2 = 1, nEnsUsed
+            do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEnsUsed
                 weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
-                     weightsMeanLatLon(memberIndex1,1,latLonIndex) +  &
-                     Pa(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
+                     weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                     eigenVectors(memberIndex1,memberIndex2) *  &
+                     weightsTemp2(memberIndex2)
               end do
             end do
 
