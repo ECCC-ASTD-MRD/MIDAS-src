@@ -1123,10 +1123,7 @@ module obsSpaceErrorStdDev_mod
             ! P forecast error covariance
             !  
             ! H = [ ZWT*sin(az) ZWT*cos(az) ZWB*sin(az) ZWB*cos(az) ] 
-            ! P = [ sigmap_uuT  sigmap_vvT  sigmap_uuB  sigmap_vvB  ] [ sigmap_uuT ]
-            !                                                         [ sigmap_vvT ]
-            !                                                         [ sigmap_uuB ] 
-            !                                                         [ sigmap_vvB ]
+            ! diag(P) = [ sigmap_uuT^2  sigmap_vvT^2  sigmap_uuB^2  sigmap_vvB^2  ]
             sigmap_uuT = col_getElem(column, IPT, headerIndex, 'UU')
             sigmap_uuB = col_getElem(column, IPB, headerIndex, 'UU')
             sigmap_vvT = col_getElem(column, IPT, headerIndex, 'VV')
