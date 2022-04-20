@@ -57,8 +57,15 @@
 /
  &NAMSQLsfc
    numberElem=1
-   listElem="22042, 7025"
-   sqlNull=" and obsvalue is not null "  
+   listElem='22042'
+   sqlNull=' and obsvalue is not null '  
+/
+&namReadSSTSat
+   numberElem=1
+   listElem='22042'
+   sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","NOAA18","NOAA19","NPP","AMSR2")) '
+   sqlNull=' and obsvalue is not null '
+   sqlExtraHeader=' id_stn in ("METO-A","METO-B","NOAA18","NOAA19","NPP","AMSR2") '
 /
  &namSQLUpdate
   numberUpdateItems=1
