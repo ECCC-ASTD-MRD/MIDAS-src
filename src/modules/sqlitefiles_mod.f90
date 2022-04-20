@@ -44,56 +44,53 @@ module sqliteFiles_mod
   !--------------------------------------------------------------------------
   ! sqlf_getDateStamp
   !--------------------------------------------------------------------------
-  subroutine sqlf_getDateStamp(datestamp, sqliteFileName)
+  subroutine sqlf_getDateStamp(dateStamp, sqliteFileName)
+    !
+    ! Purpose: get dateStamp from an SQLite file
+    !
+  
     implicit none
+    
     ! arguments
-    integer                      :: dateStamp
-    character(len=*), intent(in) :: sqliteFileName
+    integer         , intent(inout) :: dateStamp
+    character(len=*), intent(in)    :: sqliteFileName
+    
     ! locals
     logical             :: fileExists 
-    integer             :: ier, ktime, kdate, ivals, kdate_recv, ktime_recv
-    integer             :: mrfopc, dateSqlite , timeSqlite
-    real(8)             :: delhh
-    integer             :: nbrpdate, nbrphh, istampobs, inewhh, newdate
+    integer             :: ier, imode, validTime, validDate, validDate_recv, validTime_recv
+    integer             :: newdate
     character(len=128)  :: querySqlite
     character(len=256)  :: datetimeSqliteCharacter 
 
-    ier = mrfopc('MSGLVL','FATAL')
-    ivals = 8
-    kdate = MPC_missingValue_INT 
-    ktime = MPC_missingValue_INT 
+    validDate = MPC_missingValue_INT 
+    validTime = MPC_missingValue_INT 
+    
     inquire(file = trim(sqliteFileName), exist = fileExists)
 
     if (fileExists) then
-      write(*,*)' Open File : ', trim(sqliteFileName)
+      write(*,*)'sqlf_getDateStamp: Open File : ', trim(sqliteFileName)
       call fSQL_open(db, trim(sqliteFileName), statusSqlite)
-      querySqlite = "select date from resume;"
+      querySqlite = 'select date from resume;'
       datetimeSqliteCharacter = sqlr_query(db, trim(querySqlite))
-      read(datetimeSqliteCharacter(1:8),*)  dateSqlite
-      kdate = dateSqlite
-      querySqlite = "select time from resume;"
+      read(datetimeSqliteCharacter(1:8),*)  validDate
+      querySqlite = 'select time from resume;'
       datetimeSqliteCharacter = sqlr_query(db, trim(querySqlite))
-      read(datetimeSqliteCharacter, *) timeSqlite 
-      ktime = timeSqlite
-      write(*,*) ' DATE and TIME in Sqlite file = ', dateSqlite, timeSqlite, ' (kdate, ktime) (',kdate,ktime,')'
+      read(datetimeSqliteCharacter, *) validTime 
       call fSQL_close(db, statusSqlite)
     end if
 
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
-    call rpn_comm_allreduce(kdate, kdate_recv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
-    call rpn_comm_allreduce(ktime, ktime_recv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
-
-    kdate = kdate_recv
-    ktime = ktime_recv
-    ier = newdate(istampobs, kdate, ktime, 3)
-    delhh = 3.0d0
-    call INCDATR (datestamp, istampobs, delhh)
-    ier = newdate(datestamp, nbrpdate, inewhh, -3)
-    nbrphh = ktime
-    ier = newdate(datestamp, nbrpdate, nbrphh * 1000000, 3)
-    write(*,*)' SQLITE FILES VALID DATE (YYYYMMDD) : ', nbrpdate
-    write(*,*)' SQLITE FILES VALID TIME       (HH) : ', nbrphh
-    write(*,*)' SQLITE FILES DATESTAMP             : ', datestamp
+    call rpn_comm_allreduce(validDate, validDate_recv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
+    call rpn_comm_allreduce(validTime, validTime_recv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
+    validDate = validDate_recv
+    validTime = validTime_recv
+    
+    ! printable to stamp, validTime must be multiplied with 1e6 to make newdate work
+    imode = 3
+    ier = newdate(dateStamp, validDate, validTime * 1000000, imode)
+    write(*,*)'sqlf_getDateStamp: SQLite files valid date (YYYYMMDD): ', validDate
+    write(*,*)'sqlf_getDateStamp: SQLite files valid time       (HH): ', validTime
+    write(*,*)'sqlf_getDateStamp: SQLite files dateStamp            : ', datestamp
 
   end subroutine sqlf_getDateStamp
 
