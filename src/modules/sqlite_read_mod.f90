@@ -362,7 +362,7 @@ contains
     namelist /NAMSQLsw/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLro/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLsfc/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /namReadSST/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /namReadSSTSat/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLsc/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLpr/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
@@ -467,9 +467,9 @@ contains
         columnsHeader = trim(columnsHeader)//", solar_zenith "
         vertCoordFact = 0
         vertCoordType = 1
-        read(nulnam, nml = namReadSST, iostat = ierr)
+        read(nulnam, nml = namReadSSTSat, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = namReadSST)
+        if (mpi_myid == 0) write(*, nml = namReadSSTSat)
       case ('scat')
         vertCoordFact = 0
         vertCoordType = 1
