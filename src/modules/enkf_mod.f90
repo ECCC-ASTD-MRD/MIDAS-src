@@ -129,7 +129,7 @@ contains
 
     real(8), allocatable :: distances(:)
     real(8), allocatable :: PaInv(:,:), PaSqrt(:,:), Pa(:,:), YbTinvR(:,:), YbTinvRYb(:,:)
-    real(8), allocatable :: YbTinvRYb_CV(:,:)
+    real(8), allocatable :: YbTinvRYb_CV(:,:), YbTinvRYb_mod(:,:)
     real(8), allocatable :: eigenValues(:), eigenVectors(:,:)
     real(8), allocatable :: eigenValues_CV(:), eigenVectors_CV(:,:)
     real(8), allocatable :: weightsTemp(:), weightsTemp2(:)
@@ -196,6 +196,7 @@ contains
     allocate(distances(maxNumLocalObs))
     allocate(YbTinvR(nEnsUsed,maxNumLocalObs))
     allocate(YbTinvRYb(nEnsUsed,nEnsUsed))
+    if ( trim(algorithm) == 'CVLETKF-ME' ) allocate(YbTinvRYb_mod(nEnsUsed,nEns))
     allocate(eigenValues(nEnsUsed))
     allocate(eigenVectors(nEnsUsed,nEnsUsed))
     allocate(PaInv(nEnsUsed,nEnsUsed))
@@ -416,6 +417,21 @@ contains
             end do
           end do
           !$OMP END PARALLEL DO
+
+          ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
+          if ( trim(algorithm) == 'CVLETKF-ME' ) then
+            if (localObsIndex == 1) YbTinvRYb_mod(:,:) = 0.0D0
+            !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
+            do memberIndex2 = 1, nEns
+              do memberIndex1 = 1, nEnsUsed
+                YbTinvRYb_mod(memberIndex1,memberIndex2) =  &
+                     YbTinvRYb_mod(memberIndex1,memberIndex2) +  &
+                     YbTinvR(memberIndex1,localObsIndex) * ensObsGain_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
+              end do
+            end do
+            !$OMP END PARALLEL DO
+          end if
+
         end do ! localObsIndex
         call utl_tmg_stop(105)
 
@@ -653,7 +669,7 @@ contains
             weightsTemp(:) = 0.0d0
             do localObsIndex = 1, numLocalObs
               bodyIndex = localBodyIndices(localObsIndex)
-              do memberIndex = 1, nEns
+              do memberIndex = 1, nEnsUsed
                 weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
                                            YbTinvR(memberIndex,localObsIndex) *  &
                                            ( ensObs_mpiglobal%obsValue(bodyIndex) - &
@@ -662,7 +678,7 @@ contains
             end do
             weightsTemp2(:) = 0.0d0
             do memberIndex2 = 1, matrixRank
-              do memberIndex1 = 1, nEns
+              do memberIndex1 = 1, nEnsUsed
                 weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
                                              eigenVectors(memberIndex1,memberIndex2) *  &
                                              weightsTemp(memberIndex1)
@@ -670,11 +686,11 @@ contains
             end do
             do memberIndex = 1, matrixRank
               weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                          1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
+                                          1.0D0/(eigenValues(memberIndex) + real(nEnsUsed - 1,8))
             end do
             weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
             do memberIndex2 = 1, matrixRank
-              do memberIndex1 = 1, nEns
+              do memberIndex1 = 1, nEnsUsed
                 weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
                      weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
                      eigenVectors(memberIndex1,memberIndex2) *  &
@@ -685,7 +701,7 @@ contains
             ! Compute ensemble perturbation weights: 
             ! Wa = [ I - (Nens-1)^1/2 * E * 
             !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
-            !        E^T * YbTinvRYb ]
+            !        E^T * YbTinvRYb_mod ]
             ! Loop over sub-ensembles
             do subEnsIndex = 1, numSubEns
 
