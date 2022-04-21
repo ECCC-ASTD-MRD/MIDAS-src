@@ -24,6 +24,7 @@ module oceanBackground_mod
   use utilities_mod
   use codtyp_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use oceanMask_mod
@@ -79,7 +80,7 @@ module oceanBackground_mod
     ! get SST analysis
     call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, datestamp_opt = analysisDateStamp, &
                       mpi_local_opt = .true., varNames_opt = (/'TM'/))
-    call gsv_readFromFile(stateVector, './analysis', ' ','A', &
+    call gio_readFromFile(stateVector, './analysis', ' ','A', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector, stateVector_ptr)
     
@@ -95,7 +96,7 @@ module oceanBackground_mod
       end do
     end do      	 
   
-    call gsv_writeToFile(stateVector, './next_trial', etiketAnalysis, typvar_opt = 'P@')
+    call gio_writeToFile(stateVector, './next_trial', etiketAnalysis, typvar_opt = 'P@')
 
     call gsv_deallocate(stateVector)
 
@@ -142,7 +143,7 @@ module oceanBackground_mod
     call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
                       datestamp_opt = datestampClim(month), mpi_local_opt = .true., &
                       varNames_opt = (/'TM'/), hInterpolateDegree_opt ='LINEAR')
-    call gsv_readFromFile(stateVector, './climatology', ' ',' ', &
+    call gio_readFromFile(stateVector, './climatology', ' ',' ', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector, clim_ptr)
     
@@ -151,7 +152,7 @@ module oceanBackground_mod
     call gsv_allocate(stateVector_nextMonth, 1, hco, vco, dataKind_opt = 4, &
                       datestamp_opt = datestampClim(nextMonth), mpi_local_opt = .true., &
                       varNames_opt = (/'TM'/), hInterpolateDegree_opt ='LINEAR')
-    call gsv_readFromFile(stateVector_nextMonth, './climatology', ' ',' ', &
+    call gio_readFromFile(stateVector_nextMonth, './climatology', ' ',' ', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_nextMonth, clim_nextMonth_ptr)
 
