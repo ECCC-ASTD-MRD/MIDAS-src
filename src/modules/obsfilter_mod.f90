@@ -1500,12 +1500,12 @@ end subroutine filt_topoAISW
             IFLG = obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY)
             call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY, IBSET(IFLG,11))
           end if
-          ! Do not assimilate bending in mode levelgpsro = 2:
-          if (varNum == bufr_nebd .and. levelgpsro == 2) then
+          ! Do not assimilate bending in mode levelgpsro = LEVELGPSRO_REF:
+          if (varNum == bufr_nebd .and. levelgpsro == LEVELGPSRO_REF) then
             call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
           endif
-          ! Do not assimilate refractivity in mode levelgpsro = 1:
-          if (varNum == bufr_nerf .and. levelgpsro == 1) then
+          ! Do not assimilate refractivity in mode levelgpsro = LEVELGPSRO_BND:
+          if (varNum == bufr_nerf .and. levelgpsro == LEVELGPSRO_BND) then
             call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
           endif
         end do BODY
