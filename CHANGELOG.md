@@ -78,6 +78,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Ensure only first thread calls the tmg_start/stop routines (#636 and !591)
  * Major overhaul of tmg timing blocks throughout the code (#622 and !583)
  * Adapted `midas_build` for single architecture U2 (#578 and !562)
  * Applying humidity limits within outer-loop consistent with no outer-loop; write total increment with outer-loop to `rebm_*`; avoid dealloc interpInfo_nl with outer-loop (#585 and !549)
