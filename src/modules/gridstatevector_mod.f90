@@ -65,6 +65,9 @@ module gridStateVector_mod
   public :: gsv_isAllocated
   public :: gsv_modifydate, gsv_transposesteptovarslevs
 
+  ! public module variables
+  public :: gsv_conversionVarKindCHtoMicrograms
+
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
     module procedure gsv_getFieldWrapper_r8
@@ -146,7 +149,7 @@ module gridStateVector_mod
   real(8) :: minValVarKindCH(vnl_numVarMax), gsv_minValVarKindCH(vnl_numVarMax)
   ! Logical to turn on unit conversion for variables of CH kind of the AnlVar list
   ! when unitConversion=.true.
-  logical, public :: gsv_conversionVarKindCHtoMicrograms
+  logical :: gsv_conversionVarKindCHtoMicrograms
      
   ! arrays used for transpose VarsLevs <-> Tiles
   real(4), allocatable :: gd_send_varsLevs_r4(:,:,:,:), gd_recv_varsLevs_r4(:,:,:,:)
