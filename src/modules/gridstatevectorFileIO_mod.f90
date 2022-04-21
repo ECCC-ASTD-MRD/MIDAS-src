@@ -31,6 +31,9 @@ module gridStateVectorFileIO_mod
   use timeCoord_mod
   use mathPhysConstants_mod
   use codePrecision_mod
+  implicit none
+  save
+  private
 
   ! public subroutines and functions
   public :: gio_readFromFile, gio_readTrials, gio_readFile
