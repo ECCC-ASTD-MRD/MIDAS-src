@@ -342,7 +342,7 @@ contains
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_nl (czp): END'
 
-    call tmg_stop(172)
+    call utl_tmg_stop(172)
 
     contains
       !---------------------------------------------------------
@@ -752,7 +752,7 @@ contains
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_tl (czp): END'
 
-    call tmg_stop(173)
+    call utl_tmg_stop(173)
 
     contains
       !---------------------------------------------------------
@@ -1028,7 +1028,7 @@ contains
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_ad (czp): END'
 
-    call tmg_stop(174)
+    call utl_tmg_stop(174)
 
     contains
       !---------------------------------------------------------
@@ -2098,7 +2098,7 @@ contains
 
     if (.not.beSilent) write(*,*) 'calcHeight_col_tl (czp): END'
 
-    call tmg_stop(173)
+    call utl_tmg_stop(173)
 
     contains
       !---------------------------------------------------------
@@ -2314,7 +2314,7 @@ contains
 
     if (.not.beSilent) write(*,*) 'calcHeight_col_ad (czp): END'
 
-    call tmg_stop(174)
+    call utl_tmg_stop(174)
 
     contains
       !---------------------------------------------------------

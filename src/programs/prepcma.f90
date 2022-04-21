@@ -119,7 +119,7 @@ program midas_prepcma
   !- Read observations
   call utl_tmg_start(11,'----ReadObsFiles')
   call obsf_readFiles( obsSpaceData )
-  call tmg_stop(11)
+  call utl_tmg_stop(11)
 
   numHeader = obs_numheader(obsSpaceData)
   numBody   = obs_numbody(obsSpaceData)
@@ -151,7 +151,7 @@ program midas_prepcma
   !- Call suprep again to 'black list' channels according to 'util' column of stats_tovs
   if (applySatUtil) call filt_suprep(obsSpaceData)
 
-  call tmg_stop(10)
+  call utl_tmg_stop(10)
 
   !- Setup timeCoord module
   call tim_setup()
@@ -242,7 +242,7 @@ program midas_prepcma
   write(*,*) '> midas-prepcma: Ending'
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
-  call tmg_stop(0)
+  call utl_tmg_stop(0)
   call tmg_terminate(mpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr)

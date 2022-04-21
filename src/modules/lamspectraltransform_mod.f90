@@ -1349,7 +1349,7 @@ contains
     !*     isign  = +1 for transform from spectral to gridpoint
     !*            = -1 for transform from gridpoint to spectral
 
-    call tmg_stop(151)
+    call utl_tmg_stop(151)
 
   end subroutine lst_transform1d
 
@@ -1453,7 +1453,7 @@ contains
     !*     isign  = +1 for transform from spectral to gridpoint
     !*            = -1 for transform from gridpoint to spectral
 
-    call tmg_stop(151)
+    call utl_tmg_stop(151)
 
   end subroutine lst_transform1d_kij
 
@@ -1506,7 +1506,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LonToLev
 
@@ -1537,7 +1537,7 @@ contains
        gd_out(:,:,:) = gd_in(:,:,:)
     end if
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LonToLev_kij_mpitypes
 
@@ -1601,7 +1601,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LonToLev_kij
 
@@ -1654,7 +1654,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon
 
@@ -1685,7 +1685,7 @@ contains
       gd_out(:,:,:) = gd_in(:,:,:)
     end if
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon_kij_mpitypes
 
@@ -1749,7 +1749,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon_kij
 
@@ -1822,7 +1822,7 @@ contains
     end do
     !$OMP END PARALLEL DO
     
-    call tmg_stop(154)
+    call utl_tmg_stop(154)
 
   end subroutine transpose2d_LatToM
 
@@ -1895,7 +1895,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call tmg_stop(154)
+    call utl_tmg_stop(154)
 
   end subroutine transpose2d_LatToM_kij
 
@@ -1968,7 +1968,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call tmg_stop(154)
+    call utl_tmg_stop(154)
     
   end subroutine transpose2d_MtoLat
 
@@ -2041,7 +2041,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call tmg_stop(154)
+    call utl_tmg_stop(154)
 
   end subroutine transpose2d_MtoLat_kij
 
@@ -2104,7 +2104,7 @@ contains
     end do
     !$OMP END PARALLEL DO
     
-    call tmg_stop(153)
+    call utl_tmg_stop(153)
 
   end subroutine transpose2d_LevToN
 
@@ -2167,7 +2167,7 @@ contains
     end do
     !$OMP END PARALLEL DO
     
-    call tmg_stop(153)
+    call utl_tmg_stop(153)
 
   end subroutine transpose2d_LevToN_kij
 
@@ -2235,7 +2235,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call tmg_stop(153)
+    call utl_tmg_stop(153)
     
   end subroutine transpose2d_NToLev
 
@@ -2303,7 +2303,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call tmg_stop(153)
+    call utl_tmg_stop(153)
 
   end subroutine transpose2d_NToLev_kij
 

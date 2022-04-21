@@ -137,7 +137,7 @@ contains
     !
     call utl_tmg_start(11,'----ReadObsFiles')
     call obsf_readFiles( obsSpaceData )
-    call tmg_stop(11)
+    call utl_tmg_stop(11)
 
     !
     !- Initialize GPS processing
@@ -196,7 +196,7 @@ contains
       if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') call oer_setInterchanCorr()
     end if
 
-    call tmg_stop(10)
+    call utl_tmg_stop(10)
 
   end subroutine inn_setupobs
 
@@ -648,7 +648,7 @@ contains
       end if
     end if
 
-    call tmg_stop(17)
+    call utl_tmg_stop(17)
 
     ! Save as OBS_WORK : R**-1/2 (d)
     call rmat_RsqrtInverseAllObs(obsSpaceData,OBS_WORK,destObsColumn)
@@ -669,7 +669,7 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) '--Done subroutine inn_computeInnovation--'
 
-    call tmg_stop(10)
+    call utl_tmg_stop(10)
 
   end subroutine inn_computeInnovation
 

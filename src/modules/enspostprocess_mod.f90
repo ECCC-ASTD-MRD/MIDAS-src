@@ -617,7 +617,7 @@ contains
                            stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
       outFileName = trim(outFileName) // '_ascii'
       call epp_printRmsStats(stateVectorStdDevTrl,outFileName,elapsed=0.0D0,ftype='F',nEns=nEns)
-      call tmg_stop(5)
+      call utl_tmg_stop(5)
 
       ! output the trial ensemble if requested (because it was interpolated)
       if (writeTrlEnsemble) then
@@ -627,7 +627,7 @@ contains
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.true.)
         end if
-        call tmg_stop(3)
+        call utl_tmg_stop(3)
       end if
     end if
 
@@ -713,7 +713,7 @@ contains
         outFileName = trim(outFileName) // '_ascii'
         call epp_printRmsStats(stateVectorStdDevAnlPert,outFileName,elapsed=0.0D0,ftype='P',nEns=nEns)
       end if
-      call tmg_stop(5)
+      call utl_tmg_stop(5)
 
       !- Output the ensemble mean increment (include MeanAnl Psfc) and ensemble increments
       if (ens_isAllocated(ensembleTrl)) then
@@ -733,7 +733,7 @@ contains
                                  stepIndex_opt=stepIndex, containsFullField_opt=.true.)
           end if
         end do
-        call tmg_stop(5)
+        call utl_tmg_stop(5)
 
         !- Output all ensemble member increments
         call utl_tmg_start(3,'--WriteEnsemble')
@@ -748,7 +748,7 @@ contains
                                        ensPath='.')
           end if
         end if
-        call tmg_stop(3)
+        call utl_tmg_stop(3)
 
       end if ! allocated(ensembleTrl)
 
@@ -763,7 +763,7 @@ contains
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
-      call tmg_stop(5)
+      call utl_tmg_stop(5)
 
       !- Output all ensemble member analyses
       ! convert transformed to model variables for analysis and trial ensembles
@@ -773,7 +773,7 @@ contains
                                numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                containsFullField_opt=.true.)
       end if
-      call tmg_stop(3)
+      call utl_tmg_stop(3)
 
       !- Output the sub-sampled ensemble analyses and increments
       if (writeSubSample) then
@@ -802,7 +802,7 @@ contains
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
-        call tmg_stop(3)
+        call utl_tmg_stop(3)
 
         ! Output the sub-sampled analysis ensemble members
         call utl_tmg_start(3,'--WriteEnsemble')
@@ -811,7 +811,7 @@ contains
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.true.)
         end if
-        call tmg_stop(3)
+        call utl_tmg_stop(3)
 
         ! Output the sub-sampled ensemble increments (include MeanAnl Psfc)
         call utl_tmg_start(3,'--WriteEnsemble')
@@ -827,7 +827,7 @@ contains
                                        ensPath='subspace')
           end if
         end if
-        call tmg_stop(3)
+        call utl_tmg_stop(3)
 
       end if ! writeSubSample
 
@@ -841,7 +841,7 @@ contains
                                  numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                                  containsFullField_opt=.true.)
         end if
-        call tmg_stop(3)
+        call utl_tmg_stop(3)
 
       end if
 
@@ -1106,7 +1106,7 @@ contains
 
     hco_core => hco_randomPert
     if (firstCall) then
-      call tmg_stop(4) ! stop counter, since Bmat has it's own counters
+      call utl_tmg_stop(4) ! stop counter, since Bmat has it's own counters
       call bmat_setup(hco_randomPert, hco_core, vco_randomPert)
       firstCall = .false.
       call utl_tmg_start(4,'--AddEnsRandomPert')
@@ -1170,7 +1170,7 @@ contains
       end do
       call bmat_reduceToMPILocal( controlVector, controlVector_mpiglobal )
 
-      call tmg_stop(4) ! stop counter, since Bmat has it's own counters
+      call utl_tmg_stop(4) ! stop counter, since Bmat has it's own counters
       if (ens_varExist(ensembleAnl,'HU') .and. .not.useMemberAsHuRefState) then
         ! Use supplied reference state for LQ to HU conversion
         call bmat_sqrtB(controlVector, cvm_nvadim, &       ! IN
@@ -1249,7 +1249,7 @@ contains
       call gsv_deallocate(stateVectorHuRefStateInterp)
     end if
 
-    call tmg_stop(4)
+    call utl_tmg_stop(4)
 
   end subroutine epp_addRandomPert
 

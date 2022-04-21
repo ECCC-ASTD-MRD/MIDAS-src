@@ -181,7 +181,7 @@ contains
     write(*,*) "Ciel non clair                     " , categorieRejet(7)
     write(*,*) "*******"
 
-    call tmg_stop(116)
+    call utl_tmg_stop(116)
   end subroutine csrbg_bgCheckCSR
 
   !--------------------------------------------------------------------------

@@ -3023,7 +3023,7 @@ module gridStateVector_mod
                                 readHeightSfc, containsFullField)
     end if
 
-    call tmg_stop(160)
+    call utl_tmg_stop(160)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'gsv_readFromFile: END'
@@ -4106,7 +4106,7 @@ module gridStateVector_mod
     statevector_out%deet = statevector_in%deet
     statevector_out%etiket = statevector_in%etiket
 
-    call tmg_stop(164)
+    call utl_tmg_stop(164)
 
   end subroutine gsv_transposeVarsLevsToTiles
 
@@ -4415,9 +4415,9 @@ module gridStateVector_mod
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if ( sendrecvKind == 4 ) then
-      call tmg_stop(165)
+      call utl_tmg_stop(165)
     else
-      call tmg_stop(166)
+      call utl_tmg_stop(166)
     end if
 
   end subroutine gsv_transposeTilesToVarsLevs
@@ -4775,7 +4775,7 @@ module gridStateVector_mod
     ! Copy over the mask, if it exists
     call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
 
-    call tmg_stop(167)
+    call utl_tmg_stop(167)
 
   end subroutine gsv_transposeTilesToVarsLevsAd
 
@@ -5981,7 +5981,7 @@ module gridStateVector_mod
       call gsv_deallocate(statevector_tiles)
     end if
 
-    call tmg_stop(161)
+    call utl_tmg_stop(161)
 
     write(*,*) 'gsv_writeToFile: END'
 
@@ -6433,7 +6433,7 @@ module gridStateVector_mod
     write(*,*) 'gsv_readTrials: FINISHED'
     write(*,*) ''
 
-    call tmg_stop(1)
+    call utl_tmg_stop(1)
 
   end subroutine gsv_readTrials
 
@@ -6643,7 +6643,7 @@ module gridStateVector_mod
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'gsv_transposeStepToVarsLevs: Finished'
 
-    call tmg_stop(162)
+    call utl_tmg_stop(162)
 
   end subroutine gsv_transposeStepToVarsLevs
 
@@ -6934,7 +6934,7 @@ module gridStateVector_mod
 
     write(*,*) 'gsv_transposeStepToTiles: finished'
 
-    call tmg_stop(163)
+    call utl_tmg_stop(163)
 
   end subroutine gsv_transposeStepToTiles
 

@@ -176,7 +176,7 @@ program midas_ensPostProcess
 
   end if
 
-  call tmg_stop(2)
+  call utl_tmg_stop(2)
 
   !- Allocate and read the Trl control member
   if (readTrlEnsemble .and. readAnlEnsemble) then
@@ -205,7 +205,7 @@ program midas_ensPostProcess
   !- 5. MPI, tmg finalize
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(0)
+  call utl_tmg_stop(0)
 
   call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 

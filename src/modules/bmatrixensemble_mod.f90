@@ -400,7 +400,7 @@ CONTAINS
     allocate(cvDimPerInstance(nInstance))
     cvDimPerInstance(:) = cvDimStorage(1:nInstance)
 
-    call tmg_stop(54)
+    call utl_tmg_stop(54)
 
   end subroutine ben_setup
 
@@ -894,7 +894,7 @@ CONTAINS
                         bEns(instanceIndex)%numStepAdvectFSOFcst, delT_hour, advectFactorFSOFcst_M, & ! IN
                         'MMLevsOnly',                                           & ! IN
                         steeringFlowFilename_opt=trim(bEns(instanceIndex)%ensPathName)//'/forecast_for_advection' ) ! IN
-        call tmg_stop(55)
+        call utl_tmg_stop(55)
         deallocate(advectFactorFSOFcst_M)
       end if
     else
@@ -994,7 +994,7 @@ CONTAINS
         call utl_abort('ben_setupOneInstance')
       end select
 
-      call tmg_stop(56)
+      call utl_tmg_stop(56)
 
       deallocate(advectFactorAssimWindow_M)
 
@@ -1922,7 +1922,7 @@ CONTAINS
       call loc_Lsqrt(bEns(instanceIndex)%locStorage(waveBandIndex),controlVector_in, & ! IN
                      ensAmplitude_ptr,                                               & ! OUT
                      amp3dStepIndex)                                                   ! IN
-      call tmg_stop(60)
+      call utl_tmg_stop(60)
 
       ! 2.2 Advect the amplitudes
       if      (bEns(instanceIndex)%advectAmplitudeFSOFcst   .and. useFSOFcst) then
@@ -2081,7 +2081,7 @@ CONTAINS
       call loc_LsqrtAd(bEns(instanceIndex)%locStorage(waveBandIndex),ensAmplitude_ptr, & ! IN
                        controlVector_out,                                              & ! OUT
                        amp3dStepIndex)                                                   ! IN
-      call tmg_stop(64)
+      call utl_tmg_stop(64)
 
     end do ! Loop on WaveBand
 
@@ -2250,7 +2250,7 @@ CONTAINS
       end do ! latIndex
       !$OMP END PARALLEL DO
 
-      call tmg_stop(59)
+      call utl_tmg_stop(59)
 
       ! compute increment level from amplitude/member level
       if (vnl_varLevelFromVarname(varName) == 'SF') then
@@ -2293,7 +2293,7 @@ CONTAINS
     deallocate(ensAmplitude_MT)
     deallocate(increment_out2)
 
-    call tmg_stop(58)
+    call utl_tmg_stop(58)
 
   end subroutine addEnsMember
 
@@ -2424,7 +2424,7 @@ CONTAINS
                 increment_in2(stepIndex2,lonIndex,latIndex) * dble(ensMemberAll_r4(memberIndex,stepIndex,lonIndex,latIndex))
             end do ! memberIndex
           end do ! stepIndex
-          if (omp_get_thread_num() == 0) call tmg_stop(63)
+          if (omp_get_thread_num() == 0) call utl_tmg_stop(63)
 
           ! transform thermo/momentum level amplitude sensitivites appropriately
 
@@ -2506,7 +2506,7 @@ CONTAINS
     deallocate(ensAmplitude_MT)
     deallocate(increment_in2)
 
-    call tmg_stop(62)
+    call utl_tmg_stop(62)
 
   end subroutine addEnsMemberAd
 

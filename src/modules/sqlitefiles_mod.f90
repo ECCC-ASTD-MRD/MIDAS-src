@@ -211,7 +211,7 @@ module sqliteFiles_mod
     write(*,*)'                '//trim(myName)//'    END               '
     write(*,*)'================================================='
     write(*,*)' '
-    call tmg_stop(13)
+    call utl_tmg_stop(13)
 
   end subroutine sqlf_updateFile
 
@@ -282,7 +282,7 @@ module sqliteFiles_mod
     
     call sqlr_writeAllSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag)
     
-    call tmg_stop(15)
+    call utl_tmg_stop(15)
 
   end subroutine sqlf_writeSqlDiagFiles
 

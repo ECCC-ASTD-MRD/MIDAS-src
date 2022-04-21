@@ -286,7 +286,7 @@ contains
 
     end if
 
-    call tmg_stop(10)
+    call utl_tmg_stop(10)
 
   end subroutine obsf_writeFiles
 

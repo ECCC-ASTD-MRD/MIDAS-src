@@ -407,7 +407,7 @@ program midas_randomPert
   deallocate(controlVector_mpiglobal)  
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(0)
+  call utl_tmg_stop(0)
 
   !
   !- 6.  MPI, tmg finalize

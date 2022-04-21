@@ -119,7 +119,7 @@ module backgroundCheck_mod
 
     call osd_ObsSpaceDiag( obsSpaceData, columnTrlOnAnlIncLev, hco_anl, analysisMode_opt = .false. )
 
-    call tmg_stop(117)
+    call utl_tmg_stop(117)
 
   end subroutine bgck_bgcheck_conv
 

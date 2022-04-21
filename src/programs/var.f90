@@ -439,7 +439,7 @@ program midas_var
     call utl_writeStatus(clmsg)
   end if
 
-  call tmg_stop(0)
+  call utl_tmg_stop(0)
 
   call tmg_terminate(mpi_myid, 'TMG_INFO')
 

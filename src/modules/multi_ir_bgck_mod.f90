@@ -294,7 +294,7 @@ contains
     end do
     deallocate (nobir)
 
-    call tmg_stop(115)
+    call utl_tmg_stop(115)
 
   end subroutine irbg_bgCheckIR
 

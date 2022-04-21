@@ -258,7 +258,7 @@ module rMatrix_mod
       ! Calculation of R**-1/2
       call utl_tmg_start(20,'----RmatMatSqrt')
       call utl_matSqrt(Rsub,nsubset,-1.d0,.false.)
-      call tmg_stop(20)
+      call utl_tmg_stop(20)
       allocate(R_tovs(indexTovs)%Rmat(nsubset,nsubset))
       do j=1,nsubset
         do i=1,nsubset
@@ -273,7 +273,7 @@ module rMatrix_mod
     obsOut = 0.d0
     ! Optimized symetric matrix vector product from Lapack
     call dsymv("L", nsubset, alpha, R_tovs(indexTovs)%Rmat, nsubset,obsIn, 1, beta, obsOut, 1)
-    call tmg_stop(21)
+    call utl_tmg_stop(21)
 
   end subroutine rmat_RsqrtInverseOneObs
 

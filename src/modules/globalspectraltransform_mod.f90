@@ -681,7 +681,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(153,'low-level--gst_transpose_NtoLEV')
 
@@ -718,7 +718,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(153)
+    call utl_tmg_stop(153)
 
   end subroutine transpose2d_NtoLev
 
@@ -740,7 +740,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(153,'low-level--gst_transpose_NtoLEV')
 
@@ -778,7 +778,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(153)
+    call utl_tmg_stop(153)
 
   end subroutine transpose2d_LevtoN
 
@@ -801,7 +801,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('NS',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
 
@@ -850,7 +850,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(154)
+    call utl_tmg_stop(154)
 
   end subroutine transpose2d_MtoLat
 
@@ -874,7 +874,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('NS',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
 
@@ -921,7 +921,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(154)
+    call utl_tmg_stop(154)
 
   end subroutine transpose2d_MtoLat_kij
 
@@ -944,7 +944,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('NS',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
 
@@ -993,7 +993,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(154)
+    call utl_tmg_stop(154)
 
   end subroutine transpose2d_LattoM
 
@@ -1017,7 +1017,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('NS',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(154,'low-level--gst_transpose_MtoLAT')
 
@@ -1064,7 +1064,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(154)
+    call utl_tmg_stop(154)
 
   end subroutine transpose2d_LattoM_kij
 
@@ -1087,7 +1087,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
@@ -1119,7 +1119,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon
 
@@ -1138,7 +1138,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
@@ -1150,7 +1150,7 @@ contains
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon_kij_mpitypes8
 
@@ -1173,7 +1173,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
@@ -1187,7 +1187,7 @@ contains
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon_kij_mpitypes4
 
@@ -1210,7 +1210,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
@@ -1238,7 +1238,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LevtoLon_kij
 
@@ -1261,7 +1261,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
@@ -1294,7 +1294,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LontoLev
 
@@ -1313,7 +1313,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
@@ -1325,7 +1325,7 @@ contains
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LontoLev_kij_mpitypes8
 
@@ -1348,7 +1348,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
@@ -1362,7 +1362,7 @@ contains
       pgd_out(:,:,:) = pgd_in(:,:,:)
     endif
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LontoLev_kij_mpitypes4
 
@@ -1385,7 +1385,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('EW',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     call utl_tmg_start(155,'low-level--gst_transpose_LEVtoLON')
 
@@ -1413,7 +1413,7 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    call tmg_stop(155)
+    call utl_tmg_stop(155)
 
   end subroutine transpose2d_LontoLev_kij
 
@@ -1575,7 +1575,7 @@ contains
     ! 1.2 Inverse Legendre transform
     call utl_tmg_start(150,'low-level--gst_lt')
     call spgdpar(psp2,pgd2,nflev)
-    call tmg_stop(150)
+    call utl_tmg_stop(150)
     deallocate(psp2)
 
     ! 1.3 Transpose data along npey from M to Latitudes
@@ -1596,7 +1596,7 @@ contains
     ! 2.2 Apply the FFT 
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,+1)
-    call tmg_stop(151)
+    call utl_tmg_stop(151)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
     call transpose2d_LevtoLon(pgd3,pgd)
@@ -1644,7 +1644,7 @@ contains
     ! 1. Fourier transform all fields for all latitudes
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,-1)
-    call tmg_stop(151)
+    call utl_tmg_stop(151)
 
     ! Transpose data along npey from Latitudes to M
     call transpose2d_LattoM(pgd3,pgd2)
@@ -1653,7 +1653,7 @@ contains
     ! 2. Direct Legendre transform including wind transformations
     call utl_tmg_start(150,'low-level--gst_lt')
     call gdsppar(psp2,pgd2,nflev)
-    call tmg_stop(150)
+    call utl_tmg_stop(150)
     deallocate(pgd2)
 
     ! Transpose data along npex from Levels to N
@@ -1987,7 +1987,7 @@ contains
     ! Fourier transform all fields for all latitudes
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,-1)
-    call tmg_stop(151)
+    call utl_tmg_stop(151)
 
     ! Transpose data along npey from Latitudes to M
     call transpose2d_LattoM(pgd3,pgd2)
@@ -1996,7 +1996,7 @@ contains
     ! Direct Legendre transform including wind transformations
     call utl_tmg_start(150,'low-level--gst_lt')
     call spgdapar(psp2,pgd2,nflev)
-    call tmg_stop(150)
+    call utl_tmg_stop(150)
     deallocate(pgd2)
 
     ! Transpose data along npex from Levels to N
@@ -2254,7 +2254,7 @@ contains
     ! 1.1 Inverse Legendre transform (lon -> m)
     call utl_tmg_start(150,'low-level--gst_lt')
     call spereepar(psp2,pgd2)
-    call tmg_stop(150)
+    call utl_tmg_stop(150)
     deallocate(psp2)
 
     ! 1.2 Transpose data along npey from M to Latitudes
@@ -2275,7 +2275,7 @@ contains
     ! 2.2 Apply the inverse FFT 
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,+1)
-    call tmg_stop(151)
+    call utl_tmg_stop(151)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
     call transpose2d_LevtoLon(pgd3,pgd)
@@ -2298,7 +2298,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
     allocate(pgd2(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmcount, gst(gstID)%nj))
@@ -2312,7 +2312,7 @@ contains
     ! 1.1 Inverse Legendre transform (lon -> m)
     call utl_tmg_start(150,'low-level--gst_lt')
     call spereepar_kij(psp2,pgd2)
-    call tmg_stop(150)
+    call utl_tmg_stop(150)
     deallocate(psp2)
 
     ! 1.2 Transpose data along npey from M to Latitudes
@@ -2333,7 +2333,7 @@ contains
     ! 2.2 Apply the inverse FFT 
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar_kij(pgd3,+1)
-    call tmg_stop(151)
+    call utl_tmg_stop(151)
 
     ! 2.3 Transpose data along npex from Levels to Longitudes
     if( gst(gstID)%lonLatDivisible ) then
@@ -2349,7 +2349,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
   end subroutine gst_speree_kij
 
@@ -2389,7 +2389,7 @@ contains
     ! 1. Apply the FFT
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar(pgd3,-1)
-    call tmg_stop(151)
+    call utl_tmg_stop(151)
 
     ! Transpose data along npey from Latitudes to M
     call transpose2d_LattoM(pgd3,pgd2)
@@ -2398,7 +2398,7 @@ contains
     ! 2. Direct Legendre transform
     call utl_tmg_start(150,'low-level--gst_lt')
     call reespepar(pgd2,psp2)
-    call tmg_stop(150)
+    call utl_tmg_stop(150)
     deallocate(pgd2)
 
     ! Transpose data along npex from Levels to N
@@ -2422,7 +2422,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
     allocate(psp2(gst(gstID)%nla, 2, gst(gstID)%myLevBeg:gst(gstID)%myLevEnd))
     allocate(pgd2(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmcount, gst(gstID)%nj))
@@ -2442,7 +2442,7 @@ contains
     ! 1. Apply the FFT
     call utl_tmg_start(151,'low-level--gst_fft')
     call fft3dvar_kij(pgd3,-1)
-    call tmg_stop(151)
+    call utl_tmg_stop(151)
 
     ! Transpose data along npey from Latitudes to M
     call transpose2d_LattoM_kij(pgd3,pgd2)
@@ -2451,7 +2451,7 @@ contains
     ! 2. Direct Legendre transform
     call utl_tmg_start(150,'low-level--gst_lt')
     call reespepar_kij(pgd2,psp2)
-    call tmg_stop(150)
+    call utl_tmg_stop(150)
     deallocate(pgd2)
 
     ! Transpose data along npex from Levels to N
@@ -2460,7 +2460,7 @@ contains
 
     call utl_tmg_start(152,'low-level--gst_barr')
     if(mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(152)
+    call utl_tmg_stop(152)
 
   end subroutine gst_reespe_kij
 

@@ -760,7 +760,7 @@ contains
 
     end do HEADER_LOOP
 
-    call tmg_stop(122)
+    call utl_tmg_stop(122)
 
   end subroutine findObs
 
