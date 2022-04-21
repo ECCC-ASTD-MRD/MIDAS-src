@@ -265,7 +265,7 @@ contains
     write(*,*) 'brpf_updateFile: Done'
     write(*,*)
 
-    call tmg_stop(12)
+    call utl_tmg_stop(12)
 
   end subroutine brpf_updateFile
 

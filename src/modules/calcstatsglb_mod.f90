@@ -1018,7 +1018,7 @@ module calcStatsGlb_mod
     end do
     !$OMP END PARALLEL DO
 
-    call tmg_stop(120)
+    call utl_tmg_stop(120)
     write(*,*) 'finished computing correlations...'
 
   end subroutine calcCorrelations
@@ -1141,7 +1141,7 @@ module calcStatsGlb_mod
     end do
     !$OMP END PARALLEL DO
 
-    call tmg_stop(120)
+    call utl_tmg_stop(120)
     write(*,*) 'finished computing correlations...'
 
   end subroutine calcCorrelations2
@@ -2440,7 +2440,7 @@ module calcStatsGlb_mod
       ensPerturbations(:,:,:,ensIndex)=sngl(member(:,:,:))
     end do
 
-    call tmg_stop(121)
+    call utl_tmg_stop(121)
     write(*,*) 'finished doing u/v -> psi/chi and spectral filter...'
     
   end subroutine uv_to_psichi

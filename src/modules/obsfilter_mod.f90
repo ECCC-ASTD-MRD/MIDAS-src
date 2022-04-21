@@ -362,7 +362,7 @@ contains
        call utl_abort('SUPREP. NO DATA TO BE ASSIMILATED')
     end if
 
-    call tmg_stop(22)
+    call utl_tmg_stop(22)
 
   end subroutine filt_suprep
 

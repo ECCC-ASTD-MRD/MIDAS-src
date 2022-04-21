@@ -132,7 +132,7 @@ program midas_diagHBHt
 
   istamp = exfin('diagHBHt','FIN','NON')
 
-  call tmg_stop(0)
+  call utl_tmg_stop(0)
 
   call tmg_terminate(mpi_myid, 'TMG_INFO')
 

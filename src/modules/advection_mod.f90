@@ -1388,7 +1388,7 @@ CONTAINS
           call rpn_comm_allgather(field4D(:,:,levIndex,adv%timeStepIndexSource(stepIndexAF)), nsize, "mpi_double_precision",  &
                                   field2D_mpiglobal_tiles(:,:,:), nsize, "mpi_double_precision",  &
                                   "GRID", ierr )
-          call tmg_stop(141)
+          call utl_tmg_stop(141)
 
           ! rearrange gathered fields for convenience
           call utl_tmg_start(142,'----ADV_GSV_Shuffling')
@@ -1407,7 +1407,7 @@ CONTAINS
             end do ! procIDx
           end do ! procIDy
           !$OMP END PARALLEL DO
-          call tmg_stop(142)
+          call utl_tmg_stop(142)
 
           if (adv%singleTimeStepIndexSource) gatheringDone = .true. 
 
@@ -1435,7 +1435,7 @@ CONTAINS
         end do ! latIndex
         !$OMP END PARALLEL DO
 
-        call tmg_stop(143)
+        call utl_tmg_stop(143)
 
       end do ! stepIndexAF
 
@@ -1444,7 +1444,7 @@ CONTAINS
     deallocate(field2D_mpiglobal_tiles)
     deallocate(field2D_mpiglobal)
 
-    call tmg_stop(140)
+    call utl_tmg_stop(140)
 
   END SUBROUTINE adv_statevector_tl
 

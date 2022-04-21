@@ -157,7 +157,7 @@ CONTAINS
         write(*,*) myName//': Bdiff matrix not produced.'
         write(*,*) myName//': END'
       end if
-      call tmg_stop(65)
+      call utl_tmg_stop(65)
       cvdim_out = 0
       return
       
@@ -186,14 +186,14 @@ CONTAINS
     if ( sum(scaleFactor(:) ) == 0.0d0 ) then
       if( mpi_myid == 0) write(*,*) myName//': scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
-      call tmg_stop(65)
+      call utl_tmg_stop(65)
       return
     end if
 
     if ( trim(bdiff_mode) == 'BackgroundCheck' ) then
       cvDim_out = 9999 ! Dummy value > 0 to indicate to the background check (s/r ose_compute_HBHT_ensemble) 
                        ! that Diff is used
-      call tmg_stop(65)
+      call utl_tmg_stop(65)
       return
     end if
 
@@ -237,7 +237,7 @@ CONTAINS
 
     initialized = .true.
 
-    call tmg_stop(65)
+    call utl_tmg_stop(65)
 
   end subroutine bdiff_setup
 

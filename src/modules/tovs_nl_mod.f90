@@ -456,7 +456,7 @@ contains
           write(*,*) 'tvs_rttov_read_coefs: fatal error reading coefficients',errorStatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
           call utl_abort('tvs_setupAlloc')
         end if
-        call tmg_stop(16)
+        call utl_tmg_stop(16)
 
         tvs_opts(sensorIndex) % rt_ir % ozone_data = ( tvs_coefs(sensorIndex) % coef % nozone > 0 ) ! profil d'ozone disponible
 

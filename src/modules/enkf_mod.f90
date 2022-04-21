@@ -328,7 +328,7 @@ contains
                         nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
                         mpi_comm_grid, requestIdRecv(numRecv), ierr )
       end do
-      call tmg_stop(101)
+      call utl_tmg_stop(101)
 
       LATLON_LOOP: do latLonIndex = 1, myNumLatLonSend
         latIndex = myLatIndexesSend(latLonIndex)
@@ -360,7 +360,7 @@ contains
           countMaxExceeded = countMaxExceeded + 1
           maxCountMaxExceeded = max(maxCountMaxExceeded, numLocalObsFound)
         end if
-        call tmg_stop(102)
+        call utl_tmg_stop(102)
 
         call utl_tmg_start(103,'----CalculateWeights')
 
@@ -414,7 +414,7 @@ contains
             Pa(:,:) = PaInv(:,:)
             call utl_tmg_start(104,'------EigenDecomp')
             call utl_matInverse(Pa, nEns, inverseSqrt_opt=PaSqrt)
-            call tmg_stop(104)
+            call utl_tmg_stop(104)
 
             ! Compute ensemble mean local weights as Pa * YbTinvR * (obs - meanYb)
             weightsTemp(:) = 0.0d0
@@ -449,7 +449,7 @@ contains
             call utl_tmg_start(104,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
-            call tmg_stop(104)
+            call utl_tmg_stop(104)
             !if (matrixRank < (nEns-1)) then
             !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
             !end if
@@ -505,7 +505,7 @@ contains
               end do
               tolerance = 1.0D-50
               call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
-              call tmg_stop(104)
+              call utl_tmg_stop(104)
 
               ! Loop over members within the current sub-ensemble being updated
               do memberIndexCV = 1, nEnsPerSubEns
@@ -575,7 +575,7 @@ contains
             call utl_tmg_start(104,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
-            call tmg_stop(104)
+            call utl_tmg_stop(104)
             !if (matrixRank < (nEns-1)) then
             !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
             !end if
@@ -632,7 +632,7 @@ contains
               end do
               tolerance = 1.0D-50
               call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
-              call tmg_stop(104)
+              call utl_tmg_stop(104)
 
               ! Loop over members within the current sub-ensemble being updated
               do memberIndexCV = 1, nEnsPerSubEns
@@ -716,7 +716,7 @@ contains
 
         end if ! numLocalObs > 0
 
-        call tmg_stop(103)
+        call utl_tmg_stop(103)
 
         !
         ! Now post all send instructions (each lat-lon may be sent to multiple tasks)
@@ -740,7 +740,7 @@ contains
                           nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
                           mpi_comm_grid, requestIdSend(numSend), ierr )
         end do
-        call tmg_stop(101)
+        call utl_tmg_stop(101)
 
       end do LATLON_LOOP
 
@@ -759,7 +759,7 @@ contains
         call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
       end if
 
-      call tmg_stop(101)
+      call utl_tmg_stop(101)
 
       !
       ! Interpolate weights from coarse to full resolution
@@ -769,7 +769,7 @@ contains
         call enkf_interpWeights(wInterpInfo, weightsMean)
         call enkf_interpWeights(wInterpInfo, weightsMembers)
       end if
-      call tmg_stop(105)
+      call utl_tmg_stop(105)
 
       call utl_tmg_start(106,'----ApplyWeights')
 
@@ -868,7 +868,7 @@ contains
         end do LON_LOOP5
       end do
 
-      call tmg_stop(106)
+      call utl_tmg_stop(106)
 
     end do LEV_LOOP
 
@@ -882,7 +882,7 @@ contains
 
     call utl_tmg_start(107,'----Barr')
     call rpn_comm_barrier('GRID',ierr)
-    call tmg_stop(107)
+    call utl_tmg_stop(107)
 
     call gsv_deallocate(stateVectorMeanInc)
     call gsv_deallocate(stateVectorMeanTrl)
@@ -890,7 +890,7 @@ contains
     write(*,*) 'enkf_LETKFanalyses: done'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    call tmg_stop(100)
+    call utl_tmg_stop(100)
 
   end subroutine enkf_LETKFanalyses
 

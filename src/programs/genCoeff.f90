@@ -105,7 +105,7 @@ program midas_gencoeff
 
   call bcs_removeOutliers(obsSpaceData)
 
-  call tmg_stop(110)
+  call utl_tmg_stop(110)
 
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -119,7 +119,7 @@ program midas_gencoeff
 
   call utl_tmg_start(111,'----Regression')
   call bcs_do_regression(columnTrlOnAnlIncLev,obsSpaceData)
-  call tmg_stop(111)
+  call utl_tmg_stop(111)
 
   ! Write coefficients to file
   call bcs_writebias()
@@ -136,7 +136,7 @@ program midas_gencoeff
   ! Deallocate internal bias correction structures 
   call bcs_finalize()
 
-  call tmg_stop(110)
+  call utl_tmg_stop(110)
 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
@@ -145,7 +145,7 @@ program midas_gencoeff
 
   istamp = exfin('GENCOEFF','FIN','NON')
 
-  call tmg_stop(0)
+  call utl_tmg_stop(0)
 
   call tmg_terminate(mpi_myid, 'TMG_INFO')
 

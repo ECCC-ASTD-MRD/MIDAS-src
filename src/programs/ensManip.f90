@@ -236,7 +236,7 @@ program midas_ensManip
     call gvt_transform(ensemble,'HUtoLQ')
   end if
 
-  call tmg_stop(2)
+  call utl_tmg_stop(2)
 
   !
   !- 3.  Ensemble data manipulation
@@ -300,7 +300,7 @@ program midas_ensManip
     call utl_tmg_start(3,'--WriteEnsemble')
     call ens_removeMean(ensemble)
     call ens_writeEnsemble(ensemble, '.', 'pert_', 'ENSPERT', 'P', numBits_opt = numBits)
-    call tmg_stop(3)
+    call utl_tmg_stop(3)
   end if
 
   !- 3.3 Ensemble recentering
@@ -404,14 +404,14 @@ program midas_ensManip
     call utl_tmg_start(3,'--WriteEnsemble')
     call ens_writeEnsemble(ensemble, '.', 'recentered_', ensembleEtiketOutput, ensembleTypVarOutput,  &
                            numBits_opt = numBits, etiketAppendMemberNumber_opt = ensembleEtiketOutputAppendMemberNumber)
-    call tmg_stop(3)
+    call utl_tmg_stop(3)
   end if ! end of 'if (recenter)'
 
   !
   !- 4.  MPI, tmg finalize
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(0)
+  call utl_tmg_stop(0)
 
   call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 

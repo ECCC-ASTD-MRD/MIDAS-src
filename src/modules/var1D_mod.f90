@@ -127,8 +127,8 @@ contains
     if ( sum( scaleFactor( 1 : maxNumLevels ) ) == 0.0d0 ) then
       if ( mpi_myid == 0 ) write(*,*) 'var1D_setup: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
-      call tmg_stop(51)
-      call tmg_stop(50)
+      call utl_tmg_stop(51)
+      call utl_tmg_stop(50)
       return
     end if
     do levelIndex = 1, maxNumLevels
@@ -230,8 +230,8 @@ contains
 
     initialized = .true.
 
-    call tmg_stop(51)
-    call tmg_stop(50)
+    call utl_tmg_stop(51)
+    call utl_tmg_stop(50)
 
   end subroutine var1D_setup
   
@@ -637,13 +637,13 @@ contains
         call var1D_bsqrtHi( subVector,   &  ! IN
                             column,      &  ! OUT
                             obsspacedata )  ! IN
-        call tmg_stop(52)
+        call utl_tmg_stop(52)
       case default
         call utl_abort( 'var1D_sqrtB: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
     end do bmat_loop
 
-    call tmg_stop(50)
+    call utl_tmg_stop(50)
 
   end subroutine var1D_sqrtB
 
@@ -678,13 +678,13 @@ contains
         call var1D_bsqrtHiAd( subvector, &  ! IN
                               column,    &  ! OUT
                               obsData )     ! IN
-        call tmg_stop(53)
+        call utl_tmg_stop(53)
       case default
         call utl_abort( 'var1D_sqrtBT: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
     end do bmat_loop
 
-    call tmg_stop(50)
+    call utl_tmg_stop(50)
 
   end subroutine var1D_sqrtBT
 

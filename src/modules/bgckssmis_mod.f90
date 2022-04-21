@@ -2990,7 +2990,7 @@ contains
 256 format(A55,i9)
 257 format(A55,i9,f7.2,' %')
 
-    call tmg_stop(119)
+    call utl_tmg_stop(119)
 
     write(*,*) 'ssbg_bgCheckSSMIS: Finished'
 

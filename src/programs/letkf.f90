@@ -294,7 +294,7 @@ program midas_letkf
   call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
   call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false., &
                         ignoreDate_opt=ignoreEnsDate)
-  call tmg_stop(2)
+  call utl_tmg_stop(2)
 
   !- 2.11 If desired, read a deterministic state for recentering the ensemble
   if (recenterInputEns) then
@@ -520,7 +520,7 @@ program midas_letkf
                              numBits_opt=16, etiketAppendMemberNumber_opt=.true.,  &
                              containsFullField_opt=.true.)
     end if
-    call tmg_stop(3)
+    call utl_tmg_stop(3)
 
   end if
 
@@ -528,7 +528,7 @@ program midas_letkf
   !- 8. MPI, tmg finalize
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(0)
+  call utl_tmg_stop(0)
 
   call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 

@@ -167,7 +167,7 @@ program midas_calcstats
   !
   !- 4.  MPI, tmg finalize
   !  
-  call tmg_stop(0)
+  call utl_tmg_stop(0)
 
   call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 

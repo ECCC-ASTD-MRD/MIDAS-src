@@ -640,7 +640,7 @@ contains
                          dataKind_opt=4, varNames_opt=(/'Z_M','Z_T'/) )
       call utl_tmg_start(32,'------s2c_Slant')
       call gsv_transposeTilesToMpiGlobal(stateVector_1Step, stateVector_Tiles_1Step)
-      call tmg_stop(32)
+      call utl_tmg_stop(32)
       call gsv_getField(stateVector_1Step,height3D_T_r4,'Z_T')
       call gsv_getField(stateVector_1Step,height3D_M_r4,'Z_M')
     
@@ -723,7 +723,7 @@ contains
                                      latLev_T, lonLev_T,                         & ! OUT
                                      latLev_M, lonLev_M,                         & ! OUT
                                      latLev_S, lonLev_S             )              ! OUT
-            call tmg_stop(32)
+            call utl_tmg_stop(32)
 
           else if (codeType == codtyp_get_codtyp('ro') .and. SlantRO ) then
             if ( firstHeaderSlantPathRO ) then
@@ -739,7 +739,7 @@ contains
                                    latLev_T, lonLev_T,                         & ! OUT
                                    latLev_M, lonLev_M,                         & ! OUT
                                    latLev_S, lonLev_S                          ) ! OUT
-            call tmg_stop(32)
+            call utl_tmg_stop(32)
           else if (codeType == codtyp_get_codtyp('radar') .and. SlantRA ) then
             if ( firstHeaderSlantPathRA ) then
               write(*,'(a,i3,a,i8)') 's2c_setupInterpInfo: start slant-path for RADAR. stepIndex=', &
@@ -1132,7 +1132,7 @@ contains
       end do ! stepIndex
     end do ! procIndex
     !$OMP END PARALLEL DO
-    call tmg_stop(33)
+    call utl_tmg_stop(33)
 
     ! reject obs in obsSpaceData if any processor has zero weight
     ! called when a mask exists to catch land contaminated ocean obs
@@ -1270,12 +1270,12 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
-      call tmg_stop(36)
+      call utl_tmg_stop(36)
       call utl_tmg_start(31,'----s2c_Setups')
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                 1, numHeader, timeInterpType_tlad,  rejectOutsideObs, &
                                 inputStateVectorType='tl' )
-      call tmg_stop(31)
+      call utl_tmg_stop(31)
       call utl_tmg_start(36,'----s2c_TL')
     end if
 
@@ -1339,7 +1339,7 @@ contains
 
         end do step_loop
         !$OMP END PARALLEL DO
-        call tmg_stop(37)
+        call utl_tmg_stop(37)
 
         ! interpolate in time to the columns destined for all procs and one level/variable
         do procIndex = 1, mpi_nprocs
@@ -1414,9 +1414,9 @@ contains
     
     if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
 
-    call tmg_stop(36)
+    call utl_tmg_stop(36)
 
-    call tmg_stop(30)
+    call utl_tmg_stop(30)
 
   end subroutine s2c_tl
 
@@ -1494,12 +1494,12 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
-      call tmg_stop(38)
+      call utl_tmg_stop(38)
       call utl_tmg_start(31,'----s2c_Setups')
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                 1, numHeader, timeInterpType_tlad, rejectOutsideObs,  &
                                 inputStateVectorType='ad' )
-      call tmg_stop(31)
+      call utl_tmg_stop(31)
       call utl_tmg_start(38,'----s2c_AD')
     end if
 
@@ -1606,7 +1606,7 @@ contains
 
         end do step_loop
         !$OMP END PARALLEL DO
-        call tmg_stop(39)
+        call utl_tmg_stop(39)
 
       end if ! if kIndex <= mykEnd
 
@@ -1632,9 +1632,9 @@ contains
 
     if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
 
-    call tmg_stop(38)
+    call utl_tmg_stop(38)
 
-    call tmg_stop(30)
+    call utl_tmg_stop(30)
 
   end subroutine s2c_ad
 
@@ -1724,7 +1724,7 @@ contains
     numStep = stateVector_VarsLevs%numStep
 
     if ( .not. interpInfo_nl%initialized ) then
-      call tmg_stop(34)
+      call utl_tmg_stop(34)
       call utl_tmg_start(31,'----s2c_Setups')
       ! also reject obs outside (LAM) domain and optionally move obs near 
       ! numerical pole to first/last analysis grid latitude
@@ -1733,7 +1733,7 @@ contains
       ! Do not reject obs for global domain
       rejectOutsideObs = .not. stateVector_VarsLevs%hco%global
       write(*,*) 's2c_nl: rejectOutsideObs = ', rejectOutsideObs
-      call tmg_stop(31)
+      call utl_tmg_stop(31)
       call utl_tmg_start(34,'----s2c_NL')
 
     end if
@@ -1768,7 +1768,7 @@ contains
                               allHeaderIndexBeg,1,'mpi_integer','grid',ierr)
 
       if ( .not. interpInfo_nl%initialized ) then
-        call tmg_stop(34)
+        call utl_tmg_stop(34)
         call utl_tmg_start(31,'----s2c_Setups')
 
         ! compute and collect all obs grids onto all mpi tasks
@@ -1783,7 +1783,7 @@ contains
                        stepIndex, interpInfo_nl%allNumHeaderUsed(stepIndex,:)
           end do
         end if
-        call tmg_stop(31)
+        call utl_tmg_stop(31)
         call utl_tmg_start(34,'----s2c_NL')
       end if
 
@@ -1842,7 +1842,7 @@ contains
             !$OMP END PARALLEL DO
 
           end do step_loop
-          call tmg_stop(35)
+          call utl_tmg_stop(35)
 
           ! interpolate in time to the columns destined for all procs and one level/variable
           do procIndex = 1, mpi_nprocs
@@ -1985,9 +1985,9 @@ contains
     write(*,*) 's2c_nl: FINISHED'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    call tmg_stop(34)
+    call utl_tmg_stop(34)
 
-    call tmg_stop(30)
+    call utl_tmg_stop(30)
 
   end subroutine s2c_nl
 
@@ -2585,7 +2585,7 @@ contains
 
     deallocate(zgd)
 
-    call tmg_stop(30)
+    call utl_tmg_stop(30)
 
   end subroutine s2c_bgcheck_bilin
 
@@ -2684,7 +2684,7 @@ contains
                       + DLW4 * field(lonIndex+1,latIndex+1,ilev+1))                               
     end do
 
-    call tmg_stop(30)
+    call utl_tmg_stop(30)
 
   end subroutine s2c_column_hbilin
 
@@ -3804,7 +3804,7 @@ contains
 
     end do subGrid_loop
 
-    call tmg_stop(30)
+    call utl_tmg_stop(30)
 
   end subroutine s2c_getWeightsAndGridPointIndexes
 

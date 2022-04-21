@@ -251,7 +251,7 @@ program midas_obsimpact
     call utl_writeStatus('VAR3D_END')
   endif
 
-  call tmg_stop(0)
+  call utl_tmg_stop(0)
 
   call tmg_terminate(mpi_myid, 'TMG_INFO')
 
@@ -540,7 +540,7 @@ contains
     indic = 2
     call utl_tmg_start(91,'----QuasiNewton')
     call simvar(indic,nvadim,zhat,zjsp,gradJ)
-    call tmg_stop(91)
+    call utl_tmg_stop(91)
     zdf1 =  rdf1fac * abs(zjsp)
 
     ! print amplitude of initial gradient and cost function value
@@ -560,7 +560,7 @@ contains
                    zjsp, gradJ, zxmin, zdf1, zeps, impres, nulout, imode,   &
                    itermax,isimmax, iztrl, vatra, nmtra, intunused, rspunused,  &
                    zspunused)
-    call tmg_stop(91)
+    call utl_tmg_stop(91)
     call fool_optimizer(obsSpaceData)
 
     write(*,'(//,20X,20("*"),2X    &
@@ -573,7 +573,7 @@ contains
     deallocate(vatra)
     deallocate(gradJ)
 
-    call tmg_stop(90)
+    call utl_tmg_stop(90)
 
   end subroutine fso_minimize
 
@@ -703,8 +703,8 @@ contains
     type(struct_gsv) :: statevector
     type(struct_vco), pointer :: vco_anl
 
-    call tmg_stop(91)
-    call tmg_stop(90)
+    call utl_tmg_stop(91)
+    call utl_tmg_stop(90)
 
     if (indic /= 1) then ! No action taken if indic == 1
       fso_nsim = fso_nsim + 1
@@ -734,8 +734,8 @@ contains
       call oop_Htl(column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,fso_nsim)  ! Save as OBS_WORK: H_vert H_horiz dx = Hdx
 
       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Save as OBS_WORK : R**-1/2 (Hdx)
-      call tmg_stop(18)
-      call tmg_stop(10)
+      call utl_tmg_stop(18)
+      call utl_tmg_stop(10)
 
       call cfn_calcJo(obsSpaceData_ptr)  ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (Hdx)**2
 
@@ -751,20 +751,20 @@ contains
         Jtotal = Jb + Jobs
         if (mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') Jb,Jobs,Jtotal
       end if
-      call tmg_stop(92)
-      call tmg_stop(90)
+      call utl_tmg_stop(92)
+      call utl_tmg_stop(90)
 
       call utl_tmg_start(10,'--Observations')
       call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  ! Modify OBS_WORK : R**-1 (Hdx)
-      call tmg_stop(10)
+      call utl_tmg_stop(10)
 
       call col_zero(column_ptr)
 
       call utl_tmg_start(10,'--Observations')
       call utl_tmg_start(19,'----ObsOper_AD')
       call oop_Had(column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)   ! Put in column : H_vert**T R**-1 (Hdx)
-      call tmg_stop(19)
-      call tmg_stop(10)
+      call utl_tmg_stop(19)
+      call utl_tmg_stop(10)
 
       call s2c_ad(statevector,column_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr)  ! Put in statevector H_horiz**T H_vert**T R**-1 (Hdx)
 

@@ -262,8 +262,8 @@ CONTAINS
     if ( gsv_isAllocated(statevectorPsfc) ) call gsv_deallocate(statevectorPsfc)
     if ( gsv_isAllocated(statevector_mask) ) call gsv_deallocate(statevector_mask)
 
-    call tmg_stop(81)
-    call tmg_stop(80)
+    call utl_tmg_stop(81)
+    call utl_tmg_stop(80)
 
     write(*,*) 'inc_computeHighResAnalysis: END'
 
@@ -373,8 +373,8 @@ CONTAINS
       call gvt_transform(stateVectorAnal, 'CH_bounds')
     end if
 
-    call tmg_stop(82)
-    call tmg_stop(80)
+    call utl_tmg_stop(82)
+    call utl_tmg_stop(80)
 
     write(*,*) 'inc_analPostProcessing: END'
 
@@ -559,8 +559,8 @@ CONTAINS
     call gsv_deallocate(stateVectorIncHighRes)
     call gsv_deallocate(stateVectorTrial)
 
-    call tmg_stop(83)
-    call tmg_stop(80)
+    call utl_tmg_stop(83)
+    call utl_tmg_stop(80)
 
     write(*,*) 'inc_writeIncAndAnalHighRes: END'
 
@@ -600,8 +600,8 @@ CONTAINS
        end if
     end if
 
-    call tmg_stop(84)
-    call tmg_stop(80)
+    call utl_tmg_stop(84)
+    call utl_tmg_stop(80)
 
   end subroutine inc_getIncrement
 
@@ -651,8 +651,8 @@ CONTAINS
       end if
     end do
 
-    call tmg_stop(85)
-    call tmg_stop(80)
+    call utl_tmg_stop(85)
+    call utl_tmg_stop(80)
 
     if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrement: END'
 
@@ -704,8 +704,8 @@ CONTAINS
       end if
     end do
 
-    call tmg_stop(86)
-    call tmg_stop(80)
+    call utl_tmg_stop(86)
+    call utl_tmg_stop(80)
 
   end subroutine inc_writeAnalysis
 

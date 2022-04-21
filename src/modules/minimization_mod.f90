@@ -182,7 +182,7 @@ CONTAINS
 
     initialized=.true.
 
-    call tmg_stop(90)
+    call utl_tmg_stop(90)
 
   end subroutine min_setup
 
@@ -271,7 +271,7 @@ CONTAINS
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) '--Done subroutine minimize--'
 
-    call tmg_stop(90)
+    call utl_tmg_stop(90)
 
   end subroutine min_minimize
 
@@ -396,7 +396,7 @@ CONTAINS
         if ( nwoqcv > 0 ) lvarqc = .false.
         call utl_tmg_start(91,'----QuasiNewton')
         call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
-        call tmg_stop(91)
+        call utl_tmg_stop(91)
 
         lvarqc = llvarqc
       endif
@@ -409,7 +409,7 @@ CONTAINS
       INDIC =2
       call utl_tmg_start(91,'----QuasiNewton')
       call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
-      call tmg_stop(91)
+      call utl_tmg_stop(91)
       lvarqc = llvarqc
       
       if ( outerLoopIndex == 1 ) zdf1 = rdf1fac * ABS(zjsp)
@@ -447,7 +447,7 @@ CONTAINS
               zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,       &
               iitnovqc, isimnovqc ,iztrl, vatra, nmtra, intUnused,   &
               zzsunused, dlds)
-          call tmg_stop(91)
+          call utl_tmg_stop(91)
           call fool_optimizer(obsSpaceData)
 
           isimnovqc = isimnovqc - 1
@@ -465,7 +465,7 @@ CONTAINS
             INDIC = 2
             call utl_tmg_start(91,'----QuasiNewton')
             call simvar(indic,nvadim_mpilocal,vazx,zjsp,vazg)
-            call tmg_stop(91)
+            call utl_tmg_stop(91)
           else
             write(*,*) 'minimization_mod: qna_n1qn3 imode = ', imode
             call utl_abort('minimization_mod: qna_n1qn3 mode not equal to 1 or 4')
@@ -483,7 +483,7 @@ CONTAINS
             zjsp,vazg, zxmin, zdf1, zeps1, impres, nulout, imode,   &
             itermaxtodo,isimmax, iztrl, vatra, nmtra, intUnused, zzsunused,   &
             dlds)
-        call tmg_stop(91)
+        call utl_tmg_stop(91)
         call fool_optimizer(obsSpaceData)
 
         itertot = itertot + itermaxtodo
@@ -564,7 +564,7 @@ CONTAINS
       deallocate(vatra)
     end if
 
-    call tmg_stop(90)
+    call utl_tmg_stop(90)
 
   end subroutine min_writeHessian
 
@@ -604,8 +604,8 @@ CONTAINS
     type(struct_gsv), save :: statevector
     type(struct_vco), pointer :: vco_anl
 
-    call tmg_stop(91)
-    call tmg_stop(90)
+    call utl_tmg_stop(91)
+    call utl_tmg_stop(90)
 
     if (na_indic .ne. 1) then ! No action taken if na_indic == 1
        min_nsim = min_nsim + 1
@@ -645,8 +645,8 @@ CONTAINS
        call utl_tmg_start(18,'----ObsOper_TL')
        call oop_Htl(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr,min_nsim, &
                     initializeLinearization_opt=initializeForOuterLoop) 
-       call tmg_stop(18)
-       call tmg_stop(10)
+       call utl_tmg_stop(18)
+       call utl_tmg_stop(10)
 
        ! Calculate OBS_OMA from OBS_WORK : d-Hdx
        call res_compute(obsSpaceData_ptr)  
@@ -656,7 +656,7 @@ CONTAINS
        ! Save as OBS_WORK : R**-1/2 (d-Hdx)
        call utl_tmg_start(10,'--Observations')
        call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_OMA)  
-       call tmg_stop(10)
+       call utl_tmg_stop(10)
 
        ! Store J-obs in OBS_JOBS : 1/2 * R**-1 (d-Hdx)**2
        call cfn_calcJo(obsSpaceData_ptr) 
@@ -678,13 +678,13 @@ CONTAINS
           da_J = dl_Jb + dl_Jo
           IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
-       call tmg_stop(92)
-       call tmg_stop(90)
+       call utl_tmg_stop(92)
+       call utl_tmg_stop(90)
 
        ! Modify OBS_WORK : R**-1 (d-Hdx)
        call utl_tmg_start(10,'--Observations')
        call rmat_RsqrtInverseAllObs(obsSpaceData_ptr,OBS_WORK,OBS_WORK)  
-       call tmg_stop(10)
+       call utl_tmg_stop(10)
 
        IF ( LVARQC ) THEN
          call vqc_ad(obsSpaceData_ptr)
@@ -700,8 +700,8 @@ CONTAINS
        call utl_tmg_start(19,'----ObsOper_AD')
        call oop_Had(columnAnlInc_ptr,columnTrlOnAnlIncLev_ptr,obsSpaceData_ptr, &
                     initializeLinearization_opt=initializeForOuterLoop)
-       call tmg_stop(19)
-       call tmg_stop(10)
+       call utl_tmg_stop(19)
+       call utl_tmg_stop(10)
 
        ! Put in statevector -H_horiz**T H_vert**T R**-1 (d-Hdx)
        if (oneDVarMode) then
@@ -1097,9 +1097,9 @@ CONTAINS
     endif
 
     if (status == 0) then
-      call tmg_stop(93)
+      call utl_tmg_stop(93)
     elseif (status == 1) then
-      call tmg_stop(94)
+      call utl_tmg_stop(94)
     endif
 
   end subroutine hessianIO

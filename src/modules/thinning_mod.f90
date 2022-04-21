@@ -99,7 +99,7 @@ contains
 
     call utl_tmg_start(114,'--ObsThinning')
     call thn_surfaceInTime(obsdat, step, deltmax, useBlackList)
-    call tmg_stop(114)
+    call utl_tmg_stop(114)
 
   end subroutine thn_thinSurface
 
@@ -149,7 +149,7 @@ contains
 
     call utl_tmg_start(114,'--ObsThinning')
     call thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES)
-    call tmg_stop(114)
+    call utl_tmg_stop(114)
 
   end subroutine thn_thinRaobs
 
@@ -197,7 +197,7 @@ contains
 
     call utl_tmg_start(114,'--ObsThinning')
     call thn_aircraftByBoxes(obsdat, 'AI', deltmax)
-    call tmg_stop(114)
+    call utl_tmg_stop(114)
 
   end subroutine thn_thinAircraft
 
@@ -247,7 +247,7 @@ contains
 
     call utl_tmg_start(114,'--ObsThinning')
     call thn_satWindsByDistance(obsdat, 'SW', deltemps, deldist)
-    call tmg_stop(114)
+    call utl_tmg_stop(114)
 
   end subroutine thn_thinSatWinds
 
@@ -301,7 +301,7 @@ contains
 
     call utl_tmg_start(114,'--ObsThinning')
     call thn_gpsroVertical(obsdat, heightMin, heightMax, heightSpacing, gpsroVarNo)
-    call tmg_stop(114)
+    call utl_tmg_stop(114)
 
   end subroutine thn_thinGpsRo
 
@@ -353,7 +353,7 @@ contains
 
     call utl_tmg_start(114,'--ObsThinning')
     call thn_gbgpsByDistance(obsdat, deltemps, deldist, removeUncorrected)
-    call tmg_stop(114)
+    call utl_tmg_stop(114)
 
   end subroutine thn_thinGbGps
 
@@ -402,7 +402,7 @@ contains
     if (keepNthVertical > 0) then
       call utl_tmg_start(114,'--ObsThinning')
       call thn_keepNthObs(obsdat, 'AL', keepNthVertical)
-      call tmg_stop(114)
+      call utl_tmg_stop(114)
     end if
 
   end subroutine thn_thinAladin
@@ -454,7 +454,7 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call utl_tmg_start(114,'--ObsThinning')
     call thn_csrByLatLonBoxes(obsdat, deltax, deltrad)
-    call tmg_stop(114)
+    call utl_tmg_stop(114)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine thn_thinCSR
@@ -506,7 +506,7 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call utl_tmg_start(114,'--ObsThinning')
     call thn_scatByLatLonBoxes(obsdat, deltax, deltmax)
-    call tmg_stop(114)
+    call utl_tmg_stop(114)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   end subroutine thn_thinScat
@@ -566,7 +566,7 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call tmg_stop(114)
+    call utl_tmg_stop(114)
 
   end subroutine thn_thinTovs
 
@@ -631,7 +631,7 @@ contains
     call thn_hyperByLatLonBoxes(obsdat, removeUnCorrected, deltmax, deltax, deltrad, &
                                 'TO', codtyp_get_codtyp('crisfsr'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    call tmg_stop(114)
+    call utl_tmg_stop(114)
 
   end subroutine thn_thinHyper
 

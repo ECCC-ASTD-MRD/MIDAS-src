@@ -163,7 +163,7 @@ program midas_ensembleH
     call gsv_fileUnitsToStateUnits( stateVector, containsFullField=.true. )
 
     call gsv_transposeVarsLevsToTiles(statevector, statevector_tiles)
-    call tmg_stop(2)
+    call utl_tmg_stop(2)
 
     write(*,*) ''
     write(*,*) 'midas-ensembleH: call s2c_nl for member ', memberIndex
@@ -195,7 +195,7 @@ program midas_ensembleH
   !- MPI, tmg finalize
   !  
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-  call tmg_stop(0)
+  call utl_tmg_stop(0)
 
   call tmg_terminate(mpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 

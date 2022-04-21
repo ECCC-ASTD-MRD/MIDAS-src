@@ -5384,7 +5384,7 @@ end subroutine bennartz
                       actualNumChannel, numObsToProcess, tvs_satelliteName(1:tvs_nsensors), & 
                       .TRUE.)
 
-    call tmg_stop(118)
+    call utl_tmg_stop(118)
 
   end subroutine mwbg_bgCheckMW 
 

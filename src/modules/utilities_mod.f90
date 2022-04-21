@@ -39,7 +39,7 @@ module utilities_mod
   public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt
-  public :: utl_tmg_start
+  public :: utl_tmg_start, utl_tmg_stop
 
   ! module interfaces
   ! -----------------
@@ -2573,7 +2573,7 @@ contains
       end if
     end if
 
-    call tmg_stop(175)
+    call utl_tmg_stop(175)
 
   end function utl_copyFile
 
@@ -2781,9 +2781,12 @@ contains
     character(len=*), intent(in) :: blockLabel
 
     ! Locals:
-    integer            :: labelLength
+    integer            :: labelLength, omp_get_thread_num
     integer, parameter :: labelPaddedLength = 40
     character(len=labelPaddedLength) :: blockLabelPadded
+
+    ! only the first thread does the timing
+    if (omp_get_thread_num() > 0) return
 
     blockLabelPadded = '........................................'
     labelLength = min(len_trim(blockLabel), labelPaddedLength)
@@ -2793,4 +2796,25 @@ contains
 
   end subroutine utl_tmg_start
   
+  !--------------------------------------------------------------------------
+  ! utl_tmg_stop
+  !--------------------------------------------------------------------------
+  subroutine utl_tmg_stop(blockIndex)
+    ! :Purpose: Wrapper for rpnlib subroutine tmg_stop
+
+    implicit none
+
+    ! Arguments:
+    integer,          intent(in) :: blockIndex
+
+    ! Locals:
+    integer            :: omp_get_thread_num
+
+    ! only the first thread does the timing
+    if (omp_get_thread_num() > 0) return
+
+    call tmg_stop(blockIndex)
+
+  end subroutine utl_tmg_stop
+
 end module utilities_mod

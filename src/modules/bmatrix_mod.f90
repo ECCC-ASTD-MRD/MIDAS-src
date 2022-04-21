@@ -244,7 +244,7 @@ contains
       call utl_abort('bmat_setup: The control vector has zero length. No B matrix has been set up.')
     end if
 
-    call tmg_stop(50)
+    call utl_tmg_stop(50)
 
   end subroutine bmat_setup
 
@@ -311,7 +311,7 @@ contains
                            statevector_temp, &  ! OUT
                            stateVectorRef_opt ) ! IN
         end if
-        call tmg_stop(52)
+        call utl_tmg_stop(52)
 
       case ('LATB')
 
@@ -321,7 +321,7 @@ contains
           call blb_bsqrt( subVector,       & ! IN
                           statevector_temp ) ! OUT
         end if
-        call tmg_stop(52)
+        call utl_tmg_stop(52)
 
       case ('CHM')
 
@@ -332,7 +332,7 @@ contains
                            statevector_temp, &  ! OUT
                            stateVectorRef_opt ) ! IN
         end if
-        call tmg_stop(68)
+        call utl_tmg_stop(68)
 
       case ('DIFF')
 
@@ -340,7 +340,7 @@ contains
         call utl_tmg_start(66,'----B_DIFF_TL')
         call bdiff_bsqrt( subVector,       & ! IN
                           statevector_temp ) ! OUT
-        call tmg_stop(66)
+        call utl_tmg_stop(66)
 
       case ('ENS')
 
@@ -349,7 +349,7 @@ contains
         call ben_bsqrt( bmatInstanceID(bmatIndex), subVector, & ! IN
                         statevector_temp,                     & ! OUT
                         useFSOFcst_opt, stateVectorRef_opt )    ! IN
-        call tmg_stop(57)
+        call utl_tmg_stop(57)
 
       end select
 
@@ -363,7 +363,7 @@ contains
 
     call gsv_deallocate( statevector_temp )
 
-    call tmg_stop(50)
+    call utl_tmg_stop(50)
 
   end subroutine bmat_sqrtB
 
@@ -422,7 +422,7 @@ contains
         call ben_bsqrtad( bmatInstanceID(bmatIndex), statevector_temp, &  ! IN
                           subVector,                                   &  ! OUT
                           useFSOFcst_opt, stateVectorRef_opt )            ! IN
-        call tmg_stop(61)
+        call utl_tmg_stop(61)
 
       case ('DIFF')
 
@@ -430,7 +430,7 @@ contains
         call utl_tmg_start(67,'----B_DIFF_AD')
         call bdiff_bsqrtad( statevector_temp, & ! IN
                             subVector )         ! OUT
-        call tmg_stop(67)
+        call utl_tmg_stop(67)
  
       case ('CHM')
 
@@ -441,7 +441,7 @@ contains
                              subVector,        &  ! OUT
                              stateVectorRef_opt ) ! IN
         end if
-        call tmg_stop(69)
+        call utl_tmg_stop(69)
 
       case ('LATB')
 
@@ -451,7 +451,7 @@ contains
           call blb_bsqrtad( statevector_temp, & ! IN
                             subVector )         ! OUT
         end if
-        call tmg_stop(53)
+        call utl_tmg_stop(53)
 
       case ('HI')
 
@@ -466,7 +466,7 @@ contains
                               subVector,        &  ! OUT
                               stateVectorRef_opt ) ! IN
         end if
-        call tmg_stop(53)
+        call utl_tmg_stop(53)
 
       end select
 
@@ -474,7 +474,7 @@ contains
 
     call gsv_deallocate( statevector_temp )
 
-    call tmg_stop(50)
+    call utl_tmg_stop(50)
 
   end subroutine bmat_sqrtBT
 

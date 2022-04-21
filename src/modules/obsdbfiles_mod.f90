@@ -1042,7 +1042,7 @@ contains
     write(*,*) 'odbf_updateFile: finished'
     write(*,*)
 
-    call tmg_stop(14)
+    call utl_tmg_stop(14)
 
   end subroutine odbf_updateFile
 
