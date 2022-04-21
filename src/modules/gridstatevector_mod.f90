@@ -142,7 +142,6 @@ module gridStateVector_mod
   logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
   logical :: abortOnMpiImbalance
   logical :: vInterpCopyLowestLevel
-  logical :: interpToPhysicsGrid
 
   ! Min values imposed for input trial and output analysis (and related increment)
   ! for variables of CH kind of the AnlVar list.
@@ -416,7 +415,6 @@ module gridStateVector_mod
     logical :: conversionVarKindCHtoMicrograms
     NAMELIST /NAMSTATE/anlvar, rhumin, anlTime_bin, addHeightSfcOffset, conversionVarKindCHtoMicrograms, &
                        minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc
-    NAMELIST /NAMSTIO/interpToPhysicsGrid
 
     if (initialized) return
 
@@ -443,22 +441,6 @@ module gridStateVector_mod
     if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist NAMSTATE')
     if (mpi_myid.eq.0) write(*,nml=namstate)
     ierr=fclos(nulnam)
-
-    interpToPhysicsGrid = .false.
-    if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
-      if ( mpi_myid == 0 ) then
-        write(*,*) 'gsv_setup: namstio is missing in the namelist.'
-        write(*,*) '                     The default values will be taken.'
-      end if
-
-    else
-      ! Read namelist NAMSTIO
-      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namstio,iostat=ierr)
-      if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist NAMSTIO')
-      if (mpi_myid.eq.0) write(*,nml=namstio)
-      ierr=fclos(nulnam)
-    end if
 
     gsv_rhumin = rhumin
     gsv_conversionVarKindCHtoMicrograms = conversionVarKindCHtoMicrograms
