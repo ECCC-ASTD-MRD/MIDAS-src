@@ -77,7 +77,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * oop_HheightCoordObs replaces oop_Hzp to computed simulated geometric-height based observations and similar for adjoint (#593 and !571)
+ * Allow combined use of GPSRO refractivity and bending profiles when `LEVELGPSRO=3` (#569 and !587)
+ * `oop_HheightCoordObs` replaces `oop_Hzp` to compute simulated geometric-height based observations and similar for adjoint (#593 and !571)
  * Applying humidity limits within outer-loop consistent with no outer-loop; write total increment with outer-loop to `rebm_*`; avoid dealloc interpInfo_nl with outer-loop (#585 and !549)
  * Promote `midas_build` in the README as the main compilation tool (#522 and !548)
  * Renamed `findDependentAbs.py` to `analyzeDep.py` and allow direct and reverse dependency analysis (#586 and !547)
@@ -108,7 +109,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Change to some environment variable naming convention: start with `MIDAS_`
    (#255, #443 and !317)
    * Retrocompatibility maintained until next release
- * Modify treatment of GPSRO, from nml-based to data-based. This allows processing combined refractivity and bending profiles. Each profile must still be pure Ref or Bend. 
 
 ### Fixed
 
