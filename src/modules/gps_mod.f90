@@ -45,6 +45,11 @@ module gps_mod
   public :: gps_setupgb, gps_i_from_index
   public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
 
+  ! public constants
+  integer, parameter, public :: LEVELGPSRO_BND       = 1
+  integer, parameter, public :: LEVELGPSRO_REF       = 2
+  integer, parameter, public :: LEVELGPSRO_BNDandREF = 3
+
 !modgps00base
   
   ! 32-bit integers
@@ -201,7 +206,7 @@ module gps_mod
 ! Values determined by input data:
 !
   integer                                :: gps_numROProfiles
-  integer         , allocatable          :: gps_vRO_IndexPrf(:)    ! index for each profile
+  integer         , allocatable          :: gps_vRO_IndexPrf(:,:)   ! index for each profile
   real*8          , allocatable          :: gps_vRO_Jacobian(:,:,:)
   logical         , allocatable          :: gps_vRO_lJac(:)
 
@@ -2902,7 +2907,7 @@ contains
 !
 !   Define default values:
 !
-    LEVELGPSRO = 2
+    LEVELGPSRO = LEVELGPSRO_REF
     GPSRO_MAXPRFSIZE = 300
     SURFMIN    = 0.d0
     HSFMIN     = 0.d0
@@ -2952,8 +2957,8 @@ contains
     integer i
 
     gps_iprofile_from_index=-1
-    do i=1,size(gps_vRO_IndexPrf)
-       if (index.eq.gps_vRO_IndexPrf(i)) then
+    do i=1,gps_numROProfiles
+       if (index.eq.gps_vRO_IndexPrf(i, 1)) then
           gps_iprofile_from_index=i
           return
        end if

@@ -1034,7 +1034,7 @@ contains
     integer headerIndex, idatyp, bodyIndex
     integer jl, ngpslev, nwndlev
     logical  assim, firstheader, ldsc
-    integer :: nh, nh1
+    integer :: nh, nh1, iProfile, varNum
     type(gps_profile)           :: prf
     real(8)       , allocatable :: h   (:),azmv(:)
     type(gps_diff), allocatable :: rstv(:)
@@ -1093,6 +1093,8 @@ contains
        ! If no assimilations are requested, skip to next header
        !
        if (.not.assim) cycle HEADER
+       iProfile = gps_iprofile_from_index(headerIndex)
+       varNum   = gps_vRO_IndexPrf(iProfile, 2)
        !
        ! Basic geometric variables of the profile:
        !
@@ -1167,7 +1169,9 @@ contains
        !
        ! Apply the observation operator:
        !
-       if (levelgpsro == 1) then
+       ! varNum = bufr_nebd (15037) or varNum = bufr_nerf (15036) for GPS-RO
+       iProfile = gps_iprofile_from_index(headerIndex)
+       if (varNum == bufr_nebd) then
           call gps_bndopv1(h, azmv, nh, prf, rstv)
        else
           call gps_refopv (h,       nh, prf, rstv)
@@ -1191,7 +1195,7 @@ contains
              ! Altitude:
              !
              hnh1= obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-             if (levelgpsro == 1) hnh1=hnh1-rad
+             if (varNum == bufr_nebd) hnh1=hnh1-rad
              !
              ! Observation operator H(x)
              !
@@ -1215,7 +1219,7 @@ contains
              !
              ! Per profile (PJOB) cumulatives:
              !
-             pjob= pjob+ pjo1
+             pjob= pjob + pjo1
              !
              if (firstheader .and. .not.beSilent) then
                 write(*,  &
@@ -3454,7 +3458,7 @@ contains
     real(8) :: rad, geo, zp0
     real(8), allocatable :: zpp(:), ztt(:), zhu(:), zHeight(:), zuu(:), zvv(:)
     real(8) :: zmt
-    integer :: IDATYP
+    integer :: IDATYP, varNum
     integer :: jl, ngpslev, nwndlev
     integer :: headerIndex, bodyIndex, iProfile
     logical :: ASSIM
@@ -3522,6 +3526,7 @@ contains
         ! If assimilations are requested, prepare and apply the observation operator
         ASSIMILATE: if (assim) then
           iProfile = gps_iprofile_from_index(headerIndex)
+          varNum = gps_vRO_IndexPrf(iProfile, 2)
 
           ! Profile at the observation location:
           ! Basic geometric variables of the profile:
@@ -3580,7 +3585,8 @@ contains
           enddo BODY_2
 
           ! Apply the observation operator:
-          if (levelgpsro == 1) then
+          ! varNum = bufr_nebd (15037) or varNum = bufr_nerf (15036) for GPS-RO
+          if (varNum == bufr_nebd) then
             call gps_bndopv1(h, azmv, nh, prf, rstv)
           else
             call gps_refopv (h, nh, prf, rstv)
