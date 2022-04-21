@@ -100,6 +100,7 @@ contains
 
     ! Locals
     integer :: nEns, nEnsPerSubEns, nEnsIndependentPerSubEns
+    integer :: nEnsPerSubEns_mod, nEnsIndependentPerSubEns_mod
     integer :: nLev_M, nLev_depth, nLev_weights
     integer :: memberIndex, memberIndex1, memberIndex2, ierr, matrixRank
     integer :: memberIndexCV, memberIndexCV1, memberIndexCV2
@@ -125,13 +126,15 @@ contains
     integer, allocatable :: myProcIndexesRecv(:), myProcIndexesSend(:,:)
     integer, allocatable :: requestIdRecv(:), requestIdSend(:)
     integer, allocatable :: memberIndexSubEns(:,:), memberIndexSubEnsComp(:,:)
-    integer, allocatable :: randomMemberIndexArray(:), latLonTagMpiGlobal(:,:)
+    integer, allocatable :: memberIndexSubEns_mod(:,:), memberIndexSubEnsComp_mod(:,:)
+    integer, allocatable :: randomMemberIndexArray(:)
 
     real(8), allocatable :: distances(:)
     real(8), allocatable :: PaInv(:,:), PaSqrt(:,:), Pa(:,:), YbTinvR(:,:), YbTinvRYb(:,:)
-    real(8), allocatable :: YbTinvRYb_CV(:,:), YbTinvRYb_mod(:,:)
+    real(8), allocatable :: YbTinvRYb_CV(:,:), YbTinvRYb_CV_mod(:,:), YbTinvRYb_mod(:,:)
     real(8), allocatable :: eigenValues(:), eigenVectors(:,:)
     real(8), allocatable :: eigenValues_CV(:), eigenVectors_CV(:,:)
+    real(8), allocatable :: eigenValues_CV_mod(:), eigenVectors_CV_mod(:,:)
     real(8), allocatable :: weightsTemp(:), weightsTemp2(:)
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
@@ -213,9 +216,9 @@ contains
     allocate(weightsMeanLatLon(nEnsUsed,1,myNumLatLonSend))
     weightsMeanLatLon(:,:,:) = 0.0d0
     ! Weights for member analyses
-    allocate(weightsMembers(nEns,nEns,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
+    allocate(weightsMembers(nEnsUsed,nEnsUsed,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMembers(:,:,:,:) = 0.0d0
-    allocate(weightsMembersLatLon(nEns,nEns,myNumLatLonSend))
+    allocate(weightsMembersLatLon(nEnsUsed,nEnsUsed,myNumLatLonSend))
     weightsMembersLatLon(:,:,:) = 0.0d0
 
     call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
@@ -248,6 +251,15 @@ contains
       allocate(eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
       allocate(memberIndexSubEns(nEnsPerSubEns,numSubEns))
       allocate(memberIndexSubEnsComp(nEnsIndependentPerSubEns,numSubEns))
+      if ( numRetainedEigen > 0 ) then
+        nEnsIndependentPerSubEns_mod = nEnsUsed - nEnsPerSubEns
+        nEnsPerSubEns_mod = nEnsPerSubEns * numRetainedEigen
+        allocate(YbTinvRYb_CV_mod(nEnsIndependentPerSubEns_mod,nEnsIndependentPerSubEns_mod))
+        allocate(eigenValues_CV_mod(nEnsIndependentPerSubEns_mod))
+        allocate(eigenVectors_CV_mod(nEnsIndependentPerSubEns_mod,nEnsIndependentPerSubEns_mod))
+        allocate(memberIndexSubEns_mod(nEnsPerSubEns_mod,numSubEns))
+        allocate(memberIndexSubEnsComp_mod(nEnsIndependentPerSubEns_mod,numSubEns))
+      end if
       if (.not.randomShuffleSubEns) then
         ! form subensembles with contiguous sequential groups of members
         do subEnsIndex = 1, numSubEns
@@ -256,7 +268,21 @@ contains
                  (subEnsIndex-1)*nEnsPerSubEns + memberIndex
           end do
         end do
+        if ( numRetainedEigen > 0 ) then
+          do subEnsIndex = 1, numSubEns
+            do memberIndex = 1, nEnsPerSubEns_mod
+              memberIndexSubEns_mod(memberIndex,subEnsIndex) =  &
+                   (subEnsIndex-1)*nEnsPerSubEns + memberIndex
+
+            end do
+          end do
+        end if
       else
+        if ( numRetainedEigen > 0 ) then
+          call utl_abort('enkf_LETKFanalyses: randomShuffleSubEns not implemented for algorithm:' // &
+                          trim(algorithm))
+        end if
+
         ! compute random seed from the date for randomly forming subensembles
         imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
         dateStamp = tim_getDateStamp()
@@ -279,6 +305,7 @@ contains
           end do
         end do
       end if
+
       do subEnsIndex = 1, numSubEns
         memberIndex = 1
         do subEnsIndex2 = 1, numSubEns
@@ -286,6 +313,12 @@ contains
 
           memberIndexSubEnsComp(memberIndex:memberIndex+nEnsPerSubEns-1,subEnsIndex) =  &
             memberIndexSubEns(:,subEnsIndex2)
+
+          if ( numRetainedEigen > 0 ) then
+            memberIndexSubEnsComp_mod(memberIndex:memberIndex+nEnsPerSubEns_mod-1,subEnsIndex) =  &
+              memberIndexSubEns_mod(:,subEnsIndex2)
+          end if
+
           memberIndex = memberIndex + nEnsPerSubEns
         end do
       end do
@@ -295,9 +328,20 @@ contains
       do subEnsIndex = 1, numSubEns
         write(*,*) 'memberIndexSubEns = '
         write(*,*) memberIndexSubEns(:,subEnsIndex)
+        if ( numRetainedEigen > 0 ) then
+          write(*,*) 'memberIndexSubEns_mod = '
+          write(*,*) memberIndexSubEns_mod(:,subEnsIndex)
+        end if
+
         write(*,*) 'memberIndexSubEnsComp = '
         write(*,*) memberIndexSubEnsComp(:,subEnsIndex)
+        if ( numRetainedEigen > 0 ) then
+          write(*,*) 'memberIndexSubEnsComp_mod = '
+          write(*,*) memberIndexSubEnsComp_mod(:,subEnsIndex)
+        end if
+
       end do
+
     end if ! if CVLETKF(-PERTOBS)(-ME) algorithm
 
     call lfn_Setup(LocFunctionWanted='FifthOrder')
@@ -707,15 +751,15 @@ contains
 
               ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
               call tmg_start(90,'LETKF-eigenDecomp')
-              do memberIndexCV2 = 1, nEnsIndependentPerSubEns
-                memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
-                do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-                  memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                  YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb(memberIndex1,memberIndex2)
+              do memberIndexCV2 = 1, nEnsIndependentPerSubEns_mod
+                memberIndex2 = memberIndexSubEnsComp_mod(memberIndexCV2, subEnsIndex)
+                do memberIndexCV1 = 1, nEnsIndependentPerSubEns_mod
+                  memberIndex1 = memberIndexSubEnsComp_mod(memberIndexCV1, subEnsIndex)
+                  YbTinvRYb_CV_mod(memberIndexCV1,memberIndexCV2) = YbTinvRYb(memberIndex1,memberIndex2)
                 end do
               end do
               tolerance = 1.0D-50
-              call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
+              call utl_eigenDecomp(YbTinvRYb_CV_mod, eigenValues_CV_mod, eigenVectors_CV_mod, tolerance, matrixRank)
               call tmg_stop(90)
 
               ! Loop over members within the current sub-ensemble being updated
@@ -727,11 +771,11 @@ contains
                 ! E^T * YbTinvRYb
                 weightsTemp(:) = 0.0d0
                 do memberIndex2 = 1, matrixRank
-                  do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-                    memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+                  do memberIndexCV1 = 1, nEnsIndependentPerSubEns_mod
+                    memberIndex1 = memberIndexSubEnsComp_mod(memberIndexCV1, subEnsIndex)
                     weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
-                                                eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
-                                                YbTinvRYb(memberIndex1,memberIndex)
+                                                eigenVectors_CV_mod(memberIndexCV1,memberIndex2) *  &
+                                                YbTinvRYb_mod(memberIndex1,memberIndex)
                   end do
                 end do
 
@@ -739,42 +783,38 @@ contains
 
                 do memberIndex1 = 1, matrixRank
                   weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
-                                              ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns - 1,8)) -   &
-                                                1.0D0/sqrt(eigenValues_CV(memberIndex1) +  &
-                                                           real(nEnsIndependentPerSubEns - 1,8)) )
+                                              ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns_mod - 1,8)) -   &
+                                                1.0D0/sqrt(eigenValues_CV_mod(memberIndex1) +  &
+                                                           real(nEnsIndependentPerSubEns_mod - 1,8)) )
                   weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
-                                              eigenValues_CV(memberIndex1)
+                                              eigenValues_CV_mod(memberIndex1)
                 end do
 
                 ! E * previous_result
                 weightsMembersLatLon(:,memberIndex,latLonIndex) = 0.0d0
                 do memberIndex2 = 1, matrixRank
-                  do memberIndexCV1 = 1, nEnsIndependentPerSubEns
-                    memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
+                  do memberIndexCV1 = 1, nEnsIndependentPerSubEns_mod
+                    memberIndex1 = memberIndexSubEnsComp_mod(memberIndexCV1, subEnsIndex)
                     weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) =   &
                          weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) +   &
-                         eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
+                         eigenVectors_CV_mod(memberIndexCV1,memberIndex2) *  &
                          weightsTemp(memberIndex2)
                   end do
                 end do
 
                 ! -1 * (Nens-1)^1/2 * previous_result
                 weightsMembersLatLon(:,memberIndex,latLonIndex) =  &
-                     -1.0D0 * sqrt(real(nEnsIndependentPerSubEns - 1,8)) *  &
+                     -1.0D0 * sqrt(real(nEnsIndependentPerSubEns_mod - 1,8)) *  &
                      weightsMembersLatLon(:,memberIndex,latLonIndex)
-
-                ! I + previous_result
-                weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) =  &
-                     1.0D0 + weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
 
               end do ! memberIndexCV
             end do ! subEnsIndex
 
             ! Remove the weights mean computed over the columns
-            do memberIndex = 1, nEns
+            do memberIndex = 1, nEnsUsed
               weightsMembersLatLon(memberIndex,:,latLonIndex) =  &
                    weightsMembersLatLon(memberIndex,:,latLonIndex) - &
-                   sum(weightsMembersLatLon(memberIndex,:,latLonIndex))/real(nEns,8)
+                   sum(weightsMembersLatLon(memberIndex,:,latLonIndex))/real(nEnsUsed,8)
             end do
 
           else if (trim(algorithm) == 'CVLETKF-PERTOBS') then
