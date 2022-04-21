@@ -48,7 +48,7 @@ program midas_randomPert
   integer :: fclos, fnom, fstopc, newdate, nstamp, ierr, status
   integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, nkgdim
   integer :: idate, itime, ndate, nulnam
-  integer :: n_grid_point, n_grid_point_glb
+  integer :: get_max_rss, n_grid_point, n_grid_point_glb
 
   integer :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
   integer :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd

@@ -61,7 +61,7 @@ program midas_diagBmatrix
 
   real(8) :: centralValue, centralValueLocal
 
-  integer :: fclos, fnom, fstopc, newdate
+  integer :: fclos, fnom, fstopc, newdate, get_max_rss
   integer :: ierr, nsize, iseed
   integer :: ensIndex, index, kIndex, nkgdim, levIndex, lonIndex, latIndex
   integer :: idate, itime, nulnam, nultxt, dateStamp, numLoc, numStepAmplitude
