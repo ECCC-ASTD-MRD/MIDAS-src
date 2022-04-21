@@ -30,6 +30,7 @@ program midas_obsSelection
   use verticalCoord_mod
   use timeCoord_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use backgroundCheck_mod
   use multi_ir_bgck_mod
   use innovation_mod
@@ -185,7 +186,7 @@ program midas_obsSelection
                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
                      beSilent_opt=.false. )
   call gsv_zero( stateVectorTrialHighRes )
-  call gsv_readTrials( stateVectorTrialHighRes )
+  call gio_readTrials( stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Horizontally interpolate trials to trial columns

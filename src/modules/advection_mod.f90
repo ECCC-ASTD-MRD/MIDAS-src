@@ -29,6 +29,7 @@ MODULE advection_mod
   use timeCoord_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod
@@ -314,7 +315,7 @@ CONTAINS
       inquire(file=trim(fileName),exist=AdvectFileExists)
       write(*,*) 'AdvectFileExists', AdvectFileExists
       do stepIndexSF = 1, numStepSteeringFlow
-        call gsv_readFromFile( statevector_steeringFlow, fileName, ' ', ' ', stepIndex_opt=stepIndexSF, &
+        call gio_readFromFile( statevector_steeringFlow, fileName, ' ', ' ', stepIndex_opt=stepIndexSF, &
                                containsFullField_opt=.true.)
       end do
 

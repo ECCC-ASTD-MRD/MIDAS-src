@@ -27,6 +27,7 @@ program midas_letkf
   use ensembleObservations_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use columnData_mod
   use tovs_nl_mod
   use verticalCoord_mod
@@ -264,7 +265,7 @@ program midas_letkf
     call gsv_allocate( stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/) )
-    call gsv_readFromFile( stateVectorHeightSfc, ensFileName, ' ', ' ',  &
+    call gio_readFromFile( stateVectorHeightSfc, ensFileName, ' ', ' ',  &
                            containsFullField_opt=.true., readHeightSfc_opt=.true. )
   end if
 
@@ -304,7 +305,7 @@ program midas_letkf
     call gsv_zero(stateVectorRecenter)
     call fln_ensTrlFileName( recenterFileName, './', tim_getDateStamp() )
     do stepIndex = 1, tim_nstepobs
-      call gsv_readFromFile( stateVectorRecenter, recenterFileName, ' ', ' ',  &
+      call gio_readFromFile( stateVectorRecenter, recenterFileName, ' ', ' ',  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true., &
                              readHeightSfc_opt=.false. )
     end do
@@ -512,7 +513,7 @@ program midas_letkf
                            copyToRamDisk_opt=.false.)
     end if
     do stepIndex = 1, tim_nstepobsinc
-      call gsv_readFromFile( stateVectorCtrlTrl, ctrlFileName, ' ', ' ',  &
+      call gio_readFromFile( stateVectorCtrlTrl, ctrlFileName, ' ', ' ',  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true., &
                              readHeightSfc_opt=.false. )
     end do

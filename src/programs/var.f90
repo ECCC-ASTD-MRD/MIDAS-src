@@ -32,6 +32,7 @@ program midas_var
   use obsSpaceData_mod
   use columnData_mod  
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use obsSpaceDiag_mod
   use controlVector_mod
   use obsFiles_mod
@@ -214,7 +215,7 @@ program midas_var
                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
                      beSilent_opt=.false. )
   call gsv_zero( stateVectorUpdateHighRes )
-  call gsv_readTrials( stateVectorUpdateHighRes )
+  call gio_readTrials( stateVectorUpdateHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize the background-error covariance, also sets up control vector module (cvm)
@@ -318,7 +319,7 @@ program midas_var
 
     ! get final increment with mask if it exists
     call inc_getIncrement( controlVectorIncr, stateVectorIncr, cvm_nvadim )
-    call gsv_readMaskFromFile( stateVectorIncr, './analysisgrid' )
+    call gio_readMaskFromFile( stateVectorIncr, './analysisgrid' )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Compute high-resolution analysis on trial grid
@@ -343,7 +344,7 @@ program midas_var
            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
            dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
       call inc_getIncrement( controlVectorIncrSum, stateVectorIncrSum, cvm_nvadim )
-      call gsv_readMaskFromFile( stateVectorIncrSum, './analysisgrid' )
+      call gio_readMaskFromFile( stateVectorIncrSum, './analysisgrid' )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       call inc_writeIncrement( stateVectorIncrSum, &     ! IN

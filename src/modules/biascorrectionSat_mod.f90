@@ -35,6 +35,7 @@ module biasCorrectionSat_mod
   use HorizontalCoord_mod
   use verticalCoord_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use stateToColumn_mod
   use codtyp_mod
   use timeCoord_mod
@@ -2598,7 +2599,7 @@ contains
       call gsv_allocate(stateVector_mask_4d, tim_nstepobs, hco_mask, vco_mask, dateStampList_opt=[-1], varNames_opt=["WT"], &
            dataKind_opt=4, mpi_local_opt=.true., mpi_distribution_opt="Tiles")
 
-      call gsv_readFromFile(stateVector_mask, './raob_masque.std', 'WEIGHT', 'O', unitConversion_opt=.false., &
+      call gio_readFromFile(stateVector_mask, './raob_masque.std', 'WEIGHT', 'O', unitConversion_opt=.false., &
            containsFullField_opt=.false.)
 
       do stepIndex = 1, tim_nstepobs

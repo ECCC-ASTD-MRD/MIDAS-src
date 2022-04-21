@@ -25,6 +25,7 @@ module increment_mod
   use mpivar_mod
   use timeCoord_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use humidityLimits_mod
@@ -157,7 +158,7 @@ CONTAINS
 
     ! Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
     if (.not. hco_trl%global .and. useAnalIncMask) then
-      call gsv_getMaskLAM(statevector_mask, hco_trl, vco_trl, hInterpolationDegree)
+      call gio_getMaskLAM(statevector_mask, hco_trl, vco_trl, hInterpolationDegree)
     end if
 
     ! Get the increment of Psfc
@@ -307,7 +308,7 @@ CONTAINS
                       allocHeightSfc_opt = allocHeightSfc, hInterpolateDegree_opt = 'LINEAR', &
                       allocHeight_opt = .false., allocPressure_opt = .false.)
     call gsv_zero(stateVectorTrial)
-    call gsv_readTrials(stateVectorTrial)
+    call gio_readTrials(stateVectorTrial)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
@@ -506,7 +507,7 @@ CONTAINS
       if ( stepIndexToWrite /= -1 ) then
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         anlFileName = './anlm_' // trim(coffset) // 'm'
-        call gsv_writeToFile( stateVector_1step_r4, trim(anlFileName), etiket_anlm,  &
+        call gio_writeToFile( stateVector_1step_r4, trim(anlFileName), etiket_anlm,  &
                               typvar_opt='A', writeHeightSfc_opt=writeHeightSfc, &
                               numBits_opt=writeNumBits, containsFullField_opt=.true. )
       end if
@@ -520,7 +521,7 @@ CONTAINS
         if ( stepIndexToWrite /= -1 ) then
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
           incFileName = './rehm_' // trim(coffset) // 'm'
-          call gsv_writeToFile( stateVector_1step_r4, trim(incFileName), etiket_rehm,  &
+          call gio_writeToFile( stateVector_1step_r4, trim(incFileName), etiket_rehm,  &
                                 typvar_opt='R', &
                                 numBits_opt=writeNumBits, containsFullField_opt=.false. )
         end if
@@ -534,7 +535,7 @@ CONTAINS
           if ( stepIndexToWrite /= -1 ) then
             write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
             incFileName = './rehm_' // trim(coffset) // 'm'
-            call gsv_writeToFile( stateVectorPsfc_1step_r4, trim(incFileName), etiket_rehm,  &
+            call gio_writeToFile( stateVectorPsfc_1step_r4, trim(incFileName), etiket_rehm,  &
                                   typvar_opt='A', writeHeightSfc_opt=writeHeightSfc, &
                                   numBits_opt=writeNumBits, containsFullField_opt=.true. )
           end if
@@ -632,7 +633,7 @@ CONTAINS
           write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
         end if
         fileName = './rebm_' // trim(coffset) // 'm'
-        call gsv_writeToFile( stateVector_incr, fileName, etiket_rebm, scaleFactor_opt=1.0d0, &
+        call gio_writeToFile( stateVector_incr, fileName, etiket_rebm, scaleFactor_opt=1.0d0, &
                               ip3_opt=ip3ForWriteToFile_opt, stepIndex_opt=stepIndex, &
                               containsFullField_opt=.false. )
       end if
@@ -680,7 +681,7 @@ CONTAINS
           write(coffset,'(I3.3)') nint(deltaHours*60.0d0)
         end if
         fileName = './anlm_' // trim(coffset) // 'm'
-        call gsv_writeToFile( statevector_anal, fileName, etiket_anlm, scaleFactor_opt = 1.0d0, &
+        call gio_writeToFile( statevector_anal, fileName, etiket_anlm, scaleFactor_opt = 1.0d0, &
              ip3_opt = 0, stepIndex_opt = stepIndex, containsFullField_opt=.true. )
       end if
     end do

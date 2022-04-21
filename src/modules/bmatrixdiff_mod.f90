@@ -26,6 +26,7 @@ MODULE BmatrixDiff_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use varNameList_mod
@@ -354,7 +355,7 @@ CONTAINS
                        hInterpolateDegree_opt='LINEAR', &
                        varNames_opt=bdiff_varNameList(1:numvar2d) )
     call gsv_zero( statevector )
-    call gsv_readFromFile(statevector, './bgstddev', 'STDDEV', ' ', unitConversion_opt = .false. )
+    call gio_readFromFile(statevector, './bgstddev', 'STDDEV', ' ', unitConversion_opt = .false. )
 
     do variableIndex = 1, numvar2d
       call gsv_getField( statevector, field3D_r4_ptr, bdiff_varNameList( variableIndex ) )

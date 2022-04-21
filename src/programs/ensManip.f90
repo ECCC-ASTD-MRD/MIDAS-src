@@ -36,6 +36,7 @@ program midas_ensManip
   use mpivar_mod
   use mathPhysConstants_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use fileNames_mod
   use ensembleStateVector_mod
   use verticalCoord_mod
@@ -269,7 +270,7 @@ program midas_ensManip
 
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
-      call gsv_writeToFile(statevector_mean, ensFileName, 'ENSMEAN',                            &
+      call gio_writeToFile(statevector_mean, ensFileName, 'ENSMEAN',                            &
                            stepIndex_opt = stepIndex, typvar_opt = 'P', numBits_opt = numBits,  &
                            containsFullField_opt=.true.)
     end do
@@ -293,7 +294,7 @@ program midas_ensManip
     ! Output the ensemble stddev
     do stepIndex = 1, numStep
       if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
-      call gsv_writeToFile(statevector_stddev, ensFileName, 'ENSSTDDEV',                       &
+      call gio_writeToFile(statevector_stddev, ensFileName, 'ENSSTDDEV',                       &
                            stepIndex_opt = stepIndex, typvar_opt = 'P' , numBits_opt = numBits )
     end do
 
@@ -328,7 +329,7 @@ program midas_ensManip
       dateStamp = datestamplist(stepIndex)
       if(mpi_myid == 0) write(*,*) ''
       if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading recentering mean for time step: ',stepIndex, dateStamp
-      call gsv_readFromFile(statevector_recenteringMean, trim(recenteringMeanFileName), ' ', ' ',  &
+      call gio_readFromFile(statevector_recenteringMean, trim(recenteringMeanFileName), ' ', ' ',  &
                             stepIndex_opt=stepIndex, unitConversion_opt=.true.,                    &
                             containsFullField_opt=.true.)
     end do
@@ -359,7 +360,7 @@ program midas_ensManip
         dateStamp = datestamplist(stepIndex)
         if(mpi_myid == 0) write(*,*) ''
         if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading ensemble center for time step: ',stepIndex, dateStamp, trim(alternativeEnsembleMeanFileName)
-        call gsv_readFromFile(statevector_alternativeEnsembleMean, trim(alternativeEnsembleMeanFileName), &
+        call gio_readFromFile(statevector_alternativeEnsembleMean, trim(alternativeEnsembleMeanFileName), &
                               ' ', ' ', stepIndex_opt=stepIndex, unitConversion_opt=.true.,               &
                               containsFullField_opt=.true. )
       end do
@@ -529,7 +530,7 @@ contains
 
     do stepIndex = 1, numStep
       if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
-      call gsv_readFromFile( statevector_ensembleControlMember, trim(fileNameIn), ' ', ' ',  &
+      call gio_readFromFile( statevector_ensembleControlMember, trim(fileNameIn), ' ', ' ',  &
                              stepIndex_opt=stepIndex, unitConversion_opt=.true.,  &
                              containsFullField_opt=.true. )
     end do
@@ -551,7 +552,7 @@ contains
     ! Output the recentered ensemble control member
     do stepIndex = 1, numStep
       if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: write recentered ensemble control member for time step: ',stepIndex
-      call gsv_writeToFile( statevector_ensembleControlMember, trim(fileNameOut), etiket, &
+      call gio_writeToFile( statevector_ensembleControlMember, trim(fileNameOut), etiket, &
                             stepIndex_opt = stepIndex, typvar_opt = typvar , numBits_opt = numBits_opt, &
                             containsFullField_opt = .true. )
     end do

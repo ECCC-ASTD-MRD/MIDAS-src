@@ -25,6 +25,7 @@ program midas_ensembleH
   use mathPhysConstants_mod
   use fileNames_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use columnData_mod
   use verticalCoord_mod
   use horizontalCoord_mod
@@ -160,9 +161,9 @@ program midas_ensembleH
     write(*,*) 'midas-ensembleH: read member ', memberIndex
     call tmg_start(3,'READ_ENSEMBLE')
     call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, copyToRamDisk_opt=.false.  )
-    call gsv_readFile( stateVector, ensFileName, ' ', ' ', containsFullField=.true., &
+    call gio_readFile( stateVector, ensFileName, ' ', ' ', containsFullField=.true., &
                        readHeightSfc_opt=.true. )
-    call gsv_fileUnitsToStateUnits( stateVector, containsFullField=.true. )
+    call gio_fileUnitsToStateUnits( stateVector, containsFullField=.true. )
 
     call gsv_transposeVarsLevsToTiles(statevector, statevector_tiles)
     call tmg_stop(3)

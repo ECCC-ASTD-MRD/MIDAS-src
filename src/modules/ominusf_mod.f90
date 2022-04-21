@@ -32,6 +32,7 @@ module oMinusF_mod
   use columnData_mod
   use stateToColumn_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use obsFiles_mod
   use obsFilter_mod
   use innovation_mod
@@ -167,7 +168,7 @@ module oMinusF_mod
                          allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
                          beSilent_opt=.false. )
       call gsv_zero( stateVectorTrialHighRes )
-      call gsv_readTrials( stateVectorTrialHighRes )
+      call gio_readTrials( stateVectorTrialHighRes )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       ! Horizontally interpolate trials to trial columns
