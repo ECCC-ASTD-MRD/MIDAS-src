@@ -48,8 +48,9 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_readFromFile
   !--------------------------------------------------------------------------
-  subroutine gio_readFromFile(statevector_out, fileName, etiket_in, typvar_in, stepIndex_opt,  &
-                              unitConversion_opt, PsfcReference_opt, readHeightSfc_opt,   &
+  subroutine gio_readFromFile(statevector_out, fileName, etiket_in, typvar_in, &
+                              stepIndex_opt, unitConversion_opt, &
+                              PsfcReference_opt, readHeightSfc_opt, &
                               containsFullField_opt, vcoFileIn_opt)
     !
     ! :Purpose: Read an RPN standard file and put the contents into a
@@ -58,25 +59,26 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! arguments
-    type(struct_gsv)              :: statevector_out
-    character(len=*), intent(in)  :: fileName
-    character(len=*), intent(in)  :: etiket_in
-    character(len=*), intent(in)  :: typvar_in
-    integer, optional             :: stepIndex_opt
-    logical, optional             :: unitConversion_opt
-    logical, optional             :: readHeightSfc_opt
-    logical, optional,intent(in)  :: containsFullField_opt
-    real(8), optional             :: PsfcReference_opt(:,:)
-    type(struct_vco), optional, pointer, intent(in)  :: vcoFileIn_opt
+    type(struct_gsv),                    intent(inout) :: statevector_out
+    character(len=*),                    intent(in)    :: fileName
+    character(len=*),                    intent(in)    :: etiket_in
+    character(len=*),                    intent(in)    :: typvar_in
+    integer,          optional,          intent(in)    :: stepIndex_opt
+    logical,          optional,          intent(in)    :: unitConversion_opt
+    logical,          optional,          intent(in)    :: readHeightSfc_opt
+    logical,          optional,          intent(in)    :: containsFullField_opt
+    real(8),          optional,          intent(in)    :: PsfcReference_opt(:,:)
+    type(struct_vco), optional, pointer, intent(in)    :: vcoFileIn_opt
 
     ! locals
-    integer :: stepIndex, varIndex
-    character(len=4) :: varName
-    logical :: doHorizInterp, doVertInterp, unitConversion
-    logical :: readHeightSfc, containsFullField
+    logical           :: doHorizInterp, doVertInterp, unitConversion
+    logical           :: readHeightSfc, containsFullField
+    logical           :: foundVarNameInFile 
+    integer           :: stepIndex, varIndex
+    character(len=4)  :: varName
+
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
-    logical :: foundVarNameInFile 
 
     nullify(vco_file, hco_file)
 
@@ -210,26 +212,27 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! arguments
-    type(struct_gsv)              :: statevector_out
-    character(len=*), intent(in)  :: fileName
-    type(struct_vco), pointer     :: vco_file
-    type(struct_hco), pointer     :: hco_file
-    character(len=*), intent(in)  :: etiket_in
-    character(len=*), intent(in)  :: typvar_in
-    integer                       :: stepIndex
-    logical                       :: unitConversion
-    logical                       :: readHeightSfc
-    logical                       :: containsFullField
-    real(8), optional             :: PsfcReference_opt(:,:)
+    type(struct_gsv),          intent(inout)  :: statevector_out
+    character(len=*),          intent(in)     :: fileName
+    type(struct_vco), pointer, intent(in)     :: vco_file
+    type(struct_hco), pointer, intent(in)     :: hco_file
+    character(len=*),          intent(in)     :: etiket_in
+    character(len=*),          intent(in)     :: typvar_in
+    integer,                   intent(in)     :: stepIndex
+    logical,                   intent(in)     :: unitConversion
+    logical,                   intent(in)     :: readHeightSfc
+    logical,                   intent(in)     :: containsFullField
+    real(8), optional,         intent(in)     :: PsfcReference_opt(:,:)
 
     ! locals
-    type(struct_gsv) :: statevector_file_r4, statevector_tiles, statevector_hinterp_r4, statevector_vinterp
-
     real(4), pointer     :: field3d_r4_ptr(:,:,:)
     real(8), pointer     :: field_in_ptr(:,:,:,:), field_out_ptr(:,:,:,:)
     real(8), allocatable :: PsfcReference3D(:,:,:)
 
     character(len=4), pointer :: varNamesToRead(:)
+
+    type(struct_gsv) :: statevector_file_r4, statevector_tiles 
+    type(struct_gsv) :: statevector_hinterp_r4, statevector_vinterp
 
     nullify(field3d_r4_ptr, field_in_ptr, field_out_ptr)
 
@@ -333,22 +336,22 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! arguments
-    type(struct_gsv)              :: statevector_out
-    character(len=*), intent(in)  :: fileName
-    character(len=*), intent(in)  :: etiket_in
-    character(len=*), intent(in)  :: typvar_in
-    integer                       :: stepIndex
-    logical                       :: unitConversion
-    logical                       :: readHeightSfc
-    logical                       :: containsFullField
+    type(struct_gsv), intent(inout) :: statevector_out
+    character(len=*), intent(in)    :: fileName
+    character(len=*), intent(in)    :: etiket_in
+    character(len=*), intent(in)    :: typvar_in
+    integer,          intent(in)    :: stepIndex
+    logical,          intent(in)    :: unitConversion
+    logical,          intent(in)    :: readHeightSfc
+    logical,          intent(in)    :: containsFullField
 
     ! locals
-    type(struct_gsv) :: statevector_file_r4, statevector_tiles
-
     real(4), pointer     :: field3d_r4_ptr(:,:,:)
     real(8), pointer     :: field_in_ptr(:,:,:,:), field_out_ptr(:,:,:,:)
 
     character(len=4), pointer :: varNamesToRead(:)
+
+    type(struct_gsv) :: statevector_file_r4, statevector_tiles
 
     nullify(field3d_r4_ptr, field_in_ptr, field_out_ptr)
 
@@ -408,23 +411,24 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! arguments
-    type(struct_gsv)              :: statevector_out_r4
-    character(len=*), intent(in)  :: fileName
-    type(struct_vco), pointer     :: vco_file
-    type(struct_hco), pointer     :: hco_file
-    character(len=*), intent(in)  :: etiket_in
-    character(len=*), intent(in)  :: typvar_in
-    integer                       :: stepIndex
-    logical                       :: unitConversion
-    logical                       :: readHeightSfc
-    logical                       :: containsFullField
+    type(struct_gsv),          intent(inout)  :: statevector_out_r4
+    character(len=*),          intent(in)     :: fileName
+    type(struct_vco), pointer, intent(in)     :: vco_file
+    type(struct_hco), pointer, intent(in)     :: hco_file
+    character(len=*),          intent(in)     :: etiket_in
+    character(len=*),          intent(in)     :: typvar_in
+    integer,                   intent(in)     :: stepIndex
+    logical,                   intent(in)     :: unitConversion
+    logical,                   intent(in)     :: readHeightSfc
+    logical,                   intent(in)     :: containsFullField
 
     ! locals
-    type(struct_gsv) :: statevector_file_r4, statevector_hinterp_r4, statevector_vinterp_r4
-
-    real(4), pointer     :: field_in_ptr(:,:,:,:), field_out_ptr(:,:,:,:)
+    real(4), pointer :: field_in_ptr(:,:,:,:), field_out_ptr(:,:,:,:)
 
     character(len=4), pointer :: varNamesToRead(:)
+
+    type(struct_gsv) :: statevector_file_r4, statevector_hinterp_r4
+    type(struct_gsv) :: statevector_vinterp_r4
 
     nullify(field_in_ptr, field_out_ptr)
 
@@ -502,14 +506,14 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! arguments
-    type(struct_gsv)              :: statevector_out
-    character(len=*), intent(in)  :: fileName
-    character(len=*), intent(in)  :: etiket_in
-    character(len=*), intent(in)  :: typvar_in
-    integer                       :: stepIndex
-    logical                       :: unitConversion
-    logical                       :: readHeightSfc
-    logical                       :: containsFullField
+    type(struct_gsv), intent(inout) :: statevector_out
+    character(len=*), intent(in)    :: fileName
+    character(len=*), intent(in)    :: etiket_in
+    character(len=*), intent(in)    :: typvar_in
+    integer,          intent(in)    :: stepIndex
+    logical,          intent(in)    :: unitConversion
+    logical,          intent(in)    :: readHeightSfc
+    logical,          intent(in)    :: containsFullField
 
     write(*,*) ''
     write(*,*) 'readFromFileOnly: Do simple reading with no interpolation and no mpi redistribution'
@@ -553,7 +557,8 @@ module gridStateVectorFileIO_mod
     logical, optional, intent(in)    :: ignoreDate_opt
 
     ! locals
-    integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file, kIndex, stepIndex, ikey, levIndex
+    integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file, kIndex, stepIndex
+    integer :: ikey, levIndex
     integer :: stepIndexBeg, stepIndexEnd, ni_var, nj_var, nk_var
     integer :: fnom, fstouv, fclos, nulnam, fstfrm, fstlir, fstinf
     integer :: fstprm, EZscintID_var, ezdefset, ezqkdef
@@ -580,6 +585,7 @@ module gridStateVectorFileIO_mod
 
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
+
     logical :: foundVarNameInFile, ignoreDate, interpToPhysicsGrid
     NAMELIST /NAMSTIO/interpToPhysicsGrid
 
@@ -961,10 +967,11 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! arguments
-    type(struct_gsv)              :: stateVector
-    character(len=*), intent(in)  :: fileName
+    type(struct_gsv), intent(inout) :: stateVector
+    character(len=*), intent(in)    :: fileName
 
-    call ocm_readMaskFromFile(stateVector%oceanMask,gsv_getHco(statevector), gsv_getVco(statevector), filename)
+    call ocm_readMaskFromFile(stateVector%oceanMask,gsv_getHco(statevector), &
+                              gsv_getVco(statevector), filename)
 
   end subroutine gio_readMaskFromFile
 
@@ -978,10 +985,10 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: statevector_mask
-    type(struct_hco), intent(in), pointer :: hco_ptr
-    type(struct_vco), intent(in), pointer :: vco_ptr
-    character(len=*), intent(in), optional :: hInterpolateDegree_opt
+    type(struct_gsv),           intent(inout) :: statevector_mask
+    type(struct_hco), pointer,  intent(in)    :: hco_ptr
+    type(struct_vco), pointer,  intent(in)    :: vco_ptr
+    character(len=*), optional, intent(in)    :: hInterpolateDegree_opt
 
     ! Locals
     character(len=12) :: hInterpolationDegree
@@ -1014,20 +1021,22 @@ module gridStateVectorFileIO_mod
     type(struct_gsv), target, intent(inout) :: stateVectorTrialIn
 
     ! Locals
-    type(struct_gsv),  target :: stateVectorTrial
-    type(struct_gsv), pointer :: stateVectorTrial_ptr 
-    type(struct_gsv)     :: stateVector_1step_r4
-    integer              :: fnom, fstouv, fclos, fstfrm, fstinf
-    integer              :: ierr, ikey, stepIndex, stepIndexToRead, trialIndex, nulTrial
-    integer, parameter   :: maxNumTrials = 100
-    integer              :: ni_file, nj_file, nk_file, dateStamp, varNameIndex
-    integer              :: procToRead, numBatch, batchIndex, stepIndexBeg, stepIndexEnd
-    character(len=2)     :: fileNumber
-    character(len=512)   :: fileName
-    logical              :: fileExists, allocHeightSfc
-    logical              :: useInputStateVectorTrial 
+    logical             :: fileExists, allocHeightSfc
+    logical             :: useInputStateVectorTrial 
+    integer, parameter  :: maxNumTrials = 100
+    integer             :: fnom, fstouv, fclos, fstfrm, fstinf
+    integer             :: ierr, ikey, stepIndex, stepIndexToRead, trialIndex, nulTrial
+    integer             :: ni_file, nj_file, nk_file, dateStamp, varNameIndex
+    integer             :: procToRead, numBatch, batchIndex, stepIndexBeg, stepIndexEnd
+
+    character(len=2)          :: fileNumber
+    character(len=512)        :: fileName
+    character(len=4)          :: varNameForDateStampSearch
     character(len=4), pointer :: varNamesToRead(:)
-    character(len=4)     :: varNameForDateStampSearch
+
+    type(struct_gsv), target  :: stateVectorTrial
+    type(struct_gsv), pointer :: stateVectorTrial_ptr 
+    type(struct_gsv)          :: stateVector_1step_r4
 
     call tmg_start(150,'gio_readTrials')
 
@@ -1191,50 +1200,57 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! gio_writeToFile
   !--------------------------------------------------------------------------
-  subroutine gio_writeToFile(statevector_in, fileName, etiket_in, scaleFactor_opt, ip3_opt, &
-       stepIndex_opt, typvar_opt, HUcontainsLQ_opt, unitConversion_opt, writeHeightSfc_opt,  &
-       numBits_opt, containsFullField_opt)
+  subroutine gio_writeToFile(statevector_in, fileName, etiket_in, &
+                             scaleFactor_opt, ip3_opt, stepIndex_opt, typvar_opt,&
+                             HUcontainsLQ_opt, unitConversion_opt, &
+                             writeHeightSfc_opt, numBits_opt, containsFullField_opt)
     !
     ! :Purpose: Write a statevector object to an RPN standard file.
     !
     implicit none
 
     ! arguments
-    type(struct_gsv), target     :: statevector_in
-    character(len=*), intent(in) :: fileName
-    character(len=*), intent(in) :: etiket_in
-    real(8), optional,intent(in) :: scaleFactor_opt
-    integer, optional,intent(in) :: ip3_opt, stepIndex_opt
+    type(struct_gsv), target,   intent(in) :: statevector_in
+    character(len=*),           intent(in) :: fileName
+    character(len=*),           intent(in) :: etiket_in
+    real(8),          optional, intent(in) :: scaleFactor_opt
+    integer,          optional, intent(in) :: ip3_opt, stepIndex_opt
     character(len=*), optional, intent(in) :: typvar_opt
-    logical, optional,intent(in) :: HUcontainsLQ_opt
-    logical, optional,intent(in) :: unitConversion_opt
-    logical, optional,intent(in) :: writeHeightSfc_opt
-    integer, optional,intent(in) :: numBits_opt
-    logical, optional,intent(in) :: containsFullField_opt
+    logical,          optional, intent(in) :: HUcontainsLQ_opt
+    logical,          optional, intent(in) :: unitConversion_opt
+    logical,          optional, intent(in) :: writeHeightSfc_opt
+    integer,          optional, intent(in) :: numBits_opt
+    logical,          optional, intent(in) :: containsFullField_opt
 
     ! locals
-    type(struct_gsv), pointer :: statevector
-    type(struct_gsv), target  :: statevector_tiles
+    logical :: iDoWriting, unitConversion, containsFullField
+
     integer :: fclos, fnom, fstouv, fstfrm, nulnam
     integer :: nulfile, stepIndex
-    real(4), allocatable :: work2d_r4(:,:), work2dFile_r4(:,:), gd_send_r4(:,:), gd_recv_r4(:,:,:)
-    real(4)   :: factor_r4, work_r4
-    integer, allocatable :: mask(:,:)
-    integer   :: ierr, fstecr, ezdefset
+    integer :: ierr, fstecr, ezdefset
     integer :: ni, nj, nk
     integer :: dateo, npak, levIndex, nlev, varIndex, maskLevIndex
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
     integer :: yourid, nsize, youridy, youridx
-    character(len=1)  :: grtyp
-    character(len=4)  :: nomvar
-    character(len=2)  :: typvar
-    character(len=12) :: etiket
+
+    real(4) :: factor_r4, work_r4
+
+    character(len=1)          :: grtyp
+    character(len=4)          :: nomvar
+    character(len=2)          :: typvar
+    character(len=12)         :: etiket
+    character(len=4)          :: varLevel
     character(len=4), pointer :: varNamesToRead(:)
-    character(len=4)  :: varLevel
-    logical :: iDoWriting, unitConversion, containsFullField
+
+    integer, allocatable :: mask(:,:)
+    real(4), allocatable :: work2d_r4(:,:), work2dFile_r4(:,:), gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:,:), heightSfc_ptr(:,:)
     real(4), pointer :: field_r4(:,:,:,:)
+
+    type(struct_gsv), pointer :: statevector
+    type(struct_gsv), target  :: statevector_tiles
+
     logical :: interpToPhysicsGrid
     NAMELIST /NAMSTIO/interpToPhysicsGrid
 
@@ -1670,12 +1686,13 @@ module gridStateVectorFileIO_mod
     !
     implicit none
 
-    type(struct_gsv)    :: statevector
-    integer, intent(in) :: iun
+    ! Arguments
+    type(struct_gsv), intent(in) :: statevector
+    integer,          intent(in) :: iun
     character(len=*), intent(in) :: etiket
 
+    ! Locals
     integer :: ier
-
     integer :: dateo, npak, status, fstecr
     integer :: ip1,ip2,ip3,deet,npas,datyp,ig1,ig2,ig3,ig4
     integer :: ig1_tictac,ig2_tictac,ig3_tictac,ig4_tictac
@@ -1810,14 +1827,16 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv)            :: statevector
-    logical                     :: containsFullField
-    integer, optional           :: stepIndex_opt
+    type(struct_gsv),  intent(inout)  :: statevector
+    logical,           intent(in)     :: containsFullField
+    integer, optional, intent(in)     :: stepIndex_opt
 
     ! Locals:
-    real(4), pointer :: field_r4_ptr(:,:,:,:), fieldUV_r4_ptr(:,:,:)
-    real(8) :: multFactor
     integer :: stepIndex, stepIndexBeg, stepIndexEnd, kIndex
+
+    real(4), pointer :: field_r4_ptr(:,:,:,:), fieldUV_r4_ptr(:,:,:)
+    real(8)          :: multFactor
+
     character(len=4) :: varName
 
     if ( present(stepIndex_opt) ) then
