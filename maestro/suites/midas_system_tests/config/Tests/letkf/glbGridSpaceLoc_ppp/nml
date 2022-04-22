@@ -1,7 +1,8 @@
  &NAMLETKF
-   algorithm                = 'LETKF-ME'
+   algorithm                = 'CVLETKF-ME'
    ensPostProcessing        = .true.
    NENS                     = 20
+   numSubEns                = 2
    MAXNUMLOCALOBS           = 10000
    WEIGHTLATLONSTEP         = 10
    HLOCALIZE                = 2000.0D0
