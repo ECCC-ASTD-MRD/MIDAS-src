@@ -1758,7 +1758,8 @@ contains
     type(fSQL_STATUS)    :: stat ! sqlite error status
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
-    integer              :: midasKey, obsIdo, obsIdf, updateItemIndex, updateValue_i
+    integer(8)           :: obsIdo
+    integer              :: midasKey, obsIdf, updateItemIndex, updateValue_i
     integer              :: headIndex, bodyIndex
     integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
     real(8)              :: updateValue_r
@@ -1837,7 +1838,7 @@ contains
         midasKey = midasKey +1
         call fSQL_bind_param(stmt, PARAM_INDEX=1, INT_VAR=midasKey)
         obsIdo   = obs_headPrimaryKey(obsdat, headIndex)
-        call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsIdo )
+        call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT8_VAR  = obsIdo )
 
         call fSQL_exec_stmt ( stmt )
       
@@ -1926,7 +1927,7 @@ contains
         end if
 
         obsIdo  = obs_headPrimaryKey( obsdat, headIndex )
-        call fSQL_bind_param(stmt, PARAM_INDEX=2, INT_VAR=obsIdo)
+        call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdo)
 
         call fSQL_exec_stmt(stmt)
 
