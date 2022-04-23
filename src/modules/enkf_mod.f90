@@ -252,8 +252,8 @@ contains
       allocate(memberIndexSubEns(nEnsPerSubEns,numSubEns))
       allocate(memberIndexSubEnsComp(nEnsIndependentPerSubEns,numSubEns))
       if ( numRetainedEigen > 0 ) then
-        nEnsIndependentPerSubEns_mod = nEnsUsed - nEnsPerSubEns
         nEnsPerSubEns_mod = nEnsPerSubEns * numRetainedEigen
+        nEnsIndependentPerSubEns_mod = nEnsUsed - nEnsPerSubEns_mod
         allocate(YbTinvRYb_CV_mod(nEnsIndependentPerSubEns_mod,nEnsIndependentPerSubEns_mod))
         allocate(eigenValues_CV_mod(nEnsIndependentPerSubEns_mod))
         allocate(eigenVectors_CV_mod(nEnsIndependentPerSubEns_mod,nEnsIndependentPerSubEns_mod))
@@ -270,10 +270,16 @@ contains
         end do
         if ( numRetainedEigen > 0 ) then
           do subEnsIndex = 1, numSubEns
-            do memberIndex = 1, nEnsPerSubEns_mod
-              memberIndexSubEns_mod(memberIndex,subEnsIndex) =  &
-                   (subEnsIndex-1)*nEnsPerSubEns + memberIndex
-
+            memberIndex2 = 0
+            do memberIndex = 1, nEnsPerSubEns
+              do eigenVectorColumnIndex = 1, numRetainedEigen
+                !memberIndex2 = memberIndex2 + memberIndex
+                memberIndex2 = memberIndex2 + 1
+                memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + &
+                                        memberIndex
+                memberIndexSubEns_mod(memberIndex2,subEnsIndex) =  &
+                     (subEnsIndex-1)*nEnsPerSubEns + memberIndexInModEns
+              end do
             end do
           end do
         end if
@@ -314,13 +320,21 @@ contains
           memberIndexSubEnsComp(memberIndex:memberIndex+nEnsPerSubEns-1,subEnsIndex) =  &
             memberIndexSubEns(:,subEnsIndex2)
 
-          if ( numRetainedEigen > 0 ) then
-            memberIndexSubEnsComp_mod(memberIndex:memberIndex+nEnsPerSubEns_mod-1,subEnsIndex) =  &
-              memberIndexSubEns_mod(:,subEnsIndex2)
-          end if
-
           memberIndex = memberIndex + nEnsPerSubEns
         end do
+
+        if ( numRetainedEigen > 0 ) then
+          memberIndex2 = 1
+          do subEnsIndex2 = 1, numSubEns
+            if (subEnsIndex2 == subEnsIndex) cycle
+
+              memberIndexSubEnsComp_mod(memberIndex2:memberIndex2+nEnsPerSubEns_mod-1,subEnsIndex) =  &
+                memberIndexSubEns_mod(:,subEnsIndex2)
+
+            memberIndex2 = memberIndex2 + nEnsPerSubEns_mod
+          end do
+        end if
+
       end do
 
       write(*,*) 'nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns = ',  &
@@ -1161,9 +1175,9 @@ contains
                     ! which retained eigenVector/original ensemble the modulated ensemble
                     !   (memberIndex1) corresponds to
                     if ( mod(memberIndex1,nEns) == 0 ) then
-                      retainedEigenIndex = memberIndex1 / nEns - 1
-                    else
                       retainedEigenIndex = memberIndex1 / nEns
+                    else
+                      retainedEigenIndex = memberIndex1 / nEns + 1
                     end if
                     memberIndexInOrgEns = memberIndex1 - (retainedEigenIndex - 1) * nEns
 
