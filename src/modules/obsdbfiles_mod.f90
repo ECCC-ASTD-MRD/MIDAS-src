@@ -1884,27 +1884,27 @@ contains
     ! updating the contents of the MIDAS table, one column at a time
     do updateItemIndex = 1, numberUpdateItems
 
-      ! ! get obsSpaceData column index for source of updated sql column
+      ! get obsSpaceData column index for source of updated sql column
       obsSpaceColumnName = updateItemList(updateItemIndex)
       ierr = clib_toUpper(obsSpaceColumnName)
       obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
 
       sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasHeadNamesList)
      
-        ! prepare sql update query
-        query = 'update ' // trim(midasHeadTableName) // ' set ' // &
+      ! prepare sql update query
+      query = 'update ' // trim(midasHeadTableName) // ' set ' // &
               trim(sqlColumnName)  // ' = ? where ' // &
               trim(obsHeadKeySqlName) // ' = ? ;'
-        write(*,*) 'odbf_updateMidasHeaderTable: query ---> ', trim(query)
+      write(*,*) 'odbf_updateMidasHeaderTable: query ---> ', trim(query)
 
-        call fSQL_prepare( db, query , stmt, stat )
-        if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'odbf_updateMidasHeaderTable: fSQL_prepare: ', fSQL_errmsg(stat)
-        call utl_abort( 'odbf_updateMidasHeaderTable: fSQL_prepare' )
-        end if
+      call fSQL_prepare( db, query , stmt, stat )
+      if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_updateMidasHeaderTable: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_updateMidasHeaderTable: fSQL_prepare' )
+      end if
 
-        call fSQL_begin(db)
-        HEADER2: do headIndex = 1, obs_numHeader(obsdat)
+      call fSQL_begin(db)
+      HEADER2: do headIndex = 1, obs_numHeader(obsdat)
         obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
         if ( obsIdf /= fileIndex ) cycle HEADER2
 
