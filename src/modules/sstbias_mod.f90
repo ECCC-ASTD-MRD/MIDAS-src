@@ -138,7 +138,7 @@ module SSTbias_mod
                                 dayOrNight_opt = trim(listProducts(productIndex)))
         call sstb_getGriddedBias(satelliteGrid (:, :), insituGrid, hco, vco, mask, openWater, &
                                  maxBias, trim(sensorList(sensorIndex)), numberOpenWaterPoints, &
-                                 numberPointsBG, trim(listProducts(productIndex)), stateVector)
+                                 numberPointsBG, trim(listProducts(productIndex)))
       end do
     end do
   
@@ -326,9 +326,8 @@ module SSTbias_mod
   !--------------------------------------------------------------------------
   ! sstb_getGriddedBias
   !--------------------------------------------------------------------------
-  subroutine sstb_getGriddedBias(satelliteGrid, insituGrid, hco, vco,  mask, openWater, &
-                                 maxBias, sensor, numberOpenWaterPoints, &
-                                 numberPointsBG, dayOrNight, stateVector)
+  subroutine sstb_getGriddedBias(satelliteGrid, insituGrid, hco, vco,  mask, openWater, maxBias, &
+                                 sensor, numberOpenWaterPoints, numberPointsBG, dayOrNight)
     !
     ! :Purpose: compute the satellite SST data bias estimation field on a grid
     !           
@@ -347,7 +346,7 @@ module SSTbias_mod
     integer         , intent(in)             :: numberPointsBG       ! namelist parameter: number of points 
                                                                      ! used to compute the previous (background) bias estimation
     character(len=*), intent(in)             :: dayOrNight           ! look for daytime or nighttime obs
-    type(struct_gsv), intent(inout)          :: stateVector          ! state vector containing bias estimation field    
+        
     ! locals
     real, parameter             :: solarZenithThreshold = 90.0       ! to distinguish day and night
     type(kdtree2), pointer      :: tree => null() 
@@ -361,6 +360,7 @@ module SSTbias_mod
     integer                     :: localIndex, indexCounter, localLonIndex, localLatIndex
     integer                     :: numPointsFound
     real(kdkind)                :: searchRadiusSquared
+    type(struct_gsv)            :: stateVector                      ! state vector containing bias estimation field
     type(struct_gsv)            :: stateVector_searchRadius, stateVector_previous
     real(4), pointer            :: griddedBias_r4_ptr(:, :, :), searchRadius_ptr(:, :, :)
     real(4), pointer            :: griddedBias_r4_previous_ptr(:, :, :)
@@ -413,11 +413,14 @@ module SSTbias_mod
 
     ! previous bias estimation
     call gsv_allocate(stateVector_previous, 1, hco, vco, dataKind_opt = 4, &
-                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
+                      datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gsv_readFromFile(stateVector_previous, './trlm_01', 'B_'//sensor//'_'//extension, &
                           'R', unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_previous, griddedBias_r4_previous_ptr) 
        
+    ! resulting bias estimation state vector
+    call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
+                      datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     ! pointer for bias estimation stateVector
     call gsv_getField(stateVector, griddedBias_r4_ptr)
 
@@ -476,6 +479,7 @@ module SSTbias_mod
     deallocate(positionArray)
     call gsv_deallocate(stateVector_searchRadius)
     call gsv_deallocate(stateVector_previous)
+    call gsv_deallocate(stateVector)
     
     write(*,*) 'sstb_getGriddedBias: completed for: '//trim(sensor)//' '//trim(dayOrNight)
 
