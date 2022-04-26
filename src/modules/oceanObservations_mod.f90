@@ -290,6 +290,8 @@ module oceanObservations_mod
       call     obs_set_c(obsData, 'STID' , headerIndex, 'ABOG')
       call obs_headSet_i(obsData, OBS_NLV, headerIndex, 1)
       call obs_headSet_i(obsData, OBS_RLN, headerIndex, headerIndex)
+      call obs_headSet_i(obsData, OBS_DAT, headerIndex, datePrint / 100)
+      call obs_headSet_i(obsData, OBS_ETM, headerIndex, timePrint)
       headerIndex = headerIndex + 1
     end do 
     

@@ -45,6 +45,7 @@ program midas_obsSelection
   use bgckssmis_mod
   use bgckcsr_mod
   use bgckOcean_mod 
+  use SSTbias_mod
    
   implicit none
 
@@ -158,7 +159,7 @@ program midas_obsSelection
   !
   !- Memory allocation for background column data
   !
-  call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+  call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData), mpiLocal_opt = .true.)
 
   !
   !- Initialize the observation error covariances
@@ -175,7 +176,8 @@ program midas_obsSelection
   ! Apply optional bias corrections
   call bcc_applyAIBcor(obsSpaceData)    
   call bcc_applyGPBcor(obsSpaceData)
-    
+  call sstb_applySatelliteSSTBiasCorrection(obsSpaceData, hco_anl, vco_anl, columnTrlOnAnlIncLev)
+  
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
   allocHeightSfc = ( vco_trl%Vcode /= 0 )
