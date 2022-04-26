@@ -1030,7 +1030,7 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    character*2,             intent(in)    :: cdfam
+    character(len=2),        intent(in)    :: cdfam
     type(struct_columnData), intent(in)    :: column
     type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
     type(struct_obs),        intent(inout) :: obsSpaceData
@@ -1064,7 +1064,6 @@ module obsSpaceErrorStdDev_mod
 
         !*    1. Computation of sigmap
         !     .  -----------------------------
-            
         if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated .and. &
              obs_bodyElem_i(obsSpaceData, OBS_VCO, bodyIndex) == 1 )then
           ITYP = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
@@ -1139,8 +1138,8 @@ module obsSpaceErrorStdDev_mod
 
           end if
 
-            ! Store fge_fam in OBS_HPHT
-            call obs_bodySet_r(obsSpaceData, OBS_HPHT, bodyIndex, fge_fam)
+          ! Store fge_fam in OBS_HPHT
+          call obs_bodySet_r(obsSpaceData, OBS_HPHT, bodyIndex, fge_fam)
         
         end if
 
