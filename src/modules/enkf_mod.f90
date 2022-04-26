@@ -126,8 +126,8 @@ contains
     integer, allocatable :: myProcIndexesRecv(:), myProcIndexesSend(:,:)
     integer, allocatable :: requestIdRecv(:), requestIdSend(:)
     integer, allocatable :: memberIndexSubEns(:,:), memberIndexSubEnsComp(:,:)
+    integer, allocatable :: randomMemberIndexArray(:), latLonTagMpiGlobal(:,:)
     integer, allocatable :: memberIndexSubEns_mod(:,:), memberIndexSubEnsComp_mod(:,:)
-    integer, allocatable :: randomMemberIndexArray(:)
 
     real(8), allocatable :: distances(:)
     real(8), allocatable :: PaInv(:,:), PaSqrt(:,:), Pa(:,:), YbTinvR(:,:), YbTinvRYb(:,:)
