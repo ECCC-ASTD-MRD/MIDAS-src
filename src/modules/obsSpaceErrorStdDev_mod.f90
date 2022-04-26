@@ -517,6 +517,7 @@ module obsSpaceErrorStdDev_mod
       call setfgefam('HU',column,columnTrlOnAnlIncLev,lobsSpaceData)
       call setfgefamz('PR',column,columnTrlOnAnlIncLev,lobsSpaceData)
       call setfgefamz('AL',column,columnTrlOnAnlIncLev,lobsSpaceData)
+      call setfgefamz('RA',column,columnTrlOnAnlIncLev,lobsSpaceData)
 
       ! SET THE FIRST-GUESS ERRORS FOR RADIO OCCULTATION DATA
       ! -----------------------------------------------------
@@ -1020,7 +1021,7 @@ module obsSpaceErrorStdDev_mod
   !--------------------------------------------------------------------------
   ! setfgefamz
   !--------------------------------------------------------------------------
-  subroutine setfgefamz(cdfam,column,columnTrlOnAnlIncLev,lobsSpaceData)
+  subroutine setfgefamz(cdfam, column, columnTrlOnAnlIncLev, obsSpaceData)
     !
     !:Purpose: To interpolate vertically the contents of "column" to the levels
     !          of the observations (in meters). Then to compute THE FIRST GUESS
@@ -1029,100 +1030,123 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    character*2 cdfam
-    type(struct_columnData) :: column
-    type(struct_columnData) :: columnTrlOnAnlIncLev
-    type(struct_obs) :: lobsSpaceData
+    character(len=2),        intent(in)    :: cdfam
+    type(struct_columnData), intent(in)    :: column
+    type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
 
     ! Locals:
-      INTEGER IPB,IPT
-      INTEGER INDEX_HEADER,ITYP,IK
-      INTEGER INDEX_BODY
-      integer :: bodyIndexStart, bodyIndexEnd, bodyIndex2
-      REAL*8 ZWB,ZWT
-      REAL*8 ZLEV,ZPB,ZPT
-      real(8) :: azimuth, fge_uu, fge_vv, fge_fam
-      character(len=4) :: varLevel
+    integer :: IPB, IPT
+    integer :: headerIndex, ITYP, IK
+    integer :: bodyIndex
+    integer :: bodyIndexStart, bodyIndexEnd, bodyIndex2
+    real*8  :: ZWB, ZWT, sigmap_uuT, sigmap_vvT , sigmap_uuB, sigmap_vvB 
+    real*8  :: ZLEV, ZPB, ZPT
+    real(8) :: azimuth, fge_uu, fge_vv, fge_fam
+    character(len=4) :: varLevel
 
-      ! loop over all header indices of the CDFAM family
-      call obs_set_current_header_list(lobsSpaceData,CDFAM)
-      HEADER: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER
+    ! loop over all header indices of the CDFAM family
+    call obs_set_current_header_list(obsSpaceData, CDFAM)
+    HEADER: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if ( headerIndex < 0 ) exit HEADER
 
-         ! loop over all body indices for this index_header
-         call obs_set_current_body_list(lobsSpaceData, index_header)
-         BODY: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY
+      if  ( cdfam == 'RA' ) then
+        ! Azimuth of the radar beam
+         azimuth = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex ) * MPC_RADIANS_PER_DEGREE_R8
+      end if
 
-              !*    1. Computation of sigmap
-              !     .  -----------------------------
-            
-               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated .AND. &
-                    obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) == 1 )then
-                  ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
-                  varLevel = vnl_varLevelFromVarnum(ityp)
+      ! loop over all body indices for this headerIndex
+      call obs_set_current_body_list(obsSpaceData, headerIndex)
+      BODY: do 
+        bodyIndex = obs_getBodyIndex(obsSpaceData)
+        if ( bodyIndex < 0 ) exit BODY
 
-                  ! Interpolate the background-covariance statistics
-                  IF  (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) /= 0)THEN
-                     IK=col_getNumLev(columnTrlOnAnlIncLev,varLevel)-1
-                     IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
-                     IPB  = IPT +1
-                     fge_uu = col_getElem(column,IPB,INDEX_HEADER,'UU')
-                     fge_vv = col_getElem(column,IPB,INDEX_HEADER,'VV')
+        !*    1. Computation of sigmap
+        !     .  -----------------------------
+        if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated .and. &
+             obs_bodyElem_i(obsSpaceData, OBS_VCO, bodyIndex) == 1 )then
+          ITYP = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
+          if ( ITYP == bufr_radarPrecip ) cycle BODY
+          varLevel = vnl_varLevelFromVarnum(ityp)
 
-                  ELSE
-                     ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
-                     IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
-                     IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
-                     IPB  = IPT+1
-                     ZPT  = col_getHeight(columnTrlOnAnlIncLev,IK  ,INDEX_HEADER,varLevel)
-                     ZPB  = col_getHeight(columnTrlOnAnlIncLev,IK+1,INDEX_HEADER,varLevel)
-                     ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
-                     ZWT  = 1.d0 - ZWB
-                     fge_uu =   ZWB*col_getElem(column,IPB,INDEX_HEADER,'UU') &
-                              + ZWT*col_getElem(column,IPT,INDEX_HEADER,'UU')
-                     fge_vv =   ZWB*col_getElem(column,IPB,INDEX_HEADER,'VV') &
-                              + ZWT*col_getElem(column,IPT,INDEX_HEADER,'VV')
-                  ENDIF
+          ! Interpolate the background-covariance statistics
+          if ( obs_bodyElem_i(obsSpaceData, OBS_XTR, bodyIndex) /= 0 ) then
+            IK=col_getNumLev(columnTrlOnAnlIncLev, varLevel)-1
+            IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev, ityp)
+            IPB  = IPT +1
+            fge_uu = col_getElem(column, IPB, headerIndex, 'UU')
+            fge_vv = col_getElem(column, IPB, headerIndex, 'VV')
 
-                  ! First-Guess Error Variance
-                  if(cdfam == 'AL')then
-                    ! Scan body indices for the azimuth
-                    bodyIndexStart= obs_headElem_i(lobsSpaceData, OBS_RLN, &
-                                                   index_header)
-                    bodyIndexEnd  = obs_headElem_i(lobsSpaceData, OBS_NLV, &
-                                                   index_header)&
+          else
+            ZLEV = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
+            IK   = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
+            IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev, ityp)
+            IPB  = IPT+1
+            ZPT  = col_getHeight(columnTrlOnAnlIncLev, IK, headerIndex, varLevel)
+            ZPB  = col_getHeight(columnTrlOnAnlIncLev, IK+1, headerIndex, varLevel)
+            ZWB  = (ZPT-ZLEV)/(ZPT-ZPB)
+            ZWT  = 1.d0 - ZWB
+            fge_uu = ZWB*col_getElem(column, IPB, headerIndex, 'UU') &
+                   + ZWT*col_getElem(column, IPT, headerIndex, 'UU')
+            fge_vv = ZWB*col_getElem(column, IPB, headerIndex, 'VV') &
+                   + ZWT*col_getElem(column, IPT, headerIndex, 'VV')
+          end if
+
+          ! First-Guess Error Variance
+          if ( cdfam == 'AL' )then
+            ! Scan body indices for the azimuth
+            bodyIndexStart = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+            bodyIndexEnd   = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) &
                                   + bodyIndexStart - 1
-                    BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
-                      if(obs_bodyElem_i(lobsSpaceData, OBS_VNM, bodyIndex2) &
-                         == 5021)then
-                        azimuth=obs_bodyElem_r(lobsSpaceData,OBS_VAR,bodyIndex2)&
-                                * MPC_RADIANS_PER_DEGREE_R8
-                        exit BODY_SUPP
-                      end if
-                    end do BODY_SUPP
+            BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
+              if(obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex2) == 5021)then
+                azimuth=obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) * MPC_RADIANS_PER_DEGREE_R8
+                    exit BODY_SUPP
+              end if
+            end do BODY_SUPP
 
-                    fge_fam =sqrt((fge_vv*cos(azimuth))**2 + &
-                                  (fge_uu*sin(azimuth))**2)
+            fge_fam = sqrt((fge_vv*cos(azimuth))**2 + (fge_uu*sin(azimuth))**2)
 
-                  else if(cdfam == 'PR')then
-                     fge_fam =   ZWB*col_getElem(column,IPB,INDEX_HEADER) &
-                               + ZWT*col_getElem(column,IPT,INDEX_HEADER)
-                  else
-                     write(*,*)"ERROR:  The family, ", cdfam, &
-                               ", is not supported by setfgefamz"
-                     return
-                  end if
-                  call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,fge_fam)
-               ENDIF
+          else if( cdfam == 'PR' )then
+            fge_fam = ZWB*col_getElem(column, IPB, headerIndex) &
+                    + ZWT*col_getElem(column, IPT, headerIndex)
+                  
+          else if( cdfam == 'RA' .and. ITYP == bufr_radvel ) then    
 
-         END DO BODY
+            ! Calculation of sigmap^2 = diag(H*P*H^t) to save sigmap in OBS_HPHT  
+            ! 
+            ! H includes vertical interpolation  
+            !   and projection of U and V wind components along the direction of the beam
+            !
+            ! P forecast error covariance
+            !  
+            ! H = [ ZWT*sin(az) ZWT*cos(az) ZWB*sin(az) ZWB*cos(az) ] 
+            ! diag(P) = [ sigmap_uuT^2  sigmap_vvT^2  sigmap_uuB^2  sigmap_vvB^2  ]
+            sigmap_uuT = col_getElem(column, IPT, headerIndex, 'UU')
+            sigmap_uuB = col_getElem(column, IPB, headerIndex, 'UU')
+            sigmap_vvT = col_getElem(column, IPT, headerIndex, 'VV')
+            sigmap_vvB = col_getElem(column, IPB, headerIndex, 'VV')
 
-      END DO HEADER
+            fge_fam = sqrt((sigmap_uuT*ZWT*sin(azimuth))**2 + (sigmap_vvT*ZWT*cos(azimuth))**2 + &
+                           (sigmap_uuB*ZWB*sin(azimuth))**2 + (sigmap_vvB*ZWB*cos(azimuth))**2)
+                 
+          else
 
-      RETURN
+            write(*,*)"ERROR:  The family", cdfam, " is not supported by setfgefamz"
+            call utl_abort('setfgefamz')
+
+          end if
+
+          ! Store fge_fam in OBS_HPHT
+          call obs_bodySet_r(obsSpaceData, OBS_HPHT, bodyIndex, fge_fam)
+        
+        end if
+
+      end do BODY
+
+    end do HEADER
+
   end subroutine setfgefamz
 
   !--------------------------------------------------------------------------

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added background check for Doppler Velocity (#634 and !589)
  * A new program computing SST background field (#619 and !586)
  * Add ability to compute and output innovation-predictor covariances and correlations in genCoeff.Abs (#603 and !578)
  * Add MIDAS header table to obsDB files. (#575 and !570)
