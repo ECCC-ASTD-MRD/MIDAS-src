@@ -86,7 +86,6 @@ module oceanObservations_mod
     real(4), allocatable        :: seaWaterFractionAux(:), iceLonsAux(:), iceLatsAux(:)  
     real(4), allocatable        :: seaWaterFraction(:), iceLons(:), iceLats(:)
     type(struct_obs)            :: obsData   
-    character(len=*), parameter :: myName = 'oobs_pseudoSST'
     
     ! get mpi topology
     call mpivar_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
@@ -143,9 +142,9 @@ module oceanObservations_mod
     call ocm_deallocate(oceanMask)
     call gsv_deallocate(stateVector_ice)
     call gsv_deallocate(stateVector_seaWater)
-    write(*,*) myName//': ', numberIceCoveredPoints, ' ice-covered points found'
-    write(*,*) myName//': where ', inlandWaterPoints, ' are inland water points'
-    write(*,*) myName//': ', seaWaterPoints, ' sea water points found'
+    write(*,*) 'oobs_pseudoSST: ', numberIceCoveredPoints, ' ice-covered points found'
+    write(*,*) 'oobs_pseudoSST: where ', inlandWaterPoints, ' are inland water points'
+    write(*,*) 'oobs_pseudoSST: ', seaWaterPoints, ' sea water points found'
 
     if (numberIceCoveredPoints > 0) then
       allocate(iceDomainIndexes(1:numberIceCoveredPoints))
@@ -162,8 +161,8 @@ module oceanObservations_mod
     deallocate(iceDomainIndexesAux)
     deallocate(seaWaterFractionAux)
         
-    dateStamp = tim_getDatestampFromFile('./seaice_analysis')
-    write(*,*) myName//': datestamp: ', dateStamp 
+    dateStamp = tim_getDatestampFromFile('./seaice_analysis', varnameDateStamp_opt = 'LG')
+    write(*,*) 'oobs_pseudoSST: datestamp: ', dateStamp 
     ! compute random seed from the date for randomly forming sea-ice subdomain
     imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
     ierr = newdate(dateStamp, datePrint, timePrint, imode)
@@ -172,12 +171,12 @@ module oceanObservations_mod
     
     ! Remove the century, keeping 2 digits of the year
     randomSeed = datePrint - 100000000 * (datePrint / 100000000)
-    write(*,*) myName//': datePrint, timePrint: ', datePrint, timePrint 
+    write(*,*) 'oobs_pseudoSST: datePrint, timePrint: ', datePrint, timePrint 
 
     if (numberIceCoveredPoints > 0) then
 
       call utl_randomOrderInt(iceDomainIndexes, randomSeed)
-      write(*,*) myName//': seed for random shuffle of sea-ice points: ', randomSeed
+      write(*,*) 'oobs_pseudoSST: seed for random shuffle of sea-ice points: ', randomSeed
     
       call oobs_computeObsData(obsData, iceDomainIndexes, iceLons, iceLats, &
                                iceThinning, outputSST, outputFreshWaterST, &
@@ -197,7 +196,7 @@ module oceanObservations_mod
       deallocate(seaWaterFraction)
     end if  
     
-    write(*,*) myName//': done'
+    write(*,*) 'myName: done'
     
   end subroutine oobs_pseudoSST
 

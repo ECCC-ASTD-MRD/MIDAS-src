@@ -121,14 +121,14 @@ program midas_obsSelection
   !- Initialize the Analysis grid
   !
   if( mpi_myid == 0 ) write(*,*)
-  if( mpi_myid == 0 ) write(*,*) 'var_setup: Set hco parameters for analysis grid'
+  if( mpi_myid == 0 ) write(*,*) 'midas-obsSelection: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
     hco_core => hco_anl
   else
     !- Initialize the core (Non-Extended) analysis grid
-    if( mpi_myid == 0) write(*,*)'var_setup: Set hco parameters for core grid'
+    if( mpi_myid == 0) write(*,*)'midas-obsSelection: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 

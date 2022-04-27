@@ -1,8 +1,8 @@
  &NAMTIME
   DSTEPOBS    = 24.0d0
   DSTEPOBSINC = 24.0d0
-  DWINDOWSIZE = 30.0d0
-  referenceTime="start"
+  DWINDOWSIZE = 48.0d0
+  referenceTime="middle"
 /
  &NAMSTATE
   ANLVAR(1) = 'TM'

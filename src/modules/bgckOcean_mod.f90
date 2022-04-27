@@ -72,9 +72,8 @@ module bgckOcean_mod
     real(8)                     :: OER, OmP, FGE, bgCheck
     logical                     :: llok
     type(struct_columnData)     :: columnFGE
-    character(len=*), parameter :: myName = 'ocebg_bgCheckSST'
     
-    write(*,*) myName//': performing background check for the SST data...'
+    write(*,*) 'ocebg_bgCheckSST: performing background check for the SST data...'
     
     ! Setting default namelist variable values
     timeInterpType_nl = 'NEAREST'
@@ -83,8 +82,8 @@ module bgckOcean_mod
     ! Read the namelist
     if (.not. utl_isNamelistPresent('namOceanBGcheck','./flnml')) then
       if (mpi_myid == 0) then
-        write(*,*) myName//': namOceanBGcheck is missing in the namelist.'
-        write(*,*) myName//'  The default values will be taken.'
+        write(*,*) 'ocebg_bgCheckSST: namOceanBGcheck is missing in the namelist.'
+        write(*,*) 'ocebg_bgCheckSST: the default values will be taken.'
       end if
     else
       ! reading namelist variables
@@ -94,22 +93,22 @@ module bgckOcean_mod
       if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
       ierr = fclos(nulnam)
     end if
-    write(*,*) myName//': interpolation type: ', timeInterpType_nl
-    write(*,*) myName//': number obs batches: ', numObsBatches
+    write(*,*) 'ocebg_bgCheckSST: interpolation type: ', timeInterpType_nl
+    write(*,*) 'ocebg_bgCheckSST: number obs batches: ', numObsBatches
 
     ! Read First Guess Error (FGE) and put it into stateVector
     call gsv_allocate(stateVector, 1, hco, columnTrlOnTrlLev % vco, dataKind_opt = 4, &
-                       hInterpolateDegree_opt = 'NEAREST', &
-                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
-    call gio_readFromFile(stateVector, './bgstddev', 'STDDEV', 'X', &
-                           unitConversion_opt=.false., containsFullField_opt=.true.)
+                      hInterpolateDegree_opt = 'NEAREST', &
+                      datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
+    call gsv_readFromFile(stateVector, './bgstddev', 'STDDEV', 'X', &
+                          unitConversion_opt=.false., containsFullField_opt=.true.)
     
     call col_setVco(columnFGE, col_getVco(columnTrlOnTrlLev))
     call col_allocate(columnFGE, col_getNumCol(columnTrlOnTrlLev))
    
     ! Convert stateVector to column object
     call s2c_nl(stateVector, obsData, columnFGE, hco, timeInterpType = timeInterpType_nl, &
-                 moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
+                moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
 
     numberObs = 0
     numberObsRejected = 0
@@ -134,9 +133,9 @@ module bgckOcean_mod
 	
             if (obsFlag >= 2) then
               numberObsRejected = numberObsRejected + 1
-	      write(*,'(a,i7,a,i7)')'*********** ', numberObsRejected, ', header index: ', headerIndex
-	      write(*,'(a)') myName//': rejected '//obs_elem_c(obsData, 'STID' , headerIndex)//' data:'
-	      write(*,'(a,i5,a,4f10.4)') 'codtype: ', obs_headElem_i(obsData, obs_ity, headerIndex), &
+	      write(*,'(a,i7,a,i7)')'ocebg_bgCheckSST:*********** ', numberObsRejected, ', header index: ', headerIndex
+	      write(*,'(a)') 'ocebg_bgCheckSST: rejected '//obs_elem_c(obsData, 'STID' , headerIndex)//' data:'
+	      write(*,'(a,i5,a,4f10.4)') 'ocebg_bgCheckSST: codtype: ', obs_headElem_i(obsData, obs_ity, headerIndex), &
               ', lon/lat/obs.value/OmP: ', &
               obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
               obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
@@ -167,8 +166,8 @@ module bgckOcean_mod
 
     if (numberObs > 0) then
       write(*,*)' '
-      write(*,*) myName//': background check of TM data is computed'
-      write(*,'(a, i7,a,i7,a)') myName//':   ', numberObsRejected, ' observations out of ', numberObs,' rejected'
+      write(*,*) 'ocebg_bgCheckSST: background check of TM data is computed'
+      write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST:   ', numberObsRejected, ' observations out of ', numberObs,' rejected'
       write(*,*)' '
     end if
     

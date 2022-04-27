@@ -1,8 +1,8 @@
  &NAMTIME
   dstepobs      = 24.0d0
   dstepobsinc   = 24.0d0
-  dwindowsize   = 24.0d0
-  referencetime = 'start'
+  dwindowsize   = 48.0d0
+  referencetime = 'middle'
 /
  &NAMSTATE
   ANLVAR(1) = 'TM'
