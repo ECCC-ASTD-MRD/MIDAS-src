@@ -22,26 +22,6 @@
   NLISTFLG(5)=11
   NLISTFLG(6)=12
 /
- &NAMBDIFF
-  corr_len = 200*-1
-  stab     = 200*0.2
-  nsamp    = 200*5000
-  SCALEFACTOR = 200*1.0
-  stddevMode = 'GD2D'
-/
- &NAMBHI
-   NTRUNC  = 180,
-   SCALEFACTOR = 200*0.0D0
-/
- &NAMBLB
-   NTRUNC  = 180,
-   SCALEFACTOR = 200*0.0D0
-   stddevMode = 'GD3D'
-   filterStddev = 5
-/
- &NAMBEN
-   SCALEFACTOR = 200*0.0D0
-/
  &namSSTbiasEstimate
    searchRadius =   25.    
    iceFractionThreshold = 0.01
@@ -52,9 +32,6 @@
    numberSensors = 2
    sensorList(1)='AMSR2'
    sensorList(2)='METO-B'
-   sensorList(3)='METO-A'
-   sensorList(4)='NOAA19'
-   sensorList(5)='NPP'
 /
  &NAMSQLsfc
    numberElem=1

@@ -60,23 +60,24 @@ module SSTbias_mod
   ! sstb_computeBias
   !--------------------------------------------------------------------------
   subroutine sstb_computeBias(obsData, hco, vco, iceFractionThreshold, searchRadius, &
-                              numberSensors, sensorList, maxBias, numberPointsBG)
+                              numberSensors, sensorList, maxBias, numberPointsBG, dateStamp)
     !
     ! :Purpose: compute bias for SST satellite data with respect to insitu data 
     !  
     implicit none
     
     ! Arguments: 
-    type(struct_obs)       , intent(inout)          :: obsData              ! obsSpaceData
-    type(struct_hco)       , intent(inout), pointer :: hco                  ! horizontal grid structure
-    type(struct_vco)       , intent(in)   , pointer :: vco                  ! vertical grid structure
-    real(4)                , intent(in)             :: iceFractionThreshold ! for ice fraction below it, consider open water      
-    real(8)                , intent(in)             :: searchRadius         ! horizontal search radius for obs gridding
-    integer                , intent(in)             :: numberSensors        ! Current satellites: AMSR2, METO-B, METO-A, NOAA19, NPP
-    character(len=*)       , intent(in)             :: sensorList(:)        ! list of satellite names
-    real(4)                , intent(in)             :: maxBias              ! max insitu - satellite difference in degrees  
-    integer                , intent(in)             :: numberPointsBG       ! namelist parameter: number of points used to compute
-                                                                            ! the background state
+    type(struct_obs), intent(inout)          :: obsData              ! obsSpaceData
+    type(struct_hco), intent(inout), pointer :: hco                  ! horizontal grid structure
+    type(struct_vco), intent(in)   , pointer :: vco                  ! vertical grid structure
+    real(4)         , intent(in)             :: iceFractionThreshold ! for ice fraction below it, consider open water      
+    real(8)         , intent(in)             :: searchRadius         ! horizontal search radius for obs gridding
+    integer         , intent(in)             :: numberSensors        ! Current satellites: AMSR2, METO-B, METO-A, NOAA19, NPP
+    character(len=*), intent(in)             :: sensorList(:)        ! list of satellite names
+    real(4)         , intent(in)             :: maxBias              ! max insitu - satellite difference in degrees  
+    integer         , intent(in)             :: numberPointsBG       ! namelist parameter: number of points used to compute background state
+    integer         , intent(in)             :: dateStamp            ! dateStamp to put into fstd file with bias estimation
+      									    
     ! locals
     integer                     :: sensorIndex, productIndex
     real(8)                     :: insituGrid   (hco % ni, hco % nj)
@@ -138,7 +139,7 @@ module SSTbias_mod
                                 dayOrNight_opt = trim(listProducts(productIndex)))
         call sstb_getGriddedBias(satelliteGrid (:, :), insituGrid, hco, vco, mask, openWater, &
                                  maxBias, trim(sensorList(sensorIndex)), numberOpenWaterPoints, &
-                                 numberPointsBG, trim(listProducts(productIndex)))
+                                 numberPointsBG, trim(listProducts(productIndex)), dateStamp)
       end do
     end do
   
@@ -327,7 +328,7 @@ module SSTbias_mod
   ! sstb_getGriddedBias
   !--------------------------------------------------------------------------
   subroutine sstb_getGriddedBias(satelliteGrid, insituGrid, hco, vco,  mask, openWater, maxBias, &
-                                 sensor, numberOpenWaterPoints, numberPointsBG, dayOrNight)
+                                 sensor, numberOpenWaterPoints, numberPointsBG, dayOrNight, dateStamp)
     !
     ! :Purpose: compute the satellite SST data bias estimation field on a grid
     !           
@@ -346,6 +347,7 @@ module SSTbias_mod
     integer         , intent(in)             :: numberPointsBG       ! namelist parameter: number of points 
                                                                      ! used to compute the previous (background) bias estimation
     character(len=*), intent(in)             :: dayOrNight           ! look for daytime or nighttime obs
+    integer         , intent(in)             :: dateStamp            ! dateStamp to put into fstd file with bias estimation
         
     ! locals
     real, parameter             :: solarZenithThreshold = 90.0       ! to distinguish day and night
@@ -420,7 +422,7 @@ module SSTbias_mod
        
     ! resulting bias estimation state vector
     call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
-                      datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
+                      datestamp_opt = dateStamp, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     ! pointer for bias estimation stateVector
     call gsv_getField(stateVector, griddedBias_r4_ptr)
 
@@ -488,8 +490,8 @@ module SSTbias_mod
   !--------------------------------------------------------------------------
   ! sstb_getBiasCorrection
   !--------------------------------------------------------------------------
-  subroutine sstb_getBiasCorrection(stateVector, column, obsData, hco, &
-                                    sensor, dayOrNight, timeInterpType_nl, numObsBatches)
+  subroutine sstb_getBiasCorrection(stateVector, column, obsData, hco, sensor, &
+                                    dayOrNight, timeInterpType_nl, numObsBatches)
     !
     !:Purpose: To compute bias correction and put it into obsSpace data. 
     !          Columns from input field are interpolated to obs location
@@ -629,4 +631,5 @@ module SSTbias_mod
     call gsv_deallocate(stateVector)
 			    
   end subroutine sstb_applySatelliteSSTBiasCorrection
+  
 end module SSTbias_mod

@@ -77,7 +77,7 @@ program midas_sstBias
   call tmg_stop(2)
   
   call sstb_computeBias(obsSpaceData, hco_anl, vco_anl, iceFractionThreshold, searchRadius, &
-                        numberSensors, sensorList, maxBias, numberPointsBG)
+                        numberSensors, sensorList, maxBias, numberPointsBG, dateStamp)
 			 
   ! Now write out the observation data files
   if (.not. obsf_filesSplit()) then 
