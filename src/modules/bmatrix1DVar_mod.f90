@@ -81,13 +81,12 @@ module bmatrix1DVar_mod
   !Namelist variables
   character(len=4)    :: IncludeAnlVar(vnl_numvarmax)
   integer :: numIncludeAnlVar
-  integer :: ensDateOfValidity
   real(8) :: scaleFactorHI(maxNumLevels)          ! scaling factors for HI variances
   real(8) :: scaleFactorHILQ(maxNumLevels)        ! scaling factors for HI LQ variances
   real(8) :: scaleFactorEns(maxNumLevels)         ! scaling factors for Ens variances
   real(8) :: scaleFactorEnsHumidity(maxNumLevels) ! scaling factors for Ens LQ variances
   NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHILQ, scaleFactorENs, scaleFactorEnsHumidity, nEns, &
-       vLocalize, IncludeAnlVar, numIncludeAnlVar, ensDateOfValidity
+       vLocalize, IncludeAnlVar, numIncludeAnlVar
 
 contains
 
@@ -127,7 +126,6 @@ contains
     IncludeAnlVar(5)= 'P0'
     IncludeAnlVar(6)= 'TG'
     numIncludeAnlVar = 6
-    ensDateOfValidity = MPC_missingValue_INT ! i.e. undefined
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml=nambmat1D, iostat=ierr)
@@ -366,7 +364,6 @@ contains
     integer :: nLevEns_M, nLevEns_T
     integer :: nLevInc_M, nLevInc_T
     integer :: topLevIndex_M, topLevIndex_T
-    integer :: ensDateStampOfValidity
     integer :: idate, itime
     integer, external :: newdate
     character(len=4), pointer :: varNames(:)
@@ -398,24 +395,9 @@ contains
       call utl_abort('bmat1D_setupBEns: Invalid value for numStep (choose 1 or 3 or 5 or 7)!')
     end if
     allocate(dateStampList(numStep))
-    
-    if (ensDateOfValidity == MPC_missingValue_INT) then
-      call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
-    else
-      if (numStep == 1) then
-        if (ensDateOfValidity == -1) then
-          ensDateStampOfValidity = ensDateOfValidity
-        else
-          idate = ensDateOfValidity/100
-          itime = (ensDateOfValidity-idate*100)*1000000
-          ierr = newdate(ensDateStampOfValidity, idate, itime, 3)
-        end if
-        dateStampList(:) = ensDateStampOfValidity
-      else
-        call utl_abort('bmat1D_setupBEns: A single date of validity cannot be specified for numStep > 1')
-      end if
-    end if
 
+    call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
+    
     hco_ens => hco_in
 
     !- 1.3 Horizontal grid
