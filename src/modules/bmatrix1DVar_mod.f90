@@ -372,7 +372,7 @@ contains
     real(8), pointer :: currentProfile(:), meanProfile(:)
     real(8), allocatable :: lineVector(:,:), meanPressureProfile(:)
     integer, allocatable :: levIndexFromVarLevIndex(:)
-    character(len=4), allocatable :: varNameCv(:)
+    character(len=4), allocatable :: varNameFromVarLevIndex(:)
     character(len=2) :: varLevel
 
     call tmg_start(12,'BENS1D_SETUP')
@@ -622,14 +622,14 @@ contains
     cvDim_out = nkgdim * var1D_validHeaderCount
     currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1) )
     allocate (levIndexFromVarLevIndex(nkgdim))
-    allocate (varNameCv(nkgdim))
+    allocate (varNameFromVarLevIndex(nkgdim))
     nkgdim = 0
     do varIndex = 1, numIncludeAnlVar
       do levIndex = 1, size(currentProfile)
         if ( trim( col_getVarNameFromK(meanColumn,levIndex) ) == trim( bmat1D_varList(varIndex) ) ) then
           nkgdim = nkgdim + 1
           levIndexFromVarLevIndex(nkgdim) = levIndex
-          varNameCv(nkgdim) = trim( bmat1D_varList(varIndex) )
+          varNameFromVarLevIndex(nkgdim) = trim( bmat1D_varList(varIndex) )
           if (mpi_myId == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_varList ', bmat1D_varList(varIndex), nkgdim, levIndex
         end if
       end do
@@ -664,7 +664,7 @@ contains
       if (vLocalize > 0.0d0) then
         do levIndex1 = 1, nkgdim
           levIndex2 = levIndexFromVarLevIndex(levIndex1)
-          select case(trim( varNameCv(levIndex1) ))
+          select case(trim( varNameFromVarLevIndex(levIndex1) ))
           case('TT','HU','LQ')
             varLevel='TH'
           case('UU','VV')
@@ -672,13 +672,13 @@ contains
           case('TG','P0')
             varLevel='SF'
           case default
-            call utl_abort('bmat1D_setupBEns: unknown variable' //trim(varNameCv(levIndex)) )
+            call utl_abort('bmat1D_setupBEns: unknown variable' //trim(varNameFromVarLevIndex(levIndex)) )
           end select
 
           if (varLevel=='SF') then
             meanPressureProfile(levIndex1) = col_getElem(meanColumn,1,headerIndex,'P0')
           else
-            offset = col_getOffsetFromVarName(meanColumn, varNameCv(levIndex1))
+            offset = col_getOffsetFromVarName(meanColumn, varNameFromVarLevIndex(levIndex1))
             meanPressureProfile(levIndex1) = col_getPressure(meanColumn,levIndex2-offset+1,headerIndex,varLevel)
           end if
         end do
@@ -698,7 +698,7 @@ contains
     !$OMP END PARALLEL DO
 
     deallocate(levIndexFromVarLevIndex) 
-    deallocate(varNameCv)
+    deallocate(varNameFromVarLevIndex)
     deallocate(meanPressureProfile)
     call col_deallocate(meanColumn)
     do memberIndex =1 , nEns
