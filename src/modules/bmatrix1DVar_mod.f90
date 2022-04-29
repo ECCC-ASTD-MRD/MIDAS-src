@@ -119,13 +119,13 @@ contains
     scaleFactorEnsHumidity(:) = 1.d0
     nEns = -1
     vLocalize = -1.d0
-    IncludeAnlVar(:)= ""
-    IncludeAnlVar(1)= "TT"
-    IncludeAnlVar(2)= "HU"
-    IncludeAnlVar(3)= "UU"
-    IncludeAnlVar(4)= "VV"
-    IncludeAnlVar(5)= "P0"
-    IncludeAnlVar(6)= "TG"
+    IncludeAnlVar(:)= ''
+    IncludeAnlVar(1)= 'TT'
+    IncludeAnlVar(2)= 'HU'
+    IncludeAnlVar(3)= 'UU'
+    IncludeAnlVar(4)= 'VV'
+    IncludeAnlVar(5)= 'P0'
+    IncludeAnlVar(6)= 'TG'
     numIncludeAnlVar = 6
     ensDateOfValidity = MPC_missingValue_INT ! i.e. undefined
     nulnam = 0
@@ -143,12 +143,12 @@ contains
         !- 1.1 Time-Mean Homogeneous and Isotropic...
         write(*,*) 'bmat1D_bsetup: Setting up the modular GLOBAL HI 1D covariances...'
         call bmat1D_SetupBHi(vco_in, obsSpaceData, cvdim)
-        write(*,*) " bmat1D_bsetup: cvdim= ", cvdim
+        write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
       case ('ENS')
         !- 1.2 ensemble based
          write(*,*) 'bmat1D_bsetup: Setting up the ensemble based 1D matrix.'
         call bmat1D_SetupBEns(vco_in, hco_in, obsSpaceData, cvdim)
-        write(*,*) " bmat1D_bsetup: cvdim= ", cvdim
+        write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
       case default
         call utl_abort( 'bmat1D_bSetup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
       end select
@@ -164,19 +164,19 @@ contains
     !- 2. Print a summary and set the active B matrices array
     !
     write(*,*)
-    write(*,*) "bmat1D_bsetup SUMMARY, number of B matrices found = ", numBmat
+    write(*,*) 'bmat1D_bsetup SUMMARY, number of B matrices found = ', numBmat
     do bmatIndex = 1, numBmat
-      write(*,*) "  B matrix #", bmatIndex
+      write(*,*) '  B matrix #', bmatIndex
       active = cvm_subVectorExists(bmatLabelList(bmatIndex))
       if (active) then
-        write(*,*) "   ACTIVE"
+        write(*,*) '   ACTIVE'
       else
-        write(*,*) "   NOT USED"
+        write(*,*) '   NOT USED'
       end if
-      write(*,*) "     -> label       = ", bmatLabelList (bmatIndex)
-      write(*,*) "     -> type        = ", bmatTypeList  (bmatIndex)
+      write(*,*) '     -> label       = ', bmatLabelList (bmatIndex)
+      write(*,*) '     -> type        = ', bmatTypeList  (bmatIndex)
       if (active) then
-        write(*,*) "     -> is 3D       = ", bmatIs3dList  (bmatIndex)
+        write(*,*) '     -> is 3D       = ', bmatIs3dList  (bmatIndex)
       end if
       bmatActive(bmatIndex) = active
     end do
@@ -420,15 +420,15 @@ contains
     !- 1.4 Vertical levels
     if ( mpi_myid == 0 ) then
       call fln_ensfileName(ensFileName, ensPathName, memberIndex_opt=1)
-      write(*,*) "before vco_SetupFromFile"
+      write(*,*) 'before vco_SetupFromFile'
       call vco_SetupFromFile(vco_file, ensFileName)
       call gsv_allocate(stateVector, numStep, hco_in, vco_in,  &
-           hInterpolateDegree_opt="LINEAR", &
+           hInterpolateDegree_opt='LINEAR', &
            dataKind_opt=4, &
            dateStamp_opt=tim_getDateStamp(), beSilent_opt=.false.)
-      call gsv_readFromFile(stateVector, ensFileName, "", "")
+      call gsv_readFromFile(stateVector, ensFileName, '', '')
       call gsv_varNamesList(varNames, stateVector)
-      write(*,*) "bmat1D_setupBEns: variable names : ", varNames
+      write(*,*) 'bmat1D_setupBEns: variable names : ', varNames
     end if
     call vco_mpiBcast(vco_file)
     !- Do we need to read all the vertical levels from the ensemble?
@@ -584,7 +584,7 @@ contains
          hco_core_opt = hco_in, &  ! to generalize later hco_in => hco_core
          varNames_opt = includeAnlVar(1:numIncludeAnlVar), &
          hInterpolateDegree_opt = hInterpolationDegree)
-    write(*,*) "Read ensemble members"
+    write(*,*) 'Read ensemble members'
     call ens_readEnsemble(ensPerts, ensPathName, biPeriodic=.false.,       &
                           vco_file_opt = vco_ens,                          &
                           varNames_opt = includeAnlVar(1:numIncludeAnlVar))
@@ -600,21 +600,21 @@ contains
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true. )
     do memberIndex = 1, nEns
-      write(*,*) "Copy member ", memberIndex
+      write(*,*) 'Copy member ', memberIndex
       call ens_copyMember(ensPerts, stateVector, memberIndex)
-      write(*,*) "interpolate member ", memberIndex
+      write(*,*) 'interpolate member ', memberIndex
       call col_setVco(ensColumns(memberIndex), vco_ens)
       call col_allocate(ensColumns(memberIndex), obs_numheader(obsSpaceData),  &
                         mpiLocal_opt=.true., setToZero_opt=.true.)
       call s2c_nl( stateVector, obsSpaceData, ensColumns(memberIndex), hco_in, &
-                   timeInterpType="NEAREST" )
+                   timeInterpType='NEAREST' )
       call gsv_add(statevector, statevectorMean, scaleFactor_opt=(1.d0/nEns))
     end do
     call col_setVco(meanColumn, vco_ens)
     call col_allocate(meanColumn, obs_numheader(obsSpaceData),  &
             mpiLocal_opt=.true., setToZero_opt=.true.)
     call s2c_nl( stateVectorMean, obsSpaceData, meanColumn, hco_in, &
-            timeInterpType="NEAREST" )
+            timeInterpType='NEAREST' )
 
     call gsv_deallocate(stateVector)
     call gsv_deallocate(stateVectorMean)
@@ -624,7 +624,7 @@ contains
       currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1), varName_opt=bmat1D_varList(varIndex))
       nkgdim = nkgdim + size(currentProfile)
     end do
-    write(*,*) "bmat1D_setupBEns: nkgdim", nkgdim
+    write(*,*) 'bmat1D_setupBEns: nkgdim', nkgdim
     cvDim_out = nkgdim * var1D_validHeaderCount
     currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1) )
     allocate (subIndex(nkgdim))
@@ -636,7 +636,7 @@ contains
           nkgdim = nkgdim + 1
           subIndex(nkgdim) = levIndex
           varNameCv(nkgdim) = trim( bmat1D_varList(varIndex) )
-          if (mpi_myId == 0) write(*,*) "bmat1D_setupBEns:  bmat1D_varList ", bmat1D_varList(varIndex), nkgdim, levIndex
+          if (mpi_myId == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_varList ', bmat1D_varList(varIndex), nkgdim, levIndex
         end if
       end do
     end do
@@ -668,16 +668,16 @@ contains
         do levIndex1 = 1, nkgdim
           levIndex2 = subIndex(levIndex1)
           select case(trim( varNameCv(levIndex1) ))
-          case("TT","HU","LQ")
-            varLevel="TH"
-          case("UU","VV")
-            varLevel="MM"
-          case("TG","P0")
-            varLevel="SF"
+          case('TT','HU','LQ')
+            varLevel='TH'
+          case('UU','VV')
+            varLevel='MM'
+          case('TG','P0')
+            varLevel='SF'
           case default
             call utl_abort('bmat1D_setupBEns: unknown variable' //trim(varNameCv(levIndex)) )
           end select
-          if (varLevel=="SF") then
+          if (varLevel=='SF') then
             meanPressureProfile(levIndex1) = col_getElem(meanColumn,1,headerIndex,'P0')
           else
             offset = col_getOffsetFromVarName(meanColumn, varNameCv(levIndex1))
