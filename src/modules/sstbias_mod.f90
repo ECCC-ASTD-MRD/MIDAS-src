@@ -85,7 +85,7 @@ module SSTbias_mod
     logical                     :: mask(hco % ni, hco % nj), openWater(hco % ni, hco % nj) 
     type(struct_ocm)            :: oceanMask
     integer                     :: numberOpenWaterPoints, lonIndex, latIndex
-    type(struct_gsv)            :: stateVector_ice, stateVector
+    type(struct_gsv)            :: stateVector_ice
     real(4), pointer            :: seaice_ptr(:, :, :)
     integer         , parameter :: numberProducts = 2  ! day and night
     character(len=*), parameter :: listProducts(numberProducts)= (/'day', 'night'/)

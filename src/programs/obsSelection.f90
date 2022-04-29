@@ -176,7 +176,8 @@ program midas_obsSelection
   ! Apply optional bias corrections
   call bcc_applyAIBcor(obsSpaceData)    
   call bcc_applyGPBcor(obsSpaceData)
-  call sstb_applySatelliteSSTBiasCorrection(obsSpaceData, hco_anl, vco_anl, columnTrlOnAnlIncLev)
+  if (obs_famExist(obsSpaceData, 'TM')) &
+    call sstb_applySatelliteSSTBiasCorrection(obsSpaceData, hco_anl, vco_anl, columnTrlOnAnlIncLev)
   
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
@@ -224,7 +225,7 @@ program midas_obsSelection
   end if
 
   ! Do the ocean data background check
-  if ( obs_famExist ( obsSpaceData, 'TM' )) call ocebg_bgCheckSST( obsSpaceData, columnTrlOnTrlLev, hco_trl )
+  if (obs_famExist(obsSpaceData, 'TM')) call ocebg_bgCheckSST(obsSpaceData, columnTrlOnTrlLev, hco_trl)
 
   if (doThinning) then
 

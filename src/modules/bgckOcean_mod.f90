@@ -90,7 +90,7 @@ module bgckOcean_mod
       nulnam = 0
       ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
       read(nulnam, nml = namOceanBGcheck, iostat = ierr)
-      if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+      if (ierr /= 0) call utl_abort('ocebg_bgCheckSST: Error reading namelist')
       ierr = fclos(nulnam)
     end if
     write(*,*) 'ocebg_bgCheckSST: interpolation type: ', timeInterpType_nl
