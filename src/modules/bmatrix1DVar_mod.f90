@@ -353,7 +353,8 @@ contains
     integer, allocatable :: dateStampList(:)
     character(len=12) :: hInterpolationDegree ! select degree of horizontal interpolation (if needed)
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
-    integer :: levIndex1, levIndex2
+    integer :: levIndex1
+    integer :: varLevIndex1, varLevIndex2
     integer :: offset, status, numStep, ierr
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
     real(8) :: scaleFactor_SF, ZR
@@ -657,14 +658,15 @@ contains
     allocate(meanPressureProfile(nkgdim))
     call lfn_Setup('FifthOrder')
 
-    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,meanPressureProfile,levIndex1,levIndex2,varLevel,offset,logP1,logP2,zr)
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,meanPressureProfile,levIndex1,varLevIndex1,varLevIndex2,varLevel,offset,logP1,logP2,zr)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) / (nEns - 1)
       if (vLocalize > 0.0d0) then
-        do levIndex1 = 1, nkgdim
-          levIndex2 = levIndexFromVarLevIndex(levIndex1)
-          select case(trim( varNameFromVarLevIndex(levIndex1) ))
+        do varLevIndex1 = 1, nkgdim
+          levIndex1 = levIndexFromVarLevIndex(varLevIndex1)
+
+          select case(trim( varNameFromVarLevIndex(varLevIndex1) ))
           case('TT','HU','LQ')
             varLevel='TH'
           case('UU','VV')
@@ -672,24 +674,24 @@ contains
           case('TG','P0')
             varLevel='SF'
           case default
-            call utl_abort('bmat1D_setupBEns: unknown variable' //trim(varNameFromVarLevIndex(levIndex)) )
+            call utl_abort('bmat1D_setupBEns: unknown variable ' //trim(varNameFromVarLevIndex(levIndex)) )
           end select
 
           if (varLevel=='SF') then
-            meanPressureProfile(levIndex1) = col_getElem(meanColumn,1,headerIndex,'P0')
+            meanPressureProfile(varLevIndex1) = col_getElem(meanColumn, 1, headerIndex, 'P0')
           else
-            offset = col_getOffsetFromVarName(meanColumn, varNameFromVarLevIndex(levIndex1))
-            meanPressureProfile(levIndex1) = col_getPressure(meanColumn,levIndex2-offset+1,headerIndex,varLevel)
+            offset = col_getOffsetFromVarName(meanColumn, varNameFromVarLevIndex(varLevIndex1))
+            meanPressureProfile(varLevIndex1) = col_getPressure(meanColumn, levIndex1-offset+1, headerIndex, varLevel)
           end if
         end do
-        do levIndex1 = 1, nkgdim
-          logp1 = log(meanPressureProfile(levIndex1))
-          do levIndex2 = 1, nkgdim
+        do varLevIndex1 = 1, nkgdim
+          logp1 = log(meanPressureProfile(varLevIndex1))
+          do varLevIndex2 = 1, nkgdim
             !-  do Schurr product with 5'th order function
-            logP2 = log(meanPressureProfile(levIndex2))
+            logP2 = log(meanPressureProfile(varLevIndex2))
             ZR = abs(logP2  -  logP1)
-            bSqrtEns(headerIndex, levIndex2, levIndex1) = &
-                 bSqrtEns(headerIndex, levIndex2, levIndex1) * lfn_response(zr,vLocalize)
+            bSqrtEns(headerIndex, varLevIndex2, varLevIndex1) = &
+                 bSqrtEns(headerIndex, varLevIndex2, varLevIndex1) * lfn_response(zr,vLocalize)
           end do
         end do
       end if
