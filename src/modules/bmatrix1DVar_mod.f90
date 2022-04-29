@@ -126,6 +126,7 @@ contains
     IncludeAnlVar(5)= 'P0'
     IncludeAnlVar(6)= 'TG'
     numIncludeAnlVar = 6
+
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml=nambmat1D, iostat=ierr)
@@ -146,7 +147,7 @@ contains
         write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
       case ('ENS')
         !- 1.2 ensemble based
-         write(*,*) 'bmat1D_bsetup: Setting up the ensemble based 1D matrix.'
+        write(*,*) 'bmat1D_bsetup: Setting up the ensemble based 1D matrix.'
         call bmat1D_SetupBEns(vco_in, hco_in, obsSpaceData, cvdim)
         write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
       case default
@@ -357,7 +358,7 @@ contains
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
     real(8) :: scaleFactor_SF, ZR
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
-    real(8),pointer :: pressureProfileFile_M(:), pressureProfileInc_M(:)
+    real(8), pointer :: pressureProfileFile_M(:), pressureProfileInc_M(:)
     real(8) :: pSurfRef
     integer :: nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd
     integer :: ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
@@ -395,7 +396,6 @@ contains
       call utl_abort('bmat1D_setupBEns: Invalid value for numStep (choose 1 or 3 or 5 or 7)!')
     end if
     allocate(dateStampList(numStep))
-
     call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
     
     hco_ens => hco_in
@@ -696,6 +696,7 @@ contains
       call utl_matsqrt(bSqrtEns(headerIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
     !$OMP END PARALLEL DO
+
     deallocate(levIndexFromVarLevIndex) 
     deallocate(varNameCv)
     deallocate(meanPressureProfile)
