@@ -215,6 +215,21 @@ contains
     logical, save :: firstCall=.true.
     real(8), allocatable :: bMatrix(:,:)
 
+    if (.not. (gsv_varExist(varName='TT') .and.  &
+               gsv_varExist(varName='UU') .and.  &
+               gsv_varExist(varName='VV') .and.  &
+               (gsv_varExist(varName='HU').or.gsv_varExist(varName='LQ')) .and.  &
+               gsv_varExist(varName='P0')) ) then
+      call utl_abort('bmat1D_setupBHi: Some or all weather fields are missing. If it is desired to deactivate&
+           & the weather assimilation, then all entries of the array SCALEFACTORHI in the namelist NAMVAR1D&
+           & should be set to zero.')
+    end if
+
+    if (.not. gsv_varExist(varName='TG')) then
+      write(*,*) 'bmat1D_setupBHi: WARNING: The TG field is missing. This must be present when assimilating'
+      write(*,*) 'radiance observations.'
+    end if
+
     if (firstCall) then
       call var1D_setup(vco_in, obsSpaceData)
       firstCall = .false.
@@ -303,20 +318,7 @@ contains
       write(*,*) 'Vcode_anl = ',Vcode_anl
       call utl_abort('bmat1D_setupBHi: unknown vertical coordinate type!')
     end if
-    if (.not. (gsv_varExist(varName='TT') .and.  &
-               gsv_varExist(varName='UU') .and.  &
-               gsv_varExist(varName='VV') .and.  &
-               (gsv_varExist(varName='HU').or.gsv_varExist(varName='LQ')) .and.  &
-               gsv_varExist(varName='P0')) ) then
-      call utl_abort('bmat1D_setupBHi: Some or all weather fields are missing. If it is desired to deactivate&
-           & the weather assimilation, then all entries of the array SCALEFACTORHI in the namelist NAMVAR1D&
-           & should be set to zero.')
-    end if
-    if (.not. gsv_varExist(varName='TG')) then
-      write(*,*) 'bmat1D_setupBHi: WARNING: The TG field is missing. This must be present when assimilating'
-      write(*,*) 'radiance observations.'
-    end if
-
+    
     cvDim_out = nkgdim * var1D_validHeaderCount
     cvDim_mpilocal = cvDim_out
     initialized = .true.
