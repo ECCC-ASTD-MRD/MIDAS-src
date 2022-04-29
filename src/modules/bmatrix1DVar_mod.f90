@@ -370,7 +370,7 @@ contains
     real(8) :: logP1, logP2
     real(8), pointer :: currentProfile(:), meanProfile(:)
     real(8), allocatable :: lineVector(:,:), meanPressureProfile(:)
-    integer, allocatable :: subIndex(:)
+    integer, allocatable :: levIndexFromVarLevIndex(:)
     character(len=4), allocatable :: varNameCv(:)
     character(len=2) :: varLevel
 
@@ -621,14 +621,14 @@ contains
     write(*,*) 'bmat1D_setupBEns: nkgdim', nkgdim
     cvDim_out = nkgdim * var1D_validHeaderCount
     currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1) )
-    allocate (subIndex(nkgdim))
+    allocate (levIndexFromVarLevIndex(nkgdim))
     allocate (varNameCv(nkgdim))
     nkgdim = 0
     do varIndex = 1, numIncludeAnlVar
       do levIndex = 1, size(currentProfile)
         if ( trim( col_getVarNameFromK(meanColumn,levIndex) ) == trim( bmat1D_varList(varIndex) ) ) then
           nkgdim = nkgdim + 1
-          subIndex(nkgdim) = levIndex
+          levIndexFromVarLevIndex(nkgdim) = levIndex
           varNameCv(nkgdim) = trim( bmat1D_varList(varIndex) )
           if (mpi_myId == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_varList ', bmat1D_varList(varIndex), nkgdim, levIndex
         end if
@@ -646,7 +646,7 @@ contains
       meanProfile => col_getColumn(meanColumn, headerIndex)
       do memberIndex = 1, nEns
         currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex)
-        lineVector(1,:) = currentProfile(subIndex(:)) - meanProfile(subIndex(:))
+        lineVector(1,:) = currentProfile(levIndexFromVarLevIndex(:)) - meanProfile(levIndexFromVarLevIndex(:))
         bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) + &
             matmul(transpose(lineVector),lineVector)
       end do
@@ -663,7 +663,7 @@ contains
       bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) / (nEns - 1)
       if (vLocalize > 0.0d0) then
         do levIndex1 = 1, nkgdim
-          levIndex2 = subIndex(levIndex1)
+          levIndex2 = levIndexFromVarLevIndex(levIndex1)
           select case(trim( varNameCv(levIndex1) ))
           case('TT','HU','LQ')
             varLevel='TH'
@@ -696,7 +696,7 @@ contains
       call utl_matsqrt(bSqrtEns(headerIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
     !$OMP END PARALLEL DO
-    deallocate(subIndex) 
+    deallocate(levIndexFromVarLevIndex) 
     deallocate(varNameCv)
     deallocate(meanPressureProfile)
     call col_deallocate(meanColumn)
