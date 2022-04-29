@@ -75,19 +75,17 @@ module bmatrix1DVar_mod
   logical          :: bmatActive    (numBmatMax)
   integer          :: nEns
   real(8)          :: vlocalize
-  !real(8),allocatable :: Lvert(:,:)
   type(struct_columnData), allocatable :: ensColumns(:)
   type(struct_columnData) :: meanColumn
   type(struct_ens) :: ensPerts
+  !Namelist variables
   character(len=4)    :: IncludeAnlVar(vnl_numvarmax)
   integer :: numIncludeAnlVar
   integer :: ensDateOfValidity
-  !logical          :: useBHi, useBEns
-  !Namelist variables
-  real(8)             :: scaleFactorHI(maxNumLevels)    ! scaling factors for HI variances
-  real(8)             :: scaleFactorHILQ(maxNumLevels)  ! scaling factors for HI LQ variances
-  real(8)             :: scaleFactorEns(maxNumLevels)   ! scaling factors for Ens variances
-  real(8)             :: scaleFactorEnsHumidity(maxNumLevels) ! scaling factors for Ens LQ variances
+  real(8) :: scaleFactorHI(maxNumLevels)          ! scaling factors for HI variances
+  real(8) :: scaleFactorHILQ(maxNumLevels)        ! scaling factors for HI LQ variances
+  real(8) :: scaleFactorEns(maxNumLevels)         ! scaling factors for Ens variances
+  real(8) :: scaleFactorEnsHumidity(maxNumLevels) ! scaling factors for Ens LQ variances
   NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHILQ, scaleFactorENs, scaleFactorEnsHumidity, nEns, &
        vLocalize, IncludeAnlVar, numIncludeAnlVar, ensDateOfValidity
 
@@ -101,10 +99,12 @@ contains
     !:Purpose: To initialize the 1Dvar analysis Background term.
     !
     implicit none
+
     ! arguments:
     type(struct_vco), pointer, intent(in) :: vco_in
     type(struct_hco), pointer, intent(in) :: hco_in
-    type (struct_obs), intent(in)         :: obsSpaceData
+    type (struct_obs),         intent(in) :: obsSpaceData
+
     ! locals:
     integer :: cvdim
     integer :: masterBmatIndex, bmatIndex
@@ -134,10 +134,12 @@ contains
     if ( ierr /= 0 ) call utl_abort( 'bmat1D_bsetup: Error reading namelist' )
     if ( mpi_myid == 0 ) write( *, nml = nambmat1D )
     ierr = fclos( nulnam )
+
     !
     !- 1.  Setup the B matrices
     !
     do masterBmatIndex = 1, numMasterBmat
+
       select case( trim(masterBmatTypeList(masterBmatIndex)) )
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
@@ -152,14 +154,15 @@ contains
       case default
         call utl_abort( 'bmat1D_bSetup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
       end select
+
       !- 1.2 Append the info to the B matrix info arrays and setup the proper control sub-vectors
       numBmat = numBmat + 1
       bmatLabelList (numBmat) = trim(masterbmatLabelList(masterBmatIndex))
       bmatTypeList  (numBmat) = masterBmatTypeList(masterBmatIndex)
       bmatIs3dList  (numBmat) = masterbmatIs3dList(masterBmatIndex)
       call cvm_setupSubVector(bmatLabelList(numBmat), bmatTypeList(numBmat), cvdim)
-     
     end do
+
     !
     !- 2. Print a summary and set the active B matrices array
     !
@@ -191,10 +194,12 @@ contains
     ! :Purpose: to setup bmat1D module
     !
     implicit none
+
     ! arguments:
-    type(struct_vco), pointer, intent(in):: vco_in
-    type (struct_obs), intent(in)        :: obsSpaceData
-    integer, intent(out)                 :: cvDim_out
+    type(struct_vco), pointer, intent(in)  :: vco_in
+    type (struct_obs)        , intent(in)  :: obsSpaceData
+    integer                  , intent(out) :: cvDim_out
+
     ! locals:
     integer :: levelIndex, ierr
     integer, external ::  fnom, fclos
@@ -207,7 +212,7 @@ contains
     character(len=18) :: oneDBmatLand = './Bmatrix_land.bin'
     character(len=17) :: oneDBmatSea  = './Bmatrix_sea.bin'
     integer :: extractDate, locationIndex
-    logical,save :: firstCall=.true.
+    logical, save :: firstCall=.true.
     real(8), allocatable :: bMatrix(:,:)
 
     if (firstCall) then
@@ -234,12 +239,14 @@ contains
         scaleFactorHILQ(levelIndex) = 0.0d0
       end if
     end do
+
     if ( sum( scaleFactorHI( 1 : maxNumLevels ) ) == 0.0d0 ) then
       if ( mpi_myid == 0 ) write(*,*) 'bmat1D_setupBHi: scaleFactorHI=0, skipping rest of setup'
       cvDim_out = 0
       call tmg_stop(15)
       return
     end if
+
     if (mpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Read 1DVar background statistics'
     inquire(file=trim(oneDBmatLand), exist=fileExists)
     if ( fileExists ) then
@@ -247,6 +254,7 @@ contains
     else
       call utl_abort('bmat1D_setupBHi: No 1DVar BACKGROUND STAT FILE ' // trim(oneDBmatLand))
     end if
+
     read(nulbgst) extractDate, vco_1Dvar%nLev_T, vco_1Dvar%nLev_M, vco_1Dvar%Vcode, &
          vco_1Dvar%ip1_sfc, vco_1Dvar%ip1_T_2m, vco_1Dvar%ip1_M_10m, bmat1D_varCount, nkgdim, nLonLatPosLand
     allocate( vco_1Dvar%ip1_T(vco_1Dvar%nLev_T), vco_1Dvar%ip1_M(vco_1Dvar%nLev_M) )
@@ -327,11 +335,13 @@ contains
     ! :Purpose: to setup bmat1D module
     !
     implicit none
+
     ! arguments
-    type(struct_vco), pointer, intent(in):: vco_in
-    type(struct_hco), pointer, intent(in):: hco_in
-    type (struct_obs), intent(in)        :: obsSpaceData
-    integer, intent(out)                 :: cvDim_out
+    type(struct_vco), pointer, intent(in)  :: vco_in
+    type(struct_hco), pointer, intent(in)  :: hco_in
+    type (struct_obs)        , intent(in)  :: obsSpaceData
+    integer                  , intent(out) :: cvDim_out
+
     ! locals:
     character(len=256) :: ensPathName = 'ensemble'
     character(len=256) :: ensFileName
@@ -362,7 +372,7 @@ contains
     real(8), pointer :: currentProfile(:), meanProfile(:)
     real(8), allocatable :: lineVector(:,:), meanPressureProfile(:)
     integer, allocatable :: subIndex(:)
-    character(len=4),allocatable :: varNameCv(:)
+    character(len=4), allocatable :: varNameCv(:)
     character(len=2) :: varLevel
 
     call tmg_start(12,'BENS1D_SETUP')
@@ -590,15 +600,15 @@ contains
                           varNames_opt = includeAnlVar(1:numIncludeAnlVar))
     
     allocate( ensColumns(nEns))
-    call gsv_allocate( stateVector, numstep, hco_ens, vco_ens, &
+    call gsv_allocate(stateVector, numstep, hco_ens, vco_ens, &
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true. )
+                     dataKind_opt=4, allocHeightSfc_opt=.true.)
     
-    call gsv_allocate( stateVectorMean, numstep, hco_ens, vco_ens, &
+    call gsv_allocate(stateVectorMean, numstep, hco_ens, vco_ens, &
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true. )
+                     dataKind_opt=4, allocHeightSfc_opt=.true.)
     do memberIndex = 1, nEns
       write(*,*) 'Copy member ', memberIndex
       call ens_copyMember(ensPerts, stateVector, memberIndex)
@@ -645,6 +655,7 @@ contains
     allocate(bSqrtEns(var1D_validHeaderCount,nkgdim,nkgdim))
     bSqrtEns(:,:,:) = 0.d0
     allocate(lineVector(1,nkgdim))
+
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,memberIndex,meanProfile,currentProfile,lineVector)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
@@ -657,9 +668,11 @@ contains
       end do
     end do
     !$OMP END PARALLEL DO
+
     deallocate(lineVector)
     allocate(meanPressureProfile(nkgdim))
     call lfn_Setup('FifthOrder')
+
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,meanPressureProfile,levIndex1,levIndex2,varLevel,offset,logP1,logP2,zr)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
@@ -677,6 +690,7 @@ contains
           case default
             call utl_abort('bmat1D_setupBEns: unknown variable' //trim(varNameCv(levIndex)) )
           end select
+
           if (varLevel=='SF') then
             meanPressureProfile(levIndex1) = col_getElem(meanColumn,1,headerIndex,'P0')
           else
@@ -722,10 +736,12 @@ contains
     ! :Purpose: HI component of B square root in 1DVar mode
     !
     implicit none
+
     ! arguments:
-    real(8), intent(in)                    :: controlVector_in(cvDim_mpilocal)
+    real(8),                 intent(in)    :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
-    type(struct_obs), intent(in)           :: obsSpaceData
+    type(struct_obs),        intent(in)    :: obsSpaceData
+
     ! locals:
     integer :: headerIndex, latitudeBandIndex(1), varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
@@ -741,6 +757,7 @@ contains
       return
     end if
     allocate(oneDProfile(nkgdim))
+
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn,latitude,surfaceType,latitudeBandIndex)
     do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
@@ -766,6 +783,7 @@ contains
       end if
     end do
     !$OMP END PARALLEL DO
+
     deallocate(oneDProfile)
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtHi: done'
@@ -780,10 +798,12 @@ contains
     ! :Purpose: HI component of B square root adjoint in 1DVar mode
     !
     implicit none
+
     ! arguments:
-    real(8), intent(inout)                 :: controlVector_in(cvDim_mpilocal)
+    real(8),                 intent(inout) :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
-    type (struct_obs), intent(in)          :: obsSpaceData
+    type (struct_obs),       intent(in)    :: obsSpaceData
+
     ! locals:
     integer :: headerIndex, latitudeBandIndex(1), varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
@@ -798,6 +818,7 @@ contains
       return
     end if
     allocate(oneDProfile(nkgdim))
+
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn,latitude,surfaceType,latitudeBandIndex)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
@@ -826,6 +847,7 @@ contains
       end if
     end do
     !$OMP END PARALLEL DO
+
     deallocate(oneDProfile)
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtHiAd: done'
@@ -841,9 +863,11 @@ contains
     ! :Purpose: Ensemble component of B square root in 1DVar mode
     !
     implicit none
+
     ! arguments:
-    real(8), intent(in)                    :: controlVector_in(cvDim_mpilocal)
+    real(8),                 intent(in)    :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
+
     ! locals:
     integer :: headerIndex, varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
@@ -851,6 +875,7 @@ contains
     integer :: offset
 
     allocate(oneDProfile(nkgdim))
+
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn)
     do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
@@ -868,6 +893,7 @@ contains
       end if
     end do
     !$OMP END PARALLEL DO
+
     deallocate(oneDProfile)
 
   end subroutine bmat1D_bSqrtEns
@@ -880,9 +906,11 @@ contains
     ! :Purpose: Ensemble component of B square root in 1DVar mode
     !
     implicit none
+
     ! arguments:
-    real(8), intent(inout)                 :: controlVector_in(cvDim_mpilocal)
+    real(8),                 intent(inout) :: controlVector_in(cvDim_mpilocal)
     type(struct_columnData), intent(inout) :: column
+
     ! locals:
     integer :: headerIndex, varIndex, columnIndex
     real(8), pointer :: currentColumn(:)
@@ -896,6 +924,7 @@ contains
       return
     end if
     allocate(oneDProfile(nkgdim))
+
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
@@ -914,6 +943,7 @@ contains
              matmul(bSqrtEns(headerIndex,:,:), oneDProfile)
     end do
     !$OMP END PARALLEL DO
+
     deallocate(oneDProfile)
     if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: done'
@@ -930,20 +960,24 @@ contains
     !          space.    
     !
     implicit none
+
     ! arguments:
-    integer, intent(in)                    :: cvdim
-    real(8), intent(in)                    :: controlVector(cvdim)
+    integer,                 intent(in)    :: cvdim
+    real(8),                 intent(in)    :: controlVector(cvdim)
     type(struct_columnData), intent(inout) :: column
-    type(struct_obs), intent(in)           :: obsSpaceData
+    type(struct_obs),        intent(in)    :: obsSpaceData
+
     ! locals:
     integer :: bmatIndex
     real(8), pointer :: subVector(:)
+
     !
     !- 1.  Compute the analysis increment
     !
     bmat_loop: do bmatIndex = 1, numBmat
       if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
       subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
+
       select case( trim(bmatTypeList(bmatIndex)) )
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
@@ -961,6 +995,7 @@ contains
       case default
         call utl_abort( 'bmat1D_sqrtB: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
+
     end do bmat_loop
 
   end subroutine bmat1D_sqrtB
@@ -974,25 +1009,29 @@ contains
     !          error-covariance space.
     !
     implicit none
+
     ! arguments:
-    integer, intent(in)                    :: cvdim
-    real(8), intent(in)                    :: controlVector(cvdim)
+    integer,                 intent(in)    :: cvdim
+    real(8),                 intent(in)    :: controlVector(cvdim)
     type(struct_columnData), intent(inout) :: column
-    type(struct_obs), intent(in)           :: obsSpaceData
+    type(struct_obs),        intent(in)    :: obsSpaceData
+
     ! locals:
     integer :: bmatIndex
     real(8), pointer :: subVector(:)
+
     ! Process components in opposite order as forward calculation
     bmat_loop: do bmatIndex = numBmat, 1, -1
       if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
       subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
+
       select case( trim(bmatTypeList(bmatIndex)) )
       case ('HI')
         !- Time-Mean Homogeneous and Isotropic...
         call tmg_start(51,'B_HI_T')
         call bmat1D_bsqrtHiAd( subvector, &  ! IN
-                              column,    &  ! OUT
-                              obSSpaceData )     ! IN
+                              column,     &  ! OUT
+                              obSSpaceData ) ! IN
         call tmg_stop(51)
       case ('ENS')
         !- Ensemble based
@@ -1003,6 +1042,7 @@ contains
       case default
         call utl_abort( 'bmat1D_sqrtBT: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
+
     end do bmat_loop
 
   end subroutine bmat1D_sqrtBT
@@ -1016,12 +1056,14 @@ contains
     ! :Purpose: to compute 1Dvar increment from control vector
     !
     implicit none
+
     ! arguments:
-    real(8), intent(in)                    :: incr_cv(:)
+    real(8),                 intent(in)    :: incr_cv(:)
     type(struct_columnData), intent(inout) :: column
     type(struct_columnData), intent(in)    :: columnTrlOnAnlIncLev
     type(struct_obs),        intent(in)    :: obsSpaceData
     integer,                 intent(in)    :: nvadim_mpilocal
+
     ! compute increment from control vector (multiply by B^1/2)
     call bmat1D_sqrtB(incr_cv, nvadim_mpilocal, column, obsSpaceData)
     call cvt_transform(column, 'ZandP_tl', columnTrlOnAnlIncLev)
@@ -1036,6 +1078,7 @@ contains
     ! :Purpose: to deallocate memory used by internal module structures
     !
     implicit none
+
     if (initialized) then
        deallocate( bSqrtLand )
        deallocate( bSqrtSea )
