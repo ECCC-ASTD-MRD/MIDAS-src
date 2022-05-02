@@ -32,6 +32,7 @@ module thinning_mod
   use verticalCoord_mod
   use timeCoord_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use codtyp_mod
   use physicsFunctions_mod
   use utilities_mod
@@ -1600,7 +1601,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     do stepIndex = 1, tim_nstepobs
       write(fileNumber,'(I2.2)') stepIndex
       trlmFileName = './trlm_' // trim(fileNumber)
-      call gsv_readFromFile( stateVectorPsfc, trlmFileName, ' ', ' ',  &
+      call gio_readFromFile( stateVectorPsfc, trlmFileName, ' ', ' ',  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true. )
     end do
     call gsv_getField(stateVectorPsfc,surfPressure)
@@ -4333,7 +4334,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     do stepIndex = 1, tim_nstepobs
       write(fileNumber,'(I2.2)') stepIndex
       trlmFileName = './trlm_' // trim(fileNumber)
-      call gsv_readFromFile( stateVectorPsfc, trlmFileName, ' ', ' ',  &
+      call gio_readFromFile( stateVectorPsfc, trlmFileName, ' ', ' ',  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true. )
     end do
 

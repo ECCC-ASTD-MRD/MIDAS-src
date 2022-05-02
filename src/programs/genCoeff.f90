@@ -31,6 +31,7 @@ program midas_gencoeff
   use obsSpaceData_mod
   use columnData_mod  
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use obsSpaceDiag_mod
   use obsFiles_mod
   use obsFilter_mod  
@@ -90,7 +91,7 @@ program midas_gencoeff
                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
                      beSilent_opt=.false. )
   call gsv_zero( stateVectorTrialHighRes )
-  call gsv_readTrials( stateVectorTrialHighRes )
+  call gio_readTrials( stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Horizontally interpolate trials to trial columns

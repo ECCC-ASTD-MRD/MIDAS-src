@@ -30,6 +30,7 @@ program midas_var1D
   use obsSpaceData_mod
   use columnData_mod  
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use controlVector_mod
   use obsFiles_mod
   use minimization_mod
@@ -152,7 +153,7 @@ program midas_var1D
                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
                      beSilent_opt=.false. )
   call gsv_zero( stateVectorTrialHighRes )
-  call gsv_readTrials( stateVectorTrialHighRes )
+  call gio_readTrials( stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize the background-error covariance, also sets up control vector module (cvm)

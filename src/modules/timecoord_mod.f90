@@ -35,7 +35,7 @@ module timeCoord_mod
   ! public procedures
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
-  public :: tim_getDateStampFromFile
+  public :: tim_getDateStampFromFile, tim_dateStampToDDMMYYYY
 
   character(len=4) :: varNameForDate
   character(len=6) ::  tim_referencetime
@@ -452,5 +452,47 @@ contains
     end if
 
   end subroutine tim_getStepObsIndex
+  
+  !----------------------------------------------------------------------------------------
+  ! tim_dateStampToDDMMYYYY
+  !----------------------------------------------------------------------------------------
+  subroutine tim_dateStampToDDMMYYYY(dateStamp, dd, mm, ndays, yyyy)
+    !
+    !: Purpose: to get day (DD), month (MM), number of days in this month 
+    !           and year (YYYY) from dateStamp
+    !  
+    
+    implicit none
+  
+    ! arguments
+    integer, intent(in)  :: dateStamp
+    integer, intent(inout) :: dd, mm, ndays, yyyy
+    
+    ! locals
+    character(len=8)            :: yyyymmdd
+    character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    integer                     :: ndaysM(12)    
+    integer                     :: imode, ierr, newdate, prntdate, prnttime
+
+    ndaysM(:) = [   31,    28,    31,    30,    31,    30,    31,    31,    30,    31,    30,    31]
+    
+    imode = -3 ! stamp to printable
+    ierr = newdate(dateStamp, prntdate, prnttime, imode)
+    write(yyyymmdd,'(i8)') prntdate
+    read (yyyymmdd(7:8), '(i)') dd
+    read (yyyymmdd(5:6), '(i)') mm
+    read (yyyymmdd(1:4), '(i)') yyyy
+
+    ! leap year    
+    if (mm == 2 .and. mod(yyyy,4)==0) ndaysM(mm) = 29
+    ndays = ndaysM(mm)
+    
+    write(*,*) 'tim_dateStampToDDMMYYYY:  date = ', prntdate
+    write(*,*) 'tim_dateStampToDDMMYYYY:  year = ', yyyy
+    write(*,'(a,i5,a,i5,a)') 'tim_dateStampToDDMMYYYY: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)' 
+    write(*,*) 'tim_dateStampToDDMMYYYY:   day = ', dd
+    write(*,*) 'tim_dateStampToDDMMYYYY:  time = ', prnttime
+  
+  end subroutine tim_dateStampToDDMMYYYY
 
 end module timeCoord_mod

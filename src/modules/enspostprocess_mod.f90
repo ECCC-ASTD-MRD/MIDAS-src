@@ -28,6 +28,7 @@ module ensPostProcess_mod
   use horizontalCoord_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use randomNumber_mod
   use controlVector_mod
   use gridVariableTransforms_mod
@@ -502,7 +503,7 @@ contains
 
       !- Read the analysis mask (in LAM mode only) - N.B. different from land/sea mask!!!
       if (.not. hco_ens%global .and. useAnalIncMask) then
-        call gsv_getMaskLAM(stateVectorAnalIncMask, hco_ens, vco_ens, hInterpolationDegree)
+        call gio_getMaskLAM(stateVectorAnalIncMask, hco_ens, vco_ens, hInterpolationDegree)
       end if
 
       ! initialize the vector for the ensemble increment
@@ -605,14 +606,14 @@ contains
       outFileName = trim(outFileName) // '_trialmean'
       call ens_copyMaskToGsv(ensembleTrl, stateVectorMeanTrl)
       do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(stateVectorMeanTrl, outFileName, etiket_trlmean,  &
+        call gio_writeToFile(stateVectorMeanTrl, outFileName, etiket_trlmean,  &
                              typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits,  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
       call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_trialrms'
       call ens_copyMaskToGsv(ensembleTrl, stateVectorStdDevTrl)
-      call gsv_writeToFile(stateVectorStdDevTrl, outFileName, etiket_trlrms,  &
+      call gio_writeToFile(stateVectorStdDevTrl, outFileName, etiket_trlrms,  &
                            typvar_opt='P', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                            stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
       outFileName = trim(outFileName) // '_ascii'
@@ -661,14 +662,14 @@ contains
       outFileName = trim(outFileName) // '_analmean'
       call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
       do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmean,  &
+        call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmean,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
       call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
       outFileName = trim(outFileName) // '_analrms'
       call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnl)
-      call gsv_writeToFile(stateVectorStdDevAnl, outFileName, etiket_anlrms,  &
+      call gio_writeToFile(stateVectorStdDevAnl, outFileName, etiket_anlrms,  &
                            typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                            stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
       outFileName = trim(outFileName) // '_ascii'
@@ -680,14 +681,14 @@ contains
         outFileName = trim(outFileName) // '_analmean_raw'
         call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnlRaw)
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVectorMeanAnlRaw, outFileName, etiket_anlmean_raw,  &
+          call gio_writeToFile(stateVectorMeanAnlRaw, outFileName, etiket_anlmean_raw,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
         call fln_ensAnlFileName(outFileName, '.', tim_getDateStamp())
         outFileName = trim(outFileName) // '_analrms_raw'
         call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnl)
-        call gsv_writeToFile(stateVectorStdDevAnlRaw, outFileName, etiket_anlrms_raw,  &
+        call gio_writeToFile(stateVectorStdDevAnlRaw, outFileName, etiket_anlrms_raw,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
         outFileName = trim(outFileName) // '_ascii'
@@ -700,14 +701,14 @@ contains
         outFileName = trim(outFileName) // '_analpertmean'
         call ens_copyMaskToGsv(ensembleAnl, stateVectorMeanAnl)
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmeanpert,  &
+          call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket_anlmeanpert,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
         call fln_ensAnlFileName( outFileName, '.', tim_getDateStamp() )
         outFileName = trim(outFileName) // '_analpertrms'
         call ens_copyMaskToGsv(ensembleAnl, stateVectorStdDevAnlPert)
-        call gsv_writeToFile(stateVectorStdDevAnlPert, outFileName, etiket_anlrmspert,  &
+        call gio_writeToFile(stateVectorStdDevAnlPert, outFileName, etiket_anlrmspert,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=middleStepIndex, containsFullField_opt=.false.)
         outFileName = trim(outFileName) // '_ascii'
@@ -724,11 +725,11 @@ contains
         ! here we assume 4 digits for the ensemble member!!!!
         etiket = trim(etiket_inc) // '0000'
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVectorMeanInc, outFileName, etiket,  &
+          call gio_writeToFile(stateVectorMeanInc, outFileName, etiket,  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
           if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
-            call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
+            call gio_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
                                  typvar_opt='A', writeHeightSfc_opt=.true., &
                                  stepIndex_opt=stepIndex, containsFullField_opt=.true.)
           end if
@@ -759,7 +760,7 @@ contains
       ! here we assume 4 digits for the ensemble member!!!!
       etiket = trim(etiket_anl) // '0000'
       do stepIndex = 1, tim_nstepobsinc
-        call gsv_writeToFile(stateVectorMeanAnl, outFileName, etiket,  &
+        call gio_writeToFile(stateVectorMeanAnl, outFileName, etiket,  &
                              typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true.)
       end do
@@ -783,11 +784,11 @@ contains
         ! here we assume 4 digits for the ensemble member!!!!
         etiket = trim(etiket_inc) // '0000'
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVectorMeanIncSubSample, outFileName, etiket,  &
+          call gio_writeToFile(stateVectorMeanIncSubSample, outFileName, etiket,  &
                                typvar_opt='R', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.false.)
           if (gsv_isAllocated(stateVectorMeanAnlSfcPres)) then
-            call gsv_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
+            call gio_writeToFile(stateVectorMeanAnlSfcPres, outFileName, etiket,  &
                                  typvar_opt='A', writeHeightSfc_opt=.true., &
                                  stepIndex_opt=stepIndex, containsFullField_opt=.true.)
           end if
@@ -798,7 +799,7 @@ contains
         ! here we assume 4 digits for the ensemble member!!!!
         etiket = trim(etiket_anl) // '0000'
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVectorMeanAnlSubSample, outFileName, etiket,  &
+          call gio_writeToFile(stateVectorMeanAnlSubSample, outFileName, etiket,  &
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
@@ -886,7 +887,7 @@ contains
         write(memberIndexStr,'(I4.4)') memberIndex
 
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(stateVector, outFileName,  &
+          call gio_writeToFile(stateVector, outFileName,  &
                                trim(etiket) // memberIndexStr,  &
                                typvar_opt=trim(typvar), writeHeightSfc_opt=.true., &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true., &
@@ -1409,7 +1410,7 @@ contains
     call gsv_zero(stateVectorRecenterAnl)
 
     do stepIndex = 1, tim_nstepobsinc
-      call gsv_readFromFile( stateVectorRecenterAnl, recenterAnlFileName, ' ', ' ',  &
+      call gio_readFromFile( stateVectorRecenterAnl, recenterAnlFileName, ' ', ' ',  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true., &
                              readHeightSfc_opt=.false. )
     end do

@@ -32,6 +32,7 @@ program midas_diagHBHt
   use obsSpaceData_mod
   use columnData_mod  
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use obsSpaceDiag_mod
   use controlVector_mod
   use obsFiles_mod
@@ -95,7 +96,7 @@ program midas_diagHBHt
                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
                      beSilent_opt=.false. )
   call gsv_zero( stateVectorTrialHighRes )
-  call gsv_readTrials( stateVectorTrialHighRes )
+  call gio_readTrials( stateVectorTrialHighRes )
 
   ! Horizontally interpolate trials to trial columns
   call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &

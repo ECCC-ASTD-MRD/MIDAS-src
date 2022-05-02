@@ -25,6 +25,7 @@ module bgckOcean_mod
   use columnData_mod
   use codtyp_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use statetocolumn_mod 
@@ -100,7 +101,7 @@ module bgckOcean_mod
     call gsv_allocate(stateVector, 1, hco, columnTrlOnTrlLev % vco, dataKind_opt = 4, &
                        hInterpolateDegree_opt = 'NEAREST', &
                        datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
-    call gsv_readFromFile(stateVector, './bgstddev', 'STDDEV', 'X', &
+    call gio_readFromFile(stateVector, './bgstddev', 'STDDEV', 'X', &
                            unitConversion_opt=.false., containsFullField_opt=.true.)
     
     call col_setVco(columnFGE, col_getVco(columnTrlOnTrlLev))
