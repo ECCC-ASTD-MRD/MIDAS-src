@@ -158,8 +158,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
  * removes of `compile_*.sh`, associated files and old env. variable retrocompatibility (#612 and !569)
- * Remove any reference to release branch `v_3.4` in the documentation
-   (#553 and !523)
 
 ## [3.7.1]
 
@@ -202,6 +200,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
  * Remove further dependencies to `ksh` (#611 and !566)
  * Remove the task `download` from the maestro module `UnitTest` (#595 and !558)
+ * Remove any reference to release branch `v_3.4` in the documentation
+   (#553 and !523)
 
 ## [3.6.8]
 
