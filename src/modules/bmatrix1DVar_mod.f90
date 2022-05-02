@@ -692,7 +692,7 @@ contains
     deallocate(varNameFromVarLevIndex)
     deallocate(meanPressureProfile)
     call col_deallocate(meanColumn)
-    do memberIndex =1 , nEns
+    do memberIndex = 1, nEns
       call col_deallocate(ensColumns(memberIndex))
     end do
     cvDim_mpilocal = cvDim_out
@@ -808,7 +808,7 @@ contains
         write(*,*) 'bmat1D_bSqrtHiAd: offset, nkgdim', offset, nkgdim
         call utl_abort('bmat1D_bSqrtHiAd: inconsistency between Bmatrix and statevector size')
       end if
-      latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radian
+      latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) !radians
       surfaceType =  tvs_ChangedStypValue(obsSpaceData, headerIndex)
       if (surfaceType == 1) then !Sea
         latitudeBandIndex = minloc( abs( latitude - latSea(:)) )
@@ -965,8 +965,8 @@ contains
       case ('ENS')
         !- 1.2 Ensemble based
         call tmg_start(50,'B_ENS')
-        call bmat1D_bsqrtEns( subVector,  &  ! IN
-                              column)        ! OUT
+        call bmat1D_bsqrtEns( subVector,  & ! IN
+                              column)       ! OUT
         call tmg_stop(50)
       case default
         call utl_abort( 'bmat1D_sqrtB: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
@@ -1005,15 +1005,15 @@ contains
       case ('HI')
         !- Time-Mean Homogeneous and Isotropic...
         call tmg_start(51,'B_HI_T')
-        call bmat1D_bsqrtHiAd( subvector, &  ! IN
+        call bmat1D_bsqrtHiAd(subvector,  &  ! IN
                               column,     &  ! OUT
                               obSSpaceData ) ! IN
         call tmg_stop(51)
       case ('ENS')
         !- Ensemble based
         call tmg_start(51,'B_ENS_T')
-        call bmat1D_bsqrtEnsAd( subvector, &  ! IN
-                                column )      ! OUT
+        call bmat1D_bsqrtEnsAd(subvector, &  ! IN
+                                column )     ! OUT
         call tmg_stop(51)
       case default
         call utl_abort( 'bmat1D_sqrtBT: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )

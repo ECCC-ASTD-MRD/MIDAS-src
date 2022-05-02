@@ -421,15 +421,40 @@ contains
   !--------------------------------------------------------------------------
   ! col_getOffsetFromVarName
   !--------------------------------------------------------------------------
-  function col_getOffsetFromVarName(column,varName) result(offset)
+  function col_getOffsetFromVarName(column, varName) result(offset)
     implicit none
     type(struct_columnData)     :: column
     character(len=*),intent(in) :: varName
-    integer                 :: offset
+    integer                     :: offset
 
-    offset=column%varOffset(vnl_varListIndex(varName))
+    offset = column%varOffset(vnl_varListIndex(varName))
 
   end function col_getOffsetFromVarName
+
+  !--------------------------------------------------------------------------
+  ! col_getLevIndexFromVarLevIndex
+  !--------------------------------------------------------------------------
+  function col_getLevIndexFromVarLevIndex(column, varLevIndex) result(levIndex)
+    implicit none
+    type(struct_columnData) :: column
+    integer, intent(in)     :: varLevIndex
+    integer                 :: levIndex
+    integer                 :: varIndex
+
+    do varIndex = 1, vnl_numvarmax
+      if ( column%varExistList(varIndex) ) then
+        if ( (varLevIndex >= (column%varOffset(varIndex) + 1)) .and.  &
+            (varLevIndex <= (column%varOffset(varIndex) + column%varNumLev(varIndex))) ) then
+          levIndex = varLevIndex - column%varOffset(varIndex)
+          return
+        end if
+      end if
+    end do
+
+    write(*,*) 'col_getLevIndexFromVarLevIndex: varLevIndex out of range: ', varLevIndex
+    call utl_abort('col_getLevIndexFromVarLevIndex')
+
+  end function col_getLevIndexFromVarLevIndex
 
   !--------------------------------------------------------------------------
   ! col_getVarNameFromK
