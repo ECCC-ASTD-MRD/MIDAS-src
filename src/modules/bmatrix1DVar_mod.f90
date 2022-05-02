@@ -670,7 +670,7 @@ contains
             meanPressureProfile(varLevIndex1) = col_getElem(meanColumn, 1, headerIndex, 'P0')
           else
             offset = col_getOffsetFromVarName(meanColumn, varNameFromVarLevIndex(varLevIndex1))
-            meanPressureProfile(varLevIndex1) = col_getPressure(meanColumn, levIndex1-offset+1, headerIndex, varLevel)
+            meanPressureProfile(varLevIndex1) = col_getPressure(meanColumn, levIndex1-offset, headerIndex, varLevel)
           end if
         end do
         do varLevIndex1 = 1, nkgdim
