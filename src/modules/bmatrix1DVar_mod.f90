@@ -665,18 +665,7 @@ contains
       if (vLocalize > 0.0d0) then
         do varLevIndex1 = 1, nkgdim
           levIndex1 = levIndexFromVarLevIndex(varLevIndex1)
-
-          select case(trim( varNameFromVarLevIndex(varLevIndex1) ))
-          case('TT','HU','LQ')
-            varLevel='TH'
-          case('UU','VV')
-            varLevel='MM'
-          case('TG','P0')
-            varLevel='SF'
-          case default
-            call utl_abort('bmat1D_setupBEns: unknown variable ' //trim(varNameFromVarLevIndex(levIndex)) )
-          end select
-
+          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndex(varLevIndex1))
           if (varLevel=='SF') then
             meanPressureProfile(varLevIndex1) = col_getElem(meanColumn, 1, headerIndex, 'P0')
           else
