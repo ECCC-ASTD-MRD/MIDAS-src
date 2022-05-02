@@ -54,7 +54,7 @@ module obsdbFiles_mod
   ! ...for the header table
 
   integer :: numHeadMatch 
-  character(len=lenSqlName) :: headKeySqlName = ' '
+  character(len=lenSqlName) :: obsHeadKeySqlName = ' '
   character(len=lenSqlName) :: headDateSqlName = ' ' 
   character(len=lenSqlName), allocatable :: headMatchList(:,:) 
   character(len=6), allocatable :: headBufrList(:)
@@ -62,7 +62,7 @@ module obsdbFiles_mod
   ! ...for the body table
   
   integer :: numBodyMatch
-  character(len=lenSqlName) :: bodyKeySqlName = ' '
+  character(len=lenSqlName) :: obsBodyKeySqlName = ' '
   character(len=lenSqlName), allocatable :: bodyMatchList(:,:)
   character(len=6), allocatable :: bodyBufrList(:)
 
@@ -265,9 +265,9 @@ contains
               ! Remove the brackets from column name string 
               headTableName = headTableName(1:len(headTableName)-1)
             case ('[headPrimaryKey]')
-              headKeySqlName = trim(readDBColumn)
+              obsHeadKeySqlName = trim(readDBColumn)
               ! Remove the brackets from column name string 
-              headKeySqlName = headKeySqlName(1:len(headKeySqlName)-1)
+              obsHeadKeySqlName = obsHeadKeySqlName(1:len(obsHeadKeySqlName)-1)
             case ('[headDateSqlName]')
               headDateSqlName = trim(readDBColumn)
               ! Remove the brackets from column name string  
@@ -294,9 +294,9 @@ contains
               ! Remove the brackets from column name string
               bodyTableName = bodyTableName(1:len(bodyTableName)-1)
             case ('[bodyPrimaryKey]')
-              bodyKeySqlName = trim(readDBColumn)
+              obsBodyKeySqlName = trim(readDBColumn)
               ! Remove the brackets from column name string
-              bodyKeySqlName = bodyKeySqlName(1:len(bodyKeySqlName)-1)
+              obsBodyKeySqlName = obsBodyKeySqlName(1:len(obsBodyKeySqlName)-1)
             case default
               countMatchRow = countMatchRow + 1
               bodyMatchList(1,countMatchRow) = trim(readDBColumn)
@@ -370,10 +370,10 @@ contains
  
     ! Check if the header, body and MIDAS table column names are read correctly 
     if (len(trim(headTableName)) == 0) call utl_abort('odbf_setup: headTableName is incorrectly defined or missing')
-    if (len(trim(headKeySqlName)) == 0) call utl_abort('odbf_setup: headKeySqlName is incorrectly defined or missing')
+    if (len(trim(obsHeadKeySqlName)) == 0) call utl_abort('odbf_setup: obsHeadKeySqlName is incorrectly defined or missing')
     if (len(trim(headDateSqlName)) == 0) call utl_abort('odbf_setup: headDateSqlName is incorrectly defined or missing')
     if (len(trim(bodyTableName)) == 0) call utl_abort('odbf_setup: bodyTableName is incorrectly defined or missing')
-    if (len(trim(bodyKeySqlName)) == 0) call utl_abort('odbf_setup: bodyKeySqlName is incorrectly defined or missing')
+    if (len(trim(obsBodyKeySqlName)) == 0) call utl_abort('odbf_setup: obsBodyKeySqlName is incorrectly defined or missing')
     if (len(trim(midasBodyTableName)) == 0) call utl_abort('odbf_setup: midasBodyTableName is incorrectly defined or missing')
     if (len(trim(midasBodyKeySqlName)) == 0) call utl_abort('odbf_setup: midasBodyKeySqlName is incorrectly defined or missing')
     if (len(trim(midasHeadKeySqlName)) == 0) call utl_abort('odbf_setup: midasHeadKeySqlName is incorrectly defined or missing')
@@ -711,7 +711,7 @@ contains
       query = 'select ' // trim(sqlColumnName) // &
               ' from ' // trim(midasBodyTableName) // &
               ' where ' // &
-              trim(bodyKeySqlName) // ' = ? and '   // &
+              trim(obsBodyKeySqlName) // ' = ? and '   // &
               trim(vnmSqlName)     // ' = ? and '   // &
               trim(pppSqlName)     // ' = ? ;'
       write(*,*) 'odbf_readMidasBodyTable: query ---> ', trim(query)
@@ -827,7 +827,7 @@ contains
     end if
 
     ! build the sqlite query for the HEADER primary key
-    query = 'select ' // trim(headKeySqlName) // ' from ' // &
+    query = 'select ' // trim(obsHeadKeySqlName) // ' from ' // &
             trim(headTableName) // ';'
     write(*,*) 'odbf_getPrimaryKeys: query ---> ', trim(query)
 
@@ -844,7 +844,7 @@ contains
     deallocate(tempHeadKey)
 
     ! build the sqlite query for the BODY primary key
-    query = 'select ' // trim(bodyKeySqlName) // ' from ' // &
+    query = 'select ' // trim(obsBodyKeySqlName) // ' from ' // &
             trim(bodyTableName) // ';'
     write(*,*) 'odbf_getPrimaryKeys: query ---> ', trim(query)
 
@@ -861,7 +861,7 @@ contains
     deallocate(tempBodyKey)
 
     ! build the sqlite query for the BODY-HEAD key
-    query = 'select ' // trim(headKeySqlName) // ' from ' // &
+    query = 'select ' // trim(obsHeadKeySqlName) // ' from ' // &
             trim(bodyTableName) // ';'
     write(*,*) 'odbf_getPrimaryKeys: query ---> ', trim(query)
 
@@ -1758,7 +1758,8 @@ contains
     type(fSQL_STATUS)    :: stat ! sqlite error status
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
-    integer              :: midasKey, obsIdo, obsIdf, updateItemIndex, updateValue_i
+    integer(8)           :: obsIdo
+    integer              :: midasKey, obsIdf, updateItemIndex, updateValue_i
     integer              :: headIndex, bodyIndex
     integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
     real(8)              :: updateValue_r
@@ -1822,7 +1823,7 @@ contains
       ! set the primary key, keys to main obsDB tables and other basic info
       midasKey = 0
       query = 'insert into ' // trim(midasHeadTableName) // '(' // &
-               trim(midasHeadKeySqlName) // ',' //trim(headKeySqlName) // &
+               trim(midasHeadKeySqlName) // ',' //trim(obsHeadKeySqlName) // &
               ') values(?, ?);'
 
       write(*,*) 'odbf_updateMidasHeaderTable: query = ', trim(query)
@@ -1837,7 +1838,7 @@ contains
         midasKey = midasKey +1
         call fSQL_bind_param(stmt, PARAM_INDEX=1, INT_VAR=midasKey)
         obsIdo   = obs_headPrimaryKey(obsdat, headIndex)
-        call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT_VAR  = obsIdo )
+        call fSQL_bind_param( stmt, PARAM_INDEX = 2, INT8_VAR  = obsIdo )
 
         call fSQL_exec_stmt ( stmt )
       
@@ -1849,7 +1850,7 @@ contains
       ! create an index for the new table - necessary to speed up the update
       query = 'create index idx_midasHeaderTable on ' // &
               trim(midasHeadTableName) // &
-              '(' // trim(headKeySqlName) // ');'
+              '(' // trim(obsHeadKeySqlName) // ');'
 
       write(*,*) 'odbf_updateMidasHeaderTable: query = ', trim(query)
       call fSQL_do_many( db, query, stat )
@@ -1868,7 +1869,7 @@ contains
     ! Add additional columns to the MIDAS Header table if requested from namObsDbMIDASBodyUpdate
     ! namelist
     call odbf_addColumnsMidasTable(midasTableType, fileName, midasHeadTableName, midasHeadNamesList, &
-                                  headKeySqlName, bodyKeySqlName,                                    &
+                                  obsHeadKeySqlName, obsBodyKeySqlName,                                    &
                                   numberUpdateItems, updateItemList,                                 &
                                   midasHeadKeySqlName)
 
@@ -1883,27 +1884,27 @@ contains
     ! updating the contents of the MIDAS table, one column at a time
     do updateItemIndex = 1, numberUpdateItems
 
-      ! ! get obsSpaceData column index for source of updated sql column
+      ! get obsSpaceData column index for source of updated sql column
       obsSpaceColumnName = updateItemList(updateItemIndex)
       ierr = clib_toUpper(obsSpaceColumnName)
       obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
 
       sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasHeadNamesList)
      
-        ! prepare sql update query
-        query = 'update ' // trim(midasHeadTableName) // ' set ' // &
+      ! prepare sql update query
+      query = 'update ' // trim(midasHeadTableName) // ' set ' // &
               trim(sqlColumnName)  // ' = ? where ' // &
-              trim(headKeySqlName) // ' = ? ;'
-        write(*,*) 'odbf_updateMidasHeaderTable: query ---> ', trim(query)
+              trim(obsHeadKeySqlName) // ' = ? ;'
+      write(*,*) 'odbf_updateMidasHeaderTable: query ---> ', trim(query)
 
-        call fSQL_prepare( db, query , stmt, stat )
-        if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'odbf_updateMidasHeaderTable: fSQL_prepare: ', fSQL_errmsg(stat)
-        call utl_abort( 'odbf_updateMidasHeaderTable: fSQL_prepare' )
-        end if
+      call fSQL_prepare( db, query , stmt, stat )
+      if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_updateMidasHeaderTable: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_updateMidasHeaderTable: fSQL_prepare' )
+      end if
 
-        call fSQL_begin(db)
-        HEADER2: do headIndex = 1, obs_numHeader(obsdat)
+      call fSQL_begin(db)
+      HEADER2: do headIndex = 1, obs_numHeader(obsdat)
         obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
         if ( obsIdf /= fileIndex ) cycle HEADER2
 
@@ -1926,7 +1927,7 @@ contains
         end if
 
         obsIdo  = obs_headPrimaryKey( obsdat, headIndex )
-        call fSQL_bind_param(stmt, PARAM_INDEX=2, INT_VAR=obsIdo)
+        call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdo)
 
         call fSQL_exec_stmt(stmt)
 
@@ -2051,8 +2052,8 @@ contains
       ! set the primary key, keys to main obsDB tables and other basic info
       midasKey = 0
       query = 'insert into ' // trim(midasBodyTableName) // '(' // &
-              trim(midasBodyKeySqlName) // ',' // trim(headKeySqlName) // ',' // &
-              trim(bodyKeySqlName)  // ',' // trim(vnmSqlname)     // ',' // &
+              trim(midasBodyKeySqlName) // ',' // trim(obsHeadKeySqlName) // ',' // &
+              trim(obsBodyKeySqlName)  // ',' // trim(vnmSqlname)     // ',' // &
               trim(pppSqlName)      // ',' // trim(varSqlname)     // &
               ') values(?,?,?,?,?,?);'
       write(*,*) 'odbf_updateMidasBodyTable: query = ', trim(query)
@@ -2098,7 +2099,7 @@ contains
       ! create an index for the new table - necessary to speed up the update
       query = 'create index idx_midasBodyTable on ' // &
               trim(midasBodyTableName) // &
-              '(' // trim(bodyKeySqlName) // ',' // trim(vnmSqlName) // ');'
+              '(' // trim(obsBodyKeySqlName) // ',' // trim(vnmSqlName) // ');'
       write(*,*) 'odbf_updateMidasBodyTable: query = ', trim(query)
       call fSQL_do_many( db, query, stat )
       if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -2119,7 +2120,7 @@ contains
     ! Add additional columns to the MIDAS Body table if requested from namObsDbMIDASBodyUpdate
     ! namelist
     call odbf_addColumnsMidasTable(midasTableType, fileName, midasBodyTableName, midasBodyNamesList, &
-                                  headKeySqlName, bodyKeySqlName, &
+                                  obsHeadKeySqlName, obsBodyKeySqlName, &
                                   numberUpdateItems, updateItemList, &
                                   midasBodyKeySqlName, &
                                   numMidasTableRequired_opt = numBodyMidasTableRequired)
@@ -2145,7 +2146,7 @@ contains
       ! prepare sql update query
       query = 'update ' // trim(midasBodyTableName) // ' set ' // &
               trim(sqlColumnName)  // ' = ? where ' // &
-              trim(bodyKeySqlName) // ' = ? and '   // &
+              trim(obsBodyKeySqlName) // ' = ? and '   // &
               trim(vnmSqlName)     // ' = ? and '   // &
               trim(pppSqlName)     // ' = ? ;'
       write(*,*) 'odbf_updateMidasBodyTable: query ---> ', trim(query)
@@ -2253,7 +2254,7 @@ contains
     ! create the new MIDAS table
     query = 'create table ' // trim(midasHeadTableName) // ' (' // new_line('A') // &
                 '  ' // trim(midasHeadKeySqlName) // ' integer primary key,' // new_line('A') // &
-                '  ' // trim(headKeySqlName) // ' integer' // new_line('A')
+                '  ' // trim(obsHeadKeySqlName) // ' integer' // new_line('A')
 
     query = trim(query) // ');'
     write(*,*) myName//': query = ', trim(query)
@@ -2297,8 +2298,8 @@ contains
     ! create the new MIDAS table
     query = 'create table ' // trim(midasBodyTableName) // ' (' // new_line('A') // &
             '  ' // trim(midasBodyKeySqlName) // ' integer primary key,' // new_line('A') // &
-            '  ' // trim(headKeySqlName) // ' integer,' // new_line('A') // &
-            '  ' // trim(bodyKeySqlName) // ' integer,' // new_line('A')
+            '  ' // trim(obsHeadKeySqlName) // ' integer,' // new_line('A') // &
+            '  ' // trim(obsBodyKeySqlName) // ' integer,' // new_line('A')
     do columnIndex = 1, numBodyMidasTableRequired
       obsColumnIndex = obs_columnIndexFromName(trim(midasBodyNamesList(2,columnIndex)))
       if (obs_columnDataType(obsColumnIndex) == 'real') then
@@ -2327,7 +2328,7 @@ contains
   ! odbf_addColumnsMidasTable
   !--------------------------------------------------------------------------
   subroutine odbf_addColumnsMidasTable(midasTableType, fileName, midasTableName, midasNamesList, &
-                                        headKeySqlName, bodyKeySqlName,                          &
+                                        obsHeadKeySqlName, obsBodyKeySqlName,                          &
                                         numberUpdateItems, updateItemList,                       &
                                         midasTableKeySqlName, numMidasTableRequired_opt)
     ! :Purpose: Add additional MIDAS columns into the table. This is done by first
@@ -2342,8 +2343,8 @@ contains
     character(len=*), intent(in)             :: fileName
     character(len=*), intent(in)             :: midasTableName
     character(len=*), intent(in)             :: midasNamesList(:,:)
-    character(len=*), intent(in)             :: headKeySqlName
-    character(len=*), intent(in)             :: bodyKeySqlName
+    character(len=*), intent(in)             :: obsHeadKeySqlName
+    character(len=*), intent(in)             :: obsBodyKeySqlName
     integer, intent(in)                      :: numberUpdateItems
     character(len=4), intent(in)             :: updateItemList(:)
     character(len=*), intent(in)             :: midasTableKeySqlName
@@ -2386,18 +2387,18 @@ contains
       if ( midasTableType == 'header' ) then
         query = 'create table ' // trim(midasHeadTableName) // '_tmp' // ' (' // new_line('A') // &
                   '  ' // trim(midasTableKeySqlName) // ' integer primary key,' // new_line('A') // &
-                  '  ' // trim(headKeySqlName) // ' integer,' // new_line('A')
+                  '  ' // trim(obsHeadKeySqlName) // ' integer,' // new_line('A')
       
-        tableInsertColumnList = trim(midasTableKeySqlName) //', '// trim(headKeySqlName)
+        tableInsertColumnList = trim(midasTableKeySqlName) //', '// trim(obsHeadKeySqlName)
 
       else if ( midasTableType == 'body' ) then
         query = 'create table ' // trim(midasTableName) // '_tmp' // ' (' // new_line('A') // &
               '  ' // trim(midasTableKeySqlName) // ' integer primary key,' // new_line('A') // &
-              '  ' // trim(headKeySqlName) // ' integer,' // new_line('A') // &
-              '  ' // trim(bodyKeySqlName) // ' integer,' // new_line('A')
+              '  ' // trim(obsHeadKeySqlName) // ' integer,' // new_line('A') // &
+              '  ' // trim(obsBodyKeySqlName) // ' integer,' // new_line('A')
 
-        tableInsertColumnList = trim(midasTableKeySqlName) //', '// trim(headKeySqlName) //', '// &
-                              trim(bodyKeySqlName) // ', '
+        tableInsertColumnList = trim(midasTableKeySqlName) //', '// trim(obsHeadKeySqlName) //', '// &
+                              trim(obsBodyKeySqlName) // ', '
 
         do columnIndex = 1, numMidasTableRequired_opt
           obsColumnIndex = obs_columnIndexFromName(trim(midasNamesList(2,columnIndex)))
@@ -2490,13 +2491,13 @@ contains
       if (trim(midasTableType) == 'header') then
         query = 'create index idx_midasHeaderTable on ' // &
                 trim(midasTableName) // &
-                '(' // trim(headKeySqlName) // ');'
+                '(' // trim(obsHeadKeySqlName) // ');'
 
       else if (trim(midasTableType) == 'body' ) then
         vnmSqlName = odbf_midasTabColFromObsSpaceName('VNM', midasBodyNamesList)
         query = 'create index idx_midasBodyTable on ' // &
               trim(midasTableName) // &
-              '(' // trim(bodyKeySqlName) // ',' // trim(vnmSqlName) // ');'
+              '(' // trim(obsBodyKeySqlName) // ',' // trim(vnmSqlName) // ');'
       end if
       
       write(*,*) 'odbf_addColumnsMidasTable: query --->', trim(query)
