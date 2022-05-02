@@ -45,7 +45,8 @@ module gridStateVector_mod
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
   public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK, gsv_getMpiIdFromK, gsv_hPad
-  public :: gsv_modifyVarName
+  public :: gsv_writeToFile, gsv_readTrials, gsv_readFile
+  public :: gsv_fileUnitsToStateUnits, gsv_modifyVarName, gsv_modifyDate
   public :: gsv_hInterpolate, gsv_hInterpolate_r4, gsv_vInterpolate, gsv_vInterpolate_r4
   public :: gsv_transposeTilesToStep, gsv_transposeStepToTiles, gsv_transposeTilesToMpiGlobal
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd
@@ -1170,15 +1171,21 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_modifyDate
   !--------------------------------------------------------------------------
-  subroutine gsv_modifyDate(statevector,dateStamp)
+  subroutine gsv_modifyDate(statevector, dateStamp, modify_dateo_opt)
+  
     implicit none
-    type(struct_gsv) :: statevector
-    integer          :: dateStamp
+  
+    ! Arguments
+    type(struct_gsv), intent(inout)        :: statevector
+    integer         , intent(in)           :: dateStamp
+    logical         , intent(in), optional :: modify_dateo_opt         
 
     if (statevector%numStep == 1) then
       statevector%dateStampList(1) = dateStamp
+      if(present(modify_dateo_opt)) statevector%dateOriginList(1) = dateStamp 
     else
-      call tim_getstamplist(statevector%dateStampList,statevector%numStep,dateStamp)
+      call tim_getstamplist(statevector%dateStampList, statevector%numStep, dateStamp)
+      if(present(modify_dateo_opt)) call tim_getstamplist(statevector%dateOriginList, statevector%numStep, dateStamp)
     end if
     statevector%dateStamp3d => statevector%dateStampList(statevector%anltime)
 
