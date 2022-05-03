@@ -24,6 +24,7 @@ module calcStatsLam_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use lamSpectralTransform_mod
   use analysisGrid_mod
   use horizontalCoord_mod
@@ -671,7 +672,7 @@ contains
 
        call ens_copyEnsStdDev(ensPerts, statevector_stdDev)
 
-       call gsv_writeToFile(statevector_stdDev, './stddev.fst', 'STDDEV_GRIDP', &
+       call gio_writeToFile(statevector_stdDev, './stddev.fst', 'STDDEV_GRIDP', &
                             typvar_opt = 'E', numBits_opt = 32)
 
        call gsv_deallocate(statevector_stdDev)
@@ -1452,7 +1453,7 @@ contains
     !
     call gsv_getField(statevector,ptr3d_r8)
     ptr3d_r8(:,:,:) = GridState(:,:,:)
-    call gsv_writeToFile(statevector, './horizCorrel.fst', 'CORRELFUNC')
+    call gio_writeToFile(statevector, './horizCorrel.fst', 'CORRELFUNC')
 
     deallocate(SpectralStateVar)
     deallocate(GridState)
@@ -1822,7 +1823,7 @@ contains
     !
     !- 1. Add the gridded std dev (and the Tic-Tac-Toc)
     !
-    call gsv_writeToFile(statevector_stdDev, trim(fileName), 'STDDEV', &
+    call gio_writeToFile(statevector_stdDev, trim(fileName), 'STDDEV', &
                          typvar_opt = 'E', numBits_opt = 32)
 
     !
@@ -1879,9 +1880,9 @@ contains
     !
     !- 1. Add the gridded mean and std dev (and the Tic-Tac-Toc)
     !
-    call gsv_writeToFile(statevector_mean, trim(fileName), 'ENSMEAN', &
+    call gio_writeToFile(statevector_mean, trim(fileName), 'ENSMEAN', &
                          typvar_opt = 'E', numBits_opt = 32)
-    call gsv_writeToFile(statevector_stdDevGridPoint, trim(fileName), 'STDDEV_GRIDP', &
+    call gio_writeToFile(statevector_stdDevGridPoint, trim(fileName), 'STDDEV_GRIDP', &
                          typvar_opt = 'E', numBits_opt = 32)
 
     !
@@ -2436,7 +2437,7 @@ contains
     !
     !- 4.  Write to file
     !
-    call gsv_writeToFile(statevector_locHorizCor, './horizCorrelLocal.fst', 'HCORREL_LOC', &
+    call gio_writeToFile(statevector_locHorizCor, './horizCorrelLocal.fst', 'HCORREL_LOC', &
                          typvar_opt = 'E', numBits_opt = 32)
 
     call gsv_deallocate(statevector_locHorizCor)

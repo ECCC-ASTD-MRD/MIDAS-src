@@ -40,6 +40,7 @@ module diffusion_mod
   use randomNumber_mod
   use utilities_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
 
   implicit none
   save
@@ -292,7 +293,7 @@ contains
                          hInterpolateDegree_opt='LINEAR', varNames_opt=bdiff_varNameList, &
                          mpi_local_opt=.false. )
       call gsv_zero( statevector )
-      call gsv_readFromFile(statevector, correlationLengthFileName, 'CORRLEN', ' ', unitConversion_opt = .false. )
+      call gio_readFromFile(statevector, correlationLengthFileName, 'CORRLEN', ' ', unitConversion_opt = .false. )
 
       call gsv_getField( statevector, field3D_r4_ptr, bdiff_varNameList( variableIndex ) )
       Lcorr(:,:) = dble( field3D_r4_ptr( :, :, 1 ) )       

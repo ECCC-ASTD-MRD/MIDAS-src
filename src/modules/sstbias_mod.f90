@@ -32,6 +32,7 @@ module SSTbias_mod
   use codtyp_mod
   use mpivar_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use oceanMask_mod
   use timeCoord_mod
   use localizationFunction_mod
@@ -106,7 +107,7 @@ module SSTbias_mod
     call gsv_allocate(stateVector_ice, 1, hco, vco, dataKind_opt = 4, &
                       datestamp_opt = -1, mpi_local_opt = .false.,    &
                       varNames_opt = (/'LG'/), hInterpolateDegree_opt ='LINEAR')
-    call gsv_readFromFile(stateVector_ice, './seaice_analysis', ' ','A', &
+    call gio_readFromFile(stateVector_ice, './seaice_analysis', ' ','A', &
                            unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_ice, seaice_ptr)
     
@@ -423,14 +424,14 @@ module SSTbias_mod
     ! get search radius field
     call gsv_allocate(stateVector_searchRadius, 1, hco, vco, dataKind_opt = 4, &
                        datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
-    call gsv_readFromFile(stateVector_searchRadius, './searchRadius', 'RADIUS','A', &
+    call gio_readFromFile(stateVector_searchRadius, './searchRadius', 'RADIUS','A', &
                            unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_searchRadius, searchRadius_ptr)    
 
     ! previous bias estimation
     call gsv_allocate(stateVector_previous, 1, hco, vco, dataKind_opt = 4, &
                        datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
-    call gsv_readFromFile(stateVector_previous, './trlm_01', 'B_'//sensor//'_'//extension, &
+    call gio_readFromFile(stateVector_previous, './trlm_01', 'B_'//sensor//'_'//extension, &
                            'R', unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_previous, griddedBias_r4_previous_ptr) 
        
@@ -486,7 +487,7 @@ module SSTbias_mod
     end do
     
     call rpn_comm_barrier('GRID', ierr)
-    call gsv_writeToFile(stateVector, outputFileName, 'B_'//sensor//'_'//extension)
+    call gio_writeToFile(stateVector, outputFileName, 'B_'//sensor//'_'//extension)
     
     deallocate(gridPointIndexes)
     deallocate(positionArray)

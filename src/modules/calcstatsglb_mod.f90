@@ -25,6 +25,7 @@ module calcStatsGlb_mod
   use mpi_mod
   use mpivar_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use ensembleStateVector_mod
   use globalSpectralTransform_mod
   use mathPhysConstants_mod
@@ -1399,7 +1400,7 @@ module calcStatsGlb_mod
         field(:,:,:) = stddev3dUnbal_opt(:, :, (varLevOffset(varIndexStddev)+1):(varLevOffset(varIndexStddev)+nLevEns) )
       end if
     end do
-    call gsv_writeToFile(stateVector, './stddev.fst', etiket_in='STDDEV3D', ip3_opt=ip3, &
+    call gio_writeToFile(stateVector, './stddev.fst', etiket_in='STDDEV3D', ip3_opt=ip3, &
                          typvar_opt='E', numBits_opt=numBits, containsFullField_opt=.false.)
 
     ! second, write stddev (zonal average)
@@ -1533,7 +1534,7 @@ module calcStatsGlb_mod
       call gsv_getField(stateVector,field,nomVarToWrite(varIndex))
       field(:,:,:) = stddev3dBal(:, :, (varLevOffsetBal(varIndex)+1):(varLevOffsetBal(varIndex)+nLevEns) )
     end do
-    call gsv_writeToFile(stateVector, './stddev_balanced.fst', etiket_in='STDDEV3D', ip3_opt=ip3, &
+    call gio_writeToFile(stateVector, './stddev_balanced.fst', etiket_in='STDDEV3D', ip3_opt=ip3, &
                          typvar_opt='E', numBits_opt=numBits, containsFullField_opt=.false.)
 
     ! second, write stddev (zonal average)
@@ -2997,7 +2998,7 @@ module calcStatsGlb_mod
     !
     !- 4.  Write to file
     !
-    call gsv_writeToFile(statevector_locHorizCor, './horizCorrelLocal.fst', 'HCORREL_LOC', &
+    call gio_writeToFile(statevector_locHorizCor, './horizCorrelLocal.fst', 'HCORREL_LOC', &
                          typvar_opt = 'E', numBits_opt = 32)
 
     call gsv_deallocate(statevector_locHorizCor)
@@ -3082,7 +3083,7 @@ module calcStatsGlb_mod
       write(levIndexStr,'(i3.3)') levIndex1
       etiket = 'VCOR_' // trim(varName) // levIndexStr
       outFileName = './vertCorr_' // trim(varName) // levIndexStr // '.fst'
-      call gsv_writeToFile(statevector_vertCorr, &
+      call gio_writeToFile(statevector_vertCorr, &
                            trim(outFileName), etiket_in = etiket, &
                            typvar_opt = 'E', numBits_opt = 32)
       write(*,*) 'calcLocalVertCorrMatrix: finished variable/level =', varName, levIndex1

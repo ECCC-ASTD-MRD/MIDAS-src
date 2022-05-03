@@ -26,6 +26,7 @@ program midas_diagBmatrix
   use gridVariableTransforms_mod
   use varNameList_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use ensembleStateVector_mod
   use bmatrix_mod
   use bmatrixEnsemble_mod
@@ -271,7 +272,7 @@ program midas_diagBmatrix
           ip3 = ip3 + 1
           
           do stepIndexInc = 1, tim_nstepobsinc
-            call gsv_writeToFile(statevector,filenameInc,'1OBS_'//trim(vnl_varNameList(varIndex)),  &
+            call gio_writeToFile(statevector,filenameInc,'1OBS_'//trim(vnl_varNameList(varIndex)),  &
                  stepIndex_opt=stepIndexInc, ip3_opt=ip3, unitConversion_opt=.true.)
           end do
 
@@ -297,7 +298,7 @@ program midas_diagBmatrix
           end if
           
           do stepIndexInc = 1, tim_nstepobsinc
-            call gsv_writeToFile(statevector,filenameIncNorm,'1OBSNRM_'//trim(vnl_varNameList(varIndex)), &
+            call gio_writeToFile(statevector,filenameIncNorm,'1OBSNRM_'//trim(vnl_varNameList(varIndex)), &
                                  stepIndex_opt=stepIndexInc, ip3_opt=ip3,  &
                                  unitConversion_opt=.false.)
           end do
@@ -411,7 +412,7 @@ program midas_diagBmatrix
             ip3 = ip3 + 1
             call ens_copyMember(ensAmplitude, statevectorEnsAmplitude, 1)
             do stepIndexInc = 1, numStepAmplitude
-              call gsv_writeToFile(statevectorEnsAmplitude,filename,'ONEOBS',  &
+              call gio_writeToFile(statevectorEnsAmplitude,filename,'ONEOBS',  &
                                    stepIndex_opt=stepIndexInc, ip3_opt=ip3,unitConversion_opt=.false.)
             end do
 
@@ -572,7 +573,7 @@ program midas_diagBmatrix
     deallocate(stddev)
 
     !- Write to file
-    call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','GD_STDDEV',  &
+    call gio_writeToFile(statevector,'stddev_' // datestr // '.fst','GD_STDDEV',  &
                          unitConversion_opt=.true.)
 
     !
@@ -617,7 +618,7 @@ program midas_diagBmatrix
     deallocate(stddev_zm)
     deallocate(stddev_zm2)
 
-    call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','ZM_STDDEV',  &
+    call gio_writeToFile(statevector,'stddev_' // datestr // '.fst','ZM_STDDEV',  &
                          unitConversion_opt=.true.)
 
     ! Write the zonal mean stddev to a text file, if requested
@@ -697,7 +698,7 @@ program midas_diagBmatrix
     deallocate(controlVector)
     deallocate(controlVector_global)
 
-    call gsv_writeToFile(statevector,'stddev_' // datestr // '.fst','DM_STDDEV',  &
+    call gio_writeToFile(statevector,'stddev_' // datestr // '.fst','DM_STDDEV',  &
                          unitConversion_opt=.true.)
 
   end if ! if numperturbations.gt.1

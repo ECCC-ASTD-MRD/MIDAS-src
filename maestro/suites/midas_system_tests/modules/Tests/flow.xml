@@ -19,6 +19,7 @@
   <SUBMITS sub_name="var1D"/>
   <SUBMITS sub_name="analysisErrorOI"/>
   <SUBMITS sub_name="pseudoSSTobs"/>
+  <SUBMITS sub_name="SSTtrial"/>
 
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
@@ -81,11 +82,6 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
-      <SUBMITS sub_name="aladin_assim"/>
-      <FAMILY  name="aladin_assim">
-        <SUBMITS sub_name="UnitTest"/>
-        <MODULE  name="UnitTest"/>
-      </FAMILY>
       <SUBMITS sub_name="splitobs_xc40"/>
       <FAMILY  name="splitobs_xc40">
         <SUBMITS sub_name="UnitTest"/>
@@ -113,6 +109,11 @@
       </FAMILY>
       <SUBMITS sub_name="SST"/>
       <FAMILY  name="SST">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+      <SUBMITS sub_name="radvel"/>
+      <FAMILY  name="radvel">
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
@@ -172,6 +173,11 @@
     </FAMILY>
     <SUBMITS sub_name="BgckCsr"/>
     <FAMILY  name="BgckCsr">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>    
+    <SUBMITS sub_name="BgckRadvel"/>
+    <FAMILY  name="BgckRadvel">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
@@ -486,6 +492,11 @@
   </FAMILY>
  
   <FAMILY  name="pseudoSSTobs">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="SSTtrial">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>

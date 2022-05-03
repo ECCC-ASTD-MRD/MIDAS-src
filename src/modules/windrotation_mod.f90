@@ -42,6 +42,9 @@ module windRotation_mod
     logical :: initialized = .false.
   end type struct_uvr
 
+  ! Minimum value for latitude used in TL/AD wind rotation routines
+  real(8), parameter :: lat_minValue = 1D-10
+
   contains
 
   subroutine uvr_setup( uvr, hco_in )
@@ -326,7 +329,7 @@ module windRotation_mod
 
   end subroutine uvr_rotateWind_nl
 
-  subroutine uvr_rotateWind_tl( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
+  subroutine uvr_rotateWind_tl( uvr, subGridIndex, uwind, vwind, Lat_in, Lon_in, LatRot_in, LonRot_in, mode )
     !
     ! :Purpose: Go from tangential wind components from one sphere to another
     !           (same origin!). Fast version used by Variational analysis. 
@@ -338,21 +341,38 @@ module windRotation_mod
     integer, intent(in)       :: subGridIndex ! Current subgrid index
     real(8), intent(inout)    :: uwind        ! interpUU
     real(8), intent(inout)    :: vwind        ! interpVV
-    real(8), intent(in)       :: Lat          ! Latitude in radians
-    real(8), intent(in)       :: Lon          ! Longitude in radians
-    real(8), intent(in)       :: LatRot       ! Rotated latitude in radians
-    real(8), intent(in)       :: LonRot       ! Rotated longitude in radians 
+    real(8), intent(in)       :: Lat_in       ! Latitude in radians
+    real(8), intent(in)       :: Lon_in       ! Longitude in radians
+    real(8), intent(in)       :: LatRot_in    ! Rotated latitude in radians
+    real(8), intent(in)       :: LonRot_in    ! Rotated longitude in radians 
     character(*), intent(in)  :: mode         ! ToMetWind or ToRotWind
 
     ! locals
     integer :: index1, index2
     real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslon, sinlon, rsinlat
+    real(8) :: lat, lon, latRot, lonRot
     real(8) :: xyz(msize), uvcart(msize)
 
     if ( .not. uvr%initialized ) then
       write(*,*)
       call utl_abort('uvr_rotateWind_tl: WindRotation module is not initialize')
     endif
+
+    ! Special case for the equator
+    if (abs(lat_in) < lat_minValue) then
+      lat = lat_minValue
+      lon = lon_in
+      call uvr_RotateLatLon( uvr,   & ! INOUT
+                             subGridIndex,     & ! IN
+                             latRot, lonRot,   & ! OUT (radians)
+                             lat, lon,         & ! IN  (radians)
+                             'ToLatLonRot')      ! IN
+    else
+      lat = lat_in
+      lon = lon_in
+      latRot = latRot_in
+      lonRot = lonRot_in
+    end if
 
     coslatr = cos(LatRot)
     sinlatr = sin(LatRot)
@@ -395,7 +415,7 @@ module windRotation_mod
 
   end subroutine uvr_rotateWind_tl
 
-  subroutine uvr_rotateWind_ad( uvr, subGridIndex, uwind, vwind, Lat, Lon, LatRot, LonRot, mode )
+  subroutine uvr_rotateWind_ad( uvr, subGridIndex, uwind, vwind, Lat_in, Lon_in, LatRot_in, LonRot_in, mode )
     !
     ! :Purpose: Adjoint of : Go from tangential wind components from one sphere to another
     !           (same origin!). Fast version used by Variational analysis. 
@@ -407,21 +427,38 @@ module windRotation_mod
     integer, intent(in)       :: subGridIndex ! Current subgrid index
     real(8), intent(inout)    :: uwind        ! interpUU
     real(8), intent(inout)    :: vwind        ! interpVV
-    real(8), intent(in)       :: Lat          ! Latitude in radians
-    real(8), intent(in)       :: Lon          ! Longitude in radians
-    real(8), intent(in)       :: LatRot       ! Rotated latitude in radians
-    real(8), intent(in)       :: LonRot       ! Rotated longitude in radians 
+    real(8), intent(in)       :: Lat_in       ! Latitude in radians
+    real(8), intent(in)       :: Lon_in       ! Longitude in radians
+    real(8), intent(in)       :: LatRot_in    ! Rotated latitude in radians
+    real(8), intent(in)       :: LonRot_in    ! Rotated longitude in radians 
     character(*), intent(in)  :: mode         ! ToMetWind or ToRotWind
 
     ! locals
     integer :: index1, index2
     real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslon, sinlon, rsinlat
+    real(8) :: lat, lon, latRot, lonRot
     real(8) :: xyz(msize), uvcart(msize)
 
     if ( .not. uvr%initialized ) then
       write(*,*)
       call utl_abort('uvr_rotateWind_ad: WindRotation module is not initialize')
     endif
+
+    ! Special case for the equator
+    if (abs(lat_in) < lat_minValue) then
+      lat = lat_minValue
+      lon = lon_in
+      call uvr_RotateLatLon( uvr,   & ! INOUT
+                             subGridIndex,     & ! IN
+                             latRot, lonRot,   & ! OUT (radians)
+                             lat, lon,         & ! IN  (radians)
+                             'ToLatLonRot')      ! IN
+    else
+      lat = lat_in
+      lon = lon_in
+      latRot = latRot_in
+      lonRot = lonRot_in
+    end if
 
     coslatr = cos(LatRot)
     sinlatr = sin(LatRot)

@@ -25,6 +25,7 @@ module ensembleStateVector_mod
   use mpivar_mod
   use fileNames_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use analysisGrid_mod
@@ -2461,10 +2462,10 @@ CONTAINS
           if (.not. horizontalInterpNeeded  .and. &
               .not. verticalInterpNeeded    .and. &
               .not. horizontalPaddingNeeded ) then
-            call gsv_readFile(statevector_member_r4, ensFileName, etiket, typvar, &
+            call gio_readFile(statevector_member_r4, ensFileName, etiket, typvar, &
                               containsFullField, ignoreDate_opt=ignoreDate)
           else
-            call gsv_readFile(statevector_file_r4, ensFileName, etiket, typvar, &
+            call gio_readFile(statevector_file_r4, ensFileName, etiket, typvar, &
                               containsFullField, ignoreDate_opt=ignoreDate)
           end if
           if (stepIndex == numStep) then
@@ -2494,7 +2495,7 @@ CONTAINS
           end if
 
           ! unit conversion
-          call gsv_fileUnitsToStateUnits(statevector_member_r4, containsFullField)
+          call gio_fileUnitsToStateUnits(statevector_member_r4, containsFullField)
 
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then
@@ -2881,14 +2882,14 @@ CONTAINS
             end if
           end if
 
-          ! The routine 'gsv_writeToFile' ignores the supplied
+          ! The routine 'gio_writeToFile' ignores the supplied
           ! argument for the etiket, here 'etiketStr', if
           ! 'statevector_member_r4%etiket' is different from
           ! 'UNDEFINED'.  So we must define it explicitely in the
           ! 'statevector_member_r4'.
           statevector_member_r4%etiket = etiketStr
 
-          call gsv_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
+          call gio_writeToFile( statevector_member_r4, ensFileName, etiketStr, ip3_opt = ip3, & 
                                 typvar_opt = typvar, numBits_opt = numBits_opt,  &
                                 containsFullField_opt = containsFullField )
 

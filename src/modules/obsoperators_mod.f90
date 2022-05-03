@@ -1034,7 +1034,7 @@ contains
     integer headerIndex, idatyp, bodyIndex
     integer jl, ngpslev, nwndlev
     logical  assim, firstheader, ldsc
-    integer :: nh, nh1
+    integer :: nh, nh1, iProfile, varNum
     type(gps_profile)           :: prf
     real(8)       , allocatable :: h   (:),azmv(:)
     type(gps_diff), allocatable :: rstv(:)
@@ -1093,6 +1093,8 @@ contains
        ! If no assimilations are requested, skip to next header
        !
        if (.not.assim) cycle HEADER
+       iProfile = gps_iprofile_from_index(headerIndex)
+       varNum   = gps_vRO_IndexPrf(iProfile, 2)
        !
        ! Basic geometric variables of the profile:
        !
@@ -1167,7 +1169,9 @@ contains
        !
        ! Apply the observation operator:
        !
-       if (levelgpsro == 1) then
+       ! varNum = bufr_nebd (15037) or varNum = bufr_nerf (15036) for GPS-RO
+       iProfile = gps_iprofile_from_index(headerIndex)
+       if (varNum == bufr_nebd) then
           call gps_bndopv1(h, azmv, nh, prf, rstv)
        else
           call gps_refopv (h,       nh, prf, rstv)
@@ -1191,7 +1195,7 @@ contains
              ! Altitude:
              !
              hnh1= obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-             if (levelgpsro == 1) hnh1=hnh1-rad
+             if (varNum == bufr_nebd) hnh1=hnh1-rad
              !
              ! Observation operator H(x)
              !
@@ -1215,7 +1219,7 @@ contains
              !
              ! Per profile (PJOB) cumulatives:
              !
-             pjob= pjob+ pjo1
+             pjob= pjob + pjo1
              !
              if (firstheader .and. .not.beSilent) then
                 write(*,  &
@@ -1829,7 +1833,6 @@ contains
 
     call oop_Hro( initializeLinearization_opt=initializeLinearization_opt )
 
-    call oop_Hzp()
 
     if ( numGPSZTD > 0 ) then 
       call oop_Hgp( initializeLinearization_opt=initializeLinearization_opt )
@@ -1843,6 +1846,8 @@ contains
 
     call oop_Hhydro()        ! fill in OBS_WORK : Hdx
 
+    call oop_HheightCoordObs()      ! fill in OBS_WORK : Hdx
+ 
   contains
     
     !--------------------------------------------------------------------------
@@ -2021,7 +2026,7 @@ contains
 
             ! Process all data within the domain of the model
             bufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-            if ( bufrCode == bufr_nezd ) cycle BODY
+            if ( bufrCode == bufr_nezd .or. bufrCode == bufr_radvel ) cycle BODY
             if (    (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1) &
                  .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) &
                  .and. (bufrCode == bufr_nets .or. bufrCode == bufr_neps  &
@@ -2236,6 +2241,125 @@ contains
 
     end subroutine oop_Hto
 
+
+    subroutine oop_HheightCoordObs()
+      !
+      ! :Purpose: Compute simulated geometric-height based observations
+      !           such as Radar Doppler velocity.
+      !           It returns Hdx in OBS_WORK
+      implicit none
+
+      ! locals
+      integer :: bodyIndex, headerIndex, levelIndex, bufrCode, layerIndex, familyIndex
+      integer :: bodyIndexStart, bodyIndexEnd, bodyIndex1
+      real(8) :: levelAltLow, levelAltHigh, HDX, Azimuth, obsAltitude
+      real(8) :: uuLow, uuHigh, vvLow, vvHigh, vInterpWeightHigh, vInterpWeightLow
+      real(8) :: anlIncValueLow, anlIncValueHigh, trlValueLow, trlValueHigh
+      real(8), pointer :: du_column(:), dv_column(:), height_column(:)
+      integer, parameter :: NUMFAMILY=3
+      character(len=2) :: listFamily(NUMFAMILY), cfam
+
+      listFamily(1) = 'RA' ! Doppler velocity (Radial Wind) burf_radvel
+      listFamily(2) = 'PR' ! Dew point difference           burf_nees
+      listFamily(3) = 'AL' ! Aladin HLOS wind               burf_neal
+      ! Loop over all family
+      FAMILY: do familyIndex=1, NUMFAMILY
+
+        ! Loop over all header indices 
+        call obs_set_current_header_list(obsSpaceData, listFamily(familyIndex))
+        HEADER: do  
+          headerIndex = obs_getHeaderIndex(obsSpaceData)
+          if ( headerIndex < 0 ) exit HEADER
+
+          if ( listFamily(familyIndex) == 'RA' ) then
+
+            ! Azimuth of the radar beam
+            azimuth   = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+
+          end if
+
+          ! Local vector state
+          du_column  => col_getColumn(columnAnlInc, headerIndex, 'UU') 
+          dv_column  => col_getColumn(columnAnlInc, headerIndex, 'VV')
+
+          ! Loop over all body indices 
+          call obs_set_current_body_list(obsSpaceData, headerIndex)
+          BODY: do
+            bodyIndex = obs_getBodyIndex(obsSpaceData)
+            if ( bodyIndex < 0 ) exit BODY
+
+            ! only process observations flagged to be assimilated
+            if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated ) cycle BODY
+
+            ! Check that this observation has the expected bufr element ID
+            bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
+            if ( bufrCode == BUFR_logRadarPrecip ) cycle BODY
+
+            if  ( bufrCode == bufr_radvel ) then
+              ! Operator Hx for tangential wind is linear in x
+              ! that is:
+              !    h(x) = Hx
+              ! and
+              ! h(xb) + Hdx  =  Hxb + Hdx 
+              !
+              ! H includes vertical interpolation  
+              !   and projection of U and V wind components along the direction of the beam
+              !
+              ! In matrix form for one Doppler velocity observation:
+              !   VDoppler = Hx = [ iwHigh*sin(az) iwHigh*cos(az) iwLow*sin(az) iwLow*cos(az) ][ uuHigh ]
+              !                                                                                [ vvHigh ]
+              !                                                                                [ uuLow  ] 
+              !                                                                                [ vvLow  ] 
+              ! such that
+              !   VDoppler =  iwHigh*sin(az)*uuHigh 
+              !             + iwHigh*cos(az)*vvHigh
+              !             + iwLow *sin(az)*uuLow 
+              !             + iwLow *cos(az)*vvLow
+              !
+              ! With
+              !   az     = beam azimuth (radians, met convention) 
+              !   iwHigh = Interpolation Weight for model level just above observation
+              !   iwLow  =                 "                         below     "
+              !   uuHigh and vvHigh = wind components on model level just above observation
+              !   uuLow  and vvLow  =                 "                   below     "
+              !
+              ! The dependence of model levels on surface pressure is neglected here
+
+              ! OBS_LYR returns the index of the model level just above the observation
+              !   level=1 is the highest level such that level+1 is lower 
+              levelIndex = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
+              levelAltHigh = col_getHeight(columnTrlOnAnlIncLev, levelIndex,   headerIndex, 'MM')
+              levelAltLow  = col_getHeight(columnTrlOnAnlIncLev, levelIndex+1, headerIndex, 'MM')
+              obsAltitude = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex) 
+           
+              !vertical interpolation weights 
+              vInterpWeightHigh = (obsAltitude - levelAltLow)/(levelAltHigh - levelAltLow)
+              vInterpWeightLow = 1.0D0 - vInterpWeightHigh
+
+              HDX =  vInterpWeightHigh*sin(azimuth)*du_column(levelIndex)   &
+                   + vInterpWeightHigh*cos(azimuth)*dv_column(levelIndex)   &
+                   + vInterpWeightLow *sin(azimuth)*du_column(levelIndex+1) &
+                   + vInterpWeightLow *cos(azimuth)*dv_column(levelIndex+1)
+                
+              ! Store HDX in OBS_WORK  
+              call obs_bodySet_r(obsSpaceData, OBS_WORK, bodyIndex, HDX)
+              
+            else 
+
+              cfam = obs_getfamily(obsSpaceData,headerIndex)
+              write(*,*) 'CANNOT ASSIMILATE OBSERVATION!!!', &
+                         'bufrCode =', bufrCode, 'cfam =',  cfam
+              call utl_abort('oop_HheightCoordObs')
+
+            end if
+          end do BODY
+        end do HEADER
+      end do FAMILY
+
+    end subroutine oop_HheightCoordObs
+
+    !--------------------------------------------------------------------------
+
     subroutine oop_Hro( initializeLinearization_opt )
       !
       ! :Purpose: Compute the tangent operator for GPSRO observations.
@@ -2328,115 +2452,6 @@ contains
       
     end subroutine oop_Hro
 
-    !--------------------------------------------------------------------------
-
-    subroutine oop_Hzp()
-      ! :Purpose: Compute simulated geometric-height based observations from
-      !           profiled model
-      !           increments, including profiler data and aladin wind data.
-      !           It returns Hdx in OBS_WORK
-      !           Interpolate vertically the contents of commvo to heights
-      !           (in meters) of the observations.
-      !           A linear interpolation in z is performed.
-      implicit none
-
-      integer levIndexBot,levIndexTop
-      integer headerIndex,layerIndex,familyIndex
-      integer :: bodyIndexStart, bodyIndexEnd, bodyIndex2
-      integer bodyIndex,bufrCode
-      real(8) ZVAR,ZDA1,ZDA2
-      real(8) ZWB,ZWT
-      real(8) :: obsHeight,ZPT,ZPB,ZDENO
-      real(8) :: azimuth ! HLOS wind direction CW from true north
-      real(8) :: anlIncValueBot,anlIncValueTop,trlValueBot,trlValueTop
-      integer, parameter :: NUMFAMILY=2
-      character(len=2) :: listFamily(NUMFAMILY)
-      character(len=2) :: cfam
-      character(len=4) :: varLevel
-
-      listFamily(1) = 'PR'
-      listFamily(2) = 'AL'
-
-      FAMILY: do familyIndex=1,NUMFAMILY
-
-        call obs_set_current_body_list(obsSpaceData, listFamily(familyIndex))
-        BODY: do
-          bodyIndex = obs_getBodyIndex(obsSpaceData)
-          if (bodyIndex < 0) exit BODY
-
-          if (     (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) &
-              .AND.(obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
-              .AND.(obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)  )THEN
-
-            ! OBS_VCO==1 => OBS_PPP is a height in m
-            headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-            obsHeight = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-            layerIndex   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
-            bufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-            varLevel = vnl_varLevelFromVarnum(bufrCode)
-            levIndexTop  = layerIndex + col_getOffsetFromVarno(columnTrlOnAnlIncLev,bufrCode)
-            levIndexBot  = levIndexTop+1
-            ZPT  = col_getHeight(columnTrlOnAnlIncLev,layerIndex  ,headerIndex,varLevel)
-            ZPB  = col_getHeight(columnTrlOnAnlIncLev,layerIndex+1,headerIndex,varLevel)
-            ZDENO= ZPT-ZPB
-            ZWB  = (ZPT-obsHeight)/ZDENO
-            ZWT  = 1.0D0 - ZWB
-
-            ZDA1= (obsHeight-ZPB)/(ZDENO**2)
-            ZDA2= (ZPT-obsHeight)/(ZDENO**2)
-
-            if (bufrCode == bufr_nees) then
-              cfam = obs_getfamily(obsSpaceData,headerIndex)
-              write(*,*) 'CANNOT ASSIMILATE ES!!!', &
-                         bufrCode,cfam,headerIndex,bodyIndex
-              call utl_abort('oop_H')
-
-            else if (bufrCode == bufr_neal) then
-              ! Scan body indices for the azimuth
-              azimuth = 0.0d0
-              bodyIndexStart= obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
-              bodyIndexEnd  = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)&
-                            + bodyIndexStart - 1
-              BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
-                if (bufr_NEAZ == obs_bodyElem_i(obsSpaceData, OBS_VNM, &
-                                               bodyIndex2))then
-                  azimuth = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) &
-                          * MPC_RADIANS_PER_DEGREE_R8
-                  exit BODY_SUPP
-                end if
-              end do BODY_SUPP
-
-              ! Apply the tangent-linear aladin observation operator
-              anlIncValueBot=-col_getElem(columnAnlInc,layerIndex+1,headerIndex,'VV')*cos(azimuth)&
-                         -col_getElem(columnAnlInc,layerIndex+1,headerIndex,'UU')*sin(azimuth)
-              anlIncValueTop=-col_getElem(columnAnlInc,layerIndex  ,headerIndex,'VV')*cos(azimuth)&
-                         -col_getElem(columnAnlInc,layerIndex  ,headerIndex,'UU')*sin(azimuth)
-
-              ! Apply the nonlinear aladin observation operator
-              trlValueBot= &
-                      - col_getElem(columnTrlOnAnlIncLev,layerIndex+1,headerIndex,'VV')*cos(azimuth) &
-                      - col_getElem(columnTrlOnAnlIncLev,layerIndex+1,headerIndex,'UU')*sin(azimuth)
-              trlValueTop= &
-                      - col_getElem(columnTrlOnAnlIncLev,layerIndex  ,headerIndex,'VV')*cos(azimuth) &
-                      - col_getElem(columnTrlOnAnlIncLev,layerIndex  ,headerIndex,'UU')*sin(azimuth)
-
-            else
-              anlIncValueBot=col_getElem(columnAnlInc,levIndexBot,headerIndex)
-              anlIncValueTop=col_getElem(columnAnlInc,levIndexTop,headerIndex)
-              trlValueBot=col_getElem(columnTrlOnAnlIncLev,levIndexBot,headerIndex)
-              trlValueTop=col_getElem(columnTrlOnAnlIncLev,levIndexTop,headerIndex)
-            endif
-            call obs_bodySet_r(obsSpaceData,OBS_WORK,bodyIndex,  &
-                    ZWB*anlIncValueBot + ZWT*anlIncValueTop +  &
-                    (trlValueBot - trlValueTop)*  &
-                    (ZDA1*col_getHeight(columnAnlInc,layerIndex,  headerIndex,varLevel) + &
-                     ZDA2*col_getHeight(columnAnlInc,layerIndex+1,headerIndex,varLevel)))
-          end if
-        end do BODY
-      end do FAMILY
-      
-    end subroutine oop_Hzp
-    
     !--------------------------------------------------------------------------
 
     subroutine oop_Hgp( initializeLinearization_opt )
@@ -2595,7 +2610,7 @@ contains
       call oop_HTgp( initializeLinearization_opt=initializeLinearization_opt )
     end if
 
-    call oop_HTzp
+    call oop_HTheighCoordObs()
 
     call oop_HTro( initializeLinearization_opt=initializeLinearization_opt )
 
@@ -2610,6 +2625,7 @@ contains
     call oop_HTice
 
     call oop_HThydro()
+
 
   CONTAINS
 
@@ -2757,7 +2773,7 @@ contains
 
             ! Process all data within the domain of the model
             bufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-            if ( bufrCode == bufr_nezd ) cycle BODY
+            if ( bufrCode == bufr_nezd .or. bufrCode == bufr_radvel ) cycle BODY
             if (    (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1) &
                  .and. (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) &
                  .and. (bufrCode == bufr_nets .or. bufrCode == bufr_neps  &
@@ -3080,116 +3096,6 @@ contains
       
     end subroutine oop_HTro
 
-    !--------------------------------------------------------------------------
-
-    subroutine oop_HTzp
-      ! :Purpose: based on vint3d to build the adjoint of the
-      !           vertical interpolation of geometric-height based data,
-      !           including profiler data and aladin wind data.
-      implicit none
-
-      integer levIndexBot,levIndexTop
-      real(8) :: ZRES,ZDA1,ZDA2,ZDENO,trlValueBot,trlValueTop
-      real(8) :: ZWB,ZWT,deltaAladin
-      real(8) :: azimuth ! HLOS wind direction CW from true north
-      real(8) :: obsHeight,ZPT,ZPB
-      integer :: headerIndex,layerIndex,bufrCode
-      integer :: bodyIndex, familyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2
-      real(8), pointer :: height_column(:),all_column(:),uu_column(:),vv_column(:)
-      integer, parameter :: NUMFAMILY=2
-      character(len=2) :: listFamily(NUMFAMILY)
-      character(len=4) :: varLevel
-
-      !
-      !     Process all data within the domain of the model
-      !
-      listFamily(1) = 'PR'
-      listFamily(2) = 'AL'
-
-      FAMILY: do familyIndex=1,NUMFAMILY
-        call obs_set_current_body_list(obsSpaceData,listFamily(familyIndex))
-        BODY: do
-          bodyIndex = obs_getBodyIndex(obsSpaceData)
-          if (bodyIndex < 0) exit BODY
-
-          if (      (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) &
-              .AND. (obs_bodyElem_i(obsSpaceData,OBS_XTR,bodyIndex) == 0) &
-              .AND. (obs_bodyElem_i(obsSpaceData,OBS_VCO,bodyIndex) == 1)) THEN
-            headerIndex = obs_bodyElem_i(obsSpaceData,OBS_HIND,bodyIndex)
-            bufrCode = obs_bodyElem_i(obsSpaceData,OBS_VNM,bodyIndex)
-            varLevel = vnl_varLevelFromVarnum(bufrCode)
-
-            if ( varLevel == 'TH' ) then
-              height_column  => col_getColumn(columnAnlInc,headerIndex,'Z_T')
-            else
-              height_column  => col_getColumn(columnAnlInc,headerIndex,'Z_M')
-            end if
-            uu_column  => col_getColumn(columnAnlInc,headerIndex,'UU')
-            vv_column  => col_getColumn(columnAnlInc,headerIndex,'VV')
-            all_column => col_getColumn(columnAnlInc,headerIndex)
-            ZRES = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
-            obsHeight = obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex)
-            layerIndex   = obs_bodyElem_i(obsSpaceData,OBS_LYR,bodyIndex)
-            levIndexTop  = layerIndex  + col_getOffsetFromVarno(columnTrlOnAnlIncLev,bufrCode)
-            levIndexBot  = levIndexTop+1
-            ZPT  = col_getHeight(columnTrlOnAnlIncLev,layerIndex,  headerIndex,varLevel)
-            ZPB  = col_getHeight(columnTrlOnAnlIncLev,layerIndex+1,headerIndex,varLevel)
-            ZDENO= ZPT-ZPB
-            ZWB  = (ZPT-obsHeight)/ZDENO
-            ZWT  = 1.0D0 - ZWB
-
-            ZDA1= (obsHeight-ZPB)/(ZDENO**2)
-            ZDA2= (ZPT-obsHeight)/(ZDENO**2)
-
-            if (bufrCode == bufr_neal) then
-              ! Scan body indices for the azimuth
-              azimuth = 0.0d0
-              bodyIndexStart= obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
-              bodyIndexEnd  = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)&
-                            + bodyIndexStart - 1
-              BODY_SUPP: do bodyIndex2 = bodyIndexStart, bodyIndexEnd
-                if (bufr_neaz == obs_bodyElem_i(obsSpaceData, OBS_VNM, &
-                                               bodyIndex2))then
-                  azimuth = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex2) &
-                          * MPC_RADIANS_PER_DEGREE_R8
-                  exit BODY_SUPP
-                end if
-              end do BODY_SUPP
-
-              ! Apply the adjoint of the aladin observation operator
-              deltaAladin=zwb*zres
-              uu_column(layerIndex+1) = uu_column(layerIndex+1) - deltaAladin*sin(azimuth)
-              vv_column(layerIndex+1) = vv_column(layerIndex+1) - deltaAladin*cos(azimuth)
-              uu_column(layerIndex  ) = uu_column(layerIndex  ) - deltaAladin*sin(azimuth)
-              vv_column(layerIndex  ) = vv_column(layerIndex  ) - deltaAladin*cos(azimuth)
-              deltaAladin=0
-
-              ! Apply the nonlinear aladin observation operator
-              trlValueBot= &
-                      - col_getElem(columnTrlOnAnlIncLev,layerIndex+1,headerIndex,'VV')*cos(azimuth) &
-                      - col_getElem(columnTrlOnAnlIncLev,layerIndex+1,headerIndex,'UU')*sin(azimuth)
-              trlValueTop= &
-                      - col_getElem(columnTrlOnAnlIncLev,layerIndex  ,headerIndex,'VV')*cos(azimuth) &
-                      - col_getElem(columnTrlOnAnlIncLev,layerIndex  ,headerIndex,'UU')*sin(azimuth)
-            else
-              trlValueBot=col_getElem(columnTrlOnAnlIncLev,levIndexBot,headerIndex)
-              trlValueTop=col_getElem(columnTrlOnAnlIncLev,levIndexTop,headerIndex)
-            end if
-
-            height_column(layerIndex+1) =   height_column(layerIndex+1) &
-                              + (trlValueBot - trlValueTop)*ZDA2*ZRES/ec_rg
-            height_column(layerIndex)   =   height_column(layerIndex) &
-                              + (trlValueBot - trlValueTop)*ZDA1*ZRES/ec_rg
-
-            if (bufrCode /= bufr_neal) then
-              all_column(levIndexBot) = all_column(levIndexBot) + ZWB*ZRES
-              all_column(levIndexTop) = all_column(levIndexTop) + ZWT*ZRES
-            end if
-          end if
-        end do BODY
-      end do FAMILY
-      
-    end subroutine oop_HTzp
 
     !--------------------------------------------------------------------------
 
@@ -3300,6 +3206,112 @@ contains
 
       
     end subroutine oop_HTgp
+
+    ! --------------------------------------------------------------------------
+
+    subroutine oop_HTheighCoordObs()
+      ! :Purpose: Compute the adjoint operator of the
+      !           vertical interpolation of geometric-height based data.
+      !           Including Radar Doppler velocity data.
+      !
+      !  delta x is updated by this routine 
+      implicit none
+
+      ! locals
+      integer :: bodyIndex, headerIndex, levelIndex, bufrCode, familyIndex
+      integer :: bodyIndexStart, bodyIndexEnd, bodyIndex1
+      real(8) :: levelAltLow, levelAltHigh, azimuth, obsAltitude, HDX 
+      real(8) :: anlIncValueLow, anlIncValueHigh, trlValueLow, trlValueHigh
+      real(8) :: vInterpWeightLow, vInterpWeightHigh
+      real(8), pointer :: du_column(:), dv_column(:), height_column(:)
+      integer, parameter :: NUMFAMILY=3
+      character(len=2) :: listFamily(NUMFAMILY), cfam
+     
+      listFamily(1) = 'RA' ! Doppler velocity (Radial Wind) burf_radvel
+      listFamily(2) = 'PR' ! Dew point difference           burf_nees
+      listFamily(3) = 'AL' ! Aladin HLOS wind               burf_neal
+      
+      ! Loop over all families
+      FAMILY: do familyIndex = 1, NUMFAMILY
+
+        ! Loop over header indices 
+        call obs_set_current_header_list(obsSpaceData, listFamily(familyIndex))
+        HEADER: do  
+          headerIndex = obs_getHeaderIndex(obsSpaceData)  
+          if ( headerIndex < 0 ) exit HEADER
+
+          if  ( listFamily(familyIndex) == 'RA' ) then
+            ! Azimuth of the radar beam
+            azimuth   = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+          end if
+
+          ! Local vector state
+          du_column  => col_getColumn(columnAnlInc, headerIndex, 'UU') 
+          dv_column  => col_getColumn(columnAnlInc, headerIndex, 'VV')
+
+          ! Loop over body indices 
+          call obs_set_current_body_list(obsSpaceData, headerIndex)
+          BODY: do
+            bodyIndex = obs_getBodyIndex(obsSpaceData)
+            if ( bodyIndex < 0 ) exit BODY
+            ! only process observations flagged to be assimilated
+            if ( obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated ) cycle BODY
+
+            ! Check that this observation has the expected bufr element ID
+            bufrCode = obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex)
+            if ( bufrCode == BUFR_logRadarPrecip ) cycle BODY
+
+            if ( bufrCode == bufr_radvel ) then
+              ! OBS_LYR returns the index of the model level just above the observation
+              !   level=1 is the highest level such that level+1 is lower 
+              levelIndex = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
+              levelAltHigh = col_getHeight(columnTrlOnAnlIncLev, levelIndex,   headerIndex, 'MM')
+              levelAltLow  = col_getHeight(columnTrlOnAnlIncLev, levelIndex+1, headerIndex, 'MM')
+              obsAltitude = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex) 
+
+              ! HDX from store
+              HDX = obs_bodyElem_r(obsSpaceData, OBS_WORK, bodyIndex)
+              vInterpWeightHigh = (obsAltitude - levelAltLow)/(levelAltHigh - levelAltLow)
+              vInterpWeightLow = 1.0D0 - vInterpWeightHigh
+
+              ! see oop_HheightCoordObs for the description of the H operator for radar Doppler velocity
+              ! 
+              ! In matrix form, adjoint of H operator for one observation:
+              !
+              !  delta x         = Ht TangentialWindResidual
+              !
+              !  [ deltaUUHigh ] = [ iwHigh*sin(az) ][ residual ]  
+              !  [ deltaVVigh  ]   [ iwHigh*cos(az) ]
+              !  [ deltaUULow  ]   [ iwLow *sin(az) ]
+              !  [ deltaVVLow  ]   [ iwLow *cos(az) ]
+              !
+              ! With
+              !   az     = beam azimuth (radians, met convention) 
+              !   iwHigh = Interpolation Weight for model level just above observation
+              !   iwLow  =                 "                         below     "
+              !   residual = OmP - Hdx
+              !   deltaUUHigh and deltaVVHigh = wind components on model level just above observation
+              !   deltaUULow  and deltaVVLow  =                 "                   below     "
+
+              !delta x is updated
+              du_column(levelIndex  ) = du_column(levelIndex  ) + vInterpWeightHigh*HDX*sin(azimuth)
+              dv_column(levelIndex  ) = dv_column(levelIndex  ) + vInterpWeightHigh*HDX*cos(azimuth)
+              du_column(levelIndex+1) = du_column(levelIndex+1) + vInterpWeightLow *HDX*sin(azimuth)
+              dv_column(levelIndex+1) = dv_column(levelIndex+1) + vInterpWeightLow *HDX*cos(azimuth)
+
+            else
+              
+              cfam = obs_getfamily(obsSpaceData,headerIndex)
+              write(*,*) 'CANNOT ASSIMILATE OBSERVATION!!!', &
+                         'bufrCode =', bufrCode, 'cfam =',  cfam
+              call utl_abort('oop_HTheighCoordObs')
+
+            end if
+          end do BODY
+        end do HEADER
+      end do FAMILY
+
+    end subroutine oop_HTheighCoordObs
 
     !--------------------------------------------------------------------------
 
@@ -3446,7 +3458,7 @@ contains
     real(8) :: rad, geo, zp0
     real(8), allocatable :: zpp(:), ztt(:), zhu(:), zHeight(:), zuu(:), zvv(:)
     real(8) :: zmt
-    integer :: IDATYP
+    integer :: IDATYP, varNum
     integer :: jl, ngpslev, nwndlev
     integer :: headerIndex, bodyIndex, iProfile
     logical :: ASSIM
@@ -3514,6 +3526,7 @@ contains
         ! If assimilations are requested, prepare and apply the observation operator
         ASSIMILATE: if (assim) then
           iProfile = gps_iprofile_from_index(headerIndex)
+          varNum = gps_vRO_IndexPrf(iProfile, 2)
 
           ! Profile at the observation location:
           ! Basic geometric variables of the profile:
@@ -3572,7 +3585,8 @@ contains
           enddo BODY_2
 
           ! Apply the observation operator:
-          if (levelgpsro == 1) then
+          ! varNum = bufr_nebd (15037) or varNum = bufr_nerf (15036) for GPS-RO
+          if (varNum == bufr_nebd) then
             call gps_bndopv1(h, azmv, nh, prf, rstv)
           else
             call gps_refopv (h, nh, prf, rstv)

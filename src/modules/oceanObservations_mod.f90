@@ -25,6 +25,7 @@ module oceanObservations_mod
   use obsSpaceData_mod
   use codtyp_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use oceanMask_mod
@@ -46,9 +47,9 @@ module oceanObservations_mod
   integer, external :: fnom, fclos  
 
   ! mpi topology
-  integer           :: myLatBeg, myLatEnd
-  integer           :: myLonBeg, myLonEnd
-  integer           :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
+  integer :: myLatBeg, myLatEnd
+  integer :: myLonBeg, myLonEnd
+  integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
 
   contains
 
@@ -64,15 +65,15 @@ module oceanObservations_mod
     implicit none
     
     ! Arguments
-    type(struct_hco)       , intent(inout), pointer :: hco                  ! horizontal grid structure
-    type(struct_vco)       , intent(in)   , pointer :: vco                  ! vertical grid structure
-    real(4)                , intent(in)             :: iceFractionThreshold ! consider no ice condition below this threshold
-    real(4)                , intent(in)             :: outputSST            ! output SST value for pseudo observations
-    real(4)                , intent(in)             :: outputFreshWaterST   ! output fresh water surface temperature for pseudo observations
-    integer                , intent(in)             :: iceThinning          ! generate pseudo obs in every 'iceThinning' points   
-    character(len=20)      , intent(in)             :: outputFileName    
-    character(len=20)      , intent(in)             :: etiket    
-    real(4)                , intent(in)             :: seaWaterThreshold    ! to distinguish inland water from sea water  
+    type(struct_hco) , intent(inout), pointer :: hco                  ! horizontal grid structure
+    type(struct_vco) , intent(in)   , pointer :: vco                  ! vertical grid structure
+    real(4)          , intent(in)             :: iceFractionThreshold ! consider no ice condition below this threshold
+    real(4)          , intent(in)             :: outputSST            ! output SST value for pseudo observations
+    real(4)          , intent(in)             :: outputFreshWaterST   ! output fresh water surface temperature for pseudo observations
+    integer          , intent(in)             :: iceThinning          ! generate pseudo obs in every 'iceThinning' points   
+    character(len=20), intent(in)             :: outputFileName    
+    character(len=20), intent(in)             :: etiket    
+    real(4)          , intent(in)             :: seaWaterThreshold    ! to distinguish inland water from sea water  
     
     ! Locals:
     type(struct_gsv)            :: stateVector_ice, stateVector_seaWater
@@ -94,14 +95,14 @@ module oceanObservations_mod
     ! get latest sea-ice analysis
     call gsv_allocate(stateVector_ice, 1, hco, vco, dataKind_opt = 4, &
                       datestamp_opt = -1, mpi_local_opt = .false., varNames_opt = (/'LG'/))
-    call gsv_readFromFile(stateVector_ice, './seaice_analysis', ' ','A', &
+    call gio_readFromFile(stateVector_ice, './seaice_analysis', ' ','A', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_ice, seaIce_ptr)
 
     ! read sea water fraction
     call gsv_allocate(stateVector_seaWater, 1, hco, vco, dataKind_opt = 4, &
                       datestamp_opt = -1, mpi_local_opt = .false., varNames_opt = (/'VF'/))
-    call gsv_readFromFile(stateVector_seaWater, './seaice_analysis', ' ','A', &
+    call gio_readFromFile(stateVector_seaWater, './seaice_analysis', ' ','A', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_seaWater, seaWater_ptr)
 

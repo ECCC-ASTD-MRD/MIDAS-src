@@ -35,6 +35,7 @@ module biasCorrectionSat_mod
   use HorizontalCoord_mod
   use verticalCoord_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use stateToColumn_mod
   use codtyp_mod
   use timeCoord_mod
@@ -87,7 +88,8 @@ module biasCorrectionSat_mod
   logical               :: initialized = .false.
   logical               :: bcs_mimicSatbcor
   logical               :: doRegression
-  integer, parameter    :: NumPredictors = 6
+  integer, parameter    :: NumPredictors = 7
+  integer, parameter    :: NumPredictorsBcif = 6
   integer, parameter    :: maxfov = 120
 
   real(8), allocatable  :: trialHeight300m1000(:)
@@ -110,12 +112,13 @@ module biasCorrectionSat_mod
   logical  :: refreshBiasCorrection !flag to replace an existing bias correction with a new one
   logical  :: centerPredictors      ! flag to transparently remove predictor mean in "reg" mode (more stable problem; very little impact on the result)
   logical  :: outCoeffCov           ! flag to activate output of coefficients error covariance (useful for EnKF system)
+  logical  :: outOmFPredCov         ! flag to activate output of O-F/predictors coefficients covariances and correlations
   real(8)  :: scanBiasCorLength     ! if positive and .not. mimicSatBcor use error correlation between scan positions with the given correlation length
   real(8)  :: bg_stddev(NumPredictors) ! background error for predictors ("varbc" mode)
   character(len=7) :: cinst(25)   ! to read the bcif file for each instrument in cinst
   character(len=3) :: cglobal(25) ! a "global" parameter and
   integer          :: nbscan(25)  ! the number of scan positions are necessary
-  character(len=2), parameter  :: predTab(0:6) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV"]
+  character(len=2), parameter  :: predTab(0:7) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG"]
   ! To understand the meaning of the following parameters controling filtering,
   ! please see  https://wiki.cmc.ec.gc.ca/images/f/f6/Unified_SatRad_Dyn_bcor_v19.pdf pages 20-22
   logical  :: offlineMode   ! flag to select offline mode for bias correction computation
@@ -128,7 +131,7 @@ module biasCorrectionSat_mod
   namelist /nambiassat/ centerPredictors, scanBiasCorLength, mimicSatbcor, weightedEstimate
   namelist /nambiassat/ cglobal, cinst, nbscan, filterObs, outstats, outCoeffCov
   namelist /nambiassat/ offlineMode, allModeSsmis, allModeTovs, allModeCsr, allModeHyperIr
-  namelist /nambiassat/ dumpToSqliteAfterThinning
+  namelist /nambiassat/ dumpToSqliteAfterThinning, outOmFPredCov
 contains
  
   !-----------------------------------------------------------------------
@@ -159,6 +162,7 @@ contains
     scanBiasCorLength = -1.d0
     weightedEstimate = .false.
     outCoeffCov = .false.
+    outOmFPredCov = .false.
     nbscan(:) = -1
     cinst(:) = "XXXXXXX"
     cglobal(:) = "XXX"
@@ -202,10 +206,9 @@ contains
     character(len=85)  :: bcifFile
     character(len=10)  :: instrName, instrNamecoeff, satNamecoeff 
     logical            :: bcifExists
-   
     ! variables from background coeff file
     integer            :: nfov, exitCode
-    character(len=2)   :: predBCIF(tvs_maxchannelnumber,numpredictors)
+    character(len=2)   :: predBCIF(tvs_maxchannelnumber,numpredictorsBCIF)
     integer            :: canBCIF(tvs_maxchannelnumber), npredBCIF(tvs_maxchannelnumber), ncanBcif, npredictors
     character(len=1)   :: bcmodeBCIF(tvs_maxchannelnumber), bctypeBCIF(tvs_maxchannelnumber)
     character(len=3)   :: global
@@ -272,7 +275,7 @@ contains
             allocate( bias(iSensor) % chans(ichan) % coeffIncr( npredictors ) )
             allocate( bias(iSensor) % chans(ichan) % coeff( npredictors ) )
             allocate( bias(iSensor) % chans(ichan) % coeff_offset( npredictors ) )
-            allocate(  bias(iSensor)%chans(ichan)% predictorIndex( npredictors ) )
+            allocate( bias(iSensor) % chans(ichan) % predictorIndex( npredictors ) )
             bias(iSensor) % chans(ichan) % stddev(:) = 0.d0
             bias(iSensor) % chans(ichan) % coeffIncr(:) = 0.d0
             bias(iSensor) % chans(ichan) % coeff(:) = MPC_missingValue_R8
@@ -293,6 +296,8 @@ contains
                 kpred = 5
               case('SV')
                 kpred = 6
+              case('TG')
+                kpred = 7
               case default
                 write(errorMessage,*) "bcs_setup: Unknown predictor ", predBCIF(ichan+1, ipred), ichan, ipred
                 call utl_abort(errorMessage)
@@ -1609,14 +1614,14 @@ contains
         predictor(iPredictor) = trialHeight5m50(obsIndex) / 1000.0d0
       else if (iPredictor == 5) then
         ! Height1-Height10 (dam) /1000    T4
-        predictor(iPredictor) = trialHeight1m10(obsIndex) / 1000.0d0
-        !      else if (iPredictor == 6) then
-        !        ! skin temperature (C) /10
-        !        predictor(iPredictor) = trialTG(obsIndex)
+        predictor(iPredictor) = trialHeight1m10(obsIndex) / 1000.0d0        
       else if (iPredictor == 6) then
         ! SV secant of satellite zenith angle minus one
         zenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex) 
         if (zenithAngle < 75.) predictor(iPredictor) = (1.d0 / cos(zenithAngle * MPC_RADIANS_PER_DEGREE_R8)) - 1.d0
+      else if (iPredictor == 7) then
+        ! skin temperature (C) /10
+        predictor(iPredictor) = trialTG(obsIndex)
       end if
 
     end do
@@ -1838,7 +1843,6 @@ contains
     integer  :: iSensor, iChannel, iPredictor, iScan
     integer  :: jSensor, iChannel2
     integer  :: nulfile_inc, nulfile_fov, ierr
-    integer, external  :: fnom, fclos
     real(8), pointer :: cv_bias(:)
     real(8), target  :: dummy4Pointer(1)
     character(len=80) :: BgFileName
@@ -2159,7 +2163,7 @@ contains
     implicit none
 
     ! Locals:
-    integer            :: iuncoef, numPred
+    integer            :: iuncoef, numPred, ierr
     character(len=80)  :: filename
     character(len=80)  :: instrName, satNamecoeff
     integer :: sensorIndex, nchans, nscan, nfov, kpred, kFov, jChan
@@ -2178,7 +2182,6 @@ contains
         instrName = InstrNameinCoeffFile(tvs_instrumentName(sensorIndex))
         satNamecoeff = SatNameinCoeffFile(tvs_satelliteName(sensorIndex)) 
 
-        iuncoef = 0
         filename = './anlcoeffs_' // trim(instrName)  
         call utl_open_asciifile(filename, iuncoef)
         nfov = bias(sensorIndex)%numScan
@@ -2194,10 +2197,9 @@ contains
           end if
         end do
 
-        close(iuncoef) 
+        ierr = fclos(iuncoef) 
 
         if (outCoeffCov) then
-          iuncoef = 0
           filename = './anlcoeffsCov_' // trim(instrName)  
           call utl_open_asciifile(filename, iuncoef)
           do jChan = 1, nchans
@@ -2211,7 +2213,7 @@ contains
               end do
             end if
           end do
-          close(iuncoef) 
+          ierr = fclos(iuncoef) 
         end if
 
       end do SENSORS
@@ -2573,7 +2575,7 @@ contains
       call gsv_allocate(stateVector_mask_4d, tim_nstepobs, hco_mask, vco_mask, dateStampList_opt=[-1], varNames_opt=["WT"], &
            dataKind_opt=4, mpi_local_opt=.true., mpi_distribution_opt="Tiles")
 
-      call gsv_readFromFile(stateVector_mask, './raob_masque.std', 'WEIGHT', 'O', unitConversion_opt=.false., &
+      call gio_readFromFile(stateVector_mask, './raob_masque.std', 'WEIGHT', 'O', unitConversion_opt=.false., &
            containsFullField_opt=.false.)
 
       do stepIndex = 1, tim_nstepobs
@@ -2662,6 +2664,8 @@ contains
     end if
 
     call  bcs_getRadiosondeWeight(obsSpaceData)
+
+    if (outOmFPredCov) call bcs_outputCvOmPPred(obsSpaceData)
 
     SENSORS:do sensorIndex = 1, tvs_nsensors
 
@@ -2912,6 +2916,237 @@ contains
 
   end subroutine bcs_do_regression
 
+
+  !-----------------------------------------
+  ! bcs_outputCvOmPPred
+  !-----------------------------------------
+  subroutine bcs_outputCvOmPPred(obsSpaceData)
+    !
+    ! :Purpose: compute and output OmF-predictors covariance and correlation matrices
+    !
+    implicit none
+    ! Arguments:
+    type(struct_obs), intent(inout)        :: obsSpaceData
+    ! Locals:
+    integer :: sensorIndex, headerIndex, bodyIndex, channelIndex, predictorIndex,predictorIndex2,nchans
+    integer :: idatyp, indxtovs, iSensor, chanIndx, Iobs, ierr
+    Real(8):: OmF
+    real(8), allocatable :: OmFBias(:), Matrix(:,:,:), PredBias(:,:)
+    integer, allocatable :: Count(:), CountMpiGlobal(:)
+    real(8), allocatable :: OmFBiasMpiGlobal(:), predBiasMpiGlobal(:,:), MatrixMpiGLobal(:,:,:)
+    character(len=128)   :: errorMessage
+    real(8) :: vector(1,numPredictors), predictor(numPredictors),correlation(numPredictors,numPredictors)
+    real(8) :: sigma(numPredictors)
+    integer :: iuncov, iuncorr
+
+    write(*,*) "bcs_outputCvOmPPred: Starting"
+
+    SENSORS:do sensorIndex = 1, tvs_nsensors
+  
+      if  (.not. tvs_isReallyPresentMpiGLobal(sensorIndex)) cycle SENSORS
+      write(*,*) "sensor ", sensorIndex
+
+      nchans = bias(sensorIndex)%numChannels ! from bcif
+
+      allocate(OmFBias(nchans))
+      OmFBias(:) = 0.d0
+
+      allocate(predBias(nchans,numPredictors))
+      predBias(:,:) = 0.d0
+
+      allocate(Count(nchans))
+      Count(:) = 0
+
+      iobs = 0
+      ! First pass throught ObsSpaceData to estimate biases and count data
+      call obs_set_current_header_list(obsSpaceData, 'TO')
+      HEADER1: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if (headerIndex < 0) exit HEADER1
+        ! process only radiance data to be assimilated?
+        idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+        if (.not. tvs_isIdBurpTovs(idatyp)) then
+          write(*,*) 'bcs_outputCvOmPPred: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+          cycle HEADER1
+        end if
+        iobs = iobs + 1
+        indxtovs = tvs_tovsIndex(headerIndex)
+        if (indxtovs < 0) cycle HEADER1
+        iSensor = tvs_lsensor(indxTovs)
+        if (iSensor /= sensorIndex) cycle HEADER1
+        
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        BODY1: do
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY1
+          if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY1 
+          call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
+          if (chanindx > 0) then
+            OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
+            OmFBias(chanIndx) = OmFBias(chanIndx) + OmF
+            count(chanIndx) = count(chanIndx) + 1
+            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            predBias(chanIndx,:) = predBias(chanIndx,:) + predictor(:)
+          end if
+        end do BODY1
+      end do HEADER1
+
+      allocate(omfBiasMpiGlobal(nchans))
+      allocate(countMpiGlobal(nchans))
+      allocate(predBiasMpiGlobal(nchans,numPredictors))
+
+      call mpi_reduce_sumR8_1d(OmFBias, omfBiasMpiGlobal, 0, "GRID" )
+      call mpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal, 0, "GRID" )
+
+      call rpn_comm_reduce(count, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
+      if (ierr /= 0) then
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 1", ierr 
+        call utl_abort(errorMessage)
+      end if
+
+      if (mpi_myId == 0) then
+        where(countMpiGlobal == 0) omfBiasMpiGlobal = 0.d0
+        where(countMpiGlobal > 0) omfBiasMpiGlobal = omfBiasMpiGlobal / countMpiGlobal
+        do channelIndex =1, nchans
+          if (countMpiGlobal(channelIndex) == 0) predBiasMpiGlobal(channelIndex,:) = 0.d0
+          if (countMpiGlobal(channelIndex) > 0) predBiasMpiGlobal(channelIndex,:) = predBiasMpiGlobal(channelIndex,:) / countMpiGlobal(channelIndex)
+        end do
+      end if
+      call rpn_comm_bcast(omfBiasMpiGlobal, size(omfBiasMpiGlobal), "mpi_double_precision", 0, "GRID", ierr)
+      if (ierr /= 0) then
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 4", ierr 
+        call utl_abort(errorMessage)
+      end if
+      call rpn_comm_bcast(predBiasMpiGlobal, size(predBiasMpiGlobal), "mpi_double_precision", 0, "GRID", ierr)
+      if (ierr /= 0) then
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 3", ierr 
+        call utl_abort(errorMessage)
+      end if
+      call rpn_comm_bcast(countMpiGlobal, size(countMpiGlobal), "mpi_integer", 0, "GRID", ierr)
+      if (ierr /= 0) then
+        write(errorMessage,*) "bcs_outputCvOmPPred: MPI communication error 4", ierr 
+        call utl_abort(errorMessage)
+      end if
+
+      deallocate(OmFBias)
+      deallocate(predBias)
+      deallocate(Count)
+      allocate(matrix(nchans,numPredictors,numPredictors))
+      matrix(:,:,:) = 0.d0
+
+      ! Second pass to fill covariance Matrix
+      call obs_set_current_header_list(obsSpaceData, 'TO')
+      iobs = 0
+      HEADER2: do
+        headerIndex = obs_getHeaderIndex(obsSpaceData)
+        if (headerIndex < 0) exit HEADER2
+
+        ! process only radiance data to be assimilated?
+        idatyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+        if (.not. tvs_isIdBurpTovs(idatyp)) then
+          write(*,*) 'bcs_outputCvOmPPred: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
+          cycle HEADER2
+        end if
+        iobs = iobs + 1
+        indxtovs = tvs_tovsIndex(headerIndex)
+        if (indxtovs < 0) cycle HEADER2
+
+        iSensor = tvs_lsensor(indxTovs)
+        if (iSensor /= sensorIndex) cycle HEADER2
+          
+        call obs_set_current_body_list(obsSpaceData, headerIndex)
+        BODY2: do
+          bodyIndex = obs_getBodyIndex(obsSpaceData)
+          if (bodyIndex < 0) exit BODY2
+          if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY2 
+          call bcs_getChannelIndex(obsSpaceData, iSensor, chanIndx, bodyIndex)
+          if (chanIndx > 0) then
+            call bcs_getPredictors(predictor, headerIndex, iobs, chanIndx, obsSpaceData)
+            predictor(:) = predictor(:) - predBiasMpiGLobal(chanIndx,:)
+            OmF = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
+            OmF = OmF - omfBiasMpiGlobal(chanIndx)
+            vector(1,1) = OmF
+            vector(1,2:numPredictors) = predictor(2:numPredictors)
+            Matrix(chanindx,:,:) = Matrix(chanindx,:,:) + matmul(transpose(vector),vector)
+          end if
+        end do BODY2
+      end do HEADER2
+
+      if (mpi_myId == 0) then
+        allocate(matrixMpiGlobal(nchans,numPredictors,numPredictors))
+      else
+        allocate(matrixMpiGlobal(1,1,1))
+      end if
+
+      ! communication MPI pour tout avoir sur tache 0
+      call mpi_reduce_sumR8_3d(matrix, matrixMpiGlobal, 0, "GRID" )
+      deallocate(matrix)
+      deallocate(OmFBiasMpiGLobal)
+      deallocate(predBiasMpiGLobal)
+      if (mpi_myId == 0) then
+        call utl_open_asciifile("covarianceMatrix_" // trim(tvs_instrumentName(sensorIndex)) //  &
+             "_" // trim(tvs_satelliteName(sensorIndex)) // ".dat", iuncov)
+        call utl_open_asciifile("correlationMatrix_" // trim(tvs_instrumentName(sensorIndex)) //  &
+             "_" // trim(tvs_satelliteName(sensorIndex)) // ".dat", iuncorr)
+        do channelIndex = 1, nchans
+          if (countMpiGlobal(channelIndex) > 1) then
+            matrixMpiGlobal(channelIndex,:,:) = matrixMpiGlobal(channelIndex,:,:) / countMpiGlobal(channelIndex)
+           
+            write(iuncov,*) "OmF Pred covariance Matrix for channel ", &
+                 bias(sensorIndex)%chans(channelIndex)%channelNum, "instrument ", &
+                 trim(tvs_instrumentName(sensorIndex))," ", &
+                 trim(tvs_satelliteName(sensorIndex))
+            write(iuncov,'(10x,A6)',advance="no") "OmF"
+            do predictorIndex = 2, numPredictors
+              write(iuncov,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
+            end do
+            write(iuncov,*)
+            write(iuncov,'(A6)',advance="no") "Omf"
+            write(iuncov,'(100f12.6)') matrixMpiGlobal(channelIndex,1,:)
+            do predictorIndex = 2, numPredictors
+              write(iuncov,'(A6)',advance="no") predTab(predictorIndex)
+              write(iuncov,'(100f12.6)') matrixMpiGlobal(channelIndex,predictorIndex,:)
+            end do
+            sigma(:) = 0
+            do predictorIndex = 1,numPredictors
+              if ( matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex) >0.d0) &
+                   sigma(predictorIndex) = sqrt(matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex))
+            end do
+            do predictorIndex = 1, numPredictors
+              do predictorIndex2 =1, numPredictors
+                correlation(predictorIndex, predictorIndex2) =  &
+                     matrixMpiGlobal(channelIndex,predictorIndex,predictorIndex2) / &
+                     (sigma(predictorIndex) * sigma(predictorIndex2) )
+              end do
+            end do
+            write(iuncorr,*) "OmF Pred correlation Matrix for channel ", &
+                 bias(sensorIndex)%chans(channelIndex)%channelNum,"instrument ", &
+                 trim(tvs_instrumentName(sensorIndex))," ", &
+                 trim(tvs_satelliteName(sensorIndex))
+            write(iuncorr,'(10x,A6)',advance="no") "OmF"
+            do predictorIndex = 2, numPredictors
+              write(iuncorr,'(T6,A6,1x)',advance="no") predTab(predictorIndex) 
+            end do
+            write(iuncorr,*)
+            write(iuncorr,'(A6)',advance="no") "Omf"
+            write(iuncorr,'(100f12.6)') correlation(1,:)
+            do predictorIndex = 2, numPredictors
+              write(iuncorr,'(A6)',advance="no") predTab(predictorIndex)
+              write(iuncorr,'(100f12.6)') correlation(predictorIndex,:)
+            end do
+          end if
+        end do
+        ierr = fclos(iuncov)
+        ierr = fclos(iuncorr)
+      end if
+          
+      deallocate(countMpiGlobal)
+      deallocate(matrixMpiGlobal)
+       
+    end do SENSORS
+
+  end subroutine bcs_outputCvOmPPred
+
   !----------------------
   ! bcs_Finalize
   !----------------------
@@ -3049,7 +3284,7 @@ contains
     integer, intent(out)          :: can(tvs_maxchannelnumber), npred(tvs_maxchannelnumber)
     character(len=3), intent(in)  :: global_opt
     character(len=1), intent(out) :: bcmode(tvs_maxchannelnumber), bctype(tvs_maxchannelnumber)
-    character(len=2), intent(out) :: pred(tvs_maxchannelnumber,numpredictors)
+    character(len=2), intent(out) :: pred(tvs_maxchannelnumber,numpredictorsBCIF)
 
     ! Locals:
     character(len=7)             :: instrum
@@ -3106,7 +3341,7 @@ contains
     ! For GLOBAL option, read global values from first line (channel 0) and clone to all channels
     if (global_opt == 'OUI' .or. global_opt == 'DEF') then 
       ! Read channel 0 information
-      read(iun, *, iostat=ier) can(1), bcmode(1), bctype(1), npred(1), (pred(1,j), j = 1, numpredictors)
+      read(iun, *, iostat=ier) can(1), bcmode(1), bctype(1), npred(1), (pred(1,j), j = 1, numpredictorsbcif)
       if (ier /= 0) then
         write(*,*) 'read_BCIF: Error reading channel 0 data!'
         exitcode = ier
@@ -3126,7 +3361,7 @@ contains
           bcmode(i) = bcmode(1)
           bctype(i) = bctype(1)
           npred(i) = npred(1)
-          do j = 1, numpredictors
+          do j = 1, numpredictorsbcif
             pred(i,j) = pred(1,j)
           end do
         end do
@@ -3143,7 +3378,7 @@ contains
           bcmode(i) = bcmode(1)
           bctype(i) = bctype(1)
           npred(i) = npred(1)
-          do j = 1, numpredictors
+          do j = 1, numpredictorsbcif
             pred(i,j) = pred(1,j)
           end do
         end do
@@ -3151,14 +3386,14 @@ contains
         rewind (iun)
         read(iun,*) instrum, ncan
         read(iun,'(A64)') line
-        read(iun,*,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictors)
+        read(iun,*,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictorsbcif)
       end if
       ! For global_opt == 'DEF' check for channel-specific information and overwrite the default (channel 0) values
       ! for the channel with the values from the file
       if (global_opt == 'DEF') then
         if (.not. hspec) then
           do
-            read(iun,*,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictors)
+            read(iun,*,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictorsbcif)
             if (ier < 0) exit  
             if (ier > 0) then
               write(*,*) 'read_BCIF: Error reading file!'
@@ -3175,19 +3410,19 @@ contains
             bcmode(ii) = xbcmode
             bctype(ii) = xbctype
             npred(ii) = xnpred
-            do j = 1, numpredictors
+            do j = 1, numpredictorsbcif
               pred(ii,j) = xpred(j)
             end do
           end do
         else
           ! For hyperspectral instruments
           do i = 2, ncan + 1
-            read(iun, *,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictors)
+            read(iun, *,iostat=ier) xcan, xbcmode, xbctype, xnpred, (xpred(j), j = 1, numpredictorsbcif)
             if (ier /= 0) cycle  
             bcmode(i) = xbcmode
             bctype(i) = xbctype
             npred(i) = xnpred
-            do j = 1, numpredictors
+            do j = 1, numpredictorsbcif
               pred(i,j) = xpred(j)
             end do
           end do
@@ -3199,7 +3434,7 @@ contains
     if (global_opt == 'NON') then
       ii = 1
       do
-        read(iun,*,iostat=ier) can(ii), bcmode(ii), bctype(ii), npred(ii), (pred(ii,j), j = 1, numpredictors)
+        read(iun,*,iostat=ier) can(ii), bcmode(ii), bctype(ii), npred(ii), (pred(ii,j), j = 1, numpredictorsbcif)
         if (ier < 0) exit  
         if (ier > 0) then
           write(*,*) 'read_BCIF: Error reading file!'
@@ -3234,7 +3469,7 @@ contains
       chknp = count(pred(i,:) /= 'XX')
       if (chknp /= npred(i)) npred(i) = chknp
       if (npred(i) == 0 .and. bctype(i) == 'C') bctype(i) = 'F'
-      write(*,'(I4,2(5X,A1),5X,I2,6(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, numpredictors)
+      write(*,'(I4,2(5X,A1),5X,I2,6(4X,A2))') can(i), bcmode(i), bctype(i), npred(i), (pred(i,j), j = 1, numpredictorsbcif)
     end do
     write(*,*) 'read_BCIF: exit '
 

@@ -23,6 +23,7 @@ program midas_ensPostProcess
   use fileNames_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use verticalCoord_mod
   use horizontalCoord_mod
   use timeCoord_mod
@@ -151,7 +152,7 @@ program midas_ensPostProcess
                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                       hInterpolateDegree_opt=hInterpolationDegree, &
                       dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/))
-    call gsv_readFromFile(stateVectorHeightSfc, ensFileName, ' ', ' ',  &
+    call gio_readFromFile(stateVectorHeightSfc, ensFileName, ' ', ' ',  &
                           containsFullField_opt=.true., readHeightSfc_opt=.true.)
   end if
 
@@ -190,7 +191,7 @@ program midas_ensPostProcess
     call fln_ensFileName(ctrlFileName, ensPathNameTrl, memberIndex_opt=0, &
                          copyToRamDisk_opt=.false.)
     do stepIndex = 1, tim_nstepobsinc
-      call gsv_readFromFile( stateVectorCtrlTrl, ctrlFileName, ' ', ' ',  &
+      call gio_readFromFile( stateVectorCtrlTrl, ctrlFileName, ' ', ' ',  &
                              stepIndex_opt=stepIndex, containsFullField_opt=.true., &
                              readHeightSfc_opt=.false. )
     end do

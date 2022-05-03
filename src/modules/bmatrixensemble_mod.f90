@@ -26,6 +26,7 @@ module BmatrixEnsemble_mod
   use mpivar_mod
   use fileNames_mod
   use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use ensembleStateVector_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -831,7 +832,7 @@ CONTAINS
 
       call ens_copyEnsStdDev(bEns(instanceIndex)%ensPerts(1), bEns(instanceIndex)%statevector_ensStdDev)
       if (bEns(instanceIndex)%ensDiagnostic) then
-        call gsv_writeToFile(bEns(instanceIndex)%statevector_ensStdDev,'./ens_stddev.fst',       & ! IN
+        call gio_writeToFile(bEns(instanceIndex)%statevector_ensStdDev,'./ens_stddev.fst',       & ! IN
                              'STDDEV_RAW', HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ)  ! IN
       end if
 
@@ -864,7 +865,7 @@ CONTAINS
       call gsv_power(bEns(instanceIndex)%statevector_ensStdDev, 0.5d0) ! Variance -> StdDev
 
       if (bEns(instanceIndex)%ensDiagnostic) then
-        call gsv_writeToFile(bEns(instanceIndex)%statevector_ensStdDev,'./ens_stddev.fst',& ! IN
+        call gio_writeToFile(bEns(instanceIndex)%statevector_ensStdDev,'./ens_stddev.fst',& ! IN
                              'STDDEV_SMOOT', HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ)   ! IN
       end if
     end if
@@ -1001,7 +1002,7 @@ CONTAINS
       !- If wanted, write the ensemble mean
       if (bEns(instanceIndex)%advDiagnostic) then
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(statevector_ensMean4D,'./ens_mean.fst','ENSMEAN4D',        & ! IN
+          call gio_writeToFile(statevector_ensMean4D,'./ens_mean.fst','ENSMEAN4D',        & ! IN
                                stepIndex_opt=stepIndex, HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ ) ! IN
         end do
       end if
@@ -1017,7 +1018,7 @@ CONTAINS
       if (bEns(instanceIndex)%advDiagnostic) then
         call ens_copyMember(bEns(instanceIndex)%ensPerts(1), statevector_oneEnsPert4D, 1)
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(statevector_oneEnsPert4D,'./ens_pert1.fst','ORIGINAL', & ! IN
+          call gio_writeToFile(statevector_oneEnsPert4D,'./ens_pert1.fst','ORIGINAL', & ! IN
                stepIndex_opt=stepIndex, HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ )             ! IN
         end do
       end if
@@ -1030,7 +1031,7 @@ CONTAINS
       if (bEns(instanceIndex)%advDiagnostic) then
         call ens_copyMember(bEns(instanceIndex)%ensPerts(1), statevector_oneEnsPert4D, 1)
         do stepIndex = 1, tim_nstepobsinc
-          call gsv_writeToFile(statevector_oneEnsPert4D,'./ens_pert1_advected.fst','ADVECTED', & ! IN
+          call gio_writeToFile(statevector_oneEnsPert4D,'./ens_pert1_advected.fst','ADVECTED', & ! IN
                stepIndex_opt=stepIndex,HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ )                       ! IN
         end do
       end if
@@ -2570,7 +2571,7 @@ CONTAINS
       write(instanceNumber,'(I2.2)') instanceIndex
       fileName = './ens_pert001_i' // trim(instanceNumber) // '.fst'
 
-      call gsv_writeToFile(statevector,fileName,etiket, &                               ! IN
+      call gio_writeToFile(statevector,fileName,etiket, &                               ! IN
                            scaleFactor_opt=dnens2, &                                    ! IN
                            HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ )       ! IN
       call gsv_deallocate(statevector)
@@ -2619,7 +2620,7 @@ CONTAINS
        write(instanceNumber,'(I2.2)') instanceIndex
        fileName = './ens_stddev_i' // trim(instanceNumber) // '.fst'
 
-       call gsv_writeToFile(statevector,fileName,etiket,                         & ! IN
+       call gio_writeToFile(statevector,fileName,etiket,                         & ! IN
                             HUcontainsLQ_opt=bEns(instanceIndex)%gsvHUcontainsLQ)  ! IN
        call gsv_deallocate(statevector)
     end do

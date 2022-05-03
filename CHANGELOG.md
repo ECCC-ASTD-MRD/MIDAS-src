@@ -8,7 +8,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added background check for Doppler Velocity (#634 and !589)
+ * A new program computing SST background field (#619 and !586)
  * `make help` provide default values for environment variables (#625 and !581)
+ * Add ability to compute and output innovation-predictor covariances and correlations in genCoeff.Abs (#603 and !578)
+ * Add MIDAS header table to obsDB files. (#575 and !570)
+ * A modified way of computing Liebmann on yin/yang parts of the global grid (#613 and !577)
+ * Added warnings on the usage on DEBUG mode (#615 and !573)
+ * Added an option dump cores in case of runtime errors in UnitTests (#602 and !568)
  * Added an option dump cores in case of runtime errors in UnitTests (#602 and !567)
  * Enable interpolation of sea-ice analysis in program `SSTbias` (#600 and !556)
  * Migrate the "main" branch to `rhel-8-icelake-64` (#594 and !557)
@@ -79,7 +86,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
  * Ensure only first thread calls the tmg_start/stop routines (#636 and !591)
+ * split `gridstatevector_mod`: high-level I/O routines moved in `gridstatevectorFileIO_mod` (#599 and !590)
+   * new namelist `NAMSTIO`: variable `interpToPhysicsGrid` moved from `NAMSTATE`
+ * Allow combined use of GPSRO refractivity and bending profiles when `LEVELGPSRO=3` (#569 and !587)
  * Major overhaul of tmg timing blocks throughout the code (#622 and !583)
+ * `oop_HheightCoordObs` replaces `oop_Hzp` to compute simulated geometric-height based observations and similar for adjoint (#593 and !571)
  * Adapted `midas_build` for single architecture U2 (#578 and !562)
  * Applying humidity limits within outer-loop consistent with no outer-loop; write total increment with outer-loop to `rebm_*`; avoid dealloc interpInfo_nl with outer-loop (#585 and !549)
  * Promote `midas_build` in the README as the main compilation tool (#522 and !548)
@@ -97,6 +108,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * WGS (World Geodetic System) functions moved to EarthConstants module. Other Earth constants simplified, renamed (#524 and (!522).
  * Keep `ID_DATA` when the `dia*` files are grouped with `midas.reunir_obs_mpi` (#552 and !521)
    * With `dumpToSqliteAfterThinning=.true.` in `NAMBIASSAT`, the output files have the prefix `bcr` and are grouped together in `midas.reunir_obs_mpi`.
+ * Improve the documentation on how to start a branch associated to an
+   issue from the release branch (#553 and !523)
  * midas_build provide more details on the compilation process (#549 and !520)
  * Renamed module `tt2phi_mod` to `calcHeightAndPressure_mod` and regrouped pressure calculation subroutines (#523 and !504)
  * Consistent application of bias corrections for all observation families (add the correction in OBS_BCOR) (#391 and !506)
@@ -111,7 +124,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * Retrocompatibility maintained until next release
 
 ### Fixed
-
+ * Fix bug of inconsistent ID_REPORT column in the MIDAS_HEADER_OUTPUT ObsDB table (#637 and !592)
+ * Fix use of `sqlExtraHeader` for filtering the reading of SQLite obs (#630 and !588)
+ * Fix wind vector rotation to avoid abort when grid point is at the equator (#567 and !564)
  * Fix bug causing zero radiance bias correction when all coefficients missing (#562 and !555)
  * Fix for correctly handling situation where sensor is missing in NAMTOVSINST (#592 and !553) 
  * Augment width write format for Jo contributions (#591 and !552)
@@ -442,22 +457,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
       - On rend facultatif l'etape `reunir_obs` si on utilise
        `oavar.launch ... -oavar_reunir_obs no`
    * La variable `OAVAR_OBS_MPI_ORDERING` est mise a `regular` par
-     dÃ©faut
-      - Cela est cohÃ©rent avec le code de MIDAS depuis la version
+     défaut
+      - Cela est cohérent avec le code de MIDAS depuis la version
        `v_3.5.0`.
    * Adaptation des scripts pour pouvoir tourner `midas-genCoeff`
    * `oavar.mpi_barrier`:
       - Le script est beaucoup moins verbose qu'auparavant.  On peut
        utiliser la variable d'environnement
-       `OAVAR_MPI_BARRIER_VERBOSE=yes` pour rÃ©activer le `set -x` dans ce
+       `OAVAR_MPI_BARRIER_VERBOSE=yes` pour réactiver le `set -x` dans ce
        script.
    * `oavar.launch` et `oavar.var_mpi`:
       - Ajout du mode `distribute` pour `-splitobs_mode` pour distribuer
-      les fichiers sur chacune des tuiles MPI plutÃ´t que d'utiliser le
+      les fichiers sur chacune des tuiles MPI plutôt que d'utiliser le
       programme `splitobs.Abs` pour ce faire
    * `oavar.check_ensemble`:
       - Adaptation de la manipulation du namelist pour transformer un
-        EnVar en 3D-Var pour les versions aprÃ¨s `v_3.4.2`
+        EnVar en 3D-Var pour les versions après `v_3.4.2`
  * Changed IR quality control and background check to add protection against missing values for angles (#349 and !341)
   * Move RTPP ensemble inflation and it's namelist variable from `letkf` to `ensPostProcess` (#352 and !339)
   * Efficiency improvements (mostly for global EnVar) (#235 and !337):
@@ -498,9 +513,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
        * On a generalise les scripts pour tourner les programmes du LETKF.
          * Ces changements sont compatibles arriere.
        * `oavar.mpirun`: set `TBB_MALLOC_USE_HUGE_PAGES=1` on `sles-15-*`
-       * `oavar.var_mpi`: On corrige le mode `fasttmp=no` pour Ã©viter que les
-         fichiers complets se retrouvent dans le meme rÃ©pertoire que les
-         fichiers splittÃ©s.
+       * `oavar.var_mpi`: On corrige le mode `fasttmp=no` pour éviter que les
+         fichiers complets se retrouvent dans le meme répertoire que les
+         fichiers splittés.
        * `oavar.launch`: Ajout d'une cle `-analinc_mask`
  * Update to `rpn/utils/19.5.1` and `cmda/utils/19.5-3` (#339 and !321)
  * Unify the `bgckMW` program for AMSUA and ATMS QC (#308 and !315)
@@ -883,7 +898,7 @@ mpi task during the redistribution step (!38 and #42)
 This is the initial version delivered in final cycles for the GDPS 6.1 project in 2018.
 
 ### Added
-- Includes backward comptatible changes to conventional observations by StÃ©phane Laroche
+- Includes backward comptatible changes to conventional observations by Stéphane Laroche
 
 ### Changed
 - Introducing the use of RTTOV-12 library (release `1.0`) (non backward compatible) (Sylvain Heilliette)

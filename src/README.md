@@ -29,7 +29,13 @@ Their default values (in parentheses), **should be good for most users**.
   **of all versions** will be in `${MIDAS_COMPILE_DIR_MAIN}/midas_abs` with the
   version included in the absolute name.
 * `MIDAS_COMPILE_ADD_DEBUG_OPTIONS (no)` : activate the debug flag for the
-  compilation if set to `yes`
+  compilation if set to `yes`.
+  Note that enabling debug options **may subtly alter the results and
+  therefore cause some unit tests to fail**.
+  Also, make sure to **`make clean` before recompiling when you change that
+  variable value** if `MIDAS_COMPILE_CLEAN=false`.  Otherwise, some already
+  compiled object will keep the impact of the debug options and may result
+  in inconsistencies.
 * `MIDAS_COMPILE_FRONTEND (ppp5)` : cluster on which to proceed with the compilation
 * `MIDAS_COMPILE_CLEAN (true)` : if `true`, remove the build directory after a
   successful installation of the absolutes (if applicable)

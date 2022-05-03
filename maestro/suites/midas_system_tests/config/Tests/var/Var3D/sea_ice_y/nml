@@ -87,6 +87,7 @@
  &NAMINC
    hInterpolationDegree = 'LINEAR'
    etiket_rebm ='XXXXXX'
+   applyLiebmann = .true.
 /
  &NAMCODTYP
 /

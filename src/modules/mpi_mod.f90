@@ -207,8 +207,8 @@ module mpi_mod
     call utl_tmg_stop(170)
 
   end subroutine mpi_allreduce_sumR8_1d
- 
-  
+
+
   subroutine mpi_allreduce_sumR8_2d( sendRecvVector, comm )
     !
     ! :Purpose: Perform sum of 2d array over all MPI tasks.
