@@ -384,8 +384,8 @@ contains
     character(len=12) :: hInterpolationDegree ! select degree of horizontal interpolation (if needed)
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
     integer :: levIndex1
-    integer :: varLevIndex1, varLevIndex2
-    integer :: offset, status, numStep, ierr
+    integer :: varLevIndex, varLevIndex1, varLevIndex2 
+    integer :: status, numStep, ierr, levIndexColumn
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
     real(8) :: scaleFactor_SF, ZR
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
@@ -647,17 +647,18 @@ contains
     end do
     write(*,*) 'bmat1D_setupBEns: nkgdim', nkgdim
     cvDim_out = nkgdim * var1D_validHeaderCount
+
     currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1) )
     allocate (levIndexFromVarLevIndex(nkgdim))
     allocate (varNameFromVarLevIndex(nkgdim))
-    nkgdim = 0
+    varLevIndex = 0
     do varIndex = 1, bmat1D_numIncludeAnlVar
       do levIndex = 1, size(currentProfile)
         if ( trim( col_getVarNameFromK(meanColumn,levIndex) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
-          nkgdim = nkgdim + 1
-          levIndexFromVarLevIndex(nkgdim) = levIndex
-          varNameFromVarLevIndex(nkgdim) = trim( bmat1D_includeAnlVar(varIndex) )
-          if (mpi_myId == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), nkgdim, levIndex
+          varLevIndex = varLevIndex + 1
+          levIndexFromVarLevIndex(varLevIndex) = levIndex
+          varNameFromVarLevIndex(varLevIndex) = trim( bmat1D_includeAnlVar(varIndex) )
+          if (mpi_myId == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndex, levIndex
         end if
       end do
     end do
@@ -684,7 +685,7 @@ contains
     allocate(meanPressureProfile(nkgdim))
     call lfn_Setup('FifthOrder')
 
-    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,meanPressureProfile,levIndex1,varLevIndex1,varLevIndex2,varLevel,offset,logP1,logP2,zr)
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,meanPressureProfile,levIndex1,varLevIndex1,varLevIndex2,varLevel,levIndexColumn,logP1,logP2,zr)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) / (nEns - 1)
@@ -695,8 +696,8 @@ contains
           if (varLevel=='SF') then
             meanPressureProfile(varLevIndex1) = col_getElem(meanColumn, 1, headerIndex, 'P0')
           else
-            offset = col_getOffsetFromVarName(meanColumn, varNameFromVarLevIndex(varLevIndex1))
-            meanPressureProfile(varLevIndex1) = col_getPressure(meanColumn, levIndex1-offset, headerIndex, varLevel)
+            levIndexColumn = col_getLevIndexFromVarLevIndex(meanColumn, levIndex1)
+            meanPressureProfile(varLevIndex1) = col_getPressure(meanColumn, levIndexColumn, headerIndex, varLevel)
           end if
         end do
         do varLevIndex1 = 1, nkgdim
@@ -704,9 +705,9 @@ contains
           do varLevIndex2 = 1, nkgdim
             !-  do Schurr product with 5'th order function
             logP2 = log(meanPressureProfile(varLevIndex2))
-            ZR = abs(logP2  -  logP1)
+            zr = abs(logP2  -  logP1)
             bSqrtEns(headerIndex, varLevIndex2, varLevIndex1) = &
-                 bSqrtEns(headerIndex, varLevIndex2, varLevIndex1) * lfn_response(zr,vLocalize)
+                 bSqrtEns(headerIndex, varLevIndex2, varLevIndex1) * lfn_response(zr, vLocalize)
           end do
         end do
       end if

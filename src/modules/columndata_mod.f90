@@ -43,6 +43,7 @@ module columnData_mod
   public :: col_getNumLev, col_getNumCol, col_getVarNameFromK
   public :: col_getPressure, col_getPressureDeriv, col_vintProf, col_getHeight, col_setHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
+  public :: col_getLevIndexFromVarLevIndex
 
   type struct_columnData
     integer           :: nk, numCol
