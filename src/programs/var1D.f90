@@ -206,7 +206,7 @@ program midas_var1D
   call col_zero(columnAnlInc)
   ! get final increment
   call bmat1D_get1DvarIncrement(controlVectorIncr,columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,cvm_nvadim)
-  call var1D_transferColumnToYGrid( stateVectorIncr, obsSpaceData, columnAnlInc, bmat1D_varList)
+  call var1D_transferColumnToYGrid( stateVectorIncr, obsSpaceData, columnAnlInc, bmat1D_includeAnlVar)
 
   ! output the analysis increment
   call tmg_start(6, 'WRITEINCR')
@@ -216,7 +216,7 @@ program midas_var1D
 
   ! compute and write the analysis (as well as the increment on the trial grid)
   call tmg_start(18, 'ADDINCREMENT')
-  call var1d_transferColumnToYGrid(stateVectorAnalysis, obsSpaceData, columnTrlOnAnlIncLev, bmat1D_varList)
+  call var1d_transferColumnToYGrid(stateVectorAnalysis, obsSpaceData, columnTrlOnAnlIncLev, bmat1D_includeAnlVar)
 
   if (mpi_myId == 0) call gsv_add(statevectorIncr, statevectorAnalysis)
 

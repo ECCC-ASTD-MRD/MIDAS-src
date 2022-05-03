@@ -49,7 +49,10 @@ module bmatrix1DVar_mod
   public :: bmat1D_finalize, bmat1D_get1DVarIncrement
 
   ! public variables
-  public :: bmat1D_varList
+  public :: bmat1D_includeAnlVar, bmat1D_numIncludeAnlVar
+
+  integer                       :: bmat1D_numIncludeAnlVar
+  character(len=4), allocatable :: bmat1D_includeAnlVar(:)
 
   type(struct_hco), pointer :: hco_yGrid
   logical             :: initialized = .false.
@@ -60,8 +63,7 @@ module bmatrix1DVar_mod
   real(8), allocatable :: bSqrtLand(:,:,:), bSqrtSea(:,:,:)
   real(8), allocatable :: bSqrtEns(:,:,:)
   real(4), allocatable :: latLand(:), lonLand(:), latSea(:), lonSea(:)
-  integer              :: nLonLatPosLand, nLonLatPosSea, bmat1D_varCount
-  character(len=4), allocatable :: bmat1D_varList(:)
+  integer              :: nLonLatPosLand, nLonLatPosSea
   integer, external    :: get_max_rss
   integer,          parameter :: numMasterBmat = 2
   character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/ 'HI', 'ENS' /)
@@ -79,14 +81,14 @@ module bmatrix1DVar_mod
   type(struct_columnData) :: meanColumn
   type(struct_ens) :: ensPerts
   !Namelist variables
-  character(len=4)    :: IncludeAnlVar(vnl_numvarmax)
+  character(len=4)    :: includeAnlVar(vnl_numvarmax)
   integer :: numIncludeAnlVar
   real(8) :: scaleFactorHI(maxNumLevels)          ! scaling factors for HI variances
   real(8) :: scaleFactorHILQ(maxNumLevels)        ! scaling factors for HI LQ variances
   real(8) :: scaleFactorEns(maxNumLevels)         ! scaling factors for Ens variances
   real(8) :: scaleFactorEnsHumidity(maxNumLevels) ! scaling factors for Ens LQ variances
   NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHILQ, scaleFactorENs, scaleFactorEnsHumidity, nEns, &
-       vLocalize, IncludeAnlVar, numIncludeAnlVar
+       vLocalize, includeAnlVar, numIncludeAnlVar
 
 contains
 
@@ -118,13 +120,13 @@ contains
     scaleFactorEnsHumidity(:) = 1.d0
     nEns = -1
     vLocalize = -1.d0
-    IncludeAnlVar(:)= ''
-    IncludeAnlVar(1)= 'TT'
-    IncludeAnlVar(2)= 'HU'
-    IncludeAnlVar(3)= 'UU'
-    IncludeAnlVar(4)= 'VV'
-    IncludeAnlVar(5)= 'P0'
-    IncludeAnlVar(6)= 'TG'
+    includeAnlVar(:)= ''
+    includeAnlVar(1)= 'UU'
+    includeAnlVar(2)= 'VV'
+    includeAnlVar(3)= 'TT'
+    includeAnlVar(4)= 'HU'
+    includeAnlVar(5)= 'P0'
+    includeAnlVar(6)= 'TG'
     numIncludeAnlVar = 6
 
     nulnam = 0
@@ -133,6 +135,10 @@ contains
     if ( ierr /= 0 ) call utl_abort( 'bmat1D_bsetup: Error reading namelist' )
     if ( mpi_myid == 0 ) write( *, nml = nambmat1D )
     ierr = fclos( nulnam )
+
+    bmat1D_numIncludeAnlVar = numIncludeAnlVar
+    allocate( bmat1D_includeAnlVar(bmat1D_numIncludeAnlVar) )
+    bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar) = includeAnlVar(1:numIncludeAnlVar)
 
     !
     !- 1.  Setup the B matrices
@@ -210,7 +216,8 @@ contains
     type(struct_vco), pointer :: vco_anl
     character(len=18) :: oneDBmatLand = './Bmatrix_land.bin'
     character(len=17) :: oneDBmatSea  = './Bmatrix_sea.bin'
-    integer :: extractDate, locationIndex
+    character(len=4), allocatable :: includeAnlVarHi(:)
+    integer :: extractDate, locationIndex, varIndex, numIncludeAnlVarHi
     logical, save :: firstCall=.true.
     real(8), allocatable :: bMatrix(:,:)
 
@@ -270,13 +277,24 @@ contains
     end if
 
     read(nulbgst) extractDate, vco_1Dvar%nLev_T, vco_1Dvar%nLev_M, vco_1Dvar%Vcode, &
-         vco_1Dvar%ip1_sfc, vco_1Dvar%ip1_T_2m, vco_1Dvar%ip1_M_10m, bmat1D_varCount, nkgdim, nLonLatPosLand
+         vco_1Dvar%ip1_sfc, vco_1Dvar%ip1_T_2m, vco_1Dvar%ip1_M_10m, numIncludeAnlVarHi, nkgdim, nLonLatPosLand
     allocate( vco_1Dvar%ip1_T(vco_1Dvar%nLev_T), vco_1Dvar%ip1_M(vco_1Dvar%nLev_M) )
-    allocate( bmat1D_varList(bmat1D_varCount) )
+    if (numIncludeAnlVarHi /= bmat1D_numIncludeAnlVar) then
+      write(*,*) 'numIncludeAnlVarHi, bmat1D_numIncludeAnlVar= ', numIncludeAnlVarHi, bmat1D_numIncludeAnlVar
+      call utl_abort('bmat1D_setupBHi: incompatible number of 1DVar analyzed variables in ' // trim(oneDBmatLand))
+    end if
+    allocate( includeAnlVarHi(bmat1D_numIncludeAnlVar) )
     allocate( bMatrix(nkgdim,nkgdim) )
     allocate( latLand(nLonLatPosLand), lonLand(nLonLatPosLand))       
     allocate( bSqrtLand(nLonLatPosLand, nkgdim, nkgdim) )
-    read(nulbgst) vco_1Dvar%ip1_T(:), vco_1Dvar%ip1_M(:), bmat1D_varList(:)
+    read(nulbgst) vco_1Dvar%ip1_T(:), vco_1Dvar%ip1_M(:), includeAnlVarHi(:)
+    if (any(includeAnlVarHi /= bmat1D_includeAnlVar)) then
+      do varIndex = 1, bmat1D_numIncludeAnlVar
+        write(*,*) varIndex, includeAnlVarHi(varIndex), bmat1D_includeAnlVar(varIndex)
+      end do
+      call utl_abort('bmat1D_setupBHi: incompatible 1DVar analyzed variable list in ' // trim(oneDBmatLand))
+    end if
+    deallocate(includeAnlVarHi)
     do locationIndex = 1, nLonLatPosLand
       read(nulbgst) latLand(locationIndex), lonLand(locationIndex), bMatrix(:,:)      
       bSqrtLand(locationIndex, :, :) = bMatrix(:, :)
@@ -291,10 +309,22 @@ contains
       call utl_abort('bmat1D_setupBHi: No 1DVar BACKGROUND STAT FILE ' // trim(oneDBmatSea))
     end if
     read(nulbgst) extractDate, vco_1Dvar%nLev_T, vco_1Dvar%nLev_M, vco_1Dvar%Vcode, &
-         vco_1Dvar%ip1_sfc, vco_1Dvar%ip1_T_2m, vco_1Dvar%ip1_M_10m, bmat1D_varCount, nkgdim, nLonLatPosSea
+         vco_1Dvar%ip1_sfc, vco_1Dvar%ip1_T_2m, vco_1Dvar%ip1_M_10m, numIncludeAnlVarHi, nkgdim, nLonLatPosSea
+    if (numIncludeAnlVarHi /= bmat1D_numIncludeAnlVar) then
+      write(*,*) 'numIncludeAnlVarHi, bmat1D_numIncludeAnlVar= ', numIncludeAnlVarHi, bmat1D_numIncludeAnlVar
+      call utl_abort('bmat1D_setupBHi: incompatible number of 1DVar analyzed variables in ' // trim(oneDBmatSea))
+    end if
     allocate( bSqrtSea(nLonLatPosSea, nkgdim, nkgdim) )
     allocate( latSea(nLonLatPosSea), lonSea(nLonLatPosSea))
-    read(nulbgst) vco_1Dvar%ip1_T(:), vco_1Dvar%ip1_M(:), bmat1D_varList(:)
+    allocate( includeAnlVarHi(bmat1D_numIncludeAnlVar) )
+    read(nulbgst) vco_1Dvar%ip1_T(:), vco_1Dvar%ip1_M(:), includeAnlVarHi(:)
+    if (any(includeAnlVarHi /= bmat1D_includeAnlVar)) then
+      do varIndex = 1, bmat1D_numIncludeAnlVar
+        write(*,*) varIndex, includeAnlVarHi(varIndex), bmat1D_includeAnlVar(varIndex)
+      end do
+      call utl_abort('bmat1D_setupBHi: incompatible 1DVar analyzed variable list in ' // trim(oneDBmatSea))
+    end if
+    deallocate(includeAnlVarHi)
     do locationIndex = 1, nLonLatPosSea
       read(nulbgst) latSea(locationIndex), lonSea(locationIndex), bMatrix(:,:)
       bSqrtSea(locationIndex, :, :) = bMatrix(:, :)
@@ -387,10 +417,6 @@ contains
       return
     end if
     
-    bmat1D_varCount = numIncludeAnlVar
-    allocate( bmat1D_varList(bmat1D_varCount) )
-    bmat1D_varList(1:bmat1D_varCount) = IncludeAnlVar(1:numIncludeAnlVar)
-
     !- 1.1 Number of time step bins
     numStep = tim_nstepobsinc
     if (numStep /= 1 .and. numStep /= 3.and. numStep /= 5 .and. numStep /= 7) then
@@ -577,12 +603,12 @@ contains
          hco_ens,  &
          vco_ens, dateStampList, &
          hco_core_opt = hco_in, &  ! to generalize later hco_in => hco_core
-         varNames_opt = includeAnlVar(1:numIncludeAnlVar), &
+         varNames_opt = bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar), &
          hInterpolateDegree_opt = hInterpolationDegree)
     write(*,*) 'Read ensemble members'
     call ens_readEnsemble(ensPerts, ensPathName, biPeriodic=.false.,       &
                           vco_file_opt = vco_ens,                          &
-                          varNames_opt = includeAnlVar(1:numIncludeAnlVar))
+                          varNames_opt = bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar))
     
     allocate( ensColumns(nEns))
     call gsv_allocate(stateVector, numstep, hco_ens, vco_ens, &
@@ -615,8 +641,8 @@ contains
     call gsv_deallocate(stateVectorMean)
 
     nkgdim = 0
-    do varIndex = 1, numIncludeAnlVar
-      currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1), varName_opt=bmat1D_varList(varIndex))
+    do varIndex = 1, bmat1D_numIncludeAnlVar
+      currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1), varName_opt=bmat1D_includeAnlVar(varIndex))
       nkgdim = nkgdim + size(currentProfile)
     end do
     write(*,*) 'bmat1D_setupBEns: nkgdim', nkgdim
@@ -625,13 +651,13 @@ contains
     allocate (levIndexFromVarLevIndex(nkgdim))
     allocate (varNameFromVarLevIndex(nkgdim))
     nkgdim = 0
-    do varIndex = 1, numIncludeAnlVar
+    do varIndex = 1, bmat1D_numIncludeAnlVar
       do levIndex = 1, size(currentProfile)
-        if ( trim( col_getVarNameFromK(meanColumn,levIndex) ) == trim( bmat1D_varList(varIndex) ) ) then
+        if ( trim( col_getVarNameFromK(meanColumn,levIndex) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
           nkgdim = nkgdim + 1
           levIndexFromVarLevIndex(nkgdim) = levIndex
-          varNameFromVarLevIndex(nkgdim) = trim( bmat1D_varList(varIndex) )
-          if (mpi_myId == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_varList ', bmat1D_varList(varIndex), nkgdim, levIndex
+          varNameFromVarLevIndex(nkgdim) = trim( bmat1D_includeAnlVar(varIndex) )
+          if (mpi_myId == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), nkgdim, levIndex
         end if
       end do
     end do
@@ -747,8 +773,8 @@ contains
         oneDProfile(:) = matmul(bSqrtLand(latitudeBandIndex(1), :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
       end if
       offset = 0
-      do varIndex = 1, bmat1D_varCount
-        currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_varList(varIndex))
+      do varIndex = 1, bmat1D_numIncludeAnlVar
+        currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_includeAnlVar(varIndex))
         currentColumn(:) = 0.d0
         currentColumn(:) = oneDProfile(offset+1:offset+size(currentColumn))
         offset = offset + size(currentColumn)
@@ -799,8 +825,8 @@ contains
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       offset = 0
-      do varIndex = 1, bmat1D_varCount
-        currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_varList(varIndex))
+      do varIndex = 1, bmat1D_numIncludeAnlVar
+        currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_includeAnlVar(varIndex))
         oneDProfile(offset+1:offset+size(currentColumn)) = currentColumn(:)
         offset = offset + size(currentColumn)
       end do
@@ -857,8 +883,8 @@ contains
       headerIndex = var1D_validHeaderIndex(columnIndex)
       oneDProfile(:) = matmul(bSqrtEns(headerIndex, :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
       offset = 0
-      do varIndex = 1, bmat1D_varCount
-        currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_varList(varIndex))
+      do varIndex = 1, bmat1D_numIncludeAnlVar
+        currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_includeAnlVar(varIndex))
         currentColumn(:) = 0.d0
         currentColumn(:) = oneDProfile(offset+1:offset+size(currentColumn))
         offset = offset + size(currentColumn)
@@ -905,8 +931,8 @@ contains
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       offset = 0
-      do varIndex = 1, bmat1D_varCount
-        currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_varList(varIndex))
+      do varIndex = 1, bmat1D_numIncludeAnlVar
+        currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_includeAnlVar(varIndex))
         oneDProfile(offset+1:offset+size(currentColumn)) = currentColumn(:)
         offset = offset + size(currentColumn)
       end do
