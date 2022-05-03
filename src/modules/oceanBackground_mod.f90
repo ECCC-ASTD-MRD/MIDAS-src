@@ -95,11 +95,8 @@ module oceanBackground_mod
     end do      	 
   
     ! modify dateStamp (from analysis) with trial dateStamp
-    call gsv_getInfo(stateVector, 'before modifying date')
     call gsv_modifyDate( stateVector, trialDateStamp, modify_dateo_opt = .true. )
     
-    call gsv_getInfo(stateVector, 'after modifying date')
-   
     ! save trial field
     call gsv_writeToFile(stateVector, './trial', etiket, typvar_opt = 'P@')
 
