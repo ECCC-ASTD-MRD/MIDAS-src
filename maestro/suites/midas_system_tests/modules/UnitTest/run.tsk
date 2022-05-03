@@ -48,7 +48,6 @@ export SEQ_NPEX=${SEQ_NPEX}
 export SEQ_NPEY=${SEQ_NPEY}
 
 export FOR_DUMP_CORE_FILE=${UnitTest_run_dump_core}
-export UCX_HANDLE_ERRORS=""
 EOF
 
 if [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
