@@ -196,7 +196,7 @@ module oceanObservations_mod
       deallocate(seaWaterFraction)
     end if  
     
-    write(*,*) 'myName: done'
+    write(*,*) 'oobs_pseudoSST: done'
     
   end subroutine oobs_pseudoSST
 
