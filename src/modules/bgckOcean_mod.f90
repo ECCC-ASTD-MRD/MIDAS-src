@@ -66,12 +66,13 @@ module bgckOcean_mod
     type(struct_hco)       , intent(in), pointer :: hco               ! horizontal trl grid
 
     ! Locals:
-    type(struct_gsv)            :: stateVector   ! state vector containing std B estimation field
-    integer                     :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
-    integer                     :: numberObs, numberObsRejected  
-    real(8)                     :: OER, OmP, FGE, bgCheck
-    logical                     :: llok
-    type(struct_columnData)     :: columnFGE
+    type(struct_gsv)        :: stateVector   ! state vector containing std B estimation field
+    integer                 :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
+    integer                 :: numberObs, numberObsRejected
+    integer                 :: numberObsInsitu, numberObsInsituRejected, codeType  
+    real(8)                 :: OER, OmP, FGE, bgCheck
+    logical                 :: llok
+    type(struct_columnData) :: columnFGE
     
     write(*,*) 'ocebg_bgCheckSST: performing background check for the SST data...'
     
@@ -112,6 +113,9 @@ module bgckOcean_mod
 
     numberObs = 0
     numberObsRejected = 0
+    numberObsInsitu = 0
+    numberObsInsituRejected = 0
+    
     do headerIndex = 1, obs_numheader(obsData)
       
       bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
@@ -123,19 +127,22 @@ module bgckOcean_mod
 	  FGE = col_getElem(columnFGE, 1, headerIndex, 'TM')
 	  OmP = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex)
           OER = obs_bodyElem_r(obsData, OBS_OER , bodyIndex)
-	    
+	  codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
+	   
 	  if (FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8) then 
 	    
 	    numberObs = numberObs + 1
+	    if (codeType /= codtyp_get_codtyp('satob')) numberObsInsitu = numberObsInsitu + 1
 	    call obs_bodySet_r(obsData, OBS_HPHT, bodyIndex, FGE)
 	    bgCheck = (OmP)**2 / (FGE**2 + OER**2)
 	    obsFlag = ocebg_setFlag(obsVarno, bgCheck)
 	
             if (obsFlag >= 2) then
               numberObsRejected = numberObsRejected + 1
-	      write(*,'(a,i7,a,i7)')'ocebg_bgCheckSST:*********** ', numberObsRejected, ', header index: ', headerIndex
-	      write(*,'(a)') 'ocebg_bgCheckSST: rejected '//obs_elem_c(obsData, 'STID' , headerIndex)//' data:'
-	      write(*,'(a,i5,a,4f10.4)') 'ocebg_bgCheckSST: codtype: ', obs_headElem_i(obsData, obs_ity, headerIndex), &
+	      if (codeType /= codtyp_get_codtyp('satob')) numberObsInsituRejected = numberObsInsituRejected + 1
+	      write(*,'(a,i7,a,i7,a)')'ocebg_bgCheckSST: ********** reject: ', numberObsRejected, ', header index: ', headerIndex, &
+                                    obs_elem_c(obsData, 'STID' , headerIndex)//' data: '
+	      write(*,'(a,i5,a,4f10.4)') 'ocebg_bgCheckSST: codtype: ', codeType, &
               ', lon/lat/obs.value/OmP: ', &
               obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
               obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
@@ -167,7 +174,11 @@ module bgckOcean_mod
     if (numberObs > 0) then
       write(*,*)' '
       write(*,*) 'ocebg_bgCheckSST: background check of TM data is computed'
-      write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST:   ', numberObsRejected, ' observations out of ', numberObs,' rejected'
+      write(*,*) '***************************************************************************************'
+      write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST: total ', numberObsRejected, ' observations out of (ALL) ', numberObs,' rejected'
+      write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST: where ', numberObsInsituRejected, ' insitu observations out of ', &
+                                numberObsInsitu,' insitu obs. rejected'
+      write(*,*) '***************************************************************************************'
       write(*,*)' '
     end if
     
