@@ -64,7 +64,7 @@ module gridStateVector_mod
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
   public :: gsv_applyMaskLAM, gsv_tInterpolate, gsv_containsNonZeroValues
   public :: gsv_isAllocated
-  public :: gsv_modifydate, gsv_transposesteptovarslevs
+  public :: gsv_transposesteptovarslevs
 
   ! public module variables
   public :: gsv_conversionVarKindCHtoMicrograms
