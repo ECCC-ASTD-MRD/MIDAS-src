@@ -1171,21 +1171,21 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_modifyDate
   !--------------------------------------------------------------------------
-  subroutine gsv_modifyDate(statevector, dateStamp, modify_dateo_opt)
+  subroutine gsv_modifyDate(statevector, dateStamp, modifyDateOrigin_opt)
   
     implicit none
   
     ! Arguments
     type(struct_gsv), intent(inout)        :: statevector
     integer         , intent(in)           :: dateStamp
-    logical         , intent(in), optional :: modify_dateo_opt         
+    logical         , intent(in), optional :: modifyDateOrigin_opt         
 
     if (statevector%numStep == 1) then
       statevector%dateStampList(1) = dateStamp
-      if(present(modify_dateo_opt)) statevector%dateOriginList(1) = dateStamp 
+      if(present(modifyDateOrigin_opt)) statevector%dateOriginList(1) = dateStamp 
     else
       call tim_getstamplist(statevector%dateStampList, statevector%numStep, dateStamp)
-      if(present(modify_dateo_opt)) call tim_getstamplist(statevector%dateOriginList, statevector%numStep, dateStamp)
+      if(present(modifyDateOrigin_opt)) call tim_getstamplist(statevector%dateOriginList, statevector%numStep, dateStamp)
     end if
     statevector%dateStamp3d => statevector%dateStampList(statevector%anltime)
 
