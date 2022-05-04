@@ -90,7 +90,7 @@ module SSTbias_mod
     integer         , parameter :: numberProducts = 2  ! day and night
     character(len=*), parameter :: listProducts(numberProducts)= (/'day', 'night'/)
 
-    write(*,*) 'Starting sstb_computeBias...'
+    write(*,*) 'sstb_computeBias: Starting...'
     write(*,*) 'sstb_computeBias: Sea-ice Fraction threshold: ', iceFractionThreshold
     
     ! get mpi topology
@@ -112,8 +112,8 @@ module SSTbias_mod
     numberOpenWaterPoints = 0
     mask(:, :) = .false.
     openWater(:, :) = .false.
-    do lonIndex = 1, hco % ni
-      do latIndex = 1, hco % nj
+    do latIndex = 1, hco % nj
+      do lonIndex = 1, hco % ni
         if (oceanMask%mask(lonIndex, latIndex, 1)) then
           mask(lonIndex, latIndex) = .true.
           if (seaice_ptr(lonIndex, latIndex, 1) <= iceFractionThreshold) then
@@ -142,6 +142,8 @@ module SSTbias_mod
                                  numberPointsBG, trim(listProducts(productIndex)), dateStamp)
       end do
     end do
+   
+    write(*,*) 'sstb_computeBias: Finished.'
   
   end subroutine sstb_computeBias
   
@@ -166,7 +168,7 @@ module SSTbias_mod
     
     ! locals
     integer, parameter          :: maxPointsSearch = 200000
-    real, parameter             :: solarZenithThreshold = 90.0      ! to distinguish day and night
+    real(4), parameter          :: solarZenithThreshold = 90.0      ! to distinguish day and night
     type(kdtree2), pointer      :: tree => null() 
     real(kdkind), allocatable   :: positionArray(:,:)
     type(kdtree2_result)        :: searchResults(maxPointsSearch)
@@ -266,8 +268,8 @@ module SSTbias_mod
       write(*, "(a, f5.1, a)") 'sstb_getGriddedObs: Collocation radius: ', searchRadius, ' km'
       searchRadiusSquared = (1.1d0 * searchRadius * 1000.d0)**2 ! convert from km to m2
 
-      do lonIndex = 1, hco % ni 
-        do latIndex = 1, hco % nj
+      do latIndex = 1, hco % nj
+        do lonIndex = 1, hco % ni 
 
           ! compute gridded obs for every open water point
           if (openWater(lonIndex, latIndex) == .true.) then 
@@ -350,7 +352,7 @@ module SSTbias_mod
     integer         , intent(in)             :: dateStamp            ! dateStamp to put into fstd file with bias estimation
         
     ! locals
-    real, parameter             :: solarZenithThreshold = 90.0       ! to distinguish day and night
+    real(4), parameter          :: solarZenithThreshold = 90.0       ! to distinguish day and night
     type(kdtree2), pointer      :: tree => null() 
     real(kdkind), allocatable   :: positionArray(:,:)
     integer, parameter          :: maxPointsSearch = 200000    
@@ -386,8 +388,8 @@ module SSTbias_mod
     call lfn_setup('FifthOrder')
     
     indexCounter = 0
-    do lonIndex = 1, hco % ni 
-      do latIndex = 1, hco % nj
+    do latIndex = 1, hco % nj
+      do lonIndex = 1, hco % ni 
     
         if (openWater(lonIndex, latIndex) == .true.) then
 
@@ -429,8 +431,8 @@ module SSTbias_mod
     ! do the search
     write(*,*) 'sstb_getGriddedBias: do the search for '//trim(sensor)//' '//trim(dayOrNight)//'...' 
 
-    do lonIndex = myLonBeg, myLonEnd 
-      do latIndex = myLatBeg, myLatEnd
+    do latIndex = myLatBeg, myLatEnd
+      do lonIndex = myLonBeg, myLonEnd 
     
         griddedBias_r4_ptr(lonIndex, latIndex, 1) = 0.0d0
         numberPoints = 0.0d0
@@ -509,9 +511,9 @@ module SSTbias_mod
     integer                , intent(in)          :: numObsBatches     ! number of batches for calling interp setup
 
     ! locals
-    real, parameter              :: solarZenithThreshold = 90.0 ! to distinguish day and night
-    integer                      :: bodyIndex, headerIndex
-    real(8)                      :: currentObs
+    real(4), parameter :: solarZenithThreshold = 90.0 ! to distinguish day and night
+    integer            :: bodyIndex, headerIndex
+    real(8)            :: currentObs
 
     write(*,*)
     write(*,*) 'sstb_getBiasCorrection: computing bias correction for ', sensor, ' ', dayOrNight, 'time ************'
@@ -559,7 +561,7 @@ module SSTbias_mod
     type(struct_obs)       , intent(inout)          :: obsData ! obsSpaceData
     type(struct_hco)       , intent(inout), pointer :: hco     ! horizontal grid structure
     type(struct_vco)       , intent(in)   , pointer :: vco     ! vertical grid structure
-    type(struct_columnData), intent(inout)          :: column  ! column data 
+    type(struct_columnData), intent(in)             :: column  ! column data 
 
     ! locals
     type(struct_gsv)            :: stateVector  

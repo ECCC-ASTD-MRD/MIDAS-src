@@ -82,14 +82,16 @@ module sqliteFiles_mod
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
     call rpn_comm_allreduce(validDate, validDateRecv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
     call rpn_comm_allreduce(validTime, validTimeRecv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
-    validDate = validDateRecv
-    validTime = validTimeRecv
+    
+    if (validDateRecv == MPC_missingValue_INT .or. validTimeRecv == MPC_missingValue_INT) then
+      call utl_abort('sqlf_getDateStamp: Error in getting valid date and time!')
+    end if
     
     ! printable to stamp, validTime must be multiplied with 1e6 to make newdate work
     imode = 3
-    ier = newdate(dateStamp, validDate, validTime * 1000000, imode)
-    write(*,*)'sqlf_getDateStamp: SQLite files valid date (YYYYMMDD): ', validDate
-    write(*,*)'sqlf_getDateStamp: SQLite files valid time       (HH): ', validTime
+    ier = newdate(dateStamp, validDateRecv, validTimeRecv * 1000000, imode)
+    write(*,*)'sqlf_getDateStamp: SQLite files valid date (YYYYMMDD): ', validDateRecv
+    write(*,*)'sqlf_getDateStamp: SQLite files valid time       (HH): ', validTimeRecv
     write(*,*)'sqlf_getDateStamp: SQLite files dateStamp            : ', datestamp
 
   end subroutine sqlf_getDateStamp
