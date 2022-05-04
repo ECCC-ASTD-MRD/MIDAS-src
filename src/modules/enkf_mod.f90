@@ -757,7 +757,7 @@ contains
             end do
 
             ! Compute ensemble perturbation weights: 
-            ! Wa = [ I - (Nens-1)^1/2 * E * 
+            ! Wa = [ - (Nens-1)^1/2 * E *
             !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
             !        E^T * YbTinvRYb_mod ]
             ! Loop over sub-ensembles
@@ -828,7 +828,7 @@ contains
             do memberIndex = 1, nEnsUsed
               weightsMembersLatLon(memberIndex,:,latLonIndex) =  &
                    weightsMembersLatLon(memberIndex,:,latLonIndex) - &
-                   sum(weightsMembersLatLon(memberIndex,:,latLonIndex))/real(nEnsUsed,8)
+                   sum(weightsMembersLatLon(memberIndex,:,latLonIndex))/real(nEns,8)
             end do
 
           else if (trim(algorithm) == 'CVLETKF-PERTOBS') then
@@ -1202,7 +1202,7 @@ contains
 
                   ! Compute final member perturbations by removing background original ensemble perturbations
                   memberAnlPert(memberIndex2) = (memberTrl_ptr_r4(memberIndex2,stepIndex,lonIndex,latIndex) -  &
-                                                 meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)) - &
+                                                 meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)) + &
                                                  memberAnlPert(memberIndex2)
 
                 end do ! memberIndex2
