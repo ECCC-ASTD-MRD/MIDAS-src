@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Add allsky cases for sql diagnostic files (#500 and !471)
+ * Add ability to include FSO in diagnostic sqlite files (#487 and !463)
+    * should no longer be in burp files
 
 ### Changed
 
