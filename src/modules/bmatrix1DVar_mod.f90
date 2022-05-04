@@ -402,7 +402,7 @@ contains
     character(len=4), pointer :: varNames(:)
     real(8) :: logP1, logP2
     real(8), pointer :: currentProfile(:), meanProfile(:)
-    real(8), allocatable :: lineVector(:,:), meanPressureProfile(:)
+    real(8), allocatable :: lineVector(:,:), meanPressureProfile(:), multFactor(:)
     integer, allocatable :: levIndexFromVarLevIndex(:)
     character(len=4), allocatable :: varNameFromVarLevIndex(:)
     character(len=2) :: varLevel
@@ -652,13 +652,27 @@ contains
     currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1) )
     allocate (levIndexFromVarLevIndex(nkgdim))
     allocate (varNameFromVarLevIndex(nkgdim))
+    allocate (multFactor(nkgdim))
     varLevIndex = 0
     do varIndex = 1, bmat1D_numIncludeAnlVar
+      levIndex1 = 0
       do levIndex = 1, size(currentProfile)
         if ( trim( col_getVarNameFromK(meanColumn,levIndex) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
           varLevIndex = varLevIndex + 1
+          levIndex1 = levIndex1 + 1
           levIndexFromVarLevIndex(varLevIndex) = levIndex
           varNameFromVarLevIndex(varLevIndex) = trim( bmat1D_includeAnlVar(varIndex) )
+          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndex(varLevIndex))
+          if ( varLevel == 'MM' ) then      ! Momentum
+            multFactor(varLevIndex) = scaleFactor_M(levIndex1)
+          else if ( varLevel == 'TH' ) then ! Thermo
+            multFactor(varLevIndex) = scaleFactor_T(levIndex1)
+          else                              ! SF
+            multFactor(varLevIndex) = scaleFactor_SF
+          end if
+          if (varNameFromVarLevIndex(varLevIndex) == 'HU') then
+            multFactor(varLevIndex) = multFactor(varLevIndex) * scaleFactorEnsHumidity(levIndex1)
+          end if
           if (mpi_myId == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndex, levIndex
         end if
       end do
@@ -676,6 +690,7 @@ contains
       do memberIndex = 1, nEns
         currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex)
         lineVector(1,:) = currentProfile(levIndexFromVarLevIndex(:)) - meanProfile(levIndexFromVarLevIndex(:))
+        lineVector(1,:) = lineVector(1,:) * multFactor(:)
         bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) + &
             matmul(transpose(lineVector),lineVector)
       end do
@@ -683,6 +698,7 @@ contains
     !$OMP END PARALLEL DO
 
     deallocate(lineVector)
+    deallocate(multFactor)
     allocate(meanPressureProfile(nkgdim))
     call lfn_Setup('FifthOrder')
 
