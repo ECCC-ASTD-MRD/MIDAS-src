@@ -379,7 +379,9 @@ module SSTbias_mod
     if (dayOrNight == 'day') then
       extension = 'D'
     else if (dayOrNight == 'night') then
-      extension = 'N'
+      extension = 'N'	  
+    else  
+      call utl_abort('sstb_getGriddedBias: wrong extension: '//trim(extension)) 
     end if  
     
     allocate(positionArray(3, numberOpenWaterPoints))
@@ -565,7 +567,6 @@ module SSTbias_mod
 
     ! locals
     type(struct_gsv)            :: stateVector  
-    real(4), pointer            :: stateVector_ptr(:, :, :)
     real(8)                     :: searchRadius             ! namelist variable, is not used in this subroutine
     real(4)                     :: maxBias                  ! namelist variable, is not used in this subroutine 
     real(4)                     :: iceFractionThreshold     ! namelist variable, is not used in this subroutine
@@ -620,11 +621,12 @@ module SSTbias_mod
           extension = 'D'
         else if (trim(listProducts(productIndex)) == 'night') then
           extension = 'N'
+	else
+	  call utl_abort('sstb_applySatelliteSSTBiasCorrection: wrong extension: '//trim(extension)) 
         end if
 	
         call gsv_readFromFile(stateVector, biasFileName, 'B_'//trim(sensorList(sensorIndex))//'_'//extension, &
                               'R', unitConversion_opt=.false., containsFullField_opt=.true.)
-        call gsv_getField(stateVector, stateVector_ptr)
         call sstb_getBiasCorrection(stateVector, column, obsData, hco, trim(sensorList(sensorIndex)), &
                                     trim(listProducts(productIndex)), timeInterpType_nl, numObsBatches)
       end do

@@ -176,8 +176,9 @@ program midas_obsSelection
   ! Apply optional bias corrections
   call bcc_applyAIBcor(obsSpaceData)    
   call bcc_applyGPBcor(obsSpaceData)
-  if (obs_famExist(obsSpaceData, 'TM')) &
+  if (obs_famExist(obsSpaceData, 'TM')) then
     call sstb_applySatelliteSSTBiasCorrection(obsSpaceData, hco_anl, vco_anl, columnTrlOnAnlIncLev)
+  end if  
   
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
