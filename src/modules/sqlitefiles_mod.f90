@@ -52,12 +52,12 @@ module sqliteFiles_mod
     implicit none
     
     ! arguments
-    integer         , intent(inout) :: dateStamp
-    character(len=*), intent(in)    :: sqliteFileName
+    integer         , intent(out) :: dateStamp
+    character(len=*), intent(in)  :: sqliteFileName
     
     ! locals
     logical             :: fileExists 
-    integer             :: ier, imode, validTime, validDate, validDate_recv, validTime_recv
+    integer             :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
     integer             :: newdate
     character(len=128)  :: querySqlite
     character(len=256)  :: datetimeSqliteCharacter 
@@ -80,10 +80,10 @@ module sqliteFiles_mod
     end if
 
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
-    call rpn_comm_allreduce(validDate, validDate_recv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
-    call rpn_comm_allreduce(validTime, validTime_recv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
-    validDate = validDate_recv
-    validTime = validTime_recv
+    call rpn_comm_allreduce(validDate, validDateRecv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
+    call rpn_comm_allreduce(validTime, validTimeRecv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
+    validDate = validDateRecv
+    validTime = validTimeRecv
     
     ! printable to stamp, validTime must be multiplied with 1e6 to make newdate work
     imode = 3
