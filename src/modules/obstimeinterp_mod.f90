@@ -174,8 +174,8 @@ contains
   end subroutine oti_timeBinning
 
 
-  subroutine oti_setup( oti, obsSpaceData, numStep, headerIndexBeg, headerIndexEnd, &
-                        interpType_opt, flagObsOutside_opt )
+  subroutine oti_setup(oti, obsSpaceData, numStep, headerIndexBeg, headerIndexEnd, &
+                       interpType_opt, flagObsOutside_opt)
     !
     implicit none
 
@@ -189,10 +189,10 @@ contains
     logical, optional          :: flagObsOutside_opt
 
     ! Locals:
-    integer       :: headerIndex
-    real(8)       :: stepObsIndex
-    integer, save :: numWrites = 0
-
+    integer             :: headerIndex
+    real(8)             :: stepObsIndex
+    integer, save       :: numWrites = 0
+    
     if ( associated(oti) ) then
       call utl_abort('oti_setup: the supplied oti pointer is not null!')
     endif
@@ -225,19 +225,28 @@ contains
       call tim_getStepObsIndex(stepObsIndex,tim_getDatestamp(),  &
                                obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex),  &
                                obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex), numStep)
+      
       ! leave all weights zero if obs time is out of range, otherwise set weights
-
-      if ( .not.tim_fullyUseExtremeTimeBins .and. (ceiling(stepObsIndex) > numStep .or. floor(stepObsIndex) < 1) ) then
+      if (.not.tim_fullyUseExtremeTimeBins .and. (ceiling(stepObsIndex) > numStep .or. floor(stepObsIndex) < 1)) then
         numWrites = numWrites + 1
         if (numWrites < maxNumWrites) then
-          write(*,*) 'oti_setup: observation outside time window, headerIndex =', headerIndex, stepObsIndex
+          write(*,'(a,i10,f8.2,i7,2a,i10,i6)') 'oti_setup: observation outside time window, headerIndex =', &
+                                               headerIndex, stepObsIndex, &
+                                               obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex), ' ', &
+                                               obs_elem_c    (obsSpaceData, 'STID' , headerIndex), &
+                                               obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex), &
+                                               obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)  
         else if (numWrites == maxNumWrites) then
           write(*,*) 'oti_setup: More obs outside time window, but reached maximum number of writes to the listing.'
         end if
-      else if ( tim_fullyUseExtremeTimeBins .and. (nint(stepObsIndex) > numStep .or. nint(stepObsIndex) < 1) ) then
+      else if (tim_fullyUseExtremeTimeBins .and. (nint(stepObsIndex) > numStep .or. nint(stepObsIndex) < 1)) then
         numWrites = numWrites + 1
         if (numWrites < maxNumWrites) then
-          write(*,*) 'oti_setup: observation outside time window, headerIndex =', headerIndex
+          write(*,'(a,2i,2a,i10,i6)') 'oti_setup: observation outside time window, headerIndex =',headerIndex, &
+                                      obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex), ' ', &
+                                      obs_elem_c    (obsSpaceData, 'STID' , headerIndex), &
+                                      obs_headElem_i(obsSpaceData,OBS_DAT,headerIndex), &
+                                      obs_headElem_i(obsSpaceData,OBS_ETM,headerIndex)  
         else if (numWrites == maxNumWrites) then
           write(*,*) 'oti_setup: More obs outside time window, but reached maximum number of writes to the listing.'
         end if
@@ -245,8 +254,8 @@ contains
         if (numStep == 1) then
           call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, 1)
         else
-          if ( trim(interpType_opt) == 'LINEAR' ) then
-            if ( stepObsIndex >= real(numStep,8) ) then
+          if (trim(interpType_opt) == 'LINEAR') then
+            if (stepObsIndex >= real(numStep,8)) then
               ! special case not handled by general approach
               call oti_setTimeInterpWeight(oti, 1.0d0, headerIndex, numStep)
             else

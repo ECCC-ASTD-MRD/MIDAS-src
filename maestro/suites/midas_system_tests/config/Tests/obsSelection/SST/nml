@@ -1,8 +1,7 @@
  &NAMTIME
-  DSTEPOBS    = 24.0d0
-  DSTEPOBSINC = 24.0d0
-  DWINDOWSIZE = 24.0d0
-  referenceTime="start"
+  DSTEPOBS    = 48.0d0
+  DSTEPOBSINC = 48.0d0
+  DWINDOWSIZE = 48.0d0
 /
  &NAMSTATE
   ANLVAR(1) = 'TM'
@@ -27,12 +26,20 @@
    listElem='22042'
    sqlNull=' and obsvalue is not null '  
 / 
-&namReadSSTSat
+ &namReadSSTSat
    numberElem=1
    listElem='22042'
    sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","NOAA18","NOAA19","NPP","AMSR2")) '
    sqlNull=' and obsvalue is not null '
    sqlExtraHeader=' id_stn in ("METO-A","METO-B","NOAA18","NOAA19","NPP","AMSR2") '
+/ 
+ &namSSTbiasEstimate
+   numberSensors = 5
+   sensorList(1)='AMSR2'
+   sensorList(2)='METO-B'
+   sensorList(3)='METO-A'
+   sensorList(4)='NOAA19'
+   sensorList(5)='NPP'
 /
  &namSQLUpdate
   numberUpdateItems=3

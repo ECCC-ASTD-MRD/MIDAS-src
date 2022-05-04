@@ -114,6 +114,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * Retrocompatibility maintained until next release
 
 ### Fixed
+ * SST-analysis related bugs (#635 and !595)
  * Fix bug of inconsistent ID_REPORT column in the MIDAS_HEADER_OUTPUT ObsDB table (#637 and !592)
  * Fix use of `sqlExtraHeader` for filtering the reading of SQLite obs (#630 and !588)
  * Fix wind vector rotation to avoid abort when grid point is at the equator (#567 and !564)

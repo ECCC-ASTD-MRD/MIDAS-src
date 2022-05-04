@@ -73,27 +73,15 @@ program midas_sstBias
  
   ! Do initial set up
   call tmg_start(2,'SETUP')
-  call SSTbias_setup( 'VAR', dateStamp ) ! obsColumnMode
+  call SSTbias_setup('VAR') ! obsColumnMode
   call tmg_stop(2)
   
-  call sstb_computeBias( obsSpaceData, hco_anl, vco_anl, iceFractionThreshold, searchRadius, &
-                         column, numberSensors, sensorList, dateStamp, maxBias, numberPointsBG, &
-                         timeInterpType_nl, numObsBatches )
+  call sstb_computeBias(obsSpaceData, hco_anl, vco_anl, iceFractionThreshold, searchRadius, &
+                        numberSensors, sensorList, maxBias, numberPointsBG, dateStamp)
 			 
-  ! Now write out the observation data files
-  if ( .not. obsf_filesSplit() ) then 
-    write(*,*) 'We read/write global observation files'
-    call obs_expandToMpiGlobal(obsSpaceData)
-    if (mpi_myid == 0) call obsf_writeFiles(obsSpaceData)
-  else
-    ! redistribute obs data to how it was just after reading the files
-    call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
-    call obsf_writeFiles(obsSpaceData)
-  end if
-
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
-  call col_deallocate( column )
+  call col_deallocate(column)
 
   ! 3. Job termination
 
@@ -101,13 +89,13 @@ program midas_sstBias
 
   call tmg_stop(1)
 
-  call tmg_terminate(mpi_myid, 'TMG_SSTbias' )
+  call tmg_terminate(mpi_myid, 'TMG_SSTbias')
 
   call rpn_comm_finalize(ierr) 
 
   contains
 
-  subroutine SSTbias_setup( obsColumnMode, dateStamp )
+  subroutine SSTbias_setup(obsColumnMode)
     !
     ! :Purpose:  Control of the preprocessing of bias estimation
     !
@@ -115,11 +103,9 @@ program midas_sstBias
     implicit none
     !Arguments:
     character(len=*), intent(in)  :: obsColumnMode
-    integer         , intent(out) :: dateStamp
     
     !Locals:	
     type(struct_hco), pointer   :: hco_core => null()
-    character(len=*), parameter :: myName = 'SSTbias_setup'
     character(len=*), parameter :: gridFile = './analysisgrid'
     integer                     :: sensorIndex
     namelist /namSSTbiasEstimate/ searchRadius, maxBias, iceFractionThreshold, numberPointsBG, &
@@ -127,19 +113,21 @@ program midas_sstBias
     
     write(*,*) ''
     write(*,*) '-------------------------------------------------'
-    write(*,*) '-- Starting subroutine '//myName//' --'
+    write(*,*) '-- Starting subroutine SSTbias_setup --'
     write(*,*) '-------------------------------------------------'
 
     !
     !- Initialize the Temporal grid
     !
-    call tim_setup( gridFile )
+    call tim_setup
 
     !     
-    !- Initialize observation file names and set datestamp
+    !- Initialize observation file names and set dateStamp
     !
-    call obsf_setup( dateStamp, varMode )
-
+    call obsf_setup(dateStamp, varMode)
+    if (dateStamp <= 0) then
+      call utl_abort('SSTbias_setup: Problem getting dateStamp from observation file')
+    end if
 
     ! Setting default namelist variable values
     searchRadius = 10.            
@@ -153,20 +141,18 @@ program midas_sstBias
     
     ! Read the namelist
     nulnam = 0
-    ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
-    read( nulnam, nml = namSSTbiasEstimate, iostat = ierr )
-    if ( ierr /= 0) call utl_abort( myName//': Error reading namelist')
-    if ( mpi_myid == 0 ) write(*, nml = namSSTbiasEstimate )
+    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    read(nulnam, nml = namSSTbiasEstimate, iostat = ierr )
+    if (ierr /= 0) call utl_abort('SSTbias_setup: Error reading namelist')
+    if (mpi_myid == 0) write(*, nml = namSSTbiasEstimate)
     ierr = fclos( nulnam )
 
-    if ( numberSensors == 0) call utl_abort( myName//': Number of sensors to treat is not defined!!!')
+    if (numberSensors == 0) call utl_abort('SSTbias_setup: Number of sensors to treat is not defined!')
     write(*,*)''
-    write(*,*) myName//': sensors to treat: '
+    write(*,*) 'SSTbias_setup: sensors to treat: '
     do sensorIndex = 1, numberSensors
-      write(*,*) myName//': sensor index: ', sensorIndex, ', sensor: ', sensorList( sensorIndex )
+      write(*,*) 'SSTbias_setup: sensor index: ', sensorIndex, ', sensor: ', sensorList( sensorIndex )
     end do
-    write(*,*) myName//': interpolation type: ', timeInterpType_nl
-    write(*,*) myName//': number obs batches: ', numObsBatches
        
     !
     !- Initialize constants
@@ -183,14 +169,14 @@ program midas_sstBias
     !- Initialize the Analysis grid
     !
     if(mpi_myid == 0) write(*,*)''
-    if(mpi_myid == 0) write(*,*) myName//': Set hco parameters for analysis grid'
+    if(mpi_myid == 0) write(*,*) 'SSTbias_setup: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, gridFile, 'GRID' ) ! IN
 
     if ( hco_anl % global ) then
       call agd_SetupFromHCO( hco_anl ) ! IN
     else
       !- Initialize the core (Non-Extended) analysis grid
-      if(mpi_myid == 0) write(*,*) myName//': Set hco parameters for core grid'
+      if(mpi_myid == 0) write(*,*) 'SSTbias_setup: Set hco parameters for core grid'
       call hco_SetupFromFile( hco_core, gridFile, 'COREGRID', 'AnalysisCore' ) ! IN
       !- Setup the LAM analysis grid metrics
       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
@@ -199,10 +185,10 @@ program midas_sstBias
     !     
     !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
     !
-    call vco_SetupFromFile( vco_anl, & ! OUT
-                            gridFile ) ! IN
+    call vco_SetupFromFile(vco_anl, & ! OUT
+                           gridFile ) ! IN
 
-    call col_setVco( column, vco_anl )
+    call col_setVco(column, vco_anl)
     !
     !- Setup and read observations
     !
@@ -213,9 +199,9 @@ program midas_sstBias
     call col_setup
 
     !- Memory allocation for background column data
-    call col_allocate( column, obs_numHeader( obsSpaceData ), mpiLocal_opt = .true. )
+    call col_allocate(column, obs_numHeader(obsSpaceData), mpiLocal_opt = .true.)
 
-    if(mpi_myid == 0) write(*,*) myName//': done.'
+    if(mpi_myid == 0) write(*,*) 'SSTbias_setup: done.'
     
   end subroutine SSTbias_setup
 

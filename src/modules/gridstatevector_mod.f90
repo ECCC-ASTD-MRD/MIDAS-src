@@ -45,7 +45,7 @@ module gridStateVector_mod
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
   public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK, gsv_getMpiIdFromK, gsv_hPad
-  public :: gsv_modifyVarName
+  public :: gsv_modifyVarName, gsv_modifyDate
   public :: gsv_hInterpolate, gsv_hInterpolate_r4, gsv_vInterpolate, gsv_vInterpolate_r4
   public :: gsv_transposeTilesToStep, gsv_transposeStepToTiles, gsv_transposeTilesToMpiGlobal
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd
@@ -63,7 +63,7 @@ module gridStateVector_mod
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
   public :: gsv_applyMaskLAM, gsv_tInterpolate, gsv_containsNonZeroValues
   public :: gsv_isAllocated
-  public :: gsv_modifydate, gsv_transposesteptovarslevs
+  public :: gsv_transposesteptovarslevs
 
   ! public module variables
   public :: gsv_conversionVarKindCHtoMicrograms
@@ -1170,15 +1170,21 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_modifyDate
   !--------------------------------------------------------------------------
-  subroutine gsv_modifyDate(statevector,dateStamp)
+  subroutine gsv_modifyDate(statevector, dateStamp, modifyDateOrigin_opt)
+  
     implicit none
-    type(struct_gsv) :: statevector
-    integer          :: dateStamp
+  
+    ! Arguments
+    type(struct_gsv), intent(inout)        :: statevector
+    integer         , intent(in)           :: dateStamp
+    logical         , intent(in), optional :: modifyDateOrigin_opt         
 
     if (statevector%numStep == 1) then
       statevector%dateStampList(1) = dateStamp
+      if(present(modifyDateOrigin_opt)) statevector%dateOriginList(1) = dateStamp 
     else
-      call tim_getstamplist(statevector%dateStampList,statevector%numStep,dateStamp)
+      call tim_getstamplist(statevector%dateStampList, statevector%numStep, dateStamp)
+      if(present(modifyDateOrigin_opt)) call tim_getstamplist(statevector%dateOriginList, statevector%numStep, dateStamp)
     end if
     statevector%dateStamp3d => statevector%dateStampList(statevector%anltime)
 
