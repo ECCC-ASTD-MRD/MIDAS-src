@@ -23,6 +23,7 @@ module bmatrix1DVar_mod
   use columnVariableTransforms_mod
   use controlVector_mod
   use gridStatevector_mod
+  use gridstatevectorFileIO_mod
   use horizontalCoord_mod
   use mpi_mod 
   use obsSpaceData_mod
@@ -447,7 +448,7 @@ contains
            hInterpolateDegree_opt='LINEAR', &
            dataKind_opt=4, &
            dateStamp_opt=tim_getDateStamp(), beSilent_opt=.false.)
-      call gsv_readFromFile(stateVector, ensFileName, '', '')
+      call gio_readFromFile(stateVector, ensFileName, '', '')
       call gsv_varNamesList(varNames, stateVector)
       write(*,*) 'bmat1D_setupBEns: variable names : ', varNames
     end if
