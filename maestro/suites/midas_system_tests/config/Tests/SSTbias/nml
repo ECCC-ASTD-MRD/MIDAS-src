@@ -46,8 +46,6 @@
    sqlExtraHeader=' id_stn in ("METO-A","METO-B","NOAA18","NOAA19","NPP","AMSR2") '
 /
  &namSQLUpdate
-  numberUpdateItems=1
-  itemUpdateList(1)='COR'
 /
  &namSQLInsert
 /

@@ -79,17 +79,6 @@ program midas_sstBias
   call sstb_computeBias(obsSpaceData, hco_anl, vco_anl, iceFractionThreshold, searchRadius, &
                         numberSensors, sensorList, maxBias, numberPointsBG, dateStamp)
 			 
-  ! Now write out the observation data files
-  if (.not. obsf_filesSplit()) then 
-    write(*,*) 'We read/write global observation files'
-    call obs_expandToMpiGlobal(obsSpaceData)
-    if (mpi_myid == 0) call obsf_writeFiles(obsSpaceData)
-  else
-    ! redistribute obs data to how it was just after reading the files
-    call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
-    call obsf_writeFiles(obsSpaceData)
-  end if
-
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
   call col_deallocate(column)
