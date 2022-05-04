@@ -45,8 +45,7 @@ module gridStateVector_mod
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
   public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK, gsv_getMpiIdFromK, gsv_hPad
-  public :: gsv_writeToFile, gsv_readTrials, gsv_readFile
-  public :: gsv_fileUnitsToStateUnits, gsv_modifyVarName, gsv_modifyDate
+  public :: gsv_modifyVarName, gsv_modifyDate
   public :: gsv_hInterpolate, gsv_hInterpolate_r4, gsv_vInterpolate, gsv_vInterpolate_r4
   public :: gsv_transposeTilesToStep, gsv_transposeStepToTiles, gsv_transposeTilesToMpiGlobal
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd

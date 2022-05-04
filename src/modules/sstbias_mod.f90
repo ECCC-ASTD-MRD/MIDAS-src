@@ -101,7 +101,7 @@ module SSTbias_mod
     call gsv_allocate(stateVector_ice, 1, hco, vco, dataKind_opt = 4, &
                       datestamp_opt = -1, mpi_local_opt = .false.,    &
                       varNames_opt = (/'LG'/), hInterpolateDegree_opt ='LINEAR')
-    call gsv_readFromFile(stateVector_ice, './seaice_analysis', ' ','A', &
+    call gio_readFromFile(stateVector_ice, './seaice_analysis', ' ','A', &
                            unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_ice, seaice_ptr)
     
@@ -413,14 +413,14 @@ module SSTbias_mod
     ! get search radius field
     call gsv_allocate(stateVector_searchRadius, 1, hco, vco, dataKind_opt = 4, &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
-    call gsv_readFromFile(stateVector_searchRadius, './searchRadius', 'RADIUS','A', &
+    call gio_readFromFile(stateVector_searchRadius, './searchRadius', 'RADIUS','A', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_searchRadius, searchRadius_ptr)    
 
     ! previous bias estimation
     call gsv_allocate(stateVector_previous, 1, hco, vco, dataKind_opt = 4, &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
-    call gsv_readFromFile(stateVector_previous, './trlm_01', 'B_'//sensor//'_'//extension, &
+    call gio_readFromFile(stateVector_previous, './trlm_01', 'B_'//sensor//'_'//extension, &
                           'R', unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_previous, griddedBias_r4_previous_ptr) 
        
@@ -625,7 +625,7 @@ module SSTbias_mod
 	  call utl_abort('sstb_applySatelliteSSTBiasCorrection: wrong extension: '//trim(extension)) 
         end if
 	
-        call gsv_readFromFile(stateVector, biasFileName, 'B_'//trim(sensorList(sensorIndex))//'_'//extension, &
+        call gio_readFromFile(stateVector, biasFileName, 'B_'//trim(sensorList(sensorIndex))//'_'//extension, &
                               'R', unitConversion_opt=.false., containsFullField_opt=.true.)
         call sstb_getBiasCorrection(stateVector, column, obsData, hco, trim(sensorList(sensorIndex)), &
                                     trim(listProducts(productIndex)), timeInterpType_nl, numObsBatches)

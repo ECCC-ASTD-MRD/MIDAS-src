@@ -98,7 +98,7 @@ module oceanBackground_mod
     call gsv_modifyDate( stateVector, trialDateStamp, modifyDateOrigin_opt = .true. )
     
     ! save trial field
-    call gsv_writeToFile(stateVector, './trial', etiket, typvar_opt = 'P@')
+    call gio_writeToFile(stateVector, './trial', etiket, typvar_opt = 'P@')
 
     call gsv_deallocate(stateVector)
 
