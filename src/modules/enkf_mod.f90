@@ -218,7 +218,7 @@ contains
     ! Weights for member analyses
     allocate(weightsMembers(nEnsUsed,nEnsUsed,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMembers(:,:,:,:) = 0.0d0
-    allocate(weightsMembersLatLon(nEnsUsed,nEnsUsed,myNumLatLonSend))
+    allocate(weightsMembersLatLon(nEnsUsed,nEns,myNumLatLonSend))
     weightsMembersLatLon(:,:,:) = 0.0d0
 
     call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
@@ -399,7 +399,7 @@ contains
         call mpi_irecv( weightsMean(:,1,lonIndex,latIndex),  &
                         nsize, mmpi_datyp_real8, procIndex-1, recvTag,  &
                         mmpi_comm_grid, requestIdRecv(numRecv), ierr )
-        nsize = nEnsUsed * nEnsUsed
+        nsize = nEnsUsed * nEns
         numRecv = numRecv + 1
         recvTag = recvTag + maxval(latLonTagMpiGlobal(:,:))
         call mpi_irecv( weightsMembers(:,:,lonIndex,latIndex),  &
@@ -998,7 +998,7 @@ contains
           call mpi_isend( weightsMeanLatLon(:,1,latLonIndex),  &
                           nsize, mmpi_datyp_real8, procIndexSend-1, sendTag,  &
                           mmpi_comm_grid, requestIdSend(numSend), ierr )
-          nsize = nEnsUsed * nEnsUsed
+          nsize = nEnsUsed * nEns
           numSend = numSend + 1
           sendTag = sendTag + maxval(latLonTagMpiGlobal(:,:))
           call mpi_isend( weightsMembersLatLon(:,:,latLonIndex),  &
