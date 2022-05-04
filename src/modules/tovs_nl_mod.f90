@@ -965,6 +965,7 @@ contains
     if (tvs_nsensors == 0) then
       ! no tovs data will be read, therefore false
       idatypList(:) = MPC_missingValue_int
+      idatypListSize = 0
       return
     end if
 
