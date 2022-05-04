@@ -161,7 +161,7 @@ module oceanObservations_mod
     deallocate(iceDomainIndexesAux)
     deallocate(seaWaterFractionAux)
         
-    dateStamp = tim_getDatestampFromFile('./seaice_analysis', varnameDateStamp_opt = 'LG')
+    dateStamp = tim_getDatestampFromFile('./seaice_analysis', varNameForDate_opt = 'LG')
     write(*,*) 'oobs_pseudoSST: datestamp: ', dateStamp 
     ! compute random seed from the date for randomly forming sea-ice subdomain
     imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
