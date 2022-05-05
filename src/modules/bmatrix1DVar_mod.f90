@@ -85,10 +85,10 @@ module bmatrix1DVar_mod
   character(len=4)    :: includeAnlVar(vnl_numvarmax)
   integer :: numIncludeAnlVar
   real(8) :: scaleFactorHI(maxNumLevels)          ! scaling factors for HI variances
-  real(8) :: scaleFactorHILQ(maxNumLevels)        ! scaling factors for HI LQ variances
+  real(8) :: scaleFactorHIHumidity(maxNumLevels)  ! scaling factors for HI humidity variances
   real(8) :: scaleFactorEns(maxNumLevels)         ! scaling factors for Ens variances
-  real(8) :: scaleFactorEnsHumidity(maxNumLevels) ! scaling factors for Ens LQ variances
-  NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHILQ, scaleFactorENs, scaleFactorEnsHumidity, nEns, &
+  real(8) :: scaleFactorEnsHumidity(maxNumLevels) ! scaling factors for Ens humidity variances
+  NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorENs, scaleFactorEnsHumidity, nEns, &
        vLocalize, includeAnlVar, numIncludeAnlVar
 
 contains
@@ -116,7 +116,7 @@ contains
     
     ! default values for namelist variables
     scaleFactorHI(:) = 1.d0
-    scaleFactorHILQ(:) = 1.d0
+    scaleFactorHIHumidity(:) = 1.d0
     scaleFactorEns(:) = 1.d0
     scaleFactorEnsHumidity(:) = 1.d0
     nEns = -1
@@ -219,8 +219,9 @@ contains
     character(len=17) :: oneDBmatSea  = './Bmatrix_sea.bin'
     character(len=4), allocatable :: includeAnlVarHi(:)
     integer :: extractDate, locationIndex, varIndex, numIncludeAnlVarHi
+    integer :: shiftLevel, varLevIndex, varLevIndex1, varLevIndex2
     logical, save :: firstCall=.true.
-    real(8), allocatable :: bMatrix(:,:)
+    real(8), allocatable :: bMatrix(:,:), multFactor(:)
 
     if (.not. (gsv_varExist(varName='TT') .and.  &
                gsv_varExist(varName='UU') .and.  &
@@ -255,10 +256,10 @@ contains
     end do
    
     do levelIndex = 1, maxNumLevels
-      if(scaleFactorHILQ(levelIndex) > 0.0d0) then 
-        scaleFactorHILQ(levelIndex) = sqrt(scaleFactorHILQ(levelIndex))
+      if(scaleFactorHIHumidity(levelIndex) > 0.0d0) then 
+        scaleFactorHIHumidity(levelIndex) = sqrt(scaleFactorHIHumidity(levelIndex))
       else
-        scaleFactorHILQ(levelIndex) = 0.0d0
+        scaleFactorHIHumidity(levelIndex) = 0.0d0
       end if
     end do
 
@@ -284,6 +285,40 @@ contains
       write(*,*) 'numIncludeAnlVarHi, bmat1D_numIncludeAnlVar= ', numIncludeAnlVarHi, bmat1D_numIncludeAnlVar
       call utl_abort('bmat1D_setupBHi: incompatible number of 1DVar analyzed variables in ' // trim(oneDBmatLand))
     end if
+
+    allocate (multFactor(nkgdim))
+    if(vco_1Dvar%Vcode == 5002) then
+      shiftLevel = 1
+    else
+      shiftLevel = 0
+    end if
+    varLevIndex = 0
+    do varIndex = 1, bmat1D_numIncludeAnlVar
+      select case(bmat1D_includeAnlVar(varIndex))
+        case('TT')
+          do levelIndex = 1, vco_1Dvar%nLev_T
+            varLevIndex = varLevIndex + 1
+            multFactor(varLevIndex) = scaleFactorHI(levelIndex)
+          end do
+        case('HU')
+          do levelIndex = 1, vco_1Dvar%nLev_T
+            varLevIndex = varLevIndex + 1
+            multFactor(varLevIndex)= scaleFactorHIHumidity(levelIndex) * scaleFactorHI(levelIndex)
+          end do
+        case('UU','VV')
+          do levelIndex = 1, vco_1Dvar%nLev_M
+            varLevIndex = varLevIndex + 1
+            multFactor(varLevIndex) = scaleFactorHI(levelIndex+shiftLevel)
+          end do
+        case('P0','TG')
+          varLevIndex = varLevIndex + 1
+          multFactor(varLevIndex) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
+        case default
+          call utl_abort('bmat1D_setupBHi: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
+        end select
+    end do
+    write(*,*) 'XYZ', varLevIndex, nkgdim
+
     allocate( includeAnlVarHi(bmat1D_numIncludeAnlVar) )
     allocate( bMatrix(nkgdim,nkgdim) )
     allocate( latLand(nLonLatPosLand), lonLand(nLonLatPosLand))       
@@ -296,9 +331,16 @@ contains
       call utl_abort('bmat1D_setupBHi: incompatible 1DVar analyzed variable list in ' // trim(oneDBmatLand))
     end if
     deallocate(includeAnlVarHi)
+
     do locationIndex = 1, nLonLatPosLand
-      read(nulbgst) latLand(locationIndex), lonLand(locationIndex), bMatrix(:,:)      
-      bSqrtLand(locationIndex, :, :) = bMatrix(:, :)
+      read(nulbgst) latLand(locationIndex), lonLand(locationIndex), bMatrix(:,:)
+      !application of the scaling factor
+      do varLevIndex2 = 1, nkgdim
+        do varLevIndex1 = 1, nkgdim
+          bSqrtLand(locationIndex, varLevIndex1, varLevIndex2) = &
+               bMatrix(varLevIndex1, varLevIndex2) *  multFactor(varLevIndex1) * multFactor(varLevIndex2)
+        end do
+      end do
       call utl_matsqrt(bSqrtLand(locationIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
     ierr = fclos(nulbgst)
@@ -328,12 +370,18 @@ contains
     deallocate(includeAnlVarHi)
     do locationIndex = 1, nLonLatPosSea
       read(nulbgst) latSea(locationIndex), lonSea(locationIndex), bMatrix(:,:)
-      bSqrtSea(locationIndex, :, :) = bMatrix(:, :)
+      !application of the scaling factor
+      do varLevIndex2 = 1, nkgdim
+        do varLevIndex1 = 1, nkgdim
+          bSqrtSea(locationIndex, varLevIndex1, varLevIndex2) = &
+               bMatrix(varLevIndex1, varLevIndex2) *  multFactor(varLevIndex1) * multFactor(varLevIndex2)
+        end do
+      end do
       call utl_matsqrt(bSqrtSea(locationIndex,:,:), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
     ierr = fclos(nulbgst)
-
-    deallocate( bMatrix )
+  
+    deallocate(bMatrix, multFactor)
 
     vco_1Dvar%initialized = .true.
     vco_1Dvar%vGridPresent = .false.
