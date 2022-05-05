@@ -45,6 +45,7 @@ program midas_obsSelection
   use bgckssmis_mod
   use bgckcsr_mod
   use bgckOcean_mod 
+  use SSTbias_mod
    
   implicit none
 
@@ -120,14 +121,14 @@ program midas_obsSelection
   !- Initialize the Analysis grid
   !
   if( mpi_myid == 0 ) write(*,*)
-  if( mpi_myid == 0 ) write(*,*) 'var_setup: Set hco parameters for analysis grid'
+  if( mpi_myid == 0 ) write(*,*) 'midas-obsSelection: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
     hco_core => hco_anl
   else
     !- Initialize the core (Non-Extended) analysis grid
-    if( mpi_myid == 0) write(*,*)'var_setup: Set hco parameters for core grid'
+    if( mpi_myid == 0) write(*,*)'midas-obsSelection: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 
@@ -158,7 +159,7 @@ program midas_obsSelection
   !
   !- Memory allocation for background column data
   !
-  call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+  call col_allocate(columnTrlOnAnlIncLev, obs_numheader(obsSpaceData), mpiLocal_opt = .true.)
 
   !
   !- Initialize the observation error covariances
@@ -175,7 +176,10 @@ program midas_obsSelection
   ! Apply optional bias corrections
   call bcc_applyAIBcor(obsSpaceData)    
   call bcc_applyGPBcor(obsSpaceData)
-    
+  if (obs_famExist(obsSpaceData, 'TM')) then
+    call sstb_applySatelliteSSTBiasCorrection(obsSpaceData, hco_anl, vco_anl, columnTrlOnAnlIncLev)
+  end if  
+  
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
   allocHeightSfc = ( vco_trl%Vcode /= 0 )
@@ -222,7 +226,7 @@ program midas_obsSelection
   end if
 
   ! Do the ocean data background check
-  if ( obs_famExist ( obsSpaceData, 'TM' )) call ocebg_bgCheckSST( obsSpaceData, columnTrlOnTrlLev, hco_trl )
+  if (obs_famExist(obsSpaceData, 'TM')) call ocebg_bgCheckSST(obsSpaceData, columnTrlOnTrlLev, hco_trl)
 
   if (doThinning) then
 

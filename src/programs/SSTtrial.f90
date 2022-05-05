@@ -37,9 +37,9 @@ program midas_sstTrial
 
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
-  integer                   :: nextTrialDateStamp ! output: datestamp for the next trial field
-  integer                   :: analysisDateStamp  !  input: datastamp from the latest analysis
-  integer, parameter        :: nmonthsClim = 12   ! number of climatological fields
+  integer                   :: trialDateStamp    ! output: datestamp for the trial field
+  integer                   :: analysisDateStamp !  input: datastamp of the latest analysis
+  integer, parameter        :: nmonthsClim = 12  ! number of climatological fields
 
   ! namelist variables
   character(len=10) :: etiketAnalysis    ! etiket in the analysis file for grid setup
@@ -61,9 +61,9 @@ program midas_sstTrial
   call ram_setup()
  
   ! Do initial set up
-  call SSTtrial_setup(nextTrialDateStamp, analysisDateStamp)
+  call SSTtrial_setup(trialDateStamp, analysisDateStamp)
   
-  call obgd_computeSSTrial(hco_anl, vco_anl, nextTrialDateStamp, analysisDateStamp, &
+  call obgd_computeSSTrial(hco_anl, vco_anl, trialDateStamp, analysisDateStamp, &
                            nmonthsClim, datestampClim, alphaClim, etiketAnalysis)
 			 
   ! 3. Job termination
@@ -78,7 +78,7 @@ program midas_sstTrial
   !----------------------------------------------------------------------------------------
   ! SSTtrial_setup
   !----------------------------------------------------------------------------------------
-  subroutine SSTtrial_setup(nextTrialDateStamp, analysisDateStamp)
+  subroutine SSTtrial_setup(trialDateStamp, analysisDateStamp)
     !
     ! :Purpose:  Control of the preprocessing of trial
     !
@@ -86,7 +86,7 @@ program midas_sstTrial
     implicit none
     
     !Arguments:
-    integer, intent(out) :: nextTrialDateStamp
+    integer, intent(out) :: trialDateStamp
     integer, intent(out) :: analysisDateStamp
     
     !Locals:	
@@ -128,16 +128,16 @@ program midas_sstTrial
     !
     call tim_setup(gridFile)
     analysisDateStamp = tim_getDatestampFromFile(gridFile)
-    write(*,*) 'SSTtrial_setup:  analysis datestamp  = ', analysisDateStamp
-    write(*,*) 'SSTtrial_setup:           windowsize = ', tim_windowsize
+    write(*,*) 'SSTtrial_setup: analysis datestamp  = ', analysisDateStamp
+    write(*,*) 'SSTtrial_setup:          windowsize = ', tim_windowsize
     
-    call incdatr(nextTrialDateStamp, analysisDateStamp, tim_windowsize)
-    write(*,*) 'SSTtrial_setup: next trial datestamp = ', nextTrialDateStamp
+    call incdatr(trialDateStamp, analysisDateStamp, tim_windowsize)
+    write(*,*) 'SSTtrial_setup:    trial datestamp  = ', trialDateStamp
     
     imode = -3 ! stamp to printable
-    ierr = newdate(nextTrialDateStamp, prntdate, prnttime, imode)
-    write(*,*) 'SSTtrial_setup: next trial date = ',prntdate
-    write(*,*) 'SSTtrial_setup: next trial time = ',prnttime
+    ierr = newdate(trialDateStamp, prntdate, prnttime, imode)
+    write(*,*) 'SSTtrial_setup: trial date = ', prntdate
+    write(*,*) 'SSTtrial_setup: trial time = ', prnttime
     !
     !- Initialize variables of the model states
     !

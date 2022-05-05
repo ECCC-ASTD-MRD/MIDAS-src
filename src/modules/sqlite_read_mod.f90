@@ -1115,7 +1115,7 @@ contains
       if (sqlu_sqlColumnExists(fileName, 'data', columnName) == .true.) then
         itemChar = trim(itemChar)//','// trim(columnName) // trim(' = ? ')
       else
-        write(*,*) 'sqlr_updateSqlite: column '// columnName// &
+        write(*,*) 'sqlr_updateSqlite: WARNING: column '//columnName// &
                    ' does not exist in the file '//trim(fileName)
       end if	
     end do

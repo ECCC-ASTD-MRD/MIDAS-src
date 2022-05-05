@@ -66,15 +66,15 @@ module bgckOcean_mod
     type(struct_hco)       , intent(in), pointer :: hco               ! horizontal trl grid
 
     ! Locals:
-    type(struct_gsv)            :: stateVector   ! state vector containing std B estimation field
-    integer                     :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
-    integer                     :: numberObs, numberObsRejected  
-    real(8)                     :: OER, OmP, FGE, bgCheck
-    logical                     :: llok
-    type(struct_columnData)     :: columnFGE
-    character(len=*), parameter :: myName = 'ocebg_bgCheckSST'
+    type(struct_gsv)        :: stateVector   ! state vector containing std B estimation field
+    integer                 :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
+    integer                 :: numberObs, numberObsRejected
+    integer                 :: numberObsInsitu, numberObsInsituRejected, codeType  
+    real(8)                 :: OER, OmP, FGE, bgCheck
+    logical                 :: llok
+    type(struct_columnData) :: columnFGE
     
-    write(*,*) myName//': performing background check for the SST data...'
+    write(*,*) 'ocebg_bgCheckSST: performing background check for the SST data...'
     
     ! Setting default namelist variable values
     timeInterpType_nl = 'NEAREST'
@@ -83,36 +83,39 @@ module bgckOcean_mod
     ! Read the namelist
     if (.not. utl_isNamelistPresent('namOceanBGcheck','./flnml')) then
       if (mpi_myid == 0) then
-        write(*,*) myName//': namOceanBGcheck is missing in the namelist.'
-        write(*,*) myName//'  The default values will be taken.'
+        write(*,*) 'ocebg_bgCheckSST: namOceanBGcheck is missing in the namelist.'
+        write(*,*) 'ocebg_bgCheckSST: the default values will be taken.'
       end if
     else
       ! reading namelist variables
       nulnam = 0
       ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
       read(nulnam, nml = namOceanBGcheck, iostat = ierr)
-      if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
+      if (ierr /= 0) call utl_abort('ocebg_bgCheckSST: Error reading namelist')
       ierr = fclos(nulnam)
     end if
-    write(*,*) myName//': interpolation type: ', timeInterpType_nl
-    write(*,*) myName//': number obs batches: ', numObsBatches
+    write(*,*) 'ocebg_bgCheckSST: interpolation type: ', timeInterpType_nl
+    write(*,*) 'ocebg_bgCheckSST: number obs batches: ', numObsBatches
 
     ! Read First Guess Error (FGE) and put it into stateVector
     call gsv_allocate(stateVector, 1, hco, columnTrlOnTrlLev % vco, dataKind_opt = 4, &
-                       hInterpolateDegree_opt = 'NEAREST', &
-                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
+                      hInterpolateDegree_opt = 'NEAREST', &
+                      datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVector, './bgstddev', 'STDDEV', 'X', &
-                           unitConversion_opt=.false., containsFullField_opt=.true.)
+                          unitConversion_opt=.false., containsFullField_opt=.true.)
     
     call col_setVco(columnFGE, col_getVco(columnTrlOnTrlLev))
     call col_allocate(columnFGE, col_getNumCol(columnTrlOnTrlLev))
    
     ! Convert stateVector to column object
     call s2c_nl(stateVector, obsData, columnFGE, hco, timeInterpType = timeInterpType_nl, &
-                 moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
+                moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
 
     numberObs = 0
     numberObsRejected = 0
+    numberObsInsitu = 0
+    numberObsInsituRejected = 0
+    
     do headerIndex = 1, obs_numheader(obsData)
       
       bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
@@ -124,19 +127,22 @@ module bgckOcean_mod
 	  FGE = col_getElem(columnFGE, 1, headerIndex, 'TM')
 	  OmP = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex)
           OER = obs_bodyElem_r(obsData, OBS_OER , bodyIndex)
-	    
+	  codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
+	   
 	  if (FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8) then 
 	    
 	    numberObs = numberObs + 1
+	    if (codeType /= codtyp_get_codtyp('satob')) numberObsInsitu = numberObsInsitu + 1
 	    call obs_bodySet_r(obsData, OBS_HPHT, bodyIndex, FGE)
 	    bgCheck = (OmP)**2 / (FGE**2 + OER**2)
 	    obsFlag = ocebg_setFlag(obsVarno, bgCheck)
 	
             if (obsFlag >= 2) then
               numberObsRejected = numberObsRejected + 1
-	      write(*,'(a,i7,a,i7)')'*********** ', numberObsRejected, ', header index: ', headerIndex
-	      write(*,'(a)') myName//': rejected '//obs_elem_c(obsData, 'STID' , headerIndex)//' data:'
-	      write(*,'(a,i5,a,4f10.4)') 'codtype: ', obs_headElem_i(obsData, obs_ity, headerIndex), &
+	      if (codeType /= codtyp_get_codtyp('satob')) numberObsInsituRejected = numberObsInsituRejected + 1
+	      write(*,'(a,i7,a,i7,a)')'ocebg_bgCheckSST: ********** reject: ', numberObsRejected, ', header index: ', headerIndex, &
+                                    obs_elem_c(obsData, 'STID' , headerIndex)//' data: '
+	      write(*,'(a,i5,a,4f10.4)') 'ocebg_bgCheckSST: codtype: ', codeType, &
               ', lon/lat/obs.value/OmP: ', &
               obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
               obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
@@ -167,8 +173,12 @@ module bgckOcean_mod
 
     if (numberObs > 0) then
       write(*,*)' '
-      write(*,*) myName//': background check of TM data is computed'
-      write(*,'(a, i7,a,i7,a)') myName//':   ', numberObsRejected, ' observations out of ', numberObs,' rejected'
+      write(*,*) 'ocebg_bgCheckSST: background check of TM data is computed'
+      write(*,*) '***************************************************************************************'
+      write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST: total ', numberObsRejected, ' observations out of (ALL) ', numberObs,' rejected'
+      write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST: where ', numberObsInsituRejected, ' insitu observations out of ', &
+                                numberObsInsitu,' insitu obs. rejected'
+      write(*,*) '***************************************************************************************'
       write(*,*)' '
     end if
     
