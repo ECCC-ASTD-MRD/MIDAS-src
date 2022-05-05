@@ -19,16 +19,18 @@ module interpolation_mod
   !
   ! :Purpose: The grid-point state vector interpolation.
   !
+  ! DBGmad001 : verify that all are necessary
   use mpi, only : mpi_status_size ! this is the mpi library module
   use mpi_mod
   use mpivar_mod
-  use gridstatevector_mod
-  use varNameList_mod
-  use verticalCoord_mod
-  use horizontalCoord_mod
+  use gridstatevector_mod ! DBGmad used
+  use varNameList_mod ! DBGmad used
+  use verticalCoord_mod ! DBGmad used
+  use horizontalCoord_mod ! DBGmad used
   use oceanMask_mod
   use timeCoord_mod
-  use utilities_mod
+  use mathPhysConstants_mod ! DBGmad used
+  use utilities_mod ! DBGmad used
   implicit none
   save
   private
@@ -38,8 +40,6 @@ module interpolation_mod
   public :: int_hInterpolate, int_hInterpolate_r4
   public :: int_vInterpolate, int_vInterpolate_r4
   public :: int_tInterpolate
-
-  ! public module variables
 
   contains
 
@@ -67,10 +67,10 @@ module interpolation_mod
     !
     !- Error traps
     !
-    if (.not.statevector_in%allocated) then
+    if (.not.gsv_isAllocated(statevector_in)) then
       call utl_abort('int_interpolate: gridStateVector_in not yet allocated')
     end if
-    if (.not.statevector_out%allocated) then
+    if (.not.gsv_isAllocated(statevector_out)) then
       call utl_abort('int_interpolate: gridStateVector_out not yet allocated')
     end if
 
@@ -278,7 +278,7 @@ module interpolation_mod
 
     end if
 
-    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
+    if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
       write(*,*) 'int_hInterpolate: interpolating surface height'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
       ierr = utl_ezsint( statevector_out%HeightSfc(:,:), statevector_in%HeightSfc(:,:), &
@@ -424,7 +424,7 @@ module interpolation_mod
 
     end if
 
-    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
+    if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out)) then
       write(*,*) 'int_hInterpolate_r4: interpolating surface height'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
       ierr = utl_ezsint( statevector_out%HeightSfc(:,:), statevector_in%HeightSfc(:,:),  &
@@ -457,7 +457,19 @@ module interpolation_mod
     real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
     real(8) :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
                        statevector_in%myLatBeg:statevector_in%myLatEnd)
-    logical :: checkModelTop
+    logical :: checkModelTop, vInterpCopyLowestLevel
+    integer :: nulnam, fnom, ierr, fclos
+    NAMELIST /NAMINT/vInterpCopyLowestLevel
+
+    ! Read namelist NAMINT
+    vInterpCopyLowestLevel = .false.
+
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namint,iostat=ierr)
+    if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist NAMINT')
+    if (mpi_myid.eq.0) write(*,nml=namint)
+    ierr=fclos(nulnam)
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
       write(*,*) 'int_vInterpolate: The input and output statevectors are already on same vertical levels'
@@ -473,7 +485,7 @@ module interpolation_mod
       call utl_abort('int_vInterpolate: Incorrect value for dataKind. Only compatible with dataKind=8')
     end if
 
-    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
+    if (gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
       statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
     end if
 
@@ -619,7 +631,19 @@ module interpolation_mod
     real(4), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
     real(4) :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
                        statevector_in%myLatBeg:statevector_in%myLatEnd)
-    logical :: checkModelTop
+    logical :: checkModelTop, vInterpCopyLowestLevel
+    integer :: nulnam, fnom, ierr, fclos
+    NAMELIST /NAMINT/vInterpCopyLowestLevel
+
+    ! Read namelist NAMINT
+    vInterpCopyLowestLevel = .false.
+
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=namint,iostat=ierr)
+    if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist NAMINT')
+    if (mpi_myid.eq.0) write(*,nml=namint)
+    ierr=fclos(nulnam)
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
       write(*,*) 'int_vInterpolate_r4: The input and output statevectors are already on same vertical levels'
@@ -635,7 +659,7 @@ module interpolation_mod
       call utl_abort('int_vInterpolate_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
-    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
+    if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
       statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
     end if
 
@@ -866,6 +890,7 @@ module interpolation_mod
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
 
+            ! DBGmad private access to fix
             if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 4 ) then
               statevector_out%gd_r4(lonIndex,latIndex,kIndex,stepIndexOut) =  &
                 real(weight1,4) * statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn1) + &

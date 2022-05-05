@@ -26,6 +26,7 @@ module ensembleStateVector_mod
   use fileNames_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
+  use interpolation_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use analysisGrid_mod
@@ -2474,12 +2475,12 @@ CONTAINS
 
           ! do any required interpolation
           if (horizontalInterpNeeded .and. verticalInterpNeeded) then
-            call gsv_hInterpolate_r4(statevector_file_r4, statevector_hint_r4)
-            call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4,         &
+            call int_hInterpolate_r4(statevector_file_r4, statevector_hint_r4)
+            call int_vInterpolate_r4(statevector_hint_r4, statevector_member_r4,         &
                                      Ps_in_hPa_opt=.true.,checkModelTop_opt=checkModelTop)
 
           else if (horizontalInterpNeeded .and. .not. verticalInterpNeeded) then
-            call gsv_hInterpolate_r4(statevector_file_r4, statevector_member_r4)
+            call int_hInterpolate_r4(statevector_file_r4, statevector_member_r4)
 
           else if (.not. horizontalInterpNeeded .and. verticalInterpNeeded) then
             if (horizontalPaddingNeeded) then
@@ -2487,7 +2488,7 @@ CONTAINS
             else
               call gsv_copy(statevector_file_r4, statevector_hint_r4)
             end if
-            call gsv_vInterpolate_r4(statevector_hint_r4, statevector_member_r4,         &
+            call int_vInterpolate_r4(statevector_hint_r4, statevector_member_r4,         &
                                      Ps_in_hPa_opt=.true.,checkModelTop_opt=checkModelTop)
 
           else if (horizontalPaddingNeeded) then
