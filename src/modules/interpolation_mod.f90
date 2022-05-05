@@ -461,15 +461,21 @@ module interpolation_mod
     integer :: nulnam, fnom, ierr, fclos
     NAMELIST /NAMINT/vInterpCopyLowestLevel
 
-    ! Read namelist NAMINT
     vInterpCopyLowestLevel = .false.
-
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namint,iostat=ierr)
-    if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist NAMINT')
-    if (mpi_myid.eq.0) write(*,nml=namint)
-    ierr=fclos(nulnam)
+    if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'int_vInterpolate: namint is missing in the namelist.'
+        write(*,*) '                     The default values will be taken.'
+      end if
+    else
+      ! Read namelist NAMINT
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namint,iostat=ierr)
+      if (ierr.ne.0) call utl_abort('int_vInterpolate: Error reading namelist NAMINT')
+      if (mpi_myid.eq.0) write(*,nml=namint)
+      ierr=fclos(nulnam)
+    end if
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
       write(*,*) 'int_vInterpolate: The input and output statevectors are already on same vertical levels'
@@ -635,15 +641,21 @@ module interpolation_mod
     integer :: nulnam, fnom, ierr, fclos
     NAMELIST /NAMINT/vInterpCopyLowestLevel
 
-    ! Read namelist NAMINT
     vInterpCopyLowestLevel = .false.
-
-    nulnam=0
-    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam,nml=namint,iostat=ierr)
-    if (ierr.ne.0) call utl_abort('gsv_setup: Error reading namelist NAMINT')
-    if (mpi_myid.eq.0) write(*,nml=namint)
-    ierr=fclos(nulnam)
+    if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'int_vInterpolate_r4: namint is missing in the namelist.'
+        write(*,*) '                     The default values will be taken.'
+      end if
+    else
+      ! Read namelist NAMINT
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namint,iostat=ierr)
+      if (ierr.ne.0) call utl_abort('int_vInterpolate_r4: Error reading namelist NAMINT')
+      if (mpi_myid.eq.0) write(*,nml=namint)
+      ierr=fclos(nulnam)
+    end if
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
       write(*,*) 'int_vInterpolate_r4: The input and output statevectors are already on same vertical levels'
