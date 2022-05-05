@@ -38,7 +38,7 @@ module timeCoord_mod
   public :: tim_getDateStampFromFile, tim_dateStampToDDMMYYYY
 
   character(len=4) :: varNameForDate
-  character(len=6) ::  tim_referencetime
+  character(len=6) :: tim_referencetime
   real(8)   :: tim_dstepobs
   real(8)   :: tim_dstepobsinc
   real(8)   :: tim_windowsize
@@ -182,14 +182,15 @@ contains
   end function tim_initialized
 
 
-  function tim_getDatestampFromFile(fileName) result(dateStamp_out)
+  function tim_getDatestampFromFile(fileName, varNameForDate_opt) result(dateStamp_out)
     !
     ! :Purpose: to extract the dateStamp from the supplied file.
     !
     implicit none
 
     ! arguments
-    character(len=*) :: fileName
+    character(len=*)           :: fileName
+    character(len=*), optional :: varNameForDate_opt
     integer :: dateStamp_out
 
     ! locals
@@ -218,9 +219,14 @@ contains
 
       ! Determine variable to use for the date (default is P0)
       varNameForDate = 'P0'
-
+      if (present(varNameForDate_opt)) then
+      
+	varNameForDate = trim(varNameForDate_opt)
+        write(*,*) 'tim_getDateStampFromFile: defining dateStamp from the variable = ', varNameForDate
+      
       ! If P0 not present, look for another suitable variable in the file
-      if (.not. utl_varNamePresentInFile(varNameForDate,fileName_opt=trim(fileName))) then
+      else if (.not. utl_varNamePresentInFile(varNameForDate,fileName_opt=trim(fileName))) then
+      
         foundVarNameInFile = .false.
         do varIndex = 1, vnl_numvarmax
           varNameForDate = vnl_varNameList(varIndex)
@@ -233,8 +239,8 @@ contains
         if (.not. foundVarNameInFile) then
           call utl_abort('tim_getDateStampFromFile: NO variables found in the file!!!')
         end if
+	
       end if
-      write(*,*) 'tim_getDateStampFromFile: defining dateStamp from the variable= ', varNameForDate
 
       ! Extract the datestamp from the file
       nulFile = 0

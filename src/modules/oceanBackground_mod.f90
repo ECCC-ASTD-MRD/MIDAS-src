@@ -48,8 +48,8 @@ module oceanBackground_mod
   !----------------------------------------------------------------------------------------
   ! obgd_computeSSTrial
   !----------------------------------------------------------------------------------------
-  subroutine obgd_computeSSTrial(hco, vco, nextTrialDateStamp, analysisDateStamp, &
-                                 nmonthsClim, datestampClim, alphaClim, etiketAnalysis)
+  subroutine obgd_computeSSTrial(hco, vco, trialDateStamp, analysisDateStamp, &
+                                 nmonthsClim, datestampClim, alphaClim, etiket)
     !
     !: Purpose: to compute SST background   
     !           xb(t) = (xa(t-1) - xclim(t-1))*alpha + xclim(t)         
@@ -57,21 +57,18 @@ module oceanBackground_mod
     implicit none
 
     ! Arguments:
-    type(struct_hco) , intent(in), pointer :: hco                ! horizontal grid
-    type(struct_vco) , intent(in), pointer :: vco                ! vertical grid
-    integer          , intent(in)          :: nextTrialDateStamp ! date stamp for the next trial
-    integer          , intent(in)          :: analysisDateStamp  ! date stamp for last analysis 
-    integer          , intent(in)          :: nmonthsClim        ! number of climatological fields (= 12)
-    integer          , intent(in)          :: datestampClim(:)   ! datestamps of input climatology fields
-    real(4)          , intent(in)          :: alphaClim          ! scalling factor to relax towards climatology
-    character(len=10), intent(in)          :: etiketAnalysis     ! etiket from namelist 
-                                                                 ! and for the next trial file
+    type(struct_hco) , intent(in), pointer :: hco               ! horizontal grid
+    type(struct_vco) , intent(in), pointer :: vco               ! vertical grid
+    integer          , intent(in)          :: trialDateStamp    ! trial datestamp
+    integer          , intent(in)          :: analysisDateStamp ! datestamp for last analysis 
+    integer          , intent(in)          :: nmonthsClim       ! number of climatological fields (= 12)
+    integer          , intent(in)          :: datestampClim(:)  ! datestamps of input climatology fields
+    real(4)          , intent(in)          :: alphaClim         ! scalling factor to relax towards climatology
+    character(len=10), intent(in)          :: etiket            ! etiket from namelist and for trial
     
     ! Locals:
-    integer          :: analysisDay, analysisMonth, yyyy, ndaysAnalysisMonth
-    integer          :: nextTrialDay, nextTrialMonth, ndaysNextTrialMonth
-    type(struct_gsv) :: stateVector, stateVector_clim, stateVector_climNextMonth
-    real(4), pointer :: stateVector_ptr(:, :, :), clim_ptr(:, :, :), climNextMonth_ptr(:, :, :)
+    type(struct_gsv) :: stateVector
+    real(4), pointer :: stateVector_ptr(:, :, :)
     integer          :: lonIndex, latIndex
     real(8)          :: climatology_m1(hco % ni, hco % nj), climatology(hco % ni, hco % nj)
     
@@ -85,18 +82,23 @@ module oceanBackground_mod
     call gsv_getField(stateVector, stateVector_ptr)
     
     call obgd_getClimatology(analysisDateStamp, hco, vco, nmonthsClim, datestampClim, climatology_m1)
-    call obgd_getClimatology(nextTrialDateStamp, hco, vco, nmonthsClim, datestampClim, climatology)
-
+    call obgd_getClimatology(trialDateStamp   , hco, vco, nmonthsClim, datestampClim, climatology)
+    
     ! compute background state
     ! xb(t) = (xa(t-1) - xclim(t-1))*alpha + xclim(t)
     do lonIndex = stateVector%myLonBeg, stateVector%myLonEnd 
       do latIndex = stateVector%myLatBeg, stateVector%myLatEnd
-        stateVector_ptr(lonIndex, latIndex, 1) = (stateVector_ptr(lonIndex, latIndex, 1) - climatology_m1(lonIndex, latIndex)) * &
+        stateVector_ptr(lonIndex, latIndex, 1) = (stateVector_ptr(lonIndex, latIndex, 1) - &
+                                                 climatology_m1(lonIndex, latIndex)) * &
                                                  alphaClim + climatology(lonIndex, latIndex)
       end do
     end do      	 
   
-    call gio_writeToFile(stateVector, './next_trial', etiketAnalysis, typvar_opt = 'P@')
+    ! modify dateStamp (from analysis) with trial dateStamp
+    call gsv_modifyDate( stateVector, trialDateStamp, modifyDateOrigin_opt = .true. )
+    
+    ! save trial field
+    call gio_writeToFile(stateVector, './trial', etiket, typvar_opt = 'P@')
 
     call gsv_deallocate(stateVector)
 
