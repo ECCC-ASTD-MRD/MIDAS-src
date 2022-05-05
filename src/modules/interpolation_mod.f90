@@ -165,6 +165,8 @@ module interpolation_mod
 
     integer :: ezdefset
 
+    real(8), pointer :: heightSfcIn(:,:), heightSfcOut(:,:)
+
     if ( hco_equal(statevector_in%hco,statevector_out%hco) ) then
       write(*,*) 'int_hInterpolate: The input and output statevectors are already on same horizontal grids'
       call gsv_copy(statevector_in, statevector_out)
@@ -279,9 +281,11 @@ module interpolation_mod
     end if
 
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
+      heightSfcIn => gsv_getHeightSfc(statevector_in)
+      heightSfcOut => gsv_getHeightSfc(statevector_out)
       write(*,*) 'int_hInterpolate: interpolating surface height'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-      ierr = utl_ezsint( statevector_out%HeightSfc(:,:), statevector_in%HeightSfc(:,:), &
+      ierr = utl_ezsint( heightSfcOut(:,:), heightSfcIn(:,:), &
                          interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
@@ -310,6 +314,8 @@ module interpolation_mod
     character(len=4) :: varName
     character(len=12):: interpolationDegree, extrapolationDegree
     integer :: ezdefset
+
+    real(8), pointer :: heightSfcIn(:,:), heightSfcOut(:,:)
 
     if ( hco_equal(statevector_in%hco,statevector_out%hco) ) then
       write(*,*) 'int_hInterpolate_r4: The input and output statevectors are already on same horizontal grids'
@@ -425,9 +431,11 @@ module interpolation_mod
     end if
 
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out)) then
+      heightSfcIn => gsv_getHeightSfc(statevector_in)
+      heightSfcOut => gsv_getHeightSfc(statevector_out)
       write(*,*) 'int_hInterpolate_r4: interpolating surface height'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-      ierr = utl_ezsint( statevector_out%HeightSfc(:,:), statevector_in%HeightSfc(:,:),  &
+      ierr = utl_ezsint( heightSfcOut(:,:), heightSfcIn(:,:), &
                          interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
@@ -458,6 +466,9 @@ module interpolation_mod
     real(8) :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
                        statevector_in%myLatBeg:statevector_in%myLatEnd)
     logical :: checkModelTop, vInterpCopyLowestLevel
+
+    real(8), pointer :: heightSfcIn(:,:), heightSfcOut(:,:)
+
     integer :: nulnam, fnom, ierr, fclos
     NAMELIST /NAMINT/vInterpCopyLowestLevel
 
@@ -492,7 +503,9 @@ module interpolation_mod
     end if
 
     if (gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
-      statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
+      heightSfcIn => gsv_getHeightSfc(statevector_in)
+      heightSfcOut => gsv_getHeightSfc(statevector_out)
+      heightSfcOut(:,:) = heightSfcIn(:,:)
     end if
 
     vco_in => gsv_getVco(statevector_in)
@@ -638,6 +651,9 @@ module interpolation_mod
     real(4) :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
                        statevector_in%myLatBeg:statevector_in%myLatEnd)
     logical :: checkModelTop, vInterpCopyLowestLevel
+
+    real(8), pointer :: heightSfcIn(:,:), heightSfcOut(:,:)
+
     integer :: nulnam, fnom, ierr, fclos
     NAMELIST /NAMINT/vInterpCopyLowestLevel
 
@@ -672,7 +688,9 @@ module interpolation_mod
     end if
 
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
-      statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
+      heightSfcIn => gsv_getHeightSfc(statevector_in)
+      heightSfcOut => gsv_getHeightSfc(statevector_out)
+      HeightSfcOut(:,:) = HeightSfcIn(:,:)
     end if
 
     vco_in => gsv_getVco(statevector_in)
@@ -815,6 +833,9 @@ module interpolation_mod
     real(8) :: weight1, weight2
     real(8) :: deltaHour, deltaHourInOut
 
+    real(4), pointer  :: gdIn_r4(:,:,:,:), gdOut_r4(:,:,:,:)
+    real(8), pointer  :: gdIn_r8(:,:,:,:), gdOut_r8(:,:,:,:)
+
     write(*,*) 'int_tInterpolate: STARTING'
 
     if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
@@ -897,36 +918,63 @@ module interpolation_mod
                    ',deltaHourInOut/deltaHour=', deltaHourInOut,'/',deltaHour
       end if
 
-      !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
-      do kIndex = k1, k2
-        do latIndex = lat1, lat2
-          do lonIndex = lon1, lon2
-
-            ! DBGmad private access to fix
-            if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 4 ) then
-              statevector_out%gd_r4(lonIndex,latIndex,kIndex,stepIndexOut) =  &
-                real(weight1,4) * statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn1) + &
-                real(weight2,4) * statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn2)
-
-            else if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 8 ) then
-              statevector_out%gd_r8(lonIndex,latIndex,kIndex,stepIndexOut) =  &
-                weight1 * real(statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn1),8) + &
-                weight2 * real(statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn2),8)
-
-            else if ( statevector_in%dataKind == 8 .and. statevector_out%dataKind == 4 ) then
-              statevector_out%gd_r4(lonIndex,latIndex,kIndex,stepIndexOut) =  &
-                real(weight1 * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndexIn1),4) + &
-                real(weight2 * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndexIn2),4)
-
-            else if ( statevector_in%dataKind == 8 .and. statevector_out%dataKind == 8 ) then
-              statevector_out%gd_r8(lonIndex,latIndex,kIndex,stepIndexOut) =  &
-                weight1 * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndexIn1) + &
-                weight2 * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndexIn2)
-            end if
+      if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 4 ) then
+        call gsv_getField(statevector_in, gdIn_r4)
+        call gsv_getField(statevector_out, gdOut_r4)
+        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
+        do kIndex = k1, k2
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              gdOut_r4(lonIndex,latIndex,kIndex,stepIndexOut) =  &
+                real(weight1,4) * gdIn_r4(lonIndex,latIndex,kIndex,stepIndexIn1) + &
+                real(weight2,4) * gdIn_r4(lonIndex,latIndex,kIndex,stepIndexIn2)
+            end do
           end do
         end do
-      end do
-      !$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
+      else if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 8 ) then
+        call gsv_getField(statevector_in, gdIn_r4)
+        call gsv_getField(statevector_out, gdOut_r8)
+        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
+        do kIndex = k1, k2
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              gdOut_r8(lonIndex,latIndex,kIndex,stepIndexOut) =  &
+                weight1 * real(gdIn_r4(lonIndex,latIndex,kIndex,stepIndexIn1),8) + &
+                weight2 * real(gdIn_r4(lonIndex,latIndex,kIndex,stepIndexIn2),8)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else if ( statevector_in%dataKind == 8 .and. statevector_out%dataKind == 4 ) then
+        call gsv_getField(statevector_in, gdIn_r8)
+        call gsv_getField(statevector_out, gdOut_r4)
+        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
+        do kIndex = k1, k2
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              gdOut_r4(lonIndex,latIndex,kIndex,stepIndexOut) =  &
+                real(weight1 * gdIn_r8(lonIndex,latIndex,kIndex,stepIndexIn1),4) + &
+                real(weight2 * gdIn_r8(lonIndex,latIndex,kIndex,stepIndexIn2),4)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else if ( statevector_in%dataKind == 8 .and. statevector_out%dataKind == 8 ) then
+        call gsv_getField(statevector_in, gdIn_r8)
+        call gsv_getField(statevector_out, gdOut_r8)
+        !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
+        do kIndex = k1, k2
+          do latIndex = lat1, lat2
+            do lonIndex = lon1, lon2
+              gdOut_r8(lonIndex,latIndex,kIndex,stepIndexOut) =  &
+                weight1 * gdIn_r8(lonIndex,latIndex,kIndex,stepIndexIn1) + &
+                weight2 * gdIn_r8(lonIndex,latIndex,kIndex,stepIndexIn2)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end if
 
     end do
 
