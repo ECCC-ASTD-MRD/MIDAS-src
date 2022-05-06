@@ -841,8 +841,7 @@ contains
       offset = 0
       do varIndex = 1, bmat1D_numIncludeAnlVar
         currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_includeAnlVar(varIndex))
-        currentColumn(:) = 0.d0
-        currentColumn(:) = oneDProfile(offset+1:offset+size(currentColumn))
+        currentColumn(:) = currentColumn(:) + oneDProfile(offset+1:offset+size(currentColumn))
         offset = offset + size(currentColumn)
       end do
       if (offset /= nkgdim) then
@@ -886,6 +885,8 @@ contains
       return
     end if
     allocate(oneDProfile(nkgdim))
+
+    controlVector_in(:) = 0.d0
 
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn,latitude,surfaceType,latitudeBandIndex)
     do columnIndex = 1, var1D_validHeaderCount
@@ -950,8 +951,7 @@ contains
       offset = 0
       do varIndex = 1, bmat1D_numIncludeAnlVar
         currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_includeAnlVar(varIndex))
-        currentColumn(:) = 0.d0
-        currentColumn(:) = oneDProfile(offset+1:offset+size(currentColumn))
+        currentColumn(:) = currentColumn(:) + oneDProfile(offset+1:offset+size(currentColumn))
         offset = offset + size(currentColumn)
       end do
       if (offset /= nkgdim) then
@@ -991,6 +991,8 @@ contains
       return
     end if
     allocate(oneDProfile(nkgdim))
+
+    controlVector_in(:) = 0.d0
 
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn)
     do columnIndex = 1, var1D_validHeaderCount
@@ -1040,6 +1042,8 @@ contains
     !
     !- 1.  Compute the analysis increment
     !
+    call col_zero(column)
+
     bmat_loop: do bmatIndex = 1, numBmat
       if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
       subVector => cvm_getSubVector( controlVector, bmatLabelList(bmatIndex) )
@@ -1048,15 +1052,15 @@ contains
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
         call tmg_start(50,'B_HI')
-        call bmat1D_bsqrtHi( subVector,   & ! IN
-                            column,       & ! OUT
-                            obsspacedata )  ! IN
+        call bmat1D_bsqrtHi(subVector,   & ! IN
+                            column,      & ! OUT
+                            obsspacedata ) ! IN
         call tmg_stop(50)
       case ('ENS')
         !- 1.2 Ensemble based
         call tmg_start(50,'B_ENS')
-        call bmat1D_bsqrtEns( subVector,  & ! IN
-                              column)       ! OUT
+        call bmat1D_bsqrtEns(subVector, &  ! IN
+                              column)      ! OUT
         call tmg_stop(50)
       case default
         call utl_abort( 'bmat1D_sqrtB: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
