@@ -115,9 +115,9 @@ contains
     integer, external ::  fnom, fclos
     
     ! default values for namelist variables
-    scaleFactorHI(:) = 1.d0
+    scaleFactorHI(:) = 0.d0
     scaleFactorHIHumidity(:) = 1.d0
-    scaleFactorEns(:) = 1.d0
+    scaleFactorEns(:) = 0.d0
     scaleFactorEnsHumidity(:) = 1.d0
     nEns = -1
     vLocalize = -1.d0

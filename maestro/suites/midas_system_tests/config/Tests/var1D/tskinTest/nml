@@ -8,8 +8,8 @@
   numberBitsOn=0 ,
 /
  &NAMBMAT1D
+  scalefactorHI=200*1.0,
 /
-
  &NAMS2C
   SLANTPATH_TO_NL   = .FALSE.,
   SLANTPATH_TO_TLAD = .FALSE.,
