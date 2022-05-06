@@ -317,7 +317,6 @@ contains
           call utl_abort('bmat1D_setupBHi: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
         end select
     end do
-    write(*,*) 'XYZ', varLevIndex, nkgdim
 
     allocate( includeAnlVarHi(bmat1D_numIncludeAnlVar) )
     allocate( bMatrix(nkgdim,nkgdim) )
@@ -476,7 +475,7 @@ contains
     
     hco_ens => hco_in
 
-    !- 1.3 Horizontal grid
+    !- 1.2 Horizontal grid
     ni = hco_ens%ni
     nj = hco_ens%nj
     if (hco_ens%global) then
@@ -487,7 +486,7 @@ contains
       if (mpi_myid == 0) write(*,*) 'bmat1D_setupBEns: LAM mode activated'
     end if
 
-    !- 1.4 Vertical levels
+    !- 1.3 Vertical levels
     if ( mpi_myid == 0 ) then
       call fln_ensfileName(ensFileName, ensPathName, memberIndex_opt=1)
       write(*,*) 'before vco_SetupFromFile'
@@ -501,6 +500,7 @@ contains
       write(*,*) 'bmat1D_setupBEns: variable names : ', varNames
     end if
     call vco_mpiBcast(vco_file)
+
     !- Do we need to read all the vertical levels from the ensemble?
     useAnlLevelsOnly = vco_subsetOrNot(vco_in, vco_file)
     if ( useAnlLevelsOnly ) then
@@ -539,12 +539,12 @@ contains
       if ( EnsTopMatchesAnlTop ) then
         if ( mpi_myid == 0 ) write(*,*) 'bmat1D_setupBEns: top level of ensemble member and analysis grid match'
         vco_ens => vco_in  ! IMPORTANT: top levels DO match, therefore safe
-        ! to force members to be on analysis vertical levels
+                           ! to force members to be on analysis vertical levels
       else
         if ( mpi_myid == 0 ) write(*,*) 'bmat1D_setupBEns: top level of ensemble member and analysis grid are different, therefore'
         if ( mpi_myid == 0 ) write(*,*) '                      assume member is already be on correct levels - NO CHECKING IS DONE'
         vco_ens => vco_file ! IMPORTANT: top levels do not match, therefore must
-        ! assume file is already on correct vertical levels
+                            ! assume file is already on correct vertical levels
       end if
     end if
 
@@ -590,7 +590,7 @@ contains
       if (mpi_myid == 0) write(*,*) '                      some levels near top will have zero increment'
     end if
 
-    !- 1.5 Bmatrix Weight
+    !- 1.4 Bmatrix Weight
     if (vco_in%Vcode == 5002 .or. vco_in%Vcode == 5005) then
       allocate(scaleFactor_M(nLevEns_M))
       allocate(scaleFactor_T(nLevEns_T))
@@ -635,7 +635,7 @@ contains
       call utl_abort('bmat1D_setubBEns: Invalid VERTICAL localization length scale')
     end if     
       
-    ! Setup the localization
+    !- 1.7 Setup the localization
     if ( vco_in%Vcode == 5002 .or. vco_in%Vcode == 5005 ) then
       pSurfRef = 101000.D0
       nullify(pressureProfileInc_M)
@@ -922,7 +922,6 @@ contains
 
   end subroutine bmat1D_bSqrtHiAd
 
-
   !--------------------------------------------------------------------------
   ! bmat1D_bSqrtEns
   !--------------------------------------------------------------------------
@@ -1017,7 +1016,6 @@ contains
     if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: done'
 
   end subroutine bmat1D_bSqrtEnsAd
-
 
   !--------------------------------------------------------------------------
   ! bmat1D_sqrtB
@@ -1148,9 +1146,11 @@ contains
     implicit none
 
     if (initialized) then
-       deallocate( bSqrtLand )
-       deallocate( bSqrtSea )
-       deallocate( latLand, lonLand, latSea, lonSea )
+       if (allocated(bSqrtLand)) then
+         deallocate( bSqrtLand )
+         deallocate( bSqrtSea )
+         deallocate( latLand, lonLand, latSea, lonSea )
+       end if
        if (allocated(bSqrtEns)) deallocate( bSqrtEns )
        call var1D_finalize()
     end if
