@@ -39,7 +39,7 @@ module columnData_mod
 
   ! public subroutines and functions
   public :: col_setup, col_allocate, col_deallocate
-  public :: col_varExist, col_getOffsetFromVarno, col_getOffsetFromVarName
+  public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol, col_getVarNameFromK
   public :: col_getPressure, col_getPressureDeriv, col_vintProf, col_getHeight, col_setHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
@@ -418,19 +418,6 @@ contains
     offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varNumberChm_opt=varNumberChm_opt,modelName_opt=modelName_opt)))
 
   end function col_getOffsetFromVarno
-
-  !--------------------------------------------------------------------------
-  ! col_getOffsetFromVarName
-  !--------------------------------------------------------------------------
-  function col_getOffsetFromVarName(column, varName) result(offset)
-    implicit none
-    type(struct_columnData)     :: column
-    character(len=*),intent(in) :: varName
-    integer                     :: offset
-
-    offset = column%varOffset(vnl_varListIndex(varName))
-
-  end function col_getOffsetFromVarName
 
   !--------------------------------------------------------------------------
   ! col_getLevIndexFromVarLevIndex
