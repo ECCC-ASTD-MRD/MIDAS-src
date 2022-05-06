@@ -1207,6 +1207,11 @@ contains
 
                 end do ! memberIndex2
 
+                if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. debug ) then
+                  write(*,*) 'maziar: Anal pert, varName=', gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex),', levIndex=', levIndex, ', stepIndex=', stepIndex
+                  write(*,*) 'maziar: after remove mean weight sum(memberAnlPert)=', sum(memberAnlPert(:))
+                end if
+
               else
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
