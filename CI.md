@@ -7,11 +7,11 @@ this code.
 It is based on the [GitLab CI](https://docs.gitlab.com/ce/ci)
 functionalities which are available with our code repository.
 
-It is configured such that, for each push in the `master` branch, the
+It is configured such that, for each push in the `main` branch, the
 test suite is launched.  If the test suite compiles, runs the programs
 with error, the documentation is generated.  Then, since the link in
 the main [README](README.md) to the documentation is generic, the end
-user will access the latest documentation for the `master` branch.
+user will access the latest documentation for the `main` branch.
 
 Here are the steps to install the a `gitlab-runner`.  For now, the
 `gitlab-runner` will be used for automatic generation of the
