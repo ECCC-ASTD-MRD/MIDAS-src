@@ -1,46 +1,30 @@
- &NAMSQLcsr
-  numberElem=1 ,
-  listElem='12163' ,
-  sqlExtraHeader='' ,
-  sqlNull='' ,
-  sqlLimit='' ,
-  numberBitsOff=0 ,
-  numberBitsOn=0 ,
-/
  &NAMBMAT1D
-  scalefactorHI=200*1.0,
-/
- &NAMS2C
-  SLANTPATH_TO_NL   = .FALSE.,
-  SLANTPATH_TO_TLAD = .FALSE.,
-  SLANTPATH_RO_NL   = .FALSE.,
-  calcHeightPressIncrOnColumn = .FALSE.
-/
- &NAMSLP
-  TOLERANCEHEIGHTDIFF= 10.0,
-  MAXNUMITERATION = 1,
+   scalefactorEns=200*1.0,
+   nEns = 24
+   vLocalize = 3.d0
 /
  &NAMMIN
-   NVAMAJ = 25,
-   NITERMAX = 15,
-   NSIMMAX  = 100,
+   NVAMAJ = 7,
+   NITERMAX = 7,
+   NSIMMAX  = 20,
    REPSG    = 1.0D-5,
-   LGRTEST  = .false.,
-   LWRTHESS = .TRUE.,
+   LGRTEST  = .TRUE.,
+   LWRTHESS = .FALSE.,
    LVARQC=.FALSE.,
    NWOQCV=5
 /
  &NAMINC
+   hInterpolationDegree = 'CUBIC'
    etiket_rebm ='XXXXXX'
 /
  &NAMDIMO
-   NMXOBS=200000,
-   NDATAMX=2000000,
+   NMXOBS=100000,
+   NDATAMX=8000000,
 /
  &NAMTIME
-  DWINDOWSIZE = 2.0d0
-  DSTEPOBS = 1.00d0
-  DSTEPOBSINC = 2.00d0
+  DSTEPOBS = 6.0d0
+  DSTEPOBSINC = 6.0d0
+  DWINDOWSIZE = 6.0d0
 /
  &NAMFILT
   NELEMS = 16,
@@ -75,7 +59,7 @@
   RLIMLVHU=70.D0,
 /
  &NAMRMAT
-   rmat_lnonDiagR=.false.
+   rmat_lnonDiagR=.true.
 /
  &NAMSTATE
    addHeightSfcOffset = .false.
@@ -86,23 +70,26 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
-   abortonMpiImbalance=.false.
 /
  &NAMTOV   
-   NSENSORS =  5,
-   CSATID(1)        = 'GOES13',
-   CINSTRUMENTID(1) = 'GOESIMAGER',
-   CSATID(2)        = 'GOES15',
-   CINSTRUMENTID(2) = 'GOESIMAGER',
-   CSATID(3)        = 'GOES16',
-   CINSTRUMENTID(3) = 'ABI',
-   CSATID(4)        = 'GOES17',
-   CINSTRUMENTID(4) = 'ABI',
-   CSATID(5)        = 'HMWARI-8',
-   CINSTRUMENTID(5) = 'AHI',
+   NSENSORS =  7,
+   CSATID(1)        = 'NOAA15',
+   CINSTRUMENTID(1) = 'AMSUA',
+   CSATID(2)        = 'NOAA16',
+   CINSTRUMENTID(2) = 'AMSUA',
+   CSATID(3)        = 'AQUA',
+   CINSTRUMENTID(3) = 'AMSUA',
+   CSATID(4)        = 'NOAA18',
+   CINSTRUMENTID(4) = 'AMSUA',
+   CSATID(5)        = 'METOP-2',
+   CINSTRUMENTID(5) = 'AMSUA',
+   CSATID(6)        = 'NOAA19',
+   CINSTRUMENTID(6) = 'AMSUA',
+   CSATID(7)        = 'METOP-1',
+   CINSTRUMENTID(7) = 'AMSUA',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
-   regLimitExtrap=.true.
+   regLimitExtrap=.false.
 /
  &NAMSAT
    LISTBURP(1)=054, ! METEOSAT 7
@@ -189,9 +176,6 @@
    LISTBURP(28)=173,! HMWARI-8
    LISTPLAT(28)="hmwari",
    LISTSAT(28)=008,
-   LISTBURP(29)=270,! GOES 16
-   LISTPLAT(29)="goes",
-   LISTSAT(29)=016,
 /
  &NAMINST
    LISTBURP(1)=050
@@ -256,8 +240,6 @@
    LISTINSTRUM(30)="airs",
    LISTBURP(31)=297,
    LISTINSTRUM(31)="ahi",
-   LISTBURP(32)=617,
-   LISTINSTRUM(32)="abi",
 / 
  &NAMCHANOFFSET
    LISTOFFSET(1)=27,
@@ -294,19 +276,64 @@
    name_inst(4)='seviri',
    name_inst(5)='gmsim',
    name_inst(6)='mtsatim',
-   name_inst(7)='abi',
 /
  &NAMCODTYP
 /
  &NAMGPSRO
+  LEVELGPSRO=2,
+  SURFMIN  = 1000.D0,
+  HSFMIN   = 1000.D0,
+  HTPMAX   = 40000.D0,
+  BGCKBAND = 0.05D0,
 /
  &NAMGPSGB
+   DZMIN       = 2.0D0,
+   DZMAX       = 1000.0D0,
+   YZTDERR     = 0.0D0,
+   LASSMET     = .TRUE.,
+   LLBLMET     = .TRUE.,
+   YSFERRWGT   = 1.00D0,
+   YZDERRWGT   = 1.00D0,
+   LBEVIS      = .TRUE.,
+   IREFOPT     = 1,
+   L1OBS       = .FALSE.,
+   LTESTOP     = .FALSE.,
+   IZTDOP      = 1,
 /
- &NAMSQLUPDATE
- numberUpdateItems=3,
- itemUpdateList(1)='OMA',
- itemUpdateList(2)='OMP',
- itemUpdateList(3)='OER',
+ &NAMBURP_FILTER_SFC
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  NELEMS_SFC=10,
+  BLISTELEMENTS_SFC=10004,12004,10051,12203,11011,11012,13220,15031,15032,15035
 /
- &NAMSQLINSERT
+ &NAMBURP_FILTER_CONV
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  BBITOFF(5)=-8,
+  NELEMS=10,
+  BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220
+/
+ &NAMBURP_FILTER_TOVS
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  BBITOFF(5)=-8,
+  NELEMS=1
+  BLISTELEMENTS=12163
+/
+ &NAMBURP_UPDATE
+  BN_ITEMS=3,
+  BITEMLIST(1)='OMA',
+  BITEMLIST(2)='OMP',
+  BITEMLIST(3)='OER',
+  BITEMLIST(4)='FGE',
+  TYPE_RESUME='POSTALT'
 /

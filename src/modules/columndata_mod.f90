@@ -43,6 +43,7 @@ module columnData_mod
   public :: col_getNumLev, col_getNumCol, col_getVarNameFromK
   public :: col_getPressure, col_getPressureDeriv, col_vintProf, col_getHeight, col_setHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
+  public :: col_getLevIndexFromVarLevIndex
 
   type struct_columnData
     integer           :: nk, numCol
@@ -417,6 +418,31 @@ contains
     offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varNumberChm_opt=varNumberChm_opt,modelName_opt=modelName_opt)))
 
   end function col_getOffsetFromVarno
+
+  !--------------------------------------------------------------------------
+  ! col_getLevIndexFromVarLevIndex
+  !--------------------------------------------------------------------------
+  function col_getLevIndexFromVarLevIndex(column, varLevIndex) result(levIndex)
+    implicit none
+    type(struct_columnData) :: column
+    integer, intent(in)     :: varLevIndex
+    integer                 :: levIndex
+    integer                 :: varIndex
+
+    do varIndex = 1, vnl_numvarmax
+      if ( column%varExistList(varIndex) ) then
+        if ( (varLevIndex >= (column%varOffset(varIndex) + 1)) .and.  &
+            (varLevIndex <= (column%varOffset(varIndex) + column%varNumLev(varIndex))) ) then
+          levIndex = varLevIndex - column%varOffset(varIndex)
+          return
+        end if
+      end if
+    end do
+
+    write(*,*) 'col_getLevIndexFromVarLevIndex: varLevIndex out of range: ', varLevIndex
+    call utl_abort('col_getLevIndexFromVarLevIndex')
+
+  end function col_getLevIndexFromVarLevIndex
 
   !--------------------------------------------------------------------------
   ! col_getVarNameFromK

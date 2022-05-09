@@ -35,7 +35,7 @@ module minimization_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use bmatrix_mod
-  use var1D_mod
+  use bMatrix1DVar_mod
   use bmatrixhi_mod
   use bmatrixchem_mod
   use bmatrixEnsemble_mod
@@ -624,7 +624,7 @@ CONTAINS
        call mpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
 
        if (oneDVarMode) then
-         call var1D_sqrtB(da_v, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
+         call bmat1D_sqrtB(da_v, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
          call cvt_transform(columnAnlInc_ptr, 'ZandP_tl', columnTrlOnAnlIncLev_ptr)
        else
          if (.not.gsv_isAllocated(statevector)) then
@@ -716,10 +716,9 @@ CONTAINS
 
        if (oneDVarMOde) then
          call cvt_transform( columnAnlInc_ptr, 'ZandP_ad', columnTrlOnAnlIncLev_ptr)      ! IN
-         call var1D_sqrtBT(da_gradJ, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
+         call bmat1D_sqrtBT(da_gradJ, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
        else
          call bmat_sqrtBT(da_gradJ,nvadim_mpilocal,statevector)
-         !call gsv_deallocate(statevector)
        end if
 
        if (na_indic .ne. 3) then

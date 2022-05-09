@@ -41,6 +41,8 @@ program midas_var1D
   use increment_mod
   use biasCorrectionSat_mod
   use var1D_mod
+  use bMatrix1Dvar_mod
+ 
 
   implicit none
 
@@ -157,7 +159,7 @@ program midas_var1D
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize the background-error covariance, also sets up control vector module (cvm)
-  call var1D_bsetup(vco_anl, obsSpaceData)
+  call bmat1D_bsetup(vco_anl, hco_anl, obsSpaceData)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize the gridded variable transform module
@@ -201,15 +203,15 @@ program midas_var1D
   call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
   call col_zero(columnAnlInc)
   ! get final increment
-  call var1D_get1DvarIncrement(controlVectorIncr,columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,cvm_nvadim)
-  call var1D_transferColumnToYGrid( stateVectorIncr, obsSpaceData, columnAnlInc)
+  call bmat1D_get1DvarIncrement(controlVectorIncr,columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,cvm_nvadim)
+  call var1D_transferColumnToYGrid( stateVectorIncr, obsSpaceData, columnAnlInc, bmat1D_includeAnlVar)
 
   ! output the analysis increment
   call inc_writeIncrement( stateVectorIncr)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! compute and write the analysis (as well as the increment on the trial grid)
-  call var1d_transferColumnToYGrid(stateVectorAnalysis, obsSpaceData, columnTrlOnAnlIncLev)
+  call var1d_transferColumnToYGrid(stateVectorAnalysis, obsSpaceData, columnTrlOnAnlIncLev, bmat1D_includeAnlVar)
 
   if (mpi_myId == 0) call gsv_add(statevectorIncr, statevectorAnalysis)
 
