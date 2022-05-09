@@ -87,9 +87,6 @@ contains
     initialized = .true.
     write(*,*) 'var1D_setup: var1D_validHeaderCount, obs_numHeader(obsSpaceData)', var1D_validHeaderCount, obs_numHeader(obsSpaceData)
 
-    call utl_tmg_stop(51)
-    call utl_tmg_stop(50)
-
   end subroutine var1D_setup
 
 

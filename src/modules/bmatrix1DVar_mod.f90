@@ -114,6 +114,8 @@ contains
     integer :: nulnam, ierr
     integer, external ::  fnom, fclos
     
+    call utl_tmg_start(50, '--Bmatrix')
+
     ! default values for namelist variables
     scaleFactorHI(:) = 0.d0
     scaleFactorHIHumidity(:) = 1.d0
@@ -150,12 +152,16 @@ contains
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
         write(*,*) 'bmat1D_bsetup: Setting up the modular GLOBAL HI 1D covariances...'
+        call utl_tmg_start(51, '----B_HI_Setup')
         call bmat1D_SetupBHi(vco_in, obsSpaceData, cvdim)
+        call utl_tmg_stop(51)
         write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
       case ('ENS')
         !- 1.2 ensemble based
         write(*,*) 'bmat1D_bsetup: Setting up the ensemble based 1D matrix.'
+        call utl_tmg_start(54, '----B_ENS_Setup')
         call bmat1D_SetupBEns(vco_in, hco_in, obsSpaceData, cvdim)
+        call utl_tmg_stop(54)
         write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
       case default
         call utl_abort( 'bmat1D_bSetup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
@@ -189,6 +195,8 @@ contains
       end if
       bmatActive(bmatIndex) = active
     end do
+
+    call utl_tmg_stop(50)
 
   end subroutine bmat1D_bsetup
 
@@ -243,7 +251,6 @@ contains
       firstCall = .false.
     end if
 
-    call utl_tmg_start(50, '--Bmatrix')
     if(mpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Starting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
@@ -266,7 +273,6 @@ contains
     if ( sum( scaleFactorHI( 1 : maxNumLevels ) ) == 0.0d0 ) then
       if ( mpi_myid == 0 ) write(*,*) 'bmat1D_setupBHi: scaleFactorHI=0, skipping rest of setup'
       cvDim_out = 0
-      call utl_tmg_stop(50)
       return
     end if
 
@@ -402,7 +408,6 @@ contains
 
     if(mpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Exiting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    call utl_tmg_stop(50)
 
   end subroutine bmat1D_setupBHi
 
@@ -454,14 +459,12 @@ contains
     character(len=4), allocatable :: varNameFromVarLevIndex(:)
     character(len=2) :: varLevel
 
-    call utl_tmg_start(50, '--Bmatrix')
     if(mpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     if ( nEns <= 0 ) then
       if ( mpi_myid == 0 ) write(*,*) 'bmat1D_setupBEns: no Ensemble members, skipping rest of setup'
       cvdim_out = 0
-      call utl_tmg_stop(50)
       return
     end if
     
@@ -792,7 +795,6 @@ contains
     
     if(mpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
     if(mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    call utl_tmg_stop(50)
 
   end subroutine bmat1D_setupBEns
   
@@ -1052,17 +1054,21 @@ contains
       select case( trim(bmatTypeList(bmatIndex)) )
       case ('HI')
         !- 1.1 Time-Mean Homogeneous and Isotropic...
+        call utl_tmg_start(52, '----B_HI_TL')
         call bmat1D_bsqrtHi(subVector,   & ! IN
                             column,      & ! OUT
                             obsspacedata ) ! IN
+        call utl_tmg_stop(52)
       case ('ENS')
         !- 1.2 Ensemble based
+        call utl_tmg_start(57, '----B_ENS_TL')
         call bmat1D_bsqrtEns(subVector, &  ! IN
                               column)      ! OUT
+        call utl_tmg_stop(57)
       case default
         call utl_abort( 'bmat1D_sqrtB: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select
-      utl_tmg_stop(50)
+      call utl_tmg_stop(50)
 
     end do bmat_loop
 
@@ -1097,13 +1103,17 @@ contains
       select case( trim(bmatTypeList(bmatIndex)) )
       case ('HI')
         !- Time-Mean Homogeneous and Isotropic...
+        call utl_tmg_start(53, '----B_HI_AD')
         call bmat1D_bsqrtHiAd(subvector,  &  ! IN
                               column,     &  ! OUT
                               obSSpaceData ) ! IN
+        call utl_tmg_stop(53)
       case ('ENS')
         !- Ensemble based
+        call utl_tmg_start(61, '----B_ENS_AD')
         call bmat1D_bsqrtEnsAd(subvector, &  ! IN
                                 column )     ! OUT
+        call utl_tmg_stop(61)
       case default
         call utl_abort( 'bmat1D_sqrtBT: requested bmatrix type does not exist ' // trim(bmatTypeList(bmatIndex)) )
       end select

@@ -509,7 +509,9 @@ CONTAINS
         if ( lgrtest .and. isMinimizationFinalCall ) then
           WRITE(*,FMT=9400)
  9400     FORMAT(//,12X,40('**'),/,12X,'TESTING THE GRADIENT AT THE FINAL POINT',/,40('**'))
+          call utl_tmg_start(91,'----QuasiNewton')
           call grtest2(simvar,nvadim_mpilocal,vazx,ngrange)
+          call utl_tmg_stop(91)
         end if
 
         ! Print some contents of obsSpaceData to the listing
