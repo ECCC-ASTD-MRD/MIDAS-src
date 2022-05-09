@@ -29,11 +29,14 @@ version of the profile which is
 # MIDAS releases general and code documentations:
 
 The documentation for officially supported branches is available:
-* `master` branch
-  * [General documentation (`README.md`) - this page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/master/README.md)
-  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-master)
-* `v_3.6` branch 
-  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.6/README.md) 
+* `main` branch
+  * [General documentation (`README.md`) - this page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/main/README.md)
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-main)
+* `v_3.7` branch
+  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.7/README.md)
+  * [Fortran code documentation](http://hpfx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.7) (HPCR-U2)
+* `v_3.6` branch
+  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.6/README.md)
   * [Fortran code documentation](http://hpfx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.6) (IC-3)
 
 # Contributing
@@ -50,24 +53,24 @@ associated with an issue, we suggest the command:
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.5
 clone_projet --no-central -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
-or if one is interested in the latest version of the master branch
+or if one is interested in the latest version of the `main` branch
 ```bash
-clone_projet --no-central -c master git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-master
+clone_projet --no-central -c main git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-main
 ```
 
-## Getting code related to IC-3 system
+## Getting code related to IC-3 system on HPCR-U2
 
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.5
-clone_projet --no-central -c v_3.6 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.6
+clone_projet --no-central -c v_3.7 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.7
 ```
 
 If you created a new branch with the GitLab web UI, then the branch
-has been created using the default branch which is `master`.  One must
+has been created using the default branch which is `main`.  One must
 reset it to the release branch.  One can simply do:
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.5
-clone_projet --no-central -c v_3.6 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
+clone_projet --no-central -c v_3.7 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 cd midas-${ISSUE_NUMBER}
 git checkout -b ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab
 git push origin ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab --force
@@ -371,11 +374,11 @@ to check if
  * the documentation is generated (`doc` stage) and
  * the SSM domain is published under `/fs/ssm/eccc/mrd/rpn/anl/midas/${VERSION}` (`deploy` stage).
 
-### Merge changes from release branch to `master`
+### Merge changes from release branch to `main`
 
 Once a version is published, there are probably some changes (like
-bugfixes) that needs to be also made in the `master` branch which is
-our main development branch.
+bugfixes) that needs to be also made in the `main` branch which is our
+main development branch.
 
 We suggest to open a merge request using the title "Merge tag
 'v_${VERSION}'" which describes the changes that will be introduced.
@@ -467,10 +470,9 @@ See [`findTrials/README.md`](tools/findTrials/README.md) for more details.
 # Automatic Testing using GitLab-CI
 
 An automatic system of tests has been developed.  For each push in the
-`master` branch the system tests are launched to guarantee that the
-all the tests pass for the `master` branch.  The [instructions for
-automatic testing using GitLab-CI are available in a separate
-file](CI.md).
+`main` branch the system tests are launched to guarantee that the all
+the tests pass for the `main` branch.  The [instructions for automatic
+testing using GitLab-CI are available in a separate file](CI.md).
 
 ## Cleaning of the programs directory
 
