@@ -23,7 +23,6 @@ module gridStateVector_mod
   use codePrecision_mod
   use mpi_mod
   use mpivar_mod
-  use ramDisk_mod
   use earthConstants_mod
   use varNameList_mod
   use verticalCoord_mod
@@ -33,7 +32,6 @@ module gridStateVector_mod
   use timeCoord_mod
   use utilities_mod
   use physicsFunctions_mod
-  use codePrecision_mod
   implicit none
   save
   private

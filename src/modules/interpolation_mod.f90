@@ -19,18 +19,14 @@ module interpolation_mod
   !
   ! :Purpose: The grid-point state vector interpolation.
   !
-  ! DBGmad001 : verify that all are necessary
   use mpi, only : mpi_status_size ! this is the mpi library module
   use mpi_mod
-  use mpivar_mod
-  use gridstatevector_mod ! DBGmad used
-  use varNameList_mod ! DBGmad used
-  use verticalCoord_mod ! DBGmad used
-  use horizontalCoord_mod ! DBGmad used
-  use oceanMask_mod
-  use timeCoord_mod
-  use mathPhysConstants_mod ! DBGmad used
-  use utilities_mod ! DBGmad used
+  use gridstatevector_mod
+  use varNameList_mod
+  use verticalCoord_mod
+  use horizontalCoord_mod
+  use mathPhysConstants_mod
+  use utilities_mod
   implicit none
   save
   private
