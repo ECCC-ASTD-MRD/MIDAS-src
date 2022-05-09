@@ -45,20 +45,28 @@ module interpolation_mod
   subroutine int_interpolate(statevector_in,statevector_out,          &
                              PsfcReference_opt, PsfcReference_r4_opt, &
                              checkModelTop_opt)
+    !
+    ! :Purpose: high-level interpolation subroutine that proceed with
+    !           horizontal and vertical interpolation
+    !
     implicit none
-    type(struct_gsv)  :: statevector_in,statevector_out
 
-    real(8), optional :: PsfcReference_opt(:,:,:)
-    real(4), optional :: PsfcReference_r4_opt(:,:,:)
+    ! Arguments
+    type(struct_gsv),       intent(in)    :: statevector_in               ! statevector that will contain the interpolated fields
+    type(struct_gsv),       intent(inout) :: statevector_out              ! Reference statevector providing the horizontal and vertical structure
+
+    real(8),      optional, intent(in)    :: PsfcReference_opt(:,:,:)     ! Provides a surface pressure field to be used instead of the first P0 level
+    real(4),      optional, intent(in)    :: PsfcReference_r4_opt(:,:,:)  ! Provides a surface pressure field to be used instead of the first P0 level
     
-    logical, optional :: checkModelTop_opt
+    logical,      optional, intent(in)    :: checkModelTop_opt            ! If true, model top consistency will be checked in vertical interpolation
     
+    ! Locals
+    logical :: checkModelTop
+
+    character(len=4), pointer :: varNamesToInterpolate(:)
+
     type(struct_gsv) :: statevector_in_varsLevs, statevector_in_varsLevs_hInterp
     type(struct_gsv) :: statevector_in_hInterp
-
-    logical :: checkModelTop
-    
-    character(len=4), pointer :: varNamesToInterpolate(:)
 
     !
     !- Error traps
@@ -141,12 +149,13 @@ module interpolation_mod
   !--------------------------------------------------------------------------
   subroutine int_hInterpolate(statevector_in,statevector_out)
     !
-    !:Purpose: Horizontal interpolation of pressure defined fields
+    ! :Purpose: Horizontal interpolation
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv) :: statevector_out
+    type(struct_gsv),       intent(in)    :: statevector_in   ! statevector that will contain the horizontally interpolated fields
+    type(struct_gsv),       intent(inout) :: statevector_out  ! Reference statevector providing the horizontal structure
 
     ! Locals:
     integer :: varIndex, levIndex, nlev, stepIndex, ierr, kIndex
@@ -292,12 +301,13 @@ module interpolation_mod
   !--------------------------------------------------------------------------
   subroutine int_hInterpolate_r4(statevector_in,statevector_out)
     !
-    !:Purpose: Horizontal interpolation of pressure defined fields
+    ! :Purpose: Horizontal interpolation
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv) :: statevector_out
+    type(struct_gsv),       intent(in)    :: statevector_in   ! statevector that will contain the horizontally interpolated fields
+    type(struct_gsv),       intent(inout) :: statevector_out  ! Reference statevector providing the horizontal structure
 
     ! Locals:
     integer :: varIndex, levIndex, nlev, stepIndex, ierr, kIndex
@@ -443,29 +453,38 @@ module interpolation_mod
   subroutine int_vInterpolate(statevector_in,statevector_out,Ps_in_hPa_opt, &
                               PsfcReference_opt,checkModelTop_opt)
     !
-    !:Purpose: Vertical interpolation of pressure defined fields
+    ! :Purpose: Vertical interpolation
+    !
+    ! :Namelist parameters:
+    !         :vInterpCopyLowestLevel:  if true, will overwrite values at the lowest
+    !                                   levels to avoid extrapolation
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv)  :: statevector_in
-    type(struct_gsv)  :: statevector_out
-    logical, optional :: Ps_in_hPa_opt, checkModelTop_opt
-    real(8), optional :: PsfcReference_opt(:,:,:)
+    type(struct_gsv),  intent(in)     :: statevector_in           ! statevector that will contain the vertically interpolated fields
+    type(struct_gsv),  intent(inout)  :: statevector_out          ! Reference statevector providing the vertical structure
+    logical, optional, intent(in)     :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done
+    real(8), optional, intent(in)     :: PsfcReference_opt(:,:,:) ! Provides a surface pressure field to be used instead of the first P0 level
+    logical, optional, intent(in)     :: checkModelTop_opt        ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
-    character(len=4) :: varName
-    type(struct_vco), pointer :: vco_in, vco_out
-    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
-    integer :: status, latIndex2, lonIndex2, varIndex, stepIndex
-    real(8) :: zwb, zwt
-    real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
-    real(8) :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                       statevector_in%myLatBeg:statevector_in%myLatEnd)
     logical :: checkModelTop, vInterpCopyLowestLevel
 
-    real(8), pointer :: heightSfcIn(:,:), heightSfcOut(:,:)
+    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
+    integer :: latIndex2, lonIndex2, varIndex, stepIndex
+    integer :: status, nulnam, fnom, ierr, fclos
+    real(8) :: zwb, zwt
 
-    integer :: nulnam, fnom, ierr, fclos
+    real(8)           :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                                 statevector_in%myLatBeg:statevector_in%myLatEnd)
+    real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
+    real(8), pointer  :: heightSfcIn(:,:), heightSfcOut(:,:)
+
+    character(len=4) :: varName
+
+    type(struct_vco), pointer :: vco_in, vco_out
+
     NAMELIST /NAMINT/vInterpCopyLowestLevel
 
     vInterpCopyLowestLevel = .false.
@@ -628,29 +647,38 @@ module interpolation_mod
   subroutine int_vInterpolate_r4(statevector_in,statevector_out,Ps_in_hPa_opt, &
                                  PsfcReference_opt,checkModelTop_opt)
     !
-    !:Purpose: Vertical interpolation of pressure defined fields
+    ! :Purpose: Vertical interpolation of pressure defined fields
+    !
+    ! :Namelist parameters:
+    !         :vInterpCopyLowestLevel:  if true, will overwrite values at the lowest
+    !                                   levels to avoid extrapolation
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv)  :: statevector_in
-    type(struct_gsv)  :: statevector_out
-    logical, optional :: Ps_in_hPa_opt, checkModelTop_opt
-    real(4), optional :: PsfcReference_opt(:,:,:)
+    type(struct_gsv),  intent(in)     :: statevector_in           ! statevector that will contain the vertically interpolated fields
+    type(struct_gsv),  intent(inout)  :: statevector_out          ! Reference statevector providing the vertical structure
+    logical, optional, intent(in)     :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done
+    real(4), optional, intent(in)     :: PsfcReference_opt(:,:,:) ! Provides a surface pressure field to be used instead of the first P0 level
+    logical, optional, intent(in)     :: checkModelTop_opt        ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
-    character(len=4) :: varName
-    type(struct_vco), pointer :: vco_in, vco_out
-    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
-    integer :: status, latIndex2, lonIndex2, varIndex, stepIndex
-    real(4) :: zwb, zwt
-    real(4), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
-    real(4) :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                       statevector_in%myLatBeg:statevector_in%myLatEnd)
     logical :: checkModelTop, vInterpCopyLowestLevel
 
-    real(8), pointer :: heightSfcIn(:,:), heightSfcOut(:,:)
+    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
+    integer :: latIndex2, lonIndex2, varIndex, stepIndex
+    integer :: status, nulnam, fnom, ierr, fclos
+    real(4) :: zwb, zwt
 
-    integer :: nulnam, fnom, ierr, fclos
+    real(4)           :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                                 statevector_in%myLatBeg:statevector_in%myLatEnd)
+    real(4), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
+    real(8), pointer  :: heightSfcIn(:,:), heightSfcOut(:,:)
+
+    character(len=4) :: varName
+
+    type(struct_vco), pointer :: vco_in, vco_out
+
     NAMELIST /NAMINT/vInterpCopyLowestLevel
 
     vInterpCopyLowestLevel = .false.
@@ -813,13 +841,14 @@ module interpolation_mod
   !--------------------------------------------------------------------------
   subroutine int_tInterpolate(statevector_in,statevector_out)
     !
-    !:Purpose: Time interpolation from statevector with low temporal resolution to statevector 
-    !          with high temporal resolution.
+    ! :Purpose: Time interpolation from statevector with low temporal resolution
+    !           to statevector with high temporal resolution.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)    :: statevector_in
-    type(struct_gsv), intent(inout) :: statevector_out
+    type(struct_gsv),  intent(in)     :: statevector_in           ! statevector that will contain the temporal interpolated fields
+    type(struct_gsv),  intent(inout)  :: statevector_out          ! Reference statevector providing the temporal structure
 
     ! Locals:
     integer :: kIndex, latIndex, lonIndex
