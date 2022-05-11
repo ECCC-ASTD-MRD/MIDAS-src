@@ -706,8 +706,8 @@ module gridStateVector_mod
     end if
 
     ! set the horizontal and vertical coordinates
-    call gsv_sethco(statevector,hco_ptr)
-    call gsv_setvco(statevector,vco_ptr)
+    statevector%hco => hco_ptr
+    statevector%vco => vco_ptr
 
     if (.not.statevector%vco%initialized) then
        call utl_abort('statevector_allocate: VerticalCoord has not been initialized!')
@@ -3041,23 +3041,6 @@ module gridStateVector_mod
   end function gsv_getVco
 
   !--------------------------------------------------------------------------
-  ! gsv_setVcO
-  !--------------------------------------------------------------------------
-  subroutine gsv_setVco(statevector,vco_ptr)
-    !
-    ! :Purpose: Set the statevector vertical coordinate structure (vco)
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv),          intent(inout) :: statevector
-    type(struct_vco), pointer, intent(in)    :: vco_ptr
-
-    statevector%vco => vco_ptr
-
-  end subroutine gsv_setVco
-
-  !--------------------------------------------------------------------------
   ! gsv_getHco
   !--------------------------------------------------------------------------
   function gsv_getHco(statevector) result(hco_ptr)
@@ -3074,23 +3057,6 @@ module gridStateVector_mod
     hco_ptr => statevector%hco
 
   end function gsv_getHco
-
-  !--------------------------------------------------------------------------
-  ! gsv_setHco
-  !--------------------------------------------------------------------------
-  subroutine gsv_setHco(statevector,hco_ptr)
-    !
-    ! :Purpose: Set the statevector horizontal coordinate structure (hco)
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv),          intent(inout)  :: statevector
-    type(struct_hco), pointer, intent(in)     :: hco_ptr
-
-    statevector%hco => hco_ptr
-
-  end subroutine gsv_setHco
 
   !--------------------------------------------------------------------------
   ! gsv_getHco_physics
@@ -5178,7 +5144,14 @@ module gridStateVector_mod
     !
     ! :Purpose: Compute energy norms and energy density 
     !
-    ! DBGmad001 : clarify Purpose, where is the scalar returned, what is returned in statevector_inout
+    ! :Devnotes: @mad001 plan to move that subroutine out of gsv (issue to be opened)
+    !            * it is not a low-level routine
+    !            * call to vgd_levels will have to be replaced by some `czp` call (#466)
+    !              and that will trigger a circular dependency
+    !            It would also be beneficial to bonify the :Purpose: entry, for
+    !            instance where is the energy scalar returned, what is returned
+    !            in statevector_inout
+    !
     implicit none
 
     ! Arguments:
@@ -5216,7 +5189,6 @@ module gridStateVector_mod
     nLev_T = gsv_getNumLev(statevector_inout,'TH')
 
     ! compute 3D log pressure fields
-    ! DBGmad001 : call to czp needed here
     call gsv_getField(statevector_ref,Psfc_ptr,'P0')
     allocate(Psfc_ref(statevector_inout%lonPerPEmax,statevector_inout%latPerPEmax))
     Psfc_ref(:,:) =  &
