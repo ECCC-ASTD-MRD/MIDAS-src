@@ -285,11 +285,11 @@ CONTAINS
     implicit none 
 
     ! Arguments:
-    type(struct_gsv), intent(in)  :: stateVectorPsfcHighRes
-    type(struct_gsv), intent(in)  :: stateVectorUpdateHighRes
-    type(struct_gsv), intent(out) :: stateVectorTrial
-    type(struct_gsv), intent(out) :: stateVectorPsfc
-    type(struct_gsv), intent(out) :: stateVectorAnal
+    type(struct_gsv), intent(inout)  :: stateVectorPsfcHighRes
+    type(struct_gsv), intent(in)     :: stateVectorUpdateHighRes
+    type(struct_gsv), intent(out)    :: stateVectorTrial
+    type(struct_gsv), intent(out)    :: stateVectorPsfc
+    type(struct_gsv), intent(out)    :: stateVectorAnal
 
     ! Locals:
     type(struct_vco), pointer :: vco_trl => null()
@@ -402,8 +402,8 @@ CONTAINS
 
     ! Arguments:
     type(struct_gsv), intent(inout), target :: stateVectorTrial
-    type(struct_gsv), intent(in) :: stateVectorPsfc
-    type(struct_gsv), intent(in) :: stateVectorAnal
+    type(struct_gsv), intent(inout) :: stateVectorPsfc
+    type(struct_gsv), intent(inout) :: stateVectorAnal
 
     ! Locals:
     type(struct_gsv) :: stateVectorIncHighRes

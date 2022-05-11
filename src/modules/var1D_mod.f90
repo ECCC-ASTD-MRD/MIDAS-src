@@ -114,7 +114,7 @@ contains
     !
     implicit none
     ! arguments:
-    type(struct_gsv), intent(in)           :: stateVector
+    type(struct_gsv), intent(inout)        :: stateVector
     type(struct_obs), intent(in)           :: obsSpaceData
     type(struct_columnData), intent(inout) :: column
     character(len=4), intent(in)           :: varList(:)
