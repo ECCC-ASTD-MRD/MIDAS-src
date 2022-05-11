@@ -160,7 +160,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function gsv_getOffsetFromVarName(statevector,varName) result(offset)
     !
-    ! :Purpose: returns the offset for the given variable provided it exists
+    ! :Purpose: Returns the offset for the given variable provided it exists
     !
     implicit none
 
@@ -185,7 +185,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function gsv_getVarNameFromK(statevector,kIndex) result(varName)
     !
-    ! :Purpose: returns the variable name from a given kIndex
+    ! :Purpose: Returns the variable name from a given kIndex
     !
     implicit none
 
@@ -217,7 +217,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function gsv_getLevFromK(statevector,kIndex) result(levIndex)
     !
-    ! :Purpose: returns level index from a given kIndex
+    ! :Purpose: Returns level index from a given kIndex
     !
     implicit none
 
@@ -249,7 +249,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function gsv_getMpiIdFromK(statevector,kIndex) result(MpiId)
     !
-    ! :Purpose: returns MPI id from the given kIndex
+    ! :Purpose: Returns MPI id from the given kIndex
     !
     implicit none
 
@@ -321,7 +321,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_varNamesList(varNames,statevector)
     !
-    ! :Purpose: List all variables present in the statevector 
+    ! :Purpose: Lists all variables present in the statevector 
     !
     implicit none
     
@@ -463,7 +463,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_setup
     !
-    ! :Purpose: Initialise the gridstatevector module global structure.
+    ! :Purpose: Initialises the gridstatevector module global structure.
     !
     ! :Namelist parameters:
     !         :anlvar:          Analysis variable (chemistry analysis only)
@@ -1108,7 +1108,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_communicateTimeParams(statevector)
     !
-    ! :Purpose: Ensure all mpi tasks have certain time and other parameters
+    ! :Purpose: Ensures all mpi tasks have certain time and other parameters
     !
     implicit none
 
@@ -1150,7 +1150,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_resetTimeParams(statevector)
     !
-    ! :Purpose: Reset certain time parameters to "missing" values
+    ! :Purpose: Resets certain time parameters to "missing" values
     !
     implicit none
 
@@ -1170,7 +1170,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_checkMpiDistribution(stateVector)
     !
-    ! :Purpose: Check the distribution of latitude and longitude gridpoints
+    ! :Purpose: Checks the distribution of latitude and longitude gridpoints
     !           over the mpi tasks. If the variation in the number of grid
     !           points in either direction is too large, other mpi topologies
     !           will be suggested in the listing and the program could
@@ -1248,7 +1248,8 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function complementaryUVname(UV_in) result(UV_out)
     !
-    ! :Purpose: Pad variable name with spaces to fill 4 spaces
+    ! :Purpose: Returns the other wind component name
+    !           UU -> VV, VV -> UU
     !
     implicit none
 
@@ -1272,7 +1273,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_modifyDate(statevector, dateStamp, modifyDateOrigin_opt)
     !
-    ! :Purpose: Modify a statevector reference date
+    ! :Purpose: Modifies a statevector reference date
     !
     implicit none
   
@@ -1297,7 +1298,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_modifyVarName(statevector, oldVarName, newVarName) 
     !
-    ! :Purpose: Replace a variable with a variable of the same vertical level type
+    ! :Purpose: Replaces a variable with a variable of the same vertical level type
     !
     implicit none
 
@@ -1343,7 +1344,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_zero(statevector)
     !
-    ! :Purpose: Zero all struct_gsv arrays
+    ! :Purpose: Zeros all struct_gsv arrays
     !
     implicit none
 
@@ -1435,7 +1436,8 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_add(statevector_in,statevector_inout,scaleFactor_opt)
     !
-    ! :Purpose: Add two statevectors
+    ! :Purpose: Adds two statevectors
+    !           statevector_inout = statevector_inout + scaleFactor_opt * statevector_in
     !
     implicit none
 
@@ -1534,7 +1536,8 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_schurProduct(statevector_in,statevector_inout)
     !
-    ! :Purpose: Apply the Schur product of two statevector
+    ! :Purpose: Applies the Schur product of two statevector
+    !           statevector_inout(i,j,k,l) = statevector_inout(i,j,k,l) * statevector_in(i,j,k,l) 
     !
     implicit none
 
@@ -1604,7 +1607,7 @@ module gridStateVector_mod
   subroutine gsv_copy(statevector_in, statevector_out, stepIndexOut_opt, &
                       allowTimeMismatch_opt, allowVarMismatch_opt)
     !
-    ! :Purpose: Copy a statevector
+    ! :Purpose: Copies a statevector
     !
     implicit none
 
@@ -2009,7 +2012,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_copy4Dto3D(statevector_in,statevector_out)
     !
-    ! :Purpose: Copy contents of a 4D statevector into a 3D statevector
+    ! :Purpose: Copies contents of a 4D statevector into a 3D statevector
     !           object by extracting the middle time step.
     !
     implicit none
@@ -2085,7 +2088,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_copyHeightSfc(statevector_in,statevector_out)
     !
-    ! :Purpose: Copy HeightSfc data from one statevector to another
+    ! :Purpose: Copies HeightSfc data from one statevector to another
     !
     implicit none
 
@@ -2116,7 +2119,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_hPad(statevector_in,statevector_out)
     !
-    ! :Purpose: Copy a statevector to a horizontally larger one and pad with a
+    ! :Purpose: Copies a statevector to a horizontally larger one and pad with a
     !           predefined value of 0 (or 1000 for 'P0'). 
     !
     implicit none
@@ -2231,14 +2234,15 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_power(statevector_inout,power,scaleFactor_opt)
     !
-    ! :Purpose: Apply the power function
+    ! :Purpose: Applies the power function
+    !           statevector_inout(i,j,k,l) = scaleFactor_opt * (statevector_inout(i,j,k,l)**power)
     !
     implicit none
 
     ! Arguments:
     type(struct_gsv),  intent(inout)  :: statevector_inout
     real(8),           intent(in)     :: power
-    real(8), optional, intent(in)     :: scaleFactor_opt    ! optional scaling of the second operand prior to the power
+    real(8), optional, intent(in)     :: scaleFactor_opt    ! optional scaling applied on the power of the operand
 
     ! Locals:
     integer :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
@@ -2323,7 +2327,8 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_scale(statevector_inout,scaleFactor)
     !
-    ! :Purpose: Apply scaling factor to a statevector
+    ! :Purpose: Applies scaling factor to a statevector
+    !           statevector_inout = scaleFactor * statevector_inout
     !
     implicit none
 
@@ -2384,7 +2389,8 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_scaleVertical(statevector_inout,scaleFactor)
     !
-    ! :Purpose: Apply a specific scaling to each level
+    ! :Purpose: Applies a specific scaling to each level
+    !           statevector_inout(:,:,k,:) = scaleFactor(k) * statevector_inout(:,:,k,:)
     !
     implicit none
 
@@ -2460,7 +2466,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_3dto4d(statevector_inout)
     !
-    ! :Purpose: Copy the 3D data array to all time steps of the 4D array of the
+    ! :Purpose: Copies the 3D data array to all time steps of the 4D array of the
     !           same statevector
     !
     implicit none
@@ -2610,7 +2616,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_deallocate(statevector)
     !
-    ! :Purpose: Deallocate the struct_gsv memory structure
+    ! :Purpose: Deallocates the struct_gsv memory structure
     !
     implicit none
 
@@ -2943,7 +2949,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function gsv_isAssocHeightSfc(statevector) result(isAssociated)
     !
-    ! :Purpose: Return .true. if HeightSfc is associated
+    ! :Purpose: Returns .true. if HeightSfc is associated
     !
     implicit none
 
@@ -2963,7 +2969,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function gsv_getHeightSfc(statevector) result(field)
     !
-    ! :Purpose: Return an access pointer to HeightSfc
+    ! :Purpose: Returns an access pointer to HeightSfc
     !
     implicit none
 
@@ -2992,7 +2998,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function gsv_getDateStamp(statevector,stepIndex_opt) result(dateStamp)
     !
-    ! :Purpose: Return the reference datestamp (or the datestamp of a specified
+    ! :Purpose: Returns the reference datestamp (or the datestamp of a specified
     !           time step.
     !
     implicit none
@@ -3024,7 +3030,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function gsv_getVco(statevector) result(vco_ptr)
     !
-    ! :Purpose: Return an access pointer to the statevector vco 
+    ! :Purpose: Returns an access pointer to the statevector vco 
     !           (vertical coordinate structure)
     !
     implicit none
@@ -3040,7 +3046,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function gsv_getHco(statevector) result(hco_ptr)
     !
-    ! :Purpose: Return an access pointer to the statevector hco 
+    ! :Purpose: Returns an access pointer to the statevector hco 
     !           (horizontal coordinate structure)
     !
     implicit none
@@ -3058,7 +3064,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function gsv_getHco_physics(statevector) result(hco_ptr)
     !
-    ! :Purpose: Return an access pointer to the statevector physics hco 
+    ! :Purpose: Returns an access pointer to the statevector physics hco 
     !           (horizontal coordinate structure)
     !
     implicit none
@@ -3076,7 +3082,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_transposeVarsLevsToTiles(statevector_in, statevector_out)
     !
-    ! :Purpose: Transpose the data from mpi_distribution=VarsLevs to Tiles
+    ! :Purpose: Transposes the data from mpi_distribution=VarsLevs to Tiles
     !
     implicit none
 
@@ -3321,7 +3327,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_transposeTilesToVarsLevs(statevector_in, statevector_out)
     !
-    !:Purpose: Transpose the data from mpi_distribution=Tiles to VarsLevs
+    !:Purpose: Transposes the data from mpi_distribution=Tiles to VarsLevs
     !
     implicit none
 
@@ -3991,7 +3997,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_horizSubSample(statevector_in,statevector_out,horizSubSample)
     !
-    ! :Purpose: Subsample the horizontal statevector grid by an integral factor
+    ! :Purpose: Subsamples the horizontal statevector grid by an integral factor
     !           and transform accordingly the fields 
     !
     implicit none
@@ -4128,7 +4134,7 @@ module gridStateVector_mod
   subroutine gsv_transposeStepToVarsLevs(stateVector_1step_r4, &
                                          stateVector_VarsLevs, stepIndexBeg)
     !
-    ! :Purpose: Transpose the data from a timestep MPI distribution (1 timestep
+    ! :Purpose: Transposes the data from a timestep MPI distribution (1 timestep
     !           per MPI task) to the `mpi_distribution='VarsLevs'` distribution.
     !
     ! :Comment: Step-wise distribution is mostly only used for file I/O.
@@ -4348,7 +4354,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_transposeStepToTiles(stateVector_1step, stateVector_tiles, stepIndexBeg)
     !
-    ! :Purpose: Transpose the data from a timestep MPI distribution (1 timestep
+    ! :Purpose: Transposes the data from a timestep MPI distribution (1 timestep
     !           per MPI task) to the `mpi_distribution='Tiles'` distribution 
     !           (4D lat-lon tiles).
     !
@@ -4646,7 +4652,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_transposeTilesToStep(stateVector_1step, stateVector_tiles, stepIndexBeg)
     !
-    ! :Purpose: Transpose the data from a `mpi_distribution='Tiles'` distribution 
+    ! :Purpose: Transposes the data from a `mpi_distribution='Tiles'` distribution 
     !           (4D lat-lon tiles) to a timestep MPI distribution (1 timestep per
     !           MPI task)
     !
@@ -4944,7 +4950,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_transposeTilesToMpiGlobal(stateVector_mpiGlobal, stateVector_tiles)
     !
-    !:Purpose: Do MPI transpose (allGather) from `mpi_distribution='Tiles'` 
+    !:Purpose: Does MPI transpose (allGather) from `mpi_distribution='Tiles'` 
     !          (4D lat-lon tiles) to global 4D stateVector on each MPI task 
     !          where it is allocated.
     !
@@ -5138,7 +5144,7 @@ module gridStateVector_mod
                                 latMin, latMax, lonMin, lonMax,      &
                                 uvNorm,ttNorm,p0Norm,huNorm,tgNorm)
     !
-    ! :Purpose: Compute energy norms
+    ! :Purpose: Computes energy norms
     !
     ! :Devnotes: @mad001 plan to move that subroutine out of gsv (issue to be opened)
     !            * it is not a low-level routine
@@ -5466,7 +5472,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_dotProduct(statevector_a,statevector_b,dotsum)
     !
-    ! :Purpose: Compute the dot product of two statevectors
+    ! :Purpose: Computes the dot product of two statevectors
     !
     implicit none
 
@@ -5830,7 +5836,7 @@ module gridStateVector_mod
   ! gsv_getInfo
   !--------------------------------------------------------------------------
   subroutine gsv_getInfo(stateVector, message)
-    !:Purpose: Write out grid state vector parameters
+    !:Purpose: Writes out grid state vector parameters
     !
     implicit none
 
