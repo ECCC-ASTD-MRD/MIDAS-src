@@ -138,7 +138,6 @@ module gridStateVector_mod
   real(8) :: rhumin, gsv_rhumin
   logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
   logical :: abortOnMpiImbalance
-  logical :: vInterpCopyLowestLevel
 
   ! Min values imposed for input trial and output analysis (and related increment)
   ! for variables of CH kind of the AnlVar list.
@@ -488,10 +487,6 @@ module gridStateVector_mod
     !                           If .true., will abort when MPI topology is 
     !                           inappropriate
     !
-    !         :vInterpCopyLowestLevel:
-    !                           If .true., will overwrite values at the lowest
-    !                           levels to avoid extrapolation
-    !                           
     !         :minClwAtSfc:     Minimum value for Specific cloud liquid water
     !                           content seen by radiation
     !
@@ -505,7 +500,7 @@ module gridStateVector_mod
 
     NAMELIST /NAMSTATE/anlvar, rhumin, anlTime_bin, addHeightSfcOffset, &
                        conversionVarKindCHtoMicrograms, minValVarKindCH, &
-                       abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc
+                       abortOnMpiImbalance, minClwAtSfc
 
     if (initialized) return
 
@@ -524,7 +519,6 @@ module gridStateVector_mod
     conversionVarKindCHtoMicrograms = .false.
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
-    vInterpCopyLowestLevel = .false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
