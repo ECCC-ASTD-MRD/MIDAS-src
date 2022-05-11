@@ -1192,7 +1192,7 @@ contains
   !---------------------------------------------------------
   ! s2c_tl
   !---------------------------------------------------------
-  subroutine s2c_tl( statevector_in, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData )
+  subroutine s2c_tl(statevector_in, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData)
     !
     ! :Purpose: Tangent linear version of the horizontal
     !           interpolation, used for the increment (or perturbations).
@@ -1232,6 +1232,14 @@ contains
 
     if ( .not. gsv_isAllocated(stateVector_in) ) then 
       call utl_abort('s2c_tl: stateVector must be allocated')
+    end if
+
+    if (interpInfo_tlad%initialized) then
+      if (.not. hco_equal(interpInfo_tlad%hco,stateVector_in%hco)) then
+        write(*,*) 's2c_tl: WARNING! Current hco grid parameters differ from allocated interpInfo_tlad!'
+        write(*,*) 's2c_tl: InterpInfo_tlad will be deallocated.'
+	call s2c_deallocInterpInfo(inputStateVectorType='tl')
+      end if
     end if
 
     ! check the column and statevector have same nk/varNameList
@@ -1423,7 +1431,7 @@ contains
   !---------------------------------------------------------
   ! s2c_ad
   !---------------------------------------------------------
-  subroutine s2c_ad( statevector_out, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData )
+  subroutine s2c_ad(statevector_out, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData)
     !
     ! :Purpose: Adjoint version of the horizontal interpolation,
     !           used for the cost function gradient with respect to the increment.
@@ -1462,6 +1470,15 @@ contains
     if ( .not. gsv_isAllocated(stateVector_out) ) then 
       call utl_abort('s2c_ad: stateVector must be allocated')
     end if
+
+    if (interpInfo_tlad%initialized) then
+      if (.not. hco_equal(interpInfo_tlad%hco,stateVector_out%hco)) then
+        write(*,*) 's2c_ad: WARNING! Current hco grid parameters differ from allocated interpInfo_tlad!'
+        write(*,*) 's2c_ad: InterpInfo_tlad will be deallocated.'
+        call s2c_deallocInterpInfo(inputStateVectorType='ad')
+      end if
+    end if
+
 
     ! if we only compute Height and Pressure on column, make copy without them
     if (calcHeightPressIncrOnColumn) then
@@ -1641,9 +1658,9 @@ contains
   !---------------------------------------------------------
   ! s2c_nl
   !---------------------------------------------------------
-  subroutine s2c_nl( stateVector, obsSpaceData, column, hco_core, &
-                     timeInterpType, varName_opt, &
-                     numObsBatches_opt, dealloc_opt, moveObsAtPole_opt )
+  subroutine s2c_nl(stateVector, obsSpaceData, column, hco_core, timeInterpType, &
+                   varName_opt, numObsBatches_opt, dealloc_opt, moveObsAtPole_opt)
+    !
     ! :Purpose: Non-linear version of the horizontal interpolation,
     !           used for a full field (usually the background state when computing
     !           the innovation vector).
@@ -1688,6 +1705,14 @@ contains
 
     if ( .not. gsv_isAllocated(stateVector) ) then 
       call utl_abort('s2c_nl: stateVector must be allocated')
+    end if
+
+    if (interpInfo_nl%initialized) then
+      if (.not. hco_equal(interpInfo_nl%hco,stateVector%hco)) then
+        write(*,*) 's2c_nl: WARNING! Current hco grid parameters differ from allocated interpInfo!'
+        write(*,*) 's2c_nl: InterpInfo will be deallocated.'
+        call s2c_deallocInterpInfo(inputStateVectorType='nl')
+      end if	
     end if
 
     if ( stateVector%mpi_distribution /= 'Tiles' ) then 
