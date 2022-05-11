@@ -4176,8 +4176,8 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)  :: stateVector_1step_r4
-    type(struct_gsv), intent(out) :: stateVector_VarsLevs
+    type(struct_gsv), intent(in)    :: stateVector_1step_r4
+    type(struct_gsv), intent(inout) :: stateVector_VarsLevs
     integer :: stepIndexBeg
 
     ! Locals:
@@ -4397,9 +4397,9 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)  :: stateVector_1step
-    type(struct_gsv), intent(out) :: stateVector_tiles
-    integer,          intent(in)  :: stepIndexBeg
+    type(struct_gsv), intent(in)    :: stateVector_1step
+    type(struct_gsv), intent(inout) :: stateVector_tiles
+    integer,          intent(in)    :: stepIndexBeg
 
     ! Locals:
     integer :: ierr, yourid, youridx, youridy, nsize, numStepInput, stepCount
@@ -4989,8 +4989,8 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(out)  :: stateVector_mpiGlobal
-    type(struct_gsv), intent(in)   :: stateVector_tiles
+    type(struct_gsv), intent(inout)  :: stateVector_mpiGlobal
+    type(struct_gsv), intent(in)     :: stateVector_tiles
 
     ! Locals:
     integer :: ierr, yourid, youridx, youridy, nsize
