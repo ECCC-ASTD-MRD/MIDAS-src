@@ -26,6 +26,7 @@ module increment_mod
   use timeCoord_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
+  use interpolation_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use humidityLimits_mod
@@ -186,7 +187,7 @@ CONTAINS
       PsfcIncLowRes(:,:,1,:) = PsfcIncLowResFrom3Dgsv(:,:,1,:)
 
       ! Spatial interpolation of Psfc analysis increment
-      call gsv_interpolate(statevectorPsfcLowRes,statevectorPsfc)
+      call int_interpolate(statevectorPsfcLowRes,statevectorPsfc)
       call gsv_deallocate(statevectorPsfcLowRes)
 
       ! Compute analysis Psfc to use for interpolation of increment
@@ -223,7 +224,7 @@ CONTAINS
       else
         call gsv_zero( stateVectorPsfcHighRes )
       end if
-      call gsv_tInterpolate(statevectorPsfc, stateVectorPsfcHighRes)
+      call int_tInterpolate(statevectorPsfc, stateVectorPsfcHighRes)
     end if
 
     ! Compute the analysis
@@ -284,11 +285,11 @@ CONTAINS
     implicit none 
 
     ! Arguments:
-    type(struct_gsv), intent(in)  :: stateVectorPsfcHighRes
-    type(struct_gsv), intent(in)  :: stateVectorUpdateHighRes
-    type(struct_gsv), intent(out) :: stateVectorTrial
-    type(struct_gsv), intent(out) :: stateVectorPsfc
-    type(struct_gsv), intent(out) :: stateVectorAnal
+    type(struct_gsv), intent(inout)  :: stateVectorPsfcHighRes
+    type(struct_gsv), intent(in)     :: stateVectorUpdateHighRes
+    type(struct_gsv), intent(out)    :: stateVectorTrial
+    type(struct_gsv), intent(out)    :: stateVectorPsfc
+    type(struct_gsv), intent(out)    :: stateVectorAnal
 
     ! Locals:
     type(struct_vco), pointer :: vco_trl => null()
@@ -401,8 +402,8 @@ CONTAINS
 
     ! Arguments:
     type(struct_gsv), intent(inout), target :: stateVectorTrial
-    type(struct_gsv), intent(in) :: stateVectorPsfc
-    type(struct_gsv), intent(in) :: stateVectorAnal
+    type(struct_gsv), intent(inout) :: stateVectorPsfc
+    type(struct_gsv), intent(inout) :: stateVectorAnal
 
     ! Locals:
     type(struct_gsv) :: stateVectorIncHighRes
@@ -782,7 +783,7 @@ CONTAINS
       if (present(PsfcReference_opt)) then
         PsfcReference_r4(:,:,:) = PsfcReference_opt(:,:,:)
       end if
-      call gsv_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_r4_opt=PsfcReference_r4)
+      call int_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_r4_opt=PsfcReference_r4)
       deallocate(PsfcReference_r4)
     else
       allocate(PsfcReference_r8(statevector_in_hvInterp%myLonBeg:statevector_in_hvInterp%myLonEnd, &
@@ -791,7 +792,7 @@ CONTAINS
       if (present(PsfcReference_opt)) then
         PsfcReference_r8(:,:,:) = PsfcReference_opt(:,:,:)
       end if
-      call gsv_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_r8)
+      call int_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_r8)
       deallocate(PsfcReference_r8)
     end if
 
@@ -805,7 +806,7 @@ CONTAINS
                       varNames_opt=varNamesToInterpolate,                                       &
                       hInterpolateDegree_opt=statevector_inout%hInterpolateDegree,              &
                       hExtrapolateDegree_opt='VALUE' )
-    call gsv_tInterpolate(statevector_in_hvInterp, statevector_in_hvtInterp)
+    call int_tInterpolate(statevector_in_hvInterp, statevector_in_hvtInterp)
     call gsv_deallocate(statevector_in_hvInterp)
 
     ! Masking

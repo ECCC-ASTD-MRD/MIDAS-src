@@ -23,6 +23,8 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+/
+ &NAMINT
    vInterpCopyLowestLevel = .true.
 /
  &NAMPHY

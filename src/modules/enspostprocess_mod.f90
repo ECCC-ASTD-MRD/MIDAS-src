@@ -29,6 +29,7 @@ module ensPostProcess_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
+  use interpolation_mod
   use randomNumber_mod
   use controlVector_mod
   use gridVariableTransforms_mod
@@ -1153,7 +1154,7 @@ contains
                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                           hExtrapolateDegree_opt='MINIMUM', &
                           varNames_opt=(/'HU','P0'/) )
-        call gsv_interpolate(stateVectorHuRefState, stateVectorHuRefStateInterp)
+        call int_interpolate(stateVectorHuRefState, stateVectorHuRefStateInterp)
         call gsv_deallocate(stateVectorHuRefState)
       end if
     end if
@@ -1184,7 +1185,7 @@ contains
       end if
       call utl_tmg_start(4,'--AddEnsRandomPert')
 
-      call gsv_interpolate(stateVectorPerturbation, stateVectorPerturbationInterp, &
+      call int_interpolate(stateVectorPerturbation, stateVectorPerturbationInterp, &
                            PsfcReference_opt=PsfcReference)
 
       ! If desired, use member itself as reference state for LQ to HU conversion

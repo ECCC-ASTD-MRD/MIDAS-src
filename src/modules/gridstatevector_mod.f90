@@ -23,7 +23,6 @@ module gridStateVector_mod
   use codePrecision_mod
   use mpi_mod
   use mpivar_mod
-  use ramDisk_mod
   use earthConstants_mod
   use varNameList_mod
   use verticalCoord_mod
@@ -33,7 +32,6 @@ module gridStateVector_mod
   use timeCoord_mod
   use utilities_mod
   use physicsFunctions_mod
-  use codePrecision_mod
   implicit none
   save
   private
@@ -46,7 +44,6 @@ module gridStateVector_mod
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
   public :: gsv_getOffsetFromVarName, gsv_getLevFromK, gsv_getVarNameFromK, gsv_getMpiIdFromK, gsv_hPad
   public :: gsv_modifyVarName, gsv_modifyDate
-  public :: gsv_hInterpolate, gsv_hInterpolate_r4, gsv_vInterpolate, gsv_vInterpolate_r4
   public :: gsv_transposeTilesToStep, gsv_transposeStepToTiles, gsv_transposeTilesToMpiGlobal
   public :: gsv_transposeTilesToVarsLevs, gsv_transposeTilesToVarsLevsAd
   public :: gsv_transposeVarsLevsToTiles
@@ -56,12 +53,12 @@ module gridStateVector_mod
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D
   public :: gsv_copyHeightSfc
   public :: gsv_getVco, gsv_getHco, gsv_getHco_physics, gsv_getDataKind, gsv_getNumK
-  public :: gsv_horizSubSample, gsv_interpolate
+  public :: gsv_horizSubSample
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
   public :: gsv_multEnergyNorm, gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
-  public :: gsv_applyMaskLAM, gsv_tInterpolate, gsv_containsNonZeroValues
+  public :: gsv_applyMaskLAM, gsv_containsNonZeroValues
   public :: gsv_isAllocated
   public :: gsv_transposesteptovarslevs
 
@@ -141,7 +138,6 @@ module gridStateVector_mod
   real(8) :: rhumin, gsv_rhumin
   logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
   logical :: abortOnMpiImbalance
-  logical :: vInterpCopyLowestLevel
 
   ! Min values imposed for input trial and output analysis (and related increment)
   ! for variables of CH kind of the AnlVar list.
@@ -163,12 +159,18 @@ module gridStateVector_mod
   ! gsv_getOffsetFromVarName
   !--------------------------------------------------------------------------
   function gsv_getOffsetFromVarName(statevector,varName) result(offset)
+    !
+    ! :Purpose: Returns the offset for the given variable provided it exists
+    !
     implicit none
-    type(struct_gsv)             :: statevector
-    character(len=*), intent(in) :: varName
-    integer                      :: offset
 
-    integer                      :: varIndex
+    ! Arguments:
+    type(struct_gsv), intent(in)  :: statevector
+    character(len=*), intent(in)  :: varName
+    integer                       :: offset
+
+    ! Locals:
+    integer :: varIndex
 
     varIndex = vnl_varListIndex(varName)
     if (.not. statevector%varExistList(varIndex)) then
@@ -182,11 +184,18 @@ module gridStateVector_mod
   ! gsv_getVarNameFromK
   !--------------------------------------------------------------------------
   function gsv_getVarNameFromK(statevector,kIndex) result(varName)
+    !
+    ! :Purpose: Returns the variable name from a given kIndex
+    !
     implicit none
-    type(struct_gsv)    :: statevector
-    integer, intent(in) :: kIndex
-    character(len=4)    :: varName
-    integer             :: varIndex
+
+    ! Arguments
+    type(struct_gsv), intent(in)  :: statevector
+    integer,          intent(in)  :: kIndex
+    character(len=4)              :: varName
+
+    ! Locals:
+    integer :: varIndex
 
     do varIndex = 1, vnl_numvarmax
       if ( statevector%varExistList(varIndex) ) then
@@ -207,10 +216,17 @@ module gridStateVector_mod
   ! gsv_getLevFromK
   !--------------------------------------------------------------------------
   function gsv_getLevFromK(statevector,kIndex) result(levIndex)
+    !
+    ! :Purpose: Returns level index from a given kIndex
+    !
     implicit none
-    type(struct_gsv)    :: statevector
-    integer, intent(in) :: kIndex
-    integer             :: levIndex
+
+    ! Arguments
+    type(struct_gsv), intent(in) :: statevector
+    integer,          intent(in) :: kIndex
+    integer                      :: levIndex
+
+    ! Locals
     integer             :: varIndex
 
     do varIndex = 1, vnl_numvarmax
@@ -232,10 +248,17 @@ module gridStateVector_mod
   ! gsv_getMpiIdFromK
   !--------------------------------------------------------------------------
   function gsv_getMpiIdFromK(statevector,kIndex) result(MpiId)
+    !
+    ! :Purpose: Returns MPI id from the given kIndex
+    !
     implicit none
-    type(struct_gsv)    :: statevector
-    integer, intent(in) :: kIndex
-    integer             :: MpiId
+
+    ! Arguments:
+    type(struct_gsv), intent(in) :: statevector
+    integer,          intent(in) :: kIndex
+    integer                      :: MpiId
+    
+    ! Locals:
     integer             :: procIndex
 
     do procIndex = 1, mpi_nprocs
@@ -255,10 +278,19 @@ module gridStateVector_mod
   ! gsv_varExist
   !--------------------------------------------------------------------------
   recursive function gsv_varExist(statevector_opt,varName) result(varExist)
+    !
+    ! :Purpose: Boolean fonction returning .true. if the queried variable
+    !           exists in the statevector if provided or in the global variable
+    !           list otherwise.
+    !           For 'Z_*' and 'P_*' variables, the statevector argument is
+    !           mandatory.
+    !
     implicit none
-    type(struct_gsv), optional   :: statevector_opt
-    character(len=*), intent(in) :: varName
-    logical                      :: varExist 
+
+    ! Arguments:
+    type(struct_gsv), optional, intent(in)  :: statevector_opt
+    character(len=*),           intent(in)  :: varName
+    logical                                 :: varExist 
 
     if (varName == 'Z_*') then
       varExist =  gsv_varExist(statevector_opt, 'Z_T') .and. &
@@ -288,13 +320,16 @@ module gridStateVector_mod
   ! gsv_varNamesList
   !--------------------------------------------------------------------------
   subroutine gsv_varNamesList(varNames,statevector)
+    !
+    ! :Purpose: Lists all variables present in the statevector 
+    !
     implicit none
     
-    ! arguments
-    character(len=4), pointer :: varNames(:)
-    type(struct_gsv), optional :: statevector
+    ! Arguments:
+    character(len=4), pointer,  intent(inout) :: varNames(:)
+    type(struct_gsv), optional, intent(in)    :: statevector
     
-    ! locals
+    ! Locals:
     integer :: varLevIndex, varNumberIndex, varIndex, numFound
     character(len=4) :: varName
 
@@ -351,12 +386,19 @@ module gridStateVector_mod
   ! gsv_getNumLev
   !--------------------------------------------------------------------------
   function gsv_getNumLev(statevector,varLevel,varName_opt) result(nlev)
+    !
+    ! :Purpose: Returns the number of levels for a given type of variable;
+    !           varLevel can be one of 'TH', 'MM', 'SF', 'SFMM', 'SFTH', 'DP',
+    !           'SFDP' or 'OT'.
+    !
     implicit none
-    ! arguments
-    type(struct_gsv), intent(in)           :: statevector
-    character(len=*), intent(in)           :: varLevel
-    character(len=*), optional, intent(in) :: varName_opt
-    ! locals
+
+    ! Arguments:
+    type(struct_gsv),           intent(in) :: statevector ! Input statevector
+    character(len=*),           intent(in) :: varLevel    ! Variable type in 'TH', 'MM', 'SF', 'SFMM', 'SFTH', 'DP', 'SFDP' or 'OT'
+    character(len=*), optional, intent(in) :: varName_opt ! Variable name when varLevel='OT'
+
+    ! Locals:
     integer                       :: nlev
 
     nlev = vco_getNumLev(statevector%vco,varLevel,varName_opt)
@@ -366,28 +408,35 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_getNumK
   !--------------------------------------------------------------------------
-  function gsv_getNumK(gsv) result(numK)
+  function gsv_getNumK(statevector) result(numK)
+    !
+    ! :Purpose: Returns the number of k indexes on the current MPI process
+    !
     implicit none
 
-    ! arguments
-    type(struct_gsv), intent(in)  :: gsv
+    ! Arguments:
+    type(struct_gsv), intent(in)  :: statevector
     integer                       :: numK
 
-    numK = 1 + gsv%mykEnd - gsv%mykBeg
+    numK = 1 + statevector%mykEnd - statevector%mykBeg
 
   end function gsv_getNumK
 
   !--------------------------------------------------------------------------
   ! gsv_getDataKind
   !--------------------------------------------------------------------------
-  function gsv_getDataKind(gsv) result(dataKind)
+  function gsv_getDataKind(statevector) result(dataKind)
+    !
+    ! :Purpose: Returns the real kind (4 or 8 bytes floating point value) of 
+    !           the input statevector
+    !
     implicit none
 
     ! arguments
-    type(struct_gsv), intent(in)  :: gsv
+    type(struct_gsv), intent(in)  :: statevector
     integer                       :: dataKind
 
-    dataKind = gsv%dataKind
+    dataKind = statevector%dataKind
 
   end function gsv_getDataKind
 
@@ -395,7 +444,12 @@ module gridStateVector_mod
   ! gsv_getNumLevFromVarName
   !--------------------------------------------------------------------------
   function gsv_getNumLevFromVarName(statevector,varName) result(nlev)
+    !
+    ! :Purpose: Returns the number of levels for a given variable
+    !
     implicit none
+
+    ! Arguments:
     type(struct_gsv), intent(in)  :: statevector
     character(len=*), intent(in)  :: varName
     integer                       :: nlev
@@ -408,13 +462,45 @@ module gridStateVector_mod
   ! gsv_setup
   !--------------------------------------------------------------------------
   subroutine gsv_setup
+    !
+    ! :Purpose: Initialises the gridstatevector module global structure.
+    !
+    ! :Namelist parameters:
+    !         :anlvar:          Analysis variable (chemistry analysis only)
+    !
+    !         :rhumin:          Minimum relative humidity value
+    !
+    !         :anlTime_bin:     Analysis time reference ('MIDDLE', 'FIRST' or 'LAST')
+    !
+    !         :addHeightSfcOffset:
+    !                           Global statevector height offset  
+    !
+    !         :conversionVarKindCHtoMicrograms:
+    !                           If .true. will apply some unit conversion when
+    !                           writing to file (chemistry analysis only)
+    !
+    !         :minValVarKindCH: Minimal values imposed for input trial and 
+    !                           output analysis and related increment for 
+    !                           variables of CH kind (chemistry analysis only)
+    !                           
+    !         :abortOnMpiImbalance:
+    !                           If .true., will abort when MPI topology is 
+    !                           inappropriate
+    !
+    !         :minClwAtSfc:     Minimum value for Specific cloud liquid water
+    !                           content seen by radiation
+    !
     implicit none
-    integer :: varIndex, fnom, fclos, nulnam, ierr, loopIndex
-    real(8) :: minClwAtSfc
-    character(len=4) :: anlvar(vnl_numVarMax)
-    logical :: conversionVarKindCHtoMicrograms
-    NAMELIST /NAMSTATE/anlvar, rhumin, anlTime_bin, addHeightSfcOffset, conversionVarKindCHtoMicrograms, &
-                       minValVarKindCH, abortOnMpiImbalance, vInterpCopyLowestLevel, minClwAtSfc
+
+    ! Locals:
+    logical           :: conversionVarKindCHtoMicrograms
+    integer           :: varIndex, fnom, fclos, nulnam, ierr, loopIndex
+    real(8)           :: minClwAtSfc
+    character(len=4)  :: anlvar(vnl_numVarMax)
+
+    NAMELIST /NAMSTATE/anlvar, rhumin, anlTime_bin, addHeightSfcOffset, &
+                       conversionVarKindCHtoMicrograms, minValVarKindCH, &
+                       abortOnMpiImbalance, minClwAtSfc
 
     if (initialized) return
 
@@ -433,7 +519,6 @@ module gridStateVector_mod
     conversionVarKindCHtoMicrograms = .false.
     minValVarKindCH(:) = mpc_missingValue_r8
     abortOnMpiImbalance = .true.
-    vInterpCopyLowestLevel = .false.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -558,8 +643,8 @@ module gridStateVector_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: stateVector
-    logical :: isAllocated
+    type(struct_gsv), intent(in)  :: stateVector
+    logical                       :: isAllocated
 
     isAllocated = stateVector%allocated
 
@@ -572,23 +657,31 @@ module gridStateVector_mod
                           mpi_local_opt, mpi_distribution_opt, horizSubSample_opt,                   &
                           varNames_opt, dataKind_opt, allocHeightSfc_opt, hInterpolateDegree_opt,    &
                           hExtrapolateDegree_opt, allocHeight_opt, allocPressure_opt, beSilent_opt)
+    !
+    ! :Purpose: Allocates the struct_gsv memory, sets horizontal and vertical 
+    !           coordinates, sets some options and MPI distribution 
+    !           configurations
+    !
     implicit none
 
-    ! arguments
-    type(struct_gsv)           :: statevector
-    integer, intent(in)        :: numStep
-    type(struct_hco), pointer  :: hco_ptr
-    type(struct_vco), pointer  :: vco_ptr
-    integer, optional          :: dateStamp_opt
-    integer, optional          :: dateStampList_opt(:)
-    logical, optional          :: mpi_local_opt
-    character(len=*), optional :: mpi_distribution_opt
-    integer, optional          :: horizSubSample_opt
-    character(len=*), optional :: varNames_opt(:)  ! allow specification of variables
-    integer, optional          :: dataKind_opt
-    logical, optional          :: allocHeightSfc_opt,allocHeight_opt,allocPressure_opt,beSilent_opt
-    character(len=*), optional :: hInterpolateDegree_opt
-    character(len=*), optional :: hExtrapolateDegree_opt
+    ! Arguments:
+    type(struct_gsv),           intent(inout) :: statevector            ! statevector to be allocated
+    integer,                    intent(in)    :: numStep                ! number of time steps
+    type(struct_hco), pointer,  intent(in)    :: hco_ptr                ! horizontal structure
+    type(struct_vco), pointer,  intent(in)    :: vco_ptr                ! vertical structure
+    integer,          optional, intent(in)    :: dateStamp_opt          ! reference datestamp
+    integer,          optional, intent(in)    :: dateStampList_opt(:)   ! explicit datestamp list
+    logical,          optional, intent(in)    :: mpi_local_opt          ! if .false. no MPI distribution will be used 
+    character(len=*), optional, intent(in)    :: mpi_distribution_opt   ! MPI distribution strategy in {'Tiles', 'VarsLevs', 'None'} defaults to 'Tiles'
+    integer,          optional, intent(in)    :: horizSubSample_opt     ! horizontal subsampling factor (to get a coarser grid)
+    character(len=*), optional, intent(in)    :: varNames_opt(:)        ! allow specification of variables
+    integer,          optional, intent(in)    :: dataKind_opt           ! real kind (4 or 8 bytes; defaults to 8)
+    logical,          optional, intent(in)    :: allocHeightSfc_opt     ! toggle allocation of surface height field
+    logical,          optional, intent(in)    :: allocHeight_opt        ! force the allocation of 'Z_T' and 'Z_M'
+    logical,          optional, intent(in)    :: allocPressure_opt      ! force the allocation of 'P_T' and 'P_M'
+    logical,          optional, intent(in)    :: beSilent_opt           ! limit outputs to listing
+    character(len=*), optional, intent(in)    :: hInterpolateDegree_opt ! set the horizontal interpolation degree
+    character(len=*), optional, intent(in)    :: hExtrapolateDegree_opt ! set the horizontal extrapolation degree
 
     integer :: ierr,iloc,varIndex,varIndex2,stepIndex,lon1,lat1,k1,kIndex,kIndex2,levUV
     character(len=4) :: UVname
@@ -607,8 +700,8 @@ module gridStateVector_mod
     end if
 
     ! set the horizontal and vertical coordinates
-    call gsv_sethco(statevector,hco_ptr)
-    call gsv_setvco(statevector,vco_ptr)
+    statevector%hco => hco_ptr
+    statevector%vco => vco_ptr
 
     if (.not.statevector%vco%initialized) then
        call utl_abort('statevector_allocate: VerticalCoord has not been initialized!')
@@ -1015,13 +1108,14 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_communicateTimeParams(statevector)
     !
-    ! :Purpose: Ensure all mpi tasks have certain time and other parameters
+    ! :Purpose: Ensures all mpi tasks have certain time and other parameters
     !
     implicit none
 
-    ! arguments
-    type(struct_gsv) :: statevector
-    ! locals
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector
+
+    ! Locals:
     integer :: deet, ierr
     integer :: ip2List(statevector%numStep), npasList(statevector%numStep)
     integer :: dateOriginList(statevector%numStep)
@@ -1056,12 +1150,12 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_resetTimeParams(statevector)
     !
-    ! :Purpose: Reset certain time parameters to "missing" values
+    ! :Purpose: Resets certain time parameters to "missing" values
     !
     implicit none
 
-    ! arguments
-    type(struct_gsv) :: statevector
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector
 
     statevector%dateOriginList(:) =  mpc_missingValue_int
     statevector%npasList(:)       =  mpc_missingValue_int
@@ -1076,7 +1170,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_checkMpiDistribution(stateVector)
     !
-    ! :Purpose: Check the distribution of latitude and longitude gridpoints
+    ! :Purpose: Checks the distribution of latitude and longitude gridpoints
     !           over the mpi tasks. If the variation in the number of grid
     !           points in either direction is too large, other mpi topologies
     !           will be suggested in the listing and the program could
@@ -1085,9 +1179,10 @@ module gridStateVector_mod
     !
     implicit none
 
-    ! arguments
-    type(struct_gsv) :: statevector
-    ! locals
+    ! Arguments:
+    type(struct_gsv), intent(in) :: statevector
+
+    ! Locals:
     integer       :: npex, npey
     integer       :: lonPerPEmin, lonPerPEmax, latPerPEmin, latPerPEmax
     integer, save :: numCalls = 0
@@ -1152,9 +1247,15 @@ module gridStateVector_mod
   ! gsv_complementaryUVname
   !--------------------------------------------------------------------------
   function complementaryUVname(UV_in) result(UV_out)
+    !
+    ! :Purpose: Returns the other wind component name
+    !           UU -> VV, VV -> UU
+    !
     implicit none
-    character(len=*) :: UV_in
-    character(len=4) :: UV_out
+
+    ! Arguments:
+    character(len=*), intent(in)  :: UV_in
+    character(len=4)              :: UV_out
 
     ! return UU on VV input, and vice versa
     if ( trim(UV_in) == 'UU' ) then
@@ -1171,13 +1272,15 @@ module gridStateVector_mod
   ! gsv_modifyDate
   !--------------------------------------------------------------------------
   subroutine gsv_modifyDate(statevector, dateStamp, modifyDateOrigin_opt)
-  
+    !
+    ! :Purpose: Modifies a statevector reference date
+    !
     implicit none
   
     ! Arguments
-    type(struct_gsv), intent(inout)        :: statevector
-    integer         , intent(in)           :: dateStamp
-    logical         , intent(in), optional :: modifyDateOrigin_opt         
+    type(struct_gsv),  intent(inout) :: statevector
+    integer,           intent(in)    :: dateStamp
+    logical, optional, intent(in)    :: modifyDateOrigin_opt
 
     if (statevector%numStep == 1) then
       statevector%dateStampList(1) = dateStamp
@@ -1194,14 +1297,17 @@ module gridStateVector_mod
   ! gsv_modifyVarName
   !--------------------------------------------------------------------------
   subroutine gsv_modifyVarName(statevector, oldVarName, newVarName) 
+    !
+    ! :Purpose: Replaces a variable with a variable of the same vertical level type
+    !
     implicit none
 
-    ! arguments
-    type(struct_gsv) :: statevector
-    character(len=*) :: oldVarName
-    character(len=*) :: newVarName
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector
+    character(len=*), intent(in)    :: oldVarName
+    character(len=*), intent(in)    :: newVarName
     
-    ! local
+    ! Locals:
     integer :: varIndex_oldVarName, varIndex_newVarName
 
     ! Test the compatibility of the modifications
@@ -1237,9 +1343,16 @@ module gridStateVector_mod
   ! gsv_zero
   !--------------------------------------------------------------------------
   subroutine gsv_zero(statevector)
+    !
+    ! :Purpose: Zeros all struct_gsv arrays
+    !
     implicit none
-    type(struct_gsv) :: statevector
-    integer          :: stepIndex,lonIndex,kIndex,latIndex,lat1,lat2,lon1,lon2,k1,k2,k1UV,k2UV
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector
+
+    ! Locals:
+    integer :: stepIndex,lonIndex,kIndex,latIndex,lat1,lat2,lon1,lon2,k1,k2,k1UV,k2UV
 
     if (.not.statevector%allocated) then
       call utl_abort('gsv_zero: gridStateVector not yet allocated')
@@ -1319,110 +1432,21 @@ module gridStateVector_mod
   end subroutine gsv_zero
 
   !--------------------------------------------------------------------------
-  ! GSV_interpolate
-  !--------------------------------------------------------------------------
-  subroutine gsv_interpolate(statevector_in,statevector_out,          &
-                             PsfcReference_opt, PsfcReference_r4_opt, &
-                             checkModelTop_opt)
-    implicit none
-    type(struct_gsv)  :: statevector_in,statevector_out
-
-    real(8), optional :: PsfcReference_opt(:,:,:)
-    real(4), optional :: PsfcReference_r4_opt(:,:,:)
-    
-    logical, optional :: checkModelTop_opt
-    
-    type(struct_gsv) :: statevector_in_varsLevs, statevector_in_varsLevs_hInterp
-    type(struct_gsv) :: statevector_in_hInterp
-
-    logical :: checkModelTop
-    
-    character(len=4), pointer :: varNamesToInterpolate(:)
-
-    !
-    !- Error traps
-    !
-    if (.not.statevector_in%allocated) then
-      call utl_abort('gsv_interpolate: gridStateVector_in not yet allocated')
-    end if
-    if (.not.statevector_out%allocated) then
-      call utl_abort('gsv_interpolate: gridStateVector_out not yet allocated')
-    end if
-
-    !
-    !- Do the interpolation of statevector_in onto the grid of statevector_out
-    !
-    nullify(varNamesToInterpolate)
-    call gsv_varNamesList(varNamesToInterpolate, statevector_in)
-
-    !- Horizontal interpolation
-    call gsv_allocate(statevector_in_VarsLevs, statevector_in%numstep, &
-                      statevector_in%hco, statevector_in%vco,          &
-                      mpi_local_opt=statevector_in%mpi_local, mpi_distribution_opt='VarsLevs',  &
-                      dataKind_opt=statevector_in%dataKind,                                     &
-                      allocHeightSfc_opt=statevector_in%heightSfcPresent, &
-                      varNames_opt=varNamesToInterpolate, &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
-                      hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
-
-    call gsv_transposeTilesToVarsLevs( statevector_in, statevector_in_VarsLevs )
-
-    call gsv_allocate(statevector_in_VarsLevs_hInterp, statevector_in%numstep, &
-                      statevector_out%hco, statevector_in%vco,  &
-                      mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='VarsLevs', &
-                      dataKind_opt=statevector_out%dataKind,                                    &
-                      allocHeightSfc_opt=statevector_out%heightSfcPresent, &
-                      varNames_opt=varNamesToInterpolate, &
-                      hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
-                      hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
-
-    if (statevector_in_VarsLevs%dataKind == 4) then
-      call gsv_hInterpolate_r4(statevector_in_VarsLevs, statevector_in_VarsLevs_hInterp)
-    else
-      call gsv_hInterpolate(statevector_in_VarsLevs, statevector_in_VarsLevs_hInterp)
-    end if
-    call gsv_deallocate(statevector_in_VarsLevs)
-
-    call gsv_allocate(statevector_in_hInterp, statevector_in%numstep, &
-                      statevector_out%hco, statevector_in%vco,      &
-                      mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='Tiles', &
-                      dataKind_opt=statevector_out%dataKind,                                 &
-                      allocHeightSfc_opt=statevector_out%heightSfcPresent, &
-                      varNames_opt=varNamesToInterpolate )
-
-    call gsv_transposeVarsLevsToTiles( statevector_in_varsLevs_hInterp, statevector_in_hInterp )
-    call gsv_deallocate(statevector_in_varsLevs_hInterp)
-
-    !- Vertical interpolation
-    
-    ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
-    if ( present(checkModelTop_opt) ) then
-      checkModelTop = checkModelTop_opt
-    else
-      checkModelTop = .true.
-    end if
-    
-    if (statevector_in_VarsLevs%dataKind == 4) then
-      call gsv_vInterpolate_r4(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_r4_opt, &
-                               checkModelTop_opt=checkModelTop)
-    else 
-      call gsv_vInterpolate(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_opt, &
-                            checkModelTop_opt=checkModelTop)
-    end if
-
-    call gsv_deallocate(statevector_in_hInterp)
-    nullify(varNamesToInterpolate)
-
-  end subroutine gsv_interpolate
-
-  !--------------------------------------------------------------------------
   ! gsv_add
   !--------------------------------------------------------------------------
   subroutine gsv_add(statevector_in,statevector_inout,scaleFactor_opt)
+    !
+    ! :Purpose: Adds two statevectors
+    !           statevector_inout = statevector_inout + scaleFactor_opt * statevector_in
+    !
     implicit none
-    type(struct_gsv)  :: statevector_in,statevector_inout
-    real(8), optional :: scaleFactor_opt
 
+    ! Arguments:
+    type(struct_gsv),  intent(in)     :: statevector_in     ! first operand 
+    type(struct_gsv),  intent(inout)  :: statevector_inout  ! second operand, will receive the result
+    real(8), optional, intent(in)     :: scaleFactor_opt    ! optional scaling of the second operand prior to the addition
+
+    ! Locals:
     integer           :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_in%allocated) then
@@ -1447,8 +1471,9 @@ module gridStateVector_mod
           do kIndex = k1, k2
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
-                statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) +  &
-                                                  scaleFactor_opt * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
+                statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = &
+                     statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) +  &
+                     scaleFactor_opt * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
               end do
             end do
           end do
@@ -1460,8 +1485,9 @@ module gridStateVector_mod
           do kIndex = k1, k2
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
-                statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) +  &
-                                                                statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
+                statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = &
+                     statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) +  &
+                     statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
               end do
             end do
           end do
@@ -1509,10 +1535,18 @@ module gridStateVector_mod
   ! gsv_schurProduct
   !--------------------------------------------------------------------------
   subroutine gsv_schurProduct(statevector_in,statevector_inout)
+    !
+    ! :Purpose: Applies the Schur product of two statevector
+    !           statevector_inout(i,j,k,l) = statevector_inout(i,j,k,l) * statevector_in(i,j,k,l) 
+    !
     implicit none
-    type(struct_gsv)  :: statevector_in,statevector_inout
 
-    integer           :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
+    ! Arguments:
+    type(struct_gsv),  intent(in)     :: statevector_in     ! first operand 
+    type(struct_gsv),  intent(inout)  :: statevector_inout  ! second operand, will receive the result
+
+    ! Locals:
+    integer :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_in%allocated) then
       call utl_abort('gsv_schurProduct: gridStateVector_in not yet allocated')
@@ -1535,8 +1569,9 @@ module gridStateVector_mod
         do kIndex = k1, k2
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
-              statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) *  &
-                                                                            statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
+              statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = &
+                   statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) *  &
+                   statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
             end do
           end do
         end do
@@ -1551,8 +1586,9 @@ module gridStateVector_mod
         do kIndex = k1, k2
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
-              statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) = statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) *  &
-                                                                            statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndex)
+              statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) = &
+                   statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) *  &
+                   statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndex)
             end do
           end do
         end do
@@ -1570,24 +1606,32 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_copy(statevector_in, statevector_out, stepIndexOut_opt, &
                       allowTimeMismatch_opt, allowVarMismatch_opt)
+    !
+    ! :Purpose: Copies a statevector
+    !
     implicit none
-    ! arguments
-    type(struct_gsv)  :: statevector_in, statevector_out
-    integer, optional :: stepIndexOut_opt
-    logical, optional :: allowTimeMismatch_opt
-    logical, optional :: allowVarMismatch_opt
 
-    ! locals
-    real(4), pointer :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)
-    real(8), pointer :: field_out_r8(:,:,:,:), field_in_r8(:,:,:,:)
+    ! Arguments:
+    type(struct_gsv),  intent(in)    :: statevector_in
+    type(struct_gsv),  intent(inout) :: statevector_out
+    integer, optional, intent(in)    :: stepIndexOut_opt
+    logical, optional, intent(in)    :: allowTimeMismatch_opt
+    logical, optional, intent(in)    :: allowVarMismatch_opt
+
+    ! Locals:
+    logical            :: timeMismatch, allowVarMismatch, varMismatch
+    logical, parameter :: verbose=.false.
+
     integer :: stepIndex, lonIndex, kIndex, latIndex, levIndex, varIndex, numCommonVar 
     integer :: lon1, lon2, lat1, lat2, k1, k2, step1, step2, stepIn, nlev_in
-    logical :: timeMismatch, allowVarMismatch, varMismatch
+
+    real(4), pointer :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)
+    real(8), pointer :: field_out_r8(:,:,:,:), field_in_r8(:,:,:,:)
+
     character(len=4), allocatable :: varNameListCommon(:)
-    character(len=4) :: varName
-    character(len=10) :: gsvCopyType 
-    character(len=4), pointer :: varNamesList_in(:), varNamesList_out(:)
-    logical, parameter :: verbose=.false.
+    character(len=4)              :: varName
+    character(len=10)             :: gsvCopyType 
+    character(len=4), pointer     :: varNamesList_in(:), varNamesList_out(:)
 
     if ( present(allowVarMismatch_opt) ) then
       allowVarMismatch = allowVarMismatch_opt
@@ -1968,14 +2012,16 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_copy4Dto3D(statevector_in,statevector_out)
     !
-    ! :Purpose: Copy contents of a 4D statevector into a 3D statevector
+    ! :Purpose: Copies contents of a 4D statevector into a 3D statevector
     !           object by extracting the middle time step.
     !
     implicit none
-    ! arguments
-    type(struct_gsv)  :: statevector_in, statevector_out
 
-    ! locals
+    ! Arguments:
+    type(struct_gsv), intent(in)     :: statevector_in
+    type(struct_gsv), intent(inout)  :: statevector_out
+
+    ! Locals:
     integer :: middleStepIndex, lonIndex, latIndex, kIndex
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStepIn, numStepOut
 
@@ -2041,9 +2087,14 @@ module gridStateVector_mod
   ! gsv_copyHeightSfc
   !--------------------------------------------------------------------------
   subroutine gsv_copyHeightSfc(statevector_in,statevector_out)
+    !
+    ! :Purpose: Copies HeightSfc data from one statevector to another
+    !
     implicit none
-    ! arguments
-    type(struct_gsv)  :: statevector_in, statevector_out
+
+    ! Arguments:
+    type(struct_gsv), intent(in)    :: statevector_in
+    type(struct_gsv), intent(inout) :: statevector_out
 
     if (.not.statevector_in%allocated) then
       call utl_abort('gsv_copyHeightSfc: gridStateVector_in not yet allocated')
@@ -2067,9 +2118,17 @@ module gridStateVector_mod
   ! gsv_hPad
   !--------------------------------------------------------------------------
   subroutine gsv_hPad(statevector_in,statevector_out)
+    !
+    ! :Purpose: Copies a statevector to a horizontally larger one and pad with a
+    !           predefined value of 0 (or 1000 for 'P0'). 
+    !
     implicit none
-    type(struct_gsv)  :: statevector_in,statevector_out
 
+    ! Arguments:
+    type(struct_gsv), intent(in)     :: statevector_in
+    type(struct_gsv), intent(inout)  :: statevector_out
+
+    ! Locals:
     integer :: stepIndex,lonIndex,kIndex,latIndex
     integer :: lonBeg_in, lonEnd_in, latBeg_in, latEnd_in, kBeg, kEnd
 
@@ -2116,7 +2175,8 @@ module gridStateVector_mod
 
       if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
         statevector_out%HeightSfc(:,:) = 0.d0
-        statevector_out%HeightSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = statevector_in%HeightSfc(:,:)
+        statevector_out%HeightSfc(lonBeg_in:lonEnd_in,latBeg_in:latEnd_in) = &
+             statevector_in%HeightSfc(:,:)
       end if
 
       !$OMP PARALLEL DO PRIVATE (stepIndex,latIndex,kIndex,lonIndex,paddingValue_r8)    
@@ -2130,7 +2190,8 @@ module gridStateVector_mod
           statevector_out%gd_r8(:,:,kIndex,stepIndex) = paddingValue_r8
           do latIndex = latBeg_in, latEnd_in
             do lonIndex = lonBeg_in, lonEnd_in
-              statevector_out%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
+              statevector_out%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = &
+                   statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
             end do
           end do
         end do
@@ -2172,11 +2233,19 @@ module gridStateVector_mod
   ! gsv_power
   !--------------------------------------------------------------------------
   subroutine gsv_power(statevector_inout,power,scaleFactor_opt)
+    !
+    ! :Purpose: Applies the power function
+    !           statevector_inout(i,j,k,l) = scaleFactor_opt * (statevector_inout(i,j,k,l)**power)
+    !
     implicit none
-    type(struct_gsv)    :: statevector_inout
-    real(8), intent(in) :: power
-    integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
-    real(8), optional :: scaleFactor_opt
+
+    ! Arguments:
+    type(struct_gsv),  intent(inout)  :: statevector_inout
+    real(8),           intent(in)     :: power
+    real(8), optional, intent(in)     :: scaleFactor_opt    ! optional scaling applied on the power of the operand
+
+    ! Locals:
+    integer :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_inout%allocated) then
       call utl_abort('gsv_power: gridStateVector_inout not yet allocated')
@@ -2257,10 +2326,18 @@ module gridStateVector_mod
   ! gsv_scale
   !--------------------------------------------------------------------------
   subroutine gsv_scale(statevector_inout,scaleFactor)
+    !
+    ! :Purpose: Applies scaling factor to a statevector
+    !           statevector_inout = scaleFactor * statevector_inout
+    !
     implicit none
-    type(struct_gsv) :: statevector_inout
-    integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
-    real(8)          :: scaleFactor
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector_inout
+    real(8),          intent(in)    :: scaleFactor
+
+    ! Locals:
+    integer :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_inout%allocated) then
       call utl_abort('gsv_scale: gridStateVector_inout not yet allocated')
@@ -2311,11 +2388,17 @@ module gridStateVector_mod
   ! gsv_scaleVertical
   !--------------------------------------------------------------------------
   subroutine gsv_scaleVertical(statevector_inout,scaleFactor)
+    !
+    ! :Purpose: Applies a specific scaling to each level
+    !           statevector_inout(:,:,k,:) = scaleFactor(k) * statevector_inout(:,:,k,:)
+    !
     implicit none
-    ! arguments
-    type(struct_gsv) :: statevector_inout
-    real(8)          :: scaleFactor(:)
-    ! locals
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector_inout
+    real(8),          intent(in)    :: scaleFactor(:)
+
+    ! Locals:
     integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2,levIndex
     character(len=4) :: varLevel
 
@@ -2382,9 +2465,17 @@ module gridStateVector_mod
   ! gsv_3dto4d
   !--------------------------------------------------------------------------
   subroutine gsv_3dto4d(statevector_inout)
+    !
+    ! :Purpose: Copies the 3D data array to all time steps of the 4D array of the
+    !           same statevector
+    !
     implicit none
-    type(struct_gsv) :: statevector_inout
-    integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector_inout
+
+    ! Locals:
+    integer :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
 
     if (.not.statevector_inout%allocated) then
       call utl_abort('gsv_3dto4d: statevector not yet allocated')
@@ -2407,7 +2498,8 @@ module gridStateVector_mod
           if (stepIndex.ne.statevector_inout%anltime) then
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
-                statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = statevector_inout%gd3d_r8(lonIndex,latIndex,kIndex)
+                statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex) = &
+                     statevector_inout%gd3d_r8(lonIndex,latIndex,kIndex)
               end do
             end do
           end if
@@ -2423,7 +2515,8 @@ module gridStateVector_mod
           if (stepIndex.ne.statevector_inout%anltime) then
             do latIndex = lat1, lat2
               do lonIndex = lon1, lon2
-                statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) = statevector_inout%gd3d_r4(lonIndex,latIndex,kIndex)
+                statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex) = &
+                     statevector_inout%gd3d_r4(lonIndex,latIndex,kIndex)
               end do
             end do
           end if
@@ -2439,9 +2532,17 @@ module gridStateVector_mod
   ! gsv_3dto4dAdj
   !--------------------------------------------------------------------------
   subroutine gsv_3dto4dAdj(statevector_inout)
+    !
+    ! :Purpose: Adjoint code of the 3dto4d copy to all time steps 
+    !
     implicit none
-    type(struct_gsv) :: statevector_inout
-    integer          :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
+
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector_inout
+
+    ! Locals:
+    integer :: stepIndex,lonIndex,kIndex,latIndex,lon1,lon2,lat1,lat2,k1,k2
+
     real(4), allocatable :: gd2d_tmp_r4(:,:)
     real(8), allocatable :: gd2d_tmp(:,:)
 
@@ -2468,13 +2569,14 @@ module gridStateVector_mod
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
               gd2d_tmp(lonIndex,latIndex) = gd2d_tmp(lonIndex,latIndex) +   &
-                                    statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
+                   statevector_inout%gd_r8(lonIndex,latIndex,kIndex,stepIndex)
             end do
           end do
         end do
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
-            statevector_inout%gd3d_r8(lonIndex,latIndex,kIndex) = gd2d_tmp(lonIndex,latIndex)
+            statevector_inout%gd3d_r8(lonIndex,latIndex,kIndex) = &
+                 gd2d_tmp(lonIndex,latIndex)
           end do
         end do
       end do
@@ -2491,13 +2593,14 @@ module gridStateVector_mod
           do latIndex = lat1, lat2
             do lonIndex = lon1, lon2
               gd2d_tmp_r4(lonIndex,latIndex) = gd2d_tmp_r4(lonIndex,latIndex) +   &
-                                       statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex)
+                   statevector_inout%gd_r4(lonIndex,latIndex,kIndex,stepIndex)
             end do
           end do
         end do
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
-            statevector_inout%gd3d_r4(lonIndex,latIndex,kIndex) = gd2d_tmp_r4(lonIndex,latIndex)
+            statevector_inout%gd3d_r4(lonIndex,latIndex,kIndex) = &
+                 gd2d_tmp_r4(lonIndex,latIndex)
           end do
         end do
       end do
@@ -2512,10 +2615,16 @@ module gridStateVector_mod
   ! gsv_deallocate
   !--------------------------------------------------------------------------
   subroutine gsv_deallocate(statevector)
+    !
+    ! :Purpose: Deallocates the struct_gsv memory structure
+    !
     implicit none
 
-    type(struct_gsv) :: statevector
-    integer        :: ierr, kIndex
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: statevector
+
+    ! Locals:
+    integer :: ierr, kIndex
 
     if (.not.statevector%allocated) then
       call utl_abort('gsv_deallocate: gridStateVector not yet allocated')
@@ -2589,12 +2698,16 @@ module gridStateVector_mod
   ! gsv_getField main routine and wrappers for r4 and r8
   !--------------------------------------------------------------------------
   subroutine gsv_getFieldWrapper_r4(statevector,field_r4,varName_opt)
+    !
+    ! :Purpose: Returns a pointer to the 4D data array. 
+    !           Wrapper for the kind 4 real.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)           :: statevector
-    real(4), pointer                       :: field_r4(:,:,:,:)
-    character(len=*), intent(in), optional :: varName_opt
+    type(struct_gsv),           intent(in)    :: statevector
+    real(4), pointer,           intent(inout) :: field_r4(:,:,:,:)
+    character(len=*), optional, intent(in)    :: varName_opt
 
     if (statevector%dataKind /= 4) call utl_abort('gsv_getFieldWrapper_r4: wrong dataKind')
     call gsv_getField_r48(statevector,field_r4=field_r4,varName_opt=varName_opt)
@@ -2602,12 +2715,16 @@ module gridStateVector_mod
   end subroutine gsv_getFieldWrapper_r4
 
   subroutine gsv_getFieldWrapper_r8(statevector,field_r8,varName_opt)
+    !
+    ! :Purpose: Returns a pointer to the 4D data array. 
+    !           Wrapper for the kind 8 real.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)           :: statevector
-    real(8), pointer                       :: field_r8(:,:,:,:)
-    character(len=*), intent(in), optional :: varName_opt
+    type(struct_gsv),           intent(in)    :: statevector
+    real(8), pointer,           intent(inout) :: field_r8(:,:,:,:)
+    character(len=*), optional, intent(in)    :: varName_opt
 
     if (statevector%dataKind /= 8) call utl_abort('gsv_getFieldWrapper_r8: wrong dataKind')
     call gsv_getField_r48(statevector,field_r8=field_r8,varName_opt=varName_opt)
@@ -2615,12 +2732,18 @@ module gridStateVector_mod
   end subroutine gsv_getFieldWrapper_r8
 
   subroutine gsv_getField_r48(statevector,field_r4,field_r8,varName_opt)
+    !
+    ! :Purpose: Returns a pointer to the 4D data array. 
+    !           Wrapper pairing the proper real data kind
+    !
     implicit none
+
     ! Arguments:
-    type(struct_gsv), intent(in)           :: statevector
-    character(len=*), intent(in), optional :: varName_opt
-    real(4), pointer, optional             :: field_r4(:,:,:,:)
-    real(8), pointer, optional             :: field_r8(:,:,:,:)
+    type(struct_gsv),           intent(in)    :: statevector
+    character(len=*), optional, intent(in)    :: varName_opt
+    real(4), pointer, optional, intent(inout) :: field_r4(:,:,:,:)
+    real(8), pointer, optional, intent(inout) :: field_r8(:,:,:,:)
+
     ! Locals:
     integer                                :: ilev1, ilev2, lon1, lat1, k1
 
@@ -2657,13 +2780,17 @@ module gridStateVector_mod
   ! gsv_getField3D_r8
   !--------------------------------------------------------------------------
   subroutine gsv_getField3D_r8(statevector,field3D,varName_opt,stepIndex_opt)
+    !
+    ! :Purpose: Returns a pointer to the 3D data array. 
+    !           Wrapper for the kind 8 real.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)           :: statevector
-    real(8), pointer                       :: field3D(:,:,:)
-    character(len=*), intent(in), optional :: varName_opt
-    integer, optional                      :: stepIndex_opt
+    type(struct_gsv),           intent(in)    :: statevector
+    real(8), pointer,           intent(inout) :: field3D(:,:,:)
+    character(len=*), optional, intent(in)    :: varName_opt
+    integer,          optional, intent(in)    :: stepIndex_opt
 
     ! Locals:
     integer                                :: ilev1,ilev2,lon1,lat1,k1
@@ -2705,13 +2832,17 @@ module gridStateVector_mod
   ! gsv_getField3D_r4
   !--------------------------------------------------------------------------
   subroutine gsv_getField3D_r4(statevector,field3d,varName_opt,stepIndex_opt)
+    !
+    ! :Purpose: Returns a pointer to the 3D data array. 
+    !           Wrapper for the kind 4 real.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)           :: statevector
-    real(4), pointer                       :: field3d(:,:,:)
-    character(len=*), intent(in), optional :: varName_opt
-    integer, optional                      :: stepIndex_opt
+    type(struct_gsv),           intent(in)    :: statevector
+    real(4), pointer,           intent(inout) :: field3d(:,:,:)
+    character(len=*), optional, intent(in)    :: varName_opt
+    integer,          optional, intent(in)    :: stepIndex_opt
 
     ! Locals:
     integer                                :: ilev1,ilev2,lon1,lat1,k1
@@ -2753,36 +2884,51 @@ module gridStateVector_mod
   ! gsv_getFieldUV main routine and wrappers for r4 and r8
   !--------------------------------------------------------------------------
   subroutine gsv_getFieldUVWrapper_r4(statevector,field_r4,kIndex)
+    !
+    ! :Purpose: Returns a pointer to the UV data array. 
+    !           Wrapper for the kind 4 real.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: statevector
-    real(4), pointer             :: field_r4(:,:,:)
-    integer, intent(in)          :: kIndex
+    type(struct_gsv), intent(in)    :: statevector
+    real(4), pointer, intent(inout) :: field_r4(:,:,:)
+    integer,          intent(in)    :: kIndex
 
     call gsv_getFieldUV_r48(statevector,field_r4=field_r4,kIndex=kIndex)
     
   end subroutine gsv_getFieldUVWrapper_r4
   
   subroutine gsv_getFieldUVWrapper_r8(statevector,field_r8,kIndex)
+    !
+    ! :Purpose: Returns a pointer to the UV data array. 
+    !           Wrapper for the kind 8 real.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in) :: statevector
-    real(8), pointer             :: field_r8(:,:,:)
-    integer, intent(in)          :: kIndex
+    type(struct_gsv), intent(in)    :: statevector
+    real(8), pointer, intent(inout) :: field_r8(:,:,:)
+    integer,          intent(in)    :: kIndex
 
     call gsv_getFieldUV_r48(statevector,field_r8=field_r8,kIndex=kIndex)
     
   end subroutine gsv_getFieldUVWrapper_r8
   
   subroutine gsv_getFieldUV_r48(statevector,field_r4,field_r8,kIndex)
+    !
+    ! :Purpose: Returns a pointer to the UV data array. 
+    !           Wrapper pairing the proper real data kind
+    !
     implicit none
-    type(struct_gsv), intent(in)           :: statevector
-    integer, intent(in)                    :: kIndex
-    real(4), optional, pointer             :: field_r4(:,:,:)
-    real(8), optional, pointer             :: field_r8(:,:,:)
 
+    ! Arguments:
+    type(struct_gsv),           intent(in)    :: statevector
+    integer,                    intent(in)    :: kIndex
+    real(4), optional, pointer, intent(inout) :: field_r4(:,:,:)
+    real(8), optional, pointer, intent(inout) :: field_r8(:,:,:)
+
+    ! Locals:
     integer                                :: lon1,lat1
 
     lon1 = statevector%myLonBeg
@@ -2802,6 +2948,9 @@ module gridStateVector_mod
   ! gsv_isAssocHeightSfc
   !--------------------------------------------------------------------------
   function gsv_isAssocHeightSfc(statevector) result(isAssociated)
+    !
+    ! :Purpose: Returns .true. if HeightSfc is associated
+    !
     implicit none
 
     ! Arguments
@@ -2819,11 +2968,16 @@ module gridStateVector_mod
   ! gsv_getHeightSfc
   !--------------------------------------------------------------------------
   function gsv_getHeightSfc(statevector) result(field)
+    !
+    ! :Purpose: Returns an access pointer to HeightSfc
+    !
     implicit none
 
     ! Arguments
     type(struct_gsv), intent(in)           :: statevector
     real(8),pointer                        :: field(:,:)
+
+    ! Locals:
     integer                                :: lon1,lat1
 
     lon1 = statevector%myLonBeg
@@ -2843,9 +2997,15 @@ module gridStateVector_mod
   ! gsv_getDateStamp
   !--------------------------------------------------------------------------
   function gsv_getDateStamp(statevector,stepIndex_opt) result(dateStamp)
+    !
+    ! :Purpose: Returns the reference datestamp (or the datestamp of a specified
+    !           time step.
+    !
     implicit none
-    type(struct_gsv), intent(in)   :: statevector
-    integer, intent(in), optional  :: stepIndex_opt 
+
+    ! Arguments
+    type(struct_gsv),  intent(in)  :: statevector
+    integer, optional, intent(in)  :: stepIndex_opt 
     integer                        :: dateStamp
 
     if (associated(statevector%dateStampList)) then
@@ -2869,57 +3029,49 @@ module gridStateVector_mod
   ! gsv_getVco
   !--------------------------------------------------------------------------
   function gsv_getVco(statevector) result(vco_ptr)
+    !
+    ! :Purpose: Returns an access pointer to the statevector vco 
+    !           (vertical coordinate structure)
+    !
     implicit none
-    type(struct_gsv)          :: statevector
-    type(struct_vco), pointer :: vco_ptr
+    type(struct_gsv), intent(in) :: statevector
+    type(struct_vco), pointer    :: vco_ptr
 
     vco_ptr => statevector%vco
 
   end function gsv_getVco
 
   !--------------------------------------------------------------------------
-  ! gsv_setVcO
-  !--------------------------------------------------------------------------
-  subroutine gsv_setVco(statevector,vco_ptr)
-    implicit none
-    type(struct_gsv) :: statevector
-    type(struct_vco), pointer  :: vco_ptr
-
-    statevector%vco => vco_ptr
-
-  end subroutine gsv_setVco
-
-  !--------------------------------------------------------------------------
   ! gsv_getHco
   !--------------------------------------------------------------------------
   function gsv_getHco(statevector) result(hco_ptr)
+    !
+    ! :Purpose: Returns an access pointer to the statevector hco 
+    !           (horizontal coordinate structure)
+    !
     implicit none
-    type(struct_gsv)          :: statevector
-    type(struct_hco), pointer :: hco_ptr
+
+    ! Arguments:
+    type(struct_gsv), intent(in) :: statevector
+    type(struct_hco), pointer    :: hco_ptr
 
     hco_ptr => statevector%hco
 
   end function gsv_getHco
 
   !--------------------------------------------------------------------------
-  ! gsv_setHco
-  !--------------------------------------------------------------------------
-  subroutine gsv_setHco(statevector,hco_ptr)
-    implicit none
-    type(struct_gsv)          :: statevector
-    type(struct_hco), pointer :: hco_ptr
-
-    statevector%hco => hco_ptr
-
-  end subroutine gsv_setHco
-
-  !--------------------------------------------------------------------------
   ! gsv_getHco_physics
   !--------------------------------------------------------------------------
   function gsv_getHco_physics(statevector) result(hco_ptr)
+    !
+    ! :Purpose: Returns an access pointer to the statevector physics hco 
+    !           (horizontal coordinate structure)
+    !
     implicit none
-    type(struct_gsv)          :: statevector
-    type(struct_hco), pointer :: hco_ptr
+
+    ! Arguments:
+    type(struct_gsv), intent(in) :: statevector
+    type(struct_hco), pointer    :: hco_ptr
 
     hco_ptr => statevector%hco_physics
 
@@ -2930,13 +3082,13 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_transposeVarsLevsToTiles(statevector_in, statevector_out)
     !
-    !:Purpose: Transpose the data from mpi_distribution=VarsLevs to Tiles
+    ! :Purpose: Transposes the data from mpi_distribution=VarsLevs to Tiles
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv) :: statevector_out
+    type(struct_gsv), intent(in)    :: statevector_in
+    type(struct_gsv), intent(inout) :: statevector_out
 
     ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr
@@ -3175,13 +3327,13 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_transposeTilesToVarsLevs(statevector_in, statevector_out)
     !
-    !:Purpose: Transpose the data from mpi_distribution=Tiles to VarsLevs
+    !:Purpose: Transposes the data from mpi_distribution=Tiles to VarsLevs
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv) :: statevector_out
+    type(struct_gsv), intent(in)    :: statevector_in
+    type(struct_gsv), intent(inout) :: statevector_out
 
     ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagUU, mpiTagVV
@@ -3487,13 +3639,14 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_transposeTilesToVarsLevsAd(statevector_in, statevector_out)
     !
-    !:Purpose: Adjoint of Transpose the data from mpi_distribution=Tiles to
-    !          VarsLevs
+    ! :Purpose: Adjoint of Transpose the data from mpi_distribution=Tiles to
+    !           VarsLevs
+    !
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv) :: statevector_out
+    type(struct_gsv), intent(in)    :: statevector_in
+    type(struct_gsv), intent(inout) :: statevector_out
 
     ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiIdUU, mpiIdVV
@@ -3840,769 +3993,21 @@ module gridStateVector_mod
   end subroutine gsv_transposeTilesToVarsLevsAd
 
   !--------------------------------------------------------------------------
-  ! gsv_hInterpolate
-  !--------------------------------------------------------------------------
-  subroutine gsv_hInterpolate(statevector_in,statevector_out)
-    !
-    !:Purpose: Horizontal interpolation of pressure defined fields
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv) :: statevector_out
-
-    ! Locals:
-    integer :: varIndex, levIndex, nlev, stepIndex, ierr, kIndex
-
-    real(8), pointer :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
-    real(8), pointer :: fieldUU_in_r8_ptr(:,:,:,:), fieldUU_out_r8_ptr(:,:,:,:)
-    real(8), pointer :: fieldVV_in_r8_ptr(:,:,:,:), fieldVV_out_r8_ptr(:,:,:,:)
-    real(8), pointer :: fieldUV_in_r8_ptr(:,:,:), fieldUV_out_r8_ptr(:,:,:)
-
-    character(len=4) :: varName
-    character(len=12):: interpolationDegree, extrapolationDegree
-
-    integer :: ezdefset
-
-    if ( hco_equal(statevector_in%hco,statevector_out%hco) ) then
-      write(*,*) 'gsv_hInterpolate: The input and output statevectors are already on same horizontal grids'
-      call gsv_copy(statevector_in, statevector_out)
-      return
-    end if
-
-    if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call utl_abort('gsv_hInterpolate: The input and output statevectors are not on the same vertical levels.')
-    end if
-
-    if ( statevector_in%dataKind /= 8 .or. statevector_out%dataKind /= 8 ) then
-      call utl_abort('gsv_hInterpolate: Incorrect value for dataKind. Only compatible with dataKind=4')
-    end if
-
-    ! set the interpolation degree
-    interpolationDegree = statevector_out%hInterpolateDegree
-    extrapolationDegree = statevector_out%hExtrapolateDegree
-
-    if ( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
-
-      write(*,*) 'gsv_hInterpolate: before interpolation (no mpi)'
-
-      step_loop: do stepIndex = 1, statevector_out%numStep
-        ! copy over some time related parameters
-        statevector_out%deet                      = statevector_in%deet
-        statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
-        statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
-        statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
-        statevector_out%etiket                    = statevector_in%etiket
-
-        ! Do horizontal interpolation for mpi global statevectors
-        var_loop: do varIndex = 1, vnl_numvarmax
-          varName = vnl_varNameList(varIndex)
-          if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
-          if ( trim(varName) == 'VV' ) cycle var_loop
-
-          nlev = statevector_out%varNumLev(varIndex)
-
-          ! horizontal interpolation
-          ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-
-          if ( trim(varName) == 'UU' ) then
-            ! interpolate both UV components and keep both UU and VV
-            call gsv_getField(statevector_in,fieldUU_in_r8_ptr,'UU')
-            call gsv_getField(statevector_out,fieldUU_out_r8_ptr,'UU')
-            call gsv_getField(statevector_in,fieldVV_in_r8_ptr,'VV')
-            call gsv_getField(statevector_out,fieldVV_out_r8_ptr,'VV')
-            do levIndex = 1, nlev
-              ierr = utl_ezuvint( fieldUU_out_r8_ptr(:,:,levIndex,stepIndex), fieldVV_out_r8_ptr(:,:,levIndex,stepIndex), &
-                                  fieldUU_in_r8_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r8_ptr(:,:,levIndex,stepIndex),  & 
-                                  interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-            end do
-          else
-            ! interpolate scalar variable
-            call gsv_getField(statevector_in, field_in_r8_ptr, varName)
-            call gsv_getField(statevector_out, field_out_r8_ptr, varName)
-            do levIndex = 1, nlev
-              ierr = utl_ezsint( field_out_r8_ptr(:,:,levIndex,stepIndex), field_in_r8_ptr(:,:,levIndex,stepIndex),  &
-                                 interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-            end do
-          end if
-        end do var_loop
-
-      end do step_loop
-
-    else
-
-      write(*,*) 'gsv_hInterpolate: before interpolation (with mpi)'
-
-      if ( statevector_in%mpi_distribution /= 'VarsLevs' .or.   &
-          statevector_out%mpi_distribution /= 'VarsLevs' ) then
-        call utl_abort('gsv_hInterpolate: The input or output statevector is not distributed by VarsLevs.')
-      end if
-
-      do stepIndex = 1, statevector_out%numStep
-        k_loop: do kIndex = statevector_in%mykBeg, statevector_in%mykEnd
-          varName = gsv_getVarNameFromK(statevector_in,kIndex)
-          if ( .not. gsv_varExist(statevector_in,varName) ) cycle k_loop
-
-          ! horizontal interpolation
-          ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-
-          if ( trim(varName) == 'UU' ) then
-            ! interpolate both UV components and keep UU in main vector
-            call gsv_getField(statevector_in,fieldUU_in_r8_ptr)
-            call gsv_getField(statevector_out,fieldUU_out_r8_ptr)
-            call gsv_getFieldUV(statevector_in,fieldUV_in_r8_ptr,kIndex)
-            call gsv_getFieldUV(statevector_out,fieldUV_out_r8_ptr,kIndex)
-            ierr = utl_ezuvint( fieldUU_out_r8_ptr(:,:,kIndex,stepIndex), fieldUV_out_r8_ptr(:,:,stepIndex), &
-                                fieldUU_in_r8_ptr(:,:,kIndex,stepIndex),  fieldUV_in_r8_ptr(:,:,stepIndex), &
-                                interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
-          else if ( trim(varName) == 'VV' ) then
-            ! interpolate both UV components and keep VV in main vector
-            call gsv_getFieldUV(statevector_in,fieldUV_in_r8_ptr,kIndex)
-            call gsv_getFieldUV(statevector_out,fieldUV_out_r8_ptr,kIndex)
-            call gsv_getField(statevector_in,fieldVV_in_r8_ptr)
-            call gsv_getField(statevector_out,fieldVV_out_r8_ptr)
-            ierr = utl_ezuvint( fieldUV_out_r8_ptr(:,:,stepIndex), fieldVV_out_r8_ptr(:,:,kIndex,stepIndex), &
-                                fieldUV_in_r8_ptr(:,:,stepIndex),  fieldVV_in_r8_ptr(:,:,kIndex,stepIndex), &
-                                interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
-          else
-            ! interpolate scalar variable
-            call gsv_getField(statevector_in,field_in_r8_ptr)
-            call gsv_getField(statevector_out,field_out_r8_ptr)
-            ierr = utl_ezsint( field_out_r8_ptr(:,:,kIndex,stepIndex), field_in_r8_ptr(:,:,kIndex,stepIndex), &
-                               interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-          end if
-        end do k_loop
-
-      end do ! stepIndex
-
-    end if
-
-    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
-      write(*,*) 'gsv_hInterpolate: interpolating surface height'
-      ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-      ierr = utl_ezsint( statevector_out%HeightSfc(:,:), statevector_in%HeightSfc(:,:), &
-                         interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-    end if
-
-  end subroutine gsv_hInterpolate
-
-  !--------------------------------------------------------------------------
-  ! gsv_hInterpolate_r4
-  !--------------------------------------------------------------------------
-  subroutine gsv_hInterpolate_r4(statevector_in,statevector_out)
-    !
-    !:Purpose: Horizontal interpolation of pressure defined fields
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv) :: statevector_in
-    type(struct_gsv) :: statevector_out
-
-    ! Locals:
-    integer :: varIndex, levIndex, nlev, stepIndex, ierr, kIndex
-
-    real(4), pointer :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
-    real(4), pointer :: fieldUU_in_r4_ptr(:,:,:,:), fieldUU_out_r4_ptr(:,:,:,:)
-    real(4), pointer :: fieldVV_in_r4_ptr(:,:,:,:), fieldVV_out_r4_ptr(:,:,:,:)
-    real(4), pointer :: fieldUV_in_r4_ptr(:,:,:), fieldUV_out_r4_ptr(:,:,:)
-
-    character(len=4) :: varName
-    character(len=12):: interpolationDegree, extrapolationDegree
-    integer :: ezdefset
-
-    if ( hco_equal(statevector_in%hco,statevector_out%hco) ) then
-      write(*,*) 'gsv_hInterpolate_r4: The input and output statevectors are already on same horizontal grids'
-      call gsv_copy(statevector_in, statevector_out)
-      return
-    end if
-
-    if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call utl_abort('gsv_hInterpolate_r4: The input and output statevectors are not on the same vertical levels.')
-    end if
-
-    if ( statevector_in%dataKind /= 4 .or. statevector_out%dataKind /= 4 ) then
-      call utl_abort('gsv_hInterpolate_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
-    end if
-
-    ! set the interpolation degree
-    interpolationDegree = statevector_out%hInterpolateDegree
-    extrapolationDegree = statevector_out%hExtrapolateDegree
-
-    if ( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
-
-      write(*,*) 'gsv_hInterpolate_r4: before interpolation (no mpi)'
-
-      step_loop: do stepIndex = 1, statevector_out%numStep
-        ! copy over some time related parameters
-        statevector_out%deet                      = statevector_in%deet
-        statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
-        statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
-        statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
-        statevector_out%etiket                    = statevector_in%etiket
-
-        ! Do horizontal interpolation for mpi global statevectors
-        var_loop: do varIndex = 1, vnl_numvarmax
-          varName = vnl_varNameList(varIndex)
-          if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
-          if ( trim(varName) == 'VV' ) cycle var_loop
-
-          nlev = statevector_out%varNumLev(varIndex)
-
-          ! horizontal interpolation
-          ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-
-          if ( trim(varName) == 'UU' ) then
-            ! interpolate both UV components and keep both UU and VV
-            call gsv_getField(statevector_in,fieldUU_in_r4_ptr,'UU')
-            call gsv_getField(statevector_out,fieldUU_out_r4_ptr,'UU')
-            call gsv_getField(statevector_in,fieldVV_in_r4_ptr,'VV')
-            call gsv_getField(statevector_out,fieldVV_out_r4_ptr,'VV')
-            do levIndex = 1, nlev
-              ierr = utl_ezuvint( fieldUU_out_r4_ptr(:,:,levIndex,stepIndex), fieldVV_out_r4_ptr(:,:,levIndex,stepIndex),   &
-                                  fieldUU_in_r4_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r4_ptr(:,:,levIndex,stepIndex),    &
-                                  interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-            end do
-          else
-            ! interpolate scalar variable
-            call gsv_getField(statevector_in, field_in_r4_ptr, varName)
-            call gsv_getField(statevector_out, field_out_r4_ptr, varName)
-            do levIndex = 1, nlev
-              ierr = utl_ezsint( field_out_r4_ptr(:,:,levIndex,stepIndex), field_in_r4_ptr(:,:,levIndex,stepIndex),  &
-                                 interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-            end do
-          end if
-        end do var_loop
-
-      end do step_loop
-
-    else
-
-      write(*,*) 'gsv_hInterpolate_r4: before interpolation (with mpi)'
-
-      if ( statevector_in%mpi_distribution /= 'VarsLevs' .or.   &
-          statevector_out%mpi_distribution /= 'VarsLevs' ) then
-        call utl_abort('gsv_hInterpolate_r4: The input or output statevector is not distributed by VarsLevs.')
-      end if
-
-      step2_loop: do stepIndex = 1, statevector_out%numStep
-        k_loop: do kIndex = statevector_in%mykBeg, statevector_in%mykEnd
-          varName = gsv_getVarNameFromK(statevector_in,kIndex)
-          if ( .not. gsv_varExist(statevector_in,varName) ) cycle k_loop
-
-          ! horizontal interpolation
-          ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-
-          if ( trim(varName) == 'UU' ) then
-            ! interpolate both UV components and keep UU
-            call gsv_getField(statevector_in,fieldUU_in_r4_ptr)
-            call gsv_getField(statevector_out,fieldUU_out_r4_ptr)
-            call gsv_getFieldUV(statevector_in,fieldUV_in_r4_ptr,kIndex)
-            call gsv_getFieldUV(statevector_out,fieldUV_out_r4_ptr,kIndex)
-            ierr = utl_ezuvint( fieldUU_out_r4_ptr(:,:,kIndex,stepIndex), fieldUV_out_r4_ptr(:,:,stepIndex),   &
-                                fieldUU_in_r4_ptr(:,:,kIndex,stepIndex),  fieldUV_in_r4_ptr(:,:,stepIndex), &
-                                interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
-          else if ( trim(varName) == 'VV' ) then
-            ! interpolate both UV components and keep VV
-            call gsv_getFieldUV(statevector_in,fieldUV_in_r4_ptr,kIndex)
-            call gsv_getFieldUV(statevector_out,fieldUV_out_r4_ptr,kIndex)
-            call gsv_getField(statevector_in,fieldVV_in_r4_ptr)
-            call gsv_getField(statevector_out,fieldVV_out_r4_ptr)
-            ierr = utl_ezuvint( fieldUV_out_r4_ptr(:,:,stepIndex), fieldVV_out_r4_ptr(:,:,kIndex,stepIndex),   &
-                                fieldUV_in_r4_ptr(:,:,stepIndex),  fieldVV_in_r4_ptr(:,:,kIndex,stepIndex),  &
-                                interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
-          else
-            ! interpolate scalar variable
-            call gsv_getField(statevector_in,field_in_r4_ptr)
-            call gsv_getField(statevector_out,field_out_r4_ptr)
-            ierr = utl_ezsint( field_out_r4_ptr(:,:,kIndex,stepIndex), field_in_r4_ptr(:,:,kIndex,stepIndex),  &
-                               interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-          end if
-        end do k_loop
-
-      end do step2_loop
-
-    end if
-
-    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
-      write(*,*) 'gsv_hInterpolate_r4: interpolating surface height'
-      ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-      ierr = utl_ezsint( statevector_out%HeightSfc(:,:), statevector_in%HeightSfc(:,:),  &
-                         interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-    end if
-
-  end subroutine gsv_hInterpolate_r4
-
-  !--------------------------------------------------------------------------
-  ! gsv_vInterpolate
-  !--------------------------------------------------------------------------
-  subroutine gsv_vInterpolate(statevector_in,statevector_out,Ps_in_hPa_opt, &
-                              PsfcReference_opt,checkModelTop_opt)
-    !
-    !:Purpose: Vertical interpolation of pressure defined fields
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv)  :: statevector_in
-    type(struct_gsv)  :: statevector_out
-    logical, optional :: Ps_in_hPa_opt, checkModelTop_opt
-    real(8), optional :: PsfcReference_opt(:,:,:)
-
-    ! Locals:
-    character(len=4) :: varName
-    type(struct_vco), pointer :: vco_in, vco_out
-    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
-    integer :: status, latIndex2, lonIndex2, varIndex, stepIndex
-    real(8) :: zwb, zwt
-    real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
-    real(8) :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                       statevector_in%myLatBeg:statevector_in%myLatEnd)
-    logical :: checkModelTop
-
-    if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      write(*,*) 'gsv_vInterpolate: The input and output statevectors are already on same vertical levels'
-      call gsv_copy(statevector_in, statevector_out)
-      return
-    end if
-
-    if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('gsv_vInterpolate: The input and output statevectors are not on the same horizontal grid.')
-    end if
-
-    if ( statevector_in%dataKind /= 8 .or. statevector_out%dataKind /= 8 ) then
-      call utl_abort('gsv_vInterpolate: Incorrect value for dataKind. Only compatible with dataKind=8')
-    end if
-
-    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
-      statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
-    end if
-
-    vco_in => gsv_getVco(statevector_in)
-    vco_out => gsv_getVco(statevector_out)
-
-    ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
-    if ( present(checkModelTop_opt) ) then
-      checkModelTop = checkModelTop_opt
-    else
-      checkModelTop = .true.
-    end if
-    if (checkModelTop) then
-      call vco_ensureCompatibleTops(vco_in, vco_out)
-    end if
-
-    step_loop: do stepIndex = 1, statevector_out%numStep
-
-      ! copy over some time related and other parameters
-      statevector_out%deet                      = statevector_in%deet
-      statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
-      statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
-      statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
-      statevector_out%etiket                    = statevector_in%etiket
-      statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
-      statevector_out%hco_physics              => statevector_in%hco_physics
-
-      if ( present(PsfcReference_opt) ) then
-        psfc_in(:,:) = PsfcReference_opt(:,:,stepIndex)
-      else
-        call gsv_getField(statevector_in,field_in,'P0')
-        psfc_in(:,:) = field_in(:,:,1,stepIndex)
-      end if
-      if ( present(Ps_in_hPa_opt) ) then
-        if ( Ps_in_hPa_opt ) psfc_in = psfc_in * mpc_pa_per_mbar_r8
-      end if
-
-      var_loop: do varIndex = 1, vnl_numvarmax
-        varName = vnl_varNameList(varIndex)
-        if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
-
-        nlev_in  = statevector_in%varNumLev(varIndex)
-        nlev_out = statevector_out%varNumLev(varIndex)
-
-        call gsv_getField(statevector_in ,field_in,varName)
-        call gsv_getField(statevector_out,field_out,varName)
-
-        ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
-        if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
-             (vnl_varLevelFromVarname(varName) == 'OT') ) then
-          field_out(:,:,:,stepIndex) = field_in(:,:,:,stepIndex)
-          cycle var_loop
-        end if
-
-        nullify(pres_out,pres_in)
-
-        ! define pressures on input and output levels
-        if (vnl_varLevelFromVarname(varName) == 'TH') then
-          status=vgd_levels(vco_in%vgrid,           &
-                            ip1_list=vco_in%ip1_T,  &
-                            levels=pres_in,         &
-                            sfc_field=psfc_in,      &
-                            in_log=.false.)
-          status=vgd_levels(vco_out%vgrid,           &
-                            ip1_list=vco_out%ip1_T,  &
-                            levels=pres_out,         &
-                            sfc_field=psfc_in,       &
-                            in_log=.false.)
-        else
-          status=vgd_levels(vco_in%vgrid,           &
-                            ip1_list=vco_in%ip1_M,  &
-                            levels=pres_in,         &
-                            sfc_field=psfc_in,      &
-                            in_log=.false.)
-          status=vgd_levels(vco_out%vgrid,           &
-                            ip1_list=vco_out%ip1_M,  &
-                            levels=pres_out,         &
-                            sfc_field=psfc_in,       &
-                            in_log=.false.)
-        end if
-
-        ! do the vertical interpolation
-        field_out(:,:,:,stepIndex) = 0.0d0
-        !$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2,levIndex_in,levIndex_out,zwb,zwt)
-        do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
-          latIndex2 = latIndex - statevector_out%myLatBeg + 1
-          do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
-            lonIndex2 = lonIndex - statevector_out%myLonBeg + 1
-            levIndex_in = 1
-            do levIndex_out = 1, nlev_out
-              levIndex_in = levIndex_in + 1
-              do while(pres_out(lonIndex2,latIndex2,levIndex_out).gt.pres_in(lonIndex2,latIndex2,levIndex_in)  &
-                       .and.levIndex_in.lt.nlev_in)
-                levIndex_in = levIndex_in + 1
-              end do
-              levIndex_in = levIndex_in - 1
-              zwb = log(pres_out(lonIndex2,latIndex2,levIndex_out)/pres_in(lonIndex2,latIndex2,levIndex_in))  &
-                   /log(pres_in(lonIndex2,latIndex2,levIndex_in+1)/pres_in(lonIndex2,latIndex2,levIndex_in))
-              zwt = 1.d0 - zwb
-              field_out(lonIndex,latIndex,levIndex_out,stepIndex) =   &
-                                 zwb*field_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
-                               + zwt*field_in(lonIndex,latIndex,levIndex_in,stepIndex)
-            end do
-          end do
-        end do
-        !$OMP END PARALLEL DO
-
-        ! overwrite values at the lowest levels to avoid extrapolation
-        if (vInterpCopyLowestLevel) then
-          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
-        end if
-
-        deallocate(pres_out)
-        deallocate(pres_in)
-
-      end do var_loop
-
-    end do step_loop
-
-  end subroutine gsv_vInterpolate
-
-  !--------------------------------------------------------------------------
-  ! gsv_vInterpolate_r4
-  !--------------------------------------------------------------------------
-  subroutine gsv_vInterpolate_r4(statevector_in,statevector_out,Ps_in_hPa_opt, &
-                                 PsfcReference_opt,checkModelTop_opt)
-    !
-    !:Purpose: Vertical interpolation of pressure defined fields
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv)  :: statevector_in
-    type(struct_gsv)  :: statevector_out
-    logical, optional :: Ps_in_hPa_opt, checkModelTop_opt
-    real(4), optional :: PsfcReference_opt(:,:,:)
-
-    ! Locals:
-    character(len=4) :: varName
-    type(struct_vco), pointer :: vco_in, vco_out
-    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
-    integer :: status, latIndex2, lonIndex2, varIndex, stepIndex
-    real(4) :: zwb, zwt
-    real(4), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
-    real(4) :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                       statevector_in%myLatBeg:statevector_in%myLatEnd)
-    logical :: checkModelTop
-
-    if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      write(*,*) 'gsv_vInterpolate_r4: The input and output statevectors are already on same vertical levels'
-      call gsv_copy(statevector_in, statevector_out)
-      return
-    end if
-
-    if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('gsv_vInterpolate_r4: The input and output statevectors are not on the same horizontal grid.')
-    end if
-
-    if ( statevector_in%dataKind /= 4 .or. statevector_out%dataKind /= 4 ) then
-      call utl_abort('gsv_vInterpolate_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
-    end if
-
-    if ( associated(statevector_in%HeightSfc) .and. associated(statevector_out%HeightSfc) ) then
-      statevector_out%HeightSfc(:,:) = statevector_in%HeightSfc(:,:)
-    end if
-
-    vco_in => gsv_getVco(statevector_in)
-    vco_out => gsv_getVco(statevector_out)
-
-    ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
-    if ( present(checkModelTop_opt) ) then
-      checkModelTop = checkModelTop_opt
-    else
-      checkModelTop = .true.
-    end if
-    if (checkModelTop) then
-      write(*,*) 'gsv_vInterpolate_r4: Checking that that the top of the destination grid is not higher than the top of the source grid.'
-      call vco_ensureCompatibleTops(vco_in, vco_out)
-    end if
-
-    step_loop: do stepIndex = 1, statevector_out%numStep
-
-      ! copy over some time related and other parameters
-      statevector_out%deet                      = statevector_in%deet
-      statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
-      statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
-      statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
-      statevector_out%etiket                    = statevector_in%etiket
-      statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
-      statevector_out%hco_physics              => statevector_in%hco_physics
-
-      if ( present(PsfcReference_opt) ) then
-        psfc_in(:,:) = PsfcReference_opt(:,:,stepIndex)
-      else
-        call gsv_getField(statevector_in,field_in,'P0')
-        psfc_in(:,:) = field_in(:,:,1,stepIndex)
-      end if
-      if ( present(Ps_in_hPa_opt) ) then
-        if ( Ps_in_hPa_opt ) psfc_in = psfc_in * mpc_pa_per_mbar_r4
-      end if
-
-      var_loop: do varIndex = 1, vnl_numvarmax
-        varName = vnl_varNameList(varIndex)
-        if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
-
-        nlev_in  = statevector_in%varNumLev(varIndex)
-        nlev_out = statevector_out%varNumLev(varIndex)
-
-        call gsv_getField(statevector_in ,field_in,varName)
-        call gsv_getField(statevector_out,field_out,varName)
-
-        ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
-        if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
-             (vnl_varLevelFromVarname(varName) == 'OT') ) then
-          field_out(:,:,:,stepIndex) = field_in(:,:,:,stepIndex)
-          cycle var_loop
-        end if
-
-        nullify(pres_out,pres_in)
-
-        ! define pressures on input and output levels
-        if (vnl_varLevelFromVarname(varName) == 'TH') then
-          status=vgd_levels(vco_in%vgrid,           &
-                            ip1_list=vco_in%ip1_T,  &
-                            levels=pres_in,         &
-                            sfc_field=psfc_in,      &
-                            in_log=.false.)
-          status=vgd_levels(vco_out%vgrid,           &
-                            ip1_list=vco_out%ip1_T,  &
-                            levels=pres_out,         &
-                            sfc_field=psfc_in,       &
-                            in_log=.false.)
-        else
-          status=vgd_levels(vco_in%vgrid,           &
-                            ip1_list=vco_in%ip1_M,  &
-                            levels=pres_in,         &
-                            sfc_field=psfc_in,      &
-                            in_log=.false.)
-          status=vgd_levels(vco_out%vgrid,           &
-                            ip1_list=vco_out%ip1_M,  &
-                            levels=pres_out,         &
-                            sfc_field=psfc_in,       &
-                            in_log=.false.)
-        end if
-
-        ! do the vertical interpolation
-        field_out(:,:,:,stepIndex) = 0.0
-        !$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2,levIndex_in,levIndex_out,zwb,zwt)
-        do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
-          latIndex2 = latIndex - statevector_out%myLatBeg + 1
-          do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
-            lonIndex2 = lonIndex - statevector_out%myLonBeg + 1
-            levIndex_in = 1
-            do levIndex_out = 1, nlev_out
-              levIndex_in = levIndex_in + 1
-              do while(pres_out(lonIndex2,latIndex2,levIndex_out).gt.pres_in(lonIndex2,latIndex2,levIndex_in)  &
-                       .and.levIndex_in.lt.nlev_in)
-                levIndex_in = levIndex_in + 1
-              end do
-              levIndex_in = levIndex_in - 1
-              zwb = log(pres_out(lonIndex2,latIndex2,levIndex_out)/pres_in(lonIndex2,latIndex2,levIndex_in))  &
-                   /log(pres_in(lonIndex2,latIndex2,levIndex_in+1)/pres_in(lonIndex2,latIndex2,levIndex_in))
-              zwt = 1.0 - zwb
-              field_out(lonIndex,latIndex,levIndex_out,stepIndex) =   &
-                                 zwb*field_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
-                               + zwt*field_in(lonIndex,latIndex,levIndex_in,stepIndex)
-            end do
-          end do
-        end do
-        !$OMP END PARALLEL DO
-
-        ! overwrite values at the lowest levels to avoid extrapolation
-        if (vInterpCopyLowestLevel) then
-          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
-        end if
-
-        deallocate(pres_out)
-        deallocate(pres_in)
-
-      end do var_loop
-
-    end do step_loop
-
-  end subroutine gsv_vInterpolate_r4
-
-  !--------------------------------------------------------------------------
-  ! gsv_tInterpolate
-  !--------------------------------------------------------------------------
-  subroutine gsv_tInterpolate(statevector_in,statevector_out)
-    !
-    !:Purpose: Time interpolation from statevector with low temporal resolution to statevector 
-    !          with high temporal resolution.
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv), intent(in)    :: statevector_in
-    type(struct_gsv), intent(inout) :: statevector_out
-
-    ! Locals:
-    integer :: kIndex, latIndex, lonIndex
-    integer :: stepIndexIn1, stepIndexIn2, stepIndexOut, numStepIn, numStepOut
-    integer :: lon1, lon2, lat1, lat2, k1, k2
-    integer :: dateStampIn, dateStampOut 
-    real(8) :: weight1, weight2
-    real(8) :: deltaHour, deltaHourInOut
-
-    write(*,*) 'gsv_tInterpolate: STARTING'
-
-    if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call utl_abort('gsv_tInterpolate: The input and output statevectors are not on the same vertical levels')
-    end if
-
-    if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('gsv_tInterpolate: The input and output statevectors are not on the same horizontal grid.')
-    end if
-
-    if ( statevector_in%numStep > statevector_out%numStep ) then
-      write(*,*) 'gsv_tInterpolate: numStep_out is less than numStep_in, calling gsv_copy.'
-      call gsv_copy(statevector_in, statevector_out, allowTimeMismatch_opt=.true.)
-      return
-    else if ( statevector_in%numStep == statevector_out%numStep ) then
-      write(*,*) 'gsv_tInterpolate: numStep_out is equal to numStep_in, calling gsv_copy.'
-      call gsv_copy(statevector_in, statevector_out, allowVarMismatch_opt=.true.)
-      return
-    end if
-
-    lon1 = statevector_in%myLonBeg
-    lon2 = statevector_in%myLonEnd
-    lat1 = statevector_in%myLatBeg
-    lat2 = statevector_in%myLatEnd
-    k1 = statevector_in%mykBeg
-    k2 = statevector_in%mykEnd
-
-    numStepIn = statevector_in%numStep
-    numStepOut = statevector_out%numStep
-    if ( mpi_myid == 0 ) then
-      write(*,*) 'gsv_tInterpolate: numStepIn=', numStepIn, ',numStepOut=',numStepOut
-    end if
-
-    ! compute positive deltaHour between two first stepIndex of statevector_in (input temporal grid). 
-    ! If numStepIn == 1, no time interpolation needed (weights are set to zero).
-    if ( numStepIn > 1 ) then
-      call difdatr(statevector_in%dateStampList(1), statevector_in%dateStampList(2), deltaHour)
-      deltaHour = abs(deltaHour)
-    else
-      deltaHour = 0.0d0
-    end if
-
-    do stepIndexOut = 1, numStepOut
-      if ( numStepIn == 1 ) then
-        stepIndexIn1 = 1
-        stepIndexIn2 = 1
-        weight1 = 1.0d0 
-        weight2 = 0.0d0 
-      else
-        ! find staevector_in%dateStamp on the left and right
-        if ( statevector_in%dateStampList(numStepIn) == statevector_out%dateStampList(stepIndexOut) ) then
-          stepIndexIn2 = numStepIn
-        else
-          stepInLoop: do stepIndexIn2 = 1, numStepIn
-            dateStampIn = statevector_in%dateStampList(stepIndexIn2)
-            dateStampOut = statevector_out%dateStampList(stepIndexOut)
-            call difdatr(dateStampIn, dateStampOut, deltaHourInOut)
-            if ( deltaHourInOut > 0.0d0 ) exit stepInLoop
-          end do stepInLoop
-        end if
-        stepIndexIn1 = stepIndexIn2 - 1
-
-        ! compute deltaHour between left stepIndex of statevector_in and statevector_out
-        dateStampIn = statevector_in%dateStampList(stepIndexIn1)
-        dateStampOut = statevector_out%dateStampList(stepIndexOut)
-        call difdatr(dateStampOut, dateStampIn, deltaHourInOut)
-        if ( deltaHourInOut < 0.0d0 ) then 
-          call utl_abort('gsv_tInterpolate: deltaHourInOut should be greater or equal to 0')
-        end if
-
-        ! compute the interpolation weights for left stepIndex of statevector_in (weight1) and right stepIndex of statevector_in (weight2) 
-        weight1 = 1.0d0 - deltaHourInOut / deltaHour
-        weight2 = deltaHourInOut / deltaHour
-      end if
-
-      if ( mpi_myid == 0 ) then
-        write(*,*) 'gsv_tInterpolate: for stepIndexOut=', stepIndexOut, &
-                   ',stepIndexIn1=', stepIndexIn1, ',stepIndexIn2=', stepIndexIn2, &
-                   ',weight1=', weight1, ',weight2=', weight2, &
-                   ',deltaHourInOut/deltaHour=', deltaHourInOut,'/',deltaHour
-      end if
-
-      !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
-      do kIndex = k1, k2
-        do latIndex = lat1, lat2
-          do lonIndex = lon1, lon2
-
-            if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 4 ) then
-              statevector_out%gd_r4(lonIndex,latIndex,kIndex,stepIndexOut) =  &
-                real(weight1,4) * statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn1) + &
-                real(weight2,4) * statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn2)
-
-            else if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 8 ) then
-              statevector_out%gd_r8(lonIndex,latIndex,kIndex,stepIndexOut) =  &
-                weight1 * real(statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn1),8) + &
-                weight2 * real(statevector_in%gd_r4(lonIndex,latIndex,kIndex,stepIndexIn2),8)
-
-            else if ( statevector_in%dataKind == 8 .and. statevector_out%dataKind == 4 ) then
-              statevector_out%gd_r4(lonIndex,latIndex,kIndex,stepIndexOut) =  &
-                real(weight1 * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndexIn1),4) + &
-                real(weight2 * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndexIn2),4)
-
-            else if ( statevector_in%dataKind == 8 .and. statevector_out%dataKind == 8 ) then
-              statevector_out%gd_r8(lonIndex,latIndex,kIndex,stepIndexOut) =  &
-                weight1 * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndexIn1) + &
-                weight2 * statevector_in%gd_r8(lonIndex,latIndex,kIndex,stepIndexIn2)
-            end if
-          end do
-        end do
-      end do
-      !$OMP END PARALLEL DO
-
-    end do
-
-    write(*,*) 'gsv_tInterpolate: END'
-
-  end subroutine gsv_tInterpolate
-
-  !--------------------------------------------------------------------------
   ! gsv_horizSubSample
   !--------------------------------------------------------------------------
   subroutine gsv_horizSubSample(statevector_in,statevector_out,horizSubSample)
+    !
+    ! :Purpose: Subsamples the horizontal statevector grid by an integral factor
+    !           and transform accordingly the fields 
+    !
     implicit none
-    type(struct_gsv)    :: statevector_in, statevector_out
-    integer, intent(in) :: horizSubSample
+
+    ! Arguments:
+    type(struct_gsv), intent(in)   :: statevector_in
+    type(struct_gsv), intent(out)  :: statevector_out
+    integer,          intent(in)   :: horizSubSample
+
+    ! Locals:
     integer             :: relativeFactor, middleStep
     real(8)             :: ratio_r8
     integer             :: stepIndex, lonIndex, latIndex, ilon_in, ilon_out, ilat_in, ilat_out
@@ -4726,13 +4131,24 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_transposeStepToVarsLevs
   !--------------------------------------------------------------------------
-  subroutine gsv_transposeStepToVarsLevs(stateVector_1step_r4, stateVector_VarsLevs, stepIndexBeg)
+  subroutine gsv_transposeStepToVarsLevs(stateVector_1step_r4, &
+                                         stateVector_VarsLevs, stepIndexBeg)
+    !
+    ! :Purpose: Transposes the data from a timestep MPI distribution (1 timestep
+    !           per MPI task) to the `mpi_distribution='VarsLevs'` distribution.
+    !
+    ! :Comment: Step-wise distribution is mostly only used for file I/O.
+    !           When in such implicit time distribution, it is necessery that
+    !           `mpi_local=.false.` and `numStep=1`.
+    !
     implicit none
-    ! arguments
-    type(struct_gsv) :: stateVector_1step_r4, stateVector_VarsLevs
-    integer :: stepIndexBeg
 
-    ! locals
+    ! Arguments:
+    type(struct_gsv), intent(in)    :: stateVector_1step_r4
+    type(struct_gsv), intent(inout) :: stateVector_VarsLevs
+    integer,          intent(in)    :: stepIndexBeg
+
+    ! Locals:
     integer :: ierr, maxkCount, numStepInput, numkToSend, stepIndexInput
     integer :: nsize
     integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs), recvdispls(mpi_nprocs)
@@ -4938,13 +4354,20 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_transposeStepToTiles(stateVector_1step, stateVector_tiles, stepIndexBeg)
     !
-    !:Purpose: Do mpi transpose from 1 timestep per mpi task to 4D lat-lon Tiles
+    ! :Purpose: Transposes the data from a timestep MPI distribution (1 timestep
+    !           per MPI task) to the `mpi_distribution='Tiles'` distribution 
+    !           (4D lat-lon tiles).
+    !
+    ! :Comment: Step-wise distribution is mostly only used for file I/O.
+    !           When in such implicit time distribution, it is necessery that
+    !           `mpi_local=.false.` and `numStep=1`.
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: stateVector_1step, stateVector_tiles
-    integer :: stepIndexBeg
+    type(struct_gsv), intent(in)    :: stateVector_1step
+    type(struct_gsv), intent(inout) :: stateVector_tiles
+    integer,          intent(in)    :: stepIndexBeg
 
     ! Locals:
     integer :: ierr, yourid, youridx, youridy, nsize, numStepInput, stepCount
@@ -5229,13 +4652,20 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_transposeTilesToStep(stateVector_1step, stateVector_tiles, stepIndexBeg)
     !
-    !:Purpose: Do mpi transpose from 4D lat-lon Tiles to 1 timestep per mpi task
+    ! :Purpose: Transposes the data from a `mpi_distribution='Tiles'` distribution 
+    !           (4D lat-lon tiles) to a timestep MPI distribution (1 timestep per
+    !           MPI task)
+    !
+    ! :Comment: Step-wise distribution is mostly only used for file I/O.
+    !           When in such implicit time distribution, it is necessery that
+    !           `mpi_local=.false.` and `numStep=1`.
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: stateVector_1step, stateVector_tiles
-    integer :: stepIndexBeg
+    type(struct_gsv), intent(inout)  :: stateVector_1step
+    type(struct_gsv), intent(in)     :: stateVector_tiles
+    integer,          intent(in)     :: stepIndexBeg
 
     ! Locals:
     integer :: ierr, yourid, youridx, youridy, nsize
@@ -5520,18 +4950,20 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_transposeTilesToMpiGlobal(stateVector_mpiGlobal, stateVector_tiles)
     !
-    !:Purpose: Do mpi transpose (allGather) from 4D lat-lon Tiles stateVector to global
-    !          4D stateVector on each mpi task where it is allocated
+    !:Purpose: Does MPI transpose (allGather) from `mpi_distribution='Tiles'` 
+    !          (4D lat-lon tiles) to global 4D stateVector on each MPI task 
+    !          where it is allocated.
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: stateVector_mpiGlobal
-    type(struct_gsv) :: stateVector_tiles
+    type(struct_gsv), intent(inout)  :: stateVector_mpiGlobal
+    type(struct_gsv), intent(in)     :: stateVector_tiles
 
     ! Locals:
     integer :: ierr, yourid, youridx, youridy, nsize
     integer :: kIndex, stepIndex, numStep
+
     real(4), allocatable :: gd_send_r4(:,:), gd_recv_r4(:,:,:)
     real(8), allocatable :: gd_send_r8(:,:), gd_recv_r8(:,:,:)
     real(4), pointer     :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)
@@ -5679,15 +5111,15 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   function gsv_varKindExist(varKind) result(KindFound)
     !
-    !:Purpose: To check whether any of the variables to be assimilated
-    !          (i.e. specified in the namelist NAMSTATE) are part of the
-    !          specified variable kind
+    ! :Purpose: To check whether any of the variables to be assimilated
+    !           (i.e. specified in the namelist NAMSTATE) are part of the
+    !           specified variable kind
     !
     implicit none
-    logical :: KindFound  ! Logical indicating whether var kind found 
 
     ! Arguments:
-    character(len=*) :: varKind ! Variable kind (e.g. MT or CH)
+    character(len=*), intent(in) :: varKind    ! Variable kind (e.g. MT or CH)
+    logical                      :: KindFound  ! Logical indicating whether var kind found 
 
     ! Locals:
     integer :: varIndex
@@ -5711,11 +5143,26 @@ module gridStateVector_mod
   subroutine gsv_multEnergyNorm(statevector_inout, statevector_ref,  &
                                 latMin, latMax, lonMin, lonMax,      &
                                 uvNorm,ttNorm,p0Norm,huNorm,tgNorm)
+    !
+    ! :Purpose: Computes energy norms
+    !
+    ! :Devnotes: @mad001 plan to move that subroutine out of gsv (issue to be opened)
+    !            * it is not a low-level routine
+    !            * call to vgd_levels will have to be replaced by some `czp` call (#466)
+    !              and that will trigger a circular dependency
+    !            It would also be beneficial to bonify the :Purpose: entry, for
+    !            instance where is the energy scalar returned, what is returned
+    !            in statevector_inout
+    !
     implicit none
-    type(struct_gsv)     :: statevector_inout, statevector_ref
-    real(8)              :: latMin, latMax, lonMin, lonMax
-    logical              :: uvNorm, ttNorm, p0Norm, huNorm, tgNorm
 
+    ! Arguments:
+    type(struct_gsv), intent(inout)  :: statevector_inout
+    type(struct_gsv), intent(in)     :: statevector_ref
+    real(8),          intent(in)     :: latMin, latMax, lonMin, lonMax
+    logical,          intent(in)     :: uvNorm, ttNorm, p0Norm, huNorm, tgNorm
+
+    ! Locals:
     integer              :: stepIndex, lonIndex, levIndex, latIndex, lonIndex2, latIndex2, status, nLev_M, nLev_T
     real(8)              :: scaleFactor, scaleFactorConst, scaleFactorLat, scaleFactorLon, scaleFactorLev
     real(8)              :: pfac, tfac, qfac
@@ -6024,10 +5471,16 @@ module gridStateVector_mod
   ! gsv_dotProduct
   !--------------------------------------------------------------------------
   subroutine gsv_dotProduct(statevector_a,statevector_b,dotsum)
+    !
+    ! :Purpose: Computes the dot product of two statevectors
+    !
     implicit none
 
-    type(struct_gsv) :: statevector_a,statevector_b
-    real(8)          :: dotsum
+    ! Arguments:
+    type(struct_gsv), intent(in)  :: statevector_a,statevector_b
+    real(8),          intent(out) :: dotsum
+
+    ! Locals:
     integer          :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2
     integer          :: k1,k2
 
@@ -6068,14 +5521,14 @@ module gridStateVector_mod
                                 fieldout,nlongout,nlatout,nlevout,xlongout, &
                                 xlatout,vlevout)
     !
-    !:Purpose: Horizontal bilinear interpolation from a 3D regular gridded field
-    !          to another 3D regular gridded field.
+    ! :Purpose: Horizontal bilinear interpolation from a 3D regular gridded field
+    !           to another 3D regular gridded field.
     !
-    !          This version can be used with fields that are not part of the
-    !          background state, such as climatologies.
+    !           This version can be used with fields that are not part of the
+    !           background state, such as climatologies.
     !
-    !          This version does not depend on gridstatevector data
-    !          types/structures.
+    !           This version does not depend on gridstatevector data
+    !           types/structures.
     !
     implicit none
 
@@ -6208,19 +5661,20 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_smoothHorizontal(stateVector_inout, horizontalScale, maskNegatives_opt, &
        varName_opt, binInteger_opt, binReal_opt, binRealThreshold_opt )
-    !:Purpose: To apply a horizontal smoothing to all of the fields according
-    !          to the specified horizontal length scale
+    !
+    ! :Purpose: To apply a horizontal smoothing to all of the fields according
+    !           to the specified horizontal length scale
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), target, intent(inout):: stateVector_inout
-    real(8), intent(in)                    :: horizontalScale
-    logical, optional, intent(in)          :: maskNegatives_opt
-    character(len=*), optional, intent(in) :: varName_opt
-    real(4), optional, pointer, intent(in) :: binInteger_opt(:,:,:)
-    real(8), optional, pointer, intent(in) :: binReal_opt(:,:)
-    real(8), optional :: binRealThreshold_opt
+    type(struct_gsv), target,   intent(inout) :: stateVector_inout
+    real(8),                    intent(in)    :: horizontalScale
+    logical, optional,          intent(in)    :: maskNegatives_opt
+    character(len=*), optional, intent(in)    :: varName_opt
+    real(4), optional, pointer, intent(in)    :: binInteger_opt(:,:,:)
+    real(8), optional, pointer, intent(in)    :: binReal_opt(:,:)
+    real(8), optional,          intent(in)    :: binRealThreshold_opt
 
     ! Locals:
     type(struct_gsv), pointer :: statevector
@@ -6382,7 +5836,7 @@ module gridStateVector_mod
   ! gsv_getInfo
   !--------------------------------------------------------------------------
   subroutine gsv_getInfo(stateVector, message)
-    !:Purpose: Write out grid state vector parameters
+    !:Purpose: Writes out grid state vector parameters
     !
     implicit none
 
