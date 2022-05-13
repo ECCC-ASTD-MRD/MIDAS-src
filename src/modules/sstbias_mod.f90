@@ -494,8 +494,8 @@ module SSTbias_mod
   !--------------------------------------------------------------------------
   ! sstb_getBiasCorrection
   !--------------------------------------------------------------------------
-  subroutine sstb_getBiasCorrection(stateVector, column, obsData, hco, sensor, &
-                                    dayOrNight, timeInterpType_nl, numObsBatches)
+  subroutine sstb_getBiasCorrection(stateVector, column, obsData, hco, sensor, dayOrNight, &
+                                    timeInterpType_nl, numObsBatches)
     !
     !:Purpose: To compute bias correction and put it into obsSpace data. 
     !          Columns from input field are interpolated to obs location
@@ -521,7 +521,7 @@ module SSTbias_mod
     write(*,*) 'sstb_getBiasCorrection: computing bias correction for ', sensor, ' ', dayOrNight, 'time ************'
 
     call s2c_nl(stateVector, obsData, column, hco, timeInterpType = timeInterpType_nl, &
-                moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
+                moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .false.)
 
     do headerIndex = 1, obs_numheader(obsData)
       
