@@ -1238,7 +1238,7 @@ contains
       if (.not. hco_equal(interpInfo_tlad%hco,stateVector_in%hco)) then
         write(*,*) 's2c_tl: WARNING! Current hco grid parameters differ from allocated interpInfo_tlad!'
         write(*,*) 's2c_tl: InterpInfo_tlad will be deallocated.'
-	call s2c_deallocInterpInfo(inputStateVectorType='tl')
+	call s2c_deallocInterpInfo(inputStateVectorType='tlad')
       end if
     end if
 
@@ -1475,7 +1475,7 @@ contains
       if (.not. hco_equal(interpInfo_tlad%hco,stateVector_out%hco)) then
         write(*,*) 's2c_ad: WARNING! Current hco grid parameters differ from allocated interpInfo_tlad!'
         write(*,*) 's2c_ad: InterpInfo_tlad will be deallocated.'
-        call s2c_deallocInterpInfo(inputStateVectorType='ad')
+        call s2c_deallocInterpInfo(inputStateVectorType='tlad')
       end if
     end if
 
