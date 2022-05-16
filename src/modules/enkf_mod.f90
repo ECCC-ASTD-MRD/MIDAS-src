@@ -2186,6 +2186,7 @@ contains
         write(*,*) 'matrixRank=', matrixRank
         call utl_abort('getModulationFactor: verticalLocalizationMat is rank deficient=')
       end if
+      eigenValues(2:nLev) = 0.0d0
     end if
 
     modulationFactor = eigenVectors(eigenVectorLevelIndex,eigenVectorColumnIndex) * &
