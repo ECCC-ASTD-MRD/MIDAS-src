@@ -106,6 +106,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Updated radiative transfer code from RTTOV-12 to RTTOV-13. Minor impact on results (Closes #508 and !601)
  * Moved subroutines from `obsImpact` program to a new `fsoi_mod` module (#648 and !605)
  * Moved interpolation out of `gridstatevector_mod` into a new module: `interpolation_mod` (#629 and !600)
   * a new namelist `NAMINT`: variable `vInterpCopyLowestLevel` moved from `NAMSTATE`
