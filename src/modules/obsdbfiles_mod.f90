@@ -37,7 +37,7 @@ module obsdbFiles_mod
   private
 
   ! Public subroutines and functions:
-  public :: odbf_isActive, odbf_readFile, odbf_updateFile
+  public :: odbf_isActive, odbf_readFile, odbf_updateFile, obdf_clean
 
   ! Arrays used to match obsDB column names with obsSpaceData column names
 
@@ -2510,5 +2510,95 @@ contains
     deallocate(midasColumnExists)
 
   end subroutine odbf_addColumnsMidasTable
+
+  !--------------------------------------------------------------------------
+  ! obdf_clean
+  !--------------------------------------------------------------------------
+  subroutine obdf_clean(fileName, familyType)
+
+    ! :Purpose: Remove rows that 
+    implicit none
+
+    ! arguments
+    character(len=*),  intent(in) :: fileName
+    character(len=*),  intent(in) :: familyType
+
+    ! locals:
+    character(len = 512) :: query
+    type(fSQL_STATUS)    :: stat ! sqlite error status
+    type(fSQL_DATABASE)  :: db   ! sqlite file handle
+    type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
+
+    !call tmg_start(97,'odbf_updateMidasBodyTable')
+
+    write(*,*)
+    write(*,*) 'asskopkklk: Starting'
+    write(*,*)
+    write(*,*) 'obdf_clean: FileName   : ', trim(FileName)
+    write(*,*) 'obdf_clean: FamilyType : ', FamilyType
+
+    ! open the obsDB file
+    call fSQL_open( db, trim(fileName), stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'obdf_clean: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'obdf_clean: fSQL_open' )
+    end if
+    
+    ! Mark for deletion all records with bit 11 (2048) set
+    query = ' delete from '// trim(midasBodyTableName) //' where flag & 2048 =2048;'
+
+    write(*,*) 'ZQ_query', query
+
+    call fSQL_prepare(db, query, stmt, stat)
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort( 'obdf_clean: fSQL_prepare' )
+    end if
+
+    call fSQL_begin(db)
+    call fSQL_exec_stmt(stmt)
+  
+    !query = 'create temporary table good_headers as select distinct '// trim(headKeySqlName) //' from '// trim(midasBodyTableName) //';'
+    query = 'create table good_headers as select distinct '// trim(headKeySqlName) //' from '// trim(midasBodyTableName) //';'
+    write(*,*) 'obdf_clean: query = ', trim(query)
+    !call fSQL_prepare(db, query, stmt, stat)
+    call fSQL_do_many( db, query, stat )
+
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('obdf_clean: Problem with fSQL_do_many')
+    end if
+
+    call fSQL_begin(db)
+    call fSQL_exec_stmt(stmt)
+    
+    !query = 'delete from '// trim(midasHeadTableName) //' where '// trim(headKeySqlName) // &
+    !        ' not in ( select '// trim(headKeySqlName) //' from good_headers );'
+    !write(*,*) 'obdf_clean: query = ', trim(query)
+    !call fSQL_prepare(db, query, stmt, stat)
+
+    !query = 'delete from '// bodyTableName //' where '// headKeySqlName // &
+    !        ' not in ( select '// headKeySqlName //'  from good_headers );'
+    !write(*,*) 'obdf_clean: query = ', trim(query)
+    !call fSQL_prepare(db, query, stmt, stat)
+
+    !query = 'delete from '// headTableName //' where '// headKeySqlName // &
+    !        ' not in ( select '// headKeySqlName //'  from good_headers );'
+    !write(*,*) 'obdf_clean: query = ', trim(query)
+    !call fSQL_prepare(db, query, stmt, stat)
+
+    !if ( fSQL_error(stat) /= FSQL_OK ) then
+    !  write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+    !  call utl_abort( 'obdf_clean: fSQL_prepare' )
+    !end if
+
+    call fSQL_begin(db)
+    call fSQL_exec_stmt(stmt)
+    call fSQL_finalize(stmt)
+    call fSQL_commit(db)
+    write(*,*) 'obdf_clean: closed database -->', trim(FileName)
+    call fSQL_close(db, stat)
+
+  end subroutine obdf_clean
 
 end module obsdbFiles_mod

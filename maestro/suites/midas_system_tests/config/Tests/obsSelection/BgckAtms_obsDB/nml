@@ -7,7 +7,7 @@
   cloudyClwThresholdBcorr = 0.05,
 /
  &namObsSelection
-  doThinning = .false.
+  doThinning = .true.
 /
  &NAMobsDB
    obsDbActive = .true.
