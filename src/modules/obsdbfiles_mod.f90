@@ -2559,7 +2559,7 @@ contains
     call fSQL_exec_stmt(stmt)
   
     !query = 'create temporary table good_headers as select distinct '// trim(headKeySqlName) //' from '// trim(midasBodyTableName) //';'
-    query = 'create table good_headers as select distinct '// trim(headKeySqlName) //' from '// trim(midasBodyTableName) //';'
+    query = 'create table good_headers as select distinct '// trim(obsHeadKeySqlName) //' from '// trim(midasBodyTableName) //';'
     write(*,*) 'obdf_clean: query = ', trim(query)
     !call fSQL_prepare(db, query, stmt, stat)
     call fSQL_do_many( db, query, stat )
@@ -2569,31 +2569,46 @@ contains
       call utl_abort('obdf_clean: Problem with fSQL_do_many')
     end if
 
-    call fSQL_begin(db)
-    call fSQL_exec_stmt(stmt)
     
-    !query = 'delete from '// trim(midasHeadTableName) //' where '// trim(headKeySqlName) // &
-    !        ' not in ( select '// trim(headKeySqlName) //' from good_headers );'
-    !write(*,*) 'obdf_clean: query = ', trim(query)
-    !call fSQL_prepare(db, query, stmt, stat)
-
-    !query = 'delete from '// bodyTableName //' where '// headKeySqlName // &
-    !        ' not in ( select '// headKeySqlName //'  from good_headers );'
-    !write(*,*) 'obdf_clean: query = ', trim(query)
-    !call fSQL_prepare(db, query, stmt, stat)
-
-    !query = 'delete from '// headTableName //' where '// headKeySqlName // &
-    !        ' not in ( select '// headKeySqlName //'  from good_headers );'
-    !write(*,*) 'obdf_clean: query = ', trim(query)
-    !call fSQL_prepare(db, query, stmt, stat)
-
-    !if ( fSQL_error(stat) /= FSQL_OK ) then
-    !  write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
-    !  call utl_abort( 'obdf_clean: fSQL_prepare' )
-    !end if
+    query = 'delete from '// trim(midasHeadTableName) //' where '// trim(obsHeadKeySqlName) // &
+            ' not in ( select '// trim(obsHeadKeySqlName) //' from good_headers );'
+    write(*,*) 'obdf_clean: query = ', trim(query)
+    call fSQL_prepare(db, query, stmt, stat)
+    
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort( 'obdf_clean: fSQL_prepare' )
+    end if
 
     call fSQL_begin(db)
     call fSQL_exec_stmt(stmt)
+
+    query = 'delete from '// trim(bodyTableName) //' where '// trim(obsHeadKeySqlName) // &
+            ' not in ( select '// trim(obsHeadKeySqlName) //'  from good_headers );'
+    write(*,*) 'obdf_clean: query = ', trim(query)
+    call fSQL_prepare(db, query, stmt, stat)
+
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort( 'obdf_clean: fSQL_prepare' )
+    end if
+
+    call fSQL_begin(db)
+    call fSQL_exec_stmt(stmt)
+
+    query = 'delete from '// trim(headTableName) //' where '// trim(obsHeadKeySqlName) // &
+            ' not in ( select '// trim(obsHeadKeySqlName) //'  from good_headers );'
+    write(*,*) 'obdf_clean: query = ', trim(query)
+    call fSQL_prepare(db, query, stmt, stat)
+
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort( 'obdf_clean: fSQL_prepare' )
+    end if
+
+    call fSQL_begin(db)
+    call fSQL_exec_stmt(stmt)
+
     call fSQL_finalize(stmt)
     call fSQL_commit(db)
     write(*,*) 'obdf_clean: closed database -->', trim(FileName)
