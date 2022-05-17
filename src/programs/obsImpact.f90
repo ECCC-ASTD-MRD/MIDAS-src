@@ -47,6 +47,7 @@ program midas_obsimpact
   use rttov_const, only :inst_name, platform_name
   use tovs_nl_mod
   use rMatrix_mod
+  use fsoi_mod
 
   implicit none
 
@@ -472,18 +473,18 @@ contains
 
     call gsv_copy(statevector_fa,statevector_tempfa)
     call gsv_copy(statevector_fb,statevector_tempfb)
-    call gsv_multEnergyNorm(statevector_tempfa, statevector_a,  &
+    call fso_multEnergyNorm(statevector_tempfa, statevector_a,  &
                             latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, & 
                             includeUVnorm, includeTTnorm, includeP0norm,  &
                             includeHUnorm, includeTGnorm) ! use analysis as reference state
-    call gsv_multEnergyNorm(statevector_tempfb, statevector_a,  &
+    call fso_multEnergyNorm(statevector_tempfb, statevector_a,  &
                             latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, & 
                             includeUVnorm, includeTTnorm, includeP0norm,  &
                             includeHUnorm, includeTGnorm) ! use analysis as reference state
 
     ! compute error Norm =  C * (error_t^fa + error_t^fb)
     call gsv_add(statevector_fa, statevector_fb, 1.0d0)
-    call gsv_multEnergyNorm(statevector_fb, statevector_a,  &
+    call fso_multEnergyNorm(statevector_fb, statevector_a,  &
                             latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, & 
                             includeUVnorm, includeTTnorm, includeP0norm,  &
                             includeHUnorm, includeTGnorm) ! use analysis as reference state
