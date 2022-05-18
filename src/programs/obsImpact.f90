@@ -53,6 +53,8 @@ program midas_obsimpact
 
   integer :: istamp,exdb,exfin,ierr, dateStamp
 
+  type(struct_obs),       target :: obsSpaceData
+  type(struct_columnData),target :: columnTrlOnAnlIncLev
   type(struct_columnData),target :: columnTrlOnTrlLev
   type(struct_gsv)               :: stateVectorTrialHighRes
 
@@ -90,9 +92,6 @@ program midas_obsimpact
   obsColumnMode  = 'VAR'
   obsMpiStrategy = 'LIKESPLITFILES'
 
-  !- Do initial set up
-  call fso_setup
-
   !
   !- Initialize the Temporal grid
   !
@@ -125,6 +124,9 @@ program midas_obsimpact
   if (mpi_myid.eq.0) write(*,*)''
   if (mpi_myid.eq.0) write(*,*)'obsImpact: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
+
+  !- Do FSO module set up
+  call fso_setup(hco_anl)
 
   if ( hco_anl % global ) then
     hco_core => hco_anl

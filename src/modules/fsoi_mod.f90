@@ -29,6 +29,7 @@ module fsoi_mod
   use columnData_mod
   use controlVector_mod
   use bmatrix_mod
+  use bmatrixensemble_mod
   use stateToColumn_mod
   use obsOperators_mod
   use rMatrix_mod
@@ -43,17 +44,17 @@ module fsoi_mod
   private
 
   ! public subroutines and functions
-  public :: fso_multEnergyNorm
+  public :: fso_multEnergyNorm, fso_setup, fso_ensemble
 
 
-  type(struct_obs),       target :: obsSpaceData
-  type(struct_columnData),target :: columnTrlOnAnlIncLev
   type(struct_obs),        pointer :: obsSpaceData_ptr
   type(struct_columnData), pointer :: columnTrlOnAnlIncLev_ptr
   type(struct_columnData), pointer :: column_ptr
   real(8),allocatable :: vhat(:)
   integer,external    :: get_max_rss
   integer             :: fso_nsim, nvadim_mpilocal
+
+  type(struct_hco), pointer :: hco_anl => null()
 
   ! namelist variables
   integer             :: nvamaj, nitermax, nsimmax
@@ -64,8 +65,10 @@ module fsoi_mod
 
   contains
 
-  subroutine fso_setup
+  subroutine fso_setup(hco_anl_in)
     implicit none
+
+    type(struct_hco), pointer, intent(in) :: hco_anl_in
 
     integer :: ierr,nulnam
     integer :: fnom,fclos
@@ -110,10 +113,12 @@ module fsoi_mod
     call ben_setFsoLeadTime(leadTime)
     fso_nsim = 0
 
+    hco_anl => hco_anl_in
+
   end subroutine fso_setup
 
 
-  subroutine fso_ensemble(columnTrlOnAnlIncLev,obsSpaceData, hco_anl)
+  subroutine fso_ensemble(columnTrlOnAnlIncLev,obsSpaceData)
     implicit none
 
     type(struct_columnData),target  :: columnTrlOnAnlIncLev
