@@ -347,7 +347,7 @@ contains
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
                       hInterpolateDegree_opt='LINEAR', &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
-    call gsv_readFromFile(statevector_a, fileName_a, ' ', 'A', containsFullField_opt=.true.)
+    call gio_readFromFile(statevector_VeriA, fileName_a, ' ', 'A', containsFullField_opt=.true.)
 
     ! compute forecast error = C * (error_t^fa + error_t^fb)  
     call fso_calcFcstError(columnTrlOnAnlIncLev,statevector_VeriA,statevector_FcstErr)
