@@ -1707,8 +1707,24 @@ contains
       call utl_abort('s2c_nl: stateVector must be allocated')
     end if
 
+    if (present(dealloc_opt)) then
+      dealloc = dealloc_opt
+    else
+      dealloc = .true.
+    end if
+
+    ! determine number of obs batches (to reduce memory usage)
+    if (present(numObsBatches_opt)) then
+      numObsBatches = numObsBatches_opt
+    else
+      numObsBatches = 1
+    end if
+    if (.not. dealloc) then
+      numObsBatches = 1 ! multiple batches only possible if dealloc=.true.
+    end if
+
     if (interpInfo_nl%initialized) then
-      if (.not. hco_equal(interpInfo_nl%hco,stateVector%hco)) then
+      if (.not. hco_equal(interpInfo_nl%hco,stateVector%hco) .or. numObsBatches > 1) then
         write(*,*) 's2c_nl: WARNING! Current hco grid parameters differ from allocated interpInfo!'
         write(*,*) 's2c_nl: InterpInfo will be deallocated.'
         call s2c_deallocInterpInfo(inputStateVectorType='nl')
@@ -1717,12 +1733,6 @@ contains
 
     if ( stateVector%mpi_distribution /= 'Tiles' ) then 
       call utl_abort('s2c_nl: stateVector must by Tiles distributed')
-    end if
-
-    if ( present(dealloc_opt) ) then
-      dealloc = dealloc_opt
-    else
-      dealloc = .true.
     end if
 
     if ( present(moveObsAtPole_opt) ) then
@@ -1766,16 +1776,6 @@ contains
     ! set contents of column to zero (1 variable or all)
     allCols_ptr => col_getAllColumns(column,varName_opt)
     if ( obs_numHeader(obsSpaceData) > 0 ) allCols_ptr(:,:) = 0.0d0
-
-    ! determine number of obs batches (to reduce memory usage)
-    if (present(numObsBatches_opt)) then
-      numObsBatches = numObsBatches_opt
-    else
-      numObsBatches = 1
-    end if
-    if (.not. dealloc) then
-      numObsBatches = 1 ! multiple batches only possible if dealloc=.true.
-    end if
 
     OBSBATCH: do obsBatchIndex = 1, numObsBatches
       headerIndexBeg = 1 + (obsBatchIndex - 1) * (obs_numheader(obsSpaceData) / numObsBatches)
