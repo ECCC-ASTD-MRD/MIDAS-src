@@ -2327,6 +2327,7 @@ contains
                                         obsHeadKeySqlName, obsBodyKeySqlName,                          &
                                         numberUpdateItems, updateItemList,                       &
                                         midasTableKeySqlName, numMidasTableRequired_opt)
+    !
     ! :Purpose: Add additional MIDAS columns into the table. This is done by first
     !           creating a temporary table that includes the additional MIDAS columns.
     !           The columns from the updated compulsory table (created by odbf_createMidasHeaderTable
@@ -2516,7 +2517,11 @@ contains
   !--------------------------------------------------------------------------
   subroutine obdf_clean(fileName, familyType)
 
-    ! :Purpose: Remove rows that 
+    ! :Purpose: After the observational thinning procedure, this subroutine removes
+    !  rows that are flagged as thinned in MIDAS_BODY_OUTPUT Table 
+    !  the rows in the Report, Observation and MIDAS_HEADER_OUTPUT with corresponding 
+    !  ID_Report and ID_Observation are also removed. 
+
     implicit none
 
     ! arguments
@@ -2529,10 +2534,10 @@ contains
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
 
-    !call tmg_start(97,'odbf_updateMidasBodyTable')
+    call tmg_start(180,'obdf_clean')
 
     write(*,*)
-    write(*,*) 'asskopkklk: Starting'
+    write(*,*) 'obdf_clean: Starting'
     write(*,*)
     write(*,*) 'obdf_clean: FileName   : ', trim(FileName)
     write(*,*) 'obdf_clean: FamilyType : ', FamilyType
@@ -2547,8 +2552,6 @@ contains
     ! Mark for deletion all records with bit 11 (2048) set
     query = ' delete from '// trim(midasBodyTableName) //' where flag & 2048 =2048;'
 
-    write(*,*) 'ZQ_query', query
-
     call fSQL_prepare(db, query, stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
@@ -2558,8 +2561,7 @@ contains
     call fSQL_begin(db)
     call fSQL_exec_stmt(stmt)
   
-    !query = 'create temporary table good_headers as select distinct '// trim(headKeySqlName) //' from '// trim(midasBodyTableName) //';'
-    query = 'create table good_headers as select distinct '// trim(obsHeadKeySqlName) //' from '// trim(midasBodyTableName) //';'
+    query = 'create temporary table good_headers as select distinct '// trim(obsHeadKeySqlName) //' from '// trim(midasBodyTableName) //';'
     write(*,*) 'obdf_clean: query = ', trim(query)
     !call fSQL_prepare(db, query, stmt, stat)
     call fSQL_do_many( db, query, stat )
@@ -2569,7 +2571,6 @@ contains
       call utl_abort('obdf_clean: Problem with fSQL_do_many')
     end if
 
-    
     query = 'delete from '// trim(midasHeadTableName) //' where '// trim(obsHeadKeySqlName) // &
             ' not in ( select '// trim(obsHeadKeySqlName) //' from good_headers );'
     write(*,*) 'obdf_clean: query = ', trim(query)
