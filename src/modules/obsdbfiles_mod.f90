@@ -2518,9 +2518,9 @@ contains
   subroutine obdf_clean(fileName, familyType)
 
     ! :Purpose: After the observational thinning procedure, this subroutine removes
-    !  rows that are flagged as thinned in MIDAS_BODY_OUTPUT Table 
-    !  the rows in the Report, Observation and MIDAS_HEADER_OUTPUT with corresponding 
-    !  ID_Report and ID_Observation are also removed. 
+    !           rows that are flagged as thinned in MIDAS_BODY_OUTPUT Table 
+    !           the rows in the Report, Observation and MIDAS_HEADER_OUTPUT with corresponding 
+    !           ID_Report and ID_Observation are also removed. 
 
     implicit none
 
