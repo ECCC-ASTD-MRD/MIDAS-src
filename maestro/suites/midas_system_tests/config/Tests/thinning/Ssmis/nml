@@ -1,6 +1,6 @@
  &THIN_TOVS
    delta   = 150
-   deltrad = 45
+   deltrad = 30
 /
  &NAMTIME
   DSTEPOBS = 0.25D0
