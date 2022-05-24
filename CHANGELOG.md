@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+ * Added thinning for SSMIS (#452 and !605)
  * S2C consistency check (#645 and !602) 
  * Introduction of the ability to use ensemble B matrix to the 1Dvar.Abs code (#533 and !579)
  * Added background check for Doppler Velocity (#634 and !589)
