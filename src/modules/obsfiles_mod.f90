@@ -287,8 +287,8 @@ contains
              ! all processors write to files only for BURP and SQLITE    
              call obsf_writeAsciDump(obsSpaceData)
           end if
-
        end if
+    end if
 
     call utl_tmg_stop(10)
 
