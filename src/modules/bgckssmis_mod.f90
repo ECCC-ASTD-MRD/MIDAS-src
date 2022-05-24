@@ -53,7 +53,7 @@ module bgckssmis_mod
   integer, parameter :: ipc=4
   ! Module variable
 
-  character(len=128), parameter :: fileMgLg='fstmglg'  ! glace de mer file
+  character(len=128), parameter :: fileMgLg='fstglmg'  ! glace de mer file
   character(len=128), parameter :: fileGlace='bicefil'  ! binaire 0.1degre ice file
   character(len=128), parameter :: fileWentz='wentz_surf.std'  ! surface wentz file
   character(len=128), parameter :: algOption = 'fwentz'
