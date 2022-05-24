@@ -46,7 +46,7 @@ module fsoi_mod
   ! public subroutines and functions
   public :: fso_setup, fso_ensemble
 
-
+  ! module private variables
   type(struct_obs),        pointer :: obsSpaceData_ptr
   type(struct_columnData), pointer :: columnTrlOnAnlIncLev_ptr
   type(struct_columnData), pointer :: column_ptr
@@ -131,8 +131,8 @@ module fsoi_mod
   !--------------------------------------------------------------------------
   subroutine fso_ensemble(columnTrlOnAnlIncLev,obsSpaceData)
     !
-    ! :Purpose: Perform forecast sensitivity to observation calculation using 
-    !           ensemble approach 
+    ! :Purpose: Perform forecast sensitivity to observation calculation using
+    !           ensemble approach
     !
     implicit none
 
@@ -339,7 +339,6 @@ module fsoi_mod
     implicit none
 
     ! Arguments:
-    ! DBGmad verify these intent
     integer,                         intent(in)   :: nvadim
     real(8), dimension(nvadim),      intent(out)  :: zhat
     type(struct_columnData), target, intent(in)   :: column, columnTrlOnAnlIncLev
@@ -352,7 +351,6 @@ module fsoi_mod
     real                            :: rspunused(1)
     real(8)                         :: zjsp, zxmin, zdf1, zeps, dlgnorm, dlxnorm,zspunused(1)
     real(8),allocatable             :: gradJ(:), vatra(:)
-
 
     call utl_tmg_start(90,'--Minimization')
 
@@ -405,7 +403,7 @@ module fsoi_mod
 
     ! Do the minimization
     call utl_tmg_start(91,'----QuasiNewton')
-    call qna_n1qn3(simvar, dscalqn, dcanonb, dcanab, nvadim, zhat,  &
+    call qna_n1qn3(simvar, prscal, dcanonb, dcanab, nvadim, zhat,  &
                    zjsp, gradJ, zxmin, zdf1, zeps, impres, nulout, imode,   &
                    itermax,isimmax, iztrl, vatra, nmtra, intunused, rspunused,  &
                    zspunused)
@@ -506,7 +504,6 @@ module fsoi_mod
       call rpn_comm_allreduce(numAss_sensors_loc(isens), numAss_sensors_glb(isens) ,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
     end do
 
-
     if (mpi_myid == 0) then
 
       write(*,*) ' '
@@ -555,7 +552,7 @@ module fsoi_mod
     !
     !   :nvadim:  Dimension of the control vector in forecast error covariances space
     !
-    !   :zhat:    Control variable in forecast error covariances space 
+    !   :zhat:    Control variable in forecast error covariances space
     !
     !   :Jtotal:  Cost function of the Variational algorithm
     !
@@ -659,27 +656,7 @@ module fsoi_mod
   end subroutine simvar
 
   !--------------------------------------------------------------------------
-  ! DSCALQN
-  !--------------------------------------------------------------------------
-  SUBROUTINE DSCALQN(KDIM,PX,PY,DDSC)
-    !
-    ! :Purpose: interface for the inner product to be used
-    !           by the minimization subroutines N1QN3.
-    !
-    IMPLICIT NONE
-
-    ! Arguments:
-    INTEGER, intent(in)  :: KDIM               ! dimension of the vectors
-    REAL(8), intent(in)  :: PX(KDIM), PY(KDIM) ! vector components for which <PX,PY> is being calculated
-    REAL(8), intent(out) :: DDSC               ! result of the inner product
-
-    ! DBGmad : what purpose serves this trivial interface?!
-    CALL PRSCAL(KDIM,PX,PY,DDSC)
-    RETURN
-  END SUBROUTINE DSCALQN
-
-  !--------------------------------------------------------------------------
-  ! PRSCAL 
+  ! PRSCAL
   !--------------------------------------------------------------------------
   SUBROUTINE PRSCAL(KDIM,PX,PY,DDSC)
     !
@@ -710,7 +687,7 @@ module fsoi_mod
   END SUBROUTINE PRSCAL
 
   !--------------------------------------------------------------------------
-  ! DCANAB 
+  ! DCANAB
   !--------------------------------------------------------------------------
   SUBROUTINE DCANAB(KDIM,PY,PX)
     !
@@ -743,7 +720,7 @@ module fsoi_mod
   END SUBROUTINE DCANAB
 
   !--------------------------------------------------------------------------
-  ! DCANONB 
+  ! DCANONB
   !--------------------------------------------------------------------------
   SUBROUTINE DCANONB(KDIM,PX,PY)
     !
@@ -763,7 +740,6 @@ module fsoi_mod
     INTEGER, intent(in)     :: KDIM     ! dimension of the vectors
     REAL(8), intent(in)     :: PX(KDIM)
     REAL(8), intent(inout)  :: PY(KDIM)
-
 
     ! Locals:
     INTEGER JDIM
@@ -964,7 +940,6 @@ module fsoi_mod
 
     if (mpi_myid == 0)  write(*,*) 'energy for TT=', sumet
 
-
     ! humidity (set to zero, for now)
     call gsv_getField(statevector_inout,field_LQ,'HU')
     sumScale = 0.0D0
@@ -1059,7 +1034,6 @@ module fsoi_mod
     end if ! if p0Norm
 
     if (mpi_myid == 0)  write(*,*) 'energy for Ps=', sumep
-
 
     ! skin temperature (set to zero for now)
     call gsv_getField(statevector_inout,field_TG,'TG')
