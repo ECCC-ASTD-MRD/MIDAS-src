@@ -44,7 +44,7 @@ module fsoi_mod
   private
 
   ! public subroutines and functions
-  public :: fso_multEnergyNorm, fso_setup, fso_ensemble
+  public :: fso_setup, fso_ensemble
 
 
   type(struct_obs),        pointer :: obsSpaceData_ptr
@@ -65,11 +65,20 @@ module fsoi_mod
 
   contains
 
+  !--------------------------------------------------------------------------
+  ! fso_setup
+  !--------------------------------------------------------------------------
   subroutine fso_setup(hco_anl_in)
+    !
+    ! :Purpose: Initialise the FSOI module: read the namelist and initialise
+    !           global variables and structure
+    !
     implicit none
 
+    ! Arguments:
     type(struct_hco), pointer, intent(in) :: hco_anl_in
 
+    ! Locals:
     integer :: ierr,nulnam
     integer :: fnom,fclos
 
@@ -117,12 +126,21 @@ module fsoi_mod
 
   end subroutine fso_setup
 
-
+  !--------------------------------------------------------------------------
+  ! fso_ensemble
+  !--------------------------------------------------------------------------
   subroutine fso_ensemble(columnTrlOnAnlIncLev,obsSpaceData)
+    !
+    ! :Purpose: Perform forecast sensitivity to observation calculation using 
+    !           ensemble approach 
+    !
     implicit none
 
-    type(struct_columnData),target  :: columnTrlOnAnlIncLev
-    type(struct_obs),target         :: obsSpaceData
+    ! Arguments:
+    type(struct_columnData), target, intent(in)     :: columnTrlOnAnlIncLev
+    type(struct_obs),        target, intent(inout)  :: obsSpaceData
+
+    ! Locals:
     type(struct_columnData),target  :: column
     type(struct_gsv)                :: statevector_FcstErr, statevector_fso
     type(struct_vco), pointer       :: vco_anl
@@ -169,7 +187,7 @@ module fsoi_mod
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
     ! compute forecast error = C * (error_t^fa + error_t^fb)
-    call fso_calcFcstError(columnTrlOnAnlIncLev,statevector_FcstErr)
+    call calcFcstError(columnTrlOnAnlIncLev,statevector_FcstErr)
 
 
     ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)
@@ -178,7 +196,7 @@ module fsoi_mod
     if (mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat)
 
     if( trim(fsoMode) == 'HFSO' ) then
-      call fso_minimize(nvadim_mpilocal, zhat, column, columnTrlOnAnlIncLev, obsSpaceData)
+      call minimize(nvadim_mpilocal, zhat, column, columnTrlOnAnlIncLev, obsSpaceData)
       ahat = zhat + vhat
       call bmat_sqrtB(ahat, nvadim_mpilocal, statevector_fso)
     elseif( trim(fsoMode) == 'EFSO' ) then
@@ -207,7 +225,7 @@ module fsoi_mod
     end do
 
     ! print out the information of total FSO for each family
-    call fso_sumFSO(obsSpaceData)
+    call sumFSO(obsSpaceData)
 
     ! deallocate the control vector related arrays
     deallocate(ahat)
@@ -219,16 +237,22 @@ module fsoi_mod
 
   end subroutine fso_ensemble
 
-  subroutine fso_calcFcstError(columnTrlOnAnlIncLev,statevector_out)
+  !--------------------------------------------------------------------------
+  ! calcFcstError
+  !--------------------------------------------------------------------------
+  subroutine calcFcstError(columnTrlOnAnlIncLev,statevector_out)
     !
-    ! In this subroutine it reads the forecast from background and analysis, the verifying analysis
-    ! Based on these inputs, it calculates the Forecast error
+    ! :Purpose: Reads the forecast from background and analysis, the verifying
+    !           analysis based on these inputs, calculates the Forecast error
     !
     implicit none
 
-    type(struct_columnData),target  :: columnTrlOnAnlIncLev
+    ! Arguments:
+    type(struct_columnData), target, intent(in)     :: columnTrlOnAnlIncLev
+    type(struct_gsv)       , target, intent(inout)  :: statevector_out
+
+    ! Locals:
     type(struct_gsv)                :: statevector_fa, statevector_fb, statevector_a
-    type(struct_gsv)                :: statevector_out
     character(len=256)              :: fileName_fa, fileName_fb, fileName_a
     logical                         :: faExists
     type(struct_gsv)                :: statevector_tempfa, statevector_tempfb
@@ -286,43 +310,53 @@ module fsoi_mod
 
     call gsv_copy(statevector_fa,statevector_tempfa)
     call gsv_copy(statevector_fb,statevector_tempfb)
-    call fso_multEnergyNorm(statevector_tempfa, statevector_a,  &
+    call multEnergyNorm(statevector_tempfa, statevector_a,  &
                             latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
                             includeUVnorm, includeTTnorm, includeP0norm,  &
                             includeHUnorm, includeTGnorm) ! use analysis as reference state
-    call fso_multEnergyNorm(statevector_tempfb, statevector_a,  &
+    call multEnergyNorm(statevector_tempfb, statevector_a,  &
                             latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
                             includeUVnorm, includeTTnorm, includeP0norm,  &
                             includeHUnorm, includeTGnorm) ! use analysis as reference state
 
     ! compute error Norm =  C * (error_t^fa + error_t^fb)
     call gsv_add(statevector_fa, statevector_fb, 1.0d0)
-    call fso_multEnergyNorm(statevector_fb, statevector_a,  &
+    call multEnergyNorm(statevector_fb, statevector_a,  &
                             latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm, &
                             includeUVnorm, includeTTnorm, includeP0norm,  &
                             includeHUnorm, includeTGnorm) ! use analysis as reference state
     call gsv_copy(statevector_fb,statevector_out)
 
-  end subroutine fso_calcFcstError
+  end subroutine calcFcstError
 
-  subroutine fso_minimize(nvadim,zhat,column,columnTrlOnAnlIncLev,obsSpaceData)
+  !--------------------------------------------------------------------------
+  ! minimize
+  !--------------------------------------------------------------------------
+  subroutine minimize(nvadim,zhat,column,columnTrlOnAnlIncLev,obsSpaceData)
+    !
+    ! :Purpose: Performs HFSO quasi-Newton minimization
+    !
     implicit none
 
-    type(struct_columnData),target  :: columnTrlOnAnlIncLev, column
-    type(struct_obs),target         :: obsSpaceData
-    real(8),dimension(nvadim)       :: zhat
-    real(8),allocatable             :: gradJ(:), vatra(:)
-    ! for minimization
-    integer                         :: imode, itermax, isimmax, indic,nvadim, nmtra
-    real(8)                         :: zjsp, zxmin, zdf1, zeps, dlgnorm, dlxnorm,zspunused(1)
+    ! Arguments:
+    ! DBGmad verify these intent
+    integer,                         intent(in)   :: nvadim
+    real(8), dimension(nvadim),      intent(out)  :: zhat
+    type(struct_columnData), target, intent(in)   :: column, columnTrlOnAnlIncLev
+    type(struct_obs),        target, intent(in)   :: obsSpaceData
+
+    ! Locals:
+    integer                         :: nulout = 6
+    integer                         :: imode, itermax, isimmax, indic, nmtra
     integer                         :: impres, iztrl(10), intunused(1)
     real                            :: rspunused(1)
-    integer                         :: nulout = 6
+    real(8)                         :: zjsp, zxmin, zdf1, zeps, dlgnorm, dlxnorm,zspunused(1)
+    real(8),allocatable             :: gradJ(:), vatra(:)
 
 
     call utl_tmg_start(90,'--Minimization')
 
-    if (mpi_myid == 0) write(*,*) 'fso_minimize: starting'
+    if (mpi_myid == 0) write(*,*) 'minimize: starting'
 
     nmtra = (4 + 2*nvamaj)*nvadim
     write(*,'(4X,"NVAMAJ = ",I3,/5X,"NMTRA =",I14)') nvamaj,nmtra
@@ -383,20 +417,29 @@ module fsoi_mod
         ,/,20X,"                Total number of iterations:",I4  &
         ,/,20X,"               Total number of simulations:",I4)' ) imode,itermax,isimmax
 
-    if (mpi_myid == 0) write(*,*) 'end of fso_minimize'
+    if (mpi_myid == 0) write(*,*) 'end of minimize'
 
     deallocate(vatra)
     deallocate(gradJ)
 
     call utl_tmg_stop(90)
 
-  end subroutine fso_minimize
+  end subroutine minimize
 
-  subroutine fso_sumFSO(obsSpaceData)
+  !--------------------------------------------------------------------------
+  ! sumFSO
+  !--------------------------------------------------------------------------
+  subroutine sumFSO(obsSpaceData)
+    !
+    ! :Purpose: Print out the information of total FSO for each family
+    !
     implicit none
 
+    ! Arguments:
+    type(struct_obs), intent(in)  :: obsSpaceData
+
+    ! Locals:
     real(8)            :: pfso_1
-    type(struct_obs)   :: obsSpaceData
     integer            :: bodyIndex,itvs,isens,headerIndex
     integer            :: bodyIndexBeg, bodyIndexEnd
 
@@ -487,35 +530,51 @@ module fsoi_mod
 
     end if
 
-  end subroutine fso_sumFSO
+  end subroutine sumFSO
 
+  !--------------------------------------------------------------------------
+  ! simvar
+  !--------------------------------------------------------------------------
   subroutine simvar(indic,nvadim,zhat,Jtotal,gradJ)
-    implicit none
-    ! Argument declarations
-    integer :: nvadim ! Dimension of the control vector in forecast error coraviances space
-    ! Value of indic
-    ! Note: 1 and 4 are reserved values for call back from m1qn3.
-    !       For direct calls use other value than 1 and 4.
-    ! =1 No action taken; =4 Both J(u) and its gradient are computed.
-    ! =2 Same as 4 (compute J and gradJ) but do not interrupt timer of the
-    !    minimizer.
-    ! =3 Compute Jo and gradJo only.
-    integer :: indic
-    real(8)  :: Jtotal ! Cost function of the Variational algorithm
-    real(8), dimension(nvadim) :: gradJ ! Gradient of the Variational Cost funtion
-    real(8), dimension(nvadim) :: zhat ! Control variable in forecast error covariances space
     !
-    ! Purpose: Implement the Variational solver as described in
-    ! Courtier, 1997, Dual formulation of four-dimentional variational assimilation,
-    ! Q.J.R., pp2449-2461.
+    ! :Purpose: Implement the Variational solver as described in
+    !           Courtier, 1997, Dual formulation of four-dimentional variational
+    !            assimilation, Q.J.R., pp2449-2461.
     !
-    ! Author : Simon Pellerin *ARMA/MSC October 2005
+    ! :Author: Simon Pellerin *ARMA/MSC October 2005
     !          (Based on previous versions of evaljo.ftn, evaljg.ftn and evaljgns.ftn).
     !
-    ! Local declaration
+    ! :Arguments:
+    !   :indic:   Value of indic
+    !             Note: 1 and 4 are reserved values for call back from m1qn3.
+    !             For direct calls use other value than 1 and 4.
+    !             =1 No action taken; =4 Both J(u) and its gradient are computed.
+    !             =2 Same as 4 (compute J and gradJ) but do not interrupt timer
+    !             of the minimizer.
+    !             =3 Compute Jo and gradJo only.
+    !
+    !   :nvadim:  Dimension of the control vector in forecast error covariances space
+    !
+    !   :zhat:    Control variable in forecast error covariances space 
+    !
+    !   :Jtotal:  Cost function of the Variational algorithm
+    !
+    !   :gradJ:   Gradient of the Variational Cost funtion
+    !
+    implicit none
+
+    ! Arguments:
+    integer,                    intent(in)    :: indic
+    integer,                    intent(in)    :: nvadim
+    real(8), dimension(nvadim), intent(inout) :: zhat
+    real(8),                    intent(out)   :: Jtotal
+    real(8), dimension(nvadim), intent(out)   :: gradJ
+
+    ! Locals:
     real(8) :: ahat_vhat(nvadim)
     real(8) :: Jb, Jobs
-    type(struct_gsv) :: statevector
+
+    type(struct_gsv)          :: statevector
     type(struct_vco), pointer :: vco_anl
 
     call utl_tmg_stop(91)
@@ -599,42 +658,44 @@ module fsoi_mod
 
   end subroutine simvar
 
+  !--------------------------------------------------------------------------
+  ! DSCALQN
+  !--------------------------------------------------------------------------
   SUBROUTINE DSCALQN(KDIM,PX,PY,DDSC)
-    ! DSCALQN: inner product in canonical space
     !
-    ! Purpose: interface for the inner product to be used
-    ! by the minimization subroutines N1QN3.
+    ! :Purpose: interface for the inner product to be used
+    !           by the minimization subroutines N1QN3.
     !
-    ! Arguments
-    !     i : KDIM      : dimension of the vectors
-    !     i : PX, PY    : vector for which <PX,PY> is being calculated
-    !     o : DDSC      : result of the inner product
     IMPLICIT NONE
 
-    INTEGER KDIM
-    REAL(8) PX(KDIM), PY(KDIM)
-    REAL(8) DDSC
+    ! Arguments:
+    INTEGER, intent(in)  :: KDIM               ! dimension of the vectors
+    REAL(8), intent(in)  :: PX(KDIM), PY(KDIM) ! vector components for which <PX,PY> is being calculated
+    REAL(8), intent(out) :: DDSC               ! result of the inner product
 
+    ! DBGmad : what purpose serves this trivial interface?!
     CALL PRSCAL(KDIM,PX,PY,DDSC)
     RETURN
   END SUBROUTINE DSCALQN
 
+  !--------------------------------------------------------------------------
+  ! PRSCAL 
+  !--------------------------------------------------------------------------
   SUBROUTINE PRSCAL(KDIM,PX,PY,DDSC)
-    ! PRSCAL: inner product in canonical space
     !
-    ! Author  : P. Gauthier *ARMA/AES  January 27, 1993
-    ! Purpose: evaluation of the inner product used in the minimization
+    ! :Purpose: evaluation of the inner product in canonical space used in the minimization
     !
-    ! Arguments
-    !     i : KDIM     : dimension of the vectors
-    !     i : PX, PY   : vector for which <PX,PY> is being calculated
-    !     o : DDSC     : result of the inner product
+    ! :Author:  P. Gauthier *ARMA/AES  January 27, 1993
     !
     IMPLICIT NONE
 
-    INTEGER KDIM, J
-    REAL(8) PX(KDIM), PY(KDIM)
-    REAL(8) DDSC
+    ! Arguments:
+    INTEGER, intent(in)  :: KDIM               ! dimension of the vectors
+    REAL(8), intent(in)  :: PX(KDIM), PY(KDIM) ! vector components for which <PX,PY> is being calculated
+    REAL(8), intent(out) :: DDSC               ! result of the inner product
+
+    ! Locals:
+    INTEGER ::  J
 
     DDSC = 0.D0
 
@@ -648,23 +709,29 @@ module fsoi_mod
 
   END SUBROUTINE PRSCAL
 
+  !--------------------------------------------------------------------------
+  ! DCANAB 
+  !--------------------------------------------------------------------------
   SUBROUTINE DCANAB(KDIM,PY,PX)
-    ! DCANAB  - Change of variable associated with the canonical inner product
     !
-    ! Author    JM Belanger CMDA/SMC   May 2001
-    ! Double precision version based on single precision CTCAB.
-    ! Refered to  as dummy argument DTCAB by N1QN3 minimization
-    ! package.
+    ! :Purpose: Change of variable associated with the canonical inner product
+    !           to compute PX = L^-1 * Py with L related to the inner product
+    !           <PX,PY> = PX^t  L^t  L PY
+    !           (see the modulopt documentation aboutn DTCAB)
+    !           Double precision version based on single precision CTCAB.
+    !           Refered to  as dummy argument DTCAB by N1QN3 minimization
+    !           package.
     !
-    ! Purpose: to compute PX = L^-1 * Py with L related to the inner product
-    ! <PX,PY> = PX^t  L^t  L PY
-    ! (see the modulopt documentation aboutn DTCAB)
+    ! :Author:  JM Belanger CMDA/SMC   May 2001
     !
     IMPLICIT NONE
 
-    INTEGER KDIM
-    REAL(8) PX(KDIM), PY(KDIM)
+    ! Arguments:
+    INTEGER, intent(in)     :: KDIM     ! dimension of the vectors
+    REAL(8), intent(inout)  :: PX(KDIM)
+    REAL(8), intent(in)     :: PY(KDIM)
 
+    ! Locals:
     INTEGER JDIM
 
     DO JDIM = 1, KDIM
@@ -675,22 +742,30 @@ module fsoi_mod
 
   END SUBROUTINE DCANAB
 
+  !--------------------------------------------------------------------------
+  ! DCANONB 
+  !--------------------------------------------------------------------------
   SUBROUTINE DCANONB(KDIM,PX,PY)
-    ! DCANONB  - Change of variable associated with the canonical inner product
     !
-    ! Author    JM Belanger CMDA/SMC  May 2001
-    ! Double precision version based on single precision CANONB.
-    ! Refered to as dummy argument DTONB by N1QN3 minimization
-    ! package.
+    ! :Purpose: Change of variable associated with the canonical inner product
+    !           to compute PY = L * PX with L related to the inner product
+    !           <PX,PY> = PX^t  L^t  L PY
+    !           (see the modulopt documentation about DTONB)
+    !           Double precision version based on single precision CTCAB.
+    !           Refered to  as dummy argument DTCAB by N1QN3 minimization
+    !           package.
     !
-    ! Purpose: to compute PY = L * PX with L related to the inner product
-    ! <PX,PY> = PX^t  L^t  L PY
-    !(see the modulopt documentation about DTONB)
+    ! :Author:  JM Belanger CMDA/SMC   May 2001
     !
     IMPLICIT NONE
-    INTEGER KDIM
-    REAL(8) PX(KDIM), PY(KDIM)
 
+    ! Arguments:
+    INTEGER, intent(in)     :: KDIM     ! dimension of the vectors
+    REAL(8), intent(in)     :: PX(KDIM)
+    REAL(8), intent(inout)  :: PY(KDIM)
+
+
+    ! Locals:
     INTEGER JDIM
 
     DO JDIM = 1, KDIM
@@ -701,9 +776,9 @@ module fsoi_mod
   END SUBROUTINE DCANONB
 
   !--------------------------------------------------------------------------
-  ! fso_multEnergyNorm
+  ! multEnergyNorm
   !--------------------------------------------------------------------------
-  subroutine fso_multEnergyNorm(statevector_inout, statevector_ref,  &
+  subroutine multEnergyNorm(statevector_inout, statevector_ref,  &
                                 latMin, latMax, lonMin, lonMax,      &
                                 uvNorm,ttNorm,p0Norm,huNorm,tgNorm)
     !
@@ -734,7 +809,7 @@ module fsoi_mod
     real(8), parameter   :: T_r = 280.0D0
     real(8), parameter   :: Psfc_r = 100000.0D0 ! unit Pa
 
-    if (mpi_myid == 0) write(*,*) 'fso_multEnergyNorm: START'
+    if (mpi_myid == 0) write(*,*) 'multEnergyNorm: START'
     nullify(Press_T,Press_M)
 
     ! the factors for TT, HU and Ps (for wind is 1)
@@ -743,7 +818,7 @@ module fsoi_mod
     pfac = mpc_rgas_dry_air_r8*T_r/(Psfc_r**2)                   ! surface pressure factor (R*T_r/Psfc_r^2)
 
     if (.not. gsv_isAllocated(statevector_inout)) then
-      call utl_abort('fso_multEnergyNorm: gridStateVector_inout not yet allocated')
+      call utl_abort('multEnergyNorm: gridStateVector_inout not yet allocated')
     end if
 
     nLev_M = gsv_getNumLev(statevector_inout,'MM')
@@ -1022,8 +1097,8 @@ module fsoi_mod
     deallocate(Press_T,Press_M)
     deallocate(Psfc_ref)
 
-    if (mpi_myid == 0) write(*,*) 'fso_multEnergyNorm: END'
+    if (mpi_myid == 0) write(*,*) 'multEnergyNorm: END'
 
-  end subroutine fso_multEnergyNorm
+  end subroutine multEnergyNorm
 
 end module fsoi_mod
