@@ -1,6 +1,8 @@
+# Coding Standards
+
 The purpose of this is to summarize coding standards to be used in the
 MIDAS fortran code. A shorter list of the "Top 10" things to keep in
-mind is provided [here](codingStandardsTop10.md).
+mind is provided [here](codingStd_top10.md).
 
 ## Examples 
 
