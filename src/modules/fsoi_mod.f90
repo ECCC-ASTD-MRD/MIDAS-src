@@ -215,7 +215,7 @@ module fsoi_mod
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
 
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 ) then
+        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated ) then
           fso_ori = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
           fso_fin = fso_ori * obs_bodyElem_r(obsSpaceData,OBS_OMP,bodyIndex)
           call obs_bodySet_r(obsSpaceData,OBS_FSO,bodyIndex, fso_fin)
@@ -233,7 +233,7 @@ module fsoi_mod
     deallocate(zhat)
     call col_deallocate(column)
 
-    if (mpi_myid == 0) write(*,*) 'end of fso_ensemble'
+    if (mpi_myid == 0) write(*,*) 'fso_ensemble: Finished'
 
   end subroutine fso_ensemble
 
@@ -256,7 +256,6 @@ module fsoi_mod
     character(len=256)              :: fileName_fa, fileName_fb, fileName_a
     logical                         :: faExists
     type(struct_gsv)                :: statevector_tempfa, statevector_tempfb
-
     type(struct_vco), pointer       :: vco_anl
     integer                         :: dateStamp_fcst, dateStamp
 
@@ -415,7 +414,7 @@ module fsoi_mod
         ,/,20X,"                Total number of iterations:",I4  &
         ,/,20X,"               Total number of simulations:",I4)' ) imode,itermax,isimmax
 
-    if (mpi_myid == 0) write(*,*) 'end of minimize'
+    if (mpi_myid == 0) write(*,*) 'minimize: Finished'
 
     deallocate(vatra)
     deallocate(gradJ)
@@ -448,7 +447,7 @@ module fsoi_mod
     integer            :: numAss_sensors_loc(tvs_nsensors), numAss_sensors_glb(tvs_nsensors)
     integer            :: ierr, familyIndex
 
-    if (mpi_myid == 0) write(*,*) 'sum of FSO information'
+    if (mpi_myid == 0) write(*,*) 'sumFSO: Starting'
 
     ! initialize
     do familyIndex = 1, numFamily
@@ -494,14 +493,14 @@ module fsoi_mod
     end do
 
     do familyIndex = 1, numFamily
-      call mpi_allreduce_sumreal8scalar(tfso(familyIndex),"GRID")
+      call mpi_allreduce_sumreal8scalar(tfso(familyIndex),'GRID')
       totFSO = totFSO + tfso(familyIndex)
-      call rpn_comm_allreduce(numAss_local(familyIndex), numAss_global(familyIndex) ,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+      call rpn_comm_allreduce(numAss_local(familyIndex), numAss_global(familyIndex) ,1,'MPI_INTEGER','MPI_SUM','GRID',ierr)
     end do
 
     do isens = 1, tvs_nsensors
-      call mpi_allreduce_sumreal8scalar(tfsotov_sensors(isens),"GRID")
-      call rpn_comm_allreduce(numAss_sensors_loc(isens), numAss_sensors_glb(isens) ,1,"MPI_INTEGER","MPI_SUM","GRID",ierr)
+      call mpi_allreduce_sumreal8scalar(tfsotov_sensors(isens),'GRID')
+      call rpn_comm_allreduce(numAss_sensors_loc(isens), numAss_sensors_glb(isens) ,1,'MPI_INTEGER','MPI_SUM','GRID',ierr)
     end do
 
     if (mpi_myid == 0) then
@@ -536,10 +535,7 @@ module fsoi_mod
     !
     ! :Purpose: Implement the Variational solver as described in
     !           Courtier, 1997, Dual formulation of four-dimentional variational
-    !            assimilation, Q.J.R., pp2449-2461.
-    !
-    ! :Author: Simon Pellerin *ARMA/MSC October 2005
-    !          (Based on previous versions of evaljo.ftn, evaljg.ftn and evaljgns.ftn).
+    !           assimilation, Q.J.R., pp2449-2461.
     !
     ! :Arguments:
     !   :indic:   Value of indic
@@ -570,7 +566,6 @@ module fsoi_mod
     ! Locals:
     real(8) :: ahat_vhat(nvadim)
     real(8) :: Jb, Jobs
-
     type(struct_gsv)          :: statevector
     type(struct_vco), pointer :: vco_anl
 
@@ -581,7 +576,7 @@ module fsoi_mod
       fso_nsim = fso_nsim + 1
 
       if (mpi_myid == 0) then
-        write(*,*) 'Entering simvar for simulation ',fso_nsim
+        write(*,*) 'simvar: entering for simulation ',fso_nsim
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         call flush(6)
       end if
@@ -591,7 +586,7 @@ module fsoi_mod
 
       ! Computation of background term of cost function:
       Jb = dot_product(zhat(1:nvadim_mpilocal),zhat(1:nvadim_mpilocal))/2.d0
-      call mpi_allreduce_sumreal8scalar(Jb,"GRID")
+      call mpi_allreduce_sumreal8scalar(Jb,'GRID')
 
       vco_anl => col_getVco(columnTrlOnAnlIncLev_ptr)
       call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
@@ -651,45 +646,41 @@ module fsoi_mod
     call utl_tmg_start(90,'--Minimization')
     call utl_tmg_start(91,'----QuasiNewton')
 
-    if (mpi_myid == 0) write(*,*) 'end of simvar'
+    if (mpi_myid == 0) write(*,*) 'simvar: Finished'
 
   end subroutine simvar
 
   !--------------------------------------------------------------------------
-  ! PRSCAL
+  ! prscal
   !--------------------------------------------------------------------------
-  SUBROUTINE PRSCAL(KDIM,PX,PY,DDSC)
+  subroutine prscal(kdim,px,py,ddsc)
     !
     ! :Purpose: evaluation of the inner product in canonical space used in the minimization
     !
-    ! :Author:  P. Gauthier *ARMA/AES  January 27, 1993
-    !
-    IMPLICIT NONE
+    implicit none
 
     ! Arguments:
-    INTEGER, intent(in)  :: KDIM               ! dimension of the vectors
-    REAL(8), intent(in)  :: PX(KDIM), PY(KDIM) ! vector components for which <PX,PY> is being calculated
-    REAL(8), intent(out) :: DDSC               ! result of the inner product
+    integer, intent(in)  :: kdim               ! dimension of the vectors
+    real(8), intent(in)  :: px(kdim), py(kdim) ! vector components for which <px,py> is being calculated
+    real(8), intent(out) :: ddsc               ! result of the inner product
 
     ! Locals:
-    INTEGER ::  J
+    integer ::  cvIndex
 
-    DDSC = 0.D0
+    ddsc = 0.d0
 
-    do j=1,nvadim_mpilocal
-      DDSC = DDSC + PX(J)*PY(J)
+    do cvIndex=1,nvadim_mpilocal
+      ddsc = ddsc + px(cvIndex)*py(cvIndex)
     end do
 
-    call mpi_allreduce_sumreal8scalar(ddsc,"GRID")
+    call mpi_allreduce_sumreal8scalar(ddsc,'GRID')
 
-    RETURN
-
-  END SUBROUTINE PRSCAL
+  end subroutine prscal
 
   !--------------------------------------------------------------------------
-  ! DCANAB
+  ! dcanab
   !--------------------------------------------------------------------------
-  SUBROUTINE DCANAB(KDIM,PY,PX)
+  subroutine dcanab(kdim,py,px)
     !
     ! :Purpose: Change of variable associated with the canonical inner product
     !           to compute PX = L^-1 * Py with L related to the inner product
@@ -699,30 +690,26 @@ module fsoi_mod
     !           Refered to  as dummy argument DTCAB by N1QN3 minimization
     !           package.
     !
-    ! :Author:  JM Belanger CMDA/SMC   May 2001
-    !
-    IMPLICIT NONE
+    implicit none
 
     ! Arguments:
-    INTEGER, intent(in)     :: KDIM     ! dimension of the vectors
-    REAL(8), intent(inout)  :: PX(KDIM)
-    REAL(8), intent(in)     :: PY(KDIM)
+    integer, intent(in)     :: kdim     ! dimension of the vectors
+    real(8), intent(inout)  :: px(kdim)
+    real(8), intent(in)     :: py(kdim)
 
     ! Locals:
-    INTEGER JDIM
+    integer :: cvIndex
 
-    DO JDIM = 1, KDIM
-      PX(JDIM) = PY(JDIM)
-    END DO
+    do cvIndex = 1, kdim
+      px(cvIndex) = py(cvIndex)
+    end do
 
-    RETURN
-
-  END SUBROUTINE DCANAB
+  end subroutine dcanab
 
   !--------------------------------------------------------------------------
-  ! DCANONB
+  ! dcanonb
   !--------------------------------------------------------------------------
-  SUBROUTINE DCANONB(KDIM,PX,PY)
+  subroutine dcanonb(kdim,px,py)
     !
     ! :Purpose: Change of variable associated with the canonical inner product
     !           to compute PY = L * PX with L related to the inner product
@@ -732,24 +719,21 @@ module fsoi_mod
     !           Refered to  as dummy argument DTCAB by N1QN3 minimization
     !           package.
     !
-    ! :Author:  JM Belanger CMDA/SMC   May 2001
-    !
-    IMPLICIT NONE
+    implicit none
 
     ! Arguments:
-    INTEGER, intent(in)     :: KDIM     ! dimension of the vectors
-    REAL(8), intent(in)     :: PX(KDIM)
-    REAL(8), intent(inout)  :: PY(KDIM)
+    integer, intent(in)     :: kdim     ! dimension of the vectors
+    real(8), intent(in)     :: px(kdim)
+    real(8), intent(inout)  :: py(kdim)
 
     ! Locals:
-    INTEGER JDIM
+    integer :: cvIndex
 
-    DO JDIM = 1, KDIM
-      PY(JDIM) = PX(JDIM)
-    END DO
+    do cvIndex = 1, kdim
+      py(cvIndex) = px(cvIndex)
+    end do
 
-    RETURN
-  END SUBROUTINE DCANONB
+  end subroutine dcanonb
 
   !--------------------------------------------------------------------------
   ! multEnergyNorm

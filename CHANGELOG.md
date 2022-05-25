@@ -86,7 +86,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * moved subroutines from `obsImpact` program to a new `fsoi_mod` module (#648 and !605)
+ * Moved subroutines from `obsImpact` program to a new `fsoi_mod` module (#648 and !605)
  * Moved interpolation out of `gridstatevector_mod` into a new module: `interpolation_mod` (#629 and !600)
   * a new namelist `NAMINT`: variable `vInterpCopyLowestLevel` moved from `NAMSTATE`
  * Ensure only first thread calls the tmg_start/stop routines (#636 and !591)
