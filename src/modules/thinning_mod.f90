@@ -5050,8 +5050,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     else if ( codtyp == codtyp_get_codtyp('ssmis') ) then
       loscan   = 1
       hiscan   = mxscanssmis
-    else
-      call utl_abort("thn_tovsFilt: Invalid codtyp =" // char(codtyp))
+   else
+      write(*,*) 'codtyp = ', codtyp
+      call utl_abort('thn_tovsFilt: Invalid codtyp')
     end if
 
     countQc = 0
