@@ -3,7 +3,7 @@
 If you compile MIDAS code after tag `v_3.7.2` on HPCR-U2, then you
 must update your login profile to version `1.19.0`:
 ```bash
-ln -svi /fs/ssm/eccc/mrd/ordenv/profile/1.91.0 ~/.profile_1.19.0
+ln -svi /fs/ssm/eccc/mrd/ordenv/profile/1.19.0 ~/.profile_1.19.0
 rm -v ~/.profile && ln -svi .profile_1.19.0 ~/.profile
 ```
 
