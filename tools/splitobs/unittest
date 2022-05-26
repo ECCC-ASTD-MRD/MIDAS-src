@@ -566,16 +566,16 @@ test_rdb_index () {
     test_rdb_index_npex=1
     test_rdb_index_npey=22
 
-    procx=${test_rdb_dropindex_npex}
-    procy=${test_rdb_dropindex_npey}
+    procx=${test_rdb_index_npex}
+    procy=${test_rdb_index_npey}
 
     status=0
     program_status=0
     ${SPLITOBS} -round-robin -x ${procx} -y ${procy} -npex ${test_rdb_index_npex} -npey ${test_rdb_index_npey} -ndigits ${test_rdb_index_ndigits} -obsin ${INPUTS}/rdb/obsal -obsout obsal 1>> check_result.listing 2>&1 || program_status=$?
     assert "test_rdb_index splitting program execution (status=${program_status})" [ "${program_status}" -eq 0 ] || status=$?
 
-    procx_str=$(paddedPrint ${test_rdb_dropindex_ndigits} ${procx})
-    procy_str=$(paddedPrint ${test_rdb_dropindex_ndigits} ${procy})
+    procx_str=$(paddedPrint ${test_rdb_index_ndigits} ${procx})
+    procy_str=$(paddedPrint ${test_rdb_index_ndigits} ${procy})
 
     fileout=obsal_${procx_str}_${procy_str}
     check_status=0
@@ -689,7 +689,7 @@ test_rdb_resume_schema_SAR () {
 
             check_status=0
             check_result ${REFERENCE}/rdb/sarwinds/sarwinds_${procx_str}_${procy_str} sarwinds_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-            assert "test_rdb_resume_schema_SAR splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+            assert "test_rdb_resume_schema_SAR splitting procx=${procx_str} procy=${procy_str} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
             let procy=procy+1
         done
         let procx=procx+1
@@ -758,9 +758,8 @@ test_rdb_obsdb () {
     test_rdb_obsdb_npex=1
     test_rdb_obsdb_npey=3
 
-    typeset -Z${test_rdb_obsdb_ndigits} procx procy
-    procx=1
-    procy=3
+    procx=$(paddedPrint ${test_rdb_obsdb_ndigits} 1)
+    procy=$(paddedPrint ${test_rdb_obsdb_ndigits} 3)
 
     status=0
     program_status=0
@@ -786,9 +785,12 @@ test_rdb_obsdb () {
     procy=1
     while [ "${procx}" -le "${test_rdb_obsdb_npex}" ]; do
         while [ "${procy}" -le "${test_rdb_obsdb_npey}" ]; do
+            procx_str=$(paddedPrint ${test_rdb_obsdb_ndigits} ${procx})
+            procy_str=$(paddedPrint ${test_rdb_obsdb_ndigits} ${procy})
+
             check_status=0
-            check_result ${REFERENCE}/rdb/obsdb/obsatms_${procx}_${procy} obsatms_${procx}_${procy} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
-            assert "test_rdb_obsdb splitting procx=${procx} procy=${procy} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
+            check_result ${REFERENCE}/rdb/obsdb/obsatms_${procx_str}_${procy_str} obsatms_${procx_str}_${procy_str} ${DIFF_METHOD_FOR_SQL_FILES} 1>> check_result.listing 2>&1 || check_status=$?
+            assert "test_rdb_obsdb splitting procx=${procx_str} procy=${procy_str} check_result (status=${check_status})" [ "${check_status}" -eq 0 ] || status=$?
             let procy=procy+1
         done
         let procx=procx+1

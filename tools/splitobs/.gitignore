@@ -6,6 +6,7 @@
 *~
 bgck.clipobs_*
 splitobs_*
+midas.splitobs_*
 /work*
 version.h
 /clipobs_unittest.*.out
