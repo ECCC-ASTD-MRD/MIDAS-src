@@ -1104,6 +1104,13 @@ contains
                       write(*,*) 'maziar: mean trial=', meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
                       write(*,*) 'maziar: original member pert=', pert_r4
                     end if
+if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. stepIndex == 1 .and. &
+    memberIndex == 1 .and. trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
+  write(*,*) 'maziar: levIndex=', levIndex, &
+            ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
+            ', modulationFactor=', modulationFactor
+end if
+
 
                     pert_r4 = pert_r4 * real(modulationFactor,4)
 
@@ -2186,7 +2193,17 @@ contains
         write(*,*) 'matrixRank=', matrixRank
         call utl_abort('getModulationFactor: verticalLocalizationMat is rank deficient=')
       end if
-      eigenValues(2:nLev) = 0.0d0
+      !eigenValues(2:nLev) = 0.0d0
+if (mpi_myid == 0) then
+  do levIndex1 = 1, numRetainedEigen
+    write(*,*) 'maziar: eigen mode=', levIndex1, ', eigenVectors=', eigenVectors(:,levIndex1)
+  end do
+  write(*,*) 'maziar: eigenValues=', eigenValues(1:numRetainedEigen)
+
+  do levIndex1 = 1, nLev
+    write(*,*) 'maziar: verticalLocalizationMat for lev ', levIndex1, '=', verticalLocalizationMat(levIndex1,:)
+  end do
+end if
     end if
 
     modulationFactor = eigenVectors(eigenVectorLevelIndex,eigenVectorColumnIndex) * &
