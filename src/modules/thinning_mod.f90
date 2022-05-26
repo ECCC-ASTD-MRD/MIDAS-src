@@ -567,6 +567,8 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('mwhs2'))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call thn_tovsFilt(obsdat, delta, deltrad, codtyp_get_codtyp('ssmis'))
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call utl_tmg_stop(114)
 
   end subroutine thn_thinTovs
@@ -4891,6 +4893,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, parameter :: mxscanamsub=90
     integer, parameter :: mxscanatms =96
     integer, parameter :: mxscanmwhs2=98
+    integer, parameter :: mxscanssmis=90
 
     instrumName = codtyp_get_name(codtyp)
     write(*,*)
@@ -5044,6 +5047,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     else if ( codtyp == codtyp_get_codtyp('mwhs2') ) then
       loscan   = 1
       hiscan   = mxscanmwhs2
+    else if ( codtyp == codtyp_get_codtyp('ssmis') ) then
+      loscan   = 1
+      hiscan   = mxscanssmis
+   else
+      write(*,*) 'codtyp = ', codtyp
+      call utl_abort('thn_tovsFilt: Invalid codtyp')
     end if
 
     countQc = 0
