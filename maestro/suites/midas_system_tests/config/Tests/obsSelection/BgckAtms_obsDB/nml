@@ -9,6 +9,9 @@
  &namObsSelection
   doThinning = .true.
 /
+ &namObsDbClean
+  useVacuum = .true.
+/
  &NAMobsDB
    obsDbActive = .true.
    numElemIdList = 1

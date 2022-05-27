@@ -2533,8 +2533,32 @@ contains
     type(fSQL_STATUS)    :: stat ! sqlite error status
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
+    integer            :: nulnam , ierr, fnom, fclos
+    
+    ! namelist variables
+    logical, save        :: useVacuum
+
+    namelist/namObsDbClean/ useVacuum
+
+    ! default values
+    useVacuum = .false.
 
     call tmg_start(180,'obdf_clean')
+
+    if ( .not. utl_isNamelistPresent('namObsDbClean','./flnml') ) then
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'odbf_setup: namObsDbClean is missing in the namelist.'
+        write(*,*) '            The default values will be taken.'
+      end if
+    else
+      ! reading namelist variables
+      nulnam  = 0
+      ierr = fnom(nulnam ,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam , nml=namObsDbClean, iostat=ierr)
+      if ( ierr /= 0 ) call utl_abort('obdf_clean: Error reading namelist')
+      ierr = fclos(nulnam )
+    end if
+    if ( mpi_myid == 0 ) write(*, nml=namObsDbClean)
 
     write(*,*)
     write(*,*) 'obdf_clean: Starting'
@@ -2612,8 +2636,28 @@ contains
 
     call fSQL_finalize(stmt)
     call fSQL_commit(db)
-    write(*,*) 'obdf_clean: closed database -->', trim(FileName)
+
+        ! open the obsDB file
+    call fSQL_open( db, trim(fileName), stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'obdf_clean: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'obdf_clean: fSQL_open' )
+    end if
+
+    if ( useVacuum ) then
+      query = 'vacuum;'
+      write(*,*) 'obdf_clean: query = ', trim(query)
+      call fSQL_do_many( db, query, stat )
+
+      if ( fSQL_error(stat) /= FSQL_OK ) then
+        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+        call utl_abort('obdf_clean: Problem with fSQL_do_many')
+      end if
+    end if
+
     call fSQL_close(db, stat)
+
+    call tmg_stop(180)
 
   end subroutine obdf_clean
 
