@@ -1,8 +1,8 @@
  &NAMLETKF
    algorithm                = 'CVLETKF-ME'
    ensPostProcessing        = .true.
-   NENS                     = 20
-   numSubEns                = 2
+   NENS                     = 10
+   numSubEns                = 1
    MAXNUMLOCALOBS           = 10000
    WEIGHTLATLONSTEP         = 10
    HLOCALIZE                = 2000.0D0
@@ -14,14 +14,14 @@
    rejectRadNearSfc         = .false.
    obsTimeInterpType        = 'LINEAR'
    mpiDistribution          = 'ROUNDROBIN'
-   numRetainedEigen         = 2
+   numRetainedEigen         = 1
    debug                    = .false.
 /
  &namEnsPostProcModule
    alphaRTPP                = 0.00D0
    alphaRTPS                = 0.00D0
    alphaRandomPert          = 0.00D0
-   alphaRandomPertSubSample = 0.66D0
+   alphaRandomPertSubSample = 0.00D0
    imposeSaturationLimit    = .false.
    imposeRttovHuLimits      = .false.
 /
