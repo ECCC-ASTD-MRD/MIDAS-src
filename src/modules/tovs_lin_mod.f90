@@ -310,9 +310,9 @@ contains
            transmission_tl,                                       & ! inout
            radiancedata_d,                                        & ! inout
            radiancedata_tl,                                       & ! inout
-           calcemis,                                              & ! in
-           emissivity_local,                                      & ! in
-           emissivity_tl,                                         & ! inout
+           calcemis=calcemis,                                     & ! in
+           emissivity=emissivity_local,                           & ! in
+           emissivity_tl=emissivity_tl,                           & ! inout
            nthreads=nthreads )                                      ! in
                
       if (errorstatus /= 0) then

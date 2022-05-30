@@ -190,10 +190,10 @@ if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-sk
         echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
         . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
     fi
-
-    echo "... loading eccc/mrd/rpn/anl/rttov/12v1.5.1/${COMP_ARCH}"
-    . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.5.1/${COMP_ARCH}
-
+  
+     echo "... loading /fs/ssm/eccc/mrd/rpn/anl/rttov/13v1.1/${COMP_ARCH}"
+    . r.load.dot -d /fs/ssm/eccc/mrd/rpn/anl/rttov/13v1.1/${COMP_ARCH} 
+	
     ## for 'random_tools'
     echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1"
     . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1
@@ -209,8 +209,8 @@ elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
     echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
     . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
-    echo "... loading eccc/mrd/rpn/anl/rttov/12v1.6.2/${COMP_ARCH}"
-    . r.load.dot eccc/mrd/rpn/anl/rttov/12v1.6.2/${COMP_ARCH}
+    echo "... loading eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}"
+    . r.load.dot eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}
 
     ## for 'random_tools'
     echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2-cdt-1.5.5/${COMP_ARCH}"

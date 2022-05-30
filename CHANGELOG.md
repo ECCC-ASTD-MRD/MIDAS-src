@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Updated radiative transfer code from RTTOV-12 to RTTOV-13. Minor impact on results (#508 and !601)
 
 ### Fixed
 
