@@ -84,7 +84,7 @@ contains
     integer :: btIndex, bodyIndex
     integer :: instrum
     integer :: sensorType   !sensor type(1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
-    integer :: errorstatus
+    integer :: errorStatus
     integer,allocatable :: sensorBodyIndexes(:)
     logical,allocatable :: lchannel_subset(:,:)
     real(8), allocatable :: surfem1(:)
@@ -214,8 +214,15 @@ contains
               init=.true.)
       if (tvs_useRttovScatt(sensorIndex)) then
         allocate(cld_profiles_tl(profileCount))
-        call rttov_alloc_scatt_prof ( allocStatus(2), profileCount, cld_profiles_tl, &
-                nlv_T, use_totalice=.true., asw=asw, init=.false., mmr_snowrain=.true.)
+        call rttov_alloc_scatt_prof ( allocStatus(2),   &
+                                      profileCount,     &
+                                      cld_profiles_tl,  &
+                                      nlv_T,            &
+                                      nhydro=5,         &
+                                      nhydro_frac=5,    &
+                                      asw=asw,          &
+                                      init=.false.       )
+                                      !flux_conversion=0)
       end if
     
       call utl_checkAllocationStatus(allocStatus(1:2), " tovs_rtttov_tl rttov_alloc_tl 1")
@@ -276,15 +283,14 @@ contains
         delHU => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'HU')
         profilesdata_tl(profileIndex) % q(1:nlv_T)    = delHU(:)
         if (tvs_useRttovScatt(sensorIndex)) then
-          cld_profiles_tl(profileIndex) % ph (1) = 0.d0
+           cld_profiles_tl(profileIndex) % ph (1) = 0.d0
+           cld_profiles_tl(profileIndex) % cfrac = 0.d0
           do levelIndex = 1, nlv_T - 1
             cld_profiles_tl(profileIndex) % ph (levelIndex+1) = 0.5d0 * (profilesdata_tl(profileIndex) % p(levelIndex) + profilesdata_tl(profileIndex) % p(levelIndex+1) )
           end do
           cld_profiles_tl(profileIndex) % ph (nlv_T+1) = profilesdata_tl(profileIndex) % s2m % p
-          cld_profiles_tl(profileIndex) % cc  (:) = 0.d0   ! cloud cover (0-1)
-          cld_profiles_tl(profileIndex) % clw (:) = 0.d0   ! liquid water (kg/kg)
-          cld_profiles_tl(profileIndex) % totalice(:) = 0.d0 ! combined ice water and snow (kg/kg)
-          cld_profiles_tl(profileIndex) % rain(:)      =  0.d0 ! rain (kg/kg)
+          cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,1:5) = 0.d0   !
+          cld_profiles_tl(profileIndex) % hydro(1:nlv_T,1:5) = 0.d0   ! 
         end if
       end do
 
@@ -312,13 +318,15 @@ contains
       call tvs_getChanprof(sensorIndex, sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
            iptobs_cma_opt=sensorBodyIndexes, lchannel_subset_opt = lchannel_subset)
       if (tvs_useRttovScatt(sensorIndex)) then
-          call rttov_scatt_setupindex ( &
-               profileCount,            &  ! number of profiles
-               tvs_nchan(sensorIndex),  &  ! number of channels 
-               tvs_coefs(sensorIndex),  &  ! coef structure read in from rttov coef file
-               btcount,                 &  ! number of calculated channels
-               chanprof,                &  ! channels and profile numbers
-               frequencies,             &  ! array, frequency number for each channel
+         call rttov_scatt_setupindex (       &
+               errorStatus,                  &
+               profileCount,                 &  ! number of profiles
+               tvs_nchan(sensorIndex),       &  ! number of channels 
+               tvs_coefs(sensorIndex),       &  ! coef structure read in from rttov coef file
+               tvs_coef_scatt(sensorIndex),  &  ! coef structure read in from rttov coef file
+               btcount,                      &  ! number of calculated channels
+               chanprof,                     &  ! channels and profile numbers
+               frequencies,                  &  ! array, frequency number for each channel
                lchannel_subset )           ! OPTIONAL array of logical flags to indicate a subset of channels
       end if
       deallocate( lchannel_subset )
@@ -398,8 +406,14 @@ contains
       
       asw = 0 ! 0 to deallocate
       if (tvs_useRttovScatt(sensorIndex)) then
-        call rttov_alloc_scatt_prof (allocStatus(1), profileCount, cld_profiles_tl, nlv_T, &
-             use_totalice=.true., asw=asw, mmr_snowrain=.true.)
+         call rttov_alloc_scatt_prof (allocStatus(1),   &
+                                      profileCount,     &
+                                      cld_profiles_tl,  &
+                                      nlv_T,            &
+                                      nhydro=5,         &
+                                      nhydro_frac=5,    &
+                                      asw=asw            )
+                                      !flux_conversion=0)
         deallocate(cld_profiles_tl)
       end if
       call rttov_alloc_tl(                   &
@@ -629,8 +643,14 @@ contains
       allocate ( sensorBodyIndexes(btCount), stat=allocStatus(4))
       if (tvs_useRttovScatt(sensorIndex)) then
         allocate(cld_profiles_ad(profileCount))
-        call rttov_alloc_scatt_prof (allocStatus(5), profileCount, cld_profiles_ad, nlv_T, &
-             use_totalice=.true., asw=asw, mmr_snowrain=.true.)
+        call rttov_alloc_scatt_prof (allocStatus(5),   &
+                                     profileCount,     &
+                                     cld_profiles_ad,  &
+                                     nlv_T,            &
+                                     nhydro=5,         &
+                                     nhydro_frac=5,    &
+                                     asw=asw            )
+                                     !flux_conversion=0)
       end if
       call utl_checkAllocationStatus(allocStatus(1:5), " tvslin_rttov_ad")
       
@@ -643,14 +663,16 @@ contains
       call tvs_getChanprof(sensorIndex, sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
          iptobs_cma_opt = sensorBodyIndexes, lchannel_subset_opt = lchannel_subset)
       if (tvs_useRttovScatt(sensorIndex)) then
-        call rttov_scatt_setupindex (   &
-               profileCount,            &  ! number of profiles
-               tvs_nchan(sensorIndex),  &  ! number of channels 
-               tvs_coefs(sensorIndex),  &  ! coef structure read in from rttov coef file
-               btcount,                 &  ! number of calculated channels
-               chanprof,                &  ! channels and profile numbers
-               frequencies,             &  ! array, frequency number for each channel
-               lchannel_subset )           ! OPTIONAL array of logical flags to indicate a subset of channels
+         call rttov_scatt_setupindex (       &
+               errorStatus,                  &
+               profileCount,                 &  ! number of profiles
+               tvs_nchan(sensorIndex),       &  ! number of channels 
+               tvs_coefs(sensorIndex),       &  ! coef structure read in from rttov coef file
+               tvs_coef_scatt(sensorIndex),  &  ! coef structure read in from rttov coef file
+               btcount,                      &  ! number of calculated channels
+               chanprof,                     &  ! channels and profile numbers
+               frequencies,                  &  ! array, frequency number for each channel
+               lchannel_subset )                ! OPTIONAL array of logical flags to indicate a subset of channels
       end if
       deallocate( lchannel_subset )
       !     get non Hyperspectral IR emissivities
@@ -820,8 +842,14 @@ contains
 
       asw = 0 ! 0 to deallocate
       if (tvs_useRttovScatt(sensorIndex)) then
-        call rttov_alloc_scatt_prof (allocStatus(1), profileCount, cld_profiles_ad, nlv_T, &
-             use_totalice=.true., asw=asw, mmr_snowrain=.true.)
+        call rttov_alloc_scatt_prof (allocStatus(1),   &
+                                     profileCount,     &
+                                     cld_profiles_ad,  &
+                                     nlv_T,            &
+                                     nhydro=5,         &
+                                     nhydro_frac=5,    &
+                                     asw=asw            )
+                                     !flux_conversion= )
         deallocate(cld_profiles_ad)
       end if
       call rttov_alloc_ad(                  &

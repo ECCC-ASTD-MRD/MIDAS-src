@@ -224,7 +224,7 @@ contains
     integer :: errorStatus(1)
     integer :: headerIndex, bodyIndex, taskIndex
     logical, allocatable :: logicalBuffer(:)
-    character(len=32) :: mieTableFilename
+    character(len=32) :: hydroTableFilename
 
     if (tvs_nsensors == 0) return
 
@@ -502,12 +502,12 @@ contains
        end if
        
         if (tvs_useRttovScatt(sensorIndex)) then
-          mietableFilename = "mietable_" // trim(platform_name(tvs_platforms(sensorIndex))) // "_" // &
+          hydrotableFilename = "hydrotable_" // trim(platform_name(tvs_platforms(sensorIndex))) // "_" // &
                trim(inst_name(tvs_instruments(sensorIndex))) // ".dat"
           call rttov_read_scattcoeffs(errorstatus(1), tvs_opts_scatt(sensorIndex), tvs_coefs(sensorIndex), &
-               tvs_coef_scatt(sensorIndex), file_coef=mietableFilename)
+               tvs_coef_scatt(sensorIndex), file_coef=hydrotableFilename)
           if (errorstatus(1) /= errorstatus_success) then
-            write(*,*) 'tvs_rttov_read_coefs: fatal error reading RTTOV-SCATT coefficients', mietableFilename
+            write(*,*) 'tvs_rttov_read_coefs: fatal error reading RTTOV-SCATT coefficients', hydrotableFilename
             call utl_abort('tvs_setupAlloc')
           end if
         end if
@@ -2154,18 +2154,19 @@ contains
         headerIndex = tvs_headerIndex(tovsIndex)
         sensorHeaderIndexes(profileCount) = headerIndex
 
-        call rttov_alloc_prof(allocStatus(1), 1, profiles(tovsIndex:tovsIndex), nlv_T,  &    ! 1 = nprofiles un profil a la fois
-             tvs_opts(sensorIndex), asw=1, coefs=tvs_coefs(sensorIndex), init=.true. ) ! asw =1 allocation
+        call rttov_alloc_prof(allocStatus(1), 1, profiles(tovsIndex:tovsIndex), nlv_T,  & ! 1 = nprofiles un profil a la fois
+             tvs_opts(sensorIndex), asw=1, coefs=tvs_coefs(sensorIndex), init=.true. )    ! asw =1 allocation
         if (tvs_useRttovScatt(sensorIndex)) then
           call rttov_alloc_scatt_prof(           &   
                allocstatus(2),                   &
                1,                                &
                cld_profiles(tovsIndex:tovsIndex),&
                nlv_T,                            &
-               use_totalice=.true.,              &  ! false => separate ciw and snow; true => totalice
+               nhydro=5,                         &
+               nhydro_frac=5,                    &
                asw=1_jpim,                       &  ! 1 => allocate
-               init = .true.,                    &
-               mmr_snowrain = .true.)               ! snow/rain input units: false => kg/m2/s; true => kg/kg
+               init=.true.                        )
+               !flux_conversion=0 )                 !
         end if
         call utl_checkAllocationStatus(allocStatus(1:2), " tvs_setupAlloc tvs_fillProfiles")
 
@@ -2252,15 +2253,15 @@ contains
         profiles(tovsIndex) % p(:)            = pressure(:,profileIndex)
         !RTTOV scatt needs half pressure levels (see figure 5 of RTTOV 12 User's Guide)
         if (tvs_useRttovScatt(sensorIndex)) then
-          cld_profiles(tovsIndex) % ph (1) = 0.d0
+           cld_profiles(tovsIndex) % ph (1) = 0.d0
+           cld_profiles(tovsIndex) % cfrac = 0.d0
           do levelIndex = 1, nlv_T - 1
             cld_profiles(tovsIndex) % ph (levelIndex+1) = 0.5d0 * (profiles(tovsIndex) % p(levelIndex) + profiles(tovsIndex) % p(levelIndex+1) )
           end do
           cld_profiles(tovsIndex) % ph (nlv_T+1) = profiles(tovsIndex) % s2m % p
-          cld_profiles(tovsIndex) % cc  (:) = 0.d0   ! cloud cover (0-1)
-          cld_profiles(tovsIndex) % clw (:) = 0.d0   ! liquid water (kg/kg)
-          cld_profiles(tovsIndex) % totalice(:) = 0.d0 ! combined ice water and snow (kg/kg)
-          cld_profiles(tovsIndex) % rain(:)      =  0.d0 ! rain (kg/kg)
+          !1 rain, 2 snow, 3 graupel, 4 cloud water, 5 cloud ice
+          cld_profiles(tovsIndex) % hydro  (1:nlv_T,1:5) = 0.d0   ! 
+          cld_profiles(tovsIndex) % hydro_frac (1:nlv_T,1:5) = 0.d0   ! 
         end if
         column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
         profiles(tovsIndex) % t(:)   = column_ptr(:)
@@ -2280,7 +2281,12 @@ contains
         ! using the minimum CLW value for land FOV
         if ( runObsOperatorWithClw ) then
             if (tvs_useRttovScatt(sensorIndex)) then
-                cld_profiles(tovsIndex) % clw (:) = clw(:,profileIndex)   
+               cld_profiles(tovsIndex) % hydro(:,4) = clw(:,profileIndex)
+               where (cld_profiles(tovsIndex) % hydro(:,4) > 0.d0)
+                  cld_profiles(tovsIndex) % hydro_frac(:,4) = 1.d0
+               elsewhere
+                  cld_profiles(tovsIndex) % hydro_frac(:,4) = 0.d0
+               end where
             else
                 profiles(tovsIndex) % clw(:) = clw(:,profileIndex)
             end if  
@@ -2492,13 +2498,15 @@ contains
         allocate( lchannel_subset(profileCount,tvs_nchan(sensorId)) )
         call tvs_getChanprof(sensorId, sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, lchannel_subset_opt = lchannel_subset)
         if (tvs_useRttovScatt(sensorId)) then
-          call rttov_scatt_setupindex ( &
-               profileCount,            &  ! number of profiles
-               tvs_nchan(sensorId),     &  ! number of channels 
-               tvs_coefs(sensorId),     &  ! coef structure read in from rttov coef file
-               btcount,                 &  ! number of calculated channels
-               chanprof,                &  ! channels and profile numbers
-               frequencies,             &  ! array, frequency number for each channel
+           call rttov_scatt_setupindex ( &
+               rttov_err_stat,           &
+               profileCount,             &  ! number of profiles
+               tvs_nchan(sensorId),      &  ! number of channels 
+               tvs_coefs(sensorId),      &  ! coef structure read in from rttov coef file
+               tvs_coef_scatt(sensorId), &  ! 
+               btcount,                  &  ! number of calculated channels
+               chanprof,                 &  ! channels and profile numbers
+               frequencies,              &  ! array, frequency number for each channel
                lchannel_subset )           ! OPTIONAL array of logical flags to indicate a subset of channels
         end if
         deallocate( lchannel_subset )
