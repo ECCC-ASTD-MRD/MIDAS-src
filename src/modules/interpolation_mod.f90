@@ -38,8 +38,28 @@ module interpolation_mod
   public :: int_vInterp_gsv, int_vInterp_gsv_r4
   public :: int_tInterp_gsv
   public :: int_vInterp_col
+  public :: int_ezsint, int_ezuvint, int_ezgdef, int_cxgaig
 
-  contains
+  ! module interfaces
+  ! -----------------
+
+  interface int_ezsint
+    module procedure int_ezsint_r4_2d
+    module procedure int_ezsint_r4_3d
+    module procedure int_ezsint_r4_2dTo1d
+    module procedure int_ezsint_r8_2d
+    module procedure int_ezsint_r8_3d
+    module procedure int_ezsint_r8_2dTo1d
+  end interface int_ezsint
+
+  interface int_ezuvint
+    module procedure int_ezuvint_r4_2d
+    module procedure int_ezuvint_r4_2dTo1d
+    module procedure int_ezuvint_r8_1d
+    module procedure int_ezuvint_r8_2d
+  end interface int_ezuvint
+
+contains
 
   !--------------------------------------------------------------------------
   ! int_interp_gsv
@@ -227,7 +247,7 @@ module interpolation_mod
                                             fieldUU_in_r8_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r8_ptr(:,:,levIndex,stepIndex),  &
                                             statevector_out%hco, statevector_in%hco )
               else
-                ierr = utl_ezuvint( fieldUU_out_r8_ptr(:,:,levIndex,stepIndex), fieldVV_out_r8_ptr(:,:,levIndex,stepIndex), &
+                ierr = int_ezuvint( fieldUU_out_r8_ptr(:,:,levIndex,stepIndex), fieldVV_out_r8_ptr(:,:,levIndex,stepIndex), &
                                     fieldUU_in_r8_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r8_ptr(:,:,levIndex,stepIndex),  & 
                                     interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
               end if
@@ -242,7 +262,7 @@ module interpolation_mod
                                            field_in_r8_ptr(:,:,levIndex,stepIndex),  &
                                            statevector_out%hco, statevector_in%hco )
               else
-                ierr = utl_ezsint( field_out_r8_ptr(:,:,levIndex,stepIndex), field_in_r8_ptr(:,:,levIndex,stepIndex),  &
+                ierr = int_ezsint( field_out_r8_ptr(:,:,levIndex,stepIndex), field_in_r8_ptr(:,:,levIndex,stepIndex),  &
                                    interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
               end if
             end do
@@ -274,7 +294,7 @@ module interpolation_mod
             call gsv_getField(statevector_out,fieldUU_out_r8_ptr)
             call gsv_getFieldUV(statevector_in,fieldUV_in_r8_ptr,kIndex)
             call gsv_getFieldUV(statevector_out,fieldUV_out_r8_ptr,kIndex)
-            ierr = utl_ezuvint( fieldUU_out_r8_ptr(:,:,kIndex,stepIndex), fieldUV_out_r8_ptr(:,:,stepIndex), &
+            ierr = int_ezuvint( fieldUU_out_r8_ptr(:,:,kIndex,stepIndex), fieldUV_out_r8_ptr(:,:,stepIndex), &
                                 fieldUU_in_r8_ptr(:,:,kIndex,stepIndex),  fieldUV_in_r8_ptr(:,:,stepIndex), &
                                 interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
           else if ( trim(varName) == 'VV' ) then
@@ -283,14 +303,14 @@ module interpolation_mod
             call gsv_getFieldUV(statevector_out,fieldUV_out_r8_ptr,kIndex)
             call gsv_getField(statevector_in,fieldVV_in_r8_ptr)
             call gsv_getField(statevector_out,fieldVV_out_r8_ptr)
-            ierr = utl_ezuvint( fieldUV_out_r8_ptr(:,:,stepIndex), fieldVV_out_r8_ptr(:,:,kIndex,stepIndex), &
+            ierr = int_ezuvint( fieldUV_out_r8_ptr(:,:,stepIndex), fieldVV_out_r8_ptr(:,:,kIndex,stepIndex), &
                                 fieldUV_in_r8_ptr(:,:,stepIndex),  fieldVV_in_r8_ptr(:,:,kIndex,stepIndex), &
                                 interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
           else
             ! interpolate scalar variable
             call gsv_getField(statevector_in,field_in_r8_ptr)
             call gsv_getField(statevector_out,field_out_r8_ptr)
-            ierr = utl_ezsint( field_out_r8_ptr(:,:,kIndex,stepIndex), field_in_r8_ptr(:,:,kIndex,stepIndex), &
+            ierr = int_ezsint( field_out_r8_ptr(:,:,kIndex,stepIndex), field_in_r8_ptr(:,:,kIndex,stepIndex), &
                                interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
           end if
         end do k_loop
@@ -304,7 +324,7 @@ module interpolation_mod
       heightSfcOut => gsv_getHeightSfc(statevector_out)
       write(*,*) 'int_hInterp_gsv: interpolating surface height'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-      ierr = utl_ezsint( heightSfcOut(:,:), heightSfcIn(:,:), &
+      ierr = int_ezsint( heightSfcOut(:,:), heightSfcIn(:,:), &
                          interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
@@ -390,7 +410,7 @@ module interpolation_mod
                                             fieldUU_in_r4_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r4_ptr(:,:,levIndex,stepIndex),  &
                                             statevector_out%hco, statevector_in%hco )
               else
-                ierr = utl_ezuvint( fieldUU_out_r4_ptr(:,:,levIndex,stepIndex), fieldVV_out_r4_ptr(:,:,levIndex,stepIndex),   &
+                ierr = int_ezuvint( fieldUU_out_r4_ptr(:,:,levIndex,stepIndex), fieldVV_out_r4_ptr(:,:,levIndex,stepIndex),   &
                                     fieldUU_in_r4_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r4_ptr(:,:,levIndex,stepIndex),    &
                                     interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
               end if
@@ -405,7 +425,7 @@ module interpolation_mod
                                            field_in_r4_ptr(:,:,levIndex,stepIndex),   &
                                            statevector_out%hco, statevector_in%hco )
               else
-                ierr = utl_ezsint( field_out_r4_ptr(:,:,levIndex,stepIndex), field_in_r4_ptr(:,:,levIndex,stepIndex),  &
+                ierr = int_ezsint( field_out_r4_ptr(:,:,levIndex,stepIndex), field_in_r4_ptr(:,:,levIndex,stepIndex),  &
                                    interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
               end if
             end do
@@ -437,7 +457,7 @@ module interpolation_mod
             call gsv_getField(statevector_out,fieldUU_out_r4_ptr)
             call gsv_getFieldUV(statevector_in,fieldUV_in_r4_ptr,kIndex)
             call gsv_getFieldUV(statevector_out,fieldUV_out_r4_ptr,kIndex)
-            ierr = utl_ezuvint( fieldUU_out_r4_ptr(:,:,kIndex,stepIndex), fieldUV_out_r4_ptr(:,:,stepIndex),   &
+            ierr = int_ezuvint( fieldUU_out_r4_ptr(:,:,kIndex,stepIndex), fieldUV_out_r4_ptr(:,:,stepIndex),   &
                                 fieldUU_in_r4_ptr(:,:,kIndex,stepIndex),  fieldUV_in_r4_ptr(:,:,stepIndex), &
                                 interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
           else if ( trim(varName) == 'VV' ) then
@@ -446,14 +466,14 @@ module interpolation_mod
             call gsv_getFieldUV(statevector_out,fieldUV_out_r4_ptr,kIndex)
             call gsv_getField(statevector_in,fieldVV_in_r4_ptr)
             call gsv_getField(statevector_out,fieldVV_out_r4_ptr)
-            ierr = utl_ezuvint( fieldUV_out_r4_ptr(:,:,stepIndex), fieldVV_out_r4_ptr(:,:,kIndex,stepIndex),   &
+            ierr = int_ezuvint( fieldUV_out_r4_ptr(:,:,stepIndex), fieldVV_out_r4_ptr(:,:,kIndex,stepIndex),   &
                                 fieldUV_in_r4_ptr(:,:,stepIndex),  fieldVV_in_r4_ptr(:,:,kIndex,stepIndex),  &
                                 interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
           else
             ! interpolate scalar variable
             call gsv_getField(statevector_in,field_in_r4_ptr)
             call gsv_getField(statevector_out,field_out_r4_ptr)
-            ierr = utl_ezsint( field_out_r4_ptr(:,:,kIndex,stepIndex), field_in_r4_ptr(:,:,kIndex,stepIndex),  &
+            ierr = int_ezsint( field_out_r4_ptr(:,:,kIndex,stepIndex), field_in_r4_ptr(:,:,kIndex,stepIndex),  &
                                interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
           end if
         end do k_loop
@@ -467,7 +487,7 @@ module interpolation_mod
       heightSfcOut => gsv_getHeightSfc(statevector_out)
       write(*,*) 'int_hInterp_gsv_r4: interpolating surface height'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-      ierr = utl_ezsint( heightSfcOut(:,:), heightSfcIn(:,:), &
+      ierr = int_ezsint( heightSfcOut(:,:), heightSfcIn(:,:), &
                          interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
@@ -1531,5 +1551,440 @@ module interpolation_mod
 
   end function uvintCloudToGrid_r8
 
+
+  subroutine int_setezopt(interpDegree, extrapDegree_opt)
+    implicit none
+
+    ! arguments
+    character(len=*) :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
+
+    ! locals
+    character(len=12) :: extrapDegree
+    integer           :: ierr, ezsetopt, ezsetval
+
+    if ( trim(interpDegree) /= 'LINEAR' .and. &
+         trim(interpDegree) /= 'CUBIC' .and. &
+         trim(interpDegree) /= 'NEAREST' ) then
+      write(*,*) 'int_setezopt: interpDegree = ', trim(interpDegree)
+      call utl_abort('int_setezopt: invalid interpolation degree')
+    end if
+
+    if ( present(extrapDegree_opt) ) then
+      extrapDegree = extrapDegree_opt
+    else
+      extrapDegree = 'VALUE'
+    end if
+
+    ierr = ezsetopt('INTERP_DEGREE', interpDegree)
+    if ( trim(extrapDegree) == 'VALUE' ) then
+      ierr = ezsetval('EXTRAP_VALUE', 0.0)
+    end if
+    ierr = ezsetopt('EXTRAP_DEGREE', extrapDegree)
+
+  end subroutine int_setezopt
+
+
+  function int_ezsint_r4_3d(zout4, zin4, interpDegree, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(4) :: zout4(:,:,:), zin4(:,:,:)
+    integer :: ierr
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
+
+    ! locals
+    integer :: ezsint
+
+    call int_setezopt(interpDegree, extrapDegree_opt)   
+
+    ierr = ezsint(zout4,zin4)
+
+  end function int_ezsint_r4_3d
+
+
+  function int_ezsint_r4_2d(zout4, zin4, interpDegree, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(4) :: zout4(:,:), zin4(:,:)
+    integer :: ierr
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
+
+    ! locals
+    integer :: ezsint
+
+    call int_setezopt(interpDegree, extrapDegree_opt)   
+
+    ierr = ezsint(zout4,zin4)
+
+  end function int_ezsint_r4_2d
+
+
+  function int_ezsint_r4_2dTo1d(zout4, zin4, interpDegree, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(4) :: zout4(:), zin4(:,:)
+    integer :: ierr
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
+
+    ! locals
+    integer :: ezsint
+
+    call int_setezopt(interpDegree, extrapDegree_opt)   
+
+    ierr = ezsint(zout4,zin4)
+
+  end function int_ezsint_r4_2dTo1d
+
+
+  function int_ezsint_r8_3d(zout8, zin8, interpDegree, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(8) :: zout8(:,:,:), zin8(:,:,:)
+    integer :: ierr
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
+
+    ! locals
+    integer :: nii, nji, nki, nio, njo, nko     
+    integer :: jk1, jk2, jk3
+    real(4), allocatable :: bufferi4(:,:,:), buffero4(:,:,:)
+    integer :: ezsint
+
+    call int_setezopt(interpDegree, extrapDegree_opt)   
+
+    nii = size(zin8,1)
+    nji = size(zin8,2)
+    nki = size(zin8,3)
+
+    nio = size(zout8,1)
+    njo = size(zout8,2)
+    nko = size(zout8,3)
+
+    allocate(bufferi4(nii,nji,nki))
+    allocate(buffero4(nio,njo,nko))
+
+    do jk3 = 1,nki
+      do jk2 = 1,nji
+        do jk1 = 1,nii
+          bufferi4(jk1,jk2,jk3) = zin8(jk1,jk2,jk3)
+        end do
+      end do
+    end do
+
+    ierr = ezsint(buffero4,bufferi4)
+
+    do jk3 = 1,nko
+      do jk2 = 1,njo
+        do jk1 = 1,nio
+          zout8(jk1,jk2,jk3) = buffero4(jk1,jk2,jk3)
+        end do
+      end do
+    end do
+
+    deallocate(bufferi4)
+    deallocate(buffero4)
+
+  end function int_ezsint_r8_3d
+
+
+  function int_ezsint_r8_2d(zout8, zin8, interpDegree, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(8) :: zout8(:,:), zin8(:,:)
+    integer :: ierr
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
+
+    ! locals
+    integer :: nii, nji, nio, njo     
+    integer :: jk1, jk2
+    real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
+    integer :: ezsint
+
+    call int_setezopt(interpDegree, extrapDegree_opt)   
+
+    nii = size(zin8,1)
+    nji = size(zin8,2)
+
+    nio = size(zout8,1)
+    njo = size(zout8,2)
+
+    allocate(bufferi4(nii,nji))
+    allocate(buffero4(nio,njo))
+
+    do jk2 = 1,nji
+      do jk1 = 1,nii
+        bufferi4(jk1,jk2) = zin8(jk1,jk2)
+      end do
+    end do
+
+    ierr = ezsint(buffero4,bufferi4)
+
+    do jk2 = 1,njo
+      do jk1 = 1,nio
+        zout8(jk1,jk2) = buffero4(jk1,jk2)
+      end do
+    end do
+
+    deallocate(bufferi4)
+    deallocate(buffero4)
+
+  end function int_ezsint_r8_2d
+
+
+  function int_ezsint_r8_2dTo1d(zout8, zin8, interpDegree, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(8) :: zout8(:), zin8(:,:)
+    integer :: ierr
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
+
+    ! locals
+    integer :: nii, nji, nio
+    integer :: jk1, jk2
+    real(4), allocatable :: bufferi4(:,:), buffero4(:)
+    integer :: ezsint
+
+    call int_setezopt(interpDegree, extrapDegree_opt)   
+
+    nii = size(zin8,1)
+    nji = size(zin8,2)
+
+    nio = size(zout8,1)
+
+    allocate(bufferi4(nii,nji))
+    allocate(buffero4(nio))
+
+    do jk2 = 1,nji
+      do jk1 = 1,nii
+        bufferi4(jk1,jk2) = zin8(jk1,jk2)
+      end do
+    end do
+
+    ierr = ezsint(buffero4,bufferi4)
+
+    do jk1 = 1,nio
+      zout8(jk1) = buffero4(jk1)
+    end do
+
+    deallocate(bufferi4)
+    deallocate(buffero4)
+
+  end function int_ezsint_r8_2dTo1d
+
+
+  function int_ezuvint_r4_2d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(4) :: uuout(:,:), vvout(:,:)
+    real(4) :: uuin(:,:) , vvin(:,:)
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
+    integer :: ierr
+
+    ! locals
+    integer :: ezuvint
+
+    call int_setezopt(interpDegree, extrapDegree_opt)   
+
+    ierr = ezuvint(uuout, vvout, uuin, vvin)
+
+  end function int_ezuvint_r4_2d
+
+
+  function int_ezuvint_r4_2dTo1d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(4) :: uuout(:), vvout(:)
+    real(4) :: uuin(:,:) , vvin(:,:)
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
+    integer :: ierr
+
+    ! locals
+    integer :: ezuvint
+
+    call int_setezopt(interpDegree, extrapDegree_opt)   
+
+    ierr = ezuvint(uuout, vvout, uuin, vvin)
+
+  end function int_ezuvint_r4_2dTo1d
+
+
+  function int_ezuvint_r8_1d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(8) :: uuout(:), vvout(:)
+    real(8) :: uuin(:) , vvin(:)
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
+    integer :: ierr
+
+    ! locals
+    integer :: nio, nii
+    integer :: jk1
+    real, allocatable :: bufuuout4(:), bufvvout4(:)
+    real, allocatable :: bufuuin4(:), bufvvin4(:)
+    integer :: ezuvint
+
+    call int_setezopt(interpDegree, extrapDegree_opt)   
+
+    nii = size(uuin)
+    nio = size(uuout)
+
+    allocate(bufuuout4(nio))
+    allocate(bufvvout4(nio))
+    allocate(bufuuin4(nii))
+    allocate(bufvvin4(nii))
+
+    do jk1 = 1,nii
+      bufuuin4(jk1) = uuin(jk1)
+      bufvvin4(jk1) = vvin(jk1)
+    end do
+
+    ierr = ezuvint(bufuuout4, bufvvout4, bufuuin4, bufvvin4)
+
+    do jk1 = 1,nio
+      uuout(jk1) = bufuuout4(jk1)
+      vvout(jk1) = bufvvout4(jk1)
+    end do
+
+    deallocate(bufuuin4)
+    deallocate(bufvvin4)
+    deallocate(bufuuout4)
+    deallocate(bufvvout4)
+
+  end function int_ezuvint_r8_1d
+
+
+  function int_ezuvint_r8_2d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
+    implicit none
+
+    ! arguments
+    real(8) :: uuout(:,:), vvout(:,:)
+    real(8) :: uuin(:,:) , vvin(:,:)
+    character(len=*)           :: interpDegree
+    character(len=*), optional :: extrapDegree_opt
+    integer :: ierr
+
+    ! locals
+    integer :: nio, njo, nii, nji
+    integer :: jk1, jk2
+    real, allocatable :: bufuuout4(:,:), bufvvout4(:,:)
+    real, allocatable :: bufuuin4(:,:), bufvvin4(:,:)
+    integer :: ezuvint
+
+    call int_setezopt(interpDegree, extrapDegree_opt)   
+
+    nii = size(uuin,1)
+    nji = size(uuin,2)
+
+    nio = size(uuout,1)
+    njo = size(uuout,2)
+
+    allocate(bufuuout4(nio,njo))
+    allocate(bufvvout4(nio,njo))
+    allocate(bufuuin4(nii,nji))
+    allocate(bufvvin4(nii,nji))
+
+    do jk2 = 1,nji
+      do jk1 = 1,nii
+        bufuuin4(jk1,jk2) = uuin(jk1,jk2)
+        bufvvin4(jk1,jk2) = vvin(jk1,jk2)
+      end do
+    end do
+
+    ierr = ezuvint(bufuuout4, bufvvout4, bufuuin4, bufvvin4)
+
+    do jk2 = 1,njo
+      do jk1 = 1,nio
+        uuout(jk1,jk2) = bufuuout4(jk1,jk2)
+        vvout(jk1,jk2) = bufvvout4(jk1,jk2)
+      end do
+    end do
+
+    deallocate(bufuuin4)
+    deallocate(bufvvin4)
+    deallocate(bufuuout4)
+    deallocate(bufvvout4)
+
+  end function int_ezuvint_r8_2d
+
+
+  function int_ezgdef(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4, ax, ay) result(vezgdef)
+    implicit none
+
+    integer :: vezgdef
+
+    integer :: ni, nj, ig1, ig2, ig3, ig4
+    real(8) :: ax(*), ay(*)
+    character(len=*) :: grtyp, grtypref
+
+    integer :: ier2,jk,ilenx,ileny
+    real, allocatable :: bufax4(:), bufay4(:)
+
+    integer :: ezgdef
+
+    if      (grtyp .eq. 'Y') then
+       ilenx=max(1,ni*nj)
+       ileny=ilenx
+    else if (grtyp .eq. 'Z') then
+       ilenx=max(1,ni)
+       ileny=max(1,nj)
+    else
+       call utl_abort('VEZGDEF: Grid type not supported')
+    end if
+
+    allocate(bufax4(ilenx))
+    allocate(bufay4(ileny))
+
+    do jk = 1,ilenx
+       bufax4(jk) = ax(jk)
+    end do
+    do jk = 1,ileny
+       bufay4(jk) = ay(jk)
+    end do
+
+    ier2 = ezgdef(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4, &
+         bufax4, bufay4)
+
+    deallocate(bufax4)
+    deallocate(bufay4)
+
+    vezgdef=ier2
+
+  end function int_ezgdef
+
+
+  subroutine int_cxgaig(grtyp, ig1, ig2, ig3, ig4, xlat0, xlon0, dlat, dlon) 
+    implicit none
+
+    integer :: ig1, ig2, ig3, ig4   
+    real(8) :: xlat0, xlon0, dlat, dlon 
+    character(len=*) :: grtyp 
+
+    real(4) :: xlat04, xlon04, dlat4, dlon4
+
+    xlat04=xlat0
+    xlon04=xlon0
+    dlat4=dlat
+    dlon4=dlon
+
+    call cxgaig(grtyp, ig1, ig2, ig3, ig4, xlat04, xlon04, dlat4, dlon4)
+
+  end subroutine int_cxgaig
 
 end module interpolation_mod

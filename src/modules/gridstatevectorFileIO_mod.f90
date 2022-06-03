@@ -890,7 +890,7 @@ module gridStateVectorFileIO_mod
                         typvar_in,varNameToRead)
 
           ierr = ezdefset(hco_file%EZscintID,EZscintID_var)
-          ierr = utl_ezsint( gd2d_file_r4, gd2d_var_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+          ierr = int_ezsint( gd2d_file_r4, gd2d_var_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
 
           ! read the corresponding mask if it exists
           if (typvar_var(2:2) == '@') then
@@ -1618,7 +1618,7 @@ module gridStateVectorFileIO_mod
               allocate(work2dFile_r4(statevector%hco_physics%ni,statevector%hco_physics%nj))
               work2dFile_r4(:,:) = 0.0
               ierr = ezdefset( statevector%hco_physics%EZscintID, statevector%hco%EZscintID )
-              ierr = utl_ezsint( work2dFile_r4, work2d_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+              ierr = int_ezsint( work2dFile_r4, work2d_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
 
               !- Writing to file
               ierr = fstecr(work2dFile_r4, work_r4, npak, nulfile, dateo, deet, npas, &

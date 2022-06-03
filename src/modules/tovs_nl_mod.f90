@@ -81,6 +81,7 @@ module tovs_nl_mod
   use verticalCoord_mod
   use codePrecision_mod
   use humidityLimits_mod
+  use interpolation_mod
 
   implicit none
   save
@@ -3437,7 +3438,7 @@ contains
     iz5 = utl_fstlir(alb,   iun5,ni5,nj5,nk5,-1,'',-1,-1,-1,'','AL')
     write(*,*) 'variable = AL           : utl_fstlir : return = ', iz5
 
-    ! utl_CXGAIG: define the grid descriptors (integer form) of the
+    ! int_CXGAIG: define the grid descriptors (integer form) of the
     !          observation profile output grid
     ! desired output = ig1OBS, ig2OBS, ig3OBS, ig4OBS
     zig1 = 0.0d0
@@ -3445,16 +3446,16 @@ contains
     zig3 = 1.0d0
     zig4 = 1.0d0
 
-    call utl_cxgaig('L',ig1OBS,ig2OBS,ig3OBS,ig4OBS,zig1,zig2,zig3,zig4)
+    call int_cxgaig('L',ig1OBS,ig2OBS,ig3OBS,ig4OBS,zig1,zig2,zig3,zig4)
 
 
-    ! utl_EZGDEF: define the grid of the observations profiles (output grid)
+    ! int_EZGDEF: define the grid of the observations profiles (output grid)
     ! of type Y containing the lat-lon of profiles
     ! success = token to identify the grid
     ! desired output = token
     write(*,*) 
-    iv7 = utl_ezgdef(nprf,1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,longitudes,latitudes)
-    write(*,*) 'apply to all variables  : utl_EZGDEF : return = ', iv7
+    iv7 = int_ezgdef(nprf,1,'Y','L',ig1obs,ig2obs,ig3obs,ig4obs,longitudes,latitudes)
+    write(*,*) 'apply to all variables  : int_EZGDEF : return = ', iv7
     
 
     ! EZQKDEF: define the grid of the records data (input grid)
@@ -3462,7 +3463,7 @@ contains
     ! desired output = token
     ! EZDEFSET: interpolate from input grids to output grid
     ! success = key
-    ! utl_EZSINT: interpolation of the field on the input grid to observation profiles
+    ! int_EZSINT: interpolation of the field on the input grid to observation profiles
     ! success = 0
     ! desired output = FIELD_intrpl
     write(*,*) 
@@ -3472,8 +3473,8 @@ contains
     ix9 = ezdefset(iv7,ix8)
     write(*,*) 'variable = LG           : ezdefset : return = ', ix9
 
-    ix10 = utl_ezsint(glace_intrpl,glace,interpDegree='NEAREST')
-    write(*,*) 'variable = LG           : utl_ezsint  : return = ', ix10
+    ix10 = int_ezsint(glace_intrpl,glace,interpDegree='NEAREST')
+    write(*,*) 'variable = LG           : int_ezsint  : return = ', ix10
 
     write(*,*) 
 
@@ -3483,8 +3484,8 @@ contains
     iy9 = ezdefset(iv7,iy8)
     write(*,*) 'variable = ', snowvar, '           : ezdefset : return = ', iy9
 
-    iy10 = utl_ezsint(neige_intrpl,neige,interpDegree='NEAREST')
-    write(*,*) 'variable = ', snowvar, '           : utl_ezsint  : return = ', iy10
+    iy10 = int_ezsint(neige_intrpl,neige,interpDegree='NEAREST')
+    write(*,*) 'variable = ', snowvar, '           : int_ezsint  : return = ', iy10
 
     write(*,*) 
 
@@ -3494,8 +3495,8 @@ contains
     iz9 = ezdefset(iv7,iz8)
     write(*,*) 'variable = AL           : ezdefset : return = ', iz9
 
-    iz10 = utl_ezsint(alb_intrpl,alb,interpDegree='NEAREST')
-    write(*,*) 'variable = AL           : utl_ezsint  : return = ', iz10
+    iz10 = int_ezsint(alb_intrpl,alb,interpDegree='NEAREST')
+    write(*,*) 'variable = AL           : int_ezsint  : return = ', iz10
 
 
     ! fstfrm: close the standard files
