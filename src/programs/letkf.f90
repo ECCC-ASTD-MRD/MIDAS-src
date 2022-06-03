@@ -476,7 +476,7 @@ program midas_letkf
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, mpiDistribution)
 
-  !- ### Loop over all analysis members and compute H(Xa_member) (if output is desired) 
+  !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
   if ( outputEnsObs ) then
   
     do memberIndex = 1, nEns
@@ -507,7 +507,8 @@ program midas_letkf
 
       ! Compute Y-H(Xa) in OBS_WORK (used instead of OBS_OMA so that obsSpaceData isn't unintentionally modified) 
       call tmg_start(6,'LETKF-obsOperators')
-      call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_WORK, beSilent_opt=.true., inHxaLoop_opt=.true.)
+      call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_WORK, beSilent_opt=.true., &
+                                 callFiltTopo_opt=.false., callSetErrGpsgb_opt=.false., analysisMode_opt=.false.)
       call tmg_stop(6)
 
       ! Copy to ensObs: Y-H(Xa_member) for this member

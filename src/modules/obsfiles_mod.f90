@@ -282,12 +282,12 @@ contains
     end if
 
     if ( present(asciDumpObs_opt) ) then
-       if ( asciDumpObs_opt ) then
-          if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' .or. mpi_myid == 0   ) then
-             ! all processors write to files only for BURP and SQLITE    
-             call obsf_writeAsciDump(obsSpaceData)
-          end if
-       end if
+      if ( asciDumpObs_opt ) then
+        if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' .or. mpi_myid == 0   ) then
+          ! all processors write to files only for BURP and SQLITE    
+          call obsf_writeAsciDump(obsSpaceData)
+        end if
+      end if
     end if
 
     call utl_tmg_stop(10)
