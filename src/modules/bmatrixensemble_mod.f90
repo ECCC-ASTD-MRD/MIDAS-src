@@ -61,12 +61,12 @@ module BmatrixEnsemble_mod
   type :: struct_bEns
     logical             :: initialized = .false.
 
-    real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:)
+    real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:), scaleFactor_DP(:)
     real(8)             :: scaleFactor_SF
 
     integer             :: ni, nj, myLonBeg, myLonEnd, myLatBeg, myLatEnd
-    integer             :: nLevInc_M, nLevInc_T, nLevEns_M, nLevEns_T
-    integer             :: topLevIndex_M, topLevIndex_T
+    integer             :: nLevInc_M, nLevInc_T, nLevInc_DP, nLevEns_M, nLevEns_T, nLevEns_DP
+    integer             :: topLevIndex_M, topLevIndex_T, topLevIndex_DP
     integer             :: nEnsOverDimension
     integer             :: cvDim_mpilocal, cvDim_mpiglobal
     integer             :: numStep, numStepAssimWindow
@@ -171,6 +171,7 @@ module BmatrixEnsemble_mod
   character(len=4), parameter  :: varNameALFAatmMM(1) = (/ 'ALFA' /)
   character(len=4), parameter  :: varNameALFAatmTH(1) = (/ 'ALFT' /)
   character(len=4), parameter  :: varNameALFAsfc(1)   = (/ 'ALFS' /)
+  character(len=4), parameter  :: varNameALFAocean(1) = (/ 'ALFO' /)
 
   logical, parameter :: verbose = .false. ! Control parameter for the level of listing output
 
@@ -555,12 +556,15 @@ CONTAINS
       write(*,*) 'ben_setupOneInstance: vco_anl%Vcode = ', bEns(instanceIndex)%vco_anl%Vcode, ', vco_ens%Vcode = ', bEns(instanceIndex)%vco_ens%Vcode
       call utl_abort('ben_setupOneInstance: vertical levels of ensemble not compatible with analysis grid')
     end if
-    bEns(instanceIndex)%nLevEns_M = bEns(instanceIndex)%vco_ens%nLev_M
-    bEns(instanceIndex)%nLevEns_T = bEns(instanceIndex)%vco_ens%nLev_T
-    bEns(instanceIndex)%nLevInc_M = bEns(instanceIndex)%vco_anl%nLev_M
-    bEns(instanceIndex)%nLevInc_T = bEns(instanceIndex)%vco_anl%nLev_T
-    bEns(instanceIndex)%topLevIndex_M = bEns(instanceIndex)%nLevInc_M-bEns(instanceIndex)%nLevEns_M+1
-    bEns(instanceIndex)%topLevIndex_T = bEns(instanceIndex)%nLevInc_T-bEns(instanceIndex)%nLevEns_T+1
+    bEns(instanceIndex)%nLevEns_M  = bEns(instanceIndex)%vco_ens%nLev_M
+    bEns(instanceIndex)%nLevEns_T  = bEns(instanceIndex)%vco_ens%nLev_T
+    bEns(instanceIndex)%nLevEns_DP = bEns(instanceIndex)%vco_ens%nLev_Depth
+    bEns(instanceIndex)%nLevInc_M  = bEns(instanceIndex)%vco_anl%nLev_M
+    bEns(instanceIndex)%nLevInc_T  = bEns(instanceIndex)%vco_anl%nLev_T
+    bEns(instanceIndex)%nLevInc_DP = bEns(instanceIndex)%vco_anl%nLev_Depth
+    bEns(instanceIndex)%topLevIndex_M  = bEns(instanceIndex)%nLevInc_M  - bEns(instanceIndex)%nLevEns_M+1
+    bEns(instanceIndex)%topLevIndex_T  = bEns(instanceIndex)%nLevInc_T  - bEns(instanceIndex)%nLevEns_T+1
+    bEns(instanceIndex)%topLevIndex_DP = bEns(instanceIndex)%nLevInc_DP - bEns(instanceIndex)%nLevEns_DP+1
 
     if (bEns(instanceIndex)%vco_anl%Vcode == 5002) then
       if ( (bEns(instanceIndex)%nLevEns_T /= (bEns(instanceIndex)%nLevEns_M+1)) .and. (bEns(instanceIndex)%nLevEns_T /= 1 .or. bEns(instanceIndex)%nLevEns_M /= 1) ) then
@@ -628,7 +632,21 @@ CONTAINS
       
       bEns(instanceIndex)%scaleFactor_SF = bEns(instanceIndex)%scaleFactor_T(bEns(instanceIndex)%nLevEns_T)
 
-    else ! vco_anl%Vcode == 0
+    else if (bEns(instanceIndex)%nLevEns_DP > 0) then
+      ! Ocean variables on depth levels
+      write(*,*) 'nlev_Depth=', bEns(instanceIndex)%nLevEns_DP
+      bEns(instanceIndex)%varNameALFA(:) = varNameALFAocean(:)
+      allocate(bEns(instanceIndex)%scaleFactor_DP(bEns(instanceIndex)%nLevEns_DP))
+      do levIndex = 1, bEns(instanceIndex)%nLevEns_DP
+        if (bEns(instanceIndex)%scaleFactor(levIndex) > 0.0d0) then 
+          bEns(instanceIndex)%scaleFactor(levIndex) = sqrt(bEns(instanceIndex)%scaleFactor(levIndex))
+        else
+          bEns(instanceIndex)%scaleFactor(levIndex) = 0.0d0
+        end if
+      end do
+      bEns(instanceIndex)%scaleFactor_DP(1:bEns(instanceIndex)%nLevEns_DP) = bEns(instanceIndex)%scaleFactor(1:bEns(instanceIndex)%nLevEns_DP)
+    else
+      ! 2D surface variables
       bEns(instanceIndex)%varNameALFA(:) = varNameALFAsfc(:)
       if (bEns(instanceIndex)%scaleFactor(1) > 0.0d0) then 
         bEns(instanceIndex)%scaleFactor_SF = sqrt(bEns(instanceIndex)%scaleFactor(1))
@@ -734,7 +752,11 @@ CONTAINS
         allocate(pressureProfileEns_M(bEns(instanceIndex)%nLevEns_M))
         pressureProfileEns_M(1:bEns(instanceIndex)%nLevEns_M) = pressureProfileInc_M(bEns(instanceIndex)%topLevIndex_M:bEns(instanceIndex)%nLevInc_M)
         deallocate(pressureProfileInc_M)
-      else ! vco_anl%Vcode == 0
+      else if ( bEns(instanceIndex)%vco_anl%nLev_depth > 0 ) then
+        allocate(pressureProfileEns_M(bEns(instanceIndex)%vco_anl%nLev_depth))
+        pressureProfileEns_M(:) = bEns(instanceIndex)%vco_anl%depths(:)
+      else
+        pSurfRef = 101000.D0
         allocate(pressureProfileEns_M(1))
         pressureProfileEns_M(:) = pSurfRef
       end if
@@ -1220,10 +1242,11 @@ CONTAINS
     end if
 
     !- 3. From ensemble FORECASTS to ensemble PERTURBATIONS
-
+write(*,*) 'min/max ensPerts1 = ', minval(bEns(instanceIndex)%ensPerts(1)%allLev_r4(1)%onelevel), maxval(bEns(instanceIndex)%ensPerts(1)%allLev_r4(1)%onelevel)
     !- 3.1 remove mean
     call ens_computeMean( bEns(instanceIndex)%ensPerts(1), bEns(instanceIndex)%removeSubEnsMeans, numSubEns_opt=bEns(instanceIndex)%numSubEns )
     call ens_removeMean( bEns(instanceIndex)%ensPerts(1) )
+write(*,*) 'min/max ensPerts2 = ', minval(bEns(instanceIndex)%ensPerts(1)%allLev_r4(1)%onelevel), maxval(bEns(instanceIndex)%ensPerts(1)%allLev_r4(1)%onelevel)
 
     !- 3.2 normalize and apply scale factors
     !$OMP PARALLEL DO PRIVATE (levIndex,varName,lev,ptr4d_r4,stepIndex,memberIndex,multFactor)
@@ -1242,8 +1265,15 @@ CONTAINS
             multFactor = bEns(instanceIndex)%scaleFactor_M(lev)
           else if ( vnl_varLevelFromVarname(varName) == 'TH' ) then
             multFactor = bEns(instanceIndex)%scaleFactor_T(lev)
-          else ! SF
+          else  if ( vnl_varLevelFromVarname(varName) == 'SF' ) then
             multFactor = bEns(instanceIndex)%scaleFactor_SF
+          else if ( vnl_varLevelFromVarname(varName) == 'DP' ) then
+            multFactor = bEns(instanceIndex)%scaleFactor_DP(lev)
+          else if ( vnl_varLevelFromVarname(varName) == 'SFDP' ) then
+            multFactor = bEns(instanceIndex)%scaleFactor_DP(1)
+          else
+            write(*,*) 'varName = ', varName, ', varLevel = ', vnl_varLevelFromVarname(varName)
+            call utl_abort('setupEnsemble: unknown varLevel')
           end if
 
           multFactor = multFactor/sqrt(1.0d0*dble(bEns(instanceIndex)%nEns-bEns(instanceIndex)%numSubEns))
@@ -1260,6 +1290,7 @@ CONTAINS
     end do ! levIndex
     !$OMP END PARALLEL DO
 
+write(*,*) 'min/max ensPerts3 = ', minval(bEns(instanceIndex)%ensPerts(1)%allLev_r4(1)%onelevel), maxval(bEns(instanceIndex)%ensPerts(1)%allLev_r4(1)%onelevel)
     write(*,*) 'ben_setupEnsemble: finished adjusting ensemble members...'
 
   end subroutine setupEnsemble
@@ -1872,6 +1903,8 @@ CONTAINS
       return
     end if
 
+write(*,*) 'min/max of controlVector_in = ', minval(controlVector_in), maxval(controlVector_in)
+
     ! only check controlVector on proc 0, since may be zero-length on some procs
     if (mmpi_myid == 0) then
       immediateReturn = .false.
@@ -1923,7 +1956,7 @@ CONTAINS
                      ensAmplitude_ptr,                                               & ! OUT
                      amp3dStepIndex)                                                   ! IN
       call utl_tmg_stop(60)
-
+write(*,*) 'min/max of ensAmplitude = ', minval(ensAmplitude_ptr%allLev_r8(1)%onelevel), maxval(ensAmplitude_ptr%allLev_r8(1)%onelevel)
       ! 2.2 Advect the amplitudes
       if      (bEns(instanceIndex)%advectAmplitudeFSOFcst   .and. useFSOFcst) then
         call adv_ensemble_tl( ensAmplitude_ptr,                                                  & ! INOUT
@@ -1940,7 +1973,7 @@ CONTAINS
       ! 2.3 Compute increment by multiplying amplitudes by member perturbations
       call addEnsMember( ensAmplitude_ptr, statevector,          & ! INOUT 
                          instanceIndex, waveBandIndex, useFSOFcst )  ! IN
-
+write(*,*) 'min/max of increment = ', minval(statevector%gd_r8), maxval(statevector%gd_r8)
     end do ! Loop on WaveBand
 
     if (.not. bEns(instanceIndex)%useSaveAmp) call ens_deallocate(ensAmplitude)
@@ -2149,6 +2182,7 @@ CONTAINS
 
       lev = ens_getLevFromK(bEns(instanceIndex)%ensPerts(1),levIndex)
       varName = ens_getVarNameFromK(bEns(instanceIndex)%ensPerts(1),levIndex)
+write(*,*) 'levIndex, lev, varName = ', levIndex, lev, varName
 
       !$OMP PARALLEL DO PRIVATE (latIndex)
       do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
@@ -2159,9 +2193,11 @@ CONTAINS
       if ( vnl_varLevelFromVarname(varName) /= 'SF' .and. &
            vnl_varLevelFromVarname(varName) == vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1)) ) then
         ! The non-surface variable varName is on the same levels than the amplitude field
-
         ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
         ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
+
+write(*,*) 'shape(ensAmplitude_MT_ptr) = ', shape(ensAmplitude_MT_ptr)
+write(*,*) 'min/max ensAmplitude_MT_ptr = ', minval(ensAmplitude_MT_ptr), maxval(ensAmplitude_MT_ptr)
 
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
         ! The non-surface variable varName is on TH levels whereas the amplitude field is on MM levels
@@ -2213,21 +2249,37 @@ CONTAINS
         end if
 
       else if (vnl_varLevelFromVarname(varName) == 'SF') then
-        ! Surface variable cases
 
+        ! Surface variable cases (atmosphere or surface only)
         if (bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005) then
           ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
         else ! vco_anl%Vcode == 0
           ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,1)
         end if
         ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
+
+      else if (vnl_varLevelFromVarname(varName) == 'SFDP') then
+
+        ! Surface variable cases (ocean)
+        ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,1)
+
+write(*,*) 'shape(ensAmplitude_MT_ptr) = ', shape(ensAmplitude_MT_ptr)
+write(*,*) 'min/max ensAmplitude_MT_ptr = ', minval(ensAmplitude_MT_ptr), maxval(ensAmplitude_MT_ptr)
+
       else
+
+        write(*,*) 'variable name = ', varName
+        write(*,*) 'varLevel      = ', vnl_varLevelFromVarname(varName)
         call utl_abort('ben_addEnsMember: unknown value of varLevel')
+
       end if
 
       call utl_tmg_start(59,'--------AddMemInner_TL')
 
       ensMemberAll_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(waveBandIndex),levIndex)
+write(*,*) 'shape(ensMemberAll_r4) = ', shape(ensMemberAll_r4)
+write(*,*) 'levIndex = ', levIndex
+write(*,*) 'min/max ensMemberAll = ', minval(ensMemberAll_r4), maxval(ensMemberAll_r4)
       !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex,stepIndex2,stepIndex_amp,memberIndex)
       do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
         do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
@@ -2249,7 +2301,7 @@ CONTAINS
         end do ! lonIndex
       end do ! latIndex
       !$OMP END PARALLEL DO
-
+write(*,*) 'min/max increment_out2 = ', minval(increment_out2), maxval(increment_out2)
       call utl_tmg_stop(59)
 
       ! compute increment level from amplitude/member level
@@ -2259,6 +2311,10 @@ CONTAINS
         topLevOffset = bEns(instanceIndex)%topLevIndex_M
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
         topLevOffset = bEns(instanceIndex)%topLevIndex_T
+      else if (vnl_varLevelFromVarname(varName) == 'SFDP') then
+        topLevOffset = 1
+      else if (vnl_varLevelFromVarname(varName) == 'DP') then
+        topLevOffset = 1
       else
         call utl_abort('ben_addEnsMember: unknown value of varLevel')
       end if
@@ -2287,6 +2343,7 @@ CONTAINS
         end if
       end do
       !$OMP END PARALLEL DO
+write(*,*) 'min/max increment_out_r8 = ', minval(increment_out_r8), maxval(increment_out_r8)
 
     end do ! levIndex
 

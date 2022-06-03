@@ -64,7 +64,7 @@ module ensembleStateVector_mod
   end type struct_oneLev_r8
 
   type :: struct_ens
-    private
+!    private
     logical                       :: allocated = .false.
     integer                       :: numMembers
     integer                       :: dataKind = 4 ! default value
@@ -2470,7 +2470,7 @@ CONTAINS
           if (stepIndex == numStep) then
             ierr = ram_remove(ensFileName)
           end if
-
+write(*,*) 'min/max of statevector_file = ', minval(statevector_file_r4%gd_r4), maxval(statevector_file_r4%gd_r4)
           ! do any required interpolation
           if (horizontalInterpNeeded .and. verticalInterpNeeded) then
             call int_hInterp_gsv_r4(statevector_file_r4, statevector_hint_r4)
@@ -2479,6 +2479,7 @@ CONTAINS
 
           else if (horizontalInterpNeeded .and. .not. verticalInterpNeeded) then
             call int_hInterp_gsv_r4(statevector_file_r4, statevector_member_r4)
+write(*,*) 'min/max of statevector_member1 = ', minval(statevector_member_r4%gd_r4), maxval(statevector_member_r4%gd_r4)
 
           else if (.not. horizontalInterpNeeded .and. verticalInterpNeeded) then
             if (horizontalPaddingNeeded) then
@@ -2495,6 +2496,7 @@ CONTAINS
 
           ! unit conversion
           call gio_fileUnitsToStateUnits(statevector_member_r4, containsFullField)
+write(*,*) 'min/max of statevector_member2 = ', minval(statevector_member_r4%gd_r4), maxval(statevector_member_r4%gd_r4)
 
           !  Create bi-periodic forecasts when using scale-dependent localization in LAM mode
           if ( .not. hco_ens%global .and. biperiodic ) then
@@ -2502,6 +2504,7 @@ CONTAINS
             call agd_mach_r4(ptr3d_r4,    & ! INOUT
                              ni, nj, statevector_member_r4%nk)  ! IN
           end if
+write(*,*) 'min/max of statevector_member3 = ', minval(statevector_member_r4%gd_r4), maxval(statevector_member_r4%gd_r4)
 
           ! copy over some time related and other parameters
           ens%statevector_work%deet                      = statevector_member_r4%deet
@@ -2626,7 +2629,8 @@ CONTAINS
       end do ! memberIndex
 
     end do ! time
-
+write(*,*) 'min/max of ens = ', minval(ens%allLev_r4(1)%onelevel), maxval(ens%allLev_r4(1)%onelevel)
+write(*,*) 'min/max of ens = ', minval(ens%allLev_r4(2)%onelevel), maxval(ens%allLev_r4(2)%onelevel)
     call gsv_communicateTimeParams(ens%statevector_work)
     call ocm_communicateMask(ens%statevector_work%oceanMask)
 

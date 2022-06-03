@@ -94,7 +94,9 @@ CONTAINS
       else
         nLev = loc%vco%nLev_T
       end if
-    else !  vco_anl%Vcode == 0
+    else if ( loc%vco%nLev_depth > 0 ) then
+      nLev = loc%vco%nLev_depth
+    else
       nLev = 1
     end if
 

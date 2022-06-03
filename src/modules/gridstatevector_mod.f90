@@ -87,10 +87,10 @@ module gridStateVector_mod
 
     ! These are the main data storage arrays
     logical, private          :: allocated=.false.
-    real(8), pointer, private :: gd_r8(:,:,:,:) => null()
-    real(8), pointer, private :: gd3d_r8(:,:,:) => null()
-    real(4), pointer, private :: gd_r4(:,:,:,:) => null()
-    real(4), pointer, private :: gd3d_r4(:,:,:) => null()
+    real(8), pointer :: gd_r8(:,:,:,:) => null()
+    real(8), pointer :: gd3d_r8(:,:,:) => null()
+    real(4), pointer :: gd_r4(:,:,:,:) => null()
+    real(4), pointer :: gd3d_r4(:,:,:) => null()
     type(struct_ocm)    :: oceanMask
     logical             :: heightSfcPresent = .false.
     real(8), pointer, private :: heightSfc(:,:) => null()  ! for VarsLevs, heightSfc only on proc 0

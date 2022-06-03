@@ -102,6 +102,36 @@ CONTAINS
     if(mmpi_myid == 0) write(*,*) myName//': starting'
     if(mmpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 
+    ! default values for namelist variables
+    corr_len(:) = 10.0
+    stab(:)     = 0.2
+    nsamp(:)    = 10000
+    useImplicit(:) = .false.
+    scaleFactor(:) = 0.0d0
+    stddevMode  = 'GD2D'
+    homogeneous_std(:) = -1.0d0
+
+    if ( .not. utl_isNamelistPresent('NAMBDIFF','./flnml') ) then
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'bdiff_setup: nambdiff is missing in the namelist.'
+        write(*,*) '             The default values will be taken.'
+      end if
+    else
+      nulnam = 0
+      ierr = fnom( nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read( nulnam, nml = nambdiff, iostat = ierr )
+      if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist')
+      if ( mpi_myid == 0) write( *, nml = nambdiff )
+      ierr = fclos( nulnam )
+    end if
+
+    if ( sum(scaleFactor(:) ) == 0.0d0 ) then
+      if( mpi_myid == 0) write(*,*) myName//': scaleFactor=0, skipping rest of setup'
+      cvdim_out = 0
+      call utl_tmg_stop(65)
+      return
+    end if
+
     if ( present( mode_opt ) ) then
       if ( trim( mode_opt ) == 'Analysis' .or. trim( mode_opt ) == 'BackgroundCheck' ) then
         bdiff_mode = trim( mode_opt )
@@ -163,29 +193,6 @@ CONTAINS
 
       write(*,*) myName//': number of 2D variables', numvar2d, bdiff_varNameList( 1 : numvar2d )
 
-    end if
-
-    ! default values for namelist variables
-    corr_len(:) = 10.0
-    stab(:)     = 0.2
-    nsamp(:)    = 10000
-    useImplicit(:) = .false.
-    scaleFactor(:) = 0.0d0
-    stddevMode  = 'GD2D'
-    homogeneous_std(:) = -1.0d0
-
-    nulnam = 0
-    ierr = fnom( nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read( nulnam, nml = nambdiff, iostat = ierr )
-    if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist')
-    if ( mmpi_myid == 0) write( *, nml = nambdiff )
-    ierr = fclos( nulnam )
-
-    if ( sum(scaleFactor(:) ) == 0.0d0 ) then
-      if( mmpi_myid == 0) write(*,*) myName//': scaleFactor=0, skipping rest of setup'
-      cvdim_out = 0
-      call utl_tmg_stop(65)
-      return
     end if
 
     if ( trim(bdiff_mode) == 'BackgroundCheck' ) then

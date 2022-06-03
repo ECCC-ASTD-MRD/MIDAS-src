@@ -222,17 +222,29 @@ module interpolation_mod
             call gsv_getField(statevector_in,fieldVV_in_r8_ptr,'VV')
             call gsv_getField(statevector_out,fieldVV_out_r8_ptr,'VV')
             do levIndex = 1, nlev
-              ierr = utl_ezuvint( fieldUU_out_r8_ptr(:,:,levIndex,stepIndex), fieldVV_out_r8_ptr(:,:,levIndex,stepIndex), &
-                                  fieldUU_in_r8_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r8_ptr(:,:,levIndex,stepIndex),  & 
-                                  interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+              if (statevector_in%hco%grtyp == 'Y') then
+                ierr = uvintCloudToGrid_r8( fieldUU_out_r8_ptr(:,:,levIndex,stepIndex), fieldVV_out_r8_ptr(:,:,levIndex,stepIndex), &
+                                            fieldUU_in_r8_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r8_ptr(:,:,levIndex,stepIndex),  &
+                                            statevector_out%hco, statevector_in%hco )
+              else
+                ierr = utl_ezuvint( fieldUU_out_r8_ptr(:,:,levIndex,stepIndex), fieldVV_out_r8_ptr(:,:,levIndex,stepIndex), &
+                                    fieldUU_in_r8_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r8_ptr(:,:,levIndex,stepIndex),  & 
+                                    interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+              end if
             end do
           else
             ! interpolate scalar variable
             call gsv_getField(statevector_in, field_in_r8_ptr, varName)
             call gsv_getField(statevector_out, field_out_r8_ptr, varName)
             do levIndex = 1, nlev
-              ierr = utl_ezsint( field_out_r8_ptr(:,:,levIndex,stepIndex), field_in_r8_ptr(:,:,levIndex,stepIndex),  &
-                                 interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+              if (statevector_in%hco%grtyp == 'Y') then
+                ierr = sintCloudToGrid_r8( field_out_r8_ptr(:,:,levIndex,stepIndex), &
+                                           field_in_r8_ptr(:,:,levIndex,stepIndex),  &
+                                           statevector_out%hco, statevector_in%hco )
+              else
+                ierr = utl_ezsint( field_out_r8_ptr(:,:,levIndex,stepIndex), field_in_r8_ptr(:,:,levIndex,stepIndex),  &
+                                   interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+              end if
             end do
           end if
         end do var_loop
@@ -373,17 +385,29 @@ module interpolation_mod
             call gsv_getField(statevector_in,fieldVV_in_r4_ptr,'VV')
             call gsv_getField(statevector_out,fieldVV_out_r4_ptr,'VV')
             do levIndex = 1, nlev
-              ierr = utl_ezuvint( fieldUU_out_r4_ptr(:,:,levIndex,stepIndex), fieldVV_out_r4_ptr(:,:,levIndex,stepIndex),   &
-                                  fieldUU_in_r4_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r4_ptr(:,:,levIndex,stepIndex),    &
-                                  interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+              if (statevector_in%hco%grtyp == 'Y') then
+                ierr = uvintCloudToGrid_r4( fieldUU_out_r4_ptr(:,:,levIndex,stepIndex), fieldVV_out_r4_ptr(:,:,levIndex,stepIndex), &
+                                            fieldUU_in_r4_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r4_ptr(:,:,levIndex,stepIndex),  &
+                                            statevector_out%hco, statevector_in%hco )
+              else
+                ierr = utl_ezuvint( fieldUU_out_r4_ptr(:,:,levIndex,stepIndex), fieldVV_out_r4_ptr(:,:,levIndex,stepIndex),   &
+                                    fieldUU_in_r4_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r4_ptr(:,:,levIndex,stepIndex),    &
+                                    interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+              end if
             end do
           else
             ! interpolate scalar variable
             call gsv_getField(statevector_in, field_in_r4_ptr, varName)
             call gsv_getField(statevector_out, field_out_r4_ptr, varName)
             do levIndex = 1, nlev
-              ierr = utl_ezsint( field_out_r4_ptr(:,:,levIndex,stepIndex), field_in_r4_ptr(:,:,levIndex,stepIndex),  &
-                                 interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+              if (statevector_in%hco%grtyp == 'Y') then
+                ierr = sintCloudToGrid_r4( field_out_r4_ptr(:,:,levIndex,stepIndex),  &
+                                           field_in_r4_ptr(:,:,levIndex,stepIndex),   &
+                                           statevector_out%hco, statevector_in%hco )
+              else
+                ierr = utl_ezsint( field_out_r4_ptr(:,:,levIndex,stepIndex), field_in_r4_ptr(:,:,levIndex,stepIndex),  &
+                                   interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+              end if
             end do
           end if
         end do var_loop
@@ -1224,6 +1248,288 @@ module interpolation_mod
     end if if_vInterp
 
   end subroutine int_vInterp_col
+
+
+
+  function sintCloudToGrid_r4(fieldGrid, fieldCloud, hcoGrid, hcoCloud) result(ierr)
+    implicit none
+
+    ! arguments
+    real(4)                   :: fieldGrid(:,:), fieldCloud(:,:)
+    type(struct_hco), pointer :: hcoGrid, hcoCloud
+    integer                   :: ierr
+
+    ! locals
+    integer :: gdxyfll
+    integer :: niCloud, njCloud, niGrid, njGrid
+    integer :: top, bottom, left, right, np, lonIndexCloud, latIndexCloud, k, l, m, lonIndexGrid, latIndexGrid
+    integer :: in(8), jn(8), ngp, nfill, nhole, nextrap0, nextrap1
+    integer, allocatable :: icount(:,:), maskGrid(:,:), maskCloud(:,:)
+    real(4), allocatable :: xCloud(:,:), yCloud(:,:)
+    real(4) :: extrapValue
+
+    extrapValue = 0.0
+
+    niCloud = hcoCloud%ni
+    njCloud = hcoCloud%nj
+    niGrid  = hcoGrid%ni
+    njGrid  = hcoGrid%nj
+
+    allocate(xCloud(niCloud, njCloud))
+    allocate(yCloud(niCloud, njCloud))
+    allocate(icount(niGrid, njGrid))
+    allocate(maskCloud(niCloud, njCloud))
+    allocate(maskGrid(niGrid, njGrid))
+
+    ! for now set masks to 1 everywhere
+    maskCloud(:,:) = 1
+    maskGrid(:,:)  = 1
+
+    ! Calcul des pos. x-y des eclairs sur la grille modele
+    ierr = gdxyfll(hcoGrid%EZscintID, xCloud, yCloud, &
+                   hcoCloud%lat2d_4*MPC_DEGREES_PER_RADIAN_R4, &
+                   hcoCloud%lon2d_4*MPC_DEGREES_PER_RADIAN_R4, &
+                   hcoCloud%ni*hcoCloud%nj)
+
+    write(*,*) 'xCloud, yCloud, lonCloud, latCloud = ', xCloud(1,1), yCloud(1,1),  &
+               hcoCloud%lon2d_4(1,1)*MPC_DEGREES_PER_RADIAN_R4, &
+               hcoCloud%lat2d_4(1,1)*MPC_DEGREES_PER_RADIAN_R4
+
+    fieldGrid(:,:) = 0.0
+    icount(:,:) = 0
+
+    do latIndexCloud = 1, njCloud
+      do lonIndexCloud = 1, niCloud
+        lonIndexGrid = nint(xCloud(lonIndexCloud,latIndexCloud))
+        latIndexGrid = nint(yCloud(lonIndexCloud,latIndexCloud))
+        if ( lonIndexGrid >= 1 .and. latIndexGrid >= 1 .and. &
+             lonIndexGrid <= niGrid .and. latIndexGrid <= njGrid .and. &
+             maskCloud(lonIndexCloud,latIndexCloud) == 1 ) then
+          fieldGrid(lonIndexGrid,latIndexGrid) = fieldGrid(lonIndexGrid,latIndexGrid) +  &
+                                                 fieldCloud(lonIndexCloud,latIndexCloud)
+          icount(lonIndexGrid,latIndexGrid) = icount(lonIndexGrid,latIndexGrid) + 1
+        end if
+      end do
+    end do
+
+    do latIndexGrid = 1, njGrid
+      do lonIndexGrid = 1, niGrid
+        if(icount(lonIndexGrid,latIndexGrid) > 0) then
+          fieldGrid(lonIndexGrid,latIndexGrid) = fieldGrid(lonIndexGrid,latIndexGrid)/ &
+                                                 real(icount(lonIndexGrid,latIndexGrid))
+        end if
+      end do
+    end do
+
+    ! Now do something for grid points that don't have any value assigned
+    nfill = 0
+    nhole = 0
+    nextrap0 = 0
+    nextrap1 = 0
+    do latIndexGrid = 1, njGrid
+      do lonIndexGrid = 1, niGrid
+        if (icount(lonIndexGrid,latIndexGrid) == 0) then
+          nhole = nhole + 1
+
+          top    = latIndexGrid + 1
+          bottom = latIndexGrid - 1
+          left   = lonIndexGrid - 1
+          right  = lonIndexGrid + 1
+
+          np = 0
+          l = bottom
+          do k = left, right
+            np = np + 1
+            in(np) = k
+            jn(np) = l
+          end do
+          k = right
+          do l = bottom + 1, top
+            np = np + 1
+            in(np) = k
+            jn(np) = l
+          end do
+          l = top
+          do k = right - 1, left, -1
+            np = np + 1
+            in(np) = k
+            jn(np) = l
+          end do
+          k = left
+          do l = top - 1, bottom + 1, -1
+            np = np + 1
+            in(np) = k
+            jn(np) = l
+          end do
+
+          ngp = 0
+          do m = 1, np
+
+            if (in(m) >= 1 .and. in(m) <= niGrid .and.    &
+                jn(m) >= 1 .and. jn(m) <= njGrid) then
+              if ( icount(in(m),jn(m)) > 0 ) then
+
+                fieldGrid(lonIndexGrid,latIndexGrid) = fieldGrid(lonIndexGrid,latIndexGrid) +  &
+                                                       fieldGrid(in(m),jn(m))
+                ngp = ngp + 1
+
+              end if
+            end if
+
+          end do
+
+          if (ngp /= 0) then
+            fieldGrid(lonIndexGrid,latIndexGrid) = fieldGrid(lonIndexGrid,latIndexGrid)/real(ngp)
+            nfill = nfill + 1
+          else
+            fieldGrid(lonIndexGrid,latIndexGrid) = extrapValue
+            if (maskGrid(lonIndexGrid,latIndexGrid) == 1) then
+              nextrap1 = nextrap1 + 1
+            else if (maskGrid(lonIndexGrid,latIndexGrid) == 0) then
+              nextrap0 = nextrap0 + 1
+            else
+              write(*,*) 'Expecting 0 or 1 for the mask field at grid point: ',lonIndexGrid,latIndexGrid
+              call utl_abort('sintCloudToGrid_r4')
+            end if
+          end if
+
+        end if
+      end do
+    end do
+
+    write(*,*) 'Total number of grid points: ', niGrid*njGrid
+    write(*,*) 'Number of grid points that were not covered '// &
+               'by the cloud of points: ', nhole
+    write(*,*) 'Number of grid points filled by a neighbor: ', nfill
+    write(*,*) 'Number of grid points with extrapolated value in masked area: ', nextrap0
+    write(*,*) 'Number of grid points with extrapolated value in visible area: ', nextrap1
+
+    deallocate(xCloud)
+    deallocate(yCloud)
+    deallocate(icount)
+    deallocate(maskCloud)
+    deallocate(maskGrid)
+
+    !call utl_abort('sintCloudToGrid_r4: not implemented yet')
+
+    ierr = 0
+
+  end function sintCloudToGrid_r4
+
+
+  function sintCloudToGrid_r8(zout8, zin8, hco_out, hco_in) result(ierr)
+    implicit none
+
+    ! arguments
+    real(8)                   :: zout8(:,:), zin8(:,:)
+    type(struct_hco), pointer :: hco_out, hco_in
+    integer                   :: ierr
+
+    ! locals
+    integer :: nii, nji, nio, njo     
+    integer :: jk1, jk2
+    real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
+
+    call utl_abort('sintCloudToGrid_r8: not implemented yet')
+
+    nii = size(zin8,1)
+    nji = size(zin8,2)
+
+    nio = size(zout8,1)
+    njo = size(zout8,2)
+
+    allocate(bufferi4(nii,nji))
+    allocate(buffero4(nio,njo))
+
+    do jk2 = 1,nji
+      do jk1 = 1,nii
+        bufferi4(jk1,jk2) = zin8(jk1,jk2)
+      end do
+    end do
+
+    !ierr = ezsint(buffero4,bufferi4)
+    ierr = 0
+
+    do jk2 = 1,njo
+      do jk1 = 1,nio
+        zout8(jk1,jk2) = buffero4(jk1,jk2)
+      end do
+    end do
+
+    deallocate(bufferi4)
+    deallocate(buffero4)
+
+  end function sintCloudToGrid_r8
+
+
+  function uvintCloudToGrid_r4(uuout, vvout, uuin, vvin, hco_out, hco_in) result(ierr)
+    implicit none
+
+    ! arguments
+    real(4)                   :: uuout(:,:), vvout(:,:)
+    real(4)                   :: uuin(:,:) , vvin(:,:)
+    type(struct_hco), pointer :: hco_out, hco_in
+    integer                   :: ierr
+
+    ! locals
+
+    call utl_abort('uvintCloudToGrid_r4: not implemented yet')
+    ierr = 0
+
+  end function uvintCloudToGrid_r4
+
+
+  function uvintCloudToGrid_r8(uuout, vvout, uuin, vvin, hco_out, hco_in) result(ierr)
+    implicit none
+
+    ! arguments
+    real(8)                   :: uuout(:,:), vvout(:,:)
+    real(8)                   :: uuin(:,:) , vvin(:,:)
+    type(struct_hco), pointer :: hco_out, hco_in
+    integer                   :: ierr
+
+    ! locals
+    integer :: nio, njo, nii, nji
+    integer :: jk1, jk2
+    real, allocatable :: bufuuout4(:,:), bufvvout4(:,:)
+    real, allocatable :: bufuuin4(:,:), bufvvin4(:,:)
+
+    call utl_abort('uvintCloudToGrid_r8: not implemented yet')
+
+    nii = size(uuin,1)
+    nji = size(uuin,2)
+
+    nio = size(uuout,1)
+    njo = size(uuout,2)
+
+    allocate(bufuuout4(nio,njo))
+    allocate(bufvvout4(nio,njo))
+    allocate(bufuuin4(nii,nji))
+    allocate(bufvvin4(nii,nji))
+
+    do jk2 = 1,nji
+      do jk1 = 1,nii
+        bufuuin4(jk1,jk2) = uuin(jk1,jk2)
+        bufvvin4(jk1,jk2) = vvin(jk1,jk2)
+      end do
+    end do
+
+    !ierr = ezuvint(bufuuout4, bufvvout4, bufuuin4, bufvvin4)
+    ierr = 0
+
+    do jk2 = 1,njo
+      do jk1 = 1,nio
+        uuout(jk1,jk2) = bufuuout4(jk1,jk2)
+        vvout(jk1,jk2) = bufvvout4(jk1,jk2)
+      end do
+    end do
+
+    deallocate(bufuuin4)
+    deallocate(bufvvin4)
+    deallocate(bufuuout4)
+    deallocate(bufvvout4)
+
+  end function uvintCloudToGrid_r8
 
 
 end module interpolation_mod

@@ -359,27 +359,36 @@ contains
 
     if (.not. initialized) call utl_abort('tim_getStampList: module not initialized')
 
-    if (tim_referencetime == "middle") then
-      if (numStep > 1) then
-        dtstep = tim_windowsize/(real(numStep-1,8))
-      else
-        dtstep = tim_windowsize
+    if (referenceDateStamp == -1) then
+
+      if (mpi_myid == 0) write(*,*) 'tim_getStampList: datestamp is not specified, keep as -1'
+      datestamplist(:) = -1
+
+    else
+
+      if (tim_referencetime == "middle") then
+        if (numStep > 1) then
+          dtstep = tim_windowsize/(real(numStep-1,8))
+        else
+          dtstep = tim_windowsize
+        end if
+
+        do stepIndex = 1, numStep
+          dldelt = (stepIndex - ((numStep-1)/2 + 1)) * dtstep
+          call incdatr(datestamplist(stepIndex), referenceDateStamp, dldelt)
+        end do
       end if
 
-      do stepIndex = 1, numStep
-        dldelt = (stepIndex - ((numStep-1)/2 + 1)) * dtstep
-        call incdatr(datestamplist(stepIndex), referenceDateStamp, dldelt)
-      end do
-    end if
+      if (trim(tim_referencetime) == "start") then
+     
+        dtstep = tim_windowsize/(real(numStep,8))
+     
+        do stepIndex = 1, numStep
+          dldelt = (stepIndex - 1) * dtstep
+          call incdatr(datestamplist(stepIndex), referenceDateStamp, dldelt)
+        end do
 
-    if (trim(tim_referencetime) == "start") then
-     
-      dtstep = tim_windowsize/(real(numStep,8))
-     
-      do stepIndex = 1, numStep
-        dldelt = (stepIndex - 1) * dtstep
-        call incdatr(datestamplist(stepIndex), referenceDateStamp, dldelt)
-      end do
+      end if
 
     end if
 

@@ -118,9 +118,13 @@ program midas_randomPert
 
   !- 2.1 Decompose ndate(yyyymmddhh) into date(YYYYMMDD) time(HHMMSShh)
   !      calculate date-time stamp for postproc.ftn 
-  idate   = ndate/100
-  itime   = (ndate-idate*100)*1000000
-  ierr    = newdate(nstamp, idate, itime, 3)
+  if (ndate <= 0) then
+    nstamp = ndate
+  else
+    idate   = ndate/100
+    itime   = (ndate-idate*100)*1000000
+    ierr    = newdate(nstamp, idate, itime, 3)
+  end if
   if( mmpi_myid == 0 ) write(*,*) ' idate= ', idate, ' time= ', itime
   if( mmpi_myid == 0 ) write(*,*) ' date= ', ndate, ' stamp= ', nstamp
 
@@ -150,13 +154,8 @@ program midas_randomPert
   call mmpi_setup_lonbands(hco_anl % ni,                & ! IN
                            lonPerPE, lonPerPEmax, myLonBeg, myLonEnd ) ! OUT
 
-  !- 2.4 Initialize the vertical coordinate from the statistics file
-  if ( hco_anl % global ) then
-    etiket = 'BGCK_STDDEV'
-  else
-    etiket = 'STDDEV'
-  end if
-  call vco_setupFromFile( vco_anl, './bgcov', etiket)
+  !- 2.4 Initialize the vertical coordinate from the analysisgrid file
+  call vco_setupFromFile(vco_anl, './analysisgrid', ' ')
  
   !- 2.5 Initialize the B_hi matrix
   call bmat_setup(hco_anl, hco_core, vco_anl)
@@ -231,7 +230,7 @@ program midas_randomPert
                     statevector               )  ! OUT
 
     !- 4.1.3 Running ensemble sum
-!$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
+    !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
     do levIndex = 1, nkgdim
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
@@ -240,7 +239,7 @@ program midas_randomPert
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end do
 
@@ -248,7 +247,7 @@ program midas_randomPert
   
   !- 4.2 Remove the ensemble mean
   if ( REMOVE_MEAN ) then
-!$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
+    !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
     do levIndex = 1, nkgdim
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
@@ -256,9 +255,9 @@ program midas_randomPert
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
-!$OMP PARALLEL DO PRIVATE (lonIndex, memberIndex, latIndex, levIndex)    
+    !$OMP PARALLEL DO PRIVATE (lonIndex, memberIndex, latIndex, levIndex)    
     do memberIndex = 1, NENS
       do levIndex = 1, nkgdim
         do latIndex = myLatBeg, myLatEnd
@@ -270,7 +269,7 @@ program midas_randomPert
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
   end if
   
   !- 4.3 Smooth variances to horizontally constant values
@@ -283,7 +282,7 @@ program midas_randomPert
     avg_pturb_var_glb(:) = 0.0D0
   
     do memberIndex = 1, NENS  
-!$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)  
+      !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)  
       do levIndex = 1, nkgdim
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
@@ -292,10 +291,10 @@ program midas_randomPert
           end do
         end do
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
     end do
   
-!$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)  
+    !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)  
     do levIndex = 1, nkgdim
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
@@ -303,15 +302,15 @@ program midas_randomPert
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
   
     do latIndex = myLatBeg, myLatEnd
       do lonIndex = myLonBeg, myLonEnd
-!$OMP PARALLEL DO PRIVATE (levIndex)  
+        !$OMP PARALLEL DO PRIVATE (levIndex)  
         do levIndex = 1, nkgdim
           avg_pturb_var(levIndex) = avg_pturb_var(levIndex) + pturb_var(lonIndex, latIndex, levIndex)
         end do
-!$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
       end do
     end do
   
@@ -321,7 +320,7 @@ program midas_randomPert
     call rpn_comm_allreduce(avg_pturb_var, avg_pturb_var_glb, nkgdim,  &
                             "mpi_double_precision", "mpi_sum", "GRID", ierr)
   
-!$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)  
+    !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)  
     do levIndex = 1, nkgdim
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
@@ -331,17 +330,17 @@ program midas_randomPert
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
   
-!$OMP PARALLEL DO PRIVATE (levIndex)  
+    !$OMP PARALLEL DO PRIVATE (levIndex)  
     do levIndex = 1, nkgdim
       if( avg_pturb_var_glb(levIndex) > 0.0d0 ) then
         avg_pturb_var_glb(levIndex) = sqrt( avg_pturb_var_glb(levIndex) / real(n_grid_point_glb, 8) )
       end if
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
-!$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex, memberIndex)    
+    !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex, memberIndex)    
     do memberIndex = 1, NENS
       do levIndex = 1, nkgdim
         if( avg_pturb_var_glb(levIndex) > 0.0d0 ) then
@@ -357,7 +356,7 @@ program midas_randomPert
         end if
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
   end if
 
   !- 4.4 Write the perturbations
@@ -370,7 +369,7 @@ program midas_randomPert
                       allocHeight_opt=.false., allocPressure_opt=.false.)
     call gsv_getField(statevector,field)
 
-!$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
+    !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
     do levIndex = 1, nkgdim
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
@@ -378,10 +377,14 @@ program midas_randomPert
         end do
       end do
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
     write(clmember, '(I3.3)') memberIndex
-    clfiname = './pert_'//trim(cldate)//'_'//trim(clmember)
+    if (ndate > 0) then
+      clfiname = './pert_'//trim(cldate)//'_'//trim(clmember)
+    else
+      clfiname = './pert_'//trim(clmember)
+    end if
     if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: processing clfiname= ', clfiname
 
     call gio_writeToFile(statevector, clfiname, out_etiket,      & ! IN

@@ -234,9 +234,17 @@ contains
     allocate(hco%lat2d_4(1:ni,1:nj))
     allocate(hco%lon2d_4(1:ni,1:nj))
     
-    ier = gdll(EZscintID,              & ! IN
+    ier = gdll(EZscintID,               & ! IN
                hco%lat2d_4, hco%lon2d_4) ! OUT
-    
+
+    if (mpi_myid == 0) then
+      write(*,*) 'hco_setupFromFile: some lat-lon values:'
+      write(*,*) 'min/max(lon)=', minval(hco%lon2d_4), maxval(hco%lon2d_4)
+      write(*,*) 'min/max(lat)=', minval(hco%lat2d_4), maxval(hco%lat2d_4)
+      write(*,*) 'lon(1:10)   =', hco%lon2d_4(1:10,1)
+      write(*,*) 'lat(1:10)   =', hco%lat2d_4(1:10,1)
+    end if
+
     xlat1_yan_4 = MPC_missingValue_R4
     xlon1_yan_4 = MPC_missingValue_R4
     xlat2_yan_4 = MPC_missingValue_R4
@@ -244,7 +252,7 @@ contains
 
     grtypTicTac = 'X'
 
-    if (mmpi_myid == 0) write(*,*) 'hco_setupFromFile: grtyp, ni, nj = ', grtyp, ni, nj
+    if (mmpi_myid == 0) write(*,*) 'hco_setupFromFile: grtyp, ni, nj, EZscintID = ', grtyp, ni, nj, EZscintID
 
     !- 2.2 Rotated lat-lon grid
     if (trim(grtyp) == 'Z') then
