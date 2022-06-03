@@ -585,7 +585,7 @@ module gridStateVectorFileIO_mod
     character(len=4)  :: varLevel
 
     type(struct_vco), pointer :: vco_file
-    type(struct_hco), pointer :: hco_file
+    type(struct_hco), pointer :: hco_file, hco_in, hco_out
 
     logical :: foundVarNameInFile, ignoreDate, interpToPhysicsGrid
     NAMELIST /NAMSTIO/interpToPhysicsGrid
@@ -890,7 +890,10 @@ module gridStateVectorFileIO_mod
                         typvar_in,varNameToRead)
 
           ierr = ezdefset(hco_file%EZscintID,EZscintID_var)
-          ierr = int_ezsint( gd2d_file_r4, gd2d_var_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+          allocate(hco_out, hco_in)
+          ierr = int_sint( gd2d_file_r4, gd2d_var_r4, hco_out, hco_in, &
+                           interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+          deallocate(hco_out, hco_in)
 
           ! read the corresponding mask if it exists
           if (typvar_var(2:2) == '@') then
@@ -1618,7 +1621,8 @@ module gridStateVectorFileIO_mod
               allocate(work2dFile_r4(statevector%hco_physics%ni,statevector%hco_physics%nj))
               work2dFile_r4(:,:) = 0.0
               ierr = ezdefset( statevector%hco_physics%EZscintID, statevector%hco%EZscintID )
-              ierr = int_ezsint( work2dFile_r4, work2d_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+              ierr = int_sint( work2dFile_r4, work2d_r4, statevector%hco_physics, statevector%hco, &
+                               interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
 
               !- Writing to file
               ierr = fstecr(work2dFile_r4, work_r4, npak, nulfile, dateo, deet, npas, &

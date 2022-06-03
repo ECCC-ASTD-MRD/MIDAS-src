@@ -1048,6 +1048,7 @@ CONTAINS
 
     real(4), allocatable :: TrialLandSeaMask(:,:), TrialSeaIceMask(:,:)
     real(4), allocatable :: AnalLandSeaMask(:,:), AnalSeaIceMask(:,:)
+    type(struct_hco),pointer :: hco_in, hco_out
 
     ! standard file variables
     integer :: ini,inj,ink, idatyp
@@ -1115,11 +1116,13 @@ CONTAINS
     else
        !- 1.2.3 The std. dev. are NOT on the analysis grid. Interpolation is needed
        iset = ezdefset(AnalGridID,itggid)
+       allocate(hco_out,hco_in)
        if ( TweakTG ) then
-          ierr = int_ezsint(tgstdbg,dltg,interpDegree='NEAREST')
+          ierr = int_sint(tgstdbg,dltg,hco_out,hco_in,interpDegree='NEAREST')
        else
-          ierr = int_ezsint(tgstdbg,dltg,interpDegree='CUBIC')
+          ierr = int_sint(tgstdbg,dltg,hco_out,hco_in,interpDegree='CUBIC')
        end if
+       deallocate(hco_out,hco_in)
 
     end if
 
@@ -1252,8 +1255,10 @@ CONTAINS
       ierr = ezdefset(AnalGridID     , TrialGridID     ) ! IN,  IN
 
       ! Nearest-neighbor interpolation
-      ierr = int_ezsint(AnalLandSeaMask, TrialLandSeaMask, interpDegree='NEAREST') ! OUT, IN
-      ierr = int_ezsint(AnalSeaIceMask , TrialSeaIceMask, interpDegree='NEAREST' ) ! OUT, IN
+      allocate(hco_out,hco_in)
+      ierr = int_sint(AnalLandSeaMask, TrialLandSeaMask, hco_out,hco_in, interpDegree='NEAREST') ! OUT, IN
+      ierr = int_sint(AnalSeaIceMask , TrialSeaIceMask,  hco_out,hco_in, interpDegree='NEAREST') ! OUT, IN
+      deallocate(hco_out,hco_in)
 
       deallocate(TrialLandSeaMask)
       deallocate(TrialSeaIceMask)

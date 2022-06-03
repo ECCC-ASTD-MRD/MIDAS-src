@@ -82,6 +82,7 @@ module tovs_nl_mod
   use codePrecision_mod
   use humidityLimits_mod
   use interpolation_mod
+  use horizontalCoord_mod
 
   implicit none
   save
@@ -3302,6 +3303,7 @@ contains
     real(8)            :: zig1,zig2,zig3,zig4
     integer            :: ig1obs,ig2obs,ig3obs,ig4obs
     real (8)           :: alat, alon, zzlat, zzlon
+    type(struct_hco), pointer :: hco_in, hco_out
     ! fields on input grid
     real(8), allocatable :: glace(:,:), neige(:,:), alb(:,:)
     ! fields on output grid
@@ -3424,6 +3426,7 @@ contains
     allocate ( glace  (ni3,nj3) )
     allocate ( neige  (ni4,nj4) )
     allocate ( alb    (ni5,nj5) )
+    allocate(hco_out,hco_in)
 
 
     ! utl_fstlir: read records data (field on the grid) given the key
@@ -3463,7 +3466,7 @@ contains
     ! desired output = token
     ! EZDEFSET: interpolate from input grids to output grid
     ! success = key
-    ! int_EZSINT: interpolation of the field on the input grid to observation profiles
+    ! int_SINT: interpolation of the field on the input grid to observation profiles
     ! success = 0
     ! desired output = FIELD_intrpl
     write(*,*) 
@@ -3473,8 +3476,8 @@ contains
     ix9 = ezdefset(iv7,ix8)
     write(*,*) 'variable = LG           : ezdefset : return = ', ix9
 
-    ix10 = int_ezsint(glace_intrpl,glace,interpDegree='NEAREST')
-    write(*,*) 'variable = LG           : int_ezsint  : return = ', ix10
+    ix10 = int_sint(glace_intrpl,glace,hco_out,hco_in,interpDegree='NEAREST')
+    write(*,*) 'variable = LG           : int_sint  : return = ', ix10
 
     write(*,*) 
 
@@ -3484,8 +3487,8 @@ contains
     iy9 = ezdefset(iv7,iy8)
     write(*,*) 'variable = ', snowvar, '           : ezdefset : return = ', iy9
 
-    iy10 = int_ezsint(neige_intrpl,neige,interpDegree='NEAREST')
-    write(*,*) 'variable = ', snowvar, '           : int_ezsint  : return = ', iy10
+    iy10 = int_sint(neige_intrpl,neige,hco_out,hco_in,interpDegree='NEAREST')
+    write(*,*) 'variable = ', snowvar, '           : int_sint  : return = ', iy10
 
     write(*,*) 
 
@@ -3495,8 +3498,8 @@ contains
     iz9 = ezdefset(iv7,iz8)
     write(*,*) 'variable = AL           : ezdefset : return = ', iz9
 
-    iz10 = int_ezsint(alb_intrpl,alb,interpDegree='NEAREST')
-    write(*,*) 'variable = AL           : int_ezsint  : return = ', iz10
+    iz10 = int_sint(alb_intrpl,alb,hco_out,hco_in,interpDegree='NEAREST')
+    write(*,*) 'variable = AL           : int_sint  : return = ', iz10
 
 
     ! fstfrm: close the standard files
@@ -3529,6 +3532,7 @@ contains
     end do
 
     deallocate(glace,neige,alb)
+    deallocate(hco_out,hco_in)
 
   end subroutine interp_sfc
 
