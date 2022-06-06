@@ -3,7 +3,7 @@
 
 <!-- (Summarize the bug encountered concisely) -->
 
-### Steps to reproduce or context in which it is happens
+### Steps to reproduce or context in which it happens
 
 <!--(How one can reproduce the issue - this is very important)-->
 
