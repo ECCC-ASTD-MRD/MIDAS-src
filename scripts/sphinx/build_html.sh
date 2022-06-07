@@ -381,7 +381,7 @@ mkdir _build
 
 # RUN SPHYNX TO BUILD HTML FILES
 
-PYTHONPATH="$PYTHONPATH:${PWD}/lib/python2.7:${PWD}/lib/python2.7/sphinx_fortran-1.0.1-py2.7.egg"
+PYTHONPATH="$PYTHONPATH:${toplevel}/tools/sphinx-fortran"
 #sphinx-build -b html ./ ./_build
 make html
 
