@@ -353,8 +353,8 @@ contains
       call global_or_lam(global,  & ! OUT
                          lon_8, ni) ! IN
 
-      !- 2.3 Gaussian Grid
-    else if (trim(grtyp) == 'G') then
+      !- 2.3 B Grid
+    else if (trim(grtyp) == 'B') then
     
       !-  2.3.1 Find the latitudes and longitudes
       lon_8(:) = real(hco%lon2d_4(:,nj/2),8)
@@ -370,10 +370,27 @@ contains
       !- 2.3.3 We know this is a global grid
       global = .true.
     
-      !- 2.4 Universal Grid (Yin-Yang) - not fully supported: use at own risk!
+      !- 2.4 Gaussian Grid
+    else if (trim(grtyp) == 'G') then
+    
+      !-  2.4.1 Find the latitudes and longitudes
+      lon_8(:) = real(hco%lon2d_4(:,nj/2),8)
+      lat_8(:) = real(hco%lat2d_4(1,:),8)
+      
+      !- 2.4.2 This grid type is not rotated
+      rotated = .false.
+      xlat1_4 =   0.0
+      xlon1_4 = 180.0
+      xlat2_4 =   0.0
+      xlon2_4 = 180.0
+      
+      !- 2.4.3 We know this is a global grid
+      global = .true.
+    
+      !- 2.5 Universal Grid (Yin-Yang) - not fully supported: use at own risk!
     else if (trim(grtyp) == 'U') then
       
-      !-  2.4.1 Read the tic-tac vector
+      !-  2.5.1 Read the tic-tac vector
       dateo  = -1
       etiket = ' '
       ip1    = ig1
@@ -404,18 +421,18 @@ contains
         call utl_abort('hco_setupFromFile')
       end if
 
-      !-  2.4.1 Initialize latitudes and longitudes to dummy values - should not be used!
+      !-  2.5.1 Initialize latitudes and longitudes to dummy values - should not be used!
       lon_8(:) = MPC_missingValue_R8
       lat_8(:) = MPC_missingValue_R8
       
-      !-  2.4.2 Yin-Yan subgrid IDs
+      !-  2.5.2 Yin-Yan subgrid IDs
       numSubGrid = ezget_nsubgrids(EZscintID)
       if (numSubGrid /= 2) then
         call utl_abort('hco_setupFromFile: CONFUSED! number of sub grids must be 2')
       end if
       ier = ezget_subgridids(EZscintID, EZscintIDsubGrids)
       
-      !-  2.4.3 Determine parameters related to Yin and Yan grid rotations
+      !-  2.5.3 Determine parameters related to Yin and Yan grid rotations
       rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
       
       ier = ezgprm(EZscintIDsubGrids(1), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy)
@@ -432,13 +449,13 @@ contains
       
       rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
       
-      !-  2.4.3 We know this is a global grid
+      !-  2.5.3 We know this is a global grid
       global = .true.
       
       !- 2.5 Irregular structure
     else if (trim(grtyp) == 'Y') then
       
-      !- 2.5.1 This grid type is not rotated
+      !- 2.6.1 This grid type is not rotated
       rotated = .false.
       xlat1_4 = 0.0
       xlon1_4 = 0.0
@@ -447,18 +464,18 @@ contains
       
       grtypTicTac = 'L'
       
-      !- 2.5.2 Test using first row of longitudes (should work for ORCA grids)
+      !- 2.6.2 Test using first row of longitudes (should work for ORCA grids)
       lon_8(:) = hco%lon2d_4(:,1)
       call global_or_lam(global,  & ! OUT
                          lon_8, ni) ! IN
       
-      !-  2.5.3 Initialize latitudes and longitudes to dummy values - should not be used!
+      !-  2.6.3 Initialize latitudes and longitudes to dummy values - should not be used!
       lon_8(:) = MPC_missingValue_R8
       lat_8(:) = MPC_missingValue_R8
       
     else
       write(*,*)
-      write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G or U or Y are supported !, grtyp = ', trim(grtyp)
+      write(*,*) 'hco_SetupFromFile: Only grtyp = Z or G or B or U or Y are supported !, grtyp = ', trim(grtyp)
       call utl_abort('hco_setupFromFile')
     end if
     
@@ -739,7 +756,7 @@ contains
     end if
     
     if (mmpi_myid > 0) then
-      if (hco%grtyp == 'G') then
+      if ( hco%grtyp == 'G' .or. hco%grtyp == 'B' ) then
         hco%EZscintID  = ezqkdef(hco%ni, hco%nj, hco%grtyp, hco%ig1, hco%ig2, hco%ig3, hco%ig4, 0)
       else
         ! special treatment since EZscintID not properly communicated: keep as is
@@ -785,7 +802,7 @@ contains
       return
     end if
     
-    if(hco1%grtyp == 'G') then
+    if(hco1%grtyp == 'G' .or. hco1%grtyp == 'B') then
       equal = equal .and. (hco1%ig2 == hco2%ig2)
       if (.not. equal) then
         write(*,*) 'hco_equal: Gaussian grid ig2 not equal'

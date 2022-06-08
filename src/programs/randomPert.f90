@@ -27,6 +27,7 @@ program midas_randomPert
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use bmatrix_mod
+  use interpolation_mod
   use verticalCoord_mod
   use horizontalCoord_mod
   use timeCoord_mod
@@ -35,14 +36,16 @@ program midas_randomPert
   use gridVariableTransforms_mod
   implicit none
 
-  type(struct_gsv) :: statevector, stateVectorEnsMean
+  type(struct_gsv) :: stateVector, stateVectorInterp, stateVectorEnsMean
 
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_hco), pointer :: hco_anl => null()
-  type(struct_hco), pointer :: hco_core => null()
+  type(struct_hco), pointer :: hco_anlcore => null()
+  type(struct_hco), pointer :: hco_target => null()
+  type(struct_hco), pointer :: hco_targetcore => null()
 
   real(8), pointer :: field(:,:,:)
-  
+
   integer :: fclos, fnom, fstopc, newdate, nstamp, ierr, status
   integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, nkgdim
   integer :: idate, itime, ndate, nulnam
@@ -58,13 +61,14 @@ program midas_randomPert
   real(8), allocatable :: avg_pturb_var_glb(:)
   real(8), allocatable :: pturb_var(:,:,:)
 
+  logical :: targetGridExists
   character(len=10) :: cldate
   character(len=3)  :: clmember
   character(len=25) :: clfiname
   character(len=12) :: etiket
   character(len=12) :: out_etiket
   character(len=64) :: ensMeanFileName = 'ensMeanState'
-  
+
   logical  :: remove_mean, smoothVariances, mpiTopoIndependent, readEnsMean
   integer  :: nens, seed, date, numBits
   NAMELIST /NAMENKF/nens, seed, date, out_etiket, remove_mean,  &
@@ -139,16 +143,35 @@ program midas_randomPert
   call tim_setup
   call tim_setDatestamp(nstamp)
 
-  !- 2.3 Initialize the Analysis grid
+  !- 2.3 Initialize the horizontal grids from analysisgrid and targetgrid files
   if (mmpi_myid == 0) write(*,*) ''
   if (mmpi_myid == 0) write(*,*) ' Set hco parameters for analysis grid'
   call hco_setupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
-    hco_core => hco_anl
+    hco_anlcore => hco_anl
   else
     !- Iniatilized the core (Non-Exteded) analysis grid
-    call hco_setupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+    call hco_setupFromFile( hco_anlcore, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+  end if
+
+  inquire(file='./targetgrid',exist=targetGridExists)
+  if (targetGridExists) then
+    if (mpi_myid == 0) write(*,*) ''
+    if (mpi_myid == 0) write(*,*) ' Set hco parameters for target grid'
+
+    call hco_setupFromFile(hco_target, './targetgrid', 'ANALYSIS', 'Target' ) ! IN
+
+    if ( hco_target % global ) then
+      hco_targetcore => hco_target
+    else
+      !- Iniatilized the core (Non-Exteded) analysis grid
+      call hco_setupFromFile( hco_targetcore, './targetgrid', 'COREGRID', 'TargetCore' ) ! IN
+    end if
+  else
+    ! no targetgrid file, so use analysisgrid grid instead
+    hco_target => hco_anl
+    hco_targetcore => hco_anlcore
   end if
 
   call mmpi_setup_latbands(hco_anl % nj,                & ! IN
@@ -160,23 +183,24 @@ program midas_randomPert
   call vco_setupFromFile(vco_anl, './analysisgrid', ' ')
  
   !- 2.5 Initialize the B_hi matrix
-  call bmat_setup(hco_anl, hco_core, vco_anl)
+  call bmat_setup(hco_anl, hco_anlcore, vco_anl)
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !- 2.6 Initialize the gridded variable transform module
-  call gvt_setup(hco_anl,hco_core,vco_anl)
+  call gvt_setup(hco_anl,hco_anlcore,vco_anl)
   if ( gsv_varExist(varName='HU') ) call gvt_setupRefFromTrialFiles('HU')
 
   !
   !- 3. Memory allocations
   !
 
-  !- 3.1 Allocate the statevector
-  call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
+  !- 3.1 Allocate the stateVector
+  call gsv_allocate(stateVector, 1, hco_anl, vco_anl, &
                     dateStamp_opt=nstamp, mpi_local_opt=.true., &
-                    allocHeight_opt=.false., allocPressure_opt=.false.)
-  nkgdim = statevector%nk
+                    allocHeight_opt=.false., allocPressure_opt=.false., &
+                    hInterpolateDegree_opt='LINEAR')
+  nkgdim = stateVector%nk
   allocate(ensemble_r4(myLonBeg:myLonEnd, myLatBeg:myLatEnd, nkgdim, nEns))
 
   !- 3.2 Allocate auxillary variables
@@ -205,7 +229,7 @@ program midas_randomPert
   end if
 
   gdmean(:,:,:) = 0.0D0
-  call gsv_getField(statevector,field)
+  call gsv_getField(stateVector,field)
 
   !- 4.1 Generate a (potentially) biased ensemble
   do memberIndex = 1, NENS
@@ -229,7 +253,7 @@ program midas_randomPert
 
     !- 4.1.2 Transform to control variables in physical space
     call bmat_sqrtB(controlVector, cvm_nvadim, & ! IN
-                    statevector               )  ! OUT
+                    stateVector               )  ! OUT
 
     !- 4.1.3 Copy perturbations to big array and update ensemble sum
     !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
@@ -245,7 +269,7 @@ program midas_randomPert
 
   end do
 
-  call gsv_deallocate(statevector)
+  call gsv_deallocate(stateVector)
   
   !- 4.2 Remove the ensemble mean
   if ( REMOVE_MEAN ) then
@@ -277,8 +301,8 @@ program midas_randomPert
   !- 4.3 Smooth variances to horizontally constant values
   if ( smoothVariances ) then
   
-    allocate(pturb_var(myLonBeg:myLonEnd, myLatBeg:myLatEnd, statevector%nk))
-    allocate(avg_pturb_var(statevector%nk), avg_pturb_var_glb(statevector%nk))
+    allocate(pturb_var(myLonBeg:myLonEnd, myLatBeg:myLatEnd, stateVector%nk))
+    allocate(avg_pturb_var(stateVector%nk), avg_pturb_var_glb(stateVector%nk))
     pturb_var(:,:,:) = 0.0D0
     avg_pturb_var(:) = 0.0D0
     avg_pturb_var_glb(:) = 0.0D0
@@ -361,34 +385,21 @@ program midas_randomPert
     !$OMP END PARALLEL DO
   end if
 
-  !- 4.4 Add ensemble mean state to perturbations
+  !- 4.4 Read ensemble mean state
   if ( readEnsMean ) then
+    if (mpi_myid == 0) write(*,*) 'midas-randomPert: reading ensemble mean state'
 
-    if (mpi_myid == 0) write(*,*) 'midas-randomPert: reading ensemble mean state and adding to perturbations'
-
-    call gsv_allocate(stateVectorEnsMean, 1, hco_anl, vco_anl, &
+    call gsv_allocate(stateVectorEnsMean, 1, hco_target, vco_anl, &
                       dateStamp_opt=-1, mpi_local_opt=.true., &
-                      allocHeight_opt=.false., allocPressure_opt=.false.)
+                      allocHeight_opt=.false., allocPressure_opt=.false., &
+                      hInterpolateDegree_opt='LINEAR')
     call gio_readFromFile(stateVectorEnsMean, ensMeanFileName, ' ', ' ',  &
                           containsFullField_opt=.true.)
 
-    call gsv_getField(stateVectorEnsMean,field)
-
-    !$OMP PARALLEL DO PRIVATE (lonIndex, memberIndex, latIndex, levIndex)    
-    do memberIndex = 1, NENS
-      do levIndex = 1, nkgdim
-        do latIndex = myLatBeg, myLatEnd
-          do lonIndex = myLonBeg, myLonEnd
-            ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) =  &
-                ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) +  &
-                real(field(lonIndex, latIndex, levIndex), 4)
-          end do
-        end do
-      end do
-    end do
-    !$OMP END PARALLEL DO
-
-    call gsv_deallocate(stateVectorEnsMean)
+    ! write back to a file, to have it on the targetgrid
+    call gio_writeToFile(stateVectorEnsMean, 'ensMeanState_out', 'ensMean_out', & ! IN
+                         numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
+                         containsFullField_opt=.true.) 
   end if
 
   !- 4.5 Write the perturbations
@@ -396,10 +407,15 @@ program midas_randomPert
     if( mmpi_myid == 0 ) write(*,*)
     if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: pre-processing for writing member number= ', memberIndex
 
-    call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
+    call gsv_allocate(stateVector, 1, hco_anl, vco_anl, &
                       dateStamp_opt=nstamp, mpi_local_opt=.true., &
-                      allocHeight_opt=.false., allocPressure_opt=.false.)
-    call gsv_getField(statevector,field)
+                      allocHeight_opt=.false., allocPressure_opt=.false., &
+                      hInterpolateDegree_opt='LINEAR')
+    call gsv_getField(stateVector,field)
+    call gsv_allocate(stateVectorInterp, 1, hco_target, vco_anl, &
+                      dateStamp_opt=nstamp, mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false., &
+                      hInterpolateDegree_opt='LINEAR')
 
     !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
     do levIndex = 1, nkgdim
@@ -411,6 +427,14 @@ program midas_randomPert
     end do
     !$OMP END PARALLEL DO
 
+    ! interpolate perturbation to the target grid
+    call int_interpolate(stateVector, stateVectorInterp)
+
+    if ( readEnsMean ) then
+      if (mpi_myid == 0) write(*,*) 'midas-randomPert: adding the ensemble mean and perturbation'
+      call gsv_add(stateVectorEnsMean, stateVectorInterp)
+    end if
+
     write(clmember, '(I3.3)') memberIndex
     if (ndate > 0) then
       clfiname = './pert_'//trim(cldate)//'_'//trim(clmember)
@@ -419,11 +443,12 @@ program midas_randomPert
     end if
     if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: processing clfiname= ', clfiname
 
-    call gio_writeToFile(statevector, clfiname, out_etiket,              & ! IN
+    call gio_writeToFile(stateVectorInterp, clfiname, out_etiket,              & ! IN
                          numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
                          containsFullField_opt=readEnsMean) 
 
-    call gsv_deallocate(statevector)
+    call gsv_deallocate(stateVectorInterp)
+    call gsv_deallocate(stateVector)
 
   end do
 
