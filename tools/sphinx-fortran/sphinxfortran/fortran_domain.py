@@ -508,7 +508,7 @@ class FortranObject(ObjectDescription):
     }
 
     doc_field_types = [
-        FortranCompleteField('parameter', label=_('Parameters'),
+        FortranCompleteField('parameter', label=_('Arguments'),
                              names=(
             'p', 'param', 'parameter', 'a', 'arg', 'argument'),
             # rolename='var',
