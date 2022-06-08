@@ -268,7 +268,7 @@ module gridStateVectorFileIO_mod
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
                       hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
 
-    call int_hInterp_gsv_r4(statevector_file_r4, statevector_hinterp_r4)
+    call int_hInterp_gsv(statevector_file_r4, statevector_hinterp_r4)
 
     call gsv_deallocate(statevector_file_r4)
 
@@ -462,7 +462,7 @@ module gridStateVectorFileIO_mod
                       hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree,  &
                       hExtrapolateDegree_opt=statevector_out_r4%hExtrapolateDegree)
 
-    call int_hInterp_gsv_r4(statevector_file_r4, statevector_hinterp_r4)
+    call int_hInterp_gsv(statevector_file_r4, statevector_hinterp_r4)
 
     call gsv_deallocate(statevector_file_r4)
 

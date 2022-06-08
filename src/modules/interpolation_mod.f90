@@ -34,7 +34,7 @@ module interpolation_mod
 
   ! public subroutines and functions
   public :: int_interp_gsv
-  public :: int_hInterp_gsv, int_hInterp_gsv_r4
+  public :: int_hInterp_gsv
   public :: int_vInterp_gsv, int_vInterp_gsv_r4
   public :: int_tInterp_gsv
   public :: int_vInterp_col
@@ -123,11 +123,7 @@ contains
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
                       hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
 
-    if (statevector_in_VarsLevs%dataKind == 4) then
-      call int_hInterp_gsv_r4(statevector_in_VarsLevs, statevector_in_VarsLevs_hInterp)
-    else
-      call int_hInterp_gsv(statevector_in_VarsLevs, statevector_in_VarsLevs_hInterp)
-    end if
+    call int_hInterp_gsv(statevector_in_VarsLevs, statevector_in_VarsLevs_hInterp)
     call gsv_deallocate(statevector_in_VarsLevs)
 
     call gsv_allocate(statevector_in_hInterp, statevector_in%numstep, &
@@ -188,10 +184,6 @@ contains
 
     if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
       call utl_abort('int_hInterp_gsv: The input and output statevectors are not on the same vertical levels.')
-    end if
-
-    if ( statevector_in%dataKind /= 8 .or. statevector_out%dataKind /= 8 ) then
-      call utl_abort('int_hInterp_gsv: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
     ! set the interpolation degree
@@ -279,124 +271,6 @@ contains
     end if
 
   end subroutine int_hInterp_gsv
-
-  !--------------------------------------------------------------------------
-  ! int_hInterp_gsv_r4
-  !--------------------------------------------------------------------------
-  subroutine int_hInterp_gsv_r4(statevector_in,statevector_out)
-    !
-    ! :Purpose: Horizontal interpolation
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv),       intent(in)    :: statevector_in   ! statevector that will contain the horizontally interpolated fields
-    type(struct_gsv),       intent(inout) :: statevector_out  ! Reference statevector providing the horizontal structure
-
-    ! Locals:
-    integer :: varIndex, levIndex, nlev, stepIndex, ierr, kIndex
-    character(len=4) :: varName
-    character(len=12):: interpolationDegree, extrapolationDegree
-
-    if ( hco_equal(statevector_in%hco,statevector_out%hco) ) then
-      write(*,*) 'int_hInterp_gsv_r4: The input and output statevectors are already on same horizontal grids'
-      call gsv_copy(statevector_in, statevector_out)
-      return
-    end if
-
-    if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call utl_abort('int_hInterp_gsv_r4: The input and output statevectors are not on the same vertical levels.')
-    end if
-
-    if ( statevector_in%dataKind /= 4 .or. statevector_out%dataKind /= 4 ) then
-      call utl_abort('int_hInterp_gsv_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
-    end if
-
-    ! set the interpolation degree
-    interpolationDegree = statevector_out%hInterpolateDegree
-    extrapolationDegree = statevector_out%hExtrapolateDegree
-
-    if ( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
-
-      write(*,*) 'int_hInterp_gsv_r4: before interpolation (no mpi)'
-
-      step_loop: do stepIndex = 1, statevector_out%numStep
-        ! copy over some time related parameters
-        statevector_out%deet                      = statevector_in%deet
-        statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
-        statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
-        statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
-        statevector_out%etiket                    = statevector_in%etiket
-
-        ! Do horizontal interpolation for mpi global statevectors
-        var_loop: do varIndex = 1, vnl_numvarmax
-          varName = vnl_varNameList(varIndex)
-          if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
-          if ( trim(varName) == 'VV' ) cycle var_loop
-
-          nlev = statevector_out%varNumLev(varIndex)
-
-          ! horizontal interpolation
-
-          if ( trim(varName) == 'UU' ) then
-            ! interpolate both UV components and keep both UU and VV
-            do levIndex = 1, nlev
-              ierr = int_uvint( statevector_out, statevector_in, 'BOTH', levIndex, stepIndex, &
-                                interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-            end do
-          else
-            ! interpolate scalar variable
-            do levIndex = 1, nlev
-              ierr = int_sint( statevector_out, statevector_in, varName, levIndex, stepIndex, &
-                               interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-            end do
-          end if
-        end do var_loop
-
-      end do step_loop
-
-    else
-
-      write(*,*) 'int_hInterp_gsv_r4: before interpolation (with mpi)'
-
-      if ( statevector_in%mpi_distribution /= 'VarsLevs' .or.   &
-          statevector_out%mpi_distribution /= 'VarsLevs' ) then
-        call utl_abort('int_hInterp_gsv_r4: The input or output statevector is not distributed by VarsLevs.')
-      end if
-
-      step2_loop: do stepIndex = 1, statevector_out%numStep
-        k_loop: do kIndex = statevector_in%mykBeg, statevector_in%mykEnd
-          varName = gsv_getVarNameFromK(statevector_in,kIndex)
-          if ( .not. gsv_varExist(statevector_in,varName) ) cycle k_loop
-
-          ! horizontal interpolation
-
-          if ( trim(varName) == 'UU' ) then
-            ! interpolate both UV components and keep UU
-            ierr = int_uvint( statevector_out, statevector_in, 'UU', kIndex, stepIndex, &
-                              interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-          else if ( trim(varName) == 'VV' ) then
-            ! interpolate both UV components and keep VV
-            ierr = int_uvint( statevector_out, statevector_in, 'VV', kIndex, stepIndex, &
-                              interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-          else
-            ! interpolate scalar variable
-            ierr = int_sint( statevector_out, statevector_in, 'ALL', kIndex, stepIndex, &
-                             interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-          end if
-        end do k_loop
-
-      end do step2_loop
-
-    end if
-
-    if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out)) then
-      write(*,*) 'int_hInterp_gsv_r4: interpolating surface height'
-      ierr = int_sint( statevector_out, statevector_in, 'ZSFC', 1, 1, &
-                       interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
-    end if
-
-  end subroutine int_hInterp_gsv_r4
 
   !--------------------------------------------------------------------------
   ! int_vInterp_gsv

@@ -2473,12 +2473,12 @@ CONTAINS
 write(*,*) 'min/max of statevector_file = ', minval(statevector_file_r4%gd_r4), maxval(statevector_file_r4%gd_r4)
           ! do any required interpolation
           if (horizontalInterpNeeded .and. verticalInterpNeeded) then
-            call int_hInterp_gsv_r4(statevector_file_r4, statevector_hint_r4)
+            call int_hInterp_gsv(statevector_file_r4, statevector_hint_r4)
             call int_vInterp_gsv_r4(statevector_hint_r4, statevector_member_r4,         &
                                      Ps_in_hPa_opt=.true.,checkModelTop_opt=checkModelTop)
 
           else if (horizontalInterpNeeded .and. .not. verticalInterpNeeded) then
-            call int_hInterp_gsv_r4(statevector_file_r4, statevector_member_r4)
+            call int_hInterp_gsv(statevector_file_r4, statevector_member_r4)
 write(*,*) 'min/max of statevector_member1 = ', minval(statevector_member_r4%gd_r4), maxval(statevector_member_r4%gd_r4)
 
           else if (.not. horizontalInterpNeeded .and. verticalInterpNeeded) then
