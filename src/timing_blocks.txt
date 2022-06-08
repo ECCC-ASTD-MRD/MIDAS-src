@@ -22,6 +22,7 @@ grep -irh 'call utl_tmg_start' |grep -v grep| sed 's/^.*tmg_start\(.*\)/\1/gI' |
  20, '----RmatMatSqrt'
  21, '----RmatMatMult'
  22, '----ObsFiltSuprep'
+ 23, '----ObsFileClean'
 
  30, '--StateToColumn'
  31, '----s2c_Setups'

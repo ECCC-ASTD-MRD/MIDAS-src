@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Added cleaning for ObsDb files after observation thinning (#631 and !604)
 
 ### Changed
 

@@ -37,7 +37,7 @@ module obsdbFiles_mod
   private
 
   ! Public subroutines and functions:
-  public :: odbf_isActive, odbf_readFile, odbf_updateFile
+  public :: odbf_isActive, odbf_readFile, odbf_updateFile, obdf_clean
 
   ! Arrays used to match obsDB column names with obsSpaceData column names
 
@@ -2327,6 +2327,7 @@ contains
                                         obsHeadKeySqlName, obsBodyKeySqlName,                          &
                                         numberUpdateItems, updateItemList,                       &
                                         midasTableKeySqlName, numMidasTableRequired_opt)
+    !
     ! :Purpose: Add additional MIDAS columns into the table. This is done by first
     !           creating a temporary table that includes the additional MIDAS columns.
     !           The columns from the updated compulsory table (created by odbf_createMidasHeaderTable
@@ -2510,5 +2511,140 @@ contains
     deallocate(midasColumnExists)
 
   end subroutine odbf_addColumnsMidasTable
+
+  !--------------------------------------------------------------------------
+  ! obdf_clean
+  !--------------------------------------------------------------------------
+  subroutine obdf_clean(fileName, familyType)
+
+    ! :Purpose: After the observational thinning procedure, this subroutine removes
+    !           rows that are flagged as thinned in MIDAS_BODY_OUTPUT Table 
+    !           the rows in the Report, Observation and MIDAS_HEADER_OUTPUT with corresponding 
+    !           ID_Report and ID_Observation are also removed. 
+
+    implicit none
+
+    ! arguments
+    character(len=*),  intent(in) :: fileName
+    character(len=*),  intent(in) :: familyType
+
+    ! locals:
+    character(len = 512)        :: query
+    type(fSQL_STATUS)           :: stat ! sqlite error status
+    type(fSQL_DATABASE)         :: db   ! sqlite file handle
+    type(fSQL_STATEMENT)        :: stmt ! precompiled sqlite statements
+    integer                     :: nulnam , ierr, fnom, fclos
+    character(len = lenSqlName) :: flgSqlName
+    
+    ! namelist variables
+    logical, save               :: useVacuum
+
+    namelist/namObsDbClean/ useVacuum
+
+    ! default value
+    useVacuum = .false.
+
+    if ( .not. utl_isNamelistPresent('namObsDbClean','./flnml') ) then
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'odbf_setup: namObsDbClean is missing in the namelist.'
+        write(*,*) '            The default values will be taken.'
+      end if
+    else
+      ! reading namelist variables
+      nulnam  = 0
+      ierr = fnom(nulnam ,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam , nml=namObsDbClean, iostat=ierr)
+      if ( ierr /= 0 ) call utl_abort('obdf_clean: Error reading namelist')
+      ierr = fclos(nulnam )
+    end if
+    if ( mpi_myid == 0 ) write(*, nml=namObsDbClean)
+
+    write(*,*)
+    write(*,*) 'obdf_clean: Starting'
+    write(*,*)
+    write(*,*) 'obdf_clean: FileName   : ', trim(FileName)
+    write(*,*) 'obdf_clean: FamilyType : ', FamilyType
+
+    ! open the obsDB file
+    call fSQL_open( db, trim(fileName), stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'obdf_clean: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'obdf_clean: fSQL_open' )
+    end if
+    
+    flgSqlName = odbf_midasTabColFromObsSpaceName('FLG', midasBodyNamesList)
+
+    ! Mark for deletion all records with bit 11 (2048) set
+    query = ' delete from '// trim(midasBodyTableName) //' where '// trim(flgSqlName) //' & 2048 =2048;'
+
+    call fSQL_prepare(db, query, stmt, stat)
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort( 'obdf_clean: fSQL_prepare' )
+    end if
+
+    call fSQL_exec_stmt(stmt)
+  
+    query = 'create temporary table good_headers as select distinct '// trim(obsHeadKeySqlName) //' from '// trim(midasBodyTableName) //';'
+    write(*,*) 'obdf_clean: query = ', trim(query)
+    call fSQL_do_many( db, query, stat )
+
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('obdf_clean: Problem with fSQL_do_many')
+    end if
+
+    query = 'delete from '// trim(midasHeadTableName) //' where '// trim(obsHeadKeySqlName) // &
+            ' not in ( select '// trim(obsHeadKeySqlName) //' from good_headers );'
+    write(*,*) 'obdf_clean: query = ', trim(query)
+    call fSQL_prepare(db, query, stmt, stat)
+    
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort( 'obdf_clean: fSQL_prepare' )
+    end if
+
+    call fSQL_exec_stmt(stmt)
+
+    query = 'delete from '// trim(bodyTableName) //' where '// trim(obsHeadKeySqlName) // &
+            ' not in ( select '// trim(obsHeadKeySqlName) //'  from good_headers );'
+    write(*,*) 'obdf_clean: query = ', trim(query)
+    call fSQL_prepare(db, query, stmt, stat)
+
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort( 'obdf_clean: fSQL_prepare' )
+    end if
+
+    call fSQL_exec_stmt(stmt)
+
+    query = 'delete from '// trim(headTableName) //' where '// trim(obsHeadKeySqlName) // &
+            ' not in ( select '// trim(obsHeadKeySqlName) //'  from good_headers );'
+    write(*,*) 'obdf_clean: query = ', trim(query)
+    call fSQL_prepare(db, query, stmt, stat)
+
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'obdf_clean: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort( 'obdf_clean: fSQL_prepare' )
+    end if
+
+    call fSQL_exec_stmt(stmt)
+    call fSQL_finalize(stmt)
+
+    ! Reduces the size of SQL file 
+    if ( useVacuum ) then
+      query = 'vacuum;'
+      write(*,*) 'obdf_clean: query = ', trim(query)
+      call fSQL_do_many( db, query, stat )
+
+      if ( fSQL_error(stat) /= FSQL_OK ) then
+        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+        call utl_abort('obdf_clean: Problem with fSQL_do_many')
+      end if
+    end if
+
+    call fSQL_close(db, stat)
+
+  end subroutine obdf_clean
 
 end module obsdbFiles_mod

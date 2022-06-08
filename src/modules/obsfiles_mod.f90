@@ -164,7 +164,7 @@ contains
           call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
         if ( obsFileType == 'SQLITE' ) then
-          if (odbf_isActive()) then
+          if ( odbf_isActive() ) then
             call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
           else
             call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
@@ -307,6 +307,8 @@ contains
                 ' is not BURP nor SQLITE. Return.' 
       return
     end if
+    
+    call utl_tmg_start(23, '----ObsFileClean')
 
     do fileIndex = 1, obsf_nfiles
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
@@ -314,9 +316,15 @@ contains
       if ( obsFileType == 'BURP' ) then
         call brpr_burpClean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
       else if ( obsFileType == 'SQLITE' ) then
-        call sqlf_cleanFile( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+        if ( odbf_isActive() ) then
+          call obdf_clean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+        else
+          call sqlf_cleanFile( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+        end if
       end if
     end do
+
+    call utl_tmg_stop(23)
 
   end subroutine obsf_cleanObsFiles 
 
