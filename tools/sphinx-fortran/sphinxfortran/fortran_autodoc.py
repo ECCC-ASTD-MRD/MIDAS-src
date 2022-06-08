@@ -274,7 +274,7 @@ class F90toRst(object):
             # reversed+sorted is a hack to avoid conflicts when variables share
             # the same prefix
             if block['sortvars']:
-                sreg = r'.*\b(?P<varname>%s)\b\s*(?P<dims>\([\*:,\w]+\))?[^!\)]*!\s*(?P<vardesc>.*)\s*' % '|'.join(
+                sreg = r'.*[::,integer,real,logical]+\s*\b(?P<varname>%s)\b\s*(?P<dims>\([\*%%:,\w]+\))?[^!\)]*!\s*(?P<vardesc>.*)\s*' % '|'.join(
                     reversed(sorted(block['sortvars'])))
                 block['vardescsearch'] = re.compile(sreg, re.I).search
             else:
@@ -503,7 +503,7 @@ class F90toRst(object):
         blockname = block['name'].lower()
         ftypes = r'(?:(?:%s).*\s+)?' % fortrantypes if blocktype == 'function' else ''
         rstart = re.compile(
-            r"^\s*%s%s\s+%s\b.*$" %
+            r"^\s*(pure\s*)?%s%s\s+%s\b.*$" %
             (ftypes, blocktype, blockname), re.I).match
         rend = re.compile(r"^\s*end\s+%s\b.*$" % blocktype, re.I).match
         if isinstance(stopmatch, str):
