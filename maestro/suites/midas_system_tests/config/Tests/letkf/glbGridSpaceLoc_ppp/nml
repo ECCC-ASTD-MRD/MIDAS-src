@@ -2,11 +2,11 @@
    algorithm                = 'CVLETKF-ME'
    ensPostProcessing        = .true.
    NENS                     = 10
-   numSubEns                = 1
+   numSubEns                = 2
    MAXNUMLOCALOBS           = 10000
    WEIGHTLATLONSTEP         = 10
    HLOCALIZE                = 2000.0D0
-   VLOCALIZE                = 2.0D0
+   VLOCALIZE                = 8.0D0
    modifyAmsubObsError      = .false.
    backgroundCheck          = .false.
    huberize                 = .false.
