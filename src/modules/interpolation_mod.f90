@@ -44,18 +44,14 @@ module interpolation_mod
   ! -----------------
 
   interface int_sint
+    module procedure int_sint_gsv
     module procedure int_sint_r4_2d
-    module procedure int_sint_r4_3d
-    module procedure int_sint_r4_2dTo1d
     module procedure int_sint_r8_2d
-    module procedure int_sint_r8_3d
-    module procedure int_sint_r8_2dTo1d
   end interface int_sint
 
   interface int_uvint
+    module procedure int_uvint_gsv
     module procedure int_uvint_r4_2d
-    module procedure int_uvint_r4_2dTo1d
-    module procedure int_uvint_r8_1d
     module procedure int_uvint_r8_2d
   end interface int_uvint
 
@@ -181,18 +177,8 @@ contains
 
     ! Locals:
     integer :: varIndex, levIndex, nlev, stepIndex, ierr, kIndex
-
-    real(8), pointer :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
-    real(8), pointer :: fieldUU_in_r8_ptr(:,:,:,:), fieldUU_out_r8_ptr(:,:,:,:)
-    real(8), pointer :: fieldVV_in_r8_ptr(:,:,:,:), fieldVV_out_r8_ptr(:,:,:,:)
-    real(8), pointer :: fieldUV_in_r8_ptr(:,:,:), fieldUV_out_r8_ptr(:,:,:)
-
     character(len=4) :: varName
     character(len=12):: interpolationDegree, extrapolationDegree
-
-    integer :: ezdefset
-
-    real(8), pointer :: heightSfcIn(:,:), heightSfcOut(:,:)
 
     if ( hco_equal(statevector_in%hco,statevector_out%hco) ) then
       write(*,*) 'int_hInterp_gsv: The input and output statevectors are already on same horizontal grids'
@@ -233,27 +219,17 @@ contains
           nlev = statevector_out%varNumLev(varIndex)
 
           ! horizontal interpolation
-          ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
 
           if ( trim(varName) == 'UU' ) then
             ! interpolate both UV components and keep both UU and VV
-            call gsv_getField(statevector_in,fieldUU_in_r8_ptr,'UU')
-            call gsv_getField(statevector_out,fieldUU_out_r8_ptr,'UU')
-            call gsv_getField(statevector_in,fieldVV_in_r8_ptr,'VV')
-            call gsv_getField(statevector_out,fieldVV_out_r8_ptr,'VV')
             do levIndex = 1, nlev
-              ierr = int_uvint( fieldUU_out_r8_ptr(:,:,levIndex,stepIndex), fieldVV_out_r8_ptr(:,:,levIndex,stepIndex), &
-                                fieldUU_in_r8_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r8_ptr(:,:,levIndex,stepIndex),  & 
-                                statevector_out%hco, statevector_in%hco,                                                &
+              ierr = int_uvint( statevector_out, statevector_in, 'BOTH', levIndex, stepIndex, &
                                 interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
             end do
           else
             ! interpolate scalar variable
-            call gsv_getField(statevector_in, field_in_r8_ptr, varName)
-            call gsv_getField(statevector_out, field_out_r8_ptr, varName)
             do levIndex = 1, nlev
-              ierr = int_sint( field_out_r8_ptr(:,:,levIndex,stepIndex), field_in_r8_ptr(:,:,levIndex,stepIndex),  &
-                               statevector_out%hco, statevector_in%hco,                                                &
+              ierr = int_sint( statevector_out, statevector_in, varName, levIndex, stepIndex, &
                                interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
             end do
           end if
@@ -276,34 +252,18 @@ contains
           if ( .not. gsv_varExist(statevector_in,varName) ) cycle k_loop
 
           ! horizontal interpolation
-          ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
 
           if ( trim(varName) == 'UU' ) then
             ! interpolate both UV components and keep UU in main vector
-            call gsv_getField(statevector_in,fieldUU_in_r8_ptr)
-            call gsv_getField(statevector_out,fieldUU_out_r8_ptr)
-            call gsv_getFieldUV(statevector_in,fieldUV_in_r8_ptr,kIndex)
-            call gsv_getFieldUV(statevector_out,fieldUV_out_r8_ptr,kIndex)
-            ierr = int_uvint( fieldUU_out_r8_ptr(:,:,kIndex,stepIndex), fieldUV_out_r8_ptr(:,:,stepIndex), &
-                              fieldUU_in_r8_ptr(:,:,kIndex,stepIndex),  fieldUV_in_r8_ptr(:,:,stepIndex),  &
-                              statevector_out%hco, statevector_in%hco,                                     &
-                              interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
+            ierr = int_uvint( statevector_out, statevector_in, 'UU', kIndex, stepIndex, &
+                              interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
           else if ( trim(varName) == 'VV' ) then
             ! interpolate both UV components and keep VV in main vector
-            call gsv_getFieldUV(statevector_in,fieldUV_in_r8_ptr,kIndex)
-            call gsv_getFieldUV(statevector_out,fieldUV_out_r8_ptr,kIndex)
-            call gsv_getField(statevector_in,fieldVV_in_r8_ptr)
-            call gsv_getField(statevector_out,fieldVV_out_r8_ptr)
-            ierr = int_uvint( fieldUV_out_r8_ptr(:,:,stepIndex), fieldVV_out_r8_ptr(:,:,kIndex,stepIndex), &
-                              fieldUV_in_r8_ptr(:,:,stepIndex),  fieldVV_in_r8_ptr(:,:,kIndex,stepIndex),  &
-                              statevector_out%hco, statevector_in%hco,                                     &
-                              interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
+            ierr = int_uvint( statevector_out, statevector_in, 'VV', kIndex, stepIndex, &
+                              interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
           else
             ! interpolate scalar variable
-            call gsv_getField(statevector_in,field_in_r8_ptr)
-            call gsv_getField(statevector_out,field_out_r8_ptr)
-            ierr = int_sint( field_out_r8_ptr(:,:,kIndex,stepIndex), field_in_r8_ptr(:,:,kIndex,stepIndex), &
-                             statevector_out%hco, statevector_in%hco,                                       &
+            ierr = int_sint( statevector_out, statevector_in, 'ALL', kIndex, stepIndex, &
                              interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
           end if
         end do k_loop
@@ -313,12 +273,8 @@ contains
     end if
 
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
-      heightSfcIn => gsv_getHeightSfc(statevector_in)
-      heightSfcOut => gsv_getHeightSfc(statevector_out)
       write(*,*) 'int_hInterp_gsv: interpolating surface height'
-      ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-      ierr = int_sint( heightSfcOut(:,:), heightSfcIn(:,:),     &
-                       statevector_out%hco, statevector_in%hco, &
+      ierr = int_sint( statevector_out, statevector_in, 'ZSFC', 1, 1, &
                        interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
@@ -339,17 +295,8 @@ contains
 
     ! Locals:
     integer :: varIndex, levIndex, nlev, stepIndex, ierr, kIndex
-
-    real(4), pointer :: field_in_r4_ptr(:,:,:,:), field_out_r4_ptr(:,:,:,:)
-    real(4), pointer :: fieldUU_in_r4_ptr(:,:,:,:), fieldUU_out_r4_ptr(:,:,:,:)
-    real(4), pointer :: fieldVV_in_r4_ptr(:,:,:,:), fieldVV_out_r4_ptr(:,:,:,:)
-    real(4), pointer :: fieldUV_in_r4_ptr(:,:,:), fieldUV_out_r4_ptr(:,:,:)
-
     character(len=4) :: varName
     character(len=12):: interpolationDegree, extrapolationDegree
-    integer :: ezdefset
-
-    real(8), pointer :: heightSfcIn(:,:), heightSfcOut(:,:)
 
     if ( hco_equal(statevector_in%hco,statevector_out%hco) ) then
       write(*,*) 'int_hInterp_gsv_r4: The input and output statevectors are already on same horizontal grids'
@@ -390,27 +337,17 @@ contains
           nlev = statevector_out%varNumLev(varIndex)
 
           ! horizontal interpolation
-          ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
 
           if ( trim(varName) == 'UU' ) then
             ! interpolate both UV components and keep both UU and VV
-            call gsv_getField(statevector_in,fieldUU_in_r4_ptr,'UU')
-            call gsv_getField(statevector_out,fieldUU_out_r4_ptr,'UU')
-            call gsv_getField(statevector_in,fieldVV_in_r4_ptr,'VV')
-            call gsv_getField(statevector_out,fieldVV_out_r4_ptr,'VV')
             do levIndex = 1, nlev
-              ierr = int_uvint( fieldUU_out_r4_ptr(:,:,levIndex,stepIndex), fieldVV_out_r4_ptr(:,:,levIndex,stepIndex), &
-                                fieldUU_in_r4_ptr(:,:,levIndex,stepIndex),  fieldVV_in_r4_ptr(:,:,levIndex,stepIndex),  &
-                                statevector_out%hco, statevector_in%hco,                                                &
+              ierr = int_uvint( statevector_out, statevector_in, 'BOTH', levIndex, stepIndex, &
                                 interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
             end do
           else
             ! interpolate scalar variable
-            call gsv_getField(statevector_in, field_in_r4_ptr, varName)
-            call gsv_getField(statevector_out, field_out_r4_ptr, varName)
             do levIndex = 1, nlev
-              ierr = int_sint( field_out_r4_ptr(:,:,levIndex,stepIndex), field_in_r4_ptr(:,:,levIndex,stepIndex),  &
-                               statevector_out%hco, statevector_in%hco,                                            &
+              ierr = int_sint( statevector_out, statevector_in, varName, levIndex, stepIndex, &
                                interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
             end do
           end if
@@ -433,34 +370,18 @@ contains
           if ( .not. gsv_varExist(statevector_in,varName) ) cycle k_loop
 
           ! horizontal interpolation
-          ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
 
           if ( trim(varName) == 'UU' ) then
             ! interpolate both UV components and keep UU
-            call gsv_getField(statevector_in,fieldUU_in_r4_ptr)
-            call gsv_getField(statevector_out,fieldUU_out_r4_ptr)
-            call gsv_getFieldUV(statevector_in,fieldUV_in_r4_ptr,kIndex)
-            call gsv_getFieldUV(statevector_out,fieldUV_out_r4_ptr,kIndex)
-            ierr = int_uvint( fieldUU_out_r4_ptr(:,:,kIndex,stepIndex), fieldUV_out_r4_ptr(:,:,stepIndex), &
-                              fieldUU_in_r4_ptr(:,:,kIndex,stepIndex),  fieldUV_in_r4_ptr(:,:,stepIndex),  &
-                              statevector_out%hco, statevector_in%hco,                                     &
-                              interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
+            ierr = int_uvint( statevector_out, statevector_in, 'UU', kIndex, stepIndex, &
+                              interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
           else if ( trim(varName) == 'VV' ) then
             ! interpolate both UV components and keep VV
-            call gsv_getFieldUV(statevector_in,fieldUV_in_r4_ptr,kIndex)
-            call gsv_getFieldUV(statevector_out,fieldUV_out_r4_ptr,kIndex)
-            call gsv_getField(statevector_in,fieldVV_in_r4_ptr)
-            call gsv_getField(statevector_out,fieldVV_out_r4_ptr)
-            ierr = int_uvint( fieldUV_out_r4_ptr(:,:,stepIndex), fieldVV_out_r4_ptr(:,:,kIndex,stepIndex), &
-                              fieldUV_in_r4_ptr(:,:,stepIndex),  fieldVV_in_r4_ptr(:,:,kIndex,stepIndex),  &
-                              statevector_out%hco, statevector_in%hco,                                     &
-                              interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) ) 
+            ierr = int_uvint( statevector_out, statevector_in, 'VV', kIndex, stepIndex, &
+                              interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
           else
             ! interpolate scalar variable
-            call gsv_getField(statevector_in,field_in_r4_ptr)
-            call gsv_getField(statevector_out,field_out_r4_ptr)
-            ierr = int_sint( field_out_r4_ptr(:,:,kIndex,stepIndex), field_in_r4_ptr(:,:,kIndex,stepIndex),  &
-                             statevector_out%hco, statevector_in%hco,                                        &
+            ierr = int_sint( statevector_out, statevector_in, 'ALL', kIndex, stepIndex, &
                              interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
           end if
         end do k_loop
@@ -470,12 +391,8 @@ contains
     end if
 
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out)) then
-      heightSfcIn => gsv_getHeightSfc(statevector_in)
-      heightSfcOut => gsv_getHeightSfc(statevector_out)
       write(*,*) 'int_hInterp_gsv_r4: interpolating surface height'
-      ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
-      ierr = int_sint( heightSfcOut(:,:), heightSfcIn(:,:),     &
-                       statevector_out%hco, statevector_in%hco, &
+      ierr = int_sint( statevector_out, statevector_in, 'ZSFC', 1, 1, &
                        interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
@@ -1292,24 +1209,95 @@ contains
   end subroutine int_setezopt
 
 
-  function int_sint_r4_3d(zout4, zin4, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
+  function int_sint_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex, &
+                        interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
     ! arguments
-    real(4) :: zout4(:,:,:), zin4(:,:,:)
-    type(struct_hco), pointer :: hco_out, hco_in
-    integer :: ierr
+    type(struct_gsv) :: stateVectorOut
+    type(struct_gsv) :: stateVectorIn
+    character(len=*) :: varName
+    integer          :: levIndex
+    integer          :: stepIndex
     character(len=*)           :: interpDegree
     character(len=*), optional :: extrapDegree_opt
+    integer :: ierr
 
     ! locals
-    integer :: ezsint
+    real(4), pointer :: zout4(:,:,:,:), zin4(:,:,:,:)
+    real(8), pointer :: zout8(:,:,:,:), zin8(:,:,:,:)
+    real(8), pointer :: heightSfcOut(:,:), heightSfcIn(:,:)
+    integer :: ezsint, ezdefset
 
+    write(*,*) 'int_sint_gsv: starting'
+
+    ! check if special interpolation is required
+    if (stateVectorIn%hco%initialized .and. stateVectorOut%hco%initialized) then
+      if (stateVectorIn%hco%grtyp == 'Y') then
+        ! for now, only comptable for real(4)
+        if(stateVectorOut%dataKind /= 4 .or. stateVectorIn%dataKind /= 4) then
+          call utl_abort('int_sint_gsv: cloudToGrid only implemented for real(4)')
+        end if
+        ierr = int_sintCloudToGrid_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex)
+        return
+      end if
+    end if
+
+    ! do the standard interpolation
+
+    ierr = ezdefset(stateVectorOut%hco%EZscintID, stateVectorIn%hco%EZscintID)
     call int_setezopt(interpDegree, extrapDegree_opt)   
 
-    ierr = ezsint(zout4,zin4)
+    if (trim(varName) == 'ZSFC') then
 
-  end function int_sint_r4_3d
+      heightSfcIn  => gsv_getHeightSfc(stateVectorIn)
+      heightSfcOut => gsv_getHeightSfc(stateVectorOut)
+
+      ! allocate real(4) buffers and copy to/from for interpolation
+      allocate(zin4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
+      allocate(zout4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
+      zin4(:,:,1,1) = heightSfcIn(:,:)
+      ierr = ezsint(zout4(:,:,1,1),zin4(:,:,1,1))
+      heightSfcOut(:,:) = zout4(:,:,1,1)
+      deallocate(zin4,zout4)
+
+    else if (stateVectorOut%dataKind == 4 .and. stateVectorIn%dataKind == 4) then
+
+      if (trim(varName) == 'ALL') then
+        call gsv_getField(stateVectorOut, zout4)
+        call gsv_getField(stateVectorIn,  zin4)
+     else
+        call gsv_getField(stateVectorOut, zout4, varName)
+        call gsv_getField(stateVectorIn,  zin4,  varName)
+      end if
+
+      ierr = ezsint(zout4(:,:,levIndex,stepIndex),zin4(:,:,levIndex,stepIndex))
+
+    else if (stateVectorOut%dataKind == 8 .and. stateVectorIn%dataKind == 8) then
+
+      if (trim(varName) == 'ALL') then
+        call gsv_getField(stateVectorOut, zout8)
+        call gsv_getField(stateVectorIn,  zin8)
+      else
+        call gsv_getField(stateVectorOut, zout8, varName)
+        call gsv_getField(stateVectorIn,  zin8,  varName)
+      end if
+
+      ! allocate real(4) buffers and copy to/from for interpolation
+      allocate(zin4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
+      allocate(zout4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
+      zin4(:,:,1,1) = zin8(:,:,levIndex,stepIndex)
+      ierr = ezsint(zout4(:,:,1,1),zin4(:,:,1,1))
+      zout8(:,:,levIndex,stepIndex) = zout4(:,:,1,1)
+      deallocate(zin4,zout4)
+
+    else
+
+      call utl_abort('int_sint_gsv: not implemented for mixed dataKind')
+
+    end if
+
+  end function int_sint_gsv
 
 
   function int_sint_r4_2d(zout4, zin4, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
@@ -1323,30 +1311,31 @@ contains
     character(len=*), optional :: extrapDegree_opt
 
     ! locals
-    integer :: ezsint
+    integer :: ezsint, ezdefset
 
     ! check if special interpolation is required
     if (hco_in%initialized .and. hco_out%initialized) then
+      ierr = ezdefset(hco_out%EZscintID, hco_in%EZscintID)
       if (hco_in%grtyp == 'Y') then
-        ierr = int_sintCloudToGrid_r4_2d(zout4, zin4, hco_out, hco_in)
+        call utl_abort('int_sint_r4_2d: not implemented for cloud to grid')
         return
       end if
     end if
 
     ! do the standard interpolation
-
     call int_setezopt(interpDegree, extrapDegree_opt)   
     ierr = ezsint(zout4,zin4)
 
   end function int_sint_r4_2d
 
 
-  function int_sintCloudToGrid_r4_2d(fieldGrid, fieldCloud, hcoGrid, hcoCloud) result(ierr)
+  function int_sintCloudToGrid_gsv(stateVectorGrid, stateVectorCloud, varName, levIndex, stepIndex) result(ierr)
     implicit none
 
     ! arguments
-    real(4)                   :: fieldGrid(:,:), fieldCloud(:,:)
-    type(struct_hco), pointer :: hcoGrid, hcoCloud
+    type(struct_gsv)          :: stateVectorGrid, stateVectorCloud
+    character(len=*)          :: varName
+    integer                   :: levIndex, stepIndex
     integer                   :: ierr
 
     ! locals
@@ -1355,15 +1344,27 @@ contains
     integer :: top, bottom, left, right, np, lonIndexCloud, latIndexCloud, k, l, m, lonIndexGrid, latIndexGrid
     integer :: in(8), jn(8), ngp, nfill, nhole, nextrap0, nextrap1
     integer, allocatable :: icount(:,:), maskGrid(:,:), maskCloud(:,:)
+    real(4), pointer     :: fieldCloud_4d(:,:,:,:), fieldGrid_4d(:,:,:,:)
+    real(4), pointer     :: fieldCloud(:,:), fieldGrid(:,:)
     real(4), allocatable :: xCloud(:,:), yCloud(:,:)
     real(4) :: extrapValue
 
     extrapValue = 0.0
 
-    niCloud = hcoCloud%ni
-    njCloud = hcoCloud%nj
-    niGrid  = hcoGrid%ni
-    njGrid  = hcoGrid%nj
+    niCloud = stateVectorCloud%hco%ni
+    njCloud = stateVectorCloud%hco%nj
+    niGrid  = stateVectorGrid%hco%ni
+    njGrid  = stateVectorGrid%hco%nj
+
+    if (trim(varName) == 'ALL') then
+      call gsv_getField(stateVectorGrid,  fieldGrid_4d)
+      call gsv_getField(stateVectorCloud, fieldCloud_4d)
+    else
+      call gsv_getField(stateVectorGrid,  fieldGrid_4d,  varName)
+      call gsv_getField(stateVectorCloud, fieldCloud_4d, varName)
+    end if
+    fieldGrid  => fieldGrid_4d(:,:,levIndex,stepIndex)
+    fieldCloud => fieldCloud_4d(:,:,levIndex,stepIndex)
 
     allocate(xCloud(niCloud, njCloud))
     allocate(yCloud(niCloud, njCloud))
@@ -1371,19 +1372,30 @@ contains
     allocate(maskCloud(niCloud, njCloud))
     allocate(maskGrid(niGrid, njGrid))
 
-    ! for now set masks to 1 everywhere
-    maskCloud(:,:) = 1
+    ! set masks based on oceanMasks (if present)
+    if (stateVectorCloud%oceanMask%maskPresent) then
+      maskCloud(:,:) = 0
+      if (trim(varName) == 'ALL') then
+        where(stateVectorCloud%oceanMask%mask(:,:,gsv_getLevFromK(stateVectorCloud,levIndex))) maskCloud(:,:) = 1
+      else
+        where(stateVectorCloud%oceanMask%mask(:,:,levIndex)) maskCloud(:,:) = 1
+      end if
+    else
+      maskCloud(:,:) = 1
+    end if
     maskGrid(:,:)  = 1
 
     ! Calcul des pos. x-y des eclairs sur la grille modele
-    ierr = gdxyfll(hcoGrid%EZscintID, xCloud, yCloud, &
-                   hcoCloud%lat2d_4*MPC_DEGREES_PER_RADIAN_R4, &
-                   hcoCloud%lon2d_4*MPC_DEGREES_PER_RADIAN_R4, &
-                   hcoCloud%ni*hcoCloud%nj)
+    ierr = gdxyfll(stateVectorGrid%hco%EZscintID, xCloud, yCloud, &
+                   stateVectorCloud%hco%lat2d_4*MPC_DEGREES_PER_RADIAN_R4, &
+                   stateVectorCloud%hco%lon2d_4*MPC_DEGREES_PER_RADIAN_R4, &
+                   stateVectorCloud%hco%ni*stateVectorCloud%hco%nj)
 
     write(*,*) 'xCloud, yCloud, lonCloud, latCloud = ', xCloud(1,1), yCloud(1,1),  &
-               hcoCloud%lon2d_4(1,1)*MPC_DEGREES_PER_RADIAN_R4, &
-               hcoCloud%lat2d_4(1,1)*MPC_DEGREES_PER_RADIAN_R4
+               stateVectorCloud%hco%lon2d_4(1,1)*MPC_DEGREES_PER_RADIAN_R4, &
+               stateVectorCloud%hco%lat2d_4(1,1)*MPC_DEGREES_PER_RADIAN_R4
+
+    write(*,*) 'shape(fieldCloud) = ', shape(fieldCloud), niCloud, njCloud
 
     fieldGrid(:,:) = 0.0
     icount(:,:) = 0
@@ -1479,7 +1491,7 @@ contains
               nextrap0 = nextrap0 + 1
             else
               write(*,*) 'Expecting 0 or 1 for the mask field at grid point: ',lonIndexGrid,latIndexGrid
-              call utl_abort('int_sintCloudToGrid_r4_2d')
+              call utl_abort('int_sintCloudToGrid_gsv')
             end if
           end if
 
@@ -1502,80 +1514,7 @@ contains
 
     ierr = 0
 
-  end function int_sintCloudToGrid_r4_2d
-
-
-  function int_sint_r4_2dTo1d(zout4, zin4, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
-    implicit none
-
-    ! arguments
-    real(4) :: zout4(:), zin4(:,:)
-    type(struct_hco), pointer :: hco_out, hco_in
-    integer :: ierr
-    character(len=*)           :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
-
-    ! locals
-    integer :: ezsint
-
-    call int_setezopt(interpDegree, extrapDegree_opt)   
-
-    ierr = ezsint(zout4,zin4)
-
-  end function int_sint_r4_2dTo1d
-
-
-  function int_sint_r8_3d(zout8, zin8, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
-    implicit none
-
-    ! arguments
-    real(8) :: zout8(:,:,:), zin8(:,:,:)
-    type(struct_hco), pointer :: hco_out, hco_in
-    integer :: ierr
-    character(len=*)           :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
-
-    ! locals
-    integer :: nii, nji, nki, nio, njo, nko     
-    integer :: jk1, jk2, jk3
-    real(4), allocatable :: bufferi4(:,:,:), buffero4(:,:,:)
-    integer :: ezsint
-
-    call int_setezopt(interpDegree, extrapDegree_opt)   
-
-    nii = size(zin8,1)
-    nji = size(zin8,2)
-    nki = size(zin8,3)
-
-    nio = size(zout8,1)
-    njo = size(zout8,2)
-    nko = size(zout8,3)
-
-    allocate(bufferi4(nii,nji,nki))
-    allocate(buffero4(nio,njo,nko))
-
-    do jk3 = 1,nki
-      do jk2 = 1,nji
-        do jk1 = 1,nii
-          bufferi4(jk1,jk2,jk3) = zin8(jk1,jk2,jk3)
-        end do
-      end do
-    end do
-
-    ierr = ezsint(buffero4,bufferi4)
-
-    do jk3 = 1,nko
-      do jk2 = 1,njo
-        do jk1 = 1,nio
-          zout8(jk1,jk2,jk3) = buffero4(jk1,jk2,jk3)
-        end do
-      end do
-    end do
-
-    deallocate(bufferi4)
-    deallocate(buffero4)
-
-  end function int_sint_r8_3d
+  end function int_sintCloudToGrid_gsv
 
 
   function int_sint_r8_2d(zout8, zin8, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
@@ -1592,12 +1531,13 @@ contains
     integer :: nii, nji, nio, njo     
     integer :: jk1, jk2
     real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
-    integer :: ezsint
+    integer :: ezsint, ezdefset
 
     ! check if special interpolation is required
     if (hco_in%initialized .and. hco_out%initialized) then
+      ierr = ezdefset(hco_out%EZscintID, hco_in%EZscintID)
       if (hco_in%grtyp == 'Y') then
-        ierr = int_sintCloudToGrid_r8_2d(zout8, zin8, hco_out, hco_in)
+        call utl_abort('int_sint_r8_2d: cloudToGrid not implemented')
         return
       end if
     end if
@@ -1635,64 +1575,121 @@ contains
   end function int_sint_r8_2d
 
 
-  function int_sintCloudToGrid_r8_2d(zout8, zin8, hco_out, hco_in) result(ierr)
+  function int_uvint_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex, &
+                        interpDegree, extrapDegree_opt) result(ierr)
     implicit none
 
     ! arguments
-    real(8)                   :: zout8(:,:), zin8(:,:)
-    type(struct_hco), pointer :: hco_out, hco_in
-    integer                   :: ierr
-
-    ! locals
-
-    call utl_abort('int_sintCloudToGrid_r8_2d: not implemented yet')
-    ierr = 0
-
-  end function int_sintCloudToGrid_r8_2d
-
-
-  function int_sint_r8_2dTo1d(zout8, zin8, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
-    implicit none
-
-    ! arguments
-    real(8) :: zout8(:), zin8(:,:)
-    type(struct_hco), pointer :: hco_out, hco_in
-    integer :: ierr
+    type(struct_gsv) :: stateVectorOut
+    type(struct_gsv) :: stateVectorIn
+    character(len=*) :: varName
+    integer          :: levIndex
+    integer          :: stepIndex
     character(len=*)           :: interpDegree
     character(len=*), optional :: extrapDegree_opt
+    integer :: ierr
 
     ! locals
-    integer :: nii, nji, nio
-    integer :: jk1, jk2
-    real(4), allocatable :: bufferi4(:,:), buffero4(:)
-    integer :: ezsint
+    real(4), pointer :: UUout4(:,:,:,:), VVout4(:,:,:,:), UUin4(:,:,:,:), VVin4(:,:,:,:)
+    real(8), pointer :: UUout8(:,:,:,:), VVout8(:,:,:,:), UUin8(:,:,:,:), VVin8(:,:,:,:)
+    real(4), pointer :: UVout4(:,:,:), UVin4(:,:,:)
+    real(8), pointer :: UVout8(:,:,:), UVin8(:,:,:)
+    integer :: ezuvint, ezdefset
 
+    write(*,*) 'int_uvint_gsv: starting'
+
+    ! check if special interpolation is required
+    if (stateVectorIn%hco%initialized .and. stateVectorOut%hco%initialized) then
+      if (stateVectorIn%hco%grtyp == 'Y') then
+        call utl_abort('int_uvint_gsv: cloudToGrid not implemented')
+      end if
+    end if
+
+    ! do the standard interpolation
+
+    ierr = ezdefset(stateVectorOut%hco%EZscintID, stateVectorIn%hco%EZscintID)
     call int_setezopt(interpDegree, extrapDegree_opt)   
 
-    nii = size(zin8,1)
-    nji = size(zin8,2)
+    if (stateVectorOut%dataKind == 4 .and. stateVectorIn%dataKind == 4) then
 
-    nio = size(zout8,1)
+      if (trim(varName) == 'BOTH') then
+        call gsv_getField(stateVectorOut, UUout4, 'UU')
+        call gsv_getField(stateVectorOut, VVout4, 'VV')
+        call gsv_getField(stateVectorIn,  UUin4,  'UU')
+        call gsv_getField(stateVectorIn,  VVin4,  'VV')
+        ierr = ezuvint(UUout4(:,:,levIndex,stepIndex),VVout4(:,:,levIndex,stepIndex), &
+                       UUin4(:,:,levIndex,stepIndex), VVin4(:,:,levIndex,stepIndex))
+      else if (trim(varName) == 'UU') then
+        call gsv_getField  (stateVectorIn,  UUin4)
+        call gsv_getField  (stateVectorOut, UUout4)
+        call gsv_getFieldUV(stateVectorIn,  UVin4,  levIndex)
+        call gsv_getFieldUV(stateVectorOut, UVout4, levIndex)
+        ierr = ezuvint(UUout4(:,:,levIndex,stepIndex),UVout4(:,:,stepIndex), &
+                       UUin4(:,:,levIndex,stepIndex), UVin4(:,:,stepIndex))
+      else if (trim(varName) == 'VV') then
+        call gsv_getField  (stateVectorIn,  VVin4)
+        call gsv_getField  (stateVectorOut, VVout4)
+        call gsv_getFieldUV(stateVectorIn,  UVin4,  levIndex)
+        call gsv_getFieldUV(stateVectorOut, UVout4, levIndex)
+        ierr = ezuvint(UVout4(:,:,stepIndex),VVout4(:,:,levIndex,stepIndex), &
+                       UVin4(:,:,stepIndex), VVin4(:,:,levIndex,stepIndex))
+      else
+        write(*,*) 'varName = ', trim(varName)
+        call utl_abort('int_uvint_gsv: unexpected varName')
+      end if
 
-    allocate(bufferi4(nii,nji))
-    allocate(buffero4(nio))
+    else if (stateVectorOut%dataKind == 8 .and. stateVectorIn%dataKind == 8) then
 
-    do jk2 = 1,nji
-      do jk1 = 1,nii
-        bufferi4(jk1,jk2) = zin8(jk1,jk2)
-      end do
-    end do
+      ! allocate real(4) buffers for copying to/from for interpolation
+      allocate(UUin4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
+      allocate(VVin4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
+      allocate(UUout4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
+      allocate(VVout4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
 
-    ierr = ezsint(buffero4,bufferi4)
+      if (trim(varName) == 'BOTH') then
+        call gsv_getField(stateVectorOut, UUout8, 'UU')
+        call gsv_getField(stateVectorOut, VVout8, 'VV')
+        call gsv_getField(stateVectorIn,  UUin8,  'UU')
+        call gsv_getField(stateVectorIn,  VVin8,  'VV')
+        UUin4(:,:,1,1) = UUin8(:,:,levIndex,stepIndex)
+        VVin4(:,:,1,1) = VVin8(:,:,levIndex,stepIndex)
+        ierr = ezuvint(UUout4(:,:,1,1),VVout4(:,:,1,1),UUin4(:,:,1,1),VVin4(:,:,1,1))
+        UUout8(:,:,levIndex,stepIndex) = UUout4(:,:,1,1)
+        VVout8(:,:,levIndex,stepIndex) = VVout4(:,:,1,1)
+      else if (trim(varName) == 'UU') then
+        call gsv_getField  (stateVectorIn,  UUin8)
+        call gsv_getField  (stateVectorOut, UUout8)
+        call gsv_getFieldUV(stateVectorIn,  UVin8,  levIndex)
+        call gsv_getFieldUV(stateVectorOut, UVout8, levIndex)
+        UUin4(:,:,1,1) = UUin8(:,:,levIndex,stepIndex)
+        VVin4(:,:,1,1) = UVin8(:,:,stepIndex)
+        ierr = ezuvint(UUout4(:,:,1,1),VVout4(:,:,1,1),UUin4(:,:,1,1),VVin4(:,:,1,1))
+        UUout8(:,:,levIndex,stepIndex) = UUout4(:,:,1,1)
+        UVout8(:,:,stepIndex)          = VVout4(:,:,1,1)
+      else if (trim(varName) == 'VV') then
+        call gsv_getField  (stateVectorIn,  VVin8)
+        call gsv_getField  (stateVectorOut, VVout8)
+        call gsv_getFieldUV(stateVectorIn,  UVin8,  levIndex)
+        call gsv_getFieldUV(stateVectorOut, UVout8, levIndex)
+        UUin4(:,:,1,1) = UVin8(:,:,stepIndex)
+        VVin4(:,:,1,1) = VVin8(:,:,levIndex,stepIndex)
+        ierr = ezuvint(UUout4(:,:,1,1),VVout4(:,:,1,1),UUin4(:,:,1,1),VVin4(:,:,1,1))
+        UVout8(:,:,stepIndex)          = UUout4(:,:,1,1)
+        VVout8(:,:,levIndex,stepIndex) = VVout4(:,:,1,1)
+      else
+        write(*,*) 'varName = ', trim(varName)
+        call utl_abort('int_uvint_gsv: unexpected varName')
+      end if
 
-    do jk1 = 1,nio
-      zout8(jk1) = buffero4(jk1)
-    end do
+      deallocate(UUin4,VVin4,UUout4,VVout4)
 
-    deallocate(bufferi4)
-    deallocate(buffero4)
+    else
 
-  end function int_sint_r8_2dTo1d
+      call utl_abort('int_uvint_gsv: not implemented for mixed dataKind')
+
+    end if
+
+  end function int_uvint_gsv
 
 
   function int_uvint_r4_2d(uuout, vvout, uuin, vvin, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
@@ -1707,108 +1704,22 @@ contains
     integer :: ierr
 
     ! locals
-    integer :: ezuvint
+    integer :: ezuvint, ezdefset
 
     ! check if special interpolation is required
     if (hco_in%initialized .and. hco_out%initialized) then
+      ierr = ezdefset(hco_out%EZscintID, hco_in%EZscintID)
       if (hco_in%grtyp == 'Y') then
-        ierr = int_uvintCloudToGrid_r4_2d(uuout, vvout, uuin, vvin, hco_out, hco_in)
+        call utl_abort('int_uvint_r4_2d: cloudToGrid not implemented')
         return
       end if
     end if
 
     ! do the standard interpolation
-
     call int_setezopt(interpDegree, extrapDegree_opt)   
     ierr = ezuvint(uuout, vvout, uuin, vvin)
 
   end function int_uvint_r4_2d
-
-
-  function int_uvintCloudToGrid_r4_2d(uuout, vvout, uuin, vvin, hco_out, hco_in) result(ierr)
-    implicit none
-
-    ! arguments
-    real(4)                   :: uuout(:,:), vvout(:,:)
-    real(4)                   :: uuin(:,:) , vvin(:,:)
-    type(struct_hco), pointer :: hco_out, hco_in
-    integer                   :: ierr
-
-    ! locals
-
-    call utl_abort('int_uvintCloudToGrid_r4_2d: not implemented yet')
-    ierr = 0
-
-  end function int_uvintCloudToGrid_r4_2d
-
-
-  function int_uvint_r4_2dTo1d(uuout, vvout, uuin, vvin, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
-    implicit none
-
-    ! arguments
-    real(4) :: uuout(:), vvout(:)
-    real(4) :: uuin(:,:), vvin(:,:)
-    type(struct_hco), pointer :: hco_out, hco_in
-    character(len=*)           :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
-    integer :: ierr
-
-    ! locals
-    integer :: ezuvint
-
-    call int_setezopt(interpDegree, extrapDegree_opt)   
-
-    ierr = ezuvint(uuout, vvout, uuin, vvin)
-
-  end function int_uvint_r4_2dTo1d
-
-
-  function int_uvint_r8_1d(uuout, vvout, uuin, vvin, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
-    implicit none
-
-    ! arguments
-    real(8) :: uuout(:), vvout(:)
-    real(8) :: uuin(:) , vvin(:)
-    type(struct_hco), pointer :: hco_out, hco_in
-    character(len=*)           :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
-    integer :: ierr
-
-    ! locals
-    integer :: nio, nii
-    integer :: jk1
-    real, allocatable :: bufuuout4(:), bufvvout4(:)
-    real, allocatable :: bufuuin4(:), bufvvin4(:)
-    integer :: ezuvint
-
-    call int_setezopt(interpDegree, extrapDegree_opt)   
-
-    nii = size(uuin)
-    nio = size(uuout)
-
-    allocate(bufuuout4(nio))
-    allocate(bufvvout4(nio))
-    allocate(bufuuin4(nii))
-    allocate(bufvvin4(nii))
-
-    do jk1 = 1,nii
-      bufuuin4(jk1) = uuin(jk1)
-      bufvvin4(jk1) = vvin(jk1)
-    end do
-
-    ierr = ezuvint(bufuuout4, bufvvout4, bufuuin4, bufvvin4)
-
-    do jk1 = 1,nio
-      uuout(jk1) = bufuuout4(jk1)
-      vvout(jk1) = bufvvout4(jk1)
-    end do
-
-    deallocate(bufuuin4)
-    deallocate(bufvvin4)
-    deallocate(bufuuout4)
-    deallocate(bufvvout4)
-
-  end function int_uvint_r8_1d
 
 
   function int_uvint_r8_2d(uuout, vvout, uuin, vvin, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
@@ -1827,12 +1738,13 @@ contains
     integer :: jk1, jk2
     real, allocatable :: bufuuout4(:,:), bufvvout4(:,:)
     real, allocatable :: bufuuin4(:,:), bufvvin4(:,:)
-    integer :: ezuvint
+    integer :: ezuvint, ezdefset
 
     ! check if special interpolation is required
     if (hco_in%initialized .and. hco_out%initialized) then
+      ierr = ezdefset(hco_out%EZscintID, hco_in%EZscintID)
       if (hco_in%grtyp == 'Y') then
-        ierr = int_uvintCloudToGrid_r8_2d(uuout, vvout, uuin, vvin, hco_out, hco_in)
+        call utl_abort('int_uvint_r8_2d: cloudToGrid not implemented')
         return
       end if
     end if
@@ -1874,23 +1786,6 @@ contains
     deallocate(bufvvout4)
 
   end function int_uvint_r8_2d
-
-
-  function int_uvintCloudToGrid_r8_2d(uuout, vvout, uuin, vvin, hco_out, hco_in) result(ierr)
-    implicit none
-
-    ! arguments
-    real(8)                   :: uuout(:,:), vvout(:,:)
-    real(8)                   :: uuin(:,:) , vvin(:,:)
-    type(struct_hco), pointer :: hco_out, hco_in
-    integer                   :: ierr
-
-    ! locals
-
-    call utl_abort('int_uvintCloudToGrid_r8_2d: not implemented yet')
-    ierr = 0
-
-  end function int_uvintCloudToGrid_r8_2d
 
 
   function int_ezgdef(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4, ax, ay) result(vezgdef)

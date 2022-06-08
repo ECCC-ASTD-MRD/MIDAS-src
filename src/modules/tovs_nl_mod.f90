@@ -3307,7 +3307,7 @@ contains
     ! fields on input grid
     real(8), allocatable :: glace(:,:), neige(:,:), alb(:,:)
     ! fields on output grid
-    real(8)              :: glace_intrpl(nprf), neige_intrpl(nprf), alb_intrpl(nprf)
+    real(8)              :: glace_intrpl(nprf,1), neige_intrpl(nprf,1), alb_intrpl(nprf,1)
 
 
     ! printout header
@@ -3526,9 +3526,9 @@ contains
     ! assign surface caracteristics to observation profiles
 
     do jn=1, nprf
-      tvs_surfaceParameters(sensorTovsIndexes(jn))%ice      = glace_intrpl(jn)
-      tvs_surfaceParameters(sensorTovsIndexes(jn))%snow     = neige_intrpl(jn)
-      tvs_surfaceParameters(sensorTovsIndexes(jn))%albedo   = alb_intrpl(jn)
+      tvs_surfaceParameters(sensorTovsIndexes(jn))%ice      = glace_intrpl(jn,1)
+      tvs_surfaceParameters(sensorTovsIndexes(jn))%snow     = neige_intrpl(jn,1)
+      tvs_surfaceParameters(sensorTovsIndexes(jn))%albedo   = alb_intrpl(jn,1)
     end do
 
     deallocate(glace,neige,alb)

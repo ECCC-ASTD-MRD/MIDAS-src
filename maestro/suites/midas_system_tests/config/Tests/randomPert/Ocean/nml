@@ -14,6 +14,7 @@
    DATE=-1
    REMOVE_MEAN=T
    MPITOPOINDEPENDENT = .true.
+   readEnsMean = T
 /
  &NAMTIME
   DSTEPOBS = 6.0d0

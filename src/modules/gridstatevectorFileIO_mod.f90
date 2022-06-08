@@ -1611,7 +1611,9 @@ module gridStateVectorFileIO_mod
 
             !- Convert Kelvin to Celcius only if full field
             if (containsFullField .and. (trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM')  ) then
-              work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
+              where (work2d_r4(:,:) > 100.0)
+                work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
+              end where
             end if
 
             !- Do interpolation back to physics grid, if needed
@@ -1891,10 +1893,10 @@ module gridStateVectorFileIO_mod
         end if
 
         if ( trim(varName) == 'TM' .and. containsFullField ) then
-          if (maxval(field_r4_ptr(:,:,kIndex,stepIndex)) < 50.0) then
+          where (field_r4_ptr(:,:,kIndex,stepIndex) < 100.0)
             field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + &
                                                        mpc_k_c_degree_offset_r8, 4 )
-          end if
+          end where
         end if
 
         if ( trim(varName) == 'VIS' .and. containsFullField ) then

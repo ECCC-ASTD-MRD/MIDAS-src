@@ -35,7 +35,7 @@ program midas_randomPert
   use gridVariableTransforms_mod
   implicit none
 
-  type(struct_gsv) :: statevector
+  type(struct_gsv) :: statevector, stateVectorEnsMean
 
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_hco), pointer :: hco_anl => null()
@@ -63,11 +63,12 @@ program midas_randomPert
   character(len=25) :: clfiname
   character(len=12) :: etiket
   character(len=12) :: out_etiket
+  character(len=64) :: ensMeanFileName = 'ensMeanState'
   
-  logical  :: remove_mean, smoothVariances, mpiTopoIndependent
+  logical  :: remove_mean, smoothVariances, mpiTopoIndependent, readEnsMean
   integer  :: nens, seed, date, numBits
   NAMELIST /NAMENKF/nens, seed, date, out_etiket, remove_mean,  &
-                    smoothVariances, mpiTopoIndependent, numBits
+                    smoothVariances, mpiTopoIndependent, numBits, readEnsMean
 
   call ver_printNameAndVersion('randomPert','Generation of random perturbations')
 
@@ -95,6 +96,7 @@ program midas_randomPert
   smoothVariances = .false.
   mpiTopoIndependent = .false.
   numBits = 32
+  readEnsMean = .false.
   
   !- 1.2 Read the namelist
   nulnam=0
@@ -229,7 +231,7 @@ program midas_randomPert
     call bmat_sqrtB(controlVector, cvm_nvadim, & ! IN
                     statevector               )  ! OUT
 
-    !- 4.1.3 Running ensemble sum
+    !- 4.1.3 Copy perturbations to big array and update ensemble sum
     !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
     do levIndex = 1, nkgdim
       do latIndex = myLatBeg, myLatEnd
@@ -359,7 +361,37 @@ program midas_randomPert
     !$OMP END PARALLEL DO
   end if
 
-  !- 4.4 Write the perturbations
+  !- 4.4 Add ensemble mean state to perturbations
+  if ( readEnsMean ) then
+
+    if (mpi_myid == 0) write(*,*) 'midas-randomPert: reading ensemble mean state and adding to perturbations'
+
+    call gsv_allocate(stateVectorEnsMean, 1, hco_anl, vco_anl, &
+                      dateStamp_opt=-1, mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
+    call gio_readFromFile(stateVectorEnsMean, ensMeanFileName, ' ', ' ',  &
+                          containsFullField_opt=.true.)
+
+    call gsv_getField(stateVectorEnsMean,field)
+
+    !$OMP PARALLEL DO PRIVATE (lonIndex, memberIndex, latIndex, levIndex)    
+    do memberIndex = 1, NENS
+      do levIndex = 1, nkgdim
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) =  &
+                ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) +  &
+                real(field(lonIndex, latIndex, levIndex), 4)
+          end do
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+    call gsv_deallocate(stateVectorEnsMean)
+  end if
+
+  !- 4.5 Write the perturbations
   do memberIndex = 1, NENS
     if( mmpi_myid == 0 ) write(*,*)
     if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: pre-processing for writing member number= ', memberIndex
@@ -387,8 +419,9 @@ program midas_randomPert
     end if
     if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: processing clfiname= ', clfiname
 
-    call gio_writeToFile(statevector, clfiname, out_etiket,      & ! IN
-                         numBits_opt=numBits, unitConversion_opt=.true.)  ! IN
+    call gio_writeToFile(statevector, clfiname, out_etiket,              & ! IN
+                         numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
+                         containsFullField_opt=readEnsMean) 
 
     call gsv_deallocate(statevector)
 
