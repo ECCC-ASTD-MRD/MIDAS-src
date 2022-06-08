@@ -307,6 +307,8 @@ contains
                 ' is not BURP nor SQLITE. Return.' 
       return
     end if
+    
+    call utl_tmg_start(23, '----ObsFileClean')
 
     do fileIndex = 1, obsf_nfiles
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
@@ -321,6 +323,8 @@ contains
         end if
       end if
     end do
+
+    call utl_tmg_stop(23)
 
   end subroutine obsf_cleanObsFiles 
 

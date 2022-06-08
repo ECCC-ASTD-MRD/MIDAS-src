@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [3.8.0]
 
 ### Added
-
+ * Added cleaning for ObsDb files after observation thinning (#631 and !604)
  * Added thinning for SSMIS (#452 and !606)
  * S2C consistency check (#645 and !602) 
  * Introduction of the ability to use ensemble B matrix to the 1Dvar.Abs code (#533 and !579)

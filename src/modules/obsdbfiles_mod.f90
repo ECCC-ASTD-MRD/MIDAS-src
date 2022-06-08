@@ -2529,21 +2529,20 @@ contains
     character(len=*),  intent(in) :: familyType
 
     ! locals:
-    character(len = 512) :: query
-    type(fSQL_STATUS)    :: stat ! sqlite error status
-    type(fSQL_DATABASE)  :: db   ! sqlite file handle
-    type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
-    integer            :: nulnam , ierr, fnom, fclos
+    character(len = 512)        :: query
+    type(fSQL_STATUS)           :: stat ! sqlite error status
+    type(fSQL_DATABASE)         :: db   ! sqlite file handle
+    type(fSQL_STATEMENT)        :: stmt ! precompiled sqlite statements
+    integer                     :: nulnam , ierr, fnom, fclos
+    character(len = lenSqlName) :: flgSqlName
     
     ! namelist variables
-    logical, save        :: useVacuum
+    logical, save               :: useVacuum
 
     namelist/namObsDbClean/ useVacuum
 
-    ! default values
+    ! default value
     useVacuum = .false.
-
-    call tmg_start(180,'obdf_clean')
 
     if ( .not. utl_isNamelistPresent('namObsDbClean','./flnml') ) then
       if ( mpi_myid == 0 ) then
@@ -2573,8 +2572,10 @@ contains
       call utl_abort( 'obdf_clean: fSQL_open' )
     end if
     
+    flgSqlName = odbf_midasTabColFromObsSpaceName('FLG', midasBodyNamesList)
+
     ! Mark for deletion all records with bit 11 (2048) set
-    query = ' delete from '// trim(midasBodyTableName) //' where flag & 2048 =2048;'
+    query = ' delete from '// trim(midasBodyTableName) //' where '// trim(flgSqlName) //' & 2048 =2048;'
 
     call fSQL_prepare(db, query, stmt, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -2582,12 +2583,10 @@ contains
       call utl_abort( 'obdf_clean: fSQL_prepare' )
     end if
 
-    call fSQL_begin(db)
     call fSQL_exec_stmt(stmt)
   
     query = 'create temporary table good_headers as select distinct '// trim(obsHeadKeySqlName) //' from '// trim(midasBodyTableName) //';'
     write(*,*) 'obdf_clean: query = ', trim(query)
-    !call fSQL_prepare(db, query, stmt, stat)
     call fSQL_do_many( db, query, stat )
 
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -2605,7 +2604,6 @@ contains
       call utl_abort( 'obdf_clean: fSQL_prepare' )
     end if
 
-    call fSQL_begin(db)
     call fSQL_exec_stmt(stmt)
 
     query = 'delete from '// trim(bodyTableName) //' where '// trim(obsHeadKeySqlName) // &
@@ -2618,7 +2616,6 @@ contains
       call utl_abort( 'obdf_clean: fSQL_prepare' )
     end if
 
-    call fSQL_begin(db)
     call fSQL_exec_stmt(stmt)
 
     query = 'delete from '// trim(headTableName) //' where '// trim(obsHeadKeySqlName) // &
@@ -2631,19 +2628,10 @@ contains
       call utl_abort( 'obdf_clean: fSQL_prepare' )
     end if
 
-    call fSQL_begin(db)
     call fSQL_exec_stmt(stmt)
-
     call fSQL_finalize(stmt)
-    call fSQL_commit(db)
 
-        ! open the obsDB file
-    call fSQL_open( db, trim(fileName), stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'obdf_clean: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'obdf_clean: fSQL_open' )
-    end if
-
+    ! Reduces the size of SQL file 
     if ( useVacuum ) then
       query = 'vacuum;'
       write(*,*) 'obdf_clean: query = ', trim(query)
@@ -2656,8 +2644,6 @@ contains
     end if
 
     call fSQL_close(db, stat)
-
-    call tmg_stop(180)
 
   end subroutine obdf_clean
 
