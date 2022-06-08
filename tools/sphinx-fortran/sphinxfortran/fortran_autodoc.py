@@ -1010,6 +1010,9 @@ class F90toRst(object):
                 newattrs.append(attr)
             if default_value is not None:
                 newattrs.append('default=' + default_value)
+            #BUE variables that are initialized in the declaration should not become optional
+            if '=' in block and 'optional' in newattrs:
+                newattrs.remove('optional')
             if 'private' in newattrs and 'public' in newattrs:
                 newattrs.remove('private')
             vattr.append('/'.join(newattrs))
