@@ -74,7 +74,7 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! lsp_setup
 !--------------------------------------------------------------------------
-  SUBROUTINE lsp_setup(hco_loc, nEns, nLev, pressureProfile, ntrunc, locType, &
+  SUBROUTINE lsp_setup(hco_loc, nEns, nLev, vertLocation, ntrunc, locType, &
                        locMode, horizLengthScale1, horizLengthScale2, vertLengthScale, &
                        cvDim_out, lsp, nEnsOverDimension_out)
     implicit none
@@ -87,7 +87,7 @@ CONTAINS
     integer, intent(in) :: nLev
     integer, intent(in) :: nTrunc
 
-    real(8), intent(in) :: pressureProfile(nLev)
+    real(8), intent(in) :: vertLocation(nLev)
     real(8), intent(in) :: horizLengthScale1
     real(8), intent(in) :: horizLengthScale2
     real(8), intent(in) :: vertLengthScale
@@ -194,7 +194,7 @@ CONTAINS
     call lfn_setup('FifthOrder') ! IN
 
     call setupLocalizationMatrices(lsp, horizLengthScale1, horizLengthScale2, & ! IN
-                                   vertLengthScale, pressureProfile, locMode)  ! IN
+                                   vertLengthScale, vertLocation, locMode)  ! IN
 
     if (lsp%global) then
        lsp%cvDim_mpiglobal = (lsp%ntrunc+1)*(lsp%ntrunc+1)*lsp%nLev*lsp%nEns
@@ -234,14 +234,14 @@ CONTAINS
 ! setupLocalizationMatrices
 !--------------------------------------------------------------------------
   SUBROUTINE setupLocalizationMatrices(lsp,horizLengthScale1,horizLengthScale2 ,vertLengthScale,&
-                                       pressureProfile,localizationMode)
+                                       vertLocation,localizationMode)
     implicit none
 
     type(struct_lsp), pointer    :: lsp
 
     real(8), intent(in) :: horizLengthScale1,horizLengthScale2 
     real(8), intent(in) :: vertLengthScale
-    real(8), intent(in) :: pressureProfile(lsp%nLev)
+    real(8), intent(in) :: vertLocation(lsp%nLev)
     character(len=*), intent(in) :: localizationMode
 
     real(8)  :: zr,zcorr
@@ -275,11 +275,11 @@ CONTAINS
     if ( trim(localizationMode) == 'LevelDependent' .and. horizLengthScale2 > 0.0d0 ) then
       ! vertically varying horizontal localization (linear in log P)
       do levIndex = 1, lsp%nLev
-        horizLengthScaleAll(levIndex) = ( horizLengthScale1*( log(pressureProfile(levIndex)) - &
-                                                              log(pressureProfile(1       )) ) +    &
-                                          horizLengthScale2*( log(pressureProfile(lsp%nLev   )) - &
-                                                              log(pressureProfile(levIndex)) ) ) /  &
-                                         ( log(pressureProfile(lsp%nLev))-log(pressureProfile(1)) )
+        horizLengthScaleAll(levIndex) = ( horizLengthScale1*( vertLocation(levIndex) - &
+                                                              vertLocation(1       ) ) +    &
+                                          horizLengthScale2*( vertLocation(lsp%nLev   ) - &
+                                                              vertLocation(levIndex) ) ) /  &
+                                         ( vertLocation(lsp%nLev)-vertLocation(1) )
         if (mmpi_myid == 0) then
           write(*,*) 'loc: localization length scale (',levIndex,') = ',horizLengthScaleAll(levIndex)
         end if
@@ -295,7 +295,7 @@ CONTAINS
     else
        call setupLamSpectralHLoc(lsp,horizLengthScaleAll) ! IN
     end if
-write(*,*) 'pressureProfile = ',  pressureProfile(:), lsp%nLev 
+write(*,*) 'vertLocation = ',  vertLocation(:), lsp%nLev 
     !
     !- 3.  Compute VERTICAL localization correlation matrix
     !
@@ -304,7 +304,7 @@ write(*,*) 'pressureProfile = ',  pressureProfile(:), lsp%nLev
       !-  3.1 Calculate 5'th order function
       do levIndex1 = 1, lsp%nLev
         do levIndex2 = 1, lsp%nLev
-          ZR = abs(log(pressureProfile(levIndex2)) - log(pressureProfile(levIndex1)))
+          ZR = abs(vertLocation(levIndex2) - vertLocation(levIndex1))
           zcorr = lfn_response(zr,vertLengthScale)
           lsp%LvertSqrt(levIndex1,levIndex2) = zcorr
 write(*,*) 'vert loc matrix= ', levIndex2, levIndex1, zcorr
