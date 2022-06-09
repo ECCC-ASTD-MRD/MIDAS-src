@@ -19,8 +19,7 @@ module interpolation_mod
   !
   ! :Purpose: The grid-point state vector interpolation.
   !
-  use mpi, only : mpi_status_size ! this is the mpi library module
-  use midasMpi_mod
+  use mpi_mod
   use gridstatevector_mod
   use columnData_mod
   use varNameList_mod
@@ -38,7 +37,7 @@ module interpolation_mod
   public :: int_vInterp_gsv, int_vInterp_gsv_r4
   public :: int_tInterp_gsv
   public :: int_vInterp_col
-  public :: int_sint, int_uvint, int_ezgdef, int_cxgaig
+  public :: int_sint, int_ezgdef, int_cxgaig
 
   ! module interfaces
   ! -----------------
@@ -69,7 +68,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),       intent(in)    :: statevector_in               ! statevector that will contain the interpolated fields
     type(struct_gsv),       intent(inout) :: statevector_out              ! Reference statevector providing the horizontal and vertical structure
 
@@ -78,7 +77,7 @@ contains
     
     logical,      optional, intent(in)    :: checkModelTop_opt            ! If true, model top consistency will be checked in vertical interpolation
     
-    ! Locals
+    ! Locals:
     logical :: checkModelTop
 
     character(len=4), pointer :: varNamesToInterpolate(:)
@@ -1049,15 +1048,20 @@ contains
   end subroutine int_vInterp_col
 
 
-
+  !--------------------------------------------------------------------------
+  ! int_setezopt
+  !--------------------------------------------------------------------------
   subroutine int_setezopt(interpDegree, extrapDegree_opt)
+    !
+    ! :Purpose: Wrapper subroutine for rmnlib routine setezopt.
+    !
     implicit none
 
-    ! arguments
+    ! Arguments:
     character(len=*) :: interpDegree
     character(len=*), optional :: extrapDegree_opt
 
-    ! locals
+    ! Locals:
     character(len=12) :: extrapDegree
     integer           :: ierr, ezsetopt, ezsetval
 
@@ -1082,12 +1086,18 @@ contains
 
   end subroutine int_setezopt
 
-
+  !--------------------------------------------------------------------------
+  ! int_sint_gsv
+  !--------------------------------------------------------------------------
   function int_sint_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex, &
                         interpDegree, extrapDegree_opt) result(ierr)
+    !
+    ! :Purpose: Horizontal interpolation of 2D scalar field that use stateVector
+    !           objects for input and output. Accessed through int_sint.
+    !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv) :: stateVectorOut
     type(struct_gsv) :: stateVectorIn
     character(len=*) :: varName
@@ -1097,7 +1107,7 @@ contains
     character(len=*), optional :: extrapDegree_opt
     integer :: ierr
 
-    ! locals
+    ! Locals:
     real(4), pointer :: zout4(:,:,:,:), zin4(:,:,:,:)
     real(8), pointer :: zout8(:,:,:,:), zin8(:,:,:,:)
     real(8), pointer :: heightSfcOut(:,:), heightSfcIn(:,:)
@@ -1173,18 +1183,26 @@ contains
 
   end function int_sint_gsv
 
-
+  !--------------------------------------------------------------------------
+  ! int_sint_r4_2d
+  !--------------------------------------------------------------------------
   function int_sint_r4_2d(zout4, zin4, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
+    !
+    ! :Purpose: Horizontal interpolation of 2D scalar field that use real(4) arrays
+    !           for input and output. Accessed through int_sint.
+    !
     implicit none
 
-    ! arguments
-    real(4) :: zout4(:,:), zin4(:,:)
-    type(struct_hco), pointer :: hco_out, hco_in
+    ! Arguments:
+    real(4) :: zout4(:,:)
+    real(4) :: zin4(:,:)
+    type(struct_hco), pointer :: hco_out
+    type(struct_hco), pointer :: hco_in
     integer :: ierr
     character(len=*)           :: interpDegree
     character(len=*), optional :: extrapDegree_opt
 
-    ! locals
+    ! Locals:
     integer :: ezsint, ezdefset
 
     ! check if special interpolation is required
@@ -1202,17 +1220,28 @@ contains
 
   end function int_sint_r4_2d
 
-
+  !--------------------------------------------------------------------------
+  ! int_sintCloudToGrid_gsv
+  !--------------------------------------------------------------------------
   function int_sintCloudToGrid_gsv(stateVectorGrid, stateVectorCloud, varName, levIndex, stepIndex) result(ierr)
+    !
+    ! :Purpose: Perform horizontal interpolation for 1 level and time step (and variable)
+    !           in the case where the input data is a cloud of points (i.e. a Y grid) and
+    !           the output is on a regular grid. Accessed through int_sint.
+    !
+    ! :Note:  When varName=='ALL', the argument levIndex is actually kIndex
+    !
     implicit none
 
-    ! arguments
-    type(struct_gsv)          :: stateVectorGrid, stateVectorCloud
-    character(len=*)          :: varName
-    integer                   :: levIndex, stepIndex
-    integer                   :: ierr
+    ! Arguments:
+    type(struct_gsv), intent(inout) :: stateVectorGrid
+    type(struct_gsv), intent(inout) :: stateVectorCloud
+    character(len=*), intent(in)    :: varName
+    integer,          intent(in)    :: levIndex
+    integer,          intent(in)    :: stepIndex
+    integer                         :: ierr
 
-    ! locals
+    ! Locals:
     integer :: gdxyfll
     integer :: niCloud, njCloud, niGrid, njGrid
     integer :: top, bottom, left, right, np, lonIndexCloud, latIndexCloud, k, l, m, lonIndexGrid, latIndexGrid
@@ -1250,6 +1279,7 @@ contains
     if (stateVectorCloud%oceanMask%maskPresent) then
       maskCloud(:,:) = 0
       if (trim(varName) == 'ALL') then
+        ! when varName==ALL, the argument levIndex is actually kIndex
         where(stateVectorCloud%oceanMask%mask(:,:,gsv_getLevFromK(stateVectorCloud,levIndex))) maskCloud(:,:) = 1
       else
         where(stateVectorCloud%oceanMask%mask(:,:,levIndex)) maskCloud(:,:) = 1
@@ -1390,18 +1420,26 @@ contains
 
   end function int_sintCloudToGrid_gsv
 
-
+  !--------------------------------------------------------------------------
+  ! int_sint_r8_2d
+  !--------------------------------------------------------------------------
   function int_sint_r8_2d(zout8, zin8, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
+    !
+    ! :Purpose: Horizontal interpolation of 2D scalar field that use real(8) arrays
+    !           for input and output. Accessed through int_sint.
+    !
     implicit none
 
-    ! arguments
-    real(8) :: zout8(:,:), zin8(:,:)
-    type(struct_hco), pointer :: hco_out, hco_in
+    ! Arguments:
+    real(8) :: zout8(:,:)
+    real(8) :: zin8(:,:)
+    type(struct_hco), pointer :: hco_out
+    type(struct_hco), pointer :: hco_in
     integer :: ierr
     character(len=*)           :: interpDegree
     character(len=*), optional :: extrapDegree_opt
 
-    ! locals
+    ! Locals:
     integer :: nii, nji, nio, njo     
     integer :: jk1, jk2
     real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
@@ -1448,12 +1486,18 @@ contains
 
   end function int_sint_r8_2d
 
-
+  !--------------------------------------------------------------------------
+  ! int_uvint_gsv
+  !--------------------------------------------------------------------------
   function int_uvint_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex, &
                         interpDegree, extrapDegree_opt) result(ierr)
+    !
+    ! :Purpose: Horizontal interpolation of 2D vector field that use stateVector objects
+    !           for input and output. Accessed through int_uvint.
+    !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv) :: stateVectorOut
     type(struct_gsv) :: stateVectorIn
     character(len=*) :: varName
@@ -1463,7 +1507,7 @@ contains
     character(len=*), optional :: extrapDegree_opt
     integer :: ierr
 
-    ! locals
+    ! Locals:
     real(4), pointer :: UUout4(:,:,:,:), VVout4(:,:,:,:), UUin4(:,:,:,:), VVin4(:,:,:,:)
     real(8), pointer :: UUout8(:,:,:,:), VVout8(:,:,:,:), UUin8(:,:,:,:), VVin8(:,:,:,:)
     real(4), pointer :: UVout4(:,:,:), UVin4(:,:,:)
@@ -1565,19 +1609,28 @@ contains
 
   end function int_uvint_gsv
 
-
+  !--------------------------------------------------------------------------
+  ! int_uvint_r4_2d
+  !--------------------------------------------------------------------------
   function int_uvint_r4_2d(uuout, vvout, uuin, vvin, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
+    !
+    ! :Purpose: Horizontal interpolation of 2D vector field that use real(4) arrays
+    !           for input and output. Accessed through int_uvint.
+    !
     implicit none
 
-    ! arguments
-    real(4) :: uuout(:,:), vvout(:,:)
-    real(4) :: uuin(:,:) , vvin(:,:)
-    type(struct_hco), pointer :: hco_out, hco_in
+    ! Arguments:
+    real(4) :: uuout(:,:)
+    real(4) :: vvout(:,:)
+    real(4) :: uuin(:,:)
+    real(4) :: vvin(:,:)
+    type(struct_hco), pointer :: hco_out
+    type(struct_hco), pointer :: hco_in
     character(len=*)           :: interpDegree
     character(len=*), optional :: extrapDegree_opt
     integer :: ierr
 
-    ! locals
+    ! Locals:
     integer :: ezuvint, ezdefset
 
     ! check if special interpolation is required
@@ -1595,19 +1648,28 @@ contains
 
   end function int_uvint_r4_2d
 
-
+  !--------------------------------------------------------------------------
+  ! int_uvint_r8_2d
+  !--------------------------------------------------------------------------
   function int_uvint_r8_2d(uuout, vvout, uuin, vvin, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
+    !
+    ! :Purpose: Horizontal interpolation of 2D vector field that use real(8) arrays
+    !           for input and output. Accessed through int_uvint.
+    !
     implicit none
 
-    ! arguments
-    real(8) :: uuout(:,:), vvout(:,:)
-    real(8) :: uuin(:,:) , vvin(:,:)
-    type(struct_hco), pointer :: hco_out, hco_in
+    ! Arguments:
+    real(8) :: uuout(:,:)
+    real(8) :: vvout(:,:)
+    real(8) :: uuin(:,:)
+    real(8) :: vvin(:,:)
+    type(struct_hco), pointer :: hco_out
+    type(struct_hco), pointer :: hco_in
     character(len=*)           :: interpDegree
     character(len=*), optional :: extrapDegree_opt
     integer :: ierr
 
-    ! locals
+    ! Locals:
     integer :: nio, njo, nii, nji
     integer :: jk1, jk2
     real, allocatable :: bufuuout4(:,:), bufvvout4(:,:)
@@ -1661,65 +1723,90 @@ contains
 
   end function int_uvint_r8_2d
 
-
+  !--------------------------------------------------------------------------
+  ! int_ezgdef
+  !--------------------------------------------------------------------------
   function int_ezgdef(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4, ax, ay) result(vezgdef)
+    !
+    ! :Purpose: Subroutine wrapper for rmnlib procedure ezgdef.
+    !
     implicit none
 
+    ! Arguments:
     integer :: vezgdef
+    integer :: ni
+    integer :: nj
+    integer :: ig1
+    integer :: ig2
+    integer :: ig3
+    integer :: ig4
+    real(8) :: ax(:)
+    real(8) :: ay(:)
+    character(len=*) :: grtyp
+    character(len=*) :: grtypref
 
-    integer :: ni, nj, ig1, ig2, ig3, ig4
-    real(8) :: ax(*), ay(*)
-    character(len=*) :: grtyp, grtypref
-
-    integer :: ier2,jk,ilenx,ileny
-    real, allocatable :: bufax4(:), bufay4(:)
-
+    ! Locals:
+    integer :: ier2, jk, ilenx, ileny
+    real(4), allocatable :: bufax4(:), bufay4(:)
     integer :: ezgdef
 
-    if      (grtyp .eq. 'Y') then
-       ilenx=max(1,ni*nj)
-       ileny=ilenx
+    if (grtyp .eq. 'Y') then
+      ilenx = max(1,ni*nj)
+      ileny = ilenx
     else if (grtyp .eq. 'Z') then
-       ilenx=max(1,ni)
-       ileny=max(1,nj)
+      ilenx = max(1,ni)
+      ileny = max(1,nj)
     else
-       call utl_abort('VEZGDEF: Grid type not supported')
+      call utl_abort('VEZGDEF: Grid type not supported')
     end if
 
     allocate(bufax4(ilenx))
     allocate(bufay4(ileny))
 
     do jk = 1,ilenx
-       bufax4(jk) = ax(jk)
+      bufax4(jk) = ax(jk)
     end do
     do jk = 1,ileny
-       bufay4(jk) = ay(jk)
+      bufay4(jk) = ay(jk)
     end do
 
     ier2 = ezgdef(ni, nj, grtyp, grtypref, ig1, ig2, ig3, ig4, &
-         bufax4, bufay4)
+                  bufax4, bufay4)
 
     deallocate(bufax4)
     deallocate(bufay4)
 
-    vezgdef=ier2
+    vezgdef = ier2
 
   end function int_ezgdef
 
-
+  !--------------------------------------------------------------------------
+  ! int_cxgaig
+  !--------------------------------------------------------------------------
   subroutine int_cxgaig(grtyp, ig1, ig2, ig3, ig4, xlat0, xlon0, dlat, dlon) 
+    !
+    ! :Purpose: Subroutine wrapper for rmnlib procedure cxgaig.
+    !
     implicit none
 
-    integer :: ig1, ig2, ig3, ig4   
-    real(8) :: xlat0, xlon0, dlat, dlon 
+    ! Arguments:
+    integer :: ig1
+    integer :: ig2
+    integer :: ig3
+    integer :: ig4   
+    real(8) :: xlat0
+    real(8) :: xlon0
+    real(8) :: dlat
+    real(8) :: dlon 
     character(len=*) :: grtyp 
 
+    ! Locals:
     real(4) :: xlat04, xlon04, dlat4, dlon4
 
-    xlat04=xlat0
-    xlon04=xlon0
-    dlat4=dlat
-    dlon4=dlon
+    xlat04 = xlat0
+    xlon04 = xlon0
+    dlat4 = dlat
+    dlon4 = dlon
 
     call cxgaig(grtyp, ig1, ig2, ig3, ig4, xlat04, xlon04, dlat4, dlon4)
 

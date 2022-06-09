@@ -36,7 +36,7 @@ program midas_randomPert
   use gridVariableTransforms_mod
   implicit none
 
-  type(struct_gsv) :: stateVector, stateVectorInterp, stateVectorEnsMean
+  type(struct_gsv) :: stateVectorPert, stateVectorPertInterp, stateVectorEnsMean
 
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_hco), pointer :: hco_anl => null()
@@ -46,7 +46,7 @@ program midas_randomPert
 
   real(8), pointer :: field(:,:,:)
 
-  integer :: fclos, fnom, fstopc, newdate, nstamp, ierr, status
+  integer :: fclos, fnom, fstopc, newdate, nstamp, ierr
   integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, nkgdim
   integer :: idate, itime, ndate, nulnam
   integer :: get_max_rss, n_grid_point, n_grid_point_glb
@@ -65,7 +65,6 @@ program midas_randomPert
   character(len=10) :: cldate
   character(len=3)  :: clmember
   character(len=25) :: clfiname
-  character(len=12) :: etiket
   character(len=12) :: out_etiket
   character(len=64) :: ensMeanFileName = 'ensMeanState'
 
@@ -144,8 +143,8 @@ program midas_randomPert
   call tim_setDatestamp(nstamp)
 
   !- 2.3 Initialize the horizontal grids from analysisgrid and targetgrid files
-  if (mmpi_myid == 0) write(*,*) ''
-  if (mmpi_myid == 0) write(*,*) ' Set hco parameters for analysis grid'
+  if (mmpi_myid == 0) write(*,*)
+  if (mmpi_myid == 0) write(*,*) 'Set hco parameters for analysis grid'
   call hco_setupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
@@ -157,8 +156,8 @@ program midas_randomPert
 
   inquire(file='./targetgrid',exist=targetGridExists)
   if (targetGridExists) then
-    if (mpi_myid == 0) write(*,*) ''
-    if (mpi_myid == 0) write(*,*) ' Set hco parameters for target grid'
+    if (mpi_myid == 0) write(*,*)
+    if (mpi_myid == 0) write(*,*) 'Set hco parameters for target grid'
 
     call hco_setupFromFile(hco_target, './targetgrid', 'ANALYSIS', 'Target' ) ! IN
 
@@ -195,20 +194,16 @@ program midas_randomPert
   !- 3. Memory allocations
   !
 
-  !- 3.1 Allocate the stateVector
-  call gsv_allocate(stateVector, 1, hco_anl, vco_anl, &
+  !- 3.1 Allocate the stateVectorPert
+  call gsv_allocate(stateVectorPert, 1, hco_anl, vco_anl, &
                     dateStamp_opt=nstamp, mpi_local_opt=.true., &
                     allocHeight_opt=.false., allocPressure_opt=.false., &
                     hInterpolateDegree_opt='LINEAR')
-  nkgdim = stateVector%nk
+  nkgdim = stateVectorPert%nk
   allocate(ensemble_r4(myLonBeg:myLonEnd, myLatBeg:myLatEnd, nkgdim, nEns))
 
   !- 3.2 Allocate auxillary variables
-  allocate(gdmean(myLonBeg:myLonEnd, myLatBeg:myLatEnd, nkgdim), STAT=status)
-  if ( status /= 0 ) then
-    call utl_abort('midas-randomPert: PROBLEM WITH ALLOCATING OF GDMEAN')
-  end if
-
+  allocate(gdmean(myLonBeg:myLonEnd, myLatBeg:myLatEnd, nkgdim))
   allocate(controlVector(cvm_nvadim))
   allocate(controlVector_mpiglobal(cvm_nvadim_mpiglobal))
 
@@ -229,12 +224,12 @@ program midas_randomPert
   end if
 
   gdmean(:,:,:) = 0.0D0
-  call gsv_getField(stateVector,field)
+  call gsv_getField(stateVectorPert,field)
 
   !- 4.1 Generate a (potentially) biased ensemble
   do memberIndex = 1, NENS
 
-    if( mmpi_myid == 0 ) write(*,*) ' computing member number= ', memberIndex
+    if( mmpi_myid == 0 ) write(*,*) '...computing member number= ', memberIndex
 
     !- 4.1.1 Create a random control vector in spectral space
 
@@ -253,7 +248,7 @@ program midas_randomPert
 
     !- 4.1.2 Transform to control variables in physical space
     call bmat_sqrtB(controlVector, cvm_nvadim, & ! IN
-                    stateVector               )  ! OUT
+                    stateVectorPert           )  ! OUT
 
     !- 4.1.3 Copy perturbations to big array and update ensemble sum
     !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
@@ -269,7 +264,7 @@ program midas_randomPert
 
   end do
 
-  call gsv_deallocate(stateVector)
+  call gsv_deallocate(stateVectorPert)
   
   !- 4.2 Remove the ensemble mean
   if ( REMOVE_MEAN ) then
@@ -301,8 +296,8 @@ program midas_randomPert
   !- 4.3 Smooth variances to horizontally constant values
   if ( smoothVariances ) then
   
-    allocate(pturb_var(myLonBeg:myLonEnd, myLatBeg:myLatEnd, stateVector%nk))
-    allocate(avg_pturb_var(stateVector%nk), avg_pturb_var_glb(stateVector%nk))
+    allocate(pturb_var(myLonBeg:myLonEnd, myLatBeg:myLatEnd, stateVectorPert%nk))
+    allocate(avg_pturb_var(stateVectorPert%nk), avg_pturb_var_glb(stateVectorPert%nk))
     pturb_var(:,:,:) = 0.0D0
     avg_pturb_var(:) = 0.0D0
     avg_pturb_var_glb(:) = 0.0D0
@@ -407,12 +402,12 @@ program midas_randomPert
     if( mmpi_myid == 0 ) write(*,*)
     if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: pre-processing for writing member number= ', memberIndex
 
-    call gsv_allocate(stateVector, 1, hco_anl, vco_anl, &
+    call gsv_allocate(stateVectorPert, 1, hco_anl, vco_anl, &
                       dateStamp_opt=nstamp, mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false., &
                       hInterpolateDegree_opt='LINEAR')
-    call gsv_getField(stateVector,field)
-    call gsv_allocate(stateVectorInterp, 1, hco_target, vco_anl, &
+    call gsv_getField(stateVectorPert,field)
+    call gsv_allocate(stateVectorPertInterp, 1, hco_target, vco_anl, &
                       dateStamp_opt=nstamp, mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false., &
                       hInterpolateDegree_opt='LINEAR')
@@ -428,11 +423,11 @@ program midas_randomPert
     !$OMP END PARALLEL DO
 
     ! interpolate perturbation to the target grid
-    call int_interpolate(stateVector, stateVectorInterp)
+    call int_interpolate(stateVectorPert, stateVectorPertInterp)
 
     if ( readEnsMean ) then
       if (mpi_myid == 0) write(*,*) 'midas-randomPert: adding the ensemble mean and perturbation'
-      call gsv_add(stateVectorEnsMean, stateVectorInterp)
+      call gsv_add(stateVectorEnsMean, stateVectorPertInterp)
     end if
 
     write(clmember, '(I3.3)') memberIndex
@@ -443,12 +438,12 @@ program midas_randomPert
     end if
     if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: processing clfiname= ', clfiname
 
-    call gio_writeToFile(stateVectorInterp, clfiname, out_etiket,              & ! IN
+    call gio_writeToFile(stateVectorPertInterp, clfiname, out_etiket,              & ! IN
                          numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
                          containsFullField_opt=readEnsMean) 
 
-    call gsv_deallocate(stateVectorInterp)
-    call gsv_deallocate(stateVector)
+    call gsv_deallocate(stateVectorPertInterp)
+    call gsv_deallocate(stateVectorPert)
 
   end do
 
@@ -457,11 +452,7 @@ program midas_randomPert
   !
   !- 5.  Memory deallocations
   !
-  deallocate(gdmean, STAT=status)
-  if ( status /= 0 ) then
-    call utl_abort('midas-randomPert: PROBLEM WITH DEALLOCATE OF GDMEAN')
-  end if
-
+  deallocate(gdmean)
   deallocate(ensemble_r4)
   deallocate(controlVector)  
   deallocate(controlVector_mpiglobal)  
@@ -480,8 +471,8 @@ program midas_randomPert
   !
   !- 7.  Ending
   !
-  if( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if( mmpi_myid == 0 ) write(*,*) '---------------------------------'
   if( mmpi_myid == 0 ) write(*,*) ' MIDAS-RANDOMPERT ENDS'
-  if( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if( mmpi_myid == 0 ) write(*,*) '---------------------------------'
 
 end program midas_randomPert

@@ -15,6 +15,7 @@
    REMOVE_MEAN=T
    MPITOPOINDEPENDENT = .true.
    readEnsMean = T
+   numBits = 16
 /
  &NAMTIME
   DSTEPOBS = 6.0d0
