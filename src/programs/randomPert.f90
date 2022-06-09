@@ -36,7 +36,8 @@ program midas_randomPert
   use gridVariableTransforms_mod
   implicit none
 
-  type(struct_gsv) :: stateVectorPert, stateVectorPertInterp, stateVectorEnsMean
+  type(struct_gsv) :: stateVectorPert, stateVectorPertInterp
+  type(struct_gsv) :: stateVectorEnsMean, stateVectorIce
 
   type(struct_vco), pointer :: vco_anl => null()
   type(struct_hco), pointer :: hco_anl => null()
@@ -44,6 +45,7 @@ program midas_randomPert
   type(struct_hco), pointer :: hco_target => null()
   type(struct_hco), pointer :: hco_targetcore => null()
 
+  real(4), pointer :: seaice_ptr(:,:,:)
   real(8), pointer :: field(:,:,:)
 
   integer :: fclos, fnom, fstopc, newdate, nstamp, ierr
@@ -68,10 +70,20 @@ program midas_randomPert
   character(len=12) :: out_etiket
   character(len=64) :: ensMeanFileName = 'ensMeanState'
 
-  logical  :: remove_mean, smoothVariances, mpiTopoIndependent, readEnsMean
-  integer  :: nens, seed, date, numBits
+  ! Namelist variables
+  logical :: remove_mean
+  logical :: smoothVariances
+  logical :: mpiTopoIndependent
+  logical :: readEnsMean
+  logical :: setPertZeroUnderIce
+  integer :: nens
+  integer :: seed
+  integer :: date
+  integer :: numBits
+  real(4) :: iceFractionThreshold
   NAMELIST /NAMENKF/nens, seed, date, out_etiket, remove_mean,  &
-                    smoothVariances, mpiTopoIndependent, numBits, readEnsMean
+                    smoothVariances, mpiTopoIndependent, numBits, &
+                    readEnsMean, setPertZeroUnderIce, iceFractionThreshold
 
   call ver_printNameAndVersion('randomPert','Generation of random perturbations')
 
@@ -100,7 +112,9 @@ program midas_randomPert
   mpiTopoIndependent = .false.
   numBits = 32
   readEnsMean = .false.
-  
+  setPertZeroUnderIce = .false.
+  iceFractionThreshold = 0.2
+
   !- 1.2 Read the namelist
   nulnam=0
   ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
@@ -268,6 +282,7 @@ program midas_randomPert
   
   !- 4.2 Remove the ensemble mean
   if ( REMOVE_MEAN ) then
+
     !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
     do levIndex = 1, nkgdim
       do latIndex = myLatBeg, myLatEnd
@@ -291,6 +306,7 @@ program midas_randomPert
       end do
     end do
     !$OMP END PARALLEL DO
+
   end if
   
   !- 4.3 Smooth variances to horizontally constant values
@@ -378,6 +394,7 @@ program midas_randomPert
       end do
     end do
     !$OMP END PARALLEL DO
+
   end if
 
   !- 4.4 Read ensemble mean state
@@ -397,7 +414,37 @@ program midas_randomPert
                          containsFullField_opt=.true.) 
   end if
 
-  !- 4.5 Write the perturbations
+  !- 4.5 Set perturbations to zero under ice
+  if ( setPertZeroUnderIce ) then
+
+    ! read sea-ice analysis
+    call gsv_allocate(stateVectorIce, 1, hco_anl, vco_anl, dataKind_opt = 4, &
+                      datestamp_opt = -1, mpi_local_opt = .true.,    &
+                      varNames_opt = (/'LG'/), hInterpolateDegree_opt ='LINEAR')
+    call gio_readFromFile(stateVectorIce, './seaIceAnalysis', ' ','A', &
+                          unitConversion_opt=.false., containsFullField_opt=.true.)
+    call gsv_getField(stateVectorIce,seaice_ptr)
+
+    ! set perturbations to zero
+    !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex, memberIndex)    
+    do memberIndex = 1, NENS
+      do levIndex = 1, nkgdim
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            if (seaice_ptr(lonIndex, latIndex, 1) >= iceFractionThreshold) then
+              ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) = 0.0
+            end if
+          end do
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+    call gsv_deallocate(stateVectorIce)
+
+  end if
+
+  !- 4.6 Write the perturbations
   do memberIndex = 1, NENS
     if( mmpi_myid == 0 ) write(*,*)
     if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: pre-processing for writing member number= ', memberIndex
