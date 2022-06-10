@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Introduction of RTTOV-SCATT controlled by NAMTOV namelist section logical array useRttovScatt (#320 and !607) 
  * Added cleaning for ObsDb files after observation thinning (#631 and !604)
 
 ### Changed
