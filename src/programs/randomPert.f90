@@ -48,9 +48,9 @@ program midas_randomPert
   real(4), pointer :: seaice_ptr(:,:,:)
   real(8), pointer :: field(:,:,:)
 
-  integer :: fclos, fnom, fstopc, newdate, nstamp, ierr
+  integer :: fclos, fnom, fstopc, newdate, dateStamp, imode, ierr
   integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, nkgdim
-  integer :: idate, itime, ndate, nulnam
+  integer :: datePrint, timePrint, nulnam, randomSeed
   integer :: get_max_rss, n_grid_point, n_grid_point_glb
 
   integer :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
@@ -64,9 +64,9 @@ program midas_randomPert
   real(8), allocatable :: pturb_var(:,:,:)
 
   logical :: targetGridExists
-  character(len=10) :: cldate
-  character(len=3)  :: clmember
-  character(len=25) :: clfiname
+  character(len=10) :: dateString
+  character(len=3)  :: memberString
+  character(len=25) :: outFileName
   character(len=12) :: out_etiket
   character(len=64) :: ensMeanFileName = 'ensMeanState'
 
@@ -104,8 +104,8 @@ program midas_randomPert
   
   !- 1.1 Setting default values
   nens  = 10
-  seed  = 1
-  date  = 1900120100
+  seed  = -999        ! If -999, set random seed using the date
+  date  = -1          ! Try to set date from ensMeanState file
   remove_mean = .true.
   out_etiket='RANDOM_PERT' 
   smoothVariances = .false.
@@ -123,9 +123,6 @@ program midas_randomPert
   if( mmpi_myid == 0 ) write(*,nml=namenkf)
   ierr=fclos(nulnam)
 
-  ndate   = date
-  write(cldate, '(I10)') ndate
-
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   !
@@ -135,26 +132,33 @@ program midas_randomPert
   ! Setup the ramdisk directory (if supplied)
   call ram_setup
 
-  !- 2.1 Decompose ndate(yyyymmddhh) into date(YYYYMMDD) time(HHMMSShh)
-  !      calculate date-time stamp for postproc.ftn 
-  if (ndate <= 0) then
-    nstamp = ndate
+  !- 2.1 Set the dateStamp, either from namelist or ensMeanState file
+  dateString = 'undefined'
+  if (date <= 0) then
+    dateStamp = date
   else
-    idate   = ndate/100
-    itime   = (ndate-idate*100)*1000000
-    ierr    = newdate(nstamp, idate, itime, 3)
+    datePrint   = date/100
+    timePrint   = (date-datePrint*100)*1000000
+    ierr    = newdate(dateStamp, datePrint, timePrint, 3)
+    write(dateString, '(I10)') date
   end if
-  if( mmpi_myid == 0 ) write(*,*) ' idate= ', idate, ' time= ', itime
-  if( mmpi_myid == 0 ) write(*,*) ' date= ', ndate, ' stamp= ', nstamp
+  ! If dateStamp not set in namelist, use date from ensMeanState, if available
+  if ( (dateStamp <= 0) .and. readEnsMean ) then
+    dateStamp = tim_getDatestampFromFile(ensMeanFileName)
+    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+    ierr = newdate(dateStamp, datePrint, timePrint, imode)
+    write(dateString, '(I10)') datePrint*100 + timePrint/100000
+  end if
+  if( mmpi_myid == 0 ) then
+    write(*,*) ' date= ', datePrint, ' time= ', timePrint, ' stamp= ', dateStamp
+    write(*,*) ' dateString = ', dateString
+  end if
+  !- Initialize the Temporal grid and the dateStamp
+  call tim_setup
+  call tim_setDatestamp(dateStamp)
 
   !- 2.2 Initialize variables of the model states
   call gsv_setup
-
-  !
-  !- Initialize the Temporal grid
-  !
-  call tim_setup
-  call tim_setDatestamp(nstamp)
 
   !- 2.3 Initialize the horizontal grids from analysisgrid and targetgrid files
   if (mmpi_myid == 0) write(*,*)
@@ -204,13 +208,32 @@ program midas_randomPert
   call gvt_setup(hco_anl,hco_anlcore,vco_anl)
   if ( gsv_varExist(varName='HU') ) call gvt_setupRefFromTrialFiles('HU')
 
+  !- 2.7 Set randomSeed
+  if (seed == -999) then
+    ! If "seed" namelist value is -999, set random seed using the date
+    dateStamp = tim_getDateStamp()
+    if (dateStamp == -1) then
+      call utl_abort('midas-randomPert: dateStamp is not set, cannot be used to set random seed')
+    end if
+    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+    ierr = newdate(dateStamp, datePrint, timePrint, imode)
+    timePrint = timePrint/1000000
+    datePrint =  datePrint*100 + timePrint
+    ! Remove the century, keeping 2 digits of the year
+    randomSeed = datePrint - 100000000*(datePrint/100000000)
+  else
+    ! Otherwise, use value from namelist
+    randomSeed = seed
+  end if
+  write(*,*) 'midas-randomPert: randomSeed for set to ', randomSeed
+
   !
   !- 3. Memory allocations
   !
 
   !- 3.1 Allocate the stateVectorPert
   call gsv_allocate(stateVectorPert, 1, hco_anl, vco_anl, &
-                    dateStamp_opt=nstamp, mpi_local_opt=.true., &
+                    dateStamp_opt=dateStamp, mpi_local_opt=.true., &
                     allocHeight_opt=.false., allocPressure_opt=.false., &
                     hInterpolateDegree_opt='LINEAR')
   nkgdim = stateVectorPert%nk
@@ -232,9 +255,9 @@ program midas_randomPert
                                   'perturbations of all the members'
 
   if( mpiTopoIndependent ) then
-    call rng_setup(abs(seed))
+    call rng_setup(abs(randomSeed))
   else
-    call rng_setup(abs(seed+mmpi_myid))
+    call rng_setup(abs(randomSeed+mmpi_myid))
   end if
 
   gdmean(:,:,:) = 0.0D0
@@ -254,7 +277,7 @@ program midas_randomPert
       end do
       call bmat_reduceToMPILocal( controlVector, controlVector_mpiglobal )
     else
-      !- Local vector (different seed for each processor, more efficient)
+      !- Local vector (different randomSeed for each processor, more efficient)
       do cvIndex = 1, cvm_nvadim
         controlVector(cvIndex) = rng_gaussian()
       end do
@@ -402,7 +425,7 @@ program midas_randomPert
     if (mpi_myid == 0) write(*,*) 'midas-randomPert: reading ensemble mean state'
 
     call gsv_allocate(stateVectorEnsMean, 1, hco_target, vco_anl, &
-                      dateStamp_opt=-1, mpi_local_opt=.true., &
+                      dateStamp_opt=dateStamp, mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false., &
                       hInterpolateDegree_opt='LINEAR')
     call gio_readFromFile(stateVectorEnsMean, ensMeanFileName, ' ', ' ',  &
@@ -450,12 +473,12 @@ program midas_randomPert
     if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: pre-processing for writing member number= ', memberIndex
 
     call gsv_allocate(stateVectorPert, 1, hco_anl, vco_anl, &
-                      dateStamp_opt=nstamp, mpi_local_opt=.true., &
+                      dateStamp_opt=dateStamp, mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false., &
                       hInterpolateDegree_opt='LINEAR')
     call gsv_getField(stateVectorPert,field)
     call gsv_allocate(stateVectorPertInterp, 1, hco_target, vco_anl, &
-                      dateStamp_opt=nstamp, mpi_local_opt=.true., &
+                      dateStamp_opt=dateStamp, mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false., &
                       hInterpolateDegree_opt='LINEAR')
 
@@ -477,15 +500,19 @@ program midas_randomPert
       call gsv_add(stateVectorEnsMean, stateVectorPertInterp)
     end if
 
-    write(clmember, '(I3.3)') memberIndex
-    if (ndate > 0) then
-      clfiname = './pert_'//trim(cldate)//'_'//trim(clmember)
+    write(memberString, '(I3.3)') memberIndex
+    if (dateString /= 'undefined') then
+      if (readEnsMean) then
+        outFileName = './'//trim(dateString)//'_'//trim(memberString)
+      else
+        outFileName = './pert_'//trim(dateString)//'_'//trim(memberString)
+      end if
     else
-      clfiname = './pert_'//trim(clmember)
+      outFileName = './pert_'//trim(memberString)
     end if
-    if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: processing clfiname= ', clfiname
+    if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: processing file = ', outFileName
 
-    call gio_writeToFile(stateVectorPertInterp, clfiname, out_etiket,              & ! IN
+    call gio_writeToFile(stateVectorPertInterp, outFileName, out_etiket,              & ! IN
                          numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
                          containsFullField_opt=readEnsMean) 
 

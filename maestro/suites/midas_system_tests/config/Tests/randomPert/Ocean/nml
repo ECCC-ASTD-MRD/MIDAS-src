@@ -7,10 +7,11 @@
   HLOCALIZE = 1000.0D0
   VLOCALIZE = 1000.0D0
   ensContainsFullField = .false.
+  ensDateOfValidity = -1
 /
  &NAMENKF
    NENS=10
-   SEED=1
+   SEED=-999 ! If -999, see is set using the date
    DATE=-1
    REMOVE_MEAN=T
    MPITOPOINDEPENDENT = .true.
