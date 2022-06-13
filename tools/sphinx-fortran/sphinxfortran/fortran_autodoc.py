@@ -136,6 +136,20 @@ class F90toRst(object):
         for ff in ffiles:
             self.crack.extend(crackfortran(ff))
 
+        # MIDAS: remove private variables
+        def removePrivateVars(bodyList):
+            for block in bodyList:
+                for varname in list(block['vars']):
+                    if 'attrspec' in block['vars'][varname]:
+                        attrspec = block['vars'][varname]['attrspec']
+                        if 'public' not in attrspec and 'private' in attrspec:
+                            logger.info(f'removing {varname} from {block["name"]}')
+                            block['vars'].pop(varname)
+                            block['sortvars'].remove(varname)
+                removePrivateVars(block['body'])
+
+        removePrivateVars(self.crack)
+
         # Build index
         self.build_index()
 
