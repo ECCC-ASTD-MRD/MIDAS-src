@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fixed the documentation generation on U2, removed private variables from API (#627 and !610)
 
 ### Removed
 

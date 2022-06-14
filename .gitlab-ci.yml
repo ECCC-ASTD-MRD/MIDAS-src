@@ -150,7 +150,6 @@ doc_sphinx:
      - main
      - v_3.7
      - tags
-     - 627-fix-the-documentation-generation-on-hpcr-u2 # testing
    tags:
      - hpcr-u2
 
