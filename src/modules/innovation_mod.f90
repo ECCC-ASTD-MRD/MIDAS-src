@@ -551,7 +551,7 @@ contains
     !
     ! GB-GPS (met and ZTD) observations are processed in s/r filt_topoSFC (in obsFilter_mod.ftn90)
     !
-    if ( filterObsAndInitOer .and. callFiltTopo) then
+    if ( filterObsAndInitOer .and. callFiltTopo ) then
       call filt_topo(columnTrlOnTrlLev,obsSpaceData,beSilent)
     else
       if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_topo'
