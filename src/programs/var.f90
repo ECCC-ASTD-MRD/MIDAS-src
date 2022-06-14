@@ -274,7 +274,8 @@ program midas_var
     filterObsAndInitOer = ( outerLoopIndex == 1 )
     call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, &
                                 filterObsAndInitOer_opt=filterObsAndInitOer, &
-                                applyVarqcOnNlJo_opt=applyVarqcOnNlJo )
+                                applyVarqcOnNlJo_opt=applyVarqcOnNlJo, &
+                                callSetErrGpsgb_opt=filterObsAndInitOer )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.
@@ -376,7 +377,8 @@ program midas_var
     call inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, &
                                 destObsColumn_opt=OBS_OMA, &
                                 filterObsAndInitOer_opt=filterObsAndInitOer, &
-                                applyVarqcOnNlJo_opt=applyVarqcOnNlJo )
+                                applyVarqcOnNlJo_opt=applyVarqcOnNlJo , &
+                                callSetErrGpsgb_opt=filterObsAndInitOer )
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
   end if
 

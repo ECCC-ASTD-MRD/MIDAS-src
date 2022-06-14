@@ -484,9 +484,9 @@ contains
     logical, optional       :: applyVarqcOnNlJo_opt
     integer, optional       :: destObsColumn_opt ! column where result stored, default is OBS_OMP
     logical, optional       :: beSilent_opt
-    logical, optional       :: callFiltTopo_opt
-    logical, optional       :: callSetErrGpsgb_opt
-    logical, optional       :: analysisMode_opt
+    logical, optional       :: callFiltTopo_opt ! whether to make call to FiltTopo
+    logical, optional       :: callSetErrGpsgb_opt ! whether to make call to oer_SETERRGPSGB
+    logical, optional       :: analysisMode_opt ! analysisMode argument for oer_SETERRGPSGB and oop_gpsgb_nl
     
     ! Locals:
     real(8) :: Jo
@@ -533,21 +533,13 @@ contains
     if ( present(callSetErrGpsgb_opt ) ) then
       callSetErrGpsgb = callSetErrGpsgb_opt
     else
-      if ( filterObsAndInitOer ) then
-        callSetErrGpsgb = .true.    
-      else
-        callSetErrGpsgb = .false.
-      end if   
+      callSetErrGpsgb = .true.   
     end if    
 
     if ( present(analysisMode_opt ) ) then
       analysisMode = analysisMode_opt
     else
-      if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO' ) then
-        analysisMode = .true.
-      else
-        analysisMode = .false.
-      end if
+      analysisMode = .true.
     end if
 
     if ( .not.beSilent ) write(*,*) 'oti_timeBinning: Before filtering done in inn_computeInnovation'
@@ -568,7 +560,7 @@ contains
     ! Remove surface station wind observations
     if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO' ) then
       if ( filterObsAndInitOer ) then
-        call filt_surfaceWind(obsSpaceData,beSilent)
+        call filt_surfaceWind(obsSpaceData, beSilent)
       else
         if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind'
       end if

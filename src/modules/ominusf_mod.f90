@@ -186,7 +186,7 @@ module oMinusF_mod
       !- 2.1 Compute observation innovations
       write(*,*)
       write(*,*) '> omf_oMinusF: compute innovation'
-      call inn_computeInnovation(columnTrlOnTrlLev,obsSpaceData)
+      call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, analysisMode_opt=.false.)
 
       if ( addHBHT ) then
         write(*,*)
