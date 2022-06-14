@@ -136,22 +136,23 @@ clean_midas_abs:
    tags:
      - hpcr-u2
 
-## doc_sphinx:
-##   stage: doc
-##   variables:
-##     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
-##     midasdoc: /home/sanl888/public_html/midas-sphinx-doc
-##   script:
-##   - cd scripts/sphinx
-##   - ./build_html.sh ../../src $midasdoc/$docname
-##   - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
-##   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
-##   only:
-##     - main
-##     - v_3.7
-##     - tags
-##   tags:
-##     - hpcr-u2
+doc_sphinx:
+   stage: doc
+   variables:
+     docname: $CI_BUILD_REF_NAME-$CI_BUILD_REF
+     midasdoc: /home/sanl888/public_html/midas-sphinx-doc
+   script:
+   - cd scripts/sphinx
+   - ./build_html.sh ../../src $midasdoc/$docname
+   - rm -fv $midasdoc/latest-$CI_BUILD_REF_NAME
+   - ln -sv $midasdoc/$docname $midasdoc/latest-$CI_BUILD_REF_NAME
+   only:
+     - main
+     - v_3.7
+     - tags
+     - 627-fix-the-documentation-generation-on-hpcr-u2 # testing
+   tags:
+     - hpcr-u2
 
 ssm:
   stage: deploy
