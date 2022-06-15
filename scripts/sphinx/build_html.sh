@@ -337,6 +337,15 @@ echo "======================================== ============= ===================
 
 # GENERATE LIST OF NAMELISTS USED FOR EACH PROGRAM
 
+# Build dependency tree
+echo "Building dependency tree"
+echo "Sourcing config"
+cd ${toplevel}/src
+source ./config.dot.sh
+GITDESC=$(git describe --abbrev=7 --dirty=_M)
+OBJBLD_PATH=${toplevel}/compiledir/midas_bld-${GITDESC}/${ARCH}/
+make depend
+
 cat > namelists_in_each_program.rst << 'EOF'
 
 Namelists (possibly) used in each MIDAS program
@@ -351,7 +360,7 @@ programList=`ls *.f90 | tr '\n' ' '`
 PGM_DIR=$PWD
 cd ../modules
 MOD_DIR=$PWD
-cd ${PGM_DIR}/src_files
+cd ${OBJBLD_PATH}
 echo "programList = ${programList}"
 for programName in ${programList}; do
     echo 
@@ -360,11 +369,20 @@ for programName in ${programList}; do
     echo "========================================" >> ${ORIG_PWD}/namelists_in_each_program.rst
     echo "${programNameBase}" >> ${ORIG_PWD}/namelists_in_each_program.rst
     echo "========================================" >> ${ORIG_PWD}/namelists_in_each_program.rst
-    src_files=`cat src_files_${programNameBase}.sh`
-    src_files2=`echo ${src_files} | tr '"' " " | tr " " "\n" |grep '.f'`
-    nameListList=`grep -i 'namelist */ *[a-z0-9]* */' ${PGM_DIR}/${programName} | cut -f2 -d '/' | tr '[:upper:]' '[:lower:]' | grep -vi ptopo` || true
+    src_files=`cat dep.obj.inc | grep "^${programNameBase}.o :" | sed "s/^${programNameBase}.o : ${programNameBase}\.[^ ]* //"`
+    src_files2=`echo ${src_files} | sed "s/\(\w\)\.o/\1/g" | tr " " "\n"`
+    # finding proper suffix (.f90 or .ftn90)
+    src_files3=""
     for src_file in ${src_files2}; do
-        nameListList="${nameListList} `grep -i 'namelist */ *[a-z0-9]* */' ${MOD_DIR}/${src_file} | cut -f2 -d '/' | tr '[:upper:]' '[:lower:]' | grep -vi ptopo`" || true
+        src_files3="${src_files3} `ls ${MOD_DIR} | grep ${src_file}`"
+    done
+    nameListList=`grep -i 'namelist */ *[a-z0-9]* */' ${PGM_DIR}/${programName} \
+                  | cut -f2 -d '/' | tr '[:upper:]' '[:lower:]' \
+                  | grep -vi ptopo` || true
+    for src_file in ${src_files3}; do
+        nameListList="${nameListList} `grep -i 'namelist */ *[a-z0-9]* */' ${MOD_DIR}/${src_file} \
+                                       | cut -f2 -d '/' | tr '[:upper:]' '[:lower:]' \
+                                       | grep -vi ptopo`" || true
     done
     nameListList=`echo $nameListList | tr " " "\n" | sort -u`
     echo $nameListList
@@ -381,7 +399,7 @@ mkdir _build
 
 # RUN SPHYNX TO BUILD HTML FILES
 
-PYTHONPATH="$PYTHONPATH:${PWD}/lib/python2.7:${PWD}/lib/python2.7/sphinx_fortran-1.0.1-py2.7.egg"
+PYTHONPATH="$PYTHONPATH:${toplevel}/tools/sphinx-fortran"
 #sphinx-build -b html ./ ./_build
 make html
 
