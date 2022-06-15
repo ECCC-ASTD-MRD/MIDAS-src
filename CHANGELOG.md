@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * Removed comment about documentation temporarily pointing to master (#657 and !611)
 
 ## [3.8.1]
 
