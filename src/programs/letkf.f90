@@ -469,7 +469,6 @@ program midas_letkf
   !
   
   !- 5.1 Call to perform LETKF
-  call tmg_start(3,'LETKF-doAnalysis')
   call enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
                           ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
                           stateVectorMeanAnl, &
@@ -506,10 +505,8 @@ program midas_letkf
                    timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
 
       ! Compute Y-H(Xa) in OBS_WORK (used instead of OBS_OMA so that obsSpaceData isn't unintentionally modified) 
-      call tmg_start(6,'LETKF-obsOperators')
       call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_WORK, beSilent_opt=.true., &
                                  callFiltTopo_opt=.false., callSetErrGpsgb_opt=.false., analysisMode_opt=.false.)
-      call tmg_stop(6)
 
       ! Copy to ensObs: Y-H(Xa_member) for this member
       call eob_setYa(ensObs, memberIndex, OBS_WORK)
@@ -538,7 +535,6 @@ program midas_letkf
   call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
                timeInterpType=obsTimeInterpType )
   call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMA, beSilent_opt=.false.)
-  call tmg_stop(6)
   
   ! Write (update) observation files. 
   if (outputEnsObs) then
