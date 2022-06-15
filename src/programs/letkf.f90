@@ -52,6 +52,7 @@ program midas_letkf
   type(struct_ens), pointer :: ensembleTrl
   type(struct_ens)          :: ensembleAnl
   type(struct_gsv)          :: stateVectorMeanTrl4D
+  type(struct_gsv)          :: stateVectorMemberAnl
   type(struct_gsv)          :: stateVectorMeanAnl
   type(struct_gsv)          :: stateVectorWithZandP4D
   type(struct_gsv)          :: stateVectorHeightSfc
@@ -98,6 +99,7 @@ program midas_letkf
   logical  :: rejectRadNearSfc     ! reject radiance observations near the surface
   logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
   logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
+  logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
   real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
@@ -110,7 +112,8 @@ program midas_letkf
                      hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
-                     ignoreEnsDate, outputOnlyEnsMean, obsTimeInterpType, mpiDistribution, etiket_anl
+                     ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
+                     obsTimeInterpType, mpiDistribution, etiket_anl
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -156,6 +159,7 @@ program midas_letkf
   rejectRadNearSfc      = .false.
   ignoreEnsDate         = .false.
   outputOnlyEnsMean     = .false.
+  outputEnsObs          = .false.
   hLocalize(:)          = -1.0D0
   hLocalizePressure     = (/14.0D0, 140.0D0, 400.0D0/)
   vLocalize             = -1.0D0
@@ -269,7 +273,7 @@ program midas_letkf
                            containsFullField_opt=.true., readHeightSfc_opt=.true. )
   end if
 
-  !- 2.8 Allocate various statevectors related to ensemble mean
+  !- 2.8 Allocate statevector related to ensemble mean
   call gsv_allocate( stateVectorMeanTrl4D, tim_nstepobs, hco_ens, vco_ens, &
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -283,21 +287,28 @@ program midas_letkf
                      allocHeight_opt=.false., allocPressure_opt=.false. )
   call gsv_zero(stateVectorMeanAnl)
 
-  !- 2.9 Allocate statevector for storing state with heights and pressures allocated (for s2c_nl)
+  !- 2.9 Allocate statevector related to an analysis ensemble member  
+  call gsv_allocate( stateVectorMemberAnl, tim_nstepobsinc, hco_ens, vco_ens, &
+                     dateStamp_opt=tim_getDateStamp(),  &
+                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                     dataKind_opt=4, allocHeightSfc_opt=.true. )
+  call gsv_zero(stateVectorMemberAnl)
+  
+  !- 2.10 Allocate statevector for storing state with heights and pressures allocated (for s2c_nl)
   call gsv_allocate( stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, &
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true. )
   call gsv_zero(stateVectorWithZandP4D)
 
-  !- 2.10 Allocate ensembles, read the Trl ensemble
+  !- 2.11 Allocate ensembles, read the Trl ensemble
   call utl_tmg_start(2,'--ReadEnsemble')
   call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
   call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false., &
                         ignoreDate_opt=ignoreEnsDate)
   call utl_tmg_stop(2)
 
-  !- 2.11 If desired, read a deterministic state for recentering the ensemble
+  !- 2.12 If desired, read a deterministic state for recentering the ensemble
   if (recenterInputEns) then
     call gsv_allocate( stateVectorRecenter, tim_nstepobs, hco_ens, vco_ens, &
                        dateStamp_opt=tim_getDateStamp(),  &
@@ -315,7 +326,7 @@ program midas_letkf
     call gsv_deallocate( stateVectorRecenter )
   end if
   
-  !- 2.12 Compute ensemble mean and copy to meanTrl and meanAnl stateVectors
+  !- 2.13 Compute ensemble mean and copy to meanTrl and meanAnl stateVectors
   call ens_computeMean(ensembleTrl4D)
   call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
   if (tim_nstepobsinc < tim_nstepobs) then
@@ -456,12 +467,54 @@ program midas_letkf
   !
   !- 5. Main calculation of ensemble analyses
   !
+  
+  !- 5.1 Call to perform LETKF
   call enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
                           ensembleAnl, ensembleTrl, ensObs_mpiglobal,  &
                           stateVectorMeanAnl, &
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, mpiDistribution)
 
+  !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
+  if ( outputEnsObs ) then
+  
+    do memberIndex = 1, nEns
+
+      write(*,*) ''
+      write(*,*) 'midas-letkf: apply nonlinear H to analysis ensemble member ', memberIndex
+      write(*,*) ''
+
+      ! copy 1 member to a stateVector
+      call ens_copyMember(ensembleAnl, stateVectorMemberAnl, memberIndex)
+      
+      if (tim_nstepobsinc < tim_nstepobs) then
+        ! ensembleAnl is only 3D, so need to make 4D for s2c_nl
+        middleStepIndex = (tim_nstepobs + 1) / 2
+        call gsv_copy(stateVectorMemberAnl, stateVectorWithZandP4D, allowVarMismatch_opt=.true., stepIndexOut_opt=middleStepIndex)
+        call gsv_3dto4d(stateVectorWithZandP4D)
+      else
+        call gsv_copy(stateVectorMemberAnl, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
+      end if
+      
+      ! copy the surface height field
+      if (nwpFields) then
+        call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+      end if  
+      
+      call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+                   timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
+
+      ! Compute Y-H(Xa) in OBS_WORK (used instead of OBS_OMA so that obsSpaceData isn't unintentionally modified) 
+      call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_WORK, beSilent_opt=.true., &
+                                 callFiltTopo_opt=.false., callSetErrGpsgb_opt=.false., analysisMode_opt=.false.)
+
+      ! Copy to ensObs: Y-H(Xa_member) for this member
+      call eob_setYa(ensObs, memberIndex, OBS_WORK)
+
+    end do
+  
+  end if
+  
   !- 6. Output obs files with mean OMP and (unrecentered) OMA
 
   ! Compute Y-H(Xa_mean) in OBS_OMA
@@ -482,10 +535,14 @@ program midas_letkf
   call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
                timeInterpType=obsTimeInterpType )
   call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMA, beSilent_opt=.false.)
-
-  ! Write (update) observation files
-  call obsf_writeFiles( obsSpaceData )
-
+  
+  ! Write (update) observation files. 
+  if (outputEnsObs) then
+    call obsf_writeFiles( obsSpaceData, ensObs_opt=ensObs)
+  else
+    call obsf_writeFiles( obsSpaceData)
+  end if
+  
   !- 7. Post processing of the analysis results (if desired) and write everything to files
   if (ensPostProcessing) then
     !- Allocate and read the Trl control member (used to compute control member increment for IAU)

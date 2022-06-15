@@ -47,7 +47,7 @@ MODULE ensembleObservations_mod
 
   ! public procedures
   public :: eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
-  public :: eob_setYb, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setMeanOMP
+  public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setMeanOMP
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_copy, eob_zero
   public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
@@ -67,6 +67,7 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: vertLocation(:)  ! in ln(pres) or meters, used for localization
     real(8), allocatable          :: obsErrInv(:)     ! inverse of obs error variances
     real(4), allocatable          :: Yb_r4(:,:)       ! background ensemble perturbation in obs space
+    real(4), allocatable          :: Ya_r4(:,:)       ! analysis ensemble perturbation in obs space    
     real(4), allocatable          :: randPert_r4(:,:) ! unbiased random perturbations with covariance equal to R
     real(8), allocatable          :: meanYb(:)        ! ensemble mean background state in obs space
     real(8), allocatable          :: deterYb(:)       ! deterministic background state in obs space
@@ -88,10 +89,10 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob)         :: ensObs
-    integer                  :: numMembers
-    integer                  :: numObs
-    type(struct_obs), target :: obsSpaceData
+    type(struct_eob)        , intent(inout) :: ensObs
+    integer                 , intent(in)    :: numMembers
+    integer                 , intent(in)    :: numObs
+    type(struct_obs), target, intent(in)    :: obsSpaceData
 
     if ( ensObs%allocated ) then
       write(*,*) 'eob_allocate: this object is already allocated, deallocating first.'
@@ -108,6 +109,7 @@ CONTAINS
     allocate( ensObs%obsValue(ensObs%numObs) )
     allocate( ensObs%obsErrInv(ensObs%numObs) )
     allocate( ensObs%Yb_r4(ensObs%numMembers,ensObs%numObs) )
+    allocate( ensObs%Ya_r4(ensObs%numMembers,ensObs%numObs) )    
     allocate( ensObs%randPert_r4(ensObs%numMembers,ensObs%numObs) )
     allocate( ensObs%meanYb(ensObs%numObs) )
     allocate( ensObs%deterYb(ensObs%numObs) )
@@ -126,7 +128,7 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     if ( .not. ensObs%allocated ) return
 
@@ -136,6 +138,7 @@ CONTAINS
     deallocate( ensObs%obsValue )
     deallocate( ensObs%obsErrInv )
     deallocate( ensObs%Yb_r4 )
+    deallocate( ensObs%Ya_r4 )
     deallocate( ensObs%randPert_r4 )
     deallocate( ensObs%meanYb )
     deallocate( ensObs%deterYb )
@@ -155,7 +158,7 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob)         :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     if ( .not.ensObs%allocated ) then
       call utl_abort('eob_zero: this object is not allocated')
@@ -167,6 +170,7 @@ CONTAINS
     ensObs%obsValue(:)      = 0.0d0
     ensObs%obsErrInv(:)     = 0.0d0
     ensObs%Yb_r4(:,:)       = 0.0
+    ensObs%Ya_r4(:,:)       = 0.0
     ensObs%randPert_r4(:,:) = 0.0
     ensObs%meanYb(:)        = 0.0d0
     ensObs%deterYb(:)       = 0.0d0
@@ -202,23 +206,20 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_clean (private routine)
   !--------------------------------------------------------------------------
-  subroutine eob_clean(ensObs)
+  subroutine eob_clean(ensObs,ensObsClean)
     !
     ! :Purpose: Remove all obs from the ensObs object that are not 
-    !           flagged for assimilation. All arrays will be reallocated
-    !           in place to the smaller size after cleaning. 
-    !
-    ! :Note: After this procedure, the link with the bodyIndex of obsSpaceData will
-    !        be lost!
+    !           flagged for assimilation. Put the cleaned result in the
+    !           locally created output object.
     !
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(in)  :: ensObs
+    type(struct_eob), intent(out) :: ensObsClean
 
     ! locals
     integer :: obsIndex, obsCleanIndex, numObsClean
-    type(struct_eob) :: ensObsClean
 
     call eob_setAssFlag(ensObs)
 
@@ -239,6 +240,7 @@ CONTAINS
         ensObsClean%vertLocation(obsCleanIndex)  = ensObs%vertLocation(obsIndex)
         ensObsClean%obsErrInv(obsCleanIndex)     = ensObs%obsErrInv(obsIndex)
         ensObsClean%Yb_r4(:,obsCleanIndex)       = ensObs%Yb_r4(:,obsIndex)
+        ensObsClean%Ya_r4(:,obsCleanIndex)       = ensObs%Ya_r4(:,obsIndex)
         ensObsClean%randPert_r4(:,obsCleanIndex) = ensObs%randPert_r4(:,obsIndex)
         ensObsClean%meanYb(obsCleanIndex)        = ensObs%meanYb(obsIndex)
         ensObsClean%deterYb(obsCleanIndex)       = ensObs%deterYb(obsIndex)
@@ -246,14 +248,6 @@ CONTAINS
         ensObsClean%assFlag(obsCleanIndex)       = ensObs%assFlag(obsIndex)
       end if
     end do
-
-    ! reallocate the original object with the new size
-    call eob_deallocate(ensObs)
-    call eob_allocate(ensObs, ensObsClean%numMembers, numObsClean, ensObsClean%obsSpaceData)
-
-    ! copy the cleaned object into the original object and deallocate local copy
-    call eob_copy(ensObsClean, ensObs)
-    call eob_deallocate(ensObsClean)
 
   end subroutine eob_clean
 
@@ -264,14 +258,15 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObsIn
-    type(struct_eob) :: ensObsOut
+    type(struct_eob), intent(in)    :: ensObsIn
+    type(struct_eob), intent(inout) :: ensObsOut
 
     ensObsOut%lat(:)           = ensObsIn%lat(:)
     ensObsOut%lon(:)           = ensObsIn%lon(:)
     ensObsOut%vertLocation(:)  = ensObsIn%vertLocation(:)
     ensObsOut%obsErrInv(:)     = ensObsIn%obsErrInv(:)
     ensObsOut%Yb_r4(:,:)       = ensObsIn%Yb_r4(:,:)
+    ensObsOut%Ya_r4(:,:)       = ensObsIn%Ya_r4(:,:)
     ensObsOut%randPert_r4(:,:) = ensObsIn%randPert_r4(:,:)
     ensObsOut%meanYb(:)        = ensObsIn%meanYb(:)
     ensObsOut%deterYb(:)       = ensObsIn%deterYb(:)
@@ -293,10 +288,11 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObs
-    type(struct_eob) :: ensObs_mpiglobal
+    type(struct_eob), intent(in)  :: ensObs
+    type(struct_eob), intent(out) :: ensObs_mpiglobal
 
     ! locals
+    type(struct_eob) :: ensObsClean
     integer :: ierr, procIndex, memberIndex, numObs_mpiglobal
     integer :: allNumObs(mpi_nprocs), displs(mpi_nprocs)
 
@@ -305,9 +301,9 @@ CONTAINS
 
     ! refresh assimilation flag and then clean ensObs before communicating and writing
     call eob_setAssFlag(ensObs)
-    call eob_clean(ensObs)
+    call eob_clean(ensObs,ensObsClean)
 
-    call rpn_comm_allgather( ensObs%numObs, 1, 'mpi_integer',  &
+    call rpn_comm_allgather( ensObsClean%numObs, 1, 'mpi_integer',  &
                              allNumObs, 1, 'mpi_integer', &
                              'GRID', ierr )
     numObs_mpiglobal = sum(allNumObs(:))
@@ -315,8 +311,8 @@ CONTAINS
     if (ensObs_mpiglobal%allocated) then
       call utl_abort('eob_allGather: output ensObs object must not be already allocated')
     end if
-    call eob_allocate(ensObs_mpiglobal, ensObs%numMembers, numObs_mpiglobal, ensObs%obsSpaceData)
-    ensObs_mpiglobal%typeVertCoord = ensObs%typeVertCoord
+    call eob_allocate(ensObs_mpiglobal, ensObsClean%numMembers, numObs_mpiglobal, ensObsClean%obsSpaceData)
+    ensObs_mpiglobal%typeVertCoord = ensObsClean%typeVertCoord
 
     if ( mpi_myid == 0 ) then
       displs(1) = 0
@@ -327,37 +323,40 @@ CONTAINS
       displs(:) = 0
     end if
 
-    call rpn_comm_gatherv( ensObs%lat          , ensObs%numObs, 'mpi_real8', &
+    call rpn_comm_gatherv( ensObsClean%lat, ensObsClean%numObs, 'mpi_real8', &
                            ensObs_mpiglobal%lat, allNumObs, displs, 'mpi_real8',  &
                            0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObs%lon          , ensObs%numObs, 'mpi_real8', &
+    call rpn_comm_gatherv( ensObsClean%lon, ensObsClean%numObs, 'mpi_real8', &
                            ensObs_mpiglobal%lon, allNumObs, displs, 'mpi_real8',  &
                            0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObs%vertLocation , ensObs%numObs, 'mpi_real8', &
+    call rpn_comm_gatherv( ensObsClean%vertLocation, ensObsClean%numObs, 'mpi_real8', &
                            ensObs_mpiglobal%vertLocation, allNumObs, displs, 'mpi_real8',  &
                            0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObs%obsValue          , ensObs%numObs, 'mpi_real8', &
+    call rpn_comm_gatherv( ensObsClean%obsValue, ensObsClean%numObs, 'mpi_real8', &
                            ensObs_mpiglobal%obsValue, allNumObs, displs, 'mpi_real8',  &
                            0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObs%obsErrInv          , ensObs%numObs, 'mpi_real8', &
+    call rpn_comm_gatherv( ensObsClean%obsErrInv, ensObsClean%numObs, 'mpi_real8', &
                            ensObs_mpiglobal%obsErrInv, allNumObs, displs, 'mpi_real8',  &
                            0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObs%meanYb          , ensObs%numObs, 'mpi_real8', &
+    call rpn_comm_gatherv( ensObsClean%meanYb, ensObsClean%numObs, 'mpi_real8', &
                            ensObs_mpiglobal%meanYb, allNumObs, displs, 'mpi_real8',  &
                            0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObs%deterYb          , ensObs%numObs, 'mpi_real8', &
+    call rpn_comm_gatherv( ensObsClean%deterYb, ensObsClean%numObs, 'mpi_real8', &
                            ensObs_mpiglobal%deterYb, allNumObs, displs, 'mpi_real8',  &
                            0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObs%assFlag          , ensObs%numObs, 'mpi_integer', &
+    call rpn_comm_gatherv( ensObsClean%assFlag, ensObsClean%numObs, 'mpi_integer', &
                            ensObs_mpiglobal%assFlag, allNumObs, displs, 'mpi_integer',  &
                            0, 'GRID', ierr )
-    do memberIndex = 1, ensObs%numMembers
-      call rpn_comm_gatherv( ensObs%Yb_r4(memberIndex,:)          , ensObs%numObs, 'mpi_real4', &
+    do memberIndex = 1, ensObsClean%numMembers
+      call rpn_comm_gatherv( ensObsClean%Yb_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
                              ensObs_mpiglobal%Yb_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
                              0, 'GRID', ierr )
+      call rpn_comm_gatherv( ensObsClean%Ya_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
+                             ensObs_mpiglobal%Ya_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
+                             0, 'GRID', ierr )
     end do
-    do memberIndex = 1, ensObs%numMembers
-      call rpn_comm_gatherv( ensObs%randPert_r4(memberIndex,:)          , ensObs%numObs, 'mpi_real4', &
+    do memberIndex = 1, ensObsClean%numMembers
+      call rpn_comm_gatherv( ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
                              ensObs_mpiglobal%randPert_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
                              0, 'GRID', ierr )
     end do
@@ -378,15 +377,19 @@ CONTAINS
                         0, 'GRID', ierr)
     call rpn_comm_bcast(ensObs_mpiglobal%assFlag, ensObs_mpiglobal%numObs, 'mpi_integer',  &
                         0, 'GRID', ierr)
-    do memberIndex = 1, ensObs%numMembers
+    do memberIndex = 1, ensObsClean%numMembers
       call rpn_comm_bcast(ensObs_mpiglobal%Yb_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                           0, 'GRID', ierr)
+      call rpn_comm_bcast(ensObs_mpiglobal%Ya_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
+                          0, 'GRID', ierr)
     end do
-    do memberIndex = 1, ensObs%numMembers
+    do memberIndex = 1, ensObsClean%numMembers
       call rpn_comm_bcast(ensObs_mpiglobal%randPert_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                           0, 'GRID', ierr)
     end do
-    
+
+    call eob_deallocate( ensObsClean )
+
     write(*,*) 'eob_allGather: total number of obs to be assimilated =', sum(ensObs_mpiglobal%assFlag(:))
 
     write(*,*) 'eob_allGather: finished'
@@ -404,7 +407,7 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob)         :: ensObs
+    type(struct_eob), intent(in) :: ensObs
 
     ! locals
     integer :: unitNum, ierr, obsIndex, memberIndex
@@ -452,7 +455,7 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob)         :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     call utl_abort('eob_readFromFiles: not yet implemented')
     write(*,*) 'eob_readFromFiles: This structure contains ', ensObs%numMembers, ' members'
@@ -473,12 +476,12 @@ CONTAINS
     implicit none
 
     ! arguments
-    integer          :: numLocalObs
-    type(struct_eob) :: ensObs
-    integer          :: localBodyIndices(:)
-    real(8)          :: distances(:)
-    real(8)          :: lat, lon, vertLocation, hLocalize, vLocalize
-    integer          :: numLocalObsFound
+    integer                       :: numLocalObs ! function output
+    type(struct_eob), intent(in)  :: ensObs
+    integer         , intent(out) :: localBodyIndices(:)
+    real(8)         , intent(out) :: distances(:)
+    real(8)         , intent(in)  :: lat, lon, vertLocation, hLocalize, vLocalize
+    integer         , intent(out) :: numLocalObsFound
 
     ! locals
     integer :: bodyIndex, numLocalObsFoundSearch, maxNumLocalObs, localObsIndex
@@ -557,7 +560,7 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     call obs_extractObsRealHeaderColumn(ensObs%lat, ensObs%obsSpaceData, OBS_LAT)
     call obs_extractObsRealHeaderColumn(ensObs%lon, ensObs%obsSpaceData, OBS_LON)
@@ -572,7 +575,7 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     ! locals
     integer :: obsIndex
@@ -602,8 +605,8 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob)        :: ensObs
-    type(struct_columnData) :: columnMeanTrl
+    type(struct_eob)       , intent(inout) :: ensObs
+    type(struct_columnData), intent(in)    :: columnMeanTrl
 
     ! locals
     integer          :: obsIndex, headerIndex, channelIndex, tovsIndex, numTovsLevels, nosensor
@@ -778,9 +781,10 @@ CONTAINS
   subroutine eob_setYb(ensObs, memberIndex)
     implicit none
 
-    type(struct_eob) :: ensObs
-    integer          :: memberIndex
-
+    ! Arguments: 
+    type(struct_eob), intent(inout) :: ensObs
+    integer         , intent(in)    :: memberIndex
+        
     ! get the Y-HX value from obsSpaceData
     call obs_extractObsRealBodyColumn_r4(ensObs%Yb_r4(memberIndex,:), ensObs%obsSpaceData, OBS_OMP)
 
@@ -790,12 +794,31 @@ CONTAINS
   end subroutine eob_setYb
 
   !--------------------------------------------------------------------------
+  ! eob_setYa (like eob_setYb but for the analysis)
+  !--------------------------------------------------------------------------
+  subroutine eob_setYa(ensObs, memberIndex, obsColumnName)
+    implicit none
+
+    ! Arguments: 
+    type(struct_eob), intent(inout)  :: ensObs
+    integer         , intent(in)     :: memberIndex
+    integer         , intent(in)     :: obsColumnName
+        
+    ! get the Y-HX value from obsSpaceData
+    call obs_extractObsRealBodyColumn_r4(ensObs%Ya_r4(memberIndex,:), ensObs%obsSpaceData, obsColumnName)
+
+    ! now compute HX = Y - (Y-HX)
+    ensObs%Ya_r4(memberIndex,:) = ensObs%obsValue(:) - ensObs%Ya_r4(memberIndex,:)
+
+  end subroutine eob_setYa  
+  
+  !--------------------------------------------------------------------------
   ! eob_setDeterYb
   !--------------------------------------------------------------------------
   subroutine eob_setDeterYb(ensObs)
     implicit none
 
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     ! get the Y-HX value from obsSpaceData
     call obs_extractObsRealBodyColumn(ensObs%DeterYb(:), ensObs%obsSpaceData, OBS_OMP)
@@ -812,7 +835,7 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     ! locals
     integer :: obsIndex
@@ -831,8 +854,8 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObs
-    integer          :: randomSeed
+    type(struct_eob), intent(inout) :: ensObs
+    integer         , intent(in)    :: randomSeed
 
     ! locals
     integer :: obsIndex, memberIndex
@@ -859,7 +882,7 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     ! locals
     integer :: obsIndex
@@ -879,7 +902,7 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     ! locals
     integer :: obsIndex, memberIndex
@@ -912,7 +935,7 @@ CONTAINS
     implicit none
 
     ! arguments:
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     ! locals:
     integer :: bodyIndexBeg, bodyIndexEnd, headerIndex, ivar, bodyIndex
@@ -1058,7 +1081,7 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     ! locals
     integer           :: bodyIndex
@@ -1088,7 +1111,7 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     ! locals
     integer           :: huberCount, huberCountMpiGlobal, ivar, windCount, ierr
@@ -1174,7 +1197,7 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob) :: ensObs
+    type(struct_eob), intent(inout) :: ensObs
 
     ! locals
     integer :: acceptCount, rejectCount, acceptCountMpiGlobal, rejectCountMpiGlobal
@@ -1222,11 +1245,11 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(rttov_transmission), intent(in) :: transmission ! transmission (rttov type)
-    integer(kind=jpim), intent(in)       :: numLevels    ! number of RTTOV levels
-    integer, intent(in)                  :: transIndex   ! index of transmission%tau_levels
-    real(kind=jprb), pointer, intent(in) :: rttovPres(:) ! pressure of RTTOV levels
-    real(8), intent(out)                 :: maxLnP       ! log pressure of maximum
+    type(rttov_transmission), intent(in)  :: transmission ! transmission (rttov type)
+    integer(kind=jpim)      , intent(in)  :: numLevels    ! number of RTTOV levels
+    integer                 , intent(in)  :: transIndex   ! index of transmission%tau_levels
+    real(kind=jprb), pointer, intent(in)  :: rttovPres(:) ! pressure of RTTOV levels
+    real(8)                 , intent(out) :: maxLnP       ! log pressure of maximum
 
     ! locals
     integer :: levIndex

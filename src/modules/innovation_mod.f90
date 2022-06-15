@@ -471,7 +471,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine inn_computeInnovation( columnTrlOnTrlLev, obsSpaceData, filterObsAndInitOer_opt, &
                                     applyVarqcOnNlJo_opt, destObsColumn_opt, &
-                                    beSilent_opt )
+                                    beSilent_opt, callFiltTopo_opt, callSetErrGpsgb_opt, &
+                                    analysisMode_opt )
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
     implicit none
@@ -483,11 +484,14 @@ contains
     logical, optional       :: applyVarqcOnNlJo_opt
     integer, optional       :: destObsColumn_opt ! column where result stored, default is OBS_OMP
     logical, optional       :: beSilent_opt
-
+    logical, optional       :: callFiltTopo_opt ! whether to make call to FiltTopo
+    logical, optional       :: callSetErrGpsgb_opt ! whether to make call to oer_SETERRGPSGB
+    logical, optional       :: analysisMode_opt ! analysisMode argument for oer_SETERRGPSGB and oop_gpsgb_nl
+    
     ! Locals:
     real(8) :: Jo
     integer :: destObsColumn, get_max_rss
-    logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent
+    logical :: applyVarqcOnNlJo, filterObsAndInitOer, beSilent, callFiltTopo, callSetErrGpsgb, analysisMode 
     logical, save :: lgpdata = .false.
 
     call utl_tmg_start(10,'--Observations')
@@ -520,6 +524,24 @@ contains
       beSilent = .false.
     end if
 
+    if ( present(callFiltTopo_opt) ) then
+      callFiltTopo = callFiltTopo_opt
+    else
+      callFiltTopo = .true.
+    end if   
+
+    if ( present(callSetErrGpsgb_opt ) ) then
+      callSetErrGpsgb = callSetErrGpsgb_opt
+    else
+      callSetErrGpsgb = .true.   
+    end if    
+
+    if ( present(analysisMode_opt ) ) then
+      analysisMode = analysisMode_opt
+    else
+      analysisMode = .true.
+    end if
+
     if ( .not.beSilent ) write(*,*) 'oti_timeBinning: Before filtering done in inn_computeInnovation'
     if ( .not.beSilent ) call oti_timeBinning(obsSpaceData,tim_nstepobs)
 
@@ -529,23 +551,24 @@ contains
     !
     ! GB-GPS (met and ZTD) observations are processed in s/r filt_topoSFC (in obsFilter_mod.ftn90)
     !
-    if ( filterObsAndInitOer ) then
+    if ( filterObsAndInitOer .and. callFiltTopo ) then
       call filt_topo(columnTrlOnTrlLev,obsSpaceData,beSilent)
     else
       if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_topo'
     end if
-    
+   
     ! Remove surface station wind observations
     if ( trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO' ) then
       if ( filterObsAndInitOer ) then
-        call filt_surfaceWind(obsSpaceData,beSilent)
+        call filt_surfaceWind(obsSpaceData, beSilent)
       else
         if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind'
       end if
     end if
-    
+
     ! Find interpolation layer in model profiles
     if ( col_getNumLev(columnTrlOnTrlLev,'MM') > 1 ) call oop_vobslyrs(columnTrlOnTrlLev, obsSpaceData, beSilent)
+
     !
     !- Calculate the innovations [Y - H(Xb)] and place the result in obsSpaceData in destObsColumn column
     !
@@ -563,6 +586,7 @@ contains
     else
       if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_sw'
     end if
+    
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SW', destObsColumn)
 
     ! Surface (SF, UA, SC, GP and RA families)
@@ -593,6 +617,7 @@ contains
     else
       if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce'
     end if
+
     call oop_ice_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'GL', destObsColumn)
 
     ! Hydrology
@@ -629,23 +654,13 @@ contains
 
     ! GPS ground-based zenith delay
     if (obs_famExist(obsSpaceData,'GP', localMPI_opt = .true. )) then
-      if (trim(innovationMode) == 'analysis' .or. trim(innovationMode) == 'FSO') then
-        if ( filterObsAndInitOer ) then
-          call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .true.)
-        else
-          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB'
-        end if
-        if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
-                                       destObsColumn, analysisMode_opt=.true.)
+      if ( CallSetErrGpsgb ) then
+        call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, analysisMode)
       else
-        if ( filterObsAndInitOer ) then
-          call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, .false.)
-        else
-          if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB'
-        end if
-        if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
-                                       destObsColumn, analysisMode_opt=.false.)
+        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB'
       end if
+      if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
+                                     destObsColumn, analysisMode_opt=analysisMode)   
     end if
 
     call utl_tmg_stop(17)

@@ -37,6 +37,7 @@ use obsVariableTransforms_mod
 use obsFilter_mod
 use sqliteUtilities_mod
 use radvel_mod
+use ensembleObservations_mod
 
 implicit none   
  
@@ -1560,18 +1561,19 @@ contains
   !--------------------------------------------------------------------------
   ! sqlr_writeAllSqlDiagFiles
   !--------------------------------------------------------------------------
-  subroutine sqlr_writeAllSqlDiagFiles(obsdat, sfFileName, onlyAssimObs, addFSOdiag)
+  subroutine sqlr_writeAllSqlDiagFiles(obsdat, sfFileName, onlyAssimObs, addFSOdiag, ensObs_opt)
     !
     ! :Purpose: To prepare the writing of obsSpaceData content into SQLite format files
     !  
     implicit none
 
     ! arguments:
-    type(struct_obs)       :: obsdat       ! obsSpaceData object
-    character(len=*)       :: sfFileName   ! fileName acronym used for surface obs file
-    logical                :: onlyAssimObs ! only write assimilated obs
-    logical                :: addFSOdiag   ! only write FSO
-
+    type(struct_obs)                :: obsdat         ! obsSpaceData object
+    character(len=*)                :: sfFileName     ! fileName acronym used for surface obs file
+    logical                         :: onlyAssimObs   ! only write assimilated obs
+    logical                         :: addFSOdiag     ! only write FSO
+    type(struct_eob), optional      :: ensObs_opt     ! ensObs object
+    
     ! locals:
     integer                :: familyIndex, codeTypeIndex, fileIndex
     character(len=2)       :: obsFamilyList(50)
@@ -1626,14 +1628,16 @@ contains
           write(*,*) 'tovsCodeTypeList = ', tovsCodeTypeList(1:tovsCodeTypeListSize) 
           call sqlr_writeSqlDiagFile(obsdat, 'TO', onlyAssimObs, addFSOdiag, &
                                      tovsFileNameList(fileIndex), &
-                                     tovsCodeTypeList(1:tovsCodeTypeListSize)) 
+                                     tovsCodeTypeList(1:tovsCodeTypeListSize), & 
+                                     ensObs_opt=ensObs_opt ) 
         end do
 
       else
 
         fileName = getObsFileName(obsFamilyList(familyIndex), sfFileName_opt=sfFileName)
-        call sqlr_writeSqlDiagFile(obsdat, obsFamilyList(familyIndex),  &
-                                   onlyAssimObs, addFSOdiag, fileName) 
+        call sqlr_writeSqlDiagFile(obsdat, obsFamilyList(familyIndex), &
+                                   onlyAssimObs, addFSOdiag, fileName, & 
+                                   ensObs_opt=ensObs_opt ) 
 
       end if   
       
@@ -1739,11 +1743,11 @@ contains
     deallocate(obsFamilyListMpiLocal)
 
   end subroutine getObsFamilyListMpiGlobal
-
+ 
   !--------------------------------------------------------------------------
   ! sqlr_writeSqlDiagFile
   !--------------------------------------------------------------------------
-  subroutine sqlr_writeSqlDiagFile(obsdat, obsFamily, onlyAssimObs, addFSOdiag, instrumentFileName, codeTypeList_opt)
+  subroutine sqlr_writeSqlDiagFile(obsdat, obsFamily, onlyAssimObs, addFSOdiag, instrumentFileName, codeTypeList_opt, ensObs_opt)
     !
     ! :Purpose: To write the obsSpaceData content into SQLite format files
     !
@@ -1756,17 +1760,18 @@ contains
     logical                    , intent(in)    :: addFSOdiag
     character(len=*)           , intent(in)    :: instrumentFileName
     integer          , optional, intent(in)    :: codeTypeList_opt(:)
-            
+    type(struct_eob) , optional                :: ensObs_opt 
+
     ! locals
-    type(fSQL_DATABASE)    :: db                        ! type for SQLIte  file handle
-    type(fSQL_STATEMENT)   :: stmtData, stmtHeader      ! type for precompiled SQLite statements
-    type(fSQL_STATUS)      :: stat                      ! type for error status
-    integer                :: obsVarno, obsFlag, ASS, vertCoordType, codeType, date, time, idObs, idData
-    real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
+    type(fSQL_DATABASE)    :: db                                   ! type for SQLIte  file handle
+    type(fSQL_STATEMENT)   :: stmtData, stmtHeader, stmtEnsObs     ! type for precompiled SQLite statements
+    type(fSQL_STATUS)      :: stat                                 ! type for error status
+    integer                :: obsVarno, obsFlag, ASS, vertCoordType, codeType, date, time, idObs, idData, memberIndex
+    real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude, ENSOBSTRL, ENSOBSANL
     real                   :: ensInnovStdDev, ensObsErrStdDev, zhad, fso
     integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
-    character(len = 512)   :: queryData, queryHeader, queryCreate 
-    character(len = 12)   :: idStation
+    character(len = 512)   :: queryData, queryHeader, queryCreate, queryCreateEnsObs 
+    character(len = 12)    :: idStation
     character(len=30)      :: fileNameExtention
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
@@ -1826,12 +1831,20 @@ contains
                     &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
                     &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real);'
     end if
-    
+
     call fSQL_do_many(db, queryCreate, stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreate))
     
+    ! If the analysis members in obs space are allocated, make table queries for trial members and analysis members
+    if ( present( ensObs_opt ) ) then
+      ! Create
+      queryCreateEnsObs = 'create table ensobs (id_data integer, id_obs integer, id_member integer, obstrl real, obsanl real);'
+      call fSQL_do_many(db, queryCreateEnsObs, stat)
+      if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreateEnsObs))
+    end if
+    
     if (addFSOdiag) then
-       queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
+      queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
                    &obs_error, sigi, sigo, zhad, fso) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     else
       queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
@@ -1848,6 +1861,16 @@ contains
     if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
+    
+    if ( present( ensObs_opt ) ) then
+      ! Insert
+      queryCreateEnsObs = 'insert into ensobs (id_data, id_obs, id_member, obstrl, obsanl) values(?,?,?,?,?);'
+      write(*,*) 'sqlr_writeSqlDiagFile: Insert query EnsObs   = ', trim(queryCreateEnsObs)
+
+      call fSQL_prepare(db, queryCreateEnsObs, stmtEnsObs, stat)
+      
+      if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
+    end if
     
     numberInsertions = 0
     call obs_set_current_header_list(obsdat, obsFamily)
@@ -1956,7 +1979,7 @@ contains
             vertCoordType = MPC_missingValue_INT 
         end select
 
-        ! insert order: id_obs,varno,vcoord,vcoord_type,obsvalue,flag,oma,oma0,ompt,fg_error,obs_error,sigi,sigo
+        ! insert order: id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, obs_error, sigi, sigo, zhad, fso
         idData = idData + 1
         call fSQL_bind_param(stmtData, param_index = 1, int_var  = idData)
         call fSQL_bind_param(stmtData, param_index = 2, int_var  = idObs)
@@ -2018,6 +2041,20 @@ contains
 
         numberInsertions = numberInsertions + 1
 
+        if ( present( ensObs_opt ) ) then    
+          ! Loop over members. insert order: id_data, id_obs, id_member, obstrl, obsanl
+          do memberIndex = 1, ensObs_opt%numMembers
+            ENSOBSTRL = ensObs_opt%Yb_r4(memberIndex,bodyIndex) + ensObs_opt%meanYb(bodyIndex) ! Yb_r4 has mean removed, so add back
+            ENSOBSANL = ensObs_opt%Ya_r4(memberIndex,bodyIndex)
+            call fSQL_bind_param(stmtEnsObs, param_index = 1, int_var  = idData)
+            call fSQL_bind_param(stmtEnsObs, param_index = 2, int_var  = idObs)
+            call fSQL_bind_param(stmtEnsObs, param_index = 3, int_var  = memberIndex)
+            call fSQL_bind_param(stmtEnsObs, param_index = 4, real_var = ENSOBSTRL)    
+            call fSQL_bind_param(stmtEnsObs, param_index = 5, real_var = ENSOBSANL)
+            call fSQL_exec_stmt (stmtEnsObs)
+          end do
+        end if  
+          
       end do BODY
      
     end do HEADER

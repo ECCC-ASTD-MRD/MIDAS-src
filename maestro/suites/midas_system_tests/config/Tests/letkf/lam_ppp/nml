@@ -11,6 +11,7 @@
    huberize              = .false.
    rejectHighLatIR       = .false.
    rejectRadNearSfc      = .false.
+   outputEnsObs          = .true.
    obsTimeInterpType     = 'LINEAR'
    mpiDistribution       = 'TILES'
 /
