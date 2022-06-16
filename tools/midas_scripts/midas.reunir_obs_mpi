@@ -118,7 +118,7 @@ if [ "${fasttmp}" = yes ]; then
         break
     done
     if [ "${filetype}" = BURP ]; then
-        ${printf_cmd} "$(${echo_cmd} ${files} | ${sed_cmd} 's/ /\\n/g')" | ${xargs_cmd} -L1 ${basename_cmd} | ${xargs_cmd} -t -L10 ${reflex} -oxsrt ${fam}.all.original -ixent
+        ${echo_cmd} ${files} | ${tr_cmd} ' ' '\n' | ${xargs_cmd} -t -L10 ${reflex} -oxsrt ${fam}.all.original -ixent
     elif [ "${filetype}" != SQLite ]; then
         echo "The filetype has to be 'BURP' or 'SQLite' and not '${filetype}'!"
         exit 1
@@ -142,7 +142,7 @@ else
     done
     dfile=${file%/*}
     if [ "${filetype}" = BURP ]; then
-        ${printf_cmd} "$(${echo_cmd} ${files} | ${sed_cmd} 's/ /\\n/g')" | ${xargs_cmd} -t -L10 ${reflex} -oxsrt ${dfile}/${fam}.all.original -ixent
+        ${echo_cmd} ${files} | ${tr_cmd} ' ' '\n' | ${xargs_cmd} -t -L10 ${reflex} -oxsrt ${dfile}/${fam}.all.original -ixent
     elif [ "${filetype}" != SQLite ]; then
         echo "The filetype has to be 'BURP' or 'SQLite' and not '${filetype}'!"
         exit 1
