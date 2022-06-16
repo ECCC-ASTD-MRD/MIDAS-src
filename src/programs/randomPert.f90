@@ -48,7 +48,8 @@ program midas_randomPert
   real(4), pointer :: seaice_ptr(:,:,:)
   real(8), pointer :: field(:,:,:)
 
-  integer :: fclos, fnom, fstopc, newdate, dateStamp, imode, ierr
+  integer :: fclos, fnom, fstopc, newdate, dateStamp, datePrevious, dateStampPrevious
+  integer :: imode, ierr
   integer :: memberIndex, lonIndex, latIndex, cvIndex, levIndex, nkgdim
   integer :: datePrint, timePrint, nulnam, randomSeed
   integer :: get_max_rss, n_grid_point, n_grid_point_glb
@@ -59,14 +60,15 @@ program midas_randomPert
   real(8), allocatable :: controlVector(:), controlVector_mpiglobal(:)
   real(8), allocatable :: gdmean(:,:,:)
   real(4), allocatable :: ensemble_r4(:,:,:,:)
+  real(4), allocatable :: ensemblePreviousDate_r4(:,:,:,:)
   real(8), allocatable :: avg_pturb_var(:)
   real(8), allocatable :: avg_pturb_var_glb(:)
   real(8), allocatable :: pturb_var(:,:,:)
 
   logical :: targetGridExists
-  character(len=10) :: dateString
+  character(len=10) :: dateString, datePreviousString
   character(len=3)  :: memberString
-  character(len=25) :: outFileName
+  character(len=25) :: outFileName, inFileName
   character(len=12) :: out_etiket
   character(len=64) :: ensMeanFileName = 'ensMeanState'
 
@@ -81,9 +83,11 @@ program midas_randomPert
   integer :: date
   integer :: numBits
   real(4) :: iceFractionThreshold
+  real(4) :: previousDateFraction
   NAMELIST /NAMENKF/nens, seed, date, out_etiket, remove_mean,  &
                     smoothVariances, mpiTopoIndependent, numBits, &
-                    readEnsMean, setPertZeroUnderIce, iceFractionThreshold
+                    readEnsMean, setPertZeroUnderIce, iceFractionThreshold, &
+                    previousDateFraction
 
   call ver_printNameAndVersion('randomPert','Generation of random perturbations')
 
@@ -114,6 +118,7 @@ program midas_randomPert
   readEnsMean = .false.
   setPertZeroUnderIce = .false.
   iceFractionThreshold = 0.2
+  previousDateFraction = -1.0
 
   !- 1.2 Read the namelist
   nulnam=0
@@ -139,7 +144,8 @@ program midas_randomPert
   else
     datePrint   = date/100
     timePrint   = (date-datePrint*100)*1000000
-    ierr    = newdate(dateStamp, datePrint, timePrint, 3)
+    imode = 3 ! printable date (YYYYMMDD, HHMMSShh) to stamp
+    ierr    = newdate(dateStamp, datePrint, timePrint, imode)
     write(dateString, '(I10)') date
   end if
   ! If dateStamp not set in namelist, use date from ensMeanState, if available
@@ -467,7 +473,113 @@ program midas_randomPert
 
   end if
 
-  !- 4.6 Write the perturbations
+  !- 4.6 Add a fraction of previous date perturbations
+  if (previousDateFraction > 0.0) then
+
+    ! determine dateStamp of previous date
+    if (dateString == 'undefined') then
+      dateStampPrevious = -1
+      datePrevious = -1
+    else
+      call incdatr(dateStampPrevious, dateStamp, -tim_windowsize)
+      imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+      ierr    = newdate(dateStampPrevious, datePrint, timePrint, imode)
+      datePrevious =  datePrint*100 + timePrint/1000000
+      write(datePreviousString, '(I10)') datePrevious
+    end if
+    write(*,*) 'midas-randomPert: previous date, stamp = ', datePrevious, dateStampPrevious
+
+    allocate(ensemblePreviousDate_r4(myLonBeg:myLonEnd, myLatBeg:myLatEnd, nkgdim, nEns))
+
+    call gsv_allocate(stateVectorPert, 1, hco_anl, vco_anl, &
+                      dateStamp_opt=dateStampPrevious, mpi_local_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false., &
+                      hInterpolateDegree_opt='LINEAR')
+    call gsv_getField(stateVectorPert,field)
+    gdmean(:,:,:) = 0.0D0
+
+    do memberIndex = 1, NENS
+
+      ! Read previous date perturbations (or perturbed analyses)
+      write(memberString, '(I3.3)') memberIndex
+      if (dateString /= 'undefined') then
+        if (readEnsMean) then
+          inFileName = './'//trim(datePreviousString)//'_'//trim(memberString)
+        else
+          inFileName = './pert_'//trim(datePreviousString)//'_'//trim(memberString)
+        end if
+      else
+        inFileName = './pert_'//trim(memberString)
+      end if
+      if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: reading previous date file = ', inFileName
+
+      call gio_readFromFile(stateVectorPert, inFileName, ' ', ' ',  &
+                            containsFullField_opt=.true.)
+
+      ! Copy to big array and accumulate sum for computing mean
+      !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
+      do levIndex = 1, nkgdim
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            ensemblePreviousDate_r4(lonIndex, latIndex, levIndex, memberIndex) = &
+                 real(field(lonIndex, latIndex, levIndex), 4)
+            gdmean(lonIndex, latIndex, levIndex) = gdmean(lonIndex, latIndex, levIndex) + &
+                                                   field(lonIndex, latIndex, levIndex)
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+
+    end do
+
+    ! Finish computing mean and remove it
+    !$OMP PARALLEL DO PRIVATE (lonIndex, latIndex, levIndex)    
+    do levIndex = 1, nkgdim
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          gdmean(lonIndex, latIndex, levIndex) = gdmean(lonIndex, latIndex, levIndex) / real(NENS, 8)
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+    !$OMP PARALLEL DO PRIVATE (lonIndex, memberIndex, latIndex, levIndex)    
+    do memberIndex = 1, NENS
+      do levIndex = 1, nkgdim
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            ensemblePreviousDate_r4(lonIndex, latIndex, levIndex, memberIndex) =  &
+                ensemblePreviousDate_r4(lonIndex, latIndex, levIndex, memberIndex) -  &
+                real(gdmean(lonIndex, latIndex, levIndex), 4)
+          end do
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+    ! Average current and previous perturbations
+    !$OMP PARALLEL DO PRIVATE (lonIndex, memberIndex, latIndex, levIndex)    
+    do memberIndex = 1, NENS
+      do levIndex = 1, nkgdim
+        do latIndex = myLatBeg, myLatEnd
+          do lonIndex = myLonBeg, myLonEnd
+            ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) =  &
+                 (1.0-previousDateFraction) * &
+                 ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) +  &
+                 previousDateFraction * &
+                 ensemblePreviousDate_r4(lonIndex, latIndex, levIndex, memberIndex)
+          end do
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+    call gsv_deallocate(stateVectorPert)
+    deallocate(ensemblePreviousDate_r4)
+
+  end if
+
+  !- 4.7 Write the perturbations
   do memberIndex = 1, NENS
     if( mmpi_myid == 0 ) write(*,*)
     if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: pre-processing for writing member number= ', memberIndex
@@ -495,11 +607,13 @@ program midas_randomPert
     ! interpolate perturbation to the target grid
     call int_interpolate(stateVectorPert, stateVectorPertInterp)
 
+    ! add perturbation to supplied ensemble mean
     if ( readEnsMean ) then
       if (mpi_myid == 0) write(*,*) 'midas-randomPert: adding the ensemble mean and perturbation'
       call gsv_add(stateVectorEnsMean, stateVectorPertInterp)
     end if
 
+    ! determine file name and write to file
     write(memberString, '(I3.3)') memberIndex
     if (dateString /= 'undefined') then
       if (readEnsMean) then
@@ -510,8 +624,8 @@ program midas_randomPert
     else
       outFileName = './pert_'//trim(memberString)
     end if
-    if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: processing file = ', outFileName
 
+    if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: processing file = ', outFileName
     call gio_writeToFile(stateVectorPertInterp, outFileName, out_etiket,              & ! IN
                          numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
                          containsFullField_opt=readEnsMean) 

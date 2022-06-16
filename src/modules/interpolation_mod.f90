@@ -27,6 +27,8 @@ module interpolation_mod
   use horizontalCoord_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use physicsfunctions_mod
+  use kdtree2_mod
   implicit none
   save
   private
@@ -54,7 +56,65 @@ module interpolation_mod
     module procedure int_uvint_r8_2d
   end interface int_uvint
 
+  ! Namelist variables
+  ! ------------------
+  logical :: vInterpCopyLowestLevel ! overwrite values at lowest level to avoid extrapolation
+  logical :: checkCloudToGridUnassigned ! abort if unmasked points not assigned from cloudToGrid interp
+  integer :: maxBoxSize             ! max size used to fill values for cloudToGrid interpolation
+
 contains
+
+  !--------------------------------------------------------------------------
+  ! int_readNml (private subroutine)
+  !--------------------------------------------------------------------------
+  subroutine int_readNml()
+    !
+    ! :Purpose: Read the namelist block NAMINT.
+    !
+    ! :Namelist parameters:
+    !         :vInterpCopyLowestLevel:  if true, will overwrite values at the lowest
+    !                                   levels to avoid extrapolation
+    !         :maxBoxSize: maximum size in terms of grid points used for filling
+    !                      in undefined values from neighbours when doing interpolation
+    !                      from a cloud of points to a grid
+    !         :checkCloudToGridUnassigned: abort if any unmasked points are not assigned
+    !                                      after doing cloudToGrid interpolation
+    !
+    implicit none
+
+    ! Locals:
+    integer :: ierr, nulnam, fnom, fclos
+    logical, save :: alreadyRead = .false.
+
+    NAMELIST /NAMINT/ vInterpCopyLowestLevel, checkCloudToGridUnassigned, maxBoxSize
+
+    if (alreadyRead) then
+      return
+    else
+      alreadyRead = .true.
+    end if
+
+    ! default values
+    vInterpCopyLowestLevel = .false.
+    checkCloudToGridUnassigned = .true.
+    maxBoxSize = 1
+
+    if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
+      if (mpi_myid == 0) then
+        write(*,*) 'int_readNml: namint is missing in the namelist.'
+        write(*,*) '             The default values will be taken.'
+      end if
+    else
+      ! Read namelist NAMINT
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namint,iostat=ierr)
+      if (ierr /= 0) call utl_abort('int_readlNml: Error reading namelist NAMINT')
+      if (mpi_myid == 0) write(*,nml=namint)
+      ierr = fclos(nulnam)
+    end if
+
+  end subroutine int_readNml
 
   !--------------------------------------------------------------------------
   ! int_interp_gsv
@@ -69,19 +129,15 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),       intent(in)    :: statevector_in               ! statevector that will contain the interpolated fields
-    type(struct_gsv),       intent(inout) :: statevector_out              ! Reference statevector providing the horizontal and vertical structure
-
-    real(8),      optional, intent(in)    :: PsfcReference_opt(:,:,:)     ! Provides a surface pressure field to be used instead of the first P0 level
-    real(4),      optional, intent(in)    :: PsfcReference_r4_opt(:,:,:)  ! Provides a surface pressure field to be used instead of the first P0 level
-    
-    logical,      optional, intent(in)    :: checkModelTop_opt            ! If true, model top consistency will be checked in vertical interpolation
+    type(struct_gsv),  intent(in)    :: statevector_in               ! statevector that will contain the interpolated fields
+    type(struct_gsv),  intent(inout) :: statevector_out              ! Reference statevector providing the horizontal and vertical structure
+    real(8), optional, intent(in)    :: PsfcReference_opt(:,:,:)     ! Provides a surface pressure field to be used instead of the first P0 level
+    real(4), optional, intent(in)    :: PsfcReference_r4_opt(:,:,:)  ! Provides a surface pressure field to be used instead of the first P0 level    
+    logical, optional, intent(in)    :: checkModelTop_opt            ! If true, model top consistency will be checked in vertical interpolation
     
     ! Locals:
     logical :: checkModelTop
-
     character(len=4), pointer :: varNamesToInterpolate(:)
-
     type(struct_gsv) :: statevector_in_varsLevs, statevector_in_varsLevs_hInterp
     type(struct_gsv) :: statevector_in_hInterp
 
@@ -279,10 +335,6 @@ contains
     !
     ! :Purpose: Vertical interpolation
     !
-    ! :Namelist parameters:
-    !         :vInterpCopyLowestLevel:  if true, will overwrite values at the lowest
-    !                                   levels to avoid extrapolation
-    !
     implicit none
 
     ! Arguments:
@@ -293,11 +345,11 @@ contains
     logical, optional, intent(in)     :: checkModelTop_opt        ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
-    logical :: checkModelTop, vInterpCopyLowestLevel
+    logical :: checkModelTop
 
     integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
     integer :: latIndex2, lonIndex2, varIndex, stepIndex
-    integer :: status, nulnam, fnom, ierr, fclos
+    integer :: status
     real(8) :: zwb, zwt
 
     real(8)           :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
@@ -309,23 +361,8 @@ contains
 
     type(struct_vco), pointer :: vco_in, vco_out
 
-    NAMELIST /NAMINT/vInterpCopyLowestLevel
-
-    vInterpCopyLowestLevel = .false.
-    if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
-      if ( mmpi_myid == 0 ) then
-        write(*,*) 'int_vInterp_gsv: namint is missing in the namelist.'
-        write(*,*) '                     The default values will be taken.'
-      end if
-    else
-      ! Read namelist NAMINT
-      nulnam=0
-      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namint,iostat=ierr)
-      if (ierr.ne.0) call utl_abort('int_vInterp_gsv: Error reading namelist NAMINT')
-      if (mmpi_myid.eq.0) write(*,nml=namint)
-      ierr=fclos(nulnam)
-    end if
+    ! read the namelist
+    call int_readNml()
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
       write(*,*) 'int_vInterp_gsv: The input and output statevectors are already on same vertical levels'
@@ -473,9 +510,6 @@ contains
     !
     ! :Purpose: Vertical interpolation of pressure defined fields
     !
-    ! :Namelist parameters:
-    !         :vInterpCopyLowestLevel:  if true, will overwrite values at the lowest
-    !                                   levels to avoid extrapolation
     !
     implicit none
 
@@ -487,11 +521,11 @@ contains
     logical, optional, intent(in)     :: checkModelTop_opt        ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
-    logical :: checkModelTop, vInterpCopyLowestLevel
+    logical :: checkModelTop
 
     integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
     integer :: latIndex2, lonIndex2, varIndex, stepIndex
-    integer :: status, nulnam, fnom, ierr, fclos
+    integer :: status
     real(4) :: zwb, zwt
 
     real(4)           :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
@@ -503,23 +537,8 @@ contains
 
     type(struct_vco), pointer :: vco_in, vco_out
 
-    NAMELIST /NAMINT/vInterpCopyLowestLevel
-
-    vInterpCopyLowestLevel = .false.
-    if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
-      if ( mmpi_myid == 0 ) then
-        write(*,*) 'int_vInterp_gsv_r4: namint is missing in the namelist.'
-        write(*,*) '                     The default values will be taken.'
-      end if
-    else
-      ! Read namelist NAMINT
-      nulnam=0
-      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namint,iostat=ierr)
-      if (ierr.ne.0) call utl_abort('int_vInterp_gsv_r4: Error reading namelist NAMINT')
-      if (mmpi_myid.eq.0) write(*,nml=namint)
-      ierr=fclos(nulnam)
-    end if
+    ! read the namelist
+    call int_readNml()
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
       write(*,*) 'int_vInterp_gsv_r4: The input and output statevectors are already on same vertical levels'
@@ -686,6 +705,9 @@ contains
     real(8), pointer  :: gdIn_r8(:,:,:,:), gdOut_r8(:,:,:,:)
 
     write(*,*) 'int_tInterp_gsv: STARTING'
+
+    ! read the namelist
+    call int_readNml()
 
     if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
       call utl_abort('int_tInterp_gsv: The input and output statevectors are not on the same vertical levels')
@@ -1113,7 +1135,8 @@ contains
     real(8), pointer :: heightSfcOut(:,:), heightSfcIn(:,:)
     integer :: ezsint, ezdefset
 
-    write(*,*) 'int_sint_gsv: starting'
+    ! read the namelist
+    call int_readNml()
 
     ! check if special interpolation is required
     if (stateVectorIn%hco%initialized .and. stateVectorOut%hco%initialized) then
@@ -1205,6 +1228,9 @@ contains
     ! Locals:
     integer :: ezsint, ezdefset
 
+    ! read the namelist
+    call int_readNml()
+
     ! check if special interpolation is required
     if (hco_in%initialized .and. hco_out%initialized) then
       ierr = ezdefset(hco_out%EZscintID, hco_in%EZscintID)
@@ -1242,17 +1268,26 @@ contains
     integer                         :: ierr
 
     ! Locals:
-    integer :: gdxyfll
-    integer :: niCloud, njCloud, niGrid, njGrid
-    integer :: top, bottom, left, right, np, lonIndexCloud, latIndexCloud, k, l, m, lonIndexGrid, latIndexGrid
-    integer :: in(8), jn(8), ngp, nfill, nhole, nextrap0, nextrap1
-    integer, allocatable :: icount(:,:), maskGrid(:,:), maskCloud(:,:)
+    integer :: gdxyfll, omp_get_thread_num
+    integer :: niCloud, njCloud, niGrid, njGrid, myThreadNum
+    integer :: top, bottom, left, right, np, lonIndexCloud, latIndexCloud
+    integer :: boxSize, k, l, m, lonIndexGrid, latIndexGrid
+    integer :: in(100), jn(100), ngp, nfill(mpi_numThreads), nhole(mpi_numThreads), nextrap0, nextrap1
+    integer, allocatable :: icount(:,:), icount2(:,:), maskGrid(:,:), maskCloud(:,:)
     real(4), pointer     :: fieldCloud_4d(:,:,:,:), fieldGrid_4d(:,:,:,:)
     real(4), pointer     :: fieldCloud(:,:), fieldGrid(:,:)
+    real(4), allocatable :: fieldGrid_tmp(:,:)
     real(4), allocatable :: xCloud(:,:), yCloud(:,:)
-    real(4) :: extrapValue
+    real(8) :: extrapValue
+    integer, parameter        :: maxNumLocalGridPointsSearch = 200000
+    integer                   :: numLocalGridPointsFound, gridIndex
+    type(kdtree2), pointer    :: tree => null()
+    real(kdkind), allocatable :: positionArray(:,:)
+    type(kdtree2_result)      :: searchResults(maxNumLocalGridPointsSearch)
+    real(kdkind)              :: searchRadiusSquared
+    real(kdkind)              :: refPosition(3)
 
-    extrapValue = 0.0
+    call utl_tmg_start(169, 'low-level--int_sintCloudToGrid_gsv')
 
     niCloud = stateVectorCloud%hco%ni
     njCloud = stateVectorCloud%hco%nj
@@ -1272,8 +1307,10 @@ contains
     allocate(xCloud(niCloud, njCloud))
     allocate(yCloud(niCloud, njCloud))
     allocate(icount(niGrid, njGrid))
+    allocate(icount2(niGrid, njGrid))
     allocate(maskCloud(niCloud, njCloud))
     allocate(maskGrid(niGrid, njGrid))
+    allocate(fieldGrid_tmp(niGrid,njGrid))
 
     ! set masks based on oceanMasks (if present)
     if (stateVectorCloud%oceanMask%maskPresent) then
@@ -1287,7 +1324,17 @@ contains
     else
       maskCloud(:,:) = 1
     end if
-    maskGrid(:,:)  = 1
+    if (stateVectorGrid%oceanMask%maskPresent) then
+      maskGrid(:,:) = 0
+      if (trim(varName) == 'ALL') then
+        ! when varName==ALL, the argument levIndex is actually kIndex
+        where(stateVectorGrid%oceanMask%mask(:,:,gsv_getLevFromK(stateVectorGrid,levIndex))) maskGrid(:,:) = 1
+      else
+        where(stateVectorGrid%oceanMask%mask(:,:,levIndex)) maskGrid(:,:) = 1
+      end if
+    else
+      maskGrid(:,:)  = 1
+    end if
 
     ! Calcul des pos. x-y des eclairs sur la grille modele
     ierr = gdxyfll(stateVectorGrid%hco%EZscintID, xCloud, yCloud, &
@@ -1295,25 +1342,20 @@ contains
                    stateVectorCloud%hco%lon2d_4*MPC_DEGREES_PER_RADIAN_R4, &
                    stateVectorCloud%hco%ni*stateVectorCloud%hco%nj)
 
-    write(*,*) 'xCloud, yCloud, lonCloud, latCloud = ', xCloud(1,1), yCloud(1,1),  &
-               stateVectorCloud%hco%lon2d_4(1,1)*MPC_DEGREES_PER_RADIAN_R4, &
-               stateVectorCloud%hco%lat2d_4(1,1)*MPC_DEGREES_PER_RADIAN_R4
-
-    write(*,*) 'shape(fieldCloud) = ', shape(fieldCloud), niCloud, njCloud
-
+    ! Average values of cloud points neighbouring a grid location
     fieldGrid(:,:) = 0.0
     icount(:,:) = 0
-
     do latIndexCloud = 1, njCloud
       do lonIndexCloud = 1, niCloud
         lonIndexGrid = nint(xCloud(lonIndexCloud,latIndexCloud))
         latIndexGrid = nint(yCloud(lonIndexCloud,latIndexCloud))
         if ( lonIndexGrid >= 1 .and. latIndexGrid >= 1 .and. &
-             lonIndexGrid <= niGrid .and. latIndexGrid <= njGrid .and. &
-             maskCloud(lonIndexCloud,latIndexCloud) == 1 ) then
-          fieldGrid(lonIndexGrid,latIndexGrid) = fieldGrid(lonIndexGrid,latIndexGrid) +  &
-                                                 fieldCloud(lonIndexCloud,latIndexCloud)
-          icount(lonIndexGrid,latIndexGrid) = icount(lonIndexGrid,latIndexGrid) + 1
+             lonIndexGrid <= niGrid .and. latIndexGrid <= njGrid ) then
+          if ( maskCloud(lonIndexCloud,latIndexCloud) == 1 ) then
+            fieldGrid(lonIndexGrid,latIndexGrid) = fieldGrid(lonIndexGrid,latIndexGrid) +  &
+                                                   fieldCloud(lonIndexCloud,latIndexCloud)
+            icount(lonIndexGrid,latIndexGrid) = icount(lonIndexGrid,latIndexGrid) + 1
+          end if
         end if
       end do
     end do
@@ -1328,19 +1370,23 @@ contains
     end do
 
     ! Now do something for grid points that don't have any value assigned
-    nfill = 0
-    nhole = 0
-    nextrap0 = 0
-    nextrap1 = 0
-    do latIndexGrid = 1, njGrid
-      do lonIndexGrid = 1, niGrid
-        if (icount(lonIndexGrid,latIndexGrid) == 0) then
-          nhole = nhole + 1
+    fieldGrid_tmp(:,:) = fieldGrid(:,:)
+    nfill(:) = 0
+    nhole(:) = 0
+    boxSizeLoop: do boxSize = 1, maxBoxSize
+      icount2(:,:) = 0
+      !$OMP PARALLEL DO PRIVATE(latIndexGrid,lonIndexGrid,myThreadNum,top,bottom,left,right,np,l,k,in,jn,ngp,m)
+      do latIndexGrid = 1, njGrid
+        myThreadNum = 1 + omp_get_thread_num()
+        do lonIndexGrid = 1, niGrid
+          if (icount(lonIndexGrid,latIndexGrid) > 0) cycle
 
-          top    = latIndexGrid + 1
-          bottom = latIndexGrid - 1
-          left   = lonIndexGrid - 1
-          right  = lonIndexGrid + 1
+          if (boxSize == 1) nhole(myThreadNum) = nhole(myThreadNum) + 1
+
+          top    = latIndexGrid + boxSize
+          bottom = latIndexGrid - boxSize
+          left   = lonIndexGrid - boxSize
+          right  = lonIndexGrid + boxSize
 
           np = 0
           l = bottom
@@ -1375,8 +1421,9 @@ contains
                 jn(m) >= 1 .and. jn(m) <= njGrid) then
               if ( icount(in(m),jn(m)) > 0 ) then
 
-                fieldGrid(lonIndexGrid,latIndexGrid) = fieldGrid(lonIndexGrid,latIndexGrid) +  &
-                                                       fieldGrid(in(m),jn(m))
+                fieldGrid_tmp(lonIndexGrid,latIndexGrid) = &
+                     fieldGrid_tmp(lonIndexGrid,latIndexGrid) +  &
+                     fieldGrid(in(m),jn(m))
                 ngp = ngp + 1
 
               end if
@@ -1385,38 +1432,134 @@ contains
           end do
 
           if (ngp /= 0) then
-            fieldGrid(lonIndexGrid,latIndexGrid) = fieldGrid(lonIndexGrid,latIndexGrid)/real(ngp)
-            nfill = nfill + 1
-          else
-            fieldGrid(lonIndexGrid,latIndexGrid) = extrapValue
-            if (maskGrid(lonIndexGrid,latIndexGrid) == 1) then
-              nextrap1 = nextrap1 + 1
-            else if (maskGrid(lonIndexGrid,latIndexGrid) == 0) then
-              nextrap0 = nextrap0 + 1
-            else
-              write(*,*) 'Expecting 0 or 1 for the mask field at grid point: ',lonIndexGrid,latIndexGrid
-              call utl_abort('int_sintCloudToGrid_gsv')
-            end if
+            ! mark the grid point as being filled by interpolation on the grid
+            icount2(lonIndexGrid,latIndexGrid) = 1
+            fieldGrid_tmp(lonIndexGrid,latIndexGrid) = fieldGrid_tmp(lonIndexGrid,latIndexGrid)/real(ngp)
+            nfill(myThreadNum) = nfill(myThreadNum) + 1
           end if
 
-        end if
+        end do
       end do
-    end do
+      !$OMP END PARALLEL DO
 
-    write(*,*) 'Total number of grid points: ', niGrid*njGrid
-    write(*,*) 'Number of grid points that were not covered '// &
-               'by the cloud of points: ', nhole
-    write(*,*) 'Number of grid points filled by a neighbor: ', nfill
-    write(*,*) 'Number of grid points with extrapolated value in masked area: ', nextrap0
-    write(*,*) 'Number of grid points with extrapolated value in visible area: ', nextrap1
+      fieldGrid(:,:) = fieldGrid_tmp(:,:)
+      icount(:,:) = icount(:,:) + icount2(:,:)
+    end do boxSizeLoop
 
+    ! find any remaining grid points that are likely water and assign value
+    if ( checkCloudToGridUnassigned .and. &
+         stateVectorCloud%oceanMask%maskPresent .and. &
+         .not. stateVectorGrid%oceanMask%maskPresent ) then
+
+      ! create a kdtree to index all cloud locations
+      allocate(positionArray(3,niCloud*njCloud))
+      gridIndex = 0
+      do lonIndexCloud = 1, niCloud
+        do latIndexCloud = 1, njCloud
+          gridIndex = gridIndex + 1
+          positionArray(:,gridIndex) = &
+               kdtree2_3dPosition(real(stateVectorCloud%hco%lon2d_4(lonIndexCloud,latIndexCloud),8), &
+                                  real(stateVectorCloud%hco%lat2d_4(lonIndexCloud,latIndexCloud),8))
+        end do
+      end do
+      tree => kdtree2_create(positionArray, sort=.true., rearrange=.true.) 
+      
+      ! assign grid mask to value of mask at nearest cloud location
+      do latIndexGrid = 1, njGrid
+        do lonIndexGrid = 1, niGrid
+          if (icount(lonIndexGrid,latIndexGrid) > 0) cycle
+
+          ! find nearest cloud location
+          refPosition(:) = kdtree2_3dPosition(real(stateVectorGrid%hco%lon2d_4(lonIndexGrid,latIndexGrid),8), &
+                                              real(stateVectorGrid%hco%lat2d_4(lonIndexGrid,latIndexGrid),8))
+
+          searchRadiusSquared = (50.0D0*1000.0D0)**2
+          call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=searchRadiusSquared, &
+                                 nfound=numLocalGridPointsFound, &
+                                 nalloc=maxNumLocalGridPointsSearch, results=searchResults)
+          if (numLocalGridPointsFound > maxNumLocalGridPointsSearch) then
+            call utl_abort('The parameter maxNumLocalGridPointsSearch must be increased')
+          end if
+          if (numLocalGridPointsFound == 0) then
+            ! very far from a cloud location, assume it is land
+            maskGrid(lonIndexGrid,latIndexGrid) = 0
+          else
+            gridIndex = searchResults(1)%idx
+            lonIndexCloud = 1 + ((gridIndex-1)/njCloud)
+            latIndexCloud = gridIndex - ((gridIndex-1)/njCloud)*njCloud
+            if(lonIndexCloud < 1 .or. lonIndexCloud > niCloud) call utl_abort('lonIndexCloud wrong')
+            if(latIndexCloud < 1 .or. latIndexCloud > njCloud) call utl_abort('latIndexCloud wrong')
+            maskGrid(lonIndexGrid,latIndexGrid) = maskCloud(lonIndexCloud,latIndexCloud)
+          end if
+
+        end do
+      end do
+
+      deallocate(positionArray)
+      call kdtree2_destroy(tree)
+
+    end if
+
+    ! fill in remaining grid points
+    if (count(icount(:,:) > 0) > 0) then
+
+      ! compute spatial mean of assigned grid values
+      extrapValue = 0.0d0
+      do latIndexGrid = 1, njGrid
+        do lonIndexGrid = 1, niGrid
+          if (icount(lonIndexGrid,latIndexGrid) == 0) cycle
+          extrapValue = extrapValue + real(fieldGrid(lonIndexGrid,latIndexGrid),8)
+        end do
+      end do
+      extrapValue = extrapValue / real(count(icount(:,:) > 0),8)
+
+      ! set unassigned grid points and count them
+      nextrap0 = 0
+      nextrap1 = 0
+      do latIndexGrid = 1, njGrid
+        do lonIndexGrid = 1, niGrid
+
+          if (icount(lonIndexGrid,latIndexGrid) > 0) cycle
+
+          fieldGrid(lonIndexGrid,latIndexGrid) = extrapValue
+
+          if (maskGrid(lonIndexGrid,latIndexGrid) == 1) then
+            nextrap1 = nextrap1 + 1
+          else if (maskGrid(lonIndexGrid,latIndexGrid) == 0) then
+            nextrap0 = nextrap0 + 1
+          else
+            write(*,*) 'Expecting 0 or 1 for the mask field at grid point: ', &
+                       lonIndexGrid,latIndexGrid,maskGrid(lonIndexGrid,latIndexGrid)
+            call utl_abort('int_sintCloudToGrid_gsv')
+          end if
+
+        end do
+      end do
+    end if
+
+    if ( checkCloudToGridUnassigned ) then
+      write(*,*) 'Total number of grid points:                                   ', niGrid*njGrid
+      write(*,*) 'Number of grid points not covered by the cloud of points:      ', sum(nhole(:))
+      write(*,*) 'Number of grid points filled by neighbours:                    ', sum(nfill(:))
+      write(*,*) 'Number of grid points with extrapolated value in masked area:  ', nextrap0
+      write(*,*) 'Number of grid points with extrapolated value in visible area: ', nextrap1
+
+      if ( nextrap1 > 0 ) then
+        call utl_abort('int_sintCloudToGrid_gsv: Values at some unmasked grid points were not assigned')
+      end if
+    end if
+
+    deallocate(fieldGrid_tmp)
     deallocate(xCloud)
     deallocate(yCloud)
     deallocate(icount)
+    deallocate(icount2)
     deallocate(maskCloud)
     deallocate(maskGrid)
 
     ierr = 0
+
+    call utl_tmg_stop(169)
 
   end function int_sintCloudToGrid_gsv
 
@@ -1444,6 +1587,9 @@ contains
     integer :: jk1, jk2
     real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
     integer :: ezsint, ezdefset
+
+    ! read the namelist
+    call int_readNml()
 
     ! check if special interpolation is required
     if (hco_in%initialized .and. hco_out%initialized) then
@@ -1515,6 +1661,9 @@ contains
     integer :: ezuvint, ezdefset
 
     write(*,*) 'int_uvint_gsv: starting'
+
+    ! read the namelist
+    call int_readNml()
 
     ! check if special interpolation is required
     if (stateVectorIn%hco%initialized .and. stateVectorOut%hco%initialized) then
@@ -1633,6 +1782,9 @@ contains
     ! Locals:
     integer :: ezuvint, ezdefset
 
+    ! read the namelist
+    call int_readNml()
+
     ! check if special interpolation is required
     if (hco_in%initialized .and. hco_out%initialized) then
       ierr = ezdefset(hco_out%EZscintID, hco_in%EZscintID)
@@ -1675,6 +1827,9 @@ contains
     real, allocatable :: bufuuout4(:,:), bufvvout4(:,:)
     real, allocatable :: bufuuin4(:,:), bufvvin4(:,:)
     integer :: ezuvint, ezdefset
+
+    ! read the namelist
+    call int_readNml()
 
     ! check if special interpolation is required
     if (hco_in%initialized .and. hco_out%initialized) then

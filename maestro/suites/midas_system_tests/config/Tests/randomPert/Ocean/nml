@@ -18,7 +18,12 @@
    readEnsMean = T
    setPertZeroUnderIce = T
    iceFractionThreshold = 0.2
+   previousDateFraction = 0.9
    numBits = 16
+/
+ &NAMINT
+  maxBoxSize = 12
+  checkCloudToGridUnassigned = F
 /
  &NAMTIME
   DSTEPOBS = 6.0d0
@@ -26,7 +31,5 @@
 /
  &NAMSTATE
    ANLVAR(1)   ='TM'
-   ANLVAR(2)   ='SALW'
-   ANLVAR(3)   ='SSH'
-   ANLVAR(4)   ='GL'
+   ANLVAR(2)   ='GL'
 /

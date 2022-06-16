@@ -1257,11 +1257,10 @@ CONTAINS
     end if
 
     !- 3. From ensemble FORECASTS to ensemble PERTURBATIONS
-write(*,*) 'min/max ensPerts1 = ', minval(bEns(instanceIndex)%ensPerts(1)%allLev_r4(1)%onelevel), maxval(bEns(instanceIndex)%ensPerts(1)%allLev_r4(1)%onelevel)
+
     !- 3.1 remove mean
     call ens_computeMean( bEns(instanceIndex)%ensPerts(1), bEns(instanceIndex)%removeSubEnsMeans, numSubEns_opt=bEns(instanceIndex)%numSubEns )
     call ens_removeMean( bEns(instanceIndex)%ensPerts(1) )
-write(*,*) 'min/max ensPerts2 = ', minval(bEns(instanceIndex)%ensPerts(1)%allLev_r4(1)%onelevel), maxval(bEns(instanceIndex)%ensPerts(1)%allLev_r4(1)%onelevel)
 
     !- 3.2 normalize and apply scale factors
     !$OMP PARALLEL DO PRIVATE (levIndex,varName,lev,ptr4d_r4,stepIndex,memberIndex,multFactor)
@@ -1305,7 +1304,6 @@ write(*,*) 'min/max ensPerts2 = ', minval(bEns(instanceIndex)%ensPerts(1)%allLev
     end do ! levIndex
     !$OMP END PARALLEL DO
 
-write(*,*) 'min/max ensPerts3 = ', minval(bEns(instanceIndex)%ensPerts(1)%allLev_r4(1)%onelevel), maxval(bEns(instanceIndex)%ensPerts(1)%allLev_r4(1)%onelevel)
     write(*,*) 'ben_setupEnsemble: finished adjusting ensemble members...'
 
   end subroutine setupEnsemble
@@ -1918,8 +1916,6 @@ write(*,*) 'min/max ensPerts3 = ', minval(bEns(instanceIndex)%ensPerts(1)%allLev
       return
     end if
 
-write(*,*) 'min/max of controlVector_in = ', minval(controlVector_in), maxval(controlVector_in)
-
     ! only check controlVector on proc 0, since may be zero-length on some procs
     if (mmpi_myid == 0) then
       immediateReturn = .false.
@@ -1971,7 +1967,7 @@ write(*,*) 'min/max of controlVector_in = ', minval(controlVector_in), maxval(co
                      ensAmplitude_ptr,                                               & ! OUT
                      amp3dStepIndex)                                                   ! IN
       call utl_tmg_stop(60)
-write(*,*) 'min/max of ensAmplitude = ', minval(ensAmplitude_ptr%allLev_r8(1)%onelevel), maxval(ensAmplitude_ptr%allLev_r8(1)%onelevel)
+
       ! 2.2 Advect the amplitudes
       if      (bEns(instanceIndex)%advectAmplitudeFSOFcst   .and. useFSOFcst) then
         call adv_ensemble_tl( ensAmplitude_ptr,                                                  & ! INOUT
@@ -1988,7 +1984,7 @@ write(*,*) 'min/max of ensAmplitude = ', minval(ensAmplitude_ptr%allLev_r8(1)%on
       ! 2.3 Compute increment by multiplying amplitudes by member perturbations
       call addEnsMember( ensAmplitude_ptr, statevector,          & ! INOUT 
                          instanceIndex, waveBandIndex, useFSOFcst )  ! IN
-write(*,*) 'min/max of increment = ', minval(statevector%gd_r8), maxval(statevector%gd_r8)
+
     end do ! Loop on WaveBand
 
     if (.not. bEns(instanceIndex)%useSaveAmp) call ens_deallocate(ensAmplitude)
@@ -2197,7 +2193,6 @@ write(*,*) 'min/max of increment = ', minval(statevector%gd_r8), maxval(statevec
 
       lev = ens_getLevFromK(bEns(instanceIndex)%ensPerts(1),levIndex)
       varName = ens_getVarNameFromK(bEns(instanceIndex)%ensPerts(1),levIndex)
-write(*,*) 'levIndex, lev, varName = ', levIndex, lev, varName
 
       !$OMP PARALLEL DO PRIVATE (latIndex)
       do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
@@ -2210,9 +2205,6 @@ write(*,*) 'levIndex, lev, varName = ', levIndex, lev, varName
         ! The non-surface variable varName is on the same levels than the amplitude field
         ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
         ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
-
-write(*,*) 'shape(ensAmplitude_MT_ptr) = ', shape(ensAmplitude_MT_ptr)
-write(*,*) 'min/max ensAmplitude_MT_ptr = ', minval(ensAmplitude_MT_ptr), maxval(ensAmplitude_MT_ptr)
 
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
         ! The non-surface variable varName is on TH levels whereas the amplitude field is on MM levels
@@ -2278,9 +2270,6 @@ write(*,*) 'min/max ensAmplitude_MT_ptr = ', minval(ensAmplitude_MT_ptr), maxval
         ! Surface variable cases (ocean)
         ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,1)
 
-write(*,*) 'shape(ensAmplitude_MT_ptr) = ', shape(ensAmplitude_MT_ptr)
-write(*,*) 'min/max ensAmplitude_MT_ptr = ', minval(ensAmplitude_MT_ptr), maxval(ensAmplitude_MT_ptr)
-
       else
 
         write(*,*) 'variable name = ', varName
@@ -2292,9 +2281,6 @@ write(*,*) 'min/max ensAmplitude_MT_ptr = ', minval(ensAmplitude_MT_ptr), maxval
       call utl_tmg_start(59,'--------AddMemInner_TL')
 
       ensMemberAll_r4 => ens_getOneLev_r4(bEns(instanceIndex)%ensPerts(waveBandIndex),levIndex)
-write(*,*) 'shape(ensMemberAll_r4) = ', shape(ensMemberAll_r4)
-write(*,*) 'levIndex = ', levIndex
-write(*,*) 'min/max ensMemberAll = ', minval(ensMemberAll_r4), maxval(ensMemberAll_r4)
       !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,stepIndex,stepIndex2,stepIndex_amp,memberIndex)
       do latIndex = bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd
         do lonIndex = bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd
@@ -2316,7 +2302,7 @@ write(*,*) 'min/max ensMemberAll = ', minval(ensMemberAll_r4), maxval(ensMemberA
         end do ! lonIndex
       end do ! latIndex
       !$OMP END PARALLEL DO
-write(*,*) 'min/max increment_out2 = ', minval(increment_out2), maxval(increment_out2)
+
       call utl_tmg_stop(59)
 
       ! compute increment level from amplitude/member level
@@ -2358,7 +2344,6 @@ write(*,*) 'min/max increment_out2 = ', minval(increment_out2), maxval(increment
         end if
       end do
       !$OMP END PARALLEL DO
-write(*,*) 'min/max increment_out_r8 = ', minval(increment_out_r8), maxval(increment_out_r8)
 
     end do ! levIndex
 

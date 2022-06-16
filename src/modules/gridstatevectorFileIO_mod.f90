@@ -593,10 +593,8 @@ module gridStateVectorFileIO_mod
     interpToPhysicsGrid = .false.
     if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
       if ( mmpi_myid == 0 ) then
-        write(*,*) 'gio_readFile: namstio is missing in the namelist.'
-        write(*,*) '                     The default values will be taken.'
+        write(*,*) 'gio_readFile: namstio is missing in the namelist. The default values will be taken.'
       end if
-
     else
       ! Read namelist NAMSTIO
       nulnam=0
@@ -1265,10 +1263,8 @@ module gridStateVectorFileIO_mod
     interpToPhysicsGrid = .false.
     if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
       if ( mmpi_myid == 0 ) then
-        write(*,*) 'gio_writeToFile: namstio is missing in the namelist.'
-        write(*,*) '                     The default values will be taken.'
+        write(*,*) 'gio_writeToFile: namstio is missing in the namelist. The default values will be taken.'
       end if
-
     else
       ! Read namelist NAMSTIO
       nulnam=0
