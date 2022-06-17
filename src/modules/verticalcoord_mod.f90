@@ -149,6 +149,7 @@ contains
     end if
     inquire(file=templatefile,exist=fileExists)
     if ( .not. fileExists )then
+      write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
       call utl_abort('vco_setupFromFile: CANNOT FIND TEMPLATE FILE!')
     end if
 
@@ -168,6 +169,7 @@ contains
       if ( ierr == 0 ) then
         ierr =  fstouv(nultemplate,'RND+OLD')
       else
+        write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
         call utl_abort('vco_setupFromFile: CANNOT OPEN TEMPLATE FILE!')
       end if
 
@@ -266,6 +268,7 @@ contains
     if (ierr == 0) then
       ierr = fstouv(nultemplate,'RND+OLD')
     else
+      write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
       call utl_abort('vco_setupAtmFromFile: CANNOT OPEN TEMPLATE FILE!')
     end if
 
@@ -499,6 +502,7 @@ contains
     if ( ierr == 0 ) then
       ierr =  fstouv(nultemplate,'RND+OLD')
     else
+      write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
       call utl_abort('vco_setupOceanFromFile: CANNOT OPEN TEMPLATE FILE!')
     end if
 

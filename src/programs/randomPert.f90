@@ -57,6 +57,7 @@ program midas_randomPert
   integer :: latPerPE, latPerPEmax, myLatBeg, myLatEnd
   integer :: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
 
+  real(8) :: previousDateSqrt1, previousDateSqrt2
   real(8), allocatable :: controlVector(:), controlVector_mpiglobal(:)
   real(8), allocatable :: gdmean(:,:,:)
   real(4), allocatable :: ensemble_r4(:,:,:,:)
@@ -71,6 +72,7 @@ program midas_randomPert
   character(len=25) :: outFileName, inFileName
   character(len=12) :: out_etiket
   character(len=64) :: ensMeanFileName = 'ensMeanState'
+  character(len=2)  :: typvarOut
 
   ! Namelist variables
   logical :: remove_mean
@@ -127,6 +129,12 @@ program midas_randomPert
   if(ierr.ne.0) call utl_abort('midas-randomPert: Error reading namelist')
   if( mmpi_myid == 0 ) write(*,nml=namenkf)
   ierr=fclos(nulnam)
+
+  if (readEnsMean) then
+    typvarOut = 'A'
+  else
+    typvarOut = 'R'
+  end if
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
@@ -440,7 +448,7 @@ program midas_randomPert
     ! write back to a file, to have it on the targetgrid
     call gio_writeToFile(stateVectorEnsMean, 'ensMeanState_out', 'ensMean_out', & ! IN
                          numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
-                         containsFullField_opt=.true.) 
+                         containsFullField_opt=.true., typvar_opt=typvarOut) 
   end if
 
   !- 4.5 Set perturbations to zero under ice
@@ -475,6 +483,9 @@ program midas_randomPert
 
   !- 4.6 Add a fraction of previous date perturbations
   if (previousDateFraction > 0.0) then
+
+    previousDateSqrt1 = sqrt(previousDateFraction)
+    previousDateSqrt2 = sqrt(1.0d0 - previousDateFraction)
 
     ! determine dateStamp of previous date
     if (dateString == 'undefined') then
@@ -564,9 +575,9 @@ program midas_randomPert
         do latIndex = myLatBeg, myLatEnd
           do lonIndex = myLonBeg, myLonEnd
             ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) =  &
-                 (1.0-previousDateFraction) * &
+                 previousDateSqrt2 * &
                  ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) +  &
-                 previousDateFraction * &
+                 previousDateSqrt1 * &
                  ensemblePreviousDate_r4(lonIndex, latIndex, levIndex, memberIndex)
           end do
         end do
@@ -628,7 +639,7 @@ program midas_randomPert
     if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: processing file = ', outFileName
     call gio_writeToFile(stateVectorPertInterp, outFileName, out_etiket,              & ! IN
                          numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
-                         containsFullField_opt=readEnsMean) 
+                         containsFullField_opt=readEnsMean, typvar_opt=typvarOut) 
 
     call gsv_deallocate(stateVectorPertInterp)
     call gsv_deallocate(stateVectorPert)
