@@ -1209,7 +1209,7 @@ contains
   !--------------------------------------------------------------------------
   ! int_sint_r4_2d
   !--------------------------------------------------------------------------
-  function int_sint_r4_2d(zout4, zin4, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
+  function int_sint_r4_2d(zout4, zin4, interpDegree, extrapDegree_opt) result(ierr)
     !
     ! :Purpose: Horizontal interpolation of 2D scalar field that use real(4) arrays
     !           for input and output. Accessed through int_sint.
@@ -1219,8 +1219,6 @@ contains
     ! Arguments:
     real(4) :: zout4(:,:)
     real(4) :: zin4(:,:)
-    type(struct_hco), pointer :: hco_out
-    type(struct_hco), pointer :: hco_in
     integer :: ierr
     character(len=*)           :: interpDegree
     character(len=*), optional :: extrapDegree_opt
@@ -1230,15 +1228,6 @@ contains
 
     ! read the namelist
     call int_readNml()
-
-    ! check if special interpolation is required
-    if (hco_in%initialized .and. hco_out%initialized) then
-      ierr = ezdefset(hco_out%EZscintID, hco_in%EZscintID)
-      if (hco_in%grtyp == 'Y') then
-        call utl_abort('int_sint_r4_2d: not implemented for cloud to grid')
-        return
-      end if
-    end if
 
     ! do the standard interpolation
     call int_setezopt(interpDegree, extrapDegree_opt)   
@@ -1566,7 +1555,7 @@ contains
   !--------------------------------------------------------------------------
   ! int_sint_r8_2d
   !--------------------------------------------------------------------------
-  function int_sint_r8_2d(zout8, zin8, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
+  function int_sint_r8_2d(zout8, zin8, interpDegree, extrapDegree_opt) result(ierr)
     !
     ! :Purpose: Horizontal interpolation of 2D scalar field that use real(8) arrays
     !           for input and output. Accessed through int_sint.
@@ -1576,8 +1565,6 @@ contains
     ! Arguments:
     real(8) :: zout8(:,:)
     real(8) :: zin8(:,:)
-    type(struct_hco), pointer :: hco_out
-    type(struct_hco), pointer :: hco_in
     integer :: ierr
     character(len=*)           :: interpDegree
     character(len=*), optional :: extrapDegree_opt
@@ -1590,15 +1577,6 @@ contains
 
     ! read the namelist
     call int_readNml()
-
-    ! check if special interpolation is required
-    if (hco_in%initialized .and. hco_out%initialized) then
-      ierr = ezdefset(hco_out%EZscintID, hco_in%EZscintID)
-      if (hco_in%grtyp == 'Y') then
-        call utl_abort('int_sint_r8_2d: cloudToGrid not implemented')
-        return
-      end if
-    end if
 
     ! do the standard interpolation
 
@@ -1636,7 +1614,7 @@ contains
   ! int_uvint_gsv
   !--------------------------------------------------------------------------
   function int_uvint_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex, &
-                        interpDegree, extrapDegree_opt) result(ierr)
+                         interpDegree, extrapDegree_opt) result(ierr)
     !
     ! :Purpose: Horizontal interpolation of 2D vector field that use stateVector objects
     !           for input and output. Accessed through int_uvint.
@@ -1761,7 +1739,7 @@ contains
   !--------------------------------------------------------------------------
   ! int_uvint_r4_2d
   !--------------------------------------------------------------------------
-  function int_uvint_r4_2d(uuout, vvout, uuin, vvin, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
+  function int_uvint_r4_2d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
     !
     ! :Purpose: Horizontal interpolation of 2D vector field that use real(4) arrays
     !           for input and output. Accessed through int_uvint.
@@ -1773,8 +1751,6 @@ contains
     real(4) :: vvout(:,:)
     real(4) :: uuin(:,:)
     real(4) :: vvin(:,:)
-    type(struct_hco), pointer :: hco_out
-    type(struct_hco), pointer :: hco_in
     character(len=*)           :: interpDegree
     character(len=*), optional :: extrapDegree_opt
     integer :: ierr
@@ -1785,15 +1761,6 @@ contains
     ! read the namelist
     call int_readNml()
 
-    ! check if special interpolation is required
-    if (hco_in%initialized .and. hco_out%initialized) then
-      ierr = ezdefset(hco_out%EZscintID, hco_in%EZscintID)
-      if (hco_in%grtyp == 'Y') then
-        call utl_abort('int_uvint_r4_2d: cloudToGrid not implemented')
-        return
-      end if
-    end if
-
     ! do the standard interpolation
     call int_setezopt(interpDegree, extrapDegree_opt)   
     ierr = ezuvint(uuout, vvout, uuin, vvin)
@@ -1803,7 +1770,7 @@ contains
   !--------------------------------------------------------------------------
   ! int_uvint_r8_2d
   !--------------------------------------------------------------------------
-  function int_uvint_r8_2d(uuout, vvout, uuin, vvin, hco_out, hco_in, interpDegree, extrapDegree_opt) result(ierr)
+  function int_uvint_r8_2d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
     !
     ! :Purpose: Horizontal interpolation of 2D vector field that use real(8) arrays
     !           for input and output. Accessed through int_uvint.
@@ -1815,8 +1782,6 @@ contains
     real(8) :: vvout(:,:)
     real(8) :: uuin(:,:)
     real(8) :: vvin(:,:)
-    type(struct_hco), pointer :: hco_out
-    type(struct_hco), pointer :: hco_in
     character(len=*)           :: interpDegree
     character(len=*), optional :: extrapDegree_opt
     integer :: ierr
@@ -1830,15 +1795,6 @@ contains
 
     ! read the namelist
     call int_readNml()
-
-    ! check if special interpolation is required
-    if (hco_in%initialized .and. hco_out%initialized) then
-      ierr = ezdefset(hco_out%EZscintID, hco_in%EZscintID)
-      if (hco_in%grtyp == 'Y') then
-        call utl_abort('int_uvint_r8_2d: cloudToGrid not implemented')
-        return
-      end if
-    end if
 
     ! do the standard interpolation
 

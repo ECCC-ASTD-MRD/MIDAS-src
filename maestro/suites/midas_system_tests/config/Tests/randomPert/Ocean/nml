@@ -11,7 +11,7 @@
 /
  &NAMENKF
    NENS=10
-   SEED=-999 ! If -999, see is set using the date
+   SEED=-999 ! If -999, seed is set using the date
    DATE=-1
    REMOVE_MEAN=T
    MPITOPOINDEPENDENT = .true.

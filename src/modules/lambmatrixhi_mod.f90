@@ -612,7 +612,6 @@ contains
 
     real(8), allocatable :: StdDev2D(:,:)
     real(8), allocatable :: StdDev2D_Regrid(:,:)
-    type(struct_hco),pointer :: hco_in, hco_out
 
     integer :: ezdefset, ier
     integer :: ni_t, nj_t, nlev_t, var, k
@@ -682,9 +681,7 @@ contains
            ControlVariable(var)%GpStdDev(:,:,k) = StdDev2D(:,:)
         else
            ! Note: EZSCINT setup was done above
-          allocate(hco_out,hco_in)
-           ier = int_sint(StdDev2D_Regrid, StdDev2D, hco_out, hco_in, interpDegree='LINEAR')
-           deallocate(hco_out,hco_in)
+           ier = int_sint(StdDev2D_Regrid, StdDev2D, interpDegree='LINEAR')
            ControlVariable(var)%GpStdDev(:,:,k) = StdDev2D_Regrid(:,:)
         end if
 

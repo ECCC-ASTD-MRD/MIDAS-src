@@ -295,7 +295,7 @@ CONTAINS
     else
        call setupLamSpectralHLoc(lsp,horizLengthScaleAll) ! IN
     end if
-write(*,*) 'vertLocation = ',  vertLocation(:), lsp%nLev 
+
     !
     !- 3.  Compute VERTICAL localization correlation matrix
     !
@@ -307,7 +307,6 @@ write(*,*) 'vertLocation = ',  vertLocation(:), lsp%nLev
           ZR = abs(vertLocation(levIndex2) - vertLocation(levIndex1))
           zcorr = lfn_response(zr,vertLengthScale)
           lsp%LvertSqrt(levIndex1,levIndex2) = zcorr
-write(*,*) 'vert loc matrix= ', levIndex2, levIndex1, zcorr
         end do
       end do
 

@@ -64,7 +64,7 @@ module ensembleStateVector_mod
   end type struct_oneLev_r8
 
   type :: struct_ens
-!    private
+    private
     logical                       :: allocated = .false.
     integer                       :: numMembers
     integer                       :: dataKind = 4 ! default value
