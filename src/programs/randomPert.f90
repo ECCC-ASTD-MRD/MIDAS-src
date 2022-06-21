@@ -592,6 +592,9 @@ program midas_randomPert
                       allocHeight_opt=.false., allocPressure_opt=.false., &
                       hInterpolateDegree_opt='LINEAR')
 
+    ! Copy mask if it exists
+    call gsv_copyMask(stateVectorEnsMean, stateVectorPertInterp)
+
     !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex)    
     do levIndex = 1, nkgdim
       do latIndex = myLatBega, myLatEnda

@@ -33,7 +33,6 @@ module analysisErrorOI_mod
   use midasMpi_mod
   use obserrors_mod
   use obsSpaceData_mod
-  use oceanMask_mod
   use physicsFunctions_mod
   use stateToColumn_mod
   use varNamelist_mod
@@ -175,7 +174,7 @@ contains
     call incdatr(stateVectorAnal%dateOriginList(1), stateVectorBkGnd%dateOriginList(1), &
                  leadTimeInHours)
 
-    call ocm_copyMask(stateVectorBkGnd%oceanMask, stateVectorAnal%oceanMask)
+    call gsv_copyMask(stateVectorBkGnd, stateVectorAnal)
     stateVectorAnal%etiket = stateVectorBkGnd%etiket
 
     call col_setVco(column, vco_ptr)
@@ -827,7 +826,7 @@ contains
     call incdatr(stateVectorAnal%dateOriginList(1), stateVectorBkGnd%dateOriginList(1), &
                  leadTimeInHours)
 
-    call ocm_copyMask(stateVectorBkGnd%oceanMask, stateVectorAnal%oceanMask)
+    call gsv_copyMask(stateVectorBkGnd, stateVectorAnal)
     stateVectorAnal%etiket = stateVectorBkGnd%etiket
 
     call col_setVco(column, vco_ptr)

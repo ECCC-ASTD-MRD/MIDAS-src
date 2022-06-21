@@ -51,7 +51,7 @@ module gridStateVector_mod
   public :: gsv_getHeightSfc, gsv_isAssocHeightSfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D
-  public :: gsv_copyHeightSfc
+  public :: gsv_copyHeightSfc, gsv_copyMask
   public :: gsv_getVco, gsv_getHco, gsv_getHco_physics, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
@@ -2011,9 +2011,27 @@ module gridStateVector_mod
     deallocate(varNameListCommon)
 
     ! Copy mask if it exists
-    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
+    call gsv_copyMask(statevector_in, statevector_out)
 
   end subroutine gsv_copy
+
+  !--------------------------------------------------------------------------
+  ! gsv_copyMask
+  !--------------------------------------------------------------------------
+  subroutine gsv_copyMask(statevector_in,statevector_out)
+    !
+    ! :Purpose: Copy ocean mask, if it exists.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(in)     :: statevector_in
+    type(struct_gsv), intent(inout)  :: statevector_out
+
+    ! Copy mask if it exists
+    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
+
+  end subroutine gsv_copyMask
 
   !--------------------------------------------------------------------------
   ! gsv_copy4Dto3D
@@ -3316,7 +3334,7 @@ module gridStateVector_mod
     end if
 
     ! Copy over the mask, if it exists
-    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
+    call gsv_copyMask(statevector_in, statevector_out)
 
     ! Copy metadata
     if (associated(statevector_in%dateStampList)) statevector_out%dateStampList(:) = statevector_in%dateStampList(:)
@@ -3629,7 +3647,7 @@ module gridStateVector_mod
     end if ! heightSfcPresent
 
     ! Copy over the mask, if it exists
-    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
+    call gsv_copyMask(statevector_in, statevector_out)
 
     call msg('gsv_transposeTilesToVarsLevs','END', verb_opt=2)
     call msg_memUsage('gsv_transposeTilesToVarsLevs')
@@ -3994,7 +4012,7 @@ module gridStateVector_mod
     end if
 
     ! Copy over the mask, if it exists
-    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
+    call gsv_copyMask(statevector_in, statevector_out)
 
     call utl_tmg_stop(167)
 
@@ -4350,7 +4368,7 @@ module gridStateVector_mod
 
     ! Copy the mask if it is present
     if (stateVector_1step_r4%allocated) then
-      call ocm_copyMask(stateVector_1step_r4%oceanMask, stateVector_varsLevs%oceanMask)
+      call gsv_copyMask(stateVector_1step_r4, stateVector_varsLevs)
     end if
     call ocm_communicateMask(stateVector_varsLevs%oceanMask)
 
@@ -4649,7 +4667,7 @@ module gridStateVector_mod
 
     ! Copy the mask if it is present
     if (stateVector_1step%allocated) then
-      call ocm_copyMask(stateVector_1step%oceanMask, stateVector_tiles%oceanMask)
+      call gsv_copyMask(stateVector_1step, stateVector_tiles)
     end if
     call ocm_communicateMask(stateVector_tiles%oceanMask)
 
@@ -4950,7 +4968,7 @@ module gridStateVector_mod
 
     ! Copy mask if it exists on mpi task with step data allocated
     if (stateVector_1step%allocated) then
-      call ocm_copyMask(stateVector_tiles%oceanMask, stateVector_1step%oceanMask)
+      call gsv_copyMask(stateVector_tiles, stateVector_1step)
     end if
 
     call msg('gsv_transposeTilesToStep', 'END', verb_opt=2)
@@ -5111,7 +5129,7 @@ module gridStateVector_mod
 
     ! Copy over the mask, if it exists
     if (stateVector_mpiGlobal%allocated) then
-      call ocm_copyMask(stateVector_tiles%oceanMask, stateVector_mpiGlobal%oceanMask)
+      call gsv_copyMask(stateVector_tiles, stateVector_mpiGlobal)
     end if
 
     call msg('gsv_transposeTilesToMpiGlobal', 'END', verb_opt=2)

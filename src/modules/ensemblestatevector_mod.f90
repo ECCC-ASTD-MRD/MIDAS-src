@@ -46,7 +46,7 @@ module ensembleStateVector_mod
   public :: ens_computeMean, ens_removeMean, ens_removeGlobalMean, ens_recenter
   public :: ens_copyEnsMean, ens_copyToEnsMean, ens_copyMember, ens_insertMember
   public :: ens_computeStdDev, ens_copyEnsStdDev, ens_normalize
-  public :: ens_copyMask, ens_copyMaskToGsv
+  public :: ens_getMask, ens_copyMaskToGsv
   public :: ens_getOneLev_r4, ens_getOneLev_r8
   public :: ens_getOffsetFromVarName, ens_getLevFromK, ens_getVarNameFromK 
   public :: ens_getNumK, ens_getKFromLevVarName, ens_getDataKind, ens_getPathName
@@ -349,7 +349,7 @@ CONTAINS
       call utl_abort('ens_copy: ens_out not yet allocated')
     end if
 
-    call ocm_copyMask(ens_in%statevector_work%oceanMask,ens_out%statevector_work%oceanMask)
+    call gsv_copyMask(ens_in%statevector_work,ens_out%statevector_work)
 
     lon1 = ens_out%statevector_work%myLonBeg
     lon2 = ens_out%statevector_work%myLonEnd
@@ -424,7 +424,7 @@ CONTAINS
       call utl_abort('ens_copy4Dto3D: ens_out not yet allocated')
     end if
 
-    call ocm_copyMask(ens_in%statevector_work%oceanMask,ens_out%statevector_work%oceanMask)
+    call gsv_copyMask(ens_in%statevector_work,ens_out%statevector_work)
 
     lon1 = ens_out%statevector_work%myLonBeg
     lon2 = ens_out%statevector_work%myLonEnd
@@ -1301,9 +1301,9 @@ CONTAINS
   end subroutine ens_insertMember
 
   !--------------------------------------------------------------------------
-  ! ens_copyMask
+  ! ens_getMask
   !--------------------------------------------------------------------------
-  subroutine ens_copyMask(ens,oceanMask)
+  subroutine ens_getMask(ens,oceanMask)
     !
     !:Purpose: Copy the instance of oceanMask from inside the ens object
     !          to the supplied instance of oceanMask.
@@ -1316,7 +1316,7 @@ CONTAINS
 
     call ocm_copyMask(ens%statevector_work%oceanMask,oceanMask)
 
-  end subroutine ens_copyMask
+  end subroutine ens_getMask
 
   !--------------------------------------------------------------------------
   ! ens_copyMaskToGsv
@@ -1332,7 +1332,7 @@ CONTAINS
     type(struct_ens), intent(inout) :: ens
     type(struct_gsv), intent(inout) :: statevector
 
-    call ocm_copyMask(ens%statevector_work%oceanMask,statevector%oceanMask)
+    call gsv_copyMask(ens%statevector_work,statevector)
 
   end subroutine ens_copyMaskToGsv
 
@@ -2513,7 +2513,7 @@ CONTAINS
           ens%statevector_work%hco_physics              => statevector_member_r4%hco_physics
           ! if it exists, copy over mask from member read on task 0, which should always read
           if(mmpi_myid == 0) then
-            call ocm_copyMask(stateVector_member_r4%oceanMask, ens%stateVector_work%oceanMask)
+            call gsv_copyMask(stateVector_member_r4, ens%stateVector_work)
           end if
 
         end if ! locally read one member
@@ -2773,7 +2773,7 @@ CONTAINS
       statevector_member_r4%npasList(1)       = ens%statevector_work%npasList(stepIndex)
       statevector_member_r4%ip2List(1)        = ens%statevector_work%ip2List(stepIndex)
       ! if it exists, copy over mask from work statevector to member being written
-      call ocm_copyMask(ens%stateVector_work%oceanMask, stateVector_member_r4%oceanMask)
+      call gsv_copyMask(ens%stateVector_work, stateVector_member_r4)
 
       do memberIndex = 1, ens%numMembers
 
