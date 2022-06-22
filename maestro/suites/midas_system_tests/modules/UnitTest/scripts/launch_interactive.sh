@@ -5,6 +5,9 @@ set -e
 ## 6 hours in seconds
 wallclock_default=$((6*60*60))
 
+echo 'loading MAESTRO SSM ...'
+. ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2
+
 arguments=$*
 eval `${CCLARGS:-cclargs} $0 \
   -exp   "not defined" "not defined" "[base maestro experiment" \
@@ -79,7 +82,7 @@ fi
 #echo memory=${memory}
 #echo soumet_args=${soumet_args}
 
-unittestname=$(echo ${node} | sed 's|^/Tests/||' | sed 's|/UnitTest/run$||' | sed 's|/|.|')
+unittestname=$(echo ${node} | sed 's|^/Tests/||' | sed 's|/UnitTest/run$||' | sed 's|/|.|g')
 jobname=MIDAS.${unittestname}
 
 # The following lines can be used for debugging:
@@ -143,7 +146,16 @@ find_resources () {
 sleep $((360*60))
 
 EOF
-    ord_soumet ${__sleep_job__} -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args} -nosubmit 2>/dev/null
+    ord_soumet_cmd="ord_soumet ${__sleep_job__} -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args} -nosubmit 2>/dev/null"
+    echo ord_soumet command: >&2
+    echo ${ord_soumet_cmd} >&2
+
+    ${ord_soumet_cmd}
+    if [ $? -ne 0 ]; then
+      echo Problem with call to ord_soumet
+      exit 1
+    fi
+
     rm ${__sleep_job__}
 
     ## The following command will output
@@ -239,13 +251,16 @@ EOF
 
 submit_host=$(echo ${host} | cut -d- -f2) ## remove 'eccc-' from 'eccc-ppp3'
 
-which jobsubi 1> /dev/null 2>&1 || . ssmuse-sh -x hpco/exp/jobsubi/jobsubi-0.3
 
-jobsubi_cmd="jobsubi -r memory=${memory_per_node} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} ${submit_host} -- bash --rcfile ${rcfile} -i"
+# ${other_resources} not handled yet
+
+#TODO mpiprocs should not be hard coded.
+#TODO figure out how to launch rcfile and let interactive session open
+qsub_cmd="qsub -I -lselect=${nslots}:ncpus=${ncores}:ompthreads=4:mpiprocs=1:mem=${memory_per_node},place=scatter:excl -lwalltime=03:00:00 " #-- ${rcfile}"
 echo "Launching the interactive job with"
-echo "   ${jobsubi_cmd}"
+echo "   ${qsub_cmd}"
 echo
 
-${jobsubi_cmd}
+${qsub_cmd}
 
 rm ${rcfile}
