@@ -70,7 +70,7 @@ program midas_randomPert
 
   logical :: targetGridExists
   character(len=10) :: dateString, datePreviousString
-  character(len=3)  :: memberString
+  character(len=4)  :: memberString
   character(len=25) :: outFileName, inFileName
   character(len=12) :: out_etiket
   character(len=64) :: ensMeanFileName = 'ensMeanState'
@@ -517,10 +517,10 @@ program midas_randomPert
     do memberIndex = 1, NENS
 
       ! Read previous date perturbations (or perturbed analyses)
-      write(memberString, '(I3.3)') memberIndex
+      write(memberString, '(I4.4)') memberIndex
       if (dateString /= 'undefined') then
         if (readEnsMean) then
-          inFileName = './'//trim(datePreviousString)//'_'//trim(memberString)
+          inFileName = './'//trim(datePreviousString)//'_000_'//trim(memberString)
         else
           inFileName = './pert_'//trim(datePreviousString)//'_'//trim(memberString)
         end if
@@ -634,10 +634,10 @@ program midas_randomPert
     end if
 
     ! determine file name and write to file
-    write(memberString, '(I3.3)') memberIndex
+    write(memberString, '(I4.4)') memberIndex
     if (dateString /= 'undefined') then
       if (readEnsMean) then
-        outFileName = './'//trim(dateString)//'_'//trim(memberString)
+        outFileName = './'//trim(dateString)//'_000_'//trim(memberString)
       else
         outFileName = './pert_'//trim(dateString)//'_'//trim(memberString)
       end if
