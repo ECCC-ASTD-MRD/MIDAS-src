@@ -72,7 +72,6 @@ program midas_randomPert
   character(len=10) :: dateString, datePreviousString
   character(len=4)  :: memberString
   character(len=25) :: outFileName, inFileName
-  character(len=12) :: out_etiket
   character(len=64) :: ensMeanFileName = 'ensMeanState'
   character(len=2)  :: typvarOut
 
@@ -86,6 +85,7 @@ program midas_randomPert
   integer :: seed
   integer :: date
   integer :: numBits
+  character(len=12) :: out_etiket
   real(4) :: iceFractionThreshold
   real(4) :: previousDateFraction
   NAMELIST /NAMENKF/nens, seed, date, out_etiket, remove_mean,  &
@@ -163,7 +163,7 @@ program midas_randomPert
     dateStamp = tim_getDatestampFromFile(ensMeanFileName)
     imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
     ierr = newdate(dateStamp, datePrint, timePrint, imode)
-    write(dateString, '(I10)') datePrint*100 + timePrint/100000
+    write(dateString, '(I10)') datePrint*100 + timePrint/1000000
   end if
   if( mmpi_myid == 0 ) then
     write(*,*) ' date= ', datePrint, ' time= ', timePrint, ' stamp= ', dateStamp
@@ -448,10 +448,6 @@ program midas_randomPert
     call gio_readFromFile(stateVectorEnsMean, ensMeanFileName, ' ', ' ',  &
                           containsFullField_opt=.true.)
 
-    ! write back to a file, to have it on the targetgrid
-    call gio_writeToFile(stateVectorEnsMean, 'ensMeanState_out', 'ensMean_out', & ! IN
-                         numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
-                         containsFullField_opt=.true., typvar_opt=typvarOut) 
   end if
 
   !- 4.5 Set perturbations to zero under ice
@@ -646,6 +642,7 @@ program midas_randomPert
     end if
 
     if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: processing file = ', outFileName
+    stateVectorPertInterp%etiket = 'UNDEFINED'
     call gio_writeToFile(stateVectorPertInterp, outFileName, out_etiket,              & ! IN
                          numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
                          containsFullField_opt=readEnsMean, typvar_opt=typvarOut) 
@@ -654,6 +651,24 @@ program midas_randomPert
     call gsv_deallocate(stateVectorPert)
 
   end do
+
+  ! Write out ensemble mean state, if it exists
+  if (readEnsMean) then
+    ! determine file name and write to file
+    memberIndex = 0
+    write(memberString, '(I4.4)') memberIndex
+    if (dateString /= 'undefined') then
+      outFileName = './'//trim(dateString)//'_000_'//trim(memberString)
+    else
+      call utl_abort('midas-randomPert: dateString is not defined')
+    end if
+
+    if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: processing file = ', outFileName
+    stateVectorEnsMean%etiket = 'UNDEFINED'
+    call gio_writeToFile(stateVectorEnsMean, outFileName, out_etiket,              & ! IN
+                         numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
+                         containsFullField_opt=.true., typvar_opt=typvarOut)
+  end if
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
