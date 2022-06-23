@@ -50,9 +50,9 @@ export SEQ_NPEY=${SEQ_NPEY}
 export FOR_DUMP_CORE_FILE=${UnitTest_run_dump_core}
 EOF
 
+echo >> load_env.sh
 if [[ "${ORDENV_PLAT}" = sles-*xc50 ]]; then
     #export TBB_MALLOC_USE_HUGE_PAGES=1
-    echo >> load_env.sh
     echo module load craype-hugepages16M >> load_env.sh
     echo export FOR_DISABLE_KMP_MALLOC=0 >> load_env.sh
 elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
@@ -61,14 +61,17 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
     . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
     . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    set +x
-    echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2
-    . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2
-    set -x
+    ## for non-interactive use, we want to unset the 'set -x' done in the job
+    echo "tty -s || set +x" >> load_env.sh
+    echo echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2 >> load_env.sh
+    echo . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2 >> load_env.sh
+    ## for non-interactive use, we want to set back 'set -x'
+    echo "tty -s || set -x" >> load_env.sh
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
 fi
+echo >> load_env.sh
 
 if [ -n "${UnitTest_run_environment_variables}" ]; then
     echo >> load_env.sh
@@ -78,7 +81,6 @@ if [ -n "${UnitTest_run_environment_variables}" ]; then
 fi
 
 cat >> load_env.sh <<EOF
-
 ulimit -c unlimited
 
 EOF
