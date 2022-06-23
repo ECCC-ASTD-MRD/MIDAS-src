@@ -160,63 +160,18 @@ EOF
 
     ## The following command will output
     ##     #PBS -l select=10:ncpus=40:mem=100000M:res_tmpfs=5120:res_image=eccc/eccc_all_ppp_ubuntu-18.04-amd64_latest -l place=free -r n
-    __PBSresources__=$(tar --wildcards -xOf ${__lajobtar__} "${jobname}.${host}*" | grep '^#PBS -l select=')
+    tar --wildcards -xOf ${__lajobtar__} "${jobname}.${host}*" | grep '^#PBS' | grep -v '^#PBS -[jo]' | grep -v '^#PBS -l walltime='
 
     rm ${__lajobtar__}
-
-    # The following line can be used for debugging:
-    # echo __PBSresources__=${__PBSresources__} >&2
-
-    ## extract the memory setting
-    echo ${__PBSresources__} | grep -oE "mem=[0-9]+[KMG]"
-    ## extract the select setting (nslots)
-    echo ${__PBSresources__} | grep -oE "select=[0-9]+"
-    ## extract the npus setting
-    echo ${__PBSresources__} | grep -oE "ncpus=[0-9]+"
 
     unset __sleep_job__ __lajobtar__
 } ## End of function 'find_resources'
 
-extract_resource() {
-    set -e
-    if [ $# -ne 2 ]; then
-        echo "The function 'extract_resource' accepts only two arguments." >&2
-        echo "    It has been called with:" >&2
-        echo "            $0 $*" >&2
-        return 1
-    fi
-    __element__=${1}
-    __resources__=${2}
+pbsdirectives=${PWD}/pbsdirectives
+check_file launch_interactive ${pbsdirectives}
 
-    printf "${__resources__}\n" | grep "^${__element__}=" | cut -d= -f2
-
-    unset __element__ __resources__
-}
-
-resources=$(find_resources)
-# The following line can be used for debugging:
-# printf "resources=${resources}\n"
-
-ncores=$(extract_resource ncpus "${resources}")
-nslots=$(extract_resource select "${resources}")
-memory_per_node=$(extract_resource mem "${resources}")
-
-## Parsing 'soumet_args' to find the '-tmpfs ${TMPFSSIZE}'
-set -- ${soumet_args}
-other_resources=
-while [ $# -ne 0 ]; do
-    if [ "${1}" = -tmpfs ]; then
-        if [ $# -lt 2 ]; then
-            echo "The argument '-tmpfs' under 'soumet_args' needs an argument" >&2
-            exit 1
-        else
-            other_resources="${other_resources} -r tmpfs=${2}"
-            shift 2
-        fi
-    else
-        shift
-    fi
-done
+find_resources > ${pbsdirectives}
+echo "#PBS -l walltime=03:00:00" >> ${pbsdirectives}
 
 rcfile=${PWD}/rcfile
 check_file launch_interactive ${rcfile}
@@ -225,15 +180,7 @@ cat > ${rcfile} <<EOF
 . /etc/profile
 . $HOME/.profile
 
-if [ -z "\${PBS_JOBNAME}" ]; then
-    profile=\$(/bin/ls /var/tmp/pbs.*/profile.sh)
-    if [ -f "\${profile}" ]; then
-        echo "Sourcing PBS setup in file \${profile}"
-        source \${profile}
-    else
-        echo "Cannot find the PBS setup \${profile}"
-    fi
-fi
+[ -n "\${PBS_O_WORKDIR}" ] && cd \${PBS_O_WORKDIR}
 
 echo
 echo Changing directory for ${working_directory}
@@ -247,19 +194,19 @@ echo
 echo You can now run interactively your program with
 echo "   ./launch_program.sh \\\${path_to_program}"
 echo
+
 EOF
-
-submit_host=$(echo ${host} | cut -d- -f2) ## remove 'eccc-' from 'eccc-ppp3'
-
-
-# ${other_resources} not handled yet
 
 #TODO mpiprocs should not be hard coded.
 #TODO figure out how to launch rcfile and let interactive session open
-qsub_cmd="qsub -I -lselect=${nslots}:ncpus=${ncores}:ompthreads=4:mpiprocs=1:mem=${memory_per_node},place=scatter:excl -lwalltime=03:00:00 " #-- ${rcfile}"
+qsub_cmd="qsub -I ${pbsdirectives}"
 echo "Launching the interactive job with"
 echo "   ${qsub_cmd}"
 echo
+
+echo "When the interactive job is started, do"
+echo "    source ${rcfile}"
+echo "to load the environment and start working"
 
 ${qsub_cmd}
 
