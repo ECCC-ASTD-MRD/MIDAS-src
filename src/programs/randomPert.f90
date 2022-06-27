@@ -59,7 +59,7 @@ program midas_randomPert
   integer :: latPerPEt, latPerPEmaxt, myLatBegt, myLatEndt
   integer :: lonPerPEt, lonPerPEmaxt, myLonBegt, myLonEndt
 
-  real(8) :: previousDateSqrt1, previousDateSqrt2
+  real(8) :: previousDateFactPrev, previousDateFactNoise
   real(8), allocatable :: controlVector(:), controlVector_mpiglobal(:)
   real(8), allocatable :: gdmean(:,:,:)
   real(4), allocatable :: ensemble_r4(:,:,:,:)
@@ -136,6 +136,10 @@ program midas_randomPert
     typvarOut = 'A'
   else
     typvarOut = 'R'
+  end if
+
+  if (previousDateFraction > 1.0) then
+    call utl_abort('midas-randomPert: previousDateFraction must be less than 1.0 to give stable results')
   end if
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -483,8 +487,15 @@ program midas_randomPert
   !- 4.6 Add a fraction of previous date perturbations
   if (previousDateFraction > 0.0) then
 
-    previousDateSqrt1 = sqrt(previousDateFraction)
-    previousDateSqrt2 = sqrt(1.0d0 - previousDateFraction)
+    previousDateFactPrev  = previousDateFraction
+    ! reduce the amount of random perturbation to maintain steady-state variance
+    previousDateFactNoise = sqrt(1.0d0 - previousDateFraction**2)
+    if (mpi_myid == 0) then
+      write(*,*) 'midas-randomPert: Scale factor applied to previous date       = ', &
+           previousDateFactPrev
+      write(*,*) 'midas-randomPert: Scale factor applied to random perturbation = ', &
+           previousDateFactNoise
+    end if
 
     ! determine dateStamp of previous date
     if (dateString == 'undefined') then
@@ -613,10 +624,10 @@ program midas_randomPert
         do latIndex = myLatBegt, myLatEndt
           do lonIndex = myLonBegt, myLonEndt
             fieldInterp(lonIndex, latIndex, levIndex) =  &
-                 previousDateSqrt2 * &
-                 fieldInterp(lonIndex, latIndex, levIndex) +  &
-                 previousDateSqrt1 * &
-                 ensemblePreviousDate_r4(lonIndex, latIndex, levIndex, memberIndex)
+                 previousDateFactPrev * &
+                 ensemblePreviousDate_r4(lonIndex, latIndex, levIndex, memberIndex) + &
+                 previousDateFactNoise * &
+                 fieldInterp(lonIndex, latIndex, levIndex)
           end do
         end do
       end do

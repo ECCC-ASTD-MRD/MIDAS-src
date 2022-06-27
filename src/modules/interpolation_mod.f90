@@ -1224,7 +1224,7 @@ contains
     character(len=*), optional :: extrapDegree_opt
 
     ! Locals:
-    integer :: ezsint, ezdefset
+    integer :: ezsint
 
     ! read the namelist
     call int_readNml()
@@ -1573,7 +1573,7 @@ contains
     integer :: nii, nji, nio, njo     
     integer :: jk1, jk2
     real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
-    integer :: ezsint, ezdefset
+    integer :: ezsint
 
     ! read the namelist
     call int_readNml()
@@ -1756,7 +1756,7 @@ contains
     integer :: ierr
 
     ! Locals:
-    integer :: ezuvint, ezdefset
+    integer :: ezuvint
 
     ! read the namelist
     call int_readNml()
@@ -1791,7 +1791,7 @@ contains
     integer :: jk1, jk2
     real, allocatable :: bufuuout4(:,:), bufvvout4(:,:)
     real, allocatable :: bufuuin4(:,:), bufvvin4(:,:)
-    integer :: ezuvint, ezdefset
+    integer :: ezuvint
 
     ! read the namelist
     call int_readNml()
