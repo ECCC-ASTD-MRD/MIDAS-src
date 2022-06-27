@@ -51,6 +51,7 @@ module gridVariableTransforms_mod
   public :: gvt_setupRefFromTrialFiles, gvt_setupRefFromStateVector
 
   logical :: varKindCHTrialsInitialized(vnl_numVarMax)  = .false.
+  integer, external    :: omp_get_thread_num
 
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
@@ -198,9 +199,9 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! gvt_transform_gsv
   !--------------------------------------------------------------------------
-  subroutine gvt_transform_gsv( statevector, transform, statevectorOut_opt,  &
-                                stateVectorRef_opt, varName_opt, &
-                                allowOverWrite_opt )
+  subroutine gvt_transform_gsv(statevector, transform, statevectorOut_opt,  &
+                               stateVectorRef_opt, varName_opt, &
+                               allowOverWrite_opt, maxBoxSize_opt, subgrid_opt )
     ! 
     ! :Purpose: Top-level switch routine for transformations on the grid.
     !
@@ -213,6 +214,10 @@ CONTAINS
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! reference statevector necessary for some transformation
     logical, optional, intent(in)             :: allowOverWrite_opt
     character(len=*), optional, intent(in)    :: varName_opt ! additional variable/type information mandatory for some transformation
+    integer, optional, intent(in)             :: maxBoxSize_opt ! additional information required by SSTSpread subroutine
+    character(len=*), optional, intent(in)    :: subgrid_opt    ! additional information required by SSTSpread subroutine: 
+                                                                ! to spread SST values on neighbouring land points of "Yin" or "Yan" subgrid
+
 
     ! check stateVector and statevectorOut_opt are on the same grid
     if ( present(stateVectorRef_opt) ) then
@@ -415,6 +420,12 @@ CONTAINS
         call utl_abort('gvt_transform: for gvt_oceanIceContinuous, missing variable name')
       end if	
       call gvt_oceanIceContinous(statevector, stateVectorRef_opt, varName_opt)
+
+    case ('SSTSpread')
+      if (.not.present(varName_opt)) then
+        call utl_abort('gvt_transform: for gvt_SSTSpread, missing variable name: '//varName_opt)
+      end if	
+      call gvt_SSTSpread(statevector, varName_opt, maxBoxSize_opt, subgrid_opt)
 
     case default
       write(*,*)
@@ -2112,5 +2123,169 @@ CONTAINS
     end if
 
   end subroutine gvt_oceanIceContinous
+
+  !--------------------------------------------------------------------------
+  ! gvt_SSTSpread
+  !--------------------------------------------------------------------------
+  subroutine gvt_SSTSpread(stateVector, variableName, maxBoxSize, subgrid)
+    !
+    ! :Purpose: Spread SST values on neigbouring land surface points
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_gsv), intent(inout) :: stateVector  ! state vector of SST analysis
+    character(len=*), intent(in)    :: variableName ! variable name    
+    integer         , intent(in)    :: maxBoxSize   ! maximum box size of SST values spreading
+    character(len=*), intent(in)    :: subgrid      ! spread SST values on neighbouring land points of "Yin" or "Yan" subgrid 
+
+    ! locals
+    logical, allocatable :: isWaterValue(:,:)              ! .True. for water points, .False. for land points
+    logical, allocatable :: updatedIsWaterValue(:,:)       ! If the current value is already updated, set it to .True. 
+    real(4), allocatable :: updatedField(:,:)              ! updated surface temperature on land
+    real(4)              :: updatedValueSum
+    integer              :: top, bottom, left, right, np
+    integer              :: boxSize, k, l, m
+    integer              :: in(100), jn(100), ngp 
+    integer              :: lonIndex, latIndex
+    integer              :: latIndexBeg, latIndexEnd
+    type(struct_gsv)     :: stateVector_1step
+    real(8), pointer     :: field_ptr(:,:,:,:)
+
+    write(*,'(a,i2,a)') 'gvt_SSTSpread: spread SST values on ', maxBoxSize,' neighbouring land points on '//trim(subgrid)//' subgrid...'
+    if (subgrid == 'Yin') then
+      latIndexBeg = 1 
+      latIndexEnd = stateVector%hco%nj / 2
+    else if(subgrid == 'Yan') then
+      latIndexBeg = stateVector%hco%nj / 2 + 1 
+      latIndexEnd = stateVector%hco%nj
+    else
+      call utl_abort('gvt_SSTSpread: unknown subgrid: '//subgrid)
+    end if 
+    
+    ! abort if 3D mask is present, since we may not handle this situation correctly
+    if (stateVector%oceanMask%nLev > 1) then
+      call utl_abort('gvt_SSTSpread: 3D mask present - this case not properly handled')
+    end if
+
+    ! abort if 3D variable is present
+    if( gsv_getNumLev(stateVector, vnl_varLevelFromVarname(variableName)) > 1) then
+      call utl_abort('gvt_SSTSpread: 3D variable present - this case not properly handled')
+    end if
+
+    ! allocate statevector
+    if (mpi_myid < stateVector%numStep) then
+      if(variableName == 'TM') then
+        call gsv_allocate(stateVector_1step, 1, stateVector%hco, &
+                          stateVector%vco, mpi_local_opt = .false., &
+                          dataKind_opt = 8, varNames_opt = (/variableName/))
+      else
+      	call utl_abort('gvt_SSTSpread: unrecognized variable name: '//trim(variableName))		  
+      end if
+    end if
+
+    allocate(isWaterValue(1:stateVector%hco%ni, latIndexBeg:latIndexEnd))
+    allocate(updatedIsWaterValue(1:stateVector%hco%ni, latIndexBeg:latIndexEnd))
+    allocate(updatedField(1:stateVector%hco%ni, latIndexBeg:latIndexEnd))
+
+    call gsv_transposeTilesToStep(stateVector_1step, stateVector, 1)
+
+    if (gsv_isAllocated(stateVector_1step)) then
+
+      call gsv_getField(stateVector_1step, field_ptr, variableName)
+
+      ! Initialisation
+      do latIndex = latIndexBeg, latIndexEnd
+        do lonIndex = 1, stateVector%hco%ni
+          if (stateVector%oceanMask%mask(lonIndex, latIndex, 1)) then
+            isWaterValue(lonIndex, latIndex) = .True.
+          else
+            isWaterValue(lonIndex, latIndex) = .False.
+          end if
+          updatedField(lonIndex,latIndex) = field_ptr(lonIndex, latIndex, 1, 1)
+        end do
+      end do
+      updatedIsWaterValue(:,:) = isWaterValue(:,:)
+
+      boxSizeLoop: do boxSize = 1, maxBoxSize
+          
+        do latIndex = latIndexBeg, latIndexEnd
+          do lonIndex = 1, stateVector%hco%ni
+
+            if (isWaterValue(lonIndex,latIndex)) cycle
+
+            top    = latIndex + boxSize
+            bottom = latIndex - boxSize
+            left   = lonIndex - boxSize
+            right  = lonIndex + boxSize
+
+            np = 0
+            l = bottom
+            do k = left, right
+              np = np + 1
+              in(np) = k
+              jn(np) = l
+            end do
+            k = right
+            do l = bottom + 1, top
+              np = np + 1
+              in(np) = k
+              jn(np) = l
+            end do
+            l = top
+            do k = right - 1, left, -1
+              np = np + 1
+              in(np) = k
+              jn(np) = l
+            end do
+            k = left
+            do l = top - 1, bottom + 1, -1
+              np = np + 1
+              in(np) = k
+              jn(np) = l
+            end do
+
+            ngp = 0
+            updatedValueSum = 0.0
+            do m = 1, np
+              if (in(m) >= 1 .and. in(m) <= stateVector%hco%ni .and. &
+                  jn(m) >= latIndexBeg .and. jn(m) <= latIndexEnd    ) then
+                if (isWaterValue(in(m), jn(m))) then
+                  updatedValueSum = updatedValueSum + field_ptr(in(m), jn(m), 1, 1)
+                  ngp = ngp + 1
+                end if
+              end if
+            end do
+              
+            ! mark the grid point as being filled by interpolation on the grid
+            if (ngp /= 0 .and. updatedValueSum > 0) then
+              updatedIsWaterValue(lonIndex, latIndex) = .True.
+              updatedField(lonIndex, latIndex) = updatedValueSum / real(ngp)
+            end if
+
+          end do
+        end do
+
+        isWaterValue(:,:) = updatedIsWaterValue(:,:)
+        field_ptr(:, latIndexBeg:latIndexEnd, 1, 1) = updatedField(:,:)
+
+      end do boxSizeLoop
+          
+      write(*,*) 'gvt_SSTSpread: Field min value = ', minval(field_ptr(:, latIndexBeg:latIndexEnd, 1, 1))
+      write(*,*) 'gvt_SSTSpread: Field max value = ', maxval(field_ptr(:, latIndexBeg:latIndexEnd, 1, 1))
+
+    end if
+
+    call gsv_transposeStepToTiles(stateVector_1step, stateVector, 1)
+
+    ! deallocate local arrays
+    if (mpi_myid < stateVector%numStep) then
+      call gsv_deallocate(stateVector_1step)
+    end if
+    deallocate(isWaterValue)
+    deallocate(updatedIsWaterValue)
+    deallocate(updatedField)
+    
+  end subroutine gvt_SSTSpread
 
 end module gridVariableTransforms_mod

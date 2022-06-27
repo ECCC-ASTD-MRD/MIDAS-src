@@ -50,7 +50,10 @@ module increment_mod
   logical  :: imposeRttovHuLimits, useAnalIncMask
   character(len=12) :: etiket_anlm, etiket_rehm, etiket_rebm
   character(len=12) :: hInterpolationDegree
-  logical  :: applyLiebmann
+  logical :: applyLiebmann
+  logical :: SSTSpread  
+  integer :: SSTSpreadMaxBoxSize
+  character(len=3) :: SSTSubgrid
 
 CONTAINS
 
@@ -68,7 +71,7 @@ CONTAINS
     logical, save :: nmlAlreadyRead = .false.
     NAMELIST /NAMINC/ writeHiresIncrement, etiket_rehm, etiket_anlm, &
          etiket_rebm, writeNumBits, imposeRttovHuLimits, hInterpolationDegree, &
-         useAnalIncMask, applyLiebmann
+         useAnalIncMask, applyLiebmann, SSTSpread, SSTSpreadMaxBoxSize, SSTSubgrid
 
     if ( .not. nmlAlreadyRead ) then
       nmlAlreadyRead = .true.
@@ -83,7 +86,10 @@ CONTAINS
       writeNumBits = 16
       hInterpolationDegree = 'LINEAR'
       applyLiebmann = .false.
-      
+      SSTSpread  = .false.
+      SSTSpreadMaxBoxSize = 0
+      SSTsubgrid = '   '
+
       if ( .not. utl_isNamelistPresent('NAMINC','./flnml') ) then
         if ( mpi_myid == 0 ) then
           write(*,*) 'NAMINC is missing in the namelist. The default values will be taken.'
@@ -362,11 +368,18 @@ CONTAINS
       end if
     
       ! Start the variable transformations
-      if( gsv_varExist(stateVectorAnal,'TM') ) then
+      if(gsv_varExist(stateVectorAnal,'TM')) then
         ! Compute the continuous SST field (TM)
         call gvt_transform(stateVectorAnal, 'oceanIceContinuous', stateVectorRef_opt = stateVectorTrial, varName_opt = 'TM')
       end if
       
+    end if
+
+    if (SSTSpread) then
+      if(gsv_varExist(stateVectorAnal,'TM')) then
+        ! Compute SST spreading (TM) on neigbouring land points
+        call gvt_transform(stateVectorAnal, 'SSTSpread', varName_opt = 'TM', maxBoxSize_opt = SSTSpreadMaxBoxSize, subgrid_opt = SSTSubgrid)
+      end if
     end if
 
     ! Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR) for analysis
