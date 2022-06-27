@@ -2,8 +2,8 @@
 
 set -e
 
-## 6 hours in seconds
-wallclock_default=$((6*60*60))
+## 3 hours in minutes
+wallclock_default=$((3*60))
 
 echo 'loading MAESTRO SSM ...'
 . ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2
@@ -13,7 +13,7 @@ eval `${CCLARGS:-cclargs} $0 \
   -exp   "not defined" "not defined" "[base maestro experiment" \
   -node  "not defined" "not defined" "[test to launch interactively]" \
   -date  "not defined" "not defined" "[date of the working directory prepared with maestro]" \
-  -wallclock  "${wallclock_default}" "${wallclock_default}" "[wallclock time for the interactive job (default: 6 hours)]" \
+  -wallclock  "${wallclock_default}" "${wallclock_default}" "[wallclock time in minutes for the interactive job (default: 180 for 3 hours)]" \
   ++ $arguments`
 
 if [ "${exp}" = 'not defined' ]; then
@@ -171,7 +171,7 @@ pbsdirectives=${PWD}/pbsdirectives
 check_file launch_interactive ${pbsdirectives}
 
 find_resources > ${pbsdirectives}
-echo "#PBS -l walltime=03:00:00" >> ${pbsdirectives}
+echo "#PBS -l walltime=$((wallclock*60))" >> ${pbsdirectives}
 
 rcfile=${PWD}/rcfile
 check_file launch_interactive ${rcfile}
