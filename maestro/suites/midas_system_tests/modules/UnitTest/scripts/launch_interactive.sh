@@ -191,23 +191,30 @@ echo Loading execution environment in file load_env.sh
 . ./load_env.sh
 
 echo
-echo You can now run interactively your program with
-echo "   ./launch_program.sh \\\${path_to_program}"
+echo You can now run your program interactively with:
 echo
-
+echo "   ./launch_program.sh pgm"
+echo
+echo for the latest executable used by 'run.tsk' or
+echo
+echo "   ./launch_program.sh /path/to/midas-bld/midas_abs/midas-\\\${pgm}_\\\${plat}_\\\${version}_\\\${commit}_\\\${M}.Abs"
+echo
+echo for any executable of the midas program used in this test.
 EOF
 
 #TODO mpiprocs should not be hard coded.
 #TODO figure out how to launch rcfile and let interactive session open
-qsub_cmd="qsub -I ${pbsdirectives}"
+qsub_cmd="qsub -X -I ${pbsdirectives}"
 echo "Launching the interactive job with"
 echo "   ${qsub_cmd}"
 echo
 
 echo "When the interactive job is started, do"
+echo
 echo "    source ${rcfile}"
+echo
 echo "to load the environment and start working"
 
 ${qsub_cmd}
 
-rm ${rcfile}
+rm ${rcfile} ${pbsdirectives}
