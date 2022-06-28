@@ -13,7 +13,7 @@ if ! which qsub; then
 fi
 
 echo 'loading MAESTRO SSM ...'
-. ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2
+which maestro 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2
 
 arguments=$*
 eval `${CCLARGS:-cclargs} $0 \
@@ -50,8 +50,6 @@ if [ "${#date}" -lt "${date_number_of_characters}" ]; then
     padding=$(printf "0%.0s" $(seq $((${#date}+1)) ${date_number_of_characters}))
     date=${date}${padding}
 fi
-
-which nodeinfo 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmo/isst/maestro/1.7.1
 
 host=$(nodeinfo -e ${exp} -n ${node} | grep '^node\.machine=' | cut -d= -f2)
 working_directory=${exp}/hub/${host}/work/${date}/${node}/work
