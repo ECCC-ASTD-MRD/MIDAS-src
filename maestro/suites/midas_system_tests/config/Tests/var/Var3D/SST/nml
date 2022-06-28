@@ -69,7 +69,7 @@
    etiket_rebm ='XXXXXX'
    SSTSpread = .true.
    SSTSpreadMaxBoxSize = 2
-   SSTSubgrid ="Yin"
+   SSTSubgrid = Yin
 /
  &NAMCODTYP
 /
