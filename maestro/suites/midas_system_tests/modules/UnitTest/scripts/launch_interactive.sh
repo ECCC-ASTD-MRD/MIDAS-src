@@ -98,10 +98,10 @@ echo
 echo "Submitting an interactive job on ${host} with cpus=${cpus} memory=${memory} ${mpi:+with mpi} and ${soumet_args}"
 echo
 
-if [ "${TRUE_HOST}" != "${host}" ]; then
-    echo "To launch on the interactive job, you must be on the same cluster ${host} as the targeted one" >&2
-    exit 1
-fi
+#if [ "${TRUE_HOST}" != "${host}" ]; then
+#    echo "To launch on the interactive job, you must be on the same cluster ${host} as the targeted one" >&2
+#    exit 1
+#fi
 
 ## This function is checking if a file does already exist.
 ## If it does, then the function returns 1.
