@@ -5,6 +5,13 @@ set -e
 ## 3 hours in minutes
 wallclock_default=$((3*60))
 
+if ! which qsub; then
+    echo
+    echo "This command only works when 'qsub' is available"
+    echo "exit!"
+    exit 1
+fi
+
 echo 'loading MAESTRO SSM ...'
 . ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2
 
