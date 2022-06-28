@@ -182,11 +182,6 @@ rcfile=${PWD}/rcfile
 check_file launch_interactive ${rcfile}
 
 cat > ${rcfile} <<EOF
-. /etc/profile
-. $HOME/.profile
-
-[ -n "\${PBS_O_WORKDIR}" ] && cd \${PBS_O_WORKDIR}
-
 echo
 echo Changing directory for ${working_directory}
 cd ${working_directory}
