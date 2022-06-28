@@ -502,8 +502,8 @@ contains
       ! If the vertical coordinate is an impact parameter (6e6<himp<7e6), subtract radius:
       if (6.e6 < height .and. height < 7.e6) height = height-rad
       Hgt_Obs(iObs) = height
-      latr = obs_bodyElem_r(obsSpaceData,OBS_ROLA,bodyIndex)
-      lonr = obs_bodyElem_r(obsSpaceData,OBS_ROLO,bodyIndex)
+      latr = obs_bodyElem_r(obsSpaceData,OBS_LATD,bodyIndex)
+      lonr = obs_bodyElem_r(obsSpaceData,OBS_LOND,bodyIndex)
       if (lonr <  0.d0          ) lonr = lonr + 2.d0*MPC_PI_R8
       if (lonr >= 2.d0*MPC_PI_R8) lonr = lonr - 2.d0*MPC_PI_R8
       Lat_Obs(iObs) = latr
@@ -587,8 +587,8 @@ contains
     if (antennaLon <  0.0d0          ) antennaLon = antennaLon + 2.0d0*MPC_PI_R8
     if (antennaLon >= 2.0d0*MPC_PI_R8) antennaLon = antennaLon - 2.0d0*MPC_PI_R8
 
-    beamElevation  = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
-    beamAzimuth    = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+    beamElevation  = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex)
+    beamAzimuth    = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex)
     radarAltitude  = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
     beamRangeStart = obs_headElem_r(obsSpaceData, OBS_RANS, headerIndex)
     beamRangeEnd   = obs_headElem_r(obsSpaceData, OBS_RANE, headerIndex)

@@ -1326,7 +1326,7 @@ end subroutine filt_topoAISW
       ! 
       numLevels = col_getNumLev(columnTrlOnTrlLev, 'MM')
       ! Elevation beam (PPI) 
-      beamElevation = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+      beamElevation = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) 
       ! Altitude radar
       radarAltitude = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
       !

@@ -3605,8 +3605,8 @@ CONTAINS
           if ( FAMTYP == 'RO' ) then
             rolat1 = rolat(j)*MPC_RADIANS_PER_DEGREE_R8
             rolon1 = rolon(j)*MPC_RADIANS_PER_DEGREE_R8
-            call obs_bodySet_r(obsdat,OBS_ROLA,count,rolat1)
-            call obs_bodySet_r(obsdat,OBS_ROLO,count,rolon1)
+            call obs_bodySet_r(obsdat,OBS_LATD,count,rolat1)
+            call obs_bodySet_r(obsdat,OBS_LOND,count,rolon1)
           end if
           if ( L_BCOR .and. obs_columnActive_RB(obsdat,OBS_BCOR) ) then
             call obs_bodySet_r(obsdat,OBS_BCOR,count,BCOR)
