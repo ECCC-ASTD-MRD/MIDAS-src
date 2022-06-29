@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * add ability to spread SST values on neighbouring land points (#660 and !613)
+ * Added ability to spread SST values on neighbouring land points (#660 and !613)
  * Added ability to output trial and analysis ensemble members in obs space to diag files (#621 and !608)
  * Introduction of RTTOV-SCATT controlled by NAMTOV namelist section logical array useRttovScatt (#320 and !607)
  * Added cleaning for ObsDb files after observation thinning (#631 and !604)
