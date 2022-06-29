@@ -53,7 +53,7 @@ module increment_mod
   logical :: applyLiebmann
   logical :: SSTSpread  
   integer :: SSTSpreadMaxBoxSize
-  character(len=3) :: SSTSubgrid
+  character(len=10) :: SSTSubgrid
 
 CONTAINS
 

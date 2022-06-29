@@ -2158,14 +2158,14 @@ CONTAINS
     real(8), pointer     :: field_ptr(:,:,:,:)
 
     write(*,'(a,i2,a)') 'gvt_SSTSpread: spread SST values on ', maxBoxSize,' neighbouring land points on '//trim(subgrid)//' subgrid...'
-    if (subgrid == 'Yin') then
+    if (trim(subgrid) == 'Yin') then
       latIndexBeg = 1 
       latIndexEnd = stateVector%hco%nj / 2
-    else if(subgrid == 'Yan') then
+    else if(trim(subgrid) == 'Yan') then
       latIndexBeg = stateVector%hco%nj / 2 + 1 
       latIndexEnd = stateVector%hco%nj
     else
-      call utl_abort('gvt_SSTSpread: unknown subgrid: '//subgrid)
+      call utl_abort('gvt_SSTSpread: unknown subgrid: '//trim(subgrid))
     end if 
     
     ! abort if 3D mask is present, since we may not handle this situation correctly
