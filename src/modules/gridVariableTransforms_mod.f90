@@ -51,7 +51,6 @@ module gridVariableTransforms_mod
   public :: gvt_setupRefFromTrialFiles, gvt_setupRefFromStateVector
 
   logical :: varKindCHTrialsInitialized(vnl_numVarMax)  = .false.
-  integer, external    :: omp_get_thread_num
 
   type(struct_hco), pointer :: hco_anl => null()
   type(struct_vco), pointer :: vco_anl => null()
@@ -423,7 +422,13 @@ CONTAINS
 
     case ('SSTSpread')
       if (.not.present(varName_opt)) then
-        call utl_abort('gvt_transform: for gvt_SSTSpread, missing variable name: '//varName_opt)
+        call utl_abort('gvt_transform: for gvt_SSTSpread, missing variable name')
+      end if	
+      if (.not.present(maxBoxSize_opt)) then
+        call utl_abort('gvt_transform: for gvt_SSTSpread, missing max box size')
+      end if	
+      if (.not.present(subgrid_opt)) then
+        call utl_abort('gvt_transform: for gvt_SSTSpread, missing subgrid')
       end if	
       call gvt_SSTSpread(statevector, varName_opt, maxBoxSize_opt, subgrid_opt)
 
@@ -2258,7 +2263,7 @@ CONTAINS
             end do
               
             ! mark the grid point as being filled by interpolation on the grid
-            if (ngp /= 0 .and. updatedValueSum > 0) then
+            if (ngp /= 0) then
               updatedIsWaterValue(lonIndex, latIndex) = .True.
               updatedField(lonIndex, latIndex) = updatedValueSum / real(ngp)
             end if
