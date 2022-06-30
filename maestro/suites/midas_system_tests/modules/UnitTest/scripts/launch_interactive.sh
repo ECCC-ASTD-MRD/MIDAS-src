@@ -121,7 +121,7 @@ check_file() {
     if [ -f "${__check_file_file__}" ]; then
         echo "${__check_file_function__}: The file ${__check_file_file__} exists" >&2
         echo "${__check_file_function__}: Erase it or move it if you want to keep it" >&2
-        return 1
+        rm -i ${__check_file_function__}
     fi
 
     unset __check_file_file__ __check_file_function__
