@@ -139,7 +139,7 @@ find_resources () {
         return 1
     fi
 
-    __sleep_job__=sleep_forever.sh
+    __sleep_job__=${jobname}.sleep_forever.sh
     check_file find_resources ${__sleep_job__}
 
     __lajobtar__=lajob.tar
@@ -172,13 +172,13 @@ EOF
     unset __sleep_job__ __lajobtar__
 } ## End of function 'find_resources'
 
-pbsdirectives=${PWD}/pbsdirectives
+pbsdirectives=${PWD}/${jobname}.pbsdirectives
 check_file launch_interactive ${pbsdirectives}
 
 find_resources > ${pbsdirectives}
 echo "#PBS -l walltime=$((wallclock*60))" >> ${pbsdirectives}
 
-rcfile=${PWD}/rcfile
+rcfile=${PWD}/${jobname}.rcfile
 check_file launch_interactive ${rcfile}
 
 cat > ${rcfile} <<EOF
