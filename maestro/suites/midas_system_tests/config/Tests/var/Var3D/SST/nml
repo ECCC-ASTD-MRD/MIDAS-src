@@ -27,7 +27,7 @@
   nsamp    = 200*5000
   SCALEFACTOR = 200*1.0
   stddevMode = 'GD2D'
-  useImplicit = 200*.true.
+  useImplicit = 200*.false.
 /
  &NAMBHI
 /
@@ -67,6 +67,9 @@
  &NAMINC
    hInterpolationDegree = 'CUBIC'
    etiket_rebm ='XXXXXX'
+   SSTSpread = .true.
+   SSTSpreadMaxBoxSize = 2
+   SSTSubgrid = Yin
 /
  &NAMCODTYP
 /
