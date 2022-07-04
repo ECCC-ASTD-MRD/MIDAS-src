@@ -31,6 +31,7 @@ module utilities_mod
   public :: utl_ezsint, utl_findArrayIndex, utl_matSqrt, utl_matInverse, utl_eigenDecomp
   public :: utl_pseudo_inverse
   public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
+  public :: utl_stopAndWait4Debug
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
   public :: utl_get_stringId, utl_get_Id, utl_isNamelistPresent
   public :: utl_readFstField
@@ -1298,6 +1299,31 @@ contains
 
   end subroutine utl_abort
 
+  !--------------------------------------------------------------------------
+  ! utl_stopAndWait4Debug
+  !--------------------------------------------------------------------------
+  subroutine utl_stopAndWait4Debug(message)
+    !
+    ! :Purpose: Stop the execution for the process reaching a call to the
+    !           subroutine, then wait until all MPI processes reached such a
+    !           call to utl_stopAndWait4Debug.
+    !           Intended **for debugging puposes only** since it can cause
+    !           unwanted MPI deadlocks - processes waiting infinitely because
+    !           not all MPI processes will ever reach a call to
+    !           utl_stopAndWait4Debug.
+    !
+    implicit none
+    character(len=*) :: message
+    integer :: comm, ierr, rpn_comm_comm
+
+    write(6,9000) message
+9000 format(//,4X,"!!!---ALL STOP---!!!",/,8X,"Debugging message: ",A)
+    call flush(6)
+
+    call rpn_comm_barrier('WORLD', ierr)
+    comm = rpn_comm_comm("WORLD")
+    call mpi_abort( comm, 1, ierr )
+  end subroutine utl_stopAndWait4Debug
 
   subroutine utl_open_asciifile(filename,unit)
     ! 
