@@ -630,8 +630,8 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_CRPS= OBS_FSO+1  ! Continuous Ranked Probability Score
    integer, parameter, public :: OBS_BCOR= OBS_CRPS+1 ! observation bias correction
    integer, parameter, public :: OBS_OMPE= OBS_BCOR+1 ! error standard deviation of [obs - H (trial field)]
-   integer, parameter, public :: OBS_LATD= OBS_OMPE+1 ! individual Data table obs LATitude
-   integer, parameter, public :: OBS_LOND= OBS_LATD+1 ! individual Data table obs LONgitude
+   integer, parameter, public :: OBS_LATD= OBS_OMPE+1 ! obs LATitude  in Data table (radians)
+   integer, parameter, public :: OBS_LOND= OBS_LATD+1 ! obs LONgitude in Data table (radians)
    integer, parameter, public :: OBS_BTCL= OBS_LOND+1 ! clear-sky simulated observation
    integer, parameter, public :: OBS_LOCI= OBS_BTCL+1 ! LOCation Information for observation (e.g. range along radar beam)
 

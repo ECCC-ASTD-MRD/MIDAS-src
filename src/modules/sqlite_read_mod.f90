@@ -869,8 +869,6 @@ contains
           vertCoord = real(MPC_missingValue_R8, pre_obsReal)
         end if
 
-        !write standard body values to obsSpaceData
-        call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
 
         !elevation and azimuths are converted to radians and "pre_obsReal" precision
         beamElevationReal = beamElevation * MPC_RADIANS_PER_DEGREE_R8
@@ -884,15 +882,19 @@ contains
         call rdv_getlatlonHRfromRange(xlat, xlon, beamElevationReal, beamAzimuthReal, & !in
                                       elevReal, beamRange,                            & !in
                                       beamLat, beamLon, beamHeight, beamDistance)       !out
-        !additions to body table
-        call obs_bodySet_r(obsdat, OBS_LATD, bodyIndex, beamLat * MPC_DEGREES_PER_RADIAN_R8)
-        call obs_bodySet_r(obsdat, OBS_LOND, bodyIndex, beamLon * MPC_DEGREES_PER_RADIAN_R8)
-        call obs_bodySet_r(obsdat, OBS_PPP,  bodyIndex, beamHeight )
+        !radar additions to body table
+        call obs_bodySet_r(obsdat, OBS_LATD, bodyIndex, beamLat)
+        call obs_bodySet_r(obsdat, OBS_LOND, bodyIndex, beamLon)
         call obs_bodySet_r(obsdat, OBS_LOCI, bodyIndex, beamRange)
 
       end if
         
-      if (trim(familyType) == 'TO') then
+      if (trim(familyType) == 'RA') then
+
+        !write standard body values to obsSpaceData
+        call sqlr_initData(obsdat, beamHeight, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
+
+      else if (trim(familyType) == 'TO') then
 
         if (obsValue /= MPC_missingValue_R8) then
           call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
@@ -2051,11 +2053,13 @@ contains
         if (latData == obs_missingValue_R) then
           call fSQL_bind_param(stmtData, param_index = 16) 
         else
+          latData = latData * MPC_DEGREES_PER_RADIAN_R8
           call fSQL_bind_param(stmtData, param_index = 16, real_var = latData)
         end if 
         if (lonData == obs_missingValue_R) then
           call fSQL_bind_param(stmtData, param_index = 17) 
         else
+          lonData = lonData * MPC_DEGREES_PER_RADIAN_R8
           call fSQL_bind_param(stmtData, param_index = 17, real_var = lonData)
         end if 
         if (addFSOdiag) then

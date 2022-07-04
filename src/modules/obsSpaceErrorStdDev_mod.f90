@@ -1053,7 +1053,7 @@ module obsSpaceErrorStdDev_mod
 
       if  ( cdfam == 'RA' ) then
         ! Azimuth of the radar beam
-         azimuth = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex ) * MPC_RADIANS_PER_DEGREE_R8
+         azimuth = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex )
       end if
 
       ! loop over all body indices for this headerIndex
