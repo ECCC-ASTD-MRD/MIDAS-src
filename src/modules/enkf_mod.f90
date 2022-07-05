@@ -216,7 +216,7 @@ contains
     allocate(weightsMeanLatLon(nEnsUsed,1,myNumLatLonSend))
     weightsMeanLatLon(:,:,:) = 0.0d0
     ! Weights for member analyses
-    allocate(weightsMembers(nEnsUsed,nEnsUsed,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
+    allocate(weightsMembers(nEnsUsed,nEns,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMembers(:,:,:,:) = 0.0d0
     allocate(weightsMembersLatLon(nEnsUsed,nEns,myNumLatLonSend))
     weightsMembersLatLon(:,:,:) = 0.0d0
