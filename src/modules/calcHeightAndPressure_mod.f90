@@ -347,9 +347,6 @@ contains
     integer :: Vcode
     logical :: beSilent
 
-    integer ::  lev_M,lev_T,nlev_M,nlev_T,status
-    integer ::  numStep, stepIndex, latIndex,lonIndex
-
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
@@ -360,10 +357,6 @@ contains
     call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
 
     if (.not.beSilent) write(*,*) 'calcHeight_gsv_nl (czp): START'
-
-    nlev_T = gsv_getNumLev(statevector,'TH')
-    nlev_M = gsv_getNumLev(statevector,'MM')
-    numStep = statevector%numstep
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -382,13 +375,13 @@ contains
       if ( .not. gsv_varExist(statevector,'P0')  ) then
         call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
       end if
-      call calcHeight_gsv_nl_vcode500x
+      call calcHeight_gsv_nl_vcode500x(statevector, beSilent)
     else if (Vcode == 21001) then
       !! some gsv_varExist(statevector,.)
       if ( gsv_getDataKind(statevector) == 4 ) then
-        call calcHeight_gsv_nl_vcode2100x_r4
+        call calcHeight_gsv_nl_vcode2100x_r4(statevector, beSilent)
       else
-        call calcHeight_gsv_nl_vcode2100x_r8
+        call calcHeight_gsv_nl_vcode2100x_r8(statevector, beSilent)
       end if
     end if
 
@@ -396,19 +389,30 @@ contains
 
     call utl_tmg_stop(172)
 
-    contains
+  end subroutine calcHeight_gsv_nl
       !---------------------------------------------------------
       ! calcHeight_gsv_nl_vcode2100x_r4
       !---------------------------------------------------------
-      subroutine calcHeight_gsv_nl_vcode2100x_r4
+      subroutine calcHeight_gsv_nl_vcode2100x_r4(statevector, beSilent_opt)
         implicit none
 
-        ! Locals
-        real(kind=8), pointer       :: Hsfc(:,:)
+        ! Arguments
+        type(struct_gsv), intent(inout) :: statevector
+        logical, intent(in), optional   :: beSilent_opt
 
+        ! Locals
+        logical :: beSilent
+        integer ::  numStep, stepIndex, status
+        real(kind=8), pointer       :: Hsfc(:,:)
         real(kind=4), allocatable   :: Hsfc4(:,:)
         real(kind=4), pointer       :: GZHeight_out(:,:,:)
         real(4), pointer            :: Z_T(:,:,:,:), Z_M(:,:,:,:)
+
+        if ( present(beSilent_opt) ) then
+          beSilent = beSilent_opt
+        else
+          beSilent = .true.
+        end if
 
         if ( .not. gsv_varExist(statevector,'Z_*')) then
             ! DEBUG mad001 : probably other vars as well
@@ -426,31 +430,7 @@ contains
                         statevector%myLatBeg:statevector%myLatEnd))
         Hsfc => gsv_getHeightSfc(statevector)
         Hsfc4 = real(Hsfc,4)
-        !Hsfc4(:,:) = 0 ! DEBUG mad001
 
-
-        ! DEBUG mad001 start
-        locNLvl = gsv_getNumLev(statevector,'MM')
-        write(*,*) 'DEBUG mad001 locNLvl: ', locNLvl
-        do locIdx = 1, 8
-          lonIndex = locNi(locIdx)
-          latIndex = locNj(locIdx)
-          locHco = gsv_getHco(statevector) 
-          locLat = locHco%lat2d_4(lonIndex, latIndex) * 180/3.141592654
-          locLon = locHco%lon2d_4(lonIndex, latIndex) * 180/3.141592654
-          if (locLon >= 180) locLon = locLon - 360
-          write(*,*) 'DEBUG mad001 sites: ', locLabels(locIdx), lonIndex, latIndex, locLon, locLat
-          if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
-              .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
-            write(*,*) 'DEBUG mad001 Hsfc4: ',locLabels(locIdx), locLon, locLat, Hsfc4(lonIndex, latIndex)
-          end if
-        end do
-        !call utl_abort('DEBUG mad001 ---END---')
-        !if ( mpi_myid == 0 ) then
-        !  call utl_open_asciifile('ip1m.out', fun)
-        !
-        !end if
-        ! DEBUG mad001 ends
         numStep = statevector%numStep
 
         do stepIndex = 1, numStep
@@ -465,7 +445,7 @@ contains
           if( status .ne. VGD_OK ) then
               call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
           end if
-          Z_M(:,:,:,stepIndex) = gz2alt_r4(GZHeight_out)
+          Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
           deallocate(GZHeight_out)
 
           ! Z_T
@@ -478,7 +458,7 @@ contains
           if( status .ne. VGD_OK ) then
               call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
           end if
-          Z_T(:,:,:,stepIndex) = gz2alt_r4(GZHeight_out)
+          Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
           deallocate(GZHeight_out)
 
           beSilent=.false. ! DEBUG mad001
@@ -491,39 +471,21 @@ contains
         end do
         deallocate(Hsfc4)
 
-        ! DEBUG mad001 start
-!        locNLvl = gsv_getNumLev(statevector,'MM')
-!        do locIdx = 1, 8
-!          lonIndex = locNi(locIdx)
-!          latIndex = locNj(locIdx)
-!          if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
-!              .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
-!            locHco = gsv_getHco(statevector) 
-!            locLat = locHco%lat2d_4(lonIndex,latIndex) * 180/3.141592654
-!            locLon = locHco%lon2d_4(lonIndex,latIndex) * 180/3.141592654
-!            if (locLon >= 180) locLon = locLon - 360
-!            do locLvl = locNLvl, locNLvl-10, -1
-!              write(100+mpi_myid,'(A5,2X,2(F20.10,2X),I3,2X,4(F20.10,2X))')&
-!                  locLabels(locIdx),locLon,locLat,locLvl,&
-!                  Z_M(lonIndex,latIndex,locLvl,1),&
-!                  Z_T(lonIndex,latIndex,locLvl,1)
-!            end do
-!          end if
-!        end do
-        !call utl_abort('DEBUG mad001 ---END---')
-        ! DEBUG mad001 end
-
       end subroutine calcHeight_gsv_nl_vcode2100x_r4
 
       !---------------------------------------------------------
       ! gz2alt_r4
       !---------------------------------------------------------
-      function gz2alt_r4(gzHeight) result(alt)
+      function gz2alt_r4(statevector, gzHeight) result(alt)
         !
         ! :Purpose: iterative conversion of geopotential height to geometric
         !           altitude.  (solution proposed by J. Aparicio)
         !
+        implicit none
+
+        ! Arguments
         real(kind=4), allocatable           :: alt(:,:,:)
+        type(struct_gsv),      intent(in)   :: statevector
         real(kind=4), pointer, intent(in)   :: gzHeight(:,:,:)
 
         ! Locals
@@ -565,14 +527,26 @@ contains
       !---------------------------------------------------------
       ! calcHeight_gsv_nl_vcode2100x_r8
       !---------------------------------------------------------
-      subroutine calcHeight_gsv_nl_vcode2100x_r8
+      subroutine calcHeight_gsv_nl_vcode2100x_r8(statevector, beSilent_opt)
         ! DEBUG mad001 : the real(8) flow has to be tested
         implicit none
 
+        ! Arguments
+        type(struct_gsv), intent(inout) :: statevector
+        logical, intent(in), optional   :: beSilent_opt
+
         ! Locals
+        logical :: beSilent
+        integer ::  numStep, stepIndex, status
         real(kind=8), allocatable   :: Hsfc(:,:)
         real(kind=8), pointer       :: GZHeight_out(:,:,:)
         real(8), pointer            :: Z_T(:,:,:,:), Z_M(:,:,:,:)
+
+        if ( present(beSilent_opt) ) then
+          beSilent = beSilent_opt
+        else
+          beSilent = .true.
+        end if
 
         if ( .not. gsv_varExist(statevector,'Z_*')) then
             ! DEBUG mad001 : probably other vars as well
@@ -603,7 +577,7 @@ contains
           if( status .ne. VGD_OK ) then
               call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
           end if
-          Z_M(:,:,:,stepIndex) = gz2alt_r8(GZHeight_out)
+          Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
           deallocate(GZHeight_out)
 
           ! Z_T
@@ -616,7 +590,7 @@ contains
           if( status .ne. VGD_OK ) then
               call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
           end if
-          Z_T(:,:,:,stepIndex) = gz2alt_r8(GZHeight_out)
+          Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
           deallocate(GZHeight_out)
 
           if ( .not. beSilent .and. stepIndex == 1 ) then
@@ -637,12 +611,16 @@ contains
       !---------------------------------------------------------
       ! gz2alt_r8
       !---------------------------------------------------------
-      function gz2alt_r8(gzHeight) result(alt)
+      function gz2alt_r8(statevector, gzHeight) result(alt)
         !
         ! :Purpose: iterative conversion of geopotential height to geometric
         !           altitude.  (solution proposed by J. Aparicio)
         !
+        implicit none
+
+        ! Arguments
         real(kind=8), allocatable           :: alt(:,:,:)
+        type(struct_gsv),      intent(in)   :: statevector
         real(kind=8), pointer, intent(in)   :: gzHeight(:,:,:)
 
         ! Locals
@@ -684,10 +662,17 @@ contains
       !---------------------------------------------------------
       ! calcHeight_gsv_nl_vcode500x
       !---------------------------------------------------------
-      subroutine calcHeight_gsv_nl_vcode500x
+      subroutine calcHeight_gsv_nl_vcode500x(statevector, beSilent_opt)
         implicit none
 
+        ! Arguments
+        type(struct_gsv), intent(inout) :: statevector
+        logical, intent(in), optional   :: beSilent_opt
+
         ! Locals
+        logical :: beSilent
+        integer ::  lev_M,lev_T,nlev_M,nlev_T,status,Vcode
+        integer ::  numStep, stepIndex, latIndex,lonIndex
         real(4) ::  lat_4, heightSfcOffset_T_r4, heightSfcOffset_M_r4
         real(8) ::  delThick, ratioP
         real(8) ::  ScaleFactorBottom, ScaleFactorTop
@@ -710,6 +695,16 @@ contains
         real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
         real(8), pointer     :: HeightSfc_ptr_r8(:,:)
 
+        if ( present(beSilent_opt) ) then
+          beSilent = beSilent_opt
+        else
+          beSilent = .true.
+        end if
+
+        nlev_T = gsv_getNumLev(statevector,'TH')
+        nlev_M = gsv_getNumLev(statevector,'MM')
+        Vcode = gsv_getVco(statevector)%vcode
+        numStep = statevector%numStep
 
         allocate(tv(nlev_T))
 
@@ -1017,7 +1012,6 @@ contains
 
       end subroutine calcHeight_gsv_nl_vcode500x
 
-  end subroutine calcHeight_gsv_nl
 
   !---------------------------------------------------------
   ! calcHeight_gsv_tl
@@ -1125,6 +1119,8 @@ contains
         call gsv_getField(statevectorRef,height_T_ptr,'Z_T')
         call gsv_getField(statevectorRef,P_T,'P_T')
         call gsv_getField(statevectorRef,P_M,'P_M')
+        write(*,*) 'DBGmad height_M_ptr: ', minval(height_M_ptr), maxval(height_M_ptr)
+        write(*,*) 'DBGmad height_T_ptr: ', minval(height_T_ptr), maxval(height_T_ptr)
 
         call gsv_getField(statevector,delHeight_M_ptr_r48,'Z_M')
         call gsv_getField(statevector,delHeight_T_ptr_r48,'Z_T')
@@ -1204,6 +1200,14 @@ contains
                     delP0_r48(lonIndex,latIndex,1,stepIndex)
                   else
                     lev_M = lev_T ! momentum level just below thermo level being computed
+                    ! DBGmad START
+                    if (height_M_ptr(lonIndex,latIndex,lev_M,stepIndex) == &
+                          height_M_ptr(lonIndex,latIndex,lev_M-1,stepIndex)) then
+                  write(*,*)'DBGmad /0: ', height_M_ptr(lonIndex,latIndex,lev_M,stepIndex), & 
+                                           lonIndex,latIndex,lev_M,stepIndex
+                      call utl_stopAndWait4Debug('Catched division by 0') 
+                    end if
+                    ! DBGmad END
                     ScaleFactorBottom = &
                         (height_T_ptr(lonIndex,latIndex,lev_T,stepIndex) - &
                           height_M_ptr(lonIndex,latIndex,lev_M-1,stepIndex)) / &
@@ -1673,25 +1677,30 @@ contains
         call utl_abort('calcPressure_gsv_nl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
       end if
       if ( gsv_getDataKind(statevector) == 4 ) then
-        call calcPressure_gsv_nl_vcode500x_r4
+        call calcPressure_gsv_nl_vcode500x_r4(statevector, beSilent)
       else
-        call calcPressure_gsv_nl_vcode500x_r8
+        call calcPressure_gsv_nl_vcode500x_r8(statevector, beSilent)
       end if
     else if (Vcode == 21001) then
       !! some gsv_varExist(statevector,.)
-      call calcPressure_gsv_nl_vcode2100x
+      call calcPressure_gsv_nl_vcode2100x(statevector, beSilent)
     end if
 
     if ( .not. beSilent ) write(*,*) 'calcPressure_gsv_nl (czp): END'
 
-    contains
+  end subroutine calcPressure_gsv_nl
       !---------------------------------------------------------
       ! calcPressure_gsv_nl_vcode2100x
       !---------------------------------------------------------
-      subroutine calcPressure_gsv_nl_vcode2100x
+      subroutine calcPressure_gsv_nl_vcode2100x(statevector, beSilent_opt)
         implicit none
 
+        ! Arguments
+        type(struct_gsv), intent(inout) :: statevector
+        logical, intent(in), optional   :: beSilent_opt
+
         ! Locals
+        logical :: beSilent
         integer ::  stepIndex, latIndex, lonIndex, numStep
         integer ::  lev_M,lev_T,nlev_M,nlev_T,status
 
@@ -1716,6 +1725,11 @@ contains
         real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
         real(8), pointer     :: HeightSfc_ptr_r8(:,:)
 
+        if ( present(beSilent_opt) ) then
+          beSilent = beSilent_opt
+        else
+          beSilent = .true.
+        end if
         
         nlev_T = gsv_getNumLev(statevector,'TH')
         nlev_M = gsv_getNumLev(statevector,'MM')
@@ -1968,19 +1982,30 @@ contains
       !---------------------------------------------------------
       ! calcPressure_gsv_nl_vcode500x_r8
       !---------------------------------------------------------
-      subroutine calcPressure_gsv_nl_vcode500x_r8
+      subroutine calcPressure_gsv_nl_vcode500x_r8(statevector, beSilent_opt)
         !
         !:Purpose: double-precision calculation of the pressure on the grid.
         !
         implicit none
 
+        ! Arguments
+        type(struct_gsv), intent(inout) :: statevector
+        logical, intent(in), optional   :: beSilent_opt
+
         ! Locals
+        logical :: beSilent
         real(kind=8), allocatable   :: Psfc(:,:)
         real(kind=8), pointer       :: Pressure_out(:,:,:)
         real(kind=8), pointer       :: field_Psfc(:,:,:,:)
         integer                     :: status, stepIndex, numStep
         real(8), pointer            :: P_T(:,:,:,:)
         real(8), pointer            :: P_M(:,:,:,:)
+
+        if ( present(beSilent_opt) ) then
+          beSilent = beSilent_opt
+        else
+          beSilent = .true.
+        end if
 
         nullify(P_T)
         nullify(P_M)
@@ -2039,19 +2064,30 @@ contains
       !---------------------------------------------------------
       ! calcPressure_gsv_nl_vcode500x_r4
       !---------------------------------------------------------
-      subroutine calcPressure_gsv_nl_vcode500x_r4
+      subroutine calcPressure_gsv_nl_vcode500x_r4(statevector, beSilent_opt)
         !
         !:Purpose: single-precision calculation of the pressure on the grid.
         !
         implicit none
 
+        ! Arguments
+        type(struct_gsv), intent(inout) :: statevector
+        logical, intent(in), optional   :: beSilent_opt
+
         ! Locals
+        logical :: beSilent
         real(kind=4), allocatable   :: Psfc(:,:)
         real(kind=4), pointer       :: field_Psfc(:,:,:,:)
         real(kind=4), pointer       :: Pressure_out(:,:,:)
         integer                     :: status, stepIndex, numStep
         real(4), pointer            :: P_T(:,:,:,:)
         real(4), pointer            :: P_M(:,:,:,:)
+
+        if ( present(beSilent_opt) ) then
+          beSilent = beSilent_opt
+        else
+          beSilent = .true.
+        end if
 
         if ( .not. gsv_varExist(statevector,'P_*') .or. &
             .not. gsv_varExist(statevector,'P0')) then
@@ -2113,7 +2149,6 @@ contains
 
       end subroutine calcPressure_gsv_nl_vcode500x_r4
 
-  end subroutine calcPressure_gsv_nl
 
   !---------------------------------------------------------
   ! calcPressure_gsv_tl
