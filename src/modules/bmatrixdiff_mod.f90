@@ -35,7 +35,7 @@ MODULE BmatrixDiff_mod
 
   ! public procedures
   public :: bdiff_Setup, bdiff_BSqrt, bdiff_BSqrtAd, bdiff_Finalize
-  public :: bdiff_getScaleFactor
+  public :: bdiff_getScaleFactor, bdiff_reduceToMPILocal
 
   logical             :: initialized = .false.
   integer             :: nj_l, ni_l
@@ -62,6 +62,8 @@ MODULE BmatrixDiff_mod
   integer, allocatable :: nsposit(:)
   ! Name list of incremental variables/fields
   character(len=4), allocatable :: bdiff_varNameList(:)
+
+  integer             :: latIndexIgnore
 
   integer             :: myLatBeg, myLatEnd
   integer             :: myLonBeg, myLonEnd
@@ -96,7 +98,7 @@ CONTAINS
                                        ! the explicit version (.false.).
     character(len=*), parameter :: myName = 'bdiff_setup'
     
-    NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, useImplicit, scaleFactor, stddevMode, homogeneous_std
+    NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, useImplicit, scaleFactor, stddevMode, homogeneous_std, latIndexIgnore
 
     call utl_tmg_start(65,'----B_DIFF_Setup')
     if(mmpi_myid == 0) write(*,*) myName//': starting'
@@ -110,6 +112,7 @@ CONTAINS
     scaleFactor(:) = 0.0d0
     stddevMode  = 'GD2D'
     homogeneous_std(:) = -1.0d0
+    latIndexIgnore = 0
 
     if ( .not. utl_isNamelistPresent('NAMBDIFF','./flnml') ) then
       if ( mpi_myid == 0 ) then
@@ -219,7 +222,8 @@ CONTAINS
     do variableIndex = 1, numvar2d
       write(*,*) myName//': setup the diffusion operator for the variable ', bdiff_varNameList( variableIndex ) 
       diffID( variableIndex ) = diff_setup ( variableIndex, bdiff_varNameList(1:numvar2d), hco_in, vco_in, corr_len( variableIndex ), &
-                                             stab( variableIndex ), nsamp( variableIndex ), useImplicit( variableIndex ) )
+                                             stab( variableIndex ), nsamp( variableIndex ), useImplicit( variableIndex ), &
+                                             latIndexIgnore )
     end do
 
     call mmpi_setup_latbands( nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd )
@@ -568,6 +572,48 @@ CONTAINS
     end do
 
   end subroutine bdiff_copyFromStatevector
+
+
+  subroutine bdiff_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
+    implicit none
+
+    ! Arguments:
+    real(8), intent(out) :: cv_mpilocal(:)
+    real(8), intent(in)  :: cv_mpiglobal(:)
+
+    ! Locals:
+    integer :: jn, jlat, jlon, jlev, ierr
+    real(8), allocatable :: gd_mpiGlobal(:,:,:)
+
+    allocate(gd_mpiGlobal(ni_l,nj_l,numvar2d))
+    gd_mpiGlobal(:,:,:) = 0.0d0
+
+    jn = 0
+    if (mpi_myid == 0) then
+      do jlev = 1, numvar2d
+        do jlat = 1, nj_l
+          do jlon = 1, ni_l
+            jn = jn + 1
+            gd_mpiGlobal( jlon, jlat, jlev ) = cv_mpiglobal( jn )
+          end do
+        end do
+      end do
+    end if 
+    call rpn_comm_bcast(gd_mpiGlobal, size(gd_mpiGlobal), 'MPI_REAL8', 0, 'GRID', ierr)
+    
+    jn = 0
+    do jlev = 1, numvar2d
+      do jlat = myLatBeg, myLatEnd
+        do jlon = myLonBeg, myLonEnd
+          jn = jn + 1
+          cv_mpilocal(jn) = gd_mpiGlobal(jlon,jlat,jlev)
+        end do
+      end do
+    end do
+
+    deallocate(gd_mpiGlobal)
+
+  end subroutine bdiff_reduceToMPILocal
 
 
   subroutine bdiff_cain( controlVector_in, gd_out )

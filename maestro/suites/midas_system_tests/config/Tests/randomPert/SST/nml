@@ -9,6 +9,16 @@
   ensContainsFullField = .false.
   ensDateOfValidity = -1
 /
+ &NAMBDIFF
+  SCALEFACTOR = 200*1.0
+  corr_len = 200*200.0
+  stab     = 200*0.2
+  nsamp    = 200*5000
+  stddevMode = 'HOMO'
+  useImplicit = 200*.false.
+  homogeneous_std = 200*0.25
+  latIndexIgnore = 250 
+/
  &NAMENKF
    NENS=10
    SEED=-999 ! If -999, seed is set using the date
@@ -18,7 +28,7 @@
    readEnsMean = T
    setPertZeroUnderIce = T
    iceFractionThreshold = 0.2
-   previousDateFraction = 0.9
+   !previousDateFraction = 0.9
    numBits = 16
 /
  &NAMTIME

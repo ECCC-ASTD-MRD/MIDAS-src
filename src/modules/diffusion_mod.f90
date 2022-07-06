@@ -55,6 +55,7 @@ module diffusion_mod
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax
     integer :: myLonBeg_transpose, myLonEnd_transpose
     integer :: lonPerPE_transpose, lonPerPEmax_transpose
+    integer :: latIndexIgnore
     integer :: numt
     integer :: numIterImp
     real(8) :: dt
@@ -82,7 +83,8 @@ contains
   ! diff_finalize
   !----------------------------------------------------------------------------------------
   integer function diff_setup (variableIndex, bdiff_varNameList, hco, vco, &
-                               corr_len, stab, numberSamples, useImplicit)
+                               corr_len, stab, numberSamples, useImplicit, &
+                               latIndexIgnore)
     !
     !:Purpose: set up diffusion operator
     !
@@ -99,6 +101,7 @@ contains
     real,                      intent(in)    :: stab                 ! Stability criteria (definitely < 0.5)
     integer,                   intent(in)    :: numberSamples        ! Number of samples to estimate normalization factors by randomization.
     logical,                   intent(in)    :: useImplicit          ! Indicate to use the implicit formulation
+    integer,                   intent(in)    :: latIndexIgnore       ! Number of grid points to ignore near poles
 
     ! Locals:    
     real(8), allocatable :: latr(:) ! latitudes on the analysis rotated grid, in radians
@@ -159,6 +162,7 @@ contains
     diff(diffID)%dlon = hco%dlon
     diff(diffID)%dlat = hco%dlat
     diff(diffID)%useImplicit = useImplicit
+    diff(diffID)%latIndexIgnore = latIndexIgnore
 
     ! domain partionning
     diff(diffID)%ni = ni
@@ -226,23 +230,32 @@ contains
     call ocm_readMaskFromFile(oceanMask, hco, vco, './analysisgrid')
 
     ! land mask (1=water, 0=land)
-    do latIndex = 1, nj
-      do lonIndex = 1, ni
+    if (oceanMask%maskPresent) then
+      do latIndex = 1, nj
+        do lonIndex = 1, ni
           
-        if (oceanMask%mask (lonIndex, latIndex, 1)) then
-          m (lonIndex, latIndex) = 1.0d0
-        else
-          m (lonIndex, latIndex) = 0.0d0
-        end if
+          if (oceanMask%mask (lonIndex, latIndex, 1)) then
+            m (lonIndex, latIndex) = 1.0d0
+          else
+            m (lonIndex, latIndex) = 0.0d0
+          end if
        
+        end do
       end do
-    end do
-    call ocm_deallocate(oceanMask)
+      call ocm_deallocate(oceanMask)
+    else
+      m(:,:) = 1.0d0
+    end if
    
     m( :, 1 ) = 0.0d0
     m( 1, : ) = 0.0d0
     m( :, nj) = 0.0d0
     m(ni, : ) = 0.0d0
+
+    if (latIndexIgnore > 0) then
+      m( :, 1 : 1+latIndexIgnore )   = 0.0d0
+      m( :, nj-latIndexIgnore : nj ) = 0.0d0
+    end if
 
     ! define mask on staggered grids
     do latIndex = 1, nj
@@ -798,7 +811,7 @@ contains
     real(8), intent(out) :: xout( diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, diff(diffID)%myLatBeg:diff(diffID)%myLatEnd )
 
     ! Locals:
-    integer              :: timeStep
+    integer              :: timeStep, myLatBegIgnore, myLatEndIgnore
     real(8), allocatable :: xout_transpose(:,:)
 
     ! compute Csqrt
@@ -807,6 +820,18 @@ contains
     xout(:,:) = xin(:,:) *  &
                 diff(diffID)%Winvsqrt(diff(diffID)%myLonBeg:diff(diffID)%myLonEnd, &
                                           diff(diffID)%myLatBeg:diff(diffID)%myLatEnd)
+    if (diff(diffID)%latIndexIgnore > 0) then
+      ! south pole
+      myLatBegIgnore = max(diff(diffID)%myLatBeg,1)
+      myLatEndIgnore = max(diff(diffID)%myLatBeg,min(diff(diffID)%myLatEnd,diff(diffID)%latIndexIgnore))
+      xout(:,myLatBegIgnore:myLatEndIgnore) = 0.0d0
+      ! north pole
+      myLatBegIgnore = min(diff(diffID)%myLatEnd,max(diff(diffID)%myLatBeg,diff(diffID)%nj-diff(diffID)%latIndexIgnore))
+      myLatEndIgnore = min(diff(diffID)%myLatEnd,diff(diffID)%nj)
+      xout(:,myLatBegIgnore:myLatEndIgnore) = 0.0d0
+    end if
+    write(*,*) 'min/maxval xout=', minval(xout),maxval(xout)
+
     if ( diff(diffID)%useImplicit ) then
       allocate(xout_transpose(diff(diffID)%myLonBeg_transpose:diff(diffID)%myLonEnd_transpose,diff(diffID)%nj))
       do timeStep = 1, diff(diffID)%numt

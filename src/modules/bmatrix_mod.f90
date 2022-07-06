@@ -552,7 +552,7 @@ contains
       case ('DIFF')
 
         !- 2.4 Covariances modelled using a diffusion operator.
-        !call bdiff_reduceToMPILocal( subVector_mpilocal, subVector_mpiglobal )
+        call bdiff_reduceToMPILocal( subVector_mpilocal, subVector_mpiglobal )
 
       case ('ENS')
 
@@ -622,6 +622,7 @@ contains
       case ('DIFF')
 
         !- 2.4 Covariances modelled using a diffusion operator.
+        call utl_abort('bmat_reduceToMPILocal_r4: not yet implemented for bMatrixDiff')
         !call bdiff_reduceToMPILocal_r4( subVector_mpilocal, subVector_mpiglobal )
 
       case ('ENS')
