@@ -85,7 +85,6 @@ module gridStateVectorFileIO_mod
 
     write(*,*) ''
     write(*,*) 'gio_readFromFile: START'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call utl_tmg_start(160,'low-level--gsv_readFromFile')
 
     if ( present(stepIndex_opt) ) then
@@ -240,7 +239,6 @@ module gridStateVectorFileIO_mod
 
     write(*,*) ''
     write(*,*) 'readFromFileAndInterpToTiles: START'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     nullify(varNamesToRead)
     call gsv_varNamesList(varNamesToRead, statevector_out)
@@ -319,7 +317,6 @@ module gridStateVectorFileIO_mod
     call gsv_deallocate(statevector_vinterp)
     deallocate(varNamesToRead)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'readFromFileAndInterpToTiles: END'
 
   end subroutine readFromFileAndInterpToTiles
@@ -361,21 +358,18 @@ module gridStateVectorFileIO_mod
 
     write(*,*) ''
     write(*,*) 'readFromFileAndTransposeToTiles: START'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     nullify(varNamesToRead)
     call gsv_varNamesList(varNamesToRead, statevector_out)
 
     !-- 1.0 Read the file, distributed over mpi task with respect to variables/levels
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     ! initialize single precision 3D working copy of statevector for reading file
     call gsv_allocate(statevector_file_r4, 1, statevector_out%hco, statevector_out%vco, &
                       dateStamp_opt=statevector_out%datestamplist(stepIndex),           &
                       mpi_local_opt=.true., mpi_distribution_opt='VarsLevs',            &
                       dataKind_opt=4, allocHeightSfc_opt=readHeightSfc,                         &
                       varNames_opt=varNamesToRead )
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call gio_readFile(statevector_file_r4, filename, etiket_in, typvar_in,  &
                       containsFullField, readHeightSfc_opt=readHeightSfc)
@@ -385,7 +379,6 @@ module gridStateVectorFileIO_mod
       call gio_fileUnitsToStateUnits( statevector_file_r4, containsFullField )
     end if
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     !-- 3.0 MPI communication from vars/levels to lat/lon tiles
     call gsv_allocate(statevector_tiles, 1, statevector_out%hco, statevector_out%vco, &
                       dateStamp_opt=statevector_out%datestamplist(stepIndex), &
@@ -393,19 +386,15 @@ module gridStateVectorFileIO_mod
                       dataKind_opt=8, allocHeightSfc_opt=readHeightSfc,               &
                       varNames_opt=varNamesToRead)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     call gsv_transposeVarsLevsToTiles(statevector_file_r4, statevector_tiles)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     !-- 4.0 Copy result to output statevector
     call gsv_copy(statevector_tiles, statevector_out, stepIndexOut_opt=stepIndex)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     call gsv_deallocate(statevector_tiles)
     call gsv_deallocate(statevector_file_r4)
     deallocate(varNamesToRead)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'readFromFileAndTransposeToTiles: END'
 
   end subroutine readFromFileAndTransposeToTiles
@@ -714,8 +703,6 @@ module gridStateVectorFileIO_mod
       end if
     end if
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     nullify(hco_file)
     nullify(gd2d_file_r4)
     if ( statevector%mykCount > 0 ) then
@@ -755,9 +742,7 @@ module gridStateVectorFileIO_mod
 
         if (.not. foundVarNameInFile) call utl_abort('gio_readFile: NO variable is in the file')
 
-        write(*,*) 'Memory Used: before hco_setupfromfile ',get_max_rss()/1024,'Mb'
         call hco_setupFromFile(hco_file, filename, ' ', 'INPUTFILE', varName_opt=varName)
-        write(*,*) 'Memory Used: after  hco_setupfromfile ',get_max_rss()/1024,'Mb'
 
       else
         ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
@@ -780,12 +765,9 @@ module gridStateVectorFileIO_mod
         end if
 
       end if
-    write(*,*) 'Memory Used: before allocate gd2d_file_r4 ',get_max_rss()/1024,'Mb'
       allocate(gd2d_file_r4(hco_file%ni,hco_file%nj))
       gd2d_file_r4(:,:) = 0.0
     end if
-
-    write(*,*) 'Memory Used: after  allocate gd2d_file_r4 ',get_max_rss()/1024,'Mb'
 
     ! Read all other fields needed for this MPI task
     call gsv_getField(statevector,field_r4_ptr)
@@ -972,10 +954,7 @@ module gridStateVectorFileIO_mod
 
     ierr = fstfrm(nulfile)
     ierr = fclos(nulfile)        
-    if ( associated(gd2d_file_r4) ) then
-      write(*,*) 'deallocating gd2d_file_r4'
-      deallocate(gd2d_file_r4)
-    end if
+    if ( associated(gd2d_file_r4) ) deallocate(gd2d_file_r4)
 
     ! Read in an oceanMask if it is present in the file
     call gio_readMaskFromFile(statevector, trim(filename))
