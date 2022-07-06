@@ -28,7 +28,7 @@
    readEnsMean = T
    setPertZeroUnderIce = T
    iceFractionThreshold = 0.2
-   !previousDateFraction = 0.9
+   previousDateFraction = 0.8
    numBits = 16
 /
  &NAMTIME
