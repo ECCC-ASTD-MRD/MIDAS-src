@@ -50,7 +50,7 @@ public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles, sqlr_readSqlite_avhrr, sq
 public :: sqlr_writePseudoSSTobs, sqlr_writeEmptyPseudoSSTobsFile
 contains
   
-  subroutine sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, numberData)
+  subroutine sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, numberData, latd, lond)
     !
     ! :Purpose: Initialize data values for an observation object.
     !
@@ -64,12 +64,26 @@ contains
     integer          , intent(in)    :: obsFlag 
     integer          , intent(in)    :: vertCoordType
     integer          , intent(in)    :: numberData
+    real(pre_obsReal), optional, intent(in) :: latd
+    real(pre_obsReal), optional, intent(in) :: lond
 
     call obs_bodySet_r(obsdat, OBS_PPP, numberData, vertCoord)
     call obs_bodySet_r(obsdat, OBS_VAR, numberData, obsValue)
     call obs_bodySet_i(obsdat, OBS_VNM, numberData, obsVarno)
     call obs_bodySet_i(obsdat, OBS_FLG, numberData, obsFlag)
     call obs_bodySet_i(obsdat, OBS_VCO, numberData, vertCoordType)
+
+    if (present(latd)) then
+      call obs_bodySet_r(obsdat, OBS_LATD, numberData, latd)
+    else
+      call obs_bodySet_r(obsdat, OBS_LATD, numberData, obs_missingValue_R)
+    end if
+
+    if (present(lond)) then
+      call obs_bodySet_r(obsdat, OBS_LOND, numberData, lond)
+    else
+      call obs_bodySet_r(obsdat, OBS_LOND, numberData, obs_missingValue_R)
+    end if 
 
   end subroutine sqlr_initData
 
@@ -882,17 +896,16 @@ contains
         call rdv_getlatlonHRfromRange(xlat, xlon, beamElevationReal, beamAzimuthReal, & !in
                                       elevReal, beamRange,                            & !in
                                       beamLat, beamLon, beamHeight, beamDistance)       !out
-        !radar additions to body table
-        call obs_bodySet_r(obsdat, OBS_LATD, bodyIndex, beamLat)
-        call obs_bodySet_r(obsdat, OBS_LOND, bodyIndex, beamLon)
+        !radar specific addition(s) to body table
         call obs_bodySet_r(obsdat, OBS_LOCI, bodyIndex, beamRange)
 
       end if
         
-      if (trim(familyType) == 'RA') then
+      if (trim(familyType) == 'RA' .and. trim(rdbSchema) == 'radvel') then
 
         !write standard body values to obsSpaceData
-        call sqlr_initData(obsdat, beamHeight, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
+        call sqlr_initData(obsdat, beamHeight, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex, &
+                           beamLat, beamLon)  !optional args
 
       else if (trim(familyType) == 'TO') then
 

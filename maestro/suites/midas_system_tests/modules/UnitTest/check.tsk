@@ -92,41 +92,35 @@ function check_result {
 	    cmp live rfrn || not_validating=yes
         elif [ "${method}" = diff ]; then
 	    diff ${diff_options} live rfrn || not_validating=yes
+
         elif [ "${method}" = SQLite ]; then
-	    status=0
-	    diff live rfrn > /dev/null || status=1
-	    if [ "${status}" -ne 0 ]; then
-                ## Extract the content of the two SQLite databases
-		${TASK_BIN}/lisqlite live livetables
-		${TASK_BIN}/lisqlite rfrn rfrntables
-                ## Check if the two SQLite databases contain the same tables
-                ls -1 livetables_* > livetables
-                ls -1 rfrntables_* > rfrntables
-                status=0
-		sed 's/^livetables_/rfrntables_/' livetables | diff ${diff_options} - rfrntables || status=1
-                if [ "${status}" -ne 0 ]; then
-                    echo "The two files does not contain the same tables."
-                    not_validating=yes
-                fi
-                ## check the content of common tables
-                for livetable in livetables_*; do
-                    suffix=${livetable#*_}
-                    rfrntable=rfrntables_${suffix}
-                    if [ ! -f "${rfrntable}" ]; then
-                        not_validating=yes
-                    else
-		        status=0
-                        cmp ${livetable} ${rfrntable} || status=1
-                        if [ "${status}" -ne 0 ]; then
-                            status=0
-		            diff ${diff_options} ${livetable} ${rfrntable} || status=1
-                            if [ "${status}" -ne 0 ]; then
-                                not_validating=yes
-                            fi
-                        fi
-                    fi
-                done
-	    fi
+	        status=0
+          #regular diff on sqlite binary files
+	        diff live rfrn > /dev/null || status=1
+	        if [ "${status}" -ne 0 ]; then
+            #use sqldiff to identify differences between sqlite databases
+            #this program spits out the sql operations that must be applied to "rfrn" to obtain the "live" database
+            #file will be empty if the two tables are identical
+		        ${TASK_BIN}/sqldiff rfrn live > sqldiff_output_rfrn_vs_live.txt
+            diff_nlines=$(wc -l < sqldiff_output_rfrn_vs_live.txt)
+            if [[ ${diff_nlines} -gt 0 ]] ; then
+
+              not_validating=yes
+
+              #printing out differences
+              max_lines_in_listings=25
+              if [[ ${diff_nlines} -gt ${max_lines_in_listings} ]] ; then
+                #there are many differences, avoid flooding listing by printing only the first lines
+                echo "There are many differences between the reference and live sqlite databases."
+                echo "Here are the first ${max_lines_in_listings} lines of the diff file: \"${rfrn}.check_result/sqldiff_output_rfrn_vs_live.txt\""
+                head -n ${max_lines_in_listings} sqldiff_output_rfrn_vs_live.txt
+              else
+                #entire content of diff file
+                cat sqldiff_output_rfrn_vs_live.txt
+              fi
+            fi
+	        fi
+
         elif [ "${method}" = liburp ]; then
 	    status=0
 	    diff live rfrn > /dev/null || status=1
