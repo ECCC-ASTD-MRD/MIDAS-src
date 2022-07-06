@@ -390,628 +390,628 @@ contains
     call utl_tmg_stop(172)
 
   end subroutine calcHeight_gsv_nl
-      !---------------------------------------------------------
-      ! calcHeight_gsv_nl_vcode2100x_r4
-      !---------------------------------------------------------
-      subroutine calcHeight_gsv_nl_vcode2100x_r4(statevector, beSilent_opt)
-        implicit none
+  
+  !---------------------------------------------------------
+  ! calcHeight_gsv_nl_vcode2100x_r4
+  !---------------------------------------------------------
+  subroutine calcHeight_gsv_nl_vcode2100x_r4(statevector, beSilent_opt)
+    implicit none
 
-        ! Arguments
-        type(struct_gsv), intent(inout) :: statevector
-        logical, intent(in), optional   :: beSilent_opt
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+    logical, intent(in), optional   :: beSilent_opt
 
-        ! Locals
-        logical :: beSilent
-        integer ::  numStep, stepIndex, status
-        real(kind=8), pointer       :: Hsfc(:,:)
-        real(kind=4), allocatable   :: Hsfc4(:,:)
-        real(kind=4), pointer       :: GZHeight_out(:,:,:)
-        real(4), pointer            :: Z_T(:,:,:,:), Z_M(:,:,:,:)
+    ! Locals
+    logical :: beSilent
+    integer ::  numStep, stepIndex, status
+    real(kind=8), pointer       :: Hsfc(:,:)
+    real(kind=4), allocatable   :: Hsfc4(:,:)
+    real(kind=4), pointer       :: GZHeight_out(:,:,:)
+    real(4), pointer            :: Z_T(:,:,:,:), Z_M(:,:,:,:)
 
-        if ( present(beSilent_opt) ) then
-          beSilent = beSilent_opt
-        else
-          beSilent = .true.
-        end if
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
 
-        if ( .not. gsv_varExist(statevector,'Z_*')) then
-            ! DEBUG mad001 : probably other vars as well
-          call utl_abort('calcHeight_gsv_nl (czp): Z_T/Z_M do not exist in statevector!')
-        end if
+    if ( .not. gsv_varExist(statevector,'Z_*')) then
+        ! DEBUG mad001 : probably other vars as well
+      call utl_abort('calcHeight_gsv_nl (czp): Z_T/Z_M do not exist in statevector!')
+    end if
 
 
-        nullify(Z_T)
-        nullify(Z_M)
+    nullify(Z_T)
+    nullify(Z_M)
 
-        call gsv_getField(statevector,Z_T,'Z_T')
-        call gsv_getField(statevector,Z_M,'Z_M')
+    call gsv_getField(statevector,Z_T,'Z_T')
+    call gsv_getField(statevector,Z_M,'Z_M')
 
-        allocate(Hsfc4( statevector%myLonBeg:statevector%myLonEnd, &
-                        statevector%myLatBeg:statevector%myLatEnd))
-        Hsfc => gsv_getHeightSfc(statevector)
-        Hsfc4 = real(Hsfc,4)
+    allocate(Hsfc4( statevector%myLonBeg:statevector%myLonEnd, &
+                    statevector%myLatBeg:statevector%myLatEnd))
+    Hsfc => gsv_getHeightSfc(statevector)
+    Hsfc4 = real(Hsfc,4)
 
-        numStep = statevector%numStep
+    numStep = statevector%numStep
 
-        do stepIndex = 1, numStep
+    do stepIndex = 1, numStep
 
-          ! Z_M
-          nullify(GZHeight_out)
-          status = vgd_levels(statevector%vco%vgrid, &
-                              ip1_list=statevector%vco%ip1_M, &
-                              levels=GZHeight_out, &
-                              sfc_field=Hsfc4, &
-                              in_log=.false.)
-          if( status .ne. VGD_OK ) then
-              call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
-          end if
-          Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
-          deallocate(GZHeight_out)
+      ! Z_M
+      nullify(GZHeight_out)
+      status = vgd_levels(statevector%vco%vgrid, &
+                          ip1_list=statevector%vco%ip1_M, &
+                          levels=GZHeight_out, &
+                          sfc_field=Hsfc4, &
+                          in_log=.false.)
+      if( status .ne. VGD_OK ) then
+          call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
+      end if
+      Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
+      deallocate(GZHeight_out)
 
-          ! Z_T
-          nullify(GZHeight_out)
-          status = vgd_levels(statevector%vco%vgrid, &
-                              ip1_list=statevector%vco%ip1_T, &
-                              levels=GZHeight_out, &
-                              sfc_field=Hsfc4, &
-                              in_log=.false.)
-          if( status .ne. VGD_OK ) then
-              call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
-          end if
-          Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
-          deallocate(GZHeight_out)
+      ! Z_T
+      nullify(GZHeight_out)
+      status = vgd_levels(statevector%vco%vgrid, &
+                          ip1_list=statevector%vco%ip1_T, &
+                          levels=GZHeight_out, &
+                          sfc_field=Hsfc4, &
+                          in_log=.false.)
+      if( status .ne. VGD_OK ) then
+          call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
+      end if
+      Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
+      deallocate(GZHeight_out)
 
-          beSilent=.false. ! DEBUG mad001
-          if ( .not. beSilent .and. stepIndex == 1 ) then
-            write(*,*) 'stepIndex=',stepIndex, ',Z_M='
-            write(*,*) Z_M( statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-            write(*,*) 'stepIndex=',stepIndex, ',Z_T='
-            write(*,*) Z_T( statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-          end if
+      beSilent=.false. ! DEBUG mad001
+      if ( .not. beSilent .and. stepIndex == 1 ) then
+        write(*,*) 'stepIndex=',stepIndex, ',Z_M='
+        write(*,*) Z_M( statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+        write(*,*) 'stepIndex=',stepIndex, ',Z_T='
+        write(*,*) Z_T( statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+      end if
+    end do
+    deallocate(Hsfc4)
+
+  end subroutine calcHeight_gsv_nl_vcode2100x_r4
+
+  !---------------------------------------------------------
+  ! gz2alt_r4
+  !---------------------------------------------------------
+  function gz2alt_r4(statevector, gzHeight) result(alt)
+    !
+    ! :Purpose: iterative conversion of geopotential height to geometric
+    !           altitude.  (solution proposed by J. Aparicio)
+    !
+    implicit none
+
+    ! Arguments
+    real(kind=4), allocatable           :: alt(:,:,:)
+    type(struct_gsv),      intent(in)   :: statevector
+    real(kind=4), pointer, intent(in)   :: gzHeight(:,:,:)
+
+    ! Locals
+    integer                             :: nLon, nLat, nLev
+    type(struct_hco)                    :: hco
+    real(kind=4)                        :: latitude
+    real(kind=4)                        :: gzH, b1, b2, A2, A3, altTmp
+    integer                             :: lonIndex, latIndex, lvlIndex, i
+
+    ! gzHeight comes from external `vgd_levels` which does not know the
+    ! mpi shifted indexes
+    nLon = ubound(gzHeight, 1)
+    nLat = ubound(gzHeight, 2)
+    nLev = ubound(gzHeight, 3)
+    allocate(alt(nLon, nLat, nLev))
+
+    hco = gsv_getHco(statevector)
+
+    do lonIndex = 1, nLon
+      do latIndex = 1, nLat
+        do lvlIndex = 1, nLev
+          ! explicit shift of indexes
+          latitude = hco%lat2d_4( lonIndex+statevector%myLonBeg-1,&
+                                  latIndex+statevector%myLatBeg-1)
+          gzH = gzHeight(lonIndex, latIndex, lvlIndex)
+          ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
+          b1 = -2.0/ec_wgs_a*(1.0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2)
+          b2 = 3.0/ec_wgs_a**2
+          ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
+          A2 = -b1/2.0
+          A3 = b1**2/2.0 - b2/3.0
+          alt(lonIndex, latIndex, lvlIndex) = gzH + A2*gzH**2 + A3*gzH**3
         end do
-        deallocate(Hsfc4)
+      end do
+    end do
 
-      end subroutine calcHeight_gsv_nl_vcode2100x_r4
+  end function gz2alt_r4
 
-      !---------------------------------------------------------
-      ! gz2alt_r4
-      !---------------------------------------------------------
-      function gz2alt_r4(statevector, gzHeight) result(alt)
-        !
-        ! :Purpose: iterative conversion of geopotential height to geometric
-        !           altitude.  (solution proposed by J. Aparicio)
-        !
-        implicit none
+  !---------------------------------------------------------
+  ! calcHeight_gsv_nl_vcode2100x_r8
+  !---------------------------------------------------------
+  subroutine calcHeight_gsv_nl_vcode2100x_r8(statevector, beSilent_opt)
+    ! DEBUG mad001 : the real(8) flow has to be tested
+    implicit none
 
-        ! Arguments
-        real(kind=4), allocatable           :: alt(:,:,:)
-        type(struct_gsv),      intent(in)   :: statevector
-        real(kind=4), pointer, intent(in)   :: gzHeight(:,:,:)
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+    logical, intent(in), optional   :: beSilent_opt
 
-        ! Locals
-        integer                             :: nLon, nLat, nLev
-        type(struct_hco)                    :: hco
-        real(kind=4)                        :: latitude
-        real(kind=4)                        :: gzH, b1, b2, A2, A3, altTmp
-        integer                             :: lonIndex, latIndex, lvlIndex, i
+    ! Locals
+    logical :: beSilent
+    integer ::  numStep, stepIndex, status
+    real(kind=8), allocatable   :: Hsfc(:,:)
+    real(kind=8), pointer       :: GZHeight_out(:,:,:)
+    real(8), pointer            :: Z_T(:,:,:,:), Z_M(:,:,:,:)
 
-        ! gzHeight comes from external `vgd_levels` which does not know the
-        ! mpi shifted indexes
-        nLon = ubound(gzHeight, 1)
-        nLat = ubound(gzHeight, 2)
-        nLev = ubound(gzHeight, 3)
-        allocate(alt(nLon, nLat, nLev))
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
 
-        hco = gsv_getHco(statevector)
+    if ( .not. gsv_varExist(statevector,'Z_*')) then
+        ! DEBUG mad001 : probably other vars as well
+      call utl_abort('calcHeight_gsv_nl (czp): Z_T/Z_M do not exist in statevector!')
+    end if
 
-        do lonIndex = 1, nLon
-          do latIndex = 1, nLat
-            do lvlIndex = 1, nLev
-              ! explicit shift of indexes
-              latitude = hco%lat2d_4( lonIndex+statevector%myLonBeg-1,&
-                                      latIndex+statevector%myLatBeg-1)
-              gzH = gzHeight(lonIndex, latIndex, lvlIndex)
-              ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
-              b1 = -2.0/ec_wgs_a*(1.0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2)
-              b2 = 3.0/ec_wgs_a**2
-              ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
-              A2 = -b1/2.0
-              A3 = b1**2/2.0 - b2/3.0
-              alt(lonIndex, latIndex, lvlIndex) = gzH + A2*gzH**2 + A3*gzH**3
-            end do
+
+    nullify(Z_T)
+    nullify(Z_M)
+
+    call gsv_getField(statevector,Z_T,'Z_T')
+    call gsv_getField(statevector,Z_M,'Z_M')
+
+    allocate(Hsfc(statevector%myLonBeg:statevector%myLonEnd, &
+                  statevector%myLatBeg:statevector%myLatEnd))
+    Hsfc = gsv_getHeightSfc(statevector)
+    numStep = statevector%numStep
+
+    do stepIndex = 1, numStep
+
+      ! Z_M
+      nullify(GZHeight_out)
+      status = vgd_levels(statevector%vco%vgrid, &
+                          ip1_list=statevector%vco%ip1_M, &
+                          levels=GZHeight_out, &
+                          sfc_field=Hsfc, &
+                          in_log=.false.)
+      if( status .ne. VGD_OK ) then
+          call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
+      end if
+      Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
+      deallocate(GZHeight_out)
+
+      ! Z_T
+      nullify(GZHeight_out)
+      status = vgd_levels(statevector%vco%vgrid, &
+                          ip1_list=statevector%vco%ip1_T, &
+                          levels=GZHeight_out, &
+                          sfc_field=Hsfc, &
+                          in_log=.false.)
+      if( status .ne. VGD_OK ) then
+          call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
+      end if
+      Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
+      deallocate(GZHeight_out)
+
+      if ( .not. beSilent .and. stepIndex == 1 ) then
+        write(*,*) 'stepIndex=',stepIndex, ',Z_M='
+        write(*,*) Z_M(&
+                    statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+        write(*,*) 'stepIndex=',stepIndex, ',Z_T='
+        write(*,*) Z_T(&
+                    statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+      end if
+
+    end do
+
+    deallocate(Hsfc)
+
+  end subroutine calcHeight_gsv_nl_vcode2100x_r8
+
+  !---------------------------------------------------------
+  ! gz2alt_r8
+  !---------------------------------------------------------
+  function gz2alt_r8(statevector, gzHeight) result(alt)
+    !
+    ! :Purpose: iterative conversion of geopotential height to geometric
+    !           altitude.  (solution proposed by J. Aparicio)
+    !
+    implicit none
+
+    ! Arguments
+    real(kind=8), allocatable           :: alt(:,:,:)
+    type(struct_gsv),      intent(in)   :: statevector
+    real(kind=8), pointer, intent(in)   :: gzHeight(:,:,:)
+
+    ! Locals
+    integer                             :: nLon, nLat, nLev
+    type(struct_hco)                    :: hco
+    real(kind=8)                        :: latitude
+    real(kind=8)                        :: gzH, b1, b2, A2, A3, altTmp
+    integer                             :: lonIndex, latIndex, lvlIndex, i
+
+    ! gzHeight comes from external `vgd_levels` which does not know the
+    ! mpi shifted indexes
+    nLon = ubound(gzHeight, 1)
+    nLat = ubound(gzHeight, 2)
+    nLev = ubound(gzHeight, 3)
+    allocate(alt(nLon, nLat, nLev))
+
+    hco = gsv_getHco(statevector)
+
+    do lonIndex = 1, nLon
+      do latIndex = 1, nLat
+        do lvlIndex = 1, nLev
+          ! explicit shift of indexes
+          latitude = hco%lat2d_4( lonIndex+statevector%myLonBeg-1,&
+                                  latIndex+statevector%myLatBeg-1)
+          gzH = gzHeight(lonIndex, latIndex, lvlIndex)
+          ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
+          b1 = -2.0D0/ec_wgs_a*(1.0D0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2)
+          b2 = 3.0D0/ec_wgs_a**2
+          ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
+          A2 = -b1/2.0D0
+          A3 = b1**2/2.0D0 - b2/3.0D0
+          alt(lonIndex, latIndex, lvlIndex) = gzH + A2*gzH**2 + A3*gzH**3
+        end do
+      end do
+    end do
+
+  end function gz2alt_r8
+
+  !---------------------------------------------------------
+  ! calcHeight_gsv_nl_vcode500x
+  !---------------------------------------------------------
+  subroutine calcHeight_gsv_nl_vcode500x(statevector, beSilent_opt)
+    implicit none
+
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+    logical, intent(in), optional   :: beSilent_opt
+
+    ! Locals
+    logical :: beSilent
+    integer ::  lev_M,lev_T,nlev_M,nlev_T,status,Vcode
+    integer ::  numStep, stepIndex, latIndex,lonIndex
+    real(4) ::  lat_4, heightSfcOffset_T_r4, heightSfcOffset_M_r4
+    real(8) ::  delThick, ratioP
+    real(8) ::  ScaleFactorBottom, ScaleFactorTop
+    real(8) ::  P_M, P_M1, P_Mm1, P_T
+    real(8) ::  hu, tt, Pr, cmp, h0, Rgh, P0, dh, rMt
+    real(8) ::  sLat, cLat, lat_8
+
+    real(8), allocatable :: tv(:), height_T(:), height_M(:)
+
+    real(4), pointer     :: height_T_ptr_r4(:,:,:,:)
+    real(4), pointer     :: height_M_ptr_r4(:,:,:,:)
+    real(4), pointer     :: hu_ptr_r4(:,:,:,:),tt_ptr_r4(:,:,:,:)
+    real(4), pointer     :: P_T_ptr_r4(:,:,:,:),P_M_ptr_r4(:,:,:,:)
+    real(4), pointer     :: P0_ptr_r4(:,:,:,:)
+
+    real(8), pointer     :: height_T_ptr_r8(:,:,:,:)
+    real(8), pointer     :: height_M_ptr_r8(:,:,:,:)
+    real(8), pointer     :: P_T_ptr_r8(:,:,:,:),P_M_ptr_r8(:,:,:,:)
+    real(8), pointer     :: P0_ptr_r8(:,:,:,:)
+    real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
+    real(8), pointer     :: HeightSfc_ptr_r8(:,:)
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+
+    nlev_T = gsv_getNumLev(statevector,'TH')
+    nlev_M = gsv_getNumLev(statevector,'MM')
+    Vcode = gsv_getVco(statevector)%vcode
+    numStep = statevector%numStep
+
+    allocate(tv(nlev_T))
+
+    if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
+      call utl_abort('calcHeight_gsv_nl (czp): nlev_T is not equal to nlev_M+1!')
+    end if
+    if (Vcode == 5005 .and. nlev_T /= nlev_M) then
+      call utl_abort('calcHeight_gsv_nl (czp): nlev_T is not equal to nlev_M!')
+    end if
+
+    if (Vcode == 5005) then
+      status = vgd_get( statevector%vco%vgrid, &
+                        key='DHM - height of the diagnostic level (m)', &
+                        value=heightSfcOffset_M_r4)
+      status = vgd_get( statevector%vco%vgrid, &
+                        key='DHT - height of the diagnostic level (t)', &
+                        value=heightSfcOffset_T_r4)
+      if ( mmpi_myid == 0 .and. .not.beSilent ) then
+        write(*,*) 'calcHeight_gsv_nl (czp): height offset for near-sfc momentum level is: ', &
+              heightSfcOffset_M_r4, ' metres'
+        write(*,*) 'calcHeight_gsv_nl (czp): height offset for near-sfc thermo level is:   ', &
+              heightSfcOffset_T_r4, ' metres'
+        if ( .not.statevector%addHeightSfcOffset ) then
+          write(*,*) '----------------------------------------------------------------------------------'
+          write(*,*) 'calcHeight_gsv_nl_vcode500x (czp): BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
+          write(*,*) '----------------------------------------------------------------------------------'
+        end if
+      end if
+    end if
+
+    allocate(height_T(nlev_T))
+    allocate(height_M(nlev_M))
+
+    if ( statevector%dataKind == 4 ) then
+      call gsv_getField(statevector,height_M_ptr_r4,'Z_M')
+      call gsv_getField(statevector,height_T_ptr_r4,'Z_T')
+
+      ! initialize the height pointer to zero
+      height_M_ptr_r4(:,:,:,:) = 0.0
+      height_T_ptr_r4(:,:,:,:) = 0.0
+    else
+      call gsv_getField(statevector,height_M_ptr_r8,'Z_M')
+      call gsv_getField(statevector,height_T_ptr_r8,'Z_T')
+
+      ! initialize the height pointer to zero
+      height_M_ptr_r8(:,:,:,:) = 0.0d0
+      height_T_ptr_r8(:,:,:,:) = 0.0d0
+    end if
+
+    if ( statevector%dataKind == 4 ) then
+      call gsv_getField(statevector,hu_ptr_r4,'HU')
+      call gsv_getField(statevector,tt_ptr_r4,'TT')
+      call gsv_getField(statevector,P_T_ptr_r4,'P_T')
+      call gsv_getField(statevector,P_M_ptr_r4,'P_M')
+      call gsv_getField(statevector,P0_ptr_r4,'P0')
+    else
+      call gsv_getField(statevector,hu_ptr_r8,'HU')
+      call gsv_getField(statevector,tt_ptr_r8,'TT')
+      call gsv_getField(statevector,P_T_ptr_r8,'P_T')
+      call gsv_getField(statevector,P_M_ptr_r8,'P_M')
+      call gsv_getField(statevector,P0_ptr_r8,'P0')
+    end if
+    HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector)
+
+    ! compute virtual temperature on thermo levels (corrected of compressibility)
+    do_computeHeight_gsv_nl : do stepIndex = 1, numStep
+      do latIndex = statevector%myLatBeg, statevector%myLatEnd
+        do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+
+          height_T(:) = 0.0D0
+          height_M(:) = 0.0D0
+
+          ! latitude
+          lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
+          lat_8 = real(lat_4,8)
+          sLat = sin(lat_8)
+          cLat = cos(lat_8)
+
+          do lev_T = 1, nlev_T
+            if ( statevector%dataKind == 4 ) then
+              hu = real(hu_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
+              tt = real(tt_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
+              Pr = real(P_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
+            else
+              hu = hu_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
+              tt = tt_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
+              Pr = P_T_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
+            end if
+            cmp = gpscompressibility(Pr,tt,hu)
+
+            tv(lev_T) = fotvt8(tt,hu) * cmp
           end do
-        end do
 
-      end function gz2alt_r4
+          rMT = HeightSfc_ptr_r8(lonIndex,latIndex)
 
-      !---------------------------------------------------------
-      ! calcHeight_gsv_nl_vcode2100x_r8
-      !---------------------------------------------------------
-      subroutine calcHeight_gsv_nl_vcode2100x_r8(statevector, beSilent_opt)
-        ! DEBUG mad001 : the real(8) flow has to be tested
-        implicit none
-
-        ! Arguments
-        type(struct_gsv), intent(inout) :: statevector
-        logical, intent(in), optional   :: beSilent_opt
-
-        ! Locals
-        logical :: beSilent
-        integer ::  numStep, stepIndex, status
-        real(kind=8), allocatable   :: Hsfc(:,:)
-        real(kind=8), pointer       :: GZHeight_out(:,:,:)
-        real(8), pointer            :: Z_T(:,:,:,:), Z_M(:,:,:,:)
-
-        if ( present(beSilent_opt) ) then
-          beSilent = beSilent_opt
-        else
-          beSilent = .true.
-        end if
-
-        if ( .not. gsv_varExist(statevector,'Z_*')) then
-            ! DEBUG mad001 : probably other vars as well
-          call utl_abort('calcHeight_gsv_nl (czp): Z_T/Z_M do not exist in statevector!')
-        end if
-
-
-        nullify(Z_T)
-        nullify(Z_M)
-
-        call gsv_getField(statevector,Z_T,'Z_T')
-        call gsv_getField(statevector,Z_M,'Z_M')
-
-        allocate(Hsfc(statevector%myLonBeg:statevector%myLonEnd, &
-                      statevector%myLatBeg:statevector%myLatEnd))
-        Hsfc = gsv_getHeightSfc(statevector)
-        numStep = statevector%numStep
-
-        do stepIndex = 1, numStep
-
-          ! Z_M
-          nullify(GZHeight_out)
-          status = vgd_levels(statevector%vco%vgrid, &
-                              ip1_list=statevector%vco%ip1_M, &
-                              levels=GZHeight_out, &
-                              sfc_field=Hsfc, &
-                              in_log=.false.)
-          if( status .ne. VGD_OK ) then
-              call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
-          end if
-          Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
-          deallocate(GZHeight_out)
-
-          ! Z_T
-          nullify(GZHeight_out)
-          status = vgd_levels(statevector%vco%vgrid, &
-                              ip1_list=statevector%vco%ip1_T, &
-                              levels=GZHeight_out, &
-                              sfc_field=Hsfc, &
-                              in_log=.false.)
-          if( status .ne. VGD_OK ) then
-              call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
-          end if
-          Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
-          deallocate(GZHeight_out)
-
-          if ( .not. beSilent .and. stepIndex == 1 ) then
-            write(*,*) 'stepIndex=',stepIndex, ',Z_M='
-            write(*,*) Z_M(&
-                        statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-            write(*,*) 'stepIndex=',stepIndex, ',Z_T='
-            write(*,*) Z_T(&
-                        statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+          ! compute altitude on bottom momentum level
+          if (Vcode == 5002) then
+            height_M(nlev_M) = rMT
+          else if (Vcode == 5005) then
+            height_M(nlev_M) = rMT + heightSfcOffset_M_r4
           end if
 
-        end do
+          ! compute altitude on 2nd momentum level
+          if (nlev_M > 1) then
+            if ( statevector%dataKind == 4 ) then
+              P_M = real(P_M_ptr_r4(lonIndex,latIndex,nlev_M-1,stepIndex), 8)
+              P0  = real(P0_ptr_r4(lonIndex,latIndex,1,stepIndex), 8)
+            else
+              P_M = P_M_ptr_r8(lonIndex,latIndex,nlev_M-1,stepIndex)
+              P0  = P0_ptr_r8(lonIndex,latIndex,1,stepIndex)
+            end if
 
-        deallocate(Hsfc)
+            ratioP  = log( P_M / P0 )
 
-      end subroutine calcHeight_gsv_nl_vcode2100x_r8
+            ! Gravity acceleration
+            h0  = rMT
+            Rgh = phf_gravityalt(sLat,h0)
+            dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+            Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
-      !---------------------------------------------------------
-      ! gz2alt_r8
-      !---------------------------------------------------------
-      function gz2alt_r8(statevector, gzHeight) result(alt)
-        !
-        ! :Purpose: iterative conversion of geopotential height to geometric
-        !           altitude.  (solution proposed by J. Aparicio)
-        !
-        implicit none
+            delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+            height_M(nlev_M-1) = rMT + delThick
+          end if
 
-        ! Arguments
-        real(kind=8), allocatable           :: alt(:,:,:)
-        type(struct_gsv),      intent(in)   :: statevector
-        real(kind=8), pointer, intent(in)   :: gzHeight(:,:,:)
+          ! compute altitude on rest of momentum levels
+          do lev_M = nlev_M-2, 1, -1
+            if ( statevector%dataKind == 4 ) then
+              P_M = real(P_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
+              P_M1 = real(P_M_ptr_r4(lonIndex,latIndex,lev_M+1,stepIndex),8)
+            else
+              P_M = P_M_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
+              P_M1 = P_M_ptr_r8(lonIndex,latIndex,lev_M+1,stepIndex)
+            end if
 
-        ! Locals
-        integer                             :: nLon, nLat, nLev
-        type(struct_hco)                    :: hco
-        real(kind=8)                        :: latitude
-        real(kind=8)                        :: gzH, b1, b2, A2, A3, altTmp
-        integer                             :: lonIndex, latIndex, lvlIndex, i
+            ratioP  = log( P_M / P_M1 )
 
-        ! gzHeight comes from external `vgd_levels` which does not know the
-        ! mpi shifted indexes
-        nLon = ubound(gzHeight, 1)
-        nLat = ubound(gzHeight, 2)
-        nLev = ubound(gzHeight, 3)
-        allocate(alt(nLon, nLat, nLev))
+            if (Vcode == 5002) then
+              lev_T = lev_M + 1
+            else if (Vcode == 5005) then
+              lev_T = lev_M
+            end if
 
-        hco = gsv_getHco(statevector)
+            ! Gravity acceleration
+            h0  = height_M(lev_M+1)
+            Rgh = phf_gravityalt(sLat,h0)
+            dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
+            Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
-        do lonIndex = 1, nLon
-          do latIndex = 1, nLat
-            do lvlIndex = 1, nLev
-              ! explicit shift of indexes
-              latitude = hco%lat2d_4( lonIndex+statevector%myLonBeg-1,&
-                                      latIndex+statevector%myLatBeg-1)
-              gzH = gzHeight(lonIndex, latIndex, lvlIndex)
-              ! gzH(alt) = g0 * (1 + b1*alt + b2*alt**2)
-              b1 = -2.0D0/ec_wgs_a*(1.0D0+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*latitude**2)
-              b2 = 3.0D0/ec_wgs_a**2
-              ! reversed series coefficients (Abramowitz and Stegun 3.6.25)
-              A2 = -b1/2.0D0
-              A3 = b1**2/2.0D0 - b2/3.0D0
-              alt(lonIndex, latIndex, lvlIndex) = gzH + A2*gzH**2 + A3*gzH**3
-            end do
+            delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
+            height_M(lev_M) = height_M(lev_M+1) + delThick
           end do
-        end do
 
-      end function gz2alt_r8
+          ! compute Altitude on thermo levels
+          if_computeHeight_gsv_nl_vcodes : if (Vcode == 5002) then
+            height_T(nlev_T) = height_M(nlev_M)
 
-      !---------------------------------------------------------
-      ! calcHeight_gsv_nl_vcode500x
-      !---------------------------------------------------------
-      subroutine calcHeight_gsv_nl_vcode500x(statevector, beSilent_opt)
-        implicit none
+            do lev_T = 2, nlev_T-1
+              lev_M = lev_T ! momentum level just below thermo level being computed
 
-        ! Arguments
-        type(struct_gsv), intent(inout) :: statevector
-        logical, intent(in), optional   :: beSilent_opt
+              if ( statevector%dataKind == 4 ) then
+                P_T   = real(P_T_ptr_r4(&
+                              lonIndex,latIndex,lev_T,stepIndex), 8)
+                P_M   = real(P_M_ptr_r4(&
+                              lonIndex,latIndex,lev_M,stepIndex), 8)
+                P_Mm1 = real(P_M_ptr_r4(&
+                              lonIndex,latIndex,lev_M-1,stepIndex), 8)
+              else
+                P_T   = P_T_ptr_r8(lonIndex,latIndex,lev_T  ,stepIndex)
+                P_M   = P_M_ptr_r8(lonIndex,latIndex,lev_M  ,stepIndex)
+                P_Mm1 = P_M_ptr_r8(lonIndex,latIndex,lev_M-1,stepIndex)
+              end if
 
-        ! Locals
-        logical :: beSilent
-        integer ::  lev_M,lev_T,nlev_M,nlev_T,status,Vcode
-        integer ::  numStep, stepIndex, latIndex,lonIndex
-        real(4) ::  lat_4, heightSfcOffset_T_r4, heightSfcOffset_M_r4
-        real(8) ::  delThick, ratioP
-        real(8) ::  ScaleFactorBottom, ScaleFactorTop
-        real(8) ::  P_M, P_M1, P_Mm1, P_T
-        real(8) ::  hu, tt, Pr, cmp, h0, Rgh, P0, dh, rMt
-        real(8) ::  sLat, cLat, lat_8
+              ScaleFactorBottom = log( P_T / P_Mm1 ) / log( P_M / P_Mm1 )
+              ScaleFactorTop    = 1 - ScaleFactorBottom
+              height_T(lev_T) = ScaleFactorBottom * height_M(lev_M) &
+                + ScaleFactorTop * height_M(lev_M-1)
+            end do
 
-        real(8), allocatable :: tv(:), height_T(:), height_M(:)
+            ! compute altitude on top thermo level
+            if ( statevector%dataKind == 4 ) then
+              P_T = real(P_T_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
+              P_M = real(P_M_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
+            else
+              P_T = P_T_ptr_r8(lonIndex,latIndex,1,stepIndex)
+              P_M = P_M_ptr_r8(lonIndex,latIndex,1,stepIndex)
+            end if
 
-        real(4), pointer     :: height_T_ptr_r4(:,:,:,:)
-        real(4), pointer     :: height_M_ptr_r4(:,:,:,:)
-        real(4), pointer     :: hu_ptr_r4(:,:,:,:),tt_ptr_r4(:,:,:,:)
-        real(4), pointer     :: P_T_ptr_r4(:,:,:,:),P_M_ptr_r4(:,:,:,:)
-        real(4), pointer     :: P0_ptr_r4(:,:,:,:)
-    
-        real(8), pointer     :: height_T_ptr_r8(:,:,:,:)
-        real(8), pointer     :: height_M_ptr_r8(:,:,:,:)
-        real(8), pointer     :: P_T_ptr_r8(:,:,:,:),P_M_ptr_r8(:,:,:,:)
-        real(8), pointer     :: P0_ptr_r8(:,:,:,:)
-        real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
-        real(8), pointer     :: HeightSfc_ptr_r8(:,:)
+            ratioP = log( P_T / P_M )
 
-        if ( present(beSilent_opt) ) then
-          beSilent = beSilent_opt
-        else
-          beSilent = .true.
-        end if
+            ! Gravity acceleration
+            h0  = height_M(1)
+            Rgh = phf_gravityalt(sLat, h0)
+            dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
+            Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
 
-        nlev_T = gsv_getNumLev(statevector,'TH')
-        nlev_M = gsv_getNumLev(statevector,'MM')
-        Vcode = gsv_getVco(statevector)%vcode
-        numStep = statevector%numStep
+            delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
+            height_T(1) = height_M(1) + delThick
 
-        allocate(tv(nlev_T))
+          else if (Vcode == 5005) then if_computeHeight_gsv_nl_vcodes
+            height_T(nlev_T) = rMT + heightSfcOffset_T_r4
 
-        if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
-          call utl_abort('calcHeight_gsv_nl (czp): nlev_T is not equal to nlev_M+1!')
-        end if
-        if (Vcode == 5005 .and. nlev_T /= nlev_M) then
-          call utl_abort('calcHeight_gsv_nl (czp): nlev_T is not equal to nlev_M!')
-        end if
+            do lev_T = 1, nlev_T-2
+              lev_M = lev_T + 1  ! momentum level just below thermo level being computed
+              if ( statevector%dataKind == 4 ) then
+                P_T   = real(P_T_ptr_r4(&
+                              lonIndex,latIndex,lev_T,stepIndex), 8)
+                P_M   = real(P_M_ptr_r4(&
+                              lonIndex,latIndex,lev_M,stepIndex), 8)
+                P_Mm1 = real(P_M_ptr_r4(&
+                              lonIndex,latIndex,lev_M-1,stepIndex), 8)
+              else
+                P_T   = P_T_ptr_r8(lonIndex,latIndex,lev_T  ,stepIndex)
+                P_M   = P_M_ptr_r8(lonIndex,latIndex,lev_M  ,stepIndex)
+                P_Mm1 = P_M_ptr_r8(lonIndex,latIndex,lev_M-1,stepIndex)
+              end if
 
-        if (Vcode == 5005) then
-          status = vgd_get( statevector%vco%vgrid, &
-                            key='DHM - height of the diagnostic level (m)', &
-                            value=heightSfcOffset_M_r4)
-          status = vgd_get( statevector%vco%vgrid, &
-                            key='DHT - height of the diagnostic level (t)', &
-                            value=heightSfcOffset_T_r4)
-          if ( mmpi_myid == 0 .and. .not.beSilent ) then
-            write(*,*) 'calcHeight_gsv_nl (czp): height offset for near-sfc momentum level is: ', &
-                  heightSfcOffset_M_r4, ' metres'
-            write(*,*) 'calcHeight_gsv_nl (czp): height offset for near-sfc thermo level is:   ', &
-                  heightSfcOffset_T_r4, ' metres'
-            if ( .not.statevector%addHeightSfcOffset ) then
-              write(*,*) '----------------------------------------------------------------------------------'
-              write(*,*) 'calcHeight_gsv_nl_vcode500x (czp): BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
-              write(*,*) '----------------------------------------------------------------------------------'
+              ScaleFactorBottom = log( P_T / P_Mm1 ) / log( P_M / P_Mm1 )
+              ScaleFactorTop    = 1 - ScaleFactorBottom
+              height_T(lev_T) = ScaleFactorBottom * height_M(lev_M) &
+                + ScaleFactorTop * height_M(lev_M-1)
+            end do
+
+            ! compute altitude on next to bottom thermo level
+            if (nlev_T > 1) then
+              if ( statevector%dataKind == 4 ) then
+                P_T = real(P_T_ptr_r4(&
+                            lonIndex,latIndex,nlev_T-1,stepIndex), 8)
+                P0  = real(P0_ptr_r4(&
+                            lonIndex,latIndex,1,stepIndex), 8)
+              else
+                P_T = P_T_ptr_r8(lonIndex,latIndex,nlev_T-1,stepIndex)
+                P0  = P0_ptr_r8(lonIndex,latIndex,1,stepIndex)
+              end if
+
+              ratioP = log( P_T / P0 )
+
+              h0  = rMT
+              Rgh = phf_gravityalt(sLat,h0)
+              dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
+              Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
+
+              delThick =  (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * &
+                          ratioP
+              height_T(nlev_T-1) = rMT + delThick
+            end if
+          end if if_computeHeight_gsv_nl_vcodes
+
+          ! fill the height array
+          if ( statevector%dataKind == 4 ) then
+            do lev_T = 1, nlev_T
+              height_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex) &
+                  = real(height_T(lev_T),4)
+            end do
+            do lev_M = 1, nlev_M
+              height_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex) &
+                  = real(height_M(lev_M),4)
+            end do
+          else
+            height_T_ptr_r8(lonIndex,latIndex,1:nlev_T,stepIndex) &
+                = height_T(1:nlev_T)
+            height_M_ptr_r8(lonIndex,latIndex,1:nlev_M,stepIndex) &
+                = height_M(1:nlev_M)
+          end if
+
+          ! remove the height offset for the diagnostic levels for backward compatibility only
+          if ( .not. statevector%addHeightSfcOffset ) then
+            if ( statevector%dataKind == 4 ) then
+              height_T_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex) = &
+                  real(rMT,4)
+              height_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex) = &
+                  real(rMT,4)
+            else
+              height_T_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex) = rMT
+              height_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex) = rMT
             end if
           end if
-        end if
 
-        allocate(height_T(nlev_T))
-        allocate(height_M(nlev_M))
+        end do
+      end do
+    end do do_computeHeight_gsv_nl
 
-        if ( statevector%dataKind == 4 ) then
-          call gsv_getField(statevector,height_M_ptr_r4,'Z_M')
-          call gsv_getField(statevector,height_T_ptr_r4,'Z_T')
+    deallocate(height_M)
+    deallocate(height_T)
+    deallocate(tv)
 
-          ! initialize the height pointer to zero
-          height_M_ptr_r4(:,:,:,:) = 0.0
-          height_T_ptr_r4(:,:,:,:) = 0.0
-        else
-          call gsv_getField(statevector,height_M_ptr_r8,'Z_M')
-          call gsv_getField(statevector,height_T_ptr_r8,'Z_T')
+    if ( .not.beSilent ) then
+      if ( statevector%dataKind == 4 ) then
+        write(*,*) 'calcHeight_gsv_nl (czp), Z_T='
+        write(*,*) height_T_ptr_r4(statevector%myLonBeg, &
+            statevector%myLatBeg,:,1)
+        write(*,*) 'calcHeight_gsv_nl (czp), Z_M='
+        write(*,*) height_M_ptr_r4(statevector%myLonBeg, &
+            statevector%myLatBeg,:,1)
+      else
+        write(*,*) 'calcHeight_gsv_nl (czp), Z_T='
+        write(*,*) height_T_ptr_r8(statevector%myLonBeg, &
+            statevector%myLatBeg,:,1)
+        write(*,*) 'calcHeight_gsv_nl (czp), Z_M='
+        write(*,*) height_M_ptr_r8(statevector%myLonBeg, &
+            statevector%myLatBeg,:,1)
+      end if
+      write(*,*) 'calcHeight_gsv_nl (czp): statevector%addHeightSfcOffset=', &
+          statevector%addHeightSfcOffset
+    end if
 
-          ! initialize the height pointer to zero
-          height_M_ptr_r8(:,:,:,:) = 0.0d0
-          height_T_ptr_r8(:,:,:,:) = 0.0d0
-        end if
-
-        if ( statevector%dataKind == 4 ) then
-          call gsv_getField(statevector,hu_ptr_r4,'HU')
-          call gsv_getField(statevector,tt_ptr_r4,'TT')
-          call gsv_getField(statevector,P_T_ptr_r4,'P_T')
-          call gsv_getField(statevector,P_M_ptr_r4,'P_M')
-          call gsv_getField(statevector,P0_ptr_r4,'P0')
-        else
-          call gsv_getField(statevector,hu_ptr_r8,'HU')
-          call gsv_getField(statevector,tt_ptr_r8,'TT')
-          call gsv_getField(statevector,P_T_ptr_r8,'P_T')
-          call gsv_getField(statevector,P_M_ptr_r8,'P_M')
-          call gsv_getField(statevector,P0_ptr_r8,'P0')
-        end if
-        HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector)
-
-        ! compute virtual temperature on thermo levels (corrected of compressibility)
-        do_computeHeight_gsv_nl : do stepIndex = 1, numStep
-          do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
-
-              height_T(:) = 0.0D0
-              height_M(:) = 0.0D0
-
-              ! latitude
-              lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
-              lat_8 = real(lat_4,8)
-              sLat = sin(lat_8)
-              cLat = cos(lat_8)
-
-              do lev_T = 1, nlev_T
-                if ( statevector%dataKind == 4 ) then
-                  hu = real(hu_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
-                  tt = real(tt_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
-                  Pr = real(P_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
-                else
-                  hu = hu_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
-                  tt = tt_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
-                  Pr = P_T_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
-                end if
-                cmp = gpscompressibility(Pr,tt,hu)
-
-                tv(lev_T) = phf_fotvt8(tt,hu) * cmp
-              end do
-
-              rMT = HeightSfc_ptr_r8(lonIndex,latIndex)
-
-              ! compute altitude on bottom momentum level
-              if (Vcode == 5002) then
-                height_M(nlev_M) = rMT
-              else if (Vcode == 5005) then
-                height_M(nlev_M) = rMT + heightSfcOffset_M_r4
-              end if
-
-              ! compute altitude on 2nd momentum level
-              if (nlev_M > 1) then
-                if ( statevector%dataKind == 4 ) then
-                  P_M = real(P_M_ptr_r4(lonIndex,latIndex,nlev_M-1,stepIndex), 8)
-                  P0  = real(P0_ptr_r4(lonIndex,latIndex,1,stepIndex), 8)
-                else
-                  P_M = P_M_ptr_r8(lonIndex,latIndex,nlev_M-1,stepIndex)
-                  P0  = P0_ptr_r8(lonIndex,latIndex,1,stepIndex)
-                end if
-
-                ratioP  = log( P_M / P0 )
-
-                ! Gravity acceleration
-                h0  = rMT
-                Rgh = phf_gravityalt(sLat,h0)
-                dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
-                Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
-
-                delThick = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
-                height_M(nlev_M-1) = rMT + delThick
-              end if
-
-              ! compute altitude on rest of momentum levels
-              do lev_M = nlev_M-2, 1, -1
-                if ( statevector%dataKind == 4 ) then
-                  P_M = real(P_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
-                  P_M1 = real(P_M_ptr_r4(lonIndex,latIndex,lev_M+1,stepIndex),8)
-                else
-                  P_M = P_M_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
-                  P_M1 = P_M_ptr_r8(lonIndex,latIndex,lev_M+1,stepIndex)
-                end if
-
-                ratioP  = log( P_M / P_M1 )
-
-                if (Vcode == 5002) then
-                  lev_T = lev_M + 1
-                else if (Vcode == 5005) then
-                  lev_T = lev_M
-                end if
-
-                ! Gravity acceleration
-                h0  = height_M(lev_M+1)
-                Rgh = phf_gravityalt(sLat,h0)
-                dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
-                Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
-
-                delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(lev_T) * ratioP
-                height_M(lev_M) = height_M(lev_M+1) + delThick
-              end do
-
-              ! compute Altitude on thermo levels
-              if_computeHeight_gsv_nl_vcodes : if (Vcode == 5002) then
-                height_T(nlev_T) = height_M(nlev_M)
-
-                do lev_T = 2, nlev_T-1
-                  lev_M = lev_T ! momentum level just below thermo level being computed
-
-                  if ( statevector%dataKind == 4 ) then
-                    P_T   = real(P_T_ptr_r4(&
-                                  lonIndex,latIndex,lev_T,stepIndex), 8)
-                    P_M   = real(P_M_ptr_r4(&
-                                  lonIndex,latIndex,lev_M,stepIndex), 8)
-                    P_Mm1 = real(P_M_ptr_r4(&
-                                  lonIndex,latIndex,lev_M-1,stepIndex), 8)
-                  else
-                    P_T   = P_T_ptr_r8(lonIndex,latIndex,lev_T  ,stepIndex)
-                    P_M   = P_M_ptr_r8(lonIndex,latIndex,lev_M  ,stepIndex)
-                    P_Mm1 = P_M_ptr_r8(lonIndex,latIndex,lev_M-1,stepIndex)
-                  end if
-
-                  ScaleFactorBottom = log( P_T / P_Mm1 ) / log( P_M / P_Mm1 )
-                  ScaleFactorTop    = 1 - ScaleFactorBottom
-                  height_T(lev_T) = ScaleFactorBottom * height_M(lev_M) &
-                    + ScaleFactorTop * height_M(lev_M-1)
-                end do
-
-                ! compute altitude on top thermo level
-                if ( statevector%dataKind == 4 ) then
-                  P_T = real(P_T_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
-                  P_M = real(P_M_ptr_r4(lonIndex,latIndex,1,stepIndex),8)
-                else
-                  P_T = P_T_ptr_r8(lonIndex,latIndex,1,stepIndex)
-                  P_M = P_M_ptr_r8(lonIndex,latIndex,1,stepIndex)
-                end if
-
-                ratioP = log( P_T / P_M )
-
-                ! Gravity acceleration
-                h0  = height_M(1)
-                Rgh = phf_gravityalt(sLat, h0)
-                dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
-                Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
-
-                delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
-                height_T(1) = height_M(1) + delThick
-
-              else if (Vcode == 5005) then if_computeHeight_gsv_nl_vcodes
-                height_T(nlev_T) = rMT + heightSfcOffset_T_r4
-
-                do lev_T = 1, nlev_T-2
-                  lev_M = lev_T + 1  ! momentum level just below thermo level being computed
-                  if ( statevector%dataKind == 4 ) then
-                    P_T   = real(P_T_ptr_r4(&
-                                  lonIndex,latIndex,lev_T,stepIndex), 8)
-                    P_M   = real(P_M_ptr_r4(&
-                                  lonIndex,latIndex,lev_M,stepIndex), 8)
-                    P_Mm1 = real(P_M_ptr_r4(&
-                                  lonIndex,latIndex,lev_M-1,stepIndex), 8)
-                  else
-                    P_T   = P_T_ptr_r8(lonIndex,latIndex,lev_T  ,stepIndex)
-                    P_M   = P_M_ptr_r8(lonIndex,latIndex,lev_M  ,stepIndex)
-                    P_Mm1 = P_M_ptr_r8(lonIndex,latIndex,lev_M-1,stepIndex)
-                  end if
-
-                  ScaleFactorBottom = log( P_T / P_Mm1 ) / log( P_M / P_Mm1 )
-                  ScaleFactorTop    = 1 - ScaleFactorBottom
-                  height_T(lev_T) = ScaleFactorBottom * height_M(lev_M) &
-                    + ScaleFactorTop * height_M(lev_M-1)
-                end do
-
-                ! compute altitude on next to bottom thermo level
-                if (nlev_T > 1) then
-                  if ( statevector%dataKind == 4 ) then
-                    P_T = real(P_T_ptr_r4(&
-                                lonIndex,latIndex,nlev_T-1,stepIndex), 8)
-                    P0  = real(P0_ptr_r4(&
-                                lonIndex,latIndex,1,stepIndex), 8)
-                  else
-                    P_T = P_T_ptr_r8(lonIndex,latIndex,nlev_T-1,stepIndex)
-                    P0  = P0_ptr_r8(lonIndex,latIndex,1,stepIndex)
-                  end if
-
-                  ratioP = log( P_T / P0 )
-
-                  h0  = rMT
-                  Rgh = phf_gravityalt(sLat,h0)
-                  dh  = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * ratioP
-                  Rgh = phf_gravityalt(sLat, h0+0.5D0*dh)
-
-                  delThick =  (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(nlev_T-1) * &
-                              ratioP
-                  height_T(nlev_T-1) = rMT + delThick
-                end if
-              end if if_computeHeight_gsv_nl_vcodes
-
-              ! fill the height array
-              if ( statevector%dataKind == 4 ) then
-                do lev_T = 1, nlev_T
-                  height_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex) &
-                      = real(height_T(lev_T),4)
-                end do
-                do lev_M = 1, nlev_M
-                  height_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex) &
-                      = real(height_M(lev_M),4)
-                end do
-              else
-                height_T_ptr_r8(lonIndex,latIndex,1:nlev_T,stepIndex) &
-                    = height_T(1:nlev_T)
-                height_M_ptr_r8(lonIndex,latIndex,1:nlev_M,stepIndex) &
-                    = height_M(1:nlev_M)
-              end if
-
-              ! remove the height offset for the diagnostic levels for backward compatibility only
-              if ( .not. statevector%addHeightSfcOffset ) then
-                if ( statevector%dataKind == 4 ) then
-                  height_T_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex) = &
-                      real(rMT,4)
-                  height_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex) = &
-                      real(rMT,4)
-                else
-                  height_T_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex) = rMT
-                  height_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex) = rMT
-                end if
-              end if
-
-            end do
-          end do
-        end do do_computeHeight_gsv_nl
-
-        deallocate(height_M)
-        deallocate(height_T)
-        deallocate(tv)
-
-        if ( .not.beSilent ) then
-          if ( statevector%dataKind == 4 ) then
-            write(*,*) 'calcHeight_gsv_nl (czp), Z_T='
-            write(*,*) height_T_ptr_r4(statevector%myLonBeg, &
-                statevector%myLatBeg,:,1)
-            write(*,*) 'calcHeight_gsv_nl (czp), Z_M='
-            write(*,*) height_M_ptr_r4(statevector%myLonBeg, &
-                statevector%myLatBeg,:,1)
-          else
-            write(*,*) 'calcHeight_gsv_nl (czp), Z_T='
-            write(*,*) height_T_ptr_r8(statevector%myLonBeg, &
-                statevector%myLatBeg,:,1)
-            write(*,*) 'calcHeight_gsv_nl (czp), Z_M='
-            write(*,*) height_M_ptr_r8(statevector%myLonBeg, &
-                statevector%myLatBeg,:,1)
-          end if
-          write(*,*) 'calcHeight_gsv_nl (czp): statevector%addHeightSfcOffset=', &
-              statevector%addHeightSfcOffset
-        end if
-
-      end subroutine calcHeight_gsv_nl_vcode500x
-
+  end subroutine calcHeight_gsv_nl_vcode500x
 
   !---------------------------------------------------------
   ! calcHeight_gsv_tl
@@ -1689,466 +1689,466 @@ contains
     if ( .not. beSilent ) write(*,*) 'calcPressure_gsv_nl (czp): END'
 
   end subroutine calcPressure_gsv_nl
-      !---------------------------------------------------------
-      ! calcPressure_gsv_nl_vcode2100x
-      !---------------------------------------------------------
-      subroutine calcPressure_gsv_nl_vcode2100x(statevector, beSilent_opt)
-        implicit none
+  
+  !---------------------------------------------------------
+  ! calcPressure_gsv_nl_vcode2100x
+  !---------------------------------------------------------
+  subroutine calcPressure_gsv_nl_vcode2100x(statevector, beSilent_opt)
+    implicit none
 
-        ! Arguments
-        type(struct_gsv), intent(inout) :: statevector
-        logical, intent(in), optional   :: beSilent_opt
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+    logical, intent(in), optional   :: beSilent_opt
 
-        ! Locals
-        logical :: beSilent
-        integer ::  stepIndex, latIndex, lonIndex, numStep
-        integer ::  lev_M,lev_T,nlev_M,nlev_T,status
+    ! Locals
+    logical :: beSilent
+    integer ::  stepIndex, latIndex, lonIndex, numStep
+    integer ::  lev_M,lev_T,nlev_M,nlev_T,status
 
-        real(4) ::  heightSfcOffset_T_r4, heightSfcOffset_M_r4
-        real(4) ::  lat_4
-        real(8) ::  hu, tt, cmp, Rgh, P0, dh, tv0, rMt, Z_T, Z_T1, Z_M, Z_M1, logP
-        real(8) ::  sLat, cLat, lat_8
-        real(8) ::  ScaleFactorBottom
+    real(4) ::  heightSfcOffset_T_r4, heightSfcOffset_M_r4
+    real(4) ::  lat_4
+    real(8) ::  hu, tt, cmp, Rgh, P0, dh, tv0, rMt, Z_T, Z_T1, Z_M, Z_M1, logP
+    real(8) ::  sLat, cLat, lat_8
+    real(8) ::  ScaleFactorBottom
 
-        real(8), allocatable :: tv(:),  pressure_T(:), pressure_M(:)
+    real(8), allocatable :: tv(:),  pressure_T(:), pressure_M(:)
 
-        real(4), pointer     :: height_T_ptr_r4(:,:,:,:)
-        real(4), pointer     :: height_M_ptr_r4(:,:,:,:)
-        real(4), pointer     :: hu_ptr_r4(:,:,:,:),tt_ptr_r4(:,:,:,:)
-        real(4), pointer     :: P_T_ptr_r4(:,:,:,:),P_M_ptr_r4(:,:,:,:)
-        real(4), pointer     :: P0_ptr_r4(:,:,:,:)
+    real(4), pointer     :: height_T_ptr_r4(:,:,:,:)
+    real(4), pointer     :: height_M_ptr_r4(:,:,:,:)
+    real(4), pointer     :: hu_ptr_r4(:,:,:,:),tt_ptr_r4(:,:,:,:)
+    real(4), pointer     :: P_T_ptr_r4(:,:,:,:),P_M_ptr_r4(:,:,:,:)
+    real(4), pointer     :: P0_ptr_r4(:,:,:,:)
 
-        real(8), pointer     :: height_T_ptr_r8(:,:,:,:)
-        real(8), pointer     :: height_M_ptr_r8(:,:,:,:)
-        real(8), pointer     :: P_T_ptr_r8(:,:,:,:),P_M_ptr_r8(:,:,:,:)
-        real(8), pointer     :: P0_ptr_r8(:,:,:,:)
-        real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
-        real(8), pointer     :: HeightSfc_ptr_r8(:,:)
+    real(8), pointer     :: height_T_ptr_r8(:,:,:,:)
+    real(8), pointer     :: height_M_ptr_r8(:,:,:,:)
+    real(8), pointer     :: P_T_ptr_r8(:,:,:,:),P_M_ptr_r8(:,:,:,:)
+    real(8), pointer     :: P0_ptr_r8(:,:,:,:)
+    real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
+    real(8), pointer     :: HeightSfc_ptr_r8(:,:)
 
-        if ( present(beSilent_opt) ) then
-          beSilent = beSilent_opt
-        else
-          beSilent = .true.
-        end if
-        
-        nlev_T = gsv_getNumLev(statevector,'TH')
-        nlev_M = gsv_getNumLev(statevector,'MM')
-        numStep = statevector%numStep
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+    
+    nlev_T = gsv_getNumLev(statevector,'TH')
+    nlev_M = gsv_getNumLev(statevector,'MM')
+    numStep = statevector%numStep
 
-        allocate(tv(nlev_T))
+    allocate(tv(nlev_T))
 
-        if (nlev_T /= nlev_M) then
-          call utl_abort('czp_calcPressure_gsv_nl: nlev_T is not equal to nlev_M!')
-        end if
+    if (nlev_T /= nlev_M) then
+      call utl_abort('czp_calcPressure_gsv_nl: nlev_T is not equal to nlev_M!')
+    end if
 
-        status = vgd_get( statevector%vco%vgrid, &
-                          key='DHM - height of the diagnostic level (m)', &
-                          value=heightSfcOffset_M_r4)
-        status = vgd_get( statevector%vco%vgrid, &
-                          key='DHT - height of the diagnostic level (t)', &
-                          value=heightSfcOffset_T_r4)
-        if ( mpi_myid == 0 .and. .not.beSilent ) then
-          write(*,*) 'czp_calcPressure_gsv_nl: height offset for near-sfc momentum level is: ', &
-                heightSfcOffset_M_r4, ' metres'
-          write(*,*) 'czp_calcPressure_gsv_nl: height offset for near-sfc thermo level is:   ', &
-                heightSfcOffset_T_r4, ' metres'
-          if ( .not.statevector%addHeightSfcOffset ) then
-            write(*,*) '----------------------------------------------------------------------------------'
-            write(*,*) 'calcPressure_gsv_nl_vcode2100x: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
-            write(*,*) '----------------------------------------------------------------------------------'
-          end if
-        end if
+    status = vgd_get( statevector%vco%vgrid, &
+                      key='DHM - height of the diagnostic level (m)', &
+                      value=heightSfcOffset_M_r4)
+    status = vgd_get( statevector%vco%vgrid, &
+                      key='DHT - height of the diagnostic level (t)', &
+                      value=heightSfcOffset_T_r4)
+    if ( mmpi_myid == 0 .and. .not.beSilent ) then
+      write(*,*) 'czp_calcPressure_gsv_nl: height offset for near-sfc momentum level is: ', &
+            heightSfcOffset_M_r4, ' metres'
+      write(*,*) 'czp_calcPressure_gsv_nl: height offset for near-sfc thermo level is:   ', &
+            heightSfcOffset_T_r4, ' metres'
+      if ( .not.statevector%addHeightSfcOffset ) then
+        write(*,*) '----------------------------------------------------------------------------------'
+        write(*,*) 'calcPressure_gsv_nl_vcode2100x: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
+        write(*,*) '----------------------------------------------------------------------------------'
+      end if
+    end if
 
-        allocate(pressure_T(nlev_T))
-        allocate(pressure_M(nlev_M))
+    allocate(pressure_T(nlev_T))
+    allocate(pressure_M(nlev_M))
 
-        if ( statevector%dataKind == 4 ) then
-          call gsv_getField(statevector,P_M_ptr_r4,'P_M')
-          call gsv_getField(statevector,P_T_ptr_r4,'P_T')
-          call gsv_getField(statevector,P0_ptr_r4,'P0')
-          call gsv_getField(statevector,hu_ptr_r4,'HU')
-          call gsv_getField(statevector,tt_ptr_r4,'TT')
-          call gsv_getField(statevector,height_T_ptr_r4,'Z_T')
-          call gsv_getField(statevector,height_M_ptr_r4,'Z_M')
+    if ( statevector%dataKind == 4 ) then
+      call gsv_getField(statevector,P_M_ptr_r4,'P_M')
+      call gsv_getField(statevector,P_T_ptr_r4,'P_T')
+      call gsv_getField(statevector,P0_ptr_r4,'P0')
+      call gsv_getField(statevector,hu_ptr_r4,'HU')
+      call gsv_getField(statevector,tt_ptr_r4,'TT')
+      call gsv_getField(statevector,height_T_ptr_r4,'Z_T')
+      call gsv_getField(statevector,height_M_ptr_r4,'Z_M')
 
-          ! initialize the pressure pointer to zero
-          P_M_ptr_r4(:,:,:,:) = 0.0
-          P_T_ptr_r4(:,:,:,:) = 0.0
-        else
-          call gsv_getField(statevector,P_M_ptr_r8,'P_M')
-          call gsv_getField(statevector,P_T_ptr_r8,'P_T')
-          call gsv_getField(statevector,P0_ptr_r8,'P0')
-          call gsv_getField(statevector,hu_ptr_r8,'HU')
-          call gsv_getField(statevector,tt_ptr_r8,'TT')
-          call gsv_getField(statevector,height_T_ptr_r8,'Z_T')
-          call gsv_getField(statevector,height_M_ptr_r8,'Z_M')
+      ! initialize the pressure pointer to zero
+      P_M_ptr_r4(:,:,:,:) = 0.0
+      P_T_ptr_r4(:,:,:,:) = 0.0
+    else
+      call gsv_getField(statevector,P_M_ptr_r8,'P_M')
+      call gsv_getField(statevector,P_T_ptr_r8,'P_T')
+      call gsv_getField(statevector,P0_ptr_r8,'P0')
+      call gsv_getField(statevector,hu_ptr_r8,'HU')
+      call gsv_getField(statevector,tt_ptr_r8,'TT')
+      call gsv_getField(statevector,height_T_ptr_r8,'Z_T')
+      call gsv_getField(statevector,height_M_ptr_r8,'Z_M')
 
-          ! initialize the pressure pointer to zero
-          P_M_ptr_r8(:,:,:,:) = 0.0d0
-          P_T_ptr_r8(:,:,:,:) = 0.0d0
-        end if
-        HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector)
+      ! initialize the pressure pointer to zero
+      P_M_ptr_r8(:,:,:,:) = 0.0d0
+      P_T_ptr_r8(:,:,:,:) = 0.0d0
+    end if
+    HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector)
 
-        do_computePressure_gsv_nl: do stepIndex = 1, numStep
-          do latIndex = statevector%myLatBeg, statevector%myLatEnd
-            do lonIndex = statevector%myLonBeg, statevector%myLonEnd
+    do_computePressure_gsv_nl: do stepIndex = 1, numStep
+      do latIndex = statevector%myLatBeg, statevector%myLatEnd
+        do lonIndex = statevector%myLonBeg, statevector%myLonEnd
 
-              pressure_T(:) = 0.0D0
-              pressure_M(:) = 0.0D0
+          pressure_T(:) = 0.0D0
+          pressure_M(:) = 0.0D0
 
-              ! latitude
-              lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
-              lat_8 = real(lat_4,8)
-              sLat = sin(lat_8)
-              cLat = cos(lat_8)
+          ! latitude
+          lat_4 = statevector%hco%lat2d_4(lonIndex,latIndex)
+          lat_8 = real(lat_4,8)
+          sLat = sin(lat_8)
+          cLat = cos(lat_8)
 
-              if ( statevector%dataKind == 4 ) then
-                P0 = real(P0_ptr_r4(lonIndex,latIndex,1, stepIndex),8)
-              else
-                P0 = P0_ptr_r8(lonIndex,latIndex,1, stepIndex)
-              end if
-
-              rMT = HeightSfc_ptr_r8(lonIndex,latIndex)
-
-              ! compute pressure on diagnostic levels
-              if ( statevector%dataKind == 4 ) then
-                hu = real(hu_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex),8)
-                tt = real(tt_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex),8)
-              else
-                hu = hu_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
-                tt = tt_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
-              end if
-              tv0 = fotvt8(tt,hu)
-
-              ! thermo diagnostic level
-              if ( statevector%dataKind == 4 ) then
-                Z_T = real(height_T_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex),8)
-              else
-                Z_T = height_T_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
-              end if
-              cmp = gpscompressibility(P0,tt,hu) 
-              tv(nlev_T) = tv0*cmp
-              dh = Z_T - rMT
-              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
-              pressure_T(nlev_T) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
-
-              ! momentum diagnostic level
-              ! DEBUG mad001 : validate that boundary condition implementation
-              if ( statevector%dataKind == 4 ) then
-                Z_M = real(height_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
-              else
-                Z_M = height_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
-              end if
-              dh = Z_M - rMT
-              Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
-              pressure_M(nlev_M) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
-
-              ! DEBUG mad001 start
-              if ( latIndex == statevector%myLatBeg &
-                   .and. lonIndex == statevector%myLonBeg &
-                   .and. stepIndex == 1) then
-                write(*,*) 'DEBUG mad001 P0                ', '', '',P0
-                write(*,*) 'DEBUG mad001 pressure_T(nlev_T)', nlev_T, Z_T, pressure_T(nlev_T)
-                write(*,*) 'DEBUG mad001 pressure_M(nlev_M)', nlev_M, Z_M, pressure_M(nlev_M)
-              end if
-              ! DEBUG mad001 stop
-
-              ! compute pressure on all levels above except the last 
-              do lev_M = nlev_M-1, 1, -1
-                lev_T = lev_M ! thermo level just below
-                if ( statevector%dataKind == 4 ) then
-                  hu = real(hu_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
-                  tt = real(tt_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
-                  Z_M = real(height_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
-                  Z_M1 = real(height_M_ptr_r4(lonIndex,latIndex,lev_M+1,stepIndex),8)
-                  Z_T = real(height_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
-                else
-                  hu = hu_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
-                  tt = tt_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
-                  Z_M = height_M_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
-                  Z_M1 = height_M_ptr_r8(lonIndex,latIndex,lev_M+1,stepIndex)
-                  Z_T = height_T_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
-                end if
-                tv0 = fotvt8(tt,hu)
-                dh = Z_M - Z_M1
-                Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
-
-                ! approximation of tv from pressure on previous momentum level
-                cmp = gpscompressibility(pressure_M(lev_M+1),tt,hu) 
-                tv(lev_T) = tv0*cmp
-                pressure_M(lev_M) = pressure_M(lev_M+1) * &
-                                    exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
-                ! first interpolation of thermo pressure
-                scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)
-                logP = (1.0D0-scaleFactorBottom)*log(pressure_M(lev_M+1)) + &
-                                      scaleFactorBottom*log(pressure_M(lev_M))
-                pressure_T(lev_T) = exp(logP)
-
-                ! second iteration on tv
-                cmp = gpscompressibility(pressure_T(lev_T),tt,hu)
-                tv(lev_T) = tv0*cmp
-                pressure_M(lev_M) = pressure_M(lev_M+1) * &
-                                    exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
-
-                ! second iteration interpolation of thermo pressure
-                logP = (1.0D0-scaleFactorBottom)*log(pressure_M(lev_M+1)) + &
-                                      scaleFactorBottom*log(pressure_M(lev_M))
-                pressure_T(lev_T) = exp(logP)
-
-                if ( latIndex == statevector%myLatBeg &
-                     .and. lonIndex == statevector%myLonBeg &
-                     .and. stepIndex == 1) then
-                  write(*,*) 'DEBUG mad001 pressure_T(lev_T) ', lev_T, Z_T, pressure_T(lev_T)
-                  write(*,*) 'DEBUG mad001 pressure_M(lev_M) ', lev_M, Z_M, pressure_M(lev_M)
-                end if
-              end do
-
-              ! fill the height array
-              if ( statevector%dataKind == 4 ) then
-                do lev_T = 1, nlev_T
-                  P_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex) = &
-                      real(pressure_T(lev_T),4)
-                end do
-                do lev_M = 1, nlev_M
-                P_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex) = &
-                      real(pressure_M(lev_M),4)
-                end do
-              else
-                P_T_ptr_r8(lonIndex,latIndex,1:nlev_T,stepIndex)=pressure_T(1:lev_T)
-                P_M_ptr_r8(lonIndex,latIndex,1:nlev_M,stepIndex)=pressure_M(1:lev_M)
-              end if
-
-            end do ! lonIndex
-          end do ! latIndex
-        end do do_computePressure_gsv_nl
-
-
-        ! DEBUG mad001 start
-        do locIdx = 1, 8
-          lonIndex = locNi(locIdx)
-          latIndex = locNj(locIdx)
-          if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
-              .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
-            locHco = gsv_getHco(statevector) 
-            locLat = locHco%lat2d_4(lonIndex,latIndex) * 180/3.141592654
-            locLon = locHco%lon2d_4(lonIndex,latIndex) * 180/3.141592654
-            if (locLon >= 180) locLon = locLon - 360
-            do locLvl = nlev_M, nlev_M-10, -1
-              write(*,*) & 
-                 locLabels(locIdx),locLon,locLat,locLvl,&
-                 P_T_ptr_r4(lonIndex,latIndex,locLvl,1),&
-                 P_M_ptr_r4(lonIndex,latIndex,locLvl,1),&
-                 height_T_ptr_r4(lonIndex,latIndex,locLvl,1),&
-                 height_M_ptr_r4(lonIndex,latIndex,locLvl,1),&
-                 tv(locLvl)
-              write(200+mpi_myid,'(A5,2X,2(F20.10,2X),I3,2X,5(F20.10,2X))')&
-                 locLabels(locIdx),locLon,locLat,locLvl,&
-                 P_T_ptr_r4(lonIndex,latIndex,locLvl,1),&
-                 P_M_ptr_r4(lonIndex,latIndex,locLvl,1),&
-                 height_T_ptr_r4(lonIndex,latIndex,locLvl,1),&
-                 height_M_ptr_r4(lonIndex,latIndex,locLvl,1),&
-                 tv(locLvl)
-            end do
-          end if
-        end do
-        ! DEBUG mad001 end
-
-        deallocate(pressure_T)
-        deallocate(pressure_M)
-        deallocate(tv)
-
-        if ( .not. beSilent ) then
           if ( statevector%dataKind == 4 ) then
-            write(*,*) 'calcPressure_gsv_nl (czp), P_T='
-            write(*,*) P_T_ptr_r4(statevector%myLonBeg, &
-                statevector%myLatBeg,:,1)
-            write(*,*) 'calcPressure_gsv_nl (czp), P_M='
-            write(*,*) P_M_ptr_r4(statevector%myLonBeg, &
-                statevector%myLatBeg,:,1)
+            P0 = real(P0_ptr_r4(lonIndex,latIndex,1, stepIndex),8)
           else
-            write(*,*) 'calcPressure_gsv_nl (czp), P_T='
-            write(*,*) P_T_ptr_r8(statevector%myLonBeg, &
-                statevector%myLatBeg,:,1)
-            write(*,*) 'calcPressure_gsv_nl (czp), P_M='
-            write(*,*) P_M_ptr_r8(statevector%myLonBeg, &
-                statevector%myLatBeg,:,1)
+            P0 = P0_ptr_r8(lonIndex,latIndex,1, stepIndex)
           end if
-        end if
-        write(*,*) 'DEBUG mad001: calcPressure_gsv_nl_vcode2100x END'
-        !call utl_abort('DEBUG mad001 ---END---')
 
-      end subroutine calcPressure_gsv_nl_vcode2100x
+          rMT = HeightSfc_ptr_r8(lonIndex,latIndex)
 
-      !---------------------------------------------------------
-      ! calcPressure_gsv_nl_vcode500x_r8
-      !---------------------------------------------------------
-      subroutine calcPressure_gsv_nl_vcode500x_r8(statevector, beSilent_opt)
-        !
-        !:Purpose: double-precision calculation of the pressure on the grid.
-        !
-        implicit none
-
-        ! Arguments
-        type(struct_gsv), intent(inout) :: statevector
-        logical, intent(in), optional   :: beSilent_opt
-
-        ! Locals
-        logical :: beSilent
-        real(kind=8), allocatable   :: Psfc(:,:)
-        real(kind=8), pointer       :: Pressure_out(:,:,:)
-        real(kind=8), pointer       :: field_Psfc(:,:,:,:)
-        integer                     :: status, stepIndex, numStep
-        real(8), pointer            :: P_T(:,:,:,:)
-        real(8), pointer            :: P_M(:,:,:,:)
-
-        if ( present(beSilent_opt) ) then
-          beSilent = beSilent_opt
-        else
-          beSilent = .true.
-        end if
-
-        nullify(P_T)
-        nullify(P_M)
-
-        call gsv_getField(statevector,P_T,'P_T')
-        call gsv_getField(statevector,P_M,'P_M')
-
-        allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
-                      statevector%myLatBeg:statevector%myLatEnd))
-        call gsv_getField(statevector,field_Psfc,'P0')
-        numStep = statevector%numStep
-
-        do stepIndex = 1, numStep
-          Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
-
-          ! P_M
-          nullify(Pressure_out)
-          status = vgd_levels(statevector%vco%vgrid, &
-                            ip1_list=statevector%vco%ip1_M, &
-                            levels=Pressure_out, &
-                            sfc_field=Psfc, &
-                            in_log=.false.)
-          if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_gsv_nl_r8 (czp): ERROR with vgd_levels')
+          ! compute pressure on diagnostic levels
+          if ( statevector%dataKind == 4 ) then
+            hu = real(hu_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex),8)
+            tt = real(tt_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex),8)
+          else
+            hu = hu_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
+            tt = tt_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
           end if
-          P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
-          deallocate(Pressure_out)
+          tv0 = fotvt8(tt,hu)
 
-          ! P_T
-          nullify(Pressure_out)
-          status = vgd_levels(statevector%vco%vgrid, &
-                              ip1_list=statevector%vco%ip1_T, &
-                              levels=Pressure_out, &
-                              sfc_field=Psfc, &
-                              in_log=.false.)
-          if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_gsv_nl_r8 (czp): ERROR with vgd_levels')
+          ! thermo diagnostic level
+          if ( statevector%dataKind == 4 ) then
+            Z_T = real(height_T_ptr_r4(lonIndex,latIndex,nlev_T,stepIndex),8)
+          else
+            Z_T = height_T_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
           end if
-          P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
-          deallocate(Pressure_out)
+          cmp = gpscompressibility(P0,tt,hu) 
+          tv(nlev_T) = tv0*cmp
+          dh = Z_T - rMT
+          Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+          pressure_T(nlev_T) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
-          if ( .not. beSilent .and. stepIndex == 1 ) then
-            write(*,*) 'stepIndex=',stepIndex, ',P_M='
-            write(*,*) P_M(&
-                        statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-            write(*,*) 'stepIndex=',stepIndex, ',P_T='
-            write(*,*) P_T(&
-                        statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+          ! momentum diagnostic level
+          ! DEBUG mad001 : validate that boundary condition implementation
+          if ( statevector%dataKind == 4 ) then
+            Z_M = real(height_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
+          else
+            Z_M = height_M_ptr_r8(lonIndex,latIndex,nlev_M,stepIndex)
           end if
+          dh = Z_M - rMT
+          Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+          pressure_M(nlev_M) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
+
+          ! DEBUG mad001 start
+          if ( latIndex == statevector%myLatBeg &
+               .and. lonIndex == statevector%myLonBeg &
+               .and. stepIndex == 1) then
+            write(*,*) 'DEBUG mad001 P0                ', '', '',P0
+            write(*,*) 'DEBUG mad001 pressure_T(nlev_T)', nlev_T, Z_T, pressure_T(nlev_T)
+            write(*,*) 'DEBUG mad001 pressure_M(nlev_M)', nlev_M, Z_M, pressure_M(nlev_M)
+          end if
+          ! DEBUG mad001 stop
+
+          ! compute pressure on all levels above except the last 
+          do lev_M = nlev_M-1, 1, -1
+            lev_T = lev_M ! thermo level just below
+            if ( statevector%dataKind == 4 ) then
+              hu = real(hu_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
+              tt = real(tt_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
+              Z_M = real(height_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex),8)
+              Z_M1 = real(height_M_ptr_r4(lonIndex,latIndex,lev_M+1,stepIndex),8)
+              Z_T = real(height_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex),8)
+            else
+              hu = hu_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
+              tt = tt_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
+              Z_M = height_M_ptr_r8(lonIndex,latIndex,lev_M,stepIndex)
+              Z_M1 = height_M_ptr_r8(lonIndex,latIndex,lev_M+1,stepIndex)
+              Z_T = height_T_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
+            end if
+            tv0 = fotvt8(tt,hu)
+            dh = Z_M - Z_M1
+            Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
+
+            ! approximation of tv from pressure on previous momentum level
+            cmp = gpscompressibility(pressure_M(lev_M+1),tt,hu) 
+            tv(lev_T) = tv0*cmp
+            pressure_M(lev_M) = pressure_M(lev_M+1) * &
+                                exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
+            ! first interpolation of thermo pressure
+            scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)
+            logP = (1.0D0-scaleFactorBottom)*log(pressure_M(lev_M+1)) + &
+                                  scaleFactorBottom*log(pressure_M(lev_M))
+            pressure_T(lev_T) = exp(logP)
+
+            ! second iteration on tv
+            cmp = gpscompressibility(pressure_T(lev_T),tt,hu)
+            tv(lev_T) = tv0*cmp
+            pressure_M(lev_M) = pressure_M(lev_M+1) * &
+                                exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
+
+            ! second iteration interpolation of thermo pressure
+            logP = (1.0D0-scaleFactorBottom)*log(pressure_M(lev_M+1)) + &
+                                  scaleFactorBottom*log(pressure_M(lev_M))
+            pressure_T(lev_T) = exp(logP)
+
+            if ( latIndex == statevector%myLatBeg &
+                 .and. lonIndex == statevector%myLonBeg &
+                 .and. stepIndex == 1) then
+              write(*,*) 'DEBUG mad001 pressure_T(lev_T) ', lev_T, Z_T, pressure_T(lev_T)
+              write(*,*) 'DEBUG mad001 pressure_M(lev_M) ', lev_M, Z_M, pressure_M(lev_M)
+            end if
+          end do
+
+          ! fill the height array
+          if ( statevector%dataKind == 4 ) then
+            do lev_T = 1, nlev_T
+              P_T_ptr_r4(lonIndex,latIndex,lev_T,stepIndex) = &
+                  real(pressure_T(lev_T),4)
+            end do
+            do lev_M = 1, nlev_M
+            P_M_ptr_r4(lonIndex,latIndex,lev_M,stepIndex) = &
+                  real(pressure_M(lev_M),4)
+            end do
+          else
+            P_T_ptr_r8(lonIndex,latIndex,1:nlev_T,stepIndex)=pressure_T(1:lev_T)
+            P_M_ptr_r8(lonIndex,latIndex,1:nlev_M,stepIndex)=pressure_M(1:lev_M)
+          end if
+
+        end do ! lonIndex
+      end do ! latIndex
+    end do do_computePressure_gsv_nl
+
+
+    ! DEBUG mad001 start
+    do locIdx = 1, 8
+      lonIndex = locNi(locIdx)
+      latIndex = locNj(locIdx)
+      if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
+          .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
+        locHco = gsv_getHco(statevector) 
+        locLat = locHco%lat2d_4(lonIndex,latIndex) * 180/3.141592654
+        locLon = locHco%lon2d_4(lonIndex,latIndex) * 180/3.141592654
+        if (locLon >= 180) locLon = locLon - 360
+        do locLvl = nlev_M, nlev_M-10, -1
+          write(*,*) & 
+             locLabels(locIdx),locLon,locLat,locLvl,&
+             P_T_ptr_r4(lonIndex,latIndex,locLvl,1),&
+             P_M_ptr_r4(lonIndex,latIndex,locLvl,1),&
+             height_T_ptr_r4(lonIndex,latIndex,locLvl,1),&
+             height_M_ptr_r4(lonIndex,latIndex,locLvl,1),&
+             tv(locLvl)
+          write(200+mmpi_myid,'(A5,2X,2(F20.10,2X),I3,2X,5(F20.10,2X))')&
+             locLabels(locIdx),locLon,locLat,locLvl,&
+             P_T_ptr_r4(lonIndex,latIndex,locLvl,1),&
+             P_M_ptr_r4(lonIndex,latIndex,locLvl,1),&
+             height_T_ptr_r4(lonIndex,latIndex,locLvl,1),&
+             height_M_ptr_r4(lonIndex,latIndex,locLvl,1),&
+             tv(locLvl)
         end do
+      end if
+    end do
+    ! DEBUG mad001 end
 
-        deallocate(Psfc)
+    deallocate(pressure_T)
+    deallocate(pressure_M)
+    deallocate(tv)
 
-      end subroutine calcPressure_gsv_nl_vcode500x_r8
+    if ( .not. beSilent ) then
+      if ( statevector%dataKind == 4 ) then
+        write(*,*) 'calcPressure_gsv_nl (czp), P_T='
+        write(*,*) P_T_ptr_r4(statevector%myLonBeg, &
+            statevector%myLatBeg,:,1)
+        write(*,*) 'calcPressure_gsv_nl (czp), P_M='
+        write(*,*) P_M_ptr_r4(statevector%myLonBeg, &
+            statevector%myLatBeg,:,1)
+      else
+        write(*,*) 'calcPressure_gsv_nl (czp), P_T='
+        write(*,*) P_T_ptr_r8(statevector%myLonBeg, &
+            statevector%myLatBeg,:,1)
+        write(*,*) 'calcPressure_gsv_nl (czp), P_M='
+        write(*,*) P_M_ptr_r8(statevector%myLonBeg, &
+            statevector%myLatBeg,:,1)
+      end if
+    end if
+    write(*,*) 'DEBUG mad001: calcPressure_gsv_nl_vcode2100x END'
+    !call utl_abort('DEBUG mad001 ---END---')
 
-      !---------------------------------------------------------
-      ! calcPressure_gsv_nl_vcode500x_r4
-      !---------------------------------------------------------
-      subroutine calcPressure_gsv_nl_vcode500x_r4(statevector, beSilent_opt)
-        !
-        !:Purpose: single-precision calculation of the pressure on the grid.
-        !
-        implicit none
+  end subroutine calcPressure_gsv_nl_vcode2100x
 
-        ! Arguments
-        type(struct_gsv), intent(inout) :: statevector
-        logical, intent(in), optional   :: beSilent_opt
+  !---------------------------------------------------------
+  ! calcPressure_gsv_nl_vcode500x_r8
+  !---------------------------------------------------------
+  subroutine calcPressure_gsv_nl_vcode500x_r8(statevector, beSilent_opt)
+    !
+    !:Purpose: double-precision calculation of the pressure on the grid.
+    !
+    implicit none
 
-        ! Locals
-        logical :: beSilent
-        real(kind=4), allocatable   :: Psfc(:,:)
-        real(kind=4), pointer       :: field_Psfc(:,:,:,:)
-        real(kind=4), pointer       :: Pressure_out(:,:,:)
-        integer                     :: status, stepIndex, numStep
-        real(4), pointer            :: P_T(:,:,:,:)
-        real(4), pointer            :: P_M(:,:,:,:)
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+    logical, intent(in), optional   :: beSilent_opt
 
-        if ( present(beSilent_opt) ) then
-          beSilent = beSilent_opt
-        else
-          beSilent = .true.
-        end if
+    ! Locals
+    logical :: beSilent
+    real(kind=8), allocatable   :: Psfc(:,:)
+    real(kind=8), pointer       :: Pressure_out(:,:,:)
+    real(kind=8), pointer       :: field_Psfc(:,:,:,:)
+    integer                     :: status, stepIndex, numStep
+    real(8), pointer            :: P_T(:,:,:,:)
+    real(8), pointer            :: P_M(:,:,:,:)
 
-        if ( .not. gsv_varExist(statevector,'P_*') .or. &
-            .not. gsv_varExist(statevector,'P0')) then
-          call utl_abort('calcPressure_gsv_nl_r4 (czp): P_T/P_M/P0 do not exist in statevector!')
-        end if
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
 
-        nullify(P_T)
-        nullify(P_M)
+    nullify(P_T)
+    nullify(P_M)
 
-        call gsv_getField(statevector,P_T,'P_T')
-        call gsv_getField(statevector,P_M,'P_M')
+    call gsv_getField(statevector,P_T,'P_T')
+    call gsv_getField(statevector,P_M,'P_M')
 
-        allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
-                      statevector%myLatBeg:statevector%myLatEnd))
-        call gsv_getField(statevector,field_Psfc,'P0')
-        numStep = statevector%numStep
+    allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
+                  statevector%myLatBeg:statevector%myLatEnd))
+    call gsv_getField(statevector,field_Psfc,'P0')
+    numStep = statevector%numStep
 
-        do stepIndex = 1, numStep
-          Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
+    do stepIndex = 1, numStep
+      Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
 
-          ! P_M
-          nullify(Pressure_out)
-          status = vgd_levels(statevector%vco%vgrid, &
-                              ip1_list=statevector%vco%ip1_M, &
-                              levels=Pressure_out, &
-                              sfc_field=Psfc, &
-                              in_log=.false.)
-          if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_gsv_nl_r4 (czp): ERROR with vgd_levels')
-          end if
-          P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
-          deallocate(Pressure_out)
+      ! P_M
+      nullify(Pressure_out)
+      status = vgd_levels(statevector%vco%vgrid, &
+                        ip1_list=statevector%vco%ip1_M, &
+                        levels=Pressure_out, &
+                        sfc_field=Psfc, &
+                        in_log=.false.)
+      if( status .ne. VGD_OK ) then
+          call utl_abort('calcPressure_gsv_nl_r8 (czp): ERROR with vgd_levels')
+      end if
+      P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
+      deallocate(Pressure_out)
 
-          ! P_T
-          nullify(Pressure_out)
-          status = vgd_levels(statevector%vco%vgrid, &
-                              ip1_list=statevector%vco%ip1_T, &
-                              levels=Pressure_out, &
-                              sfc_field=Psfc, &
-                              in_log=.false.)
-          if( status .ne. VGD_OK ) then
-              call utl_abort('calcPressure_gsv_nl_r4 (czp): ERROR with vgd_levels')
-          end if
-          P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
-          deallocate(Pressure_out)
+      ! P_T
+      nullify(Pressure_out)
+      status = vgd_levels(statevector%vco%vgrid, &
+                          ip1_list=statevector%vco%ip1_T, &
+                          levels=Pressure_out, &
+                          sfc_field=Psfc, &
+                          in_log=.false.)
+      if( status .ne. VGD_OK ) then
+          call utl_abort('calcPressure_gsv_nl_r8 (czp): ERROR with vgd_levels')
+      end if
+      P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
+      deallocate(Pressure_out)
 
-          if ( .not. beSilent .and. stepIndex == 1 ) then
-            write(*,*) 'stepIndex=',stepIndex, ',P_M='
-            write(*,*) P_M(&
-                        statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-            write(*,*) 'stepIndex=',stepIndex, ',P_T='
-            write(*,*) P_T(&
-                        statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-          end if
+      if ( .not. beSilent .and. stepIndex == 1 ) then
+        write(*,*) 'stepIndex=',stepIndex, ',P_M='
+        write(*,*) P_M(&
+                    statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+        write(*,*) 'stepIndex=',stepIndex, ',P_T='
+        write(*,*) P_T(&
+                    statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+      end if
+    end do
 
-        end do
+    deallocate(Psfc)
 
-        deallocate(Psfc)
+  end subroutine calcPressure_gsv_nl_vcode500x_r8
 
-      end subroutine calcPressure_gsv_nl_vcode500x_r4
+  !---------------------------------------------------------
+  ! calcPressure_gsv_nl_vcode500x_r4
+  !---------------------------------------------------------
+  subroutine calcPressure_gsv_nl_vcode500x_r4(statevector, beSilent_opt)
+    !
+    !:Purpose: single-precision calculation of the pressure on the grid.
+    !
+    implicit none
 
+    ! Arguments
+    type(struct_gsv), intent(inout) :: statevector
+    logical, intent(in), optional   :: beSilent_opt
+
+    ! Locals
+    logical :: beSilent
+    real(kind=4), allocatable   :: Psfc(:,:)
+    real(kind=4), pointer       :: field_Psfc(:,:,:,:)
+    real(kind=4), pointer       :: Pressure_out(:,:,:)
+    integer                     :: status, stepIndex, numStep
+    real(4), pointer            :: P_T(:,:,:,:)
+    real(4), pointer            :: P_M(:,:,:,:)
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+
+    if ( .not. gsv_varExist(statevector,'P_*') .or. &
+        .not. gsv_varExist(statevector,'P0')) then
+      call utl_abort('calcPressure_gsv_nl_r4 (czp): P_T/P_M/P0 do not exist in statevector!')
+    end if
+
+    nullify(P_T)
+    nullify(P_M)
+
+    call gsv_getField(statevector,P_T,'P_T')
+    call gsv_getField(statevector,P_M,'P_M')
+
+    allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
+                  statevector%myLatBeg:statevector%myLatEnd))
+    call gsv_getField(statevector,field_Psfc,'P0')
+    numStep = statevector%numStep
+
+    do stepIndex = 1, numStep
+      Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
+
+      ! P_M
+      nullify(Pressure_out)
+      status = vgd_levels(statevector%vco%vgrid, &
+                          ip1_list=statevector%vco%ip1_M, &
+                          levels=Pressure_out, &
+                          sfc_field=Psfc, &
+                          in_log=.false.)
+      if( status .ne. VGD_OK ) then
+          call utl_abort('calcPressure_gsv_nl_r4 (czp): ERROR with vgd_levels')
+      end if
+      P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
+      deallocate(Pressure_out)
+
+      ! P_T
+      nullify(Pressure_out)
+      status = vgd_levels(statevector%vco%vgrid, &
+                          ip1_list=statevector%vco%ip1_T, &
+                          levels=Pressure_out, &
+                          sfc_field=Psfc, &
+                          in_log=.false.)
+      if( status .ne. VGD_OK ) then
+          call utl_abort('calcPressure_gsv_nl_r4 (czp): ERROR with vgd_levels')
+      end if
+      P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
+      deallocate(Pressure_out)
+
+      if ( .not. beSilent .and. stepIndex == 1 ) then
+        write(*,*) 'stepIndex=',stepIndex, ',P_M='
+        write(*,*) P_M(&
+                    statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+        write(*,*) 'stepIndex=',stepIndex, ',P_T='
+        write(*,*) P_T(&
+                    statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
+      end if
+
+    end do
+
+    deallocate(Psfc)
+
+  end subroutine calcPressure_gsv_nl_vcode500x_r4
 
   !---------------------------------------------------------
   ! calcPressure_gsv_tl
