@@ -228,7 +228,7 @@ module gridStateVectorFileIO_mod
     ! locals
     real(4), pointer     :: field3d_r4_ptr(:,:,:)
     real(8), pointer     :: field_in_ptr(:,:,:,:), field_out_ptr(:,:,:,:)
-    real(8), allocatable :: PsfcReference3D(:,:,:)
+    real(8), allocatable :: PsfcReference4D(:,:,:,:)
 
     character(len=4), pointer :: varNamesToRead(:)
 
@@ -300,11 +300,12 @@ module gridStateVectorFileIO_mod
                       allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead )
 
     if (present(PsfcReference_opt) ) then
-      allocate(PsfcReference3D(statevector_tiles%myLonBeg:statevector_tiles%myLonEnd, &
-                               statevector_tiles%myLatBeg:statevector_tiles%myLatEnd,1))
-      PsfcReference3D(:,:,1) = PsfcReference_opt(:,:)
-      call int_vInterp_gsv(statevector_tiles,statevector_vinterp,PsfcReference_opt=PsfcReference3D)
-      deallocate(PsfcReference3D)
+      allocate(PsfcReference4D(statevector_tiles%myLonBeg:statevector_tiles%myLonEnd, &
+                               statevector_tiles%myLatBeg:statevector_tiles%myLatEnd,1,1))
+      PsfcReference4D(:,:,1,1) = PsfcReference_opt(:,:)
+      call int_vInterp_gsv(statevector_tiles,statevector_vinterp,&
+                            PsfcReference_opt=PsfcReference4D)
+      deallocate(PsfcReference4D)
     else
       call int_vInterp_gsv(statevector_tiles,statevector_vinterp)
     end if
@@ -1054,7 +1055,7 @@ module gridStateVectorFileIO_mod
 
     if ( mmpi_myid == 0 ) then
       write(*,*) ''
-      write(*,*) 'gio_readTrials: STARTING'
+      write(*,*) 'gio_readTrials: START'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     end if
 

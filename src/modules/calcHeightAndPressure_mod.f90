@@ -437,6 +437,8 @@ contains
       beSilent = .true.
     end if
 
+    call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
+
     if (.not.beSilent) write(*,*) 'czp_calcReturnHeight_gsv_nl: START'
 
     Vcode = gsv_getVco(statevector)%vcode
@@ -474,7 +476,7 @@ contains
     end if
 
     if ( .not. beSilent) write(*,*) 'czp_calcReturnHeight_gsv_nl: END'
-    call utl_tmg_stop(172) !DBGmad ? should I use another id
+    call utl_tmg_stop(172) 
 
   end subroutine czp_calcReturnHeight_gsv_nl
 
@@ -1196,9 +1198,6 @@ contains
         call gsv_getField(statevectorRef,height_T_ptr,'Z_T')
         call gsv_getField(statevectorRef,P_T,'P_T')
         call gsv_getField(statevectorRef,P_M,'P_M')
-        write(*,*) 'DBGmad height_M_ptr: ', minval(height_M_ptr), maxval(height_M_ptr)
-        write(*,*) 'DBGmad height_T_ptr: ', minval(height_T_ptr), maxval(height_T_ptr)
-
         call gsv_getField(statevector,delHeight_M_ptr_r48,'Z_M')
         call gsv_getField(statevector,delHeight_T_ptr_r48,'Z_T')
         call gsv_getField(statevector,delTT_r48,'TT')
@@ -1277,14 +1276,6 @@ contains
                     delP0_r48(lonIndex,latIndex,1,stepIndex)
                   else
                     lev_M = lev_T ! momentum level just below thermo level being computed
-                    ! DBGmad START
-                    if (height_M_ptr(lonIndex,latIndex,lev_M,stepIndex) == &
-                          height_M_ptr(lonIndex,latIndex,lev_M-1,stepIndex)) then
-                  write(*,*)'DBGmad /0: ', height_M_ptr(lonIndex,latIndex,lev_M,stepIndex), & 
-                                           lonIndex,latIndex,lev_M,stepIndex
-                      call utl_stopAndWait4Debug('Catched division by 0') 
-                    end if
-                    ! DBGmad END
                     ScaleFactorBottom = &
                         (height_T_ptr(lonIndex,latIndex,lev_T,stepIndex) - &
                           height_M_ptr(lonIndex,latIndex,lev_M-1,stepIndex)) / &
@@ -1722,7 +1713,7 @@ contains
   !---------------------------------------------------------
   ! calcPressure_gsv_nl
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl(statevector, beSilent_opt)
+  subroutine calcPressure_gsv_nl(statevector, beSilent_opt, Ps_in_hPa_opt)
     !
     ! :Purpose: calculation of the pressure on the grid subroutine
     !
@@ -1731,6 +1722,7 @@ contains
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector
     logical, intent(in), optional   :: beSilent_opt
+    logical, optional, intent(in)   :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
     ! Locals
     integer :: Vcode
@@ -1746,6 +1738,8 @@ contains
     end if
     beSilent = .false. ! DEBUG mad001
 
+    call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
+
     if ( .not. beSilent ) write(*,*) 'calcPressure_gsv_nl (czp): computing Pressure on staggered or UNstaggered levels'
 
     Vcode = gsv_getVco(statevector)%vcode
@@ -1753,11 +1747,17 @@ contains
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_PT_r4, 'P_T')
         call gsv_getField(statevector, ptr_PM_r4, 'P_M')
-        call calcPressure_gsv_nl_vcode500x_r4(statevector, ptr_PT_r4, ptr_PM_r4, beSilent)
+        call calcPressure_gsv_nl_vcode500x_r4(statevector, &
+                                              ptr_PT_r4, ptr_PM_r4, &
+                                              beSilent_opt=beSilent_opt, &
+                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
       else
         call gsv_getField(statevector, ptr_PT_r8, 'P_T')
         call gsv_getField(statevector, ptr_PM_r8, 'P_M')
-        call calcPressure_gsv_nl_vcode500x_r8(statevector, ptr_PT_r8, ptr_PM_r8, beSilent)
+        call calcPressure_gsv_nl_vcode500x_r8(statevector, &
+                                              ptr_PT_r8, ptr_PM_r8, &
+                                              beSilent_opt=beSilent_opt, &
+                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
       end if
     else if (Vcode == 21001) then
       !! some gsv_varExist(statevector,.)
@@ -1792,24 +1792,30 @@ contains
       end if
       write(*,*) 'calcPressure_gsv_nl (czp): END'
     end if
+    call utl_tmg_stop(177)
 
   end subroutine calcPressure_gsv_nl
 
   !---------------------------------------------------------
   ! czp_calcReturnPressure_gsv_nl
   !---------------------------------------------------------
-  subroutine czp_calcReturnPressure_gsv_nl( statevector, PT_r4, PM_r4, &
-                                            PT_r8, PM_r8, beSilent_opt)
+  subroutine czp_calcReturnPressure_gsv_nl( statevector, &
+                                            PT_r4, PM_r4, PsfcRef_r4_opt, &
+                                            PT_r8, PM_r8, PsfcRef_r8_opt, &
+                                            beSilent_opt, Ps_in_hPa_opt)
     !
     ! :Purpose: DBGmad 
     !
     implicit none
 
     ! Arguments
-    type(struct_gsv),           intent(in) :: statevector
+    type(struct_gsv),           intent(in)    :: statevector
     real(4), optional, pointer, intent(inout) :: PT_r4(:,:,:,:), PM_r4(:,:,:,:)
     real(8), optional, pointer, intent(inout) :: PT_r8(:,:,:,:), PM_r8(:,:,:,:)
-    logical, optional,          intent(in)   :: beSilent_opt
+    real(8), optional, pointer, intent(in)    :: PsfcRef_r8_opt(:,:,:,:)
+    real(4), optional, pointer, intent(in)    :: PsfcRef_r4_opt(:,:,:,:)
+    logical, optional,          intent(in)    :: beSilent_opt
+    logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
     ! Locals
     integer :: Vcode
@@ -1821,6 +1827,8 @@ contains
       beSilent = .true.
     end if
 
+    call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
+
     if ( .not. beSilent ) write(*,*) 'czp_calcReturnPressure_gsv_nl: START'
 
     Vcode = gsv_getVco(statevector)%vcode
@@ -1829,12 +1837,16 @@ contains
         if ( .not. (present(PT_r4) .and. present(PM_r4))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}_r4 expected')
         end if
-        call calcPressure_gsv_nl_vcode500x_r4(statevector, PT_r4, PM_r4, beSilent)
+        call calcPressure_gsv_nl_vcode500x_r4(statevector, PT_r4, PM_r4, &
+                                              PsfcRef_r4_opt, beSilent, &
+                                              Ps_in_hPa_opt)
       else
         if ( .not. (present(PT_r8) .and. present(PM_r8))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}_r8 expected')
         end if
-        call calcPressure_gsv_nl_vcode500x_r8(statevector, PT_r8, PM_r8, beSilent)
+        call calcPressure_gsv_nl_vcode500x_r8(statevector, PT_r8, PM_r8, &
+                                              PsfcRef_r8_opt, beSilent, &
+                                              Ps_in_hPa_opt)
       end if
     else if (Vcode == 21001) then
       !! some gsv_varExist(statevector,.)
@@ -1858,6 +1870,7 @@ contains
     end if
 
     if ( .not. beSilent) write(*,*) 'czp_calcReturnPressure_gsv_nl: END'
+    call utl_tmg_stop(177)
 
   end subroutine czp_calcReturnPressure_gsv_nl
   
@@ -2014,7 +2027,7 @@ contains
           pressure_T(nlev_T) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
           ! momentum diagnostic level
-          ! DEBUG mad001 : validate that boundary condition implementation
+          ! DBGmad : validate that boundary condition implementation
           if ( statevector%dataKind == 4 ) then
             Z_M = real(height_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
           else
@@ -2023,16 +2036,6 @@ contains
           dh = Z_M - rMT
           Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
           pressure_M(nlev_M) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
-
-          ! DEBUG mad001 start
-          if ( latIndex == statevector%myLatBeg &
-               .and. lonIndex == statevector%myLonBeg &
-               .and. stepIndex == 1) then
-            write(*,*) 'DEBUG mad001 P0                ', '', '',P0
-            write(*,*) 'DEBUG mad001 pressure_T(nlev_T)', nlev_T, Z_T, pressure_T(nlev_T)
-            write(*,*) 'DEBUG mad001 pressure_M(nlev_M)', nlev_M, Z_M, pressure_M(nlev_M)
-          end if
-          ! DEBUG mad001 stop
 
           ! compute pressure on all levels above except the last 
           do lev_M = nlev_M-1, 1, -1
@@ -2076,12 +2079,6 @@ contains
                                   scaleFactorBottom*log(pressure_M(lev_M))
             pressure_T(lev_T) = exp(logP)
 
-            if ( latIndex == statevector%myLatBeg &
-                 .and. lonIndex == statevector%myLonBeg &
-                 .and. stepIndex == 1) then
-              write(*,*) 'DEBUG mad001 pressure_T(lev_T) ', lev_T, Z_T, pressure_T(lev_T)
-              write(*,*) 'DEBUG mad001 pressure_M(lev_M) ', lev_M, Z_M, pressure_M(lev_M)
-            end if
           end do
 
           ! fill the height array
@@ -2143,16 +2140,20 @@ contains
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode500x_r8
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl_vcode500x_r8(statevector, P_T, P_M, beSilent_opt)
+  subroutine calcPressure_gsv_nl_vcode500x_r8(statevector, P_T, P_M, &
+                                              PsfcRef_r8_opt, beSilent_opt, &
+                                              Ps_in_hPa_opt)
     !
     !:Purpose: double-precision calculation of the pressure on the grid.
     !
     implicit none
 
     ! Arguments
-    type(struct_gsv),  intent(in)    :: statevector
-    real(8), pointer,  intent(inout) :: P_T(:,:,:,:), P_M(:,:,:,:)
-    logical, optional, intent(in)    :: beSilent_opt
+    type(struct_gsv),           intent(in)    :: statevector
+    real(8),           pointer, intent(inout) :: P_T(:,:,:,:), P_M(:,:,:,:)
+    real(8), optional, pointer, intent(in)    :: PsfcRef_r8_opt(:,:,:,:)
+    logical, optional,          intent(in)    :: beSilent_opt
+    logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
     ! Locals
     logical :: beSilent
@@ -2170,14 +2171,21 @@ contains
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
 
-    if ( .not. gsv_varExist(statevector,'P0')  ) then
+    if ( .not. gsv_varExist(statevector,'P0')) then
       call utl_abort('calcPressure_gsv_nl_vcode500x_r8 (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
     end if
-    call gsv_getField(statevector,field_Psfc,'P0')
+    if ( present(PsfcRef_r8_opt) ) then
+      field_Psfc => PsfcRef_r8_opt
+    else
+      call gsv_getField(statevector,field_Psfc,'P0')
+    end if
     numStep = statevector%numStep
 
     do stepIndex = 1, numStep
       Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
+      if ( present(Ps_in_hPa_opt) ) then
+        if ( Ps_in_hPa_opt ) Psfc = Psfc * mpc_pa_per_mbar_r8
+      end if
 
       ! P_M
       nullify(Pressure_out)
@@ -2214,22 +2222,26 @@ contains
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode500x_r4
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl_vcode500x_r4(statevector, P_T, P_M, beSilent_opt)
+  subroutine calcPressure_gsv_nl_vcode500x_r4(statevector, P_T, P_M, &
+                                              PsfcRef_r4_opt, beSilent_opt, &
+                                              Ps_in_hPa_opt)
     !
     !:Purpose: single-precision calculation of the pressure on the grid.
     !
     implicit none
 
     ! Arguments
-    type(struct_gsv),  intent(in)    :: statevector
-    real(4), pointer,  intent(inout) :: P_T(:,:,:,:), P_M(:,:,:,:)
-    logical, optional, intent(in)    :: beSilent_opt
+    type(struct_gsv),           intent(in)    :: statevector
+    real(4),           pointer, intent(inout) :: P_T(:,:,:,:), P_M(:,:,:,:)
+    real(4), optional, pointer, intent(in)    :: PsfcRef_r4_opt(:,:,:,:)
+    logical, optional,          intent(in)    :: beSilent_opt
+    logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
     ! Locals
     logical :: beSilent
     real(kind=4), allocatable   :: Psfc(:,:)
-    real(kind=4), pointer       :: field_Psfc(:,:,:,:)
     real(kind=4), pointer       :: Pressure_out(:,:,:)
+    real(kind=4), pointer       :: field_Psfc(:,:,:,:)
     integer                     :: status, stepIndex, numStep
 
     if ( present(beSilent_opt) ) then
@@ -2238,26 +2250,32 @@ contains
       beSilent = .true.
     end if
 
-    if ( .not. gsv_varExist(statevector,'P_*') .or. &
-        .not. gsv_varExist(statevector,'P0')) then
-      call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): P_T/P_M/P0 do not exist in statevector!')
-    end if
-
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
-    call gsv_getField(statevector,field_Psfc,'P0')
+
+    if ( .not. gsv_varExist(statevector,'P0')) then
+      call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
+    end if
+    if ( present(PsfcRef_r4_opt) ) then
+      field_Psfc => PsfcRef_r4_opt
+    else
+      call gsv_getField(statevector,field_Psfc,'P0')
+    end if
     numStep = statevector%numStep
 
     do stepIndex = 1, numStep
       Psfc(:,:) = field_Psfc(:,:,1,stepIndex)
+      if ( present(Ps_in_hPa_opt) ) then
+        if ( Ps_in_hPa_opt ) Psfc = Psfc * mpc_pa_per_mbar_r4
+      end if
 
       ! P_M
       nullify(Pressure_out)
       status = vgd_levels(statevector%vco%vgrid, &
-                          ip1_list=statevector%vco%ip1_M, &
-                          levels=Pressure_out, &
-                          sfc_field=Psfc, &
-                          in_log=.false.)
+                        ip1_list=statevector%vco%ip1_M, &
+                        levels=Pressure_out, &
+                        sfc_field=Psfc, &
+                        in_log=.false.)
       if( status .ne. VGD_OK ) then
           call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): ERROR with vgd_levels')
       end if
@@ -2309,6 +2327,8 @@ contains
     end if
     beSilent = .false. ! DEBUG mad001
 
+    call utl_tmg_start(178,'low-level--czp_calcPressure_tl')
+
     if (.not.beSilent) then
       write(*,*) 'calcPressure_gsv_tl (czp): START'
       write(*,*) '      computing delP_T/delP_M on the gridstatevector'
@@ -2329,6 +2349,7 @@ contains
     end if
 
     if (.not.beSilent) write(*,*) 'calcPressure_gsv_tl (czp): END'
+    call utl_tmg_stop(178)
 
     contains
 
@@ -2490,12 +2511,13 @@ contains
     integer :: Vcode
     logical :: beSilent
 
+    call utl_tmg_start(179,'low-level--czp_calcPressure_ad')
+
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
 
     if (.not.beSilent) then
       write(*,*) 'calcPressure_gsv_ad (czp): START'
@@ -2517,6 +2539,7 @@ contains
     end if
 
     if (.not.beSilent) write(*,*) 'calcPressure_gsv_ad (czp): END'
+    call utl_tmg_stop(179)
 
     contains
 

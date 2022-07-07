@@ -22,6 +22,7 @@ module interpolation_mod
   use midasMpi_mod
   use gridstatevector_mod
   use columnData_mod
+  use calcHeightAndPressure_mod
   use varNameList_mod
   use verticalCoord_mod
   use horizontalCoord_mod
@@ -127,18 +128,22 @@ contains
     !
     implicit none
 
-    ! Arguments:
-    type(struct_gsv),  intent(in)    :: statevector_in               ! statevector that will contain the interpolated fields
-    type(struct_gsv),  intent(inout) :: statevector_out              ! Reference statevector providing the horizontal and vertical structure
-    real(8), optional, intent(in)    :: PsfcReference_opt(:,:,:)     ! Provides a surface pressure field to be used instead of the first P0 level
-    real(4), optional, intent(in)    :: PsfcReference_r4_opt(:,:,:)  ! Provides a surface pressure field to be used instead of the first P0 level    
-    logical, optional, intent(in)    :: checkModelTop_opt            ! If true, model top consistency will be checked in vertical interpolation
+    ! Arguments
+    type(struct_gsv),       intent(in)    :: statevector_in               ! statevector that will contain the interpolated fields
+    type(struct_gsv),       intent(inout) :: statevector_out              ! Reference statevector providing the horizontal and vertical structure
+
+    real(8),      optional, intent(in)    :: PsfcReference_opt(:,:,:,:)     ! Provides a surface pressure field to be used instead of the first P0 level
+    real(4),      optional, intent(in)    :: PsfcReference_r4_opt(:,:,:,:)  ! Provides a surface pressure field to be used instead of the first P0 level
+    
+    logical,      optional, intent(in)    :: checkModelTop_opt            ! If true, model top consistency will be checked in vertical interpolation
     
     ! Locals:
     logical :: checkModelTop
     character(len=4), pointer :: varNamesToInterpolate(:)
     type(struct_gsv) :: statevector_in_varsLevs, statevector_in_varsLevs_hInterp
     type(struct_gsv) :: statevector_in_hInterp
+
+    write(*,*) 'int_interpolate: START'
 
     !
     !- Error traps
@@ -200,16 +205,19 @@ contains
     end if
     
     if (statevector_in_VarsLevs%dataKind == 4) then
-      call int_vInterp_gsv_r4(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_r4_opt, &
-                               checkModelTop_opt=checkModelTop)
+      call int_vInterp_gsv_r4(statevector_in_hInterp,statevector_out,&
+                              PsfcReference_opt=PsfcReference_r4_opt, &
+                              checkModelTop_opt=checkModelTop)
     else 
-      call int_vInterp_gsv(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_opt, &
+      call int_vInterp_gsv( statevector_in_hInterp,statevector_out,&
+                            PsfcReference_opt=PsfcReference_opt, &
                             checkModelTop_opt=checkModelTop)
     end if
 
     call gsv_deallocate(statevector_in_hInterp)
     nullify(varNamesToInterpolate)
 
+    write(*,*) 'int_interpolate: END'
   end subroutine int_interp_gsv
 
   !--------------------------------------------------------------------------
@@ -343,11 +351,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)     :: statevector_in           ! statevector that will contain the vertically interpolated fields
-    type(struct_gsv),  intent(inout)  :: statevector_out          ! Reference statevector providing the vertical structure
-    logical, optional, intent(in)     :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done
-    real(8), optional, intent(in)     :: PsfcReference_opt(:,:,:) ! Provides a surface pressure field to be used instead of the first P0 level
-    logical, optional, intent(in)     :: checkModelTop_opt        ! Model top consistency will be checked prior to interpolation if true
+    type(struct_gsv),          intent(in)     :: statevector_in             ! statevector that will contain the vertically interpolated fields
+    type(struct_gsv),          intent(inout)  :: statevector_out            ! Reference statevector providing the vertical structure
+    logical, optional,         intent(in)     :: Ps_in_hPa_opt              ! If true, conversion from hPa to mbar will be done for surface pressure
+    real(8), optional, target, intent(in)     :: PsfcReference_opt(:,:,:,:) ! Provides a surface pressure field to be used instead of the first P0 level
+    logical, optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
     logical :: checkModelTop
@@ -357,9 +365,10 @@ contains
     integer :: status
     real(8) :: zwb, zwt
 
-    real(8)           :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                                 statevector_in%myLatBeg:statevector_in%myLatEnd)
-    real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
+    real(8), pointer  :: PT_in(:,:,:,:), PM_in(:,:,:,:),  PT_out(:,:,:,:), PM_out(:,:,:,:)
+    real(8), pointer  :: pres_out(:,:,:,:), pres_in(:,:,:,:)
+    real(8), pointer  :: field_in(:,:,:,:), field_out(:,:,:,:)
+    real(8), pointer  :: PsfcRef(:,:,:,:)
     real(8), pointer  :: heightSfcIn(:,:), heightSfcOut(:,:)
 
     character(len=4) :: varName
@@ -402,88 +411,93 @@ contains
       call vco_ensureCompatibleTops(vco_in, vco_out)
     end if
 
-    step_loop: do stepIndex = 1, statevector_out%numStep
+    var_loop: do varIndex = 1, vnl_numvarmax
+      varName = vnl_varNameList(varIndex)
+      if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
 
-      ! copy over some time related and other parameters
-      statevector_out%deet                      = statevector_in%deet
-      statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
-      statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
-      statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
-      statevector_out%etiket                    = statevector_in%etiket
-      statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
-      statevector_out%hco_physics              => statevector_in%hco_physics
+      nlev_in  = statevector_in%varNumLev(varIndex)
+      nlev_out = statevector_out%varNumLev(varIndex)
 
+      call gsv_getField(statevector_in ,field_in,varName)
+      call gsv_getField(statevector_out,field_out,varName)
+
+      ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
+      if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
+           (vnl_varLevelFromVarname(varName) == 'OT') ) then
+        field_out(:,:,:,:) = field_in(:,:,:,:)
+        cycle var_loop
+      end if
+
+      ! allocating for temporary pressure references
+      allocate(PT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                      statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                      gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+      allocate(PM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                      statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                      gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
+      allocate(PT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                      statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                      gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
+      allocate(PM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                      statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                      gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
+
+      ! define pressures on input and output levels
       if ( present(PsfcReference_opt) ) then
-        psfc_in(:,:) = PsfcReference_opt(:,:,stepIndex)
+        PsfcRef => PsfcReference_opt
       else
-        call gsv_getField(statevector_in,field_in,'P0')
-        psfc_in(:,:) = field_in(:,:,1,stepIndex)
-      end if
-      if ( present(Ps_in_hPa_opt) ) then
-        if ( Ps_in_hPa_opt ) psfc_in = psfc_in * mpc_pa_per_mbar_r8
+        call gsv_getField(statevector_in,PsfcRef,'P0')
       end if
 
-      var_loop: do varIndex = 1, vnl_numvarmax
-        varName = vnl_varNameList(varIndex)
-        if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
+      ! replacing local vgd_levels call
+      call czp_calcReturnPressure_gsv_nl( statevector_in, &
+                                          PT_r8=PT_in, PM_r8=PM_in, &
+                                          PsfcRef_r8_opt=PsfcRef, &
+                                          Ps_in_hPa_opt=Ps_in_hPa_opt)
 
-        nlev_in  = statevector_in%varNumLev(varIndex)
-        nlev_out = statevector_out%varNumLev(varIndex)
-
-        call gsv_getField(statevector_in ,field_in,varName)
-        call gsv_getField(statevector_out,field_out,varName)
-
-        ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
-        if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
-             (vnl_varLevelFromVarname(varName) == 'OT') ) then
-          field_out(:,:,:,stepIndex) = field_in(:,:,:,stepIndex)
-          cycle var_loop
-        end if
-
+      call czp_calcReturnPressure_gsv_nl( statevector_out, &
+                                          PT_r8=PT_out, PM_r8=PM_out, &
+                                          PsfcRef_r8_opt=PsfcRef, &
+                                          Ps_in_hPa_opt=Ps_in_hPa_opt)
+      step_loop: do stepIndex = 1, statevector_out%numStep
+  
+        ! copy over some time related and other parameters
+        statevector_out%deet                      = statevector_in%deet
+        statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
+        statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
+        statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
+        statevector_out%etiket                    = statevector_in%etiket
+        statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
+        statevector_out%hco_physics              => statevector_in%hco_physics
+  
         nullify(pres_out,pres_in)
 
-        ! define pressures on input and output levels
         if (vnl_varLevelFromVarname(varName) == 'TH') then
-          status=vgd_levels(vco_in%vgrid,           &
-                            ip1_list=vco_in%ip1_T,  &
-                            levels=pres_in,         &
-                            sfc_field=psfc_in,      &
-                            in_log=.false.)
-          status=vgd_levels(vco_out%vgrid,           &
-                            ip1_list=vco_out%ip1_T,  &
-                            levels=pres_out,         &
-                            sfc_field=psfc_in,       &
-                            in_log=.false.)
+          pres_in  => PT_in
+          pres_out => PT_out
         else
-          status=vgd_levels(vco_in%vgrid,           &
-                            ip1_list=vco_in%ip1_M,  &
-                            levels=pres_in,         &
-                            sfc_field=psfc_in,      &
-                            in_log=.false.)
-          status=vgd_levels(vco_out%vgrid,           &
-                            ip1_list=vco_out%ip1_M,  &
-                            levels=pres_out,         &
-                            sfc_field=psfc_in,       &
-                            in_log=.false.)
+          pres_in  => PM_in
+          pres_out => PM_out
         end if
 
         ! do the vertical interpolation
         field_out(:,:,:,stepIndex) = 0.0d0
-        !$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2,levIndex_in,levIndex_out,zwb,zwt)
+        !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex_in,levIndex_out,zwb,zwt)
         do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
-          latIndex2 = latIndex - statevector_out%myLatBeg + 1
           do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
-            lonIndex2 = lonIndex - statevector_out%myLonBeg + 1
             levIndex_in = 1
             do levIndex_out = 1, nlev_out
               levIndex_in = levIndex_in + 1
-              do while(pres_out(lonIndex2,latIndex2,levIndex_out).gt.pres_in(lonIndex2,latIndex2,levIndex_in)  &
+              do while(pres_out(lonIndex,latIndex,levIndex_out,stepIndex) &
+                        .gt.pres_in(lonIndex,latIndex,levIndex_in,stepIndex)  &
                        .and.levIndex_in.lt.nlev_in)
                 levIndex_in = levIndex_in + 1
               end do
               levIndex_in = levIndex_in - 1
-              zwb = log(pres_out(lonIndex2,latIndex2,levIndex_out)/pres_in(lonIndex2,latIndex2,levIndex_in))  &
-                   /log(pres_in(lonIndex2,latIndex2,levIndex_in+1)/pres_in(lonIndex2,latIndex2,levIndex_in))
+              zwb = log(pres_out(lonIndex,latIndex,levIndex_out,stepIndex) &
+                      /pres_in(lonIndex,latIndex,levIndex_in,stepIndex))  &
+                   /log(pres_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
+                      /pres_in(lonIndex,latIndex,levIndex_in,stepIndex))
               zwt = 1.d0 - zwb
               field_out(lonIndex,latIndex,levIndex_out,stepIndex) =   &
                                  zwb*field_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
@@ -498,12 +512,10 @@ contains
           field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
         end if
 
-        deallocate(pres_out)
-        deallocate(pres_in)
+      end do step_loop
 
-      end do var_loop
-
-    end do step_loop
+      deallocate(PT_in, PM_in, PT_out, PM_out)
+    end do var_loop
 
   end subroutine int_vInterp_gsv
 
@@ -513,17 +525,17 @@ contains
   subroutine int_vInterp_gsv_r4(statevector_in,statevector_out,Ps_in_hPa_opt, &
                                  PsfcReference_opt,checkModelTop_opt)
     !
-    ! :Purpose: Vertical interpolation of pressure defined fields
+    ! :Purpose: Vertical interpolation
     !
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)     :: statevector_in           ! Reference statevector providing the vertical structure
-    type(struct_gsv),  intent(inout)  :: statevector_out          ! statevector that will contain the vertically interpolated fields
-    logical, optional, intent(in)     :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done
-    real(4), optional, intent(in)     :: PsfcReference_opt(:,:,:) ! Provides a surface pressure field to be used instead of the first P0 level
-    logical, optional, intent(in)     :: checkModelTop_opt        ! Model top consistency will be checked prior to interpolation if true
+    type(struct_gsv),          intent(in)     :: statevector_in             ! statevector that will contain the vertically interpolated fields
+    type(struct_gsv),          intent(inout)  :: statevector_out            ! Reference statevector providing the vertical structure
+    logical, optional,         intent(in)     :: Ps_in_hPa_opt              ! If true, conversion from hPa to mbar will be done for surface pressure
+    real(4), optional, target, intent(in)     :: PsfcReference_opt(:,:,:,:) ! Provides a surface pressure field to be used instead of the first P0 level
+    logical, optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
     logical :: checkModelTop
@@ -533,9 +545,10 @@ contains
     integer :: status
     real(4) :: zwb, zwt
 
-    real(4)           :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                                 statevector_in%myLatBeg:statevector_in%myLatEnd)
-    real(4), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
+    real(4), pointer  :: PT_in(:,:,:,:), PM_in(:,:,:,:),  PT_out(:,:,:,:), PM_out(:,:,:,:)
+    real(4), pointer  :: pres_out(:,:,:,:), pres_in(:,:,:,:)
+    real(4), pointer  :: field_in(:,:,:,:), field_out(:,:,:,:)
+    real(4), pointer  :: PsfcRef(:,:,:,:)
     real(8), pointer  :: heightSfcIn(:,:), heightSfcOut(:,:)
 
     character(len=4) :: varName
@@ -559,10 +572,10 @@ contains
       call utl_abort('int_vInterp_gsv_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
-    if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
+    if (gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
       heightSfcIn => gsv_getHeightSfc(statevector_in)
       heightSfcOut => gsv_getHeightSfc(statevector_out)
-      HeightSfcOut(:,:) = HeightSfcIn(:,:)
+      heightSfcOut(:,:) = heightSfcIn(:,:)
     end if
 
     vco_in => gsv_getVco(statevector_in)
@@ -579,89 +592,94 @@ contains
       call vco_ensureCompatibleTops(vco_in, vco_out)
     end if
 
-    step_loop: do stepIndex = 1, statevector_out%numStep
+    var_loop: do varIndex = 1, vnl_numvarmax
+      varName = vnl_varNameList(varIndex)
+      if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
 
-      ! copy over some time related and other parameters
-      statevector_out%deet                      = statevector_in%deet
-      statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
-      statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
-      statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
-      statevector_out%etiket                    = statevector_in%etiket
-      statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
-      statevector_out%hco_physics              => statevector_in%hco_physics
+      nlev_in  = statevector_in%varNumLev(varIndex)
+      nlev_out = statevector_out%varNumLev(varIndex)
 
+      call gsv_getField(statevector_in ,field_in,varName)
+      call gsv_getField(statevector_out,field_out,varName)
+
+      ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
+      if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
+           (vnl_varLevelFromVarname(varName) == 'OT') ) then
+        field_out(:,:,:,:) = field_in(:,:,:,:)
+        cycle var_loop
+      end if
+
+      ! allocating for temporary pressure references
+      allocate(PT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                      statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                      gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+      allocate(PM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                      statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                      gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
+      allocate(PT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                      statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                      gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
+      allocate(PM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                      statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                      gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
+
+      ! define pressures on input and output levels
       if ( present(PsfcReference_opt) ) then
-        psfc_in(:,:) = PsfcReference_opt(:,:,stepIndex)
+        PsfcRef => PsfcReference_opt
       else
-        call gsv_getField(statevector_in,field_in,'P0')
-        psfc_in(:,:) = field_in(:,:,1,stepIndex)
-      end if
-      if ( present(Ps_in_hPa_opt) ) then
-        if ( Ps_in_hPa_opt ) psfc_in = psfc_in * mpc_pa_per_mbar_r4
+        call gsv_getField(statevector_in,PsfcRef,'P0')
       end if
 
-      var_loop: do varIndex = 1, vnl_numvarmax
-        varName = vnl_varNameList(varIndex)
-        if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
+      ! replacing local vgd_levels call
+      call czp_calcReturnPressure_gsv_nl( statevector_in, &
+                                          PT_r4=PT_in, PM_r4=PM_in, &
+                                          PsfcRef_r4_opt=PsfcRef, &
+                                          Ps_in_hPa_opt=Ps_in_hPa_opt)
 
-        nlev_in  = statevector_in%varNumLev(varIndex)
-        nlev_out = statevector_out%varNumLev(varIndex)
-
-        call gsv_getField(statevector_in ,field_in,varName)
-        call gsv_getField(statevector_out,field_out,varName)
-
-        ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
-        if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
-             (vnl_varLevelFromVarname(varName) == 'OT') ) then
-          field_out(:,:,:,stepIndex) = field_in(:,:,:,stepIndex)
-          cycle var_loop
-        end if
-
+      call czp_calcReturnPressure_gsv_nl( statevector_out, &
+                                          PT_r4=PT_out, PM_r4=PM_out, &
+                                          PsfcRef_r4_opt=PsfcRef, &
+                                          Ps_in_hPa_opt=Ps_in_hPa_opt)
+      step_loop: do stepIndex = 1, statevector_out%numStep
+  
+        ! copy over some time related and other parameters
+        statevector_out%deet                      = statevector_in%deet
+        statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
+        statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
+        statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
+        statevector_out%etiket                    = statevector_in%etiket
+        statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
+        statevector_out%hco_physics              => statevector_in%hco_physics
+  
         nullify(pres_out,pres_in)
 
-        ! define pressures on input and output levels
         if (vnl_varLevelFromVarname(varName) == 'TH') then
-          status=vgd_levels(vco_in%vgrid,           &
-                            ip1_list=vco_in%ip1_T,  &
-                            levels=pres_in,         &
-                            sfc_field=psfc_in,      &
-                            in_log=.false.)
-          status=vgd_levels(vco_out%vgrid,           &
-                            ip1_list=vco_out%ip1_T,  &
-                            levels=pres_out,         &
-                            sfc_field=psfc_in,       &
-                            in_log=.false.)
+          pres_in  => PT_in
+          pres_out => PT_out
         else
-          status=vgd_levels(vco_in%vgrid,           &
-                            ip1_list=vco_in%ip1_M,  &
-                            levels=pres_in,         &
-                            sfc_field=psfc_in,      &
-                            in_log=.false.)
-          status=vgd_levels(vco_out%vgrid,           &
-                            ip1_list=vco_out%ip1_M,  &
-                            levels=pres_out,         &
-                            sfc_field=psfc_in,       &
-                            in_log=.false.)
+          pres_in  => PM_in
+          pres_out => PM_out
         end if
 
         ! do the vertical interpolation
-        field_out(:,:,:,stepIndex) = 0.0
-        !$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2,levIndex_in,levIndex_out,zwb,zwt)
+        field_out(:,:,:,stepIndex) = 0.0d0
+        !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex_in,levIndex_out,zwb,zwt)
         do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
-          latIndex2 = latIndex - statevector_out%myLatBeg + 1
           do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
-            lonIndex2 = lonIndex - statevector_out%myLonBeg + 1
             levIndex_in = 1
             do levIndex_out = 1, nlev_out
               levIndex_in = levIndex_in + 1
-              do while(pres_out(lonIndex2,latIndex2,levIndex_out).gt.pres_in(lonIndex2,latIndex2,levIndex_in)  &
+              do while(pres_out(lonIndex,latIndex,levIndex_out,stepIndex) &
+                        .gt.pres_in(lonIndex,latIndex,levIndex_in,stepIndex)  &
                        .and.levIndex_in.lt.nlev_in)
                 levIndex_in = levIndex_in + 1
               end do
               levIndex_in = levIndex_in - 1
-              zwb = log(pres_out(lonIndex2,latIndex2,levIndex_out)/pres_in(lonIndex2,latIndex2,levIndex_in))  &
-                   /log(pres_in(lonIndex2,latIndex2,levIndex_in+1)/pres_in(lonIndex2,latIndex2,levIndex_in))
-              zwt = 1.0 - zwb
+              zwb = log(pres_out(lonIndex,latIndex,levIndex_out,stepIndex) &
+                      /pres_in(lonIndex,latIndex,levIndex_in,stepIndex))  &
+                   /log(pres_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
+                      /pres_in(lonIndex,latIndex,levIndex_in,stepIndex))
+              zwt = 1.d0 - zwb
               field_out(lonIndex,latIndex,levIndex_out,stepIndex) =   &
                                  zwb*field_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
                                + zwt*field_in(lonIndex,latIndex,levIndex_in,stepIndex)
@@ -675,12 +693,10 @@ contains
           field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
         end if
 
-        deallocate(pres_out)
-        deallocate(pres_in)
+      end do step_loop
 
-      end do var_loop
-
-    end do step_loop
+      deallocate(PT_in, PM_in, PT_out, PM_out)
+    end do var_loop
 
   end subroutine int_vInterp_gsv_r4
 

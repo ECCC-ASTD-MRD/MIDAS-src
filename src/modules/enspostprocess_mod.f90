@@ -1051,7 +1051,7 @@ contains
     character(len=12)  :: etiket
     real(8), allocatable :: controlVector_mpiglobal(:), controlVector(:)
     real(8), allocatable :: perturbationMean(:,:,:)
-    real(8), allocatable :: PsfcReference(:,:,:)
+    real(8), allocatable :: PsfcReference(:,:,:,:)
     real(8), pointer     :: perturbation_ptr(:,:,:)
     real(4), pointer     :: memberAnl_ptr_r4(:,:,:,:)
     integer :: cvIndex, memberIndex, varLevIndex, lonIndex, latIndex, stepIndex
@@ -1134,8 +1134,8 @@ contains
                       hInterpolateDegree_opt='LINEAR', &
                       varNames_opt=varNamesWithLQ)
     call gsv_getField(stateVectorPerturbationInterp,perturbation_ptr)
-    allocate(PsfcReference(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1))
-    PsfcReference(:,:,:) = 100000.0D0
+    allocate(PsfcReference(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1,1))
+    PsfcReference(:,:,:,:) = 100000.0D0
 
     ! prepare the reference state HU field for transforming LQ to HU perturbations
     if (ens_varExist(ensembleAnl,'HU')) then
