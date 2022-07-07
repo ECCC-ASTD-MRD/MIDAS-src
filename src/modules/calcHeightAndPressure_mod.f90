@@ -347,6 +347,9 @@ contains
     integer :: Vcode
     logical :: beSilent
 
+    real(4), pointer :: ptr_ZT_r4(:,:,:,:), ptr_ZM_r4(:,:,:,:)
+    real(8), pointer :: ptr_ZT_r8(:,:,:,:), ptr_ZM_r8(:,:,:,:)
+
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
@@ -375,18 +378,50 @@ contains
       if ( .not. gsv_varExist(statevector,'P0')  ) then
         call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
       end if
-      call calcHeight_gsv_nl_vcode500x(statevector, beSilent)
+
+      if ( gsv_getDataKind(statevector) == 4 ) then
+        call gsv_getField(statevector, ptr_ZT_r4, 'Z_T')
+        call gsv_getField(statevector, ptr_ZM_r4, 'Z_M')
+        call calcHeight_gsv_nl_vcode500x( statevector, &
+                                          ZT_r4_opt=ptr_ZT_r4, &
+                                          ZM_r4_opt=ptr_ZM_r4, &
+                                          beSilent_opt=beSilent)
+      else
+        call gsv_getField(statevector, ptr_ZT_r8, 'Z_T')
+        call gsv_getField(statevector, ptr_ZM_r8, 'Z_M')
+        call calcHeight_gsv_nl_vcode500x( statevector, &
+                                          ZT_r8_opt=ptr_ZT_r8, &
+                                          ZM_r8_opt=ptr_ZM_r8, &
+                                          beSilent_opt=beSilent)
+      end if
+
     else if (Vcode == 21001) then
       !! some gsv_varExist(statevector,.)
       if ( gsv_getDataKind(statevector) == 4 ) then
-        call calcHeight_gsv_nl_vcode2100x_r4(statevector, beSilent)
+        call gsv_getField(statevector, ptr_ZT_r4, 'Z_T')
+        call gsv_getField(statevector, ptr_ZM_r4, 'Z_M')
+        call calcHeight_gsv_nl_vcode2100x_r4(statevector, ptr_ZT_r4, ptr_ZM_r4, beSilent)
       else
-        call calcHeight_gsv_nl_vcode2100x_r8(statevector, beSilent)
+        call gsv_getField(statevector, ptr_ZT_r8, 'Z_T')
+        call gsv_getField(statevector, ptr_ZM_r8, 'Z_M')
+        call calcHeight_gsv_nl_vcode2100x_r8(statevector, ptr_ZT_r8, ptr_ZM_r8, beSilent)
       end if
     end if
 
-    if (.not.beSilent) write(*,*) 'calcHeight_gsv_nl (czp): END'
-
+    if ( .not. beSilent) then
+      if ( gsv_getDataKind(statevector) == 4 ) then
+        write(*,*) 'Z_M='
+        write(*,*) ptr_ZM_r4( statevector%myLonBeg,statevector%myLatBeg,:,1)
+        write(*,*) 'Z_T='
+        write(*,*) ptr_ZT_r4( statevector%myLonBeg,statevector%myLatBeg,:,1)
+      else
+        write(*,*) 'Z_M='
+        write(*,*) ptr_ZM_r8( statevector%myLonBeg,statevector%myLatBeg,:,1)
+        write(*,*) 'Z_T='
+        write(*,*) ptr_ZT_r8( statevector%myLonBeg,statevector%myLatBeg,:,1)
+      end if
+      write(*,*) 'calcHeight_gsv_nl (czp): END'
+    end if
     call utl_tmg_stop(172)
 
   end subroutine calcHeight_gsv_nl
@@ -394,12 +429,16 @@ contains
   !---------------------------------------------------------
   ! calcHeight_gsv_nl_vcode2100x_r4
   !---------------------------------------------------------
-  subroutine calcHeight_gsv_nl_vcode2100x_r4(statevector, beSilent_opt)
+  subroutine calcHeight_gsv_nl_vcode2100x_r4(statevector, Z_T, Z_M, beSilent_opt)
+    !
+    ! :Purpose: DBGmad!
+    !
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: statevector
-    logical, intent(in), optional   :: beSilent_opt
+    type(struct_gsv),  intent(in)    :: statevector
+    real(4), pointer,  intent(inout) :: Z_T(:,:,:,:), Z_M(:,:,:,:)
+    logical, optional, intent(in)    :: beSilent_opt
 
     ! Locals
     logical :: beSilent
@@ -407,7 +446,6 @@ contains
     real(kind=8), pointer       :: Hsfc(:,:)
     real(kind=4), allocatable   :: Hsfc4(:,:)
     real(kind=4), pointer       :: GZHeight_out(:,:,:)
-    real(4), pointer            :: Z_T(:,:,:,:), Z_M(:,:,:,:)
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -420,12 +458,6 @@ contains
       call utl_abort('calcHeight_gsv_nl (czp): Z_T/Z_M do not exist in statevector!')
     end if
 
-
-    nullify(Z_T)
-    nullify(Z_M)
-
-    call gsv_getField(statevector,Z_T,'Z_T')
-    call gsv_getField(statevector,Z_M,'Z_M')
 
     allocate(Hsfc4( statevector%myLonBeg:statevector%myLonEnd, &
                     statevector%myLatBeg:statevector%myLatEnd))
@@ -462,13 +494,6 @@ contains
       Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
       deallocate(GZHeight_out)
 
-      beSilent=.false. ! DEBUG mad001
-      if ( .not. beSilent .and. stepIndex == 1 ) then
-        write(*,*) 'stepIndex=',stepIndex, ',Z_M='
-        write(*,*) Z_M( statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-        write(*,*) 'stepIndex=',stepIndex, ',Z_T='
-        write(*,*) Z_T( statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-      end if
     end do
     deallocate(Hsfc4)
 
@@ -528,20 +553,23 @@ contains
   !---------------------------------------------------------
   ! calcHeight_gsv_nl_vcode2100x_r8
   !---------------------------------------------------------
-  subroutine calcHeight_gsv_nl_vcode2100x_r8(statevector, beSilent_opt)
-    ! DEBUG mad001 : the real(8) flow has to be tested
+  subroutine calcHeight_gsv_nl_vcode2100x_r8(statevector, Z_T, Z_M, beSilent_opt)
+    !
+    ! :Purpose: DBGmad!
+    !
+    ! DBGmad : the real(8) flow has to be tested
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: statevector
-    logical, intent(in), optional   :: beSilent_opt
+    type(struct_gsv),  intent(in)    :: statevector
+    real(8), pointer,  intent(inout) :: Z_T(:,:,:,:), Z_M(:,:,:,:)
+    logical, optional, intent(in)    :: beSilent_opt
 
     ! Locals
     logical :: beSilent
     integer ::  numStep, stepIndex, status
     real(kind=8), allocatable   :: Hsfc(:,:)
     real(kind=8), pointer       :: GZHeight_out(:,:,:)
-    real(8), pointer            :: Z_T(:,:,:,:), Z_M(:,:,:,:)
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -553,13 +581,6 @@ contains
         ! DEBUG mad001 : probably other vars as well
       call utl_abort('calcHeight_gsv_nl (czp): Z_T/Z_M do not exist in statevector!')
     end if
-
-
-    nullify(Z_T)
-    nullify(Z_M)
-
-    call gsv_getField(statevector,Z_T,'Z_T')
-    call gsv_getField(statevector,Z_M,'Z_M')
 
     allocate(Hsfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
@@ -593,16 +614,6 @@ contains
       end if
       Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
       deallocate(GZHeight_out)
-
-      if ( .not. beSilent .and. stepIndex == 1 ) then
-        write(*,*) 'stepIndex=',stepIndex, ',Z_M='
-        write(*,*) Z_M(&
-                    statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-        write(*,*) 'stepIndex=',stepIndex, ',Z_T='
-        write(*,*) Z_T(&
-                    statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-      end if
-
     end do
 
     deallocate(Hsfc)
@@ -663,12 +674,18 @@ contains
   !---------------------------------------------------------
   ! calcHeight_gsv_nl_vcode500x
   !---------------------------------------------------------
-  subroutine calcHeight_gsv_nl_vcode500x(statevector, beSilent_opt)
+  subroutine calcHeight_gsv_nl_vcode500x( statevector, ZT_r4_opt, ZM_r4_opt, &
+                                          ZT_r8_opt, ZM_r8_opt, beSilent_opt)
+    !
+    ! :Purpose: DBGmad!
+    !
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: statevector
-    logical, intent(in), optional   :: beSilent_opt
+    type(struct_gsv),           intent(in)    :: statevector
+    real(4), pointer, optional, intent(inout) :: ZT_r4_opt(:,:,:,:), ZM_r4_opt(:,:,:,:)
+    real(8), pointer, optional, intent(inout) :: ZT_r8_opt(:,:,:,:), ZM_r8_opt(:,:,:,:)
+    logical,          optional, intent(in)    :: beSilent_opt
 
     ! Locals
     logical :: beSilent
@@ -740,15 +757,21 @@ contains
     allocate(height_M(nlev_M))
 
     if ( statevector%dataKind == 4 ) then
-      call gsv_getField(statevector,height_M_ptr_r4,'Z_M')
-      call gsv_getField(statevector,height_T_ptr_r4,'Z_T')
+      if ( .not. (present(ZT_r4_opt) .and. present(ZM_r4_opt))) then
+        call utl_abort('calcHeight_gsv_nl_vcode500x: dataKind=4: Z{T,M}_r4_opt expected')
+      end if
+      height_M_ptr_r4 => ZM_r4_opt 
+      height_T_ptr_r4 => ZT_r4_opt
 
       ! initialize the height pointer to zero
       height_M_ptr_r4(:,:,:,:) = 0.0
       height_T_ptr_r4(:,:,:,:) = 0.0
     else
-      call gsv_getField(statevector,height_M_ptr_r8,'Z_M')
-      call gsv_getField(statevector,height_T_ptr_r8,'Z_T')
+      if ( .not. (present(ZT_r8_opt) .and. present(ZM_r8_opt))) then
+        call utl_abort('calcHeight_gsv_nl_vcode500x: dataKind=8: Z{T,M}_r8_opt expected')
+      end if
+      height_M_ptr_r8 => ZM_r8_opt 
+      height_T_ptr_r8 => ZT_r8_opt
 
       ! initialize the height pointer to zero
       height_M_ptr_r8(:,:,:,:) = 0.0d0
@@ -992,21 +1015,6 @@ contains
     deallocate(tv)
 
     if ( .not.beSilent ) then
-      if ( statevector%dataKind == 4 ) then
-        write(*,*) 'calcHeight_gsv_nl (czp), Z_T='
-        write(*,*) height_T_ptr_r4(statevector%myLonBeg, &
-            statevector%myLatBeg,:,1)
-        write(*,*) 'calcHeight_gsv_nl (czp), Z_M='
-        write(*,*) height_M_ptr_r4(statevector%myLonBeg, &
-            statevector%myLatBeg,:,1)
-      else
-        write(*,*) 'calcHeight_gsv_nl (czp), Z_T='
-        write(*,*) height_T_ptr_r8(statevector%myLonBeg, &
-            statevector%myLatBeg,:,1)
-        write(*,*) 'calcHeight_gsv_nl (czp), Z_M='
-        write(*,*) height_M_ptr_r8(statevector%myLonBeg, &
-            statevector%myLatBeg,:,1)
-      end if
       write(*,*) 'calcHeight_gsv_nl (czp): statevector%addHeightSfcOffset=', &
           statevector%addHeightSfcOffset
     end if
@@ -1052,6 +1060,7 @@ contains
         call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variables Z_T and Z_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
+    if ( .not. beSilent ) write(*,*) 'calcPressure_gsv_nl (czp): END'
         call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
@@ -1659,6 +1668,9 @@ contains
     integer :: Vcode
     logical :: beSilent
 
+    real(4), pointer :: ptr_PT_r4(:,:,:,:), ptr_PM_r4(:,:,:,:)
+    real(8), pointer :: ptr_PT_r8(:,:,:,:), ptr_PM_r8(:,:,:,:)
+
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
@@ -1670,35 +1682,66 @@ contains
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcPressure_gsv_nl (czp): for vcode 500x, variables P_M and P_T must be allocated in gridstatevector')
-      end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
         call utl_abort('calcPressure_gsv_nl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
       end if
       if ( gsv_getDataKind(statevector) == 4 ) then
-        call calcPressure_gsv_nl_vcode500x_r4(statevector, beSilent)
+        call gsv_getField(statevector, ptr_PT_r4, 'P_T')
+        call gsv_getField(statevector, ptr_PM_r4, 'P_M')
+        call calcPressure_gsv_nl_vcode500x_r4(statevector, ptr_PT_r4, ptr_PM_r4, beSilent)
       else
-        call calcPressure_gsv_nl_vcode500x_r8(statevector, beSilent)
+        call gsv_getField(statevector, ptr_PT_r8, 'P_T')
+        call gsv_getField(statevector, ptr_PM_r8, 'P_M')
+        call calcPressure_gsv_nl_vcode500x_r8(statevector, ptr_PT_r8, ptr_PM_r8, beSilent)
       end if
     else if (Vcode == 21001) then
       !! some gsv_varExist(statevector,.)
-      call calcPressure_gsv_nl_vcode2100x(statevector, beSilent)
+      if ( gsv_getDataKind(statevector) == 4 ) then
+        call gsv_getField(statevector, ptr_PT_r4, 'P_T')
+        call gsv_getField(statevector, ptr_PM_r4, 'P_M')
+        call calcPressure_gsv_nl_vcode2100x(statevector, &
+                                            PT_r4_opt=ptr_PT_r4, &
+                                            PM_r4_opt=ptr_PM_r4, &
+                                            beSilent_opt=beSilent)
+      else
+        call gsv_getField(statevector, ptr_PT_r8, 'P_T')
+        call gsv_getField(statevector, ptr_PM_r8, 'P_M')
+        call calcPressure_gsv_nl_vcode2100x(statevector, &
+                                              PT_r8_opt=ptr_PT_r8, &
+                                              PM_r8_opt=ptr_PM_r8, &
+                                              beSilent_opt=beSilent)
+      end if
     end if
 
-    if ( .not. beSilent ) write(*,*) 'calcPressure_gsv_nl (czp): END'
+    if ( .not. beSilent) then
+      if ( gsv_getDataKind(statevector) == 4 ) then
+        write(*,*) 'P_M='
+        write(*,*) ptr_PM_r4( statevector%myLonBeg,statevector%myLatBeg,:,1)
+        write(*,*) 'P_T='
+        write(*,*) ptr_PT_r4( statevector%myLonBeg,statevector%myLatBeg,:,1)
+      else
+        write(*,*) 'P_M='
+        write(*,*) ptr_PM_r8( statevector%myLonBeg,statevector%myLatBeg,:,1)
+        write(*,*) 'P_T='
+        write(*,*) ptr_PT_r8( statevector%myLonBeg,statevector%myLatBeg,:,1)
+      end if
+      write(*,*) 'calcPressure_gsv_nl (czp): END'
+    end if
 
   end subroutine calcPressure_gsv_nl
   
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode2100x
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl_vcode2100x(statevector, beSilent_opt)
+  subroutine calcPressure_gsv_nl_vcode2100x(statevector, PT_r4_opt, PM_r4_opt, &
+                                          PT_r8_opt, PM_r8_opt, beSilent_opt)
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: statevector
-    logical, intent(in), optional   :: beSilent_opt
+    type(struct_gsv),           intent(in)    :: statevector
+    real(4), pointer, optional, intent(inout) :: PT_r4_opt(:,:,:,:), PM_r4_opt(:,:,:,:)
+    real(8), pointer, optional, intent(inout) :: PT_r8_opt(:,:,:,:), PM_r8_opt(:,:,:,:)
+    logical,          optional, intent(in)    :: beSilent_opt
 
     ! Locals
     logical :: beSilent
@@ -1764,8 +1807,11 @@ contains
     allocate(pressure_M(nlev_M))
 
     if ( statevector%dataKind == 4 ) then
-      call gsv_getField(statevector,P_M_ptr_r4,'P_M')
-      call gsv_getField(statevector,P_T_ptr_r4,'P_T')
+      if ( .not. (present(PT_r4_opt) .and. present(PM_r4_opt))) then
+        call utl_abort('calcPressure_gsv_nl_vcode2100x: dataKind=4: P{T,M}_r4_opt expected')
+      end if
+      P_M_ptr_r4 => PM_r4_opt
+      P_T_ptr_r4 => PT_r4_opt
       call gsv_getField(statevector,P0_ptr_r4,'P0')
       call gsv_getField(statevector,hu_ptr_r4,'HU')
       call gsv_getField(statevector,tt_ptr_r4,'TT')
@@ -1776,8 +1822,11 @@ contains
       P_M_ptr_r4(:,:,:,:) = 0.0
       P_T_ptr_r4(:,:,:,:) = 0.0
     else
-      call gsv_getField(statevector,P_M_ptr_r8,'P_M')
-      call gsv_getField(statevector,P_T_ptr_r8,'P_T')
+      if ( .not. (present(PT_r8_opt) .and. present(PM_r8_opt))) then
+        call utl_abort('calcPressure_gsv_nl_vcode2100x: dataKind=8: P{T,M}_r8_opt expected')
+      end if
+      P_M_ptr_r8 => PM_r8_opt
+      P_T_ptr_r8 => PT_r8_opt
       call gsv_getField(statevector,P0_ptr_r8,'P0')
       call gsv_getField(statevector,hu_ptr_r8,'HU')
       call gsv_getField(statevector,tt_ptr_r8,'TT')
@@ -1958,40 +2007,21 @@ contains
     deallocate(pressure_M)
     deallocate(tv)
 
-    if ( .not. beSilent ) then
-      if ( statevector%dataKind == 4 ) then
-        write(*,*) 'calcPressure_gsv_nl (czp), P_T='
-        write(*,*) P_T_ptr_r4(statevector%myLonBeg, &
-            statevector%myLatBeg,:,1)
-        write(*,*) 'calcPressure_gsv_nl (czp), P_M='
-        write(*,*) P_M_ptr_r4(statevector%myLonBeg, &
-            statevector%myLatBeg,:,1)
-      else
-        write(*,*) 'calcPressure_gsv_nl (czp), P_T='
-        write(*,*) P_T_ptr_r8(statevector%myLonBeg, &
-            statevector%myLatBeg,:,1)
-        write(*,*) 'calcPressure_gsv_nl (czp), P_M='
-        write(*,*) P_M_ptr_r8(statevector%myLonBeg, &
-            statevector%myLatBeg,:,1)
-      end if
-    end if
-    write(*,*) 'DEBUG mad001: calcPressure_gsv_nl_vcode2100x END'
-    !call utl_abort('DEBUG mad001 ---END---')
-
   end subroutine calcPressure_gsv_nl_vcode2100x
 
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode500x_r8
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl_vcode500x_r8(statevector, beSilent_opt)
+  subroutine calcPressure_gsv_nl_vcode500x_r8(statevector, P_T, P_M, beSilent_opt)
     !
     !:Purpose: double-precision calculation of the pressure on the grid.
     !
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: statevector
-    logical, intent(in), optional   :: beSilent_opt
+    type(struct_gsv),  intent(in)    :: statevector
+    real(8), pointer,  intent(inout) :: P_T(:,:,:,:), P_M(:,:,:,:)
+    logical, optional, intent(in)    :: beSilent_opt
 
     ! Locals
     logical :: beSilent
@@ -1999,20 +2029,12 @@ contains
     real(kind=8), pointer       :: Pressure_out(:,:,:)
     real(kind=8), pointer       :: field_Psfc(:,:,:,:)
     integer                     :: status, stepIndex, numStep
-    real(8), pointer            :: P_T(:,:,:,:)
-    real(8), pointer            :: P_M(:,:,:,:)
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
     else
       beSilent = .true.
     end if
-
-    nullify(P_T)
-    nullify(P_M)
-
-    call gsv_getField(statevector,P_T,'P_T')
-    call gsv_getField(statevector,P_M,'P_M')
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
@@ -2048,14 +2070,6 @@ contains
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
 
-      if ( .not. beSilent .and. stepIndex == 1 ) then
-        write(*,*) 'stepIndex=',stepIndex, ',P_M='
-        write(*,*) P_M(&
-                    statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-        write(*,*) 'stepIndex=',stepIndex, ',P_T='
-        write(*,*) P_T(&
-                    statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-      end if
     end do
 
     deallocate(Psfc)
@@ -2065,15 +2079,16 @@ contains
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode500x_r4
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl_vcode500x_r4(statevector, beSilent_opt)
+  subroutine calcPressure_gsv_nl_vcode500x_r4(statevector, P_T, P_M, beSilent_opt)
     !
     !:Purpose: single-precision calculation of the pressure on the grid.
     !
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: statevector
-    logical, intent(in), optional   :: beSilent_opt
+    type(struct_gsv),  intent(in)    :: statevector
+    real(4), pointer,  intent(inout) :: P_T(:,:,:,:), P_M(:,:,:,:)
+    logical, optional, intent(in)    :: beSilent_opt
 
     ! Locals
     logical :: beSilent
@@ -2081,8 +2096,6 @@ contains
     real(kind=4), pointer       :: field_Psfc(:,:,:,:)
     real(kind=4), pointer       :: Pressure_out(:,:,:)
     integer                     :: status, stepIndex, numStep
-    real(4), pointer            :: P_T(:,:,:,:)
-    real(4), pointer            :: P_M(:,:,:,:)
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -2094,12 +2107,6 @@ contains
         .not. gsv_varExist(statevector,'P0')) then
       call utl_abort('calcPressure_gsv_nl_r4 (czp): P_T/P_M/P0 do not exist in statevector!')
     end if
-
-    nullify(P_T)
-    nullify(P_M)
-
-    call gsv_getField(statevector,P_T,'P_T')
-    call gsv_getField(statevector,P_M,'P_M')
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
@@ -2134,15 +2141,6 @@ contains
       end if
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
-
-      if ( .not. beSilent .and. stepIndex == 1 ) then
-        write(*,*) 'stepIndex=',stepIndex, ',P_M='
-        write(*,*) P_M(&
-                    statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-        write(*,*) 'stepIndex=',stepIndex, ',P_T='
-        write(*,*) P_T(&
-                    statevector%myLonBeg,statevector%myLatBeg,:,stepIndex)
-      end if
 
     end do
 
