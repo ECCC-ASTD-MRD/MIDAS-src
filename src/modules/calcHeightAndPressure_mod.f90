@@ -41,6 +41,7 @@ module calcHeightAndPressure_mod
   public :: czp_calcZandP_nl, czp_calcZandP_tl, czp_calcZandP_ad
   public :: czp_calcHeight_nl, czp_calcHeight_tl, czp_calcHeight_ad
   public :: czp_calcPressure_nl, czp_calcPressure_tl, czp_calcPressure_ad
+  public :: czp_calcReturnHeight_gsv_nl, czp_calcReturnPressure_gsv_nl
 
   interface czp_calcZandP_nl
     module procedure calcZandP_gsv_nl
@@ -363,22 +364,6 @@ contains
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variables P_T and P_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'Z_*')  ) then
-        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variables Z_T and Z_M must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable TT must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable HU must be allocated in gridstatevector')
-      end if
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcHeight_gsv_nl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
-      end if
-
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_ZT_r4, 'Z_T')
         call gsv_getField(statevector, ptr_ZM_r4, 'Z_M')
@@ -427,6 +412,73 @@ contains
   end subroutine calcHeight_gsv_nl
   
   !---------------------------------------------------------
+  ! czp_calcReturnHeight_gsv_nl
+  !---------------------------------------------------------
+  subroutine czp_calcReturnHeight_gsv_nl( statevector, ZT_r4, ZM_r4, &
+                                          ZT_r8, ZM_r8, beSilent_opt)
+    !
+    ! :Purpose: DBGmad!
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_gsv),           intent(in) :: statevector
+    real(4), optional, pointer, intent(inout) :: ZT_r4(:,:,:,:), ZM_r4(:,:,:,:)
+    real(8), optional, pointer, intent(inout) :: ZT_r8(:,:,:,:), ZM_r8(:,:,:,:)
+    logical, optional,          intent(in)   :: beSilent_opt
+
+    ! Locals
+    integer :: Vcode
+    logical :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+
+    if (.not.beSilent) write(*,*) 'czp_calcReturnHeight_gsv_nl: START'
+
+    Vcode = gsv_getVco(statevector)%vcode
+    if (Vcode == 5005 .or. Vcode == 5002) then
+      if ( gsv_getDataKind(statevector) == 4 ) then
+        if ( .not. (present(ZT_r4) .and. present(ZM_r4))) then
+          call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}_r4 expected')
+        end if
+        call calcHeight_gsv_nl_vcode500x( statevector, &
+                                          ZT_r4_opt=ZT_r4, &
+                                          ZM_r4_opt=ZM_r4, &
+                                          beSilent_opt=beSilent)
+      else
+        if ( .not. (present(ZT_r8) .and. present(ZM_r8))) then
+          call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}_r4 expected')
+        end if
+        call calcHeight_gsv_nl_vcode500x( statevector, &
+                                          ZT_r8_opt=ZT_r8, &
+                                          ZM_r8_opt=ZM_r8, &
+                                          beSilent_opt=beSilent)
+      end if
+
+    else if (Vcode == 21001) then
+      if ( gsv_getDataKind(statevector) == 4 ) then
+        if ( .not. (present(ZT_r4) .and. present(ZM_r4))) then
+          call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}_r4 expected')
+        end if
+        call calcHeight_gsv_nl_vcode2100x_r4(statevector, ZT_r4, ZM_r4, beSilent)
+      else
+        if ( .not. (present(ZT_r8) .and. present(ZM_r8))) then
+          call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}_r4 expected')
+        end if
+        call calcHeight_gsv_nl_vcode2100x_r8(statevector, ZT_r8, ZM_r8, beSilent)
+      end if
+    end if
+
+    if ( .not. beSilent) write(*,*) 'czp_calcReturnHeight_gsv_nl: END'
+    call utl_tmg_stop(172) !DBGmad ? should I use another id
+
+  end subroutine czp_calcReturnHeight_gsv_nl
+
+  !---------------------------------------------------------
   ! calcHeight_gsv_nl_vcode2100x_r4
   !---------------------------------------------------------
   subroutine calcHeight_gsv_nl_vcode2100x_r4(statevector, Z_T, Z_M, beSilent_opt)
@@ -455,9 +507,8 @@ contains
 
     if ( .not. gsv_varExist(statevector,'Z_*')) then
         ! DEBUG mad001 : probably other vars as well
-      call utl_abort('calcHeight_gsv_nl (czp): Z_T/Z_M do not exist in statevector!')
+      call utl_abort('calcHeight_gsv_nl_vcode2100x_r4 (czp): Z_T/Z_M do not exist in statevector!')
     end if
-
 
     allocate(Hsfc4( statevector%myLonBeg:statevector%myLonEnd, &
                     statevector%myLatBeg:statevector%myLatEnd))
@@ -476,7 +527,7 @@ contains
                           sfc_field=Hsfc4, &
                           in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
+          call utl_abort('calcHeight_gsv_nl_vcode2100x_r4 (czp): ERROR with vgd_levels')
       end if
       Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
       deallocate(GZHeight_out)
@@ -489,7 +540,7 @@ contains
                           sfc_field=Hsfc4, &
                           in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
+          call utl_abort('calcHeight_gsv_nl_vcode2100x_r4 (czp): ERROR with vgd_levels')
       end if
       Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
       deallocate(GZHeight_out)
@@ -579,7 +630,7 @@ contains
 
     if ( .not. gsv_varExist(statevector,'Z_*')) then
         ! DEBUG mad001 : probably other vars as well
-      call utl_abort('calcHeight_gsv_nl (czp): Z_T/Z_M do not exist in statevector!')
+      call utl_abort('calcHeight_gsv_nl_vcode2100x_r8 (czp): Z_T/Z_M do not exist in statevector!')
     end if
 
     allocate(Hsfc(statevector%myLonBeg:statevector%myLonEnd, &
@@ -597,7 +648,7 @@ contains
                           sfc_field=Hsfc, &
                           in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
+          call utl_abort('calcHeight_gsv_nl_vcode2100x_r8 (czp): ERROR with vgd_levels')
       end if
       Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
       deallocate(GZHeight_out)
@@ -610,7 +661,7 @@ contains
                           sfc_field=Hsfc, &
                           in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('calcHeight_gsv_nl (czp): ERROR with vgd_levels')
+          call utl_abort('calcHeight_gsv_nl_vcode2100x_r8 (czp): ERROR with vgd_levels')
       end if
       Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
       deallocate(GZHeight_out)
@@ -726,11 +777,28 @@ contains
 
     allocate(tv(nlev_T))
 
+    if ( .not. gsv_varExist(statevector,'P_*')  ) then
+      ! DBGmad single abort covering all these?
+      call utl_abort('calcHeight_gsv_nl_vcode500x (czp): variables P_T and P_M must be allocated in gridstatevector')
+    end if
+    if ( .not. gsv_varExist(statevector,'Z_*')  ) then
+      call utl_abort('calcHeight_gsv_nl_vcode500x (czp): variables Z_T and Z_M must be allocated in gridstatevector')
+    end if
+    if ( .not. gsv_varExist(statevector,'TT')  ) then
+      call utl_abort('calcHeight_gsv_nl_vcode500x (czp): variable TT must be allocated in gridstatevector')
+    end if
+    if ( .not. gsv_varExist(statevector,'HU')  ) then
+      call utl_abort('calcHeight_gsv_nl_vcode500x (czp): variable HU must be allocated in gridstatevector')
+    end if
+    if ( .not. gsv_varExist(statevector,'P0')  ) then
+      call utl_abort('calcHeight_gsv_nl_vcode500x (czp): variable P0 must be allocated in gridstatevector')
+    end if
+
     if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
-      call utl_abort('calcHeight_gsv_nl (czp): nlev_T is not equal to nlev_M+1!')
+      call utl_abort('calcHeight_gsv_nl_vcode500x (czp): nlev_T is not equal to nlev_M+1!')
     end if
     if (Vcode == 5005 .and. nlev_T /= nlev_M) then
-      call utl_abort('calcHeight_gsv_nl (czp): nlev_T is not equal to nlev_M!')
+      call utl_abort('calcHeight_gsv_nl_vcode500x (czp): nlev_T is not equal to nlev_M!')
     end if
 
     if (Vcode == 5005) then
@@ -743,7 +811,7 @@ contains
       if ( mmpi_myid == 0 .and. .not.beSilent ) then
         write(*,*) 'calcHeight_gsv_nl (czp): height offset for near-sfc momentum level is: ', &
               heightSfcOffset_M_r4, ' metres'
-        write(*,*) 'calcHeight_gsv_nl (czp): height offset for near-sfc thermo level is:   ', &
+        write(*,*) 'calcHeight_gsv_nl_vcode500x (czp): height offset for near-sfc thermo level is:   ', &
               heightSfcOffset_T_r4, ' metres'
         if ( .not.statevector%addHeightSfcOffset ) then
           write(*,*) '----------------------------------------------------------------------------------'
@@ -1682,9 +1750,6 @@ contains
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcPressure_gsv_nl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
-      end if
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_PT_r4, 'P_T')
         call gsv_getField(statevector, ptr_PM_r4, 'P_M')
@@ -1729,6 +1794,72 @@ contains
     end if
 
   end subroutine calcPressure_gsv_nl
+
+  !---------------------------------------------------------
+  ! czp_calcReturnPressure_gsv_nl
+  !---------------------------------------------------------
+  subroutine czp_calcReturnPressure_gsv_nl( statevector, PT_r4, PM_r4, &
+                                            PT_r8, PM_r8, beSilent_opt)
+    !
+    ! :Purpose: DBGmad 
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_gsv),           intent(in) :: statevector
+    real(4), optional, pointer, intent(inout) :: PT_r4(:,:,:,:), PM_r4(:,:,:,:)
+    real(8), optional, pointer, intent(inout) :: PT_r8(:,:,:,:), PM_r8(:,:,:,:)
+    logical, optional,          intent(in)   :: beSilent_opt
+
+    ! Locals
+    integer :: Vcode
+    logical :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+
+    if ( .not. beSilent ) write(*,*) 'czp_calcReturnPressure_gsv_nl: START'
+
+    Vcode = gsv_getVco(statevector)%vcode
+    if (Vcode == 5005 .or. Vcode == 5002) then
+      if ( gsv_getDataKind(statevector) == 4 ) then
+        if ( .not. (present(PT_r4) .and. present(PM_r4))) then
+          call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}_r4 expected')
+        end if
+        call calcPressure_gsv_nl_vcode500x_r4(statevector, PT_r4, PM_r4, beSilent)
+      else
+        if ( .not. (present(PT_r8) .and. present(PM_r8))) then
+          call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}_r8 expected')
+        end if
+        call calcPressure_gsv_nl_vcode500x_r8(statevector, PT_r8, PM_r8, beSilent)
+      end if
+    else if (Vcode == 21001) then
+      !! some gsv_varExist(statevector,.)
+      if ( gsv_getDataKind(statevector) == 4 ) then
+        if ( .not. (present(PT_r4) .and. present(PM_r4))) then
+          call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}_r4 expected')
+        end if
+        call calcPressure_gsv_nl_vcode2100x(statevector, &
+                                            PT_r4_opt=PT_r4, &
+                                            PM_r4_opt=PM_r4, &
+                                            beSilent_opt=beSilent)
+      else
+        if ( .not. (present(PT_r8) .and. present(PM_r8))) then
+          call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}_r8 expected')
+        end if
+        call calcPressure_gsv_nl_vcode2100x(statevector, &
+                                              PT_r8_opt=PT_r8, &
+                                              PM_r8_opt=PM_r8, &
+                                              beSilent_opt=beSilent)
+      end if
+    end if
+
+    if ( .not. beSilent) write(*,*) 'czp_calcReturnPressure_gsv_nl: END'
+
+  end subroutine czp_calcReturnPressure_gsv_nl
   
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode2100x
@@ -1782,7 +1913,7 @@ contains
     allocate(tv(nlev_T))
 
     if (nlev_T /= nlev_M) then
-      call utl_abort('czp_calcPressure_gsv_nl: nlev_T is not equal to nlev_M!')
+      call utl_abort('calcPressure_gsv_nl_vcode2100x: nlev_T is not equal to nlev_M!')
     end if
 
     status = vgd_get( statevector%vco%vgrid, &
@@ -1794,7 +1925,7 @@ contains
     if ( mmpi_myid == 0 .and. .not.beSilent ) then
       write(*,*) 'czp_calcPressure_gsv_nl: height offset for near-sfc momentum level is: ', &
             heightSfcOffset_M_r4, ' metres'
-      write(*,*) 'czp_calcPressure_gsv_nl: height offset for near-sfc thermo level is:   ', &
+      write(*,*) 'calcPressure_gsv_nl_vcode2100x: height offset for near-sfc thermo level is:   ', &
             heightSfcOffset_T_r4, ' metres'
       if ( .not.statevector%addHeightSfcOffset ) then
         write(*,*) '----------------------------------------------------------------------------------'
@@ -2038,6 +2169,10 @@ contains
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
+
+    if ( .not. gsv_varExist(statevector,'P0')  ) then
+      call utl_abort('calcPressure_gsv_nl_vcode500x_r8 (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
+    end if
     call gsv_getField(statevector,field_Psfc,'P0')
     numStep = statevector%numStep
 
@@ -2052,7 +2187,7 @@ contains
                         sfc_field=Psfc, &
                         in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('calcPressure_gsv_nl_r8 (czp): ERROR with vgd_levels')
+          call utl_abort('calcPressure_gsv_nl_vcode500x_r8 (czp): ERROR with vgd_levels')
       end if
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
@@ -2065,7 +2200,7 @@ contains
                           sfc_field=Psfc, &
                           in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('calcPressure_gsv_nl_r8 (czp): ERROR with vgd_levels')
+          call utl_abort('calcPressure_gsv_nl_vcode500x_r8 (czp): ERROR with vgd_levels')
       end if
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
@@ -2105,7 +2240,7 @@ contains
 
     if ( .not. gsv_varExist(statevector,'P_*') .or. &
         .not. gsv_varExist(statevector,'P0')) then
-      call utl_abort('calcPressure_gsv_nl_r4 (czp): P_T/P_M/P0 do not exist in statevector!')
+      call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): P_T/P_M/P0 do not exist in statevector!')
     end if
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
@@ -2124,7 +2259,7 @@ contains
                           sfc_field=Psfc, &
                           in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('calcPressure_gsv_nl_r4 (czp): ERROR with vgd_levels')
+          call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): ERROR with vgd_levels')
       end if
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
@@ -2137,7 +2272,7 @@ contains
                           sfc_field=Psfc, &
                           in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('calcPressure_gsv_nl_r4 (czp): ERROR with vgd_levels')
+          call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): ERROR with vgd_levels')
       end if
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
