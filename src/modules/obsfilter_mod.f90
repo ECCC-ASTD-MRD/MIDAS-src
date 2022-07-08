@@ -1291,7 +1291,9 @@ end subroutine filt_topoAISW
     ! locals
     integer :: bodyIndex, headerIndex, numLevels, bufrCode, obsflag
     integer :: fnom, fclos, nulnam, ierr, levelIndex
-    real(8) :: obsAltitude, radarAltitude, beamElevation, levelAltLow, levelAltHigh
+    real(8) :: obsAltitude, radarAltitude, beamElevation
+    real(8) :: levelAltLow, levelAltHigh
+    real(8) :: levelBracketLow, levelBracketHigh
     real(8) :: maxRangeInterp, levelRangeNear, levelRangeFar
     
     namelist /namradvel/ maxRangeInterp
@@ -1345,14 +1347,10 @@ end subroutine filt_topoAISW
         ! Altitude of observation
         obsAltitude = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
 
-        ! Levels that bracket the observation from OBS_LYR
-        !   note to self:   like in GEM, level=1 is the highest level
-        levelIndex = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
-        levelAltHigh = col_getHeight(columnTrlOnTrlLev, levelIndex,   headerIndex,'MM')
-        levelAltLow  = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex,'MM')
-
-        ! Observations are rejected if observation is below the height of second-to-last (2nd lowest) model level
-        if ( levelIndex == numLevels-1  ) then
+        ! TODO we need to understand why model height at "numLevels" is not always the lowest
+        ! Observations are rejected if their altitude is below the height of the lowest model level
+        levelAltLow  = col_getHeight(columnTrlOnTrlLev, numLevels, headerIndex,'MM')
+        if ( obsAltitude < levelAltLow ) then
           call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
           obsFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyindex)
           call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
@@ -1360,21 +1358,24 @@ end subroutine filt_topoAISW
         end if
 
         ! Observations are rejected if observation is above the height of first (highest) model level
-        if ( levelIndex == 1 ) then
+        levelAltHigh = col_getHeight(columnTrlOnTrlLev, 1, headerIndex,'MM')
+        if ( obsAltitude > levelAltHigh ) then
           call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
           obsFlag = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyindex)
           call obs_bodySet_i(obsSpaceData, OBS_FLG, bodyindex, IBSET(obsFlag, 11))
           cycle BODY
         end if
 
+        ! Levels that bracket the observation from OBS_LYR
+        !   note to self:   like in GEM, level=1 is the highest level
+        levelIndex = obs_bodyElem_i(obsSpaceData, OBS_LYR, bodyIndex)
+        levelBracketHigh = col_getHeight(columnTrlOnTrlLev, levelIndex,   headerIndex,'MM')
+        levelBracketLow  = col_getHeight(columnTrlOnTrlLev, levelIndex+1, headerIndex,'MM')
+
         ! Observations are rejected if horizontal distance between levels is too large
         if ( maxRangeInterp > 0.0 ) then
-          if ( levelAltLow < radarAltitude ) then 
-            levelRangeNear = 0.0
-          else
-            call rdv_getRangefromH(levelAltLow, radarAltitude, beamElevation, levelRangeNear)
-          end if
-          call rdv_getRangefromH(levelAltHigh, radarAltitude, beamElevation, levelRangeFar )
+          call rdv_getRangefromH(levelBracketHigh, radarAltitude, beamElevation, levelRangeFar )
+          call rdv_getRangefromH(levelBracketLow,  radarAltitude, beamElevation, levelRangeNear)
 
           if ( abs(levelRangeFar-levelRangeNear) > maxRangeInterp ) then
             call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)

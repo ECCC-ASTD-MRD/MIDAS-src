@@ -92,17 +92,26 @@ contains
     real(pre_obsReal) , intent(out) :: beamRange 
     ! Local
     real(pre_obsReal)               :: a, b, c, Re
-  
-    ! Radius of sphere of equal area from earthconstants_mod.f90
-    ! ec_wgs_R2 = 6371007.1809
-    ! effective radius of the earth
-    Re = ec_wgs_R2*(4./3.)
 
-    a = 1.
-    b = 2.*(Re + radarAltitude)*sin(beamElevation)
-    c = -(Re + beamHeight)**2. + (Re + radarAltitude)**2.
-    ! range of radar beam from height and elevation of the radar beam 
-    beamRange  = (-b + sqrt( b**2. - 4.*a*c )) / (2.*a)
+    if ( radarAltitude > beamHeight ) then 
+      !beamHeight is below radar antenna wich may cause the equation below to return garbage
+      !this happens in a few edge cases where its okay to return zero
+      beamRange = 0.0
+    else
+
+      ! Radius of sphere of equal area from earthconstants_mod.f90
+      ! ec_wgs_R2 = 6371007.1809
+      ! effective radius of the earth
+      Re = ec_wgs_R2*(4./3.)
+
+      a = 1.
+      b = 2.*(Re + radarAltitude)*sin(beamElevation)
+      c = -(Re + beamHeight)**2. + (Re + radarAltitude)**2.
+      ! range of radar beam from height and elevation of the radar beam 
+      beamRange  = (-b + sqrt( b**2. - 4.*a*c )) / (2.*a)
+
+    end if
+  
      
   end subroutine rdv_getRangefromH
 
