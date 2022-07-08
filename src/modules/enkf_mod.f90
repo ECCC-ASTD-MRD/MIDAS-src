@@ -1199,6 +1199,14 @@ end if
                       pert_r4 = memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
                                           meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
                       pert_r4 = pert_r4 * real(modulationFactor,4)
+                      
+if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. stepIndex == 1 .and. &
+    trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
+  write(*,*) 'maziar: memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
+                    ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
+                    ', memberIndexInModEns=', memberIndexInModEns, ', modulationFactor=', modulationFactor, &
+                    ', weightsMembers=', weightsMembers(memberIndexInModEns,memberIndex2,lonIndex,latIndex)
+end if
 
                       ! sum Xb_Mod * Wa over all modulated ensembles to get member perturbations for
                       !   original ensemble (memberIndex2)
@@ -1222,6 +1230,11 @@ end if
               else
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
+if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. stepIndex == 1 .and. &
+    trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
+  write(*,*) 'maziar: memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
+                    ', weightsMembers=', weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex)
+end if
                     memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
                          weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex) *  &
                          (memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
