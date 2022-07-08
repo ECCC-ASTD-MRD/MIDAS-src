@@ -2323,8 +2323,8 @@ CONTAINS
             ROLAT0 = 0.01*lati- 90.
             ROLON0 = 0.01*long
             if (ROLON0 > 180.) ROLON0 = ROLON0-360.
-            ROLAT(:) = ROLAT0*MPC_RADIANS_PER_DEGREE_R8
-            ROLON(:) = ROLON0*MPC_RADIANS_PER_DEGREE_R8
+            ROLAT(:) = ROLAT0
+            ROLON(:) = ROLON0
             IND5001 = BURP_Find_Element(Block_in, ELEMENT = 5001)
             IND6001 = BURP_Find_Element(Block_in, ELEMENT = 6001)
             if (IND5001 > 0 .and. IND6001 > 0) then
@@ -2342,8 +2342,8 @@ CONTAINS
                 lok = ( -90.1 < ROLAT1 .and. ROLAT1 <  90.1) .and. &
                       (-180.1 < ROLON1 .and. ROLON1 < 360.1)
                 if (lok .and. j<=MAXRONVAL) then
-                  ROLAT(j) = ROLAT1*MPC_RADIANS_PER_DEGREE_R8
-                  ROLON(j) = ROLON1*MPC_RADIANS_PER_DEGREE_R8
+                  ROLAT(j) = ROLAT1
+                  ROLON(j) = ROLON1
                   LROK = .TRUE.
                 end if
               end do
@@ -3471,7 +3471,7 @@ CONTAINS
     INTEGER           :: NELE,NVAL,VCO,NONELEV
     integer           :: LISTE_ELE(:),NOBS,VARNO,IL,J,COUNT,NLV
     INTEGER           :: IFLAG,IFLAG2,BITSflagoff,BITSflagon,cloudFrac
-    REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,BCOR
+    REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,BCOR,rolat1,rolon1
     LOGICAL           :: L_EMISS,L_BCOR,L_dataQcFlag2, L_dataCloudFrac
     
     L_EMISS = present( SURF_EMIS_opt )
@@ -3603,8 +3603,10 @@ CONTAINS
           call obs_bodySet_r(obsdat,OBS_PPP,count, ELEV_R)
           call obs_bodySet_i(obsdat,OBS_FLG,count,IFLAG)
           if ( FAMTYP == 'RO' ) then
-            call obs_bodySet_r(obsdat,OBS_LATD,count,rolat(j))
-            call obs_bodySet_r(obsdat,OBS_LOND,count,rolon(j))
+            rolat1 = rolat(j)*MPC_RADIANS_PER_DEGREE_R8
+            rolon1 = rolon(j)*MPC_RADIANS_PER_DEGREE_R8
+            call obs_bodySet_r(obsdat,OBS_LATD,count,rolat1)
+            call obs_bodySet_r(obsdat,OBS_LOND,count,rolon1)
           else
             call obs_bodySet_r(obsdat,OBS_LATD,count,obs_missingValue_R)
             call obs_bodySet_r(obsdat,OBS_LOND,count,obs_missingValue_R)

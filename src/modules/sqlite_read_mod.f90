@@ -905,7 +905,7 @@ contains
 
         !write standard body values to obsSpaceData
         call sqlr_initData(obsdat, beamHeight, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex, &
-                           beamLat, beamLon)  !optional args
+                           latd=beamLat, lond=beamLon)  !optional args
 
       else if (trim(familyType) == 'TO') then
 
