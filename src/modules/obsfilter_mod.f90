@@ -1348,7 +1348,7 @@ end subroutine filt_topoAISW
         obsAltitude = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
 
         ! TODO we need to understand why model height at "numLevels" is not always the lowest
-        ! Observations are rejected if their altitude is below the height of the lowest model level
+        ! Observations are rejected if their altitude is below the height 1 which may not be lowest model level...
         levelAltLow  = col_getHeight(columnTrlOnTrlLev, numLevels, headerIndex,'MM')
         if ( obsAltitude < levelAltLow ) then
           call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyindex, obs_notAssimilated)
