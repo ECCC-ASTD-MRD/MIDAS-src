@@ -140,7 +140,7 @@ fi
 
 if [[ \${run_pgm} != */* ]]; then
     status=0
-    which \${run_pgm} 1> /dev/null || status=1
+    which \${run_pgm} 1> /dev/null 2>&1 || status=1
     if [ "\${status}" -ne 0 ]; then
         if [ -x \${run_pgm} ]; then
             run_pgm=./\${run_pgm}
