@@ -154,6 +154,9 @@ contains
     type(struct_gsv)          :: stateVectorMeanTrl
 
     logical :: hLocalizeIsConstant, firstTime = .true.
+    logical :: printBeforeComm = .true.
+    logical :: printAfterComm = .true.
+    integer :: latIndexPrint, lonIndexPrint
 
     call utl_tmg_start(100,'--LETKFanalysis')
 
@@ -970,6 +973,29 @@ contains
 
           end if
 
+!latIndex = myLatIndexesSend(latLonIndex)
+!lonIndex = myLonIndexesSend(latLonIndex)
+!latIndexPrint = 0
+!lonIndexPrint = 0 
+!if ( printBeforeComm .and. levIndex == 47 ) then
+!  printBeforeComm = .false. 
+!  latIndexPrint = latIndex
+!  lonIndexPrint = lonIndex
+!  write(*,*) 'maziar: before comm, numLocalObs=', numLocalObs, ', latIndexPrint=', latIndexPrint, &
+!             ', lonIndexPrint=', lonIndexPrint
+!  do memberIndex2 = 1, nEns
+!    do memberIndex1 = 1, nEns
+!      do eigenVectorColumnIndex = 1, numRetainedEigen
+!        memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex1
+!        write(*,*) 'maziar: before comm, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
+!        ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
+!        ', memberIndexInModEns=', memberIndexInModEns, &
+!        ', weightsMembersLatLon=', weightsMembersLatLon(memberIndexInModEns,memberIndex2,latLonIndex)
+!      end do
+!    end do
+!  end do
+!end if
+
         else
 
           ! no obs near this grid point, mean weights zero, member weights identity
@@ -1207,11 +1233,16 @@ contains
                                           meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
                       pert_r4 = pert_r4 * real(modulationFactor,4)
                       
-if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. stepIndex == 1 .and. &
-    trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
-  write(*,*) 'maziar: memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
+if ( printAfterComm .and. trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' .and. &
+     levIndex == 47 ) then
+  if ( memberIndex2 == nEns .and. memberIndex1 == nEns .and. &
+       eigenVectorColumnIndex == numRetainedEigen ) printAfterComm = .false.
+  
+  write(*,*) 'maziar: after comm, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
                     ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
-                    ', memberIndexInModEns=', memberIndexInModEns, ', modulationFactor=', modulationFactor, &
+                    ', memberIndexInModEns=', memberIndexInModEns, &
+                    ', modulationFactor=', modulationFactor, &
+                    ', pert=', pert_r4, &
                     ', weightsMembers=', weightsMembers(memberIndexInModEns,memberIndex2,lonIndex,latIndex)
 end if
 
@@ -1238,9 +1269,13 @@ end if
               else
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
-if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. stepIndex == 1 .and. &
-    trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
-  write(*,*) 'maziar: memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
+if ( printAfterComm .and. trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' .and. &
+     levIndex == 47 ) then
+  if ( memberIndex2 == nEns .and. memberIndex1 == nEns ) printAfterComm = .false.
+
+  write(*,*) 'maziar: after comm, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
+                    ', pert=', memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
+                         meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex), &
                     ', weightsMembers=', weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex)
 end if
                     memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
