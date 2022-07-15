@@ -1008,7 +1008,7 @@ contains
                 weightsMembersLatLon(memberIndexInModEns,memberIndex,latLonIndex) = 1.0d0
               end do
             else
-            weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = 1.0d0
+              weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = 1.0d0
             end if
           end do
 
@@ -1255,7 +1255,7 @@ end if
 
                   ! Compute final member perturbations by removing background original ensemble perturbations
                   memberAnlPert(memberIndex2) = (memberTrl_ptr_r4(memberIndex2,stepIndex,lonIndex,latIndex) -  &
-                                                 meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)) + &
+                                                 meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)) - &
                                                  memberAnlPert(memberIndex2)
 
                 end do ! memberIndex2
