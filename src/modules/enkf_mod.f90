@@ -1105,18 +1105,18 @@ contains
                     pert_r4 = memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
                                         meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
 
-                    if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. debug ) then
-                      write(*,*) 'maziar: MEAN INCR, varName=', gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex),', levIndex=', levIndex, ', stepIndex=', stepIndex
-                      write(*,*) 'maziar: modulationFactor=', modulationFactor
-                      write(*,*) 'maziar: mean trial=', meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-                      write(*,*) 'maziar: original member pert=', pert_r4
-                    end if
-if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. stepIndex == 1 .and. &
-    memberIndex == 1 .and. trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
-  write(*,*) 'maziar: levIndex=', levIndex, &
-            ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
-            ', modulationFactor=', modulationFactor
-end if
+                    !if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. debug ) then
+                    !  write(*,*) 'maziar: MEAN INCR, varName=', gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex),', levIndex=', levIndex, ', stepIndex=', stepIndex
+                    !  write(*,*) 'maziar: modulationFactor=', modulationFactor
+                    !  write(*,*) 'maziar: mean trial=', meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+                    !  write(*,*) 'maziar: original member pert=', pert_r4
+                    !end if
+!if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. stepIndex == 1 .and. &
+!    memberIndex == 1 .and. trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
+!  write(*,*) 'maziar: levIndex=', levIndex, &
+!            ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
+!            ', modulationFactor=', modulationFactor
+!end if
 
 
                     pert_r4 = pert_r4 * real(modulationFactor,4)
@@ -1126,11 +1126,11 @@ end if
                          meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
                          weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r4
 
-                    if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. debug ) then
-                      write(*,*) 'maziar: modulated member pert=', pert_r4
-                      write(*,*) 'maziar: memberIndexInModEns=',  memberIndexInModEns
-                      write(*,*) 'maziar: mean increment=',  meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-                    end if
+                    !if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. debug ) then
+                    !  write(*,*) 'maziar: modulated member pert=', pert_r4
+                    !  write(*,*) 'maziar: memberIndexInModEns=',  memberIndexInModEns
+                    !  write(*,*) 'maziar: mean increment=',  meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+                    !end if
 
                   end do
                 end do
@@ -1229,10 +1229,11 @@ end if
 
                 end do ! memberIndex2
 
-                if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. debug ) then
-                  write(*,*) 'maziar: Anal pert, varName=', gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex),', levIndex=', levIndex, ', stepIndex=', stepIndex
-                  write(*,*) 'maziar: after remove mean weight sum(memberAnlPert)=', sum(memberAnlPert(:))
-                end if
+
+                !if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. debug ) then
+                !  write(*,*) 'maziar: Anal pert, varName=', gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex),', levIndex=', levIndex, ', stepIndex=', stepIndex
+                !  write(*,*) 'maziar: after remove mean weight sum(memberAnlPert)=', sum(memberAnlPert(:))
+                !end if
 
               else
                 do memberIndex2 = 1, nEns
