@@ -161,12 +161,17 @@ else
 fi
 
 ##=========================================================
+## Header and dependency check
+printHeader
+
+echo "Building dependencies"
+make depend || exit 1
+
+##=========================================================
 ## testing target validity on frontend first
 
 __job_opt="MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN}"
 __job_test_target="make -n ${__target} ${__job_opt}"
-
-printHeader
 
 ##-- lauching dry-run to test target
 echo ${__job_test_target}
