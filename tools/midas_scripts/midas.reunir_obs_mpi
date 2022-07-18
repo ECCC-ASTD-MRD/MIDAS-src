@@ -229,14 +229,22 @@ EOF
                  COLUMNS_AFTER_DATA="( ${COLUMNS_ON_ONE_LINE} )"
                  COLUMNS_AFTER_SELECT=${COLUMNS_ON_ONE_LINE}
              fi
-
+	     TABLE_NAMES=$(${sqlite3_cmd} ${file##*/} .table)
              CREATE_INDEX="CREATE INDEX if not exists idx1 ON DATA(ID_OBS,VCOORD,VARNO);"
 
              cat  << EOF >> TABLES_REUNIR
 insert into header select * from dbin.header;
-insert into data ${COLUMNS_AFTER_DATA} select ${COLUMNS_AFTER_SELECT} from dbin.data;
 EOF
-         fi ## End of 'else' associated to 'if [[ "${file##*/}" = bcr* ]]'
+    # loop over all tables in file; if the table has a column called "id_data", then proceed with insert statement
+    for TABLE_NAME in ${TABLE_NAMES}; do
+	COLUMNS_IN_TABLE=$(${sqlite3_cmd} ${file##*/} 'PRAGMA table_info('${TABLE_NAME}');')	 
+	if [[ "${COLUMNS_IN_TABLE}" == *"id_data"* ]]; then
+            cat <<EOF >> TABLES_REUNIR
+	insert into ${TABLE_NAME} ${COLUMNS_AFTER_DATA} select ${COLUMNS_AFTER_SELECT} from dbin.${TABLE_NAME};
+EOF
+        fi
+    done 
+	fi ## End of 'else' associated to 'if [[ "${file##*/}" = bcr* ]]'
 
          cat  << EOF >> TABLES_REUNIR
 detach dbin;
