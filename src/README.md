@@ -286,7 +286,7 @@ in the shell - don't modify `config.dot.sh`):
 $ source ./config.dot.sh
 ```
 Otherwise, only a few targets will be available: `clean`, `cleanabs`, 
-`cleanall`, `cleandep`, `cleanobj`  and `help`.
+`cleanall`, `cleaninst`, `cleandep`, `cleanobj`  and `help`.
 
 You can call `make` to build any target; target may be an object file, a
 specific program or a label (or *phony* target such as `all`, `objects` or other 
@@ -343,6 +343,7 @@ Some frequently used phony targets are:
 * `cleandep` : remove dependencies files in the current build directory
   ([see Automatic dependencies below](#automatic-dependencies))
 * `cleanall` : remove **all** build directories
+* `cleaninst` : remove **all** installed programs
 
 Omitting the target defaults to `all`.
 
