@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added `cleaninst` `make` target to remove all installed programs (#672 and !618)
  * Added a stop-and-wait utility for debugging purposes (#662 and !614)
  * Added ability to spread SST values on neighbouring land points (#660 and !613)
  * Added ability to output trial and analysis ensemble members in obs space to diag files (#621 and !608)
