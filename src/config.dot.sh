@@ -39,6 +39,7 @@ MIDAS_SSM_VERSION=${MIDAS_SSM_VERSION:-${__revnum}}
 ##  it can impact the maestro testing suite or the cleaning targets
 ##  in unwated ways
 MIDAS_ABS_LEAFDIR=${MIDAS_ABS_LEAFDIR:-midas_abs}
+MIDAS_MAKEDEP_TIMEOUT=${MIDAS_MAKEDEP_TIMEOUT:-5s}
 __install_always_midas=true
 __compiledir_link=${__compiledir_link:-${__toplevel}/compiledir}
 __build_dir_version=${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}
@@ -271,6 +272,7 @@ export MIDAS_COMPILE_FRONTEND
 export MIDAS_COMPILE_JOBNAME
 export MIDAS_ABS_LEAFDIR
 export MIDAS_COMPILE_VERBOSE
+export MIDAS_MAKEDEP_TIMEOUT
 
 export MIDAS_SSM_TARGET
 export MIDAS_SSM_PKGNAME

@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Add a timeout to makedepf90 to prevent stalling (#671 and !617)
  * Avoid calling `printf` in `tools/midas_scripts/midas.reunir_obs_mpi`
    with potentially very long arguments (#654 and !609)
  * Fixed the documentation generation on U2, removed private variables from API (#627 and !610)

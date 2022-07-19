@@ -194,6 +194,9 @@ ifeq (,$(filter $(__nopreq_goals), $(MAKECMDGOALS)))
     ifeq ($(shell which makedepf90),)
         $(error makedepf90 not available)
     endif
+    ifndef MIDAS_MAKEDEP_TIMEOUT
+        $(error MIDAS_MAKEDEP_TIMEOUT is not set, source $(FILE_CFG))
+    endif
 endif
 
 __ssm_goals := ssm  ssm_protect
@@ -381,21 +384,21 @@ endif
 
 ##-----------------------------------------------
 ## 	automatic generation of dependencies using `makedepf90` 
-##
-##	`makedepf90` can be obtained through 
-##	* conda pakage at [conda-forge](https://anaconda.org/conda-forge/makedepf90)
-##	* Debian or Ubuntu pakages
+##		(in some cases, `makedepf90` will fail at analysing the dependencies and
+## 		stall for a long time, a timer insure this stays under control)
 
 $(DEP_OBJ): $(SRC_ALL) $(SRC_ROOT)/programs/programs.mk
 	$(V) echo "Generating object dependencies > $@"	
-	$(V) echo $(notdir $(shell makedepf90 $(SRC_ALL))) | \
+	$(V) echo $(notdir $(shell timeout $(MIDAS_MAKEDEP_TIMEOUT) makedepf90 $(SRC_ALL))) | \
 		sed  's/\([^ ]* :\)/\n\1/g' > $@
+	$(if $(findstring $(.SHELLSTATUS),0),,$(error Error : makedepf90 timeout: problem with dependency analysis))
 
 ##  ### Absolute linking prerequisites
 ##
 ##	generate prerequisites for absolutes using `recursiveDep.py`
 ##
 $(DEP_ABS): $(DEP_OBJ)
+	$(if $(shell cat $(DEP_OBJ)),,$(error Error : empty $^))
 	$(V) echo "Generating executables dependencies > $@"
 	$(V) $(SRC_ROOT)/recursiveDep.py $^ '$(notdir $(ABS))'  > $@
 
