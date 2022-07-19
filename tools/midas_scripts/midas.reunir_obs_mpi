@@ -235,15 +235,17 @@ EOF
              cat  << EOF >> TABLES_REUNIR
 insert into header select * from dbin.header;
 EOF
-    # loop over all tables in file; if the table has a column called "id_data", then proceed with insert statement
-    for TABLE_NAME in ${TABLE_NAMES}; do
-	COLUMNS_IN_TABLE=$(${sqlite3_cmd} ${file##*/} 'PRAGMA table_info('${TABLE_NAME}');')	 
-	if [[ "${COLUMNS_IN_TABLE}" == *"id_data"* ]]; then
-            cat <<EOF >> TABLES_REUNIR
-	insert into ${TABLE_NAME} ${COLUMNS_AFTER_DATA} select ${COLUMNS_AFTER_SELECT} from dbin.${TABLE_NAME};
+	# loop over all tables in file; if the table has a column called "id_data" or "id_obs", then proceed with insert statement
+	for TABLE_NAME in ${TABLE_NAMES}; do
+	    if [ $TABLE_NAME != 'header' ]; then 	 
+		COLUMNS_IN_TABLE=$(${sqlite3_cmd} ${file##*/} 'PRAGMA table_info('${TABLE_NAME}');')	 
+		if [[ "${COLUMNS_IN_TABLE}" == *"id_data"* ]] || [[ "${COLUMNS_IN_TABLE}" == *"id_obs"* ]]; then
+		    cat <<EOF >> TABLES_REUNIR
+insert into ${TABLE_NAME} ${COLUMNS_AFTER_DATA} select ${COLUMNS_AFTER_SELECT} from dbin.${TABLE_NAME};
 EOF
-        fi
-    done 
+		fi
+            fi
+	done 
 	fi ## End of 'else' associated to 'if [[ "${file##*/}" = bcr* ]]'
 
          cat  << EOF >> TABLES_REUNIR
@@ -255,7 +257,7 @@ EOF
     ${sqlite3_cmd} ${rdbout} < TABLES_REUNIR
     ${sqlite3_cmd} ${rdbout} <<EOF
 PRAGMA cache_size=1000000;
-PRAGMA  synchronous = OFF;
+PRAGMA synchronous = OFF;
 PRAGMA journal_mode = OFF;
 ${CREATE_INDEX}
 EOF
