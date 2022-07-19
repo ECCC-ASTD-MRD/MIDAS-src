@@ -113,7 +113,6 @@ MIDAS_COMPILE_DIR_MAIN := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_DIR_MAIN=
 endif
 ifndef MIDAS_ABS_LEAFDIR
 MIDAS_ABS_LEAFDIR := $(shell cat $(FILE_CFG) | grep MIDAS_ABS_LEAFDIR= | sed $(__sed_env_extr))
-
 endif
 ifndef MIDAS_COMPILE_JOBNAME
 MIDAS_COMPILE_JOBNAME := $(shell cat $(FILE_CFG) | grep MIDAS_COMPILE_JOBNAME= | sed $(__sed_env_extr))
@@ -121,7 +120,7 @@ endif
 
 ##  global cleaning target
 ## 	(independent of environment: available anytime) 
-.PHONY: clean  cleanall cleanabs cleanobj cleandep cleanlst
+.PHONY: clean  cleanall cleanabs cleanobj cleandep cleanlst cleaninst
 
 
 clean:	#> delete current build directory (keep installed programs) 
@@ -131,6 +130,11 @@ cleanall:	#> delete ALL build directories (keep installed programs)
 	@echo "rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-*"
 	@read -p "<!> Sure? (<ctr+c> to cancel, <enter> to continue)" && \
 		rm -rf $(MIDAS_COMPILE_DIR_MAIN)/midas_bld-*
+
+cleaninst:	#> delete ALL installed programs
+	@echo "rm -rf $(MIDAS_COMPILE_DIR_MAIN)/$(MIDAS_ABS_LEAFDIR)"
+	@read -p "<!> Delete ALL installed programs? (<ctr+c> to cancel, <enter> to continue) " && \
+		rm -rf $(MIDAS_COMPILE_DIR_MAIN)/$(MIDAS_ABS_LEAFDIR)
 
 ## specific cleaning target 
 cleanabs:  #> delete all absolutes in current build directory
@@ -171,7 +175,7 @@ help:	#> print this help
 
 ##  Verification for some environment dependencies
 ##	(not needed for some targets, the __nopreq_goals)
-__nopreq_goals := help clean cleanall cleanabs cleanobj cleandep cleanlst splitobs
+__nopreq_goals := help clean cleanall cleaninst cleanabs cleanobj cleandep cleanlst splitobs
 ifeq (,$(filter $(__nopreq_goals), $(MAKECMDGOALS)))
     ##  Verify if main environment variable set when needed
     ifndef COMPF
