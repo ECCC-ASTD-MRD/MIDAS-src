@@ -217,8 +217,8 @@ EOF
          else
 	     ## loop over all tables in file which does not contain '${common_sql_column}' (usually 'id_obs')
              ## and insert statement
-	     TABLES_WITH_KEY=
-             for table in $(${sqlite3_cmd} ${file##*/} .table | tr ' ' '\n' | grep -v '^$' | sort -r); do
+	     ALL_TABLES_EXCEPT_HEADER=$(${sqlite3_cmd} ${file##*/} .table | ${sed_cmd} 's/header//i')
+             for table in header ${ALL_TABLES_EXCEPT_HEADER}; do
                  did_find_table=true
                  ${sqlite3_cmd} ${file##*/} ".schema ${table}" | ${grep_cmd} -sqi ${common_sql_column} || did_find_table=false
                  if [ "${did_find_table}" = true ]; then
