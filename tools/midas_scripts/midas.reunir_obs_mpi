@@ -14,6 +14,7 @@ eval `${CCLARGS} -D "" $0 \
   -number_of_families_already_processed  "0"   "0" "[Number of families already process by a previous MPI run (default: 0)]" \
   -families2process  ""   "" "[List of families extension to be processed]" \
   -splitobs_mode     "no" "no"   "[mode to use to split observation files ('no', 'splitobs', 'round-robin', 'reflex' and 'burp_split') (default is 'no')]" \
+  -common_sql_column "id_obs" "id_obs" "[SQL column that is used as a link between tables (default is 'id_obs')]" \
   -reunir_obs        "reunir_obs.Abs" "reunir_obs.Abs" "[program 'reunir_obs' to group observations files (default: the one in the PATH)]" \
   -reunir_obs_fam    "uan uas ua to_amsua to_amsub csr ssmis airs iasi atms cris tov" "" "[list of observation families that 'reunir_obs' will have to process (default: 'uan uas ua to_amsua to_amsub csr ssmis airs iasi atms cris tov')]" \
   -editbrp     "editbrp" "editbrp" "[path to 'editbrp' (default: the one in the PATH)]" \
@@ -182,25 +183,20 @@ elif [ "${filetype}" = SQLite ]; then
     ${sqlite3_cmd} ${rdbout} <<EOF
 drop index if exists idx1;
 EOF
-    status=0
-    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -isq 'CREATE TABLE rdb4_schema' || status=1
-    if [ "${status}" -eq 0 ]; then
-        ${sqlite3_cmd} ${rdbout} <<EOF
-attach '${bfile}' as dbin;
-insert into rdb4_schema select * from dbin.rdb4_schema;
-detach dbin;
-EOF
-    fi
 
-    status=0
-    ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${grep_cmd} -isq 'CREATE TABLE resume' || status=1
-    if [ "${status}" -eq 0 ]; then
-        ${sqlite3_cmd} ${rdbout} <<EOF
+    ## Copy all the tables which does not contain '${common_sql_column}' (usually 'id_obs')
+    ## from the first file to the final file
+    for table in $(${sqlite3_cmd} ${bfile} .table); do
+        did_find_table=true
+        ${sqlite3_cmd} ${bfile} ".schema ${table}" | ${grep_cmd} -sqi ${common_sql_column} || did_find_table=false
+        if [ "${did_find_table}" = false ]; then
+            ${sqlite3_cmd} ${rdbout} <<EOF
 attach '${bfile}' as dbin;
-insert into resume select * from dbin.resume;
+insert into ${table} select * from dbin.${table};
 detach dbin;
 EOF
-    fi
+        fi
+    done
 
     cat  << EOF > TABLES_REUNIR
 PRAGMA journal_mode = OFF;
@@ -219,40 +215,38 @@ insert into coeffs     select * from dbin.coeffs;
 EOF
              CREATE_INDEX=
          else
-             if [[ "${file##*/}" = dia* ]]; then
-                 COLUMNS_AFTER_DATA=
-                 COLUMNS_AFTER_SELECT='*'
-             else
-                 ## On veut garder toutes les colonnes sauf le 'ID_DATA' puisque cette cle n'est plus unique si des observations ont ete ajoutees a l'update dans 'midas-*.Abs'
-                 COLUMNS=$(${echo_cmd} 'PRAGMA table_info(data);' | ${sqlite3_cmd} -csv ${file##*/} | ${grep_cmd} -iv ID_DATA)
-                 COLUMNS_ON_ONE_LINE=$(${printf_cmd} "${COLUMNS}" | ${cut_cmd} -d, -f2 | ${sed_cmd} '$!s/$/,/' | ${tr_cmd} -d '\n')
-                 COLUMNS_AFTER_DATA="( ${COLUMNS_ON_ONE_LINE} )"
-                 COLUMNS_AFTER_SELECT=${COLUMNS_ON_ONE_LINE}
-             fi
-	     TABLE_NAMES=$(${sqlite3_cmd} ${file##*/} .table)
-             CREATE_INDEX="CREATE INDEX if not exists idx1 ON DATA(ID_OBS,VCOORD,VARNO);"
-
-             cat  << EOF >> TABLES_REUNIR
-insert into header select * from dbin.header;
+	     ## loop over all tables in file which does not contain '${common_sql_column}' (usually 'id_obs')
+             ## and insert statement
+	     TABLES_WITH_KEY=
+             for table in $(${sqlite3_cmd} ${file##*/} .table); do
+                 did_find_table=true
+                 ${sqlite3_cmd} ${file##*/} ".schema ${table}" | ${grep_cmd} -sqi ${common_sql_column} || did_find_table=false
+                 if [ "${did_find_table}" = true ]; then
+                     if [[ "${file##*/}" = dia* ]]; then
+                         cat  << EOF >> TABLES_REUNIR
+insert into ${table} select * from dbin.${table};
 EOF
-	# loop over all tables in file; if the table has a column called "id_data" or "id_obs", then proceed with insert statement
-	for TABLE_NAME in ${TABLE_NAMES}; do
-	    if [ $TABLE_NAME != 'header' ]; then 	 
-		COLUMNS_IN_TABLE=$(${sqlite3_cmd} ${file##*/} 'PRAGMA table_info('${TABLE_NAME}');')	 
-		if [[ "${COLUMNS_IN_TABLE}" == *"id_data"* ]] || [[ "${COLUMNS_IN_TABLE}" == *"id_obs"* ]]; then
-		    cat <<EOF >> TABLES_REUNIR
-insert into ${TABLE_NAME} ${COLUMNS_AFTER_DATA} select ${COLUMNS_AFTER_SELECT} from dbin.${TABLE_NAME};
+                     else
+                         ## On veut garder toutes les colonnes sauf le 'ID_DATA' puisque cette cle n'est plus unique
+                         ## si des observations ont ete ajoutees a l'update dans 'midas-*.Abs'
+                         COLUMNS_WITHOUT_ID_DATA=$(${echo_cmd} "PRAGMA table_info(${table});" | ${sqlite3_cmd} -csv ${file##*/} | ${grep_cmd} -iv ID_DATA)
+                         COLUMNS_ON_ONE_LINE=$(${printf_cmd} "${COLUMNS_WITHOUT_ID_DATA}" | ${cut_cmd} -d, -f2 | ${sed_cmd} '$!s/$/,/' | ${tr_cmd} -d '\n')
+                         COLUMNS_AFTER_DATA="( ${COLUMNS_ON_ONE_LINE} )"
+                         COLUMNS_AFTER_SELECT=${COLUMNS_ON_ONE_LINE}
+                         cat  << EOF >> TABLES_REUNIR
+insert into ${table} ${COLUMNS_AFTER_DATA} select ${COLUMNS_AFTER_SELECT} from dbin.${table};
 EOF
-		fi
-            fi
-	done 
+                     fi
+                 fi
+             done
+             CREATE_INDEX="CREATE INDEX if not exists idx1 ON DATA(ID_OBS, VCOORD,VARNO);"
 	fi ## End of 'else' associated to 'if [[ "${file##*/}" = bcr* ]]'
 
          cat  << EOF >> TABLES_REUNIR
 detach dbin;
 EOF
 
-    done
+    done ## End of 'for file in ${files}'
 
     ${sqlite3_cmd} ${rdbout} < TABLES_REUNIR
     ${sqlite3_cmd} ${rdbout} <<EOF
