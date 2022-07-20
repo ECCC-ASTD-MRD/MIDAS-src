@@ -2,15 +2,25 @@
 
 set -e
 
-## 6 hours in seconds
-wallclock_default=$((6*60*60))
+## 3 hours in minutes
+wallclock_default=$((3*60))
+
+if ! which qsub; then
+    echo
+    echo "This command only works when 'qsub' is available"
+    echo "exit!"
+    exit 1
+fi
+
+echo 'loading MAESTRO SSM ...'
+which maestro 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmo/isst/maestro/1.8.2
 
 arguments=$*
 eval `${CCLARGS:-cclargs} $0 \
   -exp   "not defined" "not defined" "[base maestro experiment" \
   -node  "not defined" "not defined" "[test to launch interactively]" \
   -date  "not defined" "not defined" "[date of the working directory prepared with maestro]" \
-  -wallclock  "${wallclock_default}" "${wallclock_default}" "[wallclock time for the interactive job (default: 6 hours)]" \
+  -wallclock  "${wallclock_default}" "${wallclock_default}" "[wallclock time in minutes for the interactive job (default: 180 for 3 hours)]" \
   ++ $arguments`
 
 if [ "${exp}" = 'not defined' ]; then
@@ -40,8 +50,6 @@ if [ "${#date}" -lt "${date_number_of_characters}" ]; then
     padding=$(printf "0%.0s" $(seq $((${#date}+1)) ${date_number_of_characters}))
     date=${date}${padding}
 fi
-
-which nodeinfo 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmo/isst/maestro/1.7.1
 
 host=$(nodeinfo -e ${exp} -n ${node} | grep '^node\.machine=' | cut -d= -f2)
 working_directory=${exp}/hub/${host}/work/${date}/${node}/work
@@ -79,7 +87,7 @@ fi
 #echo memory=${memory}
 #echo soumet_args=${soumet_args}
 
-unittestname=$(echo ${node} | sed 's|^/Tests/||' | sed 's|/UnitTest/run$||' | sed 's|/|.|')
+unittestname=$(echo ${node} | sed 's|^/Tests/||' | sed 's|/UnitTest/run$||' | sed 's|/|.|g')
 jobname=MIDAS.${unittestname}
 
 # The following lines can be used for debugging:
@@ -113,7 +121,7 @@ check_file() {
     if [ -f "${__check_file_file__}" ]; then
         echo "${__check_file_function__}: The file ${__check_file_file__} exists" >&2
         echo "${__check_file_function__}: Erase it or move it if you want to keep it" >&2
-        return 1
+        rm -i ${__check_file_file__}
     fi
 
     unset __check_file_file__ __check_file_function__
@@ -131,7 +139,7 @@ find_resources () {
         return 1
     fi
 
-    __sleep_job__=sleep_forever.sh
+    __sleep_job__=${jobname}.sleep_forever.sh
     check_file find_resources ${__sleep_job__}
 
     __lajobtar__=lajob.tar
@@ -143,86 +151,37 @@ find_resources () {
 sleep $((360*60))
 
 EOF
-    ord_soumet ${__sleep_job__} -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args} -nosubmit 2>/dev/null
+    ord_soumet_cmd="ord_soumet ${__sleep_job__} -jn ${jobname} -mach ${host} -listing ${PWD} -w 360 -cpus ${cpus} -m ${memory} ${soumet_args} -nosubmit 2>/dev/null"
+    echo ord_soumet command: >&2
+    echo ${ord_soumet_cmd} >&2
+
+    ${ord_soumet_cmd}
+    if [ $? -ne 0 ]; then
+      echo Problem with call to ord_soumet
+      exit 1
+    fi
+
     rm ${__sleep_job__}
 
     ## The following command will output
     ##     #PBS -l select=10:ncpus=40:mem=100000M:res_tmpfs=5120:res_image=eccc/eccc_all_ppp_ubuntu-18.04-amd64_latest -l place=free -r n
-    __PBSresources__=$(tar --wildcards -xOf ${__lajobtar__} "${jobname}.${host}*" | grep '^#PBS -l select=')
+    tar --wildcards -xOf ${__lajobtar__} "${jobname}.${host}*" | grep '^#PBS' | grep -v '^#PBS -[jo]' | grep -v '^#PBS -l walltime='
 
     rm ${__lajobtar__}
-
-    # The following line can be used for debugging:
-    # echo __PBSresources__=${__PBSresources__} >&2
-
-    ## extract the memory setting
-    echo ${__PBSresources__} | grep -oE "mem=[0-9]+[KMG]"
-    ## extract the select setting (nslots)
-    echo ${__PBSresources__} | grep -oE "select=[0-9]+"
-    ## extract the npus setting
-    echo ${__PBSresources__} | grep -oE "ncpus=[0-9]+"
 
     unset __sleep_job__ __lajobtar__
 } ## End of function 'find_resources'
 
-extract_resource() {
-    set -e
-    if [ $# -ne 2 ]; then
-        echo "The function 'extract_resource' accepts only two arguments." >&2
-        echo "    It has been called with:" >&2
-        echo "            $0 $*" >&2
-        return 1
-    fi
-    __element__=${1}
-    __resources__=${2}
+pbsdirectives=${PWD}/${jobname}.pbsdirectives
+check_file launch_interactive ${pbsdirectives}
 
-    printf "${__resources__}\n" | grep "^${__element__}=" | cut -d= -f2
+find_resources > ${pbsdirectives}
+echo "#PBS -l walltime=$((wallclock*60))" >> ${pbsdirectives}
 
-    unset __element__ __resources__
-}
-
-resources=$(find_resources)
-# The following line can be used for debugging:
-# printf "resources=${resources}\n"
-
-ncores=$(extract_resource ncpus "${resources}")
-nslots=$(extract_resource select "${resources}")
-memory_per_node=$(extract_resource mem "${resources}")
-
-## Parsing 'soumet_args' to find the '-tmpfs ${TMPFSSIZE}'
-set -- ${soumet_args}
-other_resources=
-while [ $# -ne 0 ]; do
-    if [ "${1}" = -tmpfs ]; then
-        if [ $# -lt 2 ]; then
-            echo "The argument '-tmpfs' under 'soumet_args' needs an argument" >&2
-            exit 1
-        else
-            other_resources="${other_resources} -r tmpfs=${2}"
-            shift 2
-        fi
-    else
-        shift
-    fi
-done
-
-rcfile=${PWD}/rcfile
+rcfile=${PWD}/${jobname}.rcfile
 check_file launch_interactive ${rcfile}
 
 cat > ${rcfile} <<EOF
-. /etc/profile
-. $HOME/.profile
-
-if [ -z "\${PBS_JOBNAME}" ]; then
-    profile=\$(/bin/ls /var/tmp/pbs.*/profile.sh)
-    if [ -f "\${profile}" ]; then
-        echo "Sourcing PBS setup in file \${profile}"
-        source \${profile}
-    else
-        echo "Cannot find the PBS setup \${profile}"
-    fi
-fi
-
 echo
 echo Changing directory for ${working_directory}
 cd ${working_directory}
@@ -232,20 +191,30 @@ echo Loading execution environment in file load_env.sh
 . ./load_env.sh
 
 echo
-echo You can now run interactively your program with
-echo "   ./launch_program.sh \\\${path_to_program}"
+echo You can now run your program interactively with:
 echo
+echo "   ./launch_program.sh pgm"
+echo
+echo for the latest executable used by 'run.tsk' or
+echo
+echo "   ./launch_program.sh /path/to/midas-bld/midas_abs/midas-\\\${pgm}_\\\${plat}_\\\${version}_\\\${commit}_\\\${M}.Abs"
+echo
+echo for any executable of the midas program used in this test.
 EOF
 
-submit_host=$(echo ${host} | cut -d- -f2) ## remove 'eccc-' from 'eccc-ppp3'
-
-which jobsubi 1> /dev/null 2>&1 || . ssmuse-sh -x hpco/exp/jobsubi/jobsubi-0.3
-
-jobsubi_cmd="jobsubi -r memory=${memory_per_node} -r nslots=${nslots} -r ncores=${ncores} -r wallclock=$((6*60*60)) ${other_resources} ${submit_host} -- bash --rcfile ${rcfile} -i"
+#TODO mpiprocs should not be hard coded.
+#TODO figure out how to launch rcfile and let interactive session open
+qsub_cmd="qsub -X -I ${pbsdirectives}"
 echo "Launching the interactive job with"
-echo "   ${jobsubi_cmd}"
+echo "   ${qsub_cmd}"
 echo
 
-${jobsubi_cmd}
+echo "When the interactive job is started, do"
+echo
+echo "    source ${rcfile}"
+echo
+echo "to load the environment and start working"
 
-rm ${rcfile}
+${qsub_cmd}
+
+rm ${rcfile} ${pbsdirectives}
