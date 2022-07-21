@@ -236,8 +236,8 @@ EOF
                          cat  << EOF >> TABLES_REUNIR
 insert into ${table} ${COLUMNS_AFTER_DATA} select ${COLUMNS_AFTER_SELECT} from dbin.${table};
 EOF
-                     fi
-                 fi
+                     fi ## End of 'else' associated to 'if [[ "${file##*/}" = dia* ]]'
+                 fi ## End of 'if [ "${did_find_table}" = true ]'
              done
              CREATE_INDEX="CREATE INDEX if not exists idx1 ON DATA(ID_OBS, VCOORD,VARNO);"
 	fi ## End of 'else' associated to 'if [[ "${file##*/}" = bcr* ]]'
