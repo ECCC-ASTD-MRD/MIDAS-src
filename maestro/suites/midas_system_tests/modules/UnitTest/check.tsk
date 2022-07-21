@@ -284,9 +284,16 @@ while read line; do
 done < results_files
 wait
 
+max_lines_in_listings=200
 for file in *.listing; do
-    echo Listing file of ${file}
-    cat ${file}
+    nlines=$(wc -l < ${file})
+    if [[ ${nlines} -gt ${max_lines_in_listings} ]] ; then
+      echo "Here are the first ${max_lines_in_listings} lines of the diff file: ${file}"
+      head -n ${max_lines_in_listings} ${file}
+    else
+      echo Listing file of ${file}
+      cat ${file}
+    fi
 done
 
 if [ -n "$(/bin/ls *.not_validating 2>/dev/null)" ]; then

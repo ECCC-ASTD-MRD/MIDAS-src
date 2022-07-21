@@ -536,9 +536,9 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_MWS   = OBS_CLWB +1 ! model wind speed (in ASCAT data)
    integer, parameter, public :: OBS_SCAT  = OBS_MWS  +1 ! atmospheric scatering index
    integer, parameter, public :: OBS_IWV   = OBS_SCAT +1 ! atmospheric integrated water vapor for ssmis
-   integer, parameter, public :: OBS_RZAM  = OBS_IWV  +1 ! Azimuth of the Radar beam
-   integer, parameter, public :: OBS_RELE  = OBS_RZAM +1 ! Elevation of the Radar beam  
-   integer, parameter, public :: OBS_RANS  = OBS_RELE +1 ! Initial range of the Radar beam
+   integer, parameter, public :: OBS_RZAM  = OBS_IWV  +1 ! Azimuth of the Radar beam   (radians)
+   integer, parameter, public :: OBS_RELE  = OBS_RZAM +1 ! Elevation of the Radar beam (radians)
+   integer, parameter, public :: OBS_RANS  = OBS_RELE +1 ! Initial range of the Radar beam 
    integer, parameter, public :: OBS_RANE  = OBS_RANS +1 ! Final range of the Radar beam 
 
    ! the last column index for real header variables defined just above
@@ -630,9 +630,9 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_CRPS= OBS_FSO+1  ! Continuous Ranked Probability Score
    integer, parameter, public :: OBS_BCOR= OBS_CRPS+1 ! observation bias correction
    integer, parameter, public :: OBS_OMPE= OBS_BCOR+1 ! error standard deviation of [obs - H (trial field)]
-   integer, parameter, public :: OBS_ROLA= OBS_OMPE+1 ! individual obs latitude
-   integer, parameter, public :: OBS_ROLO= OBS_ROLA+1 ! individual obs longitude
-   integer, parameter, public :: OBS_BTCL= OBS_ROLO+1 ! clear-sky simulated observation
+   integer, parameter, public :: OBS_LATD= OBS_OMPE+1 ! obs LATitude  in Data table (radians)
+   integer, parameter, public :: OBS_LOND= OBS_LATD+1 ! obs LONgitude in Data table (radians)
+   integer, parameter, public :: OBS_BTCL= OBS_LOND+1 ! clear-sky simulated observation
    integer, parameter, public :: OBS_LOCI= OBS_BTCL+1 ! LOCation Information for observation (e.g. range along radar beam)
 
    ! the number of real body variables defined just above
@@ -752,8 +752,8 @@ module ObsDataColumn_mod
         OBS_QCF2, OBS_CLA /)
    integer, public, parameter :: odc_ENKF_bdy_real_column_list(15) = &
       (/OBS_PPP, OBS_SEM, OBS_VAR,  OBS_OMP,  OBS_OMA,  OBS_OER,  OBS_HPHT,&
-        OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, OBS_ROLA,&
-        OBS_ROLO /)
+        OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, OBS_LATD,&
+        OBS_LOND /)
 
 contains
 
@@ -1061,7 +1061,7 @@ contains
          bdy_real_column_list= &
             (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT,&
               OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, OBS_WORK, OBS_PRM,&
-              OBS_JOBS, OBS_BCOR,OBS_ROLO,OBS_ROLA, (0,ii=20,100) /)
+              OBS_JOBS, OBS_BCOR,OBS_LOND,OBS_LATD, (0,ii=20,100) /)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
@@ -1513,7 +1513,7 @@ module ObsSpaceData_mod
    public :: OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OER, OBS_HPHT
    public :: OBS_HAHT,OBS_ZHA, OBS_OMP6,OBS_OMA0,OBS_SIGI,OBS_SIGO,OBS_POB
    public :: OBS_WORK,OBS_PRM, OBS_JOBS,OBS_QCV, OBS_FSO, OBS_CRPS,OBS_BCOR
-   public :: OBS_OMPE,OBS_ROLA,OBS_ROLO,OBS_BTCL,OBS_LOCI
+   public :: OBS_OMPE,OBS_LATD,OBS_LOND,OBS_BTCL,OBS_LOCI
 
    ! OBSERVATION-SPACE FUNDAMENTAL PARAMETERS
    integer, public, parameter :: obs_assimilated    = 1 ! OBS_ASS value for assimilated obs

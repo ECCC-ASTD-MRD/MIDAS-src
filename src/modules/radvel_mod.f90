@@ -20,6 +20,7 @@ module radvel_mod
   ! :Purpose: Containing commonly used functions for the assimilation of Doppler velocity
   !
   !
+  use codePrecision_mod
   use mpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
@@ -29,33 +30,37 @@ module radvel_mod
   private
 
   ! public procedures
-  public :: rdv_getlatlonHRfromRange, rdv_getRangefromH, rdv_getHfromRange 
+  public :: rdv_getlatlonHRfromRange, rdv_getRangefromH
 
 
 contains 
 
 
-  subroutine rdv_getlatlonHRfromRange(antennaLat, antennaLon, beamElevation, beamAzimuth, &
-                     radarAltitude, beamRange, latSlant,lonSlant, beamHeight, beamDistance)
+  subroutine rdv_getlatlonHRfromRange(antennaLat, antennaLon, beamElevation, beamAzimuth, & !in
+                                      radarAltitude, beamRange,                           & !in
+                                      latSlant, lonSlant, beamHeight, beamDistance)         !out
     !
     ! :Purpose: Computation of  lat-lon , height  of the trajectory
     !           along the radar beam from range of the radar beam
     !
+    ! Angles are expressed in radians
+    ! Height and distances in meters
+    !
     implicit none
 
     ! Argument 
-    real(8), intent(in)  :: antennaLat
-    real(8), intent(in)  :: antennaLon
-    real(8), intent(in)  :: beamElevation
-    real(8), intent(in)  :: beamAzimuth
-    real(8), intent(in)  :: radarAltitude
-    real(8), intent(in)  :: beamRange
-    real(8), intent(out) :: LatSlant
-    real(8), intent(out) :: lonSlant
-    real(8), intent(out) :: beamHeight
-    real(8), intent(out) :: beamDistance
+    real(pre_obsReal), intent(in)  :: antennaLat
+    real(pre_obsReal), intent(in)  :: antennaLon
+    real(pre_obsReal), intent(in)  :: beamElevation
+    real(pre_obsReal), intent(in)  :: beamAzimuth
+    real(pre_obsReal), intent(in)  :: radarAltitude
+    real(pre_obsReal), intent(in)  :: beamRange
+    real(pre_obsReal), intent(out) :: LatSlant
+    real(pre_obsReal), intent(out) :: lonSlant
+    real(pre_obsReal), intent(out) :: beamHeight
+    real(pre_obsReal), intent(out) :: beamDistance
     ! Local
-    real(8)              :: Re 
+    real(pre_obsReal)              :: Re 
     
     ! Radius of sphere of equal area from earthconstants_mod.f90
     ! ec_wgs_R2 = 6371007.1809
@@ -63,7 +68,7 @@ contains
     Re = ec_wgs_R2 * (4./3.)
 
     !compute height of radar observation
-    call rdv_getHfromRange(beamRange, radarAltitude, beamElevation, beamHeight)
+    beamHeight = sqrt(beamRange**2.+(Re+radarAltitude)**2.+2.*beamRange*(Re+radarAltitude)*sin(beamElevation))-(Re)
 
     ! distance following surface of the earth from Doviak and Zrnic (2.28c)
     beamDistance = atan(beamRange*cos(beamElevation)/(beamRange*sin(beamElevation)+Re+radarAltitude))*Re
@@ -74,30 +79,6 @@ contains
 
   end subroutine rdv_getlatlonHRfromRange
 
-  subroutine rdv_getHfromRange(beamRange, radarAltitude, beamElevation, beamHeight)
-    !
-    ! :Purpose: Computation of height of the radar beam
-    !           from range of the radar beam
-    !
-    implicit none
-
-    ! Argument 
-    real(8) , intent(in)  :: beamRange
-    real(8) , intent(in)  :: radarAltitude
-    real(8) , intent(in)  :: beamElevation
-    real(8) , intent(out) :: beamHeight
-    ! Local
-    real(8)               :: Re 
-   
-    ! Radius of sphere of equal area from earthconstants_mod.f90
-    ! ec_wgs_R2 = 6371007.1809
-    ! effective radius of the earth
-    Re = ec_wgs_R2*(4./3.)
-    ! height of radar beam  from range at beamElevation and radarAltitude 
-    beamHeight = sqrt(beamRange**2.+(Re+radarAltitude)**2.+2.*beamRange*(Re+radarAltitude)*sin(beamElevation))-(Re)
-
-  end subroutine rdv_getHfromRange
-
   subroutine rdv_getRangefromH(beamHeight, radarAltitude, beamElevation, beamRange)
     !
     ! :Purpose: Computation of range of the radar beam from height of the radar beam
@@ -105,23 +86,32 @@ contains
     implicit none
     
     ! Argument
-    real(8) , intent(in)  :: beamHeight
-    real(8) , intent(in)  :: radarAltitude
-    real(8) , intent(in)  :: beamElevation
-    real(8) , intent(out) :: beamRange 
+    real(pre_obsReal) , intent(in)  :: beamHeight
+    real(pre_obsReal) , intent(in)  :: radarAltitude
+    real(pre_obsReal) , intent(in)  :: beamElevation
+    real(pre_obsReal) , intent(out) :: beamRange 
     ! Local
-    real(8)               :: a, b, c, Re
-  
-    ! Radius of sphere of equal area from earthconstants_mod.f90
-    ! ec_wgs_R2 = 6371007.1809
-    ! effective radius of the earth
-    Re = ec_wgs_R2*(4./3.)
+    real(pre_obsReal)               :: a, b, c, Re
 
-    a = 1.
-    b = 2.*(Re + radarAltitude)*sin(beamElevation)
-    c = -(Re + beamHeight)**2. + (Re + radarAltitude)**2.
-    ! range of radar beam from height and elevation of the radar beam 
-    beamRange  = (-b + sqrt( b**2. - 4.*a*c )) / (2.*a)
+    if ( radarAltitude > beamHeight ) then 
+      !beamHeight is below radar antenna wich may cause the equation below to return garbage
+      !this happens in a few edge cases where its okay to return zero
+      beamRange = 0.0
+    else
+
+      ! Radius of sphere of equal area from earthconstants_mod.f90
+      ! ec_wgs_R2 = 6371007.1809
+      ! effective radius of the earth
+      Re = ec_wgs_R2*(4./3.)
+
+      a = 1.
+      b = 2.*(Re + radarAltitude)*sin(beamElevation)
+      c = -(Re + beamHeight)**2. + (Re + radarAltitude)**2.
+      ! range of radar beam from height and elevation of the radar beam 
+      beamRange  = (-b + sqrt( b**2. - 4.*a*c )) / (2.*a)
+
+    end if
+  
      
   end subroutine rdv_getRangefromH
 

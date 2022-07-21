@@ -951,8 +951,8 @@ contains
       if (headerIndex < 0) exit HEADER
   
       radarAltitude = obs_headElem_r(obsSpaceData, OBS_ALT,  headerIndex)
-      beamAzimuth   = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
-      beamElevation = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+      beamAzimuth   = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) 
+      beamElevation = obs_headElem_r(obsSpaceData, OBS_RELE, headerIndex)
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       !
       ! Loop over all body indices of the 'RA' family with schema 'radvel':
@@ -2274,7 +2274,7 @@ contains
           if ( listFamily(familyIndex) == 'RA' ) then
 
             ! Azimuth of the radar beam
-            azimuth   = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+            azimuth   = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex)
 
           end if
 
@@ -3242,7 +3242,7 @@ contains
 
           if  ( listFamily(familyIndex) == 'RA' ) then
             ! Azimuth of the radar beam
-            azimuth   = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex) * MPC_RADIANS_PER_DEGREE_R8
+            azimuth   = obs_headElem_r(obsSpaceData, OBS_RZAM, headerIndex)
           end if
 
           ! Local vector state

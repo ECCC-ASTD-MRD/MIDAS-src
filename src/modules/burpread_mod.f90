@@ -3605,8 +3605,11 @@ CONTAINS
           if ( FAMTYP == 'RO' ) then
             rolat1 = rolat(j)*MPC_RADIANS_PER_DEGREE_R8
             rolon1 = rolon(j)*MPC_RADIANS_PER_DEGREE_R8
-            call obs_bodySet_r(obsdat,OBS_ROLA,count,rolat1)
-            call obs_bodySet_r(obsdat,OBS_ROLO,count,rolon1)
+            call obs_bodySet_r(obsdat,OBS_LATD,count,rolat1)
+            call obs_bodySet_r(obsdat,OBS_LOND,count,rolon1)
+          else
+            call obs_bodySet_r(obsdat,OBS_LATD,count,obs_missingValue_R)
+            call obs_bodySet_r(obsdat,OBS_LOND,count,obs_missingValue_R)
           end if
           if ( L_BCOR .and. obs_columnActive_RB(obsdat,OBS_BCOR) ) then
             call obs_bodySet_r(obsdat,OBS_BCOR,count,BCOR)
@@ -3638,18 +3641,22 @@ CONTAINS
             call obs_bodySet_i(obsdat,OBS_VNM,count+1,ovt_getDestinationBufrCode(varno))
             call obs_bodySet_i(obsdat,OBS_FLG,count+1,0)
             ELEV_R=VCOORD + ELEV*ELEVFACT
-            call obs_bodySet_r(obsdat,OBS_PPP,count+1,ELEV_R)
-            call obs_bodySet_i(obsdat,OBS_VCO,count+1,VCO)
-            call obs_bodySet_r(obsdat,OBS_VAR,count+1,MISG)
+            call obs_bodySet_r(obsdat,OBS_PPP, count+1,ELEV_R)
+            call obs_bodySet_i(obsdat,OBS_VCO, count+1,VCO)
+            call obs_bodySet_r(obsdat,OBS_VAR, count+1,MISG)
+            call obs_bodySet_r(obsdat,OBS_LATD,count+1,MISG)
+            call obs_bodySet_r(obsdat,OBS_LOND,count+1,MISG)
             count = count + 1
             NLV = NLV + 1
             if (ovt_isWindObs(varno)) then
               ! Add an extra row for the other wind component
-              call obs_bodySet_i(obsdat,OBS_VNM,count+1,ovt_getDestinationBufrCode(varno,extra_opt=.true.))
-              call obs_bodySet_i(obsdat,OBS_FLG,count+1,0)
-              call obs_bodySet_r(obsdat,OBS_PPP,count+1,ELEV_R)
-              call obs_bodySet_i(obsdat,OBS_VCO,count+1,VCO)
-              call obs_bodySet_r(obsdat,OBS_VAR,count+1,MISG)
+              call obs_bodySet_i(obsdat,OBS_VNM, count+1,ovt_getDestinationBufrCode(varno,extra_opt=.true.))
+              call obs_bodySet_i(obsdat,OBS_FLG, count+1,0)
+              call obs_bodySet_r(obsdat,OBS_PPP, count+1,ELEV_R)
+              call obs_bodySet_i(obsdat,OBS_VCO, count+1,VCO)
+              call obs_bodySet_r(obsdat,OBS_VAR, count+1,MISG)
+              call obs_bodySet_r(obsdat,OBS_LATD,count+1,MISG)
+              call obs_bodySet_r(obsdat,OBS_LOND,count+1,MISG)
               count = count + 1
               NLV = NLV + 1
             end if

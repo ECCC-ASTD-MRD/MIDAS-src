@@ -50,7 +50,7 @@ public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles, sqlr_readSqlite_avhrr, sq
 public :: sqlr_writePseudoSSTobs, sqlr_writeEmptyPseudoSSTobsFile
 contains
   
-  subroutine sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, numberData)
+  subroutine sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, numberData, latd, lond)
     !
     ! :Purpose: Initialize data values for an observation object.
     !
@@ -64,12 +64,26 @@ contains
     integer          , intent(in)    :: obsFlag 
     integer          , intent(in)    :: vertCoordType
     integer          , intent(in)    :: numberData
+    real(pre_obsReal), optional, intent(in) :: latd
+    real(pre_obsReal), optional, intent(in) :: lond
 
     call obs_bodySet_r(obsdat, OBS_PPP, numberData, vertCoord)
     call obs_bodySet_r(obsdat, OBS_VAR, numberData, obsValue)
     call obs_bodySet_i(obsdat, OBS_VNM, numberData, obsVarno)
     call obs_bodySet_i(obsdat, OBS_FLG, numberData, obsFlag)
     call obs_bodySet_i(obsdat, OBS_VCO, numberData, vertCoordType)
+
+    if (present(latd)) then
+      call obs_bodySet_r(obsdat, OBS_LATD, numberData, latd)
+    else
+      call obs_bodySet_r(obsdat, OBS_LATD, numberData, obs_missingValue_R)
+    end if
+
+    if (present(lond)) then
+      call obs_bodySet_r(obsdat, OBS_LOND, numberData, lond)
+    else
+      call obs_bodySet_r(obsdat, OBS_LOND, numberData, obs_missingValue_R)
+    end if 
 
   end subroutine sqlr_initData
 
@@ -79,7 +93,7 @@ contains
                              solarAzimuth, terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag,    &
                              headPrimaryKey, obsLat, obsLon, codeType, obsDate, obsTime, &
                              obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, &
-                             obsrzam,  obsrele, obsrans, obsrane,                        &
+                             beamAzimuth, beamElevation, beamRangeStart, beamRangeEnd,   &
                              firstBodyIndexOfThisBatch, obsNlv)
     !
     ! :Purpose: To initialize the header information when SQLite files are read.
@@ -119,10 +133,10 @@ contains
     real(pre_obsReal), intent(in)    :: zenith
     real(pre_obsReal), intent(in)    :: azimuth
     real(pre_obsReal), intent(in)    :: modelWindSpeed
-    real(pre_obsReal), intent(in)    :: obsrzam
-    real(pre_obsReal), intent(in)    :: obsrele
-    real(pre_obsReal), intent(in)    :: obsrans
-    real(pre_obsReal), intent(in)    :: obsrane
+    real(pre_obsReal), intent(in)    :: beamAzimuth
+    real(pre_obsReal), intent(in)    :: beamElevation
+    real(pre_obsReal), intent(in)    :: beamRangeStart
+    real(pre_obsReal), intent(in)    :: beamRangeEnd
 
     call obs_setFamily(obsdat, trim(familyType), headerIndex)
     call obs_setHeadPrimaryKey(obsdat,  headerIndex, headPrimaryKey)
@@ -180,10 +194,10 @@ contains
          call obs_headSet_r(obsdat, OBS_MWS, headerIndex, modelWindSpeed)
       end if
       if (trim(rdbSchema) == 'radvel') then
-          call obs_headSet_r(obsdat, OBS_RZAM, headerIndex, obsrzam)
-          call obs_headSet_r(obsdat, OBS_RELE, headerIndex, obsrele)
-          call obs_headSet_r(obsdat, OBS_RANS, headerIndex, obsrans)
-          call obs_headSet_r(obsdat, OBS_RANE, headerIndex, obsrane)
+          call obs_headSet_r(obsdat, OBS_RZAM, headerIndex, beamAzimuth)
+          call obs_headSet_r(obsdat, OBS_RELE, headerIndex, beamElevation)
+          call obs_headSet_r(obsdat, OBS_RANS, headerIndex, beamRangeStart)
+          call obs_headSet_r(obsdat, OBS_RANE, headerIndex, beamRangeEnd)
       end if   
     end if
 
@@ -321,14 +335,16 @@ contains
     logical                  :: createHeaderEntry
     real(pre_obsReal)        :: elevReal, xlat, xlon, vertCoord
     real                     :: elev    , obsLat, obsLon, elevFact
-    real                     :: obsrzam , obsrans, obsrane, obsrele          
+    real                     :: beamAzimuth, beamRangeStart, beamRangeEnd, beamElevation          
+    real(pre_obsReal)        :: beamAzimuthReal, beamElevationReal
+    real(pre_obsReal)        :: beamLat , beamLon, beamHeight, beamDistance, beamRange
     integer                  :: vertCoordType, vertCoordFact, fnom, fclos, nulnam, ierr, idProf
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
     integer                  :: roQcFlag
     real(pre_obsReal)        :: geoidUndulation, earthLocRadCurv, obsValue, surfEmiss, biasCorrection
     real(8)                  :: geoidUndulation_R8, earthLocRadCurv_R8, azimuthReal_R8
     integer                  :: trackCellNum
-    real(pre_obsReal)        :: modelWindSpeed, range_m
+    real(pre_obsReal)        :: modelWindSpeed
     real(8)                  :: modelWindSpeed_R8
     integer                  :: iasiImagerCollocationFlag, iasiGeneralQualityFlag
     integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
@@ -711,10 +727,10 @@ contains
         zenithReal = MPC_missingValue_R4
         instrument = MPC_missingValue_INT
         azimuthReal_R8 = MPC_missingValue_R8
-        obsrzam = MPC_missingValue_R4
-        obsrele = MPC_missingValue_R4
-        obsrans = MPC_missingValue_R4
-        obsrane = MPC_missingValue_R4
+        beamAzimuth    = MPC_missingValue_R4
+        beamElevation  = MPC_missingValue_R4
+        beamRangeStart = MPC_missingValue_R4
+        beamRangeEnd   = MPC_missingValue_R4
 
         call fSQL_get_column(stmt, COL_INDEX = 2, real_var  = obsLat)
         call fSQL_get_column(stmt, COL_INDEX = 3, real_var  = obsLon)
@@ -787,11 +803,11 @@ contains
         else if (trim(familyType) == 'RA') then
           if (trim(rdbSchema) == 'radvel') then
             call fSQL_get_column(stmt, COL_INDEX = 8, real_var  = elev, REAL_MISSING=MPC_missingValue_R4)
-            elevReal=elev
-            call fSQL_get_column(stmt, COL_INDEX = 9,  real_var  = obsrzam)
-            call fSQL_get_column(stmt, COL_INDEX = 10, real_var  = obsrele)
-            call fSQL_get_column(stmt, COL_INDEX = 11, real_var  = obsrans)
-            call fSQL_get_column(stmt, COL_INDEX = 12, real_var  = obsrane)
+            elevReal=elev !altitude of radar antenna
+            call fSQL_get_column(stmt, COL_INDEX = 9,  real_var  = beamAzimuth)
+            call fSQL_get_column(stmt, COL_INDEX = 10, real_var  = beamElevation)
+            call fSQL_get_column(stmt, COL_INDEX = 11, real_var  = beamRangeStart)
+            call fSQL_get_column(stmt, COL_INDEX = 12, real_var  = beamRangeEnd)
           end if
 
         else  ! remaining families
@@ -867,19 +883,31 @@ contains
           vertCoord = real(MPC_missingValue_R8, pre_obsReal)
         end if
 
-        !write standard body values to obsSpaceData
-        call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
 
-        !add range along radar beam
-        range_m = matdata(rowIndex,5)
-        call obs_bodySet_r(obsdat, OBS_LOCI, bodyIndex, range_m)
-        !add height (vertCoord) along radar beam from range 
-        call rdv_getHfromRange(range_m, elevReal, obsrele * MPC_RADIANS_PER_DEGREE_R8, vertCoord)
-        call obs_bodySet_r(obsdat, OBS_PPP, bodyIndex, vertCoord )
+        !elevation and azimuths are converted to radians and "pre_obsReal" precision
+        beamElevationReal = beamElevation * MPC_RADIANS_PER_DEGREE_R8
+        beamAzimuthReal   = beamAzimuth   * MPC_RADIANS_PER_DEGREE_R8
+
+        !range along radar beam
+        beamRange = matdata(rowIndex,5)
+
+        !compute lat, lon and height of observation
+
+        call rdv_getlatlonHRfromRange(xlat, xlon, beamElevationReal, beamAzimuthReal, & !in
+                                      elevReal, beamRange,                            & !in
+                                      beamLat, beamLon, beamHeight, beamDistance)       !out
+        !radar specific addition(s) to body table
+        call obs_bodySet_r(obsdat, OBS_LOCI, bodyIndex, beamRange)
 
       end if
         
-      if (trim(familyType) == 'TO') then
+      if (trim(familyType) == 'RA' .and. trim(rdbSchema) == 'radvel') then
+
+        !write standard body values to obsSpaceData
+        call sqlr_initData(obsdat, beamHeight, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex, &
+                           latd=beamLat, lond=beamLon)  !optional args
+
+      else if (trim(familyType) == 'TO') then
 
         if (obsValue /= MPC_missingValue_R8) then
           call sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, bodyIndex)
@@ -941,8 +969,8 @@ contains
              iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey,             &
              xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,      &
              trackCellNum, modelWindSpeed,                                                  &
-             real(obsrzam,kind=pre_obsReal), real(obsrele,kind=pre_obsReal),                &
-             real(obsrans,kind=pre_obsReal), real(obsrane,kind=pre_obsReal),                &
+             beamAzimuthReal, beamElevationReal,                                            &
+             real(beamRangeStart,kind=pre_obsReal), real(beamRangeEnd,kind=pre_obsReal),    &
              firstBodyIndexOfThisBatch, obsNlv)
 
         !reset level counter for next batch of data entries
@@ -1768,6 +1796,7 @@ contains
     type(fSQL_STATUS)      :: stat                                 ! type for error status
     integer                :: obsVarno, obsFlag, ASS, vertCoordType, codeType, date, time, idObs, idData, memberIndex
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude, ENSOBSTRL, ENSOBSANL
+    real                   :: latData, lonData
     real                   :: ensInnovStdDev, ensObsErrStdDev, zhad, fso
     integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
     character(len = 512)   :: queryData, queryHeader, queryCreate, queryCreateEnsObs 
@@ -1823,13 +1852,14 @@ contains
                     &codtyp integer, date integer, time integer, elev real); &
                     &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
                     &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
-                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real, fso real);'
+                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real, lat real, lon real, &
+                    &fso real);'
     else
       queryCreate = 'create table header (id_obs integer primary key, id_stn varchar(50), lat real, lon real, &
                     &codtyp integer, date integer, time integer, elev real); &
                     &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
                     &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
-                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real);'
+                    &an_error real, fg_error real, obs_error real, sigi real, sigo real, zhad real, lat real, lon real);'
     end if
 
     call fSQL_do_many(db, queryCreate, stat)
@@ -1845,10 +1875,10 @@ contains
     
     if (addFSOdiag) then
       queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
-                   &obs_error, sigi, sigo, zhad, fso) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
+                   &obs_error, sigi, sigo, zhad, lat, lon, fso) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     else
       queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
-                  &obs_error, sigi, sigo, zhad) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
+                  &obs_error, sigi, sigo, zhad, lat, lon) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);'
     end if
     
     queryHeader = 'insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev) values(?,?,?,?,?,?,?,?); '
@@ -1931,6 +1961,8 @@ contains
         FGE           = obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex)
         PPP           = obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex)
         ASS           = obs_bodyElem_i(obsdat, OBS_ASS , bodyIndex)
+        latData       = obs_bodyElem_r(obsdat, OBS_LATD, bodyIndex)
+        lonData       = obs_bodyElem_r(obsdat, OBS_LOND, bodyIndex)
 
         ! skip obs if it was not assimilated
         if (onlyAssimObs) then
@@ -1966,6 +1998,8 @@ contains
           case ('UA', 'AI', 'SW')
             if (vertCoordType == 2) vertCoordType = 7004
           case ('RO')
+            vertCoordType = 7007
+          case ('RA')
             vertCoordType = 7007
           case ('PR')
             vertCoordType = 7006
@@ -2029,11 +2063,23 @@ contains
         else
           call fSQL_bind_param(stmtData, param_index = 15, real_var = zhad)
         end if 
+        if (latData == obs_missingValue_R) then
+          call fSQL_bind_param(stmtData, param_index = 16) 
+        else
+          latData = latData * MPC_DEGREES_PER_RADIAN_R8
+          call fSQL_bind_param(stmtData, param_index = 16, real_var = latData)
+        end if 
+        if (lonData == obs_missingValue_R) then
+          call fSQL_bind_param(stmtData, param_index = 17) 
+        else
+          lonData = lonData * MPC_DEGREES_PER_RADIAN_R8
+          call fSQL_bind_param(stmtData, param_index = 17, real_var = lonData)
+        end if 
         if (addFSOdiag) then
           if (fso == obs_missingValue_R) then
-            call fSQL_bind_param(stmtData, param_index = 16)
+            call fSQL_bind_param(stmtData, param_index = 18)
           else
-            call fSQL_bind_param(stmtData, param_index = 16, real_var = fso)
+            call fSQL_bind_param(stmtData, param_index = 18, real_var = fso)
           end if
         end if
 
