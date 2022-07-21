@@ -2205,6 +2205,7 @@ end if
     real(8), allocatable, save :: eigenValues(:)
     real(8), allocatable, save :: eigenVectors(:,:)
     real(8), allocatable, save :: verticalLocalizationMat(:,:)
+    real(8), allocatable, save :: verticalLocalizationMatLowRank(:,:)
 
     logical, save :: firstCall = .true.
 
@@ -2218,6 +2219,7 @@ end if
       allocate(eigenValues(nLev))
       allocate(eigenVectors(nLev,nLev))
       allocate(verticalLocalizationMat(nLev,nLev))
+      allocate(verticalLocalizationMatLowRank(nLev,nLev))
 
       pSurfRef = 101000.D0
       nullify(pressureProfile)
@@ -2249,6 +2251,17 @@ end if
         write(*,*) 'matrixRank=', matrixRank
         call utl_abort('getModulationFactor: verticalLocalizationMat is rank deficient=')
       end if
+
+      ! Compute low-ranked vertical localization matrix
+      do levIndex1 = 1, nLev
+        do levIndex2 = 1, nLev
+          verticalLocalizationMatLowRank(levIndex1,levIndex2) = sum ( & 
+            eigenVectors(levIndex1,1:numRetainedEigen) * &
+            eigenVectors(levIndex2,1:numRetainedEigen) * &
+            eigenValues(1:numRetainedEigen) )
+        end do
+      end do
+
       !eigenValues(2:nLev) = 0.0d0
 if (mpi_myid == 0) then
   do levIndex1 = 1, numRetainedEigen
@@ -2258,11 +2271,13 @@ if (mpi_myid == 0) then
 
   do levIndex1 = 1, nLev
     write(*,*) 'maziar: verticalLocalizationMat for lev ', levIndex1, '=', verticalLocalizationMat(levIndex1,:)
+    write(*,*) 'maziar: verticalLocalizationMatLowRank for lev ', levIndex1, '=', verticalLocalizationMatLowRank(levIndex1,:)
   end do
 end if
     end if
 
-    modulationFactor = eigenVectors(eigenVectorLevelIndex,eigenVectorColumnIndex) * &
+    modulationFactor = 1 / sqrt(verticalLocalizationMatLowRank(eigenVectorLevelIndex,eigenVectorLevelIndex)) * &
+                       eigenVectors(eigenVectorLevelIndex,eigenVectorColumnIndex) * &
                        eigenValues(eigenVectorColumnIndex) ** 0.5 * &
                        (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
 
