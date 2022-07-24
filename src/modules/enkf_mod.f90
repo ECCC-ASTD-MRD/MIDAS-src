@@ -2197,7 +2197,7 @@ end if
     real(8), intent(out) :: modulationFactor
 
     ! Locals:
-    integer             :: levIndex1, levIndex2, status
+    integer             :: levIndex1, levIndex2, eigenIndex, status
     integer             :: nLev, matrixRank
     real(8)             :: zr, zcorr, pSurfRef
     real(8)             :: tolerance
@@ -2220,6 +2220,7 @@ end if
       allocate(eigenVectors(nLev,nLev))
       allocate(verticalLocalizationMat(nLev,nLev))
       allocate(verticalLocalizationMatLowRank(nLev,nLev))
+      verticalLocalizationMatLowRank(:,:) = 0.0d0
 
       pSurfRef = 101000.D0
       nullify(pressureProfile)
@@ -2255,10 +2256,12 @@ end if
       ! Compute low-ranked vertical localization matrix
       do levIndex1 = 1, nLev
         do levIndex2 = 1, nLev
-          verticalLocalizationMatLowRank(levIndex1,levIndex2) = sum ( & 
-            eigenVectors(levIndex1,1:numRetainedEigen) * &
-            eigenVectors(levIndex2,1:numRetainedEigen) * &
-            eigenValues(1:numRetainedEigen) )
+          do eigenIndex = 1, numRetainedEigen
+            verticalLocalizationMatLowRank(levIndex1,levIndex2) = verticalLocalizationMatLowRank(levIndex1,levIndex2) + & 
+                                                                  eigenVectors(levIndex1,eigenIndex) * &
+                                                                  eigenVectors(levIndex2,eigenIndex) * &
+                                                                  eigenValues(eigenIndex)
+          end do
         end do
       end do
 
