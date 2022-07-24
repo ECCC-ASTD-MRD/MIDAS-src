@@ -1071,6 +1071,42 @@ contains
 
       call utl_tmg_start(107,'----ApplyWeights')
 
+      if ( levIndex == 47 .and. numRetainedEigen > 0 .and. mpi_myid == 0 ) then
+      !if ( numRetainedEigen > 0 ) then
+        do latIndex = myLatBegHalo, myLatEndHalo
+          do lonIndex = myLonBegHalo, myLonEndHalo
+            ! If this lat-lon is to be interpolated, then skip calculation
+            if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) cycle
+
+            anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
+            anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
+            !if ( abs(anlLat+36.5) < 10 .and. abs(anlLon-59.5) < 10 ) then
+              write(*,*) 'maziar: anlLat=', anlLat, ', anlLon=', anlLon
+              do memberIndex2 = 1, nEns
+                do memberIndex1 = 1, nEns
+                  do eigenVectorColumnIndex = 1, numRetainedEigen
+                    memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex1
+
+                    if ( memberIndex1 == 1 ) then
+                      write(*,*) 'maziar: weightsMean anlLat/anlLon, memberIndex2=', memberIndex2, &
+                        ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
+                        ', memberIndexInModEns=', memberIndexInModEns, &
+                        ', weightsMean=', weightsMean(memberIndexInModEns,1,lonIndex,latIndex)
+                    end if
+
+                    write(*,*) 'maziar: weightsMember anlLat/anlLon, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
+                      ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
+                      ', memberIndexInModEns=', memberIndexInModEns, &
+                      ', weightsMembers=', weightsMembers(memberIndexInModEns,memberIndex2,lonIndex,latIndex)
+                  end do
+                end do
+              end do
+            !end if
+
+          end do 
+        end do
+      end if
+
       !
       ! Apply the weights to compute the ensemble mean and members
       !
