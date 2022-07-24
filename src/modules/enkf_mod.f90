@@ -998,19 +998,19 @@ contains
 
         else
 
-          ! no obs near this grid point, mean weights zero, member weights identity
-          weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
-          weightsMembersLatLon(:,:,latLonIndex) = 0.0d0
-          do memberIndex = 1, nEns
-            if ( numRetainedEigen > 0 ) then
-              do eigenVectorColumnIndex = 1, numRetainedEigen 
-                memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex
-                weightsMembersLatLon(memberIndexInModEns,memberIndex,latLonIndex) = 1.0d0
-              end do
-            else
-              weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = 1.0d0
-            end if
-          end do
+          !! no obs near this grid point, mean weights zero, member weights identity
+          !weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
+          !weightsMembersLatLon(:,:,latLonIndex) = 0.0d0
+          !do memberIndex = 1, nEns
+          !  if ( numRetainedEigen > 0 ) then
+          !    do eigenVectorColumnIndex = 1, numRetainedEigen 
+          !      memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex
+          !      weightsMembersLatLon(memberIndexInModEns,memberIndex,latLonIndex) = 1.0d0
+          !    end do
+          !  else
+          !    weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = 1.0d0
+          !  end if
+          !end do
 
         end if ! numLocalObs > 0
 
@@ -1063,10 +1063,10 @@ contains
       ! Interpolate weights from coarse to full resolution
       !
       call utl_tmg_start(106,'----InterpolateWeights')
-      if (wInterpInfo%latLonStep > 1) then
-        call enkf_interpWeights(wInterpInfo, weightsMean)
-        call enkf_interpWeights(wInterpInfo, weightsMembers)
-      end if
+      !if (wInterpInfo%latLonStep > 1) then
+      !  call enkf_interpWeights(wInterpInfo, weightsMean)
+      !  call enkf_interpWeights(wInterpInfo, weightsMembers)
+      !end if
       call utl_tmg_stop(106)
 
       call utl_tmg_start(107,'----ApplyWeights')
