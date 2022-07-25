@@ -3564,7 +3564,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, allocatable :: obsLonBurpFileMpi(:), obsLatBurpFileMpi(:)
     integer, allocatable :: obsStepIndex(:), obsStepIndexMpi(:)
     integer, allocatable :: obsLayerIndex(:), obsLayerIndexMpi(:)
-    integer, allocatable :: headerIndexSorted(:), headerIndexSelected(:), headerIndexBuffer(:)
+    integer, allocatable :: headerIndexSorted(:), headerIndexSelected(:)
+    integer, allocatable :: headerIndexBuffer(:), headerIndexInQualityMpiBuffer(:)
     logical, allocatable :: valid(:), validMpi(:), validMpi2(:)
 
     write(*,*)
@@ -3610,7 +3611,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Initializations:
     valid(:) = .false.
-    quality(:) = 0
+    quality(:) = -1
     obsLatBurpFile(:) = 0
     obsLonBurpFile(:) = 0
     obsLayerIndex(:) = 0
@@ -3798,13 +3799,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     write(*,*) 'thn_satWindsByDistance: numObsStnIdInMpi', numObsStnIdInMpi(:)
 
     ! Thinning procedure
-    allocate(headerIndexSorted(numHeaderMaxMpi*mpi_nprocs))
-    do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
-      headerIndexSorted(headerIndex) = headerIndex
-    end do
-    allocate(headerIndexSelected(numHeaderMaxMpi*mpi_nprocs))
-    headerIndexSelected(:) = 0
-
     write(*,*) 'thn_satWindsByDistance: 1 qualityMpi', size(qualityMpi,1), qualityMpi(:)
     do headerIndex = 1, size(qualityMpi,1)
       write(*,*) 'thn_satWindsByDistance: 1 qualityMpi', headerIndex, qualityMpi(headerIndex)
@@ -3814,6 +3808,16 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     write(*,*) 'thn_satWindsByDistance: before filtering qualityMpi'
     write(*,*) 'thn_satWindsByDistance: before filtering qualityMpi'
 
+    allocate(qualityMpiBuffer(numHeaderMaxMpi*mpi_nprocs))
+    allocate(headerIndexInQualityMpiBuffer(numHeaderMaxMpi*mpi_nprocs))
+    numSelected = 0
+    do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+      if ( qualityMpi(headerIndex) >= 0 ) then
+        numSelected = numSelected + 1
+        qualityMpiBuffer(numSelected) = qualityMpi(headerIndex)
+        headerIndexInQualityMpiBuffer(numSelected) = headerIndex
+      end if
+    end do
     write(*,*) 'thn_satWindsByDistance: numSelected = ', numSelected
     do headerIndex = 1,numSelected
       write(*,*) 'thn_satWindsByDistance: 1 qualityMpiBuffer', headerIndex, qualityMpiBuffer(headerIndex)
@@ -3822,7 +3826,16 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
-    call thn_QsortInt(qualityMpi,headerIndexSorted,countObsInMpi)
+
+    allocate(headerIndexBuffer(numHeaderMaxMpi*mpi_nprocs))
+    do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+      headerIndexBuffer(headerIndex) = headerIndex
+    end do
+    allocate(headerIndexSelected(numHeaderMaxMpi*mpi_nprocs))
+    headerIndexSelected(:) = 0
+
+    call thn_QsortInt(qualityMpiBuffer,headerIndexBuffer,numSelected)
+
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
@@ -3841,14 +3854,27 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     do headerIndex = 1, numSelected
       write(*,*) 'thn_satWindsByDistance: 2 headerIndexInQualityMpiBuffer', headerIndex, headerIndexInQualityMpiBuffer(headerIndex)
     end do
-    do headerIndex = 1, indexOffset
-      qualityMpiBuffer(headerIndex) = 0
-      headerIndexBuffer(headerIndex) = countObsInMpi + headerIndex
+
+    allocate(headerIndexSorted(numHeaderMaxMpi*mpi_nprocs))
+    !! Populate again the array 'qualityMpi' with the data from 'qualityMpiBuffer'
+    numSelected = 0
+    do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+      if ( qualityMpi(headerIndex) >= 0 ) then
+        numSelected = numSelected + 1
+
+        ! qualityMpi(headerIndex) = qualityMpiBuffer(headerIndexBuffer(numSelected))
+        qualityMpi(headerIndex) = qualityMpiBuffer(numSelected)
+
+        headerIndexSorted(headerIndex) = headerIndexInQualityMpiBuffer(headerIndexBuffer(numSelected))
+
+      else
+        headerIndexSorted(headerIndex) = headerIndex
+      end if
     end do
-    qualityMpi(:) = qualityMpiBuffer(:)
-    headerIndexSorted(:) = headerIndexBuffer(:)
+
     deallocate(qualityMpiBuffer)
     deallocate(headerIndexBuffer)
+    deallocate(headerIndexInQualityMpiBuffer)
 
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
