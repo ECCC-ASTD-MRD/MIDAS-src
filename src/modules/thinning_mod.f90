@@ -3409,7 +3409,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       headerIndexSorted(obsIndex1)  = obsIndex1
     end do
 
-    call thn_QsortInt(qualityMpi,headerIndexSorted)
+    call thn_QsortInt(qualityMpi,headerIndexSorted,numHeaderMpi)
 
     numSelected       = 0   ! number of obs selected so far
     OBS_LOOP: do obsIndex1 = 1, numHeaderMpi
@@ -3788,7 +3788,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
-    call thn_QsortInt(qualityMpi,headerIndexSorted)
+    call thn_QsortInt(qualityMpi,headerIndexSorted,countObs)
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
@@ -4035,19 +4035,20 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
   !--------------------------------------------------------------------------
   ! thn_QsortInt
   !--------------------------------------------------------------------------
-  recursive subroutine thn_QsortInt(A,B)
+  recursive subroutine thn_QsortInt(A,B,numElementsInA)
     ! :Purpose: Quick sort algorithm for integer data.
 
     implicit none
 
     integer, intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
+    integer, intent(in)    :: numElementsInA
     integer :: iq
 
-    if (size(A) > 1) then
-      call thn_QsortIntpartition(A,B,iq)
-      call thn_QsortInt(A(:iq-1),B(:iq-1))
-      call thn_QsortInt(A(iq:),B(iq:))
+    if (numElementsInA > 1) then
+      call thn_QsortIntpartition(A,B,iq,numElementsInA)
+      call thn_QsortInt(A(:iq-1),B(:iq-1),iq-1)
+      call thn_QsortInt(A(iq:),B(iq:),numElementsInA-iq+1)
     end if
 
   end subroutine thn_QsortInt
@@ -4055,21 +4056,22 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
   !--------------------------------------------------------------------------
   ! thn_QsortIntpartition
   !--------------------------------------------------------------------------
-  subroutine thn_QsortIntpartition(A,B,marker)
+  subroutine thn_QsortIntpartition(A,B,marker,numElementsInA)
     ! :Purpose: Subroutine called in quick sort for integers.
 
     implicit none
 
     integer, intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
-    integer, intent(out) :: marker
+    integer, intent(out)   :: marker
+    integer, intent(in)    :: numElementsInA
     integer :: i, j, tmpi
     integer :: temp
     integer :: x      ! pivot point
 
     x = A(1)
     i= 0
-    j= size(A) + 1
+    j= numElementsInA + 1
 
     do
       j = j-1
