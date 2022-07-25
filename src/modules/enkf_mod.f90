@@ -1280,9 +1280,9 @@ contains
                       pert_r4 = pert_r4 * real(modulationFactor,4)
                       
                       if ( abs(anlLat+43.0) < 1 .and. abs(anlLon-75.0) < 1 .and. &
-                        trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' .and. &
-                        levIndex == 47 ) then
-                        write(*,*) 'maziar: after comm, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
+                        trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
+                        write(*,*) 'maziar: after comm, levIndex=', levIndex, &
+                        ', memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
                         ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
                         ', memberIndexInModEns=', memberIndexInModEns, &
                         ', modulationFactor=', modulationFactor, &
@@ -1314,9 +1314,9 @@ contains
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
                     if ( abs(anlLat+43.0) < 1 .and. abs(anlLon-75.0) < 1 .and. &
-                      trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' .and. &
-                      levIndex == 47 ) then
-                      write(*,*) 'maziar: after comm, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
+                      trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
+                      write(*,*) 'maziar: after comm, levIndex=', levIndex, &
+                      ', memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
                       ', pert=', memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
                       meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex), &
                       ', weightsMembers=', weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex)
