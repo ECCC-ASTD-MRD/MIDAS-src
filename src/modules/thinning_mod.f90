@@ -3727,32 +3727,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
 
     nsize = numHeaderMaxMpi
-    write(*,*) 'thn_satWindsByDistance: -1 quality', size(quality,1), quality(:)
-    do headerIndex = 1, size(quality,1)
-      write(*,*) 'thn_satWindsByDistance: -1 quality', headerIndex, quality(headerIndex)
-    end do
-    write(*,*) 'thn_satWindsByDistance: before allgather'
-    write(*,*) 'thn_satWindsByDistance: before allgather'
-    write(*,*) 'thn_satWindsByDistance: before allgather'
     call rpn_comm_allgather(quality,    nsize, 'mpi_integer',  &
-         qualityMpi, nsize, 'mpi_integer', 'grid', ierr)
-    write(*,*) 'thn_satWindsByDistance: after allgather'
-    write(*,*) 'thn_satWindsByDistance: after allgather'
-    write(*,*) 'thn_satWindsByDistance: after allgather'
-    write(*,*) 'thn_satWindsByDistance: 0 quality', size(quality,1), quality(:)
-    do headerIndex = 1, size(quality,1)
-      write(*,*) 'thn_satWindsByDistance: 0 quality', headerIndex, quality(headerIndex)
-    end do
-    write(*,*) 'thn_satWindsByDistance: after allgather'
-    write(*,*) 'thn_satWindsByDistance: after allgather'
-    write(*,*) 'thn_satWindsByDistance: after allgather'
-    write(*,*) 'thn_satWindsByDistance: 0 qualityMpi', size(qualityMpi,1), qualityMpi(:)
-    do headerIndex = 1, size(qualityMpi,1)
-      write(*,*) 'thn_satWindsByDistance: 0 qualityMpi', headerIndex, qualityMpi(headerIndex)
-    end do
-    write(*,*) 'thn_satWindsByDistance: after allgather'
-    write(*,*) 'thn_satWindsByDistance: after allgather'
-    write(*,*) 'thn_satWindsByDistance: after allgather'
+                            qualityMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsLatBurpFile,    nsize, 'mpi_integer',  &
                             obsLatBurpFileMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsLonBurpFile,    nsize, 'mpi_integer',  &
@@ -3804,10 +3780,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       write(*,*) 'thn_satWindsByDistance: 1 qualityMpi', headerIndex, qualityMpi(headerIndex)
     end do
 
-    write(*,*) 'thn_satWindsByDistance: before filtering qualityMpi'
-    write(*,*) 'thn_satWindsByDistance: before filtering qualityMpi'
-    write(*,*) 'thn_satWindsByDistance: before filtering qualityMpi'
-
     allocate(qualityMpiBuffer(numHeaderMaxMpi*mpi_nprocs))
     allocate(headerIndexInQualityMpiBuffer(numHeaderMaxMpi*mpi_nprocs))
     numSelected = 0
@@ -3817,10 +3789,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
         qualityMpiBuffer(numSelected) = qualityMpi(headerIndex)
         headerIndexInQualityMpiBuffer(numSelected) = headerIndex
       end if
-    end do
-    write(*,*) 'thn_satWindsByDistance: numSelected = ', numSelected
-    do headerIndex = 1,numSelected
-      write(*,*) 'thn_satWindsByDistance: 1 qualityMpiBuffer', headerIndex, qualityMpiBuffer(headerIndex)
     end do
 
     write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
@@ -3839,20 +3807,19 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    do headerIndex = 1, numSelected
-      write(*,*) 'thn_satWindsByDistance: 2 qualityMpiBuffer', headerIndex, qualityMpiBuffer(headerIndex)
+    do headerIndex = 1, size(qualityMpi,1)
+      write(*,*) 'thn_satWindsByDistance: 2 qualityMpi', headerIndex, qualityMpi(headerIndex)
     end do
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    do headerIndex = 1, numSelected
-      write(*,*) 'thn_satWindsByDistance: 2 headerIndexBuffer', headerIndex, headerIndexBuffer(headerIndex)
+    do headerIndex = 1, size(headerIndexSorted,1)
+      write(*,*) 'thn_satWindsByDistance: 2 headerIndexSorted', headerIndex, headerIndexSorted(headerIndex)
     end do
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    do headerIndex = 1, numSelected
-      write(*,*) 'thn_satWindsByDistance: 2 headerIndexInQualityMpiBuffer', headerIndex, headerIndexInQualityMpiBuffer(headerIndex)
+    indexOffset = numHeaderMaxMpi*mpi_nprocs-countObsInMpi
+    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt indexOffset: ', indexOffset
+    allocate(qualityMpiBuffer(numHeaderMaxMpi*mpi_nprocs))
+    allocate(headerIndexBuffer(numHeaderMaxMpi*mpi_nprocs))
+    do headerIndex = 1, countObsInMpi
+      qualityMpiBuffer(headerIndex+indexOffset) = qualityMpi(headerIndex)
+      headerIndexBuffer(headerIndex+indexOffset) = headerIndexSorted(headerIndex)
     end do
 
     allocate(headerIndexSorted(numHeaderMaxMpi*mpi_nprocs))
@@ -3875,13 +3842,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     deallocate(qualityMpiBuffer)
     deallocate(headerIndexBuffer)
     deallocate(headerIndexInQualityMpiBuffer)
-
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    do headerIndex = 1, size(headerIndexSorted,1)
-      write(*,*) 'thn_satWindsByDistance: 2 headerIndexSorted', headerIndex, headerIndexSorted(headerIndex)
-    end do
 
     write(*,*) 'thn_satWindsByDistance: after reorder thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: after reorder thn_QsortInt'
