@@ -3409,7 +3409,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       headerIndexSorted(obsIndex1)  = obsIndex1
     end do
 
-    call thn_QsortInt(qualityMpi,headerIndexSorted,numHeaderMpi)
+    call thn_QsortInt(qualityMpi,headerIndexSorted,numHeaderMaxMpi)
 
     numSelected       = 0   ! number of obs selected so far
     OBS_LOOP: do obsIndex1 = 1, numHeaderMpi
