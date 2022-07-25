@@ -1071,16 +1071,23 @@ contains
 
       call utl_tmg_start(107,'----ApplyWeights')
 
-      if ( levIndex == 47 .and. numRetainedEigen > 0 .and. mpi_myid == 0 ) then
+      if ( levIndex == 47 .and. numRetainedEigen > 0 ) then
+      !if ( levIndex == 47 .and. numRetainedEigen > 0 .and. mpi_myid == 0 ) then
       !if ( numRetainedEigen > 0 ) then
         do latIndex = myLatBegHalo, myLatEndHalo
           do lonIndex = myLonBegHalo, myLonEndHalo
             ! If this lat-lon is to be interpolated, then skip calculation
             if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) cycle
 
-            anlLat = hco_ens%lat2d_4(lonIndex,latIndex)
-            anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
-            !if ( abs(anlLat+36.5) < 10 .and. abs(anlLon-59.5) < 10 ) then
+            anlLat = hco_ens%lat2d_4(lonIndex,latIndex) * MPC_DEGREES_PER_RADIAN_R8 
+            anlLon = hco_ens%lon2d_4(lonIndex,latIndex) * MPC_DEGREES_PER_RADIAN_R8
+            if ( abs(anlLat+43.0) < 1 .and. abs(anlLon-75.0) < 1 ) then
+              if ( latIndex == myLatBegHalo .and. lonIndex == myLonBegHalo ) &
+                write(*,*) 'maziar: max(anlLat)=', maxval(hco_ens%lat2d_4) * MPC_DEGREES_PER_RADIAN_R8, &
+                ', min(anlLat)=', minval(hco_ens%lat2d_4) * MPC_DEGREES_PER_RADIAN_R8, &
+                ', max(anlLon)=', maxval(hco_ens%lon2d_4) * MPC_DEGREES_PER_RADIAN_R8, &
+                ', min(anlLon)=', minval(hco_ens%lon2d_4) * MPC_DEGREES_PER_RADIAN_R8
+
               write(*,*) 'maziar: anlLat=', anlLat, ', anlLon=', anlLon
               do memberIndex2 = 1, nEns
                 do memberIndex1 = 1, nEns
@@ -1089,19 +1096,19 @@ contains
 
                     if ( memberIndex1 == 1 ) then
                       write(*,*) 'maziar: weightsMean anlLat/anlLon, memberIndex2=', memberIndex2, &
-                        ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
-                        ', memberIndexInModEns=', memberIndexInModEns, &
-                        ', weightsMean=', weightsMean(memberIndexInModEns,1,lonIndex,latIndex)
+                      ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
+                      ', memberIndexInModEns=', memberIndexInModEns, &
+                      ', weightsMean=', weightsMean(memberIndexInModEns,1,lonIndex,latIndex)
                     end if
 
                     write(*,*) 'maziar: weightsMember anlLat/anlLon, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
-                      ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
-                      ', memberIndexInModEns=', memberIndexInModEns, &
-                      ', weightsMembers=', weightsMembers(memberIndexInModEns,memberIndex2,lonIndex,latIndex)
+                    ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
+                    ', memberIndexInModEns=', memberIndexInModEns, &
+                    ', weightsMembers=', weightsMembers(memberIndexInModEns,memberIndex2,lonIndex,latIndex)
                   end do
                 end do
               end do
-            !end if
+            end if
 
           end do 
         end do
@@ -1243,6 +1250,9 @@ contains
               ! Compute analysis member perturbation
               memberAnlPert(:) = 0.0d0
 
+              anlLat = hco_ens%lat2d_4(lonIndex,latIndex) * MPC_DEGREES_PER_RADIAN_R8 
+              anlLon = hco_ens%lon2d_4(lonIndex,latIndex) * MPC_DEGREES_PER_RADIAN_R8
+
               if ( numRetainedEigen > 0 ) then
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
@@ -1269,18 +1279,16 @@ contains
                                           meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
                       pert_r4 = pert_r4 * real(modulationFactor,4)
                       
-if ( printAfterComm .and. trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' .and. &
-     levIndex == 47 ) then
-  if ( memberIndex2 == nEns .and. memberIndex1 == nEns .and. &
-       eigenVectorColumnIndex == numRetainedEigen ) printAfterComm = .false.
-  
-  write(*,*) 'maziar: after comm, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
-                    ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
-                    ', memberIndexInModEns=', memberIndexInModEns, &
-                    ', modulationFactor=', modulationFactor, &
-                    ', pert=', pert_r4, &
-                    ', weightsMembers=', weightsMembers(memberIndexInModEns,memberIndex2,lonIndex,latIndex)
-end if
+                      if ( abs(anlLat+43.0) < 1 .and. abs(anlLon-75.0) < 1 .and. &
+                        trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' .and. &
+                        levIndex == 47 ) then
+                        write(*,*) 'maziar: after comm, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
+                        ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
+                        ', memberIndexInModEns=', memberIndexInModEns, &
+                        ', modulationFactor=', modulationFactor, &
+                        ', pert=', pert_r4, &
+                        ', weightsMembers=', weightsMembers(memberIndexInModEns,memberIndex2,lonIndex,latIndex)
+                      end if
 
                       ! sum Xb_Mod * Wa over all modulated ensembles to get member perturbations for
                       !   original ensemble (memberIndex2)
@@ -1305,15 +1313,14 @@ end if
               else
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
-if ( printAfterComm .and. trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' .and. &
-     levIndex == 47 ) then
-  if ( memberIndex2 == nEns .and. memberIndex1 == nEns ) printAfterComm = .false.
-
-  write(*,*) 'maziar: after comm, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
-                    ', pert=', memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
-                         meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex), &
-                    ', weightsMembers=', weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex)
-end if
+                    if ( abs(anlLat+43.0) < 1 .and. abs(anlLon-75.0) < 1 .and. &
+                      trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' .and. &
+                      levIndex == 47 ) then
+                      write(*,*) 'maziar: after comm, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
+                      ', pert=', memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
+                      meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex), &
+                      ', weightsMembers=', weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex)
+                    end if
                     memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
                          weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex) *  &
                          (memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
