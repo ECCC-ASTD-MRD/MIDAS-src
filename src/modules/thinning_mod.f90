@@ -3641,7 +3641,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       obsLatInDegrees = MPC_DEGREES_PER_RADIAN_R8 * obs_headElem_r(obsdat, OBS_LAT, headerIndex)
       obsLonBurpFile(headerIndex) = nint(100.0*obsLonInDegrees)
       obsLatBurpFile(headerIndex) = 9000 + nint(100.0*obsLatInDegrees)
-      write(*,*) 'thn_satWindsByDistance: lat lon ', headerIndex, obsLonInDegrees, obsLatInDegrees
 
       ! get step bin
       obsDate = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
@@ -3649,7 +3648,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
                                obsDate, obsTime, tim_nstepobs)
       obsStepIndex(headerIndex) = nint(obsStepIndex_r8)
-      write(*,*) 'thn_satWindsByDistance: date time stepIndex ', obsDate, obsTime, obsStepIndex(headerIndex)
 
       ! find layer (assumes 1 level only per headerIndex)
       obsPressure = -1.0
@@ -3665,7 +3663,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       end do BODY1
       ! modify obsPressure to be consistent with operational pgm
       obsPressure = 100.0*nint(obsPressure/100.0)
-      write(*,*) 'thn_satWindsByDistance: obsPressure', obsPressure
       deltaPressMin = abs( log(obsPressure) - log(layer(1)) )
       obsLayerIndex(headerIndex) = 1
       do layerIndex = 2, numLayers
@@ -3675,14 +3672,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
           obsLayerIndex(headerIndex) = layerIndex
         end if
       end do
-      write(*,*) 'thn_satWindsByDistance: obsLayerIndex(headerIndex)', obsLayerIndex(headerIndex)
 
       ! extract additional information
       obsMethod(headerIndex) = obs_headElem_i(obsdat, OBS_SWMT, headerIndex)
 
       ! set the observation quality based on QI1
       quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ1, headerIndex)
-      write(*,*) 'thn_satWindsByDistance: quality(headerIndex)', quality(headerIndex)
 
       ! find observation flags (assumes 1 level only per headerIndex)
       uObsFlag = -1
@@ -3712,7 +3707,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       end if
 
     end do HEADER1
-    write(*,*) 'thn_satWindsByDistance: quality', quality(:)
 
     ! Gather needed information from all MPI tasks
     allocate(validMpi(numHeaderMaxMpi*mpi_nprocs))
@@ -3732,11 +3726,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                             obsLatBurpFileMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsLonBurpFile,    nsize, 'mpi_integer',  &
                             obsLonBurpFileMpi, nsize, 'mpi_integer', 'grid', ierr)
-    write(*,*) 'thn_satWindsByDistance: 1 obsStepIndex ', obsStepIndex(:)
     call rpn_comm_allgather(obsStepIndex,    nsize, 'mpi_integer',  &
                             obsStepIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
-    write(*,*) 'thn_satWindsByDistance: 2 obsStepIndex ', obsStepIndex(:)
-    write(*,*) 'thn_satWindsByDistance: 2 obsStepIndexMpi ', obsStepIndexMpi(:)
     call rpn_comm_allgather(obsLayerIndex,    nsize, 'mpi_integer',  &
                             obsLayerIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsMethod,    nsize, 'mpi_integer',  &
@@ -3770,8 +3761,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
         call utl_abort('thn_satWindsByDistance: numStnId too large')
       end if
     end do HEADER
-    ! write(*,*) 'thn_satWindsByDistance: stnidList', stnidList(:)
-    write(*,*) 'thn_satWindsByDistance: numObsStnIdInMpi', numObsStnIdInMpi(:)
 
     ! Thinning procedure
     allocate(headerIndexSorted(numHeaderMaxMpi*mpi_nprocs))
@@ -3781,28 +3770,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     allocate(headerIndexSelected(numHeaderMaxMpi*mpi_nprocs))
     headerIndexSelected(:) = 0
 
-    write(*,*) 'thn_satWindsByDistance: 1 qualityMpi', size(qualityMpi,1), qualityMpi(:)
-    do headerIndex = 1, size(qualityMpi,1)
-      write(*,*) 'thn_satWindsByDistance: 1 qualityMpi', headerIndex, qualityMpi(headerIndex)
-    end do
-    write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
     call thn_QsortInt(qualityMpi,headerIndexSorted,countObsInMpi)
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: 2 qualityMpi', size(qualityMpi,1), qualityMpi(:)
-    do headerIndex = 1, size(qualityMpi,1)
-      write(*,*) 'thn_satWindsByDistance: 2 qualityMpi', headerIndex, qualityMpi(headerIndex)
-    end do
-    write(*,*) 'thn_satWindsByDistance: headerIndexSorted', size(headerIndexSorted,1), headerIndexSorted(:)
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
-    do headerIndex = 1, size(headerIndexSorted,1)
-      write(*,*) 'thn_satWindsByDistance: 2 headerIndexSorted', headerIndex, headerIndexSorted(headerIndex)
-    end do
+
     indexOffset = numHeaderMaxMpi*mpi_nprocs-countObsInMpi
     allocate(qualityMpiBuffer(numHeaderMaxMpi*mpi_nprocs))
     allocate(headerIndexBuffer(numHeaderMaxMpi*mpi_nprocs))
@@ -3833,22 +3802,18 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
         numSelected       = 0
         OBSLOOP1: do obsIndex1 = 1, numHeaderMpi
           headerIndex1 = headerIndexSorted(numHeaderMpi-obsIndex1+1)
-          write(*,*) 'thn_satWindsByDistance: 1 obsIndex1 numSelected ', obsIndex1, numHeaderMpi, headerIndex1, numSelected
 
           ! only consider obs with current layer being considered
           if (obsLayerIndexMpi(headerIndex1) /= layerIndex) cycle OBSLOOP1
-          write(*,*) 'thn_satWindsByDistance: 2 obsIndex1 numSelected ', obsIndex1, numSelected
 
           ! only consider obs with high quality
           if (qualityMpi(numHeaderMpi-obsIndex1+1) <= 10) cycle OBSLOOP1
-          write(*,*) 'thn_satWindsByDistance: 3 obsIndex1 numSelected ', obsIndex1, numSelected
 
           ! only consider obs from current satellite
           do charIndex = 1, lenStnId
             stnId(charIndex:charIndex) = achar(stnIdIntMpi(charIndex,headerIndex1))
           end do
           if (stnidList(stnIdIndex) /= stnId) cycle OBSLOOP1
-          write(*,*) 'thn_satWindsByDistance: 4 obsIndex1 numSelected ', obsIndex1, numSelected
 
           ! On compte le nombre d'observations qui sont deja
           ! selectionnees avec les memes parametres 'obsStepIndex' et 'obsLayerIndex'
@@ -3856,28 +3821,18 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
           obsAlreadySameStep = .false.
           OBSLOOP2: do obsIndex2 = 1, numSelected
             headerIndex2 = headerIndexSelected(obsIndex2)
-            write(*,*) 'thn_satWindsByDistance: 5 obsStepIndexMpi(headerIndex1)', obsIndex2, headerIndex1, obsStepIndexMpi(headerIndex1)
-            write(*,*) 'thn_satWindsByDistance: 5 obsStepIndexMpi(headerIndex2)', obsIndex2, headerIndex2, obsStepIndexMpi(headerIndex2)
             if ( obsStepIndexMpi(headerIndex1) == obsStepIndexMpi(headerIndex2) ) then
-              write(*,*) 'thn_satWindsByDistance: 5 obsLatBurpFileMpi(headerIndex1)', obsIndex2, headerIndex1, obsLatBurpFileMpi(headerIndex1)
-              write(*,*) 'thn_satWindsByDistance: 5 obsLatBurpFileMpi(headerIndex2)', obsIndex2, headerIndex1, obsLatBurpFileMpi(headerIndex2)
-              write(*,*) 'thn_satWindsByDistance: 5 obsLonBurpFileMpi(headerIndex1)', obsIndex2, headerIndex2, obsLonBurpFileMpi(headerIndex1)
-              write(*,*) 'thn_satWindsByDistance: 5 obsLonBurpFileMpi(headerIndex2)', obsIndex2, headerIndex2, obsLonBurpFileMpi(headerIndex2)
               if ( (obsLatBurpFileMpi(headerIndex1) == obsLatBurpFileMpi(headerIndex2)) .and. &
                    (obsLonBurpFileMpi(headerIndex1) == obsLonBurpFileMpi(headerIndex2)) ) then
                 ! Si une observation selectionnee porte deja le meme lat, lon, layer et step.
                 call tmg_stop(145)
-                write(*,*) 'thn_satWindsByDistance: 5 cycle OBSLOOP1', obsIndex2, headerIndex1, headerIndex2, headerIndexSelected(:)
                 cycle OBSLOOP1
               end if
               obsAlreadySameStep = .true.
-              write(*,*) 'thn_satWindsByDistance: 5 exit OBSLOOP2', obsIndex2, headerIndex1, headerIndex2, headerIndexSelected(:)
               exit OBSLOOP2
             end if
           end do OBSLOOP2
           call tmg_stop(145)
-          write(*,*) 'thn_satWindsByDistance: 5 obsIndex1 numSelected ', obsIndex1, numSelected, headerIndexSelected(:)
-          write(*,*) 'thn_satWindsByDistance: 5 obsIndex1 numSelected obsAlreadySameStep', obsIndex1, numSelected, obsAlreadySameStep, headerIndexSelected(:)
 
           if ( obsAlreadySameStep ) then
             ! Calcule les distances entre la donnee courante et toutes celles choisies 
@@ -3901,7 +3856,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
               end if
             end do OBSLOOP3
             call tmg_stop(146)
-            write(*,*) 'thn_satWindsByDistance: 6 obsIndex1 numSelected ', obsIndex1, numSelected, headerIndexSelected(:)
 
             if ( .not. skipThisObs ) then
 
@@ -3912,23 +3866,17 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
               headerIndexSelected(numSelected) = headerIndex1
 
             end if
-          write(*,*) 'thn_satWindsByDistance: 7 obsIndex1 numSelected ', obsIndex1, numSelected, headerIndexSelected(:)
 
           else
-          write(*,*) 'thn_satWindsByDistance: 8 obsIndex1 numSelected ', obsIndex1, numSelected, headerIndexSelected(:)
 
             ! On selectionne la donnee s'il y en a aucune choisie dans les intervalles 
             ! layer et step.
             numSelected = numSelected + 1
             headerIndexSelected(numSelected) = headerIndex1
-          write(*,*) 'thn_satWindsByDistance: 9 obsIndex1 numSelected ', obsIndex1, numSelected, headerIndexSelected(:)
 
           end if
-          write(*,*) 'thn_satWindsByDistance: 10 obsIndex1 numSelected ', obsIndex1, numSelected, headerIndexSelected(:)
 
         end do OBSLOOP1
-
-        write(*,*) 'thn_satWindsByDistance: final numSelected = ', numSelected, headerIndexSelected(:)
 
         do obsIndex1 = 1, numSelected
           validMpi(headerIndexSelected(obsIndex1)) = .true.
@@ -3958,11 +3906,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     HEADER3: do
       headerIndex = obs_getHeaderIndex(obsdat)
       if (headerIndex < 0) exit HEADER3
-      write(*,*) 'thn_satWindsByDistance after thinning: headerIndex = ', headerIndex
 
       ! do not keep this obs: set bit 11 and jump to the next obs
       if (.not. valid(headerIndex)) then
-      write(*,*) 'thn_satWindsByDistance after thinning: not valid headerIndex = ', headerIndex
         call obs_set_current_body_list(obsdat, headerIndex)
         BODY3: do 
           bodyIndex = obs_getBodyIndex(obsdat)
