@@ -3785,8 +3785,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     call thn_QsortInt(qualityMpiBuffer,headerIndexBuffer,numSelected)
 
     indexOffset = numHeaderMaxMpi*mpi_nprocs-countObsInMpi
-    allocate(qualityMpiBuffer(numHeaderMaxMpi*mpi_nprocs))
-    allocate(headerIndexBuffer(numHeaderMaxMpi*mpi_nprocs))
     do headerIndex = 1, countObsInMpi
       qualityMpiBuffer(headerIndex+indexOffset) = qualityMpi(headerIndex)
       headerIndexBuffer(headerIndex+indexOffset) = headerIndexSorted(headerIndex)
