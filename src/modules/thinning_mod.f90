@@ -3792,14 +3792,18 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
+    write(*,*) 'thn_satWindsByDistance: 2 qualityMpi', size(qualityMpi,1), qualityMpi(:)
     do headerIndex = 1, size(qualityMpi,1)
       write(*,*) 'thn_satWindsByDistance: 2 qualityMpi', headerIndex, qualityMpi(headerIndex)
     end do
+    write(*,*) 'thn_satWindsByDistance: headerIndexSorted', size(headerIndexSorted,1), headerIndexSorted(:)
+    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
+    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
+    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
     do headerIndex = 1, size(headerIndexSorted,1)
       write(*,*) 'thn_satWindsByDistance: 2 headerIndexSorted', headerIndex, headerIndexSorted(headerIndex)
     end do
     indexOffset = numHeaderMaxMpi*mpi_nprocs-countObsInMpi
-    write(*,*) 'thn_satWindsByDistance: after thn_QsortInt indexOffset: ', indexOffset
     allocate(qualityMpiBuffer(numHeaderMaxMpi*mpi_nprocs))
     allocate(headerIndexBuffer(numHeaderMaxMpi*mpi_nprocs))
     do headerIndex = 1, countObsInMpi
@@ -3814,20 +3818,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     headerIndexSorted(:) = headerIndexBuffer(:)
     deallocate(qualityMpiBuffer)
     deallocate(headerIndexBuffer)
-    write(*,*) 'thn_satWindsByDistance: after reorder thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after reorder thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after reorder thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: 3 qualityMpi', size(qualityMpi,1), qualityMpi(:)
-    do headerIndex = 1, size(qualityMpi,1)
-      write(*,*) 'thn_satWindsByDistance: 3 qualityMpi', headerIndex, qualityMpi(headerIndex)
-    end do
-    write(*,*) 'thn_satWindsByDistance: headerIndexSorted', size(headerIndexSorted,1), headerIndexSorted(:)
-    write(*,*) 'thn_satWindsByDistance: after reorder thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after reorder thn_QsortInt'
-    write(*,*) 'thn_satWindsByDistance: after reorder thn_QsortInt'
-    do headerIndex = 1, size(headerIndexSorted,1)
-      write(*,*) 'thn_satWindsByDistance: 3 headerIndexSorted', headerIndex, headerIndexSorted(headerIndex)
-    end do
 
     validMpi(:) = .false.
     STNIDLOOP: do stnIdIndex = 1, numStnId
