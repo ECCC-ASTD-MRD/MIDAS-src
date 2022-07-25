@@ -3544,7 +3544,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Locals:
     integer :: ierr, numHeader, numHeaderMaxMpi, bodyIndex, headerIndex, stnIdIndex
-    integer :: numStnId, stnIdIndexFound, lenStnId, charIndex
+    integer :: numStnId, stnIdIndexFound, lenStnId, charIndex, indexOffset
     integer :: obsDate, obsTime, layerIndex, obsVarno, obsFlag, uObsFlag, vObsFlag
     integer :: bgckCount, bgckCountMpi, missingCount, missingCountMpi, nsize
     integer :: countObs, countObsOutMpi, countObsInMpi, numSelected, numHeaderMpi
@@ -3559,12 +3559,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer :: numObsStnIdOut(numStnIdMax)
     integer :: numObsStnIdInMpi(numStnIdMax), numObsStnIdOutMpi(numStnIdMax)
     integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:), obsMethod(:), obsMethodMpi(:)
-    integer, allocatable :: quality(:), qualityMpi(:)
+    integer, allocatable :: quality(:), qualityMpi(:), qualityMpiBuffer(:)
     integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:)
     integer, allocatable :: obsLonBurpFileMpi(:), obsLatBurpFileMpi(:)
     integer, allocatable :: obsStepIndex(:), obsStepIndexMpi(:)
     integer, allocatable :: obsLayerIndex(:), obsLayerIndexMpi(:)
-    integer, allocatable :: headerIndexSorted(:), headerIndexSelected(:)
+    integer, allocatable :: headerIndexSorted(:), headerIndexSelected(:), headerIndexBuffer(:)
     logical, allocatable :: valid(:), validMpi(:), validMpi2(:)
 
     write(*,*)
@@ -3803,6 +3803,21 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     do headerIndex = 1, size(headerIndexSorted,1)
       write(*,*) 'thn_satWindsByDistance: 2 headerIndexSorted', headerIndex, headerIndexSorted(headerIndex)
     end do
+    indexOffset = numHeaderMaxMpi*mpi_nprocs-countObsInMpi
+    allocate(qualityMpiBuffer(numHeaderMaxMpi*mpi_nprocs))
+    allocate(headerIndexBuffer(numHeaderMaxMpi*mpi_nprocs))
+    do headerIndex = 1, countObsInMpi
+      qualityMpiBuffer(headerIndex+indexOffset) = qualityMpi(headerIndex)
+      headerIndexBuffer(headerIndex+indexOffset) = headerIndexSorted(headerIndex)
+    end do
+    do headerIndex = 1, indexOffset
+      qualityMpiBuffer(headerIndex) = 0
+      headerIndexBuffer(headerIndex) = countObsInMpi + headerIndex
+    end do
+    qualityMpi(:) = qualityMpiBuffer(:)
+    headerIndexSorted(:) = headerIndexBuffer(:)
+    deallocate(qualityMpiBuffer)
+    deallocate(headerIndexBuffer)
 
     validMpi(:) = .false.
     STNIDLOOP: do stnIdIndex = 1, numStnId
