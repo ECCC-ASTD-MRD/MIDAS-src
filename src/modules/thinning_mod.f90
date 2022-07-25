@@ -3864,8 +3864,10 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
         ! qualityMpi(headerIndex) = qualityMpiBuffer(headerIndexBuffer(numSelected))
         qualityMpi(headerIndex) = qualityMpiBuffer(numSelected)
+        write(*,*) 'thn_satWindsByDistance: after thn_QsortInt qualityMpiBuffer', qualityMpi(headerIndex), numSelected, qualityMpiBuffer(numSelected)
 
         headerIndexSorted(headerIndex) = headerIndexInQualityMpiBuffer(headerIndexBuffer(numSelected))
+        write(*,*) 'thn_satWindsByDistance: after thn_QsortInt ', headerIndex, numSelected, headerIndexBuffer(numSelected), headerIndexInQualityMpiBuffer(headerIndexBuffer(numSelected)), headerIndexSorted(headerIndex)
 
       else
         headerIndexSorted(headerIndex) = headerIndex
