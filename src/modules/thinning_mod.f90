@@ -3784,24 +3784,14 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     call thn_QsortInt(qualityMpiBuffer,headerIndexBuffer,numSelected)
 
-    indexOffset = numHeaderMaxMpi*mpi_nprocs-countObsInMpi
-    do headerIndex = 1, countObsInMpi
-      qualityMpiBuffer(headerIndex+indexOffset) = qualityMpi(headerIndex)
-      headerIndexBuffer(headerIndex+indexOffset) = headerIndexSorted(headerIndex)
-    end do
-
     allocate(headerIndexSorted(numHeaderMaxMpi*mpi_nprocs))
     !! Populate again the array 'qualityMpi' with the data from 'qualityMpiBuffer'
     numSelected = 0
     do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
       if ( qualityMpi(headerIndex) >= 0 ) then
         numSelected = numSelected + 1
-
-        ! qualityMpi(headerIndex) = qualityMpiBuffer(headerIndexBuffer(numSelected))
         qualityMpi(headerIndex) = qualityMpiBuffer(numSelected)
-
         headerIndexSorted(headerIndex) = headerIndexInQualityMpiBuffer(headerIndexBuffer(numSelected))
-
       else
         headerIndexSorted(headerIndex) = headerIndex
       end if
@@ -3809,6 +3799,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     deallocate(qualityMpiBuffer)
     deallocate(headerIndexBuffer)
+    deallocate(headerIndexInQualityMpiBuffer)
 
     validMpi(:) = .false.
     STNIDLOOP: do stnIdIndex = 1, numStnId
