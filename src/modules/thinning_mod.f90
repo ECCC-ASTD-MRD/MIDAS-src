@@ -3788,7 +3788,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: before thn_QsortInt'
-    call thn_QsortInt(qualityMpi,headerIndexSorted,countObs)
+    call thn_QsortInt(qualityMpi,headerIndexSorted,countObsInMpi)
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
     write(*,*) 'thn_satWindsByDistance: after thn_QsortInt'
