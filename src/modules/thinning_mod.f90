@@ -4001,11 +4001,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     end do
 
     allocate(buffer(numSelected))
-    allocate(indices(numSelected))
     allocate(indicesInBuffer(numSelected))
+    allocate(indices(size(A)))
 
     numSelected = 0
-    do index = 1, size(A,1)
+    do index = 1, size(A)
       if ( A(index) == nulValue ) then
         numSelected = numSelected + 1
         buffer(numSelected) = A(index)
@@ -4019,7 +4019,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     !! Populate again the array 'A' with the data from 'buffer'
     !! Populate again the array 'B' with the data from 'indicesInBuffer'
     numSelected = 0
-    do index = 1, size(A,1)
+    do index = 1, size(A)
       if ( A(index) == nulValue ) then
         numSelected = numSelected + 1
         A(index) = buffer(numSelected)
