@@ -3409,7 +3409,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       headerIndexSorted(obsIndex1)  = obsIndex1
     end do
 
-    call thn_QsortInt_withHoles(qualityMpi,headerIndexSorted,9999)
+    call thn_QsortIntIgnoringNullValues(qualityMpi,headerIndexSorted,9999)
 
     numSelected       = 0   ! number of obs selected so far
     OBS_LOOP: do obsIndex1 = 1, numHeaderMpi
@@ -3770,7 +3770,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     headerIndexSelected(:) = 0
 
     ! Thinning procedure
-    call thn_QsortInt_withHoles(qualityMpi,headerIndexSorted,-1)
+    call thn_QsortIntIgnoringNullValues(qualityMpi,headerIndexSorted,-1)
 
     validMpi(:) = .false.
     STNIDLOOP: do stnIdIndex = 1, numStnId
@@ -3978,9 +3978,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
   end subroutine thn_satWindsByDistance
 
   !--------------------------------------------------------------------------
-  ! thn_QsortInt_withHoles
+  ! thn_QsortIntIgnoringNullValues
   !--------------------------------------------------------------------------
-  recursive subroutine thn_QsortInt_withHoles(A,B,nulValue)
+  recursive subroutine thn_QsortIntIgnoringNullValues(A,B,nullValue)
     ! :Purpose: Quick sort algorithm for integer data
     !           Calling 'thn_QsortInt' on array without missing values (-1)
 
@@ -3988,14 +3988,14 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     integer, intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
-    integer, intent(in)    :: nulValue
+    integer, intent(in)    :: nullValue
 
     integer :: numSelected, index
     integer, allocatable :: buffer(:), indices(:), indicesInBuffer(:)
 
     numSelected = 0
     do index = 1, size(A)
-      if ( A(index) == nulValue ) then
+      if ( A(index) == nullValue ) then
         numSelected = numSelected + 1
       end if
     end do
@@ -4006,7 +4006,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     numSelected = 0
     do index = 1, size(A)
-      if ( A(index) == nulValue ) then
+      if ( A(index) == nullValue ) then
         numSelected = numSelected + 1
         buffer(numSelected) = A(index)
         indicesInBuffer(numSelected) = index
@@ -4020,7 +4020,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     !! Populate again the array 'B' with the data from 'indicesInBuffer'
     numSelected = 0
     do index = 1, size(A)
-      if ( A(index) == nulValue ) then
+      if ( A(index) == nullValue ) then
         numSelected = numSelected + 1
         A(index) = buffer(numSelected)
         B(index) = indices(indicesInBuffer(numSelected))
@@ -4033,7 +4033,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     deallocate(indices)
     deallocate(indicesInBuffer)
 
-  end subroutine thn_QsortInt_withHoles
+  end subroutine thn_QsortIntIgnoringNullValues
 
   !--------------------------------------------------------------------------
   ! thn_QsortInt
