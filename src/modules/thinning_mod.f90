@@ -3544,7 +3544,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Locals:
     integer :: ierr, numHeader, numHeaderMaxMpi, bodyIndex, headerIndex, stnIdIndex
-    integer :: numStnId, stnIdIndexFound, lenStnId, charIndex, indexOffset
+    integer :: numStnId, stnIdIndexFound, lenStnId, charIndex
     integer :: obsDate, obsTime, layerIndex, obsVarno, obsFlag, uObsFlag, vObsFlag
     integer :: bgckCount, bgckCountMpi, missingCount, missingCountMpi, nsize
     integer :: countObs, countObsOutMpi, countObsInMpi, numSelected, numHeaderMpi
@@ -3559,13 +3559,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer :: numObsStnIdOut(numStnIdMax)
     integer :: numObsStnIdInMpi(numStnIdMax), numObsStnIdOutMpi(numStnIdMax)
     integer, allocatable :: stnIdInt(:,:), stnIdIntMpi(:,:), obsMethod(:), obsMethodMpi(:)
-    integer, allocatable :: quality(:), qualityMpi(:), qualityMpiBuffer(:)
+    integer, allocatable :: quality(:), qualityMpi(:)
     integer, allocatable :: obsLonBurpFile(:), obsLatBurpFile(:)
     integer, allocatable :: obsLonBurpFileMpi(:), obsLatBurpFileMpi(:)
     integer, allocatable :: obsStepIndex(:), obsStepIndexMpi(:)
     integer, allocatable :: obsLayerIndex(:), obsLayerIndexMpi(:)
     integer, allocatable :: headerIndexSorted(:), headerIndexSelected(:)
-    integer, allocatable :: headerIndexBuffer(:), headerIndexInQualityMpiBuffer(:)
     logical, allocatable :: valid(:), validMpi(:), validMpi2(:)
 
     write(*,*)
@@ -3763,43 +3762,15 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       end if
     end do HEADER
 
-    ! Thinning procedure
-    allocate(qualityMpiBuffer(numHeaderMaxMpi*mpi_nprocs))
-    allocate(headerIndexInQualityMpiBuffer(numHeaderMaxMpi*mpi_nprocs))
-    numSelected = 0
+    allocate(headerIndexSorted(numHeaderMaxMpi*mpi_nprocs))
     do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
-      if ( qualityMpi(headerIndex) >= 0 ) then
-        numSelected = numSelected + 1
-        qualityMpiBuffer(numSelected) = qualityMpi(headerIndex)
-        headerIndexInQualityMpiBuffer(numSelected) = headerIndex
-      end if
-    end do
-
-    allocate(headerIndexBuffer(numHeaderMaxMpi*mpi_nprocs))
-    do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
-      headerIndexBuffer(headerIndex) = headerIndex
+      headerIndexSorted(headerIndex) = headerIndex
     end do
     allocate(headerIndexSelected(numHeaderMaxMpi*mpi_nprocs))
     headerIndexSelected(:) = 0
 
-    call thn_QsortInt(qualityMpiBuffer,headerIndexBuffer,numSelected)
-
-    allocate(headerIndexSorted(numHeaderMaxMpi*mpi_nprocs))
-    !! Populate again the array 'qualityMpi' with the data from 'qualityMpiBuffer'
-    numSelected = 0
-    do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
-      if ( qualityMpi(headerIndex) >= 0 ) then
-        numSelected = numSelected + 1
-        qualityMpi(headerIndex) = qualityMpiBuffer(numSelected)
-        headerIndexSorted(headerIndex) = headerIndexInQualityMpiBuffer(headerIndexBuffer(numSelected))
-      else
-        headerIndexSorted(headerIndex) = headerIndex
-      end if
-    end do
-
-    deallocate(qualityMpiBuffer)
-    deallocate(headerIndexBuffer)
-    deallocate(headerIndexInQualityMpiBuffer)
+    ! Thinning procedure
+    call thn_QsortInt_withHoles(qualityMpi,headerIndexSorted)
 
     validMpi(:) = .false.
     STNIDLOOP: do stnIdIndex = 1, numStnId
@@ -4005,6 +3976,62 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     write(*,*)
 
   end subroutine thn_satWindsByDistance
+
+  !--------------------------------------------------------------------------
+  ! thn_QsortInt_withHoles
+  !--------------------------------------------------------------------------
+  recursive subroutine thn_QsortInt_withHoles(A,B)
+    ! :Purpose: Quick sort algorithm for integer data
+    !           Calling 'thn_QsortInt' on array without missing values (-1)
+
+    implicit none
+
+    integer, intent(inout) :: A(:)
+    integer, intent(inout) :: B(:)
+    integer :: numSelected, index
+    integer, allocatable :: buffer(:), indices(:), indicesInBuffer(:)
+
+    numSelected = 0
+    do index = 1, size(A,1)
+      if ( A(index) >= 0 ) then
+        numSelected = numSelected + 1
+      end if
+    end do
+
+    allocate(buffer(numSelected))
+    allocate(indices(numSelected))
+    allocate(indicesInBuffer(numSelected))
+
+    numSelected = 0
+    do index = 1, size(A,1)
+      if ( A(index) >= 0 ) then
+        numSelected = numSelected + 1
+        buffer(numSelected) = A(index)
+        indicesInBuffer(numSelected) = index
+      end if
+      indices(index) = index
+    end do
+
+    call thn_QsortInt(buffer,indicesInBuffer,numSelected)
+
+    !! Populate again the array 'A' with the data from 'buffer'
+    !! Populate again the array 'B' with the data from 'indicesInBuffer'
+    numSelected = 0
+    do index = 1, size(A,1)
+      if ( A(index) >= 0 ) then
+        numSelected = numSelected + 1
+        A(index) = buffer(numSelected)
+        B(index) = indices(indicesInBuffer(numSelected))
+      else
+        B(index) = index
+      end if
+    end do
+
+    deallocate(buffer)
+    deallocate(indices)
+    deallocate(indicesInBuffer)
+
+  end subroutine thn_QsortInt_withHoles
 
   !--------------------------------------------------------------------------
   ! thn_QsortInt
