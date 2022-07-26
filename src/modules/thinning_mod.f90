@@ -3997,7 +3997,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, intent(inout) :: B(:)
     integer, intent(in)    :: nullValue
 
-    integer :: numSelected, index
+    integer :: numSelected, indexSelected, index
     integer, allocatable :: buffer(:), indices(:), indicesInBuffer(:)
 
     !! Compute the number of non-null values in array 'A'
@@ -4013,14 +4013,14 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     allocate(indicesInBuffer(numSelected))
     allocate(indices(size(A)))
 
-    numSelected = 0
     !! Initialize the temporary arrays
+    indexSelected = 0
     do index = 1, size(A)
       if ( A(index) == nullValue ) then
-        numSelected = numSelected + 1
-        buffer(numSelected) = A(index)
+        indexSelected = indexSelected + 1
+        buffer(indexSelected) = A(index)
         !! keep the index of the value in the original array
-        indicesInBuffer(numSelected) = index
+        indicesInBuffer(indexSelected) = index
       end if
       indices(index) = index
     end do
@@ -4029,12 +4029,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     !! Populate again the array 'A' with the data from 'buffer'
     !! Populate again the array 'B' with the data from 'indicesInBuffer'
-    numSelected = 0
+    indexSelected = 0
     do index = 1, size(A)
       if ( A(index) == nullValue ) then
-        numSelected = numSelected + 1
-        A(index) = buffer(numSelected)
-        B(index) = indices(indicesInBuffer(numSelected))
+        indexSelected = indexSelected + 1
+        A(index) = buffer(indexSelected)
+        B(index) = indices(indicesInBuffer(indexSelected))
       else
         B(index) = index
       end if
