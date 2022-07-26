@@ -3998,7 +3998,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, intent(in)    :: nullValue
 
     integer :: numSelected, indexSelected, index
-    integer, allocatable :: buffer(:), indicesInBuffer(:)
+    integer, allocatable :: buffer(:), indices(:)
 
     !! Compute the number of non-null values in array 'A'
     numSelected = 0
@@ -4010,7 +4010,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     !! Allocate temporary arrays
     allocate(buffer(numSelected))
-    allocate(indicesInBuffer(numSelected))
+    allocate(indices(numSelected))
 
     !! Initialize the temporary arrays
     indexSelected = 0
@@ -4019,27 +4019,27 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
         indexSelected = indexSelected + 1
         buffer(indexSelected) = A(index)
         !! keep the index of the value in the original array
-        indicesInBuffer(indexSelected) = index
+        indices(indexSelected) = index
       end if
     end do
 
-    call thn_QsortInt(buffer,indicesInBuffer)
+    call thn_QsortInt(buffer,indices)
 
     !! Populate again the array 'A' with the data from 'buffer'
-    !! Populate again the array 'B' with the data from 'indicesInBuffer'
+    !! Populate again the array 'B' with the data from 'indices'
     indexSelected = 0
     do index = 1, size(A)
       if ( A(index) == nullValue ) then
         indexSelected = indexSelected + 1
         A(index) = buffer(indexSelected)
-        B(index) = indicesInBuffer(indexSelected)
+        B(index) = indices(indexSelected)
       else
         B(index) = index
       end if
     end do
 
     deallocate(buffer)
-    deallocate(indicesInBuffer)
+    deallocate(indices)
 
   end subroutine thn_QsortIntIgnoringNullValues
 
