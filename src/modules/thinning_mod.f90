@@ -3983,6 +3983,13 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
   recursive subroutine thn_QsortIntIgnoringNullValues(A,B,nullValue)
     ! :Purpose: Quick sort algorithm for integer data
     !           Calling 'thn_QsortInt' on array without missing values (-1)
+    !           The 'QuickSort' algorithm gives different results
+    !           depending on the size of the input array.  The same
+    !           values won't be put in the same order if null values
+    !           are inserted in the array.  So this routine filters
+    !           the input array and asks for 'thn_QsortInt' to sort
+    !           the filtered array and then insert back the values to
+    !           respect the order of the original input array.
 
     implicit none
 
@@ -3993,6 +4000,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer :: numSelected, index
     integer, allocatable :: buffer(:), indices(:), indicesInBuffer(:)
 
+    !! Compute the number of non-null values in array 'A'
     numSelected = 0
     do index = 1, size(A)
       if ( A(index) == nullValue ) then
@@ -4000,15 +4008,18 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       end if
     end do
 
+    !! Allocate temporary arrays
     allocate(buffer(numSelected))
     allocate(indicesInBuffer(numSelected))
     allocate(indices(size(A)))
 
     numSelected = 0
+    !! Initialize the temporary arrays
     do index = 1, size(A)
       if ( A(index) == nullValue ) then
         numSelected = numSelected + 1
         buffer(numSelected) = A(index)
+        !! keep the index of the value in the original array
         indicesInBuffer(numSelected) = index
       end if
       indices(index) = index
