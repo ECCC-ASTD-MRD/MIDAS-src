@@ -4014,7 +4014,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       indices(index) = index
     end do
 
-    call thn_QsortInt(buffer,indicesInBuffer,numSelected)
+    call thn_QsortInt(buffer,indicesInBuffer)
 
     !! Populate again the array 'A' with the data from 'buffer'
     !! Populate again the array 'B' with the data from 'indicesInBuffer'
@@ -4038,20 +4038,19 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
   !--------------------------------------------------------------------------
   ! thn_QsortInt
   !--------------------------------------------------------------------------
-  recursive subroutine thn_QsortInt(A,B,numElementsInA)
+  recursive subroutine thn_QsortInt(A,B)
     ! :Purpose: Quick sort algorithm for integer data.
 
     implicit none
 
     integer, intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
-    integer, intent(in)    :: numElementsInA
     integer :: iq
 
-    if (numElementsInA > 1) then
-      call thn_QsortIntpartition(A,B,iq,numElementsInA)
-      call thn_QsortInt(A(:iq-1),B(:iq-1),iq-1)
-      call thn_QsortInt(A(iq:),B(iq:),numElementsInA-iq+1)
+    if (size(A) > 1) then
+      call thn_QsortIntpartition(A,B,iq)
+      call thn_QsortInt(A(:iq-1),B(:iq-1))
+      call thn_QsortInt(A(iq:),B(iq:))
     end if
 
   end subroutine thn_QsortInt
@@ -4059,7 +4058,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
   !--------------------------------------------------------------------------
   ! thn_QsortIntpartition
   !--------------------------------------------------------------------------
-  subroutine thn_QsortIntpartition(A,B,marker,numElementsInA)
+  subroutine thn_QsortIntpartition(A,B,marker)
     ! :Purpose: Subroutine called in quick sort for integers.
 
     implicit none
@@ -4067,14 +4066,13 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
     integer, intent(out)   :: marker
-    integer, intent(in)    :: numElementsInA
     integer :: i, j, tmpi
     integer :: temp
     integer :: x      ! pivot point
 
     x = A(1)
     i= 0
-    j= numElementsInA + 1
+    j= size(A) + 1
 
     do
       j = j-1
