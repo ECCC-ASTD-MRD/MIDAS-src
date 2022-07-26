@@ -3994,8 +3994,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, allocatable :: buffer(:), indices(:), indicesInBuffer(:)
 
     numSelected = 0
-    do index = 1, size(A,1)
-      if ( A(index) >= 0 ) then
+    do index = 1, size(A)
+      if ( A(index) == nulValue ) then
         numSelected = numSelected + 1
       end if
     end do
