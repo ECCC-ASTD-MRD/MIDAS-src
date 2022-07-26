@@ -3409,7 +3409,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       headerIndexSorted(obsIndex1)  = obsIndex1
     end do
 
-    call thn_QsortInt(qualityMpi,headerIndexSorted,numHeaderMaxMpi)
+    call thn_QsortInt_withHoles(qualityMpi,headerIndexSorted,9999)
 
     numSelected       = 0   ! number of obs selected so far
     OBS_LOOP: do obsIndex1 = 1, numHeaderMpi
@@ -3770,7 +3770,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     headerIndexSelected(:) = 0
 
     ! Thinning procedure
-    call thn_QsortInt_withHoles(qualityMpi,headerIndexSorted)
+    call thn_QsortInt_withHoles(qualityMpi,headerIndexSorted,-1)
 
     validMpi(:) = .false.
     STNIDLOOP: do stnIdIndex = 1, numStnId
@@ -3980,7 +3980,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
   !--------------------------------------------------------------------------
   ! thn_QsortInt_withHoles
   !--------------------------------------------------------------------------
-  recursive subroutine thn_QsortInt_withHoles(A,B)
+  recursive subroutine thn_QsortInt_withHoles(A,B,nulValue)
     ! :Purpose: Quick sort algorithm for integer data
     !           Calling 'thn_QsortInt' on array without missing values (-1)
 
@@ -3988,6 +3988,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     integer, intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
+    integer, intent(in)    :: nulValue
+
     integer :: numSelected, index
     integer, allocatable :: buffer(:), indices(:), indicesInBuffer(:)
 
@@ -4004,7 +4006,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     numSelected = 0
     do index = 1, size(A,1)
-      if ( A(index) >= 0 ) then
+      if ( A(index) == nulValue ) then
         numSelected = numSelected + 1
         buffer(numSelected) = A(index)
         indicesInBuffer(numSelected) = index
@@ -4018,7 +4020,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     !! Populate again the array 'B' with the data from 'indicesInBuffer'
     numSelected = 0
     do index = 1, size(A,1)
-      if ( A(index) >= 0 ) then
+      if ( A(index) == nulValue ) then
         numSelected = numSelected + 1
         A(index) = buffer(numSelected)
         B(index) = indices(indicesInBuffer(numSelected))
