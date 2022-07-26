@@ -4000,6 +4000,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       end if
     end do
 
+    write(*,*) 'thn_QsortInt_withHoles: numSelected size(A)', numSelected, size(A)
+    write(*,*) 'thn_QsortInt_withHoles: before allocate Memory Used: ',get_max_rss()/1024,'Mb'
+
     allocate(buffer(numSelected))
     allocate(indicesInBuffer(numSelected))
     allocate(indices(size(A)))
@@ -4013,6 +4016,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       end if
       indices(index) = index
     end do
+
+    write(*,*) 'thn_QsortInt_withHoles: after allocate Memory Used: ',get_max_rss()/1024,'Mb'
 
     call thn_QsortInt(buffer,indicesInBuffer)
 
@@ -4029,10 +4034,13 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       end if
     end do
 
+    write(*,*) 'thn_QsortInt_withHoles: before deallocate Memory Used: ',get_max_rss()/1024,'Mb'
+
     deallocate(buffer)
     deallocate(indices)
     deallocate(indicesInBuffer)
 
+    write(*,*) 'thn_QsortInt_withHoles: after deallocate Memory Used: ',get_max_rss()/1024,'Mb'
   end subroutine thn_QsortInt_withHoles
 
   !--------------------------------------------------------------------------
