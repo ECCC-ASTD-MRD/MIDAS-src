@@ -4001,12 +4001,13 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer, allocatable :: buffer(:), indices(:)
 
     !! Compute the number of non-null values in array 'A'
-    numSelected = 0
+    indexSelected = 0
     do index = 1, size(A)
       if ( A(index) == nullValue ) then
-        numSelected = numSelected + 1
+        indexSelected = indexSelected + 1
       end if
     end do
+    numSelected = indexSelected
 
     !! Allocate temporary arrays
     allocate(buffer(numSelected))
