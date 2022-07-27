@@ -3236,7 +3236,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     thinDistance = real(deldist)
     write(*,*)
-    write(*,*) 'Minimun thinning distance ',thinDistance
+    write(*,*) 'Minimum thinning distance ', thinDistance
 
     middleStep   = nint( ((tim_windowSize/2.0d0) - tim_dstepobs/2.d0) / &
                    tim_dstepobs) + 1
@@ -3265,10 +3265,10 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     validMpi(:) = .false.
 
-    quality(:)  = 9999
-    obsLatBurpFile(:)    = 0
-    obsLonBurpFile(:)    = 0
-    obsStepIndex(:)    = 0
+    quality(:)        = 9999
+    obsLatBurpFile(:) = 0
+    obsLonBurpFile(:) = 0
+    obsStepIndex(:)   = 0
 
     qualityMpi(:)        = 9999
     obsLatBurpFileMpi(:) = 0
