@@ -4003,7 +4003,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     !! Compute the number of non-null values in array 'A'
     indexSelected = 0
     do index = 1, size(A)
-      if ( A(index) == nullValue ) then
+      if ( A(index) /= nullValue ) then
         indexSelected = indexSelected + 1
       end if
     end do
@@ -4016,7 +4016,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     !! Initialize the temporary arrays
     indexSelected = 0
     do index = 1, size(A)
-      if ( A(index) == nullValue ) then
+      if ( A(index) /= nullValue ) then
         indexSelected = indexSelected + 1
         buffer(indexSelected) = A(index)
         !! keep the index of the value in the original array
@@ -4030,7 +4030,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     !! Populate again the array 'B' with the data from 'indices'
     indexSelected = 0
     do index = 1, size(A)
-      if ( A(index) == nullValue ) then
+      if ( A(index) /= nullValue ) then
         indexSelected = indexSelected + 1
         A(index) = buffer(indexSelected)
         B(index) = indices(indexSelected)
