@@ -412,8 +412,13 @@
   </FAMILY>
 
   <FAMILY  name="obsImpact">
-    <SUBMITS sub_name="HFSO"/>
-    <FAMILY  name="HFSO">
+    <SUBMITS sub_name="HFSO_dryNorm"/>
+    <FAMILY  name="HFSO_dryNorm">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="HFSO_wetNorm"/>
+    <FAMILY  name="HFSO_wetNorm">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
