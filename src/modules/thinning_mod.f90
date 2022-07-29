@@ -3182,6 +3182,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Local parameters:
     real(4), parameter :: normZtdScore = 50.0 ! normalization factor for zdscores
+    integer, parameter :: nullValue = 9999 ! Value representing a non-value or null Value
     character(len=3), parameter :: winpos='mid' ! Preference to obs close to middle of window
 
     ! Locals:
@@ -3265,12 +3266,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     validMpi(:) = .false.
 
-    quality(:)        = 9999
+    quality(:)        = nullValue
     obsLatBurpFile(:) = 0
     obsLonBurpFile(:) = 0
     obsStepIndex(:)   = 0
 
-    qualityMpi(:)        = 9999
+    qualityMpi(:)        = nullValue
     obsLatBurpFileMpi(:) = 0
     obsLonBurpFileMpi(:) = 0
     obsStepIndexMpi(:)   = 0
@@ -3370,7 +3371,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       ! obs is outside time window
       if(obsStepIndex(headerIndex) == -1.0d0) then
         badTimeCount = badTimeCount + 1
-        quality(headerIndex) = 9999
+        quality(headerIndex) = nullValue
       end if
 
       ! ZTD O-P failed background/topography checks, ZTD is blacklisted, ZTD is not bias corrected
@@ -3378,12 +3379,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       if (       btest(ztdObsFlag,8) )  blackListCount = blackListCount + 1
       if ( btest(ztdObsFlag,16) .or. btest(ztdObsFlag,18) .or. &
            btest(ztdObsFlag,8) ) then
-        quality(headerIndex) = 9999
+        quality(headerIndex) = nullValue
       end if
       if (removeUncorrected) then
         if ( .not. btest(ztdObsflag,6) ) then
           unCorrectCount = unCorrectCount + 1
-          quality(headerIndex) = 9999
+          quality(headerIndex) = nullValue
         end if
       end if
       ! ZTD quality is unknown (missing ztd score)
@@ -3409,12 +3410,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       headerIndexSorted(obsIndex1)  = obsIndex1
     end do
 
-    call thn_QsortIntIgnoringNullValues(qualityMpi,headerIndexSorted,9999)
+    call thn_QsortIntIgnoringNullValues(qualityMpi,headerIndexSorted,nullValue)
 
     numSelected       = 0   ! number of obs selected so far
     OBS_LOOP: do obsIndex1 = 1, numHeaderMpi
 
-      if ( qualityMpi(obsIndex1) /= 9999 ) then
+      if ( qualityMpi(obsIndex1) /= nullValue ) then
 
         headerIndex1 = headerIndexSorted(obsIndex1)
 
@@ -3538,6 +3539,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     ! Local parameters:
     integer, parameter :: numStnIdMax = 100
     integer, parameter :: numLayers = 11
+    integer, parameter :: nullValue = -1
     real(4), parameter :: layer(numLayers) = (/ 100000., 92500., 85000., 70000., &
                                                 50000., 40000., 30000., 25000., &
                                                 20000., 15000., 10000. /)
@@ -3610,7 +3612,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Initializations:
     valid(:) = .false.
-    quality(:) = -1
+    quality(:) = nullValue
     obsLatBurpFile(:) = 0
     obsLonBurpFile(:) = 0
     obsLayerIndex(:) = 0
@@ -3680,8 +3682,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       quality(headerIndex) = obs_headElem_i(obsdat, OBS_SWQ1, headerIndex)
 
       ! find observation flags (assumes 1 level only per headerIndex)
-      uObsFlag = -1
-      vObsFlag = -1
+      uObsFlag = nullValue
+      vObsFlag = nullValue
       call obs_set_current_body_list(obsdat, headerIndex)
       BODY2: do 
         bodyIndex = obs_getBodyIndex(obsdat)
@@ -3695,7 +3697,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       end do BODY2
 
       ! modify quality based on flags
-      if (uObsFlag /= -1 .and. vObsFlag /= -1) then
+      if (uObsFlag /= nullValue .and. vObsFlag /= nullValue ) then
         if ( btest(uObsFlag,16) .or. btest(vObsFlag,16) ) bgckCount = bgckCount + 1
         if ( btest(uObsFlag,16) .or. btest(vObsFlag,16) .or. &
              btest(uObsFlag,18) .or. btest(vObsFlag,18) ) then
@@ -3747,11 +3749,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       end do
 
       if (numStnId < numStnIdMax ) then
-        stnIdIndexFound = -1
+        stnIdIndexFound = nullValue
         do stnIdIndex = 1, numStnId
           if ( stnidList(stnIdIndex) == stnid ) stnIdIndexFound = stnIdIndex
         end do
-        if ( stnIdIndexFound == -1 ) then
+        if ( stnIdIndexFound == nullValue ) then
           numStnId = numStnId + 1
           stnidList(numStnId) = stnid
           stnIdIndexFound = numStnId
@@ -3770,7 +3772,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     headerIndexSelected(:) = 0
 
     ! Thinning procedure
-    call thn_QsortIntIgnoringNullValues(qualityMpi,headerIndexSorted,-1)
+    call thn_QsortIntIgnoringNullValues(qualityMpi,headerIndexSorted,nullValue)
 
     validMpi(:) = .false.
     STNIDLOOP: do stnIdIndex = 1, numStnId
@@ -3904,11 +3906,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       end if
 
       stnId = obs_elem_c(obsdat,'STID',headerIndex)
-      stnIdIndexFound = -1
+      stnIdIndexFound = nullValue
       do stnIdIndex = 1, numStnId
         if (stnidList(stnIdIndex) == stnId) stnIdIndexFound = stnIdIndex
       end do
-      if (stnIdIndexFound == -1) call utl_abort('stnid not found in list')
+      if (stnIdIndexFound == nullValue) call utl_abort('stnid not found in list')
       numObsStnIdOut(stnIdIndexFound) = numObsStnIdOut(stnIdIndexFound) + 1
     end do HEADER3
 
