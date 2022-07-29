@@ -2,6 +2,8 @@
 
 # JFC: This script works with listings from MAESTRO archives (e.g. main.assimcycle.anlalt.envar.VAR.success.*)
 
+set -e
+
 listings=""
 titles="=-1"
 evals="=-1"
@@ -27,13 +29,13 @@ if [[ ${list} = "1" ]] ; then
     echo "jo ua ai sf to sw go sc hu pr ro gp ch"
     exit
 fi
-integer lcnt
-integer itertot
-integer jotot
-integer jbend
-integer nplot
+typeset -i lcnt
+typeset -i itertot
+typeset -i jotot
+typeset -i jbend
+typeset -i nplot
 
-integer numcost=$(echo $cost | wc -w | sed 's/ *//g')
+typeset -i numcost=$(echo $cost | wc -w | sed 's/ *//g')
 
 psout="${TMPDIR}/cost.ps"
 if [[ ${pdf} = 1 ]] ; then
@@ -140,7 +142,7 @@ gendat() #
   else
       ssh ${1%%:*} "grep --text '${string2grep}' ${1##*:}" | sed -e 's/[0-9]*://' | sed 's/=//' | awk '{print $3}' | sed 's/,//g' > ${TMPDIR}/${nplot}.tmp1
       if [[ ${skip1stline} = 'OUI' ]] ; then
-	  integer num=$(cat ${TMPDIR}/${nplot}.tmp1 | wc -l)-1
+	  typeset -i num=$(cat ${TMPDIR}/${nplot}.tmp1 | wc -l)-1
 	  tail -${num} ${TMPDIR}/${nplot}.tmp1 > ${TMPDIR}/${nplot}.tmp
       else
 	  mv ${TMPDIR}/${nplot}.tmp1 ${TMPDIR}/${nplot}.tmp
@@ -150,11 +152,11 @@ gendat() #
   cat -n ${TMPDIR}/${nplot}.tmp | sed 's/://g'| sed -e 's/D/E/' > ${TMPDIR}/${2}.${nplot}
   niter="$(tail -1 ${TMPDIR}/${2}.${nplot} | awk '{print $1}')"
 
-  costdebut_tmp="$(head -1 ${TMPDIR}/${2}.${nplot}| awk '{printf("%.0f", $2)}')"
+  costdebut_tmp=$(head -1 ${TMPDIR}/${2}.${nplot}| awk '{printf("%.0f", $2)}')
   if [[ $costdebut_tmp -gt $costdebut ]] ; then 
       costdebut=$costdebut_tmp 
   fi
-  costfin_tmp="$(tail -1 ${TMPDIR}/${2}.${nplot} | awk '{printf("%.0f", $2)}')"
+  costfin_tmp=$(tail -1 ${TMPDIR}/${2}.${nplot} | awk '{printf("%.0f", $2)}')
   if [[ ${lcost} != 'jb' ]] ; then
       if [[ $costfin_tmp -lt $costfin ]] ; then 
 	  costfin=$costfin_tmp 
@@ -201,7 +203,7 @@ gendat() #
   fi
 }
 
-integer loop=1
+typeset -i loop=1
 lcnt=0
 nplot=0
 costdebut=0
@@ -280,7 +282,7 @@ for listing in $(echo ${listings}) ;do
 	    shift
 	done
     fi
-    lcnt=lcnt+1
+    let lcnt=lcnt+1
 done
 
 if [[ "${mtitle}" != "DEFAULT" ]] ; then
