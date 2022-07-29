@@ -3811,14 +3811,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
               if ( (obsLatBurpFileMpi(headerIndex1) == obsLatBurpFileMpi(headerIndex2)) .and. &
                    (obsLonBurpFileMpi(headerIndex1) == obsLonBurpFileMpi(headerIndex2)) ) then
                 ! Si une observation selectionnee porte deja le meme lat, lon, layer et step.
-                call tmg_stop(145)
                 cycle OBSLOOP1
               end if
               obsAlreadySameStep = .true.
               exit OBSLOOP2
             end if
           end do OBSLOOP2
-          call tmg_stop(145)
 
           if ( obsAlreadySameStep ) then
             ! Calcule les distances entre la donnee courante et toutes celles choisies 
@@ -3841,7 +3839,6 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                 end if
               end if
             end do OBSLOOP3
-            call tmg_stop(146)
 
             if ( .not. skipThisObs ) then
 
