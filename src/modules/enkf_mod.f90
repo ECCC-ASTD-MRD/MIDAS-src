@@ -1281,6 +1281,13 @@ contains
                       
                       if ( abs(anlLat+43.0) < 1 .and. abs(anlLon-75.0) < 1 .and. &
                         trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
+                        if ( memberIndex2 == 1 .and. eigenVectorColumnIndex == 1 ) then
+                          write(*,*) 'maziar: after comm pert check, levIndex=', levIndex, &
+                          ', memberIndex1=', memberIndex1, &
+                          ', pert0=', memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
+                          meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)                          
+                        end if
+
                         write(*,*) 'maziar: after comm, levIndex=', levIndex, &
                         ', memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
                         ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
@@ -1315,6 +1322,14 @@ contains
                   do memberIndex1 = 1, nEns
                     if ( abs(anlLat+43.0) < 1 .and. abs(anlLon-75.0) < 1 .and. &
                       trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
+
+                      if ( memberIndex2 == 1 ) then
+                        write(*,*) 'maziar: after comm pert check, levIndex=', levIndex, &
+                        ', memberIndex1=', memberIndex1, &
+                        ', pert0=', memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
+                        meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)                          
+                      end if
+
                       write(*,*) 'maziar: after comm, levIndex=', levIndex, &
                       ', memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
                       ', pert=', memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
