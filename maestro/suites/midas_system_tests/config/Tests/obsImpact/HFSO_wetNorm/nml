@@ -93,7 +93,7 @@
    calcHeightPressIncrOnColumn=.TRUE.,
 /
  &NAMTOV   
-   NSENSORS =  37,
+   NSENSORS =  42,
    CSATID(1)        = 'AQUA',
    CINSTRUMENTID(1) = 'AIRS',
    CSATID(2)        = 'METOP-2',
@@ -168,6 +168,16 @@
    CINSTRUMENTID(36) = 'CRISFSR',
    CSATID(37)        = 'NOAA20',
    CINSTRUMENTID(37) = 'CRISFSR',
+   CSATID(38)        = 'METOP-3',
+   CINSTRUMENTID(38) = 'AMSUA',
+   CSATID(39)        = 'METOP-3',
+   CINSTRUMENTID(39) = 'MHS',
+   CSATID(40)        = 'GOES17',
+   CINSTRUMENTID(40) = 'ABI',
+   CSATID(41)        = 'FY3-3',
+   CINSTRUMENTID(41) = 'MWHS2',
+   CSATID(42)        = 'METOP-3',
+   CINSTRUMENTID(42) = 'IASI',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
    instrumentNamesUsingCLW(1) = 'amsua'
@@ -272,6 +282,12 @@
    LISTBURP(32)=225,! NOAA 20
    LISTPLAT(32)="noaa",
    LISTSAT(32)=020,
+   LISTBURP(33)=271,! GOES 17
+   LISTPLAT(33)="goes",
+   LISTSAT(33)=017,
+   LISTBURP(34)=522,! FY-3C
+   LISTPLAT(34)="fy3",
+   LISTSAT(34)=003,
 /
  &NAMINST
    LISTBURP(1)=050
@@ -340,6 +356,8 @@
    LISTINSTRUM(32)="abi",
    LISTBURP(33)=2046,
    LISTINSTRUM(33)="crisfsr",
+   LISTBURP(34)=953,
+   LISTINSTRUM(34)="mwhs2",
 / 
  &NAMCHANOFFSET
    LISTOFFSET(1)=27,
@@ -364,6 +382,7 @@
    inst_names(8)='cris',
    inst_names(9)='radianceclear',
    inst_names(10)='crisfsr',
+   inst_names(11)='mwhs2',
 /
  &NAMHYPER
    name_inst(1)='airs',
@@ -428,7 +447,7 @@
   BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220
 /
  &NAMADDTOBURP
-  clwFgElementId = 13109
+  clwFgElementId = 13231
 /
  &NAMBURP_FILTER_TOVS
   BNBITSOFF=0,
