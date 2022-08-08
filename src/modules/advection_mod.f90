@@ -147,7 +147,7 @@ CONTAINS
     real(4) :: lonMMbelow_deg_r4, lonMMabove_deg_r4, latMMbelow_deg_r4, latMMabove_deg_r4, lonTH_deg_r4, latTH_deg_r4 
     real(4), allocatable :: xposMM_r4(:,:,:,:), yposMM_r4(:,:,:,:)
 
-    character(len=64) :: filename
+    character(len=100) :: filename
 
     type(struct_gsv) :: statevector_steeringFlow
 
