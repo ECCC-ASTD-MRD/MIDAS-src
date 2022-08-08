@@ -142,7 +142,7 @@ module fsoi_mod
 
     ! Locals:
     type(struct_columnData),target  :: column
-    type(struct_gsv)                :: statevector_FcstErr, statevector_fso, statevector_VeriA
+    type(struct_gsv)                :: statevector_FcstErr, statevector_fso, statevector_HUreference
     type(struct_vco), pointer       :: vco_anl
     real(8),allocatable             :: ahat(:), zhat(:)
     integer                         :: dateStamp_fcst, dateStamp
@@ -186,19 +186,20 @@ module fsoi_mod
                       dataKind_opt=pre_incrReal, &
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.)
 
-    ! for statevector_VeriA (verifying analysis)
-    call gsv_allocate(statevector_VeriA, 1, hco_anl, vco_anl, &
+    ! for statevector_HUreference (verifying analysis)
+    call gsv_allocate(statevector_HUreference, 1, hco_anl, vco_anl, &
                       datestamp_opt=datestamp_fcst, mpi_local_opt=.true., &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     ! compute forecast error = C * (error_t^fa + error_t^fb)
-    call calcFcstError(columnTrlOnAnlIncLev,statevector_FcstErr,statevector_VeriA)
+    call calcFcstError(columnTrlOnAnlIncLev,statevector_FcstErr,statevector_HUreference)
 
 
     ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)
-    call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_FcstErr, useFSOFcst_opt = .true., stateVectorRef_opt=statevector_VeriA)
+    call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_FcstErr, useFSOFcst_opt = .true.,
+    stateVectorRef_opt=statevector_HUreference)
 
-    if (mpi_myid == 0) write(*,*) maxval(vhat),minval(vhat)
+    if (mpi_myid == 0) write(*,*) 'fso: B_t^T/2 * C * (error_t^fa + error_t^fb) max,min:' maxval(vhat),minval(vhat)
 
     if( trim(fsoMode) == 'HFSO' ) then
       call minimize(nvadim_mpilocal, zhat, column, columnTrlOnAnlIncLev, obsSpaceData)
@@ -245,7 +246,7 @@ module fsoi_mod
   !--------------------------------------------------------------------------
   ! calcFcstError
   !--------------------------------------------------------------------------
-  subroutine calcFcstError(columnTrlOnAnlIncLev,statevector_out,statevector_ver)
+  subroutine calcFcstError(columnTrlOnAnlIncLev,statevector_out,statevector_verifAnalysis)
     !
     ! :Purpose: Reads the forecast from background and analysis, the verifying
     !           analysis based on these inputs, calculates the Forecast error
@@ -254,7 +255,7 @@ module fsoi_mod
 
     ! Arguments:
     type(struct_columnData), target, intent(in)     :: columnTrlOnAnlIncLev
-    type(struct_gsv)       , target, intent(inout)  :: statevector_out, statevector_ver
+    type(struct_gsv)       , target, intent(inout)  :: statevector_out, statevector_verifAnalysis
 
     ! Locals:
     type(struct_gsv)                :: statevector_fa, statevector_fb, statevector_a
@@ -330,7 +331,7 @@ module fsoi_mod
                             includeUVnorm, includeTTnorm, includeP0norm,  &
                             includeHUnorm, includeTGnorm) ! use analysis as reference state
     call gsv_copy(statevector_fb,statevector_out)
-    call gsv_copy(statevector_a,statevector_ver)
+    call gsv_copy(statevector_a,statevector_verifAnalysis)
 
   end subroutine calcFcstError
 
