@@ -2201,7 +2201,7 @@ contains
         do levelIndex = 1, nlv_T
           pressure(levelIndex,profileCount) = col_getPressure(columnTrl,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           if ( runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
-            clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
+            clw(levelIndex,profileCount) = max(col_getElem(columnTrl,levelIndex,headerIndex,'LWCR'),minClwValue)
             clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor 
           end if
         end do
