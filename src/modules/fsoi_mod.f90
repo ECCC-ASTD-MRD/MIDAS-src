@@ -196,10 +196,11 @@ module fsoi_mod
 
 
     ! compute vhat = B_t^T/2 * C * (error_t^fa + error_t^fb)
-    call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_FcstErr, useFSOFcst_opt = .true.,
+    call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_FcstErr, useFSOFcst_opt = .true., &
     stateVectorRef_opt=statevector_HUreference)
 
-    if (mpi_myid == 0) write(*,*) 'fso: B_t^T/2 * C * (error_t^fa + error_t^fb) max,min:' maxval(vhat),minval(vhat)
+    if (mpi_myid == 0) write(*,*) 'fso: B_t^T/2 * C * (error_t^fa + error_t^fb) max,min:', &
+        maxval(vhat),minval(vhat)
 
     if( trim(fsoMode) == 'HFSO' ) then
       call minimize(nvadim_mpilocal, zhat, column, columnTrlOnAnlIncLev, obsSpaceData)
