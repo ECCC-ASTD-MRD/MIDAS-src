@@ -360,13 +360,13 @@ contains
     ! Locals:
     logical :: checkModelTop
 
-    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
-    integer :: latIndex2, lonIndex2, varIndex, stepIndex
-    integer :: status
-    real(8) :: zwb, zwt
+    integer :: vcode_in, vcode_out
+    integer :: nlev_out, nlev_in
+    integer :: varIndex, stepIndex
+    integer :: status, nulnam, fnom, ierr, fclos
 
-    real(8), pointer  :: PT_in(:,:,:,:), PM_in(:,:,:,:),  PT_out(:,:,:,:), PM_out(:,:,:,:)
-    real(8), pointer  :: pres_out(:,:,:,:), pres_in(:,:,:,:)
+    real(8), pointer  :: hLikeT_in(:,:,:,:), hLikeM_in(:,:,:,:)   ! abstract height dimensioned coordinate
+    real(8), pointer  :: hLikeT_out(:,:,:,:), hLikeM_out(:,:,:,:) ! abstract height dimensioned coordinate
     real(8), pointer  :: field_in(:,:,:,:), field_out(:,:,:,:)
     real(8), pointer  :: PsfcRef(:,:,:,:)
     real(8), pointer  :: heightSfcIn(:,:), heightSfcOut(:,:)
@@ -398,8 +398,10 @@ contains
       heightSfcOut(:,:) = heightSfcIn(:,:)
     end if
 
-    vco_in => gsv_getVco(statevector_in)
+    vco_in  => gsv_getVco(statevector_in)
     vco_out => gsv_getVco(statevector_out)
+    vcode_in  = vco_in%vcode
+    vcode_out = vco_out%vcode
 
     ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
     if ( present(checkModelTop_opt) ) then
@@ -429,18 +431,18 @@ contains
       end if
 
       ! allocating for temporary pressure references
-      allocate(PT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                      statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                      gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
-      allocate(PM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                      statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                      gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
-      allocate(PT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                      statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                      gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
-      allocate(PM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                      statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                      gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
+      allocate(hLikeT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                          gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+      allocate(hLikeM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                          gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
+      allocate(hLikeT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                          gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
+      allocate(hLikeM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                          gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
 
       ! define pressures on input and output levels
       if ( present(PsfcReference_opt) ) then
@@ -449,16 +451,35 @@ contains
         call gsv_getField(statevector_in,PsfcRef,'P0')
       end if
 
-      ! replacing local vgd_levels call
-      call czp_calcReturnPressure_gsv_nl( statevector_in, &
-                                          PT_r8=PT_in, PM_r8=PM_in, &
-                                          PsfcRef_r8_opt=PsfcRef, &
-                                          Ps_in_hPa_opt=Ps_in_hPa_opt)
+      ! call czp to compute height or pressure
+      ! convert if necessary to height-like abstract coordinate for interpolation
+      if ( vcode_in==5002 .or. vcode_in==5005 ) then
+        call czp_calcReturnPressure_gsv_nl( statevector_in, &
+                                            PT_r8=hLikeT_in, PM_r8=hLikeM_in, &
+                                            PsfcRef_r8_opt=PsfcRef, &
+                                            Ps_in_hPa_opt=Ps_in_hPa_opt)
+        write(*,*) 'int_vInterp_gsv converting input coordinates to height-like vcode=', vcode_in
+        call logP(hLikeM_in)
+        call logP(hLikeT_in)
 
-      call czp_calcReturnPressure_gsv_nl( statevector_out, &
-                                          PT_r8=PT_out, PM_r8=PM_out, &
-                                          PsfcRef_r8_opt=PsfcRef, &
-                                          Ps_in_hPa_opt=Ps_in_hPa_opt)
+      else if ( vcode_in==21001 ) then
+        call czp_calcReturnHeight_gsv_nl( statevector_in, &
+                                          ZT_r8=hLikeT_in, ZM_r8=hLikeM_in)
+      end if
+
+      if ( vcode_out==5002 .or. vcode_out==5005 ) then
+        call czp_calcReturnPressure_gsv_nl( statevector_out, &
+                                            PT_r8=hLikeT_out, PM_r8=hLikeM_out, &
+                                            PsfcRef_r8_opt=PsfcRef, &
+                                            Ps_in_hPa_opt=Ps_in_hPa_opt)
+        write(*,*) 'int_vInterp_gsv converting output coordinates to height-like vcode=', vcode_out
+        call logP(hLikeM_out)
+        call logP(hLikeT_out)
+      else if ( vcode_out==21001 ) then
+        call czp_calcReturnHeight_gsv_nl( statevector_out, &
+                                          ZT_r8=hLikeT_out, ZM_r8=hLikeM_out)
+      end if
+
       step_loop: do stepIndex = 1, statevector_out%numStep
   
         ! copy over some time related and other parameters
@@ -470,34 +491,56 @@ contains
         statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
         statevector_out%hco_physics              => statevector_in%hco_physics
   
-        nullify(pres_out,pres_in)
-
-        if (vnl_varLevelFromVarname(varName) == 'TH') then
-          pres_in  => PT_in
-          pres_out => PT_out
-        else
-          pres_in  => PM_in
-          pres_out => PM_out
-        end if
-
         ! do the vertical interpolation
         field_out(:,:,:,stepIndex) = 0.0d0
+        if (vnl_varLevelFromVarname(varName) == 'TH') then
+          call hLike_interpolation(hLikeT_in, hLikeT_out)
+        else
+          call hLike_interpolation(hLikeM_in, hLikeM_out)
+        end if
+
+
+        ! overwrite values at the lowest levels to avoid extrapolation
+        if (vInterpCopyLowestLevel) then
+          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
+        end if
+
+      end do step_loop
+
+      deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
+    end do var_loop
+
+    contains
+
+      subroutine hLike_interpolation(hLike_in, hLike_out)
+        !
+        ! :Purpose: Proceed to actual interpolation in H-logP representation
+        !
+        implicit none
+
+        ! Arguments:
+        real(8), pointer, intent(in)  :: hLike_in(:,:,:,:), hLike_out(:,:,:,:)   ! abstract height dimensioned coordinate
+
+        ! Locals:
+        integer :: latIndex, lonIndex, levIndex_out, levIndex_in
+        real(8) :: zwb, zwt
+
         !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex_in,levIndex_out,zwb,zwt)
         do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
           do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
             levIndex_in = 1
             do levIndex_out = 1, nlev_out
               levIndex_in = levIndex_in + 1
-              do while(pres_out(lonIndex,latIndex,levIndex_out,stepIndex) &
-                        .gt.pres_in(lonIndex,latIndex,levIndex_in,stepIndex)  &
+              do while(hLike_out(lonIndex,latIndex,levIndex_out,stepIndex) &
+                        .gt.hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)  &
                        .and.levIndex_in.lt.nlev_in)
                 levIndex_in = levIndex_in + 1
               end do
               levIndex_in = levIndex_in - 1
-              zwb = log(pres_out(lonIndex,latIndex,levIndex_out,stepIndex) &
-                      /pres_in(lonIndex,latIndex,levIndex_in,stepIndex))  &
-                   /log(pres_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
-                      /pres_in(lonIndex,latIndex,levIndex_in,stepIndex))
+              zwb = (hLike_out(lonIndex,latIndex,levIndex_out,stepIndex) &
+                      - hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)) &
+                   /(hLike_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
+                      - hLike_in(lonIndex,latIndex,levIndex_in,stepIndex))
               zwt = 1.d0 - zwb
               field_out(lonIndex,latIndex,levIndex_out,stepIndex) =   &
                                  zwb*field_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
@@ -507,17 +550,39 @@ contains
         end do
         !$OMP END PARALLEL DO
 
-        ! overwrite values at the lowest levels to avoid extrapolation
-        if (vInterpCopyLowestLevel) then
-          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
-        end if
-
-      end do step_loop
-
-      deallocate(PT_in, PM_in, PT_out, PM_out)
-    end do var_loop
+      end subroutine hLike_interpolation
 
   end subroutine int_vInterp_gsv
+
+  !--------------------------------------------------------------------------
+  ! logP
+  !--------------------------------------------------------------------------
+  subroutine logP(presInLogOut)
+    !
+    ! :Purpose: compute log of pressurce field
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(inout) :: presInLogOut(:,:,:,:)
+
+    ! Locals:
+    integer :: latIdx, lonIdx, levIdx, stepIdx
+
+    !$OMP PARALLEL DO PRIVATE(lonIdx,latIdx,levIdx,stepIdx)
+    do lonIdx = lbound(presInLogOut,1), ubound(presInLogOut,1)
+      do latIdx = lbound(presInLogOut,2), ubound(presInLogOut,2)
+        do levIdx = lbound(presInLogOut,3), ubound(presInLogOut,3)
+          do stepIdx = lbound(presInLogOut,4), ubound(presInLogOut,4)
+            presInLogOut(lonIdx,latIdx,levIdx,stepIdx) = &
+                 log(presInLogOut(lonIdx,latIdx,levIdx,stepIdx))
+          end do
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+  end subroutine logP
 
   !--------------------------------------------------------------------------
   ! int_vInterp_gsv_r4
@@ -540,13 +605,13 @@ contains
     ! Locals:
     logical :: checkModelTop
 
-    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
-    integer :: latIndex2, lonIndex2, varIndex, stepIndex
-    integer :: status
-    real(4) :: zwb, zwt
+    integer :: vcode_in, vcode_out
+    integer :: nlev_out, nlev_in
+    integer :: varIndex, stepIndex
+    integer :: status, nulnam, fnom, ierr, fclos
 
-    real(4), pointer  :: PT_in(:,:,:,:), PM_in(:,:,:,:),  PT_out(:,:,:,:), PM_out(:,:,:,:)
-    real(4), pointer  :: pres_out(:,:,:,:), pres_in(:,:,:,:)
+    real(4), pointer  :: hLikeT_in(:,:,:,:), hLikeM_in(:,:,:,:)   ! abstract height dimensioned coordinate
+    real(4), pointer  :: hLikeT_out(:,:,:,:), hLikeM_out(:,:,:,:) ! abstract height dimensioned coordinate
     real(4), pointer  :: field_in(:,:,:,:), field_out(:,:,:,:)
     real(4), pointer  :: PsfcRef(:,:,:,:)
     real(8), pointer  :: heightSfcIn(:,:), heightSfcOut(:,:)
@@ -578,8 +643,10 @@ contains
       heightSfcOut(:,:) = heightSfcIn(:,:)
     end if
 
-    vco_in => gsv_getVco(statevector_in)
+    vco_in  => gsv_getVco(statevector_in)
     vco_out => gsv_getVco(statevector_out)
+    vcode_in  = vco_in%vcode
+    vcode_out = vco_out%vcode
 
     ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
     if ( present(checkModelTop_opt) ) then
@@ -610,18 +677,18 @@ contains
       end if
 
       ! allocating for temporary pressure references
-      allocate(PT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                      statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                      gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
-      allocate(PM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                      statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                      gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
-      allocate(PT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                      statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                      gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
-      allocate(PM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                      statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                      gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
+      allocate(hLikeT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                          gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+      allocate(hLikeM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                          gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
+      allocate(hLikeT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                          gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
+      allocate(hLikeM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                          gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
 
       ! define pressures on input and output levels
       if ( present(PsfcReference_opt) ) then
@@ -630,16 +697,35 @@ contains
         call gsv_getField(statevector_in,PsfcRef,'P0')
       end if
 
-      ! replacing local vgd_levels call
-      call czp_calcReturnPressure_gsv_nl( statevector_in, &
-                                          PT_r4=PT_in, PM_r4=PM_in, &
-                                          PsfcRef_r4_opt=PsfcRef, &
-                                          Ps_in_hPa_opt=Ps_in_hPa_opt)
+      ! call czp to compute height or pressure
+      ! convert if necessary to height-like abstract coordinate for interpolation
+      if ( vcode_in==5002 .or. vcode_in==5005 ) then
+        call czp_calcReturnPressure_gsv_nl( statevector_in, &
+                                            PT_r4=hLikeT_in, PM_r4=hLikeM_in, &
+                                            PsfcRef_r4_opt=PsfcRef, &
+                                            Ps_in_hPa_opt=Ps_in_hPa_opt)
+        write(*,*) 'int_vInterp_gsv_r4 converting input coordinates to height-like vcode=', vcode_in
+        call logP_r4(hLikeM_in)
+        call logP_r4(hLikeT_in)
 
-      call czp_calcReturnPressure_gsv_nl( statevector_out, &
-                                          PT_r4=PT_out, PM_r4=PM_out, &
-                                          PsfcRef_r4_opt=PsfcRef, &
-                                          Ps_in_hPa_opt=Ps_in_hPa_opt)
+      else if ( vcode_in==21001 ) then
+        call czp_calcReturnHeight_gsv_nl( statevector_in, &
+                                          ZT_r4=hLikeT_in, ZM_r4=hLikeM_in)
+      end if
+
+      if ( vcode_out==5002 .or. vcode_out==5005 ) then
+        call czp_calcReturnPressure_gsv_nl( statevector_out, &
+                                            PT_r4=hLikeT_out, PM_r4=hLikeM_out, &
+                                            PsfcRef_r4_opt=PsfcRef, &
+                                            Ps_in_hPa_opt=Ps_in_hPa_opt)
+        write(*,*) 'int_vInterp_gsv_r4 converting output coordinates to height-like vcode=', vcode_out
+        call logP_r4(hLikeM_out)
+        call logP_r4(hLikeT_out)
+      else if ( vcode_out==21001 ) then
+        call czp_calcReturnHeight_gsv_nl( statevector_out, &
+                                          ZT_r4=hLikeT_out, ZM_r4=hLikeM_out)
+      end if
+
       step_loop: do stepIndex = 1, statevector_out%numStep
   
         ! copy over some time related and other parameters
@@ -651,34 +737,56 @@ contains
         statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
         statevector_out%hco_physics              => statevector_in%hco_physics
   
-        nullify(pres_out,pres_in)
-
-        if (vnl_varLevelFromVarname(varName) == 'TH') then
-          pres_in  => PT_in
-          pres_out => PT_out
-        else
-          pres_in  => PM_in
-          pres_out => PM_out
-        end if
-
         ! do the vertical interpolation
         field_out(:,:,:,stepIndex) = 0.0d0
+        if (vnl_varLevelFromVarname(varName) == 'TH') then
+          call hLike_interpolation_r4(hLikeT_in, hLikeT_out)
+        else
+          call hLike_interpolation_r4(hLikeM_in, hLikeM_out)
+        end if
+
+
+        ! overwrite values at the lowest levels to avoid extrapolation
+        if (vInterpCopyLowestLevel) then
+          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
+        end if
+
+      end do step_loop
+
+      deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
+    end do var_loop
+
+    contains
+
+      subroutine hLike_interpolation_r4(hLike_in, hLike_out)
+        !
+        ! :Purpose: Proceed to actual interpolation in H-logP representation
+        !
+        implicit none
+
+        ! Arguments:
+        real(4), pointer, intent(in)  :: hLike_in(:,:,:,:), hLike_out(:,:,:,:)   ! abstract height dimensioned coordinate
+
+        ! Locals:
+        integer :: latIndex, lonIndex, levIndex_out, levIndex_in
+        real(4) :: zwb, zwt
+
         !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex_in,levIndex_out,zwb,zwt)
         do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
           do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
             levIndex_in = 1
             do levIndex_out = 1, nlev_out
               levIndex_in = levIndex_in + 1
-              do while(pres_out(lonIndex,latIndex,levIndex_out,stepIndex) &
-                        .gt.pres_in(lonIndex,latIndex,levIndex_in,stepIndex)  &
+              do while(hLike_out(lonIndex,latIndex,levIndex_out,stepIndex) &
+                        .gt.hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)  &
                        .and.levIndex_in.lt.nlev_in)
                 levIndex_in = levIndex_in + 1
               end do
               levIndex_in = levIndex_in - 1
-              zwb = log(pres_out(lonIndex,latIndex,levIndex_out,stepIndex) &
-                      /pres_in(lonIndex,latIndex,levIndex_in,stepIndex))  &
-                   /log(pres_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
-                      /pres_in(lonIndex,latIndex,levIndex_in,stepIndex))
+              zwb = (hLike_out(lonIndex,latIndex,levIndex_out,stepIndex) &
+                      - hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)) &
+                   /(hLike_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
+                      - hLike_in(lonIndex,latIndex,levIndex_in,stepIndex))
               zwt = 1.d0 - zwb
               field_out(lonIndex,latIndex,levIndex_out,stepIndex) =   &
                                  zwb*field_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
@@ -688,17 +796,39 @@ contains
         end do
         !$OMP END PARALLEL DO
 
-        ! overwrite values at the lowest levels to avoid extrapolation
-        if (vInterpCopyLowestLevel) then
-          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
-        end if
-
-      end do step_loop
-
-      deallocate(PT_in, PM_in, PT_out, PM_out)
-    end do var_loop
+      end subroutine hLike_interpolation_r4
 
   end subroutine int_vInterp_gsv_r4
+
+  !--------------------------------------------------------------------------
+  ! logP_r4
+  !--------------------------------------------------------------------------
+  subroutine logP_r4(presInLogOut)
+    !
+    ! :Purpose: compute log of pressurce field
+    !
+    implicit none
+
+    ! Arguments:
+    real(4), intent(inout) :: presInLogOut(:,:,:,:)
+
+    ! Locals:
+    integer :: latIdx, lonIdx, levIdx, stepIdx
+
+    !$OMP PARALLEL DO PRIVATE(lonIdx,latIdx,levIdx,stepIdx)
+    do lonIdx = lbound(presInLogOut,1), ubound(presInLogOut,1)
+      do latIdx = lbound(presInLogOut,2), ubound(presInLogOut,2)
+        do levIdx = lbound(presInLogOut,3), ubound(presInLogOut,3)
+          do stepIdx = lbound(presInLogOut,4), ubound(presInLogOut,4)
+            presInLogOut(lonIdx,latIdx,levIdx,stepIdx) = &
+                 log(presInLogOut(lonIdx,latIdx,levIdx,stepIdx))
+          end do
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+  end subroutine logP_r4
 
   !--------------------------------------------------------------------------
   ! int_tInterp_gsv
