@@ -90,6 +90,19 @@
         <SUBMITS sub_name="UnitTest"/>
         <MODULE  name="UnitTest"/>
       </FAMILY>
+      <SUBMITS sub_name="gem-h"/>
+      <FAMILY  name="gem-h">
+        <SUBMITS sub_name="vcode5005"/>
+        <FAMILY  name="vcode5005">
+          <SUBMITS sub_name="UnitTest"/>
+          <MODULE  name="UnitTest"/>
+        </FAMILY>
+        <SUBMITS sub_name="vcode21001"/>
+        <FAMILY  name="vcode21001">
+          <SUBMITS sub_name="UnitTest"/>
+          <MODULE  name="UnitTest"/>
+        </FAMILY>
+      </FAMILY>
       <SUBMITS sub_name="chem_only"/>
       <FAMILY  name="chem_only">
         <SUBMITS sub_name="UnitTest"/>
