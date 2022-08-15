@@ -3992,10 +3992,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     implicit none
 
+    ! Arguments:
     integer, intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
     integer, intent(in)    :: nullValue
 
+    ! Locals:
     integer :: numSelected, indexSelected, index
     integer, allocatable :: buffer(:), indices(:)
 
