@@ -141,6 +141,7 @@ module tovs_nl_mod
   integer, parameter :: tvs_nlevels     = 101           ! Maximum No. of RTTOV pressure levels including 'rttov top' at 0.005 hPa
 
   ! Module variables
+  integer, allocatable :: tvs_bodyIndexFromBtIndex(:)  ! Provides the bodyIndex in ObsSpaceData based on btIndex
   integer, allocatable :: tvs_nchan(:)             ! Number of channels per instrument (local)
   integer, allocatable :: tvs_ichan(:,:)           ! List of channels per instrument (local)
   integer, allocatable :: tvs_nchanMpiGlobal(:)     ! Number of channels per instrument (global)
@@ -2450,6 +2451,9 @@ contains
         btCount = tvs_countRadiances(sensorTovsIndexes(1:profileCount), obsSpaceData)
       end if
       
+      if (allocated(tvs_bodyIndexFromBtIndex)) deallocate(tvs_bodyIndexFromBtIndex)
+      allocate(tvs_bodyIndexFromBtIndex(btCount))
+
       if ( btCount == 0 ) cycle sensor_loop
       
       allocate ( surfem1          (btCount) ,stat=allocStatus(1))
@@ -2501,7 +2505,7 @@ contains
         end do
       else
         allocate( lchannel_subset(profileCount,tvs_nchan(sensorId)) )
-        call tvs_getChanprof(sensorId, sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, lchannel_subset_opt = lchannel_subset)
+        call tvs_getChanprof(sensorId, sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, lchannel_subset_opt = lchannel_subset, iptobs_cma_opt = tvs_bodyIndexFromBtIndex)
         if (tvs_useRttovScatt(sensorId)) then
           call rttov_scatt_setupindex (  &
                rttov_err_stat,           &
@@ -2578,9 +2582,8 @@ contains
         end do
 
       else if (sensorType == sensor_id_mw) then
-
-        call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, sensorTovsIndexes(1:profileCount))
-
+        call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, sensorTovsIndexes(1:profileCount), &
+                                        obsSpaceData, tvs_bodyIndexFromBtIndex)
       else
         emissivity_local(:)%emis_in = surfem1(:)
       end if
@@ -2847,19 +2850,24 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getMWemissivityFromAtlas
   !--------------------------------------------------------------------------
-  subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorId, chanprof, sensorTovsIndexes)
+subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorId, chanprof, sensorTovsIndexes, &
+                                        obsSpaceData, tvs_bodyIndexFromBtIndex)
     implicit none
+    type(struct_obs), intent(inout)      :: obsSpaceData
     real(8), intent(in)                  :: originalEmissivity(:)
     type (rttov_emissivity), intent(out) :: updatedEmissivity(:)
     integer, intent(in)                  :: sensorId
     type (rttov_chanprof), intent(in)    :: chanprof(:)
     integer, intent(in)                  :: sensorTovsIndexes(:)
+    integer, intent(in)                  :: tvs_bodyIndexFromBtIndex(:)
 
     integer :: returnCode
     real(8) :: mWAtlasSurfaceEmissivity(size(originalEmissivity))
     integer :: btCount, profileCount
     integer :: profileIndex, btIndex, jj
+    integer :: bodyIndex
 
+    
     if (useMWEmissivityAtlas) then
 
       if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
@@ -2892,16 +2900,20 @@ contains
 
       btCount = size( originalEmissivity )
       profileCount = size( sensorTovsIndexes )
+
       do profileIndex=1, profileCount !loop on profiles
         jj = sensorTovsIndexes(profileIndex)
+  
         do btIndex=1, btCount !loop on channels
           if (chanprof(btIndex)%prof==profileIndex) then
             ! Now we have 0.75 in originalEmissivity(:) for land and sea ice
             ! and the MW atlas emissivity in mWAtlasSurfaceEmissivity(:)
+
             if ( tvs_profiles_nl(jj)% skin % surftype == surftype_land .and. &
                  mWAtlasSurfaceEmissivity(btIndex) > 0.d0 .and. &
                  mWAtlasSurfaceEmissivity(btIndex) <= 1.d0 ) then ! check for missing values
               updatedEmissivity(btIndex)%emis_in = mWAtlasSurfaceEmissivity(btIndex)
+
             else
               updatedEmissivity(btIndex)%emis_in = originalEmissivity(btIndex)
             end if
@@ -2913,7 +2925,14 @@ contains
       updatedEmissivity(:)%emis_in = originalEmissivity(:)
     end if
 
+    ! Append Surface Emissivity into ObsSpaceData
+    do btIndex = 1, btCount
+      bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
+      call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, updatedEmissivity(btIndex)%emis_in)
+    end do
+
   end subroutine tvs_getMWemissivityFromAtlas
+
 
 
   !--------------------------------------------------------------------------

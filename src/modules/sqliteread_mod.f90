@@ -1041,6 +1041,88 @@ contains
   end subroutine sqlr_handleError
 
   !--------------------------------------------------------------------------
+  ! sqlr_addColumn
+  !--------------------------------------------------------------------------
+  subroutine sqlr_addColumn(obsSpaceColIndexSource, columnName, tableName, fileName)
+    !
+    ! :Purpose: Add columns to sqlite tables that does not previously exists.
+    !
+
+    implicit none
+
+    ! arguments:  
+    character(len=*)   , intent(in)    :: fileName    
+    character(len=*)   , intent(in)    :: tableName   
+    character(len=*)   , intent(in)    :: columnName   
+    integer, intent(in)         :: obsSpaceColIndexSource  
+
+    ! locals: 
+    character(len=3000)         :: query
+    character(len=10)           :: sqlDataType
+    integer                     :: ierr
+    character(len=*), parameter :: myName = 'sqlr_addColumn'
+
+    type(fSQL_STATUS)        :: stat ! sqlite error status
+    type(fSQL_DATABASE)      :: db   ! sqlite file handle
+    ! open the obsDB file
+    call fSQL_open( db, trim(fileName), status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
+    end if
+
+    if ( obs_columnDataType(obsSpaceColIndexSource) == 'real' ) then
+      sqlDataType = 'double'
+    else
+      sqlDataType = 'integer'
+    end if
+
+    query = 'alter table ' // trim(tableName) // ' add column ' // &
+                trim(columnName) // ' ' // trim(sqlDataType) // ';'
+
+    write(*,*) myName//': query = ', trim(query)
+    call fSQL_do_many( db, query, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      call utl_abort( myName//': Problem with fSQL_do_many '//fSQL_errmsg(stat) )
+    end if
+
+    ! close the sqlite file
+    call fSQL_close( db, stat ) 
+
+  end subroutine sqlr_addColumn  
+
+  function  sqlr_readRdbSchema(fileName) result(rdbSchema)
+    !
+    ! :Purpose: Add columns to sqlite tables that does not previously exists.
+    !
+
+    implicit none
+
+    ! arguments:
+    character(len=*)   , intent(in)    :: fileName     
+    character(len=9)                   :: rdbSchema  
+    
+    ! locals:
+    character(len=500)                 :: query
+    type(fSQL_STATUS)                  :: stat ! sqlite error status
+    type(fSQL_DATABASE)                 :: db   ! sqlite file handle
+    character(len=*), parameter :: myName = 'sqlr_readRdbSchema'
+
+    ! open the obsDB file
+    call fSQL_open( db, trim(fileName), status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
+    end if
+
+    query = 'select schema from rdb4_schema ;'
+    rdbSchema = sqlr_query(db,trim(query))
+    
+    ! close the sqlite file
+    call fSQL_close( db, stat ) 
+
+  end function  sqlr_readRdbSchema  
+
+
+  !--------------------------------------------------------------------------
   ! sqlr_updateSqlite
   !--------------------------------------------------------------------------
   subroutine sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber)
@@ -1070,8 +1152,9 @@ contains
     character(len =  10)        :: columnName
     character(len = 128)        :: query
     character(len = 356)        :: itemChar, columnNameChar
-    logical                     :: back
+    logical                     :: back, columnExists
     real                        :: romp, obsValue, scaleFactor
+    character(len=9)            :: rdbSchema
     namelist/namSQLUpdate/ numberUpdateItems,      itemUpdateList,     &
                            numberUpdateItemsRadar, itemUpdateListRadar
 
@@ -1104,6 +1187,10 @@ contains
     write(*,*) 'sqlr_updateSqlite: file name     = ', trim(fileName)
     write(*,*) 'sqlr_updateSqlite: missing value = ', MPC_missingValue_R8    
 
+    rdbSchema = sqlr_readRdbSchema(fileName) 
+
+    write(*,*) 'sqlr_updateSqlite: rdbSchema', rdbSchema
+
     ! create query
     itemChar='  '
 
@@ -1130,9 +1217,35 @@ contains
         case('EMI')
           updateList(itemIndex) = OBS_SEM
           columnName = 'surf_emiss'
+
+          if (rdbSchema == 'amsua' .or. rdbSchema == 'iasi' .or. &
+              rdbSchema == 'airs'  .or. rdbSchema == 'cris' .or. &
+              rdbSchema == 'amsub' .or. rdbSchema == 'mhs'  .or. &
+              rdbSchema == 'crisfsr') then
+
+            !Check if Column Exist
+            columnExists = sqlu_sqlColumnExists(fileName, 'data', columnName)
+            if ( columnExists ) then
+              write(*,*) 'myName: '// columnName //' column already exist and is not is added'
+            else
+              call sqlr_addColumn(updateList( itemIndex ), columnName, 'data', fileName)
+            end if
+          else
+            write(*,*) 'myName: Observation file does not require updating column', columnName
+          end if
+
         case('COR')
           updateList(itemIndex) = OBS_BCOR
           columnName = 'bias_corr'
+
+          !Check if Column Exist
+          columnExists = sqlu_sqlColumnExists(fileName, 'data', columnName)
+          if ( columnExists ) then
+            write(*,*) 'myName: '// columnName //' column already exist and is not is added'
+          else
+            call sqlr_addColumn(updateList( itemIndex ), columnName, 'data', fileName)
+          end if
+
         case('ALT')
           updateList(itemIndex) = OBS_PPP
           columnName = 'vcoord'

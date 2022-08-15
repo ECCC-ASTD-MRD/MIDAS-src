@@ -1,4 +1,4 @@
- &NAMSQLcsr
+ &NAMSQLamsua
   numberElem=1 ,
   listElem='12163' ,
   sqlExtraHeader='' ,
@@ -38,9 +38,9 @@
    NDATAMX=2000000,
 /
  &NAMTIME
-  DWINDOWSIZE = 2.0d0
+  DWINDOWSIZE = 6.0d0
   DSTEPOBS = 1.00d0
-  DSTEPOBSINC = 2.00d0
+  DSTEPOBSINC = 6.00d0
 /
  &NAMFILT
   NELEMS = 16,
@@ -88,21 +88,28 @@
    ANLVAR(6)   ='TG'
    abortonMpiImbalance=.false.
 /
- &NAMTOV   
-   NSENSORS =  5,
-   CSATID(1)        = 'GOES13',
-   CINSTRUMENTID(1) = 'GOESIMAGER',
-   CSATID(2)        = 'GOES15',
-   CINSTRUMENTID(2) = 'GOESIMAGER',
-   CSATID(3)        = 'GOES16',
-   CINSTRUMENTID(3) = 'ABI',
-   CSATID(4)        = 'GOES17',
-   CINSTRUMENTID(4) = 'ABI',
-   CSATID(5)        = 'HMWARI-8',
-   CINSTRUMENTID(5) = 'AHI',
+  &NAMTOV   
+   NSENSORS         =  7,
+   CSATID(1)        = 'NOAA15',
+   CINSTRUMENTID(1) = 'AMSUA',
+   CSATID(2)        = 'NOAA16',
+   CINSTRUMENTID(2) = 'AMSUA',
+   CSATID(3)        = 'AQUA',
+   CINSTRUMENTID(3) = 'AMSUA',
+   CSATID(4)        = 'NOAA18',
+   CINSTRUMENTID(4) = 'AMSUA',
+   CSATID(5)        = 'METOP-2',
+   CINSTRUMENTID(5) = 'AMSUA',
+   CSATID(6)        = 'METOP-1',
+   CINSTRUMENTID(6) = 'AMSUA',
+   CSATID(7)       = 'NOAA19',
+   CINSTRUMENTID(7)= 'AMSUA',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
-   regLimitExtrap=.true.
+   mwAllskyAssim = .FALSE.,
+   regLimitExtrap=.false.,
+   useMWEmissivityAtlas = .true.,
+   mWAtlasId = 2,
 /
  &NAMSAT
    LISTBURP(1)=054, ! METEOSAT 7
@@ -303,10 +310,12 @@
  &NAMGPSGB
 /
  &NAMSQLUPDATE
- numberUpdateItems=3,
+ numberUpdateItems=5,
  itemUpdateList(1)='OMA',
  itemUpdateList(2)='OMP',
  itemUpdateList(3)='OER',
+ itemUpdateList(4)='EMI',
+ itemUpdateList(5)='COR',
 /
  &NAMSQLINSERT
 /
