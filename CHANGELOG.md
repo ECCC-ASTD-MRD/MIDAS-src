@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * The thinning algorithm used for Satwinds and GB-GPS is not independent of the families considered in the same execution (#669 and !620)
+ * Make thinning algorithm for Satwinds and GB-GPS independent of families considered in same execution (#669 and !620)
  * Reintroduction of the interactive launch of parallel MPI programs (#661 and !616)
  * Add a timeout to makedepf90 to prevent stalling (#671 and !617)
  * Avoid calling `printf` in `tools/midas_scripts/midas.reunir_obs_mpi`
