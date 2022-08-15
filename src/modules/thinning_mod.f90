@@ -2082,6 +2082,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     implicit none
 
+    ! Arguments:
     integer,           intent(in)    :: numVars, numStation
     integer,           intent(in)    :: obsHeadDate(:), obsLaunchTime(:), stationFlags(:)
     real(4),           intent(in)    :: obsLat(:), obsLon(:)
@@ -2091,11 +2092,14 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer,           intent(in)    :: obsLevOffset(:)
     character (len=9), intent(inout) :: stnId(:)
 
+    ! Local parameters:
+    integer, parameter :: maxNumStnid  = 5000
+
+    ! Locals:
     logical :: condition, sameProfile, stnidNotFound
     integer :: stationIndex, stationIndex2, stationIndex3, catIndex
     integer :: greaterNumVal, numDuplicate, numDuplicateTotal, selectStationIndex 
     integer :: bufrStationIndex, tacStationIndex, numChecked, numStnid, numSame
-    integer, parameter :: maxNumStnid  = 5000
     character (len=9)  :: stnidList(maxNumStnid)
     integer            :: stationIndexList(maxNumStnid)
     integer :: numCriteria(5), cloche(30), selectCriteria
@@ -2307,14 +2311,17 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     implicit none
 
+    ! Arguments:
     integer, intent(in)    :: stationIndex, stationIndex2
     real(4), intent(in)    :: obsValues(:,:)
     integer, intent(in)    :: obsLevOffset(:)
     logical, intent(out)   :: sameProfile
 
+    ! Locals:
     integer :: varIndex, levIndex, levStnIndex, levStnIndex1, levStnIndex2, numSum
     real(4) :: valSum, minDeltaP1, minDeltaP2
 
+    ! Local parameters:
     ! Standard levels
     integer, parameter :: numStdLevels = 16
     real(4) :: standardLevels(numStdLevels)
@@ -2375,6 +2382,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     implicit none
 
+    ! Arguments:
     integer,           intent(in)    :: stationIndex, stationIndex2, numVars
     integer,           intent(in)    :: trajFlags(:,:)
     integer,           intent(in)    :: obsFlags(:,:)
@@ -2383,6 +2391,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer,           intent(inout) :: cloche(:)
     integer,           intent(out)   :: selectCriteria, selectStationIndex
 
+    ! Locals:
     logical :: condition, tacAndBufr, trajInfoOk
     integer :: raobFormatIndex, varIndex, levStnIndex, levStnIndex2, catIndex
     integer :: bufrStationIndex, tacStationIndex, countTimeFlag, countLatFlag, countTraj
@@ -2625,12 +2634,14 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     implicit none
 
+    ! Arguments:
     integer,           intent(in)    :: numVars, numLev, numStation, numLevStnMax
     integer,           intent(in)    :: obsLevOffset(:)
     integer,           intent(inout) :: obsFlags(:,:)
     real(4),           intent(in)    :: obsValues(:,:)
     real(4),           intent(in)    :: presInterp(:,:)
 
+    ! Locals:
     logical :: condition, debug
     integer :: stationIndex, levIndex, levStnIndex, stdLevelIndex, varIndex
     integer :: varIndexDD, varIndexFF, varIndexPres
@@ -2639,6 +2650,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     real(4) :: presTop, presBottom, deltaPres, deltaPresMin
     integer, allocatable :: levStnIndexList(:), numValidObs(:), listIndex(:)
 
+    ! Local parameters:
     ! Standard levels including 925 hPa
     integer, parameter :: numStdLevels = 16
     real(4) :: standardLevels(numStdLevels)
@@ -2914,12 +2926,16 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     implicit none
 
+    ! Arguments:
     integer,           intent(in)    :: numStation, numLevStnMax
     integer,           intent(in)    :: obsLevOffset(:)
     integer,           intent(inout) :: obsFlags(:,:)
     real(4),           intent(in)    :: obsValues(:,:)
 
+    ! Local parameters:
     integer, parameter  :: numLevES = 42
+
+    ! Locals:
     logical :: condition
     integer :: stationIndex, levIndex, levStnIndex, levSelectIndex, varIndexES, varIndexPres
     integer :: numLevSelect, levStnIndexValid
@@ -3028,11 +3044,13 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     implicit none
 
+    ! Arguments:
     integer, intent(in)    :: numStation
     integer, intent(in)    :: obsLevOffset(:), obsType(:)
     integer, intent(inout) :: obsFlags(:,:)
     real(4), intent(in)    :: obsValues(:,:)
 
+    ! Locals:
     logical :: conditionTT, conditionES, rejectES
     integer :: ierr, stationIndex, levStnIndex, varIndexES, varIndexTT, varIndexPres
     integer :: type, countReject0p, countReject0t, countReject1p, countReject1t
@@ -4073,9 +4091,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     implicit none
 
+    ! Arguments:
     integer, intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
     integer, intent(out)   :: marker
+
+    ! Locals:
     integer :: i, j, tmpi
     integer :: temp
     integer :: x      ! pivot point
@@ -4122,8 +4143,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     implicit none
 
+    ! Arguments:
     real(8), intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
+
+    ! Locals:
     integer :: iq
 
     if (size(A) > 1) then
@@ -4142,9 +4166,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     implicit none
 
+    ! Arguments:
     real(8), intent(inout) :: A(:)
     integer, intent(inout) :: B(:)
     integer, intent(out) :: marker
+
+    ! Locals:
     integer :: i, j, tmpi
     real(8) :: temp
     real(8) :: x      ! pivot point
@@ -4191,10 +4218,14 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     implicit none
 
+    ! Arguments:
     real(4), intent(in) :: deltaLat, deltaLon, lat1, lat2
 
+    ! Local parameters:
     real(4), parameter :: PI = 3.141592654
     real(4), parameter :: RT = 6374.893
+
+    ! Locals:
     real(4) :: lat1_r, lat2_r, deltaLat_r, deltaLon_r, term_a
 
     lat1_r = lat1*PI/180.
@@ -4260,6 +4291,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     real(4), allocatable :: uuSumGrid(:,:,:), vvSumGrid(:,:,:), ttSumGrid(:,:,:)
 
     integer, external :: fnom, fclos
+
+    ! Local parameters:
     integer, parameter :: maxLev = 500
 
     ! Namelist variables:
@@ -4849,8 +4882,10 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     character(len=*), intent(in) :: familyType
     integer,          intent(in) :: keepNthVertical
 
-    ! Locals:
+    ! Local parameters:
     integer, parameter :: PROFILE_NOT_FOUND=-1
+
+    ! Locals:
     integer :: headerIndex, bodyIndex
     integer :: flag
     integer :: countKeepN ! count to keep every Nth observation in the column
@@ -4901,6 +4936,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       ! :Note:  This method has been written with aladin observations in mind.
       !         It might be necessary to generalize the method.
       implicit none
+
+      ! Locals:
       logical :: new_column
 
       integer, save :: previousProfileId=huge(previousProfileId)
