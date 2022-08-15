@@ -8,8 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Add `-common_sql_column` argument to `midas.reunir_obs_mpi` which is the column on which tables have been split (#667 and !619)
-   * then generalize the code to avoid any explicit reference to any table except `header` using this `common_sql_column` which default to `id_obs`
+ * Add argument `-common_sql_column` to `midas.reunir_obs_mpi` to avoid explicit reference to column name (#667 and !619)
  * Added lat/lon information in data table of diag files for slant path observations (#658 and !615)
  * Added `cleaninst` `make` target to remove all installed programs (#672 and !618)
  * Added a stop-and-wait utility for debugging purposes (#662 and !614)
@@ -24,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Make thinning algorithm for Satwinds and GB-GPS independent of families considered in same execution (#669 and !620)
  * Reintroduction of the interactive launch of parallel MPI programs (#661 and !616)
  * Add a timeout to makedepf90 to prevent stalling (#671 and !617)
  * Avoid calling `printf` in `tools/midas_scripts/midas.reunir_obs_mpi`
