@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Add `-common_sql_column` argument to `midas.reunir_obs_mpi` to to avoid any explicit reference to any table (#667 and !619)
+ * Add argument `-common_sql_column` to `midas.reunir_obs_mpi` to avoid explicit reference to table name (#667 and !619)
  * Added lat/lon information in data table of diag files for slant path observations (#658 and !615)
  * Added `cleaninst` `make` target to remove all installed programs (#672 and !618)
  * Added a stop-and-wait utility for debugging purposes (#662 and !614)
