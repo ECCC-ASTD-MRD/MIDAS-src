@@ -3999,7 +3999,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer :: numSelected, indexSelected, index
     integer, allocatable :: buffer(:), indices(:)
 
-    !! Compute the number of non-null values in array 'A'
+    ! Compute the number of non-null values in array 'A'
     indexSelected = 0
     do index = 1, size(A)
       if ( A(index) /= nullValue ) then
@@ -4008,25 +4008,25 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     end do
     numSelected = indexSelected
 
-    !! Allocate temporary arrays
+    ! Allocate temporary arrays
     allocate(buffer(numSelected))
     allocate(indices(numSelected))
 
-    !! Initialize the temporary arrays
+    ! Initialize the temporary arrays
     indexSelected = 0
     do index = 1, size(A)
       if ( A(index) /= nullValue ) then
         indexSelected = indexSelected + 1
         buffer(indexSelected) = A(index)
-        !! keep the index of the value in the original array
+        ! keep the index of the value in the original array
         indices(indexSelected) = index
       end if
     end do
 
     call thn_QsortInt(buffer,indices)
 
-    !! Populate again the array 'A' with the data from 'buffer'
-    !! Populate again the array 'B' with the data from 'indices'
+    ! Populate again the array 'A' with the data from 'buffer'
+    ! Populate again the array 'B' with the data from 'indices'
     indexSelected = 0
     do index = 1, size(A)
       if ( A(index) /= nullValue ) then
