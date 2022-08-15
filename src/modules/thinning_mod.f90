@@ -3979,7 +3979,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
   !--------------------------------------------------------------------------
   ! thn_QsortIntIgnoringNullValues
   !--------------------------------------------------------------------------
-  recursive subroutine thn_QsortIntIgnoringNullValues(A,B,nullValue)
+  subroutine thn_QsortIntIgnoringNullValues(A,B,nullValue)
     ! :Purpose: Quick sort algorithm for integer data
     !           Calling 'thn_QsortInt' on array without missing values (-1)
     !           The 'QuickSort' algorithm gives different results
