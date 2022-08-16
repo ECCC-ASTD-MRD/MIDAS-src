@@ -374,6 +374,7 @@ contains
     character(len=4) :: varName
 
     type(struct_vco), pointer :: vco_in, vco_out
+    type(struct_gsv)  :: statevector_Zin, statevector_Zout  !needed for vcode 21001 to obtain Z_*
 
     ! read the namelist
     call int_readNml()
@@ -410,7 +411,12 @@ contains
       checkModelTop = .true.
     end if
     if (checkModelTop) then
-      call vco_ensureCompatibleTops(vco_in, vco_out)
+      if ( vcode_in == 21001 .or. vcode_out == 21001 ) then
+        write(*,*) 'int_vInterpolate: bypassing top check ', vcode_in, vcode_out
+        ! DBGmad: a better solution
+      else
+        call vco_ensureCompatibleTops(vco_in, vco_out)
+      end if
     end if
 
     var_loop: do varIndex = 1, vnl_numvarmax
@@ -463,7 +469,15 @@ contains
         call logP(hLikeT_in)
 
       else if ( vcode_in==21001 ) then
-        call czp_calcReturnHeight_gsv_nl( statevector_in, &
+        call gsv_allocate(statevector_Zin, statevector_in%numStep, &
+                          statevector_in%hco, statevector_in%vco, &
+                          dateStampList_opt=statevector_in%datestamplist, &
+                          mpi_local_opt=statevector_in%mpi_local, &
+                          mpi_distribution_opt=statevector_in%mpi_distribution, &
+                          dataKind_opt=statevector_in%dataKind, allocHeightSfc_opt=.true., &
+                          varNames_opt=(/'TT', 'HU', 'P0', 'Z_M', 'Z_T'/) )
+        call gsv_copy(statevector_in, stateVector_Zin, allowVarMismatch_opt=.true.)
+        call czp_calcReturnHeight_gsv_nl( statevector_Zin, &
                                           ZT_r8=hLikeT_in, ZM_r8=hLikeM_in)
       end if
 
@@ -476,7 +490,15 @@ contains
         call logP(hLikeM_out)
         call logP(hLikeT_out)
       else if ( vcode_out==21001 ) then
-        call czp_calcReturnHeight_gsv_nl( statevector_out, &
+        call gsv_allocate(statevector_Zout, statevector_out%numStep, &
+                          statevector_out%hco, statevector_out%vco, &
+                          dateStampList_opt=statevector_out%datestamplist, &
+                          mpi_local_opt=statevector_out%mpi_local, &
+                          mpi_distribution_opt=statevector_out%mpi_distribution, &
+                          dataKind_opt=statevector_out%dataKind, allocHeightSfc_opt=.true., &
+                          varNames_opt=(/'TT', 'HU', 'P0', 'Z_M', 'Z_T'/) )
+        call gsv_copy(statevector_out, stateVector_Zout, allowVarMismatch_opt=.true.)
+        call czp_calcReturnHeight_gsv_nl( statevector_Zout, &
                                           ZT_r8=hLikeT_out, ZM_r8=hLikeM_out)
       end if
 
@@ -619,6 +641,7 @@ contains
     character(len=4) :: varName
 
     type(struct_vco), pointer :: vco_in, vco_out
+    type(struct_gsv)  :: statevector_Z !needed for vcode 21001 to obtain Z_*
 
     ! read the namelist
     call int_readNml()
@@ -656,7 +679,12 @@ contains
     end if
     if (checkModelTop) then
       write(*,*) 'int_vInterp_gsv_r4: Checking that that the top of the destination grid is not higher than the top of the source grid.'
-      call vco_ensureCompatibleTops(vco_in, vco_out)
+      if ( vcode_in == 21001 .or. vcode_out == 21001 ) then
+        write(*,*) 'int_vInterp_gsv_r4: bypassing top check, vcode_{in,out}=', vcode_in, vcode_out
+        ! DBGmad: a better solution
+      else
+        call vco_ensureCompatibleTops(vco_in, vco_out)
+      end if
     end if
 
     var_loop: do varIndex = 1, vnl_numvarmax
@@ -709,7 +737,16 @@ contains
         call logP_r4(hLikeT_in)
 
       else if ( vcode_in==21001 ) then
-        call czp_calcReturnHeight_gsv_nl( statevector_in, &
+        ! allocating for Z
+        call gsv_allocate(statevector_Z, statevector_in%numStep, & 
+                          statevector_in%hco, statevector_in%vco, &
+                          dateStampList_opt=statevector_in%datestamplist, &
+                          mpi_local_opt=statevector_in%mpi_local, &
+                          mpi_distribution_opt=statevector_in%mpi_distribution, &
+                          dataKind_opt=statevector_in%dataKind, allocHeightSfc_opt=.true., & 
+                          varNames_opt=(/'TT', 'HU', 'P0', 'Z_M', 'Z_T'/) ) 
+        call gsv_copy(statevector_in, stateVector_Z, allowVarMismatch_opt=.true.) 
+        call czp_calcReturnHeight_gsv_nl( statevector_Z, &
                                           ZT_r4=hLikeT_in, ZM_r4=hLikeM_in)
       end if
 
@@ -722,7 +759,17 @@ contains
         call logP_r4(hLikeM_out)
         call logP_r4(hLikeT_out)
       else if ( vcode_out==21001 ) then
-        call czp_calcReturnHeight_gsv_nl( statevector_out, &
+        ! allocating for Z
+        call gsv_zero(stateVector_Z)
+        call gsv_allocate(statevector_Z, statevector_out%numStep, & 
+                          statevector_out%hco, statevector_out%vco, &
+                          dateStampList_opt=statevector_out%datestamplist, &
+                          mpi_local_opt=statevector_out%mpi_local, &
+                          mpi_distribution_opt=statevector_out%mpi_distribution, &
+                          dataKind_opt=statevector_out%dataKind, allocHeightSfc_opt=.true., & 
+                          varNames_opt=(/'TT', 'HU', 'P0', 'Z_M', 'Z_T'/) ) 
+        call gsv_copy(statevector_out, stateVector_Z, allowVarMismatch_opt=.true.) 
+        call czp_calcReturnHeight_gsv_nl( statevector_Z, &
                                           ZT_r4=hLikeT_out, ZM_r4=hLikeM_out)
       end if
 
