@@ -64,6 +64,20 @@ module obsErrors_mod
   integer :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   logical :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
+  ! SST data 
+  integer, parameter :: maxNumberSSTDatasets = 15
+  integer :: numberSSTDatasets ! number of SST datasets in namelist
+  type setSSTdataParamsType
+    character(len=20) :: dataType   = '' ! type of data: insitu, satellite, pseudo
+    character(len=20) :: instrument = '' ! instrument: drifts, bouys, ships, AVHRR, VIIRS, AMSR2
+    character(len=20) :: sensor     = '' ! sensor of satellite data: NOAA19, NOAA20,...
+    character(len=20) :: sensorType = '' ! type of satellite data sensors: infrared, microwave,..
+    integer           :: codeType   = MPC_missingValue_INT ! data codtype
+    real(8)           :: dayError   = MPC_missingValue_R8  ! data error for daytime 
+    real(8)           :: nightError = MPC_missingValue_R8  ! data error for nighttime
+  end type setSSTdataParamsType
+  type(setSSTdataParamsType), dimension(:) :: setSSTdataParams(maxNumberSSTDatasets)
+
   ! CONVENTIONAL OBS ERRORS
   real(8) :: xstd_ua_ai_sw(20,11)
   real(8) :: xstd_sf(9,6)
@@ -131,9 +145,6 @@ module obsErrors_mod
   real(8) :: ascatAnisSigmaOpenWater(ncells,12), ascatAnisSigmaIce(ncells,12)
   real    :: oer_ascatAnisOpenWater(ncells,12), oer_ascatAnisIce(ncells,12)
 
-  ! SST
-  real(8) :: xstd_sst(6,2)
-
   ! Hydrology
   real(8) :: xstd_hydro(1)
 
@@ -193,12 +204,12 @@ contains
     character(len=*), intent(in) :: obserrorMode_in
     logical, optional            :: useTovsUtil_opt
 
-    integer :: fnom, fclos, ierr, nulnam  
     namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded
     namelist /namoer/ mwAllskyInflateByOmp, mwAllskyInflateByClwDiff
     namelist /namoer/ amsuaClearClwThresholdSigmaObsInflation
     namelist /namoer/ amsuaStateDepSigmaObsInflationCoeff
     namelist /namoer/ readOldSymmetricObsErrFile
+    integer :: fnom, fclos, nulnam, ierr
 
     !
     !- 1.  Setup Mode
@@ -249,8 +260,8 @@ contains
     
     !- 2.2 Conventional data
     if (obs_famExist(obsSpaceData, 'UA') .or. obs_famExist(obsSpaceData, 'AI') .or. obs_famExist(obsSpaceData, 'SW') .or. &
-         obs_famExist(obsSpaceData, 'SF') .or. obs_famExist(obsSpaceData, 'GP') .or. obs_famExist(obsSpaceData, 'SC') .or. &
-         obs_famExist(obsSpaceData, 'PR')) then
+        obs_famExist(obsSpaceData, 'SF') .or. obs_famExist(obsSpaceData, 'GP') .or. obs_famExist(obsSpaceData, 'SC') .or. &
+        obs_famExist(obsSpaceData, 'PR')) then
 
       call oer_readObsErrorsCONV()
 
@@ -275,7 +286,7 @@ contains
     end if
 
     !- 2.5 SST
-    if (obs_famexist(obsSpaceData,'TM')) then
+    if (obs_famexist(obsSpaceData,'TM')) then    
       call oer_readObsErrorsSST
     else
       write(*,*) "oer_setObsErrors: No TM observations found."
@@ -958,54 +969,19 @@ contains
     !
     implicit none
 
-    external fnom, fclos
-    integer                      :: fnom, fclos, ierr, lineIndex, sectionIndex, nulstat
-    logical                      :: fileExists
-    character(len=128)           :: ligne
-    character(len=15), parameter :: fileName = 'obserr_sst'    
+    integer :: fnom, fclos, nulnam, ierr, indexData
+    namelist /namSSTObsErrors/ numberSSTDatasets, setSSTdataParams
 
-    inquire(file = fileName, exist = fileExists)
-    if (fileExists) then
-      write(*,*) '--------------------------------------------------------'
-      write(*,*) 'oer_readObsErrorsSST: reads observation errors in ', fileName
-      write(*,*) '--------------------------------------------------------'
+    if (utl_isNamelistPresent('namSSTObsErrors','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+      read (nulnam, nml = namSSTObsErrors, iostat = ierr)
+      if (ierr /= 0) call utl_abort('oer_readObsErrorsSST: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=namSSTObsErrors)
+      ierr = fclos(nulnam)
     else
-      call utl_abort('oer_readObsErrorsSST: NO OBSERVATION STAT FILE FOUND!!')     
+       call utl_abort('oer_readObsErrorsSST: namSSTObsErrors is missing in the namelist.')
     end if
-
-    nulstat=0
-    ierr=fnom(nulstat, fileName, 'SEQ', 0)
-    if (ierr == 0) then
-      write(*,*) 'oer_readObsErrorsSST: File = ./',fileName
-      write(*,*) 'oer_readObsErrorsSST opened as unit file ',nulstat
-      open(unit=nulstat, file=fileName, status='OLD')
-    else
-      call utl_abort('oer_readObsErrorsSST: COULD NOT OPEN FILE '//fileName//'!')
-    end if
-
-    write(*, '(A)') ' '
-
-    SECTIONS: do sectionIndex = 1, 6
-
-      do lineIndex = 1, 3
-        read(nulstat, '(A)') ligne
-        write(*, '(A)') ligne
-      end do
-
-      read(nulstat, *)   xstd_sst(sectionIndex, 1), xstd_sst(sectionIndex, 2)
-      write(*, '(2f6.2)') xstd_sst(sectionIndex, 1), xstd_sst(sectionIndex, 2) 
-
-      do lineIndex = 1, 2
-        read(nulstat, '(A)') ligne
-        write(*, '(A)') ligne
-      end do
-
-    end do SECTIONS
-
-    write(*, '(A)') ' '
-
-    close(unit = nulstat)
-    ierr = fclos(nulstat)
 
   end subroutine oer_readObsErrorsSST
 
@@ -1066,7 +1042,7 @@ contains
     integer :: sensorIndex 
     integer :: isat, channelNumber, iplatf, instr, iplatform, instrum
     integer :: ilev, nlev, idate, itime
-    integer :: ielem, icodtyp, header_prev
+    integer :: ielem, icodtyp, header_prev, indexDataset, indexSensor
 
     real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
     real(8) :: obsValue, obsStdDevError, obsPPP, obsOER
@@ -1075,7 +1051,7 @@ contains
     real(8), parameter :: minRetrievableClwValue = 0.0D0
     real(8), parameter :: maxRetrievableClwValue = 3.0D0
 
-    logical :: ifirst, surfTypeIsWater
+    logical :: ifirst, surfTypeIsWater, unsupportedCodeType, unsupportedSensor
 
     character(len=2)  :: cfam
     character(len=12) :: cstnid
@@ -1451,51 +1427,56 @@ contains
 
             if (obs_bodyElem_i(obsSpaceData, OBS_VNM, bodyIndex) /= bufr_sst) cycle BODY
 
-            if (codeType == codtyp_get_codtyp('drifter')) then ! drifters
+            if (codeType == codtyp_get_codtyp('drifter')   .or. codeType == codtyp_get_codtyp('shipnonauto') .or. &
+                codeType == codtyp_get_codtyp('ashipauto') .or. codeType == codtyp_get_codtyp('pseudosfc')        ) then
 
-              call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sst(1, 1))
+              unsupportedCodeType = .true.
+              dataset_loop: do indexDataset = 1, numberSSTDatasets
+                if(codeType == setSSTdataParams(indexDataset)%codeType) then
+                  unsupportedCodeType = .false.
+                  call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, setSSTdataParams(indexDataset)%dayError)
+                  cycle dataset_loop
+                end if
+              end do dataset_loop
 
-            else if (codeType == codtyp_get_codtyp('shipnonauto')) then ! ships
+              if(unsupportedCodeType) then
+                write(*,'(a,i5,2a)') 'oer_fillObsErrors: unsupported SST data, codtype ', codeType,', cstnid ', cstnid,' found in dataset_loop!' 
+                call utl_abort('oer_fillObsErrors: unsupported codeType!')
+              end if
 
-              call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sst(2, 1))
+            else if (codeType == codtyp_get_codtyp('satob')) then
 
-            else if (codeType == codtyp_get_codtyp('ashipauto')) then ! moored buoys
+              solarZenith = obs_headElem_r(obsSpaceData, obs_sun, headerIndex)
+              if (solarZenith == MPC_missingValue_R8) then
+                write(*,*) 'oer_fillObsErrors: Solar zenith value is missing for satellite SST data ', &
+                           cstnid, ', headerIndex: ', headerIndex,', bodyIndex: ', bodyIndex
+                call utl_abort('oer_fillObsErrors: Solar zenith value is missing!')
+              end if
+              
+              unsupportedSensor = .true.
+              sensor_loop: do indexSensor = 1, numberSSTDatasets
+                if (cstnid == trim(setSSTdataParams(indexSensor)%sensor)) then
+                  unsupportedSensor = .false.
+                  if (solarZenith <= 90.) then ! day
+                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, setSSTdataParams(indexSensor)%dayError)
+                  else ! night
+                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, setSSTdataParams(indexSensor)%nightError)
+                  end if
+                  cycle sensor_loop
+                end if
+              end do sensor_loop
 
-              call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sst(3, 1))
-	      
-            else if (codeType == codtyp_get_codtyp('pseudosfc')) then ! bogus pseudo observations
-
-              call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sst(6, 1))
-
-            else if (codeType == codtyp_get_codtyp('satob')) then ! satellite SST obs
-                      
-              if (cstnid == 'NOAA18' .or. cstnid == 'NOAA19' .or. &
-                  cstnid == 'METO-A' .or. cstnid == 'METO-B' .or. cstnid == 'NPP') then
-
-                solarZenith = obs_headElem_r(obsSpaceData, obs_sun, headerIndex)
-
-                if (solarZenith == MPC_missingValue_R8) then
-                  write(*,*) 'oer_fillObsErrors: Solar zenith value is missing for ', &
-                             cstnid, ', headerIndex: ', headerIndex,', bodyIndex: ', bodyIndex
-                  call utl_abort('oer_fillObsErrors: Solar zenith value is missing!')
-                end if  
-
-                if (solarZenith <= 90.) then ! day
-                  call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sst(4, 1))
-                else ! night
-                  call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sst(4, 2))
-                end if   
-
-              else if (cstnid == 'AMSR2') then   
-                call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, xstd_sst(5, 1))
-              end if  
+              if(unsupportedSensor) then
+                write(*,'(3a)') 'oer_fillObsErrors: unsupported satellite SST data sensor ', cstnid,' found in sensor_loop!' 
+                call utl_abort('oer_fillObsErrors: unsupported satellite SST data sensor!')
+              end if
 
             else
-              write(*,*) 'oer_fillObsErrors: unsupported codeType: ', &
-                         codeType,' for satellite SST data found!' 
-              call utl_abort('oer_fillObsErrors: unsupported codeType!')
-            end if  
 
+              write(*,'(a,i5,2a)') 'oer_fillObsErrors: unsupported SST data, codtype ', codeType,', cstnid ', cstnid,' found!' 
+              call utl_abort('oer_fillObsErrors: unsupported codeType!')
+
+            end if
 
                 !***********************************************************************
                 !               Sea Ice Concentration
