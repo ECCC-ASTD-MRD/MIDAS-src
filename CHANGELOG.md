@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * SST data errors are read and put into obsSpaceData using namelist variables (#676 and !623)
 
 ### Fixed
 
