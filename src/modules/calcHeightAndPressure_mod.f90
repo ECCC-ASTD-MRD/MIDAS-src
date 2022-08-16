@@ -32,7 +32,7 @@ module calcHeightAndPressure_mod
   use utilities_mod
   use varnamelist_mod
   use gps_mod
-  use HorizontalCoord_mod ! DEBUG mad001
+  use HorizontalCoord_mod
   implicit none
   save
   private
@@ -110,15 +110,6 @@ module calcHeightAndPressure_mod
   real(8), allocatable :: coeff_T_P0_delP1_col(:),   coeff_T_P0_dP_delPT_col(:)
   real(8), allocatable :: coeff_T_P0_dP_delP0_col(:)
 
-  ! DEBUG mad001 starts
-  integer  :: fun 
-  integer, dimension(8), parameter  :: locNi= (/1077,1776,337,1009,1678,1345,720,759/)
-  integer, dimension(8), parameter  :: locNj=(/541,364,1201,210,1062,423,493,1189/)
-  character(len=5), dimension(8), parameter    :: locLabels = (/'PoleN', 'NullI', 'Andes', 'Rocki', 'Tibet', 'AtlaN', 'PaciN', 'AtlaS'/)
-  integer :: locIdx, locLvl, locNLvl 
-  real(8) :: locLat, locLon
-  type(struct_hco)  ::  locHco
-  ! DEBUG mad001 ends
 contains
   !---------------------------------------------------------------------
   ! subroutines operating on struct_gsv
@@ -153,7 +144,7 @@ contains
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
+    beSilent = .false. ! DBGmad
 
     if (.not.beSilent) write(*,*) 'calcZandP_gsv_nl (czp): START'
 
@@ -211,7 +202,7 @@ contains
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
+    beSilent = .false. ! DBGmad
 
     if (.not.beSilent) write(*,*) 'calcZandP_gsv_tl (czp): START'
 
@@ -283,7 +274,7 @@ contains
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
+    beSilent = .false. ! DBGmad
 
     if (.not.beSilent) write(*,*) 'calcZandP_gsv_ad (czp): START'
 
@@ -356,7 +347,7 @@ contains
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
+    beSilent = .false. ! DBGmad
 
     call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
 
@@ -508,7 +499,7 @@ contains
     end if
 
     if ( .not. gsv_varExist(statevector,'Z_*')) then
-        ! DEBUG mad001 : probably other vars as well
+        ! DBGmad : probably other vars as well
       call utl_abort('calcHeight_gsv_nl_vcode2100x_r4 (czp): Z_T/Z_M do not exist in statevector!')
     end if
 
@@ -631,7 +622,7 @@ contains
     end if
 
     if ( .not. gsv_varExist(statevector,'Z_*')) then
-        ! DEBUG mad001 : probably other vars as well
+        ! DBGmad : probably other vars as well
       call utl_abort('calcHeight_gsv_nl_vcode2100x_r8 (czp): Z_T/Z_M do not exist in statevector!')
     end if
 
@@ -1115,7 +1106,7 @@ contains
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
+    beSilent = .false. ! DBGmad
 
     call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
 
@@ -1392,7 +1383,7 @@ contains
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
+    beSilent = .false. ! DBGmad
 
     call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
 
@@ -1736,7 +1727,7 @@ contains
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
+    beSilent = .false. ! DBGmad
 
     call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
 
@@ -2100,37 +2091,6 @@ contains
       end do ! latIndex
     end do do_computePressure_gsv_nl
 
-
-    ! DEBUG mad001 start
-    do locIdx = 1, 8
-      lonIndex = locNi(locIdx)
-      latIndex = locNj(locIdx)
-      if (lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd &
-          .and. latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd) then
-        locHco = gsv_getHco(statevector) 
-        locLat = locHco%lat2d_4(lonIndex,latIndex) * 180/3.141592654
-        locLon = locHco%lon2d_4(lonIndex,latIndex) * 180/3.141592654
-        if (locLon >= 180) locLon = locLon - 360
-        do locLvl = nlev_M, nlev_M-10, -1
-          write(*,*) & 
-             locLabels(locIdx),locLon,locLat,locLvl,&
-             P_T_ptr_r4(lonIndex,latIndex,locLvl,1),&
-             P_M_ptr_r4(lonIndex,latIndex,locLvl,1),&
-             height_T_ptr_r4(lonIndex,latIndex,locLvl,1),&
-             height_M_ptr_r4(lonIndex,latIndex,locLvl,1),&
-             tv(locLvl)
-          write(200+mmpi_myid,'(A5,2X,2(F20.10,2X),I3,2X,5(F20.10,2X))')&
-             locLabels(locIdx),locLon,locLat,locLvl,&
-             P_T_ptr_r4(lonIndex,latIndex,locLvl,1),&
-             P_M_ptr_r4(lonIndex,latIndex,locLvl,1),&
-             height_T_ptr_r4(lonIndex,latIndex,locLvl,1),&
-             height_M_ptr_r4(lonIndex,latIndex,locLvl,1),&
-             tv(locLvl)
-        end do
-      end if
-    end do
-    ! DEBUG mad001 end
-
     deallocate(pressure_T)
     deallocate(pressure_M)
     deallocate(tv)
@@ -2325,7 +2285,7 @@ contains
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
+    beSilent = .false. ! DBGmad
 
     call utl_tmg_start(178,'low-level--czp_calcPressure_tl')
 
@@ -2711,7 +2671,7 @@ contains
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
+    beSilent = .false. ! DBGmad
 
     if (.not.beSilent) write(*,*) 'calcZandP_col_nl (czp): START'
 
@@ -2760,7 +2720,7 @@ contains
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
+    beSilent = .false. ! DBGmad
 
     if (.not.beSilent) write(*,*) 'calcZandP_col_tl (czp): START'
 
@@ -2813,7 +2773,7 @@ contains
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
+    beSilent = .false. ! DBGmad
 
     if (.not.beSilent) write(*,*) 'calcZandP_col_ad (czp): START'
 
@@ -3613,7 +3573,7 @@ contains
     else
       beSilent = .true.
     end if
-    beSilent = .false. ! DEBUG mad001
+    beSilent = .false. ! DBGmad
 
     if (.not.beSilent) then
       write(*,*) 'calcPressure_col_ad (czp): START'

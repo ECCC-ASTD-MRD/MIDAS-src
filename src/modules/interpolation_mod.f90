@@ -737,7 +737,6 @@ contains
         call logP_r4(hLikeT_in)
 
       else if ( vcode_in==21001 ) then
-        ! allocating for Z
         call gsv_allocate(statevector_Z, statevector_in%numStep, & 
                           statevector_in%hco, statevector_in%vco, &
                           dateStampList_opt=statevector_in%datestamplist, &
@@ -759,7 +758,6 @@ contains
         call logP_r4(hLikeM_out)
         call logP_r4(hLikeT_out)
       else if ( vcode_out==21001 ) then
-        ! allocating for Z
         call gsv_zero(stateVector_Z)
         call gsv_allocate(statevector_Z, statevector_out%numStep, & 
                           statevector_out%hco, statevector_out%vco, &
