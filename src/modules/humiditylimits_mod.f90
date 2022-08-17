@@ -32,6 +32,9 @@ module humidityLimits_mod
 
   ! public procedures
   public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin
+  public :: qlim_readNameList
+  ! public variables (non-parameters)
+  public :: qlim_minClwValue
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
   real(8)            :: qlim_minClwValue
@@ -385,7 +388,7 @@ contains
 
       ! limit LWCR according to namelist if LWCR is analyzed
       if ( gsv_varExist(statevector,'LWCR') ) then
-        call readNameList
+        call qlim_readNameList
 
         if (statevector%dataKind == 8) then
           call gsv_getField(statevector,clw_ptr_r8,'LWCR')
@@ -548,7 +551,7 @@ contains
 
           ! limit LWCR according to namelist if LWCR is analyzed
           if ( ens_varExist(ensemble,'LWCR') ) then
-            call readNameList
+            call qlim_readNameList
 
             varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'LWCR')
             clw_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
@@ -729,9 +732,9 @@ contains
   end subroutine qlim_setMin_ens
   
   !--------------------------------------------------------------------------
-  ! readNameList
+  ! qlim_readNameList
   !--------------------------------------------------------------------------
-  subroutine readNameList
+  subroutine qlim_readNameList
     !
     ! :Purpose: Reading NAMQLIM namelist by any subroutines in humidityLimits_mod module.
     !
@@ -765,6 +768,6 @@ contains
       if ( mpi_myid == 0 ) write(*,nml=namqlim)
     end if
 
-  end subroutine readNameList
+  end subroutine qlim_readNameList
   
 end module humidityLimits_mod
