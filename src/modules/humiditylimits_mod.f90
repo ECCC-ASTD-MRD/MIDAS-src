@@ -26,7 +26,6 @@ module humidityLimits_mod
   use verticalCoord_mod
   use gridStateVector_mod
   use ensembleStateVector_mod
-  use columnData_mod 
   implicit none
   save
   private
@@ -385,7 +384,7 @@ contains
       deallocate(pressure)
 
       ! limit LWCR according to namelist if LWCR is analyzed
-      if ( col_varExist(varName='LWCR') ) then
+      if ( gsv_varExist(statevector,'LWCR') ) then
         call readNameList
 
         if (statevector%dataKind == 8) then
@@ -434,7 +433,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine qlim_rttovLimit_ens(ensemble)
     !
-    !:Purpose: To impose RTTOV limits on humidity
+    !:Purpose: To impose RTTOV limits on humidity/LWCR
     !
     implicit none
 
@@ -447,8 +446,10 @@ contains
     real(8), allocatable :: psfc(:,:)
     real(8), allocatable :: qmin3D_rttov(:,:,:), qmax3D_rttov(:,:,:)
     real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
+    real(4), pointer     :: clw_ptr_r4(:,:,:,:)
     real(8), pointer     :: pressure(:,:,:)
     real(8)              :: hu, hu_modified
+    real(8)              :: clw, clw_modified
     integer              :: lon1, lon2, lat1, lat2
     integer              :: lonIndex, latIndex, levIndex, stepIndex, varLevIndex, memberIndex
     integer              :: numMember, numStep, numLev, numLev_rttov
@@ -544,6 +545,27 @@ contains
             end do ! memberIndex
           end do ! stepIndex
           !$OMP END PARALLEL DO
+
+          ! limit LWCR according to namelist if LWCR is analyzed
+          if ( ens_varExist(ensemble,'LWCR') ) then
+            call readNameList
+
+            varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'LWCR')
+            clw_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
+
+            !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, clw, clw_modified)
+            do stepIndex = 1, numStep
+              do memberIndex = 1, numMember
+
+                clw = real(clw_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
+
+                clw_modified = max(clw,qlim_minClwValue)
+                clw_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(clw_modified,4)
+
+              end do ! memberIndex
+            end do ! stepIndex
+            !$OMP END PARALLEL DO          
+          end if
 
         end do ! levIndex
 
