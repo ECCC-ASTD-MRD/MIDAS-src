@@ -34,6 +34,7 @@ module humidityLimits_mod
   public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
+  real(8)            :: qlim_minClwValue
 
   ! interface for qlim_saturationLimit
   interface qlim_saturationLimit
@@ -251,7 +252,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine qlim_rttovLimit_gsv(statevector)
     !
-    !:Purpose: To impose RTTOV limits on humidity
+    !:Purpose: To impose RTTOV limits on humidity/LWCR
     !
     implicit none
 
@@ -667,5 +668,44 @@ contains
     end do ! latIndex
 
   end subroutine qlim_setMin_ens
+  
+  !--------------------------------------------------------------------------
+  ! readNameList
+  !--------------------------------------------------------------------------
+  subroutine readNameList
+    !
+    ! :Purpose: Reading NAMQLIM namelist by any subroutines in humidityLimits_mod module.
+    !
+    implicit none
+
+    integer :: nulnam, ierr
+    integer, external :: fnom, fclos
+    logical, save :: nmlAlreadyRead = .false.
+    NAMELIST /NAMQLIM/ qlim_minClwValue
+
+    if ( .not. nmlAlreadyRead ) then
+      nmlAlreadyRead = .true.
+
+      !- Setting default values
+      qlim_minClwValue = 1.0d-9
+
+      if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
+        if ( mpi_myid == 0 ) then
+          write(*,*) 'NAMQLIM is missing in the namelist. The default values will be taken.'
+        end if
+
+      else
+        ! Reading the namelist
+        nulnam = 0
+        ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+        read(nulnam, nml=namqlim, iostat=ierr)
+        if ( ierr /= 0) call utl_abort('humidityLimits_mod: Error reading namelist')
+        ierr = fclos(nulnam)
+
+      end if
+      if ( mpi_myid == 0 ) write(*,nml=namqlim)
+    end if
+
+  end subroutine readNameList
   
 end module humidityLimits_mod
