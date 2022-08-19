@@ -33,11 +33,9 @@ module humidityLimits_mod
   ! public procedures
   public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin
   public :: qlim_readNameList
-  ! public variables (non-parameters)
-  public :: qlim_minClwValue
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
-  real(8)            :: qlim_minClwValue
+  real(8)            :: minClwValue
 
   ! interface for qlim_saturationLimit
   interface qlim_saturationLimit
@@ -406,7 +404,7 @@ contains
                 clw = real(clw_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),8)
               end if
 
-              clw_modified = max(clw,qlim_minClwValue)
+              clw_modified = max(clw,minClwValue)
               if (statevector%dataKind == 8) then
                 clw_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = clw_modified
               else
@@ -562,7 +560,7 @@ contains
 
                 clw = real(clw_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
 
-                clw_modified = max(clw,qlim_minClwValue)
+                clw_modified = max(clw,minClwValue)
                 clw_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(clw_modified,4)
 
               end do ! memberIndex
@@ -743,13 +741,13 @@ contains
     integer :: nulnam, ierr
     integer, external :: fnom, fclos
     logical, save :: nmlAlreadyRead = .false.
-    NAMELIST /NAMQLIM/ qlim_minClwValue
+    NAMELIST /NAMQLIM/ minClwValue
 
     if ( .not. nmlAlreadyRead ) then
       nmlAlreadyRead = .true.
 
       !- Setting default values
-      qlim_minClwValue = 1.0d-9
+      minClwValue = 1.0d-9
 
       if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
         if ( mpi_myid == 0 ) then

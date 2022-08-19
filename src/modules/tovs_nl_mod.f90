@@ -2138,7 +2138,7 @@ contains
       if ( runObsOperatorWithClw ) then
         call qlim_readNameList
         allocate (clw       (nlv_T,profileCount),stat= allocStatus(6))
-        clw(:,:) = qlim_minClwValue
+        clw(:,:) = minClwValue
       end if
       allocate (surfTypeIsWater(profileCount),stat= allocStatus(7)) 
       surfTypeIsWater(:) = .false.
@@ -2203,8 +2203,8 @@ contains
           pressure(levelIndex,profileCount) = col_getPressure(columnTrl,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           if ( runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
             clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
-            if (clw(levelIndex,profileCount) < qlim_minClwValue) then
-              call utl_abort('tvs_fillProfiles: columnTrl has smaller clw than qlim_minClwValue')
+            if (clw(levelIndex,profileCount) < minClwValue) then
+              call utl_abort('tvs_fillProfiles: columnTrl has smaller clw than minClwValue')
             end if
             clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor 
           end if
@@ -4865,7 +4865,7 @@ contains
 
       do profileIndex = 1, profileCount
         cloudProfileToStore(:,profileIndex) = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:)
-        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = qlim_minClwValue 
+        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = minClwValue 
       end do
 
     else if ( trim(mode) == 'restore' ) then 
