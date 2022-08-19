@@ -741,35 +741,35 @@ contains
     logical, save :: nmlAlreadyRead = .false.
     NAMELIST /NAMQLIM/ minClwValue
 
-    if ( .not. nmlAlreadyRead ) then
-      nmlAlreadyRead = .true.
+    if ( nmlAlreadyRead ) return
 
-      !- Setting default values
-      minClwValue = 1.0d-9
+    nmlAlreadyRead = .true.
 
-      if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
-        if ( mpi_myid == 0 ) then
-          write(*,*) 'NAMQLIM is missing in the namelist. The default values will be taken.'
-        end if
+    !- Setting default values
+    minClwValue = 1.0d-9
 
-      else
-        ! Reading the namelist
-        nulnam = 0
-        ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-        read(nulnam, nml=namqlim, iostat=ierr)
-        if ( ierr /= 0) call utl_abort('humidityLimits_mod: Error reading namelist')
-        ierr = fclos(nulnam)
-
+    if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
+      if ( mpi_myid == 0 ) then
+        write(*,*) 'NAMQLIM is missing in the namelist. The default values will be taken.'
       end if
-      if ( mpi_myid == 0 ) write(*,nml=namqlim)
+
+    else
+      ! Reading the namelist
+      nulnam = 0
+      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+      read(nulnam, nml=namqlim, iostat=ierr)
+      if ( ierr /= 0) call utl_abort('humidityLimits_mod: Error reading namelist')
+      ierr = fclos(nulnam)
+
     end if
+    if ( mpi_myid == 0 ) write(*,nml=namqlim)
 
   end subroutine readNameList
 
- !----------------------------------------------------------------------                                                                         
+ !-----------------------------------------------------------------------
   ! qlim_readMinClwValue
-  !----------------------------------------------------------------------                                                                         
-  function qlim_readMinClwValue() result(minimumClwValue)                                       
+  !----------------------------------------------------------------------
+  function qlim_readMinClwValue() result(minimumClwValue)
     !
     ! :Purpose: Return the minClwValue.
     !
