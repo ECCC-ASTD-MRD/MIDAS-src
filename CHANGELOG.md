@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * SST observation errors are now read from namelist namSSTObsErrors (#676 and !623)
 
 ### Fixed
 

@@ -25,13 +25,27 @@
    numberElem=1
    listElem='22042'
    sqlNull=' and obsvalue is not null '  
-/ 
+/
+ &namSSTObsErrors
+   numberSSTDatasets = 10
+   !#                        dataType ,    instrument ,   sensor ,  sensorType , codetype , dayError , nightError
+   setSSTdataParams(1)  =    'insitu' ,     'drifter' ,       '' ,          '' ,       18 ,     0.36 ,       0.36
+   setSSTdataParams(2)  =    'insitu' ,        'ship' ,       '' ,          '' ,       13 ,     0.64 ,       0.64
+   setSSTdataParams(3)  =    'insitu' , 'moored buoy' ,       '' ,          '' ,      147 ,     0.49 ,       0.49
+   setSSTdataParams(4)  = 'satellite' ,       'AVHRR' , 'NOAA19' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   setSSTdataParams(5)  = 'satellite' ,       'AVHRR' , 'METO-A' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   setSSTdataParams(6)  = 'satellite' ,       'AVHRR' , 'METO-B' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   setSSTdataParams(7)  = 'satellite' ,       'AVHRR' , 'METO-C' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   setSSTdataParams(8)  = 'satellite' ,       'VIIRS' ,    'N20' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   setSSTdataParams(9)  = 'satellite' ,       'VIIRS' ,    'NPP' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   setSSTdataParams(10) = 'satellite' ,       'AMSR2' ,  'AMSR2' , 'microwave' ,       88 ,     0.80 ,       0.80
+/
  &namReadSSTSat
    numberElem=1
    listElem='22042'
-   sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","NOAA18","NOAA19","NPP","AMSR2")) '
+   sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","METO-C","NOAA19","N20","NPP","AMSR2")) '
    sqlNull=' and obsvalue is not null '
-   sqlExtraHeader=' id_stn in ("METO-A","METO-B","NOAA18","NOAA19","NPP","AMSR2") '
+   sqlExtraHeader=' id_stn in ("METO-A","METO-B","METO-C","NOAA19","N20","NPP","AMSR2") '
 / 
  &namSSTbiasEstimate
    numberSensors = 5
