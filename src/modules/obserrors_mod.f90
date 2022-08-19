@@ -76,7 +76,7 @@ module obsErrors_mod
     real(8)           :: dayError   = MPC_missingValue_R8  ! data error for daytime 
     real(8)           :: nightError = MPC_missingValue_R8  ! data error for nighttime
   end type setSSTdataParamsType
-  type(setSSTdataParamsType), dimension(:) :: setSSTdataParams(maxNumberSSTDatasets)
+  type(setSSTdataParamsType) :: setSSTdataParams(maxNumberSSTDatasets)
 
   ! CONVENTIONAL OBS ERRORS
   real(8) :: xstd_ua_ai_sw(20,11)
@@ -1435,7 +1435,7 @@ contains
                 if(codeType == setSSTdataParams(indexDataset)%codeType) then
                   unsupportedCodeType = .false.
                   call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, setSSTdataParams(indexDataset)%dayError)
-                  cycle dataset_loop
+                  exit dataset_loop
                 end if
               end do dataset_loop
 
@@ -1462,7 +1462,7 @@ contains
                   else ! night
                     call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, setSSTdataParams(indexSensor)%nightError)
                   end if
-                  cycle sensor_loop
+                  exit sensor_loop
                 end if
               end do sensor_loop
 
