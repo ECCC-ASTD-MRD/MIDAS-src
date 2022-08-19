@@ -32,7 +32,7 @@ module humidityLimits_mod
 
   ! public procedures
   public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin
-  public :: qlim_readNameList
+  public :: qlim_readMinClwValue
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
   real(8)            :: minClwValue
@@ -386,7 +386,6 @@ contains
 
       ! limit LWCR according to namelist if LWCR is analyzed
       if ( gsv_varExist(statevector,'LWCR') ) then
-        call qlim_readNameList
 
         if (statevector%dataKind == 8) then
           call gsv_getField(statevector,clw_ptr_r8,'LWCR')
@@ -404,7 +403,7 @@ contains
                 clw = real(clw_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),8)
               end if
 
-              clw_modified = max(clw,minClwValue)
+              clw_modified = max(clw,qlim_readMinClwValue())
               if (statevector%dataKind == 8) then
                 clw_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = clw_modified
               else
@@ -549,7 +548,6 @@ contains
 
           ! limit LWCR according to namelist if LWCR is analyzed
           if ( ens_varExist(ensemble,'LWCR') ) then
-            call qlim_readNameList
 
             varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'LWCR')
             clw_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
@@ -560,7 +558,7 @@ contains
 
                 clw = real(clw_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
 
-                clw_modified = max(clw,minClwValue)
+                clw_modified = max(clw,qlim_readMinClwValue())
                 clw_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(clw_modified,4)
 
               end do ! memberIndex
@@ -767,5 +765,34 @@ contains
     end if
 
   end subroutine readNameList
+
+ !----------------------------------------------------------------------                                                                         
+  ! qlim_readMinClwValue
+  !----------------------------------------------------------------------                                                                         
+  function qlim_readMinClwValue() result(minimumClwValue)                                       
+    !
+    ! :Purpose: Return the minClwValue.
+    !
+    implicit none
+
+    ! Arguments:
+    real(8) :: minimumClwValue
+    
+    ! Locals:
+    logical, save :: firstCall = .true.
+
+    ! Ensure subroutine only runs one time during program execution
+    if (firstCall) then
+      firstCall = .false.
+    else
+      minimumClwValue = minClwValue
+      return
+    end if
+
+    call readNameList
+
+    minimumClwValue = minClwValue
+
+  end function qlim_readMinClwValue
   
 end module humidityLimits_mod
