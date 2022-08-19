@@ -732,9 +732,9 @@ contains
   end subroutine qlim_setMin_ens
   
   !--------------------------------------------------------------------------
-  ! qlim_readNameList
+  ! readNameList
   !--------------------------------------------------------------------------
-  subroutine qlim_readNameList
+  subroutine readNameList
     !
     ! :Purpose: Reading NAMQLIM namelist by any subroutines in humidityLimits_mod module.
     !
@@ -768,6 +768,6 @@ contains
       if ( mpi_myid == 0 ) write(*,nml=namqlim)
     end if
 
-  end subroutine qlim_readNameList
+  end subroutine readNameList
   
 end module humidityLimits_mod
