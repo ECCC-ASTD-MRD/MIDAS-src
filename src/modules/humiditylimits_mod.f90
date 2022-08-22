@@ -738,12 +738,7 @@ contains
 
     integer :: nulnam, ierr
     integer, external :: fnom, fclos
-    logical, save :: nmlAlreadyRead = .false.
     NAMELIST /NAMQLIM/ minClwValue
-
-    if ( nmlAlreadyRead ) return
-
-    nmlAlreadyRead = .true.
 
     !- Setting default values
     minClwValue = 1.0d-9
