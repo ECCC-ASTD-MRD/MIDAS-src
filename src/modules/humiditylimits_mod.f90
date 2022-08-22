@@ -784,12 +784,8 @@ contains
     ! Ensure subroutine only runs one time during program execution
     if (firstCall) then
       firstCall = .false.
-    else
-      minimumClwValue = minClwValue
-      return
+      call readNameList
     end if
-
-    call readNameList
 
     minimumClwValue = minClwValue
 
