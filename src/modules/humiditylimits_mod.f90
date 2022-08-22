@@ -37,7 +37,6 @@ module humidityLimits_mod
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
   real(8) :: minClwValue
   real(8) :: maxClwValue
-  logical :: clwThresholdsInitialized = .false.
 
   ! interface for qlim_saturationLimit
   interface qlim_saturationLimit
@@ -757,7 +756,6 @@ contains
     if ( nmlAlreadyRead ) return
 
     nmlAlreadyRead = .true.
-    clwThresholdsInitialized = .true.
 
     !- Setting default values
     minClwValue = 1.0d-9
@@ -793,8 +791,8 @@ contains
     ! Arguments:
     real(8) :: minimumClwValue
 
-    ! Ensure subroutine only runs one time during program execution
-    if ( .not. clwThresholdsInitialized ) call readNameList
+    ! readNameList runs one time during program execution
+    call readNameList
 
     minimumClwValue = minClwValue
 
@@ -812,8 +810,8 @@ contains
     ! Arguments:
     real(8) :: maximumClwValue
 
-    ! Ensure subroutine only runs one time during program execution
-    if ( .not. clwThresholdsInitialized ) call readNameList
+    ! readNameList runs one time during program execution
+    call readNameList
 
     maximumClwValue = maxClwValue
 
