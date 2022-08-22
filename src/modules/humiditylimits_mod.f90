@@ -32,10 +32,12 @@ module humidityLimits_mod
 
   ! public procedures
   public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin
-  public :: qlim_readMinClwValue
+  public :: qlim_readMinClwValue, qlim_readMaxClwValue
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
-  real(8)            :: minClwValue
+  real(8) :: minClwValue
+  real(8) :: maxClwValue
+  logical :: clwThresholdsInitialized = .false.
 
   ! interface for qlim_saturationLimit
   interface qlim_saturationLimit
@@ -740,12 +742,20 @@ contains
     !
     implicit none
 
+    ! Locals:
     integer :: nulnam, ierr
     integer, external :: fnom, fclos
-    NAMELIST /NAMQLIM/ minClwValue
+    logical, save :: nmlAlreadyRead = .false.
+    NAMELIST /NAMQLIM/ minClwValue, maxClwValue
+
+    if ( nmlAlreadyRead ) return
+
+    nmlAlreadyRead = .true.
+    clwThresholdsInitialized = .true.
 
     !- Setting default values
     minClwValue = 1.0d-9
+    maxClwValue = 1.0d0
 
     if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
       if ( mpi_myid == 0 ) then
@@ -776,18 +786,31 @@ contains
 
     ! Arguments:
     real(8) :: minimumClwValue
-    
-    ! Locals:
-    logical, save :: firstCall = .true.
 
     ! Ensure subroutine only runs one time during program execution
-    if (firstCall) then
-      firstCall = .false.
-      call readNameList
-    end if
+    if ( .not. clwThresholdsInitialized ) call readNameList
 
     minimumClwValue = minClwValue
 
   end function qlim_readMinClwValue
+
+ !-----------------------------------------------------------------------
+  ! qlim_readMaxClwValue
+  !----------------------------------------------------------------------
+  function qlim_readMaxClwValue() result(maximumClwValue)
+    !
+    ! :Purpose: Return the maxClwValue.
+    !
+    implicit none
+
+    ! Arguments:
+    real(8) :: maximumClwValue
+
+    ! Ensure subroutine only runs one time during program execution
+    if ( .not. clwThresholdsInitialized ) call readNameList
+
+    maximumClwValue = maxClwValue
+
+  end function qlim_readMaxClwValue
   
 end module humidityLimits_mod
