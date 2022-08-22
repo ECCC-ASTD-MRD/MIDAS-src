@@ -2202,8 +2202,9 @@ contains
           pressure(levelIndex,profileCount) = col_getPressure(columnTrl,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           if ( runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
             clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
-            if (clw(levelIndex,profileCount) < qlim_readMinClwValue()) then
-              call utl_abort('tvs_fillProfiles: columnTrl has smaller clw than minClwValue')
+            if ( clw(levelIndex,profileCount) < qlim_readMinClwValue() .or. &
+                 clw(levelIndex,profileCount) > qlim_readMaxClwValue() ) then
+              call utl_abort('tvs_fillProfiles: columnTrl has clw outside RTTOV bounds')
             end if
             clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor 
           end if
