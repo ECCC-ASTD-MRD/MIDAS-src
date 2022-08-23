@@ -226,6 +226,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="BgckChem"/>
+    <FAMILY  name="BgckChem">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
 
   <FAMILY  name="oMinusF">
@@ -261,6 +266,11 @@
     </FAMILY>
     <SUBMITS sub_name="o-p_radvel"/>
     <FAMILY  name="o-p_radvel">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="o-p_chem"/>
+    <FAMILY  name="o-p_chem">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>

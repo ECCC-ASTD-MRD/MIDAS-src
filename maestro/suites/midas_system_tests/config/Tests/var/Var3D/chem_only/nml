@@ -1,20 +1,16 @@
  &NAMBHI
-   SCALEFACTOR = 200*0.0
-/
- &NAMBLB
-   SCALEFACTOR = 200*0.0
-/
- &NAMBCHM
-   NTRUNC  = 399
-   NUMMODEZERO = 20
 /
  &NAMBEN
 /
+ &NAMBCHM
+   NTRUNC  = 270
+/
  &NAMRMAT
+   rmat_lnonDiagR=.true.
 /
  &NAMMIN
-   NVAMAJ = 30,
-   NITERMAX = 20,
+   NVAMAJ = 25,
+   NITERMAX = 50     ! 70,
    NSIMMAX  = 100,
    REPSG    = 1.0D-5,
    LGRTEST  = .FALSE.,
@@ -23,89 +19,60 @@
    NWOQCV=5
 /
  &NAMINC
+   hInterpolationDegree = 'CUBIC'
+   etiket_rehm ='XXXXXX'
    etiket_rebm ='XXXXXX'
+   etiket_anlm ='XXXXXX'
+   imposerttovhulimits = .FALSE.
 /
  &NAMDIMO
-   NMXOBS=500000,
-   NDATAMX=30000000,
+   NMXOBS=200000,
+   NDATAMX=2000000,
 /
  &NAMTIME
-  DSTEPOBS = 0.75d0
+  DSTEPOBS = 0.25d0
   DSTEPOBSINC = 6.0d0
 /
  &NAMFILT
-  NELEMS = 4,
+  NELEMS = 7,
   NLIST(1)=15198,
   NLIST(2)=15199,
-  NLIST(3)=15008,
-  NLIST(4)=15208,
-  NFLAGS=6,
+  NLIST(3)=15208,
+  NLIST(4)=15008,
+  NLIST(5)=15208,
+  NLIST(6)=15230,
+  NLIST(7)=12001,
+  NFLAGS=4,
   NLISTFLG(1)=2,
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
   NLISTFLG(4)=11,
   NLISTFLG(5)=-5,
   NLISTFLG(6)=-8,
-  list_topoFilt(1) = 'CH'
-  RLIMLVHU=70.,
+  RLIMLVHU=70.D0,
 /
  &NAMSTATE
    RHUMIN    = 1.0D-07
    ANLVAR(1) = 'TT'
    ANLVAR(2) = 'HU'
    ANLVAR(3) = 'P0'
-   ANLVAR(4) = 'TO3'
-/
- &NAMTOV
-/
- &NAMSAT
-/
- &NAMINST
-/
- &NAMCHANOFFSET
-/
- &NAMTOVSINST
-   inst_names(1)='airs',
-   inst_names(2)='iasi',
-   inst_names(3)='cris',
-/
- &NAMHYPER
-/
- &NAMGEO
+   ANLVAR(4) = 'O3L'
 /
  &NAMCODTYP
    cnames(1)='CHEMREMOTE',
    icod(1)=195, 
    cnames(2)='CHEMINSITU',
    icod(2)=196,
-   cnames(3)='AIRS'
-   icod(3)=183
-   cnames(4)='IASI'
-   icod(4)=186
-   cnames(5)='CRIS'
-   icod(5)=193
 /
- &NAMBGCKIR
-/
- &NAMGPSRO
-/
- &NAMGPSGB
-/
- &NAMBURP_FILTER_SFC
-/
- &NAMBURP_FILTER_CONV
-/
- &NAMBURP_FILTER_TOVS
-/
-&NAMBURP_FILTER_CHM_SFC
+ &NAMBURP_FILTER_CHM_SFC
   BNBITSOFF=0,
   NELEMS_SFC=3,
   BLISTELEMENTS_SFC=15198,15208,8090 
 /
-&NAMBURP_FILTER_CHM
+ &NAMBURP_FILTER_CHM
   BNBITSOFF=0,
-  NELEMS=5,
-  BLISTELEMENTS=15198,15199,15008,15208,8090 
+  NELEMS=6,
+  BLISTELEMENTS=15198,15199,15008,15208,15230,8090 
 /
  &NAMBURP_UPDATE
   BN_ITEMS=3,
@@ -124,22 +91,22 @@
    DELTAHEIGHT=5000.0D0
    NUMFAMILY=1
    FAMILYLIST(1)='CH'
-   NUMELEMENT=3
+   NUMELEMENT=2
    ELEMENTLIST(1)=15198
-   ELEMENTLIST(2)=15199
-   ELEMENTLIST(3)=15208
-   diagn_all(1)=.true.
+   ELEMENTLIST(2)=15208
+   diagn_all(1)=.FALSE.
    diagn_save(1)=.true.
-   diagn_nset(1)=2
-   diagn_num(1)=1
-   diagn_stnid(1,1)='WO*****00'
-   diagn_varno(1,1)=15199
-   diagn_unilev(1,1)=.false.
+   diagn_nset(1)=1
+   diagn_num(1)=3
+   diagn_stnid(1,1)='AUROMI00'
+   diagn_stnid(1,2)='R2362400'
+   diagn_stnid(1,3)='78538700'   
 /
  &NAMCHEM
-   assim_all(1)=.false.
-   assim_num(1)=3
-   assim_stnid(1,1)='00422000'
-   assim_stnid(1,2)='00322000'
-   assim_stnid(1,3)='00038700'
+  MODELNAME='GEM'              ! To identify O3L instead of TO3 from BUFR no.
+  assim_all(1)=.false.
+  assim_num(1)=3
+  assim_stnid(1,1)='AUROMI00'  ! OMI on AURA (Removed TROPOMI and OMPS-NM for this test)
+  assim_stnid(1,2)='R2362400'  ! SBUV2 with 6 layers (Removed OMPS-NP for this test)
+  assim_stnid(1,3)='78538700'  ! MLS on AURA
 /
