@@ -23,6 +23,7 @@ grep -irh 'call utl_tmg_start' |grep -v grep| sed 's/^.*tmg_start\(.*\)/\1/gI' |
  21, '----RmatMatMult'
  22, '----ObsFiltSuprep'
  23, '----ObsFileClean'
+ 24, '----Eob_AllGather'
 
  30, '--StateToColumn'
  31, '----s2c_Setups'
@@ -78,6 +79,7 @@ grep -irh 'call utl_tmg_start' |grep -v grep| sed 's/^.*tmg_start\(.*\)/\1/gI' |
 105, '----InterpolateWeights'
 106, '----ApplyWeights'
 107, '----Barr'
+108, '----GetGlobalTags'
 
 110, '--BiasCorrection'
 111, '----Regression'

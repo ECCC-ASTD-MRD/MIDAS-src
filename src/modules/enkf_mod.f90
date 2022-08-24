@@ -293,10 +293,16 @@ contains
       call enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     end if
 
+    call utl_tmg_start(107,'----Barr')
+    call rpn_comm_barrier('GRID',ierr)
+    call utl_tmg_stop(107)
+
     ! get mpi global list of tags used for mpi send/recv
+    call utl_tmg_start(108, '----GetGlobalTags')
     allocate(latLonTagMpiGlobal(stateVectorMeanAnl%ni,stateVectorMeanAnl%nj))
     call enkf_LETKFgetMpiGlobalTags(latLonTagMpiGlobal,myLatIndexesRecv,myLonIndexesRecv)
-    
+    call utl_tmg_stop(108)
+
     ! Compute the weights for ensemble mean and members
     countMaxExceeded = 0
     maxCountMaxExceeded = 0
@@ -779,6 +785,9 @@ contains
       call gsv_getField(stateVectorMeanInc,meanInc_ptr_r4)
       call gsv_getField(stateVectorMeanTrl,meanTrl_ptr_r4)
       call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
+
+      !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, varLevIndex, varLevel, varKind, levIndex2, memberTrl_ptr_r4, memberAnl_ptr_r4), &
+      !$OMP PRIVATE(memberAnlPert, stepIndex, memberIndex, memberIndex2, memberIndex1)
       do latIndex = myLatBeg, myLatEnd
         LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
 
@@ -867,6 +876,7 @@ contains
 
         end do LON_LOOP5
       end do
+      !$OMP END PARALLEL DO
 
       call utl_tmg_stop(106)
 
@@ -1229,6 +1239,7 @@ contains
                             "GRID", ierr)
 
     latLonTagMpiGlobal(:,:) = 0
+    !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex)
     do lonIndex = 1, ni
       do latIndex = 1, nj
         if (any(lonIndex == allLonIndexesRecv(:,:) .and. latIndex == allLatIndexesRecv(:,:))) then
@@ -1236,6 +1247,7 @@ contains
         end if
       end do
     end do
+    !$OMP END PARALLEL DO
 
     countTags = 0
     do lonIndex = 1, ni
@@ -1510,6 +1522,7 @@ contains
     numMembers1 = size(weights,1)
     numMembers2 = size(weights,2)
 
+    !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, interpLatIndex, interpLonIndex, memberIndex1, memberIndex2)
     do latIndex = myLatBegHalo, myLatEndHalo
       do lonIndex = myLonBegHalo, myLonEndHalo
         if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) then
@@ -1534,6 +1547,7 @@ contains
         end if ! numIndexes > 0
       end do ! lonIndex
     end do ! latIndex
+    !$OMP END PARALLEL DO
 
   end subroutine enkf_interpWeights
 
