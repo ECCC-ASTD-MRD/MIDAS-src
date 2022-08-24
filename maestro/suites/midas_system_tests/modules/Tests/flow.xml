@@ -373,6 +373,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+    <SUBMITS sub_name="glb_benchmark"/>
+    <FAMILY  name="glb_benchmark">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
 
   <FAMILY  name="ensPostProcess">
