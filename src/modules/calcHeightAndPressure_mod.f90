@@ -560,7 +560,7 @@ contains
 
     ! Locals
     integer                             :: nLon, nLat, nLev
-    type(struct_hco)                    :: hco
+    type(struct_hco), pointer           :: hco
     real(kind=4)                        :: latitude
     real(kind=4)                        :: gzH, b1, b2, A2, A3, altTmp
     integer                             :: lonIndex, latIndex, lvlIndex, i
@@ -572,7 +572,7 @@ contains
     nLev = ubound(gzHeight, 3)
     allocate(alt(nLon, nLat, nLev))
 
-    hco = gsv_getHco(statevector)
+    hco => gsv_getHco(statevector)
 
     do lonIndex = 1, nLon
       do latIndex = 1, nLat
@@ -681,7 +681,7 @@ contains
 
     ! Locals
     integer                             :: nLon, nLat, nLev
-    type(struct_hco)                    :: hco
+    type(struct_hco), pointer           :: hco
     real(kind=8)                        :: latitude
     real(kind=8)                        :: gzH, b1, b2, A2, A3, altTmp
     integer                             :: lonIndex, latIndex, lvlIndex, i
@@ -693,7 +693,7 @@ contains
     nLev = ubound(gzHeight, 3)
     allocate(alt(nLon, nLat, nLev))
 
-    hco = gsv_getHco(statevector)
+    hco => gsv_getHco(statevector)
 
     do lonIndex = 1, nLon
       do latIndex = 1, nLat
