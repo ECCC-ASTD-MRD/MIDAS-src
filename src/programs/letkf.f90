@@ -433,9 +433,9 @@ program midas_letkf
   ! Compute inverse of obs error variance (done here to use dynamic GPS-RO, GB-GPS based on mean O-P)
   call eob_setObsErrInv(ensObs)
 
-  call utl_tmg_start(107,'----Barr')
+  call utl_tmg_start(108,'----Barr')
   call rpn_comm_barrier('GRID',ierr)
-  call utl_tmg_stop(107)
+  call utl_tmg_stop(108)
 
   ! Clean and globally communicate obs-related data to all mpi tasks
   call eob_allGather(ensObs,ensObs_mpiglobal)
