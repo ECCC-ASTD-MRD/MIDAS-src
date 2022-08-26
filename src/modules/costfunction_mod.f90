@@ -29,6 +29,7 @@ module costfunction_mod
   use MathPhysConstants_mod
   use utilities_mod
   use obserrors_mod
+  use codtyp_mod
 
   implicit none
 
@@ -101,8 +102,10 @@ contains
     real(8) :: dljoprof, dljogpsro, dljogpsztd, dljochm, pjo_1, dljoaladin, dljohydro, dljoradar
     real(8) :: dljotov_sensors( tvs_nsensors )
     real(8) :: joTovsPerChannelSensor(tvs_maxNumberOfChannels,tvs_nsensors)
-
     character(len=15) :: lowerCaseName
+    real(8) :: joSSTInstrument(numberSSTDatasets)
+    integer :: nobsInstrument(numberSSTDatasets), nobsInstrumentGlob(numberSSTDatasets)
+    integer :: indexDataset, codeType, ierr
 
     logical :: printJoTovsPerChannelSensor
 
@@ -112,16 +115,16 @@ contains
       beSilent = .false.
     end if
 
-    if ( .not. allocated(channelNumberList) ) then
+    if (.not. allocated(channelNumberList)) then
       allocate(channelNumberList(tvs_maxNumberOfChannels,tvs_nsensors))
     end if
-    if ( .not. allocated(sensorNameList) ) then
+    if (.not. allocated(sensorNameList)) then
       allocate(sensorNameList(tvs_nsensors))
     end if
 
     call readNameList
     printJoTovsPerChannelSensor = .false.
-    if ( any(sensorNameList(:) /= '') .and. any(channelNumberList(:,:) /= 0) ) then
+    if (any(sensorNameList(:) /= '') .and. any(channelNumberList(:,:) /= 0)) then
       printJoTovsPerChannelSensor = .true.
     end if
 
@@ -142,18 +145,21 @@ contains
     joTovsPerChannelSensor(:,:) = 0.0d0
     dljohydro = 0.0d0
     dljoradar = 0.0d0
+    joSSTInstrument(:) = 0.0d0
+    nobsInstrumentGlob(:) = 0
+    nobsInstrument(:) = 0
 
     pjo = 0.0d0
 
-    do bodyIndex = 1, obs_numbody( lobsSpaceData )
+    do bodyIndex = 1, obs_numbody(lobsSpaceData)
 
-      pjo_1 = obs_bodyElem_r( lobsSpaceData, OBS_JOBS, bodyIndex )
+      pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
 
       ! total observation cost function
       pjo   = pjo + pjo_1
 
       ! subcomponents of observation cost function (diagnostic only)
-      select case( obs_getFamily( lobsSpaceData, bodyIndex = bodyIndex ))
+      select case(obs_getFamily(lobsSpaceData, bodyIndex = bodyIndex))
       case('UA')
         dljoraob    = dljoraob    + pjo_1
       case('AI')
@@ -230,6 +236,30 @@ contains
       end if
     end do
 
+    if(numberSSTDatasets > 0) then
+      do headerIndex = 1, obs_numheader(lobsSpaceData)
+        codeType     = obs_headElem_i(lobsSpaceData, OBS_ITY, headerIndex)
+        bodyIndexBeg = obs_headElem_i(lobsSpaceData, OBS_RLN, headerIndex)
+        bodyIndexEnd = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
+        do bodyIndex = bodyIndexBeg, bodyIndexEnd
+          pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
+          dataset_loop: do indexDataset = 1, numberSSTDatasets
+            if (codeType == setSSTdataParams(indexDataset)%codeType .and. codeType /= codtyp_get_codtyp('satob')) then
+              joSSTInstrument(indexDataset) = joSSTInstrument(indexDataset) + pjo_1
+              nobsInstrument(indexDataset) = nobsInstrument(indexDataset) + 1
+              exit dataset_loop
+            else
+              if (obs_elem_c(lobsSpaceData, 'STID', headerIndex) == trim(setSSTdataParams(indexDataset)%sensor)) then
+                joSSTInstrument(indexDataset) = joSSTInstrument(indexDataset) + pjo_1
+                nobsInstrument(indexDataset) = nobsInstrument(indexDataset) + 1
+                exit dataset_loop
+              end if
+            end if
+          end do dataset_loop
+        end do
+      end do
+    end if
+
     call mpi_allreduce_sumreal8scalar( pjo, "GRID" )
     call mpi_allreduce_sumreal8scalar( dljoraob, "GRID" )
     call mpi_allreduce_sumreal8scalar( dljoairep, "GRID" )
@@ -247,15 +277,22 @@ contains
     call mpi_allreduce_sumreal8scalar( dljohydro, "GRID" )
     call mpi_allreduce_sumreal8scalar( dljoradar, "GRID" )
     do sensorIndex = 1, tvs_nsensors
-      call mpi_allreduce_sumreal8scalar( dljotov_sensors(sensorIndex), "GRID" )
+      call mpi_allreduce_sumreal8scalar(dljotov_sensors(sensorIndex), "GRID")
     end do
-    if ( printJoTovsPerChannelSensor ) then
+    if (printJoTovsPerChannelSensor) then
       loopSensor2: do sensorIndex = 1, tvs_nsensors
-        if ( trim(sensorNameList(sensorIndex)) == '' ) cycle loopSensor2
+        if (trim(sensorNameList(sensorIndex)) == '') cycle loopSensor2
 
-        call mpi_allreduce_sumR8_1d( joTovsPerChannelSensor(:,sensorIndex), "GRID" )
+        call mpi_allreduce_sumR8_1d(joTovsPerChannelSensor(:,sensorIndex), "GRID")
       end do loopSensor2
     end if
+
+    ! SST data per instrument
+    do indexDataset = 1, numberSSTDatasets 
+      call mpi_allreduce_sumreal8scalar(joSSTInstrument(indexDataset), "grid")
+      call rpn_comm_allreduce(nobsInstrument(indexDataset), nobsInstrumentGlob(indexDataset), &
+                              1, "mpi_integer", "mpi_sum", "grid", ierr)
+    end do
 
     if ( mpi_myid == 0 .and. .not. beSilent ) then
       write(*,'(a15,f30.17)') 'Jo(UA)   = ', dljoraob
@@ -304,6 +341,19 @@ contains
 
         end do loopSensor3
         write(*,*) ' '
+      end if
+
+      ! print SST data per instrument
+      if(numberSSTDatasets > 0) then
+        write(*,*) 'cfn_sumJo: SST data by data type:'
+        write(*,'(a5,a15,a10,a30,a10, a15)') 'index', ' instrument', ' sensor', ' Jo', ' nobs', ' Jo/nobs'
+        do indexDataset = 1, numberSSTDatasets
+          if (nobsInstrumentGlob(indexDataset) > 0) then
+            write(*,'(i5,a15,a10,f30.17,i15,f10.5)') indexDataset, trim(setSSTdataParams(indexDataset)%instrument), &                                                                          trim(setSSTdataParams(indexDataset)%sensor), joSSTInstrument(indexDataset), &
+                                                     nobsInstrumentGlob(indexDataset), &
+                                                     joSSTInstrument(indexDataset) / real(nobsInstrumentGlob(indexDataset))
+          end if    
+        end do
       end if
 
     end if

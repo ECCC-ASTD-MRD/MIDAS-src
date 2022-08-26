@@ -46,6 +46,7 @@ module obsErrors_mod
 
   ! public variables (parameters)
   public :: oer_ascatAnisOpenWater, oer_ascatAnisIce
+  public :: setSSTdataParams, numberSSTDatasets
  ! Temporary arrays for QC purpose
   public :: oer_toverrst, oer_clwThreshArr, oer_tovutil
   public :: oer_sigmaObsErr, oer_useStateDepSigmaObs 
@@ -66,7 +67,7 @@ module obsErrors_mod
 
   ! SST data 
   integer, parameter :: maxNumberSSTDatasets = 15
-  integer :: numberSSTDatasets ! number of SST datasets in namelist
+  integer :: numberSSTDatasets = 0 ! number of SST datasets in namelist
   type setSSTdataParamsType
     character(len=20) :: dataType   = '' ! type of data: insitu, satellite, pseudo
     character(len=20) :: instrument = '' ! instrument: drifts, bouys, ships, AVHRR, VIIRS, AMSR2
