@@ -273,7 +273,7 @@ contains
     real(8), pointer     :: pressure(:,:,:)
     real(8)              :: hu, hu_modified
     real(8)              :: clw, clw_modified
-    real(8)              :: minimumClwValue, maximumClwValue
+    real(8)              :: minClwValue, maxClwValue
     integer              :: lon1, lon2, lat1, lat2, lev1, lev2
     integer              :: lonIndex, latIndex, levIndex, stepIndex
     integer              :: ni, nj, numLev, numLev_rttov
@@ -395,8 +395,8 @@ contains
           call gsv_getField(statevector,clw_ptr_r4,'LWCR')
         end if
 
-        minimumClwValue = qlim_readMinClwValue()
-        maximumClwValue = qlim_readMaxClwValue()
+        minClwValue = qlim_readMinClwValue()
+        maxClwValue = qlim_readMaxClwValue()
 
         !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, clw, clw_modified)
         do levIndex = lev1, lev2
@@ -408,8 +408,8 @@ contains
                 clw = real(clw_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),8)
               end if
 
-              clw_modified = max(clw,minimumClwValue)
-              clw_modified = min(clw_modified,maximumClwValue)
+              clw_modified = max(clw,minClwValue)
+              clw_modified = min(clw_modified,maxClwValue)
               if (statevector%dataKind == 8) then
                 clw_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = clw_modified
               else
@@ -456,7 +456,7 @@ contains
     real(8), pointer     :: pressure(:,:,:)
     real(8)              :: hu, hu_modified
     real(8)              :: clw, clw_modified
-    real(8)              :: minimumClwValue, maximumClwValue
+    real(8)              :: minClwValue, maxClwValue
     integer              :: lon1, lon2, lat1, lat2
     integer              :: lonIndex, latIndex, levIndex, stepIndex, varLevIndex, memberIndex
     integer              :: numMember, numStep, numLev, numLev_rttov
@@ -559,8 +559,8 @@ contains
             varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'LWCR')
             clw_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
 
-            minimumClwValue = qlim_readMinClwValue()
-            maximumClwValue = qlim_readMaxClwValue()
+            minClwValue = qlim_readMinClwValue()
+            maxClwValue = qlim_readMaxClwValue()
 
             !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, clw, clw_modified)
             do stepIndex = 1, numStep
@@ -568,8 +568,8 @@ contains
 
                 clw = real(clw_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
 
-                clw_modified = max(clw,minimumClwValue)
-                clw_modified = min(clw_modified,maximumClwValue)
+                clw_modified = max(clw,minClwValue)
+                clw_modified = min(clw_modified,maxClwValue)
                 clw_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(clw_modified,4)
 
               end do ! memberIndex
@@ -788,38 +788,38 @@ contains
  !-----------------------------------------------------------------------
   ! qlim_readMinClwValue
   !----------------------------------------------------------------------
-  function qlim_readMinClwValue() result(minimumClwValue)
+  function qlim_readMinClwValue() result(minClwValue)
     !
-    ! :Purpose: Return the qlim_minClwValue.
+    ! :Purpose: Return the minClwValue.
     !
     implicit none
 
     ! Arguments:
-    real(8) :: minimumClwValue
+    real(8) :: minClwValue
 
     ! readNameList runs one time during program execution
     call readNameList
 
-    minimumClwValue = qlim_minClwValue
+    minClwValue = qlim_minClwValue
 
   end function qlim_readMinClwValue
 
  !-----------------------------------------------------------------------
   ! qlim_readMaxClwValue
   !----------------------------------------------------------------------
-  function qlim_readMaxClwValue() result(maximumClwValue)
+  function qlim_readMaxClwValue() result(maxClwValue)
     !
-    ! :Purpose: Return the qlim_maxClwValue.
+    ! :Purpose: Return the maxClwValue.
     !
     implicit none
 
     ! Arguments:
-    real(8) :: maximumClwValue
+    real(8) :: maxClwValue
 
     ! readNameList runs one time during program execution
     call readNameList
 
-    maximumClwValue = qlim_maxClwValue
+    maxClwValue = qlim_maxClwValue
 
   end function qlim_readMaxClwValue
   
