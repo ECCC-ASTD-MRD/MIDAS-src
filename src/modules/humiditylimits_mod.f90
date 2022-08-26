@@ -35,8 +35,8 @@ module humidityLimits_mod
   public :: qlim_readMinClwValue, qlim_readMaxClwValue
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
-  real(8) :: minClwValue
-  real(8) :: maxClwValue
+  real(8) :: qlim_minClwValue
+  real(8) :: qlim_maxClwValue
 
   ! interface for qlim_saturationLimit
   interface qlim_saturationLimit
@@ -751,15 +751,15 @@ contains
     integer :: nulnam, ierr
     integer, external :: fnom, fclos
     logical, save :: nmlAlreadyRead = .false.
-    NAMELIST /NAMQLIM/ minClwValue, maxClwValue
+    NAMELIST /NAMQLIM/ qlim_minClwValue, qlim_maxClwValue
 
     if ( nmlAlreadyRead ) return
 
     nmlAlreadyRead = .true.
 
     !- Setting default values
-    minClwValue = 1.0d-9
-    maxClwValue = 1.0d0
+    qlim_minClwValue = 1.0d-9
+    qlim_maxClwValue = 1.0d0
 
     if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
       if ( mpi_myid == 0 ) then
@@ -784,7 +784,7 @@ contains
   !----------------------------------------------------------------------
   function qlim_readMinClwValue() result(minimumClwValue)
     !
-    ! :Purpose: Return the minClwValue.
+    ! :Purpose: Return the qlim_minClwValue.
     !
     implicit none
 
@@ -794,7 +794,7 @@ contains
     ! readNameList runs one time during program execution
     call readNameList
 
-    minimumClwValue = minClwValue
+    minimumClwValue = qlim_minClwValue
 
   end function qlim_readMinClwValue
 
@@ -803,7 +803,7 @@ contains
   !----------------------------------------------------------------------
   function qlim_readMaxClwValue() result(maximumClwValue)
     !
-    ! :Purpose: Return the maxClwValue.
+    ! :Purpose: Return the qlim_maxClwValue.
     !
     implicit none
 
@@ -813,7 +813,7 @@ contains
     ! readNameList runs one time during program execution
     call readNameList
 
-    maximumClwValue = maxClwValue
+    maximumClwValue = qlim_maxClwValue
 
   end function qlim_readMaxClwValue
   
