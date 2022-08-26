@@ -748,18 +748,20 @@ contains
     implicit none
 
     ! Locals:
+    real(8) :: minClwValue
+    real(8) :: maxClwValue
     integer :: nulnam, ierr
     integer, external :: fnom, fclos
     logical, save :: nmlAlreadyRead = .false.
-    NAMELIST /NAMQLIM/ qlim_minClwValue, qlim_maxClwValue
+    NAMELIST /NAMQLIM/ minClwValue, maxClwValue
 
     if ( nmlAlreadyRead ) return
 
     nmlAlreadyRead = .true.
 
     !- Setting default values
-    qlim_minClwValue = 1.0d-9
-    qlim_maxClwValue = 1.0d0
+    minClwValue = 1.0d-9
+    maxClwValue = 1.0d0
 
     if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
       if ( mpi_myid == 0 ) then
@@ -776,6 +778,10 @@ contains
 
     end if
     if ( mpi_myid == 0 ) write(*,nml=namqlim)
+
+    ! Transfer namelist variables to module variables.
+    qlim_minClwValue = minClwValue
+    qlim_maxClwValue = maxClwValue
 
   end subroutine readNameList
 
