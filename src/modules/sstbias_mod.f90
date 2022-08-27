@@ -708,6 +708,11 @@ module SSTbias_mod
     griddedBias_r4_ptr(:, :, :) = griddedBias_r4_previous_ptr(:, :, :)
     call gio_writeToFile(stateVector, outputFileName, 'B_'//trim(sensor)//'_'//trim(extension))
 
+    call gsv_deallocate(stateVector)
+    call gsv_deallocate(stateVector_previous)
+
+    write(*,*) 'sstb_getBiasFromPreviousState: done ', trim(sensor), ' ', trim(dayOrNight), ' data.'
+
   end subroutine sstb_getBiasFromPreviousState
   
 end module SSTbias_mod

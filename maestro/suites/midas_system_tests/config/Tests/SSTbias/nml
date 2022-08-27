@@ -29,9 +29,10 @@
    numberPointsBG = 250
    timeInterpType_nl = 'NEAREST'
    numObsBatches = 20
-   numberSensors = 2
+   numberSensors = 3
    sensorList(1)='AMSR2'
    sensorList(2)='METO-B'
+   sensorList(3)='METO-C'
 /
  &NAMSQLsfc
    numberElem=1
@@ -41,9 +42,9 @@
 &namReadSSTSat
    numberElem=1
    listElem='22042'
-   sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","NOAA18","NOAA19","NPP","AMSR2")) '
+   sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","METO-C","NOAA19","NPP","AMSR2")) '
    sqlNull=' and obsvalue is not null '
-   sqlExtraHeader=' id_stn in ("METO-A","METO-B","NOAA18","NOAA19","NPP","AMSR2") '
+   sqlExtraHeader=' id_stn in ("METO-A","METO-B","METO-C","NOAA19","NPP","AMSR2") '
 /
  &namSQLUpdate
 /
