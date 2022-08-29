@@ -46,6 +46,7 @@ module stateToColumn_mod
   use getGridPosition_mod
   use kdtree2_mod
   use calcHeightAndPressure_mod
+  use humidityLimits_mod
 
   implicit none
   save
@@ -1924,6 +1925,14 @@ contains
         do headerIndex = headerIndexBeg, headerIndexEnd
           column_ptr => col_getColumn(column,headerIndex,'HU')
           column_ptr(:) = max(column_ptr(:),col_rhumin)
+        end do
+      end if
+
+      ! impose a lower limit on LWCR
+      if( col_varExist(column,'LWCR') ) then
+        do headerIndex = headerIndexBeg, headerIndexEnd
+          column_ptr => col_getColumn(column,headerIndex,'LWCR')
+          column_ptr(:) = max(column_ptr(:),qlim_readMinClwValue())
         end do
       end if
 
