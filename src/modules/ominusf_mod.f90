@@ -41,6 +41,7 @@ module oMinusF_mod
   use obsOperators_mod
   use biasCorrectionConv_mod
   use obsSpaceErrorStdDev_mod
+  use humiditylimits_mod
   implicit none
   private
 
@@ -170,6 +171,10 @@ module oMinusF_mod
       call gsv_zero( stateVectorTrialHighRes )
       call gio_readTrials( stateVectorTrialHighRes )
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+      if ( gsv_varExist(stateVectorTrialHighRes,'LWCR') ) then
+        call qlim_rttovLimit( stateVectorTrialHighRes,'LWCR' )
+      end if
 
       ! Horizontally interpolate trials to trial columns
       call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &

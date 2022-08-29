@@ -311,7 +311,7 @@ contains
           if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
           if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
           if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
-          if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
+          if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl,'HU')
           ! And recompute analysis mean
           call ens_computeMean(ensembleAnl)
           call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)
@@ -339,7 +339,7 @@ contains
           if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
           if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
           if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
-          if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
+          if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl,'HU')
           ! And recompute analysis mean
           call ens_computeMean(ensembleAnl)
           call ens_copyEnsMean(ensembleAnl, stateVectorMeanAnl)

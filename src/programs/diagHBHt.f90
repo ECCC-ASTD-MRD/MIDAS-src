@@ -46,6 +46,7 @@ program midas_diagHBHt
   use obsErrors_mod
   use gridVariableTransforms_mod
   use obsOperators_mod
+  use humiditylimits_mod
   implicit none
 
   integer :: istamp,exdb,exfin
@@ -97,6 +98,10 @@ program midas_diagHBHt
                      beSilent_opt=.false. )
   call gsv_zero( stateVectorTrialHighRes )
   call gio_readTrials( stateVectorTrialHighRes )
+
+  if ( gsv_varExist(stateVectorTrialHighRes,'LWCR') ) then
+    call qlim_rttovLimit( stateVectorTrialHighRes,'LWCR' )
+  end if
 
   ! Horizontally interpolate trials to trial columns
   call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
