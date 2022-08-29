@@ -46,7 +46,6 @@ module obsErrors_mod
 
   ! public variables (parameters)
   public :: oer_ascatAnisOpenWater, oer_ascatAnisIce
-  public :: oer_setSSTdataParams, oer_numberSSTDatasets
   
  ! Temporary arrays for QC purpose
   public :: oer_toverrst, oer_clwThreshArr, oer_tovutil
@@ -68,7 +67,7 @@ module obsErrors_mod
 
   ! SST data 
   integer, parameter :: maxNumberSSTDatasets = 15
-  integer :: oer_numberSSTDatasets = 0 ! number of SST datasets in namelist
+  integer :: numberSSTDatasets = 0 ! number of SST datasets in namelist
   type setSSTdataParamsType
     character(len=20) :: dataType   = '' ! type of data: insitu, satellite, pseudo
     character(len=20) :: instrument = '' ! instrument: drifts, bouys, ships, AVHRR, VIIRS, AMSR2
@@ -78,7 +77,7 @@ module obsErrors_mod
     real(8)           :: dayError   = MPC_missingValue_R8  ! data error for daytime 
     real(8)           :: nightError = MPC_missingValue_R8  ! data error for nighttime
   end type setSSTdataParamsType
-  type(setSSTdataParamsType) :: oer_setSSTdataParams(maxNumberSSTDatasets)
+  type(setSSTdataParamsType) :: setSSTdataParams(maxNumberSSTDatasets)
 
   ! CONVENTIONAL OBS ERRORS
   real(8) :: xstd_ua_ai_sw(20,11)
@@ -972,8 +971,6 @@ contains
     implicit none
 
     integer :: fnom, fclos, nulnam, ierr, indexData
-    integer :: numberSSTDatasets
-    type(setSSTdataParamsType) :: setSSTdataParams(maxNumberSSTDatasets)
     namelist /namSSTObsErrors/ numberSSTDatasets, setSSTdataParams
     
     if (utl_isNamelistPresent('namSSTObsErrors','./flnml')) then
@@ -986,10 +983,6 @@ contains
     else
        call utl_abort('oer_readObsErrorsSST: namSSTObsErrors is missing in the namelist.')
     end if
-    
-    oer_numberSSTDatasets = numberSSTDatasets
-    oer_setSSTdataParams(:) = setSSTdataParams(:)
-    
     
   end subroutine oer_readObsErrorsSST
 
@@ -1439,10 +1432,10 @@ contains
                 codeType == codtyp_get_codtyp('ashipauto') .or. codeType == codtyp_get_codtyp('pseudosfc')        ) then
 
               unsupportedCodeType = .true.
-              dataset_loop: do indexDataset = 1, oer_numberSSTDatasets
-                if(codeType == oer_setSSTdataParams(indexDataset)%codeType) then
+              dataset_loop: do indexDataset = 1, numberSSTDatasets
+                if(codeType == setSSTdataParams(indexDataset)%codeType) then
                   unsupportedCodeType = .false.
-                  call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, oer_setSSTdataParams(indexDataset)%dayError)
+                  call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, setSSTdataParams(indexDataset)%dayError)
                   exit dataset_loop
                 end if
               end do dataset_loop
@@ -1462,13 +1455,13 @@ contains
               end if
               
               unsupportedSensor = .true.
-              sensor_loop: do indexSensor = 1, oer_numberSSTDatasets
-                if (cstnid == trim(oer_setSSTdataParams(indexSensor)%sensor)) then
+              sensor_loop: do indexSensor = 1, numberSSTDatasets
+                if (cstnid == trim(setSSTdataParams(indexSensor)%sensor)) then
                   unsupportedSensor = .false.
                   if (solarZenith <= 90.) then ! day
-                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, oer_setSSTdataParams(indexSensor)%dayError)
+                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, setSSTdataParams(indexSensor)%dayError)
                   else ! night
-                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, oer_setSSTdataParams(indexSensor)%nightError)
+                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, setSSTdataParams(indexSensor)%nightError)
                   end if
                   exit sensor_loop
                 end if

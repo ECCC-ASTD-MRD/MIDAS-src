@@ -42,6 +42,19 @@ module costfunction_mod
 
   integer,           allocatable :: channelNumberList(:,:)
   character(len=15), allocatable :: sensorNameList(:)
+  ! SST data 
+  integer, parameter :: maxNumberSSTDatasets = 15
+  integer :: numberSSTDatasets = 0 ! number of SST datasets in namelist
+  type setSSTdataParamsType
+    character(len=20) :: dataType   = '' ! type of data: insitu, satellite, pseudo
+    character(len=20) :: instrument = '' ! instrument: drifts, bouys, ships, AVHRR, VIIRS, AMSR2
+    character(len=20) :: sensor     = '' ! sensor of satellite data: NOAA19, NOAA20,...
+    character(len=20) :: sensorType = '' ! type of satellite data sensors: infrared, microwave,..
+    integer           :: codeType   = MPC_missingValue_INT ! data codtype
+    real(8)           :: dayError   = MPC_missingValue_R8  ! data error for daytime 
+    real(8)           :: nightError = MPC_missingValue_R8  ! data error for nighttime
+  end type setSSTdataParamsType
+  type(setSSTdataParamsType) :: setSSTdataParams(maxNumberSSTDatasets)
 
 contains
 
@@ -103,11 +116,14 @@ contains
     real(8) :: dljotov_sensors( tvs_nsensors )
     real(8) :: joTovsPerChannelSensor(tvs_maxNumberOfChannels,tvs_nsensors)
     character(len=15) :: lowerCaseName
-    real(8) :: joSSTInstrument(oer_numberSSTDatasets)
-    integer :: nobsInstrument(oer_numberSSTDatasets), nobsInstrumentGlob(oer_numberSSTDatasets)
-    integer :: indexDataset, codeType, ierr
 
     logical :: printJoTovsPerChannelSensor
+  
+    namelist /namSSTObsErrors/ numberSSTDatasets, setSSTdataParams  
+    real(8) :: joSSTInstrument(maxNumberSSTDatasets)
+    integer :: nobsInstrument(maxNumberSSTDatasets), nobsInstrumentGlob(maxNumberSSTDatasets)
+    integer :: indexDataset, codeType, ierr
+    integer :: fnom, fclos, nulnam
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -127,6 +143,18 @@ contains
     if (any(sensorNameList(:) /= '') .and. any(channelNumberList(:,:) /= 0)) then
       printJoTovsPerChannelSensor = .true.
     end if
+
+    if (utl_isNamelistPresent('namSSTObsErrors','./flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+      read (nulnam, nml = namSSTObsErrors, iostat = ierr)
+      if (ierr /= 0) call utl_abort('cfn_sumJo: Error reading namelist')
+      if (mpi_myid == 0) write(*,nml=namSSTObsErrors)
+      ierr = fclos(nulnam)
+    else
+      write(*,*) 'cfn_sumJo: WARNING: namSSTObsErrors is missing in the namelist. Default values will be taken.'
+    end if
+
 
     dljogpsztd = 0.d0
     dljoraob = 0.d0
@@ -236,20 +264,20 @@ contains
       end if
     end do
 
-    if(oer_numberSSTDatasets > 0) then
+    if(numberSSTDatasets > 0) then
       do headerIndex = 1, obs_numheader(lobsSpaceData)
         codeType     = obs_headElem_i(lobsSpaceData, OBS_ITY, headerIndex)
         bodyIndexBeg = obs_headElem_i(lobsSpaceData, OBS_RLN, headerIndex)
         bodyIndexEnd = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
         do bodyIndex = bodyIndexBeg, bodyIndexEnd
           pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
-          dataset_loop: do indexDataset = 1, oer_numberSSTDatasets
-            if (codeType == oer_setSSTdataParams(indexDataset)%codeType .and. codeType /= codtyp_get_codtyp('satob')) then
+          dataset_loop: do indexDataset = 1, numberSSTDatasets
+            if (codeType == setSSTdataParams(indexDataset)%codeType .and. codeType /= codtyp_get_codtyp('satob')) then
               joSSTInstrument(indexDataset) = joSSTInstrument(indexDataset) + pjo_1
               nobsInstrument(indexDataset) = nobsInstrument(indexDataset) + 1
               exit dataset_loop
             else
-              if (obs_elem_c(lobsSpaceData, 'STID', headerIndex) == trim(oer_setSSTdataParams(indexDataset)%sensor)) then
+              if (obs_elem_c(lobsSpaceData, 'STID', headerIndex) == trim(setSSTdataParams(indexDataset)%sensor)) then
                 joSSTInstrument(indexDataset) = joSSTInstrument(indexDataset) + pjo_1
                 nobsInstrument(indexDataset) = nobsInstrument(indexDataset) + 1
                 exit dataset_loop
@@ -288,7 +316,7 @@ contains
     end if
 
     ! SST data per instrument
-    do indexDataset = 1, oer_numberSSTDatasets 
+    do indexDataset = 1, numberSSTDatasets 
       call mpi_allreduce_sumreal8scalar(joSSTInstrument(indexDataset), "grid")
       call rpn_comm_allreduce(nobsInstrument(indexDataset), nobsInstrumentGlob(indexDataset), &
                               1, "mpi_integer", "mpi_sum", "grid", ierr)
@@ -344,13 +372,13 @@ contains
       end if
 
       ! print SST data per instrument
-      if(oer_numberSSTDatasets > 0) then
+      if(numberSSTDatasets > 0) then
         write(*,*) 'cfn_sumJo: SST data by data type:'
         write(*,'(a5,a15,a10,a30,a10, a15)') 'index', ' instrument', ' sensor', ' Jo', ' nobs', ' Jo/nobs'
-        do indexDataset = 1, oer_numberSSTDatasets
+        do indexDataset = 1, numberSSTDatasets
           if (nobsInstrumentGlob(indexDataset) > 0) then
             write(*,'(i5,a15,a10,f30.17,i15,f10.5)') indexDataset, &
-	                                             trim(oer_setSSTdataParams(indexDataset)%instrument), &                                                                                 trim(oer_setSSTdataParams(indexDataset)%sensor), &
+	                                             trim(setSSTdataParams(indexDataset)%instrument), &                                                                                    trim(setSSTdataParams(indexDataset)%sensor), &
                                                      joSSTInstrument(indexDataset), & 
                                                      nobsInstrumentGlob(indexDataset), &
                                                      joSSTInstrument(indexDataset) / &
