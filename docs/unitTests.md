@@ -78,6 +78,14 @@ maestro/suites/midas_system_tests/abs.dot
 since it is ignored by Git.
 
 
+## Activating the code coverage report
+
+You can activate the code coverage reporting by setting
+```bash
+export MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS=yes
+``̀
+before compiling the program.
+
 
 ## Updating Test Results
 

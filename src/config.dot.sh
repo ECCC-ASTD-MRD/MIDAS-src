@@ -12,6 +12,7 @@ set -x
 ###########################################################
 MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld}
 MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
+MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS=${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS:-no}
 MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-ppp5}
 MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN:-true}
 MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL:-}
@@ -165,6 +166,10 @@ if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     COMPF_NOC="${COMPF_GLOBAL} ${OPTF} -debug"
     COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
     echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
+elif [ "${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS:-no}" = yes ]; then
+    FOPTMIZ=0
+    COMPF="${COMPF_GLOBAL} ${OPTF} -debug -prof-gen=srcpos -prof-dir=./codecov_prof"
+    COMPF_NOC=${COMPF}
 else
     COMPF="${COMPF_GLOBAL} ${OPTF}"
     COMPF_NOC=${COMPF}

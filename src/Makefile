@@ -329,6 +329,8 @@ _D_options=$(filter -D%,$(COMPF))
 	2> /dev/null
 
 %.o:	#> compile an object 
+	test "${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}" != yes || \
+	test -d codecov_prof || mkdir -v codecov_prof
 	$(FC) $(COMPF) -O $(FOPTMIZ) -c $< \
 	-o $@
 

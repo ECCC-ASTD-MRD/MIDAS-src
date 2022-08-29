@@ -117,6 +117,7 @@ function printHeader {
     done
     echo "| code version : ${__revstring}"
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
+    echo "| codecoverage : ${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}"
     echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}"
     if [ -n "${__abs_exist_list}" ]; then
         ##-- an absolute is in the targets; installation will be attempted
@@ -236,6 +237,7 @@ export MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN}
 export MIDAS_COMPILE_HEADNODE_FRONTEND=${MIDAS_COMPILE_HEADNODE_FRONTEND}
 export MIDAS_COMPILE_KEEP_LISTING=${MIDAS_COMPILE_KEEP_LISTING}
 export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}
+export MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS=${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}
 export MIDAS_SSM_TARGET=${MIDAS_SSM_TARGET}
 export MIDAS_SSM_PKGNAME=${MIDAS_SSM_PKGNAME}
 export MIDAS_SSM_MAINTAINER=${MIDAS_SSM_MAINTAINER}
