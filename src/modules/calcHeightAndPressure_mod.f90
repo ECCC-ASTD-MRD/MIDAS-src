@@ -2813,8 +2813,92 @@ contains
     type(struct_columnData), intent(inout) :: column  ! column that will contain the Z_M/Z_T fields
     logical, intent(in), optional          :: beSilent_opt
 
-    !call utl_abort('calcHeight_col_nl (czp): Not implemented yet - will be in upcoming issue #466')
-    write(*,*) 'calcHeight_col_nl (czp): WARNING: Not implemented yet - will be in upcoming issue #466'
+    ! Locals
+    integer :: vcode
+    logical :: beSilent
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+
+    if (.not.beSilent) then
+      write(*,*) 'calcHeight_col_nl (czp): START'
+    end if
+
+    Vcode = col_getVco(column)%vcode
+    if (Vcode == 5005 .or. Vcode == 5002) then
+      call calcHeight_col_nl_vcode500x
+    else if (Vcode == 21001) then
+      !! some col_varExist(columnInc,.)
+      call calcHeight_col_nl_vcode2100x
+    end if
+
+    if (.not.beSilent) write(*,*) 'calcHeight_col_nl (czp): END'
+
+    contains
+      !---------------------------------------------------------
+      ! calcHeight_col_nl_vcode2100x
+      !---------------------------------------------------------
+      subroutine calcHeight_col_nl_vcode2100x
+        implicit none
+
+        ! Locals
+        real(8), allocatable  :: hSfc(:,:), heights(:,:)
+        real(8), pointer      :: hPtr(:,:,:)
+        integer :: numCol, headerIndex, stat, ilev1, ilev2
+
+        if ( col_getNumCol(column) <= 0 ) return
+
+        if (.not.col_varExist(column,'ME')) then
+          call utl_abort('calcHeight_col_nl (czp): ME must be present as an analysis variable!')
+        end if
+        
+        numCol = col_getNumCol(column)
+        allocate(hSfc(1, numCol))
+        do headerIndex = 1, numCol
+          hSfc(1,headerIndex) = col_getElem(column,1,headerIndex, 'ME')
+        end do
+
+        ! heights on momentum levels
+        stat=vgd_levels(column%vco%vgrid, ip1_list=column%vco%ip1_M, &
+                        levels=hPtr, sfc_field=hSfc, in_log=.false.)
+        if ( stat .ne. VGD_OK ) then
+          call utl_abort('calcHeight_col_nl (czp): ERROR with vgd_levels')
+        end if
+
+        allocate(heights(col_getNumLev(column,'MM'), numCol))
+        heights = transpose(hPtr(1,:,:))
+        ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_M'))
+        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('Z_M'))
+        column%all(ilev1:ilev2,:) = heights(:,:)
+        if (associated(hPtr)) deallocate(hPtr)
+
+        ! heights on thermo levels
+        stat=vgd_levels(column%vco%vgrid, ip1_list=column%vco%ip1_T, &
+                        levels=hPtr, sfc_field=hSfc, in_log=.false.)
+        if ( stat .ne. VGD_OK ) then
+          call utl_abort('calcHeight_col_nl (czp): ERROR with vgd_levels')
+        end if
+
+        allocate(heights(col_getNumLev(column,'TH'), numCol))
+        heights = transpose(hPtr(1,:,:))
+        ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_T'))
+        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('Z_T'))
+        column%all(ilev1:ilev2,:) = heights(:,:)
+        if (associated(hPtr)) deallocate(hPtr)
+
+        deallocate(heights)
+        deallocate(hSfc)
+      end subroutine calcHeight_col_nl_vcode2100x
+
+      !---------------------------------------------------------
+      ! calcHeight_col_nl_vcode500x
+      !---------------------------------------------------------
+      subroutine calcHeight_col_nl_vcode500x
+        implicit none
+        continue
+      end subroutine calcHeight_col_nl_vcode500x
 
   end subroutine calcHeight_col_nl
 
