@@ -45,7 +45,6 @@ program midas_letkf
   use innovation_mod
   use enkf_mod
   use ensPostProcess_mod
-  use humiditylimits_mod
   implicit none
 
   type(struct_obs), target  :: obsSpaceData
@@ -309,10 +308,6 @@ program midas_letkf
                         ignoreDate_opt=ignoreEnsDate)
   call utl_tmg_stop(2)
 
-  if ( ens_varExist(ensembleTrl4D,'LWCR') ) then
-    call qlim_rttovLimit( ensembleTrl4D,'LWCR' )
-  end if
-
   !- 2.12 If desired, read a deterministic state for recentering the ensemble
   if (recenterInputEns) then
     call gsv_allocate( stateVectorRecenter, tim_nstepobs, hco_ens, vco_ens, &
@@ -327,9 +322,6 @@ program midas_letkf
                              stepIndex_opt=stepIndex, containsFullField_opt=.true., &
                              readHeightSfc_opt=.false. )
     end do
-    if ( gsv_varExist(stateVectorRecenter,'LWCR') ) then
-      call qlim_rttovLimit( stateVectorRecenter,'LWCR' )
-    end if
     call ens_recenter( ensembleTrl4D, stateVectorRecenter, recenteringCoeff_opt=1.0d0 )
     call gsv_deallocate( stateVectorRecenter )
   end if

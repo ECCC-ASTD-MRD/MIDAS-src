@@ -42,7 +42,6 @@ program midas_var1D
   use biasCorrectionSat_mod
   use var1D_mod
   use bMatrix1Dvar_mod
-  use humiditylimits_mod
  
 
   implicit none
@@ -158,10 +157,6 @@ program midas_var1D
   call gsv_zero( stateVectorTrialHighRes )
   call gio_readTrials( stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  if ( gsv_varExist(stateVectorTrialHighRes,'LWCR') ) then
-    call qlim_rttovLimit( stateVectorTrialHighRes,'LWCR' )
-  end if
 
   ! Initialize the background-error covariance, also sets up control vector module (cvm)
   call bmat1D_bsetup(vco_anl, hco_anl, obsSpaceData)

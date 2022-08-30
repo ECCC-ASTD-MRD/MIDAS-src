@@ -38,8 +38,6 @@ program midas_ensembleH
   use obsErrors_mod
   use innovation_mod
   use ensembleObservations_mod
-  use humiditylimits_mod
-
   implicit none
 
   type(struct_obs), target :: obsSpaceData
@@ -163,9 +161,6 @@ program midas_ensembleH
     call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, copyToRamDisk_opt=.false.  )
     call gio_readFile( stateVector, ensFileName, ' ', ' ', containsFullField=.true., &
                        readHeightSfc_opt=.true. )
-    if ( gsv_varExist(stateVector,'LWCR') ) then
-      call qlim_rttovLimit( stateVector,'LWCR' )
-    end if
     call gio_fileUnitsToStateUnits( stateVector, containsFullField=.true. )
 
     call gsv_transposeVarsLevsToTiles(statevector, statevector_tiles)

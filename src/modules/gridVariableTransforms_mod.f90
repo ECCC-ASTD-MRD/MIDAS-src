@@ -606,7 +606,7 @@ CONTAINS
       if ( applyLimitOnHU_opt ) then
         write(*,*) 'var: impose limits on stateVectorRefHUTT'
         call qlim_saturationLimit(stateVectorRefHUTT)
-        call qlim_rttovLimit(stateVectorRefHUTT,'HU')
+        call qlim_rttovLimit(stateVectorRefHUTT)
       end if
 
       call gsv_copy(stateVectorRefHUTT, stateVectorRefHU, &
