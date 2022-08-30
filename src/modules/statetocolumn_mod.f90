@@ -1928,11 +1928,12 @@ contains
         end do
       end if
 
-      ! impose a lower limit on LWCR
+      ! impose a lower/upper limits on LWCR
       if( col_varExist(column,'LWCR') ) then
         do headerIndex = headerIndexBeg, headerIndexEnd
           column_ptr => col_getColumn(column,headerIndex,'LWCR')
           column_ptr(:) = max(column_ptr(:),qlim_readMinClwValue())
+          column_ptr(:) = min(column_ptr(:),qlim_readMaxClwValue())
         end do
       end if
 
