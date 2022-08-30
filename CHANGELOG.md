@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed code documentation links (#681 and !627)
  * Make thinning algorithm for Satwinds and GB-GPS independent of families considered in same execution (#669 and !620)
  * Reintroduction of the interactive launch of parallel MPI programs (#661 and !616)
  * Add a timeout to makedepf90 to prevent stalling (#671 and !617)
@@ -32,6 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
+ * Removed code documentation for `v_3.6` branch (#681 and !627)
  * Removed comment about documentation temporarily pointing to master (#657 and !611)
 
 ## [3.8.1]
