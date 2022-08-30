@@ -26,13 +26,10 @@ git describe
 The documentation for officially supported branches is available:
 * `main` branch
   * [General documentation (`README.md`) - this page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/main/README.md)
-  * [Fortran code documentation](http://goc-dx-u2.science.gc.ca/~sanl888/midas-sphinx-doc/latest-main)
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-main)
 * `v_3.7` branch
   * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.7/README.md)
-  * [Fortran code documentation](http://hpfx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.7) (HPCR-U2)
-* `v_3.6` branch
-  * [General documentation (`README.md`)](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/v_3.6/README.md)
-  * [Fortran code documentation](http://hpfx.science.gc.ca/~sanl888/midas-sphinx-doc/latest-v_3.6) (IC-3)
+  * [Fortran code documentation](http://goc-dx.science.gc.ca/~sanl888/midas-sphinx-doc/v_3.7.2)
 
 # Contributing
 
