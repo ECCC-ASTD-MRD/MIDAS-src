@@ -107,9 +107,8 @@ contains
     logical :: printJoTovsPerChannelSensor
   
     real(8), allocatable :: joSSTInstrument(:)
-    integer, allocatable :: nobsInstrument(:)
-    integer, allocatable :: nobsInstrumentGlob(:)
-    integer :: indexDataset, codeType, ierr
+    integer, allocatable :: nobsInstrument(:), nobsInstrumentGlob(:)
+    integer :: SSTdatasetIndex, codeType, ierr
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -251,15 +250,15 @@ contains
         bodyIndexEnd = obs_headElem_i(lobsSpaceData, OBS_NLV, headerIndex) + bodyIndexBeg - 1
         do bodyIndex = bodyIndexBeg, bodyIndexEnd
           pjo_1 = obs_bodyElem_r(lobsSpaceData, OBS_JOBS, bodyIndex)
-          dataset_loop: do indexDataset = 1, oer_getSSTdataParam_int('numberSSTDatasets')
-            if (codeType == oer_getSSTdataParam_int('codeType', indexDataset) .and. codeType /= codtyp_get_codtyp('satob')) then
-              joSSTInstrument(indexDataset) = joSSTInstrument(indexDataset) + pjo_1
-              nobsInstrument(indexDataset) = nobsInstrument(indexDataset) + 1
+          dataset_loop: do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
+            if (codeType == oer_getSSTdataParam_int('codeType', SSTdatasetIndex) .and. codeType /= codtyp_get_codtyp('satob')) then
+              joSSTInstrument(SSTdatasetIndex) = joSSTInstrument(SSTdatasetIndex) + pjo_1
+              nobsInstrument(SSTdatasetIndex) = nobsInstrument(SSTdatasetIndex) + 1
               exit dataset_loop
             else
-              if (obs_elem_c(lobsSpaceData, 'STID', headerIndex) == oer_getSSTdataParam_char('sensor', indexDataset)) then
-                joSSTInstrument(indexDataset) = joSSTInstrument(indexDataset) + pjo_1
-                nobsInstrument(indexDataset) = nobsInstrument(indexDataset) + 1
+              if (obs_elem_c(lobsSpaceData, 'STID', headerIndex) == oer_getSSTdataParam_char('sensor', SSTdatasetIndex)) then
+                joSSTInstrument(SSTdatasetIndex) = joSSTInstrument(SSTdatasetIndex) + pjo_1
+                nobsInstrument(SSTdatasetIndex) = nobsInstrument(SSTdatasetIndex) + 1
                 exit dataset_loop
               end if
             end if
@@ -296,9 +295,9 @@ contains
     end if
 
     ! SST data per instrument
-    do indexDataset = 1, oer_getSSTdataParam_int('numberSSTDatasets')
-      call mpi_allreduce_sumreal8scalar(joSSTInstrument(indexDataset), "grid")
-      call rpn_comm_allreduce(nobsInstrument(indexDataset), nobsInstrumentGlob(indexDataset), &
+    do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
+      call mpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex), "grid")
+      call rpn_comm_allreduce(nobsInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), &
                               1, "mpi_integer", "mpi_sum", "grid", ierr)
     end do
 
@@ -355,15 +354,13 @@ contains
       if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
         write(*,*) 'cfn_sumJo: SST data by data type:'
         write(*,'(a5,a15,a10,a30,a10, a15)') 'index', ' instrument', ' sensor', ' Jo', ' nobs', ' Jo/nobs'
-        do indexDataset = 1, oer_getSSTdataParam_int('numberSSTDatasets')
-          if (nobsInstrumentGlob(indexDataset) > 0) then
-            write(*,'(i5,a15,a10,f30.17,i15,f10.5)') indexDataset, &
-	                                             oer_getSSTdataParam_char('instrument', indexDataset), &
-                                                     oer_getSSTdataParam_char('sensor', indexDataset), &
-                                                     joSSTInstrument(indexDataset), & 
-                                                     nobsInstrumentGlob(indexDataset), &
-                                                     joSSTInstrument(indexDataset) / &
-                                                     real(nobsInstrumentGlob(indexDataset))
+        do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
+          if (nobsInstrumentGlob(SSTdatasetIndex) > 0) then
+            write(*,'(i5,a15,a10,f30.17,i15,f10.5)') SSTdatasetIndex, &
+                                                     oer_getSSTdataParam_char('instrument', SSTdatasetIndex), &
+                                                     oer_getSSTdataParam_char('sensor', SSTdatasetIndex), &
+                                                     joSSTInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), &
+                                                     joSSTInstrument(SSTdatasetIndex)/real(nobsInstrumentGlob(SSTdatasetIndex))
           end if    
         end do
       end if

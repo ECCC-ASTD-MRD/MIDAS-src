@@ -236,7 +236,6 @@ module SSTbias_mod
 
     call rpn_comm_allreduce(countObs, nobsFound, 1, "mpi_integer", "mpi_sum", "grid", ierr)
 
-
     if (countObs > 0) then
     
       obsGrid(:, :) = 0.0d0

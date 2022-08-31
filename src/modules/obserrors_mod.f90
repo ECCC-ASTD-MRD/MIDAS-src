@@ -3260,7 +3260,7 @@ contains
       case('nightError')
         value = SSTdataParams(itemIndex)%nightError
       case default
-        call utl_abort('oer_getSSTdataParam_int: invalid item '//(trim(item)))
+        call utl_abort('oer_getSSTdataParam_R8: invalid item '//(trim(item)))
     end select
 
   end function oer_getSSTdataParam_R8
