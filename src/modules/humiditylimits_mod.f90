@@ -286,12 +286,12 @@ contains
 
     if (mpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: STARTING'
 
-    if ( .not. present(varName_opt) ) then
-      applyLimitToAllVarname = .true.
-      varName = 'XXXX'
-    else
+    if ( present(varName_opt) ) then
       applyLimitToAllVarname = .false.
       varName = varName_opt
+    else
+      applyLimitToAllVarname = .true.
+      varName = 'XXXX'  
     end if
 
     if ( (applyLimitToAllVarname .or. trim(varName) == 'HU') .and. &
@@ -493,12 +493,12 @@ contains
 
     if (mpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens: STARTING'
 
-    if ( .not. present(varName_opt) ) then
-      applyLimitToAllVarname = .true.
-      varName = 'XXXX'
-    else
+    if ( present(varName_opt) ) then
       applyLimitToAllVarname = .false.
       varName = varName_opt
+    else
+      applyLimitToAllVarname = .true.
+      varName = 'XXXX'    
     end if
 
     if ( (applyLimitToAllVarname .or. trim(varName) == 'HU') .and. &
