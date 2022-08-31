@@ -54,6 +54,7 @@ module innovation_mod
   use rmatrix_mod
   use costFunction_mod
   use varqc_mod
+  use humidityLimits_mod
   implicit none
   save
   private
@@ -374,17 +375,19 @@ contains
         ! Imposing a minimum value for HU
         do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
           columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'HU')
-          do jlev=1,col_getNumLev(columnTrlOnAnlIncLev,'TH')
+          do jlev = 1, col_getNumLev(columnTrlOnAnlIncLev,'TH')
             columnTrlOnAnlIncLev_ptr(jlev) = max(columnTrlOnAnlIncLev_ptr(jlev),col_rhumin)
           end do
         end do
 
-      ! Imposing minimum value for LWCR at surface
+      ! Imposing minimum/maximum value for LWCR at all levels
       else if ( vnl_varNameList3D(jvar) == 'LWCR') then
         do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
           columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'LWCR')
-          jlev = col_getNumLev(columnTrlOnAnlIncLev,'TH')
-          columnTrlOnAnlIncLev_ptr(jlev) = max(columnTrlOnAnlIncLev_ptr(jlev),col_minClwAtSfc)
+          do jlev = 1, col_getNumLev(columnTrlOnAnlIncLev,'TH')
+            columnTrlOnAnlIncLev_ptr(jlev) = max(columnTrlOnAnlIncLev_ptr(jlev),qlim_readMinClwValue())
+            columnTrlOnAnlIncLev_ptr(jlev) = min(columnTrlOnAnlIncLev_ptr(jlev),qlim_readMaxClwValue())
+          end do
         end do
 
       else if (trim(vnl_varKindFromVarname(vnl_varNameList3D(jvar))) == 'CH') then

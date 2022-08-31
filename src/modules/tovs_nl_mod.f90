@@ -80,6 +80,7 @@ module tovs_nl_mod
   use mod_rttov_emis_atlas
   use verticalCoord_mod
   use codePrecision_mod
+  use humidityLimits_mod
 
   implicit none
   save
@@ -132,7 +133,6 @@ module tovs_nl_mod
   real(8), parameter :: qppmv2Mixratio  = mh2o / (1000000.0d0 * mair)
   real(8), parameter :: o3Mixratio2ppmv = (1000000.0d0 * mair) / mo3
   real(8), parameter :: o3ppmv2Mixratio = mo3 / (1000000.0d0 * mair)
-  real(8), parameter :: minClwValue = 1.0d-9
   real(pre_obsReal), parameter :: tvs_defaultEmissivity = 0.95
 
   integer, parameter :: tvs_maxChannelNumber   = 8461   ! Max. value for channel number
@@ -2137,7 +2137,7 @@ contains
       allocate (pressure(nlv_T,profileCount),                        stat = allocStatus(5) )
       if ( runObsOperatorWithClw ) then
         allocate (clw       (nlv_T,profileCount),stat= allocStatus(6))
-        clw(:,:) = minClwValue
+        clw(:,:) = qlim_readMinClwValue()
       end if
       allocate (surfTypeIsWater(profileCount),stat= allocStatus(7)) 
       surfTypeIsWater(:) = .false.
@@ -2202,6 +2202,11 @@ contains
           pressure(levelIndex,profileCount) = col_getPressure(columnTrl,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           if ( runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
             clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
+            if ( clw(levelIndex,profileCount) < qlim_readMinClwValue() .or. &
+                 clw(levelIndex,profileCount) > qlim_readMaxClwValue() ) then
+              write(*,*) 'tvs_fillProfiles: clw=' , clw(:,profileCount) 
+              call utl_abort('tvs_fillProfiles: columnTrl has clw outside RTTOV bounds')
+            end if
             clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor 
           end if
         end do
@@ -4861,7 +4866,7 @@ contains
 
       do profileIndex = 1, profileCount
         cloudProfileToStore(:,profileIndex) = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:)
-        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = minClwValue 
+        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = qlim_readMinClwValue() 
       end do
 
     else if ( trim(mode) == 'restore' ) then 

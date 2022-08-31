@@ -487,20 +487,16 @@ module gridStateVector_mod
     !                           If .true., will abort when MPI topology is 
     !                           inappropriate
     !
-    !         :minClwAtSfc:     Minimum value for Specific cloud liquid water
-    !                           content seen by radiation
-    !
     implicit none
 
     ! Locals:
     logical           :: conversionVarKindCHtoMicrograms
     integer           :: varIndex, fnom, fclos, nulnam, ierr, loopIndex
-    real(8)           :: minClwAtSfc
     character(len=4)  :: anlvar(vnl_numVarMax)
 
     NAMELIST /NAMSTATE/anlvar, rhumin, anlTime_bin, addHeightSfcOffset, &
                        conversionVarKindCHtoMicrograms, minValVarKindCH, &
-                       abortOnMpiImbalance, minClwAtSfc
+                       abortOnMpiImbalance
 
     if (initialized) return
 
@@ -513,7 +509,6 @@ module gridStateVector_mod
 
     anlvar(:) = '    '
     rhumin = mpc_minimum_hu_r8
-    minClwAtSfc = 1.0d-12
     anltime_bin = 'MIDDLE'
     addHeightSfcOffset = .false.
     conversionVarKindCHtoMicrograms = .false.

@@ -243,6 +243,9 @@ program midas_var
   outer_loop: do outerLoopIndex = 1, numOuterLoopIterations
     write(*,*) 'var: start of outer-loop index=', outerLoopIndex
 
+    ! Impose limits on LWCR
+    call qlim_rttovLimit( stateVectorUpdateHighRes,'LWCR' )
+
     ! Initialize stateVectorRefHeight for transforming TT/HU/P0 increments to
     ! height/pressure increments.
     if ( (gsv_varExist(stateVectorUpdateHighRes,'P_T') .and. &
