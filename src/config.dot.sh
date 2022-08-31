@@ -168,7 +168,9 @@ if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
 elif [ "${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS:-no}" = yes ]; then
     FOPTMIZ=0
-    COMPF="${COMPF_GLOBAL} ${OPTF} -debug -prof-gen=srcpos -prof-dir=./codecov_prof"
+    codecov_dir=${__compiledir_link}/codecov_prof
+    [ ! -d "${codecov_dir}" ] && mkdir ${codecov_dir}
+    COMPF="${COMPF_GLOBAL} ${OPTF} -debug -prof-gen=srcpos -prof-dir=${codecov_dir}"
     COMPF_NOC=${COMPF}
 else
     COMPF="${COMPF_GLOBAL} ${OPTF}"
