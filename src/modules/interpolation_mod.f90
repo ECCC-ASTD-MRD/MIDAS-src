@@ -22,6 +22,7 @@ module interpolation_mod
   use mpi, only : mpi_status_size ! this is the mpi library module
   use mpi_mod
   use gridstatevector_mod
+  use columnData_mod
   use varNameList_mod
   use verticalCoord_mod
   use horizontalCoord_mod
@@ -32,17 +33,18 @@ module interpolation_mod
   private
 
   ! public subroutines and functions
-  public :: int_interpolate
-  public :: int_hInterpolate, int_hInterpolate_r4
-  public :: int_vInterpolate, int_vInterpolate_r4
-  public :: int_tInterpolate
+  public :: int_interp_gsv
+  public :: int_hInterp_gsv, int_hInterp_gsv_r4
+  public :: int_vInterp_gsv, int_vInterp_gsv_r4
+  public :: int_tInterp_gsv
+  public :: int_vInterp_col
 
   contains
 
   !--------------------------------------------------------------------------
-  ! int_interpolate
+  ! int_interp_gsv
   !--------------------------------------------------------------------------
-  subroutine int_interpolate(statevector_in,statevector_out,          &
+  subroutine int_interp_gsv(statevector_in,statevector_out,          &
                              PsfcReference_opt, PsfcReference_r4_opt, &
                              checkModelTop_opt)
     !
@@ -72,10 +74,10 @@ module interpolation_mod
     !- Error traps
     !
     if (.not.gsv_isAllocated(statevector_in)) then
-      call utl_abort('int_interpolate: gridStateVector_in not yet allocated')
+      call utl_abort('int_interp_gsv: gridStateVector_in not yet allocated')
     end if
     if (.not.gsv_isAllocated(statevector_out)) then
-      call utl_abort('int_interpolate: gridStateVector_out not yet allocated')
+      call utl_abort('int_interp_gsv: gridStateVector_out not yet allocated')
     end if
 
     !
@@ -106,9 +108,9 @@ module interpolation_mod
                       hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
 
     if (statevector_in_VarsLevs%dataKind == 4) then
-      call int_hInterpolate_r4(statevector_in_VarsLevs, statevector_in_VarsLevs_hInterp)
+      call int_hInterp_gsv_r4(statevector_in_VarsLevs, statevector_in_VarsLevs_hInterp)
     else
-      call int_hInterpolate(statevector_in_VarsLevs, statevector_in_VarsLevs_hInterp)
+      call int_hInterp_gsv(statevector_in_VarsLevs, statevector_in_VarsLevs_hInterp)
     end if
     call gsv_deallocate(statevector_in_VarsLevs)
 
@@ -132,22 +134,22 @@ module interpolation_mod
     end if
     
     if (statevector_in_VarsLevs%dataKind == 4) then
-      call int_vInterpolate_r4(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_r4_opt, &
+      call int_vInterp_gsv_r4(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_r4_opt, &
                                checkModelTop_opt=checkModelTop)
     else 
-      call int_vInterpolate(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_opt, &
+      call int_vInterp_gsv(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_opt, &
                             checkModelTop_opt=checkModelTop)
     end if
 
     call gsv_deallocate(statevector_in_hInterp)
     nullify(varNamesToInterpolate)
 
-  end subroutine int_interpolate
+  end subroutine int_interp_gsv
 
   !--------------------------------------------------------------------------
-  ! int_hInterpolate
+  ! int_hInterp_gsv
   !--------------------------------------------------------------------------
-  subroutine int_hInterpolate(statevector_in,statevector_out)
+  subroutine int_hInterp_gsv(statevector_in,statevector_out)
     !
     ! :Purpose: Horizontal interpolation
     !
@@ -173,17 +175,17 @@ module interpolation_mod
     real(8), pointer :: heightSfcIn(:,:), heightSfcOut(:,:)
 
     if ( hco_equal(statevector_in%hco,statevector_out%hco) ) then
-      write(*,*) 'int_hInterpolate: The input and output statevectors are already on same horizontal grids'
+      write(*,*) 'int_hInterp_gsv: The input and output statevectors are already on same horizontal grids'
       call gsv_copy(statevector_in, statevector_out)
       return
     end if
 
     if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call utl_abort('int_hInterpolate: The input and output statevectors are not on the same vertical levels.')
+      call utl_abort('int_hInterp_gsv: The input and output statevectors are not on the same vertical levels.')
     end if
 
     if ( statevector_in%dataKind /= 8 .or. statevector_out%dataKind /= 8 ) then
-      call utl_abort('int_hInterpolate: Incorrect value for dataKind. Only compatible with dataKind=4')
+      call utl_abort('int_hInterp_gsv: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
     ! set the interpolation degree
@@ -192,7 +194,7 @@ module interpolation_mod
 
     if ( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
 
-      write(*,*) 'int_hInterpolate: before interpolation (no mpi)'
+      write(*,*) 'int_hInterp_gsv: before interpolation (no mpi)'
 
       step_loop: do stepIndex = 1, statevector_out%numStep
         ! copy over some time related parameters
@@ -239,11 +241,11 @@ module interpolation_mod
 
     else
 
-      write(*,*) 'int_hInterpolate: before interpolation (with mpi)'
+      write(*,*) 'int_hInterp_gsv: before interpolation (with mpi)'
 
       if ( statevector_in%mpi_distribution /= 'VarsLevs' .or.   &
           statevector_out%mpi_distribution /= 'VarsLevs' ) then
-        call utl_abort('int_hInterpolate: The input or output statevector is not distributed by VarsLevs.')
+        call utl_abort('int_hInterp_gsv: The input or output statevector is not distributed by VarsLevs.')
       end if
 
       do stepIndex = 1, statevector_out%numStep
@@ -288,18 +290,18 @@ module interpolation_mod
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
       heightSfcIn => gsv_getHeightSfc(statevector_in)
       heightSfcOut => gsv_getHeightSfc(statevector_out)
-      write(*,*) 'int_hInterpolate: interpolating surface height'
+      write(*,*) 'int_hInterp_gsv: interpolating surface height'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
       ierr = utl_ezsint( heightSfcOut(:,:), heightSfcIn(:,:), &
                          interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
-  end subroutine int_hInterpolate
+  end subroutine int_hInterp_gsv
 
   !--------------------------------------------------------------------------
-  ! int_hInterpolate_r4
+  ! int_hInterp_gsv_r4
   !--------------------------------------------------------------------------
-  subroutine int_hInterpolate_r4(statevector_in,statevector_out)
+  subroutine int_hInterp_gsv_r4(statevector_in,statevector_out)
     !
     ! :Purpose: Horizontal interpolation
     !
@@ -324,17 +326,17 @@ module interpolation_mod
     real(8), pointer :: heightSfcIn(:,:), heightSfcOut(:,:)
 
     if ( hco_equal(statevector_in%hco,statevector_out%hco) ) then
-      write(*,*) 'int_hInterpolate_r4: The input and output statevectors are already on same horizontal grids'
+      write(*,*) 'int_hInterp_gsv_r4: The input and output statevectors are already on same horizontal grids'
       call gsv_copy(statevector_in, statevector_out)
       return
     end if
 
     if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call utl_abort('int_hInterpolate_r4: The input and output statevectors are not on the same vertical levels.')
+      call utl_abort('int_hInterp_gsv_r4: The input and output statevectors are not on the same vertical levels.')
     end if
 
     if ( statevector_in%dataKind /= 4 .or. statevector_out%dataKind /= 4 ) then
-      call utl_abort('int_hInterpolate_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
+      call utl_abort('int_hInterp_gsv_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
     ! set the interpolation degree
@@ -343,7 +345,7 @@ module interpolation_mod
 
     if ( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
 
-      write(*,*) 'int_hInterpolate_r4: before interpolation (no mpi)'
+      write(*,*) 'int_hInterp_gsv_r4: before interpolation (no mpi)'
 
       step_loop: do stepIndex = 1, statevector_out%numStep
         ! copy over some time related parameters
@@ -390,11 +392,11 @@ module interpolation_mod
 
     else
 
-      write(*,*) 'int_hInterpolate_r4: before interpolation (with mpi)'
+      write(*,*) 'int_hInterp_gsv_r4: before interpolation (with mpi)'
 
       if ( statevector_in%mpi_distribution /= 'VarsLevs' .or.   &
           statevector_out%mpi_distribution /= 'VarsLevs' ) then
-        call utl_abort('int_hInterpolate_r4: The input or output statevector is not distributed by VarsLevs.')
+        call utl_abort('int_hInterp_gsv_r4: The input or output statevector is not distributed by VarsLevs.')
       end if
 
       step2_loop: do stepIndex = 1, statevector_out%numStep
@@ -439,18 +441,18 @@ module interpolation_mod
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out)) then
       heightSfcIn => gsv_getHeightSfc(statevector_in)
       heightSfcOut => gsv_getHeightSfc(statevector_out)
-      write(*,*) 'int_hInterpolate_r4: interpolating surface height'
+      write(*,*) 'int_hInterp_gsv_r4: interpolating surface height'
       ierr = ezdefset(statevector_out%hco%EZscintID, statevector_in%hco%EZscintID)
       ierr = utl_ezsint( heightSfcOut(:,:), heightSfcIn(:,:), &
                          interpDegree=trim(InterpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
-  end subroutine int_hInterpolate_r4
+  end subroutine int_hInterp_gsv_r4
 
   !--------------------------------------------------------------------------
-  ! int_vInterpolate
+  ! int_vInterp_gsv
   !--------------------------------------------------------------------------
-  subroutine int_vInterpolate(statevector_in,statevector_out,Ps_in_hPa_opt, &
+  subroutine int_vInterp_gsv(statevector_in,statevector_out,Ps_in_hPa_opt, &
                               PsfcReference_opt,checkModelTop_opt)
     !
     ! :Purpose: Vertical interpolation
@@ -490,7 +492,7 @@ module interpolation_mod
     vInterpCopyLowestLevel = .false.
     if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
       if ( mpi_myid == 0 ) then
-        write(*,*) 'int_vInterpolate: namint is missing in the namelist.'
+        write(*,*) 'int_vInterp_gsv: namint is missing in the namelist.'
         write(*,*) '                     The default values will be taken.'
       end if
     else
@@ -498,23 +500,23 @@ module interpolation_mod
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namint,iostat=ierr)
-      if (ierr.ne.0) call utl_abort('int_vInterpolate: Error reading namelist NAMINT')
+      if (ierr.ne.0) call utl_abort('int_vInterp_gsv: Error reading namelist NAMINT')
       if (mpi_myid.eq.0) write(*,nml=namint)
       ierr=fclos(nulnam)
     end if
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      write(*,*) 'int_vInterpolate: The input and output statevectors are already on same vertical levels'
+      write(*,*) 'int_vInterp_gsv: The input and output statevectors are already on same vertical levels'
       call gsv_copy(statevector_in, statevector_out)
       return
     end if
 
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('int_vInterpolate: The input and output statevectors are not on the same horizontal grid.')
+      call utl_abort('int_vInterp_gsv: The input and output statevectors are not on the same horizontal grid.')
     end if
 
     if ( statevector_in%dataKind /= 8 .or. statevector_out%dataKind /= 8 ) then
-      call utl_abort('int_vInterpolate: Incorrect value for dataKind. Only compatible with dataKind=8')
+      call utl_abort('int_vInterp_gsv: Incorrect value for dataKind. Only compatible with dataKind=8')
     end if
 
     if (gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
@@ -639,12 +641,12 @@ module interpolation_mod
 
     end do step_loop
 
-  end subroutine int_vInterpolate
+  end subroutine int_vInterp_gsv
 
   !--------------------------------------------------------------------------
-  ! int_vInterpolate_r4
+  ! int_vInterp_gsv_r4
   !--------------------------------------------------------------------------
-  subroutine int_vInterpolate_r4(statevector_in,statevector_out,Ps_in_hPa_opt, &
+  subroutine int_vInterp_gsv_r4(statevector_in,statevector_out,Ps_in_hPa_opt, &
                                  PsfcReference_opt,checkModelTop_opt)
     !
     ! :Purpose: Vertical interpolation of pressure defined fields
@@ -656,8 +658,8 @@ module interpolation_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)     :: statevector_in           ! statevector that will contain the vertically interpolated fields
-    type(struct_gsv),  intent(inout)  :: statevector_out          ! Reference statevector providing the vertical structure
+    type(struct_gsv),  intent(in)     :: statevector_in           ! Reference statevector providing the vertical structure
+    type(struct_gsv),  intent(inout)  :: statevector_out          ! statevector that will contain the vertically interpolated fields
     logical, optional, intent(in)     :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done
     real(4), optional, intent(in)     :: PsfcReference_opt(:,:,:) ! Provides a surface pressure field to be used instead of the first P0 level
     logical, optional, intent(in)     :: checkModelTop_opt        ! Model top consistency will be checked prior to interpolation if true
@@ -684,7 +686,7 @@ module interpolation_mod
     vInterpCopyLowestLevel = .false.
     if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
       if ( mpi_myid == 0 ) then
-        write(*,*) 'int_vInterpolate_r4: namint is missing in the namelist.'
+        write(*,*) 'int_vInterp_gsv_r4: namint is missing in the namelist.'
         write(*,*) '                     The default values will be taken.'
       end if
     else
@@ -692,23 +694,23 @@ module interpolation_mod
       nulnam=0
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namint,iostat=ierr)
-      if (ierr.ne.0) call utl_abort('int_vInterpolate_r4: Error reading namelist NAMINT')
+      if (ierr.ne.0) call utl_abort('int_vInterp_gsv_r4: Error reading namelist NAMINT')
       if (mpi_myid.eq.0) write(*,nml=namint)
       ierr=fclos(nulnam)
     end if
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      write(*,*) 'int_vInterpolate_r4: The input and output statevectors are already on same vertical levels'
+      write(*,*) 'int_vInterp_gsv_r4: The input and output statevectors are already on same vertical levels'
       call gsv_copy(statevector_in, statevector_out)
       return
     end if
 
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('int_vInterpolate_r4: The input and output statevectors are not on the same horizontal grid.')
+      call utl_abort('int_vInterp_gsv_r4: The input and output statevectors are not on the same horizontal grid.')
     end if
 
     if ( statevector_in%dataKind /= 4 .or. statevector_out%dataKind /= 4 ) then
-      call utl_abort('int_vInterpolate_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
+      call utl_abort('int_vInterp_gsv_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
@@ -727,7 +729,7 @@ module interpolation_mod
       checkModelTop = .true.
     end if
     if (checkModelTop) then
-      write(*,*) 'int_vInterpolate_r4: Checking that that the top of the destination grid is not higher than the top of the source grid.'
+      write(*,*) 'int_vInterp_gsv_r4: Checking that that the top of the destination grid is not higher than the top of the source grid.'
       call vco_ensureCompatibleTops(vco_in, vco_out)
     end if
 
@@ -834,12 +836,12 @@ module interpolation_mod
 
     end do step_loop
 
-  end subroutine int_vInterpolate_r4
+  end subroutine int_vInterp_gsv_r4
 
   !--------------------------------------------------------------------------
-  ! int_tInterpolate
+  ! int_tInterp_gsv
   !--------------------------------------------------------------------------
-  subroutine int_tInterpolate(statevector_in,statevector_out)
+  subroutine int_tInterp_gsv(statevector_in,statevector_out)
     !
     ! :Purpose: Time interpolation from statevector with low temporal resolution
     !           to statevector with high temporal resolution.
@@ -861,22 +863,22 @@ module interpolation_mod
     real(4), pointer  :: gdIn_r4(:,:,:,:), gdOut_r4(:,:,:,:)
     real(8), pointer  :: gdIn_r8(:,:,:,:), gdOut_r8(:,:,:,:)
 
-    write(*,*) 'int_tInterpolate: STARTING'
+    write(*,*) 'int_tInterp_gsv: STARTING'
 
     if ( .not. vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call utl_abort('int_tInterpolate: The input and output statevectors are not on the same vertical levels')
+      call utl_abort('int_tInterp_gsv: The input and output statevectors are not on the same vertical levels')
     end if
 
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('int_tInterpolate: The input and output statevectors are not on the same horizontal grid.')
+      call utl_abort('int_tInterp_gsv: The input and output statevectors are not on the same horizontal grid.')
     end if
 
     if ( statevector_in%numStep > statevector_out%numStep ) then
-      write(*,*) 'int_tInterpolate: numStep_out is less than numStep_in, calling gsv_copy.'
+      write(*,*) 'int_tInterp_gsv: numStep_out is less than numStep_in, calling gsv_copy.'
       call gsv_copy(statevector_in, statevector_out, allowTimeMismatch_opt=.true.)
       return
     else if ( statevector_in%numStep == statevector_out%numStep ) then
-      write(*,*) 'int_tInterpolate: numStep_out is equal to numStep_in, calling gsv_copy.'
+      write(*,*) 'int_tInterp_gsv: numStep_out is equal to numStep_in, calling gsv_copy.'
       call gsv_copy(statevector_in, statevector_out, allowVarMismatch_opt=.true.)
       return
     end if
@@ -891,7 +893,7 @@ module interpolation_mod
     numStepIn = statevector_in%numStep
     numStepOut = statevector_out%numStep
     if ( mpi_myid == 0 ) then
-      write(*,*) 'int_tInterpolate: numStepIn=', numStepIn, ',numStepOut=',numStepOut
+      write(*,*) 'int_tInterp_gsv: numStepIn=', numStepIn, ',numStepOut=',numStepOut
     end if
 
     ! compute positive deltaHour between two first stepIndex of statevector_in (input temporal grid). 
@@ -928,7 +930,7 @@ module interpolation_mod
         dateStampOut = statevector_out%dateStampList(stepIndexOut)
         call difdatr(dateStampOut, dateStampIn, deltaHourInOut)
         if ( deltaHourInOut < 0.0d0 ) then 
-          call utl_abort('int_tInterpolate: deltaHourInOut should be greater or equal to 0')
+          call utl_abort('int_tInterp_gsv: deltaHourInOut should be greater or equal to 0')
         end if
 
         ! compute the interpolation weights for left stepIndex of statevector_in (weight1) and right stepIndex of statevector_in (weight2) 
@@ -937,7 +939,7 @@ module interpolation_mod
       end if
 
       if ( mpi_myid == 0 ) then
-        write(*,*) 'int_tInterpolate: for stepIndexOut=', stepIndexOut, &
+        write(*,*) 'int_tInterp_gsv: for stepIndexOut=', stepIndexOut, &
                    ',stepIndexIn1=', stepIndexIn1, ',stepIndexIn2=', stepIndexIn2, &
                    ',weight1=', weight1, ',weight2=', weight2, &
                    ',deltaHourInOut/deltaHour=', deltaHourInOut,'/',deltaHour
@@ -1003,8 +1005,225 @@ module interpolation_mod
 
     end do
 
-    write(*,*) 'int_tInterpolate: END'
+    write(*,*) 'int_tInterp_gsv: END'
 
-  end subroutine int_tInterpolate
+  end subroutine int_tInterp_gsv
+
+  !--------------------------------------------------------------------------
+  ! int_vInterp_col
+  !--------------------------------------------------------------------------
+  subroutine int_vInterp_col(column_in,column_out,varName,useColumnPressure_opt)
+    !
+    ! :Purpose: Vertical interpolation of a columData object
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_columnData),  intent(in)    :: column_in              ! Reference columnData providing the vertical structure
+    type(struct_columnData),  intent(inout) :: column_out             ! columnData that will contain the vertically interpolated column
+    character(len=*),         intent(in)    :: varName
+    logical, optional,        intent(in)    :: useColumnPressure_opt  ! if .true. use P_* instead of the pressure provided by vgd_levels 
+
+    ! Locals:
+    real(8), pointer :: pres_in(:), pres_out(:)
+    real(8), pointer :: pres1D_in(:)  , pres1D_out(:)
+    real(8), pointer :: pres3D_in(:,:,:), pres3D_out(:,:,:)
+    character(len=4) :: varLevel
+    real(8)          :: zwb, zwt
+    integer          :: levIndex_out, levIndex_in, columnIndex, status
+    logical          :: vInterp, useColumnPressure
+
+    integer, allocatable, target :: THlevelWanted(:), MMlevelWanted(:)
+    integer, pointer :: levelWanted(:)
+    real(8), allocatable :: psfc_in(:,:)
+
+    varLevel = vnl_varLevelFromVarname(varName)
+
+    if ( present(useColumnPressure_opt) ) then
+      useColumnPressure = useColumnPressure_opt
+    else
+      useColumnPressure = .true.
+    end if
+
+    nullify(pres3D_in)
+    nullify(pres3D_out)
+
+    vInterp = .true.
+    if ( .not. col_varExist(column_in,'P0' ) ) then
+      write(*,*)
+      write(*,*) 'int_vInterp_col: P0 is missing. Vertical interpolation WILL NOT BE PERFORMED'
+      vInterp = .false.
+    else if ( col_getNumLev(column_in ,'TH') <= 1 .or. &
+              col_getNumLev(column_in ,'MM') <= 1 ) then
+      vInterp = .false.
+      write(*,*)
+      write(*,*) 'int_vInterp_col: The input backgrounds are 2D. Vertical interpolation WILL NOT BE PERFORMED'
+    end if
+
+    if_vInterp: if (vInterp) then
+      if ( .not. useColumnPressure ) then
+
+        ! read psfc_in to use in vgd_levels
+        allocate(psfc_in(1,col_getNumCol(column_in)))
+        do columnIndex = 1,col_getNumCol(column_in)
+          psfc_in(1,columnIndex) = col_getElem(column_out,1,columnIndex,'P0')
+        end do
+
+        ! Compute pressure
+        if ( varLevel == 'TH' ) then
+          ! pres3D_in
+          status = vgd_levels(column_in%vco%vgrid,ip1_list=column_in%vco%ip1_T,  &
+                              levels=pres3D_in,sfc_field=psfc_in,in_log=.false.)
+          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+
+          ! pres3D_out
+          status = vgd_levels(column_out%vco%vgrid,ip1_list=column_out%vco%ip1_T,  &
+                              levels=pres3D_out,sfc_field=psfc_in,in_log=.false.)
+          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+
+        else if ( varLevel == 'MM' ) then
+          ! pres3D_in
+          status = vgd_levels(column_in%vco%vgrid,ip1_list=column_in%vco%ip1_M,  &
+                              levels=pres3D_in,sfc_field=psfc_in,in_log=.false.)
+          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+
+          ! pres3D_out
+          status = vgd_levels(column_out%vco%vgrid,ip1_list=column_out%vco%ip1_M,  &
+                              levels=pres3D_out,sfc_field=psfc_in,in_log=.false.)
+          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+
+        else
+          call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
+        end if  ! varLevel
+      end if    ! useColumnPressure
+
+      do columnIndex = 1, col_getNumCol(column_out)
+
+        ! pres1D_in
+        if ( .not. useColumnPressure ) then
+          pres1D_in => pres3D_in(1,columnIndex,:)
+        else
+          if ( varLevel == 'TH' ) then
+            pres1D_in => col_getColumn(column_in,columnIndex,'P_T')
+          else if ( varLevel == 'MM' ) then
+            pres1D_in => col_getColumn(column_in,columnIndex,'P_M')
+          else
+            call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
+          end if
+        end if
+
+        ! pres1D_out
+        if ( .not. useColumnPressure ) then
+          pres1D_out => pres3D_out(1,columnIndex,:)
+        else
+          if ( varLevel == 'TH' ) then
+            pres1D_out => col_getColumn(column_out,columnIndex,'P_T')
+          else if ( varLevel == 'MM' ) then
+            pres1D_out => col_getColumn(column_out,columnIndex,'P_M')
+          else
+            call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
+          end if
+        end if
+
+        pres_in  => col_getColumn(column_in ,columnIndex,varName)
+        pres_out => col_getColumn(column_out,columnIndex,varName)
+
+        if ( mpi_myid == 0 .and. columnIndex == 1 .and. &
+             (trim(varName) == 'P_T' ) ) then
+
+          write(*,*) 'useColumnPressure=', useColumnPressure
+
+          write(*,*) 'int_vInterp_col, COLUMN_IN(1):'
+          write(*,*) trim(varName),':'
+          write(*,*) pres_in(:)
+
+          write(*,*) 'int_vInterp_col, COLUMN_OUT(1):'
+          write(*,*) trim(varName),':'
+          write(*,*) pres_out(:)
+          write(*,*)
+        end if
+
+        levIndex_in = 1
+        do levIndex_out = 1, col_getNumLev(column_out,varLevel)
+          levIndex_in = levIndex_in + 1
+          do while( pres1D_out(levIndex_out) .gt. pres1D_in(levIndex_in) .and. &
+               levIndex_in .lt. col_getNumLev(column_in,varLevel) )
+            levIndex_in = levIndex_in + 1
+          end do
+          levIndex_in = levIndex_in - 1
+          zwb = log(pres1D_out(levIndex_out)/pres1D_in(levIndex_in))/  &
+               log(pres1D_in(levIndex_in+1)/pres1D_in(levIndex_in))
+          zwt = 1. - zwb
+          if (  useColumnPressure .and. &
+              (trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) ) then
+            ! do nothing, i.e. use the pressures from column_in
+          else if ( .not. useColumnPressure .and. &
+              (trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) ) then
+            pres_out(levIndex_out) = exp(zwb*log(pres_in(levIndex_in+1)) + zwt*log(pres_in(levIndex_in)))
+          else
+            pres_out(levIndex_out) = zwb*pres_in(levIndex_in+1) + zwt*pres_in(levIndex_in)
+          end if
+        end do
+      end do
+
+      if ( .not. useColumnPressure ) then
+        deallocate(pres3D_in)
+        deallocate(pres3D_out)
+        deallocate(psfc_in)
+      end if
+
+    else if_vInterp
+
+      if (column_out%vco%nlev_T > 0 .and. column_out%vco%nlev_M > 0) then
+
+        ! Find which levels in column_in matches column_out
+        allocate(THlevelWanted(column_out%vco%nlev_T))
+        allocate(MMlevelWanted(column_out%vco%nlev_M))
+
+        call vco_levelMatchingList( THlevelWanted, MMlevelWanted, & ! OUT
+                                    column_out%vco, column_in%vco ) ! IN
+
+        if ( any(THlevelWanted == -1) .or. any(MMlevelWanted == -1) ) then
+          call utl_abort('int_vInterp_col: column_out is not a subsets of column_in!')
+        end if
+
+        ! Transfer the corresponding data
+        do columnIndex = 1, col_getNumCol(column_out)
+          pres_in  => col_getColumn(column_in ,columnIndex,varName)
+          pres_out => col_getColumn(column_out,columnIndex,varName)
+          if (vnl_varLevelFromVarname(varName) == 'TH') then
+            levelWanted => THlevelWanted
+          else
+            levelWanted => MMlevelWanted
+          end if
+          do levIndex_out = 1, col_getNumLev(column_out,varLevel)
+            pres_out(levIndex_out) = pres_in(levelWanted(levIndex_out))
+          end do
+        end do
+
+        deallocate(THlevelWanted)
+        deallocate(MMlevelWanted)
+
+      else if (column_out%vco%nlev_depth > 0) then
+        write(*,*) 'vco_levelMatchingList: no MM and TH levels, but depth levels exist'
+        if (any(column_out%vco%depths(:) /= column_in%vco%depths(:))) then
+          call utl_abort('int_vInterp_col: some depth levels not equal')
+        else
+          ! copy over depth levels
+          do columnIndex = 1, col_getNumCol(column_out)
+            pres_in  => col_getColumn(column_in ,columnIndex,varName)
+            pres_out => col_getColumn(column_out,columnIndex,varName)
+            do levIndex_out = 1, col_getNumLev(column_out,varLevel)
+              pres_out(levIndex_out) = pres_in(levIndex_out)
+            end do
+          end do
+        end if
+
+      end if
+
+    end if if_vInterp
+
+  end subroutine int_vInterp_col
+
 
 end module interpolation_mod

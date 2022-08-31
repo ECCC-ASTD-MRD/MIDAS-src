@@ -55,6 +55,7 @@ module innovation_mod
   use costFunction_mod
   use varqc_mod
   use humidityLimits_mod
+  use interpolation_mod
   implicit none
   save
   private
@@ -368,8 +369,8 @@ contains
 
       if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList3D(jvar)) ) cycle
       
-      call col_vintprof(columnTrlOnTrlLev, columnTrlOnAnlIncLev, vnl_varNameList3D(jvar), &
-                        useColumnPressure_opt=.false.)
+      call int_vInterp_col( columnTrlOnTrlLev, columnTrlOnAnlIncLev, vnl_varNameList3D(jvar), &
+                            useColumnPressure_opt=.false.)
 
       if ( vnl_varNameList3D(jvar) == 'HU  ') then
         ! Imposing a minimum value for HU
