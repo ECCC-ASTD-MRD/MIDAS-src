@@ -1154,7 +1154,7 @@ contains
                           allocHeightSfc_opt=.true., hInterpolateDegree_opt='LINEAR', &
                           hExtrapolateDegree_opt='MINIMUM', &
                           varNames_opt=(/'HU','P0'/) )
-        call int_interpolate(stateVectorHuRefState, stateVectorHuRefStateInterp)
+        call int_interp_gsv(stateVectorHuRefState, stateVectorHuRefStateInterp)
         call gsv_deallocate(stateVectorHuRefState)
       end if
     end if
@@ -1185,8 +1185,8 @@ contains
       end if
       call utl_tmg_start(4,'--AddEnsRandomPert')
 
-      call int_interpolate(stateVectorPerturbation, stateVectorPerturbationInterp, &
-                           PsfcReference_opt=PsfcReference)
+      call int_interp_gsv(stateVectorPerturbation, stateVectorPerturbationInterp, &
+                          PsfcReference_opt=PsfcReference)
 
       ! If desired, use member itself as reference state for LQ to HU conversion
       if (ens_varExist(ensembleAnl,'HU') .and. useMemberAsHuRefState) then

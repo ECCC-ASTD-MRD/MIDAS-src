@@ -594,7 +594,7 @@ CONTAINS
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,&
                         allocHeightSfc_opt=.true., &
                         hInterpolateDegree_opt='LINEAR', varNames_opt=varNames)
-      call int_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)
+      call int_interp_gsv(stateVectorLowResTime, stateVectorLowResTimeSpace)
 
       ! Now copy only P0, HU, and TT to create reference stateVector.
       call gsv_copy(stateVectorLowResTimeSpace, stateVectorRefHUTT, &
@@ -641,7 +641,7 @@ CONTAINS
                         vco_anl, dateStamp_opt=tim_getDateStamp(), &
                         mpi_local_opt=.true., allocHeightSfc_opt=.true., &
                         hInterpolateDegree_opt='LINEAR', varNames_opt=varNames)
-      call int_interpolate(stateVectorLowResTime, stateVectorLowResTimeSpace)
+      call int_interp_gsv(stateVectorLowResTime, stateVectorLowResTimeSpace)
 
       ! Now copy to create final stateVector height.
       call gsv_copy(stateVectorLowResTimeSpace, stateVectorRefHeight, &

@@ -193,7 +193,7 @@ CONTAINS
       PsfcIncLowRes(:,:,1,:) = PsfcIncLowResFrom3Dgsv(:,:,1,:)
 
       ! Spatial interpolation of Psfc analysis increment
-      call int_interpolate(statevectorPsfcLowRes,statevectorPsfc)
+      call int_interp_gsv(statevectorPsfcLowRes,statevectorPsfc)
       call gsv_deallocate(statevectorPsfcLowRes)
 
       ! Compute analysis Psfc to use for interpolation of increment
@@ -230,7 +230,7 @@ CONTAINS
       else
         call gsv_zero( stateVectorPsfcHighRes )
       end if
-      call int_tInterpolate(statevectorPsfc, stateVectorPsfcHighRes)
+      call int_tInterp_gsv(statevectorPsfc, stateVectorPsfcHighRes)
     end if
 
     ! Compute the analysis
@@ -796,7 +796,7 @@ CONTAINS
       if (present(PsfcReference_opt)) then
         PsfcReference_r4(:,:,:) = PsfcReference_opt(:,:,:)
       end if
-      call int_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_r4_opt=PsfcReference_r4)
+      call int_interp_gsv(statevector_in,statevector_in_hvInterp,PsfcReference_r4_opt=PsfcReference_r4)
       deallocate(PsfcReference_r4)
     else
       allocate(PsfcReference_r8(statevector_in_hvInterp%myLonBeg:statevector_in_hvInterp%myLonEnd, &
@@ -805,7 +805,7 @@ CONTAINS
       if (present(PsfcReference_opt)) then
         PsfcReference_r8(:,:,:) = PsfcReference_opt(:,:,:)
       end if
-      call int_interpolate(statevector_in,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_r8)
+      call int_interp_gsv(statevector_in,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_r8)
       deallocate(PsfcReference_r8)
     end if
 
@@ -819,7 +819,7 @@ CONTAINS
                       varNames_opt=varNamesToInterpolate,                                       &
                       hInterpolateDegree_opt=statevector_inout%hInterpolateDegree,              &
                       hExtrapolateDegree_opt='VALUE' )
-    call int_tInterpolate(statevector_in_hvInterp, statevector_in_hvtInterp)
+    call int_tInterp_gsv(statevector_in_hvInterp, statevector_in_hvtInterp)
     call gsv_deallocate(statevector_in_hvInterp)
 
     ! Masking

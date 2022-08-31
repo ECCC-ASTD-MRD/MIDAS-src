@@ -268,7 +268,7 @@ module gridStateVectorFileIO_mod
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
                       hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
 
-    call int_hInterpolate_r4(statevector_file_r4, statevector_hinterp_r4)
+    call int_hInterp_gsv_r4(statevector_file_r4, statevector_hinterp_r4)
 
     call gsv_deallocate(statevector_file_r4)
 
@@ -303,10 +303,10 @@ module gridStateVectorFileIO_mod
       allocate(PsfcReference3D(statevector_tiles%myLonBeg:statevector_tiles%myLonEnd, &
                                statevector_tiles%myLatBeg:statevector_tiles%myLatEnd,1))
       PsfcReference3D(:,:,1) = PsfcReference_opt(:,:)
-      call int_vInterpolate(statevector_tiles,statevector_vinterp,PsfcReference_opt=PsfcReference3D)
+      call int_vInterp_gsv(statevector_tiles,statevector_vinterp,PsfcReference_opt=PsfcReference3D)
       deallocate(PsfcReference3D)
     else
-      call int_vInterpolate(statevector_tiles,statevector_vinterp)
+      call int_vInterp_gsv(statevector_tiles,statevector_vinterp)
     end if
 
     call gsv_deallocate(statevector_tiles)
@@ -462,7 +462,7 @@ module gridStateVectorFileIO_mod
                       hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree,  &
                       hExtrapolateDegree_opt=statevector_out_r4%hExtrapolateDegree)
 
-    call int_hInterpolate_r4(statevector_file_r4, statevector_hinterp_r4)
+    call int_hInterp_gsv_r4(statevector_file_r4, statevector_hinterp_r4)
 
     call gsv_deallocate(statevector_file_r4)
 
@@ -480,7 +480,7 @@ module gridStateVectorFileIO_mod
                       mpi_local_opt=.false., dataKind_opt=4,                                     &
                       allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead)
 
-    call int_vInterpolate_r4(statevector_hinterp_r4,statevector_vinterp_r4)
+    call int_vInterp_gsv_r4(statevector_hinterp_r4,statevector_vinterp_r4)
 
     call gsv_deallocate(statevector_hinterp_r4)
 
