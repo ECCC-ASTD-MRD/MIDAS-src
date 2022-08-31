@@ -356,11 +356,10 @@ contains
         write(*,'(a5,a15,a10,a30,a10, a15)') 'index', ' instrument', ' sensor', ' Jo', ' nobs', ' Jo/nobs'
         do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
           if (nobsInstrumentGlob(SSTdatasetIndex) > 0) then
-            write(*,'(i5,a15,a10,f30.17,i15,f10.5)') SSTdatasetIndex, &
-                                                     oer_getSSTdataParam_char('instrument', SSTdatasetIndex), &
+            write(*,'(i5,a15,a10,f30.17,i15,f10.5)') SSTdatasetIndex, oer_getSSTdataParam_char('instrument', SSTdatasetIndex),&
                                                      oer_getSSTdataParam_char('sensor', SSTdatasetIndex), &
-                                                     joSSTInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), &
-						     joSSTInstrument(SSTdatasetIndex)/real(nobsInstrumentGlob(SSTdatasetIndex))
+                                                     joSSTInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex),&
+                                                     joSSTInstrument(SSTdatasetIndex)/real(nobsInstrumentGlob(SSTdatasetIndex))
           end if    
         end do
       end if
