@@ -73,7 +73,7 @@ for index1 in `seq 1 ${numModules}`; do
       echo "${use} [style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
-        echo "${use} [color=red URL=\"${use}.svg\"];" >> $GRAPHDIR/modules/${modulename}.gv
+        echo "${use} [color=red URL=\"../../modules/level1/${use}.svg\"];" >> $GRAPHDIR/modules/${modulename}.gv
       fi
     fi
   done
