@@ -43,9 +43,13 @@ module obsErrors_mod
   ! public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
   public :: oer_setInterchanCorr, oer_computeInflatedStateDepSigmaObs
+  
+  ! public functions
+  public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
 
   ! public variables (parameters)
   public :: oer_ascatAnisOpenWater, oer_ascatAnisIce
+  
  ! Temporary arrays for QC purpose
   public :: oer_toverrst, oer_clwThreshArr, oer_tovutil
   public :: oer_sigmaObsErr, oer_useStateDepSigmaObs 
@@ -66,8 +70,8 @@ module obsErrors_mod
 
   ! SST data 
   integer, parameter :: maxNumberSSTDatasets = 15
-  integer :: numberSSTDatasets ! number of SST datasets in namelist
-  type setSSTdataParamsType
+  integer :: numberSSTDatasets = 0 ! number of SST datasets in namelist
+  type SSTdataParamsType
     character(len=20) :: dataType   = '' ! type of data: insitu, satellite, pseudo
     character(len=20) :: instrument = '' ! instrument: drifts, bouys, ships, AVHRR, VIIRS, AMSR2
     character(len=20) :: sensor     = '' ! sensor of satellite data: NOAA19, NOAA20,...
@@ -75,8 +79,8 @@ module obsErrors_mod
     integer           :: codeType   = MPC_missingValue_INT ! data codtype
     real(8)           :: dayError   = MPC_missingValue_R8  ! data error for daytime 
     real(8)           :: nightError = MPC_missingValue_R8  ! data error for nighttime
-  end type setSSTdataParamsType
-  type(setSSTdataParamsType) :: setSSTdataParams(maxNumberSSTDatasets)
+  end type SSTdataParamsType
+  type(SSTdataParamsType) :: SSTdataParams(maxNumberSSTDatasets)
 
   ! CONVENTIONAL OBS ERRORS
   real(8) :: xstd_ua_ai_sw(20,11)
@@ -970,8 +974,8 @@ contains
     implicit none
 
     integer :: fnom, fclos, nulnam, ierr, indexData
-    namelist /namSSTObsErrors/ numberSSTDatasets, setSSTdataParams
-
+    namelist /namSSTObsErrors/ numberSSTDatasets, SSTdataParams
+    
     if (utl_isNamelistPresent('namSSTObsErrors','./flnml')) then
       nulnam = 0
       ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
@@ -982,7 +986,7 @@ contains
     else
        call utl_abort('oer_readObsErrorsSST: namSSTObsErrors is missing in the namelist.')
     end if
-
+    
   end subroutine oer_readObsErrorsSST
 
   !--------------------------------------------------------------------------
@@ -1432,9 +1436,9 @@ contains
 
               unsupportedCodeType = .true.
               dataset_loop: do indexDataset = 1, numberSSTDatasets
-                if(codeType == setSSTdataParams(indexDataset)%codeType) then
+                if(codeType == SSTdataParams(indexDataset)%codeType) then
                   unsupportedCodeType = .false.
-                  call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, setSSTdataParams(indexDataset)%dayError)
+                  call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, SSTdataParams(indexDataset)%dayError)
                   exit dataset_loop
                 end if
               end do dataset_loop
@@ -1455,12 +1459,12 @@ contains
               
               unsupportedSensor = .true.
               sensor_loop: do indexSensor = 1, numberSSTDatasets
-                if (cstnid == trim(setSSTdataParams(indexSensor)%sensor)) then
+                if (cstnid == trim(SSTdataParams(indexSensor)%sensor)) then
                   unsupportedSensor = .false.
                   if (solarZenith <= 90.) then ! day
-                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, setSSTdataParams(indexSensor)%dayError)
+                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, SSTdataParams(indexSensor)%dayError)
                   else ! night
-                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, setSSTdataParams(indexSensor)%nightError)
+                    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, SSTdataParams(indexSensor)%nightError)
                   end if
                   exit sensor_loop
                 end if
@@ -3169,6 +3173,96 @@ contains
 
   end subroutine chm_dealloc_obs_err_stddev
 
+  !--------------------------------------------------------------------------
+  ! oer_getSSTdataParam_char
+  !--------------------------------------------------------------------------
+  function oer_getSSTdataParam_char(item, itemIndex) result(value)
+    !
+    !:Purpose: get character item value from SSTdataParams derived type
+    !
+    implicit none
+    
+    character(len=20) :: value 
 
+    ! Arguments:
+    character(len=*), intent(in) :: item
+    integer         , intent(in) :: itemIndex
+
+    select case(trim(item))      
+      case('dataType')
+        value = SSTdataParams(itemIndex)%dataType
+      case('instrument')
+        value = SSTdataParams(itemIndex)%instrument
+      case('sensor')
+        value = SSTdataParams(itemIndex)%sensor
+      case('sensorType')
+        value = SSTdataParams(itemIndex)%sensorType
+      case default
+        call utl_abort('oer_getSSTdataParam_char: invalid item '//(trim(item)))
+    end select
+
+  end function oer_getSSTdataParam_char
+
+  !--------------------------------------------------------------------------
+  ! oer_getSSTdataParam_int
+  !--------------------------------------------------------------------------
+  function oer_getSSTdataParam_int(item, itemIndex_opt) result(value)
+    !
+    !:Purpose: get integer item value from SSTdataParams derived type
+    !
+    implicit none
+    
+    integer :: value 
+
+    ! Arguments:
+    character(len=*), intent(in)           :: item
+    integer         , intent(in), optional :: itemIndex_opt
+
+    if (present(itemIndex_opt)) then
+      select case(trim(item))      
+        case('codeType')
+          value = SSTdataParams(itemIndex_opt)%codeType
+        case default
+          call utl_abort('oer_getSSTdataParam_int: invalid item '//(trim(item)))
+      end select
+    else
+      select case(trim(item))
+        case('maxNumberSSTDatasets')
+          value = maxNumberSSTDatasets
+        case('numberSSTDatasets')
+          value = numberSSTDatasets
+        case default
+          call utl_abort('oer_getSSTdataParam_int: invalid item '//(trim(item)))
+      end select
+
+    end if
+
+  end function oer_getSSTdataParam_int
+
+  !--------------------------------------------------------------------------
+  ! oer_getSSTdataParam_R8
+  !--------------------------------------------------------------------------
+  function oer_getSSTdataParam_R8(item, itemIndex) result(value)
+    !
+    !:Purpose: get real(8) item value from SSTdataParams derived type
+    !
+    implicit none
+    
+    real(8) :: value 
+
+    ! Arguments:
+    character(len=*), intent(in) :: item
+    integer         , intent(in) :: itemIndex
+
+    select case(trim(item))      
+      case('dayError')
+        value = SSTdataParams(itemIndex)%dayError
+      case('nightError')
+        value = SSTdataParams(itemIndex)%nightError
+      case default
+        call utl_abort('oer_getSSTdataParam_R8: invalid item '//(trim(item)))
+    end select
+
+  end function oer_getSSTdataParam_R8
 
 end module obsErrors_mod
