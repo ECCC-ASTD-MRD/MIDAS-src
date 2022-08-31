@@ -367,7 +367,6 @@ contains
         end do
       end if
 
-
     end if
     
     if(oer_getSSTdataParam_int('numberSSTDatasets') > 0) then
