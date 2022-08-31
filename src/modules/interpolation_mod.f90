@@ -658,8 +658,8 @@ module interpolation_mod
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)     :: statevector_in           ! statevector that will contain the vertically interpolated fields
-    type(struct_gsv),  intent(inout)  :: statevector_out          ! Reference statevector providing the vertical structure
+    type(struct_gsv),  intent(in)     :: statevector_in           ! Reference statevector providing the vertical structure
+    type(struct_gsv),  intent(inout)  :: statevector_out          ! statevector that will contain the vertically interpolated fields
     logical, optional, intent(in)     :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done
     real(4), optional, intent(in)     :: PsfcReference_opt(:,:,:) ! Provides a surface pressure field to be used instead of the first P0 level
     logical, optional, intent(in)     :: checkModelTop_opt        ! Model top consistency will be checked prior to interpolation if true
@@ -1013,23 +1013,29 @@ module interpolation_mod
   ! int_vInterp_col
   !--------------------------------------------------------------------------
   subroutine int_vInterp_col(column_in,column_out,varName,useColumnPressure_opt)
+    !
+    ! :Purpose: Vertical interpolation of a columData object
+    !
     implicit none
-    type(struct_columnData), intent(inout) :: column_out
-    type(struct_columnData), intent(in) :: column_in
-    character(len=*) :: varName
-    logical, optional :: useColumnPressure_opt
 
-    real(8), pointer :: column_ptr_in(:), column_ptr_out(:)
-    real(8), pointer :: pres1Dptr_in(:)  , pres1Dptr_out(:)
-    real(8), pointer :: pres3Dptr_in(:,:,:), pres3Dptr_out(:,:,:)
+    ! Arguments:
+    type(struct_columnData),  intent(in)    :: column_in              ! Reference columnData providing the vertical structure
+    type(struct_columnData),  intent(inout) :: column_out             ! columnData that will contain the vertically interpolated column
+    character(len=*),         intent(in)    :: varName
+    logical, optional,        intent(in)    :: useColumnPressure_opt  ! if .true. use P_* instead of the pressure provided by vgd_levels 
+
+    ! Locals:
+    real(8), pointer :: pres_in(:), pres_out(:)
+    real(8), pointer :: pres1D_in(:)  , pres1D_out(:)
+    real(8), pointer :: pres3D_in(:,:,:), pres3D_out(:,:,:)
     character(len=4) :: varLevel
     real(8)          :: zwb, zwt
-    integer          :: jlevo, jlevi, columnIndex, status
+    integer          :: levIndex_out, levIndex_in, columnIndex, status
     logical          :: vInterp, useColumnPressure
 
     integer, allocatable, target :: THlevelWanted(:), MMlevelWanted(:)
     integer, pointer :: levelWanted(:)
-    real(8), allocatable :: Psfc(:,:)
+    real(8), allocatable :: psfc_in(:,:)
 
     varLevel = vnl_varLevelFromVarname(varName)
 
@@ -1039,8 +1045,8 @@ module interpolation_mod
       useColumnPressure = .true.
     end if
 
-    nullify(pres3Dptr_in)
-    nullify(pres3Dptr_out)
+    nullify(pres3D_in)
+    nullify(pres3D_out)
 
     vInterp = .true.
     if ( .not. col_varExist(column_in,'P0' ) ) then
@@ -1054,121 +1060,119 @@ module interpolation_mod
       write(*,*) 'int_vInterp_col: The input backgrounds are 2D. Vertical interpolation WILL NOT BE PERFORMED'
     end if
 
-    if (vInterp) then
+    if_vInterp: if (vInterp) then
       if ( .not. useColumnPressure ) then
 
-        ! read Psfc to use in vgd_levels
-        allocate(Psfc(1,col_getNumCol(column_in)))
+        ! read psfc_in to use in vgd_levels
+        allocate(psfc_in(1,col_getNumCol(column_in)))
         do columnIndex = 1,col_getNumCol(column_in)
-          Psfc(1,columnIndex) = col_getElem(column_out,1,columnIndex,'P0')
+          psfc_in(1,columnIndex) = col_getElem(column_out,1,columnIndex,'P0')
         end do
 
         ! Compute pressure
         if ( varLevel == 'TH' ) then
-          ! pres3Dptr_in 
+          ! pres3D_in
           status = vgd_levels(column_in%vco%vgrid,ip1_list=column_in%vco%ip1_T,  &
-                              levels=pres3Dptr_in,sfc_field=Psfc,in_log=.false.)
+                              levels=pres3D_in,sfc_field=psfc_in,in_log=.false.)
           if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
 
-          ! pres3Dptr_out
+          ! pres3D_out
           status = vgd_levels(column_out%vco%vgrid,ip1_list=column_out%vco%ip1_T,  &
-                              levels=pres3Dptr_out,sfc_field=Psfc,in_log=.false.)
+                              levels=pres3D_out,sfc_field=psfc_in,in_log=.false.)
           if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
 
         else if ( varLevel == 'MM' ) then
-          ! pres3Dptr_in 
+          ! pres3D_in
           status = vgd_levels(column_in%vco%vgrid,ip1_list=column_in%vco%ip1_M,  &
-                              levels=pres3Dptr_in,sfc_field=Psfc,in_log=.false.)
+                              levels=pres3D_in,sfc_field=psfc_in,in_log=.false.)
           if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
 
-          ! pres3Dptr_out
+          ! pres3D_out
           status = vgd_levels(column_out%vco%vgrid,ip1_list=column_out%vco%ip1_M,  &
-                              levels=pres3Dptr_out,sfc_field=Psfc,in_log=.false.)
+                              levels=pres3D_out,sfc_field=psfc_in,in_log=.false.)
           if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
 
         else
           call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
         end if  ! varLevel
-      end if    ! useColumnPressure 
+      end if    ! useColumnPressure
 
       do columnIndex = 1, col_getNumCol(column_out)
 
-        ! pres1Dptr_in 
+        ! pres1D_in
         if ( .not. useColumnPressure ) then
-          pres1Dptr_in => pres3Dptr_in(1,columnIndex,:)
+          pres1D_in => pres3D_in(1,columnIndex,:)
         else
           if ( varLevel == 'TH' ) then
-            pres1Dptr_in => col_getColumn(column_in,columnIndex,'P_T')
+            pres1D_in => col_getColumn(column_in,columnIndex,'P_T')
           else if ( varLevel == 'MM' ) then
-            pres1Dptr_in => col_getColumn(column_in,columnIndex,'P_M')
+            pres1D_in => col_getColumn(column_in,columnIndex,'P_M')
           else
             call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
           end if
         end if
 
-        ! pres1Dptr_out 
+        ! pres1D_out
         if ( .not. useColumnPressure ) then
-          pres1Dptr_out => pres3Dptr_out(1,columnIndex,:)
+          pres1D_out => pres3D_out(1,columnIndex,:)
         else
           if ( varLevel == 'TH' ) then
-            pres1Dptr_out => col_getColumn(column_out,columnIndex,'P_T')
+            pres1D_out => col_getColumn(column_out,columnIndex,'P_T')
           else if ( varLevel == 'MM' ) then
-            pres1Dptr_out => col_getColumn(column_out,columnIndex,'P_M')
+            pres1D_out => col_getColumn(column_out,columnIndex,'P_M')
           else
             call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
           end if
         end if
 
-        column_ptr_in  => col_getColumn(column_in ,columnIndex,varName)
-        column_ptr_out => col_getColumn(column_out,columnIndex,varName)
+        pres_in  => col_getColumn(column_in ,columnIndex,varName)
+        pres_out => col_getColumn(column_out,columnIndex,varName)
 
         if ( mpi_myid == 0 .and. columnIndex == 1 .and. &
              (trim(varName) == 'P_T' ) ) then
-             !(trim(varName) == 'P_T' .or. trim(varName) == 'P_M') ) then
 
           write(*,*) 'useColumnPressure=', useColumnPressure
 
           write(*,*) 'int_vInterp_col, COLUMN_IN(1):'
           write(*,*) trim(varName),':'
-          write(*,*) column_ptr_in(:)
+          write(*,*) pres_in(:)
 
           write(*,*) 'int_vInterp_col, COLUMN_OUT(1):'
           write(*,*) trim(varName),':'
-          write(*,*) column_ptr_out(:)
+          write(*,*) pres_out(:)
           write(*,*)
         end if
 
-        jlevi = 1
-        do jlevo = 1, col_getNumLev(column_out,varLevel)
-          jlevi = jlevi + 1
-          do while( pres1Dptr_out(jlevo) .gt. pres1Dptr_in(jlevi) .and. &
-               jlevi .lt. col_getNumLev(column_in,varLevel) )
-            jlevi = jlevi + 1
+        levIndex_in = 1
+        do levIndex_out = 1, col_getNumLev(column_out,varLevel)
+          levIndex_in = levIndex_in + 1
+          do while( pres1D_out(levIndex_out) .gt. pres1D_in(levIndex_in) .and. &
+               levIndex_in .lt. col_getNumLev(column_in,varLevel) )
+            levIndex_in = levIndex_in + 1
           end do
-          jlevi = jlevi - 1
-          zwb = log(pres1Dptr_out(jlevo)/pres1Dptr_in(jlevi))/  &
-               log(pres1Dptr_in(jlevi+1)/pres1Dptr_in(jlevi))
+          levIndex_in = levIndex_in - 1
+          zwb = log(pres1D_out(levIndex_out)/pres1D_in(levIndex_in))/  &
+               log(pres1D_in(levIndex_in+1)/pres1D_in(levIndex_in))
           zwt = 1. - zwb
           if (  useColumnPressure .and. &
               (trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) ) then
             ! do nothing, i.e. use the pressures from column_in
           else if ( .not. useColumnPressure .and. &
               (trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) ) then
-            column_ptr_out(jlevo) = exp(zwb*log(column_ptr_in(jlevi+1)) + zwt*log(column_ptr_in(jlevi)))
-            !column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
+            pres_out(levIndex_out) = exp(zwb*log(pres_in(levIndex_in+1)) + zwt*log(pres_in(levIndex_in)))
           else
-            column_ptr_out(jlevo) = zwb*column_ptr_in(jlevi+1) + zwt*column_ptr_in(jlevi)
+            pres_out(levIndex_out) = zwb*pres_in(levIndex_in+1) + zwt*pres_in(levIndex_in)
           end if
         end do
       end do
 
       if ( .not. useColumnPressure ) then
-        deallocate(pres3Dptr_in)
-        deallocate(pres3Dptr_out)
-        deallocate(Psfc)
+        deallocate(pres3D_in)
+        deallocate(pres3D_out)
+        deallocate(psfc_in)
       end if
-      
-    else
+
+    else if_vInterp
 
       if (column_out%vco%nlev_T > 0 .and. column_out%vco%nlev_M > 0) then
 
@@ -1185,15 +1189,15 @@ module interpolation_mod
 
         ! Transfer the corresponding data
         do columnIndex = 1, col_getNumCol(column_out)
-          column_ptr_in  => col_getColumn(column_in ,columnIndex,varName)
-          column_ptr_out => col_getColumn(column_out,columnIndex,varName)
+          pres_in  => col_getColumn(column_in ,columnIndex,varName)
+          pres_out => col_getColumn(column_out,columnIndex,varName)
           if (vnl_varLevelFromVarname(varName) == 'TH') then
             levelWanted => THlevelWanted
           else
             levelWanted => MMlevelWanted
           end if
-          do jlevo = 1, col_getNumLev(column_out,varLevel)
-            column_ptr_out(jlevo) = column_ptr_in(levelWanted(jlevo))
+          do levIndex_out = 1, col_getNumLev(column_out,varLevel)
+            pres_out(levIndex_out) = pres_in(levelWanted(levIndex_out))
           end do
         end do
 
@@ -1201,23 +1205,23 @@ module interpolation_mod
         deallocate(MMlevelWanted)
 
       else if (column_out%vco%nlev_depth > 0) then
-        write(*,*) 'vco_levelMatchingList: no MM and TH levels, but depth levels exist'      
+        write(*,*) 'vco_levelMatchingList: no MM and TH levels, but depth levels exist'
         if (any(column_out%vco%depths(:) /= column_in%vco%depths(:))) then
           call utl_abort('int_vInterp_col: some depth levels not equal')
         else
           ! copy over depth levels
           do columnIndex = 1, col_getNumCol(column_out)
-            column_ptr_in  => col_getColumn(column_in ,columnIndex,varName)
-            column_ptr_out => col_getColumn(column_out,columnIndex,varName)
-            do jlevo = 1, col_getNumLev(column_out,varLevel)
-              column_ptr_out(jlevo) = column_ptr_in(jlevo)
+            pres_in  => col_getColumn(column_in ,columnIndex,varName)
+            pres_out => col_getColumn(column_out,columnIndex,varName)
+            do levIndex_out = 1, col_getNumLev(column_out,varLevel)
+              pres_out(levIndex_out) = pres_in(levIndex_out)
             end do
           end do
         end if
 
       end if
 
-    end if
+    end if if_vInterp
 
   end subroutine int_vInterp_col
 
