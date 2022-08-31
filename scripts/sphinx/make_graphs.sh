@@ -160,7 +160,7 @@ for program in ${programfilelist}; do
       echo "${use} [style=filled];" >> $GRAPHDIR/programs/${programname}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
-        echo "${use} [color=red URL=\"${use}.svg\"];" >> $GRAPHDIR/programs/${programname}.gv
+        echo "${use} [color=red URL=\"../../modules/level1/${use}.svg\"];" >> $GRAPHDIR/programs/${programname}.gv
       fi
     fi
   done
