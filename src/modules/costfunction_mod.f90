@@ -360,7 +360,7 @@ contains
                                                      oer_getSSTdataParam_char('instrument', SSTdatasetIndex), &
                                                      oer_getSSTdataParam_char('sensor', SSTdatasetIndex), &
                                                      joSSTInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), &
-                                                     joSSTInstrument(SSTdatasetIndex)/real(nobsInstrumentGlob(SSTdatasetIndex))
+						     joSSTInstrument(SSTdatasetIndex)/real(nobsInstrumentGlob(SSTdatasetIndex))
           end if    
         end do
       end if
