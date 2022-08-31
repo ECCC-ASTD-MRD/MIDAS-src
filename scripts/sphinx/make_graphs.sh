@@ -73,7 +73,7 @@ for index1 in `seq 1 ${numModules}`; do
       echo "${use} [style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
-        echo "${use} [color=red];" >> $GRAPHDIR/modules/${modulename}.gv
+        echo "${use} [color=red URL=\"${use}.svg\"];" >> $GRAPHDIR/modules/${modulename}.gv
       fi
     fi
   done
@@ -84,11 +84,7 @@ for index1 in `seq 1 ${numModules}`; do
   echo "fontsize=14;" >> $GRAPHDIR/modules/${modulename}.gv
   echo "}" >> $GRAPHDIR/modules/${modulename}.gv
   unflatten -l 8 -f $GRAPHDIR/modules/${modulename}.gv > $GRAPHDIR/modules/${modulename}_2.gv
-  dot -Tpng $GRAPHDIR/modules/${modulename}_2.gv > $GRAPHDIR/modules/${modulename}.png
-  image_width=`file $GRAPHDIR/modules/${modulename}.png |cut -f2 -d',' |cut -f1 -d'x'`
-  [ "${verbose}" = "yes" ] && echo "The width of the image = $image_width"
-  convert $GRAPHDIR/modules/${modulename}.png -shave 1x1 -bordercolor black -border 1 $GRAPHDIR/output.png
-  mv $GRAPHDIR/output.png $GRAPHDIR/modules/${modulename}.png
+  dot -Tsvg $GRAPHDIR/modules/${modulename}_2.gv > $GRAPHDIR/modules/${modulename}.svg
 done
 
 fi # if make_modules
@@ -164,7 +160,7 @@ for program in ${programfilelist}; do
       echo "${use} [style=filled];" >> $GRAPHDIR/programs/${programname}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
-        echo "${use} [color=red];" >> $GRAPHDIR/programs/${programname}.gv
+        echo "${use} [color=red URL=\"${use}.svg\"];" >> $GRAPHDIR/programs/${programname}.gv
       fi
     fi
   done
@@ -175,11 +171,7 @@ for program in ${programfilelist}; do
   echo "fontsize=14;" >> $GRAPHDIR/programs/${programname}.gv
   echo "}" >> $GRAPHDIR/programs/${programname}.gv
   unflatten -l 8 -f $GRAPHDIR/programs/${programname}.gv > $GRAPHDIR/programs/${programname}_2.gv
-  dot -Tpng $GRAPHDIR/programs/${programname}_2.gv > $GRAPHDIR/programs/${programname}.png
-  image_width=`file $GRAPHDIR/programs/${programname}.png |cut -f2 -d',' |cut -f1 -d'x'`
-  [ "${verbose}" = "yes" ] && echo "The width of the image = $image_width"
-  convert $GRAPHDIR/programs/${programname}.png -shave 1x1 -bordercolor black -border 1 $GRAPHDIR/output.png
-  mv $GRAPHDIR/output.png $GRAPHDIR/programs/${programname}.png
+  dot -Tsvg $GRAPHDIR/programs/${programname}_2.gv > $GRAPHDIR/programs/${programname}.svg
 
 done
 
