@@ -7,7 +7,7 @@ echo "make_graphs.sh called with argument = $GRAPHDIR "
 # some configuration variables
 make_modules="yes"
 make_programs="yes"
-verbose="no"
+verbose="yes"
 
 
 commonLabel="Red boxes indicate modules with dependencies not shown\nLower level dependencies can be shown by clicking on a red box\nShaded boxes indicate modules with no dependencies"
@@ -64,6 +64,52 @@ for index1 in `seq 1 ${numModules}`; do
   echo "}" >> $GRAPHDIR/modules/${modulename}.gv
   unflatten -l 8 -f $GRAPHDIR/modules/${modulename}.gv > $GRAPHDIR/modules/${modulename}_2.gv
   dot -Tsvg $GRAPHDIR/modules/${modulename}_2.gv > $GRAPHDIR/modules/${modulename}.svg
+done
+
+echo "GENERATING REVERSE DEPENDENCY GRAPHS FOR ALL MODULES"
+for index1 in `seq 1 ${numModules}`; do
+  dependencies_done=""
+  all_modules=""
+  modulename=${modulenames[$index1]}
+  [ "${verbose}" = "yes" ] && echo
+  [ "${verbose}" = "yes" ] && echo "GENERATING REVERSE DEPENDENCY GRAPH FOR THE MODULE ${modulename}"
+  echo "strict digraph ${modulename} {" > $GRAPHDIR/modules/${modulename}_rev.gv
+  echo "node [shape=box];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  echo "${modulename};" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  if [ "${revnumberuses[$index1]}" = "0" ]; then
+    echo "${modulename} [style=filled];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  fi
+  # modules reverse dependencies
+  for use2 in ${revmodlist[$index1]}; do
+    all_modules=`echo "${all_modules} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
+    echo "${use2}->${modulename};" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  done
+
+  for use in ${all_modules}; do
+    index=${modulename_index[$use]}
+    if [ "${revnumberuses[$index]}" = "0" ]; then
+      echo "${use} [style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
+    else
+      if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
+        echo "${use} [color=red URL=\"../modules/${use}_rev.svg\"];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+      fi
+    fi
+  done
+
+  # program reverse dependencies
+  for pgm in ${revmodlist[$index1]}; do
+    echo "${pgm}->${modulename};" >> $GRAPHDIR/modules/${modulename}_rev.gv
+    echo "${use} [color=blue URL=\"../programss/${use}_rev.svg\"];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  done
+
+  # finish the graph viz file
+  echo "overlap=false" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  echo "label=\"${moduleLabel}\"" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  echo "fontsize=14;" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  echo "}" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  unflatten -l 8 -f $GRAPHDIR/modules/${modulename}_rev.gv > $GRAPHDIR/modules/${modulename}_rev_2.gv
+  dot -Tsvg $GRAPHDIR/modules/${modulename}_rev_2.gv > $GRAPHDIR/modules/${modulename}_rev.svg
+  
 done
 
 fi # if make_modules
