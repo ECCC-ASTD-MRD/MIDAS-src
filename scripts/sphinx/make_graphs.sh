@@ -8,9 +8,17 @@ echo "make_graphs.sh called with arguments = $limit_levels $GRAPHDIR "
 # some configuration variables
 make_modules="yes"
 make_programs="yes"
-categories_programs="1 2 3 4 5 6"
+categories_programs="1 2 3 4 5 6 7 8"
 verbose="no"
-footerMessage="Red boxes indicate modules with dependencies not shown\nLower level dependencies can be shown by clicking on a red box\nShaded boxes indicate modules with no dependencies"
+
+
+commonLabel="Red boxes indicate modules with dependencies not shown\nLower level dependencies can be shown by clicking on a red box\nShaded boxes indicate modules with no dependencies"
+moduleLabel=${commonLabel}
+if [ "${categories_programs}" = "1 2 3 4 5 6 7 8" ]; then
+  programLabel=${commonLabel}
+else
+  programLabel="Note, only modules from these categories are included: ${categories_programs}\n${commonLabel}"
+fi
 
 # switch to the main source directory
 ORIG_PWD=$PWD
@@ -81,7 +89,7 @@ for index1 in `seq 1 ${numModules}`; do
 
   # finish the graph viz file
   echo "overlap=false" >> $GRAPHDIR/modules/${modulename}.gv
-  echo "label=\"${footerMessage}\"" >> $GRAPHDIR/modules/${modulename}.gv
+  echo "label=\"${moduleLabel}\"" >> $GRAPHDIR/modules/${modulename}.gv
   echo "fontsize=14;" >> $GRAPHDIR/modules/${modulename}.gv
   echo "}" >> $GRAPHDIR/modules/${modulename}.gv
   unflatten -l 8 -f $GRAPHDIR/modules/${modulename}.gv > $GRAPHDIR/modules/${modulename}_2.gv
@@ -168,7 +176,7 @@ for program in ${programfilelist}; do
 
   # finish the graph viz file
   echo "overlap=false" >> $GRAPHDIR/programs/${programname}.gv
-  echo "label=\"Note, only modules from these categories are included: ${categories_programs}\n${footerMessage}\"" >> $GRAPHDIR/programs/${programname}.gv
+  echo "label=\"${programLabel}\"" >> $GRAPHDIR/programs/${programname}.gv
   echo "fontsize=14;" >> $GRAPHDIR/programs/${programname}.gv
   echo "}" >> $GRAPHDIR/programs/${programname}.gv
   unflatten -l 8 -f $GRAPHDIR/programs/${programname}.gv > $GRAPHDIR/programs/${programname}_2.gv
