@@ -115,19 +115,6 @@ ${program_names[$filenum]}
 EOF
 
 if [ "${do_graphs}" = "yes" ]; then
-  cat >> ./programs/${program_names[$filenum]}.rst <<EOF
-    **Dependency:** \`diagram <${program_names[$filenum]}.svg>\`_
-
-EOF
-fi
-
-cat >> ./programs/${program_names[$filenum]}.rst <<EOF
-
-    .. f:autoprogram:: ${program_names[$filenum]}
-
-EOF
-
-if [ "${do_graphs}" = "yes" ]; then
 cat >> ./programs/${program_names[$filenum]}.rst <<EOF
 
     **Dependency Diagrams:**
@@ -139,6 +126,12 @@ cat >> ./programs/${program_names[$filenum]}.rst <<EOF
 
 EOF
 fi
+
+cat >> ./programs/${program_names[$filenum]}.rst <<EOF
+
+    .. f:autoprogram:: ${program_names[$filenum]}
+
+EOF
 
 done
 
@@ -171,19 +164,6 @@ EOF
 if [ "${do_graphs}" = "yes" ]; then
   cat >> ./modules/${module_name}.rst <<EOF
 
-    **Dependency:** \`diagram <${module_name}.svg>\`_
-EOF
-fi
-
-cat >> ./modules/${module_name}.rst <<EOF
-
-    .. f:automodule:: ${module_name}
-
-EOF
-
-if [ "${do_graphs}" = "yes" ]; then
-  cat >> ./modules/${module_name}.rst <<EOF
-
     **Dependency Diagrams:**
 
     .. figure:: /${module_name}.svg
@@ -192,7 +172,13 @@ if [ "${do_graphs}" = "yes" ]; then
         Direct Dependency Diagram
 
 EOF
+
 fi
+cat >> ./modules/${module_name}.rst <<EOF
+
+    .. f:automodule:: ${module_name}
+
+EOF
 
 done
 
