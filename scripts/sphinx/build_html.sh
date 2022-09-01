@@ -116,7 +116,13 @@ EOF
 
 if [ "${do_graphs}" = "yes" ]; then
 cat >> ./programs/${program_names[$filenum]}.rst <<EOF
-    **Dependency Diagrams:** \`1-Level <level1/${program_names[$filenum]}.png>\`_, \`2-Level <level2/${program_names[$filenum]}.png>\`_, \`3-Level <level3/${program_names[$filenum]}.png>\`_
+
+    **Dependency Diagrams:**
+
+    .. figure:: /${program_names[$filenum]}.svg
+        :height: 100px
+
+        Direct Dependency Diagram
 
 EOF
 fi
@@ -126,29 +132,6 @@ cat >> ./programs/${program_names[$filenum]}.rst <<EOF
     .. f:autoprogram:: ${program_names[$filenum]}
 
 EOF
-
-if [ "${do_graphs}" = "yes" ]; then
-cat >> ./programs/${program_names[$filenum]}.rst <<EOF
-
-    **Dependency Diagrams:**
-
-    .. figure:: /level1/${program_names[$filenum]}.png
-        :height: 100px
-
-        1-Level Dependency Diagram
-
-    .. figure:: /level2/${program_names[$filenum]}.png
-        :height: 100px
-
-        2-Level Dependency Diagram
-
-    .. figure:: /level3/${program_names[$filenum]}.png
-        :height: 100px
-
-        3-Level Dependency Diagram
-
-EOF
-fi
 
 done
 
@@ -179,40 +162,23 @@ $module_name
 EOF
 
 if [ "${do_graphs}" = "yes" ]; then
-cat >> ./modules/${module_name}.rst <<EOF
+  cat >> ./modules/${module_name}.rst <<EOF
 
-    **Dependency Diagrams:** \`1-Level <level1/${module_name}.png>\`_, \`2-Level <level2/${module_name}.png>\`_, \`3-Level <level3/${module_name}.png>\`_
+    **Dependency Diagrams:**
+
+    .. figure:: /${module_name}.svg
+        :height: 100px
+
+        Direct Dependency Diagram
+
 EOF
-fi
 
+fi
 cat >> ./modules/${module_name}.rst <<EOF
 
     .. f:automodule:: ${module_name}
 
 EOF
-
-if [ "${do_graphs}" = "yes" ]; then
-cat >> ./modules/${module_name}.rst <<EOF
-
-    **Dependency Diagrams:**
-
-    .. figure:: /level1/${module_name}.png
-        :height: 100px
-
-        1-Level Dependency Diagram
-
-    .. figure:: /level2/${module_name}.png
-        :height: 100px
-
-        2-Level Dependency Diagram
-
-    .. figure:: /level3/${module_name}.png
-        :height: 100px
-
-        3-Level Dependency Diagram
-
-EOF
-fi
 
 done
 
@@ -412,23 +378,11 @@ mv _build/html/* ${htmldir}
 # GENERATE DEPENDENCY GRAPHS
 
 if [ "${do_graphs}" = "yes" ]; then
-  ./make_graphs.sh 1 $PWD/_build/html/graphs
-  mkdir -p ${htmldir}/programs/level1
-  mv $PWD/_build/html/graphs/programs/*.png ${htmldir}/programs/level1/
-  mkdir -p ${htmldir}/modules/level1
-  mv $PWD/_build/html/graphs/modules/*.png ${htmldir}/modules/level1/
-
-  ./make_graphs.sh 2 $PWD/_build/html/graphs
-  mkdir -p ${htmldir}/programs/level2
-  mv $PWD/_build/html/graphs/programs/*.png ${htmldir}/programs/level2/
-  mkdir -p ${htmldir}/modules/level2
-  mv $PWD/_build/html/graphs/modules/*.png ${htmldir}/modules/level2/
-
-  ./make_graphs.sh 3 $PWD/_build/html/graphs
-  mkdir -p ${htmldir}/programs/level3
-  mv $PWD/_build/html/graphs/programs/*.png ${htmldir}/programs/level3/
-  mkdir -p ${htmldir}/modules/level3
-  mv $PWD/_build/html/graphs/modules/*.png ${htmldir}/modules/level3/
+  ./make_graphs.sh $PWD/_build/html/graphs
+  mkdir -p ${htmldir}/programs
+  mv $PWD/_build/html/graphs/programs/*.svg ${htmldir}/programs
+  mkdir -p ${htmldir}/modules
+  mv $PWD/_build/html/graphs/modules/*.svg ${htmldir}/modules
 fi
 
 # GENERATE NAMELIST INFORMATION

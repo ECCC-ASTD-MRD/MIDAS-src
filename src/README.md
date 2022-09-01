@@ -190,7 +190,7 @@ var.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
 When new external dependencies are added in a module, it will potentially impact
 multiple programs (for which the dependencies will have to be added as described
 above).
-You are refered to the section [Automatic dependencies](#automatic_dependencies)
+You are refered to the section [Automatic dependencies](#automatic-dependencies)
 for a general discussion on the dependency tree processing.
 
 First you will need to have the dependency files (`dep.{obj,abs}.inc`) which are

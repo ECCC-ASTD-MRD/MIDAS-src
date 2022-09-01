@@ -1,15 +1,18 @@
 #!/bin/bash
 
-limit_levels=${1:-3}
-GRAPHDIR=${2:-${PWD}/graphs/}
+GRAPHDIR=${1:-${PWD}/graphs/}
 echo
-echo "make_graphs.sh called with arguments = $limit_levels $GRAPHDIR "
+echo "make_graphs.sh called with argument = $GRAPHDIR "
 
 # some configuration variables
 make_modules="yes"
 make_programs="yes"
-categories_programs="1 2 3 4 5 6"
 verbose="no"
+
+
+commonLabel="Red boxes indicate modules with dependencies not shown\nLower level dependencies can be shown by clicking on a red box\nShaded boxes indicate modules with no dependencies"
+moduleLabel=${commonLabel}
+programLabel=${commonLabel}
 
 # switch to the main source directory
 ORIG_PWD=$PWD
@@ -41,30 +44,6 @@ for index1 in `seq 1 ${numModules}`; do
     index2=${modulename_index[$use2]}
     all_modules=`echo "${all_modules} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
     echo "${modulename}->${use2};" >> $GRAPHDIR/modules/${modulename}.gv
-    if [ "${limit_levels}" -gt "1" ]; then
-      for use3 in ${useslist[$index2]}; do
-        index3=${modulename_index[$use3]}
-        dependencies_done=`echo "${dependencies_done} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-        all_modules=`echo "${all_modules} ${use3}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-        echo "${use2}->${use3};" >> $GRAPHDIR/modules/${modulename}.gv
-        if [ "${limit_levels}" -gt "2" ]; then
-          for use4 in ${useslist[$index3]}; do
-            index4=${modulename_index[$use4]}
-            dependencies_done=`echo "${dependencies_done} ${use3}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-            all_modules=`echo "${all_modules} ${use4}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-            echo "${use3}->${use4};" >> $GRAPHDIR/modules/${modulename}.gv
-            if [ "${limit_levels}" -gt "3" ]; then
-              for use5 in ${useslist[$index4]}; do
-                index5=${modulename_index[$use5]}
-                dependencies_done=`echo "${dependencies_done} ${use4}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-                all_modules=`echo "${all_modules} ${use5}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-                echo "${use4}->${use5};" >> $GRAPHDIR/modules/${modulename}.gv
-              done
-            fi
-          done
-        fi
-      done
-    fi
   done
 
   for use in ${all_modules}; do
@@ -73,22 +52,18 @@ for index1 in `seq 1 ${numModules}`; do
       echo "${use} [style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
-        echo "${use} [color=red];" >> $GRAPHDIR/modules/${modulename}.gv
+        echo "${use} [color=red URL=\"../modules/${use}.svg\"];" >> $GRAPHDIR/modules/${modulename}.gv
       fi
     fi
   done
 
   # finish the graph viz file
   echo "overlap=false" >> $GRAPHDIR/modules/${modulename}.gv
-  echo "label=\"Red boxes indicate modules with dependencies not shown\nShaded boxes indicate modules with no dependencies\"" >> $GRAPHDIR/modules/${modulename}.gv
+  echo "label=\"${moduleLabel}\"" >> $GRAPHDIR/modules/${modulename}.gv
   echo "fontsize=14;" >> $GRAPHDIR/modules/${modulename}.gv
   echo "}" >> $GRAPHDIR/modules/${modulename}.gv
   unflatten -l 8 -f $GRAPHDIR/modules/${modulename}.gv > $GRAPHDIR/modules/${modulename}_2.gv
-  dot -Tpng $GRAPHDIR/modules/${modulename}_2.gv > $GRAPHDIR/modules/${modulename}.png
-  image_width=`file $GRAPHDIR/modules/${modulename}.png |cut -f2 -d',' |cut -f1 -d'x'`
-  [ "${verbose}" = "yes" ] && echo "The width of the image = $image_width"
-  convert $GRAPHDIR/modules/${modulename}.png -shave 1x1 -bordercolor black -border 1 $GRAPHDIR/output.png
-  mv $GRAPHDIR/output.png $GRAPHDIR/modules/${modulename}.png
+  dot -Tsvg $GRAPHDIR/modules/${modulename}_2.gv > $GRAPHDIR/modules/${modulename}.svg
 done
 
 fi # if make_modules
@@ -122,40 +97,8 @@ for program in ${programfilelist}; do
   uses1=`grep -i '^ *use *.*_mod' ${SRCDIR}/programs/$program | sed 's/, *only *:.*//Ig' | sed 's/!.*//Ig' | sed 's/use //Ig' | tr '[:upper:]' '[:lower:]' | sort -u`
   for use1 in $uses1; do 
     index1=${modulename_index[$use1]}
-    if [[ "${categories_programs}" =~ "${categories[$index1]}" ]]; then 
-      all_modules=`echo "${all_modules} ${use1}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-      echo "${programname}->${use1};" >> $GRAPHDIR/programs/${programname}.gv
-    fi
-    if [ "${limit_levels}" -gt "1" ]; then
-      for use2 in ${useslist[$index1]}; do
-        index2=${modulename_index[$use2]}
-        dependencies_done=`echo "${dependencies_done} ${use1}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-        if [[ "${categories_programs}" =~ "${categories[$index2]}" ]]; then
-          all_modules=`echo "${all_modules} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-          echo "${use1}->${use2};" >> $GRAPHDIR/programs/${programname}.gv
-        fi
-        if [ "${limit_levels}" -gt "2" ]; then
-          for use3 in ${useslist[$index2]}; do
-            index3=${modulename_index[$use3]}
-            dependencies_done=`echo "${dependencies_done} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-            if [[ "${categories_programs}" =~ "${categories[$index3]}" ]]; then
-              all_modules=`echo "${all_modules} ${use3}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-              echo "${use2}->${use3};" >> $GRAPHDIR/programs/${programname}.gv
-            fi
-            if [ "${limit_levels}" -gt "3" ]; then
-              for use4 in ${useslist[$index3]}; do
-                index4=${modulename_index[$use4]}
-                dependencies_done=`echo "${dependencies_done} ${use3}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-                if [[ "${categories_programs}" =~ "${categories[$index4]}" ]]; then
-                  all_modules=`echo "${all_modules} ${use4}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-                  echo "${use3}->${use4};" >> $GRAPHDIR/programs/${programname}.gv
-                fi
-              done
-            fi
-          done
-        fi
-      done
-    fi
+    all_modules=`echo "${all_modules} ${use1}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
+    echo "${programname}->${use1};" >> $GRAPHDIR/programs/${programname}.gv
   done
 
   for use in ${all_modules}; do
@@ -164,22 +107,18 @@ for program in ${programfilelist}; do
       echo "${use} [style=filled];" >> $GRAPHDIR/programs/${programname}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
-        echo "${use} [color=red];" >> $GRAPHDIR/programs/${programname}.gv
+        echo "${use} [color=red URL=\"../modules/${use}.svg\"];" >> $GRAPHDIR/programs/${programname}.gv
       fi
     fi
   done
 
   # finish the graph viz file
   echo "overlap=false" >> $GRAPHDIR/programs/${programname}.gv
-  echo "label=\"Note, only modules from these categories are included: ${categories_programs}\nRed boxes indicate modules with dependencies not shown\nShaded boxes indicate modules with no dependencies\"" >> $GRAPHDIR/programs/${programname}.gv
+  echo "label=\"${programLabel}\"" >> $GRAPHDIR/programs/${programname}.gv
   echo "fontsize=14;" >> $GRAPHDIR/programs/${programname}.gv
   echo "}" >> $GRAPHDIR/programs/${programname}.gv
   unflatten -l 8 -f $GRAPHDIR/programs/${programname}.gv > $GRAPHDIR/programs/${programname}_2.gv
-  dot -Tpng $GRAPHDIR/programs/${programname}_2.gv > $GRAPHDIR/programs/${programname}.png
-  image_width=`file $GRAPHDIR/programs/${programname}.png |cut -f2 -d',' |cut -f1 -d'x'`
-  [ "${verbose}" = "yes" ] && echo "The width of the image = $image_width"
-  convert $GRAPHDIR/programs/${programname}.png -shave 1x1 -bordercolor black -border 1 $GRAPHDIR/output.png
-  mv $GRAPHDIR/output.png $GRAPHDIR/programs/${programname}.png
+  dot -Tsvg $GRAPHDIR/programs/${programname}_2.gv > $GRAPHDIR/programs/${programname}.svg
 
 done
 
