@@ -1,9 +1,8 @@
 #!/bin/bash
 
-limit_levels=${1:-3}
-GRAPHDIR=${2:-${PWD}/graphs/}
+GRAPHDIR=${1:-${PWD}/graphs/}
 echo
-echo "make_graphs.sh called with arguments = $limit_levels $GRAPHDIR "
+echo "make_graphs.sh called with argument = $GRAPHDIR "
 
 # some configuration variables
 make_modules="yes"
@@ -45,30 +44,6 @@ for index1 in `seq 1 ${numModules}`; do
     index2=${modulename_index[$use2]}
     all_modules=`echo "${all_modules} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
     echo "${modulename}->${use2};" >> $GRAPHDIR/modules/${modulename}.gv
-    if [ "${limit_levels}" -gt "1" ]; then
-      for use3 in ${useslist[$index2]}; do
-        index3=${modulename_index[$use3]}
-        dependencies_done=`echo "${dependencies_done} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-        all_modules=`echo "${all_modules} ${use3}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-        echo "${use2}->${use3};" >> $GRAPHDIR/modules/${modulename}.gv
-        if [ "${limit_levels}" -gt "2" ]; then
-          for use4 in ${useslist[$index3]}; do
-            index4=${modulename_index[$use4]}
-            dependencies_done=`echo "${dependencies_done} ${use3}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-            all_modules=`echo "${all_modules} ${use4}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-            echo "${use3}->${use4};" >> $GRAPHDIR/modules/${modulename}.gv
-            if [ "${limit_levels}" -gt "3" ]; then
-              for use5 in ${useslist[$index4]}; do
-                index5=${modulename_index[$use5]}
-                dependencies_done=`echo "${dependencies_done} ${use4}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-                all_modules=`echo "${all_modules} ${use5}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-                echo "${use4}->${use5};" >> $GRAPHDIR/modules/${modulename}.gv
-              done
-            fi
-          done
-        fi
-      done
-    fi
   done
 
   for use in ${all_modules}; do
@@ -77,7 +52,7 @@ for index1 in `seq 1 ${numModules}`; do
       echo "${use} [style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
-        echo "${use} [color=red URL=\"../../modules/level1/${use}.svg\"];" >> $GRAPHDIR/modules/${modulename}.gv
+        echo "${use} [color=red URL=\"../modules/${use}.svg\"];" >> $GRAPHDIR/modules/${modulename}.gv
       fi
     fi
   done
@@ -124,30 +99,6 @@ for program in ${programfilelist}; do
     index1=${modulename_index[$use1]}
     all_modules=`echo "${all_modules} ${use1}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
     echo "${programname}->${use1};" >> $GRAPHDIR/programs/${programname}.gv
-    if [ "${limit_levels}" -gt "1" ]; then
-      for use2 in ${useslist[$index1]}; do
-        index2=${modulename_index[$use2]}
-        dependencies_done=`echo "${dependencies_done} ${use1}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-        all_modules=`echo "${all_modules} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-        echo "${use1}->${use2};" >> $GRAPHDIR/programs/${programname}.gv
-        if [ "${limit_levels}" -gt "2" ]; then
-          for use3 in ${useslist[$index2]}; do
-            index3=${modulename_index[$use3]}
-            dependencies_done=`echo "${dependencies_done} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-            all_modules=`echo "${all_modules} ${use3}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-            echo "${use2}->${use3};" >> $GRAPHDIR/programs/${programname}.gv
-            if [ "${limit_levels}" -gt "3" ]; then
-              for use4 in ${useslist[$index3]}; do
-                index4=${modulename_index[$use4]}
-                dependencies_done=`echo "${dependencies_done} ${use3}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-                all_modules=`echo "${all_modules} ${use4}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-                echo "${use3}->${use4};" >> $GRAPHDIR/programs/${programname}.gv
-              done
-            fi
-          done
-        fi
-      done
-    fi
   done
 
   for use in ${all_modules}; do
@@ -156,7 +107,7 @@ for program in ${programfilelist}; do
       echo "${use} [style=filled];" >> $GRAPHDIR/programs/${programname}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
-        echo "${use} [color=red URL=\"../../modules/level1/${use}.svg\"];" >> $GRAPHDIR/programs/${programname}.gv
+        echo "${use} [color=red URL=\"../modules/${use}.svg\"];" >> $GRAPHDIR/programs/${programname}.gv
       fi
     fi
   done

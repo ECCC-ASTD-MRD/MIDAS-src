@@ -116,7 +116,7 @@ EOF
 
 if [ "${do_graphs}" = "yes" ]; then
   cat >> ./programs/${program_names[$filenum]}.rst <<EOF
-    **Dependency:** \`diagram <level1/${program_names[$filenum]}.svg>\`_
+    **Dependency:** \`diagram <${program_names[$filenum]}.svg>\`_
 
 EOF
 fi
@@ -132,7 +132,7 @@ cat >> ./programs/${program_names[$filenum]}.rst <<EOF
 
     **Dependency Diagrams:**
 
-    .. figure:: /level1/${program_names[$filenum]}.svg
+    .. figure:: /${program_names[$filenum]}.svg
         :height: 100px
 
         Direct Dependency Diagram
@@ -171,7 +171,7 @@ EOF
 if [ "${do_graphs}" = "yes" ]; then
   cat >> ./modules/${module_name}.rst <<EOF
 
-    **Dependency:** \`diagram <level1/${module_name}.svg>\`_
+    **Dependency:** \`diagram <${module_name}.svg>\`_
 EOF
 fi
 
@@ -186,7 +186,7 @@ if [ "${do_graphs}" = "yes" ]; then
 
     **Dependency Diagrams:**
 
-    .. figure:: /level1/${module_name}.svg
+    .. figure:: /${module_name}.svg
         :height: 100px
 
         Direct Dependency Diagram
@@ -392,11 +392,11 @@ mv _build/html/* ${htmldir}
 # GENERATE DEPENDENCY GRAPHS
 
 if [ "${do_graphs}" = "yes" ]; then
-  ./make_graphs.sh 1 $PWD/_build/html/graphs
-  mkdir -p ${htmldir}/programs/level1
-  mv $PWD/_build/html/graphs/programs/*.svg ${htmldir}/programs/level1/
-  mkdir -p ${htmldir}/modules/level1
-  mv $PWD/_build/html/graphs/modules/*.svg ${htmldir}/modules/level1/
+  ./make_graphs.sh $PWD/_build/html/graphs
+  mkdir -p ${htmldir}/programs
+  mv $PWD/_build/html/graphs/programs/*.svg ${htmldir}/programs
+  mkdir -p ${htmldir}/modules
+  mv $PWD/_build/html/graphs/modules/*.svg ${htmldir}/modules
 fi
 
 # GENERATE NAMELIST INFORMATION
