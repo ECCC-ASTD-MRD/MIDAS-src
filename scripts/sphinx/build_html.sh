@@ -12,7 +12,6 @@ toplevel=$(git rev-parse --show-toplevel)
 # CHOOSE WHETHER OR NOT TO GENERATE DEPENDENCY GRAPHS (COSTLY) AND NAMELIST INFORMATION
 
 do_graphs=yes
-graph_level_limit=1
 do_namelists=yes
 
 # PREPARE THE MODULE DEPENDENCY ARRAYS
@@ -116,25 +115,10 @@ ${program_names[$filenum]}
 EOF
 
 if [ "${do_graphs}" = "yes" ]; then
-  if [ "${graph_level_limit}" -eq "1" ]; then
-    cat >> ./programs/${program_names[$filenum]}.rst <<EOF
-    **Dependency Diagrams:** \`1-Level <level1/${program_names[$filenum]}.svg>\`_
+  cat >> ./programs/${program_names[$filenum]}.rst <<EOF
+    **Dependency:** \`diagram <level1/${program_names[$filenum]}.svg>\`_
 
 EOF
-  elif [ "${graph_level_limit}" -eq "2" ]; then
-    cat >> ./programs/${program_names[$filenum]}.rst <<EOF
-    **Dependency Diagrams:** \`1-Level <level1/${program_names[$filenum]}.svg>\`_, \`2-Level <level2/${program_names[$filenum]}.svg>\`_
-
-EOF
-  elif [ "${graph_level_limit}" -eq "3" ]; then
-    cat >> ./programs/${program_names[$filenum]}.rst <<EOF
-    **Dependency Diagrams:** \`1-Level <level1/${program_names[$filenum]}.svg>\`_, \`2-Level <level2/${program_names[$filenum]}.svg>\`_, \`3-Level <level3/${program_names[$filenum]}.svg>\`_
-
-EOF
-  else
-    echo "<!> graph_level_limit in [1,2,3]"
-    exit 1
-  fi
 fi
 
 cat >> ./programs/${program_names[$filenum]}.rst <<EOF
@@ -151,28 +135,9 @@ cat >> ./programs/${program_names[$filenum]}.rst <<EOF
     .. figure:: /level1/${program_names[$filenum]}.svg
         :height: 100px
 
-        1-Level Dependency Diagram
+        Direct Dependency Diagram
 
 EOF
-
-  if [ "${graph_level_limit}" -gt "1" ]; then
-    cat >> ./programs/${program_names[$filenum]}.rst <<EOF
-    .. figure:: /level2/${program_names[$filenum]}.svg
-        :height: 100px
-
-        2-Level Dependency Diagram
-
-EOF
-    if [ "${graph_level_limit}" -gt "2" ]; then
-      cat >> ./programs/${program_names[$filenum]}.rst <<EOF
-    .. figure:: /level3/${program_names[$filenum]}.svg
-        :height: 100px
-
-        3-Level Dependency Diagram
-
-EOF
-    fi
-  fi
 fi
 
 done
@@ -204,25 +169,10 @@ $module_name
 EOF
 
 if [ "${do_graphs}" = "yes" ]; then
-  if [ "${graph_level_limit}" -eq "1" ]; then
-    cat >> ./modules/${module_name}.rst <<EOF
+  cat >> ./modules/${module_name}.rst <<EOF
 
-    **Dependency Diagrams:** \`1-Level <level1/${module_name}.svg>\`_
+    **Dependency:** \`diagram <level1/${module_name}.svg>\`_
 EOF
-  elif [ "${graph_level_limit}" -eq "2" ]; then
-    cat >> ./modules/${module_name}.rst <<EOF
-
-    **Dependency Diagrams:** \`1-Level <level1/${module_name}.svg>\`_, \`2-Level <level2/${module_name}.svg>\`_
-EOF
-  elif [ "${graph_level_limit}" -eq "3" ]; then
-    cat >> ./modules/${module_name}.rst <<EOF
-
-    **Dependency Diagrams:** \`1-Level <level1/${module_name}.svg>\`_, \`2-Level <level2/${module_name}.svg>\`_, \`3-Level <level3/${module_name}.svg>\`_
-EOF
-  else
-    echo "<!> graph_level_limit in [1,2,3]"
-    exit 1
-  fi
 fi
 
 cat >> ./modules/${module_name}.rst <<EOF
@@ -239,27 +189,9 @@ if [ "${do_graphs}" = "yes" ]; then
     .. figure:: /level1/${module_name}.svg
         :height: 100px
 
-        1-Level Dependency Diagram
+        Direct Dependency Diagram
 
 EOF
-  if [ "${graph_level_limit}" -gt "1" ]; then
-    cat >> ./modules/${module_name}.rst <<EOF
-    .. figure:: /level2/${module_name}.svg
-        :height: 100px
-
-        2-Level Dependency Diagram
-
-EOF
-    if [ "${graph_level_limit}" -gt "2" ]; then
-      cat >> ./modules/${module_name}.rst <<EOF
-    .. figure:: /level3/${module_name}.svg
-        :height: 100px
-
-        3-Level Dependency Diagram
-
-EOF
-    fi
-  fi
 fi
 
 done
@@ -465,22 +397,6 @@ if [ "${do_graphs}" = "yes" ]; then
   mv $PWD/_build/html/graphs/programs/*.svg ${htmldir}/programs/level1/
   mkdir -p ${htmldir}/modules/level1
   mv $PWD/_build/html/graphs/modules/*.svg ${htmldir}/modules/level1/
-
-  if [ "${graph_level_limit}" -gt "1" ]; then
-    ./make_graphs.sh 2 $PWD/_build/html/graphs
-    mkdir -p ${htmldir}/programs/level2
-    mv $PWD/_build/html/graphs/programs/*.svg ${htmldir}/programs/level2/
-    mkdir -p ${htmldir}/modules/level2
-    mv $PWD/_build/html/graphs/modules/*.svg ${htmldir}/modules/level2/
-    
-    if [ "${graph_level_limit}" -gt "2" ]; then
-      ./make_graphs.sh 3 $PWD/_build/html/graphs
-      mkdir -p ${htmldir}/programs/level3
-      mv $PWD/_build/html/graphs/programs/*.svg ${htmldir}/programs/level3/
-      mkdir -p ${htmldir}/modules/level3
-      mv $PWD/_build/html/graphs/modules/*.svg ${htmldir}/modules/level3/
-    fi
-  fi
 fi
 
 # GENERATE NAMELIST INFORMATION
