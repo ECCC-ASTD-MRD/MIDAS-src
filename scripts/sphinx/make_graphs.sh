@@ -8,17 +8,12 @@ echo "make_graphs.sh called with arguments = $limit_levels $GRAPHDIR "
 # some configuration variables
 make_modules="yes"
 make_programs="yes"
-categories_programs="1 2 3 4 5 6 7 8"
 verbose="no"
 
 
 commonLabel="Red boxes indicate modules with dependencies not shown\nLower level dependencies can be shown by clicking on a red box\nShaded boxes indicate modules with no dependencies"
 moduleLabel=${commonLabel}
-if [ "${categories_programs}" = "1 2 3 4 5 6 7 8" ]; then
-  programLabel=${commonLabel}
-else
-  programLabel="Note, only modules from these categories are included: ${categories_programs}\n${commonLabel}"
-fi
+programLabel=${commonLabel}
 
 # switch to the main source directory
 ORIG_PWD=$PWD
@@ -127,34 +122,26 @@ for program in ${programfilelist}; do
   uses1=`grep -i '^ *use *.*_mod' ${SRCDIR}/programs/$program | sed 's/, *only *:.*//Ig' | sed 's/!.*//Ig' | sed 's/use //Ig' | tr '[:upper:]' '[:lower:]' | sort -u`
   for use1 in $uses1; do 
     index1=${modulename_index[$use1]}
-    if [[ "${categories_programs}" =~ "${categories[$index1]}" ]]; then 
-      all_modules=`echo "${all_modules} ${use1}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-      echo "${programname}->${use1};" >> $GRAPHDIR/programs/${programname}.gv
-    fi
+    all_modules=`echo "${all_modules} ${use1}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
+    echo "${programname}->${use1};" >> $GRAPHDIR/programs/${programname}.gv
     if [ "${limit_levels}" -gt "1" ]; then
       for use2 in ${useslist[$index1]}; do
         index2=${modulename_index[$use2]}
         dependencies_done=`echo "${dependencies_done} ${use1}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-        if [[ "${categories_programs}" =~ "${categories[$index2]}" ]]; then
-          all_modules=`echo "${all_modules} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-          echo "${use1}->${use2};" >> $GRAPHDIR/programs/${programname}.gv
-        fi
+        all_modules=`echo "${all_modules} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
+        echo "${use1}->${use2};" >> $GRAPHDIR/programs/${programname}.gv
         if [ "${limit_levels}" -gt "2" ]; then
           for use3 in ${useslist[$index2]}; do
             index3=${modulename_index[$use3]}
             dependencies_done=`echo "${dependencies_done} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-            if [[ "${categories_programs}" =~ "${categories[$index3]}" ]]; then
-              all_modules=`echo "${all_modules} ${use3}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-              echo "${use2}->${use3};" >> $GRAPHDIR/programs/${programname}.gv
-            fi
+            all_modules=`echo "${all_modules} ${use3}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
+            echo "${use2}->${use3};" >> $GRAPHDIR/programs/${programname}.gv
             if [ "${limit_levels}" -gt "3" ]; then
               for use4 in ${useslist[$index3]}; do
                 index4=${modulename_index[$use4]}
                 dependencies_done=`echo "${dependencies_done} ${use3}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-                if [[ "${categories_programs}" =~ "${categories[$index4]}" ]]; then
-                  all_modules=`echo "${all_modules} ${use4}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
-                  echo "${use3}->${use4};" >> $GRAPHDIR/programs/${programname}.gv
-                fi
+                all_modules=`echo "${all_modules} ${use4}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
+                echo "${use3}->${use4};" >> $GRAPHDIR/programs/${programname}.gv
               done
             fi
           done
