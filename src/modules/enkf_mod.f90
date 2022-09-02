@@ -392,9 +392,9 @@ contains
 
         call utl_tmg_start(105,'------CalcYbTinvRYb')
         YbTinvRYb(:,:) = 0.0D0
-        !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2, localObsIndex, bodyIndex)
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
+          !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEns
             do memberIndex1 = 1, nEns
               YbTinvRYb(memberIndex1,memberIndex2) =  &
@@ -402,8 +402,8 @@ contains
                    YbTinvR(memberIndex1,localObsIndex) * ensObs_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
             end do
           end do
+          !$OMP END PARALLEL DO
         end do ! localObsIndex
-        !$OMP END PARALLEL DO
         call utl_tmg_stop(105)
 
         ! Rest of the computation of local weights for this grid point
@@ -771,10 +771,6 @@ contains
 
       call utl_tmg_stop(101)
 
-      call utl_tmg_start(108,'----Barr')
-      call rpn_comm_barrier('GRID',ierr)
-      call utl_tmg_stop(108)
-
       !
       ! Interpolate weights from coarse to full resolution
       !
@@ -784,10 +780,6 @@ contains
         call enkf_interpWeights(wInterpInfo, weightsMembers)
       end if
       call utl_tmg_stop(106)
-
-      call utl_tmg_start(108,'----Barr')
-      call rpn_comm_barrier('GRID',ierr)
-      call utl_tmg_stop(108)
 
       call utl_tmg_start(107,'----ApplyWeights')
 
@@ -1530,6 +1522,7 @@ contains
     integer :: interpLonIndex, interpLatIndex, numMembers1, numMembers2
     integer :: totalCount(mpi_numthread)
     integer, external :: omp_get_thread_num
+    logical, save :: firstCall = .true.
 
     myLonBegHalo = wInterpInfo%myLonBegHalo
     myLonEndHalo = wInterpInfo%myLonEndHalo
@@ -1567,7 +1560,8 @@ contains
     end do ! latIndex
     !$OMP END PARALLEL DO
 
-    write(*,*) 'enkf_interpWeights: totalCount = ', totalCount(:)
+    if (firstCall) write(*,*) 'enkf_interpWeights: totalCount = ', totalCount(:)
+    firstCall = .false.
 
   end subroutine enkf_interpWeights
 

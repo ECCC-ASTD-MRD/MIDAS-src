@@ -1227,7 +1227,7 @@ contains
     call utl_tmg_start(30,'--StateToColumn')
 
     if ( mpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
-    call utl_tmg_start(36,'----s2c_TL')
+    call utl_tmg_start(37,'----s2c_TL')
 
     call rpn_comm_barrier('GRID',ierr)
 
@@ -1279,13 +1279,13 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
-      call utl_tmg_stop(36)
+      call utl_tmg_stop(37)
       call utl_tmg_start(31,'----s2c_Setups')
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                 1, numHeader, timeInterpType_tlad,  rejectOutsideObs, &
                                 inputStateVectorType='tl' )
       call utl_tmg_stop(31)
-      call utl_tmg_start(36,'----s2c_TL')
+      call utl_tmg_start(37,'----s2c_TL')
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -1321,7 +1321,7 @@ contains
           call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV,kIndex)
         end if
 
-        call utl_tmg_start(37,'------s2c_TL_Hinterp')
+        call utl_tmg_start(38,'------s2c_TL_Hinterp')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader, headerIndex)
         step_loop: do stepIndex = 1, numStep
           if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
@@ -1348,7 +1348,7 @@ contains
 
         end do step_loop
         !$OMP END PARALLEL DO
-        call utl_tmg_stop(37)
+        call utl_tmg_stop(38)
 
         ! interpolate in time to the columns destined for all procs and one level/variable
         do procIndex = 1, mpi_nprocs
@@ -1423,7 +1423,7 @@ contains
     
     if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
 
-    call utl_tmg_stop(36)
+    call utl_tmg_stop(37)
 
     call utl_tmg_stop(30)
 
@@ -1464,7 +1464,7 @@ contains
     call utl_tmg_start(30,'--StateToColumn')
 
     if(mpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
-    call utl_tmg_start(38,'----s2c_AD')
+    call utl_tmg_start(39,'----s2c_AD')
 
     call rpn_comm_barrier('GRID',ierr)
 
@@ -1512,13 +1512,13 @@ contains
 
     if ( .not. interpInfo_tlad%initialized ) then
       rejectOutsideObs = .false.
-      call utl_tmg_stop(38)
+      call utl_tmg_stop(39)
       call utl_tmg_start(31,'----s2c_Setups')
       call s2c_setupInterpInfo( interpInfo_tlad, obsSpaceData, stateVector_VarsLevs,  &
                                 1, numHeader, timeInterpType_tlad, rejectOutsideObs,  &
                                 inputStateVectorType='ad' )
       call utl_tmg_stop(31)
-      call utl_tmg_start(38,'----s2c_AD')
+      call utl_tmg_start(39,'----s2c_AD')
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
@@ -1597,7 +1597,7 @@ contains
           end do
         end do
 
-        call utl_tmg_start(39,'------s2c_AD_Hinterp')
+        call utl_tmg_start(40,'------s2c_AD_Hinterp')
         !$OMP PARALLEL DO PRIVATE (stepIndex, procIndex, yourNumHeader)
         step_loop: do stepIndex = 1, numStep
           if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
@@ -1624,7 +1624,7 @@ contains
 
         end do step_loop
         !$OMP END PARALLEL DO
-        call utl_tmg_stop(39)
+        call utl_tmg_stop(40)
 
       end if ! if kIndex <= mykEnd
 
@@ -1650,7 +1650,7 @@ contains
 
     if (slantPath_TO_tlad) call pressureProfileMonotonicityCheck(obsSpaceData, columnTrlOnAnlIncLev)
 
-    call utl_tmg_stop(38)
+    call utl_tmg_stop(39)
 
     call utl_tmg_stop(30)
 
@@ -1680,7 +1680,7 @@ contains
     logical, optional          :: moveObsAtPole_opt
 
     ! locals
-    type(struct_gsv) :: stateVector_VarsLevs 
+    type(struct_gsv), save :: stateVector_VarsLevs 
     integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
     integer :: headerIndexBeg, headerIndexEnd, obsBatchIndex, numObsBatches
@@ -1696,6 +1696,7 @@ contains
     real(8), allocatable :: cols_send_1proc(:)
     integer, allocatable :: displs(:), nsizes(:)
     logical              :: dealloc, moveObsAtPole, rejectOutsideObs
+    logical, save        :: firstCall = .true.
     character(len=4), pointer :: varNames(:)
 
     call utl_tmg_start(30,'--StateToColumn')
@@ -1748,13 +1749,19 @@ contains
     ! calculate delP_T/delP_M and del Z_T/Z_M on the grid
     call gvt_transform( statevector, 'ZandP_nl' )
 
-    nullify(varNames)
-    call gsv_varNamesList(varNames, statevector)
-    call gsv_allocate( statevector_VarsLevs, stateVector%numstep, &
-                       stateVector%hco, stateVector%vco, mpi_local_opt=.true., &
-                       mpi_distribution_opt='VarsLevs', dataKind_opt=4, &
-                       allocHeightSfc_opt=.true., varNames_opt=varNames )
-    deallocate(varNames)
+    if ( dealloc .or. firstCall ) then
+      nullify(varNames)
+      call gsv_varNamesList(varNames, statevector)
+      call gsv_allocate( statevector_VarsLevs, stateVector%numstep, &
+                         stateVector%hco, stateVector%vco, mpi_local_opt=.true., &
+                         mpi_distribution_opt='VarsLevs', dataKind_opt=4, &
+                         allocHeightSfc_opt=.true., varNames_opt=varNames )
+      deallocate(varNames)
+    else
+      if (mpi_myid == 0) write(*,*) 's2c_nl: avoid re-allocating statevector_VarsLevs'
+      call gsv_zero(statevector_VarsLevs)
+    end if
+
     call gsv_transposeTilesToVarsLevs( stateVector, stateVector_VarsLevs )
 
     numStep = stateVector_VarsLevs%numStep
@@ -1837,11 +1844,11 @@ contains
         if ( kIndex <= stateVector_VarsLevs%mykEnd ) then
           varName = gsv_getVarNameFromK(stateVector_VarsLevs,kIndex)
 
+          call utl_tmg_start(35,'------s2c_NL_Hinterp')
           if ( varName == 'UU' .or. varName == 'VV' ) then
             call gsv_getFieldUV(stateVector_VarsLevs,ptr3d_UV_r4,kIndex)
           end if
 
-          call utl_tmg_start(35,'------s2c_NL_Hinterp')
           step_loop: do stepIndex = 1, numStep
             if ( maxval(interpInfo_nl%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
 
@@ -1897,6 +1904,7 @@ contains
 
         call rpn_comm_barrier('GRID',ierr)
 
+        call utl_tmg_start(36,'------s2c_NL_allToAll')
         ! mpi communication: alltoall for one level/variable
         nsize = numHeaderMax
         if(mpi_nprocs > 1) then
@@ -1917,6 +1925,7 @@ contains
           end do
         end do proc_loop
         !$OMP END PARALLEL DO
+        call utl_tmg_stop(36)
 
       end do k_loop
 
@@ -2013,9 +2022,11 @@ contains
 
     end do OBSBATCH
 
-    call gsv_deallocate( statevector_VarsLevs )
+    if ( dealloc) call gsv_deallocate( statevector_VarsLevs )
 
     if (slantPath_TO_nl) call pressureProfileMonotonicityCheck(obsSpaceData, column)
+
+    firstCall = .false.
 
     write(*,*) 's2c_nl: FINISHED'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
