@@ -140,13 +140,12 @@ module bgckOcean_mod
             if (obsFlag >= 2) then
               numberObsRejected = numberObsRejected + 1
 	      if (codeType /= codtyp_get_codtyp('satob')) numberObsInsituRejected = numberObsInsituRejected + 1
-	      write(*,'(a,i7,a,i7,a)')'ocebg_bgCheckSST: ********** reject: ', numberObsRejected, ', header index: ', headerIndex, &
+	      write(*,'(a,i7,a,i10,a)')'ocebg_bgCheckSST: ********** reject: ', numberObsRejected, ', header index: ', headerIndex, &
                                     obs_elem_c(obsData, 'STID' , headerIndex)//' data: '
-	      write(*,'(a,i5,a,4f10.4)') 'ocebg_bgCheckSST: codtype: ', codeType, &
-              ', lon/lat/obs.value/OmP: ', &
+	      write(*,'(a,i5,a,4f10.4,i5)') 'codtype: ', codeType, ', lon, lat, obs.value, OmP, flag: ', &
               obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
               obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
-              obs_bodyElem_r(obsData, obs_var, bodyIndex), OmP
+              obs_bodyElem_r(obsData, obs_var, bodyIndex), OmP, obsFlag 
             end if
 	    	      
 	    ! update background check flags based on bgCheck
