@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Improve LETKF efficiency and add global high-res letkf system test (#653 and !631)
  * moved column interpolation in `interpolation_mod` (#683 and !628)
  * SST bias estimation code is more efficient when treating missing data (#678 and !625)
  * SST observation errors are now read from namelist namSSTObsErrors (#676 and !623)
