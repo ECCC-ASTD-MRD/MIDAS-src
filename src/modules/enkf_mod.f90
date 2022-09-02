@@ -143,7 +143,7 @@ contains
 
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
-    real(4)              :: pert_r4
+    real(4)              :: pert_r4, meanPert
 
     character(len=4)     :: varLevel
     character(len=2)     :: varKind
@@ -1253,6 +1253,7 @@ contains
               anlLat = hco_ens%lat2d_4(lonIndex,latIndex) * MPC_DEGREES_PER_RADIAN_R8 
               anlLon = hco_ens%lon2d_4(lonIndex,latIndex) * MPC_DEGREES_PER_RADIAN_R8
 
+              meanPert = 0.0
               if ( numRetainedEigen > 0 ) then
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
@@ -1274,6 +1275,17 @@ contains
                                                 nEns, vLocalize, &
                                                 modulationFactor )
 
+                      ! Compute the remaining pert mean to subtract.
+                      if ( abs(anlLat+43.0) < 1 .and. abs(anlLon-75.0) < 1 .and. &
+                        trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' .and. &
+                        memberIndex2 == 1 .and. memberIndex1 == 1 .and. &
+                        eigenVectorColumnIndex == 1 ) then
+
+                        meanPert = sum(memberTrl_ptr_r4(1:nEns,stepIndex,lonIndex,latIndex)) -  &
+                                          nEns * meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
+                        meanPert = meanPert / nEns
+                      end if
+
                       ! Compute background ensemble perturbations for the modulated ensemble (Xb_Mod)
                       pert_r4 = memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
                                           meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
@@ -1285,7 +1297,8 @@ contains
                           write(*,*) 'maziar: after comm pert check, levIndex=', levIndex, &
                           ', memberIndex1=', memberIndex1, &
                           ', pert0=', memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
-                          meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)                          
+                          meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) - meanPert, &
+                          ', meanPert=', meanPert
                         end if
 
                         write(*,*) 'maziar: after comm, levIndex=', levIndex, &
