@@ -293,10 +293,16 @@ contains
       call enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     end if
 
+    call utl_tmg_start(108,'----Barr')
+    call rpn_comm_barrier('GRID',ierr)
+    call utl_tmg_stop(108)
+
     ! get mpi global list of tags used for mpi send/recv
+    call utl_tmg_start(109, '----GetGlobalTags')
     allocate(latLonTagMpiGlobal(stateVectorMeanAnl%ni,stateVectorMeanAnl%nj))
     call enkf_LETKFgetMpiGlobalTags(latLonTagMpiGlobal,myLatIndexesRecv,myLonIndexesRecv)
-    
+    call utl_tmg_stop(109)
+
     ! Compute the weights for ensemble mean and members
     countMaxExceeded = 0
     maxCountMaxExceeded = 0
@@ -382,8 +388,12 @@ contains
                  ensObs_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
                  localization * ensObs_mpiglobal%obsErrInv(bodyIndex)
           end do
+        end do ! localObsIndex
 
-          if (localObsIndex == 1) YbTinvRYb(:,:) = 0.0D0
+        call utl_tmg_start(105,'------CalcYbTinvRYb')
+        YbTinvRYb(:,:) = 0.0D0
+        do localObsIndex = 1, numLocalObs
+          bodyIndex = localBodyIndices(localObsIndex)
           !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEns
             do memberIndex1 = 1, nEns
@@ -393,8 +403,8 @@ contains
             end do
           end do
           !$OMP END PARALLEL DO
-
         end do ! localObsIndex
+        call utl_tmg_stop(105)
 
         ! Rest of the computation of local weights for this grid point
         if (numLocalObs > 0) then
@@ -764,14 +774,14 @@ contains
       !
       ! Interpolate weights from coarse to full resolution
       !
-      call utl_tmg_start(105,'----InterpolateWeights')
+      call utl_tmg_start(106,'----InterpolateWeights')
       if (wInterpInfo%latLonStep > 1) then
         call enkf_interpWeights(wInterpInfo, weightsMean)
         call enkf_interpWeights(wInterpInfo, weightsMembers)
       end if
-      call utl_tmg_stop(105)
+      call utl_tmg_stop(106)
 
-      call utl_tmg_start(106,'----ApplyWeights')
+      call utl_tmg_start(107,'----ApplyWeights')
 
       !
       ! Apply the weights to compute the ensemble mean and members
@@ -779,6 +789,9 @@ contains
       call gsv_getField(stateVectorMeanInc,meanInc_ptr_r4)
       call gsv_getField(stateVectorMeanTrl,meanTrl_ptr_r4)
       call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
+
+      !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, varLevIndex, varLevel, varKind, levIndex2, memberTrl_ptr_r4, memberAnl_ptr_r4), &
+      !$OMP PRIVATE(memberAnlPert, stepIndex, memberIndex, memberIndex2, memberIndex1)
       do latIndex = myLatBeg, myLatEnd
         LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
 
@@ -867,8 +880,9 @@ contains
 
         end do LON_LOOP5
       end do
+      !$OMP END PARALLEL DO
 
-      call utl_tmg_stop(106)
+      call utl_tmg_stop(107)
 
     end do LEV_LOOP
 
@@ -880,9 +894,9 @@ contains
       write(*,*) '                      Therefore will keep closest obs only.'
     end if
 
-    call utl_tmg_start(107,'----Barr')
+    call utl_tmg_start(108,'----Barr')
     call rpn_comm_barrier('GRID',ierr)
-    call utl_tmg_stop(107)
+    call utl_tmg_stop(108)
 
     call gsv_deallocate(stateVectorMeanInc)
     call gsv_deallocate(stateVectorMeanTrl)
@@ -1229,6 +1243,7 @@ contains
                             "GRID", ierr)
 
     latLonTagMpiGlobal(:,:) = 0
+    !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex)
     do lonIndex = 1, ni
       do latIndex = 1, nj
         if (any(lonIndex == allLonIndexesRecv(:,:) .and. latIndex == allLatIndexesRecv(:,:))) then
@@ -1236,6 +1251,7 @@ contains
         end if
       end do
     end do
+    !$OMP END PARALLEL DO
 
     countTags = 0
     do lonIndex = 1, ni
@@ -1323,6 +1339,8 @@ contains
                myLonBeg, myLonEnd, myLatBeg, myLatEnd
     write(*,*) 'enkf_setupInterpInfo: myLonBeg/End, myLatBeg/End (with Halo) = ',  &
                myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
+    write(*,*) 'enkf_setupInterpInfo: myLonCount, myLatCount (with Halo) = ', &
+               myLonEndHalo-myLonBegHalo+1, myLatEndHalo-myLatBegHalo+1
     write(*,*) 'enkf_setupInterpInfo: number of local gridpts where weights computed = ',  &
                ( 1 + ceiling(real(myLonEndHalo - myLonBegHalo) / real(weightLatLonStep)) ) *  &
                ( 1 + ceiling(real(myLatEndHalo - myLatBegHalo) / real(weightLatLonStep)) )
@@ -1502,6 +1520,9 @@ contains
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
     integer :: lonIndex, latIndex, memberIndex1, memberIndex2, interpIndex
     integer :: interpLonIndex, interpLatIndex, numMembers1, numMembers2
+    integer :: totalCount(mpi_numthread)
+    integer, external :: omp_get_thread_num
+    logical, save :: firstCall = .true.
 
     myLonBegHalo = wInterpInfo%myLonBegHalo
     myLonEndHalo = wInterpInfo%myLonEndHalo
@@ -1509,7 +1530,9 @@ contains
     myLatEndHalo = wInterpInfo%myLatEndHalo
     numMembers1 = size(weights,1)
     numMembers2 = size(weights,2)
+    totalCount(:) = 0
 
+    !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, interpLatIndex, interpLonIndex, memberIndex1, memberIndex2)
     do latIndex = myLatBegHalo, myLatEndHalo
       do lonIndex = myLonBegHalo, myLonEndHalo
         if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) then
@@ -1521,6 +1544,7 @@ contains
             interpLonIndex = wInterpInfo%lonIndexes(interpIndex,lonIndex,latIndex)
             interpLatIndex = wInterpInfo%latIndexes(interpIndex,lonIndex,latIndex)
 
+            totalCount(omp_get_thread_num()+1) = totalCount(omp_get_thread_num()+1) + 1
             do memberIndex2 = 1, numMembers2
               do memberIndex1 = 1, numMembers1
                 weights(memberIndex1,memberIndex2,lonIndex,latIndex) =  &
@@ -1534,6 +1558,10 @@ contains
         end if ! numIndexes > 0
       end do ! lonIndex
     end do ! latIndex
+    !$OMP END PARALLEL DO
+
+    if (firstCall) write(*,*) 'enkf_interpWeights: totalCount = ', totalCount(:)
+    firstCall = .false.
 
   end subroutine enkf_interpWeights
 

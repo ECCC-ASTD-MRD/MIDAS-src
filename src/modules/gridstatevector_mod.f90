@@ -678,9 +678,12 @@ module gridStateVector_mod
     character(len=*), optional, intent(in)    :: hInterpolateDegree_opt ! set the horizontal interpolation degree
     character(len=*), optional, intent(in)    :: hExtrapolateDegree_opt ! set the horizontal extrapolation degree
 
+    ! Locals:
     integer :: ierr,iloc,varIndex,varIndex2,stepIndex,lon1,lat1,k1,kIndex,kIndex2,levUV
     character(len=4) :: UVname
     logical :: beSilent, allocPressure, allocHeight
+
+    call utl_tmg_start(168, 'low-level--gsv_allocate')
 
     if (.not. initialized) then
       write(*,*)
@@ -954,7 +957,7 @@ module gridStateVector_mod
                               statevector%allLatPerPE,1,'mpi_integer','NS',ierr)
 
       call gsv_checkMpiDistribution(stateVector)
-      
+
       allocate(statevector%allkCount(mpi_nprocs))
       CALL rpn_comm_allgather(statevector%mykCount,1,'mpi_integer',       &
                               statevector%allkCount,1,'mpi_integer','grid',ierr)
@@ -1095,6 +1098,8 @@ module gridStateVector_mod
     statevector%addHeightSfcOffset = addHeightSfcOffset
 
     statevector%allocated=.true.
+
+    call utl_tmg_stop(168)
 
   end subroutine gsv_allocate
 

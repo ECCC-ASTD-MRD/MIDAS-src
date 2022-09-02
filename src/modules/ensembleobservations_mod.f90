@@ -299,6 +299,9 @@ CONTAINS
     write(*,*) 'eob_allGather: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+    call utl_tmg_start(10,'--Observations')
+    call utl_tmg_start(24,'----Eob_AllGather')
+
     ! refresh assimilation flag and then clean ensObs before communicating and writing
     call eob_setAssFlag(ensObs)
     call eob_clean(ensObs,ensObsClean)
@@ -391,6 +394,9 @@ CONTAINS
     call eob_deallocate( ensObsClean )
 
     write(*,*) 'eob_allGather: total number of obs to be assimilated =', sum(ensObs_mpiglobal%assFlag(:))
+
+    call utl_tmg_stop(24)
+    call utl_tmg_stop(10)
 
     write(*,*) 'eob_allGather: finished'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'

@@ -26,7 +26,7 @@ module mpi_mod
   private
 
   ! public variables
-  public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy,mpi_npex,mpi_npey
+  public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy,mpi_npex,mpi_npey,mpi_numthread
   public :: mpi_comm_EW, mpi_comm_NS, mpi_comm_GRID, mpi_doBarrier
   public :: mpi_datyp_real4, mpi_datyp_real8, mpi_datyp_int
   ! public procedures
@@ -41,6 +41,7 @@ module mpi_mod
   integer :: mpi_myidy  = 0
   integer :: mpi_npex   = 0
   integer :: mpi_npey   = 0
+  integer :: mpi_numthread = 0
 
   integer :: mpi_comm_EW, mpi_comm_NS, mpi_comm_GRID
   integer :: mpi_datyp_real4, mpi_datyp_real8, mpi_datyp_int
@@ -77,7 +78,10 @@ module mpi_mod
     !$OMP PARALLEL PRIVATE(numthread,mythread)
     mythread=omp_get_thread_num()
     numthread=omp_get_num_threads()
-    if(mythread.eq.0) write(*,*) 'mpi_initialize: NUMBER OF THREADS=',numthread     
+    if(mythread.eq.0) then
+      write(*,*) 'mpi_initialize: NUMBER OF THREADS=',numthread
+      mpi_numthread = numthread
+    end if
     !$OMP END PARALLEL
 
     ! create standard mpi handles to rpn_comm mpi communicators to facilitate 

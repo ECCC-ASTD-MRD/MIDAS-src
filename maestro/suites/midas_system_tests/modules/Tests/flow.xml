@@ -1,12 +1,12 @@
 <MODULE name="Tests">
   <SUBMITS sub_name="var"/>
+  <SUBMITS sub_name="letkf"/>
   <SUBMITS sub_name="obsSelection"/>
+  <SUBMITS sub_name="ensPostProcess"/>
   <SUBMITS sub_name="thinning"/>
   <SUBMITS sub_name="oMinusF"/>
   <SUBMITS sub_name="randomPert"/>
   <SUBMITS sub_name="ensembleH"/>
-  <SUBMITS sub_name="letkf"/>
-  <SUBMITS sub_name="ensPostProcess"/>
   <SUBMITS sub_name="ensDiagnostics"/>
   <SUBMITS sub_name="prepcma"/>
   <SUBMITS sub_name="obsImpact"/>
@@ -370,6 +370,11 @@
     </FAMILY>
     <SUBMITS sub_name="ocean"/>
     <FAMILY  name="ocean">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="glb_benchmark"/>
+    <FAMILY  name="glb_benchmark">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
