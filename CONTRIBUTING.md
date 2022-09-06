@@ -1,43 +1,65 @@
-## Contributing Guide
-----
+# Contributing Guide
 
-### Create an issue
+The general contribution workflow describe in this guide can be summarized in these steps
 
- - Go to the **GitLab** [*issue* page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues) and press `New issue` button.
- - Choose a *template* from the drop-down menu.
- - Add a description and fill out the template.
- - Then press `Submit issue`.
+1. [Create an issue](#create-an-issue)
+2. [Make modifications in a local branch](#make-modifications-in-a-local-branch)
+3. [Merge back your branch to the main one](#merge-back-your-branch-to-the-main-one)
 
-### Obtain a copy of the code and modify in a local branch :
+## Create an issue
 
-#### Get a local copy of the code
+1. Go to the **GitLab** [*issue* page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues)
+  and press [`New issue`](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues/new) button.
+2. Choose a *template* from the drop-down menu.
+3. Add a description and fill out the template.
+4. Then press `Submit issue`.
 
- - in the issue page, there is a button `New Branch`
-   - that button will create automatically a new branch at the same point as the `main` branch
 
+
+## Make modifications in a local branch
+
+### Get a local copy of the code
+
+**Create a branch**  
+in the issue page, just under the issue description there is green drop down green menu
+choose `Create a branch`. 
+That button will create automatically a new branch at the same point as the `main` branch
+
+**Get a local copy of that branch**  
 ```bash
 . ssmuse-sh -d eccc/cmd/cmdi/utils/2.5
 . setcentraldepot.dot unset  ## needed only if 'setcentraldepot.dot' has already been called
 clone_projet -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
+(For this to work, you need to create a file `~/.gitlab-private-token`
+like explained in the [Git documentation (see section "Interaction avec GitLab en utilisant des scripts")](https://wiki.cmc.ec.gc.ca/wiki/Git/Doc#Outil_de_partage_de_code:_gitlab.science.gc.ca))
 
-For this to work, you need to create a file `~/.gitlab-private-token`
-like explained in the [Git documentation (see section "Interaction
-avec GitLab en utilisant des
-scripts")](https://wiki.cmc.ec.gc.ca/wiki/Git/Doc#Outil_de_partage_de_code:_gitlab.science.gc.ca).
+### Make modifications to your local branch
 
-#### Make modifications to your local branch :
 
-Edit and commit your code as follows :
+**In your filesystem, go to the local directory associated with the issue**  
 ```bash
 cd midas-${ISSUE_NUMBER}
 ```
-(edit some files, following the MIDAS coding standards: https://wiki.cmc.ec.gc.ca/wiki/MIDAS/Coding_Standards_Top_10)
+**edit some files**  
+following the MIDAS [coding standards](docs/codingStd_top10.md)
+```
+${EDITOR} $file1 $file2
+```
+**stage your modifications**  
 ```bash
 git add $file1 $file2
+```
+**when you are satisfied with a group of modifications, you can commit them**  
+```bash
 git commit
 ```
-(Write a commit message.  The editor will open and a template for commit message will appear)
+Write a commit message.  The editor will open and a template for commit message will appear
+
+This is a very simplified commiting-workflow.
+You should also use `git status` and `git diff [--cached]` when staging and before commiting your changes.
+
+## Merge back your branch to the main one
 
 ### Push your code to the [GitLab project](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas):
 
