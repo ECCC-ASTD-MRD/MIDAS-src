@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module obsVariableTransforms_mod
-  ! MODULE obsVariableTransforms_mod (prefix='ovt' category='3. High-level transformations')
+  ! MODULE obsVariableTransforms_mod (prefix='ovt' category='4. Data Object transformations')
   !
   ! :Purpose: To store various functions for variable transforms using inputs
   !           from obsSpaceData. Outputs are also placed ObsSpaceData.

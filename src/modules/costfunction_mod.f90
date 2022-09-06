@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module costfunction_mod
-  ! MODULE costfunction_mod, (prefix="cfn" category='1. High-level functionality')
+  ! MODULE costfunction_mod, (prefix="cfn" category='5. Observation operators')
   !
   ! :Purpose: To compute Jo term
   !

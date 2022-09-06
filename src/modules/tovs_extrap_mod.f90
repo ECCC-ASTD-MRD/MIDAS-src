@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module tovs_extrap_mod
-  ! MODULE tovs_extrap (prefix='' category='4. Observation operators')
+  ! MODULE tovs_extrap (prefix='' category='5. Observation operators')
   !
   ! :Purpose: Old code for extrapolation of temperature, when model top was
   !           still at 10hPa, to extend up to 0.1hPa for calls to RTTOV.

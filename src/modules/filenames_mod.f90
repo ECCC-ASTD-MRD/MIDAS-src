@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module fileNames_mod
-  ! MODULE fileNames_mod (prefix='fln' category='7. Low-level data objects and utilities')
+  ! MODULE fileNames_mod (prefix='fln' category='7. Low-level data objects')
   !
   ! :Purpose: Routines related to file names
   !

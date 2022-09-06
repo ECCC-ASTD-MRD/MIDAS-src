@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module burpFiles_mod
-  ! MODULE burpFiles_mod (prefix='brpf' category='6. Observation input/output')
+  ! MODULE burpFiles_mod (prefix='brpf' category='3. Observation input/output')
   !
   ! :Purpose: To store the filenames of the burp observation files and call
   !           subroutines in readBurp to read and update burp files.

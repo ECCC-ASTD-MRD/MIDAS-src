@@ -7,7 +7,7 @@
 !          ./thermoconsts_to_MathPhysConstants.py
 
 MODULE MathPhysConstants_mod
-  ! MODULE MathPhysConstants_mod (prefix='mpc' category='8. Global constants and interfaces')  
+  ! MODULE MathPhysConstants_mod (prefix='mpc' category='8. Low-level utilities and constants')
   !
   ! :Purpose: To supply mathematical and physical constants in a universal,
   !           reliable fashion.

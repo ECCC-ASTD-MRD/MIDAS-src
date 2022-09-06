@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module gridBinning_mod
-  ! MODULE gridBinning_mod (prefix='gbi' category='3. High-level transformations')
+  ! MODULE gridBinning_mod (prefix='gbi' category='4. Data Object transformations')
   !
   ! :Purpose: To compute categorical mean and standard deviation for gridded data
   !           contained in a gridStateVector or in an ensemble of

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module gridStateVector_mod
-  ! MODULE gridStateVector_mod (prefix='gsv' category='2. High-level data objects')
+  ! MODULE gridStateVector_mod (prefix='gsv' category='6. High-level data objects')
   !
   ! :Purpose: The grid-point state vector and related information.
   !

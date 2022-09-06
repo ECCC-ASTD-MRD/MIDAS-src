@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module physicsFunctions_mod
-  ! MODULE physicsFunctions_mod (prefix='phf' category='7. Low-level data objects and utilities')
+  ! MODULE physicsFunctions_mod (prefix='phf' category='8. Low-level utilities and constants')
   !
   ! :Purpose: A collection of basic functions for various purposes 
   !           (e.g. computing saturation vapour pressure)

@@ -432,7 +432,7 @@ end module kdtree2_priority_queue_mod
 
 
 module kdtree2_mod
-  ! MODULE kdtree2_mod (prefix='kdtree2' category='7. Low-level data objects and utilities')
+  ! MODULE kdtree2_mod (prefix='kdtree2' category='8. Low-level utilities and constants')
   !
   ! :Purpose: An implementation of the kdtree algorithm for efficiently finding nearby
   !           locations (first used in LETKF to find all obs near an analysis grid point).

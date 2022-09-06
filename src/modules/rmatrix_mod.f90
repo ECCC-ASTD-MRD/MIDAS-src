@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module rMatrix_mod
-  ! MODULE rMatrix_mod (prefix='rmat' category='5. B and R matrices')
+  ! MODULE rMatrix_mod (prefix='rmat' category='2. B and R matrices')
   !
   ! :Purpose: Module to handle non-diagonal observation-error covariance
   !           matrices for assimilation of radiances

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module presProfileOperators_mod
-  ! MODULE presProfileOperators_mod (prefix='ppo' category='7. Low-level data objects and utilities')
+  ! MODULE presProfileOperators_mod (prefix='ppo' category='8. Low-level utilities and constants')
   !
   ! :Purpose: Vertical interpolation subroutines, including the special routines
   !           designed to interpolate to the (widely spaced) RTTOV pressure

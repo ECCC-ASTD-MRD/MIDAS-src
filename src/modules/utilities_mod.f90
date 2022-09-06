@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module utilities_mod
-  ! MODULE utilities_mod (prefix='utl' category='7. Low-level data objects and utilities')
+  ! MODULE utilities_mod (prefix='utl' category='8. Low-level utilities and constants')
   !
   ! :Purpose: A place to collect numerous simple utility routines
   !

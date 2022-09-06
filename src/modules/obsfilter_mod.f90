@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module obsFilter_mod
-  ! MODULE obsFilter_mod (prefix='filt' category='1. High-level functionality')
+  ! MODULE obsFilter_mod (prefix='filt' category='5. Observation operators')
   !
   ! :Purpose: Various types of filters that are applied to the observations
   !           mostly to reject them so that they will not be assimilated.

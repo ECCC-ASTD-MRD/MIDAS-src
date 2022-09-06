@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module ozoneClim_mod
-  ! MODULE ozoneClim_mod (prefix='ozo' category='4. Observation operators')
+  ! MODULE ozoneClim_mod (prefix='ozo' category='5. Observation operators')
   !
   ! :Purpose: Climatological ozone (1998)
   !

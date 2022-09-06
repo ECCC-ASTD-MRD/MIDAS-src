@@ -1323,7 +1323,7 @@ end module ObsDataColumn_mod
 
 
 module ObsSpaceData_mod
-  ! MODULE obsSpaceData_mod (prefix='obs' category='2. High-level data objects')
+  ! MODULE obsSpaceData_mod (prefix='obs' category='6. High-level data objects')
   !
   ! :Purpose: This module contains a structure definition, struct_obs, and
   !           methods for accessing its data.  An instance of struct_obs contains

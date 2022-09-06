@@ -1,5 +1,5 @@
 MODULE earthConstants_mod
-  ! MODULE earthConstants_mod (prefix='ec' category='8. Global constants and interfaces')
+  ! MODULE earthConstants_mod (prefix='ec' category='8. Low-level utilities and constants')
   ! Prefixes:
   !    ec_ (Earth constants), for miscellaneous values from diverse sources
   ! or

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module obsOperatorsChem_mod
-  ! MODULE obsOperatorsChem_mod (prefix='oopc' category='4. Observation operators')
+  ! MODULE obsOperatorsChem_mod (prefix='oopc' category='5. Observation operators')
   !
   ! :Purpose: Observation operators for CH obs family, including nonlinear, tangent-linear
   !           and adjoint versions, and related setup and input routines.

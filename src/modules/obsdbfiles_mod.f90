@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module obsdbFiles_mod
-  ! MODULE obsdbFiles (prefix='odbf' category='6. Observation input/output')
+  ! MODULE obsdbFiles (prefix='odbf' category='3. Observation input/output')
   !
   ! :Purpose: To read and update sqlite files that are in the new 'obsDB' format.
   !

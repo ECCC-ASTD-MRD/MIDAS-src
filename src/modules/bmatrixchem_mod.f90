@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module BmatrixChem_mod 
-  ! MODULE BmatrixChem_mod (prefix='bchm' category='5. B and R matrices')
+  ! MODULE BmatrixChem_mod (prefix='bchm' category='2. B and R matrices')
   !
   ! :Purpose: Contains routines involving the preparation and application of
   !           background-error covariance matrix(ces). Matrix based on

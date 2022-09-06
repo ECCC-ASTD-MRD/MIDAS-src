@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module sqliteUtilities_mod
-  ! MODULE sqliteUtilities (prefix='sqlu' category='6. Observation input/output')
+  ! MODULE sqliteUtilities (prefix='sqlu' category='3. Observation input/output')
   !
   ! :Purpose: A place to collect utilities for SQLite files.
 

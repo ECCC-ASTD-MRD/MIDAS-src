@@ -16,7 +16,7 @@
 
 module version_mod
   !
-  ! MODULE version_mod (prefix='ver' category='7. Low-level data objects and utilities')
+  ! MODULE version_mod (prefix='ver' category='8. Low-level utilities and constants')
   !
   ! :Purpose: Store and print the MIDAS version number for display in the listing.
   !

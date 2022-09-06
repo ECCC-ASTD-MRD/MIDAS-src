@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 MODULE advection_mod
-  ! MODULE advection_mod (prefix="adv" category='3. High-level transformations')
+  ! MODULE advection_mod (prefix="adv" category='4. Data Object transformations')
   !
   ! :Purpose: To perform forward and/or backward advection (based on 
   !           semi-lagrangian trajectories) for both gridStateVector and

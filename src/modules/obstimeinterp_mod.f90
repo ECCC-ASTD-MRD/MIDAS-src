@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module obsTimeInterp_mod
-  ! MODULE obsTimeInterp_mod (prefix='oti' category='7. Low-level data objects and utilities')
+  ! MODULE obsTimeInterp_mod (prefix='oti' category='4. Data Object transformations')
   !
   ! :Purpose: To store public variables and procedures related to the time
   !           coordinate.

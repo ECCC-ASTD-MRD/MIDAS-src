@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module BMatrix_mod
-  ! MODULE BMatrix_mod (prefix='bmat' category='5. B and R matrices')
+  ! MODULE BMatrix_mod (prefix='bmat' category='2. B and R matrices')
   !
   ! :Purpose: A higher-level module that takes care of calling subroutines 
   !           in the lower-level modules bmatrixHI/lambmatrixHI and

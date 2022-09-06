@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module radvel_mod
-  ! MODULE radvel_mod (prefix='rdv' category='4. Observation operators')
+  ! MODULE radvel_mod (prefix='rdv' category='5. Observation operators')
   !
   ! :Purpose: Containing commonly used functions for the assimilation of Doppler velocity
   !

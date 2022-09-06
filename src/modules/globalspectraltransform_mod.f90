@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module globalSpectralTransform_mod
-  ! MODULE globalSpectralTransform_mod (prefix='gst' category='3. High-level transformations')
+  ! MODULE globalSpectralTransform_mod (prefix='gst' category='4. Data Object transformations')
   !
   ! :Purpose: To perform global spectral transform (spherical harmonic transform
   !           with grid-point field on a standard global Gaussian grid). 

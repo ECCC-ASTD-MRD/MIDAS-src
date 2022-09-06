@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module randomNumber_mod
-  ! MODULE randomNumber_mod (prefix='rng' category='7. Low-level data objects and utilities')
+  ! MODULE randomNumber_mod (prefix='rng' category='8. Low-level utilities and constants')
   !
   ! :Purpose: A Gaussian random number generator (RNG) module
   !

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module codePrecision_mod
-  ! MODULE codePrecision_mod (prefix='pre' category='8. Global constants and interfaces')
+  ! MODULE codePrecision_mod (prefix='pre' category='8. Low-level utilities and constants')
   !
   !:Purpose: A module to specify the precision, mostly for floating
   !          point variables

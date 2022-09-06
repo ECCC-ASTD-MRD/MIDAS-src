@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 MODULE localizationFunction_mod
-  ! MODULE localizationFunction_mod (prefix='lfn' category='5. B and R matrices')
+  ! MODULE localizationFunction_mod (prefix='lfn' category='2. B and R matrices')
   !
   ! :Purpose: To store various functions for horizontal and vertical covariance
   !           localization. Length-scale estimation for function available in
