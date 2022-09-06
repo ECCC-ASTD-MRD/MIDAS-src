@@ -297,11 +297,23 @@ automatically when a tag is pushed.
 
 ## Procedure to follow when creating a new version
 
+### Our tag convention
 Once a release is decided to be published, identify the version name
-by following the [semantic
-versioning](http://semver.org/spec/v2.0.0.html).  The tag name
-will be prepend by `v_`.  So if the version is `3.6.6`, the tag name
-will be `v_3.6.6`.
+by following the [semantic versioning](http://semver.org/spec/v2.0.0.html).
+
+Tags will use the prefix `v_` and contain 3 fields (for example `v_A.B.C`):
+
+* the first field (`A`) will change after a version is delivered to Operations
+* the second field (`B`) will be updated when one of those cases happen:
+    * the results are changing
+    * the API is modified in a non-backward-compatible way
+        * a namelist variable is changed
+        * an input file is changed
+        * a new mandatory input file is added
+        * an output file is added
+* the third digit (`C`) is for backward-compatible changes:
+    * bugfix
+    * new functionality that does not affect other programs (for example, adding SQLite observations files).
 
 ### Warning!
 
