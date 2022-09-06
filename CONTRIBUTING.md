@@ -126,3 +126,7 @@ merge request with [`WIP: ` ("Work In
 Progress")](https://docs.gitlab.com/ce/user/project/merge_requests/work_in_progress_merge_requests.html).
 You will see instructions about this feature in the GitLab merge
 request page.
+
+# Advanced Topics
+
+* [Creating SSM packages](docs/ssm.md)
