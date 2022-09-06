@@ -45,13 +45,14 @@ module_filelist=`ls -dR -1 $codedir/modules/*f*90`
 # DEFINE THE MODULE CATEGORY NAMES FOR EACH NUMERICAL CODE
 
 module_category[1]="High-level functionality"
-module_category[2]="High-level data objects"
-module_category[3]="High-level transformations"
-module_category[4]="Observation operators"
-module_category[5]="B and R matrices"
-module_category[6]="Observation input/output"
-module_category[7]="Low-level data objects and utilities"
-module_category[8]="Global constants and interfaces"
+module_category[2]="B and R matrices"
+module_category[3]="Observation input/output"
+module_category[4]="Data object transformations"
+module_category[5]="Observation operators"
+module_category[6]="High-level data objects"
+module_category[7]="Low-level data objects"
+module_category[8]="Low-level utilities and constants"
+module_category[9]="Global interfaces"
 num_categories=${#module_category[@]}
 
 # CREATE LINKS TO F90 FILES
