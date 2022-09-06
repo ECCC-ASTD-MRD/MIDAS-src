@@ -13,13 +13,42 @@ with error, the documentation is generated.  Then, since the link in
 the main [README](README.md) to the documentation is generic, the end
 user will access the latest documentation for the `main` branch.
 
+## Cleaning of the programs directory
+
+The programs compiled in the CI pipeline are copied into the directory:
+```
+/home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
+```
+
+If everything goes as planned they should be moved automatically to
+```
+/home/sanl888/data_maestro/ppp5/midas/gitlab-ci/abs
+```
+
+But, if the files do not get moved automatically, they may fill the
+`ords` directory.
+
+Once in a while, we must clean this directory and move the programs
+elsewhere to avoid filing the `ords` directory of user `sanl888`.
+
+You can use the script
+```
+/home/sanl888/data_maestro/ords/midas/gitlab-ci/abs/move_abs.sh
+```
+which moves the MIDAS programs to
+```
+/home/sanl888/data_maestro/ppp5/midas/gitlab-ci/abs
+```
+
+
+
+## Install and Register the GitLab Runner
+
 Here are the steps to install the a `gitlab-runner`.  For now, the
 `gitlab-runner` will be used for automatic generation of the
 documentation as it is configured in the file
 [`.gitlab-ci.yml`](.gitlab-ci.yml).  But, it can be used for any other
 automatic task.
-
-## Register the GitLab Runner
 
 First, one must download a program, called `gitlab-runner`, which
 listens to the GitLab server for triggers to CI.  This program must be

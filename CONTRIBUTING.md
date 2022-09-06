@@ -127,6 +127,15 @@ Progress")](https://docs.gitlab.com/ce/user/project/merge_requests/work_in_progr
 You will see instructions about this feature in the GitLab merge
 request page.
 
+An automatic system of tests has been developed that garantee that modifications
+do not brake existing features or change expected results.
+Once the `Merge Request` is accepted with with the `main` branch as target (as 
+is generally the case), the modifications are pushed and the system tests are
+launched to guarantee that the all the tests pass for the `main` branch.  The [instructions for automatic
+testing using GitLab-CI are available in a separate file](docs/CI.md).
+
+
 # Advanced Topics
 
 * [Creating SSM packages](docs/ssm.md)
+* [Managing Continuous Integration](docs/CI.md) 

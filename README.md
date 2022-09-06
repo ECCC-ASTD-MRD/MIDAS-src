@@ -322,36 +322,3 @@ This scripts finds the trial name extensions in an assimilation window.
 
 See [`findTrials/README.md`](tools/findTrials/README.md) for more details.
 
-# Automatic Testing using GitLab-CI
-
-An automatic system of tests has been developed.  For each push in the
-`main` branch the system tests are launched to guarantee that the all
-the tests pass for the `main` branch.  The [instructions for automatic
-testing using GitLab-CI are available in a separate file](CI.md).
-
-## Cleaning of the programs directory
-
-The programs compiled in the CI pipeline are copied into the directory:
-```
-/home/sanl888/data_maestro/ords/midas/gitlab-ci/abs
-```
-
-If everything goes as planned they should be moved automatically to
-```
-/home/sanl888/data_maestro/ppp5/midas/gitlab-ci/abs
-```
-
-But, if the files do not get moved automatically, they may fill the
-`ords` directory.
-
-Once in a while, we must clean this directory and move the programs
-elsewhere to avoid filing the `ords` directory of user `sanl888`.
-
-You can use the script
-```
-/home/sanl888/data_maestro/ords/midas/gitlab-ci/abs/move_abs.sh
-```
-which moves the MIDAS programs to
-```
-/home/sanl888/data_maestro/ppp5/midas/gitlab-ci/abs
-```
