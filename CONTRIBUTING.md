@@ -1,12 +1,19 @@
 # Contributing Guide
 
-The general contribution workflow describe in this guide can be summarized in these steps
+The general contribution workflow described in this guide can be summarized in these steps
 
 1. [Create an issue](#create-an-issue)
 2. [Make modifications in a local branch](#make-modifications-in-a-local-branch)
 3. [Merge back your branch to the main one](#merge-back-your-branch-to-the-main-one)
 
 ## Create an issue
+
+Anyone can open an issue, even if they don't intend to actually address it 
+themself; the author of an issue does not have to be the assignee.
+Opening an issue to signify and document a bug or a feature request is an
+important part of the workflow.
+
+To create an issue:
 
 1. Go to the **GitLab** [*issue* page](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues)
   and press [`New issue`](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues/new) button.
@@ -17,6 +24,9 @@ The general contribution workflow describe in this guide can be summarized in th
 
 
 ## Make modifications in a local branch
+
+Once assigned to someone, the assignee should create an issue branch and pull
+it locally on their workstation to start working on it.
 
 ### Get a local copy of the code
 
@@ -33,6 +43,9 @@ clone_projet -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimi
 ```
 (For this to work, you need to create a file `~/.gitlab-private-token`
 like explained in the [Git documentation (see section "Interaction avec GitLab en utilisant des scripts")](https://wiki.cmc.ec.gc.ca/wiki/Git/Doc#Outil_de_partage_de_code:_gitlab.science.gc.ca))
+
+When these steps have been completed make sure to move the issue to the ~Doing
+column on the [issue board](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/boards)
 
 ### Make modifications to your local branch
 
@@ -54,10 +67,10 @@ git add $file1 $file2
 ```bash
 git commit
 ```
-Write a commit message.  The editor will open and a template for commit message will appear
+Write a commit message.  The editor will open and a template for commit message will appear.
 
-This is a very simplified commiting-workflow.
-You should also use `git status` and `git diff [--cached]` when staging and before commiting your changes.
+This is a very simplified contribution workflow.
+You should also use `git status` and `git diff [--cached]` when staging and before committing your changes.
 
 ## Merge back your branch to the main one
 
@@ -67,6 +80,7 @@ Once the code is ready to share (not necessarily final) or ready to merge :
 ```bash
 git push origin HEAD
 ```
+(Note: if you are using `set_centraldepot`, the remote depot is named `central` instead of `origin`)
 
   - The `git push` command can be done many times during the course of development.
   - to get a status of the work done, first run
@@ -138,6 +152,7 @@ MIDAS_MAKE_LINKS_MACHINE_LIST
   - Select the template, then follow the guidelines when filling in the Description box.
   - Assign the `Merge Request` to a colleague.
   - And press `Submit merge request`.
+  - Move the issue to the ~"Under Review" column on the [issue board](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/boards)
   - The assignee is expected to review the code, discuss/comment and finally accept the `Merge Request`, which will:
     - merge the code for the branch into `main`,
     - close the associated *issue* and
@@ -154,7 +169,7 @@ request page.
 
 Once the `Merge Request` is accepted with with the `main` branch as target (as 
 is generally the case), the modifications are pushed and the system tests are
-launched to guarantee that the all the tests pass for the `main` branch.  The [instructions for automatic
+automatically launched to guarantee that all the tests pass for the `main` branch.  The [instructions for automatic
 testing using GitLab-CI are available in a separate file](docs/CI.md).
 
 
