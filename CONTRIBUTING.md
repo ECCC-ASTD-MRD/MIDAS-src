@@ -105,6 +105,31 @@ Resolve any possible conflicts and do a final :
 git push origin HEAD
 ```
 
+### Testing your modifications
+An automatic system of tests has been developed that garantee that modifications
+do not brake existing features or change expected results.
+
+You can install a maestro suite with a serie of tests to evaluate the
+changes made to the code.
+
+On the `science.gc.ca` network, you can install the suite with the command
+```bash
+maestro/suites/midas_system_tests/install_suite.sh
+```
+
+Once the `xflow` appears, just launch the node `/Tests`.
+
+The suite is configured to use by default the programs you just
+compiled.
+
+## Hosts used to run the test suite
+
+When running `install_suite.sh`, links are created under `hub` and
+`listings` just like any `maestro` suite.  If you want to control the
+hosts used, you can put the list of hosts in the environment variable
+```bash
+MIDAS_MAKE_LINKS_MACHINE_LIST
+```
 
 ### Create and assign the `Merge Request`
 
@@ -127,8 +152,6 @@ Progress")](https://docs.gitlab.com/ce/user/project/merge_requests/work_in_progr
 You will see instructions about this feature in the GitLab merge
 request page.
 
-An automatic system of tests has been developed that garantee that modifications
-do not brake existing features or change expected results.
 Once the `Merge Request` is accepted with with the `main` branch as target (as 
 is generally the case), the modifications are pushed and the system tests are
 launched to guarantee that the all the tests pass for the `main` branch.  The [instructions for automatic
@@ -139,3 +162,6 @@ testing using GitLab-CI are available in a separate file](docs/CI.md).
 
 * [Creating SSM packages](docs/ssm.md)
 * [Managing Continuous Integration](docs/CI.md) 
+* [Advanced Unit Testing Topics](docs/unitTests.md) 
+    * [Updating Test Results](docs/unitTests.md#updating-test-results)
+    * [Interactive debugging](docs/unitTests.md#interactive-debugging)
