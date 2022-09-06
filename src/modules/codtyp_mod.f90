@@ -351,7 +351,6 @@ contains
     !
     !          NEW information from namelist NAMCODTYP
     !
-    use mpi_mod
     implicit none
     integer,intent(in) :: codtyp
     
