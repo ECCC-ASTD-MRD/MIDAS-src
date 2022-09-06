@@ -282,7 +282,7 @@ Filename                                 Block Number  Block Label
 EOF
 
 cd $SRCDIR
-tmgstrings=`grep -ir 'tmg_start(' | sed "s/['\"]//g" | sed 's/\!//g' | sed 's/ //g' | sed 's/:.*(/,/g' | sed 's/)//g' | awk -F',' '{ print $2 "," $1 "," $3}' | sort -u | sort -n`
+tmgstrings=`grep -ir 'call *utl_tmg_start(' | sed "s/['\"]//g" | sed 's/\!//g' | sed 's/ //g' | sed 's/:.*(/,/g' | sed 's/)//g' | awk -F',' '{ print $2 "," $1 "," $3}' | sort -u | sort -n`
 for tmgstring in $tmgstrings; do
   filename=`echo $tmgstring |cut -f2 -d','`
   filename=`basename $filename`
