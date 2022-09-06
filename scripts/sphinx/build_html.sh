@@ -172,6 +172,11 @@ if [ "${do_graphs}" = "yes" ]; then
 
         Direct Dependency Diagram
 
+    .. figure:: /${module_name}_rev.svg
+        :height: 100px
+
+        Reverse Dependency Diagram
+
 EOF
 
 fi

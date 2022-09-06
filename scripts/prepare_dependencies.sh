@@ -27,6 +27,7 @@ useslist[$numModules]=""
 revmodlist[$numModules]=""
 revpgmlist[$numModules]=""
 numberuses[$numModules]=0
+revnumberuses[$numModules]=0
 categories[$numModules]=0
 prefixes[$numModules]=""
 
