@@ -165,3 +165,4 @@ testing using GitLab-CI are available in a separate file](docs/CI.md).
 * [Advanced Unit Testing Topics](docs/unitTests.md) 
     * [Updating Test Results](docs/unitTests.md#updating-test-results)
     * [Interactive debugging](docs/unitTests.md#interactive-debugging)
+* [Adding New Observations](docs/newObs.md)
