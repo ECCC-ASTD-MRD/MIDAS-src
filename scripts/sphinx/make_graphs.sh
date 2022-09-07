@@ -49,7 +49,7 @@ for index1 in `seq 1 ${numModules}`; do
   for use in ${all_modules}; do
     index=${modulename_index[$use]}
     if [ "${numberuses[$index]}" = "0" ]; then
-      echo "${use} [fillcolor=gray style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
+      echo "${use} [fillcolor=gray style=filled URL=\"${use}.html\"];" >> $GRAPHDIR/modules/${modulename}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
         echo "${use} [color=red URL=\"../modules/${use}.svg\"];" >> $GRAPHDIR/modules/${modulename}.gv
@@ -77,23 +77,16 @@ for index1 in `seq 1 ${numModules}`; do
   echo "strict digraph ${modulename} {" > $GRAPHDIR/modules/${modulename}_rev.gv
   echo "node [shape=box];" >> $GRAPHDIR/modules/${modulename}_rev.gv
   echo "${modulename} [URL=\"${modulename}.html\"];" >> $GRAPHDIR/modules/${modulename}_rev.gv
-  if [ "${revnumberuses[$index1]}" = "0" ]; then
-    echo "${modulename} [fillcolor=gray style=filled];" >> $GRAPHDIR/modules/${modulename}_rev.gv
-  fi
+
   # modules reverse dependencies
   for use2 in ${revmodlist[$index1]}; do
     all_modules=`echo "${all_modules} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
     echo "${use2}->${modulename} [dir=back arrowtail=dot];" >> $GRAPHDIR/modules/${modulename}_rev.gv
   done
-
   for use in ${all_modules}; do
     index=${modulename_index[$use]}
-    if [ "${revnumberuses[$index]}" = "0" ]; then
-      echo "${use} [fillcolor=gray style=filled];" >> $GRAPHDIR/modules/${modulename}_rev.gv
-    else
-      if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
-        echo "${use} [color=blue URL=\"../modules/${use}_rev.svg\"];" >> $GRAPHDIR/modules/${modulename}_rev.gv
-      fi
+    if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
+      echo "${use} [color=blue URL=\"../modules/${use}_rev.svg\"];" >> $GRAPHDIR/modules/${modulename}_rev.gv
     fi
   done
 
@@ -152,7 +145,7 @@ for program in ${programfilelist}; do
   for use in ${all_modules}; do
     index=${modulename_index[$use]}
     if [ "${numberuses[$index]}" = "0" ]; then
-      echo "${use} [style=filled];" >> $GRAPHDIR/programs/${programname}.gv
+      echo "${use} [fillcolor=gray style=filled URL=\"../modules/${use}.html\"];" >> $GRAPHDIR/programs/${programname}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
         echo "${use} [color=red URL=\"../modules/${use}.svg\"];" >> $GRAPHDIR/programs/${programname}.gv
