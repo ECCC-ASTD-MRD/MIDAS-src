@@ -1061,9 +1061,10 @@ contains
     character(len=10)           :: sqlDataType
     integer                     :: ierr
     character(len=*), parameter :: myName = 'sqlr_addColumn'
-
     type(fSQL_STATUS)        :: stat ! sqlite error status
     type(fSQL_DATABASE)      :: db   ! sqlite file handle
+
+
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -1089,38 +1090,6 @@ contains
     call fSQL_close( db, stat ) 
 
   end subroutine sqlr_addColumn  
-
-  function  sqlr_readRdbSchema(fileName) result(rdbSchema)
-    !
-    ! :Purpose: Add columns to sqlite tables that does not previously exists.
-    !
-
-    implicit none
-
-    ! arguments:
-    character(len=*)   , intent(in)    :: fileName     
-    character(len=9)                   :: rdbSchema  
-    
-    ! locals:
-    character(len=500)                 :: query
-    type(fSQL_STATUS)                  :: stat ! sqlite error status
-    type(fSQL_DATABASE)                 :: db   ! sqlite file handle
-    character(len=*), parameter :: myName = 'sqlr_readRdbSchema'
-
-    ! open the obsDB file
-    call fSQL_open( db, trim(fileName), status=stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
-    end if
-
-    query = 'select schema from rdb4_schema ;'
-    rdbSchema = sqlr_query(db,trim(query))
-    
-    ! close the sqlite file
-    call fSQL_close( db, stat ) 
-
-  end function  sqlr_readRdbSchema  
-
 
   !--------------------------------------------------------------------------
   ! sqlr_updateSqlite
@@ -1152,9 +1121,9 @@ contains
     character(len =  10)        :: columnName
     character(len = 128)        :: query
     character(len = 356)        :: itemChar, columnNameChar
-    logical                     :: back, columnExists
-    real                        :: romp, obsValue, scaleFactor
-    character(len=9)            :: rdbSchema
+    logical                     :: back, nonEmptyColumn, nonEmptyColumn_mpiglobal
+    real                        :: romp, obsValue, scaleFactor, columnValue
+    
     namelist/namSQLUpdate/ numberUpdateItems,      itemUpdateList,     &
                            numberUpdateItemsRadar, itemUpdateListRadar
 
@@ -1187,77 +1156,83 @@ contains
     write(*,*) 'sqlr_updateSqlite: file name     = ', trim(fileName)
     write(*,*) 'sqlr_updateSqlite: missing value = ', MPC_missingValue_R8    
 
-    rdbSchema = sqlr_readRdbSchema(fileName) 
-
-    write(*,*) 'sqlr_updateSqlite: rdbSchema', rdbSchema
-
     ! create query
     itemChar='  '
 
     do itemIndex = 1, numberUpdateItems
-    
+      nonEmptyColumn = .false.
       item = itemUpdateList(itemIndex)
       write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, trim(item)
+
       select case(item)
-        case('OMA')
-          updateList(itemIndex) = OBS_OMA
-          columnName = 'oma'
-        case('OMP')
-          updateList(itemIndex) = OBS_OMP
-          columnName = 'omp'
-        case('VAR')
-          updateList(itemIndex) = OBS_VAR
-          columnName = 'obsvalue'
-        case('OER')
-          updateList(itemIndex) = OBS_OER
-          columnName = 'obs_error'
-        case('FGE')
-          updateList(itemIndex) = OBS_HPHT
-          columnName = 'fg_error'
-        case('EMI')
-          updateList(itemIndex) = OBS_SEM
-          columnName = 'surf_emiss'
-
-          if (rdbSchema == 'amsua' .or. rdbSchema == 'iasi' .or. &
-              rdbSchema == 'airs'  .or. rdbSchema == 'cris' .or. &
-              rdbSchema == 'amsub' .or. rdbSchema == 'mhs'  .or. &
-              rdbSchema == 'crisfsr') then
-
-            !Check if Column Exist
-            columnExists = sqlu_sqlColumnExists(fileName, 'data', columnName)
-            if ( columnExists ) then
-              write(*,*) 'myName: '// columnName //' column already exist and is not is added'
-            else
-              call sqlr_addColumn(updateList( itemIndex ), columnName, 'data', fileName)
-            end if
-          else
-            write(*,*) 'myName: Observation file does not require updating column', columnName
-          end if
-
-        case('COR')
-          updateList(itemIndex) = OBS_BCOR
-          columnName = 'bias_corr'
-
-          !Check if Column Exist
-          columnExists = sqlu_sqlColumnExists(fileName, 'data', columnName)
-          if ( columnExists ) then
-            write(*,*) 'myName: '// columnName //' column already exist and is not is added'
-          else
-            call sqlr_addColumn(updateList( itemIndex ), columnName, 'data', fileName)
-          end if
-
-        case('ALT')
-          updateList(itemIndex) = OBS_PPP
-          columnName = 'vcoord'
-        case DEFAULT
-          call utl_abort('sqlr_updateSqlite: invalid item '// columnName //' EXIT sqlr_updateSQL!!!')
+      case('OMA')
+        updateList(itemIndex) = OBS_OMA
+        columnName = 'oma'
+      case('OMP')
+        updateList(itemIndex) = OBS_OMP
+        columnName = 'omp'
+      case('VAR')
+        updateList(itemIndex) = OBS_VAR
+        columnName = 'obsvalue'
+      case('OER')
+        updateList(itemIndex) = OBS_OER
+        columnName = 'obs_error'
+      case('FGE')
+        updateList(itemIndex) = OBS_HPHT
+        columnName = 'fg_error'
+      case('EMI')
+        updateList(itemIndex) = OBS_SEM
+        columnName = 'surf_emiss'
+      case('COR')
+        updateList(itemIndex) = OBS_BCOR
+        columnName = 'bias_corr'
+      case('ALT')
+        updateList(itemIndex) = OBS_PPP
+        columnName = 'vcoord'
+      case DEFAULT
+        call utl_abort('sqlr_updateSqlite: invalid item '// columnName //' EXIT sqlr_updateSQL!!!')
       end select
-      
-      if (sqlu_sqlColumnExists(fileName, 'data', columnName) == .true.) then
+
+      ! Check if column exist. If not, add column when corresponding
+      ! obsspacedata variable have non-missing values
+      if (sqlu_sqlColumnExists(fileName, 'data', columnName)) then
         itemChar = trim(itemChar)//','// trim(columnName) // trim(' = ? ')
       else
         write(*,*) 'sqlr_updateSqlite: WARNING: column '//columnName// &
                    ' does not exist in the file '//trim(fileName)
+
+        ! Check if the ObsSpaceData variable contains non-missing values
+        HEADERCHCK: do headerIndex = 1, obs_numHeader(obsdat)
+ 
+          obsIdf = obs_headElem_i(obsdat,OBS_IDF, headerIndex)
+  
+          if (obsIdf /= fileNumber) cycle HEADERCHCK
+          headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
+          obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
+          obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex)
+    
+          BODYCHCK: do bodyIndex = obsRln, obsNlv + obsRln - 1
+
+            columnValue = obs_bodyElem_r(obsdat, updateList(itemIndex), bodyIndex)
+            
+            if (columnValue /= obs_missingValue_R) then
+              nonEmptyColumn = .true.
+              call rpn_comm_allreduce(nonEmptyColumn,nonEmptyColumn_mpiglobal,1, &
+                              "MPI_LOGICAL","MPI_LOR","world",ierr)
+              exit HEADERCHCK
+
+            end if
+          
+          end do BODYCHCK
+        end do HEADERCHCK
+
+        ! Add column into SQLite file if ObsSpaceData value containes non-missing values
+        if (nonEmptyColumn_mpiglobal) then
+          write(*,*) 'sqlr_updateSqlite: ' // trim(columnName) // ' column is not empty and will be added'
+          call sqlr_addColumn(updateList( itemIndex ), columnName, 'data', fileName)
+          itemChar = trim(itemChar)//','// trim(columnName) // trim(' = ? ')
+        end if
+
       end if	
     end do
 

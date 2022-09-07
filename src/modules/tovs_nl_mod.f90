@@ -2850,7 +2850,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getMWemissivityFromAtlas
   !--------------------------------------------------------------------------
-subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorId, chanprof, sensorTovsIndexes, &
+  subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorId, chanprof, sensorTovsIndexes, &
                                         obsSpaceData, tvs_bodyIndexFromBtIndex)
     implicit none
     type(struct_obs), intent(inout)      :: obsSpaceData
@@ -2932,8 +2932,6 @@ subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, s
     end do
 
   end subroutine tvs_getMWemissivityFromAtlas
-
-
 
   !--------------------------------------------------------------------------
   !  comp_ir_emiss

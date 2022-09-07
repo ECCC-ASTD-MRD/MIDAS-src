@@ -1,4 +1,4 @@
-&NAMSQLcsr
+ &NAMSQLcsr
   numberElem=1 ,
   listElem='12163' ,
   sqlExtraHeader='' ,
@@ -310,4 +310,3 @@
 /
  &NAMSQLINSERT
 /
-
