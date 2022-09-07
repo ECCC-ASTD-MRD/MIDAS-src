@@ -49,8 +49,13 @@ for fullfilename in modules/*_mod.f*90; do
     usedbymod_files=`grep -il "^ *use ${modulename}" modules/*_mod.f*90`
     if [ ! -z "${usedbymod_files}" ]; then 
       for modfile in ${usedbymod_files}; do
-        usedbymod="${usedbymod} `grep -i module ${modfile} | tr '[:upper:]' '[:lower:]' \
-          | grep -v 'module *procedure' | sed -n 's/^ *module *\([^!]*\).*/\1/p'`"
+        lines=`grep -in "^ *use ${modulename}" ${modfile} | cut -d':' -f1`
+        for line in ${lines}; do
+          # find which module use it
+          usedbymod="${usedbymod} `cat ${modfile} | head -n ${line} \
+            | tr '[:upper:]' '[:lower:]' | grep -v 'module *procedure' \
+            | grep '^ *module ' | tail -n 1 | sed -n 's/^ *module *\([^!]*\).*/\1/p'`"
+        done
       done
     fi
     usedbypgm_files=`grep -il "^ *use ${modulename}" programs/*.f90`
