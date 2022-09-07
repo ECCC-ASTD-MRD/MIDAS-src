@@ -38,7 +38,7 @@ for index1 in `seq 1 ${numModules}`; do
   echo "node [shape=box];" >> $GRAPHDIR/modules/${modulename}.gv
   echo "${modulename} [color=blue URL=\"../modules/${modulename}_rev.svg\"];" >> $GRAPHDIR/modules/${modulename}.gv
   if [ "${numberuses[$index1]}" = "0" ]; then
-    echo "${modulename} [style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
+    echo "${modulename} [fillcolor=gray style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
   fi
   for use2 in ${useslist[$index1]}; do
     index2=${modulename_index[$use2]}
@@ -49,7 +49,7 @@ for index1 in `seq 1 ${numModules}`; do
   for use in ${all_modules}; do
     index=${modulename_index[$use]}
     if [ "${numberuses[$index]}" = "0" ]; then
-      echo "${use} [style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
+      echo "${use} [fillcolor=gray style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
         echo "${use} [color=red URL=\"../modules/${use}.svg\"];" >> $GRAPHDIR/modules/${modulename}.gv
@@ -61,6 +61,7 @@ for index1 in `seq 1 ${numModules}`; do
   echo "overlap=false" >> $GRAPHDIR/modules/${modulename}.gv
   echo "label=\"${modulename} dependencies\n${dirModLabel}\"" >> $GRAPHDIR/modules/${modulename}.gv
   echo "labelloc=b" >>  $GRAPHDIR/modules/${modulename}.gv
+  echo "URL=\"${modulename}.html\"" >>  $GRAPHDIR/modules/${modulename}.gv
   echo "fontsize=14;" >> $GRAPHDIR/modules/${modulename}.gv
   echo "}" >> $GRAPHDIR/modules/${modulename}.gv
   unflatten -l 8 -f $GRAPHDIR/modules/${modulename}.gv > $GRAPHDIR/modules/${modulename}_2.gv
@@ -78,7 +79,7 @@ for index1 in `seq 1 ${numModules}`; do
   echo "node [shape=box];" >> $GRAPHDIR/modules/${modulename}_rev.gv
   echo "${modulename} [color=red URL=\"../modules/${modulename}.svg\"];" >> $GRAPHDIR/modules/${modulename}_rev.gv
   if [ "${revnumberuses[$index1]}" = "0" ]; then
-    echo "${modulename} [style=filled];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+    echo "${modulename} [fillcolor=gray style=filled];" >> $GRAPHDIR/modules/${modulename}_rev.gv
   fi
   # modules reverse dependencies
   for use2 in ${revmodlist[$index1]}; do
@@ -89,7 +90,7 @@ for index1 in `seq 1 ${numModules}`; do
   for use in ${all_modules}; do
     index=${modulename_index[$use]}
     if [ "${revnumberuses[$index]}" = "0" ]; then
-      echo "${use} [style=filled];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+      echo "${use} [fillcolor=gray style=filled];" >> $GRAPHDIR/modules/${modulename}_rev.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
         echo "${use} [color=blue URL=\"../modules/${use}_rev.svg\"];" >> $GRAPHDIR/modules/${modulename}_rev.gv
@@ -99,7 +100,7 @@ for index1 in `seq 1 ${numModules}`; do
 
   # program reverse dependencies
   for pgm in ${revpgmlist[$index1]}; do
-    echo "midas_${pgm} [color=green fillcolor=gray style=filled URL=\"../programs/midas_${pgm}.svg\"];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+    echo "midas_${pgm} [color=green fillcolor=gray style=filled URL=\"../programs/${pgm}.svg\"];" >> $GRAPHDIR/modules/${modulename}_rev.gv
     echo "midas_${pgm}->${modulename} [dir=back arrowtail=dot];" >> $GRAPHDIR/modules/${modulename}_rev.gv
   done
 
@@ -107,6 +108,7 @@ for index1 in `seq 1 ${numModules}`; do
   echo "overlap=false" >> $GRAPHDIR/modules/${modulename}_rev.gv
   echo "label=\"${modulename} reverse dependencies\n${revModLabel}\"" >> $GRAPHDIR/modules/${modulename}_rev.gv
   echo "labelloc=t" >>  $GRAPHDIR/modules/${modulename}_rev.gv
+  echo "URL=\"${modulename}.html\"" >>  $GRAPHDIR/modules/${modulename}_rev.gv
   echo "fontsize=14;" >> $GRAPHDIR/modules/${modulename}_rev.gv
   echo "}" >> $GRAPHDIR/modules/${modulename}_rev.gv
   unflatten -l 8 -f $GRAPHDIR/modules/${modulename}_rev.gv > $GRAPHDIR/modules/${modulename}_rev_2.gv
@@ -164,6 +166,7 @@ for program in ${programfilelist}; do
   echo "overlap=false" >> $GRAPHDIR/programs/${programname}.gv
   echo "label=\"${programname} dependencies\n${dirPgmLabel}\"" >> $GRAPHDIR/programs/${programname}.gv
   echo "labelloc=b" >>  $GRAPHDIR/programs/${programname}.gv
+  echo "URL=\"${programname}.html\"" >> $GRAPHDIR/programs/${programname}.gv
   echo "fontsize=14;" >> $GRAPHDIR/programs/${programname}.gv
   echo "}" >> $GRAPHDIR/programs/${programname}.gv
   unflatten -l 8 -f $GRAPHDIR/programs/${programname}.gv > $GRAPHDIR/programs/${programname}_2.gv
