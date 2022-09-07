@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module columnData_mod
-  ! MODULE columnData_mod (prefix='col' category='2. High-level data objects')
+  ! MODULE columnData_mod (prefix='col' category='6. High-level data objects')
   !
   ! :Purpose: A derived type and related procedures for storing and manipulating
   !           vertical columns of analysis variables on model or analysis grid

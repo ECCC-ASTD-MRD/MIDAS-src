@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module cmaFiles_mod
-  ! MODULE cmaFiles_mod (prefix='cma' category='6. Observation input/output')
+  ! MODULE cmaFiles_mod (prefix='cma' category='3. Observation input/output')
   !
   ! :Purpose: Read/Write "cma" format observation files, as used by the EnKF
   !

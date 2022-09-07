@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module getGridPosition_mod
-  ! MODULE getGridPosition_mod (prefix='gpos' category='7. Low-level data objects and utilities')
+  ! MODULE getGridPosition_mod (prefix='gpos' category='8. Low-level utilities and constants')
   !
   ! :Purpose: A place to collect numerous interpolation related routines.
   !           The main task of the module is to compute the grid XY position from a lat-lon.

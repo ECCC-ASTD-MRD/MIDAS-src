@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module interpolation_mod
-  ! MODULE interpolation_mod (prefix='int' category='3. High-level transformations')
+  ! MODULE interpolation_mod (prefix='int' category='4. Data Object transformations')
   !
   ! :Purpose: The grid-point state vector interpolation.
   !

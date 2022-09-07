@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module bmatrix1DVar_mod
-  ! MODULE bmatrix1DVar_mod (prefix='bmat1D' category='5. B and R matrices')
+  ! MODULE bmatrix1DVar_mod (prefix='bmat1D' category='2. B and R matrices')
   !
   ! :Purpose: contains all 1Dvar B matrices.
   !

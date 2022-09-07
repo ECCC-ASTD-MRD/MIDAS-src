@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module spectralFilter_mod
-  ! MODULE spectralFilter_mod (prefix='spf' category='7. Low-level data objects and utilities')
+  ! MODULE spectralFilter_mod (prefix='spf' category='8. Low-level utilities and constants')
   !
   ! :Purpose: For computing spectral filter functions
   !

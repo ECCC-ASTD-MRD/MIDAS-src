@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module codtyp_mod
-  ! MODULE codtyp_mod (prefix='codtyp' category='8. Global constants and interfaces')
+  ! MODULE codtyp_mod (prefix='codtyp' category='8. Low-level utilities and constants')
   !
   !:Purpose: To read a list of codtype definitions (codes that define various
   !          types of observations) from the namelist and to make them available
@@ -351,7 +351,6 @@ contains
     !
     !          NEW information from namelist NAMCODTYP
     !
-    use mpi_mod
     implicit none
     integer,intent(in) :: codtyp
     

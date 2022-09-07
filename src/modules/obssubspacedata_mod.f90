@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module obsSubSpaceData_mod
-  ! MODULE obsSubSpaceData_mod (prefix='oss' category='7. Low-level data objects and utilities')
+  ! MODULE obsSubSpaceData_mod (prefix='oss' category='6. High-level data objects')
   !
   ! :Purpose: Repository of obs space structures, arrays, and routines specific
   !          to obs data pertinent to subspaces of the overall ObsSpaceData.

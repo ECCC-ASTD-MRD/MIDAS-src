@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module humidityLimits_mod
-  ! MODULE humidityLimits_mod (prefix='qlim' category='1. High-level functionality')
+  ! MODULE humidityLimits_mod (prefix='qlim' category='4. Data Object transformations')
   !
   ! :Purpose: Various manipulations of humidity-related quantities.
   !

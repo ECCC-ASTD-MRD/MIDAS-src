@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module gps_mod
-  ! MODULE gps_mod (prefix='gps' category='4. Observation operators')
+  ! MODULE gps_mod (prefix='gps' category='5. Observation operators')
   !
   ! :Purpose: Code related to GPS-RO and ground-based GPS observation operators.
   !

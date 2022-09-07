@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module diffusion_mod
-  ! MODULE diffusion_mod (prefix='diff' category='3. High-level transformations')
+  ! MODULE diffusion_mod (prefix='diff' category='4. Data Object transformations')
   !
   ! :Purpose: Diffusion operator and storage of related diffusion configuration used to model
   !           background-error horizontal correlations. Both explicit and implicit

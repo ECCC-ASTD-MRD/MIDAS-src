@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module tovs_nl_mod
-  ! MODULE tovs_nl (prefix='tvs' category='4. Observation operators')
+  ! MODULE tovs_nl (prefix='tvs' category='5. Observation operators')
   !
   ! :Purpose: Derived types, public variables and procedures related to the
   !           nonlinear version of RTTOV

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module calcHeightAndPressure_mod
-  ! MODULE czp_calcHeightAndPressure (prefix='czp' category='3. High-level transformations')
+  ! MODULE czp_calcHeightAndPressure (prefix='czp' category='4. Data Object transformations')
   !
   ! :Purpose: Subroutines for computing height and/or pressure depending on the 
   !           vgrid kind.

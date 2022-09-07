@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module oceanMask_mod
-  ! MODULE oceanMask_mod (prefix='ocm' category='7. Low-level data objects and utilities')
+  ! MODULE oceanMask_mod (prefix='ocm' category='7. Low-level data objects')
   !
   ! :Purpose: The horizontal mask indicating land (=.false.) and water (=.true.) grid points.
   !           This mask is either:

@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module clib_interfaces_mod
-  ! MODULE clib_interfaces_mod (prefix='' category='8. Global constants and interfaces')
+  ! MODULE clib_interfaces_mod (prefix='' category='9. Global interfaces')
   !
   ! :Purpose: 'include' all of the needed files containing the interfaces
   !            for the rmnlib clib library subroutines. This allows all other 

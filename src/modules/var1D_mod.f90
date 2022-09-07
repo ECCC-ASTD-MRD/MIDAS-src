@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module var1D_mod
-  ! MODULE var1D_mod (prefix='var1D' category='3. High-level transformations')
+  ! MODULE var1D_mod (prefix='var1D' category='4. Data Object transformations')
   !
   ! :Purpose: contains all 1Dvar-related methods.
   !

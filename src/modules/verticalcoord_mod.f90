@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module verticalCoord_mod
-  ! MODULE verticalcoord (prefix='vco' category='7. Low-level data objects and utilities')
+  ! MODULE verticalcoord (prefix='vco' category='7. Low-level data objects')
   !
   ! :Purpose: Derived type and procedures related to the vertical levels.
   !           The derived type includes a pointer to the associated VGRID

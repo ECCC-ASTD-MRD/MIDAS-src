@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module analysisErrorOI_mod
-  ! MODULE analysisErrorOI (prefix='aer' category='3. High-level transformations')
+  ! MODULE analysisErrorOI (prefix='aer' category='1. High-level functionality')
   !
   ! :Purpose: Calculate the analysis-error standard deviation.
   !           The method used is Optimal Interpolation,

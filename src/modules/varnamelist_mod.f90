@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module varNameList_mod
-  ! MODULE varNameList (prefix='vnl' category='7. Low-level data objects and utilities')
+  ! MODULE varNameList (prefix='vnl' category='7. Low-level data objects')
   !
   ! :Purpose: Contains a list of all possible variable names that can be used
   !           as analysis variables along with additional information for each

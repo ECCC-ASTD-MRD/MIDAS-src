@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module obsUtil_mod
-  ! MODULE obsUtil_mod (prefix='obsu' category='6. Observation input/output')
+  ! MODULE obsUtil_mod (prefix='obsu' category='3. Observation input/output')
   !
   ! :Purpose: Common routines used by burpfiles_mod and sqlitefiles_mod
   !  

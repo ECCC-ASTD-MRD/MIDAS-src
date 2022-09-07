@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 module bufr_mod
-  ! MODULE bufr_mod (prefix='bufr' category='8. Global constants and interfaces')
+  ! MODULE bufr_mod (prefix='bufr' category='8. Low-level utilities and constants')
   !
   ! :Purpose: This module is a holder for information that is needed from *the
   !           Binary Universal Form for the Representation of meteorological
