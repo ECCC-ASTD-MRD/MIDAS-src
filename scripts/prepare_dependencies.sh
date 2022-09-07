@@ -40,7 +40,6 @@ for fullfilename in modules/*_mod.f*90 modules/*/*_mod.f*90; do
     uses=`grep -A 10000000 -iE "^ *module *${modulename}" $fullfilename |grep -B 10000000 -iE "^ *end *module *${modulename}" |grep -i "^ *use *.*_mod\>" | sed 's/, *only *:.*//Ig' | sed 's/!.*//Ig' | sed 's/use //Ig' | tr '[:upper:]' '[:lower:]' | sort -u`
     usedbymod=`grep -il "^ *use ${modulename}" modules/*_mod.f*90 | sed 's/modules\/\(.*\)\.f.*/\1/' | tr '[:upper:]' '[:lower:]'`
     usedbypgm=`grep -il "^ *use ${modulename}" programs/*.f90 | sed 's/programs\/\(.*\)\.f.*/\1/' | tr '[:upper:]' '[:lower:]'`
-    [ "${verbose}" = "yes" ] && echo "uses: $uses"; echo "is used by mod: ${usedbymod}"; echo "is used by pgm: ${usedbypgm}"
     # This assumes only 1 module per file (usually the case, except for obsspacedata_mod.f90)
     category=`grep "category=" $fullfilename | sed "s/.*category=['\"]\([0-9]*\).*/\1/"`
     prefix=`grep "prefix=" $fullfilename | sed "s/.*prefix=['\"]\([a-z0-9]*\).*/\1/"`
@@ -49,7 +48,6 @@ for fullfilename in modules/*_mod.f*90 modules/*/*_mod.f*90; do
       category=`grep -A 10000000 -iE "^ *module *${modulename}" $fullfilename |grep -B 10000000 -iE "^ *end *module *${modulename}" |grep "category=" | sed "s/.*category=['\"]\([0-9]*\).*/\1/"`
       prefix=`grep -A 10000000 -iE "^ *module *${modulename}" $fullfilename |grep -B 10000000 -iE "^ *end *module *${modulename}" |grep "prefix=" | sed "s/.*prefix=['\"]\([a-z0-9]*\).*/\1/"`
     fi
-    [ "${verbose}" = "yes" ] && echo
 
     filenames[$numModules]=$filename
     fullfilenames[$numModules]=$fullfilename
@@ -61,6 +59,9 @@ for fullfilename in modules/*_mod.f*90 modules/*/*_mod.f*90; do
     revnumberuses[$numModules]=$(( $(echo ${revpgmlist[$numModules]} | wc -w)+ $(echo ${revmodlist[$numModules]} | wc -w)))
     categories[$numModules]=$category
     prefixes[$numModules]=$prefix
+
+    [ "${verbose}" = "yes" ] && echo "$modulename: ${revnumberuses[$numModules]} $(echo ${revpgmlist[$numModules]} | wc -w) $(echo ${revmodlist[$numModules]} | wc -w)"
+    [ "${verbose}" = "yes" ] && echo
   done
   
 done
