@@ -584,6 +584,107 @@ contains
               end do
             end do
 
+          else if (trim(algorithm) == 'LETKF-Gain') then
+            !
+            ! Weight calculation for standard LETKF algorithm
+            !
+
+            ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
+            call tmg_start(90,'LETKF-eigenDecomp')
+            tolerance = 1.0D-50
+            call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
+            call tmg_stop(90)
+
+            ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
+            weightsTemp(:) = 0.0d0
+            do localObsIndex = 1, numLocalObs
+              bodyIndex = localBodyIndices(localObsIndex)
+              do memberIndex = 1, nEns
+                weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                           YbTinvR(memberIndex,localObsIndex) *  &
+                                           ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                             ensObs_mpiglobal%meanYb(bodyIndex) )
+              end do
+            end do
+            weightsTemp2(:) = 0.0d0
+            do memberIndex2 = 1, matrixRank
+              do memberIndex1 = 1, nEns
+                weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                             eigenVectors(memberIndex1,memberIndex2) *  &
+                                             weightsTemp(memberIndex1)
+              end do
+            end do
+            do memberIndex = 1, matrixRank
+              weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                                          1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
+            end do
+            weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
+            do memberIndex2 = 1, matrixRank
+              do memberIndex1 = 1, nEns
+                weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                     weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                     eigenVectors(memberIndex1,memberIndex2) *  &
+                     weightsTemp2(memberIndex2)
+              end do
+            end do
+
+            ! Compute ensemble perturbation weights: 
+            ! Wa = [ - (Nens-1)^1/2 * E *
+            !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
+            !        E^T * YbTinvRYb ]
+            ! Loop over members within the current sub-ensemble being updated
+            do memberIndex = 1, nEns
+
+              ! E^T * YbTinvRYb
+              weightsTemp(:) = 0.0d0
+              do memberIndex2 = 1, matrixRank
+                do memberIndex1 = 1, nEns
+                  weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
+                                              eigenVectors(memberIndex1,memberIndex2) *  &
+                                              YbTinvRYb_mod(memberIndex1,memberIndex)
+                end do
+              end do
+
+              ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
+
+              do memberIndex1 = 1, matrixRank
+                weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
+                                            ( 1.0D0/sqrt(real(nEns - 1,8)) -   &
+                                              1.0D0/sqrt(eigenValues(memberIndex1) +  &
+                                                          real(nEns - 1,8)) )
+                weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
+                                            eigenValues(memberIndex1)
+              end do
+
+              ! E * previous_result
+              weightsMembersLatLon(:,memberIndex,latLonIndex) = 0.0d0
+              do memberIndex2 = 1, matrixRank
+                do memberIndex1 = 1, nEns
+                  weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) =   &
+                        weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) +   &
+                        eigenVectors(memberIndex1,memberIndex2) *  &
+                        weightsTemp(memberIndex2)
+                end do
+              end do
+
+              ! -1 * (Nens-1)^1/2 * previous_result
+              weightsMembersLatLon(:,memberIndex,latLonIndex) =  &
+                    -1.0D0 * sqrt(real(nEns - 1,8)) *  &
+                    weightsMembersLatLon(:,memberIndex,latLonIndex)
+  
+              ! I + previous_result
+              weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) =  &
+                   1.0D0 + weightsMembersLatLon(memberIndex,memberIndex,latLonIndex)
+
+            end do
+
+            ! Remove the weights mean computed over the columns
+            do memberIndex = 1, nEns
+              weightsMembersLatLon(memberIndex,:,latLonIndex) =  &
+                  weightsMembersLatLon(memberIndex,:,latLonIndex) - &
+                  sum(weightsMembersLatLon(memberIndex,:,latLonIndex))/real(nEns,8)
+            end do
+
           else if (trim(algorithm) == 'LETKF-Gain-ME') then
             !
             ! Weight calculation for standard LETKF algorithm with modulated ensemble
