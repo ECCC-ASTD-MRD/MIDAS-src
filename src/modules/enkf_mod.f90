@@ -202,7 +202,10 @@ contains
     allocate(distances(maxNumLocalObs))
     allocate(YbTinvR(nEnsUsed,maxNumLocalObs))
     allocate(YbTinvRYb(nEnsUsed,nEnsUsed))
-    if ( trim(algorithm) == 'CVLETKF-ME' ) allocate(YbTinvRYb_mod(nEnsUsed,nEns))
+    if ( trim(algorithm) == 'CVLETKF-ME' .or. &
+         trim(algorithm) == 'LETKF-Gain-ME' ) then
+      allocate(YbTinvRYb_mod(nEnsUsed,nEns))
+    end if
     allocate(eigenValues(nEnsUsed))
     allocate(eigenVectors(nEnsUsed,nEnsUsed))
     allocate(PaInv(nEnsUsed,nEnsUsed))
@@ -480,7 +483,8 @@ contains
           !$OMP END PARALLEL DO
 
           ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
-          if ( trim(algorithm) == 'CVLETKF-ME' ) then
+          if ( trim(algorithm) == 'CVLETKF-ME' .or. &
+               trim(algorithm) == 'LETKF-Gain-ME' ) then
             if (localObsIndex == 1) YbTinvRYb_mod(:,:) = 0.0D0
             !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
             do memberIndex2 = 1, nEns
@@ -641,7 +645,7 @@ contains
                 do memberIndex1 = 1, nEns
                   weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
                                               eigenVectors(memberIndex1,memberIndex2) *  &
-                                              YbTinvRYb_mod(memberIndex1,memberIndex)
+                                              YbTinvRYb(memberIndex1,memberIndex)
                 end do
               end do
 
@@ -732,11 +736,11 @@ contains
             ! Compute ensemble perturbation weights: 
             ! Wa = [ - (Nens-1)^1/2 * E *
             !        {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} * Lambda^-1 *
-            !        E^T * YbTinvRYb ]
+            !        E^T * YbTinvRYb_mod ]
             ! Loop over members within the current sub-ensemble being updated
             do memberIndex = 1, nEns
 
-              ! E^T * YbTinvRYb
+              ! E^T * YbTinvRYb_mod
               weightsTemp(:) = 0.0d0
               do memberIndex2 = 1, matrixRank
                 do memberIndex1 = 1, nEnsUsed

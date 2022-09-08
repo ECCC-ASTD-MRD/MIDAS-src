@@ -204,11 +204,14 @@ program midas_letkf
        trim(algorithm) /= 'CVLETKF'         .and. &
        trim(algorithm) /= 'CVLETKF-PERTOBS' .and. &
        trim(algorithm) /= 'LETKF-ME'        .and. &
+       trim(algorithm) /= 'LETKF-Gain'      .and. &
+       trim(algorithm) /= 'LETKF-Gain-ME'   .and. &
        trim(algorithm) /= 'CVLETKF-ME' ) then
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
   end if
 
-  if ( trim(algorithm) == 'LETKF-ME' .or. trim(algorithm) == 'CVLETKF-ME' ) then
+  if ( trim(algorithm) == 'LETKF-ME' .or. trim(algorithm) == 'CVLETKF-ME' .or. &
+       trim(algorithm) == 'LETKF-Gain-ME' ) then
     if ( numRetainedEigen < 1 ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
                                                'equal or greater than one for LETKF algorithm: ' // &
                                                trim(algorithm))
