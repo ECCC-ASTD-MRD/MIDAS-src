@@ -1261,7 +1261,7 @@ contains
     integer :: niCloud, njCloud, niGrid, njGrid, myThreadNum
     integer :: top, bottom, left, right, np, lonIndexCloud, latIndexCloud
     integer :: boxSize, k, l, m, lonIndexGrid, latIndexGrid
-    integer :: in(100), jn(100), ngp, nfill(mpi_numThreads), nhole(mpi_numThreads), nextrap0, nextrap1
+    integer :: in(100), jn(100), ngp, nfill(mpi_numThread), nhole(mpi_numThread), nextrap0, nextrap1
     integer, allocatable :: icount(:,:), icount2(:,:), maskGrid(:,:), maskCloud(:,:)
     real(4), pointer     :: fieldCloud_4d(:,:,:,:), fieldGrid_4d(:,:,:,:)
     real(4), pointer     :: fieldCloud(:,:), fieldGrid(:,:)

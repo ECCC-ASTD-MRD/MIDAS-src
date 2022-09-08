@@ -59,7 +59,7 @@ module midasMpi_mod
 
   subroutine mmpi_initialize()
     implicit none
-    integer :: mythread,numThreads,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
+    integer :: mythread,numThread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
     integer :: npex,npey,ierr
     integer :: rpn_comm_comm, rpn_comm_datyp
 
@@ -82,7 +82,7 @@ module midasMpi_mod
 
     write(*,*) 'mmpi_initialize: mmpi_myid, mmpi_myidx, mmpi_myidy = ', mmpi_myid, mmpi_myidx, mmpi_myidy
 
-    !$OMP PARALLEL PRIVATE(numThreads,mythread)
+    !$OMP PARALLEL PRIVATE(numThread,mythread)
     mythread=omp_get_thread_num()
     numthread=omp_get_num_threads()
     if(mythread.eq.0) then

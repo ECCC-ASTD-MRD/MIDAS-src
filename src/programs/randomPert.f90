@@ -613,7 +613,7 @@ program midas_randomPert
     !$OMP END PARALLEL DO
 
     ! interpolate perturbation to the target grid
-    call int_interpolate(stateVectorPert, stateVectorPertInterp)
+    call int_interp_gsv(stateVectorPert, stateVectorPertInterp)
 
     call gsv_getField(stateVectorPertInterp,fieldInterp)
 
