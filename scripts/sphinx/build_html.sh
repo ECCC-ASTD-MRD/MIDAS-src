@@ -1,6 +1,5 @@
 #!/bin/bash
 
-set -e
 
 # ARGUMENTS SPECIFY DIRECTORIES OF MIDAS SOURCE CODE AND DESTINATION
 
@@ -22,6 +21,7 @@ cd $SRCDIR
 . $ORIG_PWD/../prepare_dependencies.sh
 cd $ORIG_PWD
 
+set -e
 # SELECT WHICH FORTRAN SOURCE FILES TO INCLUDE IN DOCUMENTATION
 
 # GENERATE LIST OF ALL PROGRAMS
@@ -167,10 +167,27 @@ if [ "${do_graphs}" = "yes" ]; then
 
     **Dependency Diagrams:**
 
+EOF
+  # if module have no downward dependencies: do not show image
+  if [ "${numberuses[${modulename_index[${module_name}]}]}" = "0" ]; then
+    cat >> ./modules/${module_name}.rst <<EOF
+      No Direct Dependency
+
+EOF
+  else
+    cat >> ./modules/${module_name}.rst <<EOF
     .. figure:: /${module_name}.svg
         :height: 100px
 
         Direct Dependency Diagram
+
+EOF
+  fi
+  cat >> ./modules/${module_name}.rst <<EOF
+    .. figure:: /${module_name}_rev.svg
+        :height: 100px
+
+        Reverse Dependency Diagram
 
 EOF
 

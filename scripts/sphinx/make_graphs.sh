@@ -10,9 +10,9 @@ make_programs="yes"
 verbose="no"
 
 
-commonLabel="Red boxes indicate modules with dependencies not shown\nLower level dependencies can be shown by clicking on a red box\nShaded boxes indicate modules with no dependencies"
-moduleLabel=${commonLabel}
-programLabel=${commonLabel}
+dirModLabel="Red boxes indicate modules with dependencies not shown\nLower level dependencies can be shown by clicking on a red box\nShaded boxes indicate modules with no dependencies"
+dirPgmLabel="Red boxes indicate modules with dependencies not shown\nLower level dependencies can be shown by clicking on a red box\nShaded boxes indicate modules with no dependencies"
+revModLabel="Blue boxes indicate modules with reverse dependencies not shown\nHigher level reverse dependencies can be shown by clicking on a blue box\nGreen boxes are programs"
 
 # switch to the main source directory
 ORIG_PWD=$PWD
@@ -36,9 +36,9 @@ for index1 in `seq 1 ${numModules}`; do
   [ "${verbose}" = "yes" ] && echo "GENERATING DEPENDENCY GRAPH FOR THE MODULE ${modulename}"
   echo "strict digraph ${modulename} {" > $GRAPHDIR/modules/${modulename}.gv
   echo "node [shape=box];" >> $GRAPHDIR/modules/${modulename}.gv
-  echo "${modulename};" >> $GRAPHDIR/modules/${modulename}.gv
+  echo "${modulename} [URL=\"${modulename}.html\"];" >> $GRAPHDIR/modules/${modulename}.gv
   if [ "${numberuses[$index1]}" = "0" ]; then
-    echo "${modulename} [style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
+    echo "${modulename} [fillcolor=gray style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
   fi
   for use2 in ${useslist[$index1]}; do
     index2=${modulename_index[$use2]}
@@ -49,7 +49,7 @@ for index1 in `seq 1 ${numModules}`; do
   for use in ${all_modules}; do
     index=${modulename_index[$use]}
     if [ "${numberuses[$index]}" = "0" ]; then
-      echo "${use} [style=filled];" >> $GRAPHDIR/modules/${modulename}.gv
+      echo "${use} [fillcolor=gray style=filled URL=\"${use}.html\"];" >> $GRAPHDIR/modules/${modulename}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
         echo "${use} [color=red URL=\"../modules/${use}.svg\"];" >> $GRAPHDIR/modules/${modulename}.gv
@@ -59,11 +59,52 @@ for index1 in `seq 1 ${numModules}`; do
 
   # finish the graph viz file
   echo "overlap=false" >> $GRAPHDIR/modules/${modulename}.gv
-  echo "label=\"${moduleLabel}\"" >> $GRAPHDIR/modules/${modulename}.gv
+  echo "label=\"${dirModLabel}\"" >> $GRAPHDIR/modules/${modulename}.gv
+  echo "labelloc=b" >>  $GRAPHDIR/modules/${modulename}.gv
   echo "fontsize=14;" >> $GRAPHDIR/modules/${modulename}.gv
   echo "}" >> $GRAPHDIR/modules/${modulename}.gv
   unflatten -l 8 -f $GRAPHDIR/modules/${modulename}.gv > $GRAPHDIR/modules/${modulename}_2.gv
   dot -Tsvg $GRAPHDIR/modules/${modulename}_2.gv > $GRAPHDIR/modules/${modulename}.svg
+done
+
+echo "GENERATING REVERSE DEPENDENCY GRAPHS FOR ALL MODULES"
+for index1 in `seq 1 ${numModules}`; do
+  dependencies_done=""
+  all_modules=""
+  modulename=${modulenames[$index1]}
+  [ "${verbose}" = "yes" ] && echo
+  [ "${verbose}" = "yes" ] && echo "GENERATING REVERSE DEPENDENCY GRAPH FOR THE MODULE ${modulename}"
+  echo "strict digraph ${modulename} {" > $GRAPHDIR/modules/${modulename}_rev.gv
+  echo "node [shape=box];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  echo "${modulename} [URL=\"${modulename}.html\"];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+
+  # modules reverse dependencies
+  for use2 in ${revmodlist[$index1]}; do
+    all_modules=`echo "${all_modules} ${use2}" | tr ' ' '\n' | sort -u | tr '\n' ' '`
+    echo "${use2}->${modulename} [dir=back arrowtail=dot];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  done
+  for use in ${all_modules}; do
+    index=${modulename_index[$use]}
+    if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
+      echo "${use} [color=blue URL=\"../modules/${use}_rev.svg\"];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+    fi
+  done
+
+  # program reverse dependencies
+  for pgm in ${revpgmlist[$index1]}; do
+    echo "midas_${pgm} [color=green fillcolor=gray style=filled URL=\"../programs/${pgm}.html\"];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+    echo "midas_${pgm}->${modulename} [dir=back arrowtail=dot];" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  done
+
+  # finish the graph viz file
+  echo "overlap=false" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  echo "label=\"${revModLabel}\"" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  echo "labelloc=t" >>  $GRAPHDIR/modules/${modulename}_rev.gv
+  echo "fontsize=14;" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  echo "}" >> $GRAPHDIR/modules/${modulename}_rev.gv
+  unflatten -l 8 -f $GRAPHDIR/modules/${modulename}_rev.gv > $GRAPHDIR/modules/${modulename}_rev_2.gv
+  dot -Tsvg $GRAPHDIR/modules/${modulename}_rev_2.gv > $GRAPHDIR/modules/${modulename}_rev.svg
+  
 done
 
 fi # if make_modules
@@ -91,7 +132,7 @@ for program in ${programfilelist}; do
   # prepare graphviz file for graphical representation of dependencies of each program
   echo "strict digraph ${programname} {" > $GRAPHDIR/programs/${programname}.gv
   echo "node [shape=box];" >> $GRAPHDIR/programs/${programname}.gv
-  echo "${programname};" >> $GRAPHDIR/programs/${programname}.gv
+  echo "${programname} [URL=\"${programname}.html\"];" >> $GRAPHDIR/programs/${programname}.gv
 
   # build a list of modules used by the main program
   uses1=`grep -i '^ *use *.*_mod' ${SRCDIR}/programs/$program | sed 's/, *only *:.*//Ig' | sed 's/!.*//Ig' | sed 's/use //Ig' | tr '[:upper:]' '[:lower:]' | sort -u`
@@ -104,7 +145,7 @@ for program in ${programfilelist}; do
   for use in ${all_modules}; do
     index=${modulename_index[$use]}
     if [ "${numberuses[$index]}" = "0" ]; then
-      echo "${use} [style=filled];" >> $GRAPHDIR/programs/${programname}.gv
+      echo "${use} [fillcolor=gray style=filled URL=\"../modules/${use}.html\"];" >> $GRAPHDIR/programs/${programname}.gv
     else
       if [[ ! "${dependencies_done}" =~ "${use}" ]]; then
         echo "${use} [color=red URL=\"../modules/${use}.svg\"];" >> $GRAPHDIR/programs/${programname}.gv
@@ -114,7 +155,8 @@ for program in ${programfilelist}; do
 
   # finish the graph viz file
   echo "overlap=false" >> $GRAPHDIR/programs/${programname}.gv
-  echo "label=\"${programLabel}\"" >> $GRAPHDIR/programs/${programname}.gv
+  echo "label=\"${dirPgmLabel}\"" >> $GRAPHDIR/programs/${programname}.gv
+  echo "labelloc=b" >>  $GRAPHDIR/programs/${programname}.gv
   echo "fontsize=14;" >> $GRAPHDIR/programs/${programname}.gv
   echo "}" >> $GRAPHDIR/programs/${programname}.gv
   unflatten -l 8 -f $GRAPHDIR/programs/${programname}.gv > $GRAPHDIR/programs/${programname}_2.gv

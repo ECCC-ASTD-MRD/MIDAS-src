@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added reverse dependencies graphs in code doc (#685 and !634)
  * Make code doc graphs clickable to browse dependencies (#684 and !629)
  * Add argument `-common_sql_column` to `midas.reunir_obs_mpi` to avoid explicit reference to column name (#667 and !619)
  * Added lat/lon information in data table of diag files for slant path observations (#658 and !615)
