@@ -167,11 +167,23 @@ if [ "${do_graphs}" = "yes" ]; then
 
     **Dependency Diagrams:**
 
+EOF
+  # if module have no downward dependencies: do not show image
+  if [ "${numberuses[${modulename_index[${module_name}]}]}" = "0" ]; then
+    cat >> ./modules/${module_name}.rst <<EOF
+      No Direct Dependency
+
+EOF
+  else
+    cat >> ./modules/${module_name}.rst <<EOF
     .. figure:: /${module_name}.svg
         :height: 100px
 
         Direct Dependency Diagram
 
+EOF
+  fi
+  cat >> ./modules/${module_name}.rst <<EOF
     .. figure:: /${module_name}_rev.svg
         :height: 100px
 
