@@ -46,10 +46,10 @@ for fullfilename in modules/*_mod.f*90; do
       | sed 's/use //Ig' | tr '[:upper:]' '[:lower:]' | sort -u`
 
     #-- gather all reverse dependencies (all modules and programs using the module)
-    usedbymod_files=`grep -il "^ *use ${modulename}" modules/*_mod.f*90`
+    usedbymod_files=`grep -il "^ *use *${modulename}" modules/*_mod.f*90`
     if [ ! -z "${usedbymod_files}" ]; then 
       for modfile in ${usedbymod_files}; do
-        lines=`grep -in "^ *use ${modulename}" ${modfile} | cut -d':' -f1`
+        lines=`grep -in "^ *use *${modulename}" ${modfile} | cut -d':' -f1`
         for line in ${lines}; do
           # find which module use it
           usedbymod="${usedbymod} `cat ${modfile} | head -n ${line} \
@@ -58,7 +58,7 @@ for fullfilename in modules/*_mod.f*90; do
         done
       done
     fi
-    usedbypgm_files=`grep -il "^ *use ${modulename}" programs/*.f90`
+    usedbypgm_files=`grep -il "^ *use *${modulename}" programs/*.f90`
     if [ ! -z "${usedbypgm_files}" ]; then
       for pgmfile in ${usedbypgm_files}; do
         usedbypgm="${usedbypgm} `grep -i '^ *program .*$' ${pgmfile} \
