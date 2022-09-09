@@ -63,8 +63,6 @@ MODULE BmatrixDiff_mod
   ! Name list of incremental variables/fields
   character(len=4), allocatable :: bdiff_varNameList(:)
 
-  integer             :: latIndexIgnore
-
   integer             :: myLatBeg, myLatEnd
   integer             :: myLonBeg, myLonEnd
   integer             :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
@@ -75,8 +73,13 @@ MODULE BmatrixDiff_mod
 
 CONTAINS
 
+  !--------------------------------------------------------------------------
+  ! bdiff_setup
+  !--------------------------------------------------------------------------
   subroutine bdiff_setup ( hco_in, vco_in, cvDim_out, mode_opt )
-  
+    !
+    !:Purpose: Setup the diffusion B matrix
+    !
     implicit none
 
     ! Arguments:
@@ -84,8 +87,8 @@ CONTAINS
     type(struct_vco), intent(inout), pointer  :: vco_in
     integer         , intent(out)             :: cvDim_out
     character(len=*), intent(in)   , optional :: mode_opt
-    
-    ! locals:
+
+    ! Locals:
     character(len=15)         :: bdiff_mode
     type(struct_vco), pointer :: vco_anl
     integer                   :: nulnam, ierr, fnom, fclos
@@ -94,6 +97,7 @@ CONTAINS
     real    :: corr_len( maxNumVars )  ! Horizontal correlation length scale (km)
     real    :: stab( maxNumVars )      ! Stability criteria (definitely < 0.5)
     integer :: nsamp(maxNumVars)       ! Number of samples in the estimation of the normalization factors by randomization.
+    integer :: latIndexIgnore          ! Number of latitude points near each numerical pole to be ignored
     logical :: useImplicit(maxNumVars) ! Indicate to use the implicit formulation of the diffusion operator (.true.) or
                                        ! the explicit version (.false.).
     character(len=*), parameter :: myName = 'bdiff_setup'
@@ -115,7 +119,7 @@ CONTAINS
     latIndexIgnore = 0
 
     if ( .not. utl_isNamelistPresent('NAMBDIFF','./flnml') ) then
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'bdiff_setup: nambdiff is missing in the namelist.'
         write(*,*) '             The default values will be taken.'
       end if
@@ -124,12 +128,12 @@ CONTAINS
       ierr = fnom( nulnam,'./flnml','FTN+SEQ+R/O',0)
       read( nulnam, nml = nambdiff, iostat = ierr )
       if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist')
-      if ( mpi_myid == 0) write( *, nml = nambdiff )
+      if ( mmpi_myid == 0) write( *, nml = nambdiff )
       ierr = fclos( nulnam )
     end if
 
     if ( sum(scaleFactor(:) ) == 0.0d0 ) then
-      if( mpi_myid == 0) write(*,*) myName//': scaleFactor=0, skipping rest of setup'
+      if( mmpi_myid == 0) write(*,*) myName//': scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
       call utl_tmg_stop(65)
       return
@@ -249,14 +253,20 @@ CONTAINS
     call utl_tmg_stop(65)
 
   end subroutine bdiff_setup
-
   
+  !--------------------------------------------------------------------------
+  ! bdiff_getScaleFactor
+  !--------------------------------------------------------------------------
   subroutine bdiff_getScaleFactor( scaleFactor_out )
-    
+    !
+    !:Purpose: Return the specified scaleFactor.
+    !    
     implicit none
 
+    ! Arguments:
     real(8), intent(out) :: scaleFactor_out(:)
 
+    ! Locals:
     integer :: variableIndex
 
     do variableIndex = 1, numvar2d
@@ -267,16 +277,20 @@ CONTAINS
 
   end subroutine bdiff_getScaleFactor
   
-
+  !--------------------------------------------------------------------------
+  ! bdiff_rdstats
+  !--------------------------------------------------------------------------
   subroutine bdiff_rdstats( hco_in, vco_in )
     !
     !:Purpose: To read background-error stats file.
     !
     implicit none
     
+    ! Arguments:
     type(struct_hco), pointer :: hco_in
     type(struct_vco), pointer :: vco_in
     
+    ! Locals:
     integer :: ierr, nmax, fnom, fstouv, fstfrm, fclos
     integer :: variableIndex
     logical :: lExists
@@ -337,6 +351,9 @@ CONTAINS
     
   end subroutine bdiff_rdstats
 
+  !--------------------------------------------------------------------------
+  ! bdiff_readBGstdField
+  !--------------------------------------------------------------------------
   subroutine bdiff_readBGstdField( hco_in, vco_in )
     !
     !:Purpose: to read 2D background error standard deviation field
@@ -344,11 +361,11 @@ CONTAINS
     !
     implicit none
     
-    ! Arguments
+    ! Arguments:
     type(struct_hco), pointer, intent(in) :: hco_in 
     type(struct_vco), pointer, intent(in) :: vco_in
 
-    ! locals
+    ! Locals:
     integer                     :: variableIndex, ierr
     type(struct_gsv)            :: statevector
     real(4), pointer            :: field3D_r4_ptr(:,:,:)
@@ -383,13 +400,16 @@ CONTAINS
 
   end subroutine bdiff_readBGstdField
 
-
+  !--------------------------------------------------------------------------
+  ! bdiff_scalestd
+  !--------------------------------------------------------------------------
   subroutine bdiff_scalestd
     !
     !:Purpose: To scale background-error standard-deviation values.
     !
     implicit none
 
+    ! Locals:
     integer :: variableIndex
     character(len=*), parameter :: myName = 'bdiff_scalestd'
     
@@ -403,14 +423,20 @@ CONTAINS
 
   end subroutine bdiff_scalestd
 
-
+  !--------------------------------------------------------------------------
+  ! bdiff_bSqrt
+  !--------------------------------------------------------------------------
   subroutine bdiff_bSqrt( controlVector_in, statevector )
-    
+    !
+    !:Purpose: Apply the sqrt of the B matrix 
+    !    
     implicit none
 
+    ! Arguments:
     real(8),          intent(in)    :: controlVector_in( cvDim_mpilocal )
     type(struct_gsv), intent(inout) :: statevector
 
+    ! Locals:
     real(8) :: gd_in( myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
     real(8) :: gd_out(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
 
@@ -443,14 +469,20 @@ CONTAINS
 
   end subroutine bdiff_bSqrt
 
-
+  !--------------------------------------------------------------------------
+  ! bdiff_bSqrtAd
+  !--------------------------------------------------------------------------
   subroutine bdiff_bSqrtAd( statevector, controlVector_out )
-    
+    !
+    !:Purpose: Apply the adjoint (i.e. transpose) of the sqrt of the B matrix
+    !    
     implicit none
 
+    ! Arguments:
     type(struct_gsv), intent(in)  :: statevector
     real(8),          intent(out) :: controlVector_out(cvDim_mpilocal)
 
+    ! Locals:
     real(8) :: gd_in( myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
     real(8) :: gd_out(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
 
@@ -483,14 +515,20 @@ CONTAINS
 
   end subroutine bdiff_bSqrtAd
 
-
+  !--------------------------------------------------------------------------
+  ! bdiff_copyToStatevector
+  !--------------------------------------------------------------------------
   subroutine bdiff_copyToStatevector ( statevector, gd )
-    
+    !
+    !:Purpose: Copy the working array to a statevector object 
+    !    
     implicit none
 
+    ! Arguments:
     real(8),          intent(in)    :: gd(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
     type(struct_gsv), intent(inout) :: statevector
 
+    ! Locals:
     integer :: jlon, jlev, jlev2, jlat, variableIndex, ilev1, ilev2
     real(4), pointer :: field_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:)
@@ -529,14 +567,20 @@ CONTAINS
 
   end subroutine bdiff_copyToStatevector
 
-
+  !--------------------------------------------------------------------------
+  ! bdiff_copyFromStatevector
+  !--------------------------------------------------------------------------
   subroutine bdiff_copyFromStatevector( statevector, gd )
-    
+    !
+    !:Purpose: Copy the contents of the statevector object to the working array
+    !    
     implicit none
 
+    ! Arguments:
     type(struct_gsv), intent(in)  :: statevector
     real(8),          intent(out) :: gd(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
 
+    ! Locals:
     integer :: jlon, jlev, jlev2, jlat, variableIndex, ilev1, ilev2
     real(4), pointer :: field_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:)
@@ -573,8 +617,13 @@ CONTAINS
 
   end subroutine bdiff_copyFromStatevector
 
-
+  !--------------------------------------------------------------------------
+  ! bdiff_reduceToMPILocal
+  !--------------------------------------------------------------------------
   subroutine bdiff_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
+    !
+    !:Purpose: Extract the subset of the global control vector needed for local MPI task
+    !
     implicit none
 
     ! Arguments:
@@ -589,7 +638,7 @@ CONTAINS
     gd_mpiGlobal(:,:,:) = 0.0d0
 
     jn = 0
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       do jlev = 1, numvar2d
         do jlat = 1, nj_l
           do jlon = 1, ni_l
@@ -615,14 +664,20 @@ CONTAINS
 
   end subroutine bdiff_reduceToMPILocal
 
-
+  !--------------------------------------------------------------------------
+  ! bdiff_cain
+  !--------------------------------------------------------------------------
   subroutine bdiff_cain( controlVector_in, gd_out )
-    
+    !
+    !:Purpose: Transform from control vector to working array
+    !    
     implicit none
 
+    ! Arguments:
     real(8), intent(in)  :: controlVector_in(cvDim_mpilocal)
     real(8), intent(out) :: gd_out(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
 
+    ! Locals:
     integer :: jn, jlev, jlon, jlat
 
     jn = 0
@@ -637,14 +692,20 @@ CONTAINS
 
   end subroutine bdiff_cain
 
-
+  !--------------------------------------------------------------------------
+  ! bdiff_cainAd
+  !--------------------------------------------------------------------------
   subroutine bdiff_cainAd( gd_in, diffControlVector_out )
-    
+    !
+    !:Purpose: Transform from working array to control vector
+    !        
     implicit none
 
+    ! Arguments:
     real(8), intent(in)  :: gd_in(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
     real(8), intent(out) :: diffControlVector_out(cvDim_mpilocal)
 
+    ! Locals:
     integer :: jn, jlev, jlon, jlat
 
     jn = 0
@@ -659,9 +720,13 @@ CONTAINS
 
   end subroutine bdiff_cainAd
 
-
+  !--------------------------------------------------------------------------
+  ! bdiff_Finalize
+  !--------------------------------------------------------------------------
   subroutine bdiff_Finalize()
-    
+    !
+    !:Purpose: Deallocate some arrays after we don't need the B matrix anymore. 
+    !        
     implicit none
 
     if ( initialized ) then
@@ -673,6 +738,5 @@ CONTAINS
     end if
 
   end subroutine bdiff_Finalize
-
 
 end module BmatrixDiff_mod

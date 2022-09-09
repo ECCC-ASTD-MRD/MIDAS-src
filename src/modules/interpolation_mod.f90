@@ -19,7 +19,7 @@ module interpolation_mod
   !
   ! :Purpose: The grid-point state vector interpolation.
   !
-  use mpi_mod
+  use midasMpi_mod
   use gridstatevector_mod
   use columnData_mod
   use varNameList_mod
@@ -100,7 +100,7 @@ contains
     maxBoxSize = 1
 
     if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         write(*,*) 'int_readNml: namint is missing in the namelist.'
         write(*,*) '             The default values will be taken.'
       end if
@@ -110,7 +110,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namint,iostat=ierr)
       if (ierr /= 0) call utl_abort('int_readlNml: Error reading namelist NAMINT')
-      if (mpi_myid == 0) write(*,nml=namint)
+      if (mmpi_myid == 0) write(*,nml=namint)
       ierr = fclos(nulnam)
     end if
 
@@ -1069,7 +1069,6 @@ contains
 
   end subroutine int_vInterp_col
 
-
   !--------------------------------------------------------------------------
   ! int_setezopt
   !--------------------------------------------------------------------------
@@ -1261,7 +1260,7 @@ contains
     integer :: niCloud, njCloud, niGrid, njGrid, myThreadNum
     integer :: top, bottom, left, right, np, lonIndexCloud, latIndexCloud
     integer :: boxSize, k, l, m, lonIndexGrid, latIndexGrid
-    integer :: in(100), jn(100), ngp, nfill(mpi_numThread), nhole(mpi_numThread), nextrap0, nextrap1
+    integer :: in(100), jn(100), ngp, nfill(mmpi_numThread), nhole(mmpi_numThread), nextrap0, nextrap1
     integer, allocatable :: icount(:,:), icount2(:,:), maskGrid(:,:), maskCloud(:,:)
     real(4), pointer     :: fieldCloud_4d(:,:,:,:), fieldGrid_4d(:,:,:,:)
     real(4), pointer     :: fieldCloud(:,:), fieldGrid(:,:)

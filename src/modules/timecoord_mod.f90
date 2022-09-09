@@ -361,7 +361,7 @@ contains
 
     if (referenceDateStamp == -1) then
 
-      if (mpi_myid == 0) write(*,*) 'tim_getStampList: datestamp is not specified, keep as -1'
+      if (mmpi_myid == 0) write(*,*) 'tim_getStampList: datestamp is not specified, keep as -1'
       datestamplist(:) = -1
 
     else

@@ -194,8 +194,8 @@ program midas_randomPert
 
   inquire(file='./targetgrid',exist=targetGridExists)
   if (targetGridExists) then
-    if (mpi_myid == 0) write(*,*)
-    if (mpi_myid == 0) write(*,*) 'Set hco parameters for target grid'
+    if (mmpi_myid == 0) write(*,*)
+    if (mmpi_myid == 0) write(*,*) 'Set hco parameters for target grid'
 
     call hco_setupFromFile(hco_target, './targetgrid', 'ANALYSIS', 'Target' ) ! IN
 
@@ -443,7 +443,7 @@ program midas_randomPert
 
   !- 4.4 Read ensemble mean state
   if ( readEnsMean ) then
-    if (mpi_myid == 0) write(*,*) 'midas-randomPert: reading ensemble mean state'
+    if (mmpi_myid == 0) write(*,*) 'midas-randomPert: reading ensemble mean state'
 
     call gsv_allocate(stateVectorEnsMean, 1, hco_target, vco_anl, &
                       dateStamp_opt=dateStamp, mpi_local_opt=.true., &
@@ -490,7 +490,7 @@ program midas_randomPert
     previousDateFactPrev  = previousDateFraction
     ! reduce the amount of random perturbation to maintain steady-state variance
     previousDateFactNoise = sqrt(1.0d0 - previousDateFraction**2)
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(*,*) 'midas-randomPert: Scale factor applied to previous date       = ', &
            previousDateFactPrev
       write(*,*) 'midas-randomPert: Scale factor applied to random perturbation = ', &
@@ -534,7 +534,7 @@ program midas_randomPert
       else
         inFileName = './pert_'//trim(memberString)
       end if
-      if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: reading previous date file = ', inFileName
+      if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: reading previous date file = ', inFileName
 
       call gio_readFromFile(stateVectorPert, inFileName, ' ', ' ',  &
                             containsFullField_opt=.true.)
@@ -636,7 +636,7 @@ program midas_randomPert
 
     ! add perturbation to supplied ensemble mean
     if ( readEnsMean ) then
-      if (mpi_myid == 0) write(*,*) 'midas-randomPert: adding the ensemble mean and perturbation'
+      if (mmpi_myid == 0) write(*,*) 'midas-randomPert: adding the ensemble mean and perturbation'
       call gsv_add(stateVectorEnsMean, stateVectorPertInterp)
     end if
 
@@ -652,7 +652,7 @@ program midas_randomPert
       outFileName = './pert_'//trim(memberString)
     end if
 
-    if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: processing file = ', outFileName
+    if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: processing file = ', outFileName
     stateVectorPertInterp%etiket = 'UNDEFINED'
     call gio_writeToFile(stateVectorPertInterp, outFileName, out_etiket,              & ! IN
                          numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
@@ -674,7 +674,7 @@ program midas_randomPert
       call utl_abort('midas-randomPert: dateString is not defined')
     end if
 
-    if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: processing file = ', outFileName
+    if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: processing file = ', outFileName
     stateVectorEnsMean%etiket = 'UNDEFINED'
     call gio_writeToFile(stateVectorEnsMean, outFileName, out_etiket,              & ! IN
                          numBits_opt=numBits, unitConversion_opt=.true., &  ! IN
