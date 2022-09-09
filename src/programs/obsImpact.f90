@@ -23,7 +23,6 @@ program midas_obsimpact
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
-  use mpivar_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod

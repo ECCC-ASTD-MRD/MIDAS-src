@@ -20,7 +20,6 @@ module obsErrors_mod
   ! :Purpose: Subroutines to set up the observation-error standard deviations.
   !
   use mpi_mod
-  use mpivar_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
   use obsSubSpaceData_mod

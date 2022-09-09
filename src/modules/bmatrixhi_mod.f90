@@ -23,7 +23,6 @@ MODULE BmatrixHI_mod
   !           module exists for limited-area applications.
   !
   use mpi_mod
-  use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
@@ -269,11 +268,11 @@ CONTAINS
     if(mpi_myid == 0) write(*,*) 'BHI:returned value of gstID =',gstID
     if(mpi_myid == 0) write(*,*) 'BHI:returned value of gstID2=',gstID2
 
-    call mpivar_setup_latbands(nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
-    call mpivar_setup_lonbands(ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    call mmpi_setup_latbands(nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mmpi_setup_lonbands(ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
-    call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
-    call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
+    call mmpi_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
+    call mmpi_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
 
     call gst_ilaList_mpiglobal(ilaList_mpiglobal,nla_mpilocal,maxMyNla,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
     call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)

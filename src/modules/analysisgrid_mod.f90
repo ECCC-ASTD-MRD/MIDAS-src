@@ -26,7 +26,6 @@ module analysisGrid_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use mpi_mod
-  use mpivar_mod
   use utilities_mod
   implicit none
   save
@@ -345,11 +344,11 @@ contains
     !- 5. MPI partitionning
     !
     if ( mpi_nprocs /= 0 ) then
-       call mpivar_setup_lonbands(ni_ext,                      & ! IN
-                                  lonPerPE, lonPerPEmax, myLonBeg, myLonEnd ) ! OUT
+       call mmpi_setup_lonbands(ni_ext,                      & ! IN
+                                lonPerPE, lonPerPEmax, myLonBeg, myLonEnd ) ! OUT
 
-       call mpivar_setup_latbands(nj_ext,                      & ! IN
-                                  latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
+       call mmpi_setup_latbands(nj_ext,                      & ! IN
+                                latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
     else
        ! This option is needed for the biper program
        lonPerPE = ni_ext

@@ -20,7 +20,6 @@ program midas_extractBmatrixFor1Dvar
   !
   use version_mod
   use mpi_mod
-  use mpivar_mod
   use MathPhysConstants_mod
   use controlVector_mod
   use gridVariableTransforms_mod

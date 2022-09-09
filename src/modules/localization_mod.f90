@@ -22,7 +22,6 @@ module localization_mod
   !           control vector
   !
   use mpi_mod
-  use mpivar_mod
   use utilities_mod
   use localizationSpectral_mod
   use localizationFunction_mod

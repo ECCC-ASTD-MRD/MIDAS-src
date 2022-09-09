@@ -21,7 +21,6 @@ module HorizontalCoord_mod
   !           coordinate for various grids (global and limited area).
   
   use mpi_mod
-  use mpivar_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use utilities_mod

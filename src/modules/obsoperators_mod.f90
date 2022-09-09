@@ -29,7 +29,6 @@ module obsOperators_mod
   use physicsFunctions_mod
   use gps_mod
   use mpi_mod
-  use mpivar_mod
   use timeCoord_mod
   use obsFilter_mod
   use tovs_nl_mod

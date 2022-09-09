@@ -22,7 +22,6 @@ module obsSpaceDiag_mod
   !
   use codePrecision_mod
   use mpi_mod
-  use mpivar_mod
   use bufr_mod
   use codtyp_mod
   use earthConstants_mod

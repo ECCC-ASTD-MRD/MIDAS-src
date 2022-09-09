@@ -22,7 +22,6 @@ program midas_randomPert
   !
   use version_mod
   use mpi_mod
-  use mpivar_mod
   use mathPhysConstants_mod
   use ramDisk_mod
   use controlVector_mod
@@ -147,10 +146,10 @@ program midas_randomPert
     call hco_setupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 
-  call mpivar_setup_latbands(hco_anl % nj,                & ! IN
-                             latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
-  call mpivar_setup_lonbands(hco_anl % ni,                & ! IN
-                             lonPerPE, lonPerPEmax, myLonBeg, myLonEnd ) ! OUT
+  call mmpi_setup_latbands(hco_anl % nj,                & ! IN
+                           latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
+  call mmpi_setup_lonbands(hco_anl % ni,                & ! IN
+                           lonPerPE, lonPerPEmax, myLonBeg, myLonEnd ) ! OUT
 
   !- 2.4 Initialize the vertical coordinate from the statistics file
   if ( hco_anl % global ) then

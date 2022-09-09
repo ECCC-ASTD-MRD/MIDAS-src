@@ -23,7 +23,6 @@ program midas_gencoeff
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
-  use mpivar_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod

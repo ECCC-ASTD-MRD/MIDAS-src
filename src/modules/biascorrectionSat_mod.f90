@@ -26,7 +26,6 @@ module biasCorrectionSat_mod
   use obsSpaceData_mod
   use controlVector_mod
   use mpi_mod
-  use mpivar_mod
   use tovs_nl_mod
   use timeCoord_mod
   use columnData_mod

@@ -23,7 +23,6 @@ module bMatrixLatBands_mod
   !           module exists for limited-area applications.
   !
   use mpi_mod
-  use mpivar_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
@@ -241,11 +240,11 @@ contains
     gstID  = gst_setup(ni,nj,ntrunc,nkgdim)
     if ( mpi_myid == 0 ) write(*,*) 'blb_setup: returned value of gstID    =',gstID
 
-    call mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
-    call mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    call mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mmpi_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
-    call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
-    call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
+    call mmpi_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
+    call mmpi_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
     allocate(mynIndex_fromn(0:ntrunc))
     mynIndex = 0
     do jn = mynBeg, mynEnd, mynSkip

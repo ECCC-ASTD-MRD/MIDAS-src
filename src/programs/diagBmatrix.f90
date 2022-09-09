@@ -20,7 +20,6 @@ program midas_diagBmatrix
   !
   use version_mod
   use mpi_mod
-  use mpivar_mod
   use MathPhysConstants_mod
   use controlVector_mod
   use gridVariableTransforms_mod
@@ -340,8 +339,8 @@ program midas_diagBmatrix
           varNameALFA(:) = varNameALFAsfc(:)
         end if
 
-        call mpivar_setup_latbands(loc%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
-        call mpivar_setup_lonbands(loc%hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+        call mmpi_setup_latbands(loc%hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+        call mmpi_setup_lonbands(loc%hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
         call ens_allocate(ensAmplitude, loc%nEnsOverDimension, numStepAmplitude, loc%hco, loc%vco, &
                           datestampList=dateStampList, varNames_opt=varNameALFA, dataKind_opt=8)

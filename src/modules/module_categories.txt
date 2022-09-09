@@ -116,7 +116,6 @@ filenames_mod.f90
 ================================
 utilities_mod.f90
 version_mod.f90
-mpivar_mod.f90
 ramdisk_mod.f90
 physicsfunctions_mod.f90
 mpi_mod.f90

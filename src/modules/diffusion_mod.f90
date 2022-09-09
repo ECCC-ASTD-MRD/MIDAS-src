@@ -32,7 +32,6 @@ module diffusion_mod
   !                   stab    = k*dt/dx^2     (2)
   !
   use mpi_mod
-  use mpivar_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use oceanMask_mod
@@ -164,13 +163,13 @@ contains
     ! domain partionning
     diff(diffID)%ni = ni
     diff(diffID)%nj = nj
-    call mpivar_setup_latbands(diff(diffID)%nj, diff(diffID)%latPerPE,  &
+    call mmpi_setup_latbands(diff(diffID)%nj, diff(diffID)%latPerPE,  &
          diff(diffID)%latPerPEmax, diff(diffID)%myLatBeg, diff(diffID)%myLatEnd)
-    call mpivar_setup_lonbands(diff(diffID)%ni, diff(diffID)%lonPerPE,  &
+    call mmpi_setup_lonbands(diff(diffID)%ni, diff(diffID)%lonPerPE,  &
          diff(diffID)%lonPerPEmax, diff(diffID)%myLonBeg, diff(diffID)%myLonEnd)
 
     ! also, determine lonIndex begin and end for when array is transposed (for implicit diffusion only)
-    call mpivar_setup_latbands(diff(diffID)%ni, diff(diffID)%lonPerPE_transpose,  &
+    call mmpi_setup_latbands(diff(diffID)%ni, diff(diffID)%lonPerPE_transpose,  &
          diff(diffID)%lonPerPEmax_transpose, diff(diffID)%myLonBeg_transpose, diff(diffID)%myLonEnd_transpose)
 	 
     myLonBeg = diff(diffID)%myLonBeg

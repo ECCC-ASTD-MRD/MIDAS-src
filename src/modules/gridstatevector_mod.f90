@@ -22,7 +22,6 @@ module gridStateVector_mod
   use mpi, only : mpi_status_size ! this is the mpi library module
   use codePrecision_mod
   use mpi_mod
-  use mpivar_mod
   use earthConstants_mod
   use varNameList_mod
   use verticalCoord_mod
@@ -819,12 +818,12 @@ module gridStateVector_mod
 
     ! determine lat/lon index ranges
     if ( statevector%mpi_distribution == 'Tiles' ) then
-      call mpivar_setup_latbands(statevector%nj,  &
-                                 statevector%latPerPE, statevector%latPerPEmax, &
-                                 statevector%myLatBeg, statevector%myLatEnd)
-      call mpivar_setup_lonbands(statevector%ni,  &
-                                 statevector%lonPerPE, statevector%lonPerPEmax, &
-                                 statevector%myLonBeg, statevector%myLonEnd)
+      call mmpi_setup_latbands(statevector%nj,  &
+                               statevector%latPerPE, statevector%latPerPEmax, &
+                               statevector%myLatBeg, statevector%myLatEnd)
+      call mmpi_setup_lonbands(statevector%ni,  &
+                               statevector%lonPerPE, statevector%lonPerPEmax, &
+                               statevector%myLonBeg, statevector%myLonEnd)
     else
       statevector%latPerPE    = statevector%nj
       statevector%latPerPEmax = statevector%nj
@@ -901,8 +900,8 @@ module gridStateVector_mod
 
     ! determine range of values for the 'k' index (vars+levels)
     if ( statevector%mpi_distribution == 'VarsLevs' ) then
-      call mpivar_setup_varslevels(statevector%nk, statevector%mykBeg, &
-                                   statevector%mykEnd, statevector%mykCount)
+      call mmpi_setup_varslevels(statevector%nk, statevector%mykBeg, &
+                                 statevector%mykEnd, statevector%mykCount)
     else
       statevector%mykCount = statevector%nk
       statevector%mykBeg = 1

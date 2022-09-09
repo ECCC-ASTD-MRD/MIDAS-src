@@ -21,7 +21,6 @@ program midas_calcstats
   !
   use version_mod
   use mpi_mod
-  use mpivar_mod
   use fileNames_mod
   use HorizontalCoord_mod
   use VerticalCoord_mod

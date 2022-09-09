@@ -22,7 +22,6 @@ MODULE localizationSpectral_mod
   !           SPECTRAL ELEMENTS
   !
   use mpi_mod
-  use mpivar_mod
   use utilities_mod
   use globalSpectralTransform_mod
   use lamSpectralTransform_mod
@@ -134,8 +133,8 @@ CONTAINS
     lsp%ni   = hco_loc%ni
     lsp%nj   = hco_loc%nj
 
-    call mpivar_setup_latbands(lsp%nj, latPerPE, latPerPEmax, lsp%myLatBeg, lsp%myLatEnd)
-    call mpivar_setup_lonbands(lsp%ni, lonPerPE, lonPerPEmax, lsp%myLonBeg, lsp%myLonEnd)
+    call mmpi_setup_latbands(lsp%nj, latPerPE, latPerPEmax, lsp%myLatBeg, lsp%myLatEnd)
+    call mmpi_setup_lonbands(lsp%ni, lonPerPE, lonPerPEmax, lsp%myLonBeg, lsp%myLonEnd)
 
     lsp%global = hco_loc%global
     if (lsp%global) then
@@ -150,7 +149,7 @@ CONTAINS
     lsp%nTrunc=nTrunc
     lsp%dlon = hco_loc%dlon
 
-    call mpivar_setup_levels(lsp%nEns,myMemberBeg,myMemberEnd,myMemberCount)
+    call mmpi_setup_levels(lsp%nEns,myMemberBeg,myMemberEnd,myMemberCount)
     call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
                               1,"MPI_INTEGER","mpi_max","GRID",ierr)
     nEnsOverDimension_out     = mpi_npex * maxMyMemberCount
@@ -177,8 +176,8 @@ CONTAINS
     end if
 
     !- 2.5 Distribute control vector over mpi processes according to member index and m
-    call mpivar_setup_m(lsp%ntrunc,lsp%mymBeg,lsp%mymEnd,lsp%mymSkip,mymCount)
-    call mpivar_setup_n(lsp%ntrunc,lsp%mynBeg,lsp%mynEnd,lsp%mynSkip,mynCount)
+    call mmpi_setup_m(lsp%ntrunc,lsp%mymBeg,lsp%mymEnd,lsp%mymSkip,mymCount)
+    call mmpi_setup_n(lsp%ntrunc,lsp%mynBeg,lsp%mynEnd,lsp%mynSkip,mynCount)
 
     if (lsp%global) then
        ! compute arrays to facilitate conversions between ila_mpilocal and ila_mpiglobal

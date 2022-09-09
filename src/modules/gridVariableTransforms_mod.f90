@@ -22,7 +22,6 @@ module gridVariableTransforms_mod
   !           gridStateVector.
   !
   use mpi_mod
-  use mpivar_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use earthConstants_mod
@@ -1560,8 +1559,8 @@ CONTAINS
         !ntrunc = statevector%nj
         ntrunc = 180
         gstID = gst_setup(statevector%ni,statevector%nj,ntrunc,2*nlev_M)
-        call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
-        call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
+        call mmpi_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
+        call mmpi_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
         call gst_ilaList_mpiglobal( ilaList_mpiglobal,nla_mpilocal,maxMyNla,&
                                     gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,&
                                     mynSkip)

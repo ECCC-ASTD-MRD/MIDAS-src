@@ -22,7 +22,6 @@ module gridBinning_mod
   !           gridStateVectors (e.g. the respective mean over land and sea)
   !
   use mpi_mod
-  use mpivar_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod

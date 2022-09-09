@@ -14,11 +14,13 @@
 !CANADA, H9P 1J3; or send e-mail to service.rpn@ec.gc.ca
 !-------------------------------------- LICENCE END --------------------------------------
 
-module mpi_mod
+module midasMpi_mod
   !
-  ! MODULE mpi_mod (prefix='mpi' category='8. Low-level utilities and constants')
+  ! MODULE midasMpi_mod (prefix='mmpi' category='8. Low-level utilities and constants')
   !
   ! :Purpose: Subroutine and public variables related to general aspects of mpi.
+  !           Also, subroutine and public variables related to the mpi decomposition
+  !           specific to the MIDAS code.
   !
   use utilities_mod
   implicit none
@@ -26,31 +28,36 @@ module mpi_mod
   private
 
   ! public variables
-  public :: mpi_myid,mpi_nprocs,mpi_myidx,mpi_myidy,mpi_npex,mpi_npey,mpi_numthread
-  public :: mpi_comm_EW, mpi_comm_NS, mpi_comm_GRID, mpi_doBarrier
-  public :: mpi_datyp_real4, mpi_datyp_real8, mpi_datyp_int
+  public :: mmpi_myid,mmpi_nprocs,mmpi_myidx,mmpi_myidy,mmpi_npex,mmpi_npey,mmpi_numthread
+  public :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID, mmpi_doBarrier
+  public :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
   ! public procedures
-  public :: mpi_initialize,mpi_getptopo
-  public :: mpi_allreduce_sumreal8scalar,mpi_allgather_string
-  public :: mpi_allreduce_sumR8_1d, mpi_allreduce_sumR8_2d
-  public :: mpi_reduce_sumR8_1d, mpi_reduce_sumR8_2d, mpi_reduce_sumR8_3d
+  public :: mmpi_initialize,mmpi_getptopo
+  public :: mmpi_allreduce_sumreal8scalar,mmpi_allgather_string
+  public :: mmpi_allreduce_sumR8_1d, mmpi_allreduce_sumR8_2d
+  public :: mmpi_reduce_sumR8_1d, mmpi_reduce_sumR8_2d, mmpi_reduce_sumR8_3d
+  public :: mmpi_setup_latbands, mmpi_setup_lonbands
+  public :: mmpi_setup_m, mmpi_setup_n
+  public :: mmpi_setup_levels
+  public :: mmpi_setup_varslevels
+  public :: mmpi_myidXfromLon, mmpi_myidYfromLat
 
-  integer :: mpi_myid   = 0
-  integer :: mpi_nprocs = 0
-  integer :: mpi_myidx  = 0
-  integer :: mpi_myidy  = 0
-  integer :: mpi_npex   = 0
-  integer :: mpi_npey   = 0
-  integer :: mpi_numthread = 0
+  integer :: mmpi_myid   = 0
+  integer :: mmpi_nprocs = 0
+  integer :: mmpi_myidx  = 0
+  integer :: mmpi_myidy  = 0
+  integer :: mmpi_npex   = 0
+  integer :: mmpi_npey   = 0
+  integer :: mmpi_numthread = 0
 
-  integer :: mpi_comm_EW, mpi_comm_NS, mpi_comm_GRID
-  integer :: mpi_datyp_real4, mpi_datyp_real8, mpi_datyp_int
+  integer :: mmpi_comm_EW, mmpi_comm_NS, mmpi_comm_GRID
+  integer :: mmpi_datyp_real4, mmpi_datyp_real8, mmpi_datyp_int
 
-  logical :: mpi_doBarrier = .true.
+  logical :: mmpi_doBarrier = .true.
 
   contains
 
-  subroutine mpi_initialize()
+  subroutine mmpi_initialize()
     implicit none
     integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
     integer :: npex,npey,ierr
@@ -59,53 +66,53 @@ module mpi_mod
     ! Initilize MPI
     npex=0
     npey=0
-    call rpn_comm_init(mpi_getptopo,mpi_myid,mpi_nprocs,npex,npey)
-    if(mpi_nprocs.lt.1) then
-      mpi_nprocs=1
-      mpi_npex=1
-      mpi_npey=1
-      mpi_myid=0
-      mpi_myidx=0
-      mpi_myidy=0
+    call rpn_comm_init(mmpi_getptopo,mmpi_myid,mmpi_nprocs,npex,npey)
+    if(mmpi_nprocs.lt.1) then
+      mmpi_nprocs=1
+      mmpi_npex=1
+      mmpi_npey=1
+      mmpi_myid=0
+      mmpi_myidx=0
+      mmpi_myidy=0
     else
-      ierr = rpn_comm_mype(mpi_myid,mpi_myidx,mpi_myidy)
-      mpi_npex=npex
-      mpi_npey=npey
+      ierr = rpn_comm_mype(mmpi_myid,mmpi_myidx,mmpi_myidy)
+      mmpi_npex=npex
+      mmpi_npey=npey
     endif
 
-    write(*,*) 'mpi_initialize: mpi_myid, mpi_myidx, mpi_myidy = ', mpi_myid, mpi_myidx, mpi_myidy
+    write(*,*) 'mmpi_initialize: mmpi_myid, mmpi_myidx, mmpi_myidy = ', mmpi_myid, mmpi_myidx, mmpi_myidy
 
     !$OMP PARALLEL PRIVATE(numthread,mythread)
     mythread=omp_get_thread_num()
     numthread=omp_get_num_threads()
     if(mythread.eq.0) then
-      write(*,*) 'mpi_initialize: NUMBER OF THREADS=',numthread
-      mpi_numthread = numthread
+      write(*,*) 'mmpi_initialize: NUMBER OF THREADS=',numthread
+      mmpi_numthread = numthread
     end if
     !$OMP END PARALLEL
 
     ! create standard mpi handles to rpn_comm mpi communicators to facilitate 
     ! use of standard mpi routines
-    mpi_comm_EW = rpn_comm_comm('EW')
-    mpi_comm_NS = rpn_comm_comm('NS')
-    mpi_comm_GRID = rpn_comm_comm('GRID')
+    mmpi_comm_EW = rpn_comm_comm('EW')
+    mmpi_comm_NS = rpn_comm_comm('NS')
+    mmpi_comm_GRID = rpn_comm_comm('GRID')
 
-    mpi_datyp_real4 = rpn_comm_datyp('MPI_REAL4')
-    mpi_datyp_real8 = rpn_comm_datyp('MPI_REAL8')
-    mpi_datyp_int = rpn_comm_datyp('MPI_INTEGER')
+    mmpi_datyp_real4 = rpn_comm_datyp('MPI_REAL4')
+    mmpi_datyp_real8 = rpn_comm_datyp('MPI_REAL8')
+    mmpi_datyp_int = rpn_comm_datyp('MPI_INTEGER')
 
     write(*,*) ' '
-    if(mpi_doBarrier) then
-      write(*,*) 'mpi_initialize: MPI_BARRIERs will be done to help with interpretation of timings'
+    if(mmpi_doBarrier) then
+      write(*,*) 'mmpi_initialize: MPI_BARRIERs will be done to help with interpretation of timings'
     else
-      write(*,*) 'mpi_initialize: no MPI_BARRIERs will be done'
+      write(*,*) 'mmpi_initialize: no MPI_BARRIERs will be done'
     endif
     write(*,*) ' '
 
-  end subroutine mpi_initialize
+  end subroutine mmpi_initialize
 
 
-  subroutine mpi_getptopo( npex, npey )
+  subroutine mmpi_getptopo( npex, npey )
 
     implicit none
 
@@ -127,10 +134,10 @@ module mpi_mod
     write(*,nml=ptopo)
     ierr=fclos(nulnam)
 
-  end subroutine mpi_getptopo 
+  end subroutine mmpi_getptopo 
 
 
-  subroutine mpi_allreduce_sumreal8scalar( sendRecvValue, comm )
+  subroutine mmpi_allreduce_sumreal8scalar( sendRecvValue, comm )
 
     implicit none
 
@@ -142,7 +149,7 @@ module mpi_mod
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    if(mpi_doBarrier) call rpn_comm_barrier(comm,ierr)
+    if(mmpi_doBarrier) call rpn_comm_barrier(comm,ierr)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -165,10 +172,10 @@ module mpi_mod
 
     call utl_tmg_stop(170)
 
-  end subroutine mpi_allreduce_sumreal8scalar
+  end subroutine mmpi_allreduce_sumreal8scalar
 
 
-  subroutine mpi_allreduce_sumR8_1d( sendRecvVector, comm )
+  subroutine mmpi_allreduce_sumR8_1d( sendRecvVector, comm )
     !
     ! :Purpose: Perform sum of 1d array over all MPI tasks.
     !
@@ -182,7 +189,7 @@ module mpi_mod
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
+    if ( mmpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -210,10 +217,10 @@ module mpi_mod
 
     call utl_tmg_stop(170)
 
-  end subroutine mpi_allreduce_sumR8_1d
+  end subroutine mmpi_allreduce_sumR8_1d
 
 
-  subroutine mpi_allreduce_sumR8_2d( sendRecvVector, comm )
+  subroutine mmpi_allreduce_sumR8_2d( sendRecvVector, comm )
     !
     ! :Purpose: Perform sum of 2d array over all MPI tasks.
     !
@@ -227,7 +234,7 @@ module mpi_mod
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
+    if ( mmpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -256,10 +263,10 @@ module mpi_mod
 
     call utl_tmg_stop(170)
 
-  end subroutine mpi_allreduce_sumR8_2d
+  end subroutine mmpi_allreduce_sumR8_2d
  
   
-  subroutine mpi_reduce_sumR8_1d( sendVector, recvVector, root, comm )
+  subroutine mmpi_reduce_sumR8_1d( sendVector, recvVector, root, comm )
     !
     ! :Purpose: Perform sum of 1d array over all MPI tasks.
     !
@@ -275,7 +282,7 @@ module mpi_mod
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
+    if ( mmpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -304,10 +311,10 @@ module mpi_mod
 
     call utl_tmg_stop(170)
 
-  end subroutine mpi_reduce_sumR8_1d
+  end subroutine mmpi_reduce_sumR8_1d
  
   
-  subroutine mpi_reduce_sumR8_2d( sendVector, recvVector, root, comm )
+  subroutine mmpi_reduce_sumR8_2d( sendVector, recvVector, root, comm )
     !
     ! :Purpose: Perform sum of 2d array over all MPI tasks.
     !
@@ -323,7 +330,7 @@ module mpi_mod
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
+    if ( mmpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -353,10 +360,10 @@ module mpi_mod
 
     call utl_tmg_stop(170)
 
-  end subroutine mpi_reduce_sumR8_2d
+  end subroutine mmpi_reduce_sumR8_2d
 
 
-  subroutine mpi_reduce_sumR8_3d( sendVector, recvVector, root, comm )
+  subroutine mmpi_reduce_sumR8_3d( sendVector, recvVector, root, comm )
     !
     ! :Purpose: Perform sum of 3d array over all MPI tasks.
     !
@@ -372,7 +379,7 @@ module mpi_mod
 
     ! do a barrier so that timing on reduce operation is accurate
     call utl_tmg_start(171,'low-level--mpi_allreduce_barr')
-    if ( mpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
+    if ( mmpi_doBarrier ) call rpn_comm_barrier(comm,ierr)
     call utl_tmg_stop(171)
 
     call utl_tmg_start(170,'low-level--mpi_allreduce_sum8')
@@ -403,10 +410,10 @@ module mpi_mod
 
     call utl_tmg_stop(170)
 
-  end subroutine mpi_reduce_sumR8_3d
+  end subroutine mmpi_reduce_sumR8_3d
  
   
-  subroutine mpi_allgather_string( str_list, str_list_all, nlist, nchar, nproc, comm, ierr )
+  subroutine mmpi_allgather_string( str_list, str_list_all, nlist, nchar, nproc, comm, ierr )
     ! 
     ! :Purpose: Performs the MPI 'allgather' routine for an array of strings
     !
@@ -445,6 +452,261 @@ module mpi_mod
        end do
     end do
 
-  end subroutine mpi_allgather_string
+  end subroutine mmpi_allgather_string
 
-end module mpi_mod
+
+  subroutine mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd,  &
+                                   myLatHalfBeg_opt, myLatHalfEnd_opt, divisible_opt)
+    ! :Purpose: compute parameters that define the mpi distribution of
+    !          latitudes over tasks in Y direction (npey)
+    implicit none
+    integer           :: nj
+    integer           :: latPerPE
+    integer           :: latPerPEmax
+    integer           :: myLatBeg
+    integer           :: myLatEnd
+    integer           :: njlath
+    integer, optional :: myLatHalfBeg_opt
+    integer, optional :: myLatHalfEnd_opt
+    logical, optional :: divisible_opt
+
+    integer :: latPerPEmin, ierr
+    logical, save :: firstCall = .true.
+
+    latPerPEmin = floor(real(nj) / real(mmpi_npey))
+    myLatBeg = 1 + (mmpi_myidy * latPerPEmin)
+    if( mmpi_myidy < (mmpi_npey-1) ) then
+      myLatEnd = (1 + mmpi_myidy) * latPerPEmin
+    else
+      myLatEnd = nj
+    end if
+    latPerPE = myLatEnd - myLatBeg + 1
+    call rpn_comm_allreduce(latPerPE,latPerPEmax,1,'MPI_INTEGER','MPI_MAX','NS',ierr)
+
+    if( firstCall ) then
+      write(*,'(a,4i8)') 'mmpi_setup_latbands: latPerPE, latPerPEmax, myLatBeg, myLatEnd = ',  &
+           latPerPE, latPerPEmax, myLatBeg, myLatEnd
+      firstCall = .false.
+    end if
+
+    if (present(myLatHalfBeg_opt).and.present(myLatHalfEnd_opt)) then
+      njlath = (nj + 1) / 2
+      if (myLatBeg <= njlath .and. myLatEnd <= njlath) then
+        myLatHalfBeg_opt = myLatBeg
+        myLatHalfEnd_opt = myLatEnd
+      elseif (myLatBeg >= njlath .and. myLatEnd >= njlath) then
+        myLatHalfBeg_opt = 1 + nj - myLatEnd
+        myLatHalfEnd_opt = 1 + nj - myLatBeg
+      else
+        myLatHalfBeg_opt = min(myLatBeg, 1 + nj - myLatEnd)
+        myLatHalfEnd_opt = njlath
+      end if
+    end if
+
+    if( present(divisible_opt) ) then
+      divisible_opt = (latPerPEmin * mmpi_npey == nj)
+    end if
+
+  end subroutine mmpi_setup_latbands
+
+
+  function mmpi_myidYfromLat(latIndex, nj) result(IP_y)
+    ! :Purpose: use same logic as setup_latbands to compute myidy
+    !          corresponding to a latitude grid index
+    implicit none
+    integer :: latIndex
+    integer :: nj
+    integer :: IP_y
+
+    IP_y = (latIndex-1) / floor( real(nj) / real(mmpi_npey) )
+    IP_y = min( mmpi_npey-1, IP_y )
+
+  end function mmpi_myidYfromLat
+
+
+  subroutine mmpi_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd, divisible_opt)
+    ! :Purpose: compute parameters that define the mpi distribution of
+    !          longitudes over tasks in X direction (npex)
+    implicit none
+
+    integer          :: ni
+    integer          :: lonPerPE
+    integer          :: lonPerPEmax
+    integer          :: myLonBeg
+    integer          :: myLonEnd
+    logical, optional :: divisible_opt
+
+    integer :: lonPerPEmin, ierr
+    logical, save :: firstCall = .true.
+
+    lonPerPEmin = floor(real(ni) / real(mmpi_npex))
+    myLonBeg = 1 + (mmpi_myidx * lonPerPEmin)
+    if( mmpi_myidx < (mmpi_npex-1) ) then
+      myLonEnd = (1 + mmpi_myidx) * lonPerPEmin
+    else
+      myLonEnd = ni
+    end if
+    lonPerPE = myLonEnd - myLonBeg + 1
+    call rpn_comm_allreduce(lonPerPE,lonPerPEmax,1,'MPI_INTEGER','MPI_MAX','EW',ierr)
+
+    if( firstCall ) then
+      write(*,'(a,4i8)') 'mmpi_setup_lonbands: lonPerPE, lonPerPEmax, myLonBeg, myLonEnd = ', &
+           lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
+      firstCall = .false.
+    end if
+
+    if( present(divisible_opt) ) then
+      divisible_opt = (lonPerPEmin * mmpi_npex == ni)
+    end if
+
+  end subroutine mmpi_setup_lonbands
+
+
+  function mmpi_myidXfromLon(lonIndex, ni) result(IP_x)
+    ! :Purpose: use same logic as setup_lonbands to compute myidx
+    !          corresponding to a longitude grid index
+    implicit none
+
+    integer :: lonIndex
+    integer :: ni
+    integer :: IP_x
+
+    IP_x = (lonIndex-1) / floor( real(ni) / real(mmpi_npex) )
+    IP_x = min( mmpi_npex-1, IP_x )
+
+  end function mmpi_myidXfromLon
+
+
+  subroutine mmpi_setup_m(ntrunc, mymBeg, mymEnd, mymSkip, mymCount)
+    ! :Purpose: compute parameters that define the mpi distribution of
+    !          wavenumber m over tasks in Y direction (npey)
+    implicit none
+    integer :: ntrunc
+    integer :: mymBeg
+    integer :: mymEnd
+    integer :: mymSkip
+    integer :: mymCount
+    integer :: jm
+
+    mymBeg = mmpi_myidy
+    mymEnd = ntrunc
+    mymSkip = mmpi_npey
+    mymCount = 0
+    do jm = mymBeg, mymEnd, mymSkip
+      mymCount = mymCount + 1
+    end do
+
+    write(*,'(a,4i8)') 'mmpi_setup_m: mymBeg, mymEnd, mymSkip, mymCount = ', mymBeg, mymEnd, mymSkip, mymCount
+
+  end subroutine mmpi_setup_m
+
+ 
+  subroutine mmpi_setup_n(ntrunc, mynBeg, mynEnd, mynSkip, mynCount)
+    ! :Purpose: compute parameters that define the mpi distribution of
+    !          wavenumber n over tasks in X direction (npex)
+    implicit none
+
+    integer :: ntrunc
+    integer :: mynBeg
+    integer :: mynEnd
+    integer :: mynSkip
+    integer :: mynCount
+    integer :: jn
+
+    mynBeg = mmpi_myidx
+    mynEnd = ntrunc
+    mynSkip = mmpi_npex
+    mynCount = 0
+    do jn = mynBeg, mynEnd, mynSkip
+      mynCount = mynCount + 1
+    end do
+
+    write(*,'(a,4i8)') 'mmpi_setup_n: mynBeg, mynEnd, mynSkip, mynCount = ', mynBeg, mynEnd, mynSkip, mynCount
+
+  end subroutine mmpi_setup_n
+
+
+  subroutine mmpi_setup_levels(numlevels, myLevBeg, myLevEnd, myLevCount)
+    ! :Purpose: compute parameters that define the mpi distribution of
+    !          levels over tasks in X direction (npex)
+    implicit none
+
+    integer :: numlevels
+    integer :: myLevBeg
+    integer :: myLevEnd
+    integer :: myLevCount
+    integer :: jlev
+    integer :: jproc
+    integer :: factor
+    integer :: myLevCounts(mmpi_npex)
+
+    ! when possible, always divide into even number of levels per MPI task
+    if(mod(numlevels, 2) /= 0) then
+      write(*,*) 'mmpi_setup_levels: total number of levels is not even, now=', numlevels
+      write(*,*) '                   therefore, if global grid, may not be able to do '
+      write(*,*) '                   transforms of vor/div <-> u/v'
+      factor = 1
+    else
+      factor = 2
+    end if
+
+    myLevCounts(:) = 0
+    do jproc = 1, mmpi_npex
+      do jlev = jproc, (numlevels / factor), mmpi_npex
+        myLevCounts(jproc) = myLevCounts(jproc) + 1
+      end do
+    end do
+    do jproc = 1, mmpi_npex
+      myLevCounts(jproc) = myLevCounts(jproc) * factor
+    end do
+
+    myLevCount = myLevCounts(mmpi_myidx + 1)
+
+    if (myLevCount > 0) then
+      myLevBeg = 1
+      do jproc = 1, mmpi_myidx
+        myLevBeg = myLevBeg + myLevCounts(jproc)
+      end do
+      myLevEnd = myLevBeg + myLevCount - 1
+    else
+      myLevBeg = 1
+      myLevEnd = 0
+    end if
+
+    write(*,'(a,3i8)') 'mmpi_setup_levels: myLevBeg, myLevEnd, myLevCount = ',  &
+         myLevBeg, myLevEnd, myLevCount
+
+  end subroutine mmpi_setup_levels
+
+
+  subroutine mmpi_setup_varslevels(numk, mykBeg, mykEnd, mykCount)
+    ! :Purpose: compute parameters that define the mpi distribution of
+    !          variables/levels (i.e. 1->nk) over all tasks (nprocs)
+    implicit none
+
+    integer :: numk
+    integer :: mykBeg
+    integer :: mykEnd
+    integer :: mykCount
+    integer :: jk
+    integer :: jproc
+    integer :: mykCounts(mmpi_nprocs)
+
+    mykCounts(:) = 0
+    do jproc = 1, mmpi_nprocs
+      do jk = jproc, numk, mmpi_nprocs
+        mykCounts(jproc) = mykCounts(jproc) + 1
+      end do
+    end do
+
+    mykCount = mykCounts(mmpi_myid + 1)
+
+    mykBeg = 1
+    do jproc = 1, mmpi_myid
+      mykBeg = mykBeg + mykCounts(jproc)
+    end do
+    mykEnd = mykBeg + mykCount - 1
+
+  end subroutine mmpi_setup_varslevels
+
+end module midasMpi_mod

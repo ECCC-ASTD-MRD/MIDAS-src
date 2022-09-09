@@ -32,7 +32,6 @@ module innovation_mod
   use obsOperators_mod
   use earthConstants_mod
   use mathPhysConstants_mod
-  use mpivar_mod
   use horizontalCoord_mod
   use varNameList_mod
   use verticalCoord_mod
@@ -772,8 +771,8 @@ contains
           ! compute correponding mpi task id for each observation
           latIndex = floor(ypos_r4)
           lonIndex = floor(xpos_r4)
-          IP_y = mpivar_myidYfromLat(latIndex, hco_anl%nj)
-          IP_x = mpivar_myidXfromLon(lonIndex, hco_anl%ni)
+          IP_y = mmpi_myidYfromLat(latIndex, hco_anl%nj)
+          IP_x = mmpi_myidXfromLon(lonIndex, hco_anl%ni)
           IP = IP_x + IP_y*mpi_npex
 
           call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, IP)

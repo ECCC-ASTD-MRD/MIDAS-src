@@ -23,7 +23,6 @@ module globalSpectralTransform_mod
   use codePrecision_mod
   use mpi
   use mpi_mod
-  use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
@@ -465,9 +464,9 @@ contains
     gst(gstID)%nlarh = (gst(gstID)%ntrunc+1) * (gst(gstID)%ntrunc+1)
     if(mpi_myid.eq.0) write(*,*) 'gst_setup: ntrunc=', gst(gstID)%ntrunc
 
-    call mpivar_setup_latbands(gst(gstID)%nj,  &
+    call mmpi_setup_latbands(gst(gstID)%nj,  &
          latPerPE, latPerPEmax, myLatBeg, myLatEnd, myLatHalfBeg, myLatHalfEnd, divisible_opt=divisibleLat)
-    call mpivar_setup_lonbands(gst(gstID)%ni,  &
+    call mmpi_setup_lonbands(gst(gstID)%ni,  &
          lonPerPE, lonPerPEmax, myLonBeg, myLonEnd, divisible_opt= divisibleLon)
 
     gst(gstID)%lonLatDivisible = (divisibleLon .and. divisibleLat)
@@ -475,7 +474,7 @@ contains
 
     gst(gstID)%nk = maxlevels_in
     ! 2D MPI decomposition: split levels across npex
-    call mpivar_setup_levels(maxlevels_in, myLevBeg, myLevEnd, myLevCount)
+    call mmpi_setup_levels(maxlevels_in, myLevBeg, myLevEnd, myLevCount)
     write(*,*) 'gst_setup: myLevBeg,End,Count=', myLevBeg, myLevEnd, myLevCount
 
     !!! Distribution of lon/lat tiles (gridpoint space) and n/m (spectral space)
@@ -492,13 +491,13 @@ contains
     gst(gstID)%latPerPE = latPerPE 
     gst(gstID)%latPerPEmax = latPerPEmax
     ! range of n handled by this processor
-    call mpivar_setup_n(gst(gstID)%ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
+    call mmpi_setup_n(gst(gstID)%ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
     gst(gstID)%mynBeg = mynBeg
     gst(gstID)%mynEnd = mynEnd
     gst(gstID)%mynSkip = mynSkip
     gst(gstID)%mynCount = mynCount
     ! range of m handled by this processor
-    call mpivar_setup_m(gst(gstID)%ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
+    call mmpi_setup_m(gst(gstID)%ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
     gst(gstID)%mymBeg = mymBeg
     gst(gstID)%mymEnd = mymEnd
     gst(gstID)%mymSkip = mymSkip

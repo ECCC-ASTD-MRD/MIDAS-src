@@ -36,7 +36,6 @@ module bmatrix1DVar_mod
   use var1D_mod
   use filenames_mod
   use localizationFunction_mod
-  use mpivar_mod
   use varNameList_mod
   use ensembleStateVector_mod
   use stateToColumn_mod
@@ -630,8 +629,8 @@ contains
     end if
 
     !- 1.5 Domain Partionning
-    call mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
-    call mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    call mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mmpi_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
     !- 1.6 Localization
     if ( vLocalize <= 0.0d0 .and. (nLevInc_M > 1 .or. nLevInc_T > 1) ) then

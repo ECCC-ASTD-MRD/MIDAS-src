@@ -26,7 +26,6 @@ module BMatrix_mod
   !             covariances for constituents are not yet included.
   !
   use mpi_mod
-  use mpivar_mod
   use bMatrixHI_mod
   use bMatrixEnsemble_mod
   use bMatrixChem_mod

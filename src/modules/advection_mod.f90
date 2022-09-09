@@ -23,7 +23,6 @@ MODULE advection_mod
   !
   use ramDisk_mod
   use mpi_mod
-  use mpivar_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use timeCoord_mod
@@ -235,9 +234,9 @@ CONTAINS
     adv%nLev_M = vco%nLev_M
     adv%nLev_T = vco%nLev_T
 
-    call mpivar_setup_latbands(adv%nj, adv%latPerPE, adv%latPerPEmax, adv%myLatBeg, adv%myLatEnd, & 
+    call mmpi_setup_latbands(adv%nj, adv%latPerPE, adv%latPerPEmax, adv%myLatBeg, adv%myLatEnd, & 
          divisible_opt=nlat_equalAcrossMpiTasks)
-    call mpivar_setup_lonbands(adv%ni, adv%lonPerPE, adv%lonPerPEmax, adv%myLonBeg, adv%myLonEnd, &
+    call mmpi_setup_lonbands(adv%ni, adv%lonPerPE, adv%lonPerPEmax, adv%myLonBeg, adv%myLonEnd, &
          divisible_opt=nlon_equalAcrossMpiTasks)
     allocate(adv%allLonBeg(mpi_npex))
     call rpn_comm_allgather(adv%myLonBeg,1,"mpi_integer",       &

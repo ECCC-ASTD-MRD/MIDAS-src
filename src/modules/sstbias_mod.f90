@@ -30,7 +30,6 @@ module SSTbias_mod
   use utilities_mod
   use mpi_mod
   use codtyp_mod
-  use mpivar_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use oceanMask_mod
@@ -95,8 +94,8 @@ module SSTbias_mod
     write(*,*) 'sstb_computeBias: Sea-ice Fraction threshold: ', iceFractionThreshold
     
     ! get mpi topology
-    call mpivar_setup_lonbands(hco % ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
-    call mpivar_setup_latbands(hco % nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mmpi_setup_lonbands(hco % ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    call mmpi_setup_latbands(hco % nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
 
     ! get latest sea-ice analysis
     call gsv_allocate(stateVector_ice, 1, hco, vco, dataKind_opt = 4, &

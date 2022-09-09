@@ -23,7 +23,6 @@ program midas_advector
   use ramDisk_mod
   use utilities_mod
   use mpi_mod
-  use mpiVar_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod

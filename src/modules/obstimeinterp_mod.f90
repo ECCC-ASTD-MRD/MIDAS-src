@@ -21,7 +21,6 @@ module obsTimeInterp_mod
   !           coordinate.
   !
   use mpi_mod
-  use mpivar_mod
   use utilities_mod
   use timecoord_mod
   use obsSpaceData_mod

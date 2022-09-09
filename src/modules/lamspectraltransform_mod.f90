@@ -22,7 +22,6 @@ module lamSpectralTransform_mod
   !
   use mpi
   use mpi_mod
-  use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
@@ -243,35 +242,35 @@ contains
        !- 1.3.2 MPI 2D: Distribution of lon/lat tiles (gridpoint space) and n/m (spectral space)
 
        ! range of LONS handled by this processor in GRIDPOINT SPACE
-       call mpivar_setup_lonbands(lst%ni,                        & ! IN
-                                  lst%lonPerPE, lst%lonPerPEmax, & ! OUT
-                                  lst%myLonBeg, lst%myLonEnd,    & ! OUT
-                                  divisible_opt=divisibleLon)      ! OUT
+       call mmpi_setup_lonbands(lst%ni,                        & ! IN
+                                lst%lonPerPE, lst%lonPerPEmax, & ! OUT
+                                lst%myLonBeg, lst%myLonEnd,    & ! OUT
+                                divisible_opt=divisibleLon)      ! OUT
 
        ! range of LATS handled by this processor in GRIDPOINT SPACE
-       call mpivar_setup_latbands(lst%nj,                        & ! IN
-                                  lst%latPerPE, lst%latPerPEmax, & ! OUT
-                                  lst%myLatBeg, lst%myLatEnd,    & ! OUT
-                                  divisible_opt=divisibleLat)      ! OUT
+       call mmpi_setup_latbands(lst%nj,                        & ! IN
+                                lst%latPerPE, lst%latPerPEmax, & ! OUT
+                                lst%myLatBeg, lst%myLatEnd,    & ! OUT
+                                divisible_opt=divisibleLat)      ! OUT
 
        lst%lonLatDivisible = (divisibleLon .and. divisibleLat)
        if(mpi_myid == 0) write(*,*) 'lst_setup: lonLatDivisible = ', lst%lonLatDivisible
 
        ! range of M handled by this processor in SPECTRAL SPACE
-       call mpivar_setup_m(lst%mmax,                                        & ! IN
-                           lst%mymBeg, lst%mymEnd, lst%mymSkip, lst%mymCount) ! OUT
+       call mmpi_setup_m(lst%mmax,                                        & ! IN
+                         lst%mymBeg, lst%mymEnd, lst%mymSkip, lst%mymCount) ! OUT
 
        ! range of N handled by this processor in SPECTRAL SPACE
-       call mpivar_setup_n(lst%nmax,                                        & ! IN
-                           lst%mynBeg, lst%mynEnd, lst%mynSkip, lst%mynCount) ! OUT
+       call mmpi_setup_n(lst%nmax,                                        & ! IN
+                         lst%mynBeg, lst%mynEnd, lst%mynSkip, lst%mynCount) ! OUT
 
        ! range of LEVELS TEMPORARILY handled by this processor DURING THE SPECTRAL TRANSFORM
        if (.not.present(maxlevels_opt)) then
           call utl_abort('lst_setup: ERROR, number of levels must be specified with MpiMode LatLonMN')
        end if
        ! 2D MPI decomposition: split levels across npex
-       call mpivar_setup_levels(maxlevels_opt,                          & ! IN
-                                lst%myLevBeg,lst%myLevEnd,lst%myLevCount) ! OUT
+       call mmpi_setup_levels(maxlevels_opt,                          & ! IN
+                              lst%myLevBeg,lst%myLevEnd,lst%myLevCount) ! OUT
 
     case default
        write(*,*)

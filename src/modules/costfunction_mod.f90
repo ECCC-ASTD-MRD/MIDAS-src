@@ -20,7 +20,6 @@ module costfunction_mod
   ! :Purpose: To compute Jo term
   !
   use mpi_mod
-  use mpivar_mod
   use obsSpaceData_mod
   use rmatrix_mod
   use rttov_const, only : inst_name, platform_name

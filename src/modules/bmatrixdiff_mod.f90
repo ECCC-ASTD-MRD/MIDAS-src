@@ -22,7 +22,6 @@ MODULE BmatrixDiff_mod
   !           modelled using a diffusion operator.
   !
   use mpi_mod
-  use mpivar_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
@@ -218,8 +217,8 @@ CONTAINS
                                              stab( variableIndex ), nsamp( variableIndex ), useImplicit( variableIndex ) )
     end do
 
-    call mpivar_setup_latbands( nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd )
-    call mpivar_setup_lonbands( ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd )
+    call mmpi_setup_latbands( nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd )
+    call mmpi_setup_lonbands( ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd )
 
     ! compute mpilocal control vector size
     cvDim_mpilocal = lonPerPE * latPerPE * numvar2d

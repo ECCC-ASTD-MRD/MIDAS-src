@@ -23,7 +23,6 @@ module BmatrixEnsemble_mod
   !
   use ramDisk_mod
   use mpi_mod
-  use mpivar_mod
   use fileNames_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -639,13 +638,13 @@ CONTAINS
     end if
 
     !- 1.5 Domain Partionning
-    call mpivar_setup_latbands(bEns(instanceIndex)%nj, latPerPE, latPerPEmax, bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd)
-    call mpivar_setup_lonbands(bEns(instanceIndex)%ni, lonPerPE, lonPerPEmax, bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd)
+    call mmpi_setup_latbands(bEns(instanceIndex)%nj, latPerPE, latPerPEmax, bEns(instanceIndex)%myLatBeg, bEns(instanceIndex)%myLatEnd)
+    call mmpi_setup_lonbands(bEns(instanceIndex)%ni, lonPerPE, lonPerPEmax, bEns(instanceIndex)%myLonBeg, bEns(instanceIndex)%myLonEnd)
 
     !- 1.6 Localization
     if ( trim(ben_mode) == 'Analysis' ) then
 
-      call mpivar_setup_levels(bEns(instanceIndex)%nEns,myMemberBeg,myMemberEnd,myMemberCount)
+      call mmpi_setup_levels(bEns(instanceIndex)%nEns,myMemberBeg,myMemberEnd,myMemberCount)
       call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
       bEns(instanceIndex)%nEnsOverDimension = mpi_npex * maxMyMemberCount
@@ -1585,8 +1584,8 @@ CONTAINS
       nphase_filter = 2
 
       allocate(nIndex_vec(nla_filter))
-      call mpivar_setup_m(nTrunc,mymBeg,mymEnd,mymSkip,mymCount)
-      call mpivar_setup_n(nTrunc,mynBeg,mynEnd,mynSkip,mynCount)
+      call mmpi_setup_m(nTrunc,mymBeg,mymEnd,mymSkip,mymCount)
+      call mmpi_setup_n(nTrunc,mynBeg,mynEnd,mynSkip,mynCount)
       ila_filter = 0
       do mIndex = mymBeg, mymEnd, mymSkip
         do nIndex = mynBeg, mynEnd, mynSkip

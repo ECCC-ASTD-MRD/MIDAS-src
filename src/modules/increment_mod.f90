@@ -22,7 +22,6 @@ module increment_mod
   !
   use codePrecision_mod
   use mpi_mod
-  use mpivar_mod
   use timeCoord_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod

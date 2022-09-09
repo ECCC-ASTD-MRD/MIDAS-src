@@ -28,7 +28,6 @@ MODULE ensembleObservations_mod
   use parkind1, only: jpim, jprb
   use ramDisk_mod
   use mpi_mod
-  use mpivar_mod
   use oceanMask_mod
   use obsSpaceData_mod
   use randomNumber_mod

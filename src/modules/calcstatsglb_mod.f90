@@ -23,7 +23,6 @@ module calcStatsGlb_mod
   !
   use codePrecision_mod
   use mpi_mod
-  use mpivar_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use ensembleStateVector_mod
@@ -132,8 +131,8 @@ module calcStatsGlb_mod
     write(*,*) 'Grid Spacing in Km = ', gridSpacingInKm
 
     ! setup mpi local grid parameters
-    call mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
-    call mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    call mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mmpi_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
     
     !- Setup vertical levels
     vco_ens => vco_in
@@ -154,15 +153,15 @@ module calcStatsGlb_mod
     gstID_nLevEns_T_P1 = gst_setup(ni,nj,ntrunc,nLevEns_T+1)
 
     ! setup mpi local spectral vector parameters
-    call mpivar_setup_m(ntrunc, mymBeg, mymEnd, mymSkip, mymCount)
-    call mpivar_setup_n(ntrunc, mynBeg, mynEnd, mynSkip, mynCount)
+    call mmpi_setup_m(ntrunc, mymBeg, mymEnd, mymSkip, mymCount)
+    call mmpi_setup_n(ntrunc, mynBeg, mynEnd, mynSkip, mynCount)
     call gst_ilaList_mpiglobal(ilaList_mpiglobal, nla_mpilocal, maxMyNla,  &
          gstID_nkgdimEns, mymBeg, mymEnd, mymSkip, mynBeg, mynEnd, mynSkip)
     call gst_ilaList_mpilocal(ilaList_mpilocal,  &
          gstID_nkgdimEns, mymBeg, mymEnd, mymSkip, mynBeg, mynEnd, mynSkip)
 
     ! setup ensemble members mpi partinionning (when working with struct_ens)
-    call mpivar_setup_levels(nEns,myMemberBeg,myMemberEnd,myMemberCount)
+    call mmpi_setup_levels(nEns,myMemberBeg,myMemberEnd,myMemberCount)
     call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
     nEnsOverDimension = mpi_npex * maxMyMemberCount

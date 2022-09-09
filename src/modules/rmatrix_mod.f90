@@ -22,7 +22,6 @@ module rMatrix_mod
   !
   use rttov_interfaces_mod
   use mpi_mod
-  use mpivar_mod
   use rttov_const, only  : errorstatus_success
   use utilities_mod
   use obsSpaceData_mod

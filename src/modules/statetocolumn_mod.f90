@@ -25,7 +25,6 @@ module stateToColumn_mod
   use earthConstants_mod
   use mpi, only : mpi_status_size ! this is the mpi library module
   use mpi_mod
-  use mpivar_mod 
   use codePrecision_mod
   use gridstatevector_mod
   use obsSpaceData_mod

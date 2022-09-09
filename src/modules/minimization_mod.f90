@@ -30,7 +30,6 @@ module minimization_mod
   use obsSpaceDiag_mod
   use controlVector_mod
   use mpi_mod
-  use mpivar_mod
   use horizontalCoord_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod

@@ -22,7 +22,6 @@ module lamBMatrixHI_mod
   !           matrix.
   !
   use mpi_mod
-  use mpivar_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use LamSpectralTransform_mod
@@ -222,10 +221,10 @@ contains
     allocate( bsqrt  (1:nksdim, 1:nksdim ,0:trunc) )
 
     !- 2.2 Initialized the LAM spectral transform
-    call mpivar_setup_lonbands(hco_bhi%ni,                  & ! IN
+    call mmpi_setup_lonbands(hco_bhi%ni,                  & ! IN
                                lonPerPE, lonPerPEmax, myLonBeg, myLonEnd ) ! OUT
 
-    call mpivar_setup_latbands(hco_bhi%nj,                  & ! IN
+    call mmpi_setup_latbands(hco_bhi%nj,                  & ! IN
                                latPerPE, latPerPEmax, myLatBeg, myLatEnd ) ! OUT
 
     call lst_Setup(lst_bhi,                         & ! OUT

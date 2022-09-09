@@ -26,7 +26,6 @@ use obsSpaceData_mod
 use mpi_mod
 use fSQLite
 use mathPhysConstants_mod
-use mpiVar_mod
 use obsUtil_mod
 use utilities_mod
 use bufr_mod

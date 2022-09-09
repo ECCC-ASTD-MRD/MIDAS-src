@@ -21,7 +21,6 @@ module timeCoord_mod
   !           coordinate.
   !
   use mpi_mod
-  use mpivar_mod
   use varNameList_mod
   use utilities_mod
   implicit none

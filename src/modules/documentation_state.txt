@@ -77,7 +77,6 @@ mathphysconstants_mod.f90
 menetrierdiag_mod.f90
 minimization_mod.f90
 mpi_mod.f90
-mpivar_mod.f90
 multi_ir_bgck_mod.f90
 obsUtil_mod.f90
 obserrors_mod.f90
@@ -170,7 +169,6 @@ mathphysconstants_mod.f90
 menetrierdiag_mod.f90
 minimization_mod.f90
 mpi_mod.f90
-mpivar_mod.f90
 multi_ir_bgck_mod.f90
 obsUtil_mod.f90
 obserrors_mod.f90

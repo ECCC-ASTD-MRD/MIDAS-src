@@ -20,7 +20,6 @@ module columnVariableTransforms_mod
   ! :Purpose: To store various functions for variable transforms using inputs
   !           from column(s). Outputs are also placed in a column.
   !
-  use mpivar_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use timeCoord_mod
