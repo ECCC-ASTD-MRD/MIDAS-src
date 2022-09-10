@@ -68,7 +68,7 @@ module BmatrixChem_mod
   !    bchm_StatsExistForVarname: Checfs if covariances available for specified
   !                     variable.
 
-  use mpi_mod
+  use midasMpi_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
@@ -223,8 +223,8 @@ module BmatrixChem_mod
     if ( present(mode_opt) ) then
        if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
          bchm_mode = trim(mode_opt)
-         if(mpi_myid == 0) write(*,*)
-         if(mpi_myid == 0) write(*,*) 'bchm_setup: Mode activated = ', trim(bchm_mode)
+         if(mmpi_myid == 0) write(*,*)
+         if(mmpi_myid == 0) write(*,*) 'bchm_setup: Mode activated = ', trim(bchm_mode)
        else
           write(*,*)
           write(*,*) 'mode = ', trim(mode_opt)
@@ -232,8 +232,8 @@ module BmatrixChem_mod
        end if
     else
        bchm_mode = 'Analysis'
-       if(mpi_myid == 0) write(*,*)
-       if(mpi_myid == 0) write(*,*) 'bchm_setup: Analysis mode activated (by default)'
+       if(mmpi_myid == 0) write(*,*)
+       if(mmpi_myid == 0) write(*,*) 'bchm_setup: Analysis mode activated (by default)'
     end if
 
     ! Initialization of namelist NAMBCHM parameters
@@ -257,7 +257,7 @@ module BmatrixChem_mod
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMBCHM,iostat=ierr)
     if(ierr.ne.0) call utl_abort('bchm_setup: Error reading namelist')
-    if(mpi_myid == 0) write(*,nml=NAMBCHM)
+    if(mmpi_myid == 0) write(*,nml=NAMBCHM)
     ierr = fclos(nulnam)
 
     ! Set BchmVars
@@ -286,7 +286,7 @@ module BmatrixChem_mod
     end if
 
     if (nChmVars.eq.0) then 
-       if(mpi_myid == 0) then
+       if(mmpi_myid == 0) then
            write(*,*) 'Size of BchmVars is zero. Bhi matrix for CH family not produced.'
            write(*,*) 'No chemical assimilation to be performed.'
            write(*,*) 'END OF BCHM_SETUP'
@@ -305,7 +305,7 @@ module BmatrixChem_mod
     else
       nLev_T_even = nLev_T
     endif
-    if(mpi_myid == 0) write(*,*) 'bchm_setup: nLev_T, nLev_T_even=',nLev_T, nLev_T_even
+    if(mmpi_myid == 0) write(*,*) 'bchm_setup: nLev_T, nLev_T_even=',nLev_T, nLev_T_even
 
     !   Find the 3D variables (within NAMSTATE namelist)
 
@@ -334,14 +334,14 @@ module BmatrixChem_mod
     end do
     
     if (numvar3d+numvar2d == 0) then    
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         write(*,*) 'Bhi matrix for CH family not produced.'
         write(*,*) 'No chemical assimilation to be performed.'
         write(*,*) 'END OF BCHM_SETUP'
       end if
       cvDim_out = 0
       return
-    else if (mpi_myid == 0) then
+    else if (mmpi_myid == 0) then
       if (numvar3d > 0) &
         write(*,*) 'bchm_setup: Number of 3D variables', numvar3d,bchm_varNameList(1:numvar3d)
       if (numvar2d > 0) &
@@ -378,8 +378,8 @@ module BmatrixChem_mod
     
     gstID  = gst_setup(ni_l,nj_l,ntrunc,nkgdim)
     gstID2 = gst_setup(ni_l,nj_l,ntrunc,nlev_T_even)
-    if(mpi_myid == 0) write(*,*) 'BCHM:returned value of gstID =',gstID
-    if(mpi_myid == 0) write(*,*) 'BCHM:returned value of gstID2=',gstID2
+    if(mmpi_myid == 0) write(*,*) 'BCHM:returned value of gstID =',gstID
+    if(mmpi_myid == 0) write(*,*) 'BCHM:returned value of gstID2=',gstID2
 
     call mmpi_setup_latbands(nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
     call mmpi_setup_lonbands(ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
@@ -431,7 +431,7 @@ module BmatrixChem_mod
     
     call bchm_sucorns2
     
-    if(mpi_myid == 0) write(*,*) 'END OF BCHM_SETUP'
+    if(mmpi_myid == 0) write(*,*) 'END OF BCHM_SETUP'
     
     initialized = .true.
 
@@ -562,7 +562,7 @@ module BmatrixChem_mod
     integer :: lonIndex, latIndex, VarIndex, levelIndex, nlev, nulsig
     integer :: ierr, fnom, fstouv, fstfrm, fclos
   
-    if (ReadWrite_PSStats .and. mpi_myid == 0) then
+    if (ReadWrite_PSStats .and. mmpi_myid == 0) then
        nulsig = 0
        ierr = fnom(nulsig,'bmatrixchem_out.fst','STD+RND',0)
        ierr = fstouv(nulsig,'RND')
@@ -583,7 +583,7 @@ module BmatrixChem_mod
       enddo
       enddo
 
-      if (ReadWrite_PSStats .and. mpi_myid == 0) then
+      if (ReadWrite_PSStats .and. mmpi_myid == 0) then
          do levelIndex=1,nlev
             ierr = utl_fstecr(rgsig(1:ni_l+1,1:nj_l,nsposit(VarIndex)-1+levelIndex),-32,nulsig,0,0,0,ni_l+1,nj_l,1,levelIndex,0,nlev, &
                    'X',bchm_varNameList(VarIndex),'RGSIG','X',0,0,0,0,5,.true.)
@@ -592,7 +592,7 @@ module BmatrixChem_mod
 
     enddo
     
-    if (ReadWrite_PSStats .and. mpi_myid == 0) then
+    if (ReadWrite_PSStats .and. mmpi_myid == 0) then
       ierr = fstfrm(nulsig)  
       ierr = fclos(nulsig)
     end if
@@ -917,7 +917,7 @@ module BmatrixChem_mod
     bchm_hcorrel(:,:,:)=0.0d0
     bchm_hcorrlen(:,:)=0.0
     
-    do latIndex = mpi_myid+1, nj_l, mpi_nprocs
+    do latIndex = mmpi_myid+1, nj_l, mmpi_nprocs
        do jn = 0, ntrunc
          wtemp(jn,latIndex,1) = gst_getzleg(jn,latIndex,gstID)
        end do
@@ -938,7 +938,7 @@ module BmatrixChem_mod
          levelIndex = 1
       end if
 
-      do latIndex = mpi_myid+1, nj_l, mpi_nprocs
+      do latIndex = mmpi_myid+1, nj_l, mmpi_nprocs
          do jn = 0, ntrunc
             wtemp(latIndex,levelIndex,VarIndex) = wtemp(latIndex,levelIndex,VarIndex)+rstddev(jk,jn)*rstddev(jk,jn)*  &
                                      sqrt(2.0)*sqrt(2.0*jn+1.0)*zleg(jn,latIndex)
@@ -951,7 +951,7 @@ module BmatrixChem_mod
     call rpn_comm_allreduce(wtemp,bchm_hcorrel,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
     deallocate(wtemp)
     
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
 
       VarIndex = 1
       levelIndex = 1
@@ -1152,7 +1152,7 @@ module BmatrixChem_mod
         enddo
       enddo
       
-      if(mpi_myid == 0 .and. firstn /= -1) write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar, &
+      if(mmpi_myid == 0 .and. firstn /= -1) write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar, &
             ' AT N BETWEEN ',firstn,' AND ',lastn,', SETTING TO ZERO!!!'
 
       call gst_zleginv(gstID,zgr(:,1:nlev_MT),zsp(:,1:nlev_MT),nlev_MT)
@@ -1504,7 +1504,7 @@ module BmatrixChem_mod
     
          allocate(corns_temp(jnum,jnum,0:ntrunc),eigenvec(jnum,jnum),result(jnum,jnum))
          corns_temp(:,:,:) = 0.0d0
-         do jn = mpi_myid, ntrunc, mpi_nprocs
+         do jn = mmpi_myid, ntrunc, mmpi_nprocs
 
            eigenvec(1:jnum,1:jnum) = corns(jstart:jstart-1+jnum,jstart:jstart-1+jnum,jn)
 
@@ -1600,7 +1600,7 @@ module BmatrixChem_mod
    
     ! Compute total vertical correlations and its inverse (currently for each block matrix).
 
-    if (mpi_myid == 0 .and. ReadWrite_PSStats) then
+    if (mmpi_myid == 0 .and. ReadWrite_PSStats) then
        iulcorvert = 0
        ierr = fnom(iulcorvert,'bmatrixchem_out.fst','STD+RND',0)
        ierr = fstouv(iulcorvert,'RND')
@@ -1624,7 +1624,7 @@ module BmatrixChem_mod
       ! Inverse (and possible vertical interpolation to model levels) not needed if not in analysis mode
       if (trim(bchm_mode) == 'BackgroundCheck') cycle
       
-      if (mpi_myid /= 0 .or. .not.ReadWrite_PSStats) cycle
+      if (mmpi_myid /= 0 .or. .not.ReadWrite_PSStats) cycle
          
       if (VarIndex.eq.1) then
         allocate(lfound(numvartot))
@@ -1675,7 +1675,7 @@ module BmatrixChem_mod
          ! zr=maxval(abs(bchm_corverti(1:jnum,1:jnum,VarIndex)))
          ! where (abs(bchm_corverti(1:jnum,1:jnum,VarIndex)) .lt. 1.E-5*zr) bchm_corverti(1:jnum,1:jnum,VarIndex)=0.0D0
 
-         ! Check inverse (for output when mpi_myid is 0)
+         ! Check inverse (for output when mmpi_myid is 0)
          result(1:jnum,1:jnum)=0.0D0
          do jk1 = 1, jnum
          do jk2 = 1, jnum
@@ -1701,7 +1701,7 @@ module BmatrixChem_mod
       
     end do
     
-    if (mpi_myid /= 0 .or. .not.ReadWrite_PSStats) return
+    if (mmpi_myid /= 0 .or. .not.ReadWrite_PSStats) return
     
     deallocate(lfound)
 
@@ -1746,7 +1746,7 @@ module BmatrixChem_mod
     character(len=4)  :: clnomvar
     integer :: fnom, fstouv, fstfrm, fclos
     
-    if(mpi_myid==0) then
+    if(mmpi_myid==0) then
 
       write(*,*) 'WRITECORNS: ', trim(cletiket), ' being written to file bmatrixchem_out.fst for number of matrices - 1 =', nmat
 
@@ -1941,7 +1941,7 @@ module BmatrixChem_mod
     integer          :: jn, jm, ila_mpiglobal, ila_mpilocal, levelIndex, jdim
 
     if(.not. initialized) then
-      if(mpi_myid == 0) write(*,*) 'bchm_truncateCV: bMatrixChem not initialized'
+      if(mmpi_myid == 0) write(*,*) 'bchm_truncateCV: bMatrixChem not initialized'
       return
     endif
 
@@ -1999,8 +1999,8 @@ module BmatrixChem_mod
     
     if(.not. initialized) return
 
-    if(mpi_myid == 0) write(*,*) 'bchm_bsqrt: starting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bchm_bsqrt: starting'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
@@ -2032,8 +2032,8 @@ module BmatrixChem_mod
     
     deallocate(gd_out)
 
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid == 0) write(*,*) 'bchm_bsqrt: done'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bchm_bsqrt: done'
 
   end subroutine bchm_bSqrt
 
@@ -2061,12 +2061,12 @@ module BmatrixChem_mod
     integer :: varIndex  
 
     if(.not. initialized) then
-      if(mpi_myid == 0) write(*,*) 'bMatrixChem not initialized'
+      if(mmpi_myid == 0) write(*,*) 'bMatrixChem not initialized'
       return
     endif
 
-    if(mpi_myid == 0) write(*,*) 'bchm_bsqrtad: starting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bchm_bsqrtad: starting'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
@@ -2098,8 +2098,8 @@ module BmatrixChem_mod
 
     deallocate(gd_in)
 
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid == 0) write(*,*) 'bchm_bsqrtad: done'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bchm_bsqrtad: done'
 
   end subroutine bchm_bSqrtAd
 
@@ -2528,8 +2528,8 @@ module BmatrixChem_mod
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
-    if(mpi_myid == 0) then
-       allocate(cvDim_allMpiLocal(mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(cvDim_allMpiLocal(mmpi_nprocs))
     else
        allocate(cvDim_allMpiLocal(1))
     end if
@@ -2537,13 +2537,13 @@ module BmatrixChem_mod
     call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
                          cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
 
-    if(mpi_myid == 0) then
-       allocate(allnBeg(mpi_nprocs))
-       allocate(allnEnd(mpi_nprocs))
-       allocate(allnSkip(mpi_nprocs))
-       allocate(allmBeg(mpi_nprocs))
-       allocate(allmEnd(mpi_nprocs))
-       allocate(allmSkip(mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(allnBeg(mmpi_nprocs))
+       allocate(allnEnd(mmpi_nprocs))
+       allocate(allnSkip(mmpi_nprocs))
+       allocate(allmBeg(mmpi_nprocs))
+       allocate(allmEnd(mmpi_nprocs))
+       allocate(allmSkip(mmpi_nprocs))
     else
        allocate(allnBeg(1))
        allocate(allnEnd(1))
@@ -2568,12 +2568,12 @@ module BmatrixChem_mod
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
     ! Prepare to data to be distributed
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
 
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,levelIndex,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-       do jproc = 0, (mpi_nprocs-1)
+       do jproc = 0, (mmpi_nprocs-1)
           cv_allmaxmpilocal(:,jproc+1) = 0.d0
           jdim_mpilocal = 0
 
@@ -2635,8 +2635,8 @@ module BmatrixChem_mod
     end if
 
     !- Distribute
-    allocate(displs(mpi_nprocs))
-    do jproc = 0, (mpi_nprocs-1)
+    allocate(displs(mmpi_nprocs))
+    do jproc = 0, (mmpi_nprocs-1)
        displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
                                                  ! to take the outgoing data to process jproc
     end do
@@ -2683,8 +2683,8 @@ module BmatrixChem_mod
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
-    if(mpi_myid == 0) then
-       allocate(cvDim_allMpiLocal(mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(cvDim_allMpiLocal(mmpi_nprocs))
     else
        allocate(cvDim_allMpiLocal(1))
     end if
@@ -2692,13 +2692,13 @@ module BmatrixChem_mod
     call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
                          cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
 
-    if(mpi_myid == 0) then
-       allocate(allnBeg(mpi_nprocs))
-       allocate(allnEnd(mpi_nprocs))
-       allocate(allnSkip(mpi_nprocs))
-       allocate(allmBeg(mpi_nprocs))
-       allocate(allmEnd(mpi_nprocs))
-       allocate(allmSkip(mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(allnBeg(mmpi_nprocs))
+       allocate(allnEnd(mmpi_nprocs))
+       allocate(allnSkip(mmpi_nprocs))
+       allocate(allmBeg(mmpi_nprocs))
+       allocate(allmEnd(mmpi_nprocs))
+       allocate(allmSkip(mmpi_nprocs))
     else
        allocate(allnBeg(1))
        allocate(allnEnd(1))
@@ -2723,12 +2723,12 @@ module BmatrixChem_mod
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
     ! Prepare to data to be distributed
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
 
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,levelIndex,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-       do jproc = 0, (mpi_nprocs-1)
+       do jproc = 0, (mmpi_nprocs-1)
           cv_allmaxmpilocal(:,jproc+1) = 0.d0
           jdim_mpilocal = 0
 
@@ -2790,8 +2790,8 @@ module BmatrixChem_mod
     end if
 
     !- Distribute
-    allocate(displs(mpi_nprocs))
-    do jproc = 0, (mpi_nprocs-1)
+    allocate(displs(mmpi_nprocs))
+    do jproc = 0, (mmpi_nprocs-1)
        displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
                                                  ! to take the outgoing data to process jproc
     end do
@@ -2840,8 +2840,8 @@ module BmatrixChem_mod
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
     nullify(cv_allmaxmpilocal)
-    if(mpi_myid == 0) then
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
     else
        allocate(cv_allmaxmpilocal(1,1))
     end if
@@ -2857,13 +2857,13 @@ module BmatrixChem_mod
     !
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
-    if(mpi_myid == 0) then
-       allocate(allnBeg(mpi_nprocs))
-       allocate(allnEnd(mpi_nprocs))
-       allocate(allnSkip(mpi_nprocs))
-       allocate(allmBeg(mpi_nprocs))
-       allocate(allmEnd(mpi_nprocs))
-       allocate(allmSkip(mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(allnBeg(mmpi_nprocs))
+       allocate(allnEnd(mmpi_nprocs))
+       allocate(allnSkip(mmpi_nprocs))
+       allocate(allmBeg(mmpi_nprocs))
+       allocate(allmEnd(mmpi_nprocs))
+       allocate(allmSkip(mmpi_nprocs))
     else
        allocate(allnBeg(1))
        allocate(allnEnd(1))
@@ -2887,11 +2887,11 @@ module BmatrixChem_mod
     call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
-    if(mpi_myid == 0) then
+    if(mmpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,levelIndex,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-      do jproc = 0, (mpi_nprocs-1)
+      do jproc = 0, (mmpi_nprocs-1)
         jdim_mpilocal = 0
 
         do levelIndex = 1, nkgdim
@@ -2974,8 +2974,8 @@ module BmatrixChem_mod
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
     nullify(cv_allmaxmpilocal)
-    if(mpi_myid == 0) then
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
     else
        allocate(cv_allmaxmpilocal(1,1))
     end if
@@ -2991,13 +2991,13 @@ module BmatrixChem_mod
     !
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
-    if(mpi_myid == 0) then
-       allocate(allnBeg(mpi_nprocs))
-       allocate(allnEnd(mpi_nprocs))
-       allocate(allnSkip(mpi_nprocs))
-       allocate(allmBeg(mpi_nprocs))
-       allocate(allmEnd(mpi_nprocs))
-       allocate(allmSkip(mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(allnBeg(mmpi_nprocs))
+       allocate(allnEnd(mmpi_nprocs))
+       allocate(allnSkip(mmpi_nprocs))
+       allocate(allmBeg(mmpi_nprocs))
+       allocate(allmEnd(mmpi_nprocs))
+       allocate(allmSkip(mmpi_nprocs))
     else
        allocate(allnBeg(1))
        allocate(allnEnd(1))
@@ -3021,11 +3021,11 @@ module BmatrixChem_mod
     call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
-    if(mpi_myid == 0) then
+    if(mmpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,levelIndex,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-      do jproc = 0, (mpi_nprocs-1)
+      do jproc = 0, (mmpi_nprocs-1)
         jdim_mpilocal = 0
 
         do levelIndex = 1, nkgdim

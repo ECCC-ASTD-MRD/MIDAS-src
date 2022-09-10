@@ -48,7 +48,7 @@ bmatrixchem_mod.f90
 3. Observation input/output
 ================================
 obsfiles_mod.f90
-sqlite_read_mod.f90
+sqliteread_mod.f90
 sqlitefiles_mod.f90
 cmafiles_mod.f90
 burpfiles_mod.f90
@@ -118,7 +118,7 @@ utilities_mod.f90
 version_mod.f90
 ramdisk_mod.f90
 physicsfunctions_mod.f90
-mpi_mod.f90
+midasMpi_mod.f90
 presprofileoperators_mod.f90
 randomnumber_mod.f90
 getGridPosition_mod.f90

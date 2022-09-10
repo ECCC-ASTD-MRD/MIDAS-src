@@ -20,7 +20,7 @@ module gridStateVectorFileIO_mod
   ! :Purpose: The grid-point state vector I/O methods.
   !
   use mpi
-  use mpi_mod
+  use midasMpi_mod
   use gridStateVector_mod
   use interpolation_mod
   use utilities_mod
@@ -592,7 +592,7 @@ module gridStateVectorFileIO_mod
 
     interpToPhysicsGrid = .false.
     if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'gio_readFile: namstio is missing in the namelist.'
         write(*,*) '                     The default values will be taken.'
       end if
@@ -603,7 +603,7 @@ module gridStateVectorFileIO_mod
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namstio,iostat=ierr)
       if (ierr.ne.0) call utl_abort('gio_readfile: Error reading namelist')
-      if (mpi_myid.eq.0) write(*,nml=namstio)
+      if (mmpi_myid.eq.0) write(*,nml=namstio)
       ierr=fclos(nulnam)
     end if
 
@@ -1041,7 +1041,7 @@ module gridStateVectorFileIO_mod
 
     call utl_tmg_start(1,'--ReadTrials')
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       write(*,*) ''
       write(*,*) 'gio_readTrials: STARTING'
       write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1089,8 +1089,8 @@ module gridStateVectorFileIO_mod
     end do
 
     ! warn if not enough mpi tasks
-    if ( mpi_nprocs < stateVectorTrial_ptr%numStep ) then
-      write(*,*) 'gio_readTrials: number of trial time steps, mpi tasks = ', stateVectorTrial_ptr%numStep, mpi_nprocs
+    if ( mmpi_nprocs < stateVectorTrial_ptr%numStep ) then
+      write(*,*) 'gio_readTrials: number of trial time steps, mpi tasks = ', stateVectorTrial_ptr%numStep, mmpi_nprocs
       write(*,*) 'gio_readTrials: for better efficiency, the number of mpi tasks should '
       write(*,*) '                be at least as large as number of trial time steps'
     end if
@@ -1098,21 +1098,21 @@ module gridStateVectorFileIO_mod
     allocHeightSfc = stateVectorTrial_ptr%heightSfcPresent
 
     ! figure out number of batches of time steps for reading
-    numBatch = ceiling(real(stateVectorTrial_ptr%numStep) / real(mpi_nprocs))
+    numBatch = ceiling(real(stateVectorTrial_ptr%numStep) / real(mmpi_nprocs))
     write(*,*) 'gio_readTrials: reading will be done by number of batches = ', numBatch
 
     BATCH: do batchIndex = 1, numBatch
 
-      stepIndexBeg = 1 + (batchIndex - 1) * mpi_nprocs
-      stepIndexEnd = min(stateVectorTrial_ptr%numStep, stepIndexBeg + mpi_nprocs - 1)
+      stepIndexBeg = 1 + (batchIndex - 1) * mmpi_nprocs
+      stepIndexEnd = min(stateVectorTrial_ptr%numStep, stepIndexBeg + mmpi_nprocs - 1)
       write(*,*) 'gio_readTrials: batchIndex, stepIndexBeg/End = ', batchIndex, stepIndexBeg, stepIndexEnd
 
       ! figure out which time step I will read, if any (-1 if none)
       stepIndexToRead = -1
       do stepIndex = stepIndexBeg, stepIndexEnd
-        procToRead = nint( real(stepIndex - stepIndexBeg) * real(mpi_nprocs) / real(stepIndexEnd - stepIndexBeg + 1) )
-        if ( procToRead == mpi_myid ) stepIndexToRead = stepIndex
-        if ( mpi_myid == 0 ) write(*,*) 'gio_readTrials: stepIndex, procToRead = ', stepIndex, procToRead
+        procToRead = nint( real(stepIndex - stepIndexBeg) * real(mmpi_nprocs) / real(stepIndexEnd - stepIndexBeg + 1) )
+        if ( procToRead == mmpi_myid ) stepIndexToRead = stepIndex
+        if ( mmpi_myid == 0 ) write(*,*) 'gio_readTrials: stepIndex, procToRead = ', stepIndex, procToRead
       end do
 
       ! loop over all times for which stateVector is allocated
@@ -1261,7 +1261,7 @@ module gridStateVectorFileIO_mod
 
     interpToPhysicsGrid = .false.
     if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'gio_writeToFile: namstio is missing in the namelist.'
         write(*,*) '                     The default values will be taken.'
       end if
@@ -1272,7 +1272,7 @@ module gridStateVectorFileIO_mod
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namstio,iostat=ierr)
       if (ierr.ne.0) call utl_abort('gio_writeToFile: Error reading namelist')
-      if (mpi_myid.eq.0) write(*,nml=namstio)
+      if (mmpi_myid.eq.0) write(*,nml=namstio)
       ierr=fclos(nulnam)
     end if
 
@@ -1386,7 +1386,7 @@ module gridStateVectorFileIO_mod
 
     ! only proc 0 does writing or each proc when data is global 
     ! (assuming only called for proc with global data)
-    iDoWriting = (mpi_myid == 0) .or. (.not. statevector%mpi_local)
+    iDoWriting = (mmpi_myid == 0) .or. (.not. statevector%mpi_local)
 
     !
     !- 3.  Write the global StateVector
@@ -1409,18 +1409,18 @@ module gridStateVectorFileIO_mod
       end if
 
       !- Write TicTacToc
-      if ( (mpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local ) then
+      if ( (mmpi_myid == 0 .and. statevector%mpi_local) .or. .not.statevector%mpi_local ) then
         call writeTicTacToc(statevector,nulfile,etiket) ! IN
       endif
 
     end if
 
     allocate(gd_send_r4(statevector%lonPerPEmax,statevector%latPerPEmax))
-    if ( mpi_myid == 0 .or. (.not. statevector%mpi_local) ) then
+    if ( mmpi_myid == 0 .or. (.not. statevector%mpi_local) ) then
       allocate(work2d_r4(statevector%ni,statevector%nj))
       if (statevector%mpi_local) then
         ! Receive tile data from all mpi tasks
-        allocate(gd_recv_r4(statevector%lonPerPEmax,statevector%latPerPEmax,mpi_nprocs))
+        allocate(gd_recv_r4(statevector%lonPerPEmax,statevector%latPerPEmax,mmpi_nprocs))
       else
         ! Already have entire domain on mpi task (lat/lonPerPEmax == nj/ni)
         allocate(gd_recv_r4(statevector%lonPerPEmax,statevector%latPerPEmax,1))
@@ -1440,7 +1440,7 @@ module gridStateVectorFileIO_mod
                    1:statevector%latPerPE) =  &
              real(heightSfc_ptr(statevector%myLonBeg:statevector%myLonEnd, &
                                     statevector%myLatBeg:statevector%myLatEnd),4)
-        if ( (mpi_nprocs > 1) .and. statevector%mpi_local ) then
+        if ( (mmpi_nprocs > 1) .and. statevector%mpi_local ) then
           nsize = statevector%lonPerPEmax * statevector%latPerPEmax
           call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
                                gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr )
@@ -1448,11 +1448,11 @@ module gridStateVectorFileIO_mod
           ! just copy when either nprocs is 1 or data is global
           gd_recv_r4(:,:,1) = gd_send_r4(:,:)
         end if
-        if ( mpi_myid == 0 .and. statevector%mpi_local ) then
+        if ( mmpi_myid == 0 .and. statevector%mpi_local ) then
           !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-          do youridy = 0, (mpi_npey-1)
-            do youridx = 0, (mpi_npex-1)
-              yourid = youridx + youridy*mpi_npex
+          do youridy = 0, (mmpi_npey-1)
+            do youridx = 0, (mmpi_npex-1)
+              yourid = youridx + youridy*mmpi_npex
                 work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
                           statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1)) = &
                   gd_recv_r4(1:statevector%allLonPerPE(youridx+1),  &
@@ -1505,7 +1505,7 @@ module gridStateVectorFileIO_mod
           end if
 
           nsize = statevector%lonPerPEmax*statevector%latPerPEmax
-          if ( (mpi_nprocs > 1) .and. (statevector%mpi_local) ) then
+          if ( (mmpi_nprocs > 1) .and. (statevector%mpi_local) ) then
             call rpn_comm_gather(gd_send_r4, nsize, 'mpi_real4',  &
                                  gd_recv_r4, nsize, 'mpi_real4', 0, 'grid', ierr )
           else
@@ -1513,11 +1513,11 @@ module gridStateVectorFileIO_mod
             gd_recv_r4(:,:,1) = gd_send_r4(:,:)
           end if
 
-          if ( mpi_myid == 0 .and. statevector%mpi_local ) then
+          if ( mmpi_myid == 0 .and. statevector%mpi_local ) then
             !$OMP PARALLEL DO PRIVATE(youridy,youridx,yourid)
-            do youridy = 0, (mpi_npey-1)
-              do youridx = 0, (mpi_npex-1)
-                yourid = youridx + youridy*mpi_npex
+            do youridy = 0, (mmpi_npey-1)
+              do youridx = 0, (mmpi_npex-1)
+                yourid = youridx + youridy*mmpi_npex
                 work2d_r4(statevector%allLonBeg(youridx+1):statevector%allLonEnd(youridx+1),  &
                             statevector%allLatBeg(youridy+1):statevector%allLatEnd(youridy+1)) = &
                     gd_recv_r4(1:statevector%allLonPerPE(youridx+1),  &

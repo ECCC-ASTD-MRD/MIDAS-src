@@ -21,7 +21,7 @@ module obsFilter_mod
   !           mostly to reject them so that they will not be assimilated.
   !
   use codePrecision_mod
-  use mpi_mod
+  use midasMpi_mod
   use earthConstants_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
@@ -181,7 +181,7 @@ contains
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namfilt,iostat=ierr)
     if(ierr.ne.0) call utl_abort('filt_setup: Error reading namelist! Hint: did you replaced ltopofilt by list_topoFilt?')
-    if(mpi_myid == 0) write(*,nml=namfilt)
+    if(mmpi_myid == 0) write(*,nml=namfilt)
     ierr=fclos(nulnam)
 
     filt_rlimlvhu    = rlimlvhu
@@ -190,7 +190,7 @@ contains
     filt_nflags      = nflags
     filt_nlistflg(:) = nlistflg(:)
 
-    if(mpi_myid == 0) then
+    if(mmpi_myid == 0) then
       write(*,'(1X,"***********************************")')
       write(*,'(1X," ELEMENTS SELECTED FOR ASSIMILATION:",/)')
       write(*,'(1X,"***********************************")')
@@ -266,7 +266,7 @@ contains
 
     call utl_tmg_start(22,'----ObsFiltSuprep')
 
-    if(mpi_myid == 0) write(*,*) 'starting subroutine filt_suprep'
+    if(mmpi_myid == 0) write(*,*) 'starting subroutine filt_suprep'
 
     iknt = 0
 
@@ -352,9 +352,9 @@ contains
     end do body
 
     call rpn_comm_allreduce( iknt, iknt_mpiglobal, 1, "MPI_INTEGER", "MPI_SUM", "GRID", ierr )
-    if(mpi_myid == 0) write(*,*) '  Number of data to be assimilated: ', iknt_mpiglobal
+    if(mmpi_myid == 0) write(*,*) '  Number of data to be assimilated: ', iknt_mpiglobal
 
-    if(mpi_myid == 0) write(*,*) 'end of filt_suprep'
+    if(mmpi_myid == 0) write(*,*) 'end of filt_suprep'
 
     ! abort if there is no data to be assimilated
     if (iknt_mpiglobal == 0 ) then
@@ -377,7 +377,7 @@ contains
 
     if (all(filtTopoList(:) == '  ')) then
 
-      if (mpi_myid == 0 .and. .not.beSilent) then
+      if (mmpi_myid == 0 .and. .not.beSilent) then
         write(*,*)
         write(*,*)' --------------------------------------------------------------'
         write(*,*)' - filt_topo: NO topographic filtering                         '
@@ -386,7 +386,7 @@ contains
 
     else
 
-      if (mpi_myid == 0 .and. .not.beSilent) then
+      if (mmpi_myid == 0 .and. .not.beSilent) then
         write(*,*)
         write(*,*)' --------------------------------------------------------------'
         write(*,*)' - filt_topo: topographic filtering of the following obs family'
@@ -1669,7 +1669,7 @@ end subroutine filt_topoAISW
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read (nulnam, nml = namPlatformIce, iostat = ierr)
       if ( ierr /= 0 ) call utl_abort('filt_iceConcentration: Error reading namelist')
-      if ( mpi_myid == 0 ) write(*,nml=namPlatformIce)
+      if ( mmpi_myid == 0 ) write(*,nml=namPlatformIce)
       ierr = fclos(nulnam)
     else
       write(*,*)

@@ -20,7 +20,7 @@ module interpolation_mod
   ! :Purpose: The grid-point state vector interpolation.
   !
   use mpi, only : mpi_status_size ! this is the mpi library module
-  use mpi_mod
+  use midasMpi_mod
   use gridstatevector_mod
   use columnData_mod
   use varNameList_mod
@@ -491,7 +491,7 @@ module interpolation_mod
 
     vInterpCopyLowestLevel = .false.
     if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'int_vInterp_gsv: namint is missing in the namelist.'
         write(*,*) '                     The default values will be taken.'
       end if
@@ -501,7 +501,7 @@ module interpolation_mod
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namint,iostat=ierr)
       if (ierr.ne.0) call utl_abort('int_vInterp_gsv: Error reading namelist NAMINT')
-      if (mpi_myid.eq.0) write(*,nml=namint)
+      if (mmpi_myid.eq.0) write(*,nml=namint)
       ierr=fclos(nulnam)
     end if
 
@@ -685,7 +685,7 @@ module interpolation_mod
 
     vInterpCopyLowestLevel = .false.
     if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'int_vInterp_gsv_r4: namint is missing in the namelist.'
         write(*,*) '                     The default values will be taken.'
       end if
@@ -695,7 +695,7 @@ module interpolation_mod
       ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namint,iostat=ierr)
       if (ierr.ne.0) call utl_abort('int_vInterp_gsv_r4: Error reading namelist NAMINT')
-      if (mpi_myid.eq.0) write(*,nml=namint)
+      if (mmpi_myid.eq.0) write(*,nml=namint)
       ierr=fclos(nulnam)
     end if
 
@@ -892,7 +892,7 @@ module interpolation_mod
 
     numStepIn = statevector_in%numStep
     numStepOut = statevector_out%numStep
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       write(*,*) 'int_tInterp_gsv: numStepIn=', numStepIn, ',numStepOut=',numStepOut
     end if
 
@@ -938,7 +938,7 @@ module interpolation_mod
         weight2 = deltaHourInOut / deltaHour
       end if
 
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'int_tInterp_gsv: for stepIndexOut=', stepIndexOut, &
                    ',stepIndexIn1=', stepIndexIn1, ',stepIndexIn2=', stepIndexIn2, &
                    ',weight1=', weight1, ',weight2=', weight2, &
@@ -1128,7 +1128,7 @@ module interpolation_mod
         pres_in  => col_getColumn(column_in ,columnIndex,varName)
         pres_out => col_getColumn(column_out,columnIndex,varName)
 
-        if ( mpi_myid == 0 .and. columnIndex == 1 .and. &
+        if ( mmpi_myid == 0 .and. columnIndex == 1 .and. &
              (trim(varName) == 'P_T' ) ) then
 
           write(*,*) 'useColumnPressure=', useColumnPressure

@@ -29,7 +29,7 @@ module minimization_mod
   use obsSpaceData_mod
   use obsSpaceDiag_mod
   use controlVector_mod
-  use mpi_mod
+  use midasMpi_mod
   use horizontalCoord_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -178,7 +178,7 @@ CONTAINS
     if ( present(varqc_opt) ) varqc_opt = lvarqc
     if ( present(nwoqcv_opt) ) nwoqcv_opt = nwoqcv
 
-    if(LVARQC .and. mpi_myid == 0) write(*,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
+    if(LVARQC .and. mmpi_myid == 0) write(*,*) 'VARIATIONAL QUALITY CONTROL ACTIVATED.'
 
     initialized=.true.
 
@@ -314,7 +314,7 @@ CONTAINS
 
       min_nsim=0 
 
-      if(mpi_myid == 0) then
+      if(mmpi_myid == 0) then
         impres=5
       else 
         impres=0
@@ -323,9 +323,9 @@ CONTAINS
       ! Check for preconditioning file
       inquire(file=preconFileName,exist=preconFileExists)
       if(preconFileExists) then
-        if(mpi_myid == 0) write(*,*) 'PRECONDITIONING FILE FOUND:',preconFileName
+        if(mmpi_myid == 0) write(*,*) 'PRECONDITIONING FILE FOUND:',preconFileName
       else
-        if(mpi_myid == 0) write(*,*) 'NO PRECONDITIONING FILE FOUND:',preconFileName
+        if(mmpi_myid == 0) write(*,*) 'NO PRECONDITIONING FILE FOUND:',preconFileName
       endif
 
       ! Initialize Hessian only at first outerLoop (mpilocal)
@@ -362,7 +362,7 @@ CONTAINS
       if (outerLoopIndex == 1) zeps0 = repsg
 
       if (preconFileExists) then
-        if ( mpi_myid == 0 ) write(*,*) 'quasiNewtonMinimization : Preconditioning mode'
+        if ( mmpi_myid == 0 ) write(*,*) 'quasiNewtonMinimization : Preconditioning mode'
         lrdvatra = .true.
         imode = 2
         llvazx = lvazx ! from namelist (default is .false.)
@@ -514,7 +514,7 @@ CONTAINS
         end if
 
         ! Print some contents of obsSpaceData to the listing
-        if(mpi_myid == 0) then
+        if(mmpi_myid == 0) then
           do jdata = 1, min(1,obs_numHeader(obsSpaceData))
             call obs_prnthdr(obsSpaceData,jdata)
             call obs_prntbdy(obsSpaceData,jdata)
@@ -545,7 +545,7 @@ CONTAINS
 
     if ( lwrthess ) then
       ! Write out the Hessian to file
-      if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      if ( mmpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
       ! zero array for writing to hessian
       if ( .not. allocated(controlVectorIncrSumZero) ) then
@@ -559,7 +559,7 @@ CONTAINS
 
       deallocate(controlVectorIncrSumZero)
 
-      if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      if ( mmpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     endif
 
     if ( lwrthess ) then
@@ -612,7 +612,7 @@ CONTAINS
     if (na_indic .ne. 1) then ! No action taken if na_indic == 1
        min_nsim = min_nsim + 1
 
-       if(mpi_myid == 0) then
+       if(mmpi_myid == 0) then
          write(*,*) 'Entering simvar for simulation ',min_nsim
          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
        endif
@@ -622,7 +622,7 @@ CONTAINS
 
        ! Computation of background term of cost function:
        dl_Jb = dot_product(dl_v(1:nvadim_mpilocal),dl_v(1:nvadim_mpilocal))/2.d0  
-       call mpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
+       call mmpi_allreduce_sumreal8scalar(dl_Jb,"GRID")
 
        if (oneDVarMode) then
          call bmat1D_sqrtB(da_v, nvadim_mpilocal, columnAnlInc_ptr, obsSpaceData_ptr)
@@ -675,10 +675,10 @@ CONTAINS
        da_J = dl_Jb + dl_Jo
        if (na_indic  ==  3) then
           da_J = dl_Jo
-          IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') dl_Jo
+          IF(mmpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') dl_Jo
        else
           da_J = dl_Jb + dl_Jo
-          IF(mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
+          IF(mmpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') dl_Jb,dl_Jo,da_J
        endif
        call utl_tmg_stop(92)
        call utl_tmg_stop(90)
@@ -732,7 +732,7 @@ CONTAINS
 
     initializeForOuterLoop = .false.
 
-    if(mpi_myid == 0) write(*,*) 'end of simvar'
+    if(mmpi_myid == 0) write(*,*) 'end of simvar'
 
   end subroutine simvar
 
@@ -787,7 +787,7 @@ CONTAINS
       DDSC = DDSC + PX(J)*PY(J)
     ENDDO
 
-    call mpi_allreduce_sumreal8scalar(ddsc,"GRID")
+    call mmpi_allreduce_sumreal8scalar(ddsc,"GRID")
 
   end subroutine prscal
 
@@ -903,10 +903,10 @@ CONTAINS
     character(len=3) :: cl_version
 
     if (status == 0) then
-      if (mpi_myid == 0) write(*,*) 'Read  Hessian in min_hessianIO from file ', cfname
+      if (mmpi_myid == 0) write(*,*) 'Read  Hessian in min_hessianIO from file ', cfname
       call utl_tmg_start(93,'----ReadHess')
     elseif (status == 1) then
-      if (mpi_myid == 0) write(*,*) 'Write Hessian in min_hessianIO to file ', cfname
+      if (mmpi_myid == 0) write(*,*) 'Write Hessian in min_hessianIO to file ', cfname
       call utl_tmg_start(94,'----WriteHess')
     else
       call utl_abort('min_hessianIO: status not valid ')
@@ -922,7 +922,7 @@ CONTAINS
       !- 1.  Read Hessian on processor 0 and distribute the data to the other processors
       !
 
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
          !- Open the Hessian matrix file
          ierr = fnom(ireslun,cfname,'FTN+SEQ+UNF+OLD+R/O',0)
 
@@ -961,7 +961,7 @@ CONTAINS
       call rpn_comm_bcast(iztrl_io , 10, "MPI_INTEGER", 0, "GRID", ierr)
 
       !- Read the Hessian
-      if(mpi_myid == 0) then 
+      if(mmpi_myid == 0) then 
          write(*,*) 'min_hessianIO : reading Hessian'
          allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
       else
@@ -972,7 +972,7 @@ CONTAINS
       if (k1gc == 3) ictrlvec = 2*nvamaj+1
       do jvec = 1, ictrlvec
  
-         if (mpi_myid == 0) then
+         if (mmpi_myid == 0) then
             read(ireslun) vatravec_r4_mpiglobal
          end if
 
@@ -1001,7 +1001,7 @@ CONTAINS
 
       !- Read VAZXBAR 
       if (ibrpstamp == kbrpstamp .and. llxbar) then
-         if (mpi_myid == 0) then 
+         if (mmpi_myid == 0) then 
             write(*,*) 'min_hessianIO : reading vazxbar'
             allocate(vazxbar_mpiglobal(nvadim_mpiglobal))
             read(ireslun) vazxbar_mpiglobal
@@ -1015,7 +1015,7 @@ CONTAINS
 
       !- Read VAZX
       if (ibrpstamp == kbrpstamp .and. llvazx) then
-         if (mpi_myid == 0) then 
+         if (mmpi_myid == 0) then 
             write(*,*) 'min_hessianIO : reading vazx'
             allocate(vazx_mpiglobal(nvadim_mpiglobal))
             read(ireslun) vazx_mpiglobal
@@ -1031,7 +1031,7 @@ CONTAINS
          kbrpstamp = ibrpstamp
       end if
 
-      if (mpi_myid == 0) ierr = fclos(ireslun)
+      if (mmpi_myid == 0) ierr = fclos(ireslun)
 
     elseif (status == 1) then
       !
@@ -1039,16 +1039,16 @@ CONTAINS
       !
 
       !- Open the Hessian matrix file on processor 0 and write some metadata 
-      if (mpi_myid == 0) ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
+      if (mmpi_myid == 0) ierr = fnom(ireslun,cfname, 'FTN+SEQ+UNF' , 0)
       cl_version = 'V5'
       itrunc=0
       iztrl_io(1: 5) = iztrl(:)
       iztrl_io(6:10) = 0 ! dummy values for hessian size legacy purposes
-      if(mpi_myid == 0) write(ireslun) cl_version,k1gc,nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,nvadim_mpiglobal,itrunc
-      if(mpi_myid == 0) write(ireslun) nvamaj,iztrl_io
+      if(mmpi_myid == 0) write(ireslun) cl_version,k1gc,nsim,kbrpstamp,zeps1,zdf1,itertot,isimtot,nvadim_mpiglobal,itrunc
+      if(mmpi_myid == 0) write(ireslun) nvamaj,iztrl_io
 
       !- Write the Hessian
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
          allocate(vatravec_r4_mpiglobal(nvadim_mpiglobal))
       else
          allocate(vatravec_r4_mpiglobal(1))
@@ -1064,35 +1064,35 @@ CONTAINS
         !$OMP END PARALLEL DO
         call bmat_expandToMPIGlobal_r4( vatra_r4,              & ! IN
                                         vatravec_r4_mpiglobal )  ! OUT
-        if (mpi_myid == 0) write(ireslun) vatravec_r4_mpiglobal
+        if (mmpi_myid == 0) write(ireslun) vatravec_r4_mpiglobal
       enddo
       deallocate(vatravec_r4_mpiglobal)
       deallocate(vatra_r4)
 
       !- Write VAZXBAR
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
          allocate(vazxbar_mpiglobal(nvadim_mpiglobal))
       else
          allocate(vazxbar_mpiglobal(1)) ! dummy
       end if
       call bmat_expandToMPIGlobal( vazxbar,          & ! IN
                                    vazxbar_mpiglobal ) ! OUT
-      if (mpi_myid == 0) write(ireslun) vazxbar_mpiglobal(1:nvadim_mpiglobal)
+      if (mmpi_myid == 0) write(ireslun) vazxbar_mpiglobal(1:nvadim_mpiglobal)
       deallocate(vazxbar_mpiglobal)
 
       !- Write VAZX
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
          allocate(vazx_mpiglobal(nvadim_mpiglobal))
       else
          allocate(vazx_mpiglobal(1))
       end if
       call bmat_expandToMPIGlobal( vazx,          & ! IN
                                    vazx_mpiglobal ) ! OUT
-      if (mpi_myid == 0) write(ireslun) vazx_mpiglobal(1:nvadim_mpiglobal)
+      if (mmpi_myid == 0) write(ireslun) vazx_mpiglobal(1:nvadim_mpiglobal)
       deallocate(vazx_mpiglobal)
 
       !- Close the Hessian matrix file
-      if (mpi_myid == 0) ierr = fclos(ireslun)
+      if (mmpi_myid == 0) ierr = fclos(ireslun)
     else
       call utl_abort('min_hessianIO: status not valid')
     endif
@@ -1138,7 +1138,7 @@ CONTAINS
   nl_indic = 2
   call simul(nl_indic,na_dim,da_x0,dl_j0,dl_gradj0)
   dl_gnorm0 = dot_product(dl_gradj0,dl_gradj0)
-  call mpi_allreduce_sumreal8scalar(dl_gnorm0,"GRID")
+  call mmpi_allreduce_sumreal8scalar(dl_gnorm0,"GRID")
   dl_start = 1.d0
   dl_end   = 10.0d0**(-na_range)
   write(*,FMT=9100) dl_start,dl_end, dl_j0, dl_gnorm0

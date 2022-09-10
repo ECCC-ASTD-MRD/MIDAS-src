@@ -25,7 +25,7 @@ module analysisGrid_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   implicit none
   save
@@ -343,7 +343,7 @@ contains
     !
     !- 5. MPI partitionning
     !
-    if ( mpi_nprocs /= 0 ) then
+    if ( mmpi_nprocs /= 0 ) then
        call mmpi_setup_lonbands(ni_ext,                      & ! IN
                                 lonPerPE, lonPerPEmax, myLonBeg, myLonEnd ) ! OUT
 

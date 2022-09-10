@@ -66,7 +66,7 @@ module tovs_nl_mod
   use rttov_fast_coef_utils_mod, only: set_pointers, set_fastcoef_level_bounds
   use rttov_solar_refl_mod, only : rttov_refl_water_interp
 
-  use mpi_mod
+  use midasMpi_mod
   use codtyp_mod
   use mpi
   use utilities_mod
@@ -326,7 +326,7 @@ contains
               tvs_ichan(tvs_nchan(nosensor),nosensor) = channelNumber
             end if
             
-            if ( tvs_debug .and. mpi_myid == 0 .and. &
+            if ( tvs_debug .and. mmpi_myid == 0 .and. &
                  trim(tvs_instrumentName(nosensor)) == 'AMSUA' ) then
               write(*,*) 'test channelNumber:', headerIndex, bodyIndex, nosensor, &
                    tvs_satelliteName(nosensor), channelNumber, channelIndex
@@ -345,7 +345,7 @@ contains
         tvs_doAzimuthCorrection(sensorIndex) = ( tvs_platforms(sensorIndex) /= platform_id_eos .and. &
              ( tvs_instruments(sensorIndex) == inst_id_amsua .or. tvs_instruments(sensorIndex) == inst_id_mhs )  )     
       end do
-      if ( mpi_myId == 0 ) write(*,*) ' tvs_setupAlloc: Warning tvs_doAzimuthCorrection user defined values overwriten by the old default values'
+      if ( mmpi_myId == 0 ) write(*,*) ' tvs_setupAlloc: Warning tvs_doAzimuthCorrection user defined values overwriten by the old default values'
     end if
 
     if ( .not. tvs_userDefinedIsAzimuthValid ) then 
@@ -353,10 +353,10 @@ contains
       do sensorIndex = 1, tvs_nsensors
         tvs_isAzimuthValid(sensorIndex) = .not. ( tvs_isInstrumGeostationary(tvs_instruments(sensorIndex)) )
       end do
-      if ( mpi_myId == 0 ) write(*,*) ' tvs_setupAlloc: Warning tvs_isAzimuthValid user defined values overwriten by the current default values'
+      if ( mmpi_myId == 0 ) write(*,*) ' tvs_setupAlloc: Warning tvs_isAzimuthValid user defined values overwriten by the current default values'
     end if
 
-    if ( mpi_myId == 0 ) then
+    if ( mmpi_myId == 0 ) then
       write(*,*) ' tvs_setupAlloc: platform satellite id tvs_doAzimuthCorrection tvs_isAzimuthValid'
       do sensorIndex = 1, tvs_nsensors
         write(*,'(18x,a,1x,a,1x,i2,1x,L1,10x,L1)') inst_name(tvs_instruments(sensorIndex)), &
@@ -382,17 +382,17 @@ contains
       print *, 'sensorIndex,tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)', sensorIndex, tvs_nchan(sensorIndex),tvs_nchanMpiGlobal(sensorIndex)
     end do
 
-    if (mpi_myid ==0) then
-      allocate(logicalBuffer(mpi_nprocs))
+    if (mmpi_myid ==0) then
+      allocate(logicalBuffer(mmpi_nprocs))
     else
       allocate(logicalBuffer(1))
     end if
     
     do sensorIndex = 1, tvs_nsensors
       call RPN_COMM_gather( tvs_isReallyPresent ( sensorIndex ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, 'GRID', errorStatus(1) )
-      if (mpi_myid ==0) then
+      if (mmpi_myid ==0) then
         tvs_isReallyPresentMpiGlobal ( sensorIndex ) =.false.
-        do taskIndex=1, mpi_nprocs
+        do taskIndex=1, mmpi_nprocs
           tvs_isReallyPresentMpiGlobal ( sensorIndex ) =  tvs_isReallyPresentMpiGlobal ( sensorIndex ) .or. logicalBuffer(taskIndex)
         end do
       end if
@@ -401,7 +401,7 @@ contains
     
     deallocate(logicalBuffer)
 
-    if ( tvs_debug .and. mpi_myid == 0 ) then
+    if ( tvs_debug .and. mmpi_myid == 0 ) then
       do sensorIndex = 1, tvs_nsensors
         write(*,*) 'sensorIndex, tvs_instrumentName(sensorIndex), tvs_satelliteName(sensorIndex)'
         write(*,*) sensorIndex, tvs_instrumentName(sensorIndex), tvs_satelliteName(sensorIndex)
@@ -687,7 +687,7 @@ contains
     read(nulnam, nml=namtov, iostat=ierr)
     if (ierr /= 0) call utl_abort('tvs_setup: Error reading namelist')
 
-    if (mpi_myid == 0) write(*,nml=namtov)
+    if (mmpi_myid == 0) write(*,nml=namtov)
     ierr = fclos(nulnam)
 
     !  1.3 Transfer namelist variables to module variables
@@ -712,7 +712,7 @@ contains
     !  1.4 Validate namelist values
     
     if ( tvs_nsensors == 0 ) then
-      if(mpi_myid==0) then 
+      if(mmpi_myid==0) then 
         write(*,*) ' ====================================================='
         write(*,*) ' tvs_setup: Number of sensors is zero, skipping setup'
         write(*,*) ' ====================================================='
@@ -732,7 +732,7 @@ contains
 
     !  1.5 Print the content of this NAMELIST
 
-    if(mpi_myid == 0) then
+    if(mmpi_myid == 0) then
       write(*,'(A)') 
       write(*,'(3X,A)') '- Parameters used for TOVS processing (read in NAMTOV)'
       write(*,'(3X,A)') '  ----------------------------------------------------'
@@ -775,7 +775,7 @@ contains
 
     tvs_numMWInstrumUsingCLW = numMWInstrumToUseCLW
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       write(*,*) 'tvs_setup: Instrument IDs to use CLW: ', instrumentIdsUsingCLW(1:numMWInstrumToUseCLW)
       write(*,*) 'tvs_setup: Number of instruments to use CLW: ', numMWInstrumToUseCLW
     end if
@@ -1019,7 +1019,7 @@ contains
 
     !    1.3 Print the RTTOV-12 related variables
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(*,*)
       write(*,'(3X,A)') '- SENSORS. Variables prepared for RTTOV-12:'
       write(*,'(3X,A)') '  ----------------------------------------'
@@ -1072,7 +1072,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam, nml=namtovsinst, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_getAllIdBurpTovs: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=namtovsinst)
+      if (mmpi_myid == 0) write(*,nml=namtovsinst)
       ierr = fclos(nulnam)
       do instrumentIndex=1, ninst
         if (inst_names(instrumentIndex) == 'XXXXXX' ) then
@@ -1132,7 +1132,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam, nml=namtovsinst, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isIdBurpTovs: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=namtovsinst)
+      if (mmpi_myid == 0) write(*,nml=namtovsinst)
       ierr = fclos(nulnam)
       do instrumentIndex=1, ninst
         if (inst_names(instrumentIndex) == 'XXXXXX' ) then
@@ -1197,7 +1197,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam, nml=namhyper, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isIdBurpHyperSpectral: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=namhyper)
+      if (mmpi_myid == 0) write(*,nml=namhyper)
       ierr = fclos(nulnam)
       do instrumentIndex=1, ninst
         if (name_inst(instrumentIndex) == 'XXXXXX' ) then
@@ -1349,7 +1349,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namhyper, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isInstrumHyperSpectral: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=namhyper)
+      if (mmpi_myid == 0) write(*,nml=namhyper)
       ierr = fclos(nulnam)
       list_inst(:) = -1
       do instrumentIndex=1, maxsize
@@ -1407,7 +1407,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namhyper, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isNameHyperSpectral: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=namhyper)
+      if (mmpi_myid == 0) write(*,nml=namhyper)
       ierr = fclos(nulnam)
       do i=1, maxsize
         if (name_inst(i) == 'XXXXXXX') then
@@ -1463,7 +1463,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namgeo, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isInstrumGeostationary: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=namgeo)
+      if (mmpi_myid == 0) write(*,nml=namgeo)
       ierr = fclos(nulnam)
       list_inst(:) = -1
       do instrumentIndex=1, maxsize
@@ -1647,7 +1647,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namgeobufr, iostat=ierr)
       if (ierr /= 0) call utl_abort('tvs_isNameGeostationary: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=namgeobufr)
+      if (mmpi_myid == 0) write(*,nml=namgeobufr)
       ierr = fclos(nulnam)
       do i=1, maxsize
         if (name_inst(i) == 'XXXXXXXX') then
@@ -3762,8 +3762,8 @@ contains
       call utl_abort('tvs_getCommonChannelSet')
     end if
 
-    if (mpi_myid ==0) then
-      allocate(listGlobal(mpi_nprocs*tvs_maxChannelNumber))
+    if (mmpi_myid ==0) then
+      allocate(listGlobal(mmpi_nprocs*tvs_maxChannelNumber))
     else
       allocate(listGlobal(1))
     end if
@@ -3778,9 +3778,9 @@ contains
     call rpn_comm_gather(channelsb, tvs_maxChannelNumber, 'MPI_INTEGER', listGlobal, &
          tvs_maxChannelNumber, 'MPI_INTEGER', 0, 'GRID', ierr) 
     countUniqueChannel = 0
-    if ( mpi_myid == 0 ) then
-      call isort(listGlobal, mpi_nprocs*tvs_maxChannelNumber)
-      do i=1, mpi_nprocs * tvs_maxChannelNumber
+    if ( mmpi_myid == 0 ) then
+      call isort(listGlobal, mmpi_nprocs*tvs_maxChannelNumber)
+      do i=1, mmpi_nprocs * tvs_maxChannelNumber
         if (listGlobal(i) > 0) then
           found = .false.
           LOOPJ: do j=countUniqueChannel,1,-1
@@ -3861,7 +3861,7 @@ contains
     call tvs_getCommonChannelSet(channels,countUniqueChannel, listAll)
 
     ! Second step: mpi task 0 will do the job
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       call rttov_read_coefs ( &
            err,             &! out
            coefs,           &
@@ -3952,9 +3952,9 @@ contains
     call rpn_comm_bcast(coefs%coef%ratoe, 1, 'MPI_REAL8', 0, 'GRID', ierr) 
     ! then variable size vectors
     ! this one must be done first because it is used to dimension other ones ....
-    if (mpi_myid > 0) allocate( coefs%coef%fmv_lvl(coefs%coef%fmv_gas))
+    if (mmpi_myid > 0) allocate( coefs%coef%fmv_lvl(coefs%coef%fmv_gas))
     call rpn_comm_bcast(coefs%coef%fmv_lvl, coefs%coef%fmv_gas, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if (mpi_myid > 0) then
+    if (mmpi_myid > 0) then
       if (coefs%coef%nltecoef) allocate( coefs%coef%nlte_coef)
       allocate( coefs%coef%fmv_gas_id(coefs%coef%fmv_gas))
       allocate( coefs%coef%fmv_gas_pos(ngases_max)) !size is from rttov consts
@@ -4025,7 +4025,7 @@ contains
     call broadcastR81dArray( coefs%coef%wstar_wsum_r )
     call broadcastR81dArray( coefs%coef%wtstar_wsum_r )
     if (coefs%coef%nozone > 0) then
-      if (mpi_myid > 0) then
+      if (mmpi_myid > 0) then
         allocate( coefs%coef%to3star(coefs%coef%nlayers) )
         allocate( coefs%coef%ostar(coefs%coef%nlayers) )
         allocate( coefs%coef%to3star_r(coefs%coef%nlayers) )
@@ -4039,7 +4039,7 @@ contains
       call rpn_comm_bcast(coefs%coef%ostar_wsum_r, size(coefs%coef%ostar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
     end if
     if ( coefs%coef%nco2 > 0) then
-      if (mpi_myid>0) then
+      if (mmpi_myid>0) then
         allocate( coefs%coef%co2star(coefs%coef%nlayers) )
         allocate( coefs%coef%co2star_r(coefs%coef%nlayers) )
         allocate( coefs%coef%co2star_wsum_r(0:coefs%coef%nlayers) )
@@ -4049,7 +4049,7 @@ contains
       call rpn_comm_bcast(coefs%coef%co2star_wsum_r, size(coefs%coef%co2star_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
     end if
     if ( coefs%coef%nn2o > 0) then
-      if (mpi_myid>0) then
+      if (mmpi_myid>0) then
         allocate( coefs%coef%n2ostar(coefs%coef%nlayers) )
         allocate( coefs%coef%n2ostar_r(coefs%coef%nlayers) )
         allocate( coefs%coef%n2ostar_wsum_r(0:coefs%coef%nlayers) )
@@ -4061,7 +4061,7 @@ contains
       call rpn_comm_bcast(coefs%coef%n2otstar_wsum_r, size(coefs%coef%n2otstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
     end if
     if ( coefs%coef%nco > 0) then
-      if (mpi_myid>0) then
+      if (mmpi_myid>0) then
         allocate( coefs%coef%costar(coefs%coef%nlayers) )
         allocate( coefs%coef%costar_r(coefs%coef%nlayers) )
         allocate( coefs%coef%costar_wsum_r(0:coefs%coef%nlayers) )
@@ -4073,7 +4073,7 @@ contains
       call rpn_comm_bcast(coefs%coef%cotstar_wsum_r, size(coefs%coef%cotstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
     end if
     if ( coefs%coef%nch4 > 0) then
-      if (mpi_myid>0) then
+      if (mmpi_myid>0) then
         allocate( coefs%coef%ch4star(coefs%coef%nlayers) )
         allocate( coefs%coef%ch4star_r(coefs%coef%nlayers) )
         allocate( coefs%coef%ch4star_wsum_r(0:coefs%coef%nlayers) )
@@ -4085,7 +4085,7 @@ contains
       call rpn_comm_bcast(coefs%coef%ch4tstar_wsum_r, size(coefs%coef%ch4tstar_wsum_r) , 'MPI_REAL8', 0, 'GRID', ierr) 
     end if
     if (coefs%coef%nso2 > 0) then
-      if (mpi_myid>0) then
+      if (mmpi_myid>0) then
         allocate( coefs%coef%so2star(coefs%coef%nlayers) )
         allocate( coefs%coef%so2star_r(coefs%coef%nlayers) )
         allocate( coefs%coef%so2star_wsum_r(0:coefs%coef%nlayers) )
@@ -4099,7 +4099,7 @@ contains
     ! Fourth step: channel dependent parameters are extracted according to the channel list and sent to each MPI task
     coefs%coef%fmv_chn = size( channels )
 
-    if (mpi_myid == 0) deallocate ( coefs%coef%ff_ori_chn)
+    if (mmpi_myid == 0) deallocate ( coefs%coef%ff_ori_chn)
     allocate ( coefs%coef%ff_ori_chn(coefs%coef%fmv_chn) )
     coefs%coef%ff_ori_chn =  channels
 
@@ -4198,7 +4198,7 @@ contains
       coefs%coef%nlte_coef%start_chan  = nlte_start
       coefs%coef%nlte_coef%nchan      = nlte_count
 
-      if (mpi_myid > 0) then
+      if (mmpi_myid > 0) then
          allocate (coefs%coef%nlte_coef%sec_sat(coefs%coef%nlte_coef%nsat) )
          allocate (coefs%coef%nlte_coef%sol_zen_angle(coefs%coef%nlte_coef%nsol) )
          allocate (coefs%coef%nlte_coef%sat_zen_angle(coefs%coef%nlte_coef%nsat) )
@@ -4212,7 +4212,7 @@ contains
       allocate(bigArray(coefs%coef%nlte_coef%ncoef, coefs%coef%nlte_coef%nsat, &
            coefs%coef%nlte_coef%nsol, nlte_file_nchan) )
 
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
          do ichan = 1, nlte_file_nchan
             do isol = 1, coefs%coef%nlte_coef%nsol
                do isat = 1, coefs%coef%nlte_coef%nsat
@@ -4233,7 +4233,7 @@ contains
        
     end if
 
-    if (mpi_myid==0 .and. associated(coefs%coef%bounds) )  deallocate(coefs%coef%bounds)
+    if (mmpi_myid==0 .and. associated(coefs%coef%bounds) )  deallocate(coefs%coef%bounds)
   
     !allocate bounds array to store opdep calculation layer limits
     !1st dim: upper boundary layer [ub](above which coefs all zeros), lower boundary layer [lb]
@@ -4254,14 +4254,14 @@ contains
 
     ! surface water reflectance for visible/near-ir channels
     if (any(coefs%coef%ss_val_chn == 2)) then
-      if ( mpi_myid==0) deallocate(coefs%coef%refl_visnir_ow, &
+      if ( mmpi_myid==0) deallocate(coefs%coef%refl_visnir_ow, &
            coefs%coef%refl_visnir_fw, stat = err)
       allocate(coefs%coef%refl_visnir_ow(coefs%coef%fmv_chn), &
            coefs%coef%refl_visnir_fw(coefs%coef%fmv_chn), stat = err)
       call rttov_refl_water_interp(coefs%coef%ff_cwn, coefs%coef%refl_visnir_ow, coefs%coef%refl_visnir_fw)
     end if
 
-    if (coefs%coef%pmc_shift .and. mpi_myid > 0) then
+    if (coefs%coef%pmc_shift .and. mmpi_myid > 0) then
       allocate(coefs%coef%pmc_ppmc(coefs%coef%fmv_chn), stat = err)
     else
       nullify(coefs%coef%pmc_pnominal, coefs%coef%pmc_coef, coefs%coef%pmc_ppmc)
@@ -4298,7 +4298,7 @@ contains
       allocate(bigArray(countUniqueChannel,maxval(ncoefs),ngas,nlayers), stat=err )
       bigArray(:,:,:,:) = 0.0d0
 
-      if (mpi_myid > 0) then
+      if (mmpi_myid > 0) then
         allocate (fast_coef(countUniqueChannel) )
         do channelIndex = 1, countUniqueChannel
           allocate(fast_coef(channelIndex)%gasarray(ngas) )
@@ -4367,7 +4367,7 @@ contains
     ! Locals
     integer :: newSize, tmpI41d(oldSize), ierr, trueSize
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       if (associated(array)) then
         trueSize = size(array)
       else
@@ -4388,7 +4388,7 @@ contains
     
     newSize = size( index )
 
-    if (mpi_myid > 0) allocate( array(oldSize))
+    if (mmpi_myid > 0) allocate( array(oldSize))
     ierr = 0
     call rpn_comm_bcast(array, oldSize, 'MPI_INTEGER', 0, 'GRID', ierr)
     if (ierr /= 0) then
@@ -4409,7 +4409,7 @@ contains
     integer :: newSize, ierr, trueSize
     real(8) :: tmpR81d(oldSize)
     
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       if (associated(array)) then
         trueSize = size(array)
       else
@@ -4430,7 +4430,7 @@ contains
     
     newSize = size( index )
 
-    if (mpi_myid > 0) allocate( array(oldSize))
+    if (mmpi_myid > 0) allocate( array(oldSize))
     ierr = 0
     call rpn_comm_bcast(array, oldSize, 'MPI_REAL8', 0, 'GRID', ierr)
     if (ierr /= 0) then
@@ -4452,7 +4452,7 @@ contains
     integer :: newSize, ierr, trueSize,i
     real(8) :: tmpR82d(oldSize1,oldsize2)
     
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       if (associated(array)) then
         trueSize = size(array)
       else
@@ -4473,7 +4473,7 @@ contains
 
     newSize = size( index )
 
-    if (mpi_myid > 0) allocate( array(oldSize1,oldSize2) )
+    if (mmpi_myid > 0) allocate( array(oldSize1,oldSize2) )
     ierr = 0
     call rpn_comm_bcast(array, oldSize1*oldSize2, 'MPI_REAL8', 0, 'GRID', ierr)
     if (ierr /= 0) then
@@ -4497,7 +4497,7 @@ contains
     integer :: newSize, ierr, trueSize,i
     real(8) :: tmpR83d(oldSize1,oldSize2,oldSize3)
     
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       if (associated(array)) then
         trueSize = size(array)
       else
@@ -4518,7 +4518,7 @@ contains
   
     newSize = size( index )
   
-    if (mpi_myid > 0) allocate( array(oldSize1,oldSize2, oldSIze3) )
+    if (mmpi_myid > 0) allocate( array(oldSize1,oldSize2, oldSIze3) )
     ierr = 0
     call rpn_comm_bcast(array, oldSize1*oldSize2*oldSize3, 'MPI_REAL8', 0, 'GRID', ierr)
     if (ierr /= 0) then
@@ -4541,7 +4541,7 @@ contains
     integer :: newSize, ierr, trueSize
     complex(kind=8) :: tmpCx81d(oldSize)
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       if (associated(array)) then
         trueSize = size(array)
       else
@@ -4562,7 +4562,7 @@ contains
 
     newSize = size( index )
     
-    if (mpi_myid > 0) allocate( array(oldSize))
+    if (mmpi_myid > 0) allocate( array(oldSize))
     ierr = 0
     call rpn_comm_bcast(array, oldSize, 'MPI_COMPLEX8', 0, 'GRID', ierr)
     if (ierr /= 0) then

@@ -22,7 +22,7 @@ module bMatrixLatBands_mod
   !           and isotropic correlations. This is the Global version. A separate 
   !           module exists for limited-area applications.
   !
-  use mpi_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
@@ -126,8 +126,8 @@ contains
     NAMELIST /NAMBLB/ntrunc, scaleFactor, scaleFactorLQ, scaleTG, TweakTG,  &
          stddevMode, filterStddev, blendMeanStddev, zeroTropicsCrossCorr, rvlocpsichittps, rvloclq
 
-    if ( mpi_myid == 0 ) write(*,*) 'blb_setup: starting'
-    if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( mmpi_myid == 0 ) write(*,*) 'blb_setup: starting'
+    if ( mmpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     ! Default values for namelist variables
     ntrunc = 108
@@ -146,19 +146,19 @@ contains
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namblb,iostat=ierr)
     if ( ierr /= 0 ) then
-      if ( mpi_myid == 0 ) write(*,*) 'WARNING: blb_setup: Error reading namelist, ' //  &
+      if ( mmpi_myid == 0 ) write(*,*) 'WARNING: blb_setup: Error reading namelist, ' //  &
                                       'assume it will not be used!'
       cvdim_out = 0
       return
     end if
-    if ( mpi_myid == 0 ) write(*,nml=namblb)
+    if ( mmpi_myid == 0 ) write(*,nml=namblb)
     ierr = fclos(nulnam)
 
     if ( present(mode_opt) ) then
       if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
         bhi_mode = trim(mode_opt)
-        if ( mpi_myid == 0 ) write(*,*)
-        if ( mpi_myid == 0 ) write(*,*) 'blb_setup: Mode activated = ', trim(bhi_mode)
+        if ( mmpi_myid == 0 ) write(*,*)
+        if ( mmpi_myid == 0 ) write(*,*) 'blb_setup: Mode activated = ', trim(bhi_mode)
       else
         write(*,*)
         write(*,*) 'mode = ', trim(mode_opt)
@@ -166,14 +166,14 @@ contains
       end if
     else
       bhi_mode = 'Analysis'
-      if ( mpi_myid == 0 ) write(*,*)
-      if ( mpi_myid == 0 ) write(*,*) 'blb_setup: Analysis mode activated (by default)'
+      if ( mmpi_myid == 0 ) write(*,*)
+      if ( mmpi_myid == 0 ) write(*,*) 'blb_setup: Analysis mode activated (by default)'
     end if
 
     vco_anl => vco_in
     nLev_M = vco_anl%nlev_M
     nLev_T = vco_anl%nlev_T
-    if ( mpi_myid == 0 ) write(*,*) 'blb_setup: nLev_M, nLev_T =',nLev_M, nLev_T
+    if ( mmpi_myid == 0 ) write(*,*) 'blb_setup: nLev_M, nLev_T =',nLev_M, nLev_T
 
     do jlev = 1, max(nLev_M,nLev_T)
       if ( scaleFactor(jlev) > 0.0d0 ) then 
@@ -184,7 +184,7 @@ contains
     end do
 
     if ( sum(scaleFactor(1:max(nLev_M,nLev_T))) == 0.0d0 ) then
-      if ( mpi_myid == 0 ) write(*,*) 'blb_setup: scaleFactor=0, skipping rest of setup'
+      if ( mmpi_myid == 0 ) write(*,*) 'blb_setup: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
       return
     end if
@@ -238,7 +238,7 @@ contains
     AnalGridID = hco_in%EZscintID
 
     gstID  = gst_setup(ni,nj,ntrunc,nkgdim)
-    if ( mpi_myid == 0 ) write(*,*) 'blb_setup: returned value of gstID    =',gstID
+    if ( mmpi_myid == 0 ) write(*,*) 'blb_setup: returned value of gstID    =',gstID
 
     call mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
     call mmpi_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
@@ -325,7 +325,7 @@ contains
     allocate(rstddev(nkgdim,0:ntrunc,numLatBand))
     rstddev(:,:,:) = 0.0d0
 
-    if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( mmpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     zps = 101000.D0
     status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfile_M, &
@@ -373,7 +373,7 @@ contains
     ierr = fstfrm(nulbgst)
     ierr = fclos(nulbgst)
 
-    if ( mpi_myid == 0 ) write(*,*) 'blb_setup: finished'
+    if ( mmpi_myid == 0 ) write(*,*) 'blb_setup: finished'
 
     initialized = .true.
 
@@ -640,7 +640,7 @@ contains
     if ( .true. ) then
 
       iulcorvert = 0
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         ierr = fnom(iulcorvert,'corvert_localized.fst','RND',0)
         ierr = fstouv(iulcorvert,'RND')
       end if
@@ -659,7 +659,7 @@ contains
         nsize = nkgdim*nkgdim
         call rpn_comm_allreduce(corvert_temp,corvert,nsize,"mpi_double_precision","mpi_sum","EW",ierr)
 
-        if ( mpi_myid == 0 ) then
+        if ( mmpi_myid == 0 ) then
           ikey = fstinf(NULBGST,ni_file,nj_file,nk_file,-1,'CORRNS',-1,0,-1,' ','ZZ')
           ierr = fstprm(ikey,idateo,ideet,inpas,ni_file,nj_file,nk_file, inbits        &
                ,idatyp,ip1,ip2,ip3,cltypvar,varName,cletiket,clgrtyp      &
@@ -685,7 +685,7 @@ contains
 
       end do ! jLatBand
 
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         ierr = fstfrm(iulcorvert)
         ierr = fclos(iulcorvert)
       end if
@@ -920,16 +920,16 @@ contains
 
     !- 1.3.1 If specified at the top of the module, do not accept TG errors of more than value specified above
     if ( llimtg ) then
-       if ( mpi_myid == 0 ) write(*,*)
-       if ( mpi_myid == 0 ) write(*,*) 'Capping TG Std. Dev. using a max value (K) = ', rlimsuptg
+       if ( mmpi_myid == 0 ) write(*,*)
+       if ( mmpi_myid == 0 ) write(*,*) 'Capping TG Std. Dev. using a max value (K) = ', rlimsuptg
        where ( tgstdbg > rlimsuptg) tgstdbg = rlimsuptg
     end if
 
     !- 1.3.2 Take into account the Land-Sea mask and the Sea-Ice mask of the day
     if ( TweakTG ) then
 
-      if ( mpi_myid == 0 ) write(*,*)
-      if ( mpi_myid == 0 ) write(*,*) 'Adjusting TG Std Dev based on LandSea and SeaIce masks'
+      if ( mmpi_myid == 0 ) write(*,*)
+      if ( mmpi_myid == 0 ) write(*,*) 'Adjusting TG Std Dev based on LandSea and SeaIce masks'
 
       !- Read MG and GL in the middle of the assimilation time window
       if ( tim_nStepObs == 1 ) then
@@ -943,14 +943,14 @@ contains
       inquire(file=trim(trialfile),exist=trialExists)
 
       if ( .not. trialExists ) then
-        if ( mpi_myid == 0 ) write(*,*)
-        if ( mpi_myid == 0 ) write(*,*) 'Trial file not found = ', trialfile
-        if ( mpi_myid == 0 ) write(*,*) 'Look for an ensemble of trial files '
+        if ( mmpi_myid == 0 ) write(*,*)
+        if ( mmpi_myid == 0 ) write(*,*) 'Trial file not found = ', trialfile
+        if ( mmpi_myid == 0 ) write(*,*) 'Look for an ensemble of trial files '
 
         trialfile='./trlm_'//trim(flnum)//'_0001'
         inquire(file=trim(trialfile),exist=trialExists)
         if ( .not. trialExists ) then
-           if ( mpi_myid == 0 ) write(*,*) 'Ensemble trial file not found = ', trialfile
+           if ( mmpi_myid == 0 ) write(*,*) 'Ensemble trial file not found = ', trialfile
            call utl_abort('blb_setupTg : DID NOT FIND A TRIAL FIELD FILE')
         end if
       end if
@@ -1075,7 +1075,7 @@ contains
       end do
 
       !- Write the modified Std. Dev.
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         allocate(tgstdbg_tmp(ni,nj))
         do jlat = 1, nj
           do jlon = 1,ni
@@ -1667,7 +1667,7 @@ contains
 
     data varNames/'PP  ','CC  ','TT  ','LQ  ','P0  '/   
 
-    if ( mpi_myid == 0 ) write(*,*) 'blb_readStd3d: starting'
+    if ( mmpi_myid == 0 ) write(*,*) 'blb_readStd3d: starting'
     rgsig(:,:) = 0.0d0
 
 !   2. Reading the data
@@ -1682,7 +1682,7 @@ contains
     do varIndex = 1, inbrvar
       varName = varNames(varIndex)
       varLevel = vnl_varLevelFromVarname(varName)
-      if ( mpi_myid == 0 ) write(*,*) 'blb_readStd3d: reading stddev for variable ', trim(varName)
+      if ( mmpi_myid == 0 ) write(*,*) 'blb_readStd3d: reading stddev for variable ', trim(varName)
 
       if ( varLevel == 'MM' ) then
         nlev_MT = nlev_M
@@ -1763,7 +1763,7 @@ contains
 
     end if
 
-    if ( mpi_myid == 0 ) write(*,*) 'blb_readStd3d: finished'
+    if ( mmpi_myid == 0 ) write(*,*) 'blb_readStd3d: finished'
 
   end subroutine blb_readStd3d
 
@@ -1778,7 +1778,7 @@ contains
     integer          :: jn, jm, ila_mpiglobal, ila_mpilocal, jlev, jdim
 
     if ( .not. initialized ) then
-      if ( mpi_myid == 0 ) write(*,*) 'blb_truncateCV: bMatrixLatBands not initialized'
+      if ( mmpi_myid == 0 ) write(*,*) 'blb_truncateCV: bMatrixLatBands not initialized'
       return
     end if
 
@@ -1821,11 +1821,11 @@ contains
     real(8),allocatable :: gd_out(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdim,numLatBand)
 
-    if ( mpi_myid == 0 ) write(*,*) 'blb_bsqrt: starting'
-    if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( mmpi_myid == 0 ) write(*,*) 'blb_bsqrt: starting'
+    if ( mmpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if ( .not. initialized ) then
-      if ( mpi_myid == 0 ) write(*,*) 'bMatrixLatBands not initialized'
+      if ( mmpi_myid == 0 ) write(*,*) 'bMatrixLatBands not initialized'
       return
     end if
 
@@ -1838,8 +1838,8 @@ contains
 
     deallocate(gd_out)
 
-    if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if ( mpi_myid == 0 ) write(*,*) 'blb_bsqrt: done'
+    if ( mmpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( mmpi_myid == 0 ) write(*,*) 'blb_bsqrt: done'
 
   end subroutine blb_bSqrt
 
@@ -1853,12 +1853,12 @@ contains
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdim,numLatBand)
 
     if ( .not. initialized ) then
-      if ( mpi_myid == 0 ) write(*,*) 'bMatrixLatBands not initialized'
+      if ( mmpi_myid == 0 ) write(*,*) 'bMatrixLatBands not initialized'
       return
     end if
 
-    if ( mpi_myid == 0 ) write(*,*) 'blb_bsqrtad: starting'
-    if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( mmpi_myid == 0 ) write(*,*) 'blb_bsqrtad: starting'
+    if ( mmpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
 
@@ -1870,8 +1870,8 @@ contains
 
     deallocate(gd_in)
 
-    if ( mpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if ( mpi_myid == 0 ) write(*,*) 'blb_bsqrtad: done'
+    if ( mmpi_myid == 0 ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( mmpi_myid == 0 ) write(*,*) 'blb_bsqrtad: done'
 
   end subroutine blb_bSqrtAd
 
@@ -1977,8 +1977,8 @@ contains
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
-    if ( mpi_myid == 0 ) then
-      allocate(cvDim_allMpiLocal(mpi_nprocs))
+    if ( mmpi_myid == 0 ) then
+      allocate(cvDim_allMpiLocal(mmpi_nprocs))
     else
       allocate(cvDim_allMpiLocal(1))
     end if
@@ -1986,13 +1986,13 @@ contains
     call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
                          cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
 
-    if ( mpi_myid == 0 ) then
-      allocate(allnBeg(mpi_nprocs))
-      allocate(allnEnd(mpi_nprocs))
-      allocate(allnSkip(mpi_nprocs))
-      allocate(allmBeg(mpi_nprocs))
-      allocate(allmEnd(mpi_nprocs))
-      allocate(allmSkip(mpi_nprocs))
+    if ( mmpi_myid == 0 ) then
+      allocate(allnBeg(mmpi_nprocs))
+      allocate(allnEnd(mmpi_nprocs))
+      allocate(allnSkip(mmpi_nprocs))
+      allocate(allmBeg(mmpi_nprocs))
+      allocate(allmEnd(mmpi_nprocs))
+      allocate(allmSkip(mmpi_nprocs))
     else
       allocate(allnBeg(1))
       allocate(allnEnd(1))
@@ -2017,12 +2017,12 @@ contains
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
     ! Prepare data to be distributed
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
 
-      allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+      allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlatBand,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-      do jproc = 0, (mpi_nprocs-1)
+      do jproc = 0, (mmpi_nprocs-1)
         cv_allmaxmpilocal(:,jproc+1) = 0.d0
         jdim_mpilocal = 0
 
@@ -2088,8 +2088,8 @@ contains
     end if
 
     !- Distribute
-    allocate(displs(mpi_nprocs))
-    do jproc = 0, (mpi_nprocs-1)
+    allocate(displs(mmpi_nprocs))
+    do jproc = 0, (mmpi_nprocs-1)
       displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
                                                 ! to take the outgoing data to process jproc
     end do
@@ -2129,8 +2129,8 @@ contains
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
-    if ( mpi_myid == 0 ) then
-      allocate(cvDim_allMpiLocal(mpi_nprocs))
+    if ( mmpi_myid == 0 ) then
+      allocate(cvDim_allMpiLocal(mmpi_nprocs))
     else
       allocate(cvDim_allMpiLocal(1))
     end if
@@ -2138,13 +2138,13 @@ contains
     call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
                          cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
 
-    if ( mpi_myid == 0 ) then
-      allocate(allnBeg(mpi_nprocs))
-      allocate(allnEnd(mpi_nprocs))
-      allocate(allnSkip(mpi_nprocs))
-      allocate(allmBeg(mpi_nprocs))
-      allocate(allmEnd(mpi_nprocs))
-      allocate(allmSkip(mpi_nprocs))
+    if ( mmpi_myid == 0 ) then
+      allocate(allnBeg(mmpi_nprocs))
+      allocate(allnEnd(mmpi_nprocs))
+      allocate(allnSkip(mmpi_nprocs))
+      allocate(allmBeg(mmpi_nprocs))
+      allocate(allmEnd(mmpi_nprocs))
+      allocate(allmSkip(mmpi_nprocs))
     else
       allocate(allnBeg(1))
       allocate(allnEnd(1))
@@ -2169,12 +2169,12 @@ contains
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
     ! Prepare data to be distributed
-    if (mpi_myid == 0 ) then
+    if (mmpi_myid == 0 ) then
 
-      allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+      allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlatBand,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-      do jproc = 0, (mpi_nprocs-1)
+      do jproc = 0, (mmpi_nprocs-1)
         cv_allmaxmpilocal(:,jproc+1) = 0.d0
         jdim_mpilocal = 0
 
@@ -2240,8 +2240,8 @@ contains
     end if
 
     !- Distribute
-    allocate(displs(mpi_nprocs))
-    do jproc = 0, (mpi_nprocs-1)
+    allocate(displs(mmpi_nprocs))
+    do jproc = 0, (mmpi_nprocs-1)
       displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
                                                 ! to take the outgoing data to process jproc
     end do
@@ -2281,8 +2281,8 @@ contains
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
     nullify(cv_allmaxmpilocal)
-    if ( mpi_myid == 0 ) then
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    if ( mmpi_myid == 0 ) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
     else
        allocate(cv_allmaxmpilocal(1,1))
     end if
@@ -2298,13 +2298,13 @@ contains
     !
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
-    if ( mpi_myid == 0 ) then
-       allocate(allnBeg(mpi_nprocs))
-       allocate(allnEnd(mpi_nprocs))
-       allocate(allnSkip(mpi_nprocs))
-       allocate(allmBeg(mpi_nprocs))
-       allocate(allmEnd(mpi_nprocs))
-       allocate(allmSkip(mpi_nprocs))
+    if ( mmpi_myid == 0 ) then
+       allocate(allnBeg(mmpi_nprocs))
+       allocate(allnEnd(mmpi_nprocs))
+       allocate(allnSkip(mmpi_nprocs))
+       allocate(allmBeg(mmpi_nprocs))
+       allocate(allmEnd(mmpi_nprocs))
+       allocate(allmSkip(mmpi_nprocs))
     else
        allocate(allnBeg(1))
        allocate(allnEnd(1))
@@ -2328,11 +2328,11 @@ contains
     call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       cv_mpiglobal(:) = 0.0d0
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlatBand,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-      do jproc = 0, (mpi_nprocs-1)
+      do jproc = 0, (mmpi_nprocs-1)
         jdim_mpilocal = 0
 
         do jlatBand = 1, numLatBand
@@ -2412,8 +2412,8 @@ contains
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
     nullify(cv_allmaxmpilocal)
-    if ( mpi_myid == 0 ) then
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    if ( mmpi_myid == 0 ) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
     else
        allocate(cv_allmaxmpilocal(1,1))
     end if
@@ -2429,13 +2429,13 @@ contains
     !
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
-    if ( mpi_myid == 0 ) then
-       allocate(allnBeg(mpi_nprocs))
-       allocate(allnEnd(mpi_nprocs))
-       allocate(allnSkip(mpi_nprocs))
-       allocate(allmBeg(mpi_nprocs))
-       allocate(allmEnd(mpi_nprocs))
-       allocate(allmSkip(mpi_nprocs))
+    if ( mmpi_myid == 0 ) then
+       allocate(allnBeg(mmpi_nprocs))
+       allocate(allnEnd(mmpi_nprocs))
+       allocate(allnSkip(mmpi_nprocs))
+       allocate(allmBeg(mmpi_nprocs))
+       allocate(allmEnd(mmpi_nprocs))
+       allocate(allmSkip(mmpi_nprocs))
     else
        allocate(allnBeg(1))
        allocate(allnEnd(1))
@@ -2459,11 +2459,11 @@ contains
     call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       cv_mpiglobal(:) = 0.0d0
 
 !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlatBand,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-      do jproc = 0, (mpi_nprocs-1)
+      do jproc = 0, (mmpi_nprocs-1)
         jdim_mpilocal = 0
 
         do jlatBand = 1, numLatBand

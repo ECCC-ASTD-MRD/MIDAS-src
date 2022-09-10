@@ -19,7 +19,7 @@ module bgckcsr_mod
   !
   ! :Purpose: To perform CSR data background Check
   !
-  use mpi_mod
+  use midasMpi_mod
   use MathPhysConstants_mod
   use utilities_mod
   use obsSpaceData_mod
@@ -65,7 +65,7 @@ contains
     ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
     read(nulnam, nml=namcsr, iostat=ierr)
     if (ierr /= 0) call utl_abort('csrbg_init: Error reading namelist')
-    if (mpi_myid == 0) write(*, nml=namcsr)
+    if (mmpi_myid == 0) write(*, nml=namcsr)
     ierr = fclos(nulnam)
 
   end subroutine csrbg_init

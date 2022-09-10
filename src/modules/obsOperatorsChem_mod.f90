@@ -26,7 +26,7 @@ module obsOperatorsChem_mod
   use columnData_mod 
   use bufr_mod
   use physicsFunctions_mod
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use varNameList_mod
   use obsSubSpaceData_mod
@@ -459,7 +459,7 @@ contains
     read(nulnam,nml=namchem,iostat=ios)
     if (ios.lt.-4.or.ios.gt.0) then 
       call utl_abort('chm_read_namchem: Error in reading NAMCHEM namelist. iostat = ' // trim(utl_str(ios)) )   
-    else if (mpi_myid.eq.0) then
+    else if (mmpi_myid.eq.0) then
       write(*,nml=namchem)   
     end if
   

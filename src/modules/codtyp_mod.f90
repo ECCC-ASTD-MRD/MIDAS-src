@@ -25,7 +25,7 @@ module codtyp_mod
   !          https://wiki.cmc.ec.gc.ca/wiki/Description_exhaustive_du_format_BURP
   !
   use utilities_mod
-  use mpi_mod
+  use midasMpi_mod
   private
   integer ,parameter :: codtyp_maxNumber = 256
   integer, parameter :: codtyp_name_length = 21
@@ -311,7 +311,7 @@ contains
 
     ncodtyp = ncodtyp + 115
 
-    if (mpi_myid == 0) write(*,nml=namcodtyp)
+    if (mmpi_myid == 0) write(*,nml=namcodtyp)
 
     initialized = .true.
 

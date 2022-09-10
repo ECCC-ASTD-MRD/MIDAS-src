@@ -21,7 +21,7 @@ program midas_randomPert
   !           ensemble-based).
   !
   use version_mod
-  use mpi_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use ramDisk_mod
   use controlVector_mod
@@ -75,8 +75,8 @@ program midas_randomPert
   !
   !- 0. MPI, tmg initialization
   !
-  call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call mmpi_initialize
+  call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -102,7 +102,7 @@ program midas_randomPert
   ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namenkf, iostat=ierr)
   if(ierr.ne.0) call utl_abort('midas-randomPert: Error reading namelist')
-  if( mpi_myid == 0 ) write(*,nml=namenkf)
+  if( mmpi_myid == 0 ) write(*,nml=namenkf)
   ierr=fclos(nulnam)
 
   ndate   = date
@@ -122,8 +122,8 @@ program midas_randomPert
   idate   = ndate/100
   itime   = (ndate-idate*100)*1000000
   ierr    = newdate(nstamp, idate, itime, 3)
-  if( mpi_myid == 0 ) write(*,*) ' idate= ', idate, ' time= ', itime
-  if( mpi_myid == 0 ) write(*,*) ' date= ', ndate, ' stamp= ', nstamp
+  if( mmpi_myid == 0 ) write(*,*) ' idate= ', idate, ' time= ', itime
+  if( mmpi_myid == 0 ) write(*,*) ' date= ', ndate, ' stamp= ', nstamp
 
   !- 2.2 Initialize variables of the model states
   call gsv_setup
@@ -135,8 +135,8 @@ program midas_randomPert
   call tim_setDatestamp(nstamp)
 
   !- 2.3 Initialize the Analysis grid
-  if (mpi_myid == 0) write(*,*) ''
-  if (mpi_myid == 0) write(*,*) ' Set hco parameters for analysis grid'
+  if (mmpi_myid == 0) write(*,*) ''
+  if (mmpi_myid == 0) write(*,*) ' Set hco parameters for analysis grid'
   call hco_setupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
@@ -194,14 +194,14 @@ program midas_randomPert
   !- 4. Compute an ensemble of random perturbations
   !
 
-  if( mpi_myid == 0 ) write(*,*) '******************'
-  if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: COMPUTE the mean of the random ', &
-                                 'perturbations of all the members'
+  if( mmpi_myid == 0 ) write(*,*) '******************'
+  if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: COMPUTE the mean of the random ', &
+                                  'perturbations of all the members'
 
   if( mpiTopoIndependent ) then
     call rng_setup(abs(seed))
   else
-    call rng_setup(abs(seed+mpi_myid))
+    call rng_setup(abs(seed+mmpi_myid))
   end if
 
   gdmean(:,:,:) = 0.0D0
@@ -210,7 +210,7 @@ program midas_randomPert
   !- 4.1 Generate a (potentially) biased ensemble
   do memberIndex = 1, NENS
 
-    if( mpi_myid == 0 ) write(*,*) ' computing member number= ', memberIndex
+    if( mmpi_myid == 0 ) write(*,*) ' computing member number= ', memberIndex
 
     !- 4.1.1 Create a random control vector in spectral space
 
@@ -363,8 +363,8 @@ program midas_randomPert
 
   !- 4.4 Write the perturbations
   do memberIndex = 1, NENS
-    if( mpi_myid == 0 ) write(*,*)
-    if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: pre-processing for writing member number= ', memberIndex
+    if( mmpi_myid == 0 ) write(*,*)
+    if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: pre-processing for writing member number= ', memberIndex
 
     call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
                       dateStamp_opt=nstamp, mpi_local_opt=.true., &
@@ -383,7 +383,7 @@ program midas_randomPert
 
     write(clmember, '(I3.3)') memberIndex
     clfiname = './pert_'//trim(cldate)//'_'//trim(clmember)
-    if( mpi_myid == 0 ) write(*,*) 'midas-randomPert: processing clfiname= ', clfiname
+    if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: processing clfiname= ', clfiname
 
     call gio_writeToFile(statevector, clfiname, out_etiket,      & ! IN
                          numBits_opt=numBits, unitConversion_opt=.true.)  ! IN
@@ -412,7 +412,7 @@ program midas_randomPert
   !
   !- 6.  MPI, tmg finalize
   !  
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -420,8 +420,8 @@ program midas_randomPert
   !
   !- 7.  Ending
   !
-  if( mpi_myid == 0 ) write(*,*) ' --------------------------------'
-  if( mpi_myid == 0 ) write(*,*) ' MIDAS-RANDOMPERT ENDS'
-  if( mpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if( mmpi_myid == 0 ) write(*,*) ' MIDAS-RANDOMPERT ENDS'
+  if( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
 
 end program midas_randomPert

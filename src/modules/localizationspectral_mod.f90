@@ -21,7 +21,7 @@ MODULE localizationSpectral_mod
   !           ensemble member from a given (1D) control vector of
   !           SPECTRAL ELEMENTS
   !
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use globalSpectralTransform_mod
   use lamSpectralTransform_mod
@@ -117,8 +117,8 @@ CONTAINS
     
     !- 2.1 Mode
     if ( trim(locType) == 'spectral') then
-       if (mpi_myid == 0) write(*,*)
-       if (mpi_myid == 0) write(*,*) 'lsp_setup: LocType = ', trim(locType)
+       if (mmpi_myid == 0) write(*,*)
+       if (mmpi_myid == 0) write(*,*) 'lsp_setup: LocType = ', trim(locType)
     else
        write(*,*)
        write(*,*) 'locType = ', trim(locType)
@@ -138,11 +138,11 @@ CONTAINS
 
     lsp%global = hco_loc%global
     if (lsp%global) then
-      if (mpi_myid == 0) write(*,*)
-      if (mpi_myid == 0) write(*,*) 'lsp_setup: GLOBAL mode activated'
+      if (mmpi_myid == 0) write(*,*)
+      if (mmpi_myid == 0) write(*,*) 'lsp_setup: GLOBAL mode activated'
     else
-      if (mpi_myid == 0) write(*,*)
-      if (mpi_myid == 0) write(*,*) 'lsp_setup: LAM mode activated'
+      if (mmpi_myid == 0) write(*,*)
+      if (mmpi_myid == 0) write(*,*) 'lsp_setup: LAM mode activated'
     end if
 
     !- 2.4 Spectral Transform
@@ -152,7 +152,7 @@ CONTAINS
     call mmpi_setup_levels(lsp%nEns,myMemberBeg,myMemberEnd,myMemberCount)
     call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
                               1,"MPI_INTEGER","mpi_max","GRID",ierr)
-    nEnsOverDimension_out     = mpi_npex * maxMyMemberCount
+    nEnsOverDimension_out     = mmpi_npex * maxMyMemberCount
     lsp%nEnsOverDimension = nEnsOverDimension_out
 
     if (lsp%global) then
@@ -161,7 +161,7 @@ CONTAINS
        lsp%nla_mpiglobal = (lsp%ntrunc+1)*(lsp%ntrunc+2)/2
        
        lsp%gstID = gst_setup(lsp%ni,lsp%nj,lsp%ntrunc,lsp%nEnsOverDimension)
-       if (mpi_myid == 0) write(*,*) 'lsp_setup: returned value of gstID = ',lsp%gstID
+       if (mmpi_myid == 0) write(*,*) 'lsp_setup: returned value of gstID = ',lsp%gstID
 
     else
        ! LAM mode
@@ -280,7 +280,7 @@ CONTAINS
                                           horizLengthScale2*( log(pressureProfile(lsp%nLev   )) - &
                                                               log(pressureProfile(levIndex)) ) ) /  &
                                          ( log(pressureProfile(lsp%nLev))-log(pressureProfile(1)) )
-        if (mpi_myid == 0) then
+        if (mmpi_myid == 0) then
           write(*,*) 'loc: localization length scale (',levIndex,') = ',horizLengthScaleAll(levIndex)
         end if
       end do
@@ -553,7 +553,7 @@ CONTAINS
             write(*,*) 'setupLamSpectralHLoc: Problem in normalization ',gd(lsp%ni/2,lsp%nj/2,k)
             call utl_abort('setupLamSpectralHLoc')
          end if
-         if ( mpi_myid == 0 ) then
+         if ( mmpi_myid == 0 ) then
            write(*,*) 'setupLamSpectralHLoc: Normalization factor = ', k, gd(lsp%ni/2,lsp%nj/2,k), 1.d0 / gd(lsp%ni/2,lsp%nj/2,k)
          end if
          lsp%LhorizSqrt(:,k) = lsp%LhorizSqrt(:,k) / gd(lsp%ni/2,lsp%nj/2,k)
@@ -993,7 +993,7 @@ CONTAINS
     call rpn_comm_allreduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, &
          1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
-    allocate(cvDim_allMpiLocal(mpi_nprocs))
+    allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call rpn_comm_allgather(lsp%cvDim_mpiLocal   ,1,"mpi_integer",       &
                             cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
 
@@ -1003,33 +1003,33 @@ CONTAINS
 
        ! Global
 
-       allocate(allnBeg(mpi_nprocs))
+       allocate(allnBeg(mmpi_nprocs))
        call rpn_comm_allgather(lsp%mynBeg,1,"mpi_integer",       &
                                allnBeg,1,"mpi_integer","GRID",ierr)
-       allocate(allnEnd(mpi_nprocs))
+       allocate(allnEnd(mmpi_nprocs))
        call rpn_comm_allgather(lsp%mynEnd,1,"mpi_integer",       &
                                allnEnd,1,"mpi_integer","GRID",ierr)
-       allocate(allnSkip(mpi_nprocs))
+       allocate(allnSkip(mmpi_nprocs))
        call rpn_comm_allgather(lsp%mynSkip,1,"mpi_integer",       &
                                allnSkip,1,"mpi_integer","GRID",ierr)
 
-       allocate(allmBeg(mpi_nprocs))
+       allocate(allmBeg(mmpi_nprocs))
        call rpn_comm_allgather(lsp%mymBeg,1,"mpi_integer",       &
                                allmBeg,1,"mpi_integer","GRID",ierr)
-       allocate(allmEnd(mpi_nprocs))
+       allocate(allmEnd(mmpi_nprocs))
        call rpn_comm_allgather(lsp%mymEnd,1,"mpi_integer",       &
                                allmEnd,1,"mpi_integer","GRID",ierr)
-       allocate(allmSkip(mpi_nprocs))
+       allocate(allmSkip(mmpi_nprocs))
        call rpn_comm_allgather(lsp%mymSkip,1,"mpi_integer",       &
                                allmSkip,1,"mpi_integer","GRID",ierr)
 
 
-       if (mpi_myid == 0) then
+       if (mmpi_myid == 0) then
 
-          allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+          allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
 !$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
-          do jproc = 0, (mpi_nprocs-1)
+          do jproc = 0, (mmpi_nprocs-1)
              cv_allmaxmpilocal(:,jproc+1) = 0.d0
 
              dimIndex_mpilocal = 0
@@ -1106,9 +1106,9 @@ CONTAINS
       ! LAM
       call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
 
-      if (mpi_myid == 0) then
-         allocate(allnlaLocal(mpi_nprocs))
-         allocate(allilaGlobal(nlaMax,mpi_nprocs))
+      if (mmpi_myid == 0) then
+         allocate(allnlaLocal(mmpi_nprocs))
+         allocate(allilaGlobal(nlaMax,mmpi_nprocs))
       else
          allocate(allnlaLocal(1))
          allocate(allilaGlobal(1,1))
@@ -1125,11 +1125,11 @@ CONTAINS
 
       deallocate(ilaGlobal)
 
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
 
-         allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+         allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
-         do jproc = 0, (mpi_nprocs-1)
+         do jproc = 0, (mmpi_nprocs-1)
             cv_allmaxmpilocal(:,jproc+1) = 0.d0
             do memberIndex = 1, lsp%nEns
                do levIndex = 1, lsp%nLev
@@ -1179,8 +1179,8 @@ CONTAINS
    end if
 
    !- Distribute
-   allocate(displs(mpi_nprocs))
-   do jproc = 0, (mpi_nprocs-1)
+   allocate(displs(mmpi_nprocs))
+   do jproc = 0, (mmpi_nprocs-1)
       displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
                                                  ! to take the outgoing data to process jproc
    end do
@@ -1226,7 +1226,7 @@ CONTAINS
     call rpn_comm_allreduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, &
          1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
-    allocate(cvDim_allMpiLocal(mpi_nprocs))
+    allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call rpn_comm_allgather(lsp%cvDim_mpiLocal   ,1,"mpi_integer",       &
                             cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
 
@@ -1236,33 +1236,33 @@ CONTAINS
 
        ! Global
 
-       allocate(allnBeg(mpi_nprocs))
+       allocate(allnBeg(mmpi_nprocs))
        call rpn_comm_allgather(lsp%mynBeg,1,"mpi_integer",       &
                                allnBeg,1,"mpi_integer","GRID",ierr)
-       allocate(allnEnd(mpi_nprocs))
+       allocate(allnEnd(mmpi_nprocs))
        call rpn_comm_allgather(lsp%mynEnd,1,"mpi_integer",       &
                                allnEnd,1,"mpi_integer","GRID",ierr)
-       allocate(allnSkip(mpi_nprocs))
+       allocate(allnSkip(mmpi_nprocs))
        call rpn_comm_allgather(lsp%mynSkip,1,"mpi_integer",       &
                                allnSkip,1,"mpi_integer","GRID",ierr)
 
-       allocate(allmBeg(mpi_nprocs))
+       allocate(allmBeg(mmpi_nprocs))
        call rpn_comm_allgather(lsp%mymBeg,1,"mpi_integer",       &
                                allmBeg,1,"mpi_integer","GRID",ierr)
-       allocate(allmEnd(mpi_nprocs))
+       allocate(allmEnd(mmpi_nprocs))
        call rpn_comm_allgather(lsp%mymEnd,1,"mpi_integer",       &
                                allmEnd,1,"mpi_integer","GRID",ierr)
-       allocate(allmSkip(mpi_nprocs))
+       allocate(allmSkip(mmpi_nprocs))
        call rpn_comm_allgather(lsp%mymSkip,1,"mpi_integer",       &
                                allmSkip,1,"mpi_integer","GRID",ierr)
 
 
-       if (mpi_myid == 0) then
+       if (mmpi_myid == 0) then
 
-          allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+          allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
 !$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
-          do jproc = 0, (mpi_nprocs-1)
+          do jproc = 0, (mmpi_nprocs-1)
              cv_allmaxmpilocal(:,jproc+1) = 0.d0
 
              dimIndex_mpilocal = 0
@@ -1339,9 +1339,9 @@ CONTAINS
       ! LAM
       call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
 
-      if (mpi_myid == 0) then
-         allocate(allnlaLocal(mpi_nprocs))
-         allocate(allilaGlobal(nlaMax,mpi_nprocs))
+      if (mmpi_myid == 0) then
+         allocate(allnlaLocal(mmpi_nprocs))
+         allocate(allilaGlobal(nlaMax,mmpi_nprocs))
       else
          allocate(allnlaLocal(1))
          allocate(allilaGlobal(1,1))
@@ -1358,11 +1358,11 @@ CONTAINS
 
       deallocate(ilaGlobal)
 
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
 
-         allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+         allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
-         do jproc = 0, (mpi_nprocs-1)
+         do jproc = 0, (mmpi_nprocs-1)
             cv_allmaxmpilocal(:,jproc+1) = 0.d0
             do memberIndex = 1, lsp%nEns
                do levIndex = 1, lsp%nLev
@@ -1412,8 +1412,8 @@ CONTAINS
    end if
 
    !- Distribute
-   allocate(displs(mpi_nprocs))
-   do jproc = 0, (mpi_nprocs-1)
+   allocate(displs(mmpi_nprocs))
+   do jproc = 0, (mmpi_nprocs-1)
       displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
                                                  ! to take the outgoing data to process jproc
    end do
@@ -1459,7 +1459,7 @@ CONTAINS
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    allocate(cvDim_allMpiLocal(mpi_nprocs))
+    allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call rpn_comm_allgather(lsp%cvDim_mpiLocal   ,1,"mpi_integer",       &
                             cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
 
@@ -1471,8 +1471,8 @@ CONTAINS
     cv_maxmpilocal(1:lsp%cvDim_mpilocal) = cv_mpilocal(1:lsp%cvDim_mpilocal)
 
     nullify(cv_allmaxmpilocal)
-    if (mpi_myid == 0) then
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    if (mmpi_myid == 0) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
     else
        allocate(cv_allmaxmpilocal(1,1))
     end if
@@ -1487,13 +1487,13 @@ CONTAINS
     if (lsp%global) then
 
        ! Global
-       if (mpi_myid == 0) then
-          allocate(allnBeg(mpi_nprocs))
-          allocate(allnEnd(mpi_nprocs))
-          allocate(allnSkip(mpi_nprocs))
-          allocate(allmBeg(mpi_nprocs))
-          allocate(allmEnd(mpi_nprocs))
-          allocate(allmSkip(mpi_nprocs))
+       if (mmpi_myid == 0) then
+          allocate(allnBeg(mmpi_nprocs))
+          allocate(allnEnd(mmpi_nprocs))
+          allocate(allnSkip(mmpi_nprocs))
+          allocate(allmBeg(mmpi_nprocs))
+          allocate(allmEnd(mmpi_nprocs))
+          allocate(allmSkip(mmpi_nprocs))
        else
           allocate(allnBeg(1))
           allocate(allnEnd(1))
@@ -1518,11 +1518,11 @@ CONTAINS
                             allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
        ! reorganize gathered mpilocal control vectors into the mpiglobal control vector
-       if (mpi_myid == 0) then
+       if (mmpi_myid == 0) then
          cv_mpiglobal(:) = 0.0d0
 
 !$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
-         do jproc = 0, (mpi_nprocs-1)
+         do jproc = 0, (mmpi_nprocs-1)
            dimIndex_mpilocal = 0
            do memberIndex = 1, lsp%nEns
 
@@ -1593,9 +1593,9 @@ CONTAINS
       ! LAM
        call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
 
-       if (mpi_myid == 0) then
-          allocate(allnlaLocal(mpi_nprocs))
-          allocate(allilaGlobal(nlaMax,mpi_nprocs))
+       if (mmpi_myid == 0) then
+          allocate(allnlaLocal(mmpi_nprocs))
+          allocate(allilaGlobal(nlaMax,mmpi_nprocs))
        else
           allocate(allnlaLocal(1))
           allocate(allilaGlobal(1,1))
@@ -1612,10 +1612,10 @@ CONTAINS
 
        deallocate(ilaGlobal)
 
-       if (mpi_myid == 0) then
+       if (mmpi_myid == 0) then
           cv_mpiglobal(:) = 0.0d0
 
-          do jproc = 0, (mpi_nprocs-1)
+          do jproc = 0, (mmpi_nprocs-1)
              do memberIndex = 1, lsp%nEns
                 do levIndex = 1, lsp%nLev
                    do ila_mpilocal = 1, allnlaLocal(jproc+1)
@@ -1699,7 +1699,7 @@ CONTAINS
     !
     !- 1.  Gather all local control vectors onto mpi task 0
     !
-    allocate(cvDim_allMpiLocal(mpi_nprocs))
+    allocate(cvDim_allMpiLocal(mmpi_nprocs))
     call rpn_comm_allgather(lsp%cvDim_mpiLocal   ,1,"mpi_integer",       &
                             cvDim_allMpiLocal,1,"mpi_integer","GRID",ierr)
 
@@ -1711,8 +1711,8 @@ CONTAINS
     cv_maxmpilocal(1:lsp%cvDim_mpilocal) = cv_mpilocal(1:lsp%cvDim_mpilocal)
 
     nullify(cv_allmaxmpilocal)
-    if (mpi_myid == 0) then
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    if (mmpi_myid == 0) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
     else
        allocate(cv_allmaxmpilocal(1,1))
     end if
@@ -1727,13 +1727,13 @@ CONTAINS
     if (lsp%global) then
 
        ! Global
-       if (mpi_myid == 0) then
-          allocate(allnBeg(mpi_nprocs))
-          allocate(allnEnd(mpi_nprocs))
-          allocate(allnSkip(mpi_nprocs))
-          allocate(allmBeg(mpi_nprocs))
-          allocate(allmEnd(mpi_nprocs))
-          allocate(allmSkip(mpi_nprocs))
+       if (mmpi_myid == 0) then
+          allocate(allnBeg(mmpi_nprocs))
+          allocate(allnEnd(mmpi_nprocs))
+          allocate(allnSkip(mmpi_nprocs))
+          allocate(allmBeg(mmpi_nprocs))
+          allocate(allmEnd(mmpi_nprocs))
+          allocate(allmSkip(mmpi_nprocs))
        else
           allocate(allnBeg(1))
           allocate(allnEnd(1))
@@ -1758,11 +1758,11 @@ CONTAINS
                             allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
        ! reorganize gathered mpilocal control vectors into the mpiglobal control vector
-       if (mpi_myid == 0) then
+       if (mmpi_myid == 0) then
          cv_mpiglobal(:) = 0.0d0
 
 !$OMP PARALLEL DO PRIVATE(jproc,dimIndex_mpilocal,memberIndex,levIndex,mIndex,nIndex,ila_mpiglobal,dimIndex_mpiglobal)
-         do jproc = 0, (mpi_nprocs-1)
+         do jproc = 0, (mmpi_nprocs-1)
            dimIndex_mpilocal = 0
            do memberIndex = 1, lsp%nEns
 
@@ -1833,9 +1833,9 @@ CONTAINS
       ! LAM
        call rpn_comm_allreduce(lsp%lst%nla,nlaMax,1,"mpi_integer","mpi_max","GRID",ierr)
 
-       if (mpi_myid == 0) then
-          allocate(allnlaLocal(mpi_nprocs))
-          allocate(allilaGlobal(nlaMax,mpi_nprocs))
+       if (mmpi_myid == 0) then
+          allocate(allnlaLocal(mmpi_nprocs))
+          allocate(allilaGlobal(nlaMax,mmpi_nprocs))
        else
           allocate(allnlaLocal(1))
           allocate(allilaGlobal(1,1))
@@ -1852,10 +1852,10 @@ CONTAINS
 
        deallocate(ilaGlobal)
 
-       if (mpi_myid == 0) then
+       if (mmpi_myid == 0) then
           cv_mpiglobal(:) = 0.0d0
 
-          do jproc = 0, (mpi_nprocs-1)
+          do jproc = 0, (mmpi_nprocs-1)
              do memberIndex = 1, lsp%nEns
                 do levIndex = 1, lsp%nLev
                    do ila_mpilocal = 1, allnlaLocal(jproc+1)

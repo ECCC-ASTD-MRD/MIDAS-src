@@ -25,7 +25,7 @@ module BMatrix_mod
   !           - Considerations for ensemble-based and regional static
   !             covariances for constituents are not yet included.
   !
-  use mpi_mod
+  use midasMpi_mod
   use bMatrixHI_mod
   use bMatrixEnsemble_mod
   use bMatrixChem_mod
@@ -519,7 +519,7 @@ contains
       if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
 
       subVector_mpilocal => cvm_getSubVector( cv_mpilocal, bmatLabelList(bmatIndex) )
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
          subVector_mpiglobal => cvm_getSubVector_mpiglobal( cv_mpiglobal, bmatLabelList(bmatIndex) )
       else
          subVector_mpiglobal => dummyVector
@@ -589,7 +589,7 @@ contains
       if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
 
       subVector_mpilocal => cvm_getSubVector_r4( cv_mpilocal, bmatLabelList(bmatIndex) )
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
          subVector_mpiglobal => cvm_getSubVector_mpiglobal_r4( cv_mpiglobal, bmatLabelList(bmatIndex) )
       else
          subVector_mpiglobal => dummyVector_r4
@@ -659,7 +659,7 @@ contains
       if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
 
       subVector_mpilocal => cvm_getSubVector( cv_mpilocal, bmatLabelList(bmatIndex) )
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
          subVector_mpiglobal => cvm_getSubVector_mpiglobal( cv_mpiglobal, bmatLabelList(bmatIndex) )
       else
          subVector_mpiglobal => dummyVector
@@ -729,7 +729,7 @@ contains
       if ( .not. bmatActive(bmatIndex) ) cycle bmat_loop
 
       subVector_mpilocal => cvm_getSubVector_r4( cv_mpilocal, bmatLabelList(bmatIndex) )
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
          subVector_mpiglobal => cvm_getSubVector_mpiglobal_r4( cv_mpiglobal, bmatLabelList(bmatIndex) )
       else
          subVector_mpiglobal => dummyVector_r4

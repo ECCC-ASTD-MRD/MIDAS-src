@@ -19,7 +19,7 @@ module cmaFiles_mod
   !
   ! :Purpose: Read/Write "cma" format observation files, as used by the EnKF
   !
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use obsSpaceData_mod
   implicit none

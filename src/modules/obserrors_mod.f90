@@ -19,7 +19,7 @@ module obsErrors_mod
   !
   ! :Purpose: Subroutines to set up the observation-error standard deviations.
   !
-  use mpi_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use obsSpaceData_mod
   use obsSubSpaceData_mod
@@ -243,7 +243,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read (nulnam, nml = NAMOER, iostat = ierr)
       if (ierr /= 0) call utl_abort('oer_setObsErrors: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=namoer)
+      if (mmpi_myid == 0) write(*,nml=namoer)
       ierr = fclos(nulnam)
     else
       write(*,*)
@@ -597,7 +597,7 @@ contains
     !    5. Print out observation errors for each sensor
     !       --------------------------------------------
     !
-    if (mpi_myid == 0) THEN
+    if (mmpi_myid == 0) THEN
       write(*,*) 'Radiance observation errors read from file'
       write(*,*) '------------------------------------------'
       do JL = 1, tvs_nsensors
@@ -916,21 +916,21 @@ contains
       call utl_abort('oer_readObsErrorsICE: COULD NOT OPEN FILE '//fileName//'!!!')
     end if
 
-    if (mpi_myid == 0) write(*, '(A)') ' '
+    if (mmpi_myid == 0) write(*, '(A)') ' '
 
     do jelm = 1, 9
 
       do jlev = 1, 3
         read(nulstat, '(A)') ligne
-        if (mpi_myid == 0) write(*, '(A)') ligne
+        if (mmpi_myid == 0) write(*, '(A)') ligne
       end do
 
       read(nulstat, *) xstd_sic(jelm)
-      if (mpi_myid == 0) write(*,*) xstd_sic(jelm)
+      if (mmpi_myid == 0) write(*,*) xstd_sic(jelm)
 
       do jlev = 1, 2
         read(nulstat, '(A)') ligne
-        if (mpi_myid == 0) write(*, '(A)') ligne
+        if (mmpi_myid == 0) write(*, '(A)') ligne
       end do
 
     end do
@@ -938,25 +938,25 @@ contains
     ! Read coefficients for ASCAT backscatter anisotropy
     do jlev = 1, 5
       read(nulstat, '(A)') ligne
-      if (mpi_myid == 0) write(*, '(A)') ligne
+      if (mmpi_myid == 0) write(*, '(A)') ligne
     end do
 
     do imonth = 1, 12
       do jlev = 1, 3
         read(nulstat, '(A)') ligne
-        if (mpi_myid == 0) write(*, '(A)') ligne
+        if (mmpi_myid == 0) write(*, '(A)') ligne
       end do
       do jcell_no = 1, ncells
          read(nulstat, *) icell_no, tiePoint12, tiePoint13, tiePoint23, &
                            oer_ascatAnisIce(jcell_no,imonth), oer_ascatAnisOpenWater(jcell_no,imonth), &
                            ascatAnisSigmaIce(jcell_no,imonth), ascatAnisSigmaOpenWater(jcell_no,imonth)
-         if (mpi_myid == 0) write(*,*) icell_no, tiePoint12, tiePoint13, tiePoint23, &
+         if (mmpi_myid == 0) write(*,*) icell_no, tiePoint12, tiePoint13, tiePoint23, &
                            oer_ascatAnisIce(jcell_no,imonth), oer_ascatAnisOpenWater(jcell_no,imonth), &
                            ascatAnisSigmaIce(jcell_no,imonth), ascatAnisSigmaOpenWater(jcell_no,imonth)
       end do
     end do
 
-    if (mpi_myid == 0) write(*, '(A)') ' '
+    if (mmpi_myid == 0) write(*, '(A)') ' '
 
     close(unit = nulstat)
     ierr = fclos(nulstat)
@@ -980,7 +980,7 @@ contains
       ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
       read (nulnam, nml = namSSTObsErrors, iostat = ierr)
       if (ierr /= 0) call utl_abort('oer_readObsErrorsSST: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=namSSTObsErrors)
+      if (mmpi_myid == 0) write(*,nml=namSSTObsErrors)
       ierr = fclos(nulnam)
     else
        call utl_abort('oer_readObsErrorsSST: namSSTObsErrors is missing in the namelist.')

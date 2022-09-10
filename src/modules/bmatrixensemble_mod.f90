@@ -22,7 +22,7 @@ module BmatrixEnsemble_mod
   !           module works for both global and limited-area applications.
   !
   use ramDisk_mod
-  use mpi_mod
+  use midasMpi_mod
   use fileNames_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -254,8 +254,8 @@ CONTAINS
     if ( present(mode_opt) ) then
       if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
         ben_mode = trim(mode_opt)
-        if (mpi_myid == 0) write(*,*)
-        if (mpi_myid == 0) write(*,*) 'ben_setup: Mode activated = ', trim(ben_mode)
+        if (mmpi_myid == 0) write(*,*)
+        if (mmpi_myid == 0) write(*,*) 'ben_setup: Mode activated = ', trim(ben_mode)
       else
         write(*,*)
         write(*,*) 'mode = ', trim(mode_opt)
@@ -263,8 +263,8 @@ CONTAINS
       end if
     else
       ben_mode = 'Analysis'
-      if (mpi_myid == 0) write(*,*)
-      if (mpi_myid == 0) write(*,*) 'ben_setup: Analysis mode activated (by default)'
+      if (mmpi_myid == 0) write(*,*)
+      if (mmpi_myid == 0) write(*,*) 'ben_setup: Analysis mode activated (by default)'
     end if
 
     !- Open the namelist and loop through it
@@ -315,7 +315,7 @@ CONTAINS
         end if
       end if
 
-      if (mpi_myid == 0) write(*,nml=namben)
+      if (mmpi_myid == 0) write(*,nml=namben)
  
       ! We have found a valid instance
       nInstance = nInstance + 1
@@ -324,7 +324,7 @@ CONTAINS
       
       ! If zero weight, skip rest of setup
       if ( sum(scaleFactor(:)) == 0.0d0 ) then
-        if (mpi_myid == 0) write(*,*) 'ben_setup: scaleFactor=0, skipping rest of setup and exit instance loop'
+        if (mmpi_myid == 0) write(*,*) 'ben_setup: scaleFactor=0, skipping rest of setup and exit instance loop'
         cvDimStorage(nInstance) = 0
         bEns(nInstance)%initialized = .false.
         exit instanceLoop
@@ -490,15 +490,15 @@ CONTAINS
     bEns(instanceIndex)%ni = bEns(instanceIndex)%hco_ens%ni
     bEns(instanceIndex)%nj = bEns(instanceIndex)%hco_ens%nj
     if (bEns(instanceIndex)%hco_ens%global) then
-      if (mpi_myid == 0) write(*,*)
-      if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: GLOBAL mode activated'
+      if (mmpi_myid == 0) write(*,*)
+      if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: GLOBAL mode activated'
     else
-      if (mpi_myid == 0) write(*,*)
-      if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: LAM mode activated'
+      if (mmpi_myid == 0) write(*,*)
+      if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: LAM mode activated'
     end if
 
     !- 1.4 Vertical levels
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       call fln_ensfileName(ensFileName, bEns(instanceIndex)%ensPathName, memberIndex_opt=1)
       call vco_SetupFromFile(bEns(instanceIndex)%vco_file, ensFileName)
     end if
@@ -540,12 +540,12 @@ CONTAINS
       end if
 
       if ( EnsTopMatchesAnlTop ) then
-        if ( mpi_myid == 0 ) write(*,*) 'ben_setupOneInstance: top level of ensemble member and analysis grid match'
+        if ( mmpi_myid == 0 ) write(*,*) 'ben_setupOneInstance: top level of ensemble member and analysis grid match'
         bEns(instanceIndex)%vco_ens => bEns(instanceIndex)%vco_anl  ! IMPORTANT: top levels DO match, therefore safe
         ! to force members to be on analysis vertical levels
       else
-        if ( mpi_myid == 0 ) write(*,*) 'ben_setupOneInstance: top level of ensemble member and analysis grid are different, therefore'
-        if ( mpi_myid == 0 ) write(*,*) '                      assume member is already be on correct levels - NO CHECKING IS DONE'
+        if ( mmpi_myid == 0 ) write(*,*) 'ben_setupOneInstance: top level of ensemble member and analysis grid are different, therefore'
+        if ( mmpi_myid == 0 ) write(*,*) '                      assume member is already be on correct levels - NO CHECKING IS DONE'
         bEns(instanceIndex)%vco_ens => bEns(instanceIndex)%vco_file ! IMPORTANT: top levels do not match, therefore must
         ! assume file is already on correct vertical levels
       end if
@@ -589,8 +589,8 @@ CONTAINS
     end if
 
     if (bEns(instanceIndex)%nLevEns_M.lt.bEns(instanceIndex)%nLevInc_M) then
-      if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: ensemble has less levels than increment'
-      if (mpi_myid == 0) write(*,*) '                      some levels near top will have zero increment'
+      if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: ensemble has less levels than increment'
+      if (mmpi_myid == 0) write(*,*) '                      some levels near top will have zero increment'
     end if
 
     !- 1.5 Bmatrix Weight
@@ -647,22 +647,22 @@ CONTAINS
       call mmpi_setup_levels(bEns(instanceIndex)%nEns,myMemberBeg,myMemberEnd,myMemberCount)
       call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
            1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
-      bEns(instanceIndex)%nEnsOverDimension = mpi_npex * maxMyMemberCount
+      bEns(instanceIndex)%nEnsOverDimension = mmpi_npex * maxMyMemberCount
 
       select case(trim(bEns(instanceIndex)%localizationType))
       case('LevelDependent')
-        if (mpi_myid == 0) write(*,*)
-        if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: Level-Dependent (Standard) localization will be used'
+        if (mmpi_myid == 0) write(*,*)
+        if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: Level-Dependent (Standard) localization will be used'
         bEns(instanceIndex)%nWaveBand = 1
 
       case('ScaleDependent','ScaleDependentWithSpectralLoc')
-        if (mpi_myid == 0) write(*,*)
+        if (mmpi_myid == 0) write(*,*)
         if (trim(bEns(instanceIndex)%localizationType) == 'ScaleDependent') then
-          if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: Scale-Dependent localization (SDL) will be used'
+          if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: Scale-Dependent localization (SDL) will be used'
           bEns(instanceIndex)%nWaveBand             = count(bEns(instanceIndex)%waveBandPeaks >= 0)
           bEns(instanceIndex)%nWaveBandForFiltering = bEns(instanceIndex)%nWaveBand
         else
-          if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: Scale-Dependent localization with Spectral localization (SDLwSL) will be used'
+          if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: Scale-Dependent localization with Spectral localization (SDLwSL) will be used'
           bEns(instanceIndex)%nWaveBand             = 1
           bEns(instanceIndex)%nWaveBandForFiltering = count(bEns(instanceIndex)%waveBandPeaks >= 0)
         end if
@@ -827,7 +827,7 @@ CONTAINS
 
     !- 2.4 Variance smoothing
     if (trim(bEns(instanceIndex)%varianceSmoothing) /= 'none' .and. .not. bEns(instanceIndex)%useCmatrixOnly) then
-      if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: variance smoothing will be performed'
+      if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: variance smoothing will be performed'
 
       call ens_copyEnsStdDev(bEns(instanceIndex)%ensPerts(1), bEns(instanceIndex)%statevector_ensStdDev)
       if (bEns(instanceIndex)%ensDiagnostic) then
@@ -838,7 +838,7 @@ CONTAINS
       call gsv_power(bEns(instanceIndex)%statevector_ensStdDev, 2.d0 ) ! StdDev -> Variance
 
       if (trim(bEns(instanceIndex)%varianceSmoothing) == 'horizMean') then
-        if (mpi_myid == 0) write(*,*) 'ben_setup: variance smoothing type = horizMean'
+        if (mmpi_myid == 0) write(*,*) 'ben_setup: variance smoothing type = horizMean'
         call gbi_setup(gbi_horizontalMean, 'HorizontalMean', &
                        bEns(instanceIndex)%statevector_ensStdDev, bEns(instanceIndex)%hco_core)
         call gbi_mean(gbi_horizontalMean, bEns(instanceIndex)%statevector_ensStdDev, & ! IN
@@ -873,11 +873,11 @@ CONTAINS
     if (bEns(instanceIndex)%fsoLeadTime > 0.0D0) then
       bEns(instanceIndex)%amp3dStepIndexFSOFcst = 1
       if ( sum(bEns(instanceIndex)%advectFactorFSOFcst(:)) == 0.0D0 .or. bEns(instanceIndex)%numStep == 1) then
-        if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: advection not activated for FSO'
+        if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: advection not activated for FSO'
         bEns(instanceIndex)%advectAmplitudeFSOFcst = .false.
         bEns(instanceIndex)%numStepAmplitudeFSOFcst = 1
       else
-        if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: advection activated in FSO mode'
+        if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: advection activated in FSO mode'
         bEns(instanceIndex)%advectAmplitudeFSOFcst = .true.
         bEns(instanceIndex)%numStepAmplitudeFSOFcst = 2
         bEns(instanceIndex)%numStepAdvectFSOFcst = nint(bEns(instanceIndex)%fsoLeadTime/6.0D0) + 1
@@ -903,14 +903,14 @@ CONTAINS
 
     !- 2.6 Pre-compute everything for advection in ANALYSIS mode
     if ( sum(bEns(instanceIndex)%advectFactorAssimWindow(:)) == 0.0D0 .or. bEns(instanceIndex)%numStep == 1) then
-      if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: advection not activated in ANALYSIS mode'
+      if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: advection not activated in ANALYSIS mode'
 
       bEns(instanceIndex)%advectAmplitudeAssimWindow = .false.
       bEns(instanceIndex)%numStepAmplitudeAssimWindow = 1
       bEns(instanceIndex)%amp3dStepIndexAssimWindow   = 1
 
     else
-      if (mpi_myid == 0) write(*,*) 'ben_setupOneInstance: advection activated in ANALYSIS mode'
+      if (mmpi_myid == 0) write(*,*) 'ben_setupOneInstance: advection activated in ANALYSIS mode'
 
       delT_hour                 = tim_dstepobsinc
       allocate(advectFactorAssimWindow_M(bEns(instanceIndex)%vco_ens%nLev_M))
@@ -928,7 +928,7 @@ CONTAINS
 
       select case(trim(bEns(instanceIndex)%advectTypeAssimWindow))
       case ('amplitude')
-        if (mpi_myid == 0) write(*,*) '         amplitude fields will be advected'
+        if (mmpi_myid == 0) write(*,*) '         amplitude fields will be advected'
         bEns(instanceIndex)%advectAmplitudeAssimWindow  = .true.
         bEns(instanceIndex)%numStepAmplitudeAssimWindow = bEns(instanceIndex)%numStep
         bEns(instanceIndex)%numStepAdvectAssimWindow    = bEns(instanceIndex)%numStep
@@ -952,7 +952,7 @@ CONTAINS
                         'MMLevsOnly', statevector_steeringFlow_opt = statevector_ensMean4D ) ! IN
 
       case('ensPertAnlInc')
-        if (mpi_myid == 0) write(*,*) '         ensPerts and AnalInc will be advected'
+        if (mmpi_myid == 0) write(*,*) '         ensPerts and AnalInc will be advected'
 
         if (.not. EnsTopMatchesAnlTop) then
           call utl_abort('ben_setupOneInstance: for advectTypeAssimWindow=ensPertAnlInc, ensTop and anlTop must match!')
@@ -1436,7 +1436,7 @@ CONTAINS
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
 
     if (.not. bEns(instanceIndex)%initialized) then
-      if (mpi_myid == 0) write(*,*) 'ben_getEnsMean: bMatrixEnsemble not initialized, returning zero vector'
+      if (mmpi_myid == 0) write(*,*) 'ben_getEnsMean: bMatrixEnsemble not initialized, returning zero vector'
       call gsv_zero(statevector)
       return
     end if
@@ -1552,7 +1552,7 @@ CONTAINS
     ! ensPerts(1,:) contains the selected scales
     !
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       write(*,*)
       write(*,*) 'Scale decomposition of the ensemble perturbations'
       write(*,*) '   number of WaveBands for filtering = ', bEns(instanceIndex)%nWaveBandForFiltering
@@ -1578,7 +1578,7 @@ CONTAINS
     if (bEns(instanceIndex)%hco_ens%global) then
       ! Global mode
       gstFilterID = gst_setup(bEns(instanceIndex)%ni,bEns(instanceIndex)%nj,nTrunc,bEns(instanceIndex)%nEnsOverDimension)
-      if (mpi_myid == 0) write(*,*) 'ben : returned value of gstFilterID = ',gstFilterID
+      if (mmpi_myid == 0) write(*,*) 'ben : returned value of gstFilterID = ',gstFilterID
 
       nla_filter = gst_getNla(gstFilterID)
       nphase_filter = 2
@@ -1857,23 +1857,23 @@ CONTAINS
     logical   :: immediateReturn
     logical   :: useFSOFcst
 
-    if (mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
+    if (mmpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
 
     !
     !- 1.  Tests
     !
     if (.not. bEns(instanceIndex)%initialized) then
-      if (mpi_myid == 0) write(*,*) 'ben_bsqrt: bMatrixEnsemble not initialized'
+      if (mmpi_myid == 0) write(*,*) 'ben_bsqrt: bMatrixEnsemble not initialized'
       return
     end if
 
     if (sum(bEns(instanceIndex)%scaleFactor) == 0.0d0) then
-      if (mpi_myid == 0) write(*,*) 'ben_bsqrt: scaleFactor=0, skipping bSqrt'
+      if (mmpi_myid == 0) write(*,*) 'ben_bsqrt: scaleFactor=0, skipping bSqrt'
       return
     end if
 
     ! only check controlVector on proc 0, since may be zero-length on some procs
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       immediateReturn = .false.
       if (maxval(controlVector_in) == 0.0d0 .and. minval(controlVector_in) == 0.0d0) then
         write(*,*) 'ben_bsqrt: controlVector=0, skipping bSqrt'
@@ -1883,8 +1883,8 @@ CONTAINS
     call rpn_comm_bcast(immediateReturn, 1, 'MPI_LOGICAL', 0, 'GRID', ierr)
     if (immediateReturn) return
 
-    if (mpi_myid == 0) write(*,*) 'ben_bsqrt: starting'
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if (mmpi_myid == 0) write(*,*) 'ben_bsqrt: starting'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if (present(useFSOFcst_opt)) then
       useFSOFcst = useFSOFcst_opt
@@ -1966,8 +1966,8 @@ CONTAINS
                            stateVectorRef_opt=stateVectorRef_opt ) ! IN
     end if
 
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if (mpi_myid == 0) write(*,*) 'ben_bsqrt: done'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if (mmpi_myid == 0) write(*,*) 'ben_bsqrt: done'
 
   end subroutine ben_BSqrt
 
@@ -1996,20 +1996,20 @@ CONTAINS
     !
     !- 1.  Tests
     !
-    if (mpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
+    if (mmpi_doBarrier) call rpn_comm_barrier('GRID',ierr)
 
     if (.not. bEns(instanceIndex)%initialized) then
-      if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: bMatrixEnsemble not initialized'
+      if (mmpi_myid == 0) write(*,*) 'ben_bsqrtad: bMatrixEnsemble not initialized'
       return
     end if
 
     if (sum(bEns(instanceIndex)%scaleFactor) == 0.0d0) then
-      if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: scaleFactor=0, skipping bSqrtAd'
+      if (mmpi_myid == 0) write(*,*) 'ben_bsqrtad: scaleFactor=0, skipping bSqrtAd'
       return
     end if
 
-    if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: starting'
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if (mmpi_myid == 0) write(*,*) 'ben_bsqrtad: starting'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if (present(useFSOFcst_opt)) then
       useFSOFcst = useFSOFcst_opt
@@ -2087,8 +2087,8 @@ CONTAINS
 
     if (.not. bEns(instanceIndex)%useSaveAmp) call ens_deallocate(ensAmplitude)
 
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if (mpi_myid == 0) write(*,*) 'ben_bsqrtAd: done'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if (mmpi_myid == 0) write(*,*) 'ben_bsqrtAd: done'
 
   end subroutine ben_BSqrtAd
 
@@ -2131,7 +2131,7 @@ CONTAINS
     if (useFSOFcst .and. bEns(instanceIndex)%fsoLeadTime > 0.0d0) then
       stepBeg = bEns(instanceIndex)%numStep
       stepEnd = stepBeg
-      if (mpi_myid == 0) write(*,*) 'ben_bsqrtad: using forecast ensemble stored at timestep ',stepEnd
+      if (mmpi_myid == 0) write(*,*) 'ben_bsqrtad: using forecast ensemble stored at timestep ',stepEnd
     else
       stepBeg = 1
       stepEnd = bEns(instanceIndex)%numStepAssimWindow
@@ -2336,7 +2336,7 @@ CONTAINS
     if (useFSOFcst .and. bEns(instanceIndex)%fsoLeadTime > 0.0d0) then
       stepBeg = bEns(instanceIndex)%numStep
       stepEnd = stepBeg
-      if (mpi_myid == 0) write(*,*) 'ben_addEnsMemberAd: using forecast ensemble stored at timestep ',stepEnd
+      if (mmpi_myid == 0) write(*,*) 'ben_addEnsMemberAd: using forecast ensemble stored at timestep ',stepEnd
     else
       stepBeg = 1
       stepEnd = bEns(instanceIndex)%numStepAssimWindow
@@ -2544,17 +2544,17 @@ CONTAINS
       call utl_abort('EnsembleDiagnostic: unknown mode')
     end if
 
-    if ( mpi_myid == 0 ) write(*,*)
-    if ( mpi_myid == 0 ) write(*,*) 'EnsembleDiagnostic in mode: ', mode
+    if ( mmpi_myid == 0 ) write(*,*)
+    if ( mmpi_myid == 0 ) write(*,*) 'EnsembleDiagnostic in mode: ', mode
 
     !
     !- Write each wave band for a selected member
     !
-    if ( mpi_myid == 0 ) write(*,*) '   writing perturbations for member 001'
+    if ( mmpi_myid == 0 ) write(*,*) '   writing perturbations for member 001'
     memberIndex = 1
     dnens2 = sqrt(1.0d0*dble(bEns(instanceIndex)%nEns-1))
     do waveBandIndex = 1, nWaveBandToDiagnose
-      if ( mpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
+      if ( mmpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
       call gsv_allocate(statevector, tim_nstepobsinc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_anl, &
                         datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                         allocHeight_opt=.false., allocPressure_opt=.false.)
@@ -2579,13 +2579,13 @@ CONTAINS
     !
     !- Compute the standard deviations for each wave band
     !
-    if ( mpi_myid == 0 ) write(*,*) '   computing Std.Dev.'
+    if ( mmpi_myid == 0 ) write(*,*) '   computing Std.Dev.'
     call gsv_allocate(statevector_temp, tim_nstepobsinc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_anl, &
                       mpi_local_opt=.true., dataKind_opt=ens_getDataKind(bEns(instanceIndex)%ensPerts(1)), &
                       allocHeight_opt=.false., allocPressure_opt=.false.)
 
     do waveBandIndex = 1, nWaveBandToDiagnose
-       if ( mpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
+       if ( mmpi_myid == 0 ) write(*,*) '     waveBandIndex = ', waveBandIndex
        call gsv_allocate(statevector, tim_nstepobsinc, bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_anl, &
                          datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
                          dataKind_opt=ens_getDataKind(bEns(instanceIndex)%ensPerts(1)), &
@@ -2644,8 +2644,8 @@ CONTAINS
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
 
     if (bEns(instanceIndex)%initialized .and. bEns(instanceIndex)%keepAmplitude) then
-      if ( mpi_myid == 0 ) write(*,*)
-      if ( mpi_myid == 0 ) write(*,*) 'bmatrixEnsemble_mod: Writing the amplitude field'
+      if ( mmpi_myid == 0 ) write(*,*)
+      if ( mmpi_myid == 0 ) write(*,*) 'bmatrixEnsemble_mod: Writing the amplitude field'
       call ens_writeEnsemble(bEns(instanceIndex)%ensAmplitudeStorage, ensPathName, ensFileNamePrefix, &
                              'FROM_BENS', 'R',varNames_opt=bEns(instanceIndex)%varNameALFA, ip3_opt=ip3)
     end if

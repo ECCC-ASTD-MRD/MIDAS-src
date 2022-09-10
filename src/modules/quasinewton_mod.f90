@@ -20,7 +20,7 @@ module quasinewton_mod
   !
   ! Purpose: The n1qn3 routine, and its supporting subroutines
   !
-      use mpi_mod
+      use midasMpi_mod
       implicit none
       save 
       private
@@ -837,7 +837,7 @@ module quasinewton_mod
               do 420 i=1,n
                   ps=ps+diag(i)*aux(i)*aux(i)
   420         continue
-              call mpi_allreduce_sumreal8scalar(ps,"GRID")
+              call mmpi_allreduce_sumreal8scalar(ps,"GRID")
               d1=1.d0/ps
               if (impres.ge.5) then
                   write (io,934) d1
@@ -857,7 +857,7 @@ module quasinewton_mod
               do 430 i=1,n
                   ps=ps+gg(i)*gg(i)/diag(i)
   430         continue
-              call mpi_allreduce_sumreal8scalar(ps,"GRID")
+              call mmpi_allreduce_sumreal8scalar(ps,"GRID")
               den=ps
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(I) 
               do 431 i=1,n
@@ -877,7 +877,7 @@ module quasinewton_mod
                   do 440 i=1,n
                       ps=ps+diag(i)
   440             continue
-                  call mpi_allreduce_sumreal8scalar(ps,"GRID")
+                  call mmpi_allreduce_sumreal8scalar(ps,"GRID")
                   ps=ps/ntotal
                   preco=ps
 !
@@ -885,7 +885,7 @@ module quasinewton_mod
                   do 441 i=1,n
                       ps2=ps2+(diag(i)-ps)**2
   441             continue
-                  call mpi_allreduce_sumreal8scalar(ps2,"GRID")
+                  call mmpi_allreduce_sumreal8scalar(ps2,"GRID")
                   ps2=dsqrt(ps2/ntotal)
                   if (impres.ge.5) write (io,936) preco,ps2
   936             format (5x,"updated diagonal: average value = ",d10.3, &

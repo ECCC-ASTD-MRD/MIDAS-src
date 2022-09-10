@@ -21,7 +21,7 @@ module gridBinning_mod
   !           contained in a gridStateVector or in an ensemble of
   !           gridStateVectors (e.g. the respective mean over land and sea)
   !
-  use mpi_mod
+  use midasMpi_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -133,7 +133,7 @@ contains
 
     select case(trim(binningStrategy))
     case ('GridPoint')
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         write(*,*) 'gbi_setup : BIN_TYPE = No horizontal averaging '
         write(*,*) '            > One bin per horizontal grid point'
       end if
@@ -151,7 +151,7 @@ contains
       end do
 
     case ('YrowBand')
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         write(*,*)
         write(*,*) 'gbi_setup : BIN_TYPE = One bin per Y row'
       end if
@@ -166,7 +166,7 @@ contains
       end do
 
     case ('HorizontalMean','FullDomain')
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         write(*,*)
         write(*,*) 'gbi_setup : BIN_TYPE = Average over all horizontal points'
       end if
@@ -176,7 +176,7 @@ contains
       bin2d(:,:,1)  = real(binCategory,4)
 
     case ('landSeaTopo')
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         write(*,*)
         write(*,*) 'gbi_setup : BIN_TYPE = land/sea binning + storage of the topography field'
       end if
@@ -237,7 +237,7 @@ contains
       writeBinsToFile = .false.
     end if
     
-    if (writeBinsToFile .and. (mpi_local .or. mpi_myid == 0) ) then
+    if (writeBinsToFile .and. (mpi_local .or. mmpi_myid == 0) ) then
       call gio_writeToFile(gbi%statevector_bin2d, './gridBinning.fst', & ! IN
                            'BINNING')                                    ! IN
     end if
@@ -281,7 +281,7 @@ contains
     integer :: latIndex, lonIndex, varLevIndex, stepIndex, binIndex
     integer :: nVarLev, nStep, ier
 
-    if (mpi_myid == 0 .and. verbose) then
+    if (mmpi_myid == 0 .and. verbose) then
       write(*,*)
       write(*,*) 'gbi_mean_gsv: Starting...'
     end if
@@ -318,7 +318,7 @@ contains
         call rpn_comm_allreduce(myBinCount,binCount,gbi%numBins2d,"MPI_INTEGER"         ,"MPI_SUM","GRID",ier)
         do binIndex = 1, gbi%numBins2d
           binMean(binIndex) = myBinSum(binIndex)
-          call mpi_allreduce_sumreal8scalar(binMean(binIndex),"GRID")
+          call mmpi_allreduce_sumreal8scalar(binMean(binIndex),"GRID")
         end do
 
         do binIndex = 1, gbi%numBins2d
@@ -344,7 +344,7 @@ contains
       end do
     end do
 
-    if (mpi_myid == 0 .and. verbose) then
+    if (mmpi_myid == 0 .and. verbose) then
       write(*,*)
       write(*,*) 'gbi_mean_gsv: Done!'
     end if
@@ -378,7 +378,7 @@ contains
 
     character(len=4), pointer :: varNamesList(:)
 
-    if (mpi_myid == 0 .and. verbose) then
+    if (mmpi_myid == 0 .and. verbose) then
       write(*,*)
       write(*,*) 'gbi_stdDev_ens: Starting...'
     end if
@@ -449,7 +449,7 @@ contains
       end do
     end do
 
-    if (mpi_myid == 0 .and. verbose) then
+    if (mmpi_myid == 0 .and. verbose) then
       write(*,*)
       write(*,*) 'gbi_stdDev_ens: Done!'
     end if

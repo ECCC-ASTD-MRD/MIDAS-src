@@ -19,7 +19,7 @@ program midas_diagBmatrix
   ! :Purpose: Main program for computing diagnostics of the B and L matrices
   !
   use version_mod
-  use mpi_mod
+  use midasMpi_mod
   use MathPhysConstants_mod
   use controlVector_mod
   use gridVariableTransforms_mod
@@ -100,8 +100,8 @@ program midas_diagBmatrix
   call ver_printNameAndVersion('diagBmatrix','Diagnositcs of the B matrix')
 
   ! MPI, tmg initialization
-  call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call mmpi_initialize
+  call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
   ierr = fstopc('MSGLVL','ERRORS',0)
 
@@ -622,7 +622,7 @@ program midas_diagBmatrix
 
     ! Write the zonal mean stddev to a text file, if requested
     if ( writeTextStddev ) then
-      allocate(zonalMeanStddev(statevector%latPerPE * mpi_npey))
+      allocate(zonalMeanStddev(statevector%latPerPE * mmpi_npey))
       do varIndex = 1, vnl_numvarmax
         if (.not. gsv_varExist(varName=vnl_varNameList(varIndex)) ) cycle
 
@@ -633,20 +633,20 @@ program midas_diagBmatrix
         if ( varName == 'HU' ) varName = 'LQ'
         filename = 'stddev_ZM_' // trim(varName) // '_' // datestr // '.txt'
         nultxt = 0
-        if ( mpi_myid == 0 ) ierr = fnom(nultxt,trim(filename),'FTN',0)
+        if ( mmpi_myid == 0 ) ierr = fnom(nultxt,trim(filename),'FTN',0)
 
         do levIndex = 1, gsv_getNumLevFromVarName(statevector,vnl_varNameList(varIndex))
           nsize = statevector%latPerPE
           call rpn_comm_gather(field3d(1,:,levIndex), nsize, 'mpi_double_precision',  &
                                zonalMeanStddev,     nsize, 'mpi_double_precision', 0, 'NS', ierr )
-          if ( mpi_myid == 0 ) then
+          if ( mmpi_myid == 0 ) then
             do latIndex = 1, statevector%nj
               write(nultxt,*) field3d(1,latIndex,levIndex)
             end do
           end if
         end do
 
-        if ( mpi_myid == 0 ) ierr = fclos(nulnam)
+        if ( mmpi_myid == 0 ) ierr = fclos(nulnam)
 
       end do
       deallocate(zonalMeanStddev)
@@ -708,7 +708,7 @@ program midas_diagBmatrix
 
   ! MPI, tmg finalize
   call utl_tmg_stop(0)
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) ' --------------------------------'

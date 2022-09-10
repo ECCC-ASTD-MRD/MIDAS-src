@@ -24,7 +24,7 @@ program midas_ominusf
   use columnData_mod
   use obsFiles_mod
   use utilities_mod
-  use mpi_mod
+  use midasMpi_mod
   use biasCorrectionSat_mod
   implicit none
 
@@ -41,13 +41,13 @@ program midas_ominusf
   call ver_printNameAndVersion('oMinusF','Computation of the innovation')
 
   !- 1.0 mpi
-  call mpi_initialize
+  call mmpi_initialize
 
   !- 1.1 timings
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
 
-  if ( mpi_myid == 0 ) then
+  if ( mmpi_myid == 0 ) then
     call utl_writeStatus('VAR3D_BEG')
   endif
 
@@ -59,7 +59,7 @@ program midas_ominusf
   ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namomf,iostat=ierr)
   if (ierr /= 0) call utl_abort('midas-OminusF: Error reading namelist')
-  if (mpi_myid == 0) write(*,nml=namomf)
+  if (mmpi_myid == 0) write(*,nml=namomf)
   ierr = fclos(nulnam)
 
   ! 2.1 Calculate the Observation - Forecast difference
@@ -94,11 +94,11 @@ program midas_ominusf
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
   call utl_tmg_stop(0)
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr)
 
-  if ( mpi_myid == 0 ) then
+  if ( mmpi_myid == 0 ) then
     call utl_writeStatus('VAR3D_END')
   endif
 

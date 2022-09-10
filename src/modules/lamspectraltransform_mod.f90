@@ -21,7 +21,7 @@ module lamSpectralTransform_mod
   !           Depends on ffft8 and setfft8 routines in ARMNLIB.
   !
   use mpi
-  use mpi_mod
+  use midasMpi_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
@@ -254,7 +254,7 @@ contains
                                 divisible_opt=divisibleLat)      ! OUT
 
        lst%lonLatDivisible = (divisibleLon .and. divisibleLat)
-       if(mpi_myid == 0) write(*,*) 'lst_setup: lonLatDivisible = ', lst%lonLatDivisible
+       if(mmpi_myid == 0) write(*,*) 'lst_setup: lonLatDivisible = ', lst%lonLatDivisible
 
        ! range of M handled by this processor in SPECTRAL SPACE
        call mmpi_setup_m(lst%mmax,                                        & ! IN
@@ -279,7 +279,7 @@ contains
     end select
 
     write(*,*)
-    write(*,*) ' I am processor ', mpi_myid+1, ' on a total of ', mpi_nprocs
+    write(*,*) ' I am processor ', mmpi_myid+1, ' on a total of ', mmpi_nprocs
     write(*,*) '          mband info = ', lst%mymBeg, lst%mymEnd, lst%mymSkip, lst%mymCount
     write(*,*) '          nband info = ', lst%mynBeg, lst%mynEnd, lst%mynSkip, lst%mynCount
     write(*,*) '          level info = ', lst%myLevBeg, lst%myLevEnd, lst%myLevCount
@@ -309,82 +309,82 @@ contains
     if (trim(lst%MpiMode) /= 'NoMpi') then
 
       ! Gathering with respect to Longitude
-      allocate(lst%allLonBeg(mpi_npex))
+      allocate(lst%allLonBeg(mmpi_npex))
       call rpn_comm_allgather(lst%myLonBeg ,1,"mpi_integer",       &
                               lst%allLonBeg,1,"mpi_integer","EW",ier)
-      if (mpi_myid == 0) write(*,*) 'AllLonBeg =', lst%allLonBeg(:)
+      if (mmpi_myid == 0) write(*,*) 'AllLonBeg =', lst%allLonBeg(:)
 
-      allocate(lst%allLonEnd(mpi_npex))
+      allocate(lst%allLonEnd(mmpi_npex))
       call rpn_comm_allgather(lst%myLonEnd ,1,"mpi_integer",       &
                               lst%allLonEnd,1,"mpi_integer","EW",ier)
-      if (mpi_myid == 0) write(*,*) 'AllLonEnd =', lst%allLonEnd(:)
+      if (mmpi_myid == 0) write(*,*) 'AllLonEnd =', lst%allLonEnd(:)
 
-      allocate(lst%allLonPerPE(mpi_npex))
+      allocate(lst%allLonPerPE(mmpi_npex))
       call rpn_comm_allgather(lst%lonPerPE ,1,"mpi_integer",       &
                               lst%allLonPerPE,1,"mpi_integer","EW",ier)
-      if (mpi_myid == 0) write(*,*) 'AllLonPerPE =', lst%allLonPerPE(:)
+      if (mmpi_myid == 0) write(*,*) 'AllLonPerPE =', lst%allLonPerPE(:)
 
       ! Gathering with respect to Latitude
-      allocate(lst%allLatBeg(mpi_npey))
+      allocate(lst%allLatBeg(mmpi_npey))
       call rpn_comm_allgather(lst%myLatBeg ,1,"mpi_integer",       &
                               lst%allLatBeg,1,"mpi_integer","NS",ier)
-      if (mpi_myid == 0) write(*,*) 'AllLatBeg =', lst%allLatBeg(:)
+      if (mmpi_myid == 0) write(*,*) 'AllLatBeg =', lst%allLatBeg(:)
 
-      allocate(lst%allLatEnd(mpi_npey))
+      allocate(lst%allLatEnd(mmpi_npey))
       call rpn_comm_allgather(lst%myLatEnd ,1,"mpi_integer",       &
                               lst%allLatEnd,1,"mpi_integer","NS",ier)
-      if (mpi_myid == 0) write(*,*) 'AllLatEnd =', lst%allLatEnd(:)
+      if (mmpi_myid == 0) write(*,*) 'AllLatEnd =', lst%allLatEnd(:)
 
-      allocate(lst%allLatPerPE(mpi_npey))
+      allocate(lst%allLatPerPE(mmpi_npey))
       call rpn_comm_allgather(lst%latPerPE ,1,"mpi_integer",       &
                               lst%allLatPerPE,1,"mpi_integer","NS",ier)
-      if (mpi_myid == 0) write(*,*) 'AllLatPerPE =', lst%allLatPerPE(:)
+      if (mmpi_myid == 0) write(*,*) 'AllLatPerPE =', lst%allLatPerPE(:)
 
       ! Gathering with respect to M
-      allocate(lst%allmBeg(mpi_npey))
+      allocate(lst%allmBeg(mmpi_npey))
       call rpn_comm_allgather(lst%mymBeg ,1,"mpi_integer",       &
                               lst%allmBeg,1,"mpi_integer","NS",ier)
-      if (mpi_myid == 0) write(*,*) 'AllmBeg =', lst%allmBeg(:)
+      if (mmpi_myid == 0) write(*,*) 'AllmBeg =', lst%allmBeg(:)
 
-      allocate(lst%allmEnd(mpi_npey))
+      allocate(lst%allmEnd(mmpi_npey))
       call rpn_comm_allgather(lst%mymEnd ,1,"mpi_integer",       &
                               lst%allmEnd,1,"mpi_integer","NS",ier)
-      if (mpi_myid == 0) write(*,*) 'allmEnd =', lst%allmEnd(:)
+      if (mmpi_myid == 0) write(*,*) 'allmEnd =', lst%allmEnd(:)
     
-      allocate(lst%allmSkip(mpi_npey))
+      allocate(lst%allmSkip(mmpi_npey))
       call rpn_comm_allgather(lst%mymSkip ,1,"mpi_integer",       &
                               lst%allmSkip,1,"mpi_integer","NS",ier)
-      if (mpi_myid == 0) write(*,*) 'allmSkip = ', lst%allmSkip(:)
+      if (mmpi_myid == 0) write(*,*) 'allmSkip = ', lst%allmSkip(:)
 
-      allocate(lst%allnBeg(mpi_npex))
+      allocate(lst%allnBeg(mmpi_npex))
       call rpn_comm_allgather(lst%mynBeg ,1,"mpi_integer",       &
                               lst%allnBeg,1,"mpi_integer","EW",ier)
-      if (mpi_myid == 0) write(*,*) 'AllnBeg =', lst%allnBeg(:)
+      if (mmpi_myid == 0) write(*,*) 'AllnBeg =', lst%allnBeg(:)
 
-      allocate(lst%allnEnd(mpi_npex))
+      allocate(lst%allnEnd(mmpi_npex))
       call rpn_comm_allgather(lst%mynEnd ,1,"mpi_integer",       &
                               lst%allnEnd,1,"mpi_integer","EW",ier)
-      if (mpi_myid == 0) write(*,*) 'AllnEnd =', lst%allnEnd(:)
+      if (mmpi_myid == 0) write(*,*) 'AllnEnd =', lst%allnEnd(:)
     
-      allocate(lst%allnSkip(mpi_npex))
+      allocate(lst%allnSkip(mmpi_npex))
       call rpn_comm_allgather(lst%mynSkip ,1,"mpi_integer",       &
                               lst%allnSkip,1,"mpi_integer","EW",ier)
-      if (mpi_myid == 0) write(*,*) 'AllnSkip = ', lst%allnSkip(:)
+      if (mmpi_myid == 0) write(*,*) 'AllnSkip = ', lst%allnSkip(:)
 
       ! Gathering with respect to levels
       call rpn_comm_allreduce(lst%myLevCount,lst%maxLevCount, &
                                 1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-      if (mpi_myid == 0) write(*,*) 'MaxLevCount =',lst%maxLevCount
+      if (mmpi_myid == 0) write(*,*) 'MaxLevCount =',lst%maxLevCount
 
-      allocate(lst%allLevBeg(mpi_npex))
+      allocate(lst%allLevBeg(mmpi_npex))
       call rpn_comm_allgather(lst%myLevBeg ,1,"mpi_integer",       &
                               lst%allLevBeg,1,"mpi_integer","EW",ier)
-      if (mpi_myid == 0) write(*,*) 'AllLevBeg =', lst%allLevBeg(:)
+      if (mmpi_myid == 0) write(*,*) 'AllLevBeg =', lst%allLevBeg(:)
 
-      allocate(lst%allLevEnd(mpi_npex))
+      allocate(lst%allLevEnd(mmpi_npex))
       call rpn_comm_allgather(lst%myLevEnd ,1,"mpi_integer",       &
                               lst%allLevEnd,1,"mpi_integer","EW",ier)
-      if (mpi_myid == 0) write(*,*) 'AllLevEnd =', lst%allLevEnd(:)
+      if (mmpi_myid == 0) write(*,*) 'AllLevEnd =', lst%allLevEnd(:)
 
       ! Setup mpi derived types used in transposes (only used when grid is divisible)
       ! ... mpi_type_vector(count, blocklength, stride, ...)
@@ -517,7 +517,7 @@ contains
     if (trim(lst%MpiMode) /= 'NoMpi') then
        call rpn_comm_allreduce(lst%nla,lst%maxnla, &
             1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-       if (mpi_myid == 0) write(*,*) 'MaxNLA =',lst%maxnla
+       if (mmpi_myid == 0) write(*,*) 'MaxNLA =',lst%maxnla
     end if
 
     allocate(lst%KfromMNglb(0:lst%mmax,0:lst%nmax))
@@ -537,7 +537,7 @@ contains
     if (trim(lst%MpiMode) /= 'NoMpi') then
        call rpn_comm_allreduce(lst%mymActiveCount,lst%maxmActiveCount, &
                                1,"MPI_INTEGER","MPI_MAX","GRID",ier)
-       if (mpi_myid == 0) write(*,*) 'MaxmActiveCount =',lst%maxmActiveCount
+       if (mmpi_myid == 0) write(*,*) 'MaxmActiveCount =',lst%maxmActiveCount
     end if
 
     !- 1.5 VAR spectral element ordering &
@@ -1468,8 +1468,8 @@ contains
     real(8), intent(in) :: gd_in(lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd, nk)
     real(8), intent(out):: gd_out(lst%ni, lst%myLatBeg:lst%myLatEnd, lst%myLevBeg:lst%myLevEnd)
 
-    real(8) :: gd_send(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mpi_npex)
-    real(8) :: gd_recv(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mpi_npex)
+    real(8) :: gd_send(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
+    real(8) :: gd_recv(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev'
@@ -1478,7 +1478,7 @@ contains
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       gd_send(:,:,:,yourid+1) = 0.0d0
       do levIndex = lst%allLevBeg(yourid+1), lst%allLevEnd(yourid+1)
         levIndex2 = levIndex-lst%allLevBeg(yourid+1)+1
@@ -1488,7 +1488,7 @@ contains
     !$OMP END PARALLEL DO
 
     nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
-    if (mpi_npex > 1) then
+    if (mmpi_npex > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
     else
@@ -1498,7 +1498,7 @@ contains
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do levIndex = lst%myLevBeg, lst%myLevEnd
       levIndex2 = levIndex - lst%myLevBeg + 1
-      do yourid = 0, (mpi_npex-1)
+      do yourid = 0, (mmpi_npex-1)
         gd_out(lst%allLonBeg(yourid+1):lst%allLonEnd(yourid+1),:,levIndex) =  &
             gd_recv(1:lst%allLonPerPE(yourid+1),1:lst%latPerPE,levIndex2,yourid+1)
       end do
@@ -1529,9 +1529,9 @@ contains
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
     nsize = lst%lonPerPE * lst%maxLevCount * lst%latPerPE
-    if (mpi_npex > 1) then
+    if (mmpi_npex > 1) then
       call mpi_alltoall(gd_in,      1, lst%sendType_LonToLev,  &
-                        gd_out,     1, lst%recvType_LonToLev, mpi_comm_EW, ierr)
+                        gd_out,     1, lst%recvType_LonToLev, mmpi_comm_EW, ierr)
     else
        gd_out(:,:,:) = gd_in(:,:,:)
     end if
@@ -1552,8 +1552,8 @@ contains
     real(8), intent(in) :: gd_in (nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
     real(8), intent(out):: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
 
-    real(8) :: gd_send(lst%maxLevCount,lst%lonPerPEmax, lst%latPerPEmax, mpi_npex)
-    real(8) :: gd_recv(lst%maxLevCount,lst%lonPerPEmax, lst%latPerPEmax, mpi_npex)
+    real(8) :: gd_send(lst%maxLevCount,lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
+    real(8) :: gd_recv(lst%maxLevCount,lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LonToLev_kij'
@@ -1562,7 +1562,7 @@ contains
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,lonIndex,lonIndex2)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       gd_send(:,:,:,yourid+1) = 0.0d0
       do latIndex = lst%myLatBeg, lst%myLatEnd
         latIndex2 = latIndex - lst%myLatBeg + 1
@@ -1578,7 +1578,7 @@ contains
     !$OMP END PARALLEL DO
 
     nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
-    if (mpi_npex > 1) then
+    if (mmpi_npex > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
     else
@@ -1586,7 +1586,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2,lonIndex,lonIndex2,latIndex,latIndex2)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       do latIndex = lst%myLatBeg, lst%myLatEnd
         latIndex2 = latIndex - lst%myLatBeg + 1
         do lonIndex = lst%allLonBeg(yourid+1), lst%allLonEnd(yourid+1)
@@ -1616,8 +1616,8 @@ contains
     real(8), intent(out):: gd_out(lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd, nk)
     real(8), intent(in) :: gd_in(lst%ni, lst%myLatBeg:lst%myLatEnd, lst%myLevBeg:lst%myLevEnd)
 
-    real(8) :: gd_send(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mpi_npex)
-    real(8) :: gd_recv(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mpi_npex)
+    real(8) :: gd_send(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
+    real(8) :: gd_recv(lst%lonPerPEmax, lst%latPerPEmax, lst%maxLevCount, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon'
@@ -1628,7 +1628,7 @@ contains
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
     do levIndex = lst%myLevBeg, lst%myLevEnd
       levIndex2 = levIndex - lst%myLevBeg + 1
-      do yourid = 0, (mpi_npex-1)
+      do yourid = 0, (mmpi_npex-1)
         gd_send(:,:,levIndex2,yourid+1) = 0.0d0
         gd_send(1:lst%allLonPerPE(yourid+1),1:lst%latPerPE,levIndex2,yourid+1) =  &
              gd_in(lst%allLonBeg(yourid+1):lst%allLonEnd(yourid+1),:,levIndex)
@@ -1637,7 +1637,7 @@ contains
     !$OMP END PARALLEL DO
     
     nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
-    if (mpi_npex > 1) then
+    if (mmpi_npex > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
     else
@@ -1645,7 +1645,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       do levIndex=lst%allLevBeg(yourid+1),lst%allLevEnd(yourid+1)
         levIndex2=levIndex-lst%allLevBeg(yourid+1)+1
         gd_out(:,:,levIndex) = gd_recv(1:lst%lonPerPE,1:lst%latPerPE,levIndex2,yourid+1)
@@ -1677,9 +1677,9 @@ contains
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
 
     nsize = lst%lonPerPE*lst%maxLevCount*lst%latPerPE
-    if (mpi_npex > 1) then
+    if (mmpi_npex > 1) then
       call mpi_alltoall(gd_in,      1, lst%sendType_LevToLon,  &
-                        gd_out,     1, lst%recvType_LevToLon, mpi_comm_EW, ierr) 
+                        gd_out,     1, lst%recvType_LevToLon, mmpi_comm_EW, ierr) 
     else
       gd_out(:,:,:) = gd_in(:,:,:)
     end if
@@ -1700,8 +1700,8 @@ contains
     real(8), intent(out):: gd_out(nk,lst%myLonBeg:lst%myLonEnd, lst%myLatBeg:lst%myLatEnd)
     real(8), intent(in) :: gd_in(lst%myLevBeg:lst%myLevEnd,lst%ni, lst%myLatBeg:lst%myLatEnd)
 
-    real(8) :: gd_send(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mpi_npex)
-    real(8) :: gd_recv(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mpi_npex)
+    real(8) :: gd_send(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
+    real(8) :: gd_recv(lst%maxLevCount, lst%lonPerPEmax, lst%latPerPEmax, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2, lonIndex, lonIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToLon_kij'
@@ -1710,7 +1710,7 @@ contains
     call utl_tmg_start(155,'low-level--lst_transpose_LEVtoLON')
     
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2,lonIndex,lonIndex2,latIndex,latIndex2)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       gd_send(:,:,:,yourid+1) = 0.0d0
       do latIndex = lst%myLatBeg, lst%myLatEnd
         latIndex2 = latIndex - lst%myLatBeg + 1
@@ -1726,7 +1726,7 @@ contains
     !$OMP END PARALLEL DO
 
     nsize = lst%lonPerPEmax * lst%maxLevCount * lst%latPerPEmax
-    if (mpi_npex > 1) then
+    if (mmpi_npex > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
     else
@@ -1734,7 +1734,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,lonIndex,lonIndex2)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       do latIndex = lst%myLatBeg, lst%myLatEnd
         latIndex2 = latIndex - lst%myLatBeg + 1
         do lonIndex = lst%myLonBeg, lst%myLonEnd
@@ -1763,8 +1763,8 @@ contains
     real(8), intent(out) :: gd_out(2*lst%mymCount,lst%nj+lst%njp,lst%myLevBeg:lst%myLevEnd)
     real(8), intent(in)  :: gd_in (lst%ni+lst%nip,lst%latPerPE,lst%myLevBeg:lst%myLevEnd)
 
-    real(8) :: gd_recv(lst%maxmActiveCount,2,lst%latPerPEmax, lst%maxLevCount, mpi_npey)
-    real(8) :: gd_send(lst%maxmActiveCount,2,lst%latPerPEmax, lst%maxLevCount, mpi_npey)
+    real(8) :: gd_recv(lst%maxmActiveCount,2,lst%latPerPEmax, lst%maxLevCount, mmpi_npey)
+    real(8) :: gd_send(lst%maxmActiveCount,2,lst%latPerPEmax, lst%maxLevCount, mmpi_npey)
     integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LatToM'
@@ -1773,7 +1773,7 @@ contains
     call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
-    do yourid = 0, (mpi_npey-1)
+    do yourid = 0, (mmpi_npey-1)
       do levIndex = lst%myLevBeg, lst%myLevEnd
         levIndex2 = levIndex - lst%myLevBeg + 1 
         gd_send(:,:,:,levIndex2,yourid+1) = 0.d0
@@ -1792,7 +1792,7 @@ contains
     !$OMP END PARALLEL DO
 
     nsize = lst%maxmActiveCount * 2 * lst%maxLevCount * lst%latPerPEmax
-    if (mpi_npey > 1) then
+    if (mmpi_npey > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","NS",ierr)
     else
@@ -1800,7 +1800,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
-    do yourid = 0, (mpi_npey-1)
+    do yourid = 0, (mmpi_npey-1)
       do levIndex = lst%myLevBeg, lst%myLevEnd
         levIndex2 = levIndex - lst%myLevBeg + 1
         do latIndex = lst%allLatBeg(yourid+1), lst%allLatEnd(yourid+1)
@@ -1836,8 +1836,8 @@ contains
     real(8), intent(out) :: gd_out(lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp )
     real(8), intent(in)  :: gd_in (lst%myLevBeg:lst%myLevEnd,lst%ni+lst%nip,lst%latPerPE)
 
-    real(8) :: gd_recv(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mpi_npey)
-    real(8) :: gd_send(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mpi_npey)
+    real(8) :: gd_recv(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
+    real(8) :: gd_send(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
     integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_LatToM_kij'
@@ -1846,7 +1846,7 @@ contains
     call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
-    do yourid = 0, (mpi_npey-1)
+    do yourid = 0, (mmpi_npey-1)
       gd_send(:,:,:,:,yourid+1) = 0.d0
       do latIndex = 1, lst%latPerPE
         icount = 0
@@ -1865,7 +1865,7 @@ contains
     !$OMP END PARALLEL DO
 
     nsize = lst%maxmActiveCount * 2 * lst%maxLevCount * lst%latPerPEmax
-    if (mpi_npey > 1) then
+    if (mmpi_npey > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","NS",ierr)
     else
@@ -1873,7 +1873,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
-    do yourid = 0, (mpi_npey-1)
+    do yourid = 0, (mmpi_npey-1)
       do latIndex = lst%allLatBeg(yourid+1), lst%allLatEnd(yourid+1)
         latIndex2 = latIndex - lst%allLatBeg(yourid+1) + 1
         icount = 0
@@ -1909,8 +1909,8 @@ contains
     real(8), intent(in)   :: gd_in (2*lst%mymCount,lst%nj+lst%njp,lst%myLevBeg:lst%myLevEnd)
     real(8), intent(out)  :: gd_out(lst%ni+lst%nip,lst%latPerPE,lst%myLevBeg:lst%myLevEnd)
 
-    real(8) :: gd_recv(lst%maxmActiveCount,2,lst%latPerPEmax,lst%maxLevCount, mpi_npey)
-    real(8) :: gd_send(lst%maxmActiveCount,2,lst%latPerPEmax,lst%maxLevCount, mpi_npey)
+    real(8) :: gd_recv(lst%maxmActiveCount,2,lst%latPerPEmax,lst%maxLevCount, mmpi_npey)
+    real(8) :: gd_send(lst%maxmActiveCount,2,lst%latPerPEmax,lst%maxLevCount, mmpi_npey)
     integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_MToLat'
@@ -1919,7 +1919,7 @@ contains
     call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
-    do yourid = 0, (mpi_npey-1)
+    do yourid = 0, (mmpi_npey-1)
       do levIndex = lst%myLevBeg, lst%myLevEnd
         levIndex2 = levIndex - lst%myLevBeg + 1
         gd_send(:,:,:,levIndex2,yourid+1) = 0.d0
@@ -1939,7 +1939,7 @@ contains
     !$OMP END PARALLEL DO
 
     nsize = lst%maxmActiveCount * 2 * lst%maxLevCount * lst%latPerPEmax
-    if (mpi_npey > 1) then
+    if (mmpi_npey > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","NS",ierr)
     else
@@ -1947,7 +1947,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
-    do yourid = 0, (mpi_npey-1)
+    do yourid = 0, (mmpi_npey-1)
       do levIndex = lst%myLevBeg, lst%myLevEnd
         levIndex2 = levIndex - lst%myLevBeg + 1
         do latIndex = 1, lst%latPerPE
@@ -1982,8 +1982,8 @@ contains
     real(8), intent(in)   :: gd_in (lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp)
     real(8), intent(out)  :: gd_out(lst%myLevBeg:lst%myLevEnd,lst%ni+lst%nip,lst%latPerPE)
 
-    real(8) :: gd_recv(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mpi_npey)
-    real(8) :: gd_send(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mpi_npey)
+    real(8) :: gd_recv(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
+    real(8) :: gd_send(lst%maxLevCount,lst%maxmActiveCount,2,lst%latPerPEmax, mmpi_npey)
     integer :: yourid, mIndex, icount, nsize, ierr, levIndex, levIndex2, latIndex, latIndex2
 
     if (verbose) write(*,*) 'Entering transpose2d_MToLat_kij'
@@ -1992,7 +1992,7 @@ contains
     call utl_tmg_start(154,'low-level--lst_transpose_MtoLAT')
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,latIndex2,levIndex,levIndex2,icount,mIndex)
-    do yourid = 0, (mpi_npey-1)
+    do yourid = 0, (mmpi_npey-1)
       gd_send(:,:,:,:,yourid+1) = 0.d0
       do latIndex = lst%allLatBeg(yourid+1), lst%allLatEnd(yourid+1)
         latIndex2 = latIndex - lst%allLatBeg(yourid+1) + 1
@@ -2012,7 +2012,7 @@ contains
     !$OMP END PARALLEL DO
 
     nsize = lst%maxmActiveCount * 2 * lst%maxLevCount * lst%latPerPEmax
-    if (mpi_npey > 1) then
+    if (mmpi_npey > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","NS",ierr)
     else
@@ -2020,7 +2020,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid,latIndex,levIndex,levIndex2,icount,mIndex)
-    do yourid = 0, (mpi_npey-1)
+    do yourid = 0, (mmpi_npey-1)
       do latIndex = 1, lst%latPerPE
         icount = 0
         do mIndex = lst%allmBeg(yourid+1), lst%allmEnd(yourid+1), lst%allmSkip(yourid+1)
@@ -2056,8 +2056,8 @@ contains
     real(8), intent(out):: SpectralStateVar(lst%nla,lst%nphase,nk)
     real(8), intent(in) :: gd_in (2*lst%mymCount, lst%nj+lst%njp, lst%myLevBeg:lst%myLevEnd)
 
-    real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mpi_npex)
-    real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mpi_npex)
+    real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
+    real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToN'
@@ -2066,7 +2066,7 @@ contains
     call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,mIndex,levIndex,levIndex2,nIndex,icount)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       do levIndex = lst%myLevBeg, lst%myLevEnd
         levIndex2 = levIndex - lst%myLevBeg + 1
         gd_send(:,:,levIndex2,yourid+1) = 0.d0
@@ -2087,7 +2087,7 @@ contains
     !$OMP END PARALLEL DO
     
     nsize = lst%maxnla * 4 * lst%maxLevCount
-    if (mpi_npex > 1) then
+    if (mmpi_npex > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
     else
@@ -2095,7 +2095,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       do levIndex = lst%allLevBeg(yourid+1), lst%allLevEnd(yourid+1)
         levIndex2 = levIndex - lst%allLevBeg(yourid+1) + 1
         SpectralStateVar(:,:,levIndex) = gd_recv(1:lst%nla,:,levIndex2,yourid+1)
@@ -2119,8 +2119,8 @@ contains
     real(8), intent(out):: SpectralStateVar(lst%nla,lst%nphase,nk)
     real(8), intent(in) :: gd_in (lst%myLevBeg:lst%myLevEnd,2*lst%mymCount, lst%nj+lst%njp)
 
-    real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mpi_npex)
-    real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mpi_npex)
+    real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
+    real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_LevToN_kij'
@@ -2129,7 +2129,7 @@ contains
     call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,mIndex,levIndex,levIndex2,nIndex,icount)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       do levIndex = lst%myLevBeg, lst%myLevEnd
         levIndex2 = levIndex - lst%myLevBeg + 1
         gd_send(:,:,levIndex2,yourid+1) = 0.d0
@@ -2150,7 +2150,7 @@ contains
     !$OMP END PARALLEL DO
 
     nsize = lst%maxnla * 4 * lst%maxLevCount
-    if (mpi_npex > 1) then
+    if (mmpi_npex > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
     else
@@ -2158,7 +2158,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       do levIndex = lst%allLevBeg(yourid+1), lst%allLevEnd(yourid+1)
         levIndex2 = levIndex - lst%allLevBeg(yourid+1) + 1
         SpectralStateVar(:,:,levIndex) = gd_recv(1:lst%nla,:,levIndex2,yourid+1)
@@ -2182,8 +2182,8 @@ contains
     real(8), intent(in):: SpectralStateVar(lst%nla,lst%nphase,nk)
     real(8), intent(out):: gd_out(2*lst%mymCount, lst%nj+lst%njp, lst%myLevBeg:lst%myLevEnd)
 
-    real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mpi_npex)
-    real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mpi_npex)
+    real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
+    real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_NToLev'
@@ -2192,7 +2192,7 @@ contains
     call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       do levIndex = lst%allLevBeg(yourid+1), lst%allLevEnd(yourid+1)
         levIndex2 = levIndex - lst%allLevBeg(yourid+1) + 1
         gd_send(1:lst%nla,:,levIndex2,yourid+1) = SpectralStateVar(:,:,levIndex)
@@ -2202,7 +2202,7 @@ contains
     !$OMP END PARALLEL DO
 
     nsize = lst%maxnla * 4* lst%maxLevCount
-    if (mpi_npex > 1) then
+    if (mmpi_npex > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
     else
@@ -2210,7 +2210,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid,nIndex,levIndex,levIndex2,mIndex,icount)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       do levIndex = lst%myLevBeg, lst%myLevEnd
         levIndex2 = levIndex - lst%myLevBeg + 1
         icount = 0
@@ -2250,8 +2250,8 @@ contains
     real(8), intent(in) :: SpectralStateVar(lst%nla,lst%nphase,nk)
     real(8), intent(out):: gd_out(lst%myLevBeg:lst%myLevEnd,2*lst%mymCount,lst%nj+lst%njp)
 
-    real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mpi_npex)
-    real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mpi_npex)
+    real(8) :: gd_send(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
+    real(8) :: gd_recv(lst%maxnla, 4, lst%maxLevCount, mmpi_npex)
     integer :: yourid, nsize, ierr, levIndex, levIndex2, nIndex, mIndex, icount
 
     if (verbose) write(*,*) 'Entering transpose2d_NToLev_kij'
@@ -2260,7 +2260,7 @@ contains
     call utl_tmg_start(153,'low-level--lst_transpose_NtoLEV')
 
     !$OMP PARALLEL DO PRIVATE(yourid,levIndex,levIndex2)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       do levIndex = lst%allLevBeg(yourid+1), lst%allLevEnd(yourid+1)
         levIndex2 = levIndex - lst%allLevBeg(yourid+1) + 1
         gd_send(1:lst%nla,:,levIndex2,yourid+1) = SpectralStateVar(:,:,levIndex)
@@ -2270,7 +2270,7 @@ contains
     !$OMP END PARALLEL DO
     
     nsize = lst%maxnla * 4 * lst%maxLevCount
-    if (mpi_npex > 1) then
+    if (mmpi_npex > 1) then
       call rpn_comm_alltoall(gd_send,nsize,"mpi_double_precision",  &
                              gd_recv,nsize,"mpi_double_precision","EW",ierr)
     else
@@ -2278,7 +2278,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid,nIndex,levIndex,levIndex2,mIndex,icount)
-    do yourid = 0, (mpi_npex-1)
+    do yourid = 0, (mmpi_npex-1)
       do levIndex = lst%myLevBeg, lst%myLevEnd
         levIndex2 = levIndex - lst%myLevBeg + 1
         icount = 0

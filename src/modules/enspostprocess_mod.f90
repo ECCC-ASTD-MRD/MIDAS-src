@@ -20,7 +20,7 @@ module ensPostProcess_mod
   ! :Purpose: Various routines that are used to modify or process
   !           ensembles, usually produced by the LETKF.
   !
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use mathPhysConstants_mod
   use timeCoord_mod
@@ -200,7 +200,7 @@ contains
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml=namEnsPostProcModule, iostat=ierr)
     if ( ierr /= 0) call utl_abort('epp_postProc: Error reading namelist')
-    if ( mpi_myid == 0 ) write(*,nml=namEnsPostProcModule)
+    if ( mmpi_myid == 0 ) write(*,nml=namEnsPostProcModule)
     ierr = fclos(nulnam)
 
     if (alphaRTPS < 0.0D0) alphaRTPS = 0.0D0
@@ -306,10 +306,10 @@ contains
       !- Impose limits on humidity *before* recentering, if requested
       if (huLimitsBeforeRecenter) then
         if (imposeSaturationLimit .or. imposeRttovHuLimits) then
-          if (mpi_myid == 0) write(*,*) ''
-          if (mpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the humidity of analysis ensemble'
-          if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-          if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
+          if (mmpi_myid == 0) write(*,*) ''
+          if (mmpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the humidity of analysis ensemble'
+          if (mmpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
+          if (mmpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
           if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
           if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
           ! And recompute analysis mean
@@ -334,10 +334,10 @@ contains
       !- Impose limits on humidity *after* recentering, if requested
       if (.not.huLimitsBeforeRecenter) then
         if (imposeSaturationLimit .or. imposeRttovHuLimits) then
-          if (mpi_myid == 0) write(*,*) ''
-          if (mpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the humidity of analysis ensemble'
-          if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-          if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
+          if (mmpi_myid == 0) write(*,*) ''
+          if (mmpi_myid == 0) write(*,*) 'epp_postProcess: limits will be imposed on the humidity of analysis ensemble'
+          if (mmpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
+          if (mmpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
           if ( imposeSaturationLimit ) call qlim_saturationLimit(ensembleAnl)
           if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensembleAnl)
           ! And recompute analysis mean
@@ -644,7 +644,7 @@ contains
                            hInterpolateDegree_opt = hInterpolationDegree, &
                            dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0'/) )
         call gsv_zero(stateVectorMeanAnlSfcPres)
-        if (mpi_myid <= (nEns-1)) then
+        if (mmpi_myid <= (nEns-1)) then
           call gsv_allocate( stateVectorMeanAnlSfcPresMpiGlb, tim_nstepobsinc, hco_ens, vco_ens,   &
                              dateStamp_opt=tim_getDateStamp(),  &
                              mpi_local_opt=.false., &
@@ -876,12 +876,12 @@ contains
     character(len=256) :: outFileName
 
     do memberIndex = 1, nEns
-      writeFilePE(memberIndex) = mod(memberIndex-1, mpi_nprocs)
+      writeFilePE(memberIndex) = mod(memberIndex-1, mmpi_nprocs)
     end do
 
     do memberIndex = 1, nEns
 
-      if (mpi_myid == writeFilePE(memberIndex)) then
+      if (mmpi_myid == writeFilePE(memberIndex)) then
 
         call fln_ensAnlFileName( outFileName, ensPath, tim_getDateStamp(),  &
                                  memberIndex, ensFileNameSuffix_opt=fileNameSuffix )
@@ -1103,7 +1103,7 @@ contains
       do varIndex = 1, size(varNamesWithLQ)
         if (varNamesWithLQ(varIndex) == 'HU') varNamesWithLQ(varIndex) = 'LQ'
       end do
-      if (mpi_myid == 0) write(*,*) 'epp_addRandomPert: varNamesWithLQ = ', varNamesWithLQ(:)
+      if (mmpi_myid == 0) write(*,*) 'epp_addRandomPert: varNamesWithLQ = ', varNamesWithLQ(:)
     end if
 
     hco_core => hco_randomPert
@@ -1161,7 +1161,7 @@ contains
 
     do memberIndex = 1, nEns
 
-      if( mpi_myid == 0 ) then
+      if( mmpi_myid == 0 ) then
         write(*,*) 
         write(*,*) 'Computing random perturbation number= ', memberIndex
       end if
@@ -1387,15 +1387,15 @@ contains
         call utl_abort('epp_hybridRecentering: unable to read optiontable file')
       end if
       call utl_parseColumns(textLine, numColumns)
-      if (mpi_myid==0) write(*,*) 'epp_hybridRecentering: optiontable file has ', numColumns, ' columns.'
+      if (mmpi_myid==0) write(*,*) 'epp_hybridRecentering: optiontable file has ', numColumns, ' columns.'
       allocate( weightArray(0:numMembers) )
       rewind(nulFile)
       do memberIndex = 0, numMembers
         read(nulFile,'(a)') textLine
         call utl_parseColumns(textLine, numColumns, stringArray_opt=stringArray)
-        if (mpi_myid==0) write(*,*) memberIndex, (stringArray(columnIndex),columnIndex=1,numColumns)
+        if (mmpi_myid==0) write(*,*) memberIndex, (stringArray(columnIndex),columnIndex=1,numColumns)
         read(stringArray(numColumns),'(f6.3)') weightArray(memberIndex)
-        if (mpi_myid==0) write(*,*) 'weightArray = ', weightArray(memberIndex)
+        if (mmpi_myid==0) write(*,*) 'weightArray = ', weightArray(memberIndex)
       end do
       status = fclos(nulFile)
     end if
@@ -1491,7 +1491,7 @@ contains
                weight(lonIndex,latIndex)
         end do
       end do
-      call mpi_allreduce_sumreal8scalar(rmsvalue(kIndex),'GRID')
+      call mmpi_allreduce_sumreal8scalar(rmsvalue(kIndex),'GRID')
       rmsvalue(kIndex) = rmsvalue(kIndex)**0.5
     end do
 
@@ -1563,7 +1563,7 @@ contains
     end do
 
     ! write to file
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(*,*) 'epp_printRmsStats: Opening ascii output file: ', trim(fileName)
       nulFile = 0
       ierr = fnom (nulFile, fileName, 'SEQ+R/W', 0)

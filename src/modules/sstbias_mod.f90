@@ -28,7 +28,7 @@ module SSTbias_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use utilities_mod
-  use mpi_mod
+  use midasMpi_mod
   use codtyp_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -315,7 +315,7 @@ module SSTbias_mod
 	    end if
   
             ! summing the values over all mpi tasks and sending them back to all tasks preserving the order of summation
-            call mpi_allreduce_sumreal8scalar(obsGrid(lonIndex, latIndex), "grid")
+            call mmpi_allreduce_sumreal8scalar(obsGrid(lonIndex, latIndex), "grid")
             call rpn_comm_allreduce(numObsFoundLoc, numObsFoundGlob, 1, "mpi_integer", "mpi_sum", "grid", ierr)
   
             if (numObsFoundGlob > 0) then
@@ -615,7 +615,7 @@ module SSTbias_mod
     ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
     read(nulnam, nml = namSSTbiasEstimate, iostat = ierr )
     if (ierr /= 0) call utl_abort('sstb_applySatelliteSSTBiasCorrection: Error reading namelist')
-    if (mpi_myid == 0) write(*, nml = namSSTbiasEstimate )
+    if (mmpi_myid == 0) write(*, nml = namSSTbiasEstimate )
     ierr = fclos( nulnam )
 
     if (numberSensors == 0) call utl_abort('sstb_applySatelliteSSTBiasCorrection: Number of sensors to treat is not defined!!!')

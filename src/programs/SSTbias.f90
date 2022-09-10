@@ -21,7 +21,7 @@ program midas_sstBias
   use version_mod
   use ramDisk_mod
   use utilities_mod
-  use mpi_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -60,9 +60,9 @@ program midas_sstBias
   call ver_printNameAndVersion('SSTbias','SST Bias Estimation')
 
   ! MPI initialization
-  call mpi_initialize
+  call mmpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
  
@@ -86,7 +86,7 @@ program midas_sstBias
 
   call utl_tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 
@@ -141,7 +141,7 @@ program midas_sstBias
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml = namSSTbiasEstimate, iostat = ierr )
     if (ierr /= 0) call utl_abort('SSTbias_setup: Error reading namelist')
-    if (mpi_myid == 0) write(*, nml = namSSTbiasEstimate)
+    if (mmpi_myid == 0) write(*, nml = namSSTbiasEstimate)
     ierr = fclos( nulnam )
 
     if (numberSensors == 0) call utl_abort('SSTbias_setup: Number of sensors to treat is not defined!')
@@ -154,7 +154,7 @@ program midas_sstBias
     !
     !- Initialize constants
     !
-    if(mpi_myid == 0) call mpc_printConstants(6)
+    if(mmpi_myid == 0) call mpc_printConstants(6)
 
     !
     !- Initialize variables of the model states
@@ -165,15 +165,15 @@ program midas_sstBias
     !
     !- Initialize the Analysis grid
     !
-    if(mpi_myid == 0) write(*,*)''
-    if(mpi_myid == 0) write(*,*) 'SSTbias_setup: Set hco parameters for analysis grid'
+    if(mmpi_myid == 0) write(*,*)''
+    if(mmpi_myid == 0) write(*,*) 'SSTbias_setup: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, gridFile, 'GRID' ) ! IN
 
     if ( hco_anl % global ) then
       call agd_SetupFromHCO( hco_anl ) ! IN
     else
       !- Initialize the core (Non-Extended) analysis grid
-      if(mpi_myid == 0) write(*,*) 'SSTbias_setup: Set hco parameters for core grid'
+      if(mmpi_myid == 0) write(*,*) 'SSTbias_setup: Set hco parameters for core grid'
       call hco_SetupFromFile( hco_core, gridFile, 'COREGRID', 'AnalysisCore' ) ! IN
       !- Setup the LAM analysis grid metrics
       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
@@ -198,7 +198,7 @@ program midas_sstBias
     !- Memory allocation for background column data
     call col_allocate(column, obs_numHeader(obsSpaceData), mpiLocal_opt = .true.)
 
-    if(mpi_myid == 0) write(*,*) 'SSTbias_setup: done.'
+    if(mmpi_myid == 0) write(*,*) 'SSTbias_setup: done.'
     
   end subroutine SSTbias_setup
 

@@ -19,7 +19,7 @@ module costfunction_mod
   !
   ! :Purpose: To compute Jo term
   !
-  use mpi_mod
+  use midasMpi_mod
   use obsSpaceData_mod
   use rmatrix_mod
   use rttov_const, only : inst_name, platform_name
@@ -266,41 +266,41 @@ contains
       end do
     end if
 
-    call mpi_allreduce_sumreal8scalar( pjo, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljoraob, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljoairep, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljosatwind, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljosurfc, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljoscat, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljotov, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljogpsro, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljoprof, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljogpsztd, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljochm, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljosst, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljoaladin,"GRID")
-    call mpi_allreduce_sumreal8scalar( dljoice, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljohydro, "GRID" )
-    call mpi_allreduce_sumreal8scalar( dljoradar, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( pjo, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljoraob, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljoairep, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljosatwind, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljosurfc, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljoscat, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljotov, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljogpsro, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljoprof, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljogpsztd, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljochm, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljosst, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljoaladin,"GRID")
+    call mmpi_allreduce_sumreal8scalar( dljoice, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljohydro, "GRID" )
+    call mmpi_allreduce_sumreal8scalar( dljoradar, "GRID" )
     do sensorIndex = 1, tvs_nsensors
-      call mpi_allreduce_sumreal8scalar(dljotov_sensors(sensorIndex), "GRID")
+      call mmpi_allreduce_sumreal8scalar(dljotov_sensors(sensorIndex), "GRID")
     end do
     if (printJoTovsPerChannelSensor) then
       loopSensor2: do sensorIndex = 1, tvs_nsensors
         if (trim(sensorNameList(sensorIndex)) == '') cycle loopSensor2
 
-        call mpi_allreduce_sumR8_1d(joTovsPerChannelSensor(:,sensorIndex), "GRID")
+        call mmpi_allreduce_sumR8_1d(joTovsPerChannelSensor(:,sensorIndex), "GRID")
       end do loopSensor2
     end if
 
     ! SST data per instrument
     do SSTdatasetIndex = 1, oer_getSSTdataParam_int('numberSSTDatasets')
-      call mpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex), "grid")
+      call mmpi_allreduce_sumreal8scalar(joSSTInstrument(SSTdatasetIndex), "grid")
       call rpn_comm_allreduce(nobsInstrument(SSTdatasetIndex), nobsInstrumentGlob(SSTdatasetIndex), &
                               1, "mpi_integer", "mpi_sum", "grid", ierr)
     end do
 
-    if ( mpi_myid == 0 .and. .not. beSilent ) then
+    if ( mmpi_myid == 0 .and. .not. beSilent ) then
       write(*,'(a15,f30.17)') 'Jo(UA)   = ', dljoraob
       write(*,'(a15,f30.17)') 'Jo(AI)   = ', dljoairep
       write(*,'(a15,f30.17)') 'Jo(SF)   = ', dljosurfc
@@ -398,7 +398,7 @@ contains
       channelNumberList(:,:) = 0
 
       if ( .not. utl_isNamelistPresent('NAMCFN','./flnml') ) then
-        if ( mpi_myid == 0 ) then
+        if ( mmpi_myid == 0 ) then
           write(*,*) 'NAMCFN is missing in the namelist. The default values will be taken.'
         end if
 
@@ -412,7 +412,7 @@ contains
 
         call sortChannelNumbersInNml
       end if
-      if ( mpi_myid == 0 ) write(*,nml=namcfn)
+      if ( mmpi_myid == 0 ) write(*,nml=namcfn)
     end if
 
   end subroutine readNameList
@@ -437,7 +437,7 @@ contains
 
     character(len=15) :: sensorName1LowerCase, sensorName2LowerCase
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       write(*,*) 'costfunction_mod: sortChannelNumbersInNml START'
     end if
 
@@ -505,7 +505,7 @@ contains
       end if
     end do loopSensor6
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       write(*,*) 'costfunction_mod: sortChannelNumbersInNml END'
     end if
 

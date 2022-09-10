@@ -22,7 +22,7 @@ module calcStatsGlb_mod
   !           version).
   !
   use codePrecision_mod
-  use mpi_mod
+  use midasMpi_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use ensembleStateVector_mod
@@ -107,7 +107,7 @@ module calcStatsGlb_mod
       call fln_ensfileName(cflensin(memberIndex), 'ensemble', memberIndex_opt=memberIndex)
     end do
     
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       call mpc_printConstants(6)
       call pre_printPrecisions
     end if
@@ -164,7 +164,7 @@ module calcStatsGlb_mod
     call mmpi_setup_levels(nEns,myMemberBeg,myMemberEnd,myMemberCount)
     call rpn_comm_allreduce(myMemberCount, maxMyMemberCount, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
-    nEnsOverDimension = mpi_npex * maxMyMemberCount
+    nEnsOverDimension = mmpi_npex * maxMyMemberCount
     
     !- Setup ip1s
     allocate(nip1_M(nLevEns_M))
@@ -295,18 +295,18 @@ module calcStatsGlb_mod
     call calcZonAvg(stddevZonAvg,stddev3d,nkgdimens)
 
     call calcTheta(ensPerturbations,theta1) ! theta1 is put in glbcov and used for analysis!
-    if (mpi_myid == 0) write(301,*) theta1
+    if (mmpi_myid == 0) write(301,*) theta1
 
     call removeBalancedChi(ensPerturbations,theta1)
 
     call normalize3d(ensPerturbations,stddev3d)
 
     call calcPtoT(ensPerturbations,PtoT)
-    if (mpi_myid == 0) write(303,*) PTOT(:,:,1)
+    if (mmpi_myid == 0) write(303,*) PTOT(:,:,1)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
 !    call calcTheta(ensPerturbations,theta2) ! theta2 is used previously for computing unbalanced Chi!
-!    if (mpi_myid == 0) write(302,*) theta2
+!    if (mmpi_myid == 0) write(302,*) theta2
 
     call removeBalancedT_Ps(ensPerturbations,ensBalPerturbations,PtoT)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -351,7 +351,7 @@ module calcStatsGlb_mod
     call writeSpStats(ptot,theta1)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(200,*) stddevZonAvg(1:nlevEns_M,:)
       write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
       write(202,*) stddevZonAvg((1+2*nlevEns_M):(3*nlevEns_T),:)
@@ -461,7 +461,7 @@ module calcStatsGlb_mod
 
     call writeStddev(stddevZonAvg,stddev3d)
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(200,*) stddevZonAvg(1:nlevEns_M,:)
       write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
       write(202,*) stddevZonAvg((1+2*nlevEns_M):(3*nlevEns_T),:)
@@ -557,7 +557,7 @@ module calcStatsGlb_mod
        write(*,*)
        write(*,*) 'Computing Homogeneous and Isotropic Correlation'
 
-       if (mpi_nprocs > 1) then
+       if (mmpi_nprocs > 1) then
          call utl_abort('csg_toolbox: this tool is not yet MPI capable') ! only due to horizCorrelFunction
        end if
        
@@ -725,7 +725,7 @@ module calcStatsGlb_mod
 
     call writeStddev(stddevZonAvg,stddev3d)
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(200,*) stddevZonAvg(1:nlevEns_M,:)
       write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
       write(202,*) stddevZonAvg((1+2*nlevEns_M):(3*nlevEns_T),:)
@@ -752,7 +752,7 @@ module calcStatsGlb_mod
     real(8) :: bufptot(nj,(nLevEns_T+1)*nLevEns_M),spptot(0:ntrunc,(nLevEns_T+1)*nLevEns_M)
     real(8) :: zspptot(nLevEns_T+1,nLevEns_M)
 
-    if (mpi_myid /= 0) return
+    if (mmpi_myid /= 0) return
 
     nulstats=0
     ierr =  fnom  (nulstats,'./stats_sp.fst','RND',0)
@@ -1226,7 +1226,7 @@ module calcStatsGlb_mod
     character(len=128) :: outfilename
     character(len=2) :: wbnum
 
-    if (mpi_myid /= 0) return
+    if (mmpi_myid /= 0) return
     
     nulstats=0
     if ( nWaveBand == 1 ) then
@@ -1316,7 +1316,7 @@ module calcStatsGlb_mod
 
     integer :: jk
 
-    if (mpi_myid /= 0) return
+    if (mmpi_myid /= 0) return
 
     outfilename = "./pressureProfile_M.txt"
     open (unit=99,file=outfilename,action="write",status="new")
@@ -1404,7 +1404,7 @@ module calcStatsGlb_mod
 
     ! second, write stddev (zonal average)
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       nulstats=0
       ierr =  fnom  (nulstats,'./stddev.fst','RND',0)
       ierr =  fstouv(nulstats,'RND')
@@ -1538,7 +1538,7 @@ module calcStatsGlb_mod
 
     ! second, write stddev (zonal average)
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       nulstats=0
       ierr =  fnom  (nulstats,'./stddev_balanced.fst','RND',0)
       ierr =  fstouv(nulstats,'RND')
@@ -1702,7 +1702,7 @@ module calcStatsGlb_mod
       allocate(ResponseFunction(0:ntrunc))
       write(wbnum,'(I2.2)') waveBandIndex_opt
       outfilename = "./ResponseFunction_"//wbnum//".txt"
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         open (unit=99,file=outfilename,action="write",status="new")
       end if
       do jn = 0, ntrunc
@@ -1713,11 +1713,11 @@ module calcStatsGlb_mod
           waveLength=0.d0
         end if
         write(* ,'(I4,2X,F7.1,2X,F5.3)') jn, waveLength/1000.d0, ResponseFunction(jn)
-        if (mpi_myid == 0) then
+        if (mmpi_myid == 0) then
           write(99,'(I4,2X,F7.1,2X,F5.3)') jn, waveLength/1000.d0, ResponseFunction(jn)
         end if
       end do
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         close(unit=99)
       end if
     end if
@@ -2565,7 +2565,7 @@ module calcStatsGlb_mod
     !
     !- 4.  Write to file
     !
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       if ( nWaveBand /= 1 ) then
         if (.not. present(waveBandIndex_opt)) then
           write(*,*) 'horizCorrelFunction: No waveBandIndex was supplied!!!'
@@ -2738,7 +2738,7 @@ module calcStatsGlb_mod
     character(len=128) :: outfilename
     character(len=2) :: wbnum
 
-    if (mpi_myid /= 0) return
+    if (mmpi_myid /= 0) return
     
     write(*,*)
     write(*,*) 'Computing horizontal correlation lengthscales'

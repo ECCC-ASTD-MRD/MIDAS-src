@@ -21,7 +21,7 @@ module verticalCoord_mod
   !           The derived type includes a pointer to the associated VGRID
   !           descriptor.
   !
-  use mpi_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use Vgrid_Descriptors
   use varNameList_mod
@@ -146,7 +146,7 @@ contains
     end if
 
     ! Check if template file exists
-    if (mpi_myid == 0 .and. .not. beSilent) then
+    if (mmpi_myid == 0 .and. .not. beSilent) then
       write(*,*) 'vco_setupFromFile: Template File = ', trim(templatefile)
     end if
     inquire(file=templatefile,exist=fileExists)
@@ -281,7 +281,7 @@ contains
     end if
 
     ! Print out vertical structure 
-    if (mpi_myid == 0 .and. .not. beSilent) then
+    if (mmpi_myid == 0 .and. .not. beSilent) then
       call flush(6) ! possibly needed so vgd_print output appears correctly in listing
       stat = vgd_print(vco%vgrid)
       if ( stat /= VGD_OK )then
@@ -314,7 +314,7 @@ contains
       if (ikey > 0) vco%nlev_T = vco%nlev_T + 1
     end do
     if (vco%nlev_T == 0) then
-      if (mpi_myid == 0 .and. .not. beSilent) then
+      if (mmpi_myid == 0 .and. .not. beSilent) then
         write(*,*) 'vco_setupAtmFromFile: TH not found looking for TT to get nlev_T'
       end if
       nomvar_T = 'TT  '
@@ -335,7 +335,7 @@ contains
       if (ikey > 0) vco%nlev_M = vco%nlev_M + 1
     end do
     if (vco%nlev_M == 0) then
-      if (mpi_myid == 0 .and. .not. beSilent) then
+      if (mmpi_myid == 0 .and. .not. beSilent) then
         write(*,*) 'vco_setupAtmFromFile: MM not found looking for UU to get nlev_M'
       end if
       nomvar_M = 'UU  '
@@ -345,7 +345,7 @@ contains
       end do
     end if
     if (vco%nlev_M == 0) then
-      if (mpi_myid == 0 .and. .not. beSilent) then
+      if (mmpi_myid == 0 .and. .not. beSilent) then
         write(*,*) 'vco_setupAtmFromFile: UU not found looking for PP to get nlev_M'
       end if
       nomvar_M = 'PP  '
@@ -371,7 +371,7 @@ contains
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vco_ip1_other(jlev), -1, -1, ' ', nomvar_Other)
         if (ikey > 0) vco%nlev_Other(varListIndex) = vco%nlev_Other(varListIndex) + 1
       end do
-      if (mpi_myid == 0 .and. .not. beSilent) then
+      if (mmpi_myid == 0 .and. .not. beSilent) then
         if (vco%nlev_Other(varListIndex) == 0) then
           write(*,*) 
           write(*,*) 'vco_setupAtmFromFile: Found no levels in template file for OTHER type variable ', nomvar_Other
@@ -386,7 +386,7 @@ contains
       call utl_abort('vco_setupAtmFromFile: they were no valid momentum and thermodynamic variables in the template file!')
     end  if
 
-    if (mpi_myid == 0 .and. .not.beSilent) then
+    if (mmpi_myid == 0 .and. .not.beSilent) then
       write(*,*) 'vco_setupAtmFromFile: nlev_M, nlev_T=',vco%nlev_M,vco%nlev_T
     end if
     
@@ -439,7 +439,7 @@ contains
       write(*,*) 'vco_setupAtmFromFile: Could not find IP1=',ip1_sfc
       call utl_abort('vco_setupAtmFromFile: No surface level found in Vgrid!!!')
     else
-      if ( mpi_myid == 0 .and. .not. beSilent ) write(*,*) 'vco_setupAtmFromFile: Set surface level IP1=',vco%ip1_sfc
+      if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'vco_setupAtmFromFile: Set surface level IP1=',vco%ip1_sfc
     end if
 
     ! determine IP1s of 2m and 10m levels
@@ -530,7 +530,7 @@ contains
           vco%nLev_depth = vco%nLev_depth + 1
           depths(vco%nLev_depth) = vertCoordValue
           ip1_depth(vco%nLev_depth) = ip1
-          if (mpi_myid == 0 .and. .not.beSilent) then
+          if (mmpi_myid == 0 .and. .not.beSilent) then
             write(*,*) 'vco_setupOceanFromFile: found ocean record: nLev_depth = ', &
                  vco%nLev_depth, 'varName = ', trim(nomvar), &
                  ', value = ', depths(vco%nLev_depth)
@@ -675,7 +675,7 @@ contains
 
     write(*,*) 'vco_mpiBcast: starting'
 
-    if ( mpi_myid > 0 ) then
+    if ( mmpi_myid > 0 ) then
       if ( .not.associated(vco) ) then
         allocate(vco)
       else 
@@ -694,7 +694,7 @@ contains
     call rpn_comm_bcast(vco%Vcode       , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%nlev_other, vnl_numvarmaxOther, 'MPI_INTEGER', 0, 'GRID', ierr)
     if (vco%nLev_depth > 0) then
-      if ( mpi_myid > 0 ) then
+      if ( mmpi_myid > 0 ) then
         allocate(vco%ip1_depth(vco%nlev_depth))
         allocate(vco%depths(vco%nlev_depth))
       end if
@@ -702,13 +702,13 @@ contains
       call rpn_comm_bcast(vco%depths    , vco%nlev_depth, 'MPI_REAL8'  , 0, 'GRID', ierr)
     end if
     if (vco%vgridPresent) then
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         vgd_nlev_M = size(vco%ip1_M)
         vgd_nlev_T = size(vco%ip1_T)
       end if
       call rpn_comm_bcast(vgd_nlev_M, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       call rpn_comm_bcast(vgd_nlev_T, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      if ( mpi_myid > 0 ) then
+      if ( mmpi_myid > 0 ) then
         allocate(vco%ip1_M(vgd_nlev_M))
         allocate(vco%ip1_T(vgd_nlev_T))
       end if
@@ -719,7 +719,7 @@ contains
     ! now do bcast for vgrid object
     if (vco%vgridPresent) then
 
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         ierr = vgd_get(vco%vgrid,'VTBL',vgdtable)
         vgdtable_dim1 = size(vgdtable,1)
         vgdtable_dim2 = size(vgdtable,2)
@@ -739,7 +739,7 @@ contains
       call rpn_comm_bcast(vgdtable_dim1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       call rpn_comm_bcast(vgdtable_dim2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       call rpn_comm_bcast(vgdtable_dim3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      if ( mpi_myid > 0 ) allocate(vgdtable(vgdtable_dim1, vgdtable_dim2, vgdtable_dim3)) 
+      if ( mmpi_myid > 0 ) allocate(vgdtable(vgdtable_dim1, vgdtable_dim2, vgdtable_dim3)) 
       call rpn_comm_bcast(vgdtable, size(vgdtable), 'MPI_REAL8', 0, 'GRID', ierr)
       ! others
       call rpn_comm_bcast(vgddate, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
@@ -752,7 +752,7 @@ contains
       call rpn_comm_bcast(vgdip2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       call rpn_comm_bcast(vgdip3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       
-      if ( mpi_myid > 0 ) then
+      if ( mmpi_myid > 0 ) then
         ierr = vgd_new(vco%vgrid,vgdtable)
         ierr = vgd_put(vco%vgrid,'DATE',vgddate)
         ierr = vgd_put(vco%vgrid,'ETIK',vgdetik)

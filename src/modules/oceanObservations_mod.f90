@@ -19,7 +19,7 @@ module oceanObservations_mod
   !
   ! :Purpose: storage for ocean observations related subroutines
   !
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use obsSpaceData_mod
   use codtyp_mod

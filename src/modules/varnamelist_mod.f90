@@ -22,7 +22,7 @@ module varNameList_mod
   !           and procedures for accessing this information
   !
   use bufr_mod
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use MathPhysConstants_mod
   
@@ -532,7 +532,7 @@ module varNameList_mod
           ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
           read (nulnam, nml = NAMVNL, iostat = ierr)
           if ( ierr /= 0 ) call utl_abort('vnl_varLevelFromVarname: Error reading namelist')
-          if ( mpi_myid == 0 ) write(*,nml=namvnl)
+          if ( mmpi_myid == 0 ) write(*,nml=namvnl)
           ierr = fclos(nulnam)
         else
           write(*,*)

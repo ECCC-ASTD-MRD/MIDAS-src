@@ -31,7 +31,7 @@ module burpFiles_mod
   use utilities_mod
   use obsSubSpaceData_mod
   use burp_module
-  use mpi_mod
+  use midasMpi_mod
   use obsUtil_mod
   use obsVariableTransforms_mod
 

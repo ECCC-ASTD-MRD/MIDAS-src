@@ -23,7 +23,7 @@ module calcHeightAndPressure_mod
   !           transformations are included in separate subroutines.
   !
   use codePrecision_mod
-  use mpi_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use physicsFunctions_mod
   use earthConstants_mod
@@ -403,7 +403,7 @@ contains
           status = vgd_get( statevector%vco%vgrid, &
                             key='DHT - height of the diagnostic level (t)', &
                             value=heightSfcOffset_T_r4)
-          if ( mpi_myid == 0 .and. .not.beSilent ) then
+          if ( mmpi_myid == 0 .and. .not.beSilent ) then
             write(*,*) 'calcHeight_gsv_nl (czp): height offset for near-sfc momentum level is: ', &
                   heightSfcOffset_M_r4, ' metres'
             write(*,*) 'calcHeight_gsv_nl (czp): height offset for near-sfc thermo level is:   ', &

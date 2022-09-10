@@ -23,7 +23,7 @@ module columnData_mod
   !           interpolating a gridStateVector object to the observation
   !           locations.
   !
-  use mpi_mod
+  use midasMpi_mod
   use earthConstants_mod
   use varNameList_mod
   use verticalCoord_mod
@@ -84,10 +84,10 @@ contains
     namelist /namstate/anlvar,rhumin,anltime_bin,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
                        minValVarKindCH, abortOnMpiImbalance
 
-    if(mpi_myid == 0) write(*,*) 'col_setup: List of known (valid) variable names'
-    if(mpi_myid == 0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
-    if(mpi_myid == 0) write(*,*) 'col_setup: varNameList2D=',vnl_varNameList2D
-    if(mpi_myid == 0) write(*,*) 'col_setup: varNameList  =',vnl_varNameList
+    if(mmpi_myid == 0) write(*,*) 'col_setup: List of known (valid) variable names'
+    if(mmpi_myid == 0) write(*,*) 'col_setup: varNameList3D=',vnl_varNameList3D
+    if(mmpi_myid == 0) write(*,*) 'col_setup: varNameList2D=',vnl_varNameList2D
+    if(mmpi_myid == 0) write(*,*) 'col_setup: varNameList  =',vnl_varNameList
 
     ! Read NAMELIST NAMSTATE to find which fields are needed
 
@@ -103,7 +103,7 @@ contains
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namstate,iostat=ierr)
     if(ierr.ne.0) call utl_abort('col_setup: Error reading namelist')
-    if(mpi_myid == 0) write(*,nml=namstate)
+    if(mmpi_myid == 0) write(*,nml=namstate)
     ierr=fclos(nulnam)
 
     col_rhumin = rhumin
@@ -177,8 +177,8 @@ contains
       end if 
     end do
 
-    if(mpi_myid == 0) write(*,*) 'col_setup: numVar3D (no Z_T/Z_M/P_T/P_M included), numVar2D, numVarOther = ', numVar3D, numVar2D, numVarOther
-    if(mpi_myid == 0) write(*,*) 'col_setup: varExistList (no Z_T/Z_M/P_T/P_M included) = ',varExistList
+    if(mmpi_myid == 0) write(*,*) 'col_setup: numVar3D (no Z_T/Z_M/P_T/P_M included), numVar2D, numVarOther = ', numVar3D, numVar2D, numVarOther
+    if(mmpi_myid == 0) write(*,*) 'col_setup: varExistList (no Z_T/Z_M/P_T/P_M included) = ',varExistList
 
     contains
 
@@ -270,7 +270,7 @@ contains
       column%mpi_local=mpiLocal_opt
     else
       column%mpi_local=.true.
-      if (mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: assuming columnData is mpi-local'
+      if (mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: assuming columnData is mpi-local'
     end if
 
     if(.not.column%vco%initialized) then
@@ -329,9 +329,9 @@ contains
       if ( setToZero ) column%lat(:)=0.0d0
     end if
  
-    if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: column%nk = ', column%nk
-    if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varOffset=',column%varOffset
-    if(mpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
+    if(mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: column%nk = ', column%nk
+    if(mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varOffset=',column%varOffset
+    if(mmpi_myid == 0 .and. .not.beSilent) write(*,*) 'col_allocate: varNumLev=',column%varNumLev
 
     column%addHeightSfcOffset = addHeightSfcOffset
 

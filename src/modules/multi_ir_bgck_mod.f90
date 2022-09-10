@@ -25,7 +25,7 @@ module multi_ir_bgck_mod
   use rttov_const, only : inst_id_iasi
   use utilities_mod
   use obsSpaceData_mod
-  use mpi_mod
+  use midasMpi_mod
   use columnData_mod
   use earthConstants_mod
   use MathPhysConstants_mod
@@ -163,7 +163,7 @@ contains
       ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
       read(nulnam, nml=NAMBGCKIR, iostat=ierr)
       if (ierr /= 0) call utl_abort('irbg_init: Error reading namelist')
-      if (mpi_myid == 0) write(*, nml=NAMBGCKIR)
+      if (mmpi_myid == 0) write(*, nml=NAMBGCKIR)
       ierr = fclos(nulnam)
       first = .false.
     end if

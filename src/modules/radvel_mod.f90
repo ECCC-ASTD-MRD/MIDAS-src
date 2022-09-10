@@ -21,7 +21,7 @@ module radvel_mod
   !
   !
   use codePrecision_mod
-  use mpi_mod
+  use midasMpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use utilities_mod

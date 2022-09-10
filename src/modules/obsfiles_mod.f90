@@ -26,7 +26,7 @@ module obsFiles_mod
   !              3. SQLITE (burp2rdb format)
   !              4. SQLITE (obsDB format)
   !
-  use mpi_mod
+  use midasMpi_mod
   use ramdisk_mod
   use mathPhysConstants_mod
   use earthConstants_mod
@@ -224,7 +224,7 @@ contains
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namwritediag,iostat=ierr)
     if (ierr /= 0) write(*,*) myWarning//' namwritediag is missing in the namelist. The default value will be taken.'
-    if (mpi_myid == 0) write(*,nml = namwritediag)
+    if (mmpi_myid == 0) write(*,nml = namwritediag)
     if (present(writeDiagFiles_opt)) then
       lwritediagsql = lwritediagsql .and. writeDiagFiles_opt
     end if
@@ -260,14 +260,14 @@ contains
         end if
       end do
 
-      if ( present(HXens_mpiglobal_opt) .and. mpi_myid == 0 ) then
+      if ( present(HXens_mpiglobal_opt) .and. mmpi_myid == 0 ) then
         call obsf_writeHX(obsSpaceData, HXens_mpiglobal_opt)
       end if
 
     else if ( obsFileType == 'CMA' ) then
 
       ! only 1 mpi task should do the writing
-      if( mpi_myid == 0 ) call cma_writeFiles( obsSpaceData, HXens_mpiglobal_opt )
+      if( mmpi_myid == 0 ) call cma_writeFiles( obsSpaceData, HXens_mpiglobal_opt )
 
     end if
 
@@ -283,7 +283,7 @@ contains
 
     if ( present(asciDumpObs_opt) ) then
       if ( asciDumpObs_opt ) then
-        if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' .or. mpi_myid == 0   ) then
+        if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' .or. mmpi_myid == 0   ) then
           ! all processors write to files only for BURP and SQLITE    
           call obsf_writeAsciDump(obsSpaceData)
         end if
@@ -379,13 +379,13 @@ contains
     ! determine the file name depending on if obs data is mpi local or global
     if ( obs_mpiLocal(obsSpaceData) ) then
       ! separate file per mpi task
-      write(cmyidy,'(I4.4)') (mpi_myidy + 1)
-      write(cmyidx,'(I4.4)') (mpi_myidx + 1)
+      write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
+      write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
       cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
       fileNameAsciDump = 'obsout_asci_' // trim(cmyid)
     else
       ! only task 0 write the global data
-      if ( mpi_myid > 0 ) return
+      if ( mmpi_myid > 0 ) return
       fileNameAsciDump = 'obsout_asci'
     end if
 
@@ -413,8 +413,8 @@ contains
     logical :: fileExists
     integer :: fileIndex
 
-    write(cmyidy,'(I4.4)') (mpi_myidy + 1)
-    write(cmyidx,'(I4.4)') (mpi_myidx + 1)
+    write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
+    write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
     cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
 
     clvalu(:)=''
@@ -682,13 +682,13 @@ contains
     character(len=*)                       :: obsFileType
 
     ! locals
-    integer :: ierr, procID, all_nfiles(0:(mpi_nprocs-1))
+    integer :: ierr, procID, all_nfiles(0:(mmpi_nprocs-1))
     logical :: fileExists
 
     call rpn_comm_allgather( obsf_nfiles, 1, 'MPI_INTEGER', &
                              all_nfiles,  1, 'MPI_INTEGER', 'GRID', ierr )
     fileExists = .false.
-    procid_loop: do procID = 0, (mpi_nprocs-1)
+    procid_loop: do procID = 0, (mmpi_nprocs-1)
       if ( all_nfiles(procID) > 0 ) then
         fileExists = .true.
         exit procid_loop
@@ -701,7 +701,7 @@ contains
 
     write(*,*) 'obsf_determineFileType: read obs file that exists on mpi task id: ', procID
 
-    if ( mpi_myid == procID ) call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(1) )
+    if ( mmpi_myid == procID ) call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(1) )
 
     call rpn_comm_bcastc(obsFileType , len(obsFileType), 'MPI_CHARACTER', procID, 'GRID', ierr)
     write(*,*) 'obsf_determineFileType: obsFileType = ', obsFileType
@@ -907,7 +907,7 @@ contains
     filename = obsf_getFileName(obsfam,fileFound)
 
     if (fileFound) then
-       if (obsf_filesSplit() .or. mpi_myid == 0) then
+       if (obsf_filesSplit() .or. mmpi_myid == 0) then
           call obsf_determineSplitFileType( obsFileType, filename )
           if (obsFileType=='BURP') then
              if (.not.present(block_opt)) &
@@ -945,7 +945,7 @@ contains
     character(len=10) :: obsFileType
     
     ! If obs files not split and I am not task 0, then return
-    if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
+    if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
 
     do fileIndex = 1, obsf_nfiles
 
@@ -1009,7 +1009,7 @@ contains
     end if
 
     ! If obs files not split and I am not task 0, then return
-    if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
+    if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
 
     FILELOOP: do fileIndex = 1, obsf_nfiles
       if ( obsf_cfamtyp(fileIndex) /= 'TO' ) cycle FILELOOP
@@ -1046,11 +1046,11 @@ contains
       ! Copy files TO the specified directory
 
       ! Create destination directory
-      if (mpi_myid == 0) status = clib_mkdir_r(trim(directoryInOut))
+      if (mmpi_myid == 0) status = clib_mkdir_r(trim(directoryInOut))
       if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
 
       ! If obs files not split and I am not task 0, then return
-      if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
+      if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
 
       do fileIndex = 1, obsf_nfiles
         fullName = trim( obsf_cfilnam(fileIndex) )
@@ -1064,7 +1064,7 @@ contains
       ! Copy files FROM the specified directory
 
       ! If obs files not split and I am not task 0, then return
-      if ( .not.obsf_filesSplit() .and. mpi_myid /= 0 ) return
+      if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
 
       do fileIndex = 1, obsf_nfiles
         fullName = trim( obsf_cfilnam(fileIndex) )
@@ -1077,7 +1077,7 @@ contains
 
       ! Remove the directory
       if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
-      if (mpi_myid == 0) status = clib_remove(trim(directoryInOut))
+      if (mmpi_myid == 0) status = clib_remove(trim(directoryInOut))
       
     else
 

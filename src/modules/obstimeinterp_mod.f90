@@ -20,7 +20,7 @@ module obsTimeInterp_mod
   ! :Purpose: To store public variables and procedures related to the time
   !           coordinate.
   !
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use timecoord_mod
   use obsSpaceData_mod
@@ -147,7 +147,7 @@ contains
     call rpn_comm_allreduce(my_idataass, idataass, nsize, &
          "mpi_integer", "mpi_sum", "GRID", ierr)
     deallocate(my_idataass) 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(*,*) '----------------------------------------------------------------'
       write(*,*) 'Distribution of number of headers over stepobs ON ALL PROCESSORS'
       write(*,trim(formatspec2)) 'Bin#', (stepIndex, stepIndex = 1, nStepObs), 'Total'
@@ -209,11 +209,11 @@ contains
                      'tim_fullyUseExtremeTimeBins==.true.')
     end if
 
-    if (mpi_myid == 0) write(*,*) ' '
-    if (mpi_myid == 0) write(*,*) '-------- Entering oti_setup ---------'
-    if (mpi_myid == 0) write(*,*) ' '
+    if (mmpi_myid == 0) write(*,*) ' '
+    if (mmpi_myid == 0) write(*,*) '-------- Entering oti_setup ---------'
+    if (mmpi_myid == 0) write(*,*) ' '
 
-    if (mpi_myid == 0) write(*,*) 'oti_setup: Number of step obs for time interpolation : ', numStep
+    if (mmpi_myid == 0) write(*,*) 'oti_setup: Number of step obs for time interpolation : ', numStep
 
     allocate(oti%timeInterpWeight(headerIndexBeg:headerIndexEnd,numStep))
     oti%timeInterpWeight(:,:) = 0.0d0
@@ -283,9 +283,9 @@ contains
     ! also setup MPI global version of weights, needed for s2c_nl
     call oti_setupMpiGlobal(oti)
 
-    if (mpi_myid == 0) write(*,*) ' '
-    if (mpi_myid == 0) write(*,*) '-------- End of oti_setup ---------'
-    if (mpi_myid == 0) write(*,*) ' '
+    if (mmpi_myid == 0) write(*,*) ' '
+    if (mmpi_myid == 0) write(*,*) '-------- End of oti_setup ---------'
+    if (mmpi_myid == 0) write(*,*) ' '
 
   end subroutine oti_setup
 
@@ -326,8 +326,8 @@ contains
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
 
     write(*,*) 'oti_setupMpiGlobal: allocating array of dimension ', &
-               numHeaderMax, numStep, mpi_nprocs 
-    allocate(oti%timeInterpWeightMpiGlobal(numHeaderMax,numStep,mpi_nprocs))
+               numHeaderMax, numStep, mmpi_nprocs 
+    allocate(oti%timeInterpWeightMpiGlobal(numHeaderMax,numStep,mmpi_nprocs))
 
     ! copy over timeInterpWeight into a local array with same size for all mpi tasks
     allocate(timeInterpWeightMax(numHeaderMax,numStep))

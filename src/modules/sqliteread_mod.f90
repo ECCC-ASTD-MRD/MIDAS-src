@@ -23,7 +23,7 @@ module sqliteRead_mod
 
 use codePrecision_mod
 use obsSpaceData_mod
-use mpi_mod
+use midasMpi_mod
 use fSQLite
 use mathPhysConstants_mod
 use obsUtil_mod
@@ -440,131 +440,131 @@ contains
         vertCoordType = 2
         read(nulnam, nml = NAMSQLua, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLua)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLua)
       case ('ai')
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLai, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLai)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLai)
       case ('sw')
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLsw, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLsw)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLsw)
       case ('pr')
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLpr, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml =  NAMSQLpr)
+        if (mmpi_myid == 0) write(*, nml =  NAMSQLpr)
       case ('al')  
         columnsHeader = trim(columnsHeader)//", id_prof"
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLal, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml =  NAMSQLal)
+        if (mmpi_myid == 0) write(*, nml =  NAMSQLal)
       case ('ro')     
         columnsHeader = trim(columnsHeader)//",ro_qc_flag, geoid_undulation, earth_local_rad_curv, id_sat, azimuth"
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLro, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLro)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLro)
       case ('sf')
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsfc, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLsfc)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLsfc)
       case ('sst')
         columnsHeader = trim(columnsHeader)//", solar_zenith "
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = namReadSSTSat, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = namReadSSTSat)
+        if (mmpi_myid == 0) write(*, nml = namReadSSTSat)
       case ('scat')
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsc, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLsc)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLsc)
       case('airs')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         write(columnsData,'(a,f3.2,a)') trim(columnsData)//", ifnull(surf_emiss,", tvs_defaultEmissivity, "), bias_corr "
         read(nulnam, nml = NAMSQLairs, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLairs)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLairs)
       case('iasi')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth, FANION_QUAL_IASI_SYS_IND, INDIC_NDX_QUAL_GEOM "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLiasi, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLiasi)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLiasi)
       case('cris')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLcris, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLcris)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLcris)
       case('crisfsr')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss "
         read(nulnam, nml = NAMSQLcrisfsr, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLcrisfsr)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLcrisfsr)
       case('amsua')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLamsua, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLamsua)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLamsua)
       case('amsub')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLamsub, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLamsub)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLamsub)
       case('atms')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLatms, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLatms)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLatms)
       case('ssmi')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLssmi, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml = NAMSQLssmi)
+        if (mmpi_myid == 0) write(*, nml = NAMSQLssmi)
       case('csr')
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLcsr, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml =  NAMSQLcsr)
+        if (mmpi_myid == 0) write(*, nml =  NAMSQLcsr)
       case('gl')
         read(nulnam, nml = NAMSQLgl, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml =  NAMSQLgl)
+        if (mmpi_myid == 0) write(*, nml =  NAMSQLgl)
       case('gl_ascat')
         columnsHeader = trim(columnsHeader)//", track_cell_no, mod_wind_spd "
         read(nulnam, nml = NAMSQLgl, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml =  NAMSQLgl)
+        if (mmpi_myid == 0) write(*, nml =  NAMSQLgl)
       case('ra')
         read(nulnam, nml = NAMSQLradar, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml =  NAMSQLradar) 
+        if (mmpi_myid == 0) write(*, nml =  NAMSQLradar) 
       case('radvel')
         columnsHeader = trim(columnsHeader) 
         ! add  range to data columns to read
         columnsData = trim(columnsData)//", range "
         read(nulnam, nml = NAMSQLradvel, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
-        if (mpi_myid == 0) write(*, nml =  NAMSQLradvel)
+        if (mmpi_myid == 0) write(*, nml =  NAMSQLradvel)
       case DEFAULT
         call utl_abort('sqlr_readSqlite: Unsupported  SCHEMA in SQLITE file!'//trim(rdbSchema))
     end select
@@ -1088,7 +1088,7 @@ contains
     ierr   = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam,nml = namSQLUpdate, iostat = ierr)
     if (ierr /= 0) call utl_abort('sqlr_updateSqlite: Error reading namelist')
-    if (mpi_myid == 0) write(*, nml = namSQLUpdate)
+    if (mmpi_myid == 0) write(*, nml = namSQLUpdate)
     ierr = fclos(nulnam)
 
     ! Append extra sqlite columns to update to itemUpdateList
@@ -1364,7 +1364,7 @@ contains
     ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml = namSQLInsert, iostat = ierr)
     if (ierr /= 0) call utl_abort('sqlr_insertSqlite: Error reading namelist')
-    if (mpi_myid == 0) write(*, nml = namSQLInsert)
+    if (mmpi_myid == 0) write(*, nml = namSQLInsert)
     ierr=fclos(nulnam)
 
     write(*,*) ' INSERT INTO SQLITE FILE ELEMENTS :--> ',(itemInsertList(insertItem), insertItem = 1, numberInsertItems)
@@ -1714,7 +1714,7 @@ contains
     write(*,*) 'obsFamilyListSizeMpiLocal =', obsFamilyListSizeMpiLocal
     write(*,*) 'obsFamilyListMpiLocal = ', obsFamilyListMpiLocal(1:obsFamilyListSizeMpiLocal)
 
-    allocate(allObsFamilyListSizeMpiLocal(mpi_nprocs))
+    allocate(allObsFamilyListSizeMpiLocal(mmpi_nprocs))
     call rpn_comm_allgather(obsFamilyListSizeMpiLocal,    1, 'mpi_integer',  &
                             allObsFamilyListSizeMpiLocal, 1, 'mpi_integer', 'GRID', ierr)
     call rpn_comm_allreduce(obsFamilyListSizeMpiLocal, obsFamilyListSizeMaxMpiLocal,1,'mpi_integer','mpi_max','GRID',ierr)
@@ -1730,15 +1730,15 @@ contains
     end do
 
     ! communicate obs family list to all mpi tasks as integers
-    allocate(intObsFamilyListMpiGlobal(len(currentObsFamily),obsFamilyListSizeMaxMpiLocal,mpi_nprocs))
+    allocate(intObsFamilyListMpiGlobal(len(currentObsFamily),obsFamilyListSizeMaxMpiLocal,mmpi_nprocs))
     nsize = size(intObsFamilyListMpiLocal)
     call rpn_comm_allgather(intObsFamilyListMpiLocal,  nsize, 'mpi_integer',  &
                             intObsFamilyListMpiGlobal, nsize, 'mpi_integer', 'GRID', ierr)
 
     ! convert global family lists from integers to characters
-    allocate(obsFamilyListMpiGlobal(obsFamilyListSizeMaxMpiLocal,mpi_nprocs))
+    allocate(obsFamilyListMpiGlobal(obsFamilyListSizeMaxMpiLocal,mmpi_nprocs))
     obsFamilyListMpiGlobal(:,:) = 'XX'
-    do procIndex = 1, mpi_nprocs
+    do procIndex = 1, mmpi_nprocs
       do familyIndex = 1, allObsFamilyListSizeMpiLocal(procIndex)
         do charIndex=1,len(currentObsFamily)
           obsFamilyListMpiGlobal(familyIndex,procIndex)(charIndex:charIndex) =  &
@@ -1752,7 +1752,7 @@ contains
     ! construct single common list of families to be used for all mpi tasks
     obsFamilyListCommon(:) = 'YY'
     obsFamilyListSizeCommon = 0
-    do procIndex = 1, mpi_nprocs
+    do procIndex = 1, mmpi_nprocs
       FAMILY: do familyIndex = 1, obsFamilyListSizeMaxMpiLocal
         if (obsFamilyListMpiGlobal(familyIndex,procIndex) == 'XX') cycle FAMILY
         if (any(obsFamilyListCommon(:) == obsFamilyListMpiGlobal(familyIndex,procIndex))) cycle FAMILY
@@ -1831,11 +1831,11 @@ contains
     write(*,*) 'sqlr_writeSqlDiagFile: WARNING! Please, use the ram disk option prior to MIDAS run!'
 
     if (obs_mpiLocal(obsdat)) then
-      write(cmyidy,'(I4.4)') (mpi_myidy + 1)
-      write(cmyidx,'(I4.4)') (mpi_myidx + 1)
+      write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
+      write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
       fileNameExtention  = trim(cmyidx) // '_' // trim(cmyidy)
     else
-      if (mpi_myid > 0) return
+      if (mmpi_myid > 0) return
       fileNameExtention = ' '
     end if
     
@@ -2146,15 +2146,15 @@ contains
       numHeader = numHeader + 1
       numBody = numBody + obs_headElem_i(obsdat, OBS_NLV, headerIndex)
     end do HEADERCOUNT
-    allocate(allNumHeader(mpi_nprocs))
-    allocate(allNumBody(mpi_nprocs))
+    allocate(allNumHeader(mmpi_nprocs))
+    allocate(allNumBody(mmpi_nprocs))
     call rpn_comm_allgather(numHeader,1,'mpi_integer',       &
                             allNumHeader,1,'mpi_integer','GRID',ierr)
     call rpn_comm_allgather(numBody,1,'mpi_integer',       &
                             allNumBody,1,'mpi_integer','GRID',ierr)
-    if (mpi_myid > 0) then
-      idObs = sum(allNumHeader(1:mpi_myid))
-      idData = sum(allNumBody(1:mpi_myid))
+    if (mmpi_myid > 0) then
+      idObs = sum(allNumHeader(1:mmpi_myid))
+      idData = sum(allNumBody(1:mmpi_myid))
     else
       idObs = 0
       idData = 0
@@ -2220,11 +2220,11 @@ contains
     end if  
 
     if (obs_mpiLocal(obsData)) then
-      write(cmyidy,'(I4.4)') (mpi_myidy + 1)
-      write(cmyidx,'(I4.4)') (mpi_myidx + 1)
+      write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
+      write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
       fileName = trim(fileNameDir)//'obs/'//trim(instrumentFileName)//'_'//trim(cmyidx)//'_'//trim(cmyidy)
     else
-      if (mpi_myid > 0) return
+      if (mmpi_myid > 0) return
       fileName = trim(fileNameDir)//'obs/'//trim(instrumentFileName)
     end if
     
@@ -2411,11 +2411,11 @@ contains
     write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: WARNING! Please, use the ram disk option prior to MIDAS run!'
 
     if (obs_mpiLocal(obsData)) then
-      write(cmyidy,'(I4.4)') (mpi_myidy + 1)
-      write(cmyidx,'(I4.4)') (mpi_myidx + 1)
+      write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
+      write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
       fileNameExtention  = trim(cmyidx) // '_' // trim(cmyidy)
     else
-      if (mpi_myid > 0) return
+      if (mmpi_myid > 0) return
       fileNameExtention = ' '
     end if
     

@@ -31,7 +31,7 @@ module analysisErrorOI_mod
   use gridStateVectorFileIO_mod
   use kdtree2_mod
   use MathPhysConstants_mod
-  use mpi_mod
+  use midasMpi_mod
   use obserrors_mod
   use obsSpaceData_mod
   use oceanMask_mod
@@ -140,12 +140,12 @@ contains
     real(8) :: maxAnalysisErrorStdDev
     namelist /namaer/ maxAnalysisErrorStdDev
 
-    if( mpi_nprocs > 1 ) then
-      write(*,*) 'mpi_nprocs = ',mpi_nprocs
+    if( mmpi_nprocs > 1 ) then
+      write(*,*) 'mmpi_nprocs = ',mmpi_nprocs
       call utl_abort( myName// &
                       ': this version of the code should only be used with one mpi task.')
     end if
-    if( mpi_myid > 0 ) return
+    if( mmpi_myid > 0 ) return
 
     write(*,*) '**********************************************************'
     write(*,*) '** '//myName//': Calculate analysis-error variance **'
@@ -340,7 +340,7 @@ contains
               if ( scaling /= 0.0d0 ) then
 
                 do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
-                  do procIndex = 1, mpi_nprocs
+                  do procIndex = 1, mmpi_nprocs
 
                     call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, &
                          stepIndex, procIndex, interpWeight, obsLatIndex, obsLonIndex, &
@@ -426,7 +426,7 @@ contains
               if ( scaling /= 0.0d0 ) then
 
                 do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
-                  do procIndex = 1, mpi_nprocs
+                  do procIndex = 1, mmpi_nprocs
 
                     call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, &
                          stepIndex, procIndex, interpWeight, obsLatIndex, obsLonIndex, &
@@ -677,7 +677,7 @@ contains
 
           do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
             do stepIndex = 1, stateVectorBkGnd%numStep
-              do procIndex = 1, mpi_nprocs
+              do procIndex = 1, mmpi_nprocs
 
                 call s2c_getWeightsAndGridPointIndexes(headerIndex, &
                      kIndex, stepIndex, procIndex, interpWeight, obsLatIndex, &
@@ -802,12 +802,12 @@ contains
 
     real(8) :: leadTimeInHours
 
-    if( mpi_nprocs > 1 ) then
-      write(*,*) 'mpi_nprocs = ',mpi_nprocs
+    if( mmpi_nprocs > 1 ) then
+      write(*,*) 'mmpi_nprocs = ',mmpi_nprocs
       call utl_abort( myName// &
                       ': this version of the code should only be used with one mpi task.')
     end if
-    if( mpi_myid > 0 ) return
+    if( mmpi_myid > 0 ) return
 
     write(*,*) '**********************************************************'
     write(*,*) '** '//myName//': Update the days since last obs **'
@@ -868,7 +868,7 @@ contains
 
         do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
           do stepIndex = 1, stateVectorBkGnd%numStep
-            do procIndex = 1, mpi_nprocs
+            do procIndex = 1, mmpi_nprocs
 
               call s2c_getWeightsAndGridPointIndexes(headerIndex, &
                    kIndex, stepIndex, procIndex, interpWeight, obsLatIndex, &

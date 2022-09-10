@@ -22,7 +22,7 @@ program midas_gencoeff
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
-  use mpi_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -67,9 +67,9 @@ program midas_gencoeff
   call ver_printNameAndVersion('genCoeff','Bias Correction Coefficient Computation')
 
   ! MPI initialization
-  call mpi_initialize
+  call mmpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
 
@@ -147,7 +147,7 @@ program midas_gencoeff
 
   call utl_tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 
@@ -190,7 +190,7 @@ contains
     !
     !- Initialize constants
     !
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       call mpc_printConstants(6)
       call pre_printPrecisions
     end if
@@ -204,15 +204,15 @@ contains
     !
     !- Initialize the Analysis grid
     !
-    if(mpi_myid == 0) write(*,*)''
-    if(mpi_myid == 0) write(*,*)'gencoeff_setup: Set hco parameters for analysis grid'
+    if(mmpi_myid == 0) write(*,*)''
+    if(mmpi_myid == 0) write(*,*)'gencoeff_setup: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
     if ( hco_anl % global ) then
       hco_core => hco_anl
     else
       !- Initialize the core (Non-Extended) analysis grid
-      if(mpi_myid == 0) write(*,*)'gencoeff_setup: Set hco parameters for core grid'
+      if(mmpi_myid == 0) write(*,*)'gencoeff_setup: Set hco parameters for core grid'
       call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
     end if
 

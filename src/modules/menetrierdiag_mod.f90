@@ -29,7 +29,7 @@ module menetrierDiag_mod
   use gridStatevector_mod
   use ensembleStatevector_mod
   use timeCoord_mod
-  use mpi_mod
+  use midasMpi_mod
   implicit none
   save
   private
@@ -437,7 +437,7 @@ contains
     deallocate(meanFourthMoment_local)
     deallocate(meanCovarianceSquare_local)
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       !- 2.3  Computation of the localization functions
       allocate(localizationFunctions(numFunctions,numBins,nkgdimEns))
 
@@ -621,7 +621,7 @@ contains
       deallocate(distanceBinMean)
       deallocate(distanceBinWeight)
 
-    end if ! mpi_myid == 0
+    end if ! mmpi_myid == 0
 
     deallocate(meanCorrelSquare)
     deallocate(meanCorrel)
@@ -904,7 +904,7 @@ contains
     deallocate(meanFourthMoment_local)
     deallocate(meanCovarianceSquare_local)
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       !- 2.3  Computation of the localization functions
       allocate(localizationFunctions(numFunctions,numBins,nkgdimEns))
       
@@ -1072,7 +1072,7 @@ contains
       deallocate(localizationRadii)
       deallocate(distanceBinWeight)
 
-    end if ! mpi_myid == 0
+    end if ! mmpi_myid == 0
 
     deallocate(meanCorrelSquare)
     deallocate(meanCorrel)

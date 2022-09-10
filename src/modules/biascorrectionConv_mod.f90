@@ -22,7 +22,7 @@ MODULE biasCorrectionConv_mod
   use utilities_mod
   use obsSpaceData_mod
   use MathPhysConstants_mod
-  use mpi_mod
+  use midasMpi_mod
   use codePrecision_mod
   use bufr_mod
   use codtyp_mod
@@ -86,7 +86,7 @@ CONTAINS
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=nambiasconv,iostat=ierr)
       if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section nambiasconv')
-      if ( mpi_myid == 0 ) write(*,nml=nambiasconv)
+      if ( mmpi_myid == 0 ) write(*,nml=nambiasconv)
       ierr = fclos(nulnam)
     else
       write(*,*)

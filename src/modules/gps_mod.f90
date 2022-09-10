@@ -21,7 +21,7 @@ module gps_mod
   !
   ! :Note: prefix not used for all public variables
   !
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use mathPhysConstants_mod
   use earthConstants_mod
@@ -2933,10 +2933,10 @@ contains
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMGPSRO,iostat=ierr)
     if(ierr.ne.0) call utl_abort('gps_setupro: Error reading namelist')
-    !if(mpi_myid.eq.0) write(*,nml=NAMGPSRO)
+    !if(mmpi_myid.eq.0) write(*,nml=NAMGPSRO)
     ierr=fclos(nulnam)
     if (HTPMAXER < 0.0D0) HTPMAXER = HTPMAX
-    if(mpi_myid.eq.0) then
+    if(mmpi_myid.eq.0) then
       write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN, &
            HTPMAX,HTPMAXER,BGCKBAND, trim(gpsroError), gpsroBNorm
       do SatID = 0, 1023
@@ -3000,10 +3000,10 @@ contains
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMGPSGB,iostat=ierr)
     if(ierr.ne.0) call utl_abort('gps_setupgb: Error reading namelist')
-    if(mpi_myid.eq.0) write(*,nml=NAMGPSGB)
+    if(mmpi_myid.eq.0) write(*,nml=NAMGPSGB)
     ierr=fclos(nulnam)
 
-    IF (L1OBS.and.mpi_myid.eq.0) THEN
+    IF (L1OBS.and.mmpi_myid.eq.0) THEN
       write(*,*)' '
       write(*,*)' ******************************************'
       write(*,*)' *        GB-GPS OBSERVATIONS             *'
@@ -3017,7 +3017,7 @@ contains
 !   Options to fix/adjust model ZTD to observation height and
 !   assimilate GPS met data
 
-    if(mpi_myid.eq.0) then
+    if(mmpi_myid.eq.0) then
       write(*,*)' '
       write(*,*)' ******************************************'
       write(*,*)' *        GB-GPS OBSERVATIONS             *'

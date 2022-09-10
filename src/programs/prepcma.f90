@@ -31,7 +31,7 @@ program midas_prepcma
   use timeCoord_mod
   use enkf_mod
   use utilities_mod
-  use mpi_mod
+  use midasMpi_mod
   use ramDisk_mod
   use regions_mod
   use burpRead_mod
@@ -71,13 +71,13 @@ program midas_prepcma
   call ver_printNameAndVersion('prepcma','Prepare observations for LETKF')
 
   !- 1.0 mpi
-  call mpi_initialize
+  call mmpi_initialize
 
   !- 1.1 timings
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
 
-  if ( mpi_myid == 0 ) call utl_writeStatus('PREPCMA_BEG')
+  if ( mmpi_myid == 0 ) call utl_writeStatus('PREPCMA_BEG')
 
   !- Specify default values for namelist variables
   cmahdr        = 'NOT_DEFINED'
@@ -98,7 +98,7 @@ program midas_prepcma
   ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namprepcma,iostat=ierr)
   if (ierr /= 0) call utl_abort('midas-prepcma: Error reading namelist')
-  if (mpi_myid == 0) write(*,nml=namprepcma)
+  if (mmpi_myid == 0) write(*,nml=namprepcma)
   ierr = fclos(nulnam)
 
   !- RAM disk usage
@@ -200,11 +200,11 @@ program midas_prepcma
       call obs_clean(obsSpaceData, hx_dummy, 0, -1, qcvar, checkZha_opt=.false.)
     end if
 
-    if (mpi_nprocs > 1) then
+    if (mmpi_nprocs > 1) then
       call obs_expandToMpiGlobal(obsSpaceData)
     end if
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       !- Open file for ascii output
       nobsout = 0
       ierr = fnom(nobsout, obsout, 'FMT+SEQ+R/W', 0)
@@ -243,11 +243,11 @@ program midas_prepcma
   call obs_finalize(obsSpaceData) ! deallocate obsSpaceData
 
   call utl_tmg_stop(0)
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr)
 
-  if ( mpi_myid == 0 ) then
+  if ( mmpi_myid == 0 ) then
     call utl_writeStatus('PREPCMA_END')
   end if
 
@@ -302,7 +302,7 @@ contains
     end if
          
     call reg_init_struct(lsc, r0_count_km, r1_dum, rz_dum)
-    if (mpi_myid == 0) write(*,*) 'number of latitude bands: ', lsc%nlatband
+    if (mmpi_myid == 0) write(*,*) 'number of latitude bands: ', lsc%nlatband
     nsize = lsc%nlatband
     allocate(latmin(nsize))
     allocate(latmax(nsize))
@@ -311,18 +311,18 @@ contains
     allocate(nblockoffset(nsize))
 
     call reg_getlatitude(lsc%r0_rad, lsc%nlatband, latmin, latcenter, latmax)
-    if (mpi_myid == 0) write(*,*) 'number of latitude bands: ',lsc%nlatband
+    if (mmpi_myid == 0) write(*,*) 'number of latitude bands: ',lsc%nlatband
     do ilat = 1, lsc%nlatband
-      if (mpi_myid == 0) write(*,*) ' band: ', ilat, ' latitude between ', latmin(ilat), latmax(ilat)
+      if (mmpi_myid == 0) write(*,*) ' band: ', ilat, ' latitude between ', latmin(ilat), latmax(ilat)
     end do
     call reg_getblock(lsc%nlatband, lsc%r0_rad, latmin, latmax, nlonblock)
     nblocksum = 0
     do ilat = 1, lsc%nlatband
       nblockoffset(ilat) = nblocksum
       nblocksum = nblocksum + nlonblock(ilat)
-      if (mpi_myid == 0) write(*,*) 'latband: ', ilat, ' no of blocks: ', nlonblock(ilat)
+      if (mmpi_myid == 0) write(*,*) 'latband: ', ilat, ' no of blocks: ', nlonblock(ilat)
     end do 
-    if (mpi_myid == 0) write(*,*) 'total number of blocks: ', nblocksum
+    if (mmpi_myid == 0) write(*,*) 'total number of blocks: ', nblocksum
 
     nrep_count = 0
     nobs_count = 0
@@ -408,7 +408,7 @@ contains
     do iblock = 1, nblocksum
       do ipres = 1, npres
         if (nstationMpiGlobal(iblock,ipres) .ge. 1) then
-          if (mpi_myid == 0) write(*,*) 'block ipres and count: ',iblock,ipres, &
+          if (mmpi_myid == 0) write(*,*) 'block ipres and count: ',iblock,ipres, &
                      nstationMpiGlobal(iblock,ipres)
           if (nstationMpiGlobal(iblock,ipres) > n_target) then
             keep_ai(iblock,ipres) = dble(n_target) / dble(nstationMpiGlobal(iblock,ipres))

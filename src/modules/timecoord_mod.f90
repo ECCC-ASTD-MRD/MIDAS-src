@@ -20,7 +20,7 @@ module timeCoord_mod
   ! :Purpose: To store public variables and procedures related to the time
   !           coordinate.
   !
-  use mpi_mod
+  use midasMpi_mod
   use varNameList_mod
   use utilities_mod
   implicit none
@@ -102,7 +102,7 @@ contains
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml=namtime, iostat=ierr)
     if (ierr /= 0) call utl_abort('tim_setup: Error reading namelist')
-    if (mpi_myid == 0) write(*,nml=namtime)
+    if (mmpi_myid == 0) write(*,nml=namtime)
     ierr = fclos(nulnam)
 
     ! Set the module variables for timestep length, number of timesteps and window length
@@ -118,11 +118,11 @@ contains
     end if
 
     if (dstepobs > dwindowsize) then
-      if (mpi_myid == 0) write(*,*) 'tim_setup: dstepobs>dwindowsize. Reset to dwindowsize value.'
+      if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobs>dwindowsize. Reset to dwindowsize value.'
       tim_dstepobs = tim_windowsize 
     end if
     if (dstepobsinc > dwindowsize) then
-      if (mpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc>dwindowsize. Reset to dwindowsize value.'
+      if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc>dwindowsize. Reset to dwindowsize value.'
       tim_dstepobsinc = tim_windowsize 
     end if 
     if (tim_referencetime == "middle") then
@@ -160,12 +160,12 @@ contains
       write(*,*) 'tim_setup: datestamp = ',datestamp
     end if
 
-    if (mpi_myid == 0) write(*,*) 'tim_setup: dobs_windowsize=',tim_windowsize
-    if (mpi_myid == 0) write(*,*) 'tim_setup: dstepobs       =',tim_dstepobs
-    if (mpi_myid == 0) write(*,*) 'tim_setup: nstepobs       =',tim_nstepobs
-    if (mpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc    =',tim_dstepobsinc
-    if (mpi_myid == 0) write(*,*) 'tim_setup: nstepobsinc    =',tim_nstepobsinc
-    if (mpi_myid == 0) write(*,*) 'tim_setup: tim_referencetime   =',tim_referencetime
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: dobs_windowsize=',tim_windowsize
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobs       =',tim_dstepobs
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobs       =',tim_nstepobs
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc    =',tim_dstepobsinc
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: nstepobsinc    =',tim_nstepobsinc
+    if (mmpi_myid == 0) write(*,*) 'tim_setup: tim_referencetime   =',tim_referencetime
 
     initialized = .true.
 
@@ -208,7 +208,7 @@ contains
     character(len=12) :: etiket
     character(len=1)  :: grtyp
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
 
       ! Check if file for any date within the analysis window (except the last) exists
       inquire(file=trim(fileName), exist=fileExists)

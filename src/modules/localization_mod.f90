@@ -21,7 +21,7 @@ module localization_mod
   !           amplitude fields for each ensemble member from a given (1D)
   !           control vector
   !
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use localizationSpectral_mod
   use localizationFunction_mod
@@ -100,8 +100,8 @@ CONTAINS
 
     select case (trim(loc%locType))
     case('spectral')
-       if (mpi_myid == 0) write(*,*)
-       if (mpi_myid == 0) write(*,*) 'loc_setup: LocType = ', trim(locType)
+       if (mmpi_myid == 0) write(*,*)
+       if (mmpi_myid == 0) write(*,*) 'loc_setup: LocType = ', trim(locType)
        call lsp_setup(hco_loc, nEns, nLev, pressureProfile, ntrunc, locType,          & ! IN
                       locMode, horizLengthScale1, horizLengthScale2, vertLengthScale, & ! IN
                       cvDim_out, loc%lsp, nEnsOverDimension)                            ! OUT

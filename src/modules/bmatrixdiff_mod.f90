@@ -21,7 +21,7 @@ MODULE BmatrixDiff_mod
   !           using the background-error covariance matrix based on correlations
   !           modelled using a diffusion operator.
   !
-  use mpi_mod
+  use midasMpi_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
@@ -101,14 +101,14 @@ CONTAINS
     NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, useImplicit, scaleFactor, stddevMode, homogeneous_std
 
     call utl_tmg_start(65,'----B_DIFF_Setup')
-    if(mpi_myid == 0) write(*,*) myName//': starting'
-    if(mpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) myName//': starting'
+    if(mmpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 
     if ( present( mode_opt ) ) then
       if ( trim( mode_opt ) == 'Analysis' .or. trim( mode_opt ) == 'BackgroundCheck' ) then
         bdiff_mode = trim( mode_opt )
-        if( mpi_myid == 0 ) write(*,*)
-        if( mpi_myid == 0 ) write(*,*) myName//': Mode activated = ', trim(bdiff_mode)
+        if( mmpi_myid == 0 ) write(*,*)
+        if( mmpi_myid == 0 ) write(*,*) myName//': Mode activated = ', trim(bdiff_mode)
       else
         write(*,*)
         write(*,*)  myName//'mode = ', trim(mode_opt)
@@ -116,8 +116,8 @@ CONTAINS
       end if
     else
       bdiff_mode = 'Analysis'
-      if( mpi_myid == 0 ) write(*,*)
-      if( mpi_myid == 0 ) write(*,*) myName//': analysis mode activated (by default)'
+      if( mmpi_myid == 0 ) write(*,*)
+      if( mmpi_myid == 0 ) write(*,*) myName//': analysis mode activated (by default)'
     end if
 
     vco_anl => vco_in
@@ -153,7 +153,7 @@ CONTAINS
 
     if ( numvar2d == 0) then
        
-      if ( mpi_myid == 0) then
+      if ( mmpi_myid == 0) then
         write(*,*) myName//': Bdiff matrix not produced.'
         write(*,*) myName//': END'
       end if
@@ -161,7 +161,7 @@ CONTAINS
       cvdim_out = 0
       return
       
-    else if (mpi_myid == 0) then
+    else if (mmpi_myid == 0) then
 
       write(*,*) myName//': number of 2D variables', numvar2d, bdiff_varNameList( 1 : numvar2d )
 
@@ -180,11 +180,11 @@ CONTAINS
     ierr = fnom( nulnam,'./flnml','FTN+SEQ+R/O',0)
     read( nulnam, nml = nambdiff, iostat = ierr )
     if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist')
-    if ( mpi_myid == 0) write( *, nml = nambdiff )
+    if ( mmpi_myid == 0) write( *, nml = nambdiff )
     ierr = fclos( nulnam )
 
     if ( sum(scaleFactor(:) ) == 0.0d0 ) then
-      if( mpi_myid == 0) write(*,*) myName//': scaleFactor=0, skipping rest of setup'
+      if( mmpi_myid == 0) write(*,*) myName//': scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
       call utl_tmg_stop(65)
       return
@@ -231,9 +231,9 @@ CONTAINS
 
     call bdiff_rdstats( hco_in, vco_in )
 
-    if(mpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
 
-    if(mpi_myid == 0) write(*,*) myName//': END'
+    if(mmpi_myid == 0) write(*,*) myName//': END'
 
     initialized = .true.
 
@@ -359,7 +359,7 @@ CONTAINS
     do variableIndex = 1, numvar2d
       call gsv_getField( statevector, field3D_r4_ptr, bdiff_varNameList( variableIndex ) )
       stddev( :, :, variableIndex ) = dble( field3D_r4_ptr( :, :, 1 ) )
-      if (mpi_nprocs > 1) then
+      if (mmpi_nprocs > 1) then
         call rpn_comm_allreduce(minval(stddev(:,:,variableIndex)),minStddev,1,'mpi_real8','mpi_min','GRID',ierr)
         call rpn_comm_allreduce(maxval(stddev(:,:,variableIndex)),maxStddev,1,'mpi_real8','mpi_max','GRID',ierr)
       else
@@ -409,11 +409,11 @@ CONTAINS
     character(len=*), parameter :: myName = 'bdiff_bSqrt'
     
     if( .not. initialized) then
-      if( mpi_myid == 0 ) write(*,*) myName//': bMatrixDIFF not initialized'
+      if( mmpi_myid == 0 ) write(*,*) myName//': bMatrixDIFF not initialized'
       return
     end if
 
-    if(mpi_myid == 0) write(*,*) myName//': starting'
+    if(mmpi_myid == 0) write(*,*) myName//': starting'
 
     call bdiff_cain( controlVector_in, gd_in )
 
@@ -429,8 +429,8 @@ CONTAINS
 
     call bdiff_copyToStatevector( statevector, gd_out )
 
-    if(mpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid == 0) write(*,*) myName//': done'
+    if(mmpi_myid == 0) write(*,*) myName//': Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) myName//': done'
 
   end subroutine bdiff_bSqrt
 
@@ -449,11 +449,11 @@ CONTAINS
     character(len=*), parameter :: myName = 'bdiff_bSqrtAd'
 
     if ( .not. initialized ) then
-      if ( mpi_myid == 0 ) write(*,*) myName//': bMatrixDIFF not initialized'
+      if ( mmpi_myid == 0 ) write(*,*) myName//': bMatrixDIFF not initialized'
       return
     end if
 
-    if(mpi_myid == 0) write(*,*)  myName//': starting'
+    if(mmpi_myid == 0) write(*,*)  myName//': starting'
 
     call bdiff_copyFromStatevector( statevector, gd_in )
 
@@ -469,8 +469,8 @@ CONTAINS
 
     call bdiff_cainad(gd_out, controlVector_out)
 
-    if ( mpi_myid == 0) write(*,*) myName//': Memory Used: ', get_max_rss()/1024,'Mb'
-    if ( mpi_myid == 0) write(*,*) myNAme//': done'
+    if ( mmpi_myid == 0) write(*,*) myName//': Memory Used: ', get_max_rss()/1024,'Mb'
+    if ( mmpi_myid == 0) write(*,*) myNAme//': done'
 
   end subroutine bdiff_bSqrtAd
 
@@ -492,7 +492,7 @@ CONTAINS
       ilev1 = nsposit( variableIndex )
       ilev2 = nsposit( variableIndex + 1 ) - 1 
 
-      if ( mpi_myid == 0) write(*,*) myName//': ',bdiff_varNameList( variableIndex )
+      if ( mmpi_myid == 0) write(*,*) myName//': ',bdiff_varNameList( variableIndex )
       
       if (gsv_getDataKind(statevector) == 4) then
         call gsv_getField( statevector, field_r4, bdiff_varNameList( variableIndex ) )
@@ -538,7 +538,7 @@ CONTAINS
       ilev1 = nsposit( variableIndex )
       ilev2 = nsposit( variableIndex + 1 ) - 1 
 
-      if ( mpi_myid == 0) write(*,*) myName//': ',bdiff_varNameList( variableIndex )
+      if ( mmpi_myid == 0) write(*,*) myName//': ',bdiff_varNameList( variableIndex )
       if (gsv_getDataKind(statevector) == 4) then
         call gsv_getField(statevector, field_r4, bdiff_varNameList( variableIndex ))
         do jlev = ilev1, ilev2
