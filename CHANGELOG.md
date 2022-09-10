@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Merge contents of `mpi_mod` and `mpivar_mod` into `midasMpi_mod` (#690 and !635)
  * Reorganized development information in `README`, `CONTRIBUTING` and `docs/` (#647 and !632)
  * Improve LETKF efficiency and add global high-res letkf system test (#653 and !631)
  * moved column interpolation in `interpolation_mod` (#683 and !628)
