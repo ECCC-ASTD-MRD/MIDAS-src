@@ -53,7 +53,7 @@ module stateToColumn_mod
   
   ! public routines
   public :: s2c_tl, s2c_ad, s2c_nl
-  public :: s2c_column_hbilin, s2c_bgcheck_bilin, s2c_getFootprintRadius, s2c_getWeightsAndGridPointIndexes
+  public :: s2c_bgcheck_bilin, s2c_getFootprintRadius, s2c_getWeightsAndGridPointIndexes
   public :: s2c_deallocInterpInfo
 
   ! private module variables and derived types
@@ -1924,7 +1924,6 @@ contains
           end do
         end do proc_loop
         !$OMP END PARALLEL DO
-        call utl_tmg_stop(36)
 
       end do k_loop
 
@@ -2633,105 +2632,6 @@ contains
     call utl_tmg_stop(30)
 
   end subroutine s2c_bgcheck_bilin
-
-  !--------------------------------------------------------------------------
-  ! s2c_column_hbilin
-  !--------------------------------------------------------------------------
-  subroutine s2c_column_hbilin(field,vlev,nlong,nlat,nlev,xlong,xlat, &
-                               plong,plat,vprof,vlevout,nlevout)
-    !
-    ! :Purpose: Horizontal bilinear interpolation from a 3D field to a profile at (plong,plat).
-    !           Assumes vertical interpolation not needed or already done.
-    !
-    !           This version can be used with fields that are not part of the background state,
-    !           such as climatologies.
-    !
-    !           This version does not depend in column_data and gridstatevector modules.
-    !
-    implicit none
-
-    ! arguments:
-    integer, intent(in) :: nlong            ! number or longitudes
-    integer, intent(in) :: nlat             ! number or latitudes
-    integer, intent(in) :: nlev             ! number of vertical levels
-    integer, intent(in) :: nlevout          ! number of target vertical levels
-    real(8), intent(in) :: field(nlong,nlat,nlev) ! 3D field
-    real(8), intent(in) :: vlev(nlev)       ! vertical levels of input field (in pressure)
-    real(8), intent(in) :: xlong(nlong)     ! longitudes (radians)
-    real(8), intent(in) :: xlat(nlat)       ! latitudes (radians)
-    real(8), intent(in) :: plong            ! target longitude (radians)
-    real(8), intent(in) :: plat             ! target latitude (radian)
-    real(8), intent(in) :: vlevout(nlevout) ! target vertical levels (in pressure)
-    real(8), intent(out) :: vprof(nlevout)  ! profile at (plong,plat)
-    
-    ! locals:
-    real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
-    integer :: ilev,lonIndex,latIndex,i,j
-
-    real(8) :: DLDX, DLDY, DLDP, DLW1, DLW2, DLW3, DLW4
-
-    call utl_tmg_start(30,'--StateToColumn')
-
-    ! Find near lat/long grid points
-
-    plong2 = plong
-    if (plong2 < 0.0) plong2 = 2.D0*MPC_PI_R8 + plong2
-    do lonIndex = 2, nlong
-      if  (xlong(lonIndex-1) < xlong(lonIndex)) then
-        if (plong2 >= xlong(lonIndex-1) .and. plong2 <= xlong(lonIndex)) exit
-      else 
-        ! Assumes this is a transition between 360 to 0 (if it exists). Skip over.
-      end if
-    end do
-    lonIndex = lonIndex-1
-
-    do latIndex = 2, nlat
-      if (plat <= xlat(latIndex)) exit
-    end do
-    latIndex = latIndex-1
-
-    ! Set lat/long interpolation weights
-
-    DLDX = (plong - xlong(lonIndex))/(xlong(lonIndex+1)-xlong(lonIndex))
-    DLDY = (plat - xlat(latIndex))/(xlat(latIndex+1)-xlat(latIndex))
-
-    DLW1 = (1.d0-DLDX) * (1.d0-DLDY)
-    DLW2 =       DLDX  * (1.d0-DLDY)
-    DLW3 = (1.d0-DLDX) *       DLDY
-    DLW4 =       DLDX  *       DLDY
-
-    ! Set vertical interpolation weights (assumes pressure vertical coordinate)
-
-    lnvlevout(:) = log(vlevout(:))    
-    lnvlev(:) = log(vlev(:))    
-
-    ilev = 1
-    do i = 1, nlevout
-      do j = ilev, nlev          
-        if (lnvlevout(i) < lnvlev(j)) exit ! assumes lnvlevout and lnvlev increase with index
-      end do
-      ilev = j-1
-      if (ilev < 1) then
-        ilev = 1
-      else if (ilev >= nlev) then
-        ilev = nlev-1
-      end if
-
-      DLDP = (lnvlev(ilev+1)-lnvlevout(i))/(lnvlev(ilev+1)-lnvlev(ilev))
-          
-      vprof(i) = DLDP* (DLW1 * field(lonIndex,latIndex,ilev)      &
-                      + DLW2 * field(lonIndex+1,latIndex,ilev)    &
-                      + DLW3 * field(lonIndex,latIndex+1,ilev)    &
-                      + DLW4 * field(lonIndex+1,latIndex+1,ilev)) &
-        + (1.d0-DLDP)* (DLW1 * field(lonIndex,latIndex,ilev+1)    &
-                      + DLW2 * field(lonIndex+1,latIndex,ilev+1)  &
-                      + DLW3 * field(lonIndex,latIndex+1,ilev+1)  &
-                      + DLW4 * field(lonIndex+1,latIndex+1,ilev+1))                               
-    end do
-
-    call utl_tmg_stop(30)
-
-  end subroutine s2c_column_hbilin
 
   !--------------------------------------------------------------------------
   ! s2c_setupHorizInterp

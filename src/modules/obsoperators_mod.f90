@@ -1780,7 +1780,7 @@ contains
       write(*,*) 'oop_chm_nl: WARNING: Storing results in an obs column other than OBS_OMP. Not fully implemented.'
     end if
 
-    call oopc_CHobsoperators( columnTrlOnTrlLev, obsSpaceData, kmode=0, & ! kmode=0 for general operator
+    call oopc_CHobsoperators( columnTrlOnTrlLev,obsSpaceData,'nl', & ! 'nl' for non-linear operator
                               destObsColumn_opt=destObsColumn )
 
   end subroutine oop_chm_nl
@@ -2564,7 +2564,7 @@ contains
 
       if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) return
       
-      call oopc_CHobsoperators(columnTrlOnAnlIncLev,obsSpaceData,kmode=2,columnAnlInc_opt=columnAnlInc) ! kmode=2 for tangent linear operator
+      call oopc_CHobsoperators(columnTrlOnAnlIncLev,obsSpaceData,'tl',columnAnlInc_opt=columnAnlInc) ! 'tl' for tangent linear operator
 
     end subroutine oop_Hchm
 
@@ -3320,8 +3320,8 @@ contains
       
       if (.not.obs_famExist(obsSpaceData,'CH', localMPI_opt = .true. )) return
       
-      call oopc_CHobsoperators(columnTrlOnAnlIncLev,obsSpaceData,kmode=3, &
-                               columnAnlInc_opt=columnAnlInc) ! kmode=3 for adjoint of the tangent linear operator
+      call oopc_CHobsoperators(columnTrlOnAnlIncLev,obsSpaceData,'adjoint', & 
+                               columnAnlInc_opt=columnAnlInc) ! 'adjoint' for adjoint of the tangent linear operator
 
     end subroutine oop_HTchm
 

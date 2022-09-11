@@ -4,6 +4,7 @@
 /
  &NAMBCHM
    NTRUNC  = 270
+   SCALEFACTOR(1,1:100) = 100*1.0D0
 /
  &NAMRMAT
    rmat_lnonDiagR=.true.

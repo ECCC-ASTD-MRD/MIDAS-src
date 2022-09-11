@@ -4,6 +4,7 @@
 /
  &NAMBCHM
    NTRUNC  = 270
+   SCALEFACTOR(1,1:100) = 100*1.0d0
 /
  &NAMMIN
    LVARQC=.FALSE.,
