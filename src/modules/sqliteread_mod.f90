@@ -1122,8 +1122,8 @@ contains
     character(len = 128)        :: query
     character(len = 356)        :: itemChar, columnNameChar
     logical                     :: back, nonEmptyColumn, nonEmptyColumn_mpiglobal
-    real                        :: romp, obsValue, scaleFactor, columnValue
-    
+    real(4)                     :: romp, obsValue, scaleFactor, columnValue
+
     namelist/namSQLUpdate/ numberUpdateItems,      itemUpdateList,     &
                            numberUpdateItemsRadar, itemUpdateListRadar
 
@@ -1160,7 +1160,7 @@ contains
     itemChar='  '
 
     do itemIndex = 1, numberUpdateItems
-      nonEmptyColumn = .false.
+      
       item = itemUpdateList(itemIndex)
       write(*,*) 'sqlr_updateSqlite: updating ', itemIndex, trim(item)
 
@@ -1201,30 +1201,29 @@ contains
         write(*,*) 'sqlr_updateSqlite: WARNING: column '//columnName// &
                    ' does not exist in the file '//trim(fileName)
 
+        nonEmptyColumn = .false.
         ! Check if the ObsSpaceData variable contains non-missing values
         HEADERCHCK: do headerIndex = 1, obs_numHeader(obsdat)
- 
+
           obsIdf = obs_headElem_i(obsdat,OBS_IDF, headerIndex)
-  
           if (obsIdf /= fileNumber) cycle HEADERCHCK
-          headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
+          
           obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
           obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex)
     
           BODYCHCK: do bodyIndex = obsRln, obsNlv + obsRln - 1
-
             columnValue = obs_bodyElem_r(obsdat, updateList(itemIndex), bodyIndex)
-            
-            if (columnValue /= obs_missingValue_R) then
-              nonEmptyColumn = .true.
-              call rpn_comm_allreduce(nonEmptyColumn,nonEmptyColumn_mpiglobal,1, &
-                              "MPI_LOGICAL","MPI_LOR","world",ierr)
-              exit HEADERCHCK
 
+            if (columnValue /= obs_missingValue_R) then
+              nonEmptyColumn = .true.         
+              exit HEADERCHCK
             end if
           
           end do BODYCHCK
         end do HEADERCHCK
+
+        call rpn_comm_allreduce(nonEmptyColumn,nonEmptyColumn_mpiglobal,1, &
+                              "MPI_LOGICAL","MPI_LOR","grid",ierr)
 
         ! Add column into SQLite file if ObsSpaceData value containes non-missing values
         if (nonEmptyColumn_mpiglobal) then

@@ -265,9 +265,9 @@ else
     rm -f flnml pgm ptopo_nml run.sh mpiscript VAR3D_STATUS.dot
     rm -f load_env.sh launch_program.sh launch_cmd listing
     rm -r mpitmpdir
-    [ -d obs ] && rm -r obs
-    [ -d obs.original ] && rm -r obs.original
-    [ -d obsBeforeThinning ] && rm -r obsBeforeThinning
+    #[ -d obs ] && rm -r obs
+    #[ -d obs.original ] && rm -r obs.original
+    #[ -d obsBeforeThinning ] && rm -r obsBeforeThinning
 
     ## put all the rest in 'output'
     mv * ${TASK_OUTPUT}
