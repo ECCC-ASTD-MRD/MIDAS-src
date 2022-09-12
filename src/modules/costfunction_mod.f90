@@ -25,7 +25,6 @@ module costfunction_mod
   use rttov_const, only : inst_name, platform_name
   use tovs_nl_mod
   use codeprecision_mod
-  use MathPhysConstants_mod
   use utilities_mod
   use obserrors_mod
   use codtyp_mod

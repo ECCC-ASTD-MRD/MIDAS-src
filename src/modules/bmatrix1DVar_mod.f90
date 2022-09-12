@@ -32,7 +32,6 @@ module bmatrix1DVar_mod
   use verticalCoord_mod
   use codeprecision_mod
   use tovs_nl_mod
-  use mathphysconstants_mod
   use var1D_mod
   use filenames_mod
   use localizationFunction_mod

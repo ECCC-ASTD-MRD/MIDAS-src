@@ -23,7 +23,6 @@ module obsFilter_mod
   use codePrecision_mod
   use midasMpi_mod
   use earthConstants_mod
-  use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod
   use bufr_mod

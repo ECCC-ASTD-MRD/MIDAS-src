@@ -20,7 +20,6 @@ module bgckcsr_mod
   ! :Purpose: To perform CSR data background Check
   !
   use midasMpi_mod
-  use MathPhysConstants_mod
   use utilities_mod
   use obsSpaceData_mod
   use tovs_nl_mod

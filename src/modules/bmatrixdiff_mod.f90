@@ -22,8 +22,6 @@ MODULE BmatrixDiff_mod
   !           modelled using a diffusion operator.
   !
   use midasMpi_mod
-  use MathPhysConstants_mod
-  use earthConstants_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use horizontalCoord_mod

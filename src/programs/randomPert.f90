@@ -22,7 +22,6 @@ program midas_randomPert
   !
   use version_mod
   use midasMpi_mod
-  use mathPhysConstants_mod
   use ramDisk_mod
   use controlVector_mod
   use gridStateVector_mod

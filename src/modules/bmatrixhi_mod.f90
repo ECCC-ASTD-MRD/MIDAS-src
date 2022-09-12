@@ -23,7 +23,6 @@ MODULE BmatrixHI_mod
   !           module exists for limited-area applications.
   !
   use midasMpi_mod
-  use MathPhysConstants_mod
   use earthConstants_mod
   use gridStateVector_mod
   use globalSpectralTransform_mod

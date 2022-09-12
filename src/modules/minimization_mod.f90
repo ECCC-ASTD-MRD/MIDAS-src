@@ -21,7 +21,6 @@ module minimization_mod
   !           subroutine that evaluates the cost function and its gradient.
   !
   use codePrecision_mod
-  use MathPhysConstants_mod
   use timeCoord_mod
   use obsTimeInterp_mod
   use verticalCoord_mod

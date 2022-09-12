@@ -20,7 +20,6 @@ program midas_diagBmatrix
   !
   use version_mod
   use midasMpi_mod
-  use MathPhysConstants_mod
   use controlVector_mod
   use gridVariableTransforms_mod
   use varNameList_mod

@@ -21,7 +21,6 @@ program midas_ensembleH
   !
   use version_mod
   use midasMpi_mod
-  use mathPhysConstants_mod
   use fileNames_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod

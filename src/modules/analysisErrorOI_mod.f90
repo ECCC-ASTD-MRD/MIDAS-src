@@ -30,7 +30,6 @@ module analysisErrorOI_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use kdtree2_mod
-  use MathPhysConstants_mod
   use midasMpi_mod
   use obserrors_mod
   use obsSpaceData_mod

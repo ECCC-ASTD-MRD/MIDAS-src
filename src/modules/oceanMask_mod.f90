@@ -24,7 +24,6 @@ module oceanMask_mod
   !
   use midasMpi_mod
   use kdtree2_mod
-  use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod

@@ -22,7 +22,6 @@ module verticalCoord_mod
   !           descriptor.
   !
   use midasMpi_mod
-  use mathPhysConstants_mod
   use Vgrid_Descriptors
   use varNameList_mod
   use utilities_mod

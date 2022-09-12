@@ -31,7 +31,6 @@ module ensembleStateVector_mod
   use analysisGrid_mod
   use oceanMask_mod
   use timeCoord_mod
-  use mathPhysConstants_mod
   use utilities_mod
   use varNameList_mod
   use codePrecision_mod

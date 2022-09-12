@@ -32,7 +32,6 @@ module oceanObservations_mod
   use codePrecision_mod  
   use sqliteRead_mod
   use bufr_mod
-  use MathPhysConstants_mod
   
   implicit none
 

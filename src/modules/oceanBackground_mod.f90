@@ -29,7 +29,6 @@ module oceanBackground_mod
   use oceanMask_mod
   use timeCoord_mod
   use codePrecision_mod  
-  use MathPhysConstants_mod
   
   implicit none
 

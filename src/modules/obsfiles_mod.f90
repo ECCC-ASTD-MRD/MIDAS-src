@@ -28,8 +28,6 @@ module obsFiles_mod
   !
   use midasMpi_mod
   use ramdisk_mod
-  use mathPhysConstants_mod
-  use earthConstants_mod
   use utilities_mod
   use obsSpaceData_mod
   use burpFiles_mod

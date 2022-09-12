@@ -33,7 +33,6 @@ program midas_ensManip
   !
   use version_mod
   use midasMpi_mod
-  use mathPhysConstants_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use fileNames_mod
