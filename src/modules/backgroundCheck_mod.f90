@@ -24,8 +24,6 @@ module backgroundCheck_mod
   use obsSpaceData_mod
   use gps_mod
   use utilities_mod
-  use mpi_mod
-  use mpivar_mod
   use columnData_mod
   use obsSpaceDiag_mod
   use earthConstants_mod

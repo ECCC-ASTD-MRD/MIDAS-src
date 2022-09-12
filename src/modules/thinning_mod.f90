@@ -23,7 +23,7 @@ module thinning_mod
   ! :Note:    This module is intended to group all of the thinning methods in a
   !           single fortran module.
   !
-  use mpi_mod
+  use midasMpi_mod
   use bufr_mod
   use mathPhysConstants_mod
   use earthConstants_mod
@@ -87,13 +87,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinSurface: Error opening file flnml')
       read(nulnam,nml=thin_surface,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinSurface: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=thin_surface)
+      if (mmpi_myid == 0) write(*,nml=thin_surface)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinSurface: Namelist block thin_surface is missing in the namelist.'
       write(*,*) '                 The default value will be taken.'
-      if (mpi_myid == 0) write(*,nml=thin_surface)
+      if (mmpi_myid == 0) write(*,nml=thin_surface)
     end if
 
     if (.not. doThinning) return
@@ -139,13 +139,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinRaobs: Error opening file flnml')
       read(nulnam,nml=thin_raobs,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinRaobs: Error reading thin_raobs namelist')
-      if (mpi_myid == 0) write(*,nml=thin_raobs)
+      if (mmpi_myid == 0) write(*,nml=thin_raobs)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinRaobs: Namelist block thin_raobs is missing in the namelist.'
       write(*,*) '               The default value will be taken.'
-      if (mpi_myid == 0) write(*,nml=thin_raobs)
+      if (mmpi_myid == 0) write(*,nml=thin_raobs)
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
@@ -187,13 +187,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinAircraft: Error opening file flnml')
       read(nulnam,nml=thin_aircraft,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinAircraft: Error reading thin_aircraft namelist')
-      if (mpi_myid == 0) write(*,nml=thin_aircraft)
+      if (mmpi_myid == 0) write(*,nml=thin_aircraft)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinAircraft: Namelist block thin_aircraft is missing in the namelist.'
       write(*,*) '                  The default value will be taken.'
-      if (mpi_myid == 0) write(*,nml=thin_aircraft)
+      if (mmpi_myid == 0) write(*,nml=thin_aircraft)
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
@@ -237,13 +237,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error opening file flnml')
       read(nulnam,nml=thin_satwind,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinSatWinds: Error reading thin_satwind namelist')
-      if (mpi_myid == 0) write(*,nml=thin_satwind)
+      if (mmpi_myid == 0) write(*,nml=thin_satwind)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinSatWinds: Namelist block thin_satwind is missing in the namelist.'
       write(*,*) '                  The default value will be taken.'
-      if (mpi_myid == 0) write(*,nml=thin_satwind)
+      if (mmpi_myid == 0) write(*,nml=thin_satwind)
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
@@ -291,13 +291,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error opening file flnml')
       read(nulnam,nml=thin_gpsro,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinGpsRo: Error reading thin_gpsro namelist')
-      if (mpi_myid == 0) write(*,nml=thin_gpsro)
+      if (mmpi_myid == 0) write(*,nml=thin_gpsro)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinGpsRo: Namelist block thin_gpsro is missing in the namelist.'
       write(*,*) '               The default value will be taken.'
-      if (mpi_myid == 0) write(*,nml=thin_gpsro)
+      if (mmpi_myid == 0) write(*,nml=thin_gpsro)
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
@@ -343,13 +343,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinGbGps: Error opening file flnml')
       read(nulnam,nml=thin_gbgps,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinGbGps: Error reading thin_gbgps namelist')
-      if (mpi_myid == 0) write(*,nml=thin_gbgps)
+      if (mmpi_myid == 0) write(*,nml=thin_gbgps)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinGbGps: Namelist block thin_gbgps is missing in the namelist.'
       write(*,*) '               The default value will be taken.'
-      if (mpi_myid == 0) write(*,nml=thin_gbgps)
+      if (mmpi_myid == 0) write(*,nml=thin_gbgps)
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
@@ -391,13 +391,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinAladin: Error opening file flnml')
       read(nulnam,nml=thin_aladin,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinAladin: Error reading thin_aladin namelist')
-      if (mpi_myid == 0) write(*,nml=thin_aladin)
+      if (mmpi_myid == 0) write(*,nml=thin_aladin)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinAladin: Namelist block thin_aladin is missing in the namelist.'
       write(*,*) '                The default value will be taken.'
-      if (mpi_myid == 0) write(*,nml=thin_aladin)
+      if (mmpi_myid == 0) write(*,nml=thin_aladin)
     end if
 
     if (keepNthVertical > 0) then
@@ -443,13 +443,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinCSR: Error opening file flnml')
       read(nulnam,nml=thin_csr,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinCSR: Error reading thin_csr namelist')
-      if (mpi_myid == 0) write(*,nml=thin_csr)
+      if (mmpi_myid == 0) write(*,nml=thin_csr)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinCSR: Namelist block thin_csr is missing in the namelist.'
       write(*,*) '             The default value will be taken.'
-      if (mpi_myid == 0) write(*,nml=thin_csr)
+      if (mmpi_myid == 0) write(*,nml=thin_csr)
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -495,13 +495,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinScat: Error opening file flnml')
       read(nulnam,nml=thin_scat,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinScat: Error reading thin_scat namelist')
-      if (mpi_myid == 0) write(*,nml=thin_scat)
+      if (mmpi_myid == 0) write(*,nml=thin_scat)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinScat: Namelist block thin_scat is missing in the namelist.'
       write(*,*) '              The default value will be taken.'
-      if (mpi_myid == 0) write(*,nml=thin_scat)
+      if (mmpi_myid == 0) write(*,nml=thin_scat)
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -547,13 +547,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinTovs: Error opening file flnml')
       read(nulnam,nml=thin_tovs,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinTovs: Error reading thin_tovs namelist')
-      if (mpi_myid == 0) write(*,nml=thin_tovs)
+      if (mmpi_myid == 0) write(*,nml=thin_tovs)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinTovs: Namelist block thin_tovs is missing in the namelist.'
       write(*,*) '              The default value will be taken.'
-      if (mpi_myid == 0) write(*,nml=thin_tovs)
+      if (mmpi_myid == 0) write(*,nml=thin_tovs)
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
@@ -611,13 +611,13 @@ contains
       if (ierr /= 0) call utl_abort('thn_thinHyper: Error opening file flnml')
       read(nulnam,nml=thin_hyper,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_thinHyper: Error reading thin_hyper namelist')
-      if (mpi_myid == 0) write(*,nml=thin_hyper)
+      if (mmpi_myid == 0) write(*,nml=thin_hyper)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinHyper: Namelist block thin_hyper is missing in the namelist.'
       write(*,*) '               The default value will be taken.'
-      if (mpi_myid == 0) write(*,nml=thin_hyper)
+      if (mmpi_myid == 0) write(*,nml=thin_hyper)
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
@@ -695,7 +695,7 @@ contains
 
     ! Locals:
     integer :: countObsIn, countObsInMpi, countObsOut
-    integer :: countObsInAllMpi(mpi_nprocs), countObsInMyOffset
+    integer :: countObsInAllMpi(mmpi_nprocs), countObsInMyOffset
     integer :: numElements, codtyp, obsDateStamp, numStep
     integer :: listIndex, obsIndex, obsIndex2, headerIndex, bodyIndex, procIndex
     integer :: ierr, istat, nulfile, numRowBlacklist
@@ -1034,7 +1034,7 @@ contains
                             countObsInAllMpi, 1, 'mpi_integer', &
                             'GRID', ierr )
     countObsInMyOffset = 0
-    do procIndex = 1, mpi_myid
+    do procIndex = 1, mmpi_myid
       countObsInMyOffset = countObsInMyOffset + countObsInAllMpi(procIndex)
     end do
     do obsIndex = 1, countObsIn
@@ -1584,7 +1584,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       if (ierr /= 0) call utl_abort('thn_radiosonde: Error opening file flnml')
       read(nulnam,nml=namgem,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_radiosonde: Error reading namgem namelist')
-      if (mpi_myid == 0) write(*,nml=namgem)
+      if (mmpi_myid == 0) write(*,nml=namgem)
       ierr = fclos(nulnam)
     else
       call utl_abort('thn_radiosonde: Namelist block namgem is missing in the namelist.')
@@ -1700,11 +1700,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     ! copy global mpi flags to local copy
     allocate(procIndexes(numStation))
     allocate(procIndexesMpi(numStationMpi))
-    procIndexes(:) = mpi_myid
+    procIndexes(:) = mmpi_myid
     call intArrayToMpi(procIndexes, procIndexesMpi)
     levStnIndex = 0
     do stationIndexMpi = 1, numStationMpi
-      if (procIndexesMpi(stationIndexMpi) == mpi_myid) then
+      if (procIndexesMpi(stationIndexMpi) == mmpi_myid) then
         do levStnIndexMpi = obsLevOffsetMpi(stationIndexMpi)+1, &
                             obsLevOffsetMpi(stationIndexMpi+1)
           levStnIndex = levStnIndex + 1
@@ -1871,7 +1871,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Locals:
     integer :: ierr, arrayIndex, charIndex, lenString
-    integer :: nsize, nsizeMpi, allnsize(mpi_nprocs)
+    integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs)
     integer, allocatable :: stringInt(:), stringIntMpi(:)
 
     nsize = size(array)
@@ -1917,7 +1917,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Locals:
     integer :: ierr, procIndex, arrayIndex
-    integer :: nsize, nsizeMpi, allnsize(mpi_nprocs), displs(mpi_nprocs)
+    integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
     logical :: is_obsLevOffset
     integer, allocatable :: numLevels(:), numLevelsMpi(:)
 
@@ -1937,9 +1937,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                                'GRID', ierr )
       nsizeMpi = sum(allnsize(:))
 
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         displs(1) = 0
-        do procIndex = 2, mpi_nprocs
+        do procIndex = 2, mmpi_nprocs
           displs(procIndex) = displs(procIndex-1) + allnsize(procIndex-1)
         end do
       else
@@ -1972,9 +1972,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                                'GRID', ierr )
       nsizeMpi = sum(allnsize(:))
 
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         displs(1) = 0
-        do procIndex = 2, mpi_nprocs
+        do procIndex = 2, mmpi_nprocs
           displs(procIndex) = displs(procIndex-1) + allnsize(procIndex-1)
         end do
       else
@@ -2005,7 +2005,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Locals:
     integer :: ierr, procIndex
-    integer :: nsize, nsizeMpi, allnsize(mpi_nprocs), displs(mpi_nprocs)
+    integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
 
     nsize = size(array)
     call rpn_comm_allgather( nsize,    1, 'mpi_integer',  &
@@ -2013,9 +2013,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                              'GRID', ierr )
     nsizeMpi = sum(allnsize(:))
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       displs(1) = 0
-      do procIndex = 2, mpi_nprocs
+      do procIndex = 2, mmpi_nprocs
         displs(procIndex) = displs(procIndex-1) + allnsize(procIndex-1)
       end do
     else
@@ -2045,7 +2045,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Locals:
     integer :: ierr, procIndex
-    integer :: nsize, nsizeMpi, allnsize(mpi_nprocs), displs(mpi_nprocs)
+    integer :: nsize, nsizeMpi, allnsize(mmpi_nprocs), displs(mmpi_nprocs)
 
     nsize = size(array)
     call rpn_comm_allgather( nsize,    1, 'mpi_integer',  &
@@ -2053,9 +2053,9 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                              'GRID', ierr )
     nsizeMpi = sum(allnsize(:))
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       displs(1) = 0
-      do procIndex = 2, mpi_nprocs
+      do procIndex = 2, mmpi_nprocs
         displs(procIndex) = displs(procIndex-1) + allnsize(procIndex-1)
       end do
     else
@@ -2164,7 +2164,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     end do ! stationIndex
 
     ! Select best profile for collocated TAC or BUFR reports
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       open(unit=11, file='./selected_stations_tac_bufr.txt', status='UNKNOWN')
     end if
 
@@ -2206,7 +2206,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                 tacStationIndex  = stationIndex2
                 if ( .not.btest(stationFlags(stationIndex),23) ) tacStationIndex = stationIndex
 
-                if (mpi_myid == 0) write(11,'(A9,2F10.3,3I10)') stnId(stationIndex), &
+                if (mmpi_myid == 0) write(11,'(A9,2F10.3,3I10)') stnId(stationIndex), &
                      obsLat(stationIndex), obsLon(stationIndex), &
                      obsLevOffset(bufrStationIndex+1)-obsLevOffset(bufrStationIndex)+1, &
                      obsLevOffset(tacStationIndex+1)-obsLevOffset(tacStationIndex)+1, selectCriteria
@@ -2248,7 +2248,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     write(*,'(a30,I5)') 'nb of energyTot(2)) very small  ',cloche(30)
     write(*,*)
 
-    if (mpi_myid == 0) close(unit=11)
+    if (mmpi_myid == 0) close(unit=11)
 
     ! Check whether there is still duplications
     numStnid = 0
@@ -3232,7 +3232,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     numHeader = obs_numHeader(obsdat)
     call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
                             'mpi_max', 'grid', ierr)
-    numHeaderMpi = numHeaderMaxMpi * mpi_nprocs
+    numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
 
     ! Check if any observations to be treated
     countObs = 0
@@ -3477,7 +3477,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     end do
 
     ! Update local copy of valid from global mpi version
-    headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
+    headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
     valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
 
@@ -3729,15 +3729,15 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     end do HEADER1
 
     ! Gather needed information from all MPI tasks
-    allocate(validMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(validMpi2(numHeaderMaxMpi*mpi_nprocs))
-    allocate(qualityMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsLatBurpFileMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsLonBurpFileMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsStepIndexMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsLayerIndexMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsMethodMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
+    allocate(validMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(validMpi2(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(qualityMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsLatBurpFileMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsLonBurpFileMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsStepIndexMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsLayerIndexMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsMethodMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mmpi_nprocs))
 
     nsize = numHeaderMaxMpi
     call rpn_comm_allgather(quality,    nsize, 'mpi_integer',  &
@@ -3757,7 +3757,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                             stnIdIntMpi, nsize, 'mpi_integer', 'grid', ierr)
 
     ! build a global list of stnId over all mpi tasks
-    numHeaderMpi = numHeaderMaxMpi * mpi_nprocs
+    numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
     HEADER: do headerIndex = 1, numHeaderMpi
       if (all(stnIdIntMpi(:,headerIndex) == 0)) cycle HEADER
 
@@ -3782,11 +3782,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       end if
     end do HEADER
 
-    allocate(headerIndexSorted(numHeaderMaxMpi*mpi_nprocs))
-    do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+    allocate(headerIndexSorted(numHeaderMaxMpi*mmpi_nprocs))
+    do headerIndex = 1, numHeaderMaxMpi*mmpi_nprocs
       headerIndexSorted(headerIndex) = headerIndex
     end do
-    allocate(headerIndexSelected(numHeaderMaxMpi*mpi_nprocs))
+    allocate(headerIndexSelected(numHeaderMaxMpi*mmpi_nprocs))
     headerIndexSelected(:) = 0
 
     ! Thinning procedure
@@ -3800,8 +3800,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       LAYERLOOP: do layerIndex = 1, numLayers
 
         ! do selection of obs for 1 satellite and layer at a time, on separate mpi tasks
-        mpiTaskId = mod((stnIdIndex-1)*numLayers + layerIndex - 1, mpi_nprocs)
-        if (mpi_myid /= mpiTaskId) cycle LAYERLOOP
+        mpiTaskId = mod((stnIdIndex-1)*numLayers + layerIndex - 1, mmpi_nprocs)
+        if (mmpi_myid /= mpiTaskId) cycle LAYERLOOP
 
         numSelected       = 0
         OBSLOOP1: do obsIndex1 = 1, numHeaderMpi
@@ -3887,12 +3887,12 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     end do STNIDLOOP
 
     ! communicate values of validMpi computed on each mpi task
-    nsize = numHeaderMaxMpi * mpi_nprocs
+    nsize = numHeaderMaxMpi * mmpi_nprocs
     call rpn_comm_allReduce(validMpi, validMpi2, nsize, 'mpi_logical', &
                             'mpi_lor','grid',ierr)
 
     ! Update local copy of valid from global mpi version
-    headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
+    headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
     valid(:) = validMpi2(headerIndexBeg:headerIndexEnd)
     
@@ -4340,7 +4340,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     isAircraft(:) = valid(:)
 
     ! Return if no aircraft obs to thin
-    allocate(validMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(validMpi(numHeaderMaxMpi*mmpi_nprocs))
     nsize = numHeaderMaxMpi
     call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
                             validMpi, nsize, 'mpi_logical', 'grid', ierr)
@@ -4375,7 +4375,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error opening file flnml')
       read(nulnam,nml=namgem,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_aircraftByBoxes: Error reading namgem namelist')
-      if (mpi_myid == 0) write(*,nml=namgem)
+      if (mmpi_myid == 0) write(*,nml=namgem)
       ierr = fclos(nulnam)
     else
       call utl_abort('thn_aircraftByBoxes: Namelist block namgem is missing in the namelist.')
@@ -4406,16 +4406,16 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Allocate mpi global vectors
     allocate(rejectCountMpi(tim_nstepObs))
-    allocate(obsLatIndexMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsLonIndexMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsLevIndexMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsTimeIndexMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsDistanceMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsUUMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsVVMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsTTMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsUVPresentMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsTTPresentMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsLatIndexMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsLonIndexMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsLevIndexMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsTimeIndexMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsDistanceMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsUUMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsVVMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsTTMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsUVPresentMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsTTPresentMpi(numHeaderMaxMpi*mmpi_nprocs))
 
     ! Initialize vectors
     rejectCount(:) = 0
@@ -4673,7 +4673,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
       ! Calcul des distances min et max du centre la boite des rapports 
       ! contenus dans les boites
-      do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+      do headerIndex = 1, numHeaderMaxMpi*mmpi_nprocs
         if( .not. validMpi(headerIndex) ) cycle
         if( obsTimeIndexMpi(headerIndex) /= stepIndex ) cycle
         latIndex = obsLatIndexMpi(headerIndex)
@@ -4689,7 +4689,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
       ! Calcul des sommes de u, v et t des observations situees a une distance midDistance
       ! du centre de la boite
-      do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+      do headerIndex = 1, numHeaderMaxMpi*mmpi_nprocs
         if( .not. validMpi(headerIndex) ) cycle
         if( obsTimeIndexMpi(headerIndex) /= stepIndex ) cycle
         latIndex = obsLatIndexMpi(headerIndex)
@@ -4730,7 +4730,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       ! S'il y a plus de 3 rapports dans la boite, le rapport dont le score est le plus
       ! petit est retenu. S'il y a 2 rapports ou moins, le rapport le plus pres du centre
       ! de la boite est retenu.
-      do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+      do headerIndex = 1, numHeaderMaxMpi*mmpi_nprocs
         if( .not. validMpi(headerIndex) ) cycle
         if( obsTimeIndexMpi(headerIndex) /= stepIndex ) cycle
         latIndex = obsLatIndexMpi(headerIndex)
@@ -4793,7 +4793,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     end do  STEP
 
     ! Update local copy of valid from global mpi version
-    headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
+    headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
     valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
 
@@ -4978,11 +4978,11 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer :: numLat, numLon, headerIndex, headerIndexKeep, latIndex, lonIndex, latIndex2
     integer :: gridIndex, numGridLonsTotal, obsTime, obsDate, numHeader, numHeaderMaxMpi, ierr
     integer :: bodyIndex, stepIndex, obsIndex, obsFov
-    integer :: loscan, hiscan, obsFlag, numObs, minLonBurpFileMpi(mpi_nprocs)
+    integer :: loscan, hiscan, obsFlag, numObs, minLonBurpFileMpi(mmpi_nprocs)
     integer :: procIndex, procIndexKeep, minLonBurpFile, countObs, countObsMpi
     integer :: countQc, countKept, countOther, countKeptMpi, countQcMpi, countGridPoints
     real(4) :: obsLatInRad, obsLonInRad, obsLat, obsLon, distance
-    real(4) :: obsLatInDegrees, obsLonInDegrees, minDistance, minDistanceMpi(mpi_nprocs)
+    real(4) :: obsLatInDegrees, obsLonInDegrees, minDistance, minDistanceMpi(mmpi_nprocs)
     real(4) :: rejectRate, gridLat, gridLon
     real(4) :: percentTotal, percentQc, percentOther, percentKept
     real(8), allocatable :: stepObsIndex(:)
@@ -5309,7 +5309,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
         ! Choose the closest to the center of the box among all mpi tasks
         minDistance = 1000000.
-        do procIndex = 1, mpi_nprocs
+        do procIndex = 1, mmpi_nprocs
           if (minDistanceMpi(procIndex) < minDistance) then
             minDistance = minDistanceMpi(procIndex)
             procIndexKeep = procIndex
@@ -5323,7 +5323,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
             call rpn_comm_allgather(minLonBurpFile,    1, 'mpi_integer',  &
                                     minLonBurpFileMpi, 1, 'mpi_integer', 'grid', ierr)
             minLonBurpFile = 10000000
-            do procIndex = 1, mpi_nprocs
+            do procIndex = 1, mmpi_nprocs
               if (minDistanceMpi(procIndex) == minDistance) then
                 if (minLonBurpFileMpi(procIndex) < minLonBurpFile) then
                   minLonBurpFile = minLonBurpFileMpi(procIndex)
@@ -5333,7 +5333,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
             end do            
           end if
           if (numObs > 0) then
-            if (mpi_myid /= (procIndexKeep-1)) then
+            if (mmpi_myid /= (procIndexKeep-1)) then
               valid(headerIndexKeep) = .false.
             end if
           end if
@@ -5485,17 +5485,17 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! Allocations
     allocate(obsPosition3d(3,numHeaderMaxMpi))
-    allocate(obsPosition3dMpi(3,numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsPosition3dMpi(3,numHeaderMaxMpi*mmpi_nprocs))
     allocate(centreOrig(numHeaderMaxMpi))
-    allocate(centreOrigMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(centreOrigMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsFov(numHeaderMaxMpi))
-    allocate(obsFovMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsFovMpi(numHeaderMaxMpi*mmpi_nprocs))
     allocate(obsDateStamp(numHeaderMaxMpi))
-    allocate(obsDateStampMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(validMpi(numHeaderMaxMpi*mpi_nprocs))
+    allocate(obsDateStampMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(validMpi(numHeaderMaxMpi*mmpi_nprocs))
     lenStnId = len(stnId)
     allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
-    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
+    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mmpi_nprocs))
 
     ! Some initializations
     centreOrig(:) = 0
@@ -5550,7 +5550,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     nullify(tree)
 
     tree => kdtree2_create(obsPosition3dMpi, sort=.true., rearrange=.true.)
-    HEADER1: do headerIndex1 = 1, mpi_nprocs*numHeaderMaxMpi
+    HEADER1: do headerIndex1 = 1, mmpi_nprocs*numHeaderMaxMpi
         
       if ( .not. validMpi(headerIndex1) ) cycle HEADER1
 
@@ -5618,7 +5618,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     call kdtree2_destroy(tree)
 
     ! update local copy of 'valid' array
-    headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
+    headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
     valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
 
@@ -5743,13 +5743,13 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
 
     ! Allocation for MPI gather
-    allocate(validMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsLatIndexMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsLonIndexMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsStepIndexMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsDistanceMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsDelMinutesMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
+    allocate(validMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsLatIndexMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsLonIndexMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsStepIndexMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsDistanceMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsDelMinutesMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mmpi_nprocs))
 
     gridLats(:)            = 0.
     gridLatsMid(:)         = 0.
@@ -5802,7 +5802,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     ! build a global list of stnId over all mpi tasks
     numStnId = 0
     numObsStnIdInMpi(:) = 0
-    HEADER2: do headerIndex = 1, numHeaderMaxMpi * mpi_nprocs
+    HEADER2: do headerIndex = 1, numHeaderMaxMpi * mmpi_nprocs
       if (all(stnIdIntMpi(:,headerIndex) == 0)) cycle HEADER2
       if (.not.validMpi(headerIndex)) cycle HEADER2
 
@@ -5937,7 +5937,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                             obsDistanceMpi, nsize, 'mpi_real4', 'grid', ierr)
     
     ! Apply thinning algorithm
-    HEADER4: do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+    HEADER4: do headerIndex = 1, numHeaderMaxMpi*mmpi_nprocs
       if (.not. validMpi(headerIndex)) cycle HEADER4
 
       change = .true.
@@ -6032,7 +6032,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     end do HEADER4
 
     ! update local copy of 'valid' array
-    headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
+    headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
     valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
 
@@ -6387,18 +6387,18 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                countObs, countObsMpi
 
     ! Allocation for MPI gather
-    allocate(validMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsLatIndexMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsLonIndexMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsStepIndexMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(numChannelMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsAngleMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsDistanceMpi(numHeaderMaxMpi*mpi_nprocs))
-    allocate(channelAssimMpi(maxNumChan,numHeaderMaxMpi*mpi_nprocs))
-    allocate(obsCloudMpi(maxNumChan,numHeaderMaxMpi*mpi_nprocs))
+    allocate(validMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsLatIndexMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsLonIndexMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsStepIndexMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(numChannelMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsAngleMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsDistanceMpi(numHeaderMaxMpi*mmpi_nprocs))
+    allocate(channelAssimMpi(maxNumChan,numHeaderMaxMpi*mmpi_nprocs))
+    allocate(obsCloudMpi(maxNumChan,numHeaderMaxMpi*mmpi_nprocs))
     lenStnId = len(stnId)
     allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
-    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
+    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mmpi_nprocs))
 
     ! Initialize arrays
     obsLatIndexMpi(:)    = 0
@@ -6450,7 +6450,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
                             stnIdIntMpi, nsize, 'mpi_integer', 'grid', ierr)
     
     ! Apply thinning algorithm
-    HEADER4: do headerIndex = 1, numHeaderMaxMpi*mpi_nprocs
+    HEADER4: do headerIndex = 1, numHeaderMaxMpi*mmpi_nprocs
       if (.not. validMpi(headerIndex)) cycle HEADER4
 
       change = .true.
@@ -6535,7 +6535,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     end do HEADER4
 
     ! update local copy of 'valid' array
-    headerIndexBeg = 1 + mpi_myid * numHeaderMaxMpi
+    headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
     valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
 
@@ -6661,7 +6661,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     lenStnId = len(stnId)
     allocate(stnIdInt(lenStnId,numHeaderMaxMpi))
-    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mpi_nprocs))
+    allocate(stnIdIntMpi(lenStnId,numHeaderMaxMpi*mmpi_nprocs))
     stnIdInt(:,:) = 0
     stnIdIntMpi(:,:) = 0
 
@@ -6697,7 +6697,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
     ! build a global stnIdList
     numStnId = 0
-    numHeaderMpi = numHeaderMaxMpi * mpi_nprocs
+    numHeaderMpi = numHeaderMaxMpi * mmpi_nprocs
     HEADER4: do headerIndex = 1, numHeaderMpi
       if (all(stnIdIntMpi(:,headerIndex) == 0)) cycle HEADER4
 
@@ -6787,10 +6787,10 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
       write(*,'(a9,a,2i8)')  stnidList(stnIdIndex), ' :  ', numObsStnId(stnIdIndex), countMpi
     end do
     
-    allocate(headerIndexKeepMpi(numLat,numLon,tim_nstepobs,mpi_nprocs))
-    allocate(numChannelsKeepMpi(numLat,numLon,tim_nstepobs,mpi_nprocs))
-    allocate(distanceKeepMpi(numLat,numLon,tim_nstepobs,mpi_nprocs))
-    allocate(delMinutesKeepMpi(numLat,numLon,tim_nstepobs,mpi_nprocs))
+    allocate(headerIndexKeepMpi(numLat,numLon,tim_nstepobs,mmpi_nprocs))
+    allocate(numChannelsKeepMpi(numLat,numLon,tim_nstepobs,mmpi_nprocs))
+    allocate(distanceKeepMpi(numLat,numLon,tim_nstepobs,mmpi_nprocs))
+    allocate(delMinutesKeepMpi(numLat,numLon,tim_nstepobs,mmpi_nprocs))
     allocate(procIndexKeep(numLat,numLon,tim_nstepobs))
     procIndexKeep(:,:,:) = -1
 
@@ -6938,7 +6938,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
         do latBinIndex = 1, numLat
 
           ! Apply thinning criteria to results from all mpi tasks
-          do procIndex = 1, mpi_nprocs
+          do procIndex = 1, mmpi_nprocs
 
             headerIndex = headerIndexKeepMpi(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
             distance    = distanceKeepMpi(latBinIndex,lonBinIndex,timeBinIndex,procIndex)
@@ -6992,7 +6992,7 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     do timeBinIndex = 1, tim_nstepobs
       do lonBinIndex = 1, numLon
         do latBinIndex = 1, numLat
-          if (procIndexKeep(latBinIndex,lonBinIndex,timeBinIndex) == mpi_myid+1) then
+          if (procIndexKeep(latBinIndex,lonBinIndex,timeBinIndex) == mmpi_myid+1) then
             headerIndex = headerIndexKeep(latBinIndex,lonBinIndex,timeBinIndex)
             rejectThisHeader(headerIndex) = .false.
           end if

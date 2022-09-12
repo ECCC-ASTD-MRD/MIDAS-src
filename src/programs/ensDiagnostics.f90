@@ -17,7 +17,7 @@
 program midas_ensDiagnostics
   ! :Purpose: Compute diagnostics related to imbalance and spin-up in a data assimilation cycle     
   use version_mod
-  use mpi_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
@@ -50,8 +50,8 @@ program midas_ensDiagnostics
   NAMELIST /namEnsDiagnostics/nEns,pathName,prefix
 
   call ver_printNameAndVersion('ensDiagnostics','Program to estimate imbalance in a model integration')
-  call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call mmpi_initialize
+  call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
   ! Avoid printing lots of stuff to listing for std file I/O
   ierr = fstopc('MSGLVL','ERRORS',0)
@@ -70,7 +70,7 @@ program midas_ensDiagnostics
   if (pathName == 'UNDEFINED') call utl_abort('midas-ensDiagnostics: set namelist value pathName')
   if (prefix == 'UNDEFINED') call utl_abort('midas-ensDiagnostics: set namelist value prefix')
   ierr = fclos(nulnam)
-  if (mpi_myid == 0) then
+  if (mmpi_myid == 0) then
     write(*,nml=namEnsDiagnostics)      
     write(*,*) 'ensemble size: ',nEns
     write(*,*) 'pathname: ',pathname
@@ -111,7 +111,7 @@ program midas_ensDiagnostics
   allocate(Imbalance(numStep))
   numK = ens_getNumK(ensembleTrl)
   call ens_getLatLonBounds(ensembleTrl, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
-  if (mpi_myid == 0) then
+  if (mmpi_myid == 0) then
     write(*,*) 'number of time steps that is stored: ',numStep
     write(*,*) 'number of variables: ',numK
     write(*,*) 'precision: ',ens_getDataKind(ensembleTrl)
@@ -151,7 +151,7 @@ program midas_ensDiagnostics
       end do
     end do
     do memberIndex = 1,nEns ! for each member average over the horizontal grid
-      call mpi_allreduce_sumreal8scalar(MeanValMem(memberIndex),'GRID')
+      call mmpi_allreduce_sumreal8scalar(MeanValMem(memberIndex),'GRID')
     end do
     MeanVal = 0.0D0
     do memberIndex = 1,nEns ! for each member, we move to the rms 
@@ -161,7 +161,7 @@ program midas_ensDiagnostics
     write(*,*) 'second derivative of P0: ',stepIndex,MeanVal
     imbalance(stepIndex) = MeanVal
   end do
-  if (mpi_myid == 0) then
+  if (mmpi_myid == 0) then
     unitNum = 0      
     ierr = fnom(unitNum,'imbalance.dat','FTN+SQN+R/W',0)
     do stepIndex = 2,numStep-1
@@ -186,7 +186,7 @@ program midas_ensDiagnostics
       end do
     end do
     do memberIndex = 1,nEns ! for each member average over the horizontal grid
-      call mpi_allreduce_sumreal8scalar(MeanValMem(memberIndex),'GRID')
+      call mmpi_allreduce_sumreal8scalar(MeanValMem(memberIndex),'GRID')
     end do
     MeanVal = 0.0D0
     do memberIndex = 1,nEns
@@ -207,7 +207,7 @@ program midas_ensDiagnostics
     MeanValPrev = MeanVal
   end do
   deallocate(MeanValMem)
-  if (mpi_myid == 0) then
+  if (mmpi_myid == 0) then
     unitNum=0      
     ierr = fnom(unitNum,'rainrate.dat','FTN+SQN+R/W',0)
     do stepIndex = 2,numStep
@@ -217,7 +217,7 @@ program midas_ensDiagnostics
   end if
 
   call utl_tmg_stop(0)
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr)
 
 end program midas_ensDiagnostics      

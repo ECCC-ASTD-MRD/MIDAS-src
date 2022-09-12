@@ -23,7 +23,7 @@ module innovation_mod
   !           from standard files.
   !
   use codePrecision_mod
-  use mpi_mod
+  use midasMpi_mod
   use ramDisk_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -32,7 +32,6 @@ module innovation_mod
   use obsOperators_mod
   use earthConstants_mod
   use mathPhysConstants_mod
-  use mpivar_mod
   use horizontalCoord_mod
   use varNameList_mod
   use verticalCoord_mod
@@ -243,13 +242,13 @@ contains
       if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrlLev: Error opening file flnml')
       read(nulnam,nml=naminn,iostat=ierr)
       if (ierr /= 0) call utl_abort('inn_setupColumnsOnTrlLev: Error reading namelist')
-      if (mpi_myid == 0) write(*,nml=naminn)
+      if (mmpi_myid == 0) write(*,nml=naminn)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'inn_setupColumnsOnTrlLev: Namelist block NAMINN is missing in the namelist.'
       write(*,*) '                            The default values will be taken.'
-      if (mpi_myid == 0) write(*,nml=naminn)
+      if (mmpi_myid == 0) write(*,nml=naminn)
     end if
 
     if ( present(deallocInterpInfoNL_opt) ) then
@@ -347,7 +346,7 @@ contains
       call cvt_transform(columnTrlOnAnlIncLev, 'ZandP_nl')
 
       ! Print pressure on thermo levels for the first original and destination column
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'inn_setupColumnsOnAnlIncLev, before vintprof, columnTrlOnTrlLev(1):'
         write(*,*) 'P_T:'
         columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'P_T')
@@ -408,7 +407,7 @@ contains
 
     ! Print pressure on thermo levels for the first column
     if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'inn_setupColumnsOnAnlIncLev, after vintprof, columnTrlOnAnlIncLev(1):'
         write(*,*) 'P_T:'
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
@@ -558,7 +557,7 @@ contains
     if ( filterObsAndInitOer .and. callFiltTopo ) then
       call filt_topo(columnTrlOnTrlLev,obsSpaceData,beSilent)
     else
-      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_topo'
+      if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_topo'
     end if
    
     ! Remove surface station wind observations
@@ -566,7 +565,7 @@ contains
       if ( filterObsAndInitOer ) then
         call filt_surfaceWind(obsSpaceData, beSilent)
       else
-        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind'
+        if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind'
       end if
     end if
 
@@ -588,7 +587,7 @@ contains
     if ( filterObsAndInitOer ) then
       call oer_sw(columnTrlOnTrlLev,obsSpaceData)
     else
-      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_sw'
+      if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_sw'
     end if
     
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SW', destObsColumn)
@@ -605,7 +604,7 @@ contains
      ! Filter Radar for Doppler velocity
       call filt_radvel(columnTrlOnTrlLev, obsSpaceData, beSilent)
     else
-      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_radvel'
+      if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_radvel'
     end if
 
     call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent, 'RA', destObsColumn)  
@@ -619,7 +618,7 @@ contains
       call filt_backScatAnisIce(obsSpaceData, beSilent)
       call oer_setErrBackScatAnisIce(columnTrlOnTrlLev, obsSpaceData, beSilent)
     else
-      if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce'
+      if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce'
     end if
 
     call oop_ice_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'GL', destObsColumn)
@@ -648,7 +647,7 @@ contains
         call filt_gpsro(columnTrlOnTrlLev, obsSpaceData, beSilent)
         call oer_SETERRGPSRO(columnTrlOnTrlLev, obsSpaceData, beSilent)
       else
-        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_gpsro, and oer_SETERRGPSRO'
+        if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_gpsro, and oer_SETERRGPSRO'
       end if
       call oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, destObsColumn)
     end if
@@ -661,7 +660,7 @@ contains
       if ( CallSetErrGpsgb ) then
         call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, analysisMode)
       else
-        if ( mpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB'
+        if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB'
       end if
       if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
                                      destObsColumn, analysisMode_opt=analysisMode)   
@@ -680,7 +679,7 @@ contains
 
     ! Compute Jo components and print
     call cfn_sumJo(obsSpaceData, Jo, beSilent_opt=beSilent)
-    if ( mpi_myid == 0 ) write(*,'(a15,f25.17)') 'Total Jo = ',Jo
+    if ( mmpi_myid == 0 ) write(*,'(a15,f25.17)') 'Total Jo = ',Jo
 
     if ( .not.beSilent ) write(*,*) 'oti_timeBinning: After filtering done in inn_computeInnovation'
     if ( .not.beSilent ) call oti_timeBinning(obsSpaceData,tim_nstepobs)
@@ -730,7 +729,7 @@ contains
     ! set PE index for the file (where reading and updating was/will be done)
     if ( obs_columnActive_IH(obsSpaceData,OBS_IPF) ) then
       do headerIndex = 1, numHeaderFile
-        call obs_headSet_i(obsSpaceData,OBS_IPF,headerIndex,mpi_myid)
+        call obs_headSet_i(obsSpaceData,OBS_IPF,headerIndex,mmpi_myid)
       end do
     end if
 
@@ -739,17 +738,17 @@ contains
        !- Keep distribution exactly as it is in the split files:
        do headerIndex = 1, numHeaderFile
           if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) &
-            call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, mpi_myid)
+            call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, mmpi_myid)
           if ( obs_columnActive_IH(obsSpaceData,OBS_IPT) ) &
-            call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex, mpi_myid)
+            call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex, mmpi_myid)
           if ( obs_columnActive_IH(obsSpaceData,OBS_IP) ) &
-            call obs_headSet_i(obsSpaceData,OBS_IP,headerIndex, mpi_myid)
+            call obs_headSet_i(obsSpaceData,OBS_IP,headerIndex, mmpi_myid)
        end do
     case ('ROUNDROBIN')
        !- Distribute by a round-robin strategy for both obs_ipc and obs_ipt:
        !  (Only use if files already not split by round robin)
        do headerIndex = 1, numHeaderFile
-          IP = mod((headerIndex-1),mpi_nprocs)
+          IP = mod((headerIndex-1),mmpi_nprocs)
           if ( obs_columnActive_IH(obsSpaceData,OBS_IPC) ) &
             call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, IP)
           if ( obs_columnActive_IH(obsSpaceData,OBS_IPT) ) &
@@ -772,9 +771,9 @@ contains
           ! compute correponding mpi task id for each observation
           latIndex = floor(ypos_r4)
           lonIndex = floor(xpos_r4)
-          IP_y = mpivar_myidYfromLat(latIndex, hco_anl%nj)
-          IP_x = mpivar_myidXfromLon(lonIndex, hco_anl%ni)
-          IP = IP_x + IP_y*mpi_npex
+          IP_y = mmpi_myidYfromLat(latIndex, hco_anl%nj)
+          IP_x = mmpi_myidXfromLon(lonIndex, hco_anl%ni)
+          IP = IP_x + IP_y*mmpi_npex
 
           call obs_headSet_i(obsSpaceData,OBS_IPC,headerIndex, IP)
           call obs_headSet_i(obsSpaceData,OBS_IPT,headerIndex, IP)

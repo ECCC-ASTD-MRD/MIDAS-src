@@ -20,7 +20,7 @@ module slantprofilelatlon_mod
   ! :Purpose: To calculate latitudes/longitudes on slant-path based on
   !           ColumnData.
   !
-  use mpi_mod
+  use midasMpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use utilities_mod
@@ -88,7 +88,7 @@ contains
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam, nml = namSlantPath, iostat = ierr)
       if (ierr /= 0) write(*,*) 'slp_calcLatLonTovs: namSlantPath is missing in the namelist. The default value will be taken.'
-      if (mpi_myid == 0) write(*, nml = namSlantPath)
+      if (mmpi_myid == 0) write(*, nml = namSlantPath)
       ierr = fclos(nulnam)
     end if
 

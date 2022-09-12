@@ -22,9 +22,7 @@ MODULE BmatrixHI_mod
   !           and isotropic correlations. This is the Global version. A separate 
   !           module exists for limited-area applications.
   !
-  use mpi_mod
-  use mpivar_mod
-  use MathPhysConstants_mod
+  use midasMpi_mod
   use earthConstants_mod
   use gridStateVector_mod
   use globalSpectralTransform_mod
@@ -131,14 +129,14 @@ CONTAINS
 
     NAMELIST /NAMBHI/ntrunc,scaleFactor,scaleFactorLQ,scaleFactorCC,scaleTG,numModeZero,squareSqrt,TweakTG,ReadWrite_sqrt,stddevMode
 
-    if(mpi_myid == 0) write(*,*) 'bhi_setup: starting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bhi_setup: starting'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if ( present(mode_opt) ) then
        if ( trim(mode_opt) == 'Analysis' .or. trim(mode_opt) == 'BackgroundCheck') then
          bhi_mode = trim(mode_opt)
-         if(mpi_myid == 0) write(*,*)
-         if(mpi_myid == 0) write(*,*) 'bmatrixHI: Mode activated = ', trim(bhi_mode)
+         if(mmpi_myid == 0) write(*,*)
+         if(mmpi_myid == 0) write(*,*) 'bmatrixHI: Mode activated = ', trim(bhi_mode)
        else
           write(*,*)
           write(*,*) 'mode = ', trim(mode_opt)
@@ -146,8 +144,8 @@ CONTAINS
        end if
     else
        bhi_mode = 'Analysis'
-       if(mpi_myid == 0) write(*,*)
-       if(mpi_myid == 0) write(*,*) 'bmatrixHI: Analysis mode activated (by default)'
+       if(mmpi_myid == 0) write(*,*)
+       if(mmpi_myid == 0) write(*,*) 'bmatrixHI: Analysis mode activated (by default)'
     end if
 
     ! default values for namelist variables
@@ -166,7 +164,7 @@ CONTAINS
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=nambhi,iostat=ierr)
     if ( ierr /= 0 ) call utl_abort( 'bhi_setup: Error reading namelist' )
-    if ( mpi_myid == 0 ) write( *, nml = nambhi )
+    if ( mmpi_myid == 0 ) write( *, nml = nambhi )
     ierr = fclos( nulnam )
 
     do jlev = 1, maxNumLevels
@@ -178,7 +176,7 @@ CONTAINS
     enddo
 
     if ( sum( scaleFactor( 1 : maxNumLevels ) ) == 0.0d0 ) then
-      if ( mpi_myid == 0 ) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
+      if ( mmpi_myid == 0 ) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
       return
     end if
@@ -192,7 +190,7 @@ CONTAINS
     else
       nLev_T_even = nLev_T
     endif
-    if(mpi_myid == 0) write(*,*) 'BHI_setup: nLev_M, nLev_T, nLev_T_even=',nLev_M, nLev_T, nLev_T_even
+    if(mmpi_myid == 0) write(*,*) 'BHI_setup: nLev_M, nLev_T, nLev_T_even=',nLev_M, nLev_T, nLev_T_even
 
     ! check if analysisgrid and covariance file have the same vertical levels
     call vco_SetupFromFile( vco_file,  & ! OUT
@@ -266,14 +264,14 @@ CONTAINS
 
     gstID  = gst_setup(ni_l,nj_l,ntrunc,nkgdim)
     gstID2 = gst_setup(ni_l,nj_l,ntrunc,nlev_T_even)
-    if(mpi_myid == 0) write(*,*) 'BHI:returned value of gstID =',gstID
-    if(mpi_myid == 0) write(*,*) 'BHI:returned value of gstID2=',gstID2
+    if(mmpi_myid == 0) write(*,*) 'BHI:returned value of gstID =',gstID
+    if(mmpi_myid == 0) write(*,*) 'BHI:returned value of gstID2=',gstID2
 
-    call mpivar_setup_latbands(nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
-    call mpivar_setup_lonbands(ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    call mmpi_setup_latbands(nj_l, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mmpi_setup_lonbands(ni_l, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
-    call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
-    call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
+    call mmpi_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
+    call mmpi_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
 
     call gst_ilaList_mpiglobal(ilaList_mpiglobal,nla_mpilocal,maxMyNla,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
     call gst_ilaList_mpilocal(ilaList_mpilocal,gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,mynSkip)
@@ -312,7 +310,7 @@ CONTAINS
     allocate(corns(nkgdim2,nkgdim2,0:ntrunc))
     allocate(rstddev(nkgdim2,0:ntrunc))
 
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     zps = 101000.D0
     status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfile_M, &
@@ -342,7 +340,7 @@ CONTAINS
     call BHI_rdspPtoT
 
     call BHI_readcorns2
-    if(mpi_myid == 0) write(*,*) 'Memory Used (after readcorns2): ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used (after readcorns2): ',get_max_rss()/1024,'Mb'
 
     call BHI_sutg
 
@@ -357,12 +355,12 @@ CONTAINS
     call BHI_scalestd
 
     call BHI_sucorns2
-    if(mpi_myid == 0) write(*,*) 'Memory Used (after sucorns2): ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used (after sucorns2): ',get_max_rss()/1024,'Mb'
 
     ierr = fstfrm(nulbgst)
     ierr = fclos(nulbgst)
 
-    if(mpi_myid == 0) write(*,*) 'END OF BHI_SETUP'
+    if(mmpi_myid == 0) write(*,*) 'END OF BHI_SETUP'
 
     initialized = .true.
 
@@ -456,7 +454,7 @@ CONTAINS
     lldebug = .false.
 
     iulcorvert = 0
-    if(mpi_myid==0) then
+    if(mmpi_myid==0) then
       ierr = fnom(iulcorvert,'corvert_modular.fst','RND',0)
       ierr = fstouv(iulcorvert,'RND')
     endif
@@ -677,7 +675,7 @@ CONTAINS
         write(702,*) zpsi
       endif
 
-      if(mpi_myid == 0) then
+      if(mmpi_myid == 0) then
         ikey = fstinf(NULBGST,ini,inj,ink,-1,'CORRNS',-1,0,-1,' ','ZZ')
         ierr = fstprm(ikey,idateo,ideet,inpas,ini,inj,ink, inbits        &
              ,idatyp,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp      &
@@ -756,7 +754,7 @@ CONTAINS
     ! compute square-root of corns for each total wavenumber
     allocate(corns_temp(nkgdim2,nkgdim2,0:ntrunc))
     corns_temp(:,:,:)=0.0d0
-    do jn = mpi_myid, ntrunc, mpi_nprocs
+    do jn = mmpi_myid, ntrunc, mmpi_nprocs
 
       do jk1 = 1, nkgdim2
          do jk2 = 1, nkgdim2
@@ -840,7 +838,7 @@ CONTAINS
     call rpn_comm_allreduce(corns_temp,corns,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
     deallocate(corns_temp)
 
-    if(mpi_myid==0) then
+    if(mmpi_myid==0) then
       ierr = fstfrm(iulcorvert)
       ierr = fclos(iulcorvert)
     endif
@@ -869,7 +867,7 @@ CONTAINS
 
     write(*,*) 'WRITECORNS_SQRT: CORNS_SQRT will be written to file corns_sqrt.fst for NTRUNC =', ntrunc
 
-    if(mpi_myid==0) then
+    if(mmpi_myid==0) then
       nulcorns_sqrt = 0
       ierr = fnom(nulcorns_sqrt,'corns_sqrt.fst','RND',0)
       ierr = fstouv(nulcorns_sqrt,'RND')
@@ -1128,16 +1126,16 @@ CONTAINS
 
     !- 1.3.1 If specified at the top of the module, do not accept TG errors of more than value specified above
     if ( llimtg ) then
-       if ( mpi_myid == 0 ) write(*,*)
-       if ( mpi_myid == 0 ) write(*,*) 'Capping TG Std. Dev. using a max value (K) = ', rlimsuptg
+       if ( mmpi_myid == 0 ) write(*,*)
+       if ( mmpi_myid == 0 ) write(*,*) 'Capping TG Std. Dev. using a max value (K) = ', rlimsuptg
        where ( tgstdbg > rlimsuptg) tgstdbg = rlimsuptg
     end if
 
     !- 1.3.2 Take into account the Land-Sea mask and the Sea-Ice mask of the day
     if ( TweakTG ) then
 
-      if ( mpi_myid == 0 ) write(*,*)
-      if ( mpi_myid == 0 ) write(*,*) 'Adjusting TG Std Dev based on LandSea and SeaIce masks'
+      if ( mmpi_myid == 0 ) write(*,*)
+      if ( mmpi_myid == 0 ) write(*,*) 'Adjusting TG Std Dev based on LandSea and SeaIce masks'
 
       !- Read MG and GL in the middle of the assimilation time window
       if ( tim_nStepObs == 1 ) then
@@ -1151,14 +1149,14 @@ CONTAINS
       inquire(file=trim(trialfile),exist=trialExists)
 
       if ( .not. trialExists ) then
-        if ( mpi_myid == 0 ) write(*,*)
-        if ( mpi_myid == 0 ) write(*,*) 'Trial file not found = ', trialfile
-        if ( mpi_myid == 0 ) write(*,*) 'Look for an ensemble of trial files '
+        if ( mmpi_myid == 0 ) write(*,*)
+        if ( mmpi_myid == 0 ) write(*,*) 'Trial file not found = ', trialfile
+        if ( mmpi_myid == 0 ) write(*,*) 'Look for an ensemble of trial files '
 
         trialfile='./trlm_'//trim(flnum)//'_0001'
         inquire(file=trim(trialfile),exist=trialExists)
         if ( .not. trialExists ) then
-           if ( mpi_myid == 0 ) write(*,*) 'Ensemble trial file not found = ', trialfile
+           if ( mmpi_myid == 0 ) write(*,*) 'Ensemble trial file not found = ', trialfile
            call utl_abort('BMatrixHI : DID NOT FIND A TRIAL FIELD FILE')
         end if
       end if
@@ -1283,7 +1281,7 @@ CONTAINS
       end do
 
       !- Write the modified Std. Dev.
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         allocate(tgstdbg_tmp(ni_l,nj_l))
         do jlat = 1, nj_l
           do jlon = 1,ni_l
@@ -1769,7 +1767,7 @@ CONTAINS
           zsp(jn,jlevo) = zspbuf(jlevo)
         enddo
       enddo
-      if(mpi_myid == 0.and.firstn.ne.-1) then
+      if(mmpi_myid == 0.and.firstn.ne.-1) then
         write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar, &
                      ' AT N BETWEEN ',firstn,' AND ',lastn,', SETTING TO ZERO!!!'
       endif
@@ -1829,7 +1827,7 @@ CONTAINS
         zsp(jn,1) = zspbuf(1)
 
       enddo
-      if(mpi_myid == 0.and.firstn.ne.-1) then
+      if(mmpi_myid == 0.and.firstn.ne.-1) then
         write(*,*) 'WARNING: CANNOT FIND SPSTD FOR ',clnomvar, &
                      ' AT N BETWEEN ',firstn,' AND ',lastn,', SETTING TO ZERO!!!'
 
@@ -2144,7 +2142,7 @@ CONTAINS
       if(ikey .ge.0 ) then
         ikey = utl_fstlir(ztheta,nulbgst,ini,inj,ink,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
-        if(mpi_myid == 0) write(*,*) 'WARNING: CANNOT FIND THETA FOR ',jn,' SETTING TO ZERO!!!'
+        if(mmpi_myid == 0) write(*,*) 'WARNING: CANNOT FIND THETA FOR ',jn,' SETTING TO ZERO!!!'
         ztheta(:) = 0.0d0
       endif
 
@@ -2181,7 +2179,7 @@ CONTAINS
       if(ikey .ge.0 ) then
         ikey = utl_fstlir(zPtoTsrc,nulbgst,ini,inj,ink,idateo,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       else
-        if(mpi_myid == 0) write(*,*) 'WARNING: CANNOT FIND P_to_T FOR ',jn,' SETTING TO ZERO!!!'
+        if(mmpi_myid == 0) write(*,*) 'WARNING: CANNOT FIND P_to_T FOR ',jn,' SETTING TO ZERO!!!'
         zPtoTsrc(:,:) = 0.0d0
       endif
 
@@ -2216,7 +2214,7 @@ CONTAINS
     integer          :: jn, jm, ila_mpiglobal, ila_mpilocal, jlev, jdim
 
     if(.not. initialized) then
-      if(mpi_myid == 0) write(*,*) 'bhi_truncateCV: bMatrixHI not initialized'
+      if(mmpi_myid == 0) write(*,*) 'bhi_truncateCV: bMatrixHI not initialized'
       return
     endif
 
@@ -2263,11 +2261,11 @@ CONTAINS
     real(8),allocatable :: gd_out(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdimSqrt)
 
-    if(mpi_myid == 0) write(*,*) 'bhi_bsqrt: starting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bhi_bsqrt: starting'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if(.not. initialized) then
-      if(mpi_myid == 0) write(*,*) 'bMatrixHI not initialized'
+      if(mmpi_myid == 0) write(*,*) 'bMatrixHI not initialized'
       return
     endif
 
@@ -2286,8 +2284,8 @@ CONTAINS
 
     deallocate(gd_out)
 
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid == 0) write(*,*) 'bhi_bsqrt: done'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bhi_bsqrt: done'
 
   END SUBROUTINE BHI_bSqrt
 
@@ -2305,12 +2303,12 @@ CONTAINS
     real(8)   :: hiControlVector(nla_mpilocal,2,nkgdimSqrt)
 
     if(.not. initialized) then
-      if(mpi_myid == 0) write(*,*) 'bMatrixHI not initialized'
+      if(mmpi_myid == 0) write(*,*) 'bMatrixHI not initialized'
       return
     endif
 
-    if(mpi_myid == 0) write(*,*) 'bhi_bsqrtad: starting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bhi_bsqrtad: starting'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdim))
     gd_in(:,:,:) = 0.d0
@@ -2328,8 +2326,8 @@ CONTAINS
 
     deallocate(gd_in)
 
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if(mpi_myid == 0) write(*,*) 'bhi_bsqrtad: done'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bhi_bsqrtad: done'
 
   END SUBROUTINE BHI_bSqrtAd
 
@@ -2466,8 +2464,8 @@ CONTAINS
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
-    if(mpi_myid == 0) then
-       allocate(cvDim_allMpiLocal(mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(cvDim_allMpiLocal(mmpi_nprocs))
     else
        allocate(cvDim_allMpiLocal(1))
     end if
@@ -2475,13 +2473,13 @@ CONTAINS
     call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
                          cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
 
-    if(mpi_myid == 0) then
-       allocate(allnBeg(mpi_nprocs))
-       allocate(allnEnd(mpi_nprocs))
-       allocate(allnSkip(mpi_nprocs))
-       allocate(allmBeg(mpi_nprocs))
-       allocate(allmEnd(mpi_nprocs))
-       allocate(allmSkip(mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(allnBeg(mmpi_nprocs))
+       allocate(allnEnd(mmpi_nprocs))
+       allocate(allnSkip(mmpi_nprocs))
+       allocate(allmBeg(mmpi_nprocs))
+       allocate(allmEnd(mmpi_nprocs))
+       allocate(allmSkip(mmpi_nprocs))
     else
        allocate(allnBeg(1))
        allocate(allnEnd(1))
@@ -2506,12 +2504,12 @@ CONTAINS
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
     ! Prepare to data to be distributed
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
 
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
        !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-       do jproc = 0, (mpi_nprocs-1)
+       do jproc = 0, (mmpi_nprocs-1)
           cv_allmaxmpilocal(:,jproc+1) = 0.d0
           jdim_mpilocal = 0
 
@@ -2573,8 +2571,8 @@ CONTAINS
     end if
 
     !- Distribute
-    allocate(displs(mpi_nprocs))
-    do jproc = 0, (mpi_nprocs-1)
+    allocate(displs(mmpi_nprocs))
+    do jproc = 0, (mmpi_nprocs-1)
        displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
                                                  ! to take the outgoing data to process jproc
     end do
@@ -2614,8 +2612,8 @@ CONTAINS
     call rpn_comm_allreduce(cvDim_mpilocal, cvDim_maxmpilocal, &
                             1,"MPI_INTEGER","MPI_MAX","GRID",ierr)
 
-    if(mpi_myid == 0) then
-       allocate(cvDim_allMpiLocal(mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(cvDim_allMpiLocal(mmpi_nprocs))
     else
        allocate(cvDim_allMpiLocal(1))
     end if
@@ -2623,13 +2621,13 @@ CONTAINS
     call rpn_comm_gather(cvDim_mpiLocal   ,1,"mpi_integer",       &
                          cvDim_allMpiLocal,1,"mpi_integer",0,"GRID",ierr)
 
-    if(mpi_myid == 0) then
-       allocate(allnBeg(mpi_nprocs))
-       allocate(allnEnd(mpi_nprocs))
-       allocate(allnSkip(mpi_nprocs))
-       allocate(allmBeg(mpi_nprocs))
-       allocate(allmEnd(mpi_nprocs))
-       allocate(allmSkip(mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(allnBeg(mmpi_nprocs))
+       allocate(allnEnd(mmpi_nprocs))
+       allocate(allnSkip(mmpi_nprocs))
+       allocate(allmBeg(mmpi_nprocs))
+       allocate(allmEnd(mmpi_nprocs))
+       allocate(allmSkip(mmpi_nprocs))
     else
        allocate(allnBeg(1))
        allocate(allnEnd(1))
@@ -2654,12 +2652,12 @@ CONTAINS
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
     ! Prepare to data to be distributed
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
 
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
 
        !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-       do jproc = 0, (mpi_nprocs-1)
+       do jproc = 0, (mmpi_nprocs-1)
           cv_allmaxmpilocal(:,jproc+1) = 0.d0
           jdim_mpilocal = 0
 
@@ -2721,8 +2719,8 @@ CONTAINS
     end if
 
     !- Distribute
-    allocate(displs(mpi_nprocs))
-    do jproc = 0, (mpi_nprocs-1)
+    allocate(displs(mmpi_nprocs))
+    do jproc = 0, (mmpi_nprocs-1)
        displs(jproc+1) = jproc*cvDim_maxMpiLocal ! displacement wrt cv_allMaxMpiLocal from which
                                                  ! to take the outgoing data to process jproc
     end do
@@ -2764,8 +2762,8 @@ CONTAINS
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
     nullify(cv_allmaxmpilocal)
-    if(mpi_myid == 0) then
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
     else
        allocate(cv_allmaxmpilocal(1,1))
     end if
@@ -2781,13 +2779,13 @@ CONTAINS
     !
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
-    if(mpi_myid == 0) then
-       allocate(allnBeg(mpi_nprocs))
-       allocate(allnEnd(mpi_nprocs))
-       allocate(allnSkip(mpi_nprocs))
-       allocate(allmBeg(mpi_nprocs))
-       allocate(allmEnd(mpi_nprocs))
-       allocate(allmSkip(mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(allnBeg(mmpi_nprocs))
+       allocate(allnEnd(mmpi_nprocs))
+       allocate(allnSkip(mmpi_nprocs))
+       allocate(allmBeg(mmpi_nprocs))
+       allocate(allmEnd(mmpi_nprocs))
+       allocate(allmSkip(mmpi_nprocs))
     else
        allocate(allnBeg(1))
        allocate(allnEnd(1))
@@ -2811,11 +2809,11 @@ CONTAINS
     call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
-    if(mpi_myid == 0) then
+    if(mmpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0
 
       !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-      do jproc = 0, (mpi_nprocs-1)
+      do jproc = 0, (mmpi_nprocs-1)
         jdim_mpilocal = 0
 
         do jlev = 1, nkgdimSqrt
@@ -2891,8 +2889,8 @@ CONTAINS
     allocate(cv_maxmpilocal(cvDim_maxmpilocal))
 
     nullify(cv_allmaxmpilocal)
-    if(mpi_myid == 0) then
-       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(cv_allmaxmpilocal(cvDim_maxmpilocal,mmpi_nprocs))
     else
        allocate(cv_allmaxmpilocal(1,1))
     end if
@@ -2908,13 +2906,13 @@ CONTAINS
     !
     !- 2.  Reorganize gathered mpilocal control vectors into the mpiglobal control vector
     !
-    if(mpi_myid == 0) then
-       allocate(allnBeg(mpi_nprocs))
-       allocate(allnEnd(mpi_nprocs))
-       allocate(allnSkip(mpi_nprocs))
-       allocate(allmBeg(mpi_nprocs))
-       allocate(allmEnd(mpi_nprocs))
-       allocate(allmSkip(mpi_nprocs))
+    if(mmpi_myid == 0) then
+       allocate(allnBeg(mmpi_nprocs))
+       allocate(allnEnd(mmpi_nprocs))
+       allocate(allnSkip(mmpi_nprocs))
+       allocate(allmBeg(mmpi_nprocs))
+       allocate(allmEnd(mmpi_nprocs))
+       allocate(allmSkip(mmpi_nprocs))
     else
        allocate(allnBeg(1))
        allocate(allnEnd(1))
@@ -2938,11 +2936,11 @@ CONTAINS
     call rpn_comm_gather(mymSkip ,1,"mpi_integer",       &
                          allmSkip,1,"mpi_integer",0,"GRID",ierr)
 
-    if(mpi_myid == 0) then
+    if(mmpi_myid == 0) then
       cv_mpiglobal(:) = 0.0d0
 
       !$OMP PARALLEL DO PRIVATE(jproc,jdim_mpilocal,jlev,jm,jn,ila_mpiglobal,jdim_mpiglobal)
-      do jproc = 0, (mpi_nprocs-1)
+      do jproc = 0, (mmpi_nprocs-1)
         jdim_mpilocal = 0
 
         do jlev = 1, nkgdimSqrt

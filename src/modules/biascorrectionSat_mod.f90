@@ -25,8 +25,7 @@ module biasCorrectionSat_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use controlVector_mod
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use tovs_nl_mod
   use timeCoord_mod
   use columnData_mod
@@ -180,7 +179,7 @@ contains
       ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
       read(nulnam,nml=nambiassat,iostat=ierr)
       if (ierr /= 0) call utl_abort('bcs_readConfig: Error reading namelist section nambiassat')
-      if (mpi_myid == 0) write(*,nml=nambiassat)
+      if (mmpi_myid == 0) write(*,nml=nambiassat)
       ierr = fclos(nulnam)
     else
       write(*,*)
@@ -364,7 +363,7 @@ contains
     end if
 
     if  (trim(biasMode) == "varbc" .and. cvdim > 0) then
-      if (mpi_myid > 0) cvdim = 0 ! for minimization, all coefficients only on task 0
+      if (mmpi_myid > 0) cvdim = 0 ! for minimization, all coefficients only on task 0
       call cvm_setupSubVector('BIAS', 'BIAS', cvdim)
     end if
 
@@ -601,7 +600,7 @@ contains
       do iSensor = 1, tvs_nSensors 
         temp_offset(:,:) = 0.0d0
         temp_offset(:,:) = temp_offset2(iSensor,:,:)
-        call mpi_allreduce_sumR8_2d( temp_offset, "GRID" )
+        call mmpi_allreduce_sumR8_2d( temp_offset, "GRID" )
 
         do i = 1, bias(iSensor)%numChannels
           do j = 2, bias(iSensor)%chans(i)%numActivePredictors
@@ -836,8 +835,8 @@ contains
       sensorIndex = tvs_lsensor(indxTovs)
       if (first(fileIndex)) then
         if (obs_mpiLocal(obsSpaceData)) then
-          write(cmyidy,'(i4.4)') (mpi_myidy + 1)
-          write(cmyidx,'(i4.4)') (mpi_myidx + 1)
+          write(cmyidy,'(i4.4)') (mmpi_myidy + 1)
+          write(cmyidx,'(i4.4)') (mmpi_myidx + 1)
           fileNameExtension = trim(cmyidx) // '_' // trim(cmyidy)
         else
           fileNameExtension = ' '
@@ -1060,15 +1059,15 @@ contains
       allocate( stdMpiGlobal(nchans,nscan) )
       allocate( countMpiGlobal(nchans,nscan) )
 
-      call mpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
-      call mpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
       call rpn_comm_reduce(tcount, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
       if (ierr /=0) then
         write(errorMessage,*) "bcs_computeResidualsStatistics: MPI communication error 3", ierr 
         call utl_abort(errorMessage)
       end if
 
-      if (mpi_myId == 0) then
+      if (mmpi_myId == 0) then
         where(countMpiGlobal > 0) 
           biasMpiGlobal = biasMpiGlobal / countMpiGlobal
           stdMpiGlobal = sqrt(stdMpiGlobal/ countMpiGlobal  - biasMpiGlobal**2)
@@ -1191,15 +1190,15 @@ contains
       allocate(stdMpiGlobal(nchans,nfiles))
       allocate(countMpiGlobal(nchans,nfiles))
 
-      call mpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
-      call mpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_2d( tbias, biasMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_2d( tstd, stdMpiGlobal, 0, "GRID" )
       call rpn_comm_reduce(tcount, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
       if (ierr /=0) then
         write(errorMessage,*) "bcs_removeOutliers: MPI communication error 3", ierr 
         call utl_abort(errorMessage)
       end if
 
-      if (mpi_myId == 0) then
+      if (mmpi_myId == 0) then
         where(countMpiGlobal > 0) 
           biasMpiGlobal = biasMpiGlobal / countMpiGlobal
           stdMpiGlobal = sqrt(stdMpiGlobal/ countMpiGlobal  - biasMpiGlobal**2)
@@ -1315,7 +1314,7 @@ contains
     end if
 
     nullify(cv_bias)
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       if (cvm_subVectorExists('BIAS')) then
         cv_Bias => cvm_getSubVector(cv_in, 'BIAS')
         write(*,*) 'bcs_calcBias_tl: maxval(cv_bias) = ', maxval(cv_bias(:))
@@ -1516,7 +1515,7 @@ contains
     integer  :: index_cv, iSensor, iChannel, iPredictor, iScan
     integer  :: nsize, ierr
  
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(*,*) 'bcs_cvToCoeff: start'
       index_cv = 0
       ! initialize of coeffIncr
@@ -1659,10 +1658,10 @@ contains
 
     if (.not. biasActive) return
 
-    if (mpi_myid == 0) write(*,*) 'bcs_calcBias_ad: start'
+    if (mmpi_myid == 0) write(*,*) 'bcs_calcBias_ad: start'
 
     nullify(cv_bias)
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       if (cvm_subVectorExists('BIAS')) then
         cv_bias => cvm_getSubVector(cv_out, 'BIAS')
       else
@@ -1740,7 +1739,7 @@ contains
     ! put the coefficients into the control vector
     call bcs_cvToCoeff_ad(cv_bias)
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(*,*) 'bcs_calcBias_ad: maxval(cv_bias) = ', maxval(cv_bias(:))
     end if
 
@@ -1774,7 +1773,7 @@ contains
             nSize = bias(iSensor)%chans(iChan)%numActivePredictors
             allocate(temp_coeffIncr(nSize))
             temp_coeffIncr(:) = 0.0d0
-            call mpi_reduce_sumR8_1d( bias(iSensor)%chans(ichan)%coeffIncr(:), temp_coeffIncr, 0, "GRID" )
+            call mmpi_reduce_sumR8_1d( bias(iSensor)%chans(ichan)%coeffIncr(:), temp_coeffIncr, 0, "GRID" )
             bias(iSensor)%chans(ichan)%coeffIncr(:) = temp_coeffIncr(:)
             deallocate(temp_coeffIncr)
           end if
@@ -1792,7 +1791,7 @@ contains
           do ichan = 1, nChan
             if (bias(iSensor)%chans(ichan)%isDynamic) then
               temp_coeffIncr_fov(:) = 0.0d0
-              call mpi_reduce_sumR8_1d( bias(iSensor)%chans(ichan)%coeffIncr_fov, temp_coeffIncr_fov, 0, "GRID" )
+              call mmpi_reduce_sumR8_1d( bias(iSensor)%chans(ichan)%coeffIncr_fov, temp_coeffIncr_fov, 0, "GRID" )
               bias(iSensor)%chans(iChan)%coeffIncr_fov(:) = temp_coeffIncr_fov(:)
             end if
           end do
@@ -1801,7 +1800,7 @@ contains
       end if
     end do
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       cv_bias(:) = 0.d0
       index_cv = 0
       do iSensor = 1, tvs_nSensors
@@ -1863,7 +1862,7 @@ contains
 
     if (present(cv_in)) then
       nullify(cv_bias)
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         if (cvm_subVectorExists('BIAS')) then
           cv_bias => cvm_getSubVector(cv_in, 'BIAS')
           write(*,*) 'bcs_writeBias: maxval(cv_bias) = ', maxval(cv_bias(:))
@@ -1893,7 +1892,7 @@ contains
               end do
             end if
           end do
-          if (bias(iSensor)%chans(iChannel)%numActivePredictors > 0 .and. mpi_myId ==0 .and. (.not. doRegression)) &
+          if (bias(iSensor)%chans(iChannel)%numActivePredictors > 0 .and. mmpi_myId ==0 .and. (.not. doRegression)) &
                write(*,*) "bcs_writeBias: bias(iSensor)%chans(iChannel)%coeffIncr(:) = ",  bias(iSensor)%chans(iChannel)%coeffIncr(:)
         end do
       end if
@@ -1904,7 +1903,7 @@ contains
       return
     end if
 
-    if (mpi_myId == 0) then
+    if (mmpi_myId == 0) then
 
       ! write out bias coefficient increments in ascii file
       nulfile_inc = 0
@@ -2124,7 +2123,7 @@ contains
     !- 3. Write out updated_coeff
     ! 
 
-    if (mpi_myId == 0) then
+    if (mmpi_myId == 0) then
 
       iuncoef2 = 0
       filename2 = './anlcoeffs_' // cinstrum 
@@ -2168,7 +2167,7 @@ contains
     character(len=80)  :: instrName, satNamecoeff
     integer :: sensorIndex, nchans, nscan, nfov, kpred, kFov, jChan
 
-    if (mpi_myId == 0) then
+    if (mmpi_myId == 0) then
 
       SENSORS:do sensorIndex = 1, tvs_nsensors
 
@@ -2244,7 +2243,7 @@ contains
 
     if (.not. removeBiasCorrection) return
 
-    if (mpi_myid == 0) write(*,*) 'bcs_removeBiasCorrection: start'
+    if (mmpi_myid == 0) write(*,*) 'bcs_removeBiasCorrection: start'
 
     nbcor = 0
     call obs_set_current_body_list(obsSpaceData, family_opt)
@@ -2262,7 +2261,7 @@ contains
       end if
     end do BODY
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(*,*) 'bcs_removeBiasCorrection: removed bias correction for ', nbcor, ' observations'
       write(*,*) 'bcs_removeBiasCorrection exiting'
     end if
@@ -2292,7 +2291,7 @@ contains
 
     if (.not. filterObs) return
 
-    if (mpi_myid == 0) write(*,*) 'bcs_filterObs: start'
+    if (mmpi_myid == 0) write(*,*) 'bcs_filterObs: start'
 
     call obs_set_current_header_list(obsSpaceData, 'TO')
     HEADER: do
@@ -2488,7 +2487,7 @@ contains
     if (.not. biasActive) return
     if (trim(biasMode) /= "apply") return
 
-    if (mpi_myid == 0) write(*,*) 'bcs_applyBiasCorrection: start'
+    if (mmpi_myid == 0) write(*,*) 'bcs_applyBiasCorrection: start'
 
     nbcor = 0
     call obs_set_current_body_list(obsSpaceData, family_opt)
@@ -2510,7 +2509,7 @@ contains
       end if
     end do BODY
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(*,*) 'bcs_applyBiasCorrection: apply bias correction for ', nbcor, ' observations'
       write(*,*) 'bcs_applyBiasCorrection exiting'
     end if
@@ -2535,10 +2534,10 @@ contains
     if (.not.biasActive) return
     if (.not. refreshBiasCorrection) return
 
-    if (mpi_myid == 0) write(*,*) 'bcs_refreshBiasCorrection: start'
+    if (mmpi_myid == 0) write(*,*) 'bcs_refreshBiasCorrection: start'
     call bcs_calcBias(obsSpaceData, columnTrlOnTrlLev)
     call bcs_applyBiasCorrection(obsSpaceData, OBS_VAR, "TO")
-    if (mpi_myid == 0) write(*,*) 'bcs_refreshBiasCorrection: exit'
+    if (mmpi_myid == 0) write(*,*) 'bcs_refreshBiasCorrection: exit'
 
   end subroutine bcs_refreshBiasCorrection
 
@@ -2744,7 +2743,7 @@ contains
       allocate(omfCountMpiGlobal(nchans,nscan))
 
       if (mimicSatbcor) then
-        call mpi_reduce_sumR8_2d( OmFBias, omfBiasMpiGlobal, 0, "GRID" )
+        call mmpi_reduce_sumR8_2d( OmFBias, omfBiasMpiGlobal, 0, "GRID" )
       end if
       call rpn_comm_reduce(OmFCount, omfCountMpiGlobal, size(omfCountMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
 
@@ -2753,7 +2752,7 @@ contains
         call utl_abort(errorMessage)
       end if
       if (mimicSatbcor)  then
-        if (mpi_myId == 0) then
+        if (mmpi_myId == 0) then
           where(omfCountMpiGlobal == 0) omfBiasMpiGlobal = 0.d0
           where(omfCountMpiGlobal > 0) omfBiasMpiGlobal = omfBiasMpiGlobal / omfCountMpiGlobal
         end if
@@ -2833,7 +2832,7 @@ contains
         end do BODY2
       end do HEADER2
 
-      if (mpi_myId == 0) then
+      if (mmpi_myId == 0) then
         allocate(matrixMpiGlobal(nchans,ndimmax,ndimmax))
         allocate(vectorMpiGlobal(nchans,ndimmax))
       else
@@ -2842,12 +2841,12 @@ contains
       end if
 
       ! communication MPI pour tout avoir sur tache 0
-      call mpi_reduce_sumR8_3d( Matrix, matrixMpiGlobal, 0, "GRID" )
-      call mpi_reduce_sumR8_2d( Vector, vectorMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_3d( Matrix, matrixMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_2d( Vector, vectorMpiGlobal, 0, "GRID" )
 
       do iChannel = 1, nchans
 
-        if (mpi_myId == 0) then
+        if (mmpi_myId == 0) then
           ntot = sum(omfCountMpiGlobal(iChannel, :))
           bias(sensorIndex)%chans(iChannel)%coeff_nobs = ntot
           if (ntot > 0 .and. .not. mimicSatbcor) then
@@ -2995,8 +2994,8 @@ contains
       allocate(countMpiGlobal(nchans))
       allocate(predBiasMpiGlobal(nchans,numPredictors))
 
-      call mpi_reduce_sumR8_1d(OmFBias, omfBiasMpiGlobal, 0, "GRID" )
-      call mpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_1d(OmFBias, omfBiasMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_2d(predBias, predBiasMpiGlobal, 0, "GRID" )
 
       call rpn_comm_reduce(count, countMpiGlobal, size(countMpiGlobal), "mpi_integer", "MPI_SUM", 0, "GRID", ierr)
       if (ierr /= 0) then
@@ -3004,7 +3003,7 @@ contains
         call utl_abort(errorMessage)
       end if
 
-      if (mpi_myId == 0) then
+      if (mmpi_myId == 0) then
         where(countMpiGlobal == 0) omfBiasMpiGlobal = 0.d0
         where(countMpiGlobal > 0) omfBiasMpiGlobal = omfBiasMpiGlobal / countMpiGlobal
         do channelIndex =1, nchans
@@ -3072,18 +3071,18 @@ contains
         end do BODY2
       end do HEADER2
 
-      if (mpi_myId == 0) then
+      if (mmpi_myId == 0) then
         allocate(matrixMpiGlobal(nchans,numPredictors,numPredictors))
       else
         allocate(matrixMpiGlobal(1,1,1))
       end if
 
       ! communication MPI pour tout avoir sur tache 0
-      call mpi_reduce_sumR8_3d(matrix, matrixMpiGlobal, 0, "GRID" )
+      call mmpi_reduce_sumR8_3d(matrix, matrixMpiGlobal, 0, "GRID" )
       deallocate(matrix)
       deallocate(OmFBiasMpiGLobal)
       deallocate(predBiasMpiGLobal)
-      if (mpi_myId == 0) then
+      if (mmpi_myId == 0) then
         call utl_open_asciifile("covarianceMatrix_" // trim(tvs_instrumentName(sensorIndex)) //  &
              "_" // trim(tvs_satelliteName(sensorIndex)) // ".dat", iuncov)
         call utl_open_asciifile("correlationMatrix_" // trim(tvs_instrumentName(sensorIndex)) //  &
@@ -3770,15 +3769,15 @@ contains
       numHeader = numHeader + 1
       numBody = numBody + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)
     end do HEADERCOUNT
-    allocate(allNumHeader(mpi_nprocs))
-    allocate(allNumBody(mpi_nprocs))
+    allocate(allNumHeader(mmpi_nprocs))
+    allocate(allNumBody(mmpi_nprocs))
     call rpn_comm_allgather(numHeader, 1, 'mpi_integer',       &
                             allNumHeader, 1, 'mpi_integer', 'GRID', ierr)
     call rpn_comm_allgather(numBody, 1, 'mpi_integer',       &
                             allNumBody, 1, 'mpi_integer', 'GRID', ierr)
-    if (mpi_myid > 0) then
-      idObs = sum(allNumHeader(1:mpi_myid))
-      idData = sum(allNumBody(1:mpi_myid))
+    if (mmpi_myid > 0) then
+      idObs = sum(allNumHeader(1:mmpi_myid))
+      idData = sum(allNumBody(1:mmpi_myid))
     else
       idObs = 0
       idData = 0

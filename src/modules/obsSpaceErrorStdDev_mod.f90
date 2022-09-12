@@ -20,7 +20,7 @@ module obsSpaceErrorStdDev_mod
   ! :Purpose: Contains subroutines for computing background-error and OmP-error
   !           standard deviations in observation space
   !
-  use mpi_mod
+  use midasMpi_mod
   use obsSpaceData_mod
   use columnData_mod
   use bufr_mod
@@ -178,7 +178,7 @@ module obsSpaceErrorStdDev_mod
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=namhbht,iostat=ierr)
       if ( ierr /= 0) call utl_abort('ose_computeStddev: Error reading namelist')
-      if ( mpi_myid == 0 ) write(*,nml=namhbht)
+      if ( mmpi_myid == 0 ) write(*,nml=namhbht)
       ierr = fclos(nulnam)
 
       write(*,*)
@@ -342,7 +342,7 @@ module obsSpaceErrorStdDev_mod
          write(*,*) 'Computing HBHT from Bnmc - Start'
          active = .true.
       else
-         if ( mpi_myid == 0 ) write(*,*) 'ose_compute_hbht_static: option NOT ACTIVATED'
+         if ( mmpi_myid == 0 ) write(*,*) 'ose_compute_hbht_static: option NOT ACTIVATED'
          active = .false.
          return
       end if
@@ -794,7 +794,7 @@ module obsSpaceErrorStdDev_mod
       write(*,*)
       write(*,*) 'Computing H*B*H^T using B_static_chm - Start'
     else
-      if ( mpi_myid == 0 ) write(*,*) 'ose_compute_HBHT_static_chem: option NOT ACTIVATED'
+      if ( mmpi_myid == 0 ) write(*,*) 'ose_compute_HBHT_static_chem: option NOT ACTIVATED'
       return
     end if
           
@@ -850,7 +850,7 @@ module obsSpaceErrorStdDev_mod
       write(*,*) 'Computing HBHT from ensemble perturbations - START'
       active = .true.
     else
-      if ( mpi_myid == 0 ) write(*,*) 'ose_compute_hbht_ensemble: option NOT ACTIVATED'
+      if ( mmpi_myid == 0 ) write(*,*) 'ose_compute_hbht_ensemble: option NOT ACTIVATED'
       active = .false.
       return
     end if
@@ -2536,7 +2536,7 @@ module obsSpaceErrorStdDev_mod
       
         where ( nSeriest > 5*minCount ) sumSqrOmP2dt = sumSqrOmP2dt/nSeriest - (sumOmP2dt/nSeriest)**2
         
-        if (mpi_myid == 0) then
+        if (mmpi_myid == 0) then
            write(*,*) 'Calculated OmP error std dev'
            write(*,*) 'latbin levbin Npts      AvgOmP    OmPStddev'
         end if
@@ -2548,7 +2548,7 @@ module obsSpaceErrorStdDev_mod
             if (varOmP  < minVal*minVal ) then
                availableOmP = .false.
             else     
-              if (mpi_myid == 0 ) write(*,110) latIndex,levIndex,nSeriest(levIndex,latIndex),sumOmP2dt(levIndex,latIndex)/nSeriest(levIndex,latIndex),sqrt(varOmP)
+              if (mmpi_myid == 0 ) write(*,110) latIndex,levIndex,nSeriest(levIndex,latIndex),sumOmP2dt(levIndex,latIndex)/nSeriest(levIndex,latIndex),sqrt(varOmP)
             end if
           else
             availableOmP = .false.

@@ -21,7 +21,7 @@ program midas_letkf
   !           Many aspects of this program are controlled throught the namelist
   !           block NAMLETKF.
   use version_mod
-  use mpi_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use fileNames_mod
   use ensembleObservations_mod
@@ -125,8 +125,8 @@ program midas_letkf
   !
   !- 0. MPI, TMG and misc. initialization
   !
-  call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call mmpi_initialize
+  call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
 
@@ -173,7 +173,7 @@ program midas_letkf
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namletkf, iostat=ierr)
   if ( ierr /= 0) call utl_abort('midas-letkf: Error reading namelist')
-  if ( mpi_myid == 0 ) write(*,nml=namletkf)
+  if ( mmpi_myid == 0 ) write(*,nml=namletkf)
   ierr = fclos(nulnam)
 
   !- 1.3 Some minor modifications of namelist values
@@ -220,8 +220,8 @@ program midas_letkf
   call gsv_setup
 
   !- 2.4 Initialize the Ensemble grid
-  if (mpi_myid == 0) write(*,*) ''
-  if (mpi_myid == 0) write(*,*) 'midas-letkf: Set hco and vco parameters for ensemble grid'
+  if (mmpi_myid == 0) write(*,*) ''
+  if (mmpi_myid == 0) write(*,*) 'midas-letkf: Set hco and vco parameters for ensemble grid'
   call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=1, &
                         copyToRamDisk_opt=.false. )
   call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
@@ -376,7 +376,7 @@ program midas_letkf
 
   ! Compute random observation perturbations
   if (trim(algorithm) == 'CVLETKF-PERTOBS') then
-    randomSeedObs = 1 + mpi_myid
+    randomSeedObs = 1 + mmpi_myid
     call eob_calcRandPert(ensObs, randomSeedObs)
   end if
 
@@ -573,7 +573,7 @@ program midas_letkf
                          writeTrlEnsemble=.false., outputOnlyEnsMean_opt=outputOnlyEnsMean)
   else
     !- Just write the raw analysis ensemble to files
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       write(*,*) 'midas-letkf: No ensemble post-processing requested, so just write the raw analysis ensemble'
     end if
     call utl_tmg_start(3,'--WriteEnsemble')
@@ -592,13 +592,13 @@ program midas_letkf
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call utl_tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
-  if ( mpi_myid == 0 ) write(*,*) ' MIDAS-LETKF ENDS'
-  if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if ( mmpi_myid == 0 ) write(*,*) ' MIDAS-LETKF ENDS'
+  if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
 
 end program midas_letkf

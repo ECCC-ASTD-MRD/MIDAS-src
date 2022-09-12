@@ -24,8 +24,7 @@ module stateToColumn_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use mpi, only : mpi_status_size ! this is the mpi library module
-  use mpi_mod
-  use mpivar_mod 
+  use midasMpi_mod
   use codePrecision_mod
   use gridstatevector_mod
   use obsSpaceData_mod
@@ -389,8 +388,8 @@ contains
     real(4), save, pointer :: height3D_T_r4(:,:,:), height3D_M_r4(:,:,:)
     real(8), pointer :: height3D_r8_ptr1(:,:,:)
     real(kdkind), allocatable :: positionArray(:,:)
-    integer :: sendsizes(mpi_nprocs), recvsizes(mpi_nprocs), senddispls(mpi_nprocs)
-    integer :: recvdispls(mpi_nprocs), allkBeg(mpi_nprocs)
+    integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs)
+    integer :: recvdispls(mmpi_nprocs), allkBeg(mmpi_nprocs)
     integer :: codeType, nlev_T, nlev_M, levIndex 
     integer :: lonIndex, latIndex, gridIndex
     integer :: maxkcount, numkToSend, numTovsUsingFootprint, numAllTovs
@@ -427,7 +426,7 @@ contains
       rejectObsNonMonotonicPressure =.true.
 
       if ( .not. utl_isNamelistPresent('NAMS2C','./flnml') ) then
-        if ( mpi_myid == 0 ) then
+        if ( mmpi_myid == 0 ) then
           write(*,*) 's2c_setupInterpInfo: nams2c is missing in the namelist.'
           write(*,*) '                     The default values will be taken.'
         end if
@@ -440,7 +439,7 @@ contains
         if ( ierr /= 0 ) call utl_abort('s2c_setupInterpInfo: Error reading namelist')
         ierr = fclos(nulnam)
       end if
-      if ( mpi_myid == 0 ) write(*, nml = nams2c)
+      if ( mmpi_myid == 0 ) write(*, nml = nams2c)
     end if
 
     doSlantPath = .false.
@@ -472,7 +471,7 @@ contains
                    headerIndexBeg, headerIndexEnd, &
                    interpType_opt=timeInterpType, flagObsOutside_opt=.true.)
 
-    if ((stateVector%heightSfcPresent) .and. ( mpi_myid == 0)) then
+    if ((stateVector%heightSfcPresent) .and. ( mmpi_myid == 0)) then
       mykBeg = 0 
     else
       mykBeg = stateVector%mykBeg
@@ -490,7 +489,7 @@ contains
     end if
 
     ! First count the number of headers for each stepIndex
-    allocate(allNumHeaderUsed(numStep,mpi_nprocs))
+    allocate(allNumHeaderUsed(numStep,mmpi_nprocs))
     allNumHeaderUsed(:,:) = 0
     do stepIndex = 1, numStep
       numHeaderUsed = 0
@@ -530,9 +529,9 @@ contains
                       stateVector%hco ) ! IN 
     end if
 
-    allocate(interpInfo%stepProcData(mpi_nprocs,numStep))
+    allocate(interpInfo%stepProcData(mmpi_nprocs,numStep))
     do stepIndex = 1,numStep
-      do procIndex = 1, mpi_nprocs
+      do procIndex = 1, mmpi_nprocs
         allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat(allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
         allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon(allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
         interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,:) = 0.0d0
@@ -549,17 +548,17 @@ contains
     end do
 
     ! allocate arrays that will be returned
-    allocate(interpInfo%allNumHeaderUsed(numStep,mpi_nprocs))
-    allocate(allLatOneLev(numHeaderUsedMax,mpi_nprocs))
-    allocate(allLonOneLev(numHeaderUsedMax,mpi_nprocs))
-    allocate(allFootprintRadius_r4(numHeaderUsedMax,numStep,mpi_nprocs))
+    allocate(interpInfo%allNumHeaderUsed(numStep,mmpi_nprocs))
+    allocate(allLatOneLev(numHeaderUsedMax,mmpi_nprocs))
+    allocate(allLonOneLev(numHeaderUsedMax,mmpi_nprocs))
+    allocate(allFootprintRadius_r4(numHeaderUsedMax,numStep,mmpi_nprocs))
     allocate(numGridpt(interpInfo%hco%numSubGrid))
     allFootprintRadius_r4(:,:,:) = bilinearFootprint
     interpInfo%allNumHeaderUsed(:,:) = allNumHeaderUsed(:,:)
 
     if ( interpInfo%hco%rotated ) then
       do stepIndex = 1, numStep
-        do procIndex = 1, mpi_nprocs
+        do procIndex = 1, mmpi_nprocs
           allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
           allocate(interpInfo%stepProcData(procIndex,stepIndex)%allLonRot(interpInfo%hco%numSubGrid,allNumHeaderUsed(stepIndex,procIndex),mykBeg:stateVector%mykEnd))
           interpInfo%stepProcData(procIndex,stepIndex)%allLatRot(:,:,:) = 0.0d0
@@ -800,15 +799,15 @@ contains
         ! MPI communication for the slant-path lat/lon
 
         maxkCount = maxval(stateVector%allkCount(:) + stateVector%allkBeg(:) - allkBeg(:))
-        numkToSend = min(mpi_nprocs,stateVector%nk)
+        numkToSend = min(mmpi_nprocs,stateVector%nk)
 
-        allocate(lat_recv_r8(numHeaderUsedMax,mpi_nprocs))
+        allocate(lat_recv_r8(numHeaderUsedMax,mmpi_nprocs))
         lat_recv_r8(:,:) = 0.0d0
-        allocate(lat_send_r8(numHeaderUsedMax,mpi_nprocs))
+        allocate(lat_send_r8(numHeaderUsedMax,mmpi_nprocs))
         lat_send_r8(:,:) = 0.0d0
-        allocate(lon_recv_r8(numHeaderUsedMax,mpi_nprocs))
+        allocate(lon_recv_r8(numHeaderUsedMax,mmpi_nprocs))
         lon_recv_r8(:,:) = 0.0d0
-        allocate(lon_send_r8(numHeaderUsedMax,mpi_nprocs))
+        allocate(lon_send_r8(numHeaderUsedMax,mmpi_nprocs))
         lon_send_r8(:,:) = 0.0d0
 
         ! only send the data from tasks with data, same amount to all
@@ -817,12 +816,12 @@ contains
           sendsizes(procIndex) = numHeaderUsed
         end do
         senddispls(1) = 0
-        do procIndex = 2, mpi_nprocs
+        do procIndex = 2, mmpi_nprocs
           senddispls(procIndex) = senddispls(procIndex-1) + numHeaderUsedMax
         end do
 
         recvdispls(1) = 0
-        do procIndex = 2, mpi_nprocs
+        do procIndex = 2, mmpi_nprocs
           recvdispls(procIndex) = recvdispls(procIndex-1) + numHeaderUsedMax
         end do
 
@@ -830,7 +829,7 @@ contains
         do kIndexCount = 1, maxkCount
 
           sendsizes(:) = 0
-          do procIndex = 1, mpi_nprocs
+          do procIndex = 1, mmpi_nprocs
             ! compute kIndex value being sent
             kIndex = kIndexCount + allkBeg(procIndex) - 1
             if ( kIndex <= stateVector%allkEnd(procIndex) ) then
@@ -850,21 +849,21 @@ contains
           ! all tasks recv only from those with data
           kIndex = kIndexCount + mykBeg - 1
           if ( kIndex <= stateVector%mykEnd ) then
-            do procIndex = 1, mpi_nprocs
+            do procIndex = 1, mmpi_nprocs
               recvsizes(procIndex) = allNumHeaderUsed(stepIndex,procIndex)
             end do
           else
             recvsizes(:) = 0
           end if
 
-          call mpi_alltoallv(lat_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
-                             lat_recv_r8, recvsizes, recvdispls, mpi_datyp_real8,  &
-                             mpi_comm_grid, ierr)
-          call mpi_alltoallv(lon_send_r8, sendsizes, senddispls, mpi_datyp_real8,  &
-                             lon_recv_r8, recvsizes, recvdispls, mpi_datyp_real8,  &
-                             mpi_comm_grid, ierr)
+          call mpi_alltoallv(lat_send_r8, sendsizes, senddispls, mmpi_datyp_real8,  &
+                             lat_recv_r8, recvsizes, recvdispls, mmpi_datyp_real8,  &
+                             mmpi_comm_grid, ierr)
+          call mpi_alltoallv(lon_send_r8, sendsizes, senddispls, mmpi_datyp_real8,  &
+                             lon_recv_r8, recvsizes, recvdispls, mmpi_datyp_real8,  &
+                             mmpi_comm_grid, ierr)
 
-          do procIndex = 1, mpi_nprocs
+          do procIndex = 1, mmpi_nprocs
             ! all tasks copy the received step data into correct slot
             kIndex = kIndexCount + mykBeg - 1
             if ( kIndex <= stateVector%mykEnd ) then
@@ -929,7 +928,7 @@ contains
                                 allLonOneLev(:,:), numHeaderUsedMax, 'MPI_REAL8', 'GRID', ierr)
 
         k_loop: do kIndex = mykBeg, statevector%mykEnd
-          do procIndex = 1, mpi_nprocs
+          do procIndex = 1, mmpi_nprocs
             interpInfo%stepProcData(procIndex,stepIndex)%allLat(:,kIndex) = allLatOneLev(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
             interpInfo%stepProcData(procIndex,stepIndex)%allLon(:,kIndex) = allLonOneLev(1:allNumHeaderUsed(stepIndex,procIndex),procIndex)
           end do
@@ -955,13 +954,13 @@ contains
 
     write(*,*) 's2c_setupInterpInfo: latlonChecks and lat/lon MPI comm finished.'
 
-    allocate(allHeaderIndex(numHeaderUsedMax,numStep,mpi_nprocs))
+    allocate(allHeaderIndex(numHeaderUsedMax,numStep,mmpi_nprocs))
     ! gather the headerIndexVec arrays onto all processors
     call rpn_comm_allgather(headerIndexVec, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
                             allHeaderIndex, numHeaderUsedMax*numStep, 'MPI_INTEGER', &
                             'GRID',ierr)
 
-    do procIndex = 1, mpi_nprocs
+    do procIndex = 1, mmpi_nprocs
       do stepIndex = 1, numStep
         do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
           interpInfo%stepProcData(procIndex, stepIndex)%allHeaderIndex(headerIndex) = allHeaderIndex(headerIndex,stepIndex,procIndex)
@@ -1015,7 +1014,7 @@ contains
     do stepIndex = 1, numStep
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex, headerIndex, lat_deg_r4, lon_deg_r4, ierr, xpos_r4, ypos_r4, xpos2_r4, ypos2_r4, &
       !$OMP subGridIndex, numSubGridsForInterp, subGridForInterp, lat, lon, latRot, lonRot, footprintRadius_r4, numGridpt)
-      do procIndex = 1, mpi_nprocs
+      do procIndex = 1, mmpi_nprocs
         do kIndex = mykBeg, statevector%mykEnd
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
 
@@ -1089,7 +1088,7 @@ contains
 
     numGridptTotal = 0
     do stepIndex = 1, numStep
-      do procIndex = 1, mpi_nprocs
+      do procIndex = 1, mmpi_nprocs
         do kIndex = mykBeg, statevector%mykEnd
           do headerIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
             do subGridIndex = 1, interpInfo%hco%numSubGrid
@@ -1116,7 +1115,7 @@ contains
 
     call utl_tmg_start(33,'------s2c_SetupWeights')
     !$OMP PARALLEL DO PRIVATE (procIndex, stepIndex, kIndex, headerIndex, footprintRadius_r4, numGridpt)
-    do procIndex = 1, mpi_nprocs
+    do procIndex = 1, mmpi_nprocs
       do stepIndex = 1, numStep
         do kIndex = mykBeg, statevector%mykEnd
 
@@ -1155,7 +1154,7 @@ contains
     if ( useFootprintForTovs ) then 
       numTovsUsingFootprint = 0
       numAllTovs = 0
-      procIndex = mpi_myid + 1
+      procIndex = mmpi_myid + 1
       do stepIndex = 1, numStep
         do headerUsedIndex = 1, allNumHeaderUsed(stepIndex,procIndex)
           footprintRadius_r4 = allFootprintRadius_r4(headerUsedIndex, stepIndex, procIndex)
@@ -1226,7 +1225,7 @@ contains
 
     call utl_tmg_start(30,'--StateToColumn')
 
-    if ( mpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
+    if ( mmpi_myid == 0 ) write(*,*) 's2c_tl: Horizontal interpolation StateVector --> ColumnData'
     call utl_tmg_start(37,'----s2c_TL')
 
     call rpn_comm_barrier('GRID',ierr)
@@ -1289,14 +1288,14 @@ contains
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
-    allocate(cols_hint(maxval(interpInfo_tlad%allNumHeaderUsed),numStep,mpi_nprocs))
+    allocate(cols_hint(maxval(interpInfo_tlad%allNumHeaderUsed),numStep,mmpi_nprocs))
     cols_hint(:,:,:) = 0.0d0
 
     ! arrays for sending/receiving time interpolated column for 1 level/variable
-    allocate(cols_send(numHeaderMax,mpi_nprocs))
+    allocate(cols_send(numHeaderMax,mmpi_nprocs))
     cols_send(:,:) = 0.0d0
 
-    allocate(cols_recv(numHeaderMax,mpi_nprocs))
+    allocate(cols_recv(numHeaderMax,mmpi_nprocs))
     cols_recv(:,:) = 0.0d0
 
     allocate(cols_send_1proc(numHeaderMax))
@@ -1327,7 +1326,7 @@ contains
           if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
 
           ! interpolate to the columns destined for all procs for all steps and one lev/var
-          do procIndex = 1, mpi_nprocs
+          do procIndex = 1, mmpi_nprocs
             yourNumHeader = interpInfo_tlad%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
@@ -1351,7 +1350,7 @@ contains
         call utl_tmg_stop(38)
 
         ! interpolate in time to the columns destined for all procs and one level/variable
-        do procIndex = 1, mpi_nprocs
+        do procIndex = 1, mmpi_nprocs
           cols_send_1proc(:) = 0.0d0
           do stepIndex = 1, numStep
             !$OMP PARALLEL DO PRIVATE (headerUsedIndex, headerIndex, weight)
@@ -1379,7 +1378,7 @@ contains
 
       ! mpi communication: alltoall for one level/variable
       nsize = numHeaderMax
-      if(mpi_nprocs > 1) then
+      if(mmpi_nprocs > 1) then
         call rpn_comm_alltoall(cols_send, nsize, 'MPI_REAL8',  &
                                cols_recv, nsize, 'MPI_REAL8', 'GRID', ierr)
       else
@@ -1388,7 +1387,7 @@ contains
 
       ! reorganize ensemble of distributed columns
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, varName, levIndex, allCols_ptr, headerIndex)
-      proc_loop: do procIndex = 1, mpi_nprocs
+      proc_loop: do procIndex = 1, mmpi_nprocs
         ! This is kIndex value of source (can be different for destination)
         kIndex2 = statevector_VarsLevs%allkBeg(procIndex) + kCount - 1
         if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
@@ -1463,7 +1462,7 @@ contains
 
     call utl_tmg_start(30,'--StateToColumn')
 
-    if(mpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
+    if(mmpi_myid == 0) write(*,*) 's2c_ad: Adjoint of horizontal interpolation StateVector --> ColumnData'
     call utl_tmg_start(39,'----s2c_AD')
 
     call rpn_comm_barrier('GRID',ierr)
@@ -1522,14 +1521,14 @@ contains
     end if
 
     ! arrays for interpolated column for 1 level/variable and each time step
-    allocate(cols_hint(maxval(interpInfo_tlad%allNumHeaderUsed),numStep,mpi_nprocs))
+    allocate(cols_hint(maxval(interpInfo_tlad%allNumHeaderUsed),numStep,mmpi_nprocs))
     cols_hint(:,:,:) = 0.0d0
 
     ! arrays for sending/receiving time interpolated column for 1 level/variable
-    allocate(cols_send(numHeaderMax,mpi_nprocs))
+    allocate(cols_send(numHeaderMax,mmpi_nprocs))
     cols_send(:,:) = 0.0d0
 
-    allocate(cols_recv(numHeaderMax,mpi_nprocs))
+    allocate(cols_recv(numHeaderMax,mmpi_nprocs))
     cols_recv(:,:) = 0.0d0
 
     ! set contents of column to zero
@@ -1545,7 +1544,7 @@ contains
 
       ! reorganize ensemble of distributed columns
       !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, varName, levIndex, allCols_ptr, headerIndex)
-      proc_loop: do procIndex = 1, mpi_nprocs
+      proc_loop: do procIndex = 1, mmpi_nprocs
         ! This is kIndex value of destination (can be different for source)
         kIndex2 = statevector_VarsLevs%allkBeg(procIndex) + kCount - 1
         if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
@@ -1565,7 +1564,7 @@ contains
 
       ! mpi communication: alltoall for one level/variable
       nsize = numHeaderMax
-      if(mpi_nprocs > 1) then
+      if(mmpi_nprocs > 1) then
         call rpn_comm_alltoall(cols_send, nsize, 'MPI_REAL8',  &
                                cols_recv, nsize, 'MPI_REAL8', 'GRID', ierr)
       else
@@ -1580,7 +1579,7 @@ contains
         end if
 
         ! interpolate in time to the columns destined for all procs and one level/variable
-        do procIndex = 1, mpi_nprocs
+        do procIndex = 1, mmpi_nprocs
           do stepIndex = 1, numStep
             !$OMP PARALLEL DO PRIVATE (headerIndex, headerUsedIndex, weight)
             do headerUsedIndex = 1, interpInfo_tlad%allNumHeaderUsed(stepIndex, procIndex)
@@ -1603,7 +1602,7 @@ contains
           if ( maxval(interpInfo_tlad%allNumHeaderUsed(stepIndex,:)) == 0 ) cycle step_loop
 
           ! interpolate to the columns destined for all procs for all steps and one lev/var
-          do procIndex = 1, mpi_nprocs
+          do procIndex = 1, mmpi_nprocs
             yourNumHeader = interpInfo_tlad%allNumHeaderUsed(stepIndex,procIndex)
             if ( yourNumHeader > 0 ) then
               if ( varName == 'UU' ) then
@@ -1684,7 +1683,7 @@ contains
     integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
     integer :: headerIndexBeg, headerIndexEnd, obsBatchIndex, numObsBatches
-    integer :: procIndex, nsize, ierr, headerUsedIndex, allHeaderIndexBeg(mpi_nprocs)
+    integer :: procIndex, nsize, ierr, headerUsedIndex, allHeaderIndexBeg(mmpi_nprocs)
     integer :: kIndexHeightSfc
     real(8) :: weight
     character(len=4)     :: varName
@@ -1758,7 +1757,7 @@ contains
                          allocHeightSfc_opt=.true., varNames_opt=varNames )
       deallocate(varNames)
     else
-      if (mpi_myid == 0) write(*,*) 's2c_nl: avoid re-allocating statevector_VarsLevs'
+      if (mmpi_myid == 0) write(*,*) 's2c_nl: avoid re-allocating statevector_VarsLevs'
       call gsv_zero(statevector_VarsLevs)
     end if
 
@@ -1810,7 +1809,7 @@ contains
                                   timeInterpType, rejectOutsideObs, &
                                   inputStateVectorType='nl', &
                                   lastCall_opt=(obsBatchIndex==numObsBatches))
-        if ( mpi_myid == 0 .and. verbose ) then
+        if ( mmpi_myid == 0 .and. verbose ) then
           do stepIndex = 1, numStep
             write(*,*) 's2c_nl: stepIndex, allNumHeaderUsed = ',  &
                        stepIndex, interpInfo_nl%allNumHeaderUsed(stepIndex,:)
@@ -1821,14 +1820,14 @@ contains
       end if
 
       ! arrays for interpolated column for 1 level/variable and each time step
-      allocate(cols_hint(maxval(interpInfo_nl%allNumHeaderUsed),numStep,mpi_nprocs))
+      allocate(cols_hint(maxval(interpInfo_nl%allNumHeaderUsed),numStep,mmpi_nprocs))
       cols_hint(:,:,:) = 0.0d0
 
       ! arrays for sending/receiving time interpolated column for 1 level/variable
-      allocate(cols_send(numHeaderMax,mpi_nprocs))
+      allocate(cols_send(numHeaderMax,mmpi_nprocs))
       cols_send(:,:) = 0.0d0
 
-      allocate(cols_recv(numHeaderMax,mpi_nprocs))
+      allocate(cols_recv(numHeaderMax,mmpi_nprocs))
       cols_recv(:,:) = 0.0d0
 
       allocate(cols_send_1proc(numHeaderMax))
@@ -1854,7 +1853,7 @@ contains
 
             ! interpolate to the columns destined for all procs for all steps and one lev/var
             !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader)
-            do procIndex = 1, mpi_nprocs
+            do procIndex = 1, mmpi_nprocs
               yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
               if ( yourNumHeader > 0 ) then
                 if ( varName == 'UU' ) then
@@ -1878,7 +1877,7 @@ contains
           call utl_tmg_stop(35)
 
           ! interpolate in time to the columns destined for all procs and one level/variable
-          do procIndex = 1, mpi_nprocs
+          do procIndex = 1, mmpi_nprocs
             cols_send_1proc(:) = 0.0d0
             do stepIndex = 1, numStep
               !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2, headerUsedIndex, weight)
@@ -1907,7 +1906,7 @@ contains
         call utl_tmg_start(36,'------s2c_NL_allToAll')
         ! mpi communication: alltoall for one level/variable
         nsize = numHeaderMax
-        if(mpi_nprocs > 1) then
+        if(mmpi_nprocs > 1) then
           call rpn_comm_alltoall(cols_send, nsize, 'MPI_REAL8',  &
                                  cols_recv, nsize, 'MPI_REAL8', 'GRID', ierr)
         else
@@ -1916,7 +1915,7 @@ contains
 
         ! reorganize ensemble of distributed columns
         !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex, headerIndex2)
-        proc_loop: do procIndex = 1, mpi_nprocs
+        proc_loop: do procIndex = 1, mmpi_nprocs
           kIndex2 = stateVector_VarsLevs%allkBeg(procIndex) + kCount - 1
           if ( kIndex2 > stateVector_VarsLevs%allkEnd(procIndex) ) cycle proc_loop
           do headerIndex = 1, numHeader
@@ -1949,7 +1948,7 @@ contains
       ! Interpolate surface height separately, only exists on mpi task 0
       HeightSfcPresent: if ( stateVector_VarsLevs%HeightSfcPresent ) then
 
-        if ( mpi_myid == 0 ) then
+        if ( mmpi_myid == 0 ) then
           varName = 'GZ'
           kIndexHeightSfc = 0    
           step_loop_height: do stepIndex = 1, numStep
@@ -1958,7 +1957,7 @@ contains
 
             ! interpolate to the columns destined for all procs for all steps and one lev/var
             !$OMP PARALLEL DO PRIVATE (procIndex, yourNumHeader, ptr2d_r8)
-            do procIndex = 1, mpi_nprocs
+            do procIndex = 1, mmpi_nprocs
               yourNumHeader = interpInfo_nl%allNumHeaderUsed(stepIndex,procIndex)
               if ( yourNumHeader > 0 ) then
                 ptr2d_r8 => gsv_getHeightSfc(stateVector_VarsLevs)
@@ -1971,7 +1970,7 @@ contains
           end do step_loop_height
 
           ! interpolate in time to the columns destined for all procs and one level/variable
-          do procIndex = 1, mpi_nprocs
+          do procIndex = 1, mmpi_nprocs
             cols_send(:,procIndex) = 0.0d0
             do stepIndex = 1, numStep
               !$OMP PARALLEL DO PRIVATE (headerIndex, headerIndex2, headerUsedIndex)
@@ -1989,10 +1988,10 @@ contains
 
         ! mpi communication: scatter data from task 0
         nsize = numHeaderMax
-        if(mpi_nprocs > 1) then
-          allocate(displs(mpi_nprocs))
-          allocate(nsizes(mpi_nprocs))
-          do procIndex = 1, mpi_nprocs
+        if(mmpi_nprocs > 1) then
+          allocate(displs(mmpi_nprocs))
+          allocate(nsizes(mmpi_nprocs))
+          do procIndex = 1, mmpi_nprocs
             displs(procIndex) = (procIndex - 1) * nsize
             nsizes(procIndex) = nsize
           end do
@@ -2905,13 +2904,13 @@ contains
     call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
                             'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
 
-    allocate(allRejectObs(numHeaderMax,mpi_nprocs))
-    allocate(allRejectObsMpiGlobal(numHeaderMax,mpi_nprocs))
+    allocate(allRejectObs(numHeaderMax,mmpi_nprocs))
+    allocate(allRejectObsMpiGlobal(numHeaderMax,mmpi_nprocs))
     allRejectObs(:,:) = .false.
     allRejectObsMpiGlobal(:,:) = .false.
 
     numStep = size(interpInfo%stepProcData(1,:))
-    do procIndex = 1, mpi_nprocs
+    do procIndex = 1, mmpi_nprocs
       do stepIndex = 1, numStep
         do headerUsedIndex = 1, interpInfo%allNumHeaderUsed(stepIndex,procIndex)
           headerIndex = interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex(headerUsedIndex)
@@ -2932,12 +2931,12 @@ contains
     end do ! procIndex
 
     ! do global communication of reject flags
-    nsize = numHeaderMax*mpi_nprocs
+    nsize = numHeaderMax*mmpi_nprocs
     call rpn_comm_allreduce(allRejectObs,allRejectObsMpiGlobal,nsize,'MPI_LOGICAL','MPI_LOR','GRID',ierr)
 
     ! modify obsSpaceData based on reject flags
     do headerIndex = 1, obs_numHeader(obsSpaceData)
-      if (allRejectObsMpiGlobal(headerIndex,mpi_myid+1)) then
+      if (allRejectObsMpiGlobal(headerIndex,mmpi_myid+1)) then
 
         numWrites = numWrites + 1
         if (numWrites < maxNumWrites) then
@@ -3896,7 +3895,7 @@ contains
     deallocate(interpInfo%latIndexDepot)
     deallocate(interpInfo%lonIndexDepot)
     do stepIndex = 1, numStep
-      do procIndex = 1, mpi_nprocs
+      do procIndex = 1, mmpi_nprocs
         deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLat)
         deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allLon)
         deallocate(interpInfo%stepProcData(procIndex,stepIndex)%allHeaderIndex)

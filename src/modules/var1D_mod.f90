@@ -24,7 +24,7 @@ module var1D_mod
   use controlVector_mod
   use gridStatevector_mod
   use horizontalCoord_mod
-  use mpi_mod 
+  use midasMpi_mod 
   use obsSpaceData_mod
   use timeCoord_mod
   use utilities_mod
@@ -65,8 +65,8 @@ contains
     integer :: countGood, headerIndex
     integer :: bodyStart, bodyEnd, bodyIndex
 
-    if(mpi_myid == 0) write(*,*) 'var1D_setup: Starting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if(mmpi_myid == 0) write(*,*) 'var1D_setup: Starting'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     !we want to count how many obs are really assimilable to minimize controlvector size
     var1D_validHeaderCount = 0
@@ -129,28 +129,28 @@ contains
     integer :: varDim, tag
 
     call rpn_comm_barrier("GRID",ierr)
-    allocate( obsOffset(0:mpi_nprocs-1) )
-    if (mpi_myid ==0) then
-      allocate( var1D_validHeaderCountAllTasks(mpi_nprocs) )
+    allocate( obsOffset(0:mmpi_nprocs-1) )
+    if (mmpi_myid ==0) then
+      allocate( var1D_validHeaderCountAllTasks(mmpi_nprocs) )
     else
       allocate(var1D_validHeaderCountAllTasks(1))
     end if
 
     call rpn_comm_gather(var1D_validHeaderCount  , 1, 'MPI_INTEGER', var1D_validHeaderCountAllTasks, 1,'MPI_INTEGER', 0, "GRID", ierr )
-    if (mpi_myId ==0) then
+    if (mmpi_myId ==0) then
       var1D_validHeaderCountMpiGlobal = sum( var1D_validHeaderCountAllTasks(:) )
       var1D_validHeaderCountMax = maxval( var1D_validHeaderCountAllTasks(:) )
       obsOffset(0) = 0
-      do taskIndex = 1, mpi_nprocs - 1
+      do taskIndex = 1, mmpi_nprocs - 1
         obsOffset(taskIndex) = obsOffset(taskIndex - 1) + var1D_validHeaderCountAllTasks(taskIndex)
       end do
       write(*,*) 'var1D_transferColumnToYGrid: obsOffset: ', obsOffset(:)
     end if
-    call rpn_comm_bcast( obsOffset, mpi_nprocs, 'MPI_INTEGER', 0,  "GRID",ierr )
+    call rpn_comm_bcast( obsOffset, mmpi_nprocs, 'MPI_INTEGER', 0,  "GRID",ierr )
     call rpn_comm_bcast( var1D_validHeaderCountMax, 1, 'MPI_INTEGER', 0,  "GRID",ierr )
 
     call hco_setupYgrid(hco_Ygrid, 1, var1D_validHeaderCountMpiGlobal)
-    if (mpi_myId ==0) then
+    if (mmpi_myId ==0) then
       call gsv_allocate(stateVector, numstep=tim_nstepobsinc, hco_ptr=hco_Ygrid, vco_ptr=column%vco, &
            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
            dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false., &
@@ -168,19 +168,19 @@ contains
         lat = MPC_missingValue_R8
         lon = MPC_missingValue_R8
       end if
-      if (mpi_myId == 0) then
+      if (mmpi_myId == 0) then
         if ( obsIndex <= var1D_validHeaderCount ) then
           hco_yGrid%lat2d_4(1, obsIndex) = lat
           hco_yGrid%lon2d_4(1, obsIndex) = lon
         end if
       else
-        tag = 2 * mpi_myID
+        tag = 2 * mmpi_myID
         call rpn_comm_send( lat, 1, 'mpi_real8', 0, tag,     'GRID', ierr )
         call rpn_comm_send( lon, 1, 'mpi_real8', 0, tag + 1, 'GRID', ierr )
       end if
 
-      if (mpi_myId == 0) then
-        do taskIndex = 1,  mpi_nprocs - 1
+      if (mmpi_myId == 0) then
+        do taskIndex = 1,  mmpi_nprocs - 1
           tag = 2 * taskIndex
           call rpn_comm_recv( lat, 1, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr )
           call rpn_comm_recv( lon, 1, 'mpi_real8', taskIndex, tag+1, 'GRID', status, ierr )
@@ -199,7 +199,7 @@ contains
     
     do varIndex = 1, size(varList)
       write(*,*) 'var1D_transferColumnToYGrid: start of dissemination for ', varList(varIndex)
-      if (mpi_myId == 0 ) then
+      if (mmpi_myId == 0 ) then
         call gsv_getField(stateVector, myField, varName_opt=varList(varIndex), stepIndex_opt=1)
         varDim = gsv_getNumLevFromVarName(stateVector, varList(varIndex))
       end if
@@ -213,17 +213,17 @@ contains
         else
           myColumn => dummy
         end if
-        if (mpi_myId == 0) then
+        if (mmpi_myId == 0) then
           if ( obsIndex <= var1D_validHeaderCount ) then
             myField(1, obsIndex, :) = myColumn(:)
           end if
         else
-          tag = mpi_myId
+          tag = mmpi_myId
           call rpn_comm_send(myColumn , varDim, 'mpi_real8', 0, tag, 'GRID', ierr )
         end if
 
-        if (mpi_myId == 0) then
-          do taskIndex = 1,  mpi_nprocs - 1
+        if (mmpi_myId == 0) then
+          do taskIndex = 1,  mmpi_nprocs - 1
             tag = taskIndex
             call rpn_comm_recv(myColumn,  varDim, 'mpi_real8', taskIndex, tag, 'GRID', status, ierr )
             if (all( myColumn /=  MPC_missingValue_R8)) then

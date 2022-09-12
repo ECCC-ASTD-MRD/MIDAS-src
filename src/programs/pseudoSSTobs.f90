@@ -25,7 +25,7 @@ program midas_pseudoSSTobs
   use verticalCoord_mod
   use timeCoord_mod
   use analysisGrid_mod
-  use mpi_mod
+  use midasMpi_mod
   use oceanObservations_mod
   use gridStateVector_mod
   use obsSpaceData_mod
@@ -54,9 +54,9 @@ program midas_pseudoSSTobs
   call ver_printNameAndVersion('pseudoSSTobs','Generation of pseudo SST observations')
 
   ! MPI initialization
-  call mpi_initialize
+  call mmpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
  
@@ -76,7 +76,7 @@ program midas_pseudoSSTobs
 
   call utl_tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 
@@ -113,7 +113,7 @@ program midas_pseudoSSTobs
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml = pseudoSSTobs, iostat = ierr)
     if (ierr /= 0) call utl_abort(myName//': Error reading namelist')
-    if (mpi_myid == 0) write(*, nml = pseudoSSTobs)
+    if (mmpi_myid == 0) write(*, nml = pseudoSSTobs)
     ierr = fclos(nulnam)
 
     write(*,*)''
@@ -127,15 +127,15 @@ program midas_pseudoSSTobs
     !
     !- Initialize the Analysis grid
     !
-    if(mpi_myid == 0) write(*,*)''
-    if(mpi_myid == 0) write(*,*) myName//': Set hco parameters for analysis grid'
+    if(mmpi_myid == 0) write(*,*)''
+    if(mmpi_myid == 0) write(*,*) myName//': Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, gridFile, 'ANALYSIS') ! IN
 
     if (hco_anl % global) then
       call agd_SetupFromHCO(hco_anl) ! IN
     else
       !- Initialize the core (Non-Extended) analysis grid
-      if(mpi_myid == 0) write(*,*) myName//': Set hco parameters for core grid'
+      if(mmpi_myid == 0) write(*,*) myName//': Set hco parameters for core grid'
       call hco_SetupFromFile(hco_core, gridFile, 'COREGRID', 'AnalysisCore') ! IN
       !- Setup the LAM analysis grid metrics
       call agd_SetupFromHCO(hco_anl, hco_core) ! IN
@@ -153,7 +153,7 @@ program midas_pseudoSSTobs
 
     call obs_class_initialize('VAR')
 
-    if(mpi_myid == 0) write(*,*) myName//': done.'
+    if(mmpi_myid == 0) write(*,*) myName//': done.'
     
   end subroutine pseudoSSTobs_setup
 

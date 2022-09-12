@@ -19,7 +19,7 @@ module bgckssmis_mod
   !
   ! :Purpose: Variables for ssmis background check and quality control.
   !
-  use mpi_mod
+  use midasMpi_mod
   use MathPhysConstants_mod
   use utilities_mod
   use obsSpaceData_mod
@@ -94,7 +94,7 @@ contains
     ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
     read(nulnam, nml=nambgck, iostat=ierr)
     if (ierr /= 0) call utl_abort('ssbg_init: Error reading namelist')
-    if (mpi_myid == 0) write(*, nml=nambgck)
+    if (mmpi_myid == 0) write(*, nml=nambgck)
     ierr = fclos(nulnam)
 
     ssbg_debug = debug

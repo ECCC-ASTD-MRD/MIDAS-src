@@ -23,7 +23,7 @@ program midas_var
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
-  use mpi_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -96,13 +96,13 @@ program midas_var
   call ver_printNameAndVersion('var','Variational Assimilation')
 
   ! MPI initialization
-  call mpi_initialize
+  call mmpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
 
-  if (mpi_myid == 0) then
+  if (mmpi_myid == 0) then
     clmsg = 'VAR3D_BEG'
     call utl_writeStatus(clmsg)
   end if 
@@ -122,7 +122,7 @@ program midas_var
   computeFinalNlJo = .false.
 
   if ( .not. utl_isNamelistPresent('NAMVAR','./flnml') ) then
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       write(*,*) 'midas-var: namvar is missing in the namelist.'
       write(*,*) '           The default values will be taken.'
     end if
@@ -135,7 +135,7 @@ program midas_var
     if( ierr /= 0) call utl_abort('midas-var: Error reading namelist')
     ierr = fclos(nulnam)
   end if
-  if ( mpi_myid == 0 ) write(*,nml=namvar)
+  if ( mmpi_myid == 0 ) write(*,nml=namvar)
 
   if ( numOuterLoopIterations > maxNumberOfOuterLoopIterations ) then
     call utl_abort('midas-var: numOuterLoopIterations is greater than max value')
@@ -160,21 +160,21 @@ program midas_var
   end if
 
   ! Initialize constants
-  if ( mpi_myid == 0 ) then
+  if ( mmpi_myid == 0 ) then
     call mpc_printConstants(6)
     call pre_printPrecisions
   end if
 
   ! Initialize the Analysis grid
-  if (mpi_myid == 0) write(*,*)''
-  if (mpi_myid == 0) write(*,*)'var_setup: Set hco parameters for analysis grid'
+  if (mmpi_myid == 0) write(*,*)''
+  if (mmpi_myid == 0) write(*,*)'var_setup: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
     hco_core => hco_anl
   else
     ! Initialize the core (Non-Extended) analysis grid
-    if (mpi_myid == 0) write(*,*)'var_setup: Set hco parameters for core grid'
+    if (mmpi_myid == 0) write(*,*)'var_setup: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 
@@ -271,7 +271,7 @@ program midas_var
 
     ! Determine if to apply varqc to Jo of non-linear operator
     applyVarqcOnNlJo = ( varqcActive .and. numInnerLoopIterDone > numIterWithoutVarqc )
-    if ( mpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
+    if ( mmpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
     filterObsAndInitOer = ( outerLoopIndex == 1 )
@@ -373,7 +373,7 @@ program midas_var
 
     ! Determine if to apply varqc to Jo of non-linear operator
     applyVarqcOnNlJo = ( varqcActive .and. numInnerLoopIterDone > numIterWithoutVarqc )
-    if ( mpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
+    if ( mmpi_myid == 0 .and. applyVarqcOnNlJo ) write(*,*) 'applying varqc to non-linear Jo'
 
     ! Compute observation innovations and prepare obsSpaceData for minimization
     filterObsAndInitOer = .false.
@@ -409,7 +409,7 @@ program midas_var
                                    stateVectorAnal )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  if (mpi_myid == 0) then
+  if (mmpi_myid == 0) then
     clmsg = 'REBM_DONE'
     call utl_writeStatus(clmsg)
   end if
@@ -426,7 +426,7 @@ program midas_var
     if ( .not. obsf_filesSplit() ) then 
       write(*,*) 'We read/write global observation files'
       call obs_expandToMpiGlobal(obsSpaceData)
-      if (mpi_myid == 0) call obsf_writeFiles(obsSpaceData)
+      if (mmpi_myid == 0) call obsf_writeFiles(obsSpaceData)
     else
       ! redistribute obs data to how it was just after reading the files
       call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
@@ -440,14 +440,14 @@ program midas_var
   ! Job termination
   istamp = exfin('VAR','FIN','NON')
 
-  if (mpi_myid == 0) then
+  if (mmpi_myid == 0) then
     clmsg = 'VAR3D_END'
     call utl_writeStatus(clmsg)
   end if
 
   call utl_tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 

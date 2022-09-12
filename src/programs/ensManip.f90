@@ -32,9 +32,7 @@ program midas_ensManip
   !              and write out resulting ensemble perturbations
   !
   use version_mod
-  use mpi_mod
-  use mpivar_mod
-  use mathPhysConstants_mod
+  use midasMpi_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use fileNames_mod
@@ -97,8 +95,8 @@ program midas_ensManip
   !
   !- 0. MPI, TMG initialization
   !
-  call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call mmpi_initialize
+  call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -139,7 +137,7 @@ program midas_ensManip
   nulnam = 0
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namensmanip, iostat=ierr)
-  if ( mpi_myid == 0 ) write(*,nml=namensmanip)
+  if ( mmpi_myid == 0 ) write(*,nml=namensmanip)
   if ( ierr /= 0) call utl_abort('midas-ensManip: Error reading namelist')
   ierr = fclos(nulnam)
 
@@ -190,18 +188,18 @@ program midas_ensManip
   call gsv_setup
 
   !- 2.4 Initialize the target grid
-  if (mpi_myid == 0) write(*,*) ''
-  if (mpi_myid == 0) write(*,*) 'midas-ensManip: Set hco parameters for the target grid'
+  if (mmpi_myid == 0) write(*,*) ''
+  if (mmpi_myid == 0) write(*,*) 'midas-ensManip: Set hco parameters for the target grid'
 
   inquire(file=trim(targetGridFileName), exist=targetGridFileExist)
   if ( targetGridFileExist ) then
     ! Use the provided grid template to initialize the grid
-    if (mpi_myid == 0) write(*,*) '                using the provided grid template '
+    if (mmpi_myid == 0) write(*,*) '                using the provided grid template '
     call hco_SetupFromFile(hco, targetGridFileName, ' ', 'RECENTER_ANL_GRID')
     call vco_setupFromFile(vco, targetGridFileName)
   else
     ! Use the first ensemble member to initialize the grid
-    if (mpi_myid == 0) write(*,*) '                using the ensemble grid '
+    if (mmpi_myid == 0) write(*,*) '                using the ensemble grid '
     call hco_SetupFromFile(hco, ensFileName, ' ', 'ENSFILEGRID')
     call vco_setupFromFile(vco, ensFileName)
   end if
@@ -225,10 +223,10 @@ program midas_ensManip
                         checkModelTop_opt=checkModelTop)
 
   if (imposeSaturationLimitOnInputs .or. imposeRttovHuLimitsOnInputs) then
-    if (mpi_myid == 0) write(*,*) ''
-    if (mpi_myid == 0) write(*,*) 'midas-ensManip: limits will be imposed on the humidity of ensemble'
-    if (mpi_myid == 0 .and. imposeSaturationLimitOnOutputs ) write(*,*) '              -> Saturation Limit'
-    if (mpi_myid == 0 .and. imposeRttovHuLimitsOnOutputs   ) write(*,*) '              -> Rttov Limit'
+    if (mmpi_myid == 0) write(*,*) ''
+    if (mmpi_myid == 0) write(*,*) 'midas-ensManip: limits will be imposed on the humidity of ensemble'
+    if (mmpi_myid == 0 .and. imposeSaturationLimitOnOutputs ) write(*,*) '              -> Saturation Limit'
+    if (mmpi_myid == 0 .and. imposeRttovHuLimitsOnOutputs   ) write(*,*) '              -> Rttov Limit'
     if ( imposeSaturationLimit ) call qlim_saturationLimit(ensemble)
     if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensemble)
   end if
@@ -266,7 +264,7 @@ program midas_ensManip
     ensFileName = './' // trim(ensFileBaseName) // '_ensmean'
 
     do stepIndex = 1, numStep
-      if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
+      if ( mmpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
       call gio_writeToFile(statevector_mean, ensFileName, 'ENSMEAN',                            &
                            stepIndex_opt = stepIndex, typvar_opt = 'P', numBits_opt = numBits,  &
                            containsFullField_opt=.true.)
@@ -285,7 +283,7 @@ program midas_ensManip
 
     ! Output the ensemble stddev
     do stepIndex = 1, numStep
-      if ( mpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
+      if ( mmpi_myid == 0 ) write(*,*) 'midas-ensManip: writing time step ', stepIndex
       call gio_writeToFile(statevector_stddev, ensFileName, 'ENSSTDDEV',                       &
                            stepIndex_opt = stepIndex, typvar_opt = 'P' , numBits_opt = numBits )
     end do
@@ -316,8 +314,8 @@ program midas_ensManip
 
     do stepIndex = 1, numStep
       dateStamp = datestamplist(stepIndex)
-      if(mpi_myid == 0) write(*,*) ''
-      if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading recentering mean for time step: ',stepIndex, dateStamp
+      if(mmpi_myid == 0) write(*,*) ''
+      if(mmpi_myid == 0) write(*,*) 'midas-ensManip: reading recentering mean for time step: ',stepIndex, dateStamp
       call gio_readFromFile(statevector_recenteringMean, trim(recenteringMeanFileName), ' ', ' ',  &
                             stepIndex_opt=stepIndex, unitConversion_opt=.true.,                    &
                             containsFullField_opt=.true.)
@@ -344,8 +342,8 @@ program midas_ensManip
 
       do stepIndex = 1, numStep
         dateStamp = datestamplist(stepIndex)
-        if(mpi_myid == 0) write(*,*) ''
-        if(mpi_myid == 0) write(*,*) 'midas-ensManip: reading ensemble center for time step: ',stepIndex, dateStamp, trim(alternativeEnsembleMeanFileName)
+        if(mmpi_myid == 0) write(*,*) ''
+        if(mmpi_myid == 0) write(*,*) 'midas-ensManip: reading ensemble center for time step: ',stepIndex, dateStamp, trim(alternativeEnsembleMeanFileName)
         call gio_readFromFile(statevector_alternativeEnsembleMean, trim(alternativeEnsembleMeanFileName), &
                               ' ', ' ', stepIndex_opt=stepIndex, unitConversion_opt=.true.,               &
                               containsFullField_opt=.true. )
@@ -358,10 +356,10 @@ program midas_ensManip
                         scaleFactor_opt=scaleFactor,             &
                         alternativeEnsembleMean_opt=statevector_alternativeEnsembleMean)
       if (imposeSaturationLimitOnOutputs .or. imposeRttovHuLimitsOnOutputs) then
-        if (mpi_myid == 0) write(*,*) ''
-        if (mpi_myid == 0) write(*,*) 'midas-ensManip: limits will be imposed on the humidity of recentered ensemble'
-        if (mpi_myid == 0 .and. imposeSaturationLimitOnOutputs ) write(*,*) '              -> Saturation Limit'
-        if (mpi_myid == 0 .and. imposeRttovHuLimitsOnOutputs   ) write(*,*) '              -> Rttov Limit'
+        if (mmpi_myid == 0) write(*,*) ''
+        if (mmpi_myid == 0) write(*,*) 'midas-ensManip: limits will be imposed on the humidity of recentered ensemble'
+        if (mmpi_myid == 0 .and. imposeSaturationLimitOnOutputs ) write(*,*) '              -> Saturation Limit'
+        if (mmpi_myid == 0 .and. imposeRttovHuLimitsOnOutputs   ) write(*,*) '              -> Rttov Limit'
         if ( imposeSaturationLimit ) call qlim_saturationLimit(ensemble)
         if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensemble)
       end if
@@ -383,10 +381,10 @@ program midas_ensManip
                         scaleFactor_opt=scaleFactor)
 
       if (imposeSaturationLimit .or. imposeRttovHuLimits) then
-        if (mpi_myid == 0) write(*,*) ''
-        if (mpi_myid == 0) write(*,*) 'midas-ensManip: limits will be imposed on the humidity of recentered ensemble'
-        if (mpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
-        if (mpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
+        if (mmpi_myid == 0) write(*,*) ''
+        if (mmpi_myid == 0) write(*,*) 'midas-ensManip: limits will be imposed on the humidity of recentered ensemble'
+        if (mmpi_myid == 0 .and. imposeSaturationLimit ) write(*,*) '              -> Saturation Limit'
+        if (mmpi_myid == 0 .and. imposeRttovHuLimits   ) write(*,*) '              -> Rttov Limit'
         if ( imposeSaturationLimit ) call qlim_saturationLimit(ensemble)
         if ( imposeRttovHuLimits   ) call qlim_rttovLimit     (ensemble)
       end if
@@ -414,7 +412,7 @@ program midas_ensManip
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call utl_tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -422,9 +420,9 @@ program midas_ensManip
   !
   !- 5.  Ending
   !
-  if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
-  if ( mpi_myid == 0 ) write(*,*) ' MIDAS-ENSMANIP ENDS'
-  if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if ( mmpi_myid == 0 ) write(*,*) ' MIDAS-ENSMANIP ENDS'
+  if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
 
 contains
 
@@ -508,7 +506,7 @@ contains
          allocHeight_opt=.false., allocPressure_opt=.false.)
 
     do stepIndex = 1, numStep
-      if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
+      if(mmpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: reading ensemble control member for time step: ',stepIndex
       call gio_readFromFile( statevector_ensembleControlMember, trim(fileNameIn), ' ', ' ',  &
                              stepIndex_opt=stepIndex, unitConversion_opt=.true.,  &
                              containsFullField_opt=.true. )
@@ -530,7 +528,7 @@ contains
 
     ! Output the recentered ensemble control member
     do stepIndex = 1, numStep
-      if(mpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: write recentered ensemble control member for time step: ',stepIndex
+      if(mmpi_myid == 0) write(*,*) 'ens_recenterEnsembleControlMember: write recentered ensemble control member for time step: ',stepIndex
       call gio_writeToFile( statevector_ensembleControlMember, trim(fileNameOut), etiket, &
                             stepIndex_opt = stepIndex, typvar_opt = typvar , numBits_opt = numBits_opt, &
                             containsFullField_opt = .true. )

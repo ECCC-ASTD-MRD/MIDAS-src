@@ -24,7 +24,7 @@ program midas_analysisErrorOI
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
-  use mpi_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -60,14 +60,14 @@ program midas_analysisErrorOI
   call ver_printNameAndVersion(myName,'Program to calculate the analysis-error standard deviation for sea ice using OI.')
 
   ! MPI initialization
-  call mpi_initialize
+  call mmpi_initialize
 
-  if( mpi_nprocs > 1 ) then
-    write(*,*) 'mpi_nprocs = ',mpi_nprocs
+  if( mmpi_nprocs > 1 ) then
+    write(*,*) 'mmpi_nprocs = ',mmpi_nprocs
     call utl_abort(myName//': this version of the code should only be used with one mpi task.')
   end if
 
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
 
@@ -100,22 +100,22 @@ program midas_analysisErrorOI
   !
   !- Initialize constants
   !
-  if (mpi_myid == 0) call mpc_printConstants(6)
+  if (mmpi_myid == 0) call mpc_printConstants(6)
 
   trlmFileName = './trlm_01'
 
   !
   !- Initialize the Analysis grid
   !
-  if (mpi_myid == 0) write(*,*)
-  if (mpi_myid == 0) write(*,*) 'var_setup: Set hco parameters for analysis grid'
+  if (mmpi_myid == 0) write(*,*)
+  if (mmpi_myid == 0) write(*,*) 'var_setup: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, trlmFileName, ' ') ! IN
 
   if ( hco_anl % global ) then
     hco_core => hco_anl
   else
     !- Initialize the core (Non-Extended) analysis grid
-    if (mpi_myid == 0) write(*,*)'var_setup: Set hco parameters for core grid'
+    if (mmpi_myid == 0) write(*,*)'var_setup: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 
@@ -171,7 +171,7 @@ program midas_analysisErrorOI
   if ( .not. obsf_filesSplit() ) then 
     write(*,*) 'We read/write global observation files'
     call obs_expandToMpiGlobal(obsSpaceData)
-    if (mpi_myid == 0) call obsf_writeFiles(obsSpaceData)
+    if (mmpi_myid == 0) call obsf_writeFiles(obsSpaceData)
   else
     ! redistribute obs data to how it was just after reading the files
     call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
@@ -188,7 +188,7 @@ program midas_analysisErrorOI
 
   call utl_tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 

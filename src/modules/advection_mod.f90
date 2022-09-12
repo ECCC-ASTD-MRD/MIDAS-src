@@ -22,8 +22,7 @@ MODULE advection_mod
   !           ensemble of gridStateVectors
   !
   use ramDisk_mod
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use timeCoord_mod
@@ -235,21 +234,21 @@ CONTAINS
     adv%nLev_M = vco%nLev_M
     adv%nLev_T = vco%nLev_T
 
-    call mpivar_setup_latbands(adv%nj, adv%latPerPE, adv%latPerPEmax, adv%myLatBeg, adv%myLatEnd, & 
+    call mmpi_setup_latbands(adv%nj, adv%latPerPE, adv%latPerPEmax, adv%myLatBeg, adv%myLatEnd, & 
          divisible_opt=nlat_equalAcrossMpiTasks)
-    call mpivar_setup_lonbands(adv%ni, adv%lonPerPE, adv%lonPerPEmax, adv%myLonBeg, adv%myLonEnd, &
+    call mmpi_setup_lonbands(adv%ni, adv%lonPerPE, adv%lonPerPEmax, adv%myLonBeg, adv%myLonEnd, &
          divisible_opt=nlon_equalAcrossMpiTasks)
-    allocate(adv%allLonBeg(mpi_npex))
+    allocate(adv%allLonBeg(mmpi_npex))
     call rpn_comm_allgather(adv%myLonBeg,1,"mpi_integer",       &
          adv%allLonBeg,1,"mpi_integer","EW",ierr)
-    allocate(adv%allLatBeg(mpi_npey))
+    allocate(adv%allLatBeg(mmpi_npey))
     call rpn_comm_allgather(adv%myLatBeg,1,"mpi_integer",       &
          adv%allLatBeg,1,"mpi_integer","NS",ierr)
 
     lonPerPE = adv%lonPerPE 
     latPerPE = adv%latPerPE
-    allocate(allLonBeg(mpi_npex))
-    allocate(allLatBeg(mpi_npey))
+    allocate(allLonBeg(mmpi_npex))
+    allocate(allLatBeg(mmpi_npey))
     allLonBeg(:) = adv%allLonBeg(:)
     allLatBeg(:) = adv%allLatBeg(:)
 
@@ -296,7 +295,7 @@ CONTAINS
 
     if (present(steeringFlowFilename_opt) ) then
 
-      if (mpi_myid == 0)  then
+      if (mmpi_myid == 0)  then
         write(*,*)
         write(*,*) 'steeringFlow source taken from input file = ', trim(steeringFlowFilename_opt) 
       end if
@@ -324,7 +323,7 @@ CONTAINS
 
     else if (present(statevector_steeringFlow_opt)) then
 
-      if (mpi_myid == 0)  then
+      if (mmpi_myid == 0)  then
         write(*,*)
         write(*,*) 'steeringFlow source = input gridStateVector'
         write(*,*) numStepSteeringFlow
@@ -349,7 +348,7 @@ CONTAINS
       do stepIndexSF = 1, numStepSteeringFlow
         if ( dateStampListAdvectedField(stepIndexAF) == dateStampListSteeringFlow(stepIndexSF) ) then
           advectedFieldAssociatedStepIndexSF(stepIndexAF) = stepIndexSF
-          if (mpi_myid == 0)  then
+          if (mmpi_myid == 0)  then
             write(*,*)
             write(*,*) 'stepIndex Match', stepIndexAF, stepIndexSF
           end if
@@ -386,15 +385,15 @@ CONTAINS
     !
     !- 4.  Perform the advection (backward and/or forward) 
     !
-    if (mpi_myid == 0) write(*,*) 'setupAdvectAmplitude: starting'
+    if (mmpi_myid == 0) write(*,*) 'setupAdvectAmplitude: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     allocate(numSubStep(adv%nj))
     allocate(uu_steeringFlow_mpiGlobal(numStepSteeringFlow, adv%ni, adv%nj))
     allocate(vv_steeringFlow_mpiGlobal(numStepSteeringFlow, adv%ni, adv%nj))
 
-    allocate(uu_steeringFlow_mpiGlobalTiles(numStepSteeringFlow, adv%lonPerPE, adv%latPerPE, mpi_nprocs))
-    allocate(vv_steeringFlow_mpiGlobalTiles(numStepSteeringFlow, adv%lonPerPE, adv%latPerPE, mpi_nprocs))
+    allocate(uu_steeringFlow_mpiGlobalTiles(numStepSteeringFlow, adv%lonPerPE, adv%latPerPE, mmpi_nprocs))
+    allocate(vv_steeringFlow_mpiGlobalTiles(numStepSteeringFlow, adv%lonPerPE, adv%latPerPE, mmpi_nprocs))
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     if ( nLevType >= THindex ) then
@@ -408,7 +407,7 @@ CONTAINS
 
     do levIndex = 1, nLev ! loop over levels
       
-      if (mpi_myid == 0) write(*,*) 'setupAdvectAmplitude: levIndex = ', levIndex
+      if (mmpi_myid == 0) write(*,*) 'setupAdvectAmplitude: levIndex = ', levIndex
 
       call processSteeringFlow(levTypeIndex, levIndex,                                         & ! IN
                                uu_steeringFlow_mpiGlobalTiles, vv_steeringFlow_mpiGlobalTiles, & ! OUT
@@ -560,7 +559,7 @@ CONTAINS
     end if
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    if (mpi_myid == 0) write(*,*) 'adv_setup: done'
+    if (mmpi_myid == 0) write(*,*) 'adv_setup: done'
 
   end SUBROUTINE adv_setup
 
@@ -641,9 +640,9 @@ CONTAINS
     end if
 
     ! rearrange gathered winds for convenience
-    do procIDy = 0, (mpi_npey-1)
-      do procIDx = 0, (mpi_npex-1)
-        procID = procIDx + procIDy*mpi_npex
+    do procIDy = 0, (mmpi_npey-1)
+      do procIDx = 0, (mmpi_npex-1)
+        procID = procIDx + procIDy*mmpi_npex
         do latIndex = 1, latPerPE
           latIndex_mpiglobal = latIndex + allLatBeg(procIDy+1) - 1
           do lonIndex = 1, lonPerPE
@@ -669,7 +668,7 @@ CONTAINS
            nint( (steeringFlowDelTsec * steeringFlowFactor(levIndex) * uu) / (numGridPts*(hco%lon(2)-hco%lon(1))) ),  &
            nint( (steeringFlowDelTsec * steeringFlowFactor(levIndex) * vv) / (numGridPts*(hco%lat(2)-hco%lat(1))) ) )
     end do
-    if (mpi_myid == 0) write(*,*) 'min and max of numSubStep',minval(numSubStep(:)),maxval(numSubStep(:))
+    if (mmpi_myid == 0) write(*,*) 'min and max of numSubStep',minval(numSubStep(:)),maxval(numSubStep(:))
 
   end SUBROUTINE processSteeringFlow
 
@@ -998,7 +997,7 @@ CONTAINS
 
     character(len=4) :: varName
 
-    allocate(ens1_mpiglobal_tiles(nEns,adv%lonPerPE,adv%latPerPE,mpi_nprocs))
+    allocate(ens1_mpiglobal_tiles(nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
 
     do kIndex = 1, ens_getNumK(ens)
@@ -1031,9 +1030,9 @@ CONTAINS
 
           ! rearrange gathered fields for convenience
           !$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal,memberIndex)
-          do procIDy = 0, (mpi_npey-1)
-            do procIDx = 0, (mpi_npex-1)
-              procID = procIDx + procIDy*mpi_npex
+          do procIDy = 0, (mmpi_npey-1)
+            do procIDx = 0, (mmpi_npex-1)
+              procID = procIDx + procIDy*mmpi_npex
               do latIndex = 1, adv%latPerPE
                 latIndex_mpiglobal = latIndex + adv%allLatBeg(procIDy+1) - 1
                 do lonIndex = 1, adv%lonPerPE
@@ -1105,7 +1104,7 @@ CONTAINS
 
     character(len=4) :: varName
 
-    allocate(ens1_mpiglobal_tiles(nEns,adv%lonPerPE,adv%latPerPE,mpi_nprocs))
+    allocate(ens1_mpiglobal_tiles(nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
 
     do kIndex = 1, ens_getNumK(ens)
@@ -1138,9 +1137,9 @@ CONTAINS
 
           ! rearrange gathered fields for convenience
           !$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal,memberIndex)
-          do procIDy = 0, (mpi_npey-1)
-            do procIDx = 0, (mpi_npex-1)
-              procID = procIDx + procIDy*mpi_npex
+          do procIDy = 0, (mmpi_npey-1)
+            do procIDx = 0, (mmpi_npex-1)
+              procID = procIDx + procIDy*mmpi_npex
               do latIndex = 1, adv%latPerPE
                 latIndex_mpiglobal = latIndex + adv%allLatBeg(procIDy+1) - 1
                 do lonIndex = 1, adv%lonPerPE
@@ -1225,8 +1224,8 @@ CONTAINS
     end if
 
     allocate(ens1_mpiglobal(nEns,adv%ni,adv%nj))
-    allocate(ens1_mpiglobal_tiles (nEns,adv%lonPerPE,adv%latPerPE,mpi_nprocs))
-    allocate(ens1_mpiglobal_tiles2(nEns,adv%lonPerPE,adv%latPerPE,mpi_nprocs))
+    allocate(ens1_mpiglobal_tiles (nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
+    allocate(ens1_mpiglobal_tiles2(nEns,adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
 
     do kIndex = 1, ens_getNumK(ens)
             
@@ -1278,9 +1277,9 @@ CONTAINS
 
       ! redistribute the global initial time field across mpi tasks by tiles
       !$OMP PARALLEL DO PRIVATE(procIDy,procIDx,procID,latIndex,latIndex_mpiglobal,lonIndex,lonIndex_mpiglobal,memberIndex)
-      do procIDy = 0, (mpi_npey-1)
-        do procIDx = 0, (mpi_npex-1)
-          procID = procIDx + procIDy*mpi_npex
+      do procIDy = 0, (mmpi_npey-1)
+        do procIDx = 0, (mmpi_npex-1)
+          procID = procIDx + procIDy*mmpi_npex
           do latIndex = 1, adv%latPerPE
             latIndex_mpiglobal = latIndex + adv%allLatBeg(procIDy+1) - 1
             do lonIndex = 1, adv%lonPerPE
@@ -1296,14 +1295,14 @@ CONTAINS
       !$OMP END PARALLEL DO
 
       nsize = nEns*adv%lonPerPE*adv%latPerPE
-      if (mpi_nprocs > 1) then
+      if (mmpi_nprocs > 1) then
         call rpn_comm_alltoall(ens1_mpiglobal_tiles, nsize,"mpi_double_precision",  &
                                ens1_mpiglobal_tiles2,nsize,"mpi_double_precision","GRID",ierr)
       else
         ens1_mpiglobal_tiles2(:,:,:,1) = ens1_mpiglobal_tiles(:,:,:,1)
       end if
 
-      do procID = 0, (mpi_nprocs-1)
+      do procID = 0, (mmpi_nprocs-1)
         !$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2,memberIndex)
         do latIndex = 1, adv%latPerPE
           latIndex2= latIndex + adv%myLatBeg - 1
@@ -1357,7 +1356,7 @@ CONTAINS
 
     call utl_tmg_start(140,'--ADV_GSV')
 
-    allocate(field2D_mpiglobal_tiles(adv%lonPerPE,adv%latPerPE,mpi_nprocs))
+    allocate(field2D_mpiglobal_tiles(adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(field2D_mpiglobal(adv%ni,adv%nj))
 
     do kIndex = 1, gsv_getNumK(statevector)
@@ -1394,9 +1393,9 @@ CONTAINS
           ! rearrange gathered fields for convenience
           call utl_tmg_start(142,'----ADV_GSV_Shuffling')
           !$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal)
-          do procIDy = 0, (mpi_npey-1)
-            do procIDx = 0, (mpi_npex-1)
-              procID = procIDx + procIDy*mpi_npex
+          do procIDy = 0, (mmpi_npey-1)
+            do procIDx = 0, (mmpi_npex-1)
+              procID = procIDx + procIDy*mmpi_npex
               do latIndex = 1, adv%latPerPE
                 latIndex_mpiglobal = latIndex + adv%allLatBeg(procIDy+1) - 1
                 do lonIndex = 1, adv%lonPerPE
@@ -1483,8 +1482,8 @@ CONTAINS
     end if
 
     allocate(field2D_mpiglobal(adv%ni,adv%nj))
-    allocate(field2D_mpiglobal_tiles (adv%lonPerPE,adv%latPerPE,mpi_nprocs))
-    allocate(field2D_mpiglobal_tiles2(adv%lonPerPE,adv%latPerPE,mpi_nprocs))
+    allocate(field2D_mpiglobal_tiles (adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
+    allocate(field2D_mpiglobal_tiles2(adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
 
     do kIndex = 1, gsv_getNumK(statevector)
             
@@ -1534,9 +1533,9 @@ CONTAINS
 
         ! redistribute the global initial time field across mpi tasks by tiles
         !$OMP PARALLEL DO PRIVATE(procIDy,procIDx,procID,latIndex,latIndex_mpiglobal,lonIndex,lonIndex_mpiglobal)
-        do procIDy = 0, (mpi_npey-1)
-          do procIDx = 0, (mpi_npex-1)
-            procID = procIDx + procIDy*mpi_npex
+        do procIDy = 0, (mmpi_npey-1)
+          do procIDx = 0, (mmpi_npex-1)
+            procID = procIDx + procIDy*mmpi_npex
             do latIndex = 1, adv%latPerPE
               latIndex_mpiglobal = latIndex + adv%allLatBeg(procIDy+1) - 1
               do lonIndex = 1, adv%lonPerPE
@@ -1550,7 +1549,7 @@ CONTAINS
         !$OMP END PARALLEL DO
 
         nsize = adv%lonPerPE*adv%latPerPE
-        if (mpi_nprocs > 1) then
+        if (mmpi_nprocs > 1) then
           call rpn_comm_alltoall(field2D_mpiglobal_tiles, nsize,"mpi_double_precision",  &
                                  field2D_mpiglobal_tiles2,nsize,"mpi_double_precision","GRID",ierr)
         else
@@ -1559,7 +1558,7 @@ CONTAINS
 
         field4D(:, :, levIndex, adv%timeStepIndexSource(stepIndexAF)) = 0.d0
 
-        do procID = 0, (mpi_nprocs-1)
+        do procID = 0, (mmpi_nprocs-1)
           !$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2)
           do latIndex = 1, adv%latPerPE
             latIndex2= latIndex + adv%myLatBeg - 1

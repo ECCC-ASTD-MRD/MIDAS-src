@@ -37,7 +37,7 @@ module calcStatsLam_mod
   use varNameList_mod
   use gridBinning_mod
   use timeCoord_mod
-  use mpi_mod
+  use midasMpi_mod
   implicit none
   save
   private
@@ -213,7 +213,7 @@ contains
     !
 
     !- 3.1 Create the extended and non-extended grid prototype file
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       call agd_createLamTemplateGrids('./analysisgrid', hco_ens, vco_bhi, & ! IN
                                       grd_ext_x, grd_ext_y)                 ! IN
     end if
@@ -531,7 +531,7 @@ contains
                            SpVertCorrel, PowerSpectrum,   & ! OUT
                            NormB)                           ! OUT
 
-     if (mpi_myid == 0) then
+     if (mmpi_myid == 0) then
        !- 3.2 Calculate the horiontal correlation lenght scales
        call calcHorizScale(HorizScale, & ! OUT
                            NormB)        ! IN
@@ -651,7 +651,7 @@ contains
                               SpVertCorrel, PowerSpectrum,   & ! OUT
                               NormB)                           ! OUT
 
-       if (mpi_myid == 0) then
+       if (mmpi_myid == 0) then
          call horizCorrelFunction(NormB) ! IN
        end if
 
@@ -700,7 +700,7 @@ contains
     !
     !- 2.  Write the estimated pressure profiles
     !
-    if (mpi_myid == 0 .and. vco_bhi%vgridPresent) then
+    if (mmpi_myid == 0 .and. vco_bhi%vgridPresent) then
       call writePressureProfiles
     end if
 
@@ -838,7 +838,7 @@ contains
     deallocate(SumWeight_local)
     deallocate(SpVertCorrel_local)
 
-    if (mpi_myid == 0) then 
+    if (mmpi_myid == 0) then 
 
       !- 2.4 Compute the weighted COVARIANCES for each total wavenumber
       do totwvnb = 0, nTrunc
@@ -920,7 +920,7 @@ contains
       
       deallocate(NormPowerSpectrum)
 
-    end if ! mpi_myid == 0
+    end if ! mmpi_myid == 0
 
     write(*,*)
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -1348,12 +1348,12 @@ contains
     deallocate(vertCorrel_local)
 
     !- Conversion to correlation
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       vertCorrel(:,:) = vertCorrel(:,:) / real((nEns-1)*hco_ens%nj*hco_ens%ni,8)
     end if
 
     !- Output
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       iunstats = 0
       ier    = fnom(iunstats,'./vertCorrel.fst','RND',0)
       ier    = fstouv(iunstats,'RND')
@@ -1829,7 +1829,7 @@ contains
     !
     !- 2. Add C^1/2
     !
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       !- Opening Output file
       iunstats = 0
       ier    = fnom(iunstats,trim(fileName),'RND',0)
@@ -1888,7 +1888,7 @@ contains
     !
     !- 2. Add stats in spectral space
     !
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       !- Opening Output file
       iunstats = 0
       ier    = fnom(iunstats,trim(fileName),'RND',0)

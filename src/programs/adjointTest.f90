@@ -23,8 +23,7 @@ program midas_adjointTest
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
-  use mpi_mod
-  use mpiVar_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -65,10 +64,10 @@ program midas_adjointTest
   write(*,*) '> midas-adjointTest: setup - START'
 
   !- 1.1 mpi
-  call mpi_initialize
+  call mmpi_initialize
 
   !- 1.2 timings
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
 
   !- 1.3 RAM disk usage
@@ -78,7 +77,7 @@ program midas_adjointTest
   call tim_setup()
 
   !- 1.6 Constants
-  if ( mpi_myid == 0 ) then
+  if ( mmpi_myid == 0 ) then
     call mpc_printConstants(6)
     call pre_printPrecisions
   end if
@@ -146,7 +145,7 @@ program midas_adjointTest
   write(*,*)
   write(*,*) '> midas-adjointTest: Ending'
   call utl_tmg_stop(0)
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 
@@ -183,7 +182,7 @@ contains
     !statevector_x%gd3d_r8(:,:,:) = 13.3d0
     call gsv_getField(statevector_x,field4d_r8)
     seed=1
-    call rng_setup(abs(seed+mpi_myid))
+    call rng_setup(abs(seed+mmpi_myid))
     do kIndex = statevector_x%mykBeg, statevector_x%mykEnd
       do stepIndex = 1, statevector_x%numStep
         do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
@@ -287,7 +286,7 @@ contains
 
     ! x
     seed=1
-    call rng_setup(abs(seed+mpi_myid))
+    call rng_setup(abs(seed+mmpi_myid))
     call gsv_getField(statevector_x,field4d_x_r8)
     do kIndex = statevector_x%mykBeg, statevector_x%mykEnd
       do stepIndex = 1, statevector_x%numStep
@@ -411,7 +410,7 @@ contains
 
     ! x
     seed=1
-    call rng_setup(abs(seed+mpi_myid))
+    call rng_setup(abs(seed+mmpi_myid))
     do kIndex = 1, ens_getNumK(ensAmplitude_x)
       ens_oneLev => ens_getOneLev_r8(ensAmplitude_x,kIndex)
       do memberIndex = 1, loc%nEnsOverDimension
@@ -552,7 +551,7 @@ contains
 !!$
 !!$    ! x
 !!$    seed=1
-!!$    call rng_setup(abs(seed+mpi_myid))
+!!$    call rng_setup(abs(seed+mmpi_myid))
 !!$    do kIndex = statevector_x%mykBeg, statevector_x%mykEnd
 !!$      do stepIndex = 1, statevector_x%numStep
 !!$        do latIndex = statevector_x%myLatBeg, statevector_x%myLatEnd
@@ -698,7 +697,7 @@ contains
 
     ! x
     seed=1
-    call rng_setup(abs(seed+mpi_myid))
+    call rng_setup(abs(seed+mmpi_myid))
     do kIndex = 1, ens_getNumK(ens_x)
       ens_oneLev => ens_getOneLev_r8(ens_x,kIndex)
       do memberIndex = 1, nEns
@@ -831,7 +830,7 @@ contains
 
     ! x
     seed=1
-    call rng_setup(abs(seed+mpi_myid))
+    call rng_setup(abs(seed+mmpi_myid))
     call gsv_getField(statevector_x,  field4d_x_r8 )
     do kIndex = statevector_x%mykBeg, statevector_x%mykEnd
       do stepIndex = 1, statevector_x%numStep
@@ -932,7 +931,7 @@ contains
     implicit none
     character(len=*) :: testName
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       write(*,*)
       if ( innerProduct2_global + innerProduct1_global /= 0.d0 ) then
         write(*,'(A20,1X,A,1X,G23.16)') testName, ": InnerProd Difference(%) = ", &

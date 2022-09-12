@@ -19,7 +19,7 @@ module obsdbFiles_mod
   !
   ! :Purpose: To read and update sqlite files that are in the new 'obsDB' format.
   !
-  use mpi_mod
+  use midasMpi_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use bufr_mod
@@ -131,7 +131,7 @@ contains
     elemIdList(:) = 0
 
     if ( .not. utl_isNamelistPresent('NAMOBSDB','./flnml') ) then
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'odbf_setup: namObsDB is missing in the namelist.'
         write(*,*) '            The default values will be taken.'
       end if
@@ -143,7 +143,7 @@ contains
       if ( ierr /= 0 ) call utl_abort('odbf_setup: Error reading namelist')
       ierr = fclos(nulfile)
     end if
-    if ( mpi_myid == 0 ) write(*, nml=namObsDb)
+    if ( mmpi_myid == 0 ) write(*, nml=namObsDb)
 
     if (obsDbActive .and. numElemIdList==0) then
       call utl_abort('odbf_setup: element list is empty')
@@ -1713,7 +1713,7 @@ contains
 
     ! Check if the Midas Header Table needs to be updated, specified from namelist
     if ( .not. utl_isNamelistPresent('namObsDbMIDASHeaderUpdate','./flnml') ) then
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'odbf_updateFile: namObsDbMIDASHeaderUpdate is missing in the namelist.'
         write(*,*) '                 The MIDAS Header Output Table will not be updated.'
       end if
@@ -1724,7 +1724,7 @@ contains
 
     ! Check if the Midas Body Table needs to be updated, specified from namelist
     if ( .not. utl_isNamelistPresent('namObsDbMIDASBodyUpdate','./flnml') ) then
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'odbf_updateFile: namObsDbMIDASBodyUpdate is missing in the namelist.'
         write(*,*) '                 The MIDAS Body Output Table will not be updated.'
       end if
@@ -1803,7 +1803,7 @@ contains
       if ( ierr /= 0 ) call utl_abort('odbf_updateMidasHeaderTable: Error reading namelist')
       ierr = fclos(nulnam)
 
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*, nml=namObsDbMIDASHeaderUpdate)
       end if
     end if ! not nmlAlreadyRead
@@ -2022,7 +2022,7 @@ contains
       numberUpdateItems = numberUpdateItems + 1
       updateItemList(numberUpdateItems) = 'FLG'
 
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'odbf_updateMidasBodyTable: NOTE: the FLG column is always added to update list'
         write(*, nml=namObsDbMIDASBodyUpdate)
       end if
@@ -2545,7 +2545,7 @@ contains
     useVacuum = .false.
 
     if ( .not. utl_isNamelistPresent('namObsDbClean','./flnml') ) then
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'odbf_setup: namObsDbClean is missing in the namelist.'
         write(*,*) '            The default values will be taken.'
       end if
@@ -2557,7 +2557,7 @@ contains
       if ( ierr /= 0 ) call utl_abort('obdf_clean: Error reading namelist')
       ierr = fclos(nulnam )
     end if
-    if ( mpi_myid == 0 ) write(*, nml=namObsDbClean)
+    if ( mmpi_myid == 0 ) write(*, nml=namObsDbClean)
 
     write(*,*)
     write(*,*) 'obdf_clean: Starting'

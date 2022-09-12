@@ -25,18 +25,16 @@ module bmatrix1DVar_mod
   use gridStatevector_mod
   use gridstatevectorFileIO_mod
   use horizontalCoord_mod
-  use mpi_mod 
+  use midasMpi_mod 
   use obsSpaceData_mod
   use timeCoord_mod
   use utilities_mod
   use verticalCoord_mod
   use codeprecision_mod
   use tovs_nl_mod
-  use mathphysconstants_mod
   use var1D_mod
   use filenames_mod
   use localizationFunction_mod
-  use mpivar_mod
   use varNameList_mod
   use ensembleStateVector_mod
   use stateToColumn_mod
@@ -136,7 +134,7 @@ contains
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml=nambmat1D, iostat=ierr)
     if ( ierr /= 0 ) call utl_abort( 'bmat1D_bsetup: Error reading namelist' )
-    if ( mpi_myid == 0 ) write( *, nml = nambmat1D )
+    if ( mmpi_myid == 0 ) write( *, nml = nambmat1D )
     ierr = fclos( nulnam )
 
     bmat1D_numIncludeAnlVar = numIncludeAnlVar
@@ -251,8 +249,8 @@ contains
       firstCall = .false.
     end if
 
-    if(mpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Starting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Starting'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     do levelIndex = 1, maxNumLevels
       if( scaleFactorHI( levelIndex ) > 0.0d0 ) then 
@@ -271,12 +269,12 @@ contains
     end do
 
     if ( sum( scaleFactorHI( 1 : maxNumLevels ) ) == 0.0d0 ) then
-      if ( mpi_myid == 0 ) write(*,*) 'bmat1D_setupBHi: scaleFactorHI=0, skipping rest of setup'
+      if ( mmpi_myid == 0 ) write(*,*) 'bmat1D_setupBHi: scaleFactorHI=0, skipping rest of setup'
       cvDim_out = 0
       return
     end if
 
-    if (mpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Read 1DVar background statistics'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Read 1DVar background statistics'
     inquire(file=trim(oneDBmatLand), exist=fileExists)
     if ( fileExists ) then
       ierr = fnom(nulbgst, trim(oneDBmatLand), 'FTN+SEQ+UNF+OLD+R/O', 0)
@@ -395,7 +393,7 @@ contains
     if (.not. vco_equal(vco_anl,vco_file)) then
       call utl_abort('bmat1D_setupBHi: vco from analysisgrid and cov file do not match')
     end if
-    if (mpi_myid == 0) write(*,*) 'bmat1D_setupBHi: nLev_M, nLev_T=', vco_1Dvar%nLev_M, vco_1Dvar%nLev_T
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: nLev_M, nLev_T=', vco_1Dvar%nLev_M, vco_1Dvar%nLev_T
     status = vgd_get(vco_anl%vgrid, key='ig_1 - vertical coord code', value=Vcode_anl)
     if(Vcode_anl /= 5002 .and. Vcode_anl /= 5005) then
       write(*,*) 'Vcode_anl = ',Vcode_anl
@@ -406,8 +404,8 @@ contains
     cvDim_mpilocal = cvDim_out
     initialized = .true.
 
-    if(mpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Exiting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Exiting'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   end subroutine bmat1D_setupBHi
 
@@ -459,11 +457,11 @@ contains
     character(len=4), allocatable :: varNameFromVarLevIndex(:)
     character(len=2) :: varLevel
 
-    if(mpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     if ( nEns <= 0 ) then
-      if ( mpi_myid == 0 ) write(*,*) 'bmat1D_setupBEns: no Ensemble members, skipping rest of setup'
+      if ( mmpi_myid == 0 ) write(*,*) 'bmat1D_setupBEns: no Ensemble members, skipping rest of setup'
       cvdim_out = 0
       return
     end if
@@ -482,15 +480,15 @@ contains
     ni = hco_ens%ni
     nj = hco_ens%nj
     if (hco_ens%global) then
-      if (mpi_myid == 0) write(*,*)
-      if (mpi_myid == 0) write(*,*) 'bmat1D_setupBEns: GLOBAL mode activated'
+      if (mmpi_myid == 0) write(*,*)
+      if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: GLOBAL mode activated'
     else
-      if (mpi_myid == 0) write(*,*)
-      if (mpi_myid == 0) write(*,*) 'bmat1D_setupBEns: LAM mode activated'
+      if (mmpi_myid == 0) write(*,*)
+      if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: LAM mode activated'
     end if
 
     !- 1.3 Vertical levels
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       call fln_ensfileName(ensFileName, ensPathName, memberIndex_opt=1)
       write(*,*) 'before vco_SetupFromFile'
       call vco_SetupFromFile(vco_file, ensFileName)
@@ -540,12 +538,12 @@ contains
       end if
 
       if ( EnsTopMatchesAnlTop ) then
-        if ( mpi_myid == 0 ) write(*,*) 'bmat1D_setupBEns: top level of ensemble member and analysis grid match'
+        if ( mmpi_myid == 0 ) write(*,*) 'bmat1D_setupBEns: top level of ensemble member and analysis grid match'
         vco_ens => vco_in  ! IMPORTANT: top levels DO match, therefore safe
                            ! to force members to be on analysis vertical levels
       else
-        if ( mpi_myid == 0 ) write(*,*) 'bmat1D_setupBEns: top level of ensemble member and analysis grid are different, therefore'
-        if ( mpi_myid == 0 ) write(*,*) '                      assume member is already be on correct levels - NO CHECKING IS DONE'
+        if ( mmpi_myid == 0 ) write(*,*) 'bmat1D_setupBEns: top level of ensemble member and analysis grid are different, therefore'
+        if ( mmpi_myid == 0 ) write(*,*) '                      assume member is already be on correct levels - NO CHECKING IS DONE'
         vco_ens => vco_file ! IMPORTANT: top levels do not match, therefore must
                             ! assume file is already on correct vertical levels
       end if
@@ -589,8 +587,8 @@ contains
     end if
 
     if (nLevEns_M < nLevInc_M) then
-      if (mpi_myid == 0) write(*,*) 'bmat1D_setubBEns: ensemble has less levels than increment'
-      if (mpi_myid == 0) write(*,*) '                      some levels near top will have zero increment'
+      if (mmpi_myid == 0) write(*,*) 'bmat1D_setubBEns: ensemble has less levels than increment'
+      if (mmpi_myid == 0) write(*,*) '                      some levels near top will have zero increment'
     end if
 
     !- 1.4 Bmatrix Weight
@@ -630,8 +628,8 @@ contains
     end if
 
     !- 1.5 Domain Partionning
-    call mpivar_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
-    call mpivar_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    call mmpi_setup_latbands(nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mmpi_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
     !- 1.6 Localization
     if ( vLocalize <= 0.0d0 .and. (nLevInc_M > 1 .or. nLevInc_T > 1) ) then
@@ -724,7 +722,7 @@ contains
           if (varNameFromVarLevIndex(varLevIndex) == 'HU') then
             multFactor(varLevIndex) = multFactor(varLevIndex) * scaleFactorEnsHumidity(levIndex1)
           end if
-          if (mpi_myId == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndex, levIndex
+          if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndex, levIndex
         end if
       end do
     end do
@@ -793,8 +791,8 @@ contains
     cvDim_mpilocal = cvDim_out
     initialized = .true.
     
-    if(mpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
-    if(mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
+    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   end subroutine bmat1D_setupBEns
   
@@ -819,11 +817,11 @@ contains
     real(8) :: latitude
     integer :: surfaceType, offset
 
-    if (mpi_myid == 0) write(*,*) 'bmat1D_bsqrtHi: starting'
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_bsqrtHi: starting'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     if (.not. initialized) then
-      if (mpi_myid == 0) write(*,*) 'bmat1D_bsqrtHi: 1Dvar B matrix not initialized'
+      if (mmpi_myid == 0) write(*,*) 'bmat1D_bsqrtHi: 1Dvar B matrix not initialized'
       return
     end if
     allocate(oneDProfile(nkgdim))
@@ -854,8 +852,8 @@ contains
     !$OMP END PARALLEL DO
 
     deallocate(oneDProfile)
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtHi: done'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtHi: done'
 
   end subroutine bmat1D_bSqrtHi
 
@@ -880,10 +878,10 @@ contains
     real(8) :: latitude
     integer :: surfaceType, offset
 
-    if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtHiAd: starting'
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtHiAd: starting'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     if (.not. initialized) then
-      if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtHiAd: 1dvar Bmatrix not initialized'
+      if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtHiAd: 1dvar Bmatrix not initialized'
       return
     end if
     allocate(oneDProfile(nkgdim))
@@ -920,8 +918,8 @@ contains
     !$OMP END PARALLEL DO
 
     deallocate(oneDProfile)
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtHiAd: done'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtHiAd: done'
 
   end subroutine bmat1D_bSqrtHiAd
 
@@ -986,10 +984,10 @@ contains
     real(8), allocatable ::  oneDProfile(:)
     integer :: offset
 
-    if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: starting'
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: starting'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     if (.not. initialized) then
-      if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: 1dvar Bmatrix not initialized'
+      if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: 1dvar Bmatrix not initialized'
       return
     end if
     allocate(oneDProfile(nkgdim))
@@ -1016,8 +1014,8 @@ contains
     !$OMP END PARALLEL DO
 
     deallocate(oneDProfile)
-    if (mpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    if (mpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: done'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_bSqrtEnsAd: done'
 
   end subroutine bmat1D_bSqrtEnsAd
 

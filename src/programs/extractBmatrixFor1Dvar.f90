@@ -19,8 +19,7 @@ program midas_extractBmatrixFor1Dvar
   ! :Purpose: Main program to extract B matrix for 1Dvar applications
   !
   use version_mod
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use MathPhysConstants_mod
   use controlVector_mod
   use gridVariableTransforms_mod
@@ -72,8 +71,8 @@ program midas_extractBmatrixFor1Dvar
   call ver_printNameAndVersion('extractBmatrix','Extract 1Dvar B matrix')
 
   ! MPI, tmg initialization
-  call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call mmpi_initialize
+  call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
   ierr = fstopc('MSGLVL','ERRORS',0)
 
@@ -177,7 +176,7 @@ program midas_extractBmatrixFor1Dvar
   write(*,*) ' temporal location          = ',trim(stepBinExtract),stepBinExtractIndex
   write(*,*) ' number of lon-lat positions = ', nLonLatPos
   
-  if (mpi_myId == 0) then
+  if (mmpi_myId == 0) then
     varCount = 0
     do varIndex=1, vnl_numvarmax
       if ( .not. gsv_varExist(varName=vnl_varNameList(varIndex)) ) cycle
@@ -245,7 +244,7 @@ program midas_extractBmatrixFor1Dvar
         columnProcIdLocal = -1
         if ( latIndex >= statevector%myLatBeg .and. latIndex <= statevector%myLatEnd .and. &
              lonIndex >= statevector%myLonBeg .and. lonIndex <= statevector%myLonEnd ) then
-          columnProcIdLocal = mpi_myId
+          columnProcIdLocal = mmpi_myId
           call gsv_getField(statevector,field4d, varName2)
           factor2 = getConversionFactor( varName2 )
           levIndex2 = gsv_getLevFromK(statevector, kIndex2)
@@ -257,7 +256,7 @@ program midas_extractBmatrixFor1Dvar
     end do variableLoop1
 
     call RPN_COMM_bcast(Bmatrix, nkgdim * nkgdim, 'MPI_REAL8', columnProcIdGlobal, 'GRID', ierr )
-    if (mpi_myId ==0) then
+    if (mmpi_myId ==0) then
       write(nulmat) latitude, longitude,  Bmatrix(:,:)
     end if
 
@@ -276,7 +275,7 @@ program midas_extractBmatrixFor1Dvar
   
   ! MPI, tmg finalize
   call utl_tmg_stop(0)
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) ' --------------------------------'

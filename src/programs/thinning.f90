@@ -26,7 +26,7 @@ program midas_thinning
   use version_mod
   use ramDisk_mod
   use utilities_mod
-  use mpi_mod
+  use midasMpi_mod
   use timeCoord_mod
   use obsSpaceData_mod
   use obsFiles_mod
@@ -47,9 +47,9 @@ program midas_thinning
   call ver_printNameAndVersion('thinning','Observation thinning')
 
   ! MPI initilization
-  call mpi_initialize
+  call mmpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
 
   ! 1. Top level setup
@@ -125,7 +125,7 @@ program midas_thinning
   call obs_finalize(obsSpaceData)
 
   call utl_tmg_stop(0)
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr)
 

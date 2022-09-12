@@ -31,8 +31,7 @@ module diffusion_mod
   ! :Basic equations: Lcorr^2 = 2*k*dt*numt   (1)
   !                   stab    = k*dt/dx^2     (2)
   !
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use oceanMask_mod
@@ -164,13 +163,13 @@ contains
     ! domain partionning
     diff(diffID)%ni = ni
     diff(diffID)%nj = nj
-    call mpivar_setup_latbands(diff(diffID)%nj, diff(diffID)%latPerPE,  &
+    call mmpi_setup_latbands(diff(diffID)%nj, diff(diffID)%latPerPE,  &
          diff(diffID)%latPerPEmax, diff(diffID)%myLatBeg, diff(diffID)%myLatEnd)
-    call mpivar_setup_lonbands(diff(diffID)%ni, diff(diffID)%lonPerPE,  &
+    call mmpi_setup_lonbands(diff(diffID)%ni, diff(diffID)%lonPerPE,  &
          diff(diffID)%lonPerPEmax, diff(diffID)%myLonBeg, diff(diffID)%myLonEnd)
 
     ! also, determine lonIndex begin and end for when array is transposed (for implicit diffusion only)
-    call mpivar_setup_latbands(diff(diffID)%ni, diff(diffID)%lonPerPE_transpose,  &
+    call mmpi_setup_latbands(diff(diffID)%ni, diff(diffID)%lonPerPE_transpose,  &
          diff(diffID)%lonPerPEmax_transpose, diff(diffID)%myLonBeg_transpose, diff(diffID)%myLonEnd_transpose)
 	 
     myLonBeg = diff(diffID)%myLonBeg
@@ -189,7 +188,7 @@ contains
     write(*,*) 'diff_setup: [ myLatBeg, myLatEnd ]: [ ', myLatBeg, ' ', myLatEnd, ' ]'
 
     ! For implicit diffusion we only allow decomposition by latitude bands
-    if (useImplicit .and.  mpi_npex > 1) then
+    if (useImplicit .and.  mmpi_npex > 1) then
       call utl_abort('diff_setup: Error: for implicit diffusion NPEX must be 1 (i.e. 1xNPEYxNUMTHREADS)' )
     end if
     
@@ -450,7 +449,7 @@ contains
       end if
       
       seed = 1 
-      call rng_setup(abs(seed + mpi_myid))
+      call rng_setup(abs(seed + mmpi_myid))
 
       write(*,*) 'diff_setup: Number of samples, ni * nj: ', numberSamples, ni * nj
 
@@ -517,7 +516,7 @@ contains
       nsize = ni * nj
       call rpn_comm_allreduce(lambdaLocal, diff(diffID)%Lambda, nsize, "mpi_double_precision", "mpi_sum", "GRID", ierr)
 
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
  
         ! preparing real(4) array to save into fst file avoiding huge values
         do latIndex = 1, nj
@@ -527,7 +526,7 @@ contains
           end do
         end do 	  
 
-	write(*,*) 'diff_setup: Save normalization coefficient on proc ', mpi_myid, ' into the file: ', trim(diff_norm_fact)
+	write(*,*) 'diff_setup: Save normalization coefficient on proc ', mmpi_myid, ' into the file: ', trim(diff_norm_fact)
         npak = 0
         dateo = 0
         deet = 0
@@ -659,16 +658,16 @@ contains
       ! exchange 4 arrays of halo information between mpi tasks
 
       ! halo array #1: send western edge interior, recv eastern edge halo
-      if (mpi_npex > 1) then
-        sendToPE   = mpi_myidx - 1
-        recvFromPE = mpi_myidx + 1
-        sendTag = (mpi_myidx)*10000 + (mpi_myidx - 1)
-        recvTag = (mpi_myidx + 1)*10000 + (mpi_myidx)
-        if (mpi_myidx == 0) then
+      if (mmpi_npex > 1) then
+        sendToPE   = mmpi_myidx - 1
+        recvFromPE = mmpi_myidx + 1
+        sendTag = (mmpi_myidx)*10000 + (mmpi_myidx - 1)
+        recvTag = (mmpi_myidx + 1)*10000 + (mmpi_myidx)
+        if (mmpi_myidx == 0) then
           ! western-most tile only recv
           call rpn_comm_recv( recvBufLat, latPerPE, "mpi_real8", recvFromPE, recvTag, "EW", status, ierr )
           xlast(myLonEnd+1,myLatBeg:myLatEnd) = recvBufLat(:)
-        else if (mpi_myidx == (mpi_npex-1)) then
+        else if (mmpi_myidx == (mmpi_npex-1)) then
           ! eastern-most tile only send
           sendBufLat(:) = xlast(myLonBeg,myLatBeg:myLatEnd)
           call rpn_comm_send( sendBufLat, latPerPE, "mpi_real8", sendToPE, sendTag, "EW", ierr )
@@ -683,16 +682,16 @@ contains
       end if
 
       ! halo array #2: send eastern edge interior, recv western edge halo
-      if (mpi_npex > 1) then
-        sendToPE   = mpi_myidx + 1
-        recvFromPE = mpi_myidx - 1
-        sendTag = (mpi_myidx)*10000 + (mpi_myidx + 1)
-        recvTag = (mpi_myidx - 1)*10000 + (mpi_myidx)
-        if (mpi_myidx == (mpi_npex-1)) then
+      if (mmpi_npex > 1) then
+        sendToPE   = mmpi_myidx + 1
+        recvFromPE = mmpi_myidx - 1
+        sendTag = (mmpi_myidx)*10000 + (mmpi_myidx + 1)
+        recvTag = (mmpi_myidx - 1)*10000 + (mmpi_myidx)
+        if (mmpi_myidx == (mmpi_npex-1)) then
           ! eastern-most tile only recv
           call rpn_comm_recv( recvBufLat, latPerPE, "mpi_real8", recvFromPE, recvTag, "EW", status, ierr )
           xlast(myLonBeg-1,myLatBeg:myLatEnd) = recvBufLat(:)
-        else if (mpi_myidx == 0) then
+        else if (mmpi_myidx == 0) then
           ! western-most tile only send
           sendBufLat(:) = xlast(myLonEnd,myLatBeg:myLatEnd)
           call rpn_comm_send( sendBufLat, latPerPE, "mpi_real8", sendToPE, sendTag, "EW", ierr )
@@ -707,16 +706,16 @@ contains
       end if
 
       ! halo array #3: send southern edge interior, recv northern edge halo
-      if (mpi_npey > 1) then
-        sendToPE   = mpi_myidy - 1
-        recvFromPE = mpi_myidy + 1
-        sendTag = (mpi_myidy)*10000 + (mpi_myidy - 1)
-        recvTag = (mpi_myidy + 1)*10000 + (mpi_myidy)
-        if (mpi_myidy == 0) then
+      if (mmpi_npey > 1) then
+        sendToPE   = mmpi_myidy - 1
+        recvFromPE = mmpi_myidy + 1
+        sendTag = (mmpi_myidy)*10000 + (mmpi_myidy - 1)
+        recvTag = (mmpi_myidy + 1)*10000 + (mmpi_myidy)
+        if (mmpi_myidy == 0) then
           ! southern-most tile only recv
           call rpn_comm_recv( recvBufLon, lonPerPE, "mpi_real8", recvFromPE, recvTag, "NS", status, ierr )
           xlast(myLonBeg:myLonEnd,myLatEnd+1) = recvBufLon(:)
-        else if (mpi_myidy == (mpi_npey-1)) then
+        else if (mmpi_myidy == (mmpi_npey-1)) then
           ! northern-most tile only send
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatBeg)
           call rpn_comm_send( sendBufLon, lonPerPE, "mpi_real8", sendToPE, sendTag, "NS", ierr )
@@ -731,16 +730,16 @@ contains
       end if
 
       ! halo array #4: send northern edge interior, recv southern edge halo
-      if (mpi_npey > 1) then
-        sendToPE   = mpi_myidy + 1
-        recvFromPE = mpi_myidy - 1
-        sendTag = (mpi_myidy)*10000 + (mpi_myidy + 1)
-        recvTag = (mpi_myidy - 1)*10000 + (mpi_myidy)
-        if (mpi_myidy == (mpi_npey-1)) then
+      if (mmpi_npey > 1) then
+        sendToPE   = mmpi_myidy + 1
+        recvFromPE = mmpi_myidy - 1
+        sendTag = (mmpi_myidy)*10000 + (mmpi_myidy + 1)
+        recvTag = (mmpi_myidy - 1)*10000 + (mmpi_myidy)
+        if (mmpi_myidy == (mmpi_npey-1)) then
           ! northern-most tile only recv
           call rpn_comm_recv( recvBufLon, lonPerPE, "mpi_real8", recvFromPE, recvTag, "NS", status, ierr )
           xlast(myLonBeg:myLonEnd,myLatBeg-1) = recvBufLon(:)
-        else if (mpi_myidy == 0) then
+        else if (mmpi_myidy == 0) then
           ! southern-most tile only send
           sendBufLon(:) = xlast(myLonBeg:myLonEnd,myLatEnd)
           call rpn_comm_send( sendBufLon, lonPerPE, "mpi_real8", sendToPE, sendTag, "NS", ierr )
@@ -884,8 +883,8 @@ contains
 
     ! Locals:
     integer :: yourid, ierr, nsize, numLonPoints, numLatPoints
-    integer :: allLonBeg(mpi_nprocs), allLonEnd(mpi_nprocs)
-    integer :: allLatBeg(mpi_nprocs), allLatEnd(mpi_nprocs)
+    integer :: allLonBeg(mmpi_nprocs), allLonEnd(mmpi_nprocs)
+    integer :: allLatBeg(mmpi_nprocs), allLatEnd(mmpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
 
     call rpn_comm_allgather(diff(diffID)%myLonBeg_transpose,1,'mpi_integer',       &
@@ -897,15 +896,15 @@ contains
     call rpn_comm_allgather(diff(diffID)%myLatEnd,1,'mpi_integer',       &
                             allLatEnd            ,1,'mpi_integer','GRID',ierr)
 
-    allocate(xsend(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mpi_nprocs))
-    allocate(xrecv(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mpi_nprocs))
+    allocate(xsend(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mmpi_nprocs))
+    allocate(xrecv(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mmpi_nprocs))
 
     xout(:,:) = 0.0d0
     xsend(:,:,:) = 0.0d0
     xrecv(:,:,:) = 0.0d0
 
     !$OMP PARALLEL DO PRIVATE(yourid, numLonPoints, numLatPoints)
-    do yourid = 1, mpi_nprocs
+    do yourid = 1, mmpi_nprocs
       numLonPoints = allLonEnd(yourid) - allLonBeg(yourid) + 1
       numLatPoints = size(xin,2)
       xsend(1:numLonPoints,1:numLatPoints,yourid) = xin(allLonBeg(yourid):allLonEnd(yourid),:) 
@@ -913,7 +912,7 @@ contains
     !$OMP END PARALLEL DO
 
     nsize = diff(diffID)%lonPerPEmax_transpose * diff(diffID)%latPerPEmax
-    if (mpi_nprocs > 1) then
+    if (mmpi_nprocs > 1) then
       call rpn_comm_alltoall(xsend, nsize, 'mpi_real8',  &
                              xrecv, nsize, 'mpi_real8', 'grid', ierr)
     else
@@ -921,7 +920,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid, numLonPoints, numLatPoints)
-    do yourid = 1, mpi_nprocs
+    do yourid = 1, mmpi_nprocs
       numLonPoints = size(xout,1)
       numLatPoints = allLatEnd(yourid) - allLatBeg(yourid) + 1
       xout(:,allLatBeg(yourid):allLatEnd(yourid)) = xrecv(1:numLonPoints,1:numLatPoints,yourid)
@@ -948,8 +947,8 @@ contains
 
     ! Locals:
     integer :: yourid, ierr, nsize, numLonPoints, numLatPoints
-    integer :: allLonBeg(mpi_nprocs), allLonEnd(mpi_nprocs)
-    integer :: allLatBeg(mpi_nprocs), allLatEnd(mpi_nprocs)
+    integer :: allLonBeg(mmpi_nprocs), allLonEnd(mmpi_nprocs)
+    integer :: allLatBeg(mmpi_nprocs), allLatEnd(mmpi_nprocs)
     real(8), allocatable :: xsend(:,:,:),xrecv(:,:,:)
 
     call rpn_comm_allgather(diff(diffID)%myLonBeg_transpose,1,'mpi_integer',       &
@@ -961,15 +960,15 @@ contains
     call rpn_comm_allgather(diff(diffID)%myLatEnd,1,'mpi_integer',       &
                             allLatEnd            ,1,'mpi_integer','GRID',ierr)
 
-    allocate(xsend(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mpi_nprocs))
-    allocate(xrecv(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mpi_nprocs))
+    allocate(xsend(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mmpi_nprocs))
+    allocate(xrecv(diff(diffID)%lonPerPEmax_transpose,diff(diffID)%latPerPEmax, mmpi_nprocs))
 
     xout(:,:) = 0.0d0
     xsend(:,:,:) = 0.0d0
     xrecv(:,:,:) = 0.0d0
 
     !$OMP PARALLEL DO PRIVATE(yourid, numLonPoints, numLatPoints)
-    do yourid = 1, mpi_nprocs
+    do yourid = 1, mmpi_nprocs
       numLonPoints = size(xin,1)
       numLatPoints = allLatEnd(yourid) - allLatBeg(yourid) + 1
       xsend(1:numLonPoints,1:numLatPoints,yourid) = xin(:,allLatBeg(yourid):allLatEnd(yourid))
@@ -977,7 +976,7 @@ contains
     !$OMP END PARALLEL DO
 
     nsize = diff(diffID)%lonPerPEmax_transpose * diff(diffID)%latPerPEmax
-    if (mpi_nprocs > 1) then
+    if (mmpi_nprocs > 1) then
       call rpn_comm_alltoall(xsend, nsize, 'mpi_real8',  &
                              xrecv, nsize, 'mpi_real8', 'grid', ierr)
     else
@@ -985,7 +984,7 @@ contains
     end if
 
     !$OMP PARALLEL DO PRIVATE(yourid, numLonPoints, numLatPoints)
-    do yourid = 1, mpi_nprocs
+    do yourid = 1, mmpi_nprocs
       numLonPoints = allLonEnd(yourid) - allLonBeg(yourid) + 1
       numLatPoints = size(xout,2)
       xout(allLonBeg(yourid):allLonEnd(yourid),:) = xrecv(1:numLonPoints,1:numLatPoints,yourid) 

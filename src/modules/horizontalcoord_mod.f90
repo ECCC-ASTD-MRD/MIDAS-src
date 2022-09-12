@@ -20,8 +20,7 @@ module HorizontalCoord_mod
   ! :Purpose: Derived type and procedures related to the horizontal grid
   !           coordinate for various grids (global and limited area).
   
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use earthConstants_mod
   use mathPhysConstants_mod
   use utilities_mod
@@ -236,7 +235,7 @@ contains
 
     grtypTicTac = 'X'
 
-    if (mpi_myid == 0) write(*,*) 'hco_setupFromFile: grtyp, ni, nj = ', grtyp, ni, nj
+    if (mmpi_myid == 0) write(*,*) 'hco_setupFromFile: grtyp, ni, nj = ', grtyp, ni, nj
 
     !- 2.2 Rotated lat-lon grid
     if ( trim(grtyp) == 'Z' ) then
@@ -328,7 +327,7 @@ contains
       else
         rotated = .true.
       end if
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         write(*,*) 'hco_setupFromFile: xlat1/2, xlon1/2, rotated = ',  &
              xlat1_4, xlat2_4, xlon1_4, xlon2_4, rotated
       end if
@@ -516,7 +515,7 @@ contains
 
     maxGridSpacing = ec_ra * sqrt(2.0d0) * max(maxDeltaLon,maxDeltaLat)
   
-    if ( mpi_myid == 0 .and. maxGridSpacing /= maxGridSpacingPrevious ) then
+    if ( mmpi_myid == 0 .and. maxGridSpacing /= maxGridSpacingPrevious ) then
       maxGridSpacingPrevious = maxGridSpacing
       write(*,*) 'hco_setupFromFile: maxDeltaLat=', maxDeltaLat * MPC_DEGREES_PER_RADIAN_R8, ' deg'
       write(*,*) 'hco_setupFromFile: maxDeltaLon=', maxDeltaLon * MPC_DEGREES_PER_RADIAN_R8, ' deg'
@@ -599,7 +598,7 @@ contains
     
     write(*,*) 'hco_mpiBcast: starting'
     
-    if ( mpi_myid > 0 ) then
+    if ( mmpi_myid > 0 ) then
       if( .not.associated(hco) ) then
         allocate(hco)
       else
@@ -617,7 +616,7 @@ contains
     call rpn_comm_bcast(hco%ig2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ig3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ig4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if ( mpi_myid > 0 ) then
+    if ( mmpi_myid > 0 ) then
       allocate(hco%lat(hco%nj))
       allocate(hco%lon(hco%ni))
       allocate(hco%lat2d_4(hco%ni,hco%nj))
@@ -640,13 +639,13 @@ contains
     call rpn_comm_bcast(hco%xlat2_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%xlon2_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     if ( hco%grtyp == 'U' ) then
-      if ( mpi_myid > 0 ) then
+      if ( mmpi_myid > 0 ) then
         allocate(hco%tictacU(5 + 2 * (10 + hco%ni + hco%nj/2)))
       end if
       call rpn_comm_bcast(hco%tictacU, size(hco%tictacU), 'MPI_REAL4', 0, 'GRID', ierr)
     end if
     
-    if ( mpi_myid > 0 ) then
+    if ( mmpi_myid > 0 ) then
       if ( hco%grtyp == 'G' ) then
         hco%EZscintID  = ezqkdef( hco%ni, hco%nj, hco%grtyp, hco%ig1, hco%ig2, hco%ig3, hco%ig4, 0 )
       else
@@ -1085,7 +1084,7 @@ contains
     integer, intent(in)       :: ni, nj
 
     allocate(hco)
-    if (mpi_myId == 0 ) then
+    if (mmpi_myid == 0 ) then
       hco%initialized = .true.
       hco%ni = ni
       hco%nj = nj

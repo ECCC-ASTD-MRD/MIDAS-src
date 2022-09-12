@@ -21,8 +21,7 @@ module gridVariableTransforms_mod
   !           from gridStateVector(s). Outputs are also placed in a
   !           gridStateVector.
   !
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use earthConstants_mod
@@ -547,7 +546,7 @@ CONTAINS
     logical :: allocHeightSfc
     character(len=4), pointer :: varNames(:)
 
-    if ( mpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: START'
+    if ( mmpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: START'
 
     if ( .not. associated(hco_trl) ) hco_trl => gsv_getHco(stateVectorOnTrlGrid)
     if ( .not. associated(vco_trl) ) vco_trl => gsv_getVco(stateVectorOnTrlGrid)
@@ -654,7 +653,7 @@ CONTAINS
 
     end select
 
-    if ( mpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: END'
+    if ( mmpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: END'
 
   end subroutine gvt_setupRefFromStateVector
 
@@ -1560,8 +1559,8 @@ CONTAINS
         !ntrunc = statevector%nj
         ntrunc = 180
         gstID = gst_setup(statevector%ni,statevector%nj,ntrunc,2*nlev_M)
-        call mpivar_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
-        call mpivar_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
+        call mmpi_setup_m(ntrunc,mymBeg,mymEnd,mymSkip,mymCount)
+        call mmpi_setup_n(ntrunc,mynBeg,mynEnd,mynSkip,mynCount)
         call gst_ilaList_mpiglobal( ilaList_mpiglobal,nla_mpilocal,maxMyNla,&
                                     gstID,mymBeg,mymEnd,mymSkip,mynBeg,mynEnd,&
                                     mynSkip)
@@ -1920,7 +1919,7 @@ CONTAINS
     end if
 
     ! allocate statevector for single time steps
-    if (mpi_myid < stateVector%numStep) then
+    if (mmpi_myid < stateVector%numStep) then
       if (outputVarName == 'LG') then
         call gsv_allocate(stateVector_analysis_1step_r8, 1, stateVector%hco, &
                           stateVector%vco, mpi_local_opt = .false., &
@@ -2122,7 +2121,7 @@ CONTAINS
 
     call gsv_transposeStepToTiles(stateVector_analysis_1step_r8, stateVector, 1)
 
-    if (mpi_myid < stateVector%numStep) then
+    if (mmpi_myid < stateVector%numStep) then
       call gsv_deallocate(stateVector_analysis_1step_r8)
       call gsv_deallocate(stateVector_trial_1step_r8)
     end if
@@ -2179,7 +2178,7 @@ CONTAINS
     end if
 
     ! allocate statevector
-    if (mpi_myid < stateVector%numStep) then
+    if (mmpi_myid < stateVector%numStep) then
       if(variableName == 'TM') then
         call gsv_allocate(stateVector_1step, 1, stateVector%hco, &
                           stateVector%vco, mpi_local_opt = .false., &
@@ -2284,7 +2283,7 @@ CONTAINS
     call gsv_transposeStepToTiles(stateVector_1step, stateVector, 1)
 
     ! deallocate local arrays
-    if (mpi_myid < stateVector%numStep) then
+    if (mmpi_myid < stateVector%numStep) then
       call gsv_deallocate(stateVector_1step)
     end if
     deallocate(isWaterValue)

@@ -19,7 +19,7 @@ program midas_ensPostProcess
   !           Many aspects of this program are controlled throught the namelist
   !           block namEnsPostProc defined in epp_postProcess.
   use version_mod
-  use mpi_mod
+  use midasMpi_mod
   use fileNames_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
@@ -59,8 +59,8 @@ program midas_ensPostProcess
   !
   !- 0. MPI, TMG and misc. initialization
   !
-  call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call mmpi_initialize
+  call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -83,7 +83,7 @@ program midas_ensPostProcess
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namEnsPostProc, iostat=ierr)
   if ( ierr /= 0) call utl_abort('midas-ensPostProcess: Error reading namelist')
-  if ( mpi_myid == 0 ) write(*,nml=namEnsPostProc)
+  if ( mmpi_myid == 0 ) write(*,nml=namEnsPostProc)
   ierr = fclos(nulnam)
 
   if (.not.readTrlEnsemble .and. .not.readAnlEnsemble) then
@@ -121,8 +121,8 @@ program midas_ensPostProcess
   call gsv_setup
 
   !- Initialize the grid from targetgrid file or from trial or analysis ensemble member 1
-  if (mpi_myid == 0) write(*,*) ''
-  if (mpi_myid == 0) write(*,*) 'midas-ensPostProcess: Set hco and vco parameters for ensemble grid'
+  if (mmpi_myid == 0) write(*,*) ''
+  if (mmpi_myid == 0) write(*,*) 'midas-ensPostProcess: Set hco and vco parameters for ensemble grid'
   inquire(file='targetgrid', exist=targetGridFileExists)
   if (targetGridFileExists) then
     gridFileName = 'targetgrid'
@@ -133,7 +133,7 @@ program midas_ensPostProcess
     call fln_ensFileName(gridFileName, ensPathNameAnl, memberIndex_opt=1, &
                          copyToRamDisk_opt=.false.)
   end if
-  if (mpi_myid == 0) then
+  if (mmpi_myid == 0) then
     write(*,*) 'midas-ensPostProcess: file use to define grid = ', trim(gridFileName)
   end if
   call hco_SetupFromFile(hco_ens, gridFileName, ' ', 'ENSFILEGRID')
@@ -208,13 +208,13 @@ program midas_ensPostProcess
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call utl_tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-  if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
-  if ( mpi_myid == 0 ) write(*,*) ' MIDAS-ensPostProcess ENDS'
-  if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if ( mmpi_myid == 0 ) write(*,*) ' MIDAS-ensPostProcess ENDS'
+  if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
 
 end program midas_ensPostProcess

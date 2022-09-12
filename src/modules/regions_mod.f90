@@ -24,7 +24,7 @@ module regions_mod
   !           sequential algorithm. 
   !
   use mathPhysConstants_mod
-  use mpi_mod
+  use midasMpi_mod
   implicit none
 
   private
@@ -112,19 +112,19 @@ contains
     latcenter(1) = -0.5D0*dpie
     latmax(1) = -0.5D0*dpie+r0
  
-    if (mpi_myid == 0) write(*,*) 'get latitude r0 and nlatband: ', r0, nlatband
-    if (mpi_myid == 0) write(*,*) 'at ', 1, latmin(1), latcenter(1), latmax(1)
+    if (mmpi_myid == 0) write(*,*) 'get latitude r0 and nlatband: ', r0, nlatband
+    if (mmpi_myid == 0) write(*,*) 'at ', 1, latmin(1), latcenter(1), latmax(1)
 
     latmin(nlatband) = 0.5D0*dpie-r0
     latcenter(nlatband) = 0.5D0*dpie
     latmax(nlatband) = 0.5D0*dpie
 
-    if (mpi_myid == 0) write(*,*) 'at ', nlatband, latmin(nlatband), latcenter(nlatband), latmax(nlatband)
+    if (mmpi_myid == 0) write(*,*) 'at ', nlatband, latmin(nlatband), latcenter(nlatband), latmax(nlatband)
     do i = 2, nlatband-1
       latmin(i) = latmax(i-1)
       latmax(i) = latmin(i)+r0*(2**0.5)
       latcenter(i) = latmin(i)+0.5D0*r0*(2**0.5)
-      if (mpi_myid == 0) write(*,*) 'at ', i, latmin(i), latcenter(i), latmax(i)
+      if (mmpi_myid == 0) write(*,*) 'at ', i, latmin(i), latcenter(i), latmax(i)
     end do
  
   end subroutine reg_getlatitude

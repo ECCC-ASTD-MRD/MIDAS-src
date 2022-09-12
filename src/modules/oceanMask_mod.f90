@@ -22,9 +22,8 @@ module oceanMask_mod
   !                 * In the case of variables on ocean depth levels, it varies with vertical level.
   !                 * In other cases it is a single 2D field used for all variables.
   !
-  use mpi_mod
+  use midasMpi_mod
   use kdtree2_mod
-  use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use utilities_mod
@@ -320,7 +319,7 @@ module oceanMask_mod
 
     ! special treatment of hco object since EZscintID not properly communicated
     nullify(hco_temp)
-    if (mpi_myid > 0 .and. associated(oceanMask%hco)) then
+    if (mmpi_myid > 0 .and. associated(oceanMask%hco)) then
       hco_temp => oceanMask%hco
       nullify(oceanMask%hco)
     end if

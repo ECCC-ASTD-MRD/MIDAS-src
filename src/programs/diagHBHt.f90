@@ -23,8 +23,7 @@ program midas_diagHBHt
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -70,9 +69,9 @@ program midas_diagHBHt
   call ver_printNameAndVersion('diagHBHt','RANDOMIZED DIAGNOSTIC of HBHt')
 
   ! MPI initilization
-  call mpi_initialize 
+  call mmpi_initialize 
 
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
 
@@ -118,7 +117,7 @@ program midas_diagHBHt
   if ( .not. obsf_filesSplit() ) then 
     write(*,*) 'We read/write global observation files'
     call obs_expandToMpiGlobal(obsSpaceData)
-    if (mpi_myid == 0) call obsf_writeFiles(obsSpaceData)
+    if (mmpi_myid == 0) call obsf_writeFiles(obsSpaceData)
   else
     ! redistribute obs data to how it was just after reading the files
     call obs_MpiRedistribute(obsSpaceData,OBS_IPF)
@@ -135,7 +134,7 @@ program midas_diagHBHt
 
   call utl_tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 
@@ -181,7 +180,7 @@ contains
     !
     !- Initialize constants
     !
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       call mpc_printConstants(6)
       call pre_printPrecisions
     end if
@@ -195,8 +194,8 @@ contains
     !
     !- Initialize the Analysis grid
     !
-    if(mpi_myid.eq.0) write(*,*)''
-    if(mpi_myid.eq.0) write(*,*)' preproc: Set hco parameters for analysis grid'
+    if(mmpi_myid.eq.0) write(*,*)''
+    if(mmpi_myid.eq.0) write(*,*)' preproc: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
     if ( hco_anl % global ) then

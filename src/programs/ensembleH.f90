@@ -20,9 +20,7 @@ program midas_ensembleH
   !           of states as the first step for most EnKF algorithms.
   !
   use version_mod
-  use mpi_mod
-  use mpivar_mod
-  use mathPhysConstants_mod
+  use midasMpi_mod
   use fileNames_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -75,8 +73,8 @@ program midas_ensembleH
   !
   !- 0. MPI, TMG initialization
   !
-  call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call mmpi_initialize
+  call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -96,7 +94,7 @@ program midas_ensembleH
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
   read(nulnam, nml=namensembleh, iostat=ierr)
   if ( ierr /= 0) call utl_abort('midas-ensembleH: Error reading namelist')
-  if ( mpi_myid == 0 ) write(*,nml=namensembleh)
+  if ( mmpi_myid == 0 ) write(*,nml=namensembleh)
   ierr = fclos(nulnam)
 
   ! Read the observations
@@ -116,8 +114,8 @@ program midas_ensembleH
   call gsv_setup
 
   !- Initialize the Ensemble grid
-  if (mpi_myid == 0) write(*,*) ''
-  if (mpi_myid == 0) write(*,*) 'midas-ensembleH: Set hco and vco parameters for ensemble grid'
+  if (mmpi_myid == 0) write(*,*) ''
+  if (mmpi_myid == 0) write(*,*) 'midas-ensembleH: Set hco and vco parameters for ensemble grid'
   call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
   call vco_setupFromFile( vco_ens, ensFileName )
 
@@ -198,7 +196,7 @@ program midas_ensembleH
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
   call utl_tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -206,8 +204,8 @@ program midas_ensembleH
   !
   !- 7.  Ending
   !
-  if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
-  if ( mpi_myid == 0 ) write(*,*) ' MIDAS-ENSEMBLEH ENDS'
-  if ( mpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if ( mmpi_myid == 0 ) write(*,*) ' MIDAS-ENSEMBLEH ENDS'
+  if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
 
 end program midas_ensembleH

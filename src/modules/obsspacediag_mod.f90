@@ -21,8 +21,7 @@ module obsSpaceDiag_mod
   !           observation space.
   !
   use codePrecision_mod
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use bufr_mod
   use codtyp_mod
   use earthConstants_mod
@@ -510,7 +509,7 @@ contains
            where (counts > 0) bmatEnStd = sqrt(bmatEnStd/counts)
         end if 
         
-        if(mpi_myid == 0 .and. sum(counts(:,:,:)) > 0) then
+        if(mmpi_myid == 0 .and. sum(counts(:,:,:)) > 0) then
 
          ! determine file names
           write(dateStr,'(i10.10)') dateprnt
@@ -739,7 +738,7 @@ contains
     else
       nmlExists = .true.
     endif
-    if(mpi_myid.eq.0) write(*,nml=namosd)
+    if(mmpi_myid.eq.0) write(*,nml=namosd)
     ierr = fclos(nulnam)
 
     do j=1,numFamily
@@ -809,7 +808,7 @@ contains
     integer, allocatable :: codtyplist(:)
     integer :: jelm,ifam
     
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
        write(*,*)
        write(*,*) "Enter osd_obsPostProc: Observation-space post-processing tasks for chemical constituents"
        write(*,*)
@@ -866,7 +865,7 @@ contains
     
     call osd_update_obsfile(obsSpaceData)
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
        write(*,*)
        write(*,*) "Exit osd_obsPostProc"
        write(*,*)
@@ -944,7 +943,7 @@ contains
     
     if (num_elemID == 0) return
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
        write(*,*)
        write(*,*) "osd_obsDiagnostics: Observation-space diagnostics for chemical constituents"
        write(*,*)
@@ -1130,19 +1129,19 @@ contains
        call osd_obsspace_diagn_MPIreduce(obs_diagn)
        
        ! Output, and deallocate diagnostic arrays
-       if (mpi_myid == 0) call osd_obsspace_diagn_print(obs_diagn,filename, save_diagn, &
+       if (mmpi_myid == 0) call osd_obsspace_diagn_print(obs_diagn,filename, save_diagn, &
                               'stats', pressmin, status_hpht, label_opt=label, openfile_opt=.true.)
  
     end do
     
     ! Output diagnostics summary (over all CH observations)
-    if (mpi_myid == 0) call osd_obsspace_diagn_print(obs_diagn,filename, save_diagn, &
+    if (mmpi_myid == 0) call osd_obsspace_diagn_print(obs_diagn,filename, save_diagn, &
                             'summary', pressmin, status_hpht, openfile_opt=.true.)
  
     ! Deallocate arrays in obs_diagn
     call osd_obsspace_diagn_dealloc(obs_diagn)
    
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
        write(*,*)
        write(*,*) "End osd_obsDiagnostics"
        write(*,*)

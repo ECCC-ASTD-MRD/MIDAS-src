@@ -22,9 +22,7 @@ program midas_advector
   use version_mod
   use ramDisk_mod
   use utilities_mod
-  use mpi_mod
-  use mpiVar_mod
-  use mathPhysConstants_mod
+  use midasMpi_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
@@ -75,10 +73,10 @@ program midas_advector
   write(*,*) '> midas-advector: setup - START'
 
   !- 1.1 mpi
-  call mpi_initialize
+  call mmpi_initialize
 
   !- 1.2 timings
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
 
   !- 1.3 Read namelist options
@@ -97,7 +95,7 @@ program midas_advector
   ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
   read(nulnam,nml=namadvector,iostat=ierr)
   if (ierr /=0) call utl_abort('midas-advector: Error reading namelist')
-  if (mpi_myid == 0) write(*,nml=namadvector)
+  if (mmpi_myid == 0) write(*,nml=namadvector)
   ierr = fclos(nulnam)
 
   !- 1.4 RAM disk usage
@@ -251,7 +249,7 @@ program midas_advector
   write(*,*)
   write(*,*) '> midas-advector: Ending'
   call utl_tmg_stop(0)
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
   call rpn_comm_finalize(ierr) 
 

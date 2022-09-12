@@ -28,8 +28,7 @@ module obsOperators_mod
   use bufr_mod
   use physicsFunctions_mod
   use gps_mod
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use timeCoord_mod
   use obsFilter_mod
   use tovs_nl_mod
@@ -1804,7 +1803,7 @@ contains
 
     logical, save :: initializeLinearization = .true.
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       write(*,*) 'OOP_Htl - Linearized observation operators'
     end if
 
@@ -2587,7 +2586,7 @@ contains
     type(struct_vco), pointer :: vco_anl
     logical, save :: initializeLinearization = .true.
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       write(*,*)'OOP_HT- Adjoint of linearized observation operators'
     end if
 

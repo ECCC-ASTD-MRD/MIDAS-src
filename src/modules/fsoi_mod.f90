@@ -19,7 +19,7 @@ module fsoi_mod
   !
   ! :Purpose: Observation impact (FSOI) library
   !
-  use mpi_mod
+  use midasMpi_mod
   use codePrecision_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -151,7 +151,7 @@ module fsoi_mod
     integer                         :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
     real(8)                         :: fso_ori, fso_fin
 
-    if (mpi_myid == 0) write(*,*) 'fso_ensemble: starting'
+    if (mmpi_myid == 0) write(*,*) 'fso_ensemble: starting'
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
@@ -199,7 +199,7 @@ module fsoi_mod
     call bmat_sqrtBT(vhat, nvadim_mpilocal, statevector_FcstErr, useFSOFcst_opt = .true., &
     stateVectorRef_opt=statevector_HUreference)
 
-    if (mpi_myid == 0) write(*,*) 'fso: B_t^T/2 * C * (error_t^fa + error_t^fb) max,min:', &
+    if (mmpi_myid == 0) write(*,*) 'fso: B_t^T/2 * C * (error_t^fa + error_t^fb) max,min:', &
         maxval(vhat),minval(vhat)
 
     if( trim(fsoMode) == 'HFSO' ) then
@@ -240,7 +240,7 @@ module fsoi_mod
     deallocate(zhat)
     call col_deallocate(column)
 
-    if (mpi_myid == 0) write(*,*) 'fso_ensemble: Finished'
+    if (mmpi_myid == 0) write(*,*) 'fso_ensemble: Finished'
 
   end subroutine fso_ensemble
 
@@ -361,7 +361,7 @@ module fsoi_mod
 
     call utl_tmg_start(90,'--Minimization')
 
-    if (mpi_myid == 0) write(*,*) 'minimize: starting'
+    if (mmpi_myid == 0) write(*,*) 'minimize: starting'
 
     nmtra = (4 + 2*nvamaj)*nvadim
     write(*,'(4X,"NVAMAJ = ",I3,/5X,"NMTRA =",I14)') nvamaj,nmtra
@@ -379,7 +379,7 @@ module fsoi_mod
 
     ! Compute zhat by performing variational minimization
     ! Set-up for the minimization
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
       impres = 5
     else
       impres = 0
@@ -422,7 +422,7 @@ module fsoi_mod
         ,/,20X,"                Total number of iterations:",I4  &
         ,/,20X,"               Total number of simulations:",I4)' ) imode,itermax,isimmax
 
-    if (mpi_myid == 0) write(*,*) 'minimize: Finished'
+    if (mmpi_myid == 0) write(*,*) 'minimize: Finished'
 
     deallocate(vatra)
     deallocate(gradJ)
@@ -455,7 +455,7 @@ module fsoi_mod
     integer            :: numAss_sensors_loc(tvs_nsensors), numAss_sensors_glb(tvs_nsensors)
     integer            :: ierr, familyIndex
 
-    if (mpi_myid == 0) write(*,*) 'sumFSO: Starting'
+    if (mmpi_myid == 0) write(*,*) 'sumFSO: Starting'
 
     ! initialize
     do familyIndex = 1, numFamily
@@ -501,17 +501,17 @@ module fsoi_mod
     end do
 
     do familyIndex = 1, numFamily
-      call mpi_allreduce_sumreal8scalar(tfso(familyIndex),'GRID')
+      call mmpi_allreduce_sumreal8scalar(tfso(familyIndex),'GRID')
       totFSO = totFSO + tfso(familyIndex)
       call rpn_comm_allreduce(numAss_local(familyIndex), numAss_global(familyIndex) ,1,'MPI_INTEGER','MPI_SUM','GRID',ierr)
     end do
 
     do isens = 1, tvs_nsensors
-      call mpi_allreduce_sumreal8scalar(tfsotov_sensors(isens),'GRID')
+      call mmpi_allreduce_sumreal8scalar(tfsotov_sensors(isens),'GRID')
       call rpn_comm_allreduce(numAss_sensors_loc(isens), numAss_sensors_glb(isens) ,1,'MPI_INTEGER','MPI_SUM','GRID',ierr)
     end do
 
-    if (mpi_myid == 0) then
+    if (mmpi_myid == 0) then
 
       write(*,*) ' '
       write(*,'(a15,f15.8)') 'Total FSO=', totFSO
@@ -583,7 +583,7 @@ module fsoi_mod
     if (indic /= 1) then ! No action taken if indic == 1
       fso_nsim = fso_nsim + 1
 
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         write(*,*) 'simvar: entering for simulation ',fso_nsim
         write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
         call flush(6)
@@ -594,7 +594,7 @@ module fsoi_mod
 
       ! Computation of background term of cost function:
       Jb = dot_product(zhat(1:nvadim_mpilocal),zhat(1:nvadim_mpilocal))/2.d0
-      call mpi_allreduce_sumreal8scalar(Jb,'GRID')
+      call mmpi_allreduce_sumreal8scalar(Jb,'GRID')
 
       vco_anl => col_getVco(columnTrlOnAnlIncLev_ptr)
       call gsv_allocate(statevector,tim_nstepobsinc, hco_anl, vco_anl, &
@@ -620,10 +620,10 @@ module fsoi_mod
       Jtotal = Jb + Jobs
       if (indic == 3) then
         Jtotal = Jobs
-        if (mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') Jobs
+        if (mmpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  JO = ",G23.16,6X)') Jobs
       else
         Jtotal = Jb + Jobs
-        if (mpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') Jb,Jobs,Jtotal
+        if (mmpi_myid == 0) write(*,FMT='(6X,"SIMVAR:  Jb = ",G23.16,6X,"JO = ",G23.16,6X,"Jt = ",G23.16)') Jb,Jobs,Jtotal
       end if
       call utl_tmg_stop(92)
       call utl_tmg_stop(90)
@@ -654,7 +654,7 @@ module fsoi_mod
     call utl_tmg_start(90,'--Minimization')
     call utl_tmg_start(91,'----QuasiNewton')
 
-    if (mpi_myid == 0) write(*,*) 'simvar: Finished'
+    if (mmpi_myid == 0) write(*,*) 'simvar: Finished'
 
   end subroutine simvar
 
@@ -681,7 +681,7 @@ module fsoi_mod
       ddsc = ddsc + px(cvIndex)*py(cvIndex)
     end do
 
-    call mpi_allreduce_sumreal8scalar(ddsc,'GRID')
+    call mmpi_allreduce_sumreal8scalar(ddsc,'GRID')
 
   end subroutine prscal
 
@@ -778,7 +778,7 @@ module fsoi_mod
     real(8), parameter   :: Psfc_r = 100000.0D0 ! unit Pa
     real(8), parameter   :: sigma = 0.3 ! weight factor for humidity
 
-    if (mpi_myid == 0) write(*,*) 'multEnergyNorm: START'
+    if (mmpi_myid == 0) write(*,*) 'multEnergyNorm: START'
     nullify(Press_T,Press_M)
 
     ! the factors for TT, HU and Ps (for wind is 1)
@@ -862,9 +862,9 @@ module fsoi_mod
           end do !latIndex
         end do ! stepIndex
       end do ! levIndex
-      call mpi_allreduce_sumreal8scalar(sumeu,'grid')
-      call mpi_allreduce_sumreal8scalar(sumev,'grid')
-      call mpi_allreduce_sumreal8scalar(sumScale,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumeu,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumev,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
 
       sumeu = sumeu/sumScale
       sumev = sumev/sumScale
@@ -876,8 +876,8 @@ module fsoi_mod
       field_VV(:,:,:,:) = field_VV(:,:,:,:)*0.0D0
     end if ! if uvNorm
 
-    if (mpi_myid == 0)  write(*,*) 'energy for UU=', sumeu
-    if (mpi_myid == 0)  write(*,*) 'energy for VV=', sumev
+    if (mmpi_myid == 0)  write(*,*) 'energy for UU=', sumeu
+    if (mmpi_myid == 0)  write(*,*) 'energy for VV=', sumev
 
     ! for Temperature
     call gsv_getField(statevector_inout,field_T,'TT')
@@ -922,8 +922,8 @@ module fsoi_mod
           end do
         end do ! stepIndex
       end do ! levIndex
-      call mpi_allreduce_sumreal8scalar(sumet,'grid')
-      call mpi_allreduce_sumreal8scalar(sumScale,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumet,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
       sumet = sumet/sumScale
 
       field_T(:,:,:,:) = field_T(:,:,:,:)/sumScale
@@ -931,7 +931,7 @@ module fsoi_mod
       field_T(:,:,:,:) = field_T(:,:,:,:)*0.0D0
     end if ! if ttNorm
 
-    if (mpi_myid == 0)  write(*,*) 'energy for TT=', sumet
+    if (mmpi_myid == 0)  write(*,*) 'energy for TT=', sumet
 
     ! humidity (set to zero, for now)
     call gsv_getField(statevector_inout,field_LQ,'HU')
@@ -980,15 +980,15 @@ module fsoi_mod
           end do
         end do ! stepIndex
       end do ! latIndex
-      call mpi_allreduce_sumreal8scalar(sumScale,'grid')
-      call mpi_allreduce_sumreal8scalar(sumeq,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumeq,'grid')
       sumeq = sumeq/sumScale
       field_LQ(:,:,:,:) = field_LQ(:,:,:,:)/sumScale
     else
       field_LQ(:,:,:,:) = field_LQ(:,:,:,:)*0.0D0
     end if ! if huNorm
 
-    if (mpi_myid == 0)  write(*,*) 'energy for HU=', sumeq
+    if (mmpi_myid == 0)  write(*,*) 'energy for HU=', sumeq
 
     ! surface pressure
     call gsv_getField(statevector_inout,field_Psfc,'P0')
@@ -1020,15 +1020,15 @@ module fsoi_mod
         end do ! latIndex
       end do ! stepIndex
 
-      call mpi_allreduce_sumreal8scalar(sumep,'grid')
-      call mpi_allreduce_sumreal8scalar(sumScale,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumep,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
       sumep = sumep/sumScale
       field_Psfc(:,:,:,:) =  field_Psfc(:,:,:,:)/sumScale
     else
       field_Psfc(:,:,:,:) =  field_Psfc(:,:,:,:)*0.0D0
     end if ! if p0Norm
 
-    if (mpi_myid == 0)  write(*,*) 'energy for Ps=', sumep
+    if (mmpi_myid == 0)  write(*,*) 'energy for Ps=', sumep
 
     ! skin temperature (set to zero for now)
     call gsv_getField(statevector_inout,field_TG,'TG')
@@ -1056,17 +1056,17 @@ module fsoi_mod
           end do
         end do ! latIndex
       end do ! stepIndex
-      call mpi_allreduce_sumreal8scalar(sumScale,'grid')
+      call mmpi_allreduce_sumreal8scalar(sumScale,'grid')
       field_TG(:,:,:,:) = field_TG(:,:,:,:)/sumScale
     else
       field_TG(:,:,:,:) = field_TG(:,:,:,:)*0.0D0
     end if ! if tgNorm
 
-    if (mpi_myid == 0) write(*,*) 'energy for total=', sumeu + sumev + sumet + sumep + sumeq
+    if (mmpi_myid == 0) write(*,*) 'energy for total=', sumeu + sumev + sumet + sumep + sumeq
     deallocate(Press_T,Press_M)
     deallocate(Psfc_ref)
 
-    if (mpi_myid == 0) write(*,*) 'multEnergyNorm: END'
+    if (mmpi_myid == 0) write(*,*) 'multEnergyNorm: END'
 
   end subroutine multEnergyNorm
 

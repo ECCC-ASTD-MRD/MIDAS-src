@@ -19,7 +19,7 @@ module humidityLimits_mod
   !
   ! :Purpose: Various manipulations of humidity-related quantities.
   !
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use mathPhysConstants_mod
   use physicsFunctions_mod
@@ -79,10 +79,10 @@ contains
     integer          :: lon1, lon2, lat1, lat2, lev1, lev2, ierr
     integer          :: lonIndex, latIndex, levIndex, stepIndex
 
-    if (mpi_myid == 0) write(*,*) 'qlim_saturationLimit_gsv: STARTING'
+    if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_gsv: STARTING'
 
     if( .not. gsv_varExist(statevector,'HU') ) then
-      if( mpi_myid == 0 ) write(*,*) 'qlim_saturationLimit_gsv: statevector does not ' // &
+      if( mmpi_myid == 0 ) write(*,*) 'qlim_saturationLimit_gsv: statevector does not ' // &
            'contain humidity ... doing nothing'
       return
     end if
@@ -187,14 +187,14 @@ contains
     integer          :: lon1, lon2, lat1, lat2, numLev, ierr
     integer          :: lonIndex, latIndex, levIndex, stepIndex, memberIndex, varLevIndex
 
-    if (mpi_myid == 0) write(*,*) 'qlim_saturationLimit_ens: STARTING'
+    if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_ens: STARTING'
 
     if (ens_getDataKind(ensemble) == 8) then
       call utl_abort('qlim_saturationLimit_ens: Not compatible with dataKind = 8')
     end if
 
     if( .not. ens_varExist(ensemble,'HU') ) then
-      if( mpi_myid == 0 ) write(*,*) 'qlim_saturationLimit_ens: ensemble does not ' // &
+      if( mmpi_myid == 0 ) write(*,*) 'qlim_saturationLimit_ens: ensemble does not ' // &
            'contain humidity ... doing nothing'
       return
     end if
@@ -284,7 +284,7 @@ contains
     logical, save        :: firstTime=.true.
     logical              :: applyLimitToAllVarname
 
-    if (mpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: STARTING'
+    if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: STARTING'
 
     if ( present(varName_opt) ) then
       applyLimitToAllVarname = .false.
@@ -297,19 +297,19 @@ contains
     if ( (applyLimitToAllVarname .or. trim(varName) == 'HU') .and. &
           gsv_varExist(statevector,'HU') ) then
 
-      if (mpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: applying limits to HU.'
+      if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: applying limits to HU.'
 
       ! Read in RTTOV humidity limits
       fileName = "rttov_h2o_limits.dat"
       nulfile = 0
       ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
       if( ierr /= 0 ) then
-        if ( mpi_myid == 0 ) write(*,*) 'fileName = ', fileName
+        if ( mmpi_myid == 0 ) write(*,*) 'fileName = ', fileName
         call utl_abort('qlim_rttovLimit_gsv: error opening the humidity limits file')
       end if
 
       read(nulfile,*) numLev_rttov
-      if ( mpi_myid == 0 .and. firstTime ) write(*,*) 'qlim_rttovLimit_gsv: rttov number of levels = ', numLev_rttov
+      if ( mmpi_myid == 0 .and. firstTime ) write(*,*) 'qlim_rttovLimit_gsv: rttov number of levels = ', numLev_rttov
       allocate(press_rttov(numLev_rttov))
       allocate(qmin_rttov(numLev_rttov))
       allocate(qmax_rttov(numLev_rttov))
@@ -324,7 +324,7 @@ contains
       if (firstTime) then
         write(*,*) ' '
         do levIndex = 1, numLev_rttov
-          if ( mpi_myid == 0 ) write(*,fmt='(" qlim_rttovLimit_gsv:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
+          if ( mmpi_myid == 0 ) write(*,fmt='(" qlim_rttovLimit_gsv:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
               levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
         end do
         firstTime = .false.
@@ -410,7 +410,7 @@ contains
     if ( (applyLimitToAllVarname .or. trim(varName) == 'LWCR') .and. &
           gsv_varExist(statevector,'LWCR') ) then
 
-      if (mpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: applying limits to LWCR.'
+      if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: applying limits to LWCR.'
 
       if (statevector%dataKind == 8) then
         call gsv_getField(statevector,clw_ptr_r8,'LWCR')
@@ -491,7 +491,7 @@ contains
     logical, save        :: firstTime=.true.
     logical              :: applyLimitToAllVarname
 
-    if (mpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens: STARTING'
+    if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens: STARTING'
 
     if ( present(varName_opt) ) then
       applyLimitToAllVarname = .false.
@@ -504,7 +504,7 @@ contains
     if ( (applyLimitToAllVarname .or. trim(varName) == 'HU') .and. &
           ens_varExist(ensemble,'HU') ) then
 
-      if ( mpi_myid == 0 ) write(*,*) 'qlim_rttovLimit_ens:  applying limits to HU.'
+      if ( mmpi_myid == 0 ) write(*,*) 'qlim_rttovLimit_ens:  applying limits to HU.'
 
       if (ens_getDataKind(ensemble) == 8) then
         call utl_abort('qlim_rttovLimit_ens: Not compatible with dataKind = 8')
@@ -515,12 +515,12 @@ contains
       nulfile = 0
       ierr = fnom(nulfile, fileName, "FMT+OLD+R/O", 0)
       if( ierr /= 0 ) then
-        if ( mpi_myid == 0 ) write(*,*) 'fileName = ', fileName
+        if ( mmpi_myid == 0 ) write(*,*) 'fileName = ', fileName
         call utl_abort('qlim_rttovLimit_ens: error opening the humidity limits file')
       end if
 
       read(nulfile,*) numLev_rttov
-      if ( mpi_myid == 0 .and. firstTime ) write(*,*) 'qlim_rttovLimit_ens: rttov number of levels = ', numLev_rttov
+      if ( mmpi_myid == 0 .and. firstTime ) write(*,*) 'qlim_rttovLimit_ens: rttov number of levels = ', numLev_rttov
       allocate(press_rttov(numLev_rttov))
       allocate(qmin_rttov(numLev_rttov))
       allocate(qmax_rttov(numLev_rttov))
@@ -535,7 +535,7 @@ contains
       if (firstTime) then
         write(*,*) ' '
         do levIndex = 1, numLev_rttov
-          if ( mpi_myid == 0 ) write(*,fmt='(" qlim_rttovLimit_ens:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
+          if ( mmpi_myid == 0 ) write(*,fmt='(" qlim_rttovLimit_ens:   LEVEL = ",I4,", PRES = ",F9.0,", HUMIN = ",E10.2,", HUMAX = ",E10.2)') &
               levIndex, press_rttov(levIndex), qmin_rttov(levIndex), qmax_rttov(levIndex)
         end do
         firstTime = .false.
@@ -605,7 +605,7 @@ contains
     if ( (applyLimitToAllVarname .or. trim(varName) == 'LWCR') .and. &
           ens_varExist(ensemble,'LWCR') ) then
 
-      if ( mpi_myid == 0 ) write(*,*) 'qlim_rttovLimit_ens:  applying limits to LWCR.'
+      if ( mmpi_myid == 0 ) write(*,*) 'qlim_rttovLimit_ens:  applying limits to LWCR.'
 
       vco_ptr => ens_getVco(ensemble)
       numLev = ens_getNumLev(ensemble,'TH')
@@ -754,14 +754,14 @@ contains
     integer          :: lon1, lon2, lat1, lat2, numLev
     integer          :: lonIndex, latIndex, levIndex, stepIndex, memberIndex, varLevIndex
 
-    if (mpi_myid == 0) write(*,*) 'qlim_setMin_ens: STARTING'
+    if (mmpi_myid == 0) write(*,*) 'qlim_setMin_ens: STARTING'
 
     if (ens_getDataKind(ensemble) == 8) then
       call utl_abort('qlim_setMin_ens: Not compatible with dataKind = 8')
     end if
 
     if( .not. ens_varExist(ensemble,'HU') ) then
-      if( mpi_myid == 0 ) write(*,*) 'qlim_setMin_ens: ensemble does not ' // &
+      if( mmpi_myid == 0 ) write(*,*) 'qlim_setMin_ens: ensemble does not ' // &
            'contain humidity ... doing nothing'
       return
     end if
@@ -817,7 +817,7 @@ contains
     maxClwValue = 1.0d0
 
     if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'NAMQLIM is missing in the namelist. The default values will be taken.'
       end if
 
@@ -830,7 +830,7 @@ contains
       ierr = fclos(nulnam)
 
     end if
-    if ( mpi_myid == 0 ) write(*,nml=namqlim)
+    if ( mmpi_myid == 0 ) write(*,nml=namqlim)
 
     ! Transfer namelist variables to module variables.
     qlim_minClwValue = minClwValue

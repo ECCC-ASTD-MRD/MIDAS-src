@@ -21,7 +21,7 @@ module enkf_mod
   !           an EnKF in MIDAS, including the LETKF.
   !
   use mpi, only : mpi_statuses_ignore ! this is the mpi library module
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use mathPhysConstants_mod
   use columnData_mod
@@ -325,14 +325,14 @@ contains
         nsize = nEns
         numRecv = numRecv + 1
         call mpi_irecv( weightsMean(:,1,lonIndex,latIndex),  &
-                        nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
-                        mpi_comm_grid, requestIdRecv(numRecv), ierr )
+                        nsize, mmpi_datyp_real8, procIndex-1, recvTag,  &
+                        mmpi_comm_grid, requestIdRecv(numRecv), ierr )
         nsize = nEns*nEns
         numRecv = numRecv + 1
         recvTag = recvTag + maxval(latLonTagMpiGlobal(:,:))
         call mpi_irecv( weightsMembers(:,:,lonIndex,latIndex),  &
-                        nsize, mpi_datyp_real8, procIndex-1, recvTag,  &
-                        mpi_comm_grid, requestIdRecv(numRecv), ierr )
+                        nsize, mmpi_datyp_real8, procIndex-1, recvTag,  &
+                        mmpi_comm_grid, requestIdRecv(numRecv), ierr )
       end do
       call utl_tmg_stop(101)
 
@@ -741,14 +741,14 @@ contains
           nsize = nEns
           numSend = numSend + 1
           call mpi_isend( weightsMeanLatLon(:,1,latLonIndex),  &
-                          nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
-                          mpi_comm_grid, requestIdSend(numSend), ierr )
+                          nsize, mmpi_datyp_real8, procIndexSend-1, sendTag,  &
+                          mmpi_comm_grid, requestIdSend(numSend), ierr )
           nsize = nEns*nEns
           numSend = numSend + 1
           sendTag = sendTag + maxval(latLonTagMpiGlobal(:,:))
           call mpi_isend( weightsMembersLatLon(:,:,latLonIndex),  &
-                          nsize, mpi_datyp_real8, procIndexSend-1, sendTag,  &
-                          mpi_comm_grid, requestIdSend(numSend), ierr )
+                          nsize, mmpi_datyp_real8, procIndexSend-1, sendTag,  &
+                          mmpi_comm_grid, requestIdSend(numSend), ierr )
         end do
         call utl_tmg_stop(101)
 
@@ -953,7 +953,7 @@ contains
       call gsv_zero(stateVectorMeanTrlPressure)
       call gsv_copy(stateVectorMeanTrl, stateVectorMeanTrlPressure, allowVarMismatch_opt=.true.)
       call gvt_transform(stateVectorMeanTrlPressure,'ZandP_nl')
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         call gsv_allocate( stateVectorMeanTrlPressure_1step, 1,  &
                            stateVectorMeanTrl%hco, stateVectorMeanTrl%vco, dateStamp_opt=tim_getDateStamp(),  &
                            mpi_local_opt=.false., &
@@ -961,7 +961,7 @@ contains
       end if
       call gsv_transposeTilesToStep(stateVectorMeanTrlPressure_1step, stateVectorMeanTrlPressure, (tim_nstepobsinc+1)/2)
       call gsv_deallocate(stateVectorMeanTrlPressure)
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         call gsv_getField(stateVectorMeanTrlPressure_1step,vertLocation_ptr_r4,'P_M')
         vertLocation_r4(:,:,:) = log(vertLocation_ptr_r4(:,:,:))
       end if
@@ -1048,7 +1048,7 @@ contains
 
           myLatIndexesRecv(myNumLatLonRecv) = latIndex
           myLonIndexesRecv(myNumLatLonRecv) = lonIndex
-          myProcIndexesRecv(myNumLatLonRecv) = mpi_myid+1
+          myProcIndexesRecv(myNumLatLonRecv) = mmpi_myid+1
         end do LON_LOOP1
       end do
 
@@ -1077,7 +1077,7 @@ contains
       end do
 
       ! Communicate to all mpi tasks
-      allocate(allNumLatLonRecv(mpi_nprocs))
+      allocate(allNumLatLonRecv(mmpi_nprocs))
       call rpn_comm_allgather(myNumLatLonRecv, 1, "mpi_integer",  &
                               allNumLatLonRecv, 1,"mpi_integer", "GRID", ierr)
       numLatLonRecvMax = maxval(allNumLatLonRecv)
@@ -1105,8 +1105,8 @@ contains
       end do
 
       ! Communicate to all mpi tasks this list of grid point lat-lon indexes
-      allocate(allLatIndexesRecv(numLatLonRecvMax, mpi_nprocs))
-      allocate(allLonIndexesRecv(numLatLonRecvMax, mpi_nprocs))
+      allocate(allLatIndexesRecv(numLatLonRecvMax, mmpi_nprocs))
+      allocate(allLonIndexesRecv(numLatLonRecvMax, mmpi_nprocs))
       call rpn_comm_allgather(myLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
                               allLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
                               "GRID", ierr)
@@ -1122,7 +1122,7 @@ contains
       myLonIndexesSend(:) = -1
       numLatLonTotalUnique = 0
       myNumLatLonSend = 0
-      do procIndex = 1, mpi_nprocs
+      do procIndex = 1, mmpi_nprocs
         WEIGHTS1LEV_LOOP: do latLonIndex = 1, allNumLatLonRecv(procIndex)
           if (enkf_latLonAlreadyFound(allLatIndexesRecv, allLonIndexesRecv, latLonIndex, procIndex)) &
                cycle WEIGHTS1LEV_LOOP
@@ -1130,10 +1130,10 @@ contains
           numLatLonTotalUnique = numLatLonTotalUnique + 1
 
           ! Round-robin distribution of master list across mpi tasks
-          procIndexSend = 1 + mod(numLatLonTotalUnique-1, mpi_nprocs)
+          procIndexSend = 1 + mod(numLatLonTotalUnique-1, mmpi_nprocs)
 
           ! Store the lat-lon indexes of the weights I am responsible for
-          if (procIndexSend == (mpi_myid+1)) then
+          if (procIndexSend == (mmpi_myid+1)) then
             myNumLatLonSend = myNumLatLonSend + 1
             myLatIndexesSend(myNumLatLonSend) =  &
                  allLatIndexesRecv(latLonIndex, procIndex)
@@ -1146,11 +1146,11 @@ contains
                  numLatLonTotalUnique
 
       ! Communicate to all mpi tasks this list of grid point lat-lon indexes
-      allocate(allNumLatLonSend(mpi_nprocs))
+      allocate(allNumLatLonSend(mmpi_nprocs))
       call rpn_comm_allgather(myNumLatLonSend, 1, "mpi_integer",  &
                               allNumLatLonSend, 1,"mpi_integer", "GRID", ierr)
-      allocate(allLatIndexesSend(numLatLonRecvMax, mpi_nprocs))
-      allocate(allLonIndexesSend(numLatLonRecvMax, mpi_nprocs))
+      allocate(allLatIndexesSend(numLatLonRecvMax, mmpi_nprocs))
+      allocate(allLonIndexesSend(numLatLonRecvMax, mmpi_nprocs))
       call rpn_comm_allgather(myLatIndexesSend, numLatLonRecvMax, "mpi_integer",  &
                               allLatIndexesSend, numLatLonRecvMax, "mpi_integer",  &
                               "GRID", ierr)
@@ -1159,12 +1159,12 @@ contains
                               "GRID", ierr)
 
       ! Figure out which mpi tasks I will need to send my results to
-      allocate(myProcIndexesSend(myNumLatLonSend,mpi_nprocs))
+      allocate(myProcIndexesSend(myNumLatLonSend,mmpi_nprocs))
       allocate(myNumProcIndexesSend(myNumLatLonSend))
       myProcIndexesSend(:,:) = -1
       myNumProcIndexesSend(:) = 0
       do latLonIndex = 1, myNumLatLonSend
-        do procIndex = 1, mpi_nprocs
+        do procIndex = 1, mmpi_nprocs
           if ( any( (myLatIndexesSend(latLonIndex) == allLatIndexesRecv(1:allNumLatLonRecv(procIndex), procIndex)) .and.  &
                     (myLonIndexesSend(latLonIndex) == allLonIndexesRecv(1:allNumLatLonRecv(procIndex), procIndex)) ) ) then
             myNumProcIndexesSend(latLonIndex) = myNumProcIndexesSend(latLonIndex) + 1
@@ -1175,7 +1175,7 @@ contains
 
       ! Figure out which mpi tasks I will receive the results from
       do latLonIndex = 1, myNumLatLonRecv
-        do procIndex = 1, mpi_nprocs
+        do procIndex = 1, mmpi_nprocs
           if ( any( (myLatIndexesRecv(latLonIndex) == allLatIndexesSend(1:allNumLatLonSend(procIndex), procIndex)) .and.  &
                     (myLonIndexesRecv(latLonIndex) == allLonIndexesSend(1:allNumLatLonSend(procIndex), procIndex)) ) ) then
             myProcIndexesRecv(latLonIndex) = procIndex
@@ -1227,14 +1227,14 @@ contains
     nj = size(latLonTagMpiGlobal,2)
 
     myNumLatLonRecv = size(myLatIndexesRecv)
-    allocate(allNumLatLonRecv(mpi_nprocs))
+    allocate(allNumLatLonRecv(mmpi_nprocs))
     call rpn_comm_allgather(myNumLatLonRecv, 1, "mpi_integer",  &
                             allNumLatLonRecv, 1,"mpi_integer", "GRID", ierr)
     numLatLonRecvMax = maxval(allNumLatLonRecv)
 
     ! Communicate to all mpi tasks this list of grid point lat-lon indexes
-    allocate(allLatIndexesRecv(numLatLonRecvMax, mpi_nprocs))
-    allocate(allLonIndexesRecv(numLatLonRecvMax, mpi_nprocs))
+    allocate(allLatIndexesRecv(numLatLonRecvMax, mmpi_nprocs))
+    allocate(allLonIndexesRecv(numLatLonRecvMax, mmpi_nprocs))
     call rpn_comm_allgather(myLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
                             allLatIndexesRecv, numLatLonRecvMax, "mpi_integer",  &
                             "GRID", ierr)
@@ -1520,7 +1520,7 @@ contains
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
     integer :: lonIndex, latIndex, memberIndex1, memberIndex2, interpIndex
     integer :: interpLonIndex, interpLatIndex, numMembers1, numMembers2
-    integer :: totalCount(mpi_numthread)
+    integer :: totalCount(mmpi_numthread)
     integer, external :: omp_get_thread_num
     logical, save :: firstCall = .true.
 

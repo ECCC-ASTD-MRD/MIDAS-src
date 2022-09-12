@@ -21,8 +21,7 @@ module rMatrix_mod
   !           matrices for assimilation of radiances
   !
   use rttov_interfaces_mod
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use rttov_const, only  : errorstatus_success
   use utilities_mod
   use obsSpaceData_mod
@@ -70,7 +69,7 @@ module rMatrix_mod
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namrmat, iostat=ierr)
     if (ierr /= 0) call utl_abort('rmat_init: Error reading namelist')
-    if (mpi_myid == 0) write(*,nml=namrmat)
+    if (mmpi_myid == 0) write(*,nml=namrmat)
     ierr = fclos(nulnam)
     if (rmat_lnonDiagR) then
       allocate(Rcorr_inst(nsensors))

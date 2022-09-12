@@ -19,7 +19,7 @@ module bgckOcean_mod
   !
   ! :Purpose: to perform ocean data background Check
   !
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -82,7 +82,7 @@ module bgckOcean_mod
 
     ! Read the namelist
     if (.not. utl_isNamelistPresent('namOceanBGcheck','./flnml')) then
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         write(*,*) 'ocebg_bgCheckSST: namOceanBGcheck is missing in the namelist.'
         write(*,*) 'ocebg_bgCheckSST: the default values will be taken.'
       end if

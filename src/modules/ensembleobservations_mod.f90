@@ -27,8 +27,7 @@ MODULE ensembleObservations_mod
   use rttov_types, only: rttov_transmission
   use parkind1, only: jpim, jprb
   use ramDisk_mod
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use oceanMask_mod
   use obsSpaceData_mod
   use randomNumber_mod
@@ -294,7 +293,7 @@ CONTAINS
     ! locals
     type(struct_eob) :: ensObsClean
     integer :: ierr, procIndex, memberIndex, numObs_mpiglobal
-    integer :: allNumObs(mpi_nprocs), displs(mpi_nprocs)
+    integer :: allNumObs(mmpi_nprocs), displs(mmpi_nprocs)
 
     write(*,*) 'eob_allGather: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -317,9 +316,9 @@ CONTAINS
     call eob_allocate(ensObs_mpiglobal, ensObsClean%numMembers, numObs_mpiglobal, ensObsClean%obsSpaceData)
     ensObs_mpiglobal%typeVertCoord = ensObsClean%typeVertCoord
 
-    if ( mpi_myid == 0 ) then
+    if ( mmpi_myid == 0 ) then
       displs(1) = 0
-      do procIndex = 2, mpi_nprocs
+      do procIndex = 2, mmpi_nprocs
         displs(procIndex) = displs(procIndex-1) + allNumObs(procIndex-1)
       end do
     else
@@ -422,7 +421,7 @@ CONTAINS
     integer :: fnom, fclos
 
     ! only the first mpi task does writing, assuming mpi gather already done
-    if (mpi_myid /= 0) return
+    if (mmpi_myid /= 0) return
 
     if ( .not.ensObs%allocated ) then
       call utl_abort('eob_writeToFiles: this object is not allocated')
@@ -732,7 +731,7 @@ CONTAINS
         if (channelIndex > 0 .and. ensObs%assFlag(obsIndex)==1) then
           call max_transmission(tvs_transmission(tovsIndex), numTovsLevels, &
                                 channelIndex, profiles(tovsIndex)%p, ensObs%vertLocation(obsIndex))
-          if(mpi_myid == 0 .and. verbose) then
+          if(mmpi_myid == 0 .and. verbose) then
             write(*,*) 'eob_setVertLocation for tovs: ', codType(obsIndex), &
                        obsPPP(obsIndex), 0.01*exp(ensObs%vertLocation(obsIndex))
           end if

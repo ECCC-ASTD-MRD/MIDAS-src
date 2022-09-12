@@ -21,8 +21,7 @@ module increment_mod
   !           to output the results
   !
   use codePrecision_mod
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use timeCoord_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
@@ -91,7 +90,7 @@ CONTAINS
       SSTsubgrid = '   '
 
       if ( .not. utl_isNamelistPresent('NAMINC','./flnml') ) then
-        if ( mpi_myid == 0 ) then
+        if ( mmpi_myid == 0 ) then
           write(*,*) 'NAMINC is missing in the namelist. The default values will be taken.'
         end if
 
@@ -103,7 +102,7 @@ CONTAINS
         if ( ierr /= 0) call utl_abort('readNameList: Error reading namelist')
         ierr = fclos(nulnam)
       end if
-      if ( mpi_myid == 0 ) write(*,nml=naminc)
+      if ( mmpi_myid == 0 ) write(*,nml=naminc)
     end if
 
   end subroutine readNameList
@@ -179,8 +178,8 @@ CONTAINS
                          varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
                          hInterpolateDegree_opt=hInterpolationDegree )
 
-      if( mpi_myid == 0 ) write(*,*) ''
-      if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: horizontal interpolation of the Psfc increment'
+      if( mmpi_myid == 0 ) write(*,*) ''
+      if( mmpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: horizontal interpolation of the Psfc increment'
 
       ! Extract Psfc inc at low resolution
       call gsv_allocate( statevectorPsfcLowRes, numStep,  &
@@ -197,7 +196,7 @@ CONTAINS
       call gsv_deallocate(statevectorPsfcLowRes)
 
       ! Compute analysis Psfc to use for interpolation of increment
-      if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: Computing Psfc analysis to use for interpolation of increment'
+      if( mmpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: Computing Psfc analysis to use for interpolation of increment'
       call gsv_allocate(statevectorPsfcLowResTime, tim_nstepobsinc, hco_trl, vco_trl,  &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                         dataKind_opt=pre_incrReal, &
@@ -220,7 +219,7 @@ CONTAINS
       end if
 
       ! Time interpolation to get high-res Psfc analysis increment
-      if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: Time interpolation to get high-res Psfc analysis increment'
+      if( mmpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: Time interpolation to get high-res Psfc analysis increment'
       if ( .not. gsv_isAllocated(stateVectorPsfcHighRes) ) then
         call gsv_allocate( stateVectorPsfcHighRes, tim_nstepobs, hco_trl, vco_trl, &
                            dataKind_opt=pre_incrReal, &
@@ -234,8 +233,8 @@ CONTAINS
     end if
 
     ! Compute the analysis
-    if( mpi_myid == 0 ) write(*,*) ''
-    if( mpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: compute the analysis'
+    if( mmpi_myid == 0 ) write(*,*) ''
+    if( mmpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: compute the analysis'
 
     ! Interpolate low-res increments to high-res and add to the initial state
     call gsv_allocate( stateVectorHighRes, tim_nstepobs, hco_trl, vco_trl, &
@@ -487,21 +486,21 @@ CONTAINS
     call gsv_add(stateVectorTrial, stateVectorIncHighRes, -1.0d0)
 
     ! figure out number of batches of time steps for writing
-    numBatch = ceiling(real(stateVectorAnal%numStep) / real(mpi_nprocs))
+    numBatch = ceiling(real(stateVectorAnal%numStep) / real(mmpi_nprocs))
     write(*,*) 'inc_writeIncAndAnalHighRes: writing will be done by number of batches = ', numBatch
 
     batch_loop: do batchIndex = 1, numBatch
 
-      stepIndexBeg = 1 + (batchIndex - 1) * mpi_nprocs
-      stepIndexEnd = min(stateVectorAnal%numStep, stepIndexBeg + mpi_nprocs - 1)
+      stepIndexBeg = 1 + (batchIndex - 1) * mmpi_nprocs
+      stepIndexEnd = min(stateVectorAnal%numStep, stepIndexBeg + mmpi_nprocs - 1)
       write(*,*) 'inc_writeIncAndAnalHighRes: batchIndex, stepIndexBeg/End = ', batchIndex, stepIndexBeg, stepIndexEnd
 
       ! figure out which time step I will write, if any (-1 if none)
       stepIndexToWrite = -1
       do stepIndex = stepIndexBeg, stepIndexEnd
-        procToWrite = nint( real(stepIndex - stepIndexBeg) * real(mpi_nprocs) / real(stepIndexEnd - stepIndexBeg + 1) )
-        if ( procToWrite == mpi_myid ) stepIndexToWrite = stepIndex
-        if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncAndAnalHighRes: stepIndex, procToWrite = ', stepIndex, procToWrite
+        procToWrite = nint( real(stepIndex - stepIndexBeg) * real(mmpi_nprocs) / real(stepIndexEnd - stepIndexBeg + 1) )
+        if ( procToWrite == mmpi_myid ) stepIndexToWrite = stepIndex
+        if ( mmpi_myid == 0 ) write(*,*) 'inc_writeIncAndAnalHighRes: stepIndex, procToWrite = ', stepIndex, procToWrite
       end do
 
       ! determine date and allocate stateVector for storing just 1 time step, if I do writing
@@ -648,7 +647,7 @@ CONTAINS
     character(len=4)     :: coffset
     character(len=30)    :: fileName
 
-    if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrement: STARTING'
+    if ( mmpi_myid == 0 ) write(*,*) 'inc_writeIncrement: STARTING'
 
     call utl_tmg_start(80,'--Increment')
     call utl_tmg_start(85,'----WriteIncrement')
@@ -657,7 +656,7 @@ CONTAINS
     do stepIndex = 1, tim_nstepobsinc
       if (gsv_isAllocated(statevector_incr)) then
         dateStamp = gsv_getDateStamp(stateVector_incr,stepIndex)
-        if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrement: writing increment for time step: ', &
+        if ( mmpi_myid == 0 ) write(*,*) 'inc_writeIncrement: writing increment for time step: ', &
                                          stepIndex, dateStamp
 
         ! write the increment file for this time step
@@ -677,7 +676,7 @@ CONTAINS
     call utl_tmg_stop(85)
     call utl_tmg_stop(80)
 
-    if ( mpi_myid == 0 ) write(*,*) 'inc_writeIncrement: END'
+    if ( mmpi_myid == 0 ) write(*,*) 'inc_writeIncrement: END'
 
   end subroutine inc_writeIncrement
 
@@ -698,7 +697,7 @@ CONTAINS
     character(len=4)     :: coffset
     character(len=30)    :: fileName
 
-    if(mpi_myid == 0) write(*,*) 'inc_writeAnalysis: STARTING'
+    if(mmpi_myid == 0) write(*,*) 'inc_writeAnalysis: STARTING'
 
     call utl_tmg_start(80,'--Increment')
     call utl_tmg_start(86,'----WriteAnalysis')
@@ -712,7 +711,7 @@ CONTAINS
     do stepIndex = 1, tim_nstepobsinc
       if (gsv_isAllocated(statevector_anal)) then
         dateStamp = gsv_getDateStamp(statevector_anal,stepIndex)
-        if(mpi_myid == 0) write(*,*) 'inc_writeAnalysis: writing analysis for time step: ',stepIndex, dateStamp
+        if(mmpi_myid == 0) write(*,*) 'inc_writeAnalysis: writing analysis for time step: ',stepIndex, dateStamp
 
         ! write the increment file for this time step
         call difdatr(dateStamp,tim_getDatestamp(),deltaHours)

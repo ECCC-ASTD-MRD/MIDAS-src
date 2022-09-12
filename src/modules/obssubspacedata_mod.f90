@@ -48,7 +48,7 @@ module obsSubSpaceData_mod
   use codePrecision_mod
   use utilities_mod    
   use MathPhysConstants_mod
-  use mpi_mod, only: mpi_allgather_string, mpi_doBarrier
+  use midasMpi_mod
   use bufr_mod
   use obsSpaceData_mod  ! for use in oss_get_comboIdList 
    
@@ -680,7 +680,7 @@ contains
     code_local(:)=''
     if (obsdata%nrep > 0) code_local(1:obsdata%nrep) = obsdata%code(1:obsdata%nrep)
 
-    call mpi_allgather_string(code_local,code_global,nrep_max,oss_code_len,nproc,"GRID",ierr)
+    call mmpi_allgather_string(code_local,code_global,nrep_max,oss_code_len,nproc,"GRID",ierr)
 
     if (obsdata%ndim == 1) then
 
@@ -967,10 +967,10 @@ contains
           if (iset >= 2) varno_unique_all(:,:) = 0
           if (iset >= 3) unilev_unique_all(:,:) = .false.
           
-          if(mpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
+          if(mmpi_doBarrier) call rpn_comm_barrier("GRID",ierr)
 
           call rpn_comm_allgather(num_unique,1,"MPI_INTEGER",num_unique_all,1,"MPI_INTEGER","GRID",ierr)
-          call mpi_allgather_string(stnid_unique,stnid_unique_all,nmax,stnid_len,nproc,"GRID",ierr)
+          call mmpi_allgather_string(stnid_unique,stnid_unique_all,nmax,stnid_len,nproc,"GRID",ierr)
           if (iset >= 2) call rpn_comm_allgather(varno_unique,nmax,"MPI_INTEGER",varno_unique_all,nmax,"MPI_INTEGER","GRID",ierr)
           if (iset >= 3) call rpn_comm_allgather(unilev_unique,nmax,"MPI_LOGICAL",unilev_unique_all,nmax,"MPI_LOGICAL","GRID",ierr)
           

@@ -20,8 +20,7 @@ program midas_calcstats
   !           based on homogeneous and isotropic correlations.
   !
   use version_mod
-  use mpi_mod
-  use mpivar_mod
+  use midasMpi_mod
   use fileNames_mod
   use HorizontalCoord_mod
   use VerticalCoord_mod
@@ -58,8 +57,8 @@ program midas_calcstats
   ierr = fstopc('MSGLVL','ERRORS',0)
 
   !- 1.1 MPI and TMG
-  call mpi_initialize
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call mmpi_initialize
+  call tmg_init(mmpi_myid, 'TMG_INFO')
 
   call utl_tmg_start(0,'Main')
 
@@ -169,7 +168,7 @@ program midas_calcstats
   !  
   call utl_tmg_stop(0)
 
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
 end program midas_calcstats

@@ -22,7 +22,6 @@ module sqliteFiles_mod
   !
   
   use mathPhysConstants_mod
-  use mpiVar_mod
   use sqliteRead_mod
   use obsSpaceData_mod
   use fSQLite

@@ -22,8 +22,7 @@ module oMinusF_mod
   use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
-  use mpi_mod
-  use mpiVar_mod
+  use midasMpi_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -106,7 +105,7 @@ module oMinusF_mod
       call obsf_setup(dateStamp, trim(varMode))
 
       !- 1.6 Constants
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         call mpc_printConstants(6)
         call pre_printPrecisions
       end if

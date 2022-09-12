@@ -22,7 +22,7 @@ program midas_sstTrial
   use version_mod
   use ramDisk_mod
   use utilities_mod
-  use mpi_mod
+  use midasMpi_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
@@ -51,9 +51,9 @@ program midas_sstTrial
   call ver_printNameAndVersion('SSTtrial','SST trial preparation')
 
   ! MPI initialization
-  call mpi_initialize
+  call mmpi_initialize
 
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
   
   ! 1. Top level setup
@@ -70,7 +70,7 @@ program midas_sstTrial
 
   istamp = exfin('SSTTRIAL','FIN','NON')
   call utl_tmg_stop(0)
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
   call rpn_comm_finalize(ierr) 
 
   contains
@@ -110,10 +110,10 @@ program midas_sstTrial
     ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
     read( nulnam, nml = namSSTtrial, iostat = ierr )
     if ( ierr /= 0) call utl_abort( 'SSTtrial_setup: Error reading namelist')
-    if ( mpi_myid == 0 ) write(*, nml = namSSTtrial )
+    if ( mmpi_myid == 0 ) write(*, nml = namSSTtrial )
     ierr = fclos(nulnam)
 
-    if(mpi_myid == 0) then
+    if(mmpi_myid == 0) then
       write(*,'(1X,"***********************************")')
       write(*,'(1X," datestamps for climatology file:",/)')
       write(*,'(1X,"***********************************")')
@@ -147,15 +147,15 @@ program midas_sstTrial
     !
     !- Initialize the Analysis grid
     !
-    if(mpi_myid == 0) write(*,*)''
-    if(mpi_myid == 0) write(*,*) 'SSTtrial_setup: Set hco parameters for analysis grid'
+    if(mmpi_myid == 0) write(*,*)''
+    if(mmpi_myid == 0) write(*,*) 'SSTtrial_setup: Set hco parameters for analysis grid'
     call hco_SetupFromFile(hco_anl, gridFile, trim(etiketAnalysis)) ! IN
 
     if ( hco_anl % global ) then
       call agd_SetupFromHCO( hco_anl ) ! IN
     else
       !- Initialize the core (Non-Extended) analysis grid
-      if(mpi_myid == 0) write(*,*) 'SSTtrial_setup: Set hco parameters for core grid'
+      if(mmpi_myid == 0) write(*,*) 'SSTtrial_setup: Set hco parameters for core grid'
       call hco_SetupFromFile( hco_core, gridFile, 'COREGRID', 'AnalysisCore' ) ! IN
       !- Setup the LAM analysis grid metrics
       call agd_SetupFromHCO( hco_anl, hco_core ) ! IN
@@ -167,7 +167,7 @@ program midas_sstTrial
     call vco_SetupFromFile( vco_anl, & ! OUT
                             gridFile ) ! IN
 
-    if(mpi_myid == 0) write(*,*) 'SSTtrial_setup: done.'
+    if(mmpi_myid == 0) write(*,*) 'SSTtrial_setup: done.'
 
   end subroutine SSTtrial_setup
 

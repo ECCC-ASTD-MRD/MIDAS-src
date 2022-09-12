@@ -23,7 +23,7 @@ program midas_obsSelection
   use version_mod
   use codePrecision_mod
   use ramDisk_mod
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -71,10 +71,10 @@ program midas_obsSelection
   call ver_printNameAndVersion('obsSelection','Obs Quality Control and Thinning')
 
   !- 1.0 mpi
-  call mpi_initialize
+  call mmpi_initialize
 
   !- 1.1 timings
-  call tmg_init(mpi_myid, 'TMG_INFO')
+  call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
 
   !- 1.2 Read the namelist for obsSelection program (if it exists)
@@ -85,13 +85,13 @@ program midas_obsSelection
     if (ierr /= 0) call utl_abort('midas-obsSelection: Error opening file flnml')
     read(nulnam,nml=namObsSelection,iostat=ierr)
     if (ierr /= 0) call utl_abort('midas-obsSelection: Error reading namelist')
-    if (mpi_myid == 0) write(*,nml=namObsSelection)
+    if (mmpi_myid == 0) write(*,nml=namObsSelection)
     ierr = fclos(nulnam)
   else
     write(*,*)
     write(*,*) 'midas-obsSelection: Namelist block namObsSelection is missing in the namelist.'
     write(*,*) '                    The default value will be taken.'
-    if (mpi_myid == 0) write(*,nml=namObsSelection)
+    if (mmpi_myid == 0) write(*,nml=namObsSelection)
   end if
 
   !
@@ -112,7 +112,7 @@ program midas_obsSelection
   !
   !- Initialize constants
   !
-  if ( mpi_myid == 0 ) then
+  if ( mmpi_myid == 0 ) then
     call mpc_printConstants(6)
     call pre_printPrecisions
   end if
@@ -120,15 +120,15 @@ program midas_obsSelection
   !
   !- Initialize the Analysis grid
   !
-  if( mpi_myid == 0 ) write(*,*)
-  if( mpi_myid == 0 ) write(*,*) 'midas-obsSelection: Set hco parameters for analysis grid'
+  if( mmpi_myid == 0 ) write(*,*)
+  if( mmpi_myid == 0 ) write(*,*) 'midas-obsSelection: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
     hco_core => hco_anl
   else
     !- Initialize the core (Non-Extended) analysis grid
-    if( mpi_myid == 0) write(*,*)'midas-obsSelection: Set hco parameters for core grid'
+    if( mmpi_myid == 0) write(*,*)'midas-obsSelection: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 
@@ -300,6 +300,6 @@ program midas_obsSelection
   call rpn_comm_finalize(ierr)
 
   call utl_tmg_stop(0)
-  call tmg_terminate(mpi_myid, 'TMG_INFO')
+  call tmg_terminate(mmpi_myid, 'TMG_INFO')
 
 end program midas_obsSelection
