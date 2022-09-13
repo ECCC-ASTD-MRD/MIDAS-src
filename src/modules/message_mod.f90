@@ -116,6 +116,7 @@ module message_mod
     integer :: originLen, oneLineMsgLen, i
     character(len=15) :: firstLineFormat, otherLineFormat
     character(len=msg_lineLen)  :: msgLine
+    character(len=msg_lineLen)  :: readLine
 
     if (len(origin) > msg_maxOriginLen) then
       call utl_abort('DBGmad : fix that!')
@@ -123,37 +124,68 @@ module message_mod
     originLen = len(origin)
     oneLineMsgLen = msg_lineLen - originLen - 2
   
-    i = 0 
     if (len(message) > oneLineMsgLen) then
+      ! Multiple lines message
       ! format: "origin: message on the first line..........."
       !         "        second line........................."
       !         "        last line"
-      write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A',oneLineMsgLen,')'
-
+      i = 0
+      readLine = message(1:oneLineMsgLen+1)
+      msgLine = msg_breakOnSpace(readLine)
+      i = i + len(trim(msgLine)) +1
+      write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A', &
+                                              len(trim(msgLine)),')'
       write(*,firstLineFormat) origin, ': ', message(1:oneLineMsgLen)
       do
-        if ( (i+1)*oneLineMsgLen > len(message) ) then
+        if ( i >= len(message) ) then
           ! message printed
-          exit
-        else if ( (i+2)*oneLineMsgLen > len(message) ) then
+          return
+        else if ( i + oneLineMsgLen > len(trim(message)) ) then
           ! last line
-          write(otherLineFormat,'(A,I2,A,I2,A)') '(A',originLen+2,',A', &
-               len(message)-(i+1)*oneLineMsgLen,')'
+          msgLine = message(i+1:len(message))
         else
           ! neither first nor last
-          write(otherLineFormat,'(A,I2,A,I2,A)') '(A',originLen+2,',A',oneLineMsgLen,')'
+          readLine = message(i+1:i+oneLineMsgLen+1)
+          msgLine = msg_breakOnSpace(readLine)
         end if
-        i = i + 1
-        msgLine = message(i*oneLineMsgLen+1:(i+1)*oneLineMsgLen+1)
-        write(*,otherLineFormat) repeat(' ',originLen+2),msgLine
+        i = i + len(trim(msgLine)) +1
+        write(otherLineFormat,'(A,I2,A,I2,A)') '(A',originLen+2,',A', &
+                                                len(trim(msgLine)),')'
+        write(*,otherLineFormat) repeat(' ',originLen+2),trim(msgLine)
       end do
     else
+      ! Single lines message
+      ! format: "origin: short message"
       write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A',len(message),')'
-
       write(*,firstLineFormat) origin, ': ', message
     end if
     
   end subroutine msg_write
+
+  !--------------------------------------------------------------------------
+  ! msg_breakOnSpace (private)
+  !--------------------------------------------------------------------------
+  function msg_breakOnSpace(line) result(shorterLine)
+    !
+    ! :Purpose: breaks line on last full word
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=msg_lineLen), intent(in)  :: line
+    character(len=msg_lineLen) :: shorterLine
+    integer :: i
+
+    i = index(trim(line),' ',back=.true.)
+    if (i == 0 .or. i == len(trim(line)) ) then
+      shorterLine = trim(line)
+      return
+    else
+      shorterLine = line(1:i-1)
+      return
+    end if
+
+  end function msg_breakOnSpace
 
   !--------------------------------------------------------------------------
   ! msg_memUsage
