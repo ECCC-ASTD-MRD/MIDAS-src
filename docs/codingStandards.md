@@ -76,6 +76,18 @@ mind is provided [here](codingStd_top10.md).
   grep/search for these names as compared with a variable named i, for
   example).
 
+### Provided Functionalities to Use
+
+- Use [`msg_message()`](src/modules/message_mod.f90) instead of naked
+  `write(*,*)` to output information: provide the _origin_ of the message (such
+  as the caller subroutine, function or program) and a _verbosity level_ from 0
+  to 3 that specifies how important is the message:
+
+  * 0 : critical, always printed
+  * 1 : default priority; printed in operational context
+  * 2 : detailed ouptut, provides extra information
+  * 3 : intended for developpers, printed for debugging or specific diagnostcs
+
 ### More detailed rules:
 
 - Use the new and clearer syntax for `LOGICAL` comparisons, i.e.:

@@ -12,7 +12,7 @@ module message_mod
   ! public procedures
   public :: msg_message, msg_memUsage
   
-  ! private variables ! DBGmad move to namelist?
+  ! private variables
   integer, parameter    :: msg_maxOriginLen = 30
   integer, parameter    :: msg_lineLen = 70
 
@@ -23,6 +23,46 @@ module message_mod
   contains
   
   !--------------------------------------------------------------------------
+  ! msg_message
+  !--------------------------------------------------------------------------
+  subroutine msg_message(origin, message, verbosityLevel_opt, mpiAll_opt)
+    !
+    ! :Purpose: output message if its verbosity level is greater or equal than
+    !           the user provided verbosity threshold (see `msg_readNml()`).
+    !           The verbosity levels are:
+    !
+    !                             * 0 : critical, always printed
+    !                             * 1 : default priority; printed in operational context
+    !                             * 2 : detailed ouptut, provides extra information
+    !                             * 3 : intended for developpers, printed for debugging or specific diagnostcs
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*),  intent(in) :: origin             ! originating subroutine, function or program
+    character(len=*),  intent(in) :: message            ! message to be printed
+    integer, optional, intent(in) :: verbosityLevel_opt ! minimal verbosity level to print the message
+    logical, optional, intent(in) :: mpiAll_opt         ! if `.true.` prints to all MPI tasks, otherwise only to tile 0
+
+    ! Locals:
+    logical :: mpiAll = .false.
+    integer :: verbLevel = 1
+
+    call msg_readNml()
+
+    if (present(verbosityLevel_opt)) verbLevel = verbosityLevel_opt
+    if (present(mpiAll_opt)) mpiAll = mpiAll_opt
+
+    if (verbLevel >= verbosityThreshold) then
+      if (mpiAll) then
+        call msg_write(origin, message)
+      else
+        if (mpi_myid == 0) call msg_write(origin, message)
+      end if
+    end if
+    end subroutine msg_message
+
+  !--------------------------------------------------------------------------
   ! msg_readNml (private)
   !--------------------------------------------------------------------------
   subroutine msg_readNml()
@@ -30,8 +70,9 @@ module message_mod
     ! :Purpose: Reads the module configuration namelist
     !
     ! :Namelist parameters:
-    !       :verbosityThreshold:  Define until which verbosity level messages
-    !                             are outputed
+    !       :verbosityThreshold:  Each call to `msg_message()` specifies a verbosity
+    !                             level; this threshold configures until which level
+    !                             messages will be outputed.
     !
     implicit none
 
@@ -64,40 +105,6 @@ module message_mod
     end if
 
   end subroutine msg_readNml
-
-  !--------------------------------------------------------------------------
-  ! msg_message
-  !--------------------------------------------------------------------------
-  subroutine msg_message(origin, message, verbosityLevel_opt, mpiAll_opt)
-    !
-    ! :Purpose: output message if its verbosity level is greater or equal than
-    !           the user provided verbosity threshold
-    !
-    implicit none
-  
-    ! Arguments:
-    character(len=*),  intent(in) :: origin             ! originating subroutine/function
-    character(len=*),  intent(in) :: message            ! message to be printed
-    integer, optional, intent(in) :: verbosityLevel_opt ! minimal verbosity level to print the message
-    logical, optional, intent(in) :: mpiAll_opt         ! if .true. prints to all MPI tasks, otherwise only to tile 0
-    
-    ! Locals:
-    logical :: mpiAll = .false.
-    integer :: verbLevel = 1
-  
-    call msg_readNml()
-
-    if (present(verbosityLevel_opt)) verbLevel = verbosityLevel_opt
-    if (present(mpiAll_opt)) mpiAll = mpiAll_opt
-  
-    if (verbLevel >= verbosityThreshold) then
-      if (mpiAll) then
-        call msg_write(origin, message)
-      else
-        if (mpi_myid == 0) call msg_write(origin, message)
-      end if
-    end if
-    end subroutine msg_message
 
   !--------------------------------------------------------------------------
   ! msg_write (private)
