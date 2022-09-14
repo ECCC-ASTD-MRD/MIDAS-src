@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed outputting of analysis members in observation space (#693)
  * Impose lower and upper limits on cloud variables (#674 and !622)
  * Fixed code documentation links (#681 and !627)
  * Make thinning algorithm for Satwinds and GB-GPS independent of families considered in same execution (#669 and !620)
