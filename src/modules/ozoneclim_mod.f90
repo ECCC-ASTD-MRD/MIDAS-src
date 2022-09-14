@@ -46,6 +46,9 @@ module ozoneClim_mod
 
 contains
 
+  !--------------------------------------------------------------------------
+  ! ozo_get_profile
+  !--------------------------------------------------------------------------
   subroutine ozo_get_profile(o3p,zlat,plev,nlev,nprf)
     !
     !:Purpose: Get ozone profile from climatology interpolated to desired P levels
@@ -81,14 +84,23 @@ contains
 
   end subroutine ozo_get_profile
 
-
-  subroutine ozo_read_climatology(datestamp)
+  !--------------------------------------------------------------------------
+  ! ozo_read_climatology
+  !--------------------------------------------------------------------------
+  subroutine ozo_read_climatology(datestamp,nlat_opt,nlev_opt,press_opt,ozone_opt)
     !
     !:Purpose: READ OZONE CLIMATOLOGICAL FIELDS
     !
     IMPLICIT NONE
-    integer            :: datestamp
+    
+    !Arguments
+    integer            :: datestamp            ! Datestamp
+    integer, intent(out), optional :: nlat_opt ! Number of latitudes
+    integer, intent(out), optional :: nlev_opt ! Number of vertical levels
+    real(8), allocatable, intent(out), optional :: ozone_opt(:,:) ! Ozone field
+    real(8), allocatable, intent(out), optional :: press_opt(:)   ! Pressure levels
 
+    !Locals
     INTEGER            :: IJOUR,ITIME,IMONTH,IJ,IER
     CHARACTER(len=100) :: CFILE
     INTEGER            :: NIOZO,NJOZO,NKOZO
@@ -117,6 +129,14 @@ contains
        write(*,*) 'THESE NUMBERS SHOULD NOT BE NEGATIVE'
        write(*,*) 'datestamp,ijour,itime,imonth = ',datestamp,ijour,itime,imonth
        call utl_abort('Problem with file in ozo_read_climatology (ozoneclim_mod)')
+    endif
+
+    if (present(nlat_opt)) then
+       nlat_opt=NLATO3
+       nlev_opt=NLEVO3
+       allocate(press_opt(nlevo3),ozone_opt(nlato3,nlevo3))
+       press_opt(1:nlevo3)=PO3(1:nlevo3)
+       ozone_opt(1:nlato3,1:nlevo3)=FOZO_r4(1:nlato3,1:nlevo3)
     endif
     
   end subroutine OZO_READ_CLIMATOLOGY

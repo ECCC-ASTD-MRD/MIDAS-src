@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added and improved new observation chemical constituent observation operator options (#18 and !636)
  * Added reverse dependencies graphs in code doc (#685 and !634)
  * Make code doc graphs clickable to browse dependencies (#684 and !629)
  * Add argument `-common_sql_column` to `midas.reunir_obs_mpi` to avoid explicit reference to column name (#667 and !619)
@@ -21,6 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Major re-organization of constituents assimilation code, including namelist changes. Minor impact on results. (#18 and !636) 
  * Merge contents of `mpi_mod` and `mpivar_mod` into `midasMpi_mod` (#690 and !635)
  * Reorganized development information in `README`, `CONTRIBUTING` and `docs/` (#647 and !632)
  * Improve LETKF efficiency and add global high-res letkf system test (#653 and !631)

@@ -791,8 +791,8 @@ contains
   end function obsf_getFileName
 
 
-  function obsf_obsSub_read( obsfam, stnid, varno, nlev, ndim, bkstp_opt, block_opt, match_nlev_opt, &
-                              codtyp_opt ) result(obsdata)
+  function obsf_obsSub_read( obsfam, stnid, varno, nlev, ndim, numColumns_opt, &
+                             bkstp_opt, block_opt, match_nlev_opt, codtyp_opt ) result(obsdata)
     !
     ! :Purpose: Retrieves information for observations from observation files and returns the data
     !           in a struct_oss_obsdata object. Data will be retrieved for all nodes that have valid
@@ -807,7 +807,8 @@ contains
     !           :nlev:            number of levels in the observation
     !           :ndim:            number of dimensions for the retrieved data in
     !                             each report (e.g. ndim=1 for std, ndim=2 for
-    !                             averagine kernels) 
+    !                             averaging kernel matrices) 
+    !           :numColumns_opt:  Number of columns (if different from nlev and for ndim=2)
     !           :bkstp_opt:       bkstp number of requested block if BURP file type (optional)
     !           :block_opt:       block type of requested block if BURP file type (optional)
     !                             Valid values are 'DATA', 'INFO', '3-D', and 'MRQR', indicated
@@ -824,6 +825,7 @@ contains
     integer         , intent(in)           :: varno
     integer         , intent(in)           :: nlev
     integer         , intent(in)           :: ndim
+    integer         , intent(in), optional :: numColumns_opt ! Number of columns (if different from nlev and for ndim=2)
     integer         , intent(in), optional :: bkstp_opt
     integer         , intent(in), optional :: codtyp_opt(:)
     logical         , intent(in), optional :: match_nlev_opt
@@ -840,9 +842,14 @@ contains
        call obsf_determineSplitFileType( obsFileType, filename )
        if (obsFileType=='BURP') then
           if (.not.present(block_opt)) &
-               call utl_abort("obsf_obsSub_read: optional varaible 'block_opt' is required for BURP observational files.")
-          obsdata = brpf_obsSub_read(filename,stnid,varno,nlev,ndim,block_opt,bkstp_opt=bkstp_opt, &
+               call utl_abort("obsf_obsSub_read: optional variable 'block_opt' is required for BURP observational files.")
+          if (.not.present(numColumns_opt)) then
+            obsdata = brpf_obsSub_read(filename,stnid,varno,nlev,ndim,block_opt,bkstp_opt=bkstp_opt, &
                                    match_nlev_opt=match_nlev_opt,codtyp_opt=codtyp_opt)
+          else
+            obsdata = brpf_obsSub_read(filename,stnid,varno,nlev,ndim,block_opt,bkstp_opt=bkstp_opt, &
+                                       match_nlev_opt=match_nlev_opt,codtyp_opt=codtyp_opt,numColumns_opt=numColumns_opt)
+          end if 
        else
           call utl_abort("obsf_obsSub_read: Only BURP observational files currently supported.")
        end if

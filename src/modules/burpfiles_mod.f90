@@ -44,6 +44,9 @@ module burpFiles_mod
 
 contains
 
+  !--------------------------------------------------------------------------
+  ! brpf_getDataStamp
+  !--------------------------------------------------------------------------
   subroutine brpf_getDateStamp(datestamp, burpFileName)
     implicit none
 
@@ -151,7 +154,9 @@ contains
 
   end subroutine brpf_getDateStamp
 
-
+  !--------------------------------------------------------------------------
+  ! brpf_readFile
+  !--------------------------------------------------------------------------
   subroutine brpf_readFile(obsdat,fileName,familyType,fileIndex)
     implicit none
 
@@ -195,7 +200,7 @@ contains
       call obs_setFamily(obsdat, trim(familyType), headerIndex)
 
       ! For CH family, apply scaling from the element BUFR_SCALE_EXPONENT when present.
-      if (burp_chem) call set_scale_chm(obsdat, headerIndex, forward=.true.)
+      if (burp_chem) call brpf_setScaleCH(obsdat, headerIndex, forward=.true.)
 
     end do
 
@@ -230,7 +235,9 @@ contains
 
   end subroutine brpf_readFile
 
-
+  !--------------------------------------------------------------------------
+  ! brpf_updateFile
+  !--------------------------------------------------------------------------
   subroutine brpf_updateFile(obsSpaceData,fileName,familyType,fileIndex)
     implicit none
 
@@ -254,7 +261,7 @@ contains
       HEADER: do
         headerIndex = obs_getHeaderIndex(obsSpaceData)
         if (headerIndex < 0) exit HEADER
-        call set_scale_chm(obsSpaceData,headerIndex,forward=.false.)
+        call brpf_setScaleCH(obsSpaceData,headerIndex,forward=.false.)
       end do HEADER
     end if
     
@@ -267,40 +274,24 @@ contains
 
   end subroutine brpf_updateFile
 
-
-!--------------------------------------------------------------------------
-!! *Purpose*:  Apply or unapply scaling to CH observations  by multiplying
-!!             (or dividing) with 10^{exponent} where the exponent is from
-!!             element BUFR_SCALE_EXPONENT if provided.           
-!!
-!! @author P. Du *CMC/CMDA Nov. 2014
-!!
-!! Revisions:
-!!v     Y. Rochon, ARQI/AQRD, Feb 2015
-!!v       - Generalized except for the assumption that if
-!!v         exponents are present, then they must be present
-!!v         for all obs and in the same sequential order.
-!!v     Y. Rochon, ARQI/AQRD, March/April 2016
-!!v       - Added consideration of HBHT (HPHT)
-!!v       - Avoid abort when BUFR_SCALE_EXPONENT present but not the mantissa as it could 
-!!v         have been filtered in brpr_readBurp.
-!!v     M. Sitwell, ARQI/AQRD, March 2017
-!!v       - Modified to do scaling for a single profile (i.e. one headerIndex)
-!!v         instead of for all observations (loop is done outside of set_scale_chm) 
-!!
-!! Input:
-!!v      obsdat         struct_obs instance
-!!v      headerIndex    header index in obsdat to apply/unapply scaling to
-!!v      forward        applies scaling if .true., unapplies scaling if .false.
-!--------------------------------------------------------------------------
-  subroutine set_scale_chm(obsdat,headerIndex,forward)
-
+  !--------------------------------------------------------------------------
+  ! brpf_setScaleCH
+  !--------------------------------------------------------------------------
+  subroutine brpf_setScaleCH(obsdat,headerIndex,forward)
+    !
+    ! :Purpose:  Apply or unapply scaling to CH observations  by multiplying
+    !            (or dividing) with 10^{exponent} where the exponent is from
+    !            element BUFR_SCALE_EXPONENT if provided.           
+    !
+    !
       implicit none
-      
-      type (struct_obs), intent(inout):: obsdat
-      integer, intent(in) :: headerIndex
-      logical, intent(in) :: forward
 
+      ! Arguments      
+      type (struct_obs), intent(inout):: obsdat ! struct_obs instance
+      integer, intent(in) :: headerIndex ! header index in obsdat
+      logical, intent(in) :: forward     ! applies scaling if .true., unapplies scaling if .false.
+
+      ! Locals
       integer  :: bodyIndex,rln,nlv
 
       real(pre_obsReal) :: obsv
@@ -341,7 +332,7 @@ contains
          end do
               
          ! write(*,*) 'NLV =',nlv,' Nexp=',nexp    
-         ! call utl_abort('set_scale_chm: Inconsistent number of exponents')
+         ! call utl_abort('brpf_setScaleCH: Inconsistent number of exponents')
          deallocate(expnt)
          return
       end if
@@ -389,11 +380,13 @@ contains
                  
       end if
 
-  end subroutine set_scale_chm
+  end subroutine brpf_setScaleCH
 
-
-  function brpf_obsSub_read(filename,stnid,varno,nlev,ndim,block_type, &
-                            bkstp_opt,match_nlev_opt,codtyp_opt)result(burp_out)
+  !--------------------------------------------------------------------------
+  ! brpf_obsSub_read
+  !--------------------------------------------------------------------------
+  function brpf_obsSub_read(filename,stnid,varno,nlev,ndim,block_type,bkstp_opt, &
+                            match_nlev_opt,codtyp_opt,numColumns_opt) result(burp_out)
     !
     !:Purpose: To retrieve information from observation BURP file. Returns the
     !          data in a struct_oss_obsdata object. Can retrieve either 1D or 2D
@@ -409,15 +402,16 @@ contains
     !      will be applied only to 1D data.
     !
     !:Arguments:
-    !   :varno:  BUFR code (if <=0, search through all codes to obtain first
-    !            between 10000 and 16000)
-    !
-    !   :ndim:   number of dimensions for the retrieved data in each report
-    !            (e.g. ndim=1 for std, ndim=2 for averaging kernels)
-    !
-    !   :block_type: block type indicated by the two rightmost bits of bknat.
-    !                Valid values are 'DATA', 'INFO', '3-D', and 'MRQR'.
-    !
+    !   :filename:        observation family name
+    !   :stnid:           station ID of observation
+    !   :varno:           BUFR code (if <=0, search through all codes to obtain first
+    !                     between 10000 and 16000)
+    !   :nlev:            number of levels in the observation (number of rows) 
+    !   :ndim:            number of dimensions for the retrieved data in each report
+    !                     (e.g. ndim=1 for std, ndim=2 for averaging kernels)
+    !   :numColumns_opt:  Number of columns (if different from nlev and for ndim=2)
+    !   :block_type:      block type indicated by the two rightmost bits of bknat.
+    !                     Valid values are 'DATA', 'INFO', '3-D', and 'MRQR'.
     !   :match_nlev_opt: =.true. (default) causes filtering out of report if
     !                    the report number of levels is different from the input
     !                    argument nlev
@@ -431,22 +425,22 @@ contains
     integer, intent(in)           :: nlev  ! number of levels in the observation
     integer, intent(in)           :: ndim
     character(len=4), intent(in)  :: block_type
+    integer, intent(in), optional :: numColumns_opt ! Number of columns (if different from nlev and for ndim=2)
     integer, intent(in), optional :: bkstp_opt ! bkstp number of requested block
     logical, intent(in), optional :: match_nlev_opt
     integer, intent(in), optional :: codtyp_opt(:) ! optional CODTYP list for search
     type(struct_oss_obsdata) :: burp_out   ! struct_oss_obsdata object
     
-
     ! Locals:
     character(len=9)  :: rep_stnid
     type(burp_file)   :: brp
     type(burp_rpt)    :: rep
     type(burp_block)  :: blk
     integer           :: error,ref_rpt,nrep,ref_blk,varno_ivar
-    integer           :: ref_bkstp,nval,ivar,iexp,ilev,icount,icodtyp
-    integer           :: date,time,ilat,ilon,iele,nele,icol
+    integer           :: ref_bkstp,nval,ivar,ilev,icount,icodtyp
+    integer           :: date,time,ilat,ilon,iele,nele,icol,ivar_previous
     logical           :: match_nlev
-    real(8)           :: val,exponent
+    real(8)           :: exponent
 
     if (present(match_nlev_opt)) then
        match_nlev = match_nlev_opt
@@ -474,9 +468,13 @@ contains
 
     ! allocate memory
     if (ndim == 1) then
-       call oss_obsdata_alloc(burp_out,nrep,dim1=nlev)
+      call oss_obsdata_alloc(burp_out,nrep,dim1=nlev)
     else
-       call oss_obsdata_alloc(burp_out,nrep,dim1=nlev,dim2_opt=nlev)
+      if (present(numColumns_opt)) then
+        call oss_obsdata_alloc(burp_out,nrep,dim1=nlev,dim2_opt=numColumns_opt)
+      else
+        call oss_obsdata_alloc(burp_out,nrep,dim1=nlev,dim2_opt=nlev)
+      end if
     end if
     
     icount = 0  ! counter of reports with same stnid, number of levels, and varno as input 
@@ -537,36 +535,52 @@ contains
           if (ndim == 1) then
              ! retrieve 1D data
 
-             iexp = BURP_Find_Element(blk, ELEMENT=BUFR_SCALE_EXPONENT, IOSTAT=error)
-                
-             if (iexp < 0) then
-                ! No exponent found in block
-                do ilev=1,nval                   
-                   burp_out%data1d(ilev,icount) = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
-                end do
-             else
-                ! Apply exponent
-                do ilev=1,nval                   
-                   val = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
-                   exponent = BURP_Get_Rval(blk, NELE_IND=iexp, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
-                   burp_out%data1d(ilev,icount) = val * 10**exponent
-                end do
+             do ilev=1,nval                   
+               burp_out%data1d(ilev,icount) = BURP_Get_Rval(blk, NELE_IND=ivar, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)                
+             end do
+             
+             if (ivar < nele) then             
+               if (BURP_Get_Element(blk, INDEX=ivar+1, IOSTAT=error) == BUFR_SCALE_EXPONENT) then
+                 ! Apply exponent
+                 do ilev=1,nval                   
+                   exponent = BURP_Get_Rval(blk, NELE_IND=ivar+1, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
+                   burp_out%data1d(ilev,icount) = burp_out%data1d(ilev,icount) * 10**exponent
+                 end do
+               end if
              end if
                    
           else if (ndim == 2) then
              ! retrieve 2D data
 
              icol = 0
+             ivar_previous=0
              do iele=1,nele
                 ivar = BURP_Get_Element(blk, INDEX=iele, IOSTAT=error)
                 if (ivar == varno) then
                    icol = icol+1
-                   do ilev=1,nval                  
+                   ivar_previous=ivar
+                   do ilev=1,nval
                       burp_out%data2d(ilev,icol,icount) = BURP_Get_Rval(blk, NELE_IND=iele, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
-                   end do
-                end if
+                   end do                   
+                else if (ivar_previous == varno .and. ivar == BUFR_SCALE_EXPONENT) then
+                   ivar_previous=0
+                   do ilev=1,nval
+                      exponent = BURP_Get_Rval(blk, NELE_IND=iele, NVAL_IND=ilev, NT_IND=1, IOSTAT=error)
+                      burp_out%data2d(ilev,icol,icount) = burp_out%data2d(ilev,icol,icount) * 10**exponent
+                   end do   
+                else
+                   ivar_previous=0                
+                end if  
              end do
-
+             if (present(numColumns_opt)) then
+               if (icol /= numColumns_opt) call utl_abort('brpf_obsSub_read: number of columns (' // trim(utl_str(icol)) // &
+                                         ') is not equal to the required number (' // trim(utl_str(numColumns_opt)) // &
+                                         ') for STNID ' // rep_stnid )
+             else
+               if (icol > nlev ) call utl_abort('brpf_obsSub_read: number of columns (' // trim(utl_str(icol)) // &
+                                         ') exceeds the maximum number (' // trim(utl_str(nlev)) // &
+                                         ') for STNID ' // rep_stnid )
+             end if
           end if
 
           exit BLOCKS
@@ -594,7 +608,9 @@ contains
     
   end function brpf_obsSub_read
 
-
+  !--------------------------------------------------------------------------
+  ! brpf_obsSub_update
+  !--------------------------------------------------------------------------
   function brpf_obsSub_update(obsdata,filename,varno,block_type,bkstp_opt, &
                               multi_opt) result(nrep_modified)
     !

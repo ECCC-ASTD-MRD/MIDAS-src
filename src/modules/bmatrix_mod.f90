@@ -162,8 +162,8 @@ contains
         if ( globalGrid ) then
           write(*,*)
           write(*,*) 'Setting up the modular GLOBAL HI-chm covariances...'
-          call bchm_Setup( hco_anl, vco_anl, & ! IN
-                           cvdim )             ! OUT
+          call bchm_SetupCH( hco_anl, vco_anl, & ! IN
+                             cvdim )             ! OUT
         else
           cvdim=0
         end if

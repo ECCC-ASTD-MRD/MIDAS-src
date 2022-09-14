@@ -36,7 +36,7 @@ module obsSpaceDiag_mod
   use bMatrix_mod
   use bMatrixHi_mod
   use bMatrixEnsemble_mod
-  use bMatrixChem_mod
+  use bCovarSetupChem_mod
   use varNameList_mod
   use stateToColumn_mod
   use randomNumber_mod
@@ -286,7 +286,7 @@ contains
 
     allocate(controlVector(cvm_nvadim))
     allocate(scaleFactor(nlev_max))
-    allocate(scaleFactorChm(nlev_max,100))
+    allocate(scaleFactorChm(100,nlev_max))
 
     ! COMPUTE BMATRIX PERTURBATION FOR THE STATIC COVARIANCES CASE; from Bhi and or BChm 
 
@@ -327,7 +327,7 @@ contains
              cvBChm(jj)=rng_gaussian()
           enddo
           ! initialize vector of scaleFactors
-          call bChm_getScaleFactor(scaleFactorChm)
+          call bcsc_getScaleFactor(scaleFactorChm)
        else
           scaleFactorChm(:,:)=1.0
        end if
@@ -350,8 +350,8 @@ contains
              else if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'CH') then
                 ivar_count=ivar_count+1
                 do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
-                   if(scaleFactorChm(jlev,ivar_count).gt.0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:) &
-                         /scaleFactorChm(jlev,ivar_count)
+                   if(scaleFactorChm(ivar_count,jlev).gt.0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:) &
+                         /scaleFactorChm(ivar_count,jlev)
                 end do
              end if
           endif
@@ -404,8 +404,8 @@ contains
              else if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'CH') then
                 ivar_count=ivar_count+1
                 do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
-                   if(scaleFactorChm(jlev,ivar_count) > 0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:) &
-                         /scaleFactorChm(jlev,ivar_count)
+                   if(scaleFactorChm(ivar_count,jlev) > 0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:) &
+                         /scaleFactorChm(ivar_count,jlev)
                 end do
              end if
           endif
@@ -768,7 +768,7 @@ contains
     ! If needed, add effective temperature values in CH family obs file 
     ! for total column measurements
 
-    if (obs_famExist(obsSpaceData,'CH')) call oopc_add_efftemp_obsfile()
+    if (obs_famExist(obsSpaceData,'CH')) call oopc_addEfftempObsfile()
 
   end subroutine osd_update_obsfile
 
@@ -1032,7 +1032,7 @@ contains
              iass = obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex)
 
              ! Indicates if diagnostics are to be calculated but observation not assimilated
-             diagn_only = oopc_diagn_only(obsfam,stnid,varno,nlev_obs,obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex))
+             diagn_only = oopc_diagnOnly(obsfam,stnid,varno,nlev_obs,obs_bodyElem_i(obsSpaceData,OBS_FLG,bodyIndex))
 
              assim_obs = ((.not.diagn_only).and.anlm_mode) .or. assim_obs
 

@@ -35,7 +35,7 @@ module obsSpaceErrorStdDev_mod
   use obsOperators_mod
   use gps_mod
   use codtyp_mod
-  use bmatrixchem_mod
+  use bCovarSetupChem_mod
   use timeCoord_mod
   use obsTimeInterp_mod
   use bMatrixEnsemble_mod
@@ -274,7 +274,7 @@ module obsSpaceErrorStdDev_mod
        call ose_compute_hbht_static( columnTrlOnAnlIncLev, obsSpaceData, statusHBHT )
 
     ! HBHT from the B matrix for constituents
-     
+    
     if ( any(ofl_familyList == 'CH' .and. ( availableOMPE == 'Some' .or. availableOMPE == 'None' ) ) ) &
        call ose_compute_hbht_static_chem( columnTrlOnAnlIncLev, obsSpaceData, statusHBHT_ch )
     
@@ -778,17 +778,11 @@ module obsSpaceErrorStdDev_mod
 
     ! Locals:
     type(struct_vco), pointer :: vco_anl
-       
-    integer :: cvdim
  
     !- Get the appropriate Vertical Coordinate
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
   
-    call bchm_setup( hco_anl,vco_anl, &  ! IN
-                     cvdim, &            ! OUT
-                    'BackgroundCheck' )  ! IN
-
-    active = bchm_is_initialized()
+    call bcsc_setupCH( hco_anl,vco_anl,active,'BackgroundCheck' )
   
     if (active) then
       write(*,*)
@@ -798,7 +792,7 @@ module obsSpaceErrorStdDev_mod
       return
     end if
           
-    call oopc_CHobsoperators(columnTrlOnAnlIncLev,obsSpaceData,kmode=1) ! kmode=1 for background check to compute HBH^T
+    call oopc_CHobsoperators(columnTrlOnAnlIncLev,obsSpaceData,'HBHT')
   
     write(*,*)
     write(*,*) 'Computing H*B*H^T using B_static_chm - End'
