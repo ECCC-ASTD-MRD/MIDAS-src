@@ -45,6 +45,7 @@ program midas_analysisErrorOI
   character(len=48) :: obsMpiStrategy, varMode
   character(len=20) :: trlmFileName
   character(len=15), parameter :: myName = 'analysisErrorOI'
+  character(len=4), pointer :: anlVar(:)
 
   type(struct_obs)       , target :: obsSpaceData
   type(struct_columnData), target :: trlColumnOnAnlLev
@@ -99,6 +100,12 @@ program midas_analysisErrorOI
   !
   if (mmpi_myid == 0) call mpc_printConstants(6)
 
+  !
+  !- Initialize list of analyzed variables.
+  !
+  call gsv_setup
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
   trlmFileName = './trlm_01'
 
   !
@@ -106,7 +113,9 @@ program midas_analysisErrorOI
   !
   if (mmpi_myid == 0) write(*,*)
   if (mmpi_myid == 0) write(*,*) 'var_setup: Set hco parameters for analysis grid'
-  call hco_SetupFromFile(hco_anl, trlmFileName, ' ') ! IN
+  nullify(anlVar)
+  call gsv_varNamesList(anlVar)
+  call hco_SetupFromFile(hco_anl, trlmFileName, ' ', varName_opt=anlVar(1)) ! IN
 
   if ( hco_anl % global ) then
     hco_core => hco_anl
@@ -146,12 +155,6 @@ program midas_analysisErrorOI
   !- Initialize the observation error covariances
   !
   call oer_setObsErrors(obsSpaceData, varMode) ! IN
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  !
-  !- Initialize list of analyzed variables.
-  !
-  call gsv_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Sea ice concentration
