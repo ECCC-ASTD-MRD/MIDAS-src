@@ -221,8 +221,8 @@ contains
 
     ! <x ,L(y)>
     innerProduct1_local = 0.d0
-    call gsv_getField3d(statevector_Ly,field3d_Ly_r8)
-    call gsv_getField3d(statevector_x, field3d_x_r8 )
+    call gsv_getField(statevector_Ly,field3d_Ly_r8)
+    call gsv_getField(statevector_x, field3d_x_r8 )
     call euclid(innerProduct1_local, &
          field3d_x_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:), &
          field3d_Ly_r8(statevector_Ly%myLonBeg:statevector_Ly%myLonEnd,statevector_Ly%myLatBeg:statevector_Ly%myLatEnd,:), &
