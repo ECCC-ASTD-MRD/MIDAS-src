@@ -1107,7 +1107,8 @@ contains
             if( column_index /= OBS_KFA ) call odc_activateColumn(odc_flavour_IB, column_index)
          enddo
          do column_index = NBDY_REAL_BEG, NBDY_REAL_END
-            if(      column_index /= OBS_OMP6 &
+           if(       column_index /= OBS_OMAM &
+               .and. column_index /= OBS_OMP6 & 
                .and. column_index /= OBS_OMA0 &
                .and. column_index /= OBS_HAHT &
                .and. column_index /= OBS_SIGI &
