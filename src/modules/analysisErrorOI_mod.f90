@@ -66,7 +66,7 @@ module analysisErrorOI_mod
 
   integer, external :: get_max_rss
 
-  integer, parameter :: maxNumLocalGridptsSearch = 1000
+  integer, parameter :: maxNumLocalGridptsSearch = 1500
 
   real(8) :: interpWeight(maxNumLocalGridptsSearch)
   integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)
