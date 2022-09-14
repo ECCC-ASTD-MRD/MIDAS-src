@@ -1,7 +1,8 @@
 module message_mod
   ! MODULE message_mod (prefix='msg' category='8. Low-level utilities and constants')
   !
-  ! :Purpose: Ouput message interface with configurable verbosity
+  ! :Purpose: Output message interface with configurable verbosity.
+  !           Also provides string representation for some intrinsic types.
   !
   use mpi_mod
   use utilities_mod
@@ -11,10 +12,18 @@ module message_mod
 
   ! public procedures
   public :: msg_message, msg_memUsage
+  public :: msg_str
   
-  ! private variables
+  interface msg_str
+    module procedure msg_int2str
+    module procedure msg_real42str
+    module procedure msg_real82str
+  end interface
+
+  ! private module variables
   integer, parameter    :: msg_maxOriginLen = 30
   integer, parameter    :: msg_lineLen = 70
+  integer, parameter    :: msg_num2strBufferLen = 200
 
   ! Namelist variables
   !-------------------
@@ -193,6 +202,73 @@ module message_mod
     end if
 
   end function msg_breakOnSpace
+
+  !--------------------------------------------------------------------------
+  ! msg_int2str
+  !--------------------------------------------------------------------------
+  function msg_int2str(num) result(string)
+
+    ! Arguments:
+    integer, intent(in)           :: num
+    character(len=:), allocatable :: string
+
+    ! Locals:
+    character(len=msg_num2strBufferLen) :: buffer
+
+    write(buffer,*) num
+    string = trim(adjustl(buffer))
+
+  end function msg_int2str
+
+  !--------------------------------------------------------------------------
+  ! msg_real42str
+  !--------------------------------------------------------------------------
+  function msg_real42str(num, digits_opt) result(string)
+
+    ! Arguments:
+    real(4), intent(in)           :: num
+    character(len=:), allocatable :: string
+    integer, optional             :: digits_opt
+
+    ! Locals:
+    character(len=20)                   :: readFmt, digitBuffer
+    character(len=msg_num2strBufferLen) :: buffer
+
+    if (present(digits_opt)) then
+      write(digitBuffer, *) digits_opt
+      write(readFmt,*) '(F20.'//trim(adjustl(digitBuffer))//')' 
+      write(buffer, readFmt) num
+    else
+      write(buffer,*) num
+    end if
+    string = trim(adjustl(buffer))
+
+  end function msg_real42str
+
+  !--------------------------------------------------------------------------
+  ! msg_real82str
+  !--------------------------------------------------------------------------
+  function msg_real82str(num, digits_opt) result(string)
+
+    ! Arguments:
+    real(8), intent(in)           :: num
+    character(len=:), allocatable :: string
+    integer, optional             :: digits_opt
+
+    ! Locals:
+    character(len=20)                   :: readFmt, digitBuffer
+    character(len=msg_num2strBufferLen) :: buffer
+
+    if (present(digits_opt)) then
+      write(digitBuffer, *) digits_opt
+      write(readFmt,*) '(F20.'//trim(adjustl(digitBuffer))//')' 
+      write(buffer, readFmt) num
+    else
+      write(buffer,*) num
+    end if
+    string = trim(adjustl(buffer))
+
+  end function msg_real82str
 
   !--------------------------------------------------------------------------
   ! msg_memUsage
