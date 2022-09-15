@@ -508,12 +508,12 @@ program midas_letkf
       call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
                    timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
 
-      ! Compute Y-H(Xa) in OBS_WORK (used instead of OBS_OMA so that obsSpaceData isn't unintentionally modified) 
-      call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_WORK, beSilent_opt=.true., &
+      ! Compute Y-H(Xa) in OBS_OMAM (used instead of OBS_OMA so that obsSpaceData isn't unintentionally modified) 
+      call inn_computeInnovation(column, obsSpaceData, destObsColumn_opt=OBS_OMAM, beSilent_opt=.true., &
                                  callFiltTopo_opt=.false., callSetErrGpsgb_opt=.false., analysisMode_opt=.false.)
 
       ! Copy to ensObs: Y-H(Xa_member) for this member
-      call eob_setYa(ensObs, memberIndex, OBS_WORK)
+      call eob_setYa(ensObs, memberIndex, OBS_OMAM)
 
     end do
   
