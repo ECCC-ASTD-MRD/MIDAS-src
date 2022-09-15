@@ -68,8 +68,9 @@ contains
     real(8) :: step         ! time resolution (in hours)
     integer :: deltmax      ! maximum time difference (in minutes)
     logical :: useBlackList ! signal if blacklist file should be read and used
+    logical :: considerSHIPstnID ! signal if SHIP stn ID should be considered in thinning
 
-    namelist /thin_surface/doThinning, step, deltmax, useBlackList
+    namelist /thin_surface/doThinning, step, deltmax, useBlackList, considerSHIPstnID
     
     ! return if no surface obs
     if (.not. obs_famExist(obsdat,'SF')) return
@@ -79,6 +80,7 @@ contains
     step    = 6.0d0
     deltmax = 90
     useBlackList = .true.
+    considerSHIPstnID= .true.
 
     ! Read the namelist for Surface observations (if it exists)
     if (utl_isNamelistPresent('thin_surface','./flnml')) then
@@ -99,7 +101,7 @@ contains
     if (.not. doThinning) return
 
     call utl_tmg_start(114,'--ObsThinning')
-    call thn_surfaceInTime(obsdat, step, deltmax, useBlackList)
+    call thn_surfaceInTime(obsdat, step, deltmax, useBlackList,considerSHIPstnID)
     call utl_tmg_stop(114)
 
   end subroutine thn_thinSurface
@@ -648,7 +650,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_surfaceInTime
   !--------------------------------------------------------------------------
-  subroutine thn_surfaceInTime(obsdat, step, deltmax, useBlackList)
+  subroutine thn_surfaceInTime(obsdat, step, deltmax, useBlackList, considerSHIPstnID)
     !
     ! :Purpose: Original method for thinning surface data in time.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
@@ -659,7 +661,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
     real(8),          intent(in)    :: step
     integer,          intent(in)    :: deltmax
-    logical,          intent(in)    :: useBlackList
+    logical,          intent(in)    :: useBlackList, considerSHIPstnID
 
     ! Drifter removal parameters:
     ! Remove incomplete DRIFTER reports (using listEleBadDrifter)?
@@ -680,8 +682,8 @@ contains
     ! Codtyps to which list_ele_select will be applied
     integer, parameter :: listCodtypSelect(3) = (/ 15, 143, 144 /)
     ! Elements to select (flags for all other elements will have bit 11 set)
-    integer, parameter :: listEleSelect(10) = &    ! P, T, Td, U, V
-         (/ 8194, 10004, 10051, 11011, 11012, 11215, 11216, 12004, 12006, 12203 /) 
+    integer, parameter :: listEleSelect(13) = &    ! P, T, Td, U, V, VIS, log(VIS), GUST
+         (/ 8194, 10004, 10051, 11011, 11012, 11215, 11216, 12004, 12006, 12203, 20001, 50001, 11041 /) 
 
     ! BlackList parameters:
     character(len=*), parameter :: blackListFileName = 'blacklist_sf'
@@ -981,7 +983,7 @@ contains
             ! If reports are spatially colocated or have same stnid
             if ( ( (obsLonMpi(obsIndex) == obsLonMpi(obsIndex2)) .and. &
                    (obsLatMpi(obsIndex) == obsLatMpi(obsIndex2)) ) .or. &
-                 (obsStnidMpi(obsIndex) == obsStnidMpi(obsIndex2)) ) then
+                 ( considerSHIPstnID .and. obsStnidMpi(obsIndex) == obsStnidMpi(obsIndex2)) ) then
               ! If both reports have same codtyp
               if (obsCodtypIndexMpi(obsIndex) == obsCodtypIndexMpi(obsIndex2)) then
                 ! If current report closer to bin time
