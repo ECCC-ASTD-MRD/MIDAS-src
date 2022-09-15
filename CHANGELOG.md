@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add ability to produce random ocean perturbations (#652 and !637)
+   * minor impact on results of `randomPert`
  * Added ability to ignore stdID when removing duplicates in `thinning_mod` (#626 and !641)
  * Wind check to amplify FGE in the SST data background check (#679 and !642)
  * Added a listing output interface with configurable verbosity and intrinsic type string representations (#688 and !639)
