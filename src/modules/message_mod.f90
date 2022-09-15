@@ -59,12 +59,14 @@ module message_mod
     logical, optional, intent(in) :: mpiAll_opt ! if `.true.` prints to all MPI tasks, otherwise only to tile 0
 
     ! Locals:
-    logical :: mpiAll = .false.
-    integer :: verbLevel = 1
+    logical :: mpiAll
+    integer :: verbLevel
 
     call msg_readNml()
 
+    verbLevel = 1
     if (present(verb_opt)) verbLevel = verb_opt
+    mpiAll = .false.
     if (present(mpiAll_opt)) mpiAll = mpiAll_opt
 
     if (verbLevel <= verbosityThreshold) then
@@ -325,9 +327,10 @@ module message_mod
 
     ! Locals:
     integer           :: i
-    logical           :: vertical=.false.
+    logical           :: vertical
     character(len=2)  :: sep
 
+    vertical=.false.
     if (present(vertical_opt)) vertical = vertical_opt
     if (vertical) then
       sep=new_line('a')
@@ -362,9 +365,10 @@ module message_mod
 
     ! Locals:
     integer           :: i
-    logical           :: vertical=.false.
+    logical           :: vertical
     character(len=2)  :: sep
 
+    vertical=.false.
     if (present(vertical_opt)) vertical = vertical_opt
     if (vertical) then
       sep=new_line('')
@@ -400,9 +404,10 @@ module message_mod
 
     ! Locals:
     integer           :: i
-    logical           :: vertical=.false.
+    logical           :: vertical
     character(len=2)  :: sep
 
+    vertical=.false.
     if (present(vertical_opt)) vertical = vertical_opt
     if (vertical) then
       sep=new_line('')
