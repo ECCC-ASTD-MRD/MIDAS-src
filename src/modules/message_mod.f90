@@ -10,6 +10,8 @@ module message_mod
   save
   private
 
+  integer, external :: get_max_rss
+
   ! public procedures
   public :: msg_message, msg_memUsage
   public :: msg_str
@@ -39,7 +41,7 @@ module message_mod
   !--------------------------------------------------------------------------
   subroutine msg_message(origin, message, verbosityLevel_opt, mpiAll_opt)
     !
-    ! :Purpose: output message if its verbosity level is greater or equal than
+    ! :Purpose: Output message if its verbosity level is greater or equal than
     !           the user provided verbosity threshold (see `msg_readNml()`).
     !           The verbosity levels are:
     !
@@ -77,12 +79,23 @@ module message_mod
   !--------------------------------------------------------------------------
   ! msg_memUsage
   !--------------------------------------------------------------------------
-  subroutine msg_memUsage()
+  subroutine msg_memUsage(origin, verbosityLevel_opt, mpiAll_opt)
     !
-    ! :Purpose: 
+    ! :Purpose: Report memory usage
     !
+    implicit none
 
-    !call msg_message()
+    ! Arguments:
+    character(len=*),  intent(in) :: origin             ! originating subroutine, function or program
+    integer, optional, intent(in) :: verbosityLevel_opt ! minimal verbosity level to print the message
+    logical, optional, intent(in) :: mpiAll_opt         ! if `.true.` prints to all MPI tasks, otherwise only to tile 0
+
+    ! Locals:
+    integer :: usageMb
+
+    usageMb = get_max_rss()/1024
+    call msg_message( origin, "Memory Used: "//msg_str(usageMb)//" Mb", &
+                      verbosityLevel_opt, mpiAll_opt)
 
   end subroutine msg_memUsage
 
