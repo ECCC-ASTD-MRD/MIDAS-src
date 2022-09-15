@@ -80,13 +80,22 @@ mind is provided [here](codingStd_top10.md).
 
 - Use [`msg_message()`](src/modules/message_mod.f90) instead of naked
   `write(*,*)` to output information: provide the _origin_ of the message (such
-  as the caller subroutine, function or program) and a _verbosity level_ from 0
-  to 3 that specifies how important is the message:
+  as the caller subroutine, function or program) and, optionally a
+  _verbosity level_ from 0 to 3 that specifies how important is the message:
 
   * 0 : critical, always printed
   * 1 : default priority; printed in operational context
   * 2 : detailed ouptut, provides extra information
   * 3 : intended for developpers, printed for debugging or specific diagnostcs
+  
+  Examples:
+  ```fortan 
+  ! prints a short message on all MPI tiles when verbosity threshold >= 2
+  call msg_message('int_tInterp_gsv', 'START', verb_opt=2, mpiAll_opt=.true.)
+  ...
+  ! prints a short message with some numerical values 
+  call msg_message('int_tInterp_gsv', 'numStepIn='//msg_str(numStepIn)//',numStepOut='//msg_str(numStepOut))
+  ```
 
 ### More detailed rules:
 
@@ -214,6 +223,23 @@ select case
   Instead, do this:
   ```fortran
   INTEGER&nbsp;:: array1(10), array2(20)
+  ```
+
+- Never initialize a local variable on the declaration unless the `save`
+  attribute is explicitely present.  
+  Avoid this:
+  ```fortran
+  logical :: trueByDefault = .true.
+  ```
+  Instead, do this:
+  ```fortran
+  logical :: trueByDefault
+  trueByDefault = .true.
+  ```
+  If you actually want the local variable to keep it's value after passing out
+  of scope, be explicit:
+  ```fortran
+  logical, save :: thisIsTheFirstCall = .true.
   ```
 
 - Avoid `COMMON` blocks and `BLOCK DATA` program units. Instead, use a
