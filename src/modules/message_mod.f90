@@ -18,6 +18,9 @@ module message_mod
     module procedure msg_int2str
     module procedure msg_real42str
     module procedure msg_real82str
+    module procedure msg_intArray2str
+    module procedure msg_real4Array2str
+    module procedure msg_real8Array2str
   end interface
 
   ! private module variables
@@ -70,6 +73,18 @@ module message_mod
       end if
     end if
     end subroutine msg_message
+
+  !--------------------------------------------------------------------------
+  ! msg_memUsage
+  !--------------------------------------------------------------------------
+  subroutine msg_memUsage()
+    !
+    ! :Purpose: 
+    !
+
+    !call msg_message()
+
+  end subroutine msg_memUsage
 
   !--------------------------------------------------------------------------
   ! msg_readNml (private)
@@ -175,38 +190,41 @@ module message_mod
       write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A',len(message),')'
       write(*,firstLineFormat) origin, ': ', message
     end if
+    contains
+      !----------------------------------------------------------------------
+      ! msg_breakOnSpace (private)
+      !----------------------------------------------------------------------
+      function msg_breakOnSpace(line) result(shorterLine)
+        !
+        ! :Purpose: Breaks line on last full word
+        !
+        implicit none
     
+        ! Arguments:
+        character(len=msg_lineLen), intent(in)  :: line
+        character(len=msg_lineLen) :: shorterLine
+        integer :: i
+    
+        i = index(trim(line),' ',back=.true.)
+        if (i == 0 .or. i == len(trim(line)) ) then
+          shorterLine = trim(line)
+          return
+        else
+          shorterLine = line(1:i-1)
+          return
+        end if
+    
+      end function msg_breakOnSpace
   end subroutine msg_write
 
   !--------------------------------------------------------------------------
-  ! msg_breakOnSpace (private)
-  !--------------------------------------------------------------------------
-  function msg_breakOnSpace(line) result(shorterLine)
-    !
-    ! :Purpose: breaks line on last full word
-    !
-    implicit none
-
-    ! Arguments:
-    character(len=msg_lineLen), intent(in)  :: line
-    character(len=msg_lineLen) :: shorterLine
-    integer :: i
-
-    i = index(trim(line),' ',back=.true.)
-    if (i == 0 .or. i == len(trim(line)) ) then
-      shorterLine = trim(line)
-      return
-    else
-      shorterLine = line(1:i-1)
-      return
-    end if
-
-  end function msg_breakOnSpace
-
-  !--------------------------------------------------------------------------
-  ! msg_int2str
+  ! msg_int2str (private)
   !--------------------------------------------------------------------------
   function msg_int2str(num) result(string)
+    !
+    ! :Purpose: Returns string representation of `integer`
+    !
+    implicit none
 
     ! Arguments:
     integer, intent(in)           :: num
@@ -221,9 +239,13 @@ module message_mod
   end function msg_int2str
 
   !--------------------------------------------------------------------------
-  ! msg_real42str
+  ! msg_real42str (private)
   !--------------------------------------------------------------------------
   function msg_real42str(num, digits_opt) result(string)
+    !
+    ! :Purpose: Returns string representation of `real(4)`
+    !
+    implicit none
 
     ! Arguments:
     real(4), intent(in)           :: num
@@ -246,9 +268,13 @@ module message_mod
   end function msg_real42str
 
   !--------------------------------------------------------------------------
-  ! msg_real82str
+  ! msg_real82str (private)
   !--------------------------------------------------------------------------
   function msg_real82str(num, digits_opt) result(string)
+    !
+    ! :Purpose: Returns string representation of `real(8)` 
+    !
+    implicit none
 
     ! Arguments:
     real(8), intent(in)           :: num
@@ -271,14 +297,113 @@ module message_mod
   end function msg_real82str
 
   !--------------------------------------------------------------------------
-  ! msg_memUsage
+  ! msg_intArray2str (private)
   !--------------------------------------------------------------------------
-  subroutine msg_memUsage()
+  function msg_intArray2str(array, vertical_opt) result(string)
     !
-    ! :Purpose: 
+    ! :Purpose: Returns string representation of `integer, dimension(:)` 
     !
+    implicit none
 
-    !call msg_message()
+    ! Arguments
+    integer, dimension(:), intent(in) :: array
+    character(len=:), allocatable     :: string
+    logical, optional                 :: vertical_opt
 
-  end subroutine msg_memUsage
+    ! Locals:
+    integer           :: i
+    logical           :: vertical=.false.
+    character(len=2)  :: sep
+
+    if (present(vertical_opt)) vertical = vertical_opt
+    if (vertical) then
+      sep=new_line('a')
+      string='(/'//sep
+    else
+      sep=', '
+      string='(/ '
+    end if
+
+    do i=1,size(array)
+      string = string//msg_int2str(array(i))
+      if (i /= size(array)) string = string//sep
+    end do
+    string = string//' /)'
+    
+  end function msg_intArray2str
+
+  !--------------------------------------------------------------------------
+  ! msg_real4Array2str (private)
+  !--------------------------------------------------------------------------
+  function msg_real4Array2str(array, digits_opt, vertical_opt) result(string)
+    !
+    ! :Purpose: Returns string representation of `real(4), dimension(:)` 
+    !
+    implicit none
+
+    ! Arguments
+    real(4), dimension(:), intent(in) :: array
+    character(len=:), allocatable     :: string
+    integer, optional                 :: digits_opt
+    logical, optional                 :: vertical_opt
+
+    ! Locals:
+    integer           :: i
+    logical           :: vertical=.false.
+    character(len=2)  :: sep
+
+    if (present(vertical_opt)) vertical = vertical_opt
+    if (vertical) then
+      sep=new_line('')
+      string='(/'//sep
+    else
+      sep=', '
+      string='(/ '
+    end if
+
+    do i=1,size(array)
+      string = string//msg_real42str(array(i), digits_opt=digits_opt)
+      if (i /= size(array)) string = string//sep
+    end do
+    string = string//' /)'
+
+    
+  end function msg_real4Array2str
+
+  !--------------------------------------------------------------------------
+  ! msg_real8Array2str (private)
+  !--------------------------------------------------------------------------
+  function msg_real8Array2str(array, digits_opt, vertical_opt) result(string)
+    !
+    ! :Purpose: Returns string representation of `real(8), dimension(:)` 
+    !
+    implicit none
+
+    ! Arguments
+    real(8), dimension(:), intent(in) :: array
+    character(len=:), allocatable     :: string
+    integer, optional                 :: digits_opt
+    logical, optional                 :: vertical_opt
+
+    ! Locals:
+    integer           :: i
+    logical           :: vertical=.false.
+    character(len=2)  :: sep
+
+    if (present(vertical_opt)) vertical = vertical_opt
+    if (vertical) then
+      sep=new_line('')
+      string='(/'//sep
+    else
+      sep=', '
+      string='(/ '
+    end if
+
+    do i=1,size(array)
+      string = string//msg_real82str(array(i), digits_opt=digits_opt)
+      if (i /= size(array)) string = string//sep
+    end do
+    string = string//' /)'
+    
+  end function msg_real8Array2str
 end module
