@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added ability to update SQLite columns if they don't previously exist (#601 and !630)
  * Added and improved new observation chemical constituent observation operator options (#18 and !636)
  * Added reverse dependencies graphs in code doc (#685 and !634)
  * Make code doc graphs clickable to browse dependencies (#684 and !629)
