@@ -39,7 +39,7 @@ module message_mod
   !--------------------------------------------------------------------------
   ! msg_message
   !--------------------------------------------------------------------------
-  subroutine msg_message(origin, message, verbosityLevel_opt, mpiAll_opt)
+  subroutine msg_message(origin, message, verb_opt, mpiAll_opt)
     !
     ! :Purpose: Output message if its verbosity level is greater or equal than
     !           the user provided verbosity threshold (see `msg_readNml()`).
@@ -53,10 +53,10 @@ module message_mod
     implicit none
 
     ! Arguments:
-    character(len=*),  intent(in) :: origin             ! originating subroutine, function or program
-    character(len=*),  intent(in) :: message            ! message to be printed
-    integer, optional, intent(in) :: verbosityLevel_opt ! minimal verbosity level to print the message
-    logical, optional, intent(in) :: mpiAll_opt         ! if `.true.` prints to all MPI tasks, otherwise only to tile 0
+    character(len=*),  intent(in) :: origin     ! originating subroutine, function or program
+    character(len=*),  intent(in) :: message    ! message to be printed
+    integer, optional, intent(in) :: verb_opt   ! minimal verbosity level to print the message
+    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` prints to all MPI tasks, otherwise only to tile 0
 
     ! Locals:
     logical :: mpiAll = .false.
@@ -64,10 +64,10 @@ module message_mod
 
     call msg_readNml()
 
-    if (present(verbosityLevel_opt)) verbLevel = verbosityLevel_opt
+    if (present(verb_opt)) verbLevel = verb_opt
     if (present(mpiAll_opt)) mpiAll = mpiAll_opt
 
-    if (verbLevel >= verbosityThreshold) then
+    if (verbLevel <= verbosityThreshold) then
       if (mpiAll) then
         call msg_write(origin, message)
       else
@@ -79,23 +79,23 @@ module message_mod
   !--------------------------------------------------------------------------
   ! msg_memUsage
   !--------------------------------------------------------------------------
-  subroutine msg_memUsage(origin, verbosityLevel_opt, mpiAll_opt)
+  subroutine msg_memUsage(origin, verb_opt, mpiAll_opt)
     !
     ! :Purpose: Report memory usage
     !
     implicit none
 
     ! Arguments:
-    character(len=*),  intent(in) :: origin             ! originating subroutine, function or program
-    integer, optional, intent(in) :: verbosityLevel_opt ! minimal verbosity level to print the message
-    logical, optional, intent(in) :: mpiAll_opt         ! if `.true.` prints to all MPI tasks, otherwise only to tile 0
+    character(len=*),  intent(in) :: origin     ! originating subroutine, function or program
+    integer, optional, intent(in) :: verb_opt   ! minimal verbosity level to print the message
+    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` prints to all MPI tasks, otherwise only to tile 0
 
     ! Locals:
     integer :: usageMb
 
     usageMb = get_max_rss()/1024
     call msg_message( origin, "Memory Used: "//msg_str(usageMb)//" Mb", &
-                      verbosityLevel_opt, mpiAll_opt)
+                      verb_opt, mpiAll_opt)
 
   end subroutine msg_memUsage
 
