@@ -491,7 +491,7 @@ contains
               do memberIndex1 = 1, nEnsUsed
                 YbTinvRYb_mod(memberIndex1,memberIndex2) =  &
                      YbTinvRYb_mod(memberIndex1,memberIndex2) +  &
-                     YbTinvR(memberIndex1,localObsIndex) * ensObsGain_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
+                     YbTinvR(memberIndex1,localObsIndex) * ensObs_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
               end do
             end do
             !$OMP END PARALLEL DO
