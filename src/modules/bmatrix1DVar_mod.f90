@@ -30,7 +30,6 @@ module bmatrix1DVar_mod
   use timeCoord_mod
   use utilities_mod
   use verticalCoord_mod
-  use codeprecision_mod
   use tovs_nl_mod
   use var1D_mod
   use filenames_mod

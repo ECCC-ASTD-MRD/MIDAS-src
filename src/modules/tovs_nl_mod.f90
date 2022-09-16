@@ -75,7 +75,6 @@ module tovs_nl_mod
   use MathPhysConstants_mod
   use ozoneclim_mod
   use columnData_mod 
-  use presProfileOperators_mod
   use tovs_extrap_mod
   use mod_rttov_emis_atlas
   use verticalCoord_mod

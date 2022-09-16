@@ -26,7 +26,6 @@ MODULE ensembleObservations_mod
   use tovs_nl_mod
   use rttov_types, only: rttov_transmission
   use parkind1, only: jpim, jprb
-  use ramDisk_mod
   use midasMpi_mod
   use oceanMask_mod
   use obsSpaceData_mod

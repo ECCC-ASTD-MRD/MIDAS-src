@@ -29,23 +29,14 @@ program midas_obsimpact
   use timeCoord_mod
   use columnData_mod
   use obsSpaceData_mod
-  use controlVector_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use bmatrix_mod
-  use bmatrixensemble_mod
-  use stateToColumn_mod
-  use obsOperators_mod
-  use costFunction_mod
-  use quasinewton_mod
   use innovation_mod
   use obsFiles_mod
-  use obsFilter_mod
   use obsErrors_mod
   use gridVariableTransforms_mod
   use rttov_const, only :inst_name, platform_name
-  use tovs_nl_mod
-  use rMatrix_mod
   use fsoi_mod
 
   implicit none

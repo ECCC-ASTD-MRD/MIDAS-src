@@ -32,7 +32,6 @@ module obsOperatorsChem_mod
   use obsSubSpaceData_mod
   use obsFiles_mod
   use codtyp_mod
-  use verticalCoord_mod
   use ozoneClim_mod
   use presProfileOperators_mod
   use timeCoord_mod

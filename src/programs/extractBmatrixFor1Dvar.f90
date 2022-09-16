@@ -25,9 +25,7 @@ program midas_extractBmatrixFor1Dvar
   use gridVariableTransforms_mod
   use varNameList_mod
   use gridStateVector_mod
-  use ensembleStateVector_mod
   use bmatrix_mod
-  use bmatrixEnsemble_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod

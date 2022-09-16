@@ -27,7 +27,6 @@ module bgckOcean_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use horizontalCoord_mod
-  use verticalCoord_mod
   use statetocolumn_mod 
   use bufr_mod
   use mathPhysConstants_mod

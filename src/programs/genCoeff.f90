@@ -31,17 +31,10 @@ program midas_gencoeff
   use columnData_mod  
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
-  use obsSpaceDiag_mod
   use obsFiles_mod
-  use obsFilter_mod  
   use innovation_mod
-  use tovs_nl_mod
   use obsErrors_mod
-  use statetocolumn_mod
   use biasCorrectionSat_mod
-  use increment_mod
-  use stateToColumn_mod
-  use backgroundCheck_mod
 
   implicit none
 

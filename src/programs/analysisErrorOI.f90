@@ -21,7 +21,6 @@ program midas_analysisErrorOI
   !           uses a simple OI approach.
   !
   use version_mod
-  use codePrecision_mod
   use ramDisk_mod
   use utilities_mod
   use midasMpi_mod
@@ -32,8 +31,6 @@ program midas_analysisErrorOI
   use obsSpaceData_mod
   use columnData_mod
   use gridStateVector_mod
-  use obsSpaceDiag_mod
-  use controlVector_mod
   use obsFiles_mod
   use innovation_mod
   use obsErrors_mod

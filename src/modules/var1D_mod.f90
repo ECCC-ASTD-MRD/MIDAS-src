@@ -20,17 +20,13 @@ module var1D_mod
   ! :Purpose: contains all 1Dvar-related methods.
   !
   use columnData_mod
-  use columnVariableTransforms_mod
-  use controlVector_mod
   use gridStatevector_mod
   use horizontalCoord_mod
   use midasMpi_mod 
   use obsSpaceData_mod
   use timeCoord_mod
-  use utilities_mod
   use verticalCoord_mod
   use codeprecision_mod
-  use tovs_nl_mod
   use mathphysconstants_mod
 
   implicit none

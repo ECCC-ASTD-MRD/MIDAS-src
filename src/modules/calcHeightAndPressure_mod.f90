@@ -26,7 +26,6 @@ module calcHeightAndPressure_mod
   use midasMpi_mod
   use mathPhysConstants_mod
   use physicsFunctions_mod
-  use earthConstants_mod
   use verticalCoord_mod
   use gridstatevector_mod
   use columnData_mod

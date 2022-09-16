@@ -27,10 +27,7 @@ module multi_ir_bgck_mod
   use obsSpaceData_mod
   use midasMpi_mod
   use columnData_mod
-  use earthConstants_mod
   use MathPhysConstants_mod
-  use verticalCoord_mod
-  use presProfileOperators_mod
   implicit none
   save
   private

@@ -24,7 +24,6 @@ module SSTbias_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use kdtree2_mod
-  use earthconstants_mod
   use codePrecision_mod
   use mathPhysConstants_mod
   use utilities_mod
@@ -33,7 +32,6 @@ module SSTbias_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use oceanMask_mod
-  use timeCoord_mod
   use localizationFunction_mod
   use columnData_mod
   use statetocolumn_mod 

@@ -21,7 +21,6 @@ module oMinusF_mod
   !
   use codePrecision_mod
   use ramDisk_mod
-  use utilities_mod
   use midasMpi_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
@@ -29,15 +28,11 @@ module oMinusF_mod
   use timeCoord_mod
   use obsSpaceData_mod
   use columnData_mod
-  use stateToColumn_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use obsFiles_mod
-  use obsFilter_mod
   use innovation_mod
-  use tovs_nl_mod
   use obsErrors_mod
-  use obsOperators_mod
   use biasCorrectionConv_mod
   use obsSpaceErrorStdDev_mod
   implicit none

@@ -30,18 +30,14 @@ module obsOperators_mod
   use gps_mod
   use midasMpi_mod
   use timeCoord_mod
-  use obsFilter_mod
   use tovs_nl_mod
   use utilities_mod
   use tovs_lin_mod
   use verticalCoord_mod
   use varNameList_mod
-  use costfunction_mod
   use obsOperatorsChem_mod
   use obserrors_mod
-  use slantprofilelatlon_mod
-  use radvel_mod
- implicit none
+  implicit none
   save
   private
 

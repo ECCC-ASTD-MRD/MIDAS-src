@@ -25,11 +25,9 @@ program midas_advector
   use midasMpi_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use timeCoord_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use advection_mod
-  use ensembleStateVector_mod
   implicit none
 
   type(struct_hco), pointer :: hco => null()

@@ -29,11 +29,9 @@ module tovs_lin_mod
   use tovs_nl_mod
   use utilities_mod
   use MathPhysConstants_mod
-  use obsFilter_mod
   use obsSpaceData_mod
   use columnData_mod
   use tovs_extrap_mod
-  use presProfileOperators_mod
  
   implicit none
   save

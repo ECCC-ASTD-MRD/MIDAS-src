@@ -26,7 +26,6 @@ module minimization_mod
   use verticalCoord_mod
   use columnData_mod
   use obsSpaceData_mod
-  use obsSpaceDiag_mod
   use controlVector_mod
   use midasMpi_mod
   use horizontalCoord_mod
@@ -34,18 +33,12 @@ module minimization_mod
   use gridStateVectorFileIO_mod
   use bmatrix_mod
   use bMatrix1DVar_mod
-  use bmatrixhi_mod
-  use bmatrixchem_mod
-  use bmatrixEnsemble_mod
   use stateToColumn_mod
-  use varNameList_mod
   use varqc_mod
-  use randomNumber_mod
   use rmatrix_mod
   use costFunction_mod
   use residual_mod
   use obsOperators_mod
-  use innovation_mod
   use quasinewton_mod
   use utilities_mod
   use biasCorrectionSat_mod

@@ -32,16 +32,13 @@ program midas_diagHBHt
   use columnData_mod  
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
-  use obsSpaceDiag_mod
   use controlVector_mod
   use obsFiles_mod
-  use obsFilter_mod  
   use randomnumber_mod
   use obsTimeInterp_mod
   use stateToColumn_mod
   use innovation_mod
   use bmatrix_mod
-  use tovs_nl_mod
   use obsErrors_mod
   use gridVariableTransforms_mod
   use obsOperators_mod

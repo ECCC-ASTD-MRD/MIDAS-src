@@ -22,11 +22,9 @@ module burpFiles_mod
   !
   use codePrecision_mod
   use mathPhysConstants_mod
-  use earthConstants_mod
   use utilities_mod
   use obsSpaceData_mod
   use burpread_mod
-  use ramDisk_mod
   use bufr_mod
   use utilities_mod
   use obsSubSpaceData_mod

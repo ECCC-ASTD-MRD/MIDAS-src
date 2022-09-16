@@ -24,7 +24,6 @@ module obsSpaceDiag_mod
   use midasMpi_mod
   use bufr_mod
   use codtyp_mod
-  use earthConstants_mod
   use MathPhysConstants_mod
   use horizontalCoord_mod
   use timeCoord_mod
@@ -43,7 +42,6 @@ module obsSpaceDiag_mod
   use obsOperators_mod
   use utilities_mod
   use physicsfunctions_mod
-  use burpfiles_mod
   use obsSubSpaceData_mod
   use obsfiles_mod
   use obsOperatorsChem_mod

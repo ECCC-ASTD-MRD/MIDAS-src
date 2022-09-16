@@ -24,7 +24,6 @@ module columnData_mod
   !           locations.
   !
   use midasMpi_mod
-  use earthConstants_mod
   use varNameList_mod
   use verticalCoord_mod
   use mathPhysConstants_mod

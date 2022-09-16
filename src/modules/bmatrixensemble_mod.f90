@@ -21,7 +21,6 @@ module BmatrixEnsemble_mod
   !           using the spatially localized ensemble covariance matrix. This 
   !           module works for both global and limited-area applications.
   !
-  use ramDisk_mod
   use midasMpi_mod
   use fileNames_mod
   use gridStateVector_mod
@@ -32,7 +31,6 @@ module BmatrixEnsemble_mod
   use timeCoord_mod
   use localization_mod
   use mathPhysConstants_mod
-  use earthConstants_mod
   use gridVariableTransforms_mod
   use utilities_mod
   use globalSpectralTransform_mod

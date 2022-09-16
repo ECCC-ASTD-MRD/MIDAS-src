@@ -36,8 +36,6 @@ module BMatrix_mod
   use gridStateVector_mod
   use LAMbMatrixHI_mod
   use horizontalCoord_mod
-  use timeCoord_mod
-  use globalSpectralTransform_mod
   use utilities_mod
   implicit none
   save

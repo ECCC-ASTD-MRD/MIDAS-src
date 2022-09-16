@@ -22,26 +22,21 @@ module innovation_mod
   !           the subroutine that reads in the gridded high-res background state
   !           from standard files.
   !
-  use codePrecision_mod
   use midasMpi_mod
-  use ramDisk_mod
   use obsSpaceData_mod
   use columnData_mod
   use timeCoord_mod
   use obsTimeInterp_mod
   use obsOperators_mod
-  use earthConstants_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use varNameList_mod
   use verticalCoord_mod
   use gridStateVector_mod
-  use calcHeightAndPressure_mod
   use utilities_mod
   use obsFilter_mod  
   use gps_mod
   use tovs_nl_mod
-  use tovs_lin_mod
   use multi_ir_bgck_mod
   use obsFiles_mod
   use randomNumber_mod
