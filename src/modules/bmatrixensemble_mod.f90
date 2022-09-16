@@ -427,7 +427,7 @@ CONTAINS
 
     real(8), allocatable :: advectFactorFSOFcst_M(:),advectFactorAssimWindow_M(:)
 
-    real(8),pointer :: vertLocationEns_M(:), vertLocationFile_M(:), vertLocationInc_M(:)
+    real(8),pointer :: vertLocationEns(:), vertLocationFile(:), vertLocationInc(:)
 
     real(4), pointer :: bin2d(:,:,:)
     real(8), pointer :: HeightSfc(:,:)
@@ -519,31 +519,31 @@ CONTAINS
       write(*,*) 'ben_setupOneInstance: all the vertical levels will be read in the ensemble '
       if ( bEns(instanceIndex)%vco_anl%nLev_M > 0 .and. bEns(instanceIndex)%vco_anl%vgridPresent ) then
         pSurfRef = 101000.D0
-        nullify(vertLocationInc_M)
+        nullify(vertLocationInc)
         status = vgd_levels( bEns(instanceIndex)%vco_anl%vgrid, &
                              ip1_list=bEns(instanceIndex)%vco_anl%ip1_M, &
-                             levels=vertLocationInc_M, &
+                             levels=vertLocationInc, &
                              sfc_field=pSurfRef, in_log=.false. )
         if (status /= VGD_OK) call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
-        nullify(vertLocationFile_M)
+        nullify(vertLocationFile)
         status = vgd_levels( bEns(instanceIndex)%vco_file%vgrid, &
                              ip1_list=bEns(instanceIndex)%vco_file%ip1_M, &
-                             levels=vertLocationFile_M, &
+                             levels=vertLocationFile, &
                              sfc_field=pSurfRef, in_log=.false.)
         if (status /= VGD_OK) call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
       
         do levIndex = 1, bEns(instanceIndex)%vco_anl%nLev_M
-          vertLocationInc_M(levIndex) = log(vertLocationInc_M(levIndex))
+          vertLocationInc(levIndex) = log(vertLocationInc(levIndex))
         end do
         do levIndex = 1, bEns(instanceIndex)%vco_file%nLev_M
-          vertLocationFile_M(levIndex) = log(vertLocationFile_M(levIndex))
+          vertLocationFile(levIndex) = log(vertLocationFile(levIndex))
         end do
 
-        EnsTopMatchesAnlTop = abs( vertLocationFile_M(1) - vertLocationInc_M(1) ) < 0.1d0
+        EnsTopMatchesAnlTop = abs( vertLocationFile(1) - vertLocationInc(1) ) < 0.1d0
         write(*,*) 'ben_setupOneInstance: EnsTopMatchesAnlTop, presEns, presInc = ', &
-             EnsTopMatchesAnlTop, vertLocationFile_M(1), vertLocationInc_M(1)
-        deallocate(vertLocationFile_M)
-        deallocate(vertLocationInc_M)
+             EnsTopMatchesAnlTop, vertLocationFile(1), vertLocationInc(1)
+        deallocate(vertLocationFile)
+        deallocate(vertLocationInc)
       else
         ! not sure what this mean when no MM levels
         write(*,*) 'ben_setupOneInstance: nLev_M       = ', bEns(instanceIndex)%vco_anl%nLev_M
@@ -753,40 +753,40 @@ CONTAINS
       ! Setup the localization
       if ( bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005 ) then
         pSurfRef = 101000.D0
-        nullify(vertLocationInc_M)
+        nullify(vertLocationInc)
         status = vgd_levels( bEns(instanceIndex)%vco_anl%vgrid, &
                              ip1_list=bEns(instanceIndex)%vco_anl%ip1_M, &
-                             levels=vertLocationInc_M, &
+                             levels=vertLocationInc, &
                              sfc_field=pSurfRef, in_log=.false.)
         if (status /= VGD_OK)then
           call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
         end if
 
-        allocate(vertLocationEns_M(bEns(instanceIndex)%nLevEns_M))
+        allocate(vertLocationEns(bEns(instanceIndex)%nLevEns_M))
         do levIndex = 1, bEns(instanceIndex)%nLevEns_M
-          vertLocationEns_M(levIndex) = log(vertLocationInc_M(levIndex+bEns(instanceIndex)%topLevIndex_M-1))
+          vertLocationEns(levIndex) = log(vertLocationInc(levIndex+bEns(instanceIndex)%topLevIndex_M-1))
         end do
-        deallocate(vertLocationInc_M)
+        deallocate(vertLocationInc)
       else if ( bEns(instanceIndex)%vco_anl%nLev_depth > 0 ) then
-        allocate(vertLocationEns_M(bEns(instanceIndex)%vco_anl%nLev_depth))
-        vertLocationEns_M(:) = bEns(instanceIndex)%vco_anl%depths(:)
+        allocate(vertLocationEns(bEns(instanceIndex)%vco_anl%nLev_depth))
+        vertLocationEns(:) = bEns(instanceIndex)%vco_anl%depths(:)
       else
         pSurfRef = 101000.D0
-        allocate(vertLocationEns_M(1))
-        vertLocationEns_M(:) = pSurfRef
+        allocate(vertLocationEns(1))
+        vertLocationEns(:) = pSurfRef
       end if
 
       allocate(bEns(instanceIndex)%locStorage(bEns(instanceIndex)%nWaveBand))
       do waveBandIndex = 1, bEns(instanceIndex)%nWaveBand
         call loc_setup(bEns(instanceIndex)%locStorage(waveBandIndex), bEns(instanceIndex)%cvDim_mpilocal,          & ! OUT
                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%nEns,         & ! IN
-                       vertLocationEns_M, bEns(instanceIndex)%nTrunc, 'spectral',                               & ! IN
+                       vertLocationEns, bEns(instanceIndex)%nTrunc, 'spectral',                               & ! IN
                        bEns(instanceIndex)%localizationType, bEns(instanceIndex)%hLocalize(waveBandIndex),         & ! IN
                        bEns(instanceIndex)%hLocalize(waveBandIndex+1), bEns(instanceIndex)%vLocalize(waveBandIndex)) ! IN
       end do
 
       cvDim = bEns(instanceIndex)%cvDim_mpilocal
-      deallocate(vertLocationEns_M)
+      deallocate(vertLocationEns)
 
     end if
 
