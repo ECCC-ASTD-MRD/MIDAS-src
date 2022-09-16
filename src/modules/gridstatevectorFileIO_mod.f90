@@ -1064,8 +1064,7 @@ module gridStateVectorFileIO_mod
                          mpi_distribution_opt='Tiles', dataKind_opt=4,  &
                          allocHeightSfc_opt=allocHeightSfc, &
                          hInterpolateDegree_opt=stateVectorTrialIn%hInterpolateDegree, &
-                         allocHeight_opt=.false., allocPressure_opt=.false., &
-                         beSilent_opt=.false. )
+                         allocHeight_opt=.false., allocPressure_opt=.false.)
       call gsv_zero( stateVectorTrial )
       stateVectorTrial_ptr => stateVectorTrial
     else

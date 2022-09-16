@@ -30,6 +30,7 @@ module gridStateVector_mod
   use mathPhysConstants_mod
   use timeCoord_mod
   use utilities_mod
+  use message_mod
   use physicsFunctions_mod
   implicit none
   save
@@ -206,8 +207,7 @@ module gridStateVector_mod
       end if
     end do
 
-    write(*,*) 'gsv_getVarNameFromK: kIndex out of range: ', kIndex
-    call utl_abort('gsv_getVarNameFromK')
+    call utl_abort('gsv_getVarNameFromK: kIndex out of range: '//str(kIndex))
 
   end function gsv_getVarNameFromK
 
@@ -238,8 +238,7 @@ module gridStateVector_mod
       end if
     end do
 
-    write(*,*) 'gsv_getLevFromK: kIndex out of range: ', kIndex
-    call utl_abort('gsv_getLevFromK')
+    call utl_abort('gsv_getLevFromK: kIndex out of range: '//str(kIndex))
 
   end function gsv_getLevFromK
 
@@ -268,8 +267,7 @@ module gridStateVector_mod
       end if
     end do
 
-    write(*,*) 'gsv_getMpiIdFromK: kIndex out of range: ', kIndex
-    call utl_abort('gsv_getMpiIdFromK')
+    call utl_abort('gsv_getMpiIdFromK: kIndex out of range: '//str(kIndex))
 
   end function gsv_getMpiIdFromK
 
@@ -499,10 +497,10 @@ module gridStateVector_mod
 
     if (initialized) return
 
-    if (mmpi_myid.eq.0) write(*,*) 'gsv_setup: List of known (valid) variable names'
-    if (mmpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList3D   =',vnl_varNameList3D(:)
-    if (mmpi_myid.eq.0) write(*,*) 'gsv_setup: varNameList2D   =',vnl_varNameList2D(:)
-    if (mmpi_myid.eq.0) write(*,*) 'gsv_setup: varNameListOther=',vnl_varNameListOther(:)
+    call msg('gsv_setup', 'List of known (valid) variable names', mpiAll_opt=.false.)
+    call msg('gsv_setup', 'varNameList3D   ='//str(vnl_varNameList3D(:)), mpiAll_opt=.false.)
+    call msg('gsv_setup', 'varNameList3D   ='//str(vnl_varNameList3D(:)), mpiAll_opt=.false.)
+    call msg('gsv_setup', 'varNameListOther='//str(vnl_varNameListOther(:)), mpiAll_opt=.false.)
 
     ! Read namelist NAMSTATE to find which fields are needed
 
@@ -581,7 +579,7 @@ module gridStateVector_mod
       end if
     end do
 
-    if (mmpi_myid.eq.0) write(*,*) 'gsv_setup: global varExistList =',varExistList
+    call msg('gsv_setup','global varExistList ='//str(varExistList), mpiAll_opt=.false.)
 
     ! Check value for ANLTIME_BIN
     if (ANLTIME_BIN .ne. 'MIDDLE' .and. ANLTIME_BIN .ne. 'FIRST' .and.  ANLTIME_BIN .ne. 'LAST') then
@@ -650,7 +648,7 @@ module gridStateVector_mod
   subroutine gsv_allocate(statevector, numStep, hco_ptr, vco_ptr, dateStamp_opt, dateStampList_opt,  &
                           mpi_local_opt, mpi_distribution_opt, horizSubSample_opt,                   &
                           varNames_opt, dataKind_opt, allocHeightSfc_opt, hInterpolateDegree_opt,    &
-                          hExtrapolateDegree_opt, allocHeight_opt, allocPressure_opt, beSilent_opt)
+                          hExtrapolateDegree_opt, allocHeight_opt, allocPressure_opt)
     !
     ! :Purpose: Allocates the struct_gsv memory, sets horizontal and vertical 
     !           coordinates, sets some options and MPI distribution 
@@ -673,27 +671,19 @@ module gridStateVector_mod
     logical,          optional, intent(in)    :: allocHeightSfc_opt     ! toggle allocation of surface height field
     logical,          optional, intent(in)    :: allocHeight_opt        ! force the allocation of 'Z_T' and 'Z_M'
     logical,          optional, intent(in)    :: allocPressure_opt      ! force the allocation of 'P_T' and 'P_M'
-    logical,          optional, intent(in)    :: beSilent_opt           ! limit outputs to listing
     character(len=*), optional, intent(in)    :: hInterpolateDegree_opt ! set the horizontal interpolation degree
     character(len=*), optional, intent(in)    :: hExtrapolateDegree_opt ! set the horizontal extrapolation degree
 
     ! Locals:
     integer :: ierr,iloc,varIndex,varIndex2,stepIndex,lon1,lat1,k1,kIndex,kIndex2,levUV
     character(len=4) :: UVname
-    logical :: beSilent, allocPressure, allocHeight
+    logical :: allocPressure, allocHeight
 
     call utl_tmg_start(168, 'low-level--gsv_allocate')
 
     if (.not. initialized) then
-      write(*,*)
-      write(*,*) 'gsv_allocate: gsv_setup must be called first to be able to use this module. Call it now'
+      call msg('gsv_allocate','gsv_setup must be called first to be able to use this module. Call it now')
       call gsv_setup
-    end if
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
     end if
 
     ! set the horizontal and vertical coordinates
@@ -705,7 +695,7 @@ module gridStateVector_mod
     end if
 
     if ( statevector%allocated ) then
-      if (mmpi_myid.eq.0) write(*,*) 'gridStateVector already allocated! Deallocating first.'
+      call msg('gsv_allocate', 'gridStateVector already allocated! Deallocating first.', mpiAll_opt=.false.)
       call gsv_deallocate(statevector)
     end if
 
@@ -782,14 +772,16 @@ module gridStateVector_mod
     statevector%nj = ceiling(real(statevector%hco%nj,8) / real(statevector%horizSubSample,8))
 
     if ( statevector%ni * statevector%horizSubSample /= statevector%hco%ni ) then
-      write(*,*) 'gsv_allocate: number of longitudes is not evenly divisible at this subSample level'
-      write(*,*) 'gsv_allocate: ni, horizSubSample = ', statevector%ni, statevector%horizSubSample
+      call msg( 'gsv_allocate',' number of longitudes is not evenly divisible at this subSample level'&
+                //' ni='//str(statevector%ni)// ', horizSubSample = '&
+                //str(statevector%horizSubSample))
       call utl_abort('gsv_allocate')
     end if
 
     if ( statevector%nj * statevector%horizSubSample /= statevector%hco%nj ) then
-      write(*,*) 'gsv_allocate: number of latitudes is not evenly divisible at this subSample level'
-      write(*,*) 'gsv_allocate: nj, horizSubSample = ', statevector%nj, statevector%horizSubSample
+      call msg( 'gsv_allocate','number of latitudes is not evenly divisible at this subSample level'&
+                //' nj='//str(statevector%nj)//', horizSubSample = '&
+                //str(statevector%horizSubSample))
       call utl_abort('gsv_allocate')
     end if
 
@@ -894,9 +886,10 @@ module gridStateVector_mod
 
     statevector%nk=iloc
 
-    if( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'gsv_allocate: statevector%nk = ',statevector%nk
-    if( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'gsv_allocate: varOffset=',statevector%varOffset
-    if( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'gsv_allocate: varNumLev=',statevector%varNumLev
+    call msg( 'gsv_allocate', 'statevector%nk = '//str(statevector%nk)&
+              //new_line('')//'varOffset='//str(statevector%varOffset)&
+              //new_line('')//'varNumLev='//str(statevector%varNumLev),&
+              verb_opt=2, mpiAll_opt=.false.)
 
     ! determine range of values for the 'k' index (vars+levels)
     if ( statevector%mpi_distribution == 'VarsLevs' ) then
@@ -1068,8 +1061,7 @@ module gridStateVector_mod
       call utl_abort('gsv_allocate: unknown value of datakind')
     end if
     if (ierr.ne.0) then
-      write(*,*) 'gridStateVector: Problem allocating memory! id=1 ',ierr
-      call utl_abort('gsv_allocate')
+      call utl_abort('gsv_allocate: Problem allocating memory! id=1 '//str(ierr))
     end if
 
     if ( present(allocHeightSfc_opt) ) then
@@ -1137,10 +1129,10 @@ module gridStateVector_mod
                             'MPI_LOGICAL', 'MPI_LOR', 'GRID', ierr)
     statevector%onPhysicsGrid(:) = onPhysicsGrid(:)
 
-    write(*,*) 'gsv_communicateTimeParams: deet = ', deet
-    write(*,*) 'gsv_communicateTimeParams: ip2List = ', ip2List(:)
-    write(*,*) 'gsv_communicateTimeParams: npasList = ', npasList(:)
-    write(*,*) 'gsv_communicateTimeParams: dateOriginList = ', dateOriginList(:)
+    call msg('gsv_communicateTimeParams', 'deet = '//str(deet) &
+         //new_line('')//'ip2List = '//str(ip2List(:)) &
+         //new_line('')//'npasList = '//str(npasList(:)) &
+         //new_line('')//'dateOriginList = '//str(dateOriginList(:)))
 
   end subroutine gsv_communicateTimeParams
 
@@ -1190,51 +1182,55 @@ module gridStateVector_mod
     if ( maxval(statevector%allLonPerPE) > 2*minval(statevector%allLonPerPE) .or. &
          maxval(statevector%allLatPerPE) > 2*minval(statevector%allLatPerPE) ) then
       numCalls = numCalls + 1
-      if ( mmpi_myid == 0 .and. (numCalls <= 5) ) then
-        write(*,*) '============================================================='
-        write(*,*)
-        write(*,*) 'gsv_checkMpiDistribution: WARNING: bad choice of mpi topology!'
-        write(*,*) '              mpi x, y dimensions = ', mmpi_npex, mmpi_npey
-        write(*,*) '              min(lonPerPE) = ', minval(statevector%allLonPerPE)
-        write(*,*) '              max(lonPerPE) = ', maxval(statevector%allLonPerPE)
-        write(*,*) '              min(latPerPE) = ', minval(statevector%allLatPerPE)
-        write(*,*) '              max(latPerPE) = ', maxval(statevector%allLatPerPE)
-        write(*,*)
+      if (mpi_myid == 0 .and. (numCalls <= 5)) then
+        call msg('gsv_checkMpiDistribution', & 
+            new_line('')//'=============================================================' &
+          //new_line('')//'WARNING: bad choice of mpi topology!' &
+          //new_line('')//'   mpi x, y dimensions = '//str(mpi_npex)//', '//str(mpi_npey) &
+          //new_line('')//'   min(lonPerPE) = '//str(minval(statevector%allLonPerPE)) &
+          //new_line('')//'   max(lonPerPE) = '//str(maxval(statevector%allLonPerPE)) &
+          //new_line('')//'   min(latPerPE) = '//str(minval(statevector%allLatPerPE)) &
+          //new_line('')//'   max(latPerPE) = '//str(maxval(statevector%allLatPerPE)) &
+          //new_line(''), mpiAll_opt=.false.)
 
         ! make suggestions for mpi x diminension
         if (maxval(statevector%allLonPerPE) > 2*minval(statevector%allLonPerPE)) then
-          write(*,*) ' Please choose a value of mpi x dimension that gives a smaller '
-          write(*,*) ' difference between min and max of lonPerPE. Here are some options:'
+          call msg( 'gsv_checkMpiDistribution', & 
+                    'Please choose a value of mpi x dimension that gives a smaller ' &
+                    //'difference between min and max of lonPerPE. Here are some options:', &
+                    mpiAll_opt=.false.)
           do npex = 1, 2*mmpi_npex
             lonPerPEmin = floor(real(stateVector%ni)/real(npex))
             lonPerPEmax = stateVector%ni - (npex - 1) * lonPerPEmin
             if (lonPerPEmax < 2*lonPerPEmin) then
-              write(*,*) ' mpi x dimension = ', npex,  &
-                   ', difference between min and max lonPerPE = ', lonPerPEmax - lonPerPEmin
+              call msg('gsv_checkMpiDistribution','mpi x dimension = '//str(npex) &
+                   //', difference between min and max lonPerPE = ' &
+                   //str(lonPerPEmax - lonPerPEmin), mpiAll_opt=.false.)
             end if
           end do
         end if
 
         ! make suggestions for mpi y dimension
         if (maxval(statevector%allLatPerPE) > 2*minval(statevector%allLatPerPE)) then
-          write(*,*) ' Please choose a value of mpi y dimension that gives a smaller '
-          write(*,*) ' difference between min and max of latPerPE. Here are some options:'
+          call msg('gsv_checkMpiDistribution',&
+               'Please choose a value of mpi y dimension that gives a smaller ' &
+               //'difference between min and max of latPerPE. Here are some options:',&
+               mpiAll_opt=.false.)
           do npey = 1, 2*mmpi_npey
             latPerPEmin = floor(real(stateVector%nj)/real(npey))
             latPerPEmax = stateVector%nj - (npey - 1) * latPerPEmin
             if (latPerPEmax < 2*latPerPEmin) then
-              write(*,*) ' mpi y dimension = ', npey,  &
-                   ', difference between min and max latPerPE = ', latPerPEmax - latPerPEmin
+              call msg('gsv_checkMpiDistribution','mpi y dimension = '//str(npey)  &
+                //', difference between min and max latPerPE = ' &
+                //str(latPerPEmax - latPerPEmin), mpiAll_opt=.false.)
             end if
           end do
         end if
 
-        write(*,*) '============================================================='
+        call msg('gsv_checkMpiDistribution', new_line('')//'=============================================================', mpiAll_opt=.false.)
       else
         ! After 5 calls, just give a short message
-        if ( mmpi_myid == 0 ) then
-          write(*,*) 'gsv_checkMpiDistribution: WARNING: bad choice of mpi topology!'
-        end if
+        call msg('gsv_checkMpiDistribution','WARNING: bad choice of mpi topology!', mpiAll_opt=.false.)
       end if
 
       if (abortOnMpiImbalance) call utl_abort('gsv_checkMpiDistribution: Please choose a better mpi topology')
@@ -1262,8 +1258,7 @@ module gridStateVector_mod
     else if ( trim(UV_in) == 'VV' ) then
       UV_out = 'UU  '
     else
-      write(*,*) 'UV_in = ',trim(UV_in)
-      call utl_abort('complementaryUVname: invalid input')
+      call utl_abort('complementaryUVname: invalid input, UV_in = '//trim(UV_in))
     end if
   end function complementaryUVname
 
@@ -1619,7 +1614,6 @@ module gridStateVector_mod
 
     ! Locals:
     logical            :: timeMismatch, allowVarMismatch, varMismatch
-    logical, parameter :: verbose=.false.
 
     integer :: stepIndex, lonIndex, kIndex, latIndex, levIndex, varIndex, numCommonVar 
     integer :: lon1, lon2, lat1, lat2, k1, k2, step1, step2, stepIn, nlev_in
@@ -1695,10 +1689,10 @@ module gridStateVector_mod
       call utl_abort('gsv_copy: varMismatch and allowVarMismatch do not agree! Aborting.')
     end if
 
-    if (verbose) then
-      write(*,*) 'gsv_copy: gsvCopyType=', gsvCopyType,', timeMismatch=', timeMismatch, &
-                 ', varMismatch=', varMismatch,', allowVarMismatch=', allowVarMismatch
-    end if
+    call msg('gsv_copy', 'gsvCopyType='//gsvCopyType &
+         //', timeMismatch='//str(timeMismatch) &
+         //', varMismatch='//str(varMismatch) &
+         //', allowVarMismatch='//str(allowVarMismatch), verb_opt=2)
 
     ! build list of common variables and see if there is a mismatch
     allocate(varNameListCommon(vnl_numvarmax))
@@ -2042,7 +2036,7 @@ module gridStateVector_mod
 
     if (numStepOut /= 1) call utl_abort('gsv_copy4Dto3D: output statevector must have only 1 timestep')
     if (numStepIn == 1) then
-      write(*,*) 'gsv_copy4Dto3D: WARNING: input statevector only has 1 timestep, will simply copy.'
+      call msg('gsv_copy4Dto3D', 'WARNING: input statevector only has 1 timestep, will simply copy.')
     end if
     middleStepIndex = (numStepIn + 1) / 2
 
@@ -3012,8 +3006,8 @@ module gridStateVector_mod
         if (stepIndex_opt.gt.0.and.stepIndex_opt.le.statevector%numStep) then
           dateStamp=statevector%dateStampList(stepIndex_opt)
         else
-          write(*,*) 'gsv_getDateStamp: requested step is out of range! Step,numStep=',stepIndex_opt,statevector%numStep
-          call utl_abort('gsv_getDateStamp')
+          call utl_abort('gsv_getDateStamp: requested step is out of range! Step=' &
+               //str(stepIndex_opt)//',numStep='//str(statevector%numStep))
         end if    
       else
         dateStamp=statevector%dateStamp3D
@@ -3345,8 +3339,8 @@ module gridStateVector_mod
     real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
     real(8), allocatable :: gd_send_height(:,:), gd_recv_height(:,:,:)
 
-    write(*,*) 'gsv_transposeTilesToVarsLevs: START'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg('gsv_transposeTilesToVarsLevs','START', verb_opt=2)
+    call msg_memUsage('gsv_transposeTilesToVarsLevs')
 
     if ( statevector_in%mpi_distribution /= 'Tiles' ) then
       call utl_abort('gsv_transposeTilesToVarsLevs: input statevector must have Tiles mpi distribution') 
@@ -3622,8 +3616,8 @@ module gridStateVector_mod
     ! Copy over the mask, if it exists
     call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
 
-    write(*,*) 'gsv_transposeTilesToVarsLevs: END'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg('gsv_transposeTilesToVarsLevs','END', verb_opt=2)
+    call msg_memUsage('gsv_transposeTilesToVarsLevs')
 
     if ( sendrecvKind == 4 ) then
       call utl_tmg_stop(165)
@@ -4039,8 +4033,9 @@ module gridStateVector_mod
     deallocate(varNames)
 
     if ( statevector_out%horizSubSample == statevector_in%horizSubSample ) then
-      if ( mmpi_myid == 0 ) write(*,*) 'gsv_horizSubSample: already at the selected subsample level: ', &
-                                     statevector_out%horizSubSample
+      call msg('gsv_horizSubSample', &
+           'gsv_horizSubSample: already at the selected subsample level: ' &
+           //str(statevector_out%horizSubSample), mpiAll_opt=.false.)
       call gsv_copy(statevector_in,statevector_out)
       return
     end if
@@ -4048,14 +4043,15 @@ module gridStateVector_mod
     if ( statevector_out%horizSubSample > statevector_in%horizSubSample ) then
 
       ! simple averaging onto a coarser grid
-      if ( mmpi_myid == 0 ) write(*,*) 'gsv_horizSubSample: increasing subsample level from ',  &
-                                     statevector_in%horizSubSample, ' to ',  &
-                                     statevector_out%horizSubSample
+      call msg('gsv_horizSubSample', 'increasing subsample level from ' &
+           //str(statevector_in%horizSubSample)//' to ' &
+           //str(statevector_out%horizSubSample), mpiAll_opt=.false.)
 
       ratio_r8 = real(statevector_out%horizSubSample,8)/real(statevector_in%horizSubSample,8)
       if ( abs(ratio_r8 - real(nint(ratio_r8),8)) > 1.0d-5 ) then
-        write(*,*) 'gsv_horizSubSample: original subsample level=', statevector_in%horizSubSample
-        write(*,*) 'gsv_horizSubSample: new      subsample level=', statevector_out%horizSubSample
+        call msg('gsv_horizSubSample', &
+                             'original subsample level='//str(statevector_in%horizSubSample) &
+             //new_line('')//'new      subsample level='//str(statevector_out%horizSubSample))
         call utl_abort('gsv_horizSubSample: relative change of subsample level not an integer')
       end if
       relativeFactor = nint(ratio_r8)
@@ -4093,14 +4089,15 @@ module gridStateVector_mod
     else
 
       ! interpolate to a finer grid
-      if ( mmpi_myid == 0 ) write(*,*) 'gsv_horizSubSample: decreasing subsample level from ',  &
-                                     statevector_in%horizSubSample, ' to ',  &
-                                     statevector_out%horizSubSample
+      call msg('gsv_horizSubSample', 'decreasing subsample level from ' &
+           //str(statevector_in%horizSubSample)//' to '  &
+           //str(statevector_out%horizSubSample), mpiAll_opt=.false.)
 
       ratio_r8 = real(statevector_in%horizSubSample)/real(statevector_out%horizSubSample)
       if ( abs(ratio_r8 - real(nint(ratio_r8),8)) > 1.0d-5 ) then
-        write(*,*) 'gsv_horizSubSample: original subsample level=', statevector_in%horizSubSample
-        write(*,*) 'gsv_horizSubSample: new      subsample level=', statevector_out%horizSubSample
+        call msg('gsv_horizSubSample', &
+                             'original subsample level='//str(statevector_in%horizSubSample) &
+             //new_line('')//'new      subsample level='//str(statevector_out%horizSubSample))
         call utl_abort('gsv_horizSubSample: relative change of subsample level not an integer')
       end if
       relativeFactor = nint(ratio_r8)
@@ -4164,8 +4161,8 @@ module gridStateVector_mod
 
     ! do mpi transpose to get 4D stateVector into VarsLevs form
     call rpn_comm_barrier('GRID',ierr)
-    write(*,*) 'gsv_transposeStepToVarsLevs: Starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg('gsv_transposeStepToVarsLevs', 'START', verb_opt=2)
+    call msg_memUsage('gsv_transposeStepToVarsLevs')
 
     ! first do surface height, just need to copy over on task 0, assuming task 0 read a file
     if ( mmpi_myid == 0 .and. stateVector_VarsLevs%heightSfcPresent ) then
@@ -4189,7 +4186,7 @@ module gridStateVector_mod
     do procIndex = 1, mmpi_nprocs
       if ( thisProcIsAsender(procIndex) ) numStepInput = numStepInput + 1
     end do
-    write(*,*) 'gsv_transposeStepToVarsLevs: numStepInput = ', numStepInput
+    call msg('gsv_transposeStepToVarsLevs', 'numStepInput = '//str(numStepInput))
 
     maxkCount = maxval(stateVector_VarsLevs%allkCount(:))
     numkToSend = min(mmpi_nprocs,stateVector_VarsLevs%nk)
@@ -4246,8 +4243,9 @@ module gridStateVector_mod
           kIndex2 = kIndex + stateVector_VarsLevs%allkBeg(procIndex) - 1
           if ( kIndex2 <= stateVector_VarsLevs%allkEnd(procIndex) ) then
             if( procIndex > numkToSend ) then
-              write(*,*) 'procIndex, numkToSend = ', procIndex, numkToSend
-              call utl_abort('ERROR: with numkToSend?')
+              call utl_abort('gsv_transposeStepToVarsLevs: ERROR with numkToSend? '&
+                   //'procIndex='//str(procIndex) &
+                   //', numkToSend = '//str(numkToSend))
             end if
             gd_send_r4(:,:,procIndex) = field_in_r4(:,:,kIndex2,1)
           end if
@@ -4341,8 +4339,8 @@ module gridStateVector_mod
     end if
     call ocm_communicateMask(stateVector_varsLevs%oceanMask)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) 'gsv_transposeStepToVarsLevs: Finished'
+    call msg_memUsage('gsv_transposeStepToVarsLevs')
+    call msg('gsv_transposeStepToVarsLevs','END', verb_opt=2)
 
     call utl_tmg_stop(162)
 
@@ -4390,7 +4388,7 @@ module gridStateVector_mod
       call utl_abort('gsv_transposeStepToTiles: output statevector must have Tiles mpi distribution')
     end if
 
-    write(*,*) 'gsv_transposeStepToTiles: starting'
+    call msg('gsv_transposeStepToTiles','START', verb_opt=2)
 
     ! determine which tasks have something to send and let everyone know
     do procIndex = 1, mmpi_nprocs
@@ -4640,7 +4638,7 @@ module gridStateVector_mod
     end if
     call ocm_communicateMask(stateVector_tiles%oceanMask)
 
-    write(*,*) 'gsv_transposeStepToTiles: finished'
+    call msg('gsv_transposeStepToTiles','END', verb_opt=2)
 
     call utl_tmg_stop(163)
 
@@ -4683,7 +4681,7 @@ module gridStateVector_mod
     end if
 
     call rpn_comm_barrier('GRID',ierr)
-    write(*,*) 'gsv_transposeTilesToStep: starting'
+    call msg('gsv_transposeTilesToStep', 'START', verb_opt=2)
 
     ! determine which tasks have something to receive and let everyone know
     do procIndex = 1, mmpi_nprocs
@@ -4699,7 +4697,7 @@ module gridStateVector_mod
     do procIndex = 1, mmpi_nprocs
       if ( thisProcIsAreceiver(procIndex) ) numStepOutput = numStepOutput + 1
     end do
-    write(*,*) 'gsv_transposeTilesToStep: numStepOutput = ', numStepOutput
+    call msg('gsv_transposeTilesToStep','numStepOutput = '//str(numStepOutput))
 
     ! size of each message
     nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
@@ -4940,7 +4938,7 @@ module gridStateVector_mod
       call ocm_copyMask(stateVector_tiles%oceanMask, stateVector_1step%oceanMask)
     end if
 
-    write(*,*) 'gsv_transposeTilesToStep: finished'
+    call msg('gsv_transposeTilesToStep', 'END', verb_opt=2)
 
   end subroutine gsv_transposeTilesToStep
 
@@ -4982,7 +4980,7 @@ module gridStateVector_mod
     numStep = stateVector_tiles%numStep
 
     call rpn_comm_barrier('GRID',ierr)
-    write(*,*) 'gsv_transposeTilesToMpiGlobal: starting'
+    call msg('gsv_transposeTilesToMpiGlobal', 'START', verb_opt=2)
 
     ! size of each message
     nsize = stateVector_tiles%lonPerPEmax * stateVector_tiles%latPerPEmax
@@ -5101,7 +5099,7 @@ module gridStateVector_mod
       call ocm_copyMask(stateVector_tiles%oceanMask, stateVector_mpiGlobal%oceanMask)
     end if
 
-    write(*,*) 'gsv_transposeTilesToMpiGlobal: finished'
+    call msg('gsv_transposeTilesToMpiGlobal', 'END', verb_opt=2)
 
   end subroutine gsv_transposeTilesToMpiGlobal
 
@@ -5364,7 +5362,7 @@ module gridStateVector_mod
     logical :: maskNegatives, binIntegerTest, binRealTest
 
     if (horizontalScale <= 0.0d0) then
-      write(*,*) 'gsv_smoothHorizontal: specified scale <= 0, returning'
+      call msg('gsv_smoothHorizontal', 'specified scale <= 0, returning')
       return
     end if
 
@@ -5410,8 +5408,9 @@ module gridStateVector_mod
     ! figure out the maximum possible number of grid points to search
     if (statevector%hco%dlat > 0.0d0) then
       maxDeltaIndex = ceiling(1.5D0 * horizontalScale / (ec_ra * max(statevector%hco%dlat,statevector%hco%dlon)))
-      write(*,*) 'gsv_smoothHorizontal: maxDistance, maxDeltaIndex = ', horizontalScale/1000.0D0, 'km',  &
-           maxDeltaIndex, max(statevector%hco%dlat,statevector%hco%dlon)
+      call msg('gsv_smoothHorizontal','maxDistance = '//str(horizontalScale/1000.0D0)//' km'&
+           //', maxDeltaIndex ='//str(maxDeltaIndex) &
+           //', max(dlat,dlon) = '//str(max(statevector%hco%dlat,statevector%hco%dlon)))
     else
       call utl_abort('gsv_smoothHorizontal: cannot compute a value for maxDeltaIndex')
     end if
@@ -5504,6 +5503,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_getInfo
   !--------------------------------------------------------------------------
+  ! DBGmad : TODO use a `gsv_str()` string representation?
   subroutine gsv_getInfo(stateVector, message)
     !:Purpose: Writes out grid state vector parameters
     !
@@ -5590,7 +5590,7 @@ module gridStateVector_mod
     real(pre_incrReal), pointer :: analIncMask(:,:,:)
     integer :: latIndex, kIndex, lonIndex, stepIndex
 
-    write(*,*) 'gsv_applyMaskLAM: STARTING'
+    call msg('gsv_applyMaskLAM','START', verb_opt=2)
     
     call gsv_getField(maskLAM,analIncMask)
 
@@ -5628,7 +5628,7 @@ module gridStateVector_mod
       end do
     end if
 
-    write(*,*) 'gsv_applyMaskLAM: finished to apply mask to the analysis increments.'
+    call msg('gsv_applyMaskLAM','END', verb_opt=2)
 
   end subroutine gsv_applyMaskLAM
 

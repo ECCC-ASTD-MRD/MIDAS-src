@@ -495,7 +495,7 @@ contains
       call gsv_allocate(stateVector, numStep, hco_in, vco_in,  &
            hInterpolateDegree_opt='LINEAR', &
            dataKind_opt=4, &
-           dateStamp_opt=tim_getDateStamp(), beSilent_opt=.false.)
+           dateStamp_opt=tim_getDateStamp())
       call gio_readFromFile(stateVector, ensFileName, '', '')
       call gsv_varNamesList(varNames, stateVector)
       write(*,*) 'bmat1D_setupBEns: variable names : ', varNames

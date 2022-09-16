@@ -4,7 +4,7 @@ module message_mod
   ! :Purpose: Output message interface with configurable verbosity.
   !           Also provides string representation for some intrinsic types.
   !
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   implicit none
   save
@@ -77,7 +77,7 @@ module message_mod
       if (mpiAll) then
         call msg_write(origin, message)
       else
-        if (mpi_myid == 0) call msg_write(origin, message)
+        if (mmpi_myid == 0) call msg_write(origin, message)
       end if
     end if
     end subroutine msg

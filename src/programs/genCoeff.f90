@@ -87,8 +87,7 @@ program midas_gencoeff
   call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
                      dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
                      mpi_distribution_opt='Tiles', dataKind_opt=4,  &
-                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                     beSilent_opt=.false. )
+                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR')
   call gsv_zero( stateVectorTrialHighRes )
   call gio_readTrials( stateVectorTrialHighRes )
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
