@@ -17,9 +17,12 @@ module message_mod
   public :: msg_str
   
   interface msg_str
+    module procedure msg_log2str
     module procedure msg_int2str
     module procedure msg_real42str
     module procedure msg_real82str
+    module procedure msg_charArray2str
+    module procedure msg_logArray2str
     module procedure msg_intArray2str
     module procedure msg_real4Array2str
     module procedure msg_real8Array2str
@@ -233,6 +236,27 @@ module message_mod
   end subroutine msg_write
 
   !--------------------------------------------------------------------------
+  ! msg_log2str (private)
+  !--------------------------------------------------------------------------
+  function msg_log2str(num) result(string)
+    !
+    ! :Purpose: Returns string representation of `logical`
+    !
+    implicit none
+
+    ! Arguments:
+    logical, intent(in)           :: num
+    character(len=:), allocatable :: string
+
+    ! Locals:
+    character(len=msg_num2strBufferLen) :: buffer
+
+    write(buffer,*) num
+    string = trim(adjustl(buffer))
+
+  end function msg_log2str
+
+  !--------------------------------------------------------------------------
   ! msg_int2str (private)
   !--------------------------------------------------------------------------
   function msg_int2str(num) result(string)
@@ -310,6 +334,80 @@ module message_mod
     string = trim(adjustl(buffer))
 
   end function msg_real82str
+
+  !--------------------------------------------------------------------------
+  ! msg_charArray2str (private)
+  !--------------------------------------------------------------------------
+  function msg_charArray2str(array, vertical_opt) result(string)
+    !
+    ! :Purpose: Returns string representation of `character(len=*), dimension(:)` 
+    !
+    implicit none
+
+    ! Arguments
+    character(len=*), dimension(:), intent(in) :: array
+    character(len=:), allocatable     :: string
+    logical, optional                 :: vertical_opt
+
+    ! Locals:
+    integer           :: i
+    logical           :: vertical
+    character(len=2)  :: sep
+
+    vertical=.false.
+    if (present(vertical_opt)) vertical = vertical_opt
+    if (vertical) then
+      sep=new_line('a')
+      string='(/'//sep
+    else
+      sep=', '
+      string='(/ '
+    end if
+
+    do i=1,size(array)
+      string = string//array(i)
+      if (i /= size(array)) string = string//sep
+    end do
+    string = string//' /)'
+    
+  end function msg_charArray2str
+
+  !--------------------------------------------------------------------------
+  ! msg_intArray2str (private)
+  !--------------------------------------------------------------------------
+  function msg_logArray2str(array, vertical_opt) result(string)
+    !
+    ! :Purpose: Returns string representation of `logical, dimension(:)` 
+    !
+    implicit none
+
+    ! Arguments
+    logical, dimension(:), intent(in) :: array
+    character(len=:), allocatable     :: string
+    logical, optional                 :: vertical_opt
+
+    ! Locals:
+    integer           :: i
+    logical           :: vertical
+    character(len=2)  :: sep
+
+    vertical=.false.
+    if (present(vertical_opt)) vertical = vertical_opt
+    if (vertical) then
+      sep=new_line('a')
+      string='(/'//sep
+    else
+      sep=', '
+      string='(/ '
+    end if
+
+    do i=1,size(array)
+      string = string//msg_log2str(array(i))
+      if (i /= size(array)) string = string//sep
+    end do
+    string = string//' /)'
+    
+  end function msg_logArray2str
 
   !--------------------------------------------------------------------------
   ! msg_intArray2str (private)
