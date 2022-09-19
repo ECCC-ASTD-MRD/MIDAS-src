@@ -78,23 +78,24 @@ mind is provided [here](codingStd_top10.md).
 
 ### Provided Functionalities to Use
 
-- Use [`msg_message()`](src/modules/message_mod.f90) instead of naked
+- Use [`msg()`](src/modules/message_mod.f90) instead of naked
   `write(*,*)` to output information: provide the _origin_ of the message (such
   as the caller subroutine, function or program).
   ```fortran
-  call msg_message('int_tInterp_gsv', 'START', verb_opt=2, mpiAll_opt=.true.)
+  call msg('int_tInterp_gsv', 'START', verb_opt=2)
   ! prints a short message on all MPI tiles when verbosity threshold >= 2
   ...
-  call msg_message('int_tInterp_gsv', 'numStepIn='//msg_str(numStepIn)//',numStepOut='//msg_str(numStepOut))
-  ! prints a short message with some numerical values 
+  call msg('int_tInterp_gsv', 'numStepIn='//msg_str(numStepIn)&
+       //',numStepOut='//msg_str(numStepOut), mpiAll_opt=.false.)
+  ! prints a short message with some numerical values on MPI tile 0 only
   ```
-  Optionnaly, a _verbosity level_ that specifies how important is the message
+  Optionally, a _verbosity level_ that specifies how important is the message
   can be provided.  The verbosity thresholds are defined as follow:
 
     * 0 : critical, always printed
-    * 1 : default priority; printed in operational context
-    * 2 : detailed ouptut, provides extra information
-    * 3 : intended for developpers, printed for debugging or specific diagnostcs
+    * 1 : default priority, printed in operational context
+    * 2 : detailed output, provides extra information
+    * 3 : intended for developers, printed for debugging or specific diagnostcs
 
 ### More detailed rules:
 
@@ -140,7 +141,7 @@ mind is provided [here](codingStd_top10.md).
 - Where possible, consider using `cycle`, `exit` or a `where`-construct to
   simplify complicated `DO`-loops.
 - When writing a `real` literal with an integer value, put a `0` after the
-  decimal point (i.e. `1.0` as opposed to `1.0`) to improve readability.
+  decimal point (i.e. `1.0` as opposed to `1`) to improve readability.
   For double precision real literals (`real(8)`) always include "`d0`"
   as in `1.0d0` to ensure the correct precision.
 - Where reasonable and sensible to do so, you should try to match the

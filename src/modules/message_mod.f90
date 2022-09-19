@@ -10,10 +10,13 @@ module message_mod
   save
   private
 
-  integer, external :: get_max_rss
-
   ! public procedures
   public :: msg, msg_memUsage, msg_setVerbThreshold
+
+  ! public module variables
+  integer, public, parameter :: msg_ALWAYS   = -99 ! verbosity level indicating a message is always printed irrespectively of set threshold
+  integer, public, parameter :: msg_NEVER    =  99 ! verbosity level indicating a message is never printed irrespectively of set threshold
+  integer, public, parameter :: msg_DEFAULT  =   1 ! verbosity level indicating a message is never printed irrespectively of set threshold
 
   ! intrinsic type string representations
   public :: str
@@ -51,16 +54,16 @@ module message_mod
     !
     !                             * 0 : critical, always printed
     !                             * 1 : default priority; printed in operational context
-    !                             * 2 : detailed ouptut, provides extra information
-    !                             * 3 : intended for developpers, printed for debugging or specific diagnostcs
+    !                             * 2 : detailed output, provides extra information
+    !                             * 3 : intended for developers, printed for debugging or specific diagnostcs
     !
     implicit none
 
     ! Arguments:
     character(len=*),  intent(in) :: origin     ! originating subroutine, function or program
     character(len=*),  intent(in) :: message    ! message to be printed
-    integer, optional, intent(in) :: verb_opt   ! minimal verbosity level to print the message
-    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` prints to all MPI tasks, otherwise only to tile 0
+    integer, optional, intent(in) :: verb_opt   ! minimal verbosity level to print the message, defaults to 1
+    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` prints to all MPI tasks, otherwise only to tile 0, defaults to `.true.`
 
     ! Locals:
     logical :: mpiAll
@@ -68,10 +71,17 @@ module message_mod
 
     call msg_readNml()
 
-    verbLevel = 1
-    if (present(verb_opt)) verbLevel = verb_opt
-    mpiAll = .true.
-    if (present(mpiAll_opt)) mpiAll = mpiAll_opt
+    if (present(verb_opt)) then
+      verbLevel = verb_opt
+    else
+      verbLevel = msg_DEFAULT
+    end if
+
+    if (present(mpiAll_opt)) then
+      mpiAll = mpiAll_opt
+    else
+      mpiAll = .true.
+    end if
 
     if (verbLevel <= verbosityThreshold) then
       if (mpiAll) then
@@ -80,7 +90,7 @@ module message_mod
         if (mmpi_myid == 0) call msg_write(origin, message)
       end if
     end if
-    end subroutine msg
+  end subroutine msg
 
   !--------------------------------------------------------------------------
   ! msg_memUsage
@@ -93,14 +103,15 @@ module message_mod
 
     ! Arguments:
     character(len=*),  intent(in) :: origin     ! originating subroutine, function or program
-    integer, optional, intent(in) :: verb_opt   ! minimal verbosity level to print the message
-    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` prints to all MPI tasks, otherwise only to tile 0
+    integer, optional, intent(in) :: verb_opt   ! verbosity level of the message
+    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` prints to all MPI tasks, otherwise only to MPI task 0
 
     ! Locals:
     integer :: usageMb
+    integer, external :: get_max_rss
 
     usageMb = get_max_rss()/1024
-    call msg( origin, "Memory Used: "//str(usageMb)//" Mb", verb_opt, mpiAll_opt)
+    call msg( origin, 'Memory Used: '//str(usageMb)//' Mb', verb_opt, mpiAll_opt)
 
   end subroutine msg_memUsage
 
@@ -123,7 +134,7 @@ module message_mod
     if (present(threshold_opt)) then
       threshold = threshold_opt
     else
-      threshold = 1
+      threshold = msg_DEFAULT
     end if
     call msg( 'msg_setVerbThreshold', 'Setting verbosity threshold to '&
               //str(threshold), verb_opt=3)
@@ -157,19 +168,22 @@ module message_mod
     end if
   
     ! default namelist value
-    verbosityThreshold = 1
+    verbosityThreshold = msg_DEFAULT
   
     if ( .not. utl_isNamelistPresent('NAMMSG','./flnml') ) then
-      if ( mpi_myid == 0 ) then
+      !! DBGmad : find a solution, maybe in conjonction with the beSilent option to be implemented in msg()
+      !call msg( 'msg_readNml', 'NAMMSG is missing in the namelist. The default values will be taken.', &
+      !        mpiAll_opt=.false.)
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'msg: NAMMSG is missing in the namelist.'
         write(*,*) '             The default values will be taken.'
       end if
     else
-      nulnam=0
-      ierr=fnom(nulnam, 'flnml','FTN+SEQ+R/O',0)
+      nulnam = 0
+      ierr = fnom(nulnam, 'flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=nammsg,iostat=ierr)
-      if (ierr /= 0) call utl_abort('msg: Error reading namelist NAMMSG')
-      if (mpi_myid == 0) write(*,nml=nammsg)
+      if (ierr /= 0) call utl_abort('msg_readNml: Error reading namelist NAMMSG')
+      if (mmpi_myid == 0) write(*,nml=nammsg)
       ierr = fclos(nulnam)
     end if
 
@@ -189,7 +203,7 @@ module message_mod
     character(len=*), intent(in) :: message    ! message to be printed
   
     ! Locals:
-    integer :: originLen, oneLineMsgLen, indentLen, i
+    integer :: originLen, oneLineMsgLen, indentLen, posIdx
     character(len=15) :: firstLineFormat, otherLineFormat
     character(len=msg_lineLen)  :: msgLine
     character(len=msg_lineLen)  :: readLine
@@ -213,27 +227,27 @@ module message_mod
       ! format: "origin: message on the first line..........."
       !         "        second line........................."
       !         "        last line"
-      i = 0
+      posIdx = 0
       readLine = message(1:oneLineMsgLen+1)
       msgLine = msg_breakOnSpace(readLine)
-      i = i + len(trim(msgLine)) +1
+      posIdx = posIdx + len(trim(msgLine)) +1
       write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A', &
                                               len(trim(msgLine)),')'
       write(*,firstLineFormat) originTrunc, ': ', message(1:oneLineMsgLen)
       oneLineMsgLen = msg_lineLen - indentLen - 2
       do
-        if ( i >= len(message) ) then
+        if ( posIdx >= len(message) ) then
           ! message printed
           return
-        else if ( i + oneLineMsgLen > len(trim(message)) ) then
+        else if ( posIdx + oneLineMsgLen > len(trim(message)) ) then
           ! last line
-          msgLine = message(i+1:len(message))
+          msgLine = message(posIdx+1:len(message))
         else
           ! neither first nor last
-          readLine = message(i+1:i+oneLineMsgLen+1)
+          readLine = message(posIdx+1:posIdx+oneLineMsgLen+1)
           msgLine = msg_breakOnSpace(readLine)
         end if
-        i = i + len(trim(msgLine)) +1
+        posIdx = posIdx + len(trim(msgLine)) +1
         write(otherLineFormat,'(A,I2,A,I2,A)') '(A',indentLen+2,',A', &
                                                 len(trim(msgLine)),')'
         write(*,otherLineFormat) repeat(' ',indentLen+2),trim(msgLine)
@@ -256,15 +270,15 @@ module message_mod
     
         ! Arguments:
         character(len=msg_lineLen), intent(in)  :: line
-        character(len=msg_lineLen) :: shorterLine
-        integer :: i
+        character(len=msg_lineLen)              :: shorterLine
+        integer :: idx
     
-        i = index(trim(line),' ',back=.true.)
-        if (i == 0 .or. i == len(trim(line)) ) then
+        idx = index(trim(line),' ',back=.true.)
+        if (idx == 0 .or. idx == len(trim(line)) ) then
           shorterLine = trim(line)
           return
         else
-          shorterLine = line(1:i-1)
+          shorterLine = line(1:idx-1)
           return
         end if
     
@@ -281,8 +295,8 @@ module message_mod
     implicit none
 
     ! Arguments:
-    logical, intent(in)           :: num
-    character(len=:), allocatable :: string
+    logical,                      intent(in)  :: num
+    character(len=:), allocatable             :: string
 
     ! Locals:
     character(len=msg_num2strBufferLen) :: buffer
@@ -302,8 +316,8 @@ module message_mod
     implicit none
 
     ! Arguments:
-    integer, intent(in)           :: num
-    character(len=:), allocatable :: string
+    integer,                      intent(in)  :: num
+    character(len=:), allocatable             :: string
 
     ! Locals:
     character(len=msg_num2strBufferLen) :: buffer
@@ -323,9 +337,9 @@ module message_mod
     implicit none
 
     ! Arguments:
-    real(4), intent(in)           :: num
-    character(len=:), allocatable :: string
-    integer, optional             :: digits_opt
+    real(4),                      intent(in) :: num
+    integer, optional,            intent(in) :: digits_opt
+    character(len=:), allocatable            :: string
 
     ! Locals:
     character(len=20)                   :: readFmt, digitBuffer
@@ -352,9 +366,9 @@ module message_mod
     implicit none
 
     ! Arguments:
-    real(8), intent(in)           :: num
-    character(len=:), allocatable :: string
-    integer, optional             :: digits_opt
+    real(8),                      intent(in) :: num
+    integer, optional,            intent(in) :: digits_opt
+    character(len=:), allocatable            :: string
 
     ! Locals:
     character(len=20)                   :: readFmt, digitBuffer
@@ -381,28 +395,32 @@ module message_mod
     implicit none
 
     ! Arguments
-    character(len=*), dimension(:), intent(in) :: array
-    character(len=:), allocatable     :: string
-    logical, optional                 :: vertical_opt
+    character(len=*),             intent(in) :: array(:)
+    logical, optional,            intent(in) :: vertical_opt ! optional argument to represent the array vertically, defaults to .false.
+    character(len=:), allocatable            :: string
 
     ! Locals:
-    integer           :: i
+    integer           :: arrIndex
     logical           :: vertical
     character(len=2)  :: sep
 
-    vertical=.false.
-    if (present(vertical_opt)) vertical = vertical_opt
-    if (vertical) then
-      sep=new_line('a')
-      string='(/'//sep
+    if (present(vertical_opt)) then
+      vertical = vertical_opt
     else
-      sep=', '
-      string='(/ '
+      vertical = .false.
     end if
 
-    do i=1,size(array)
-      string = string//array(i)
-      if (i /= size(array)) string = string//sep
+    if (vertical) then
+      sep = new_line('a')
+      string = '(/'//sep
+    else
+      sep = ', '
+      string = '(/ '
+    end if
+
+    do arrIndex = 1, size(array)
+      string = string//array(arrIndex)
+      if (arrIndex /= size(array)) string = string//sep
     end do
     string = string//' /)'
     
@@ -418,28 +436,32 @@ module message_mod
     implicit none
 
     ! Arguments
-    logical, dimension(:), intent(in) :: array
-    character(len=:), allocatable     :: string
-    logical, optional                 :: vertical_opt
+    logical,                      intent(in) :: array(:)
+    logical, optional,            intent(in) :: vertical_opt ! optional argument to represent the array vertically, defaults to .false.
+    character(len=:), allocatable            :: string
 
     ! Locals:
-    integer           :: i
+    integer           :: arrIndex
     logical           :: vertical
     character(len=2)  :: sep
 
-    vertical=.false.
-    if (present(vertical_opt)) vertical = vertical_opt
-    if (vertical) then
-      sep=new_line('a')
-      string='(/'//sep
+    if (present(vertical_opt)) then
+      vertical = vertical_opt
     else
-      sep=', '
-      string='(/ '
+      vertical = .false.
     end if
 
-    do i=1,size(array)
-      string = string//msg_log2str(array(i))
-      if (i /= size(array)) string = string//sep
+    if (vertical) then
+      sep = new_line('a')
+      string = '(/'//sep
+    else
+      sep = ', '
+      string = '(/ '
+    end if
+
+    do arrIndex = 1, size(array)
+      string = string//msg_log2str(array(arrIndex))
+      if (arrIndex /= size(array)) string = string//sep
     end do
     string = string//' /)'
     
@@ -455,28 +477,32 @@ module message_mod
     implicit none
 
     ! Arguments
-    integer, dimension(:), intent(in) :: array
-    character(len=:), allocatable     :: string
-    logical, optional                 :: vertical_opt
+    integer,                      intent(in) :: array(:)
+    logical, optional,            intent(in) :: vertical_opt ! optional argument to represent the array vertically, defaults to .false.
+    character(len=:), allocatable            :: string
 
     ! Locals:
-    integer           :: i
+    integer           :: arrIndex
     logical           :: vertical
     character(len=2)  :: sep
 
-    vertical=.false.
-    if (present(vertical_opt)) vertical = vertical_opt
-    if (vertical) then
-      sep=new_line('a')
-      string='(/'//sep
+    if (present(vertical_opt)) then
+      vertical = vertical_opt
     else
-      sep=', '
-      string='(/ '
+      vertical = .false.
     end if
 
-    do i=1,size(array)
-      string = string//msg_int2str(array(i))
-      if (i /= size(array)) string = string//sep
+    if (vertical) then
+      sep = new_line('a')
+      string = '(/'//sep
+    else
+      sep = ', '
+      string = '(/ '
+    end if
+
+    do arrIndex = 1, size(array)
+      string = string//msg_int2str(array(arrIndex))
+      if (arrIndex /= size(array)) string = string//sep
     end do
     string = string//' /)'
     
@@ -492,32 +518,35 @@ module message_mod
     implicit none
 
     ! Arguments
-    real(4), dimension(:), intent(in) :: array
-    character(len=:), allocatable     :: string
-    integer, optional                 :: digits_opt
-    logical, optional                 :: vertical_opt
+    real(4),                      intent(in) :: array(:)
+    integer, optional,            intent(in) :: digits_opt
+    logical, optional,            intent(in) :: vertical_opt ! optional argument to represent the array vertically, defaults to .false.
+    character(len=:), allocatable            :: string
 
     ! Locals:
-    integer           :: i
+    integer           :: arrIndex
     logical           :: vertical
     character(len=2)  :: sep
 
-    vertical=.false.
-    if (present(vertical_opt)) vertical = vertical_opt
-    if (vertical) then
-      sep=new_line('')
-      string='(/'//sep
+    if (present(vertical_opt)) then
+      vertical = vertical_opt
     else
-      sep=', '
-      string='(/ '
+      vertical = .false.
     end if
 
-    do i=1,size(array)
-      string = string//msg_real42str(array(i), digits_opt=digits_opt)
-      if (i /= size(array)) string = string//sep
+    if (vertical) then
+      sep = new_line('')
+      string = '(/'//sep
+    else
+      sep = ', '
+      string = '(/ '
+    end if
+
+    do arrIndex = 1, size(array)
+      string = string//msg_real42str(array(arrIndex), digits_opt=digits_opt)
+      if (arrIndex /= size(array)) string = string//sep
     end do
     string = string//' /)'
-
     
   end function msg_real4Array2str
 
@@ -531,31 +560,35 @@ module message_mod
     implicit none
 
     ! Arguments
-    real(8), dimension(:), intent(in) :: array
-    character(len=:), allocatable     :: string
-    integer, optional                 :: digits_opt
-    logical, optional                 :: vertical_opt
+    real(8),                      intent(in) :: array(:)
+    integer, optional,            intent(in) :: digits_opt
+    logical, optional,            intent(in) :: vertical_opt ! optional argument to represent the array vertically, defaults to .false.
+    character(len=:), allocatable            :: string
 
     ! Locals:
-    integer           :: i
+    integer           :: arrIndex
     logical           :: vertical
     character(len=2)  :: sep
 
-    vertical=.false.
-    if (present(vertical_opt)) vertical = vertical_opt
-    if (vertical) then
-      sep=new_line('')
-      string='(/'//sep
+    if (present(vertical_opt)) then
+      vertical = vertical_opt
     else
-      sep=', '
-      string='(/ '
+      vertical = .false.
     end if
 
-    do i=1,size(array)
-      string = string//msg_real82str(array(i), digits_opt=digits_opt)
-      if (i /= size(array)) string = string//sep
+    if (vertical) then
+      sep = new_line('')
+      string = '(/'//sep
+    else
+      sep = ', '
+      string = '(/ '
+    end if
+
+    do arrIndex = 1, size(array)
+      string = string//msg_real82str(array(arrIndex), digits_opt=digits_opt)
+      if (arrIndex /= size(array)) string = string//sep
     end do
     string = string//' /)'
     
   end function msg_real8Array2str
-end module
+end module message_mod

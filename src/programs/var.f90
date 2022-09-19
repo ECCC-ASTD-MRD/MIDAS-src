@@ -181,26 +181,26 @@ program midas_var
                           './analysisgrid') ! IN
 
   call col_setVco(columnTrlOnAnlIncLev,vco_anl)
-  call msg_memUsage("var")
+  call msg_memUsage('var')
 
   ! Setup and read observations
   call inn_setupObs(obsSpaceData, hco_anl, 'VAR', obsMpiStrategy, varMode) ! IN
-  call msg_memUsage("var")
+  call msg_memUsage('var')
 
   ! Basic setup of columnData module
   call col_setup
-  call msg_memUsage("var")
+  call msg_memUsage('var')
 
   !- Memory allocation for background column data
   call col_allocate(columnTrlOnAnlIncLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
 
   ! Initialize the observation error covariances
   call oer_setObsErrors(obsSpaceData, varMode) ! IN
-  call msg_memUsage("var")
+  call msg_memUsage('var')
 
   ! Initialize list of analyzed variables.
   call gsv_setup
-  call msg_memUsage("var")
+  call msg_memUsage('var')
 
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
@@ -212,11 +212,11 @@ program midas_var
                      allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR')
   call gsv_zero( stateVectorUpdateHighRes )
   call gio_readTrials( stateVectorUpdateHighRes )
-  call msg_memUsage("var")
+  call msg_memUsage('var')
 
   ! Initialize the background-error covariance, also sets up control vector module (cvm)
   call bmat_setup(hco_anl,hco_core,vco_anl)
-  call msg_memUsage("var")
+  call msg_memUsage('var')
 
   ! Initialize the gridded variable transform module
   call gvt_setup(hco_anl,hco_core,vco_anl)
@@ -232,7 +232,7 @@ program midas_var
     call utl_abort('aborting in VAR')
   end if
   call utl_reallocate(controlVectorIncrSum,cvm_nvadim)
-  call msg_memUsage("var")
+  call msg_memUsage('var')
 
   numInnerLoopIterDone = 0
 
@@ -252,7 +252,7 @@ program midas_var
 
       call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'height' )
 
-      call msg_memUsage("var")
+      call msg_memUsage('var')
     end if
 
     ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
@@ -260,11 +260,11 @@ program midas_var
     call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                    stateVectorUpdateHighRes, &
                                    deallocInterpInfoNL_opt=deallocInterpInfoNL )
-    call msg_memUsage("var")
+    call msg_memUsage('var')
 
     ! Interpolate trial columns to analysis levels and setup for linearized H
     call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
-    call msg_memUsage("var")
+    call msg_memUsage('var')
 
     ! Determine if to apply varqc to Jo of non-linear operator
     applyVarqcOnNlJo = ( varqcActive .and. numInnerLoopIterDone > numIterWithoutVarqc )
@@ -276,7 +276,7 @@ program midas_var
                                 filterObsAndInitOer_opt=filterObsAndInitOer, &
                                 applyVarqcOnNlJo_opt=applyVarqcOnNlJo, &
                                 callSetErrGpsgb_opt=filterObsAndInitOer )
-    call msg_memUsage("var")
+    call msg_memUsage('var')
 
     ! Initialize stateVectorRefHU for doing variable transformation of the increments.
     if ( gsv_varExist(stateVectorUpdateHighRes,'HU') ) then
@@ -285,7 +285,7 @@ program midas_var
       call gvt_setupRefFromStateVector( stateVectorUpdateHighRes, 'HU', &
                                         applyLimitOnHU_opt=applyLimitOnHU )
 
-      call msg_memUsage("var")
+      call msg_memUsage('var')
     end if
 
     ! Do minimization of cost function. Use numIterMaxInnerLoop from NAMVAR, instead of
@@ -299,7 +299,7 @@ program midas_var
                        isMinimizationFinalCall_opt=isMinimizationFinalCall, &
                        numIterMaxInnerLoopUsed_opt=numIterMaxInnerLoopUsed )
     numInnerLoopIterDone = numInnerLoopIterDone + numIterMaxInnerLoopUsed
-    call msg_memUsage("var")
+    call msg_memUsage('var')
 
     ! Accumulate control vector increments of all the previous iterations
     controlVectorIncrSum(:) = controlVectorIncrSum(:) + controlVectorIncr(:)
@@ -319,12 +319,12 @@ program midas_var
     ! get final increment with mask if it exists
     call inc_getIncrement( controlVectorIncr, stateVectorIncr, cvm_nvadim )
     call gio_readMaskFromFile( stateVectorIncr, './analysisgrid' )
-    call msg_memUsage("var")
+    call msg_memUsage('var')
 
     ! Compute high-resolution analysis on trial grid
     call inc_computeHighResAnalysis( stateVectorIncr,                                  & ! IN
                                      stateVectorUpdateHighRes, stateVectorPsfcHighRes )  ! OUT
-    call msg_memUsage("var")
+    call msg_memUsage('var')
 
     ! Impose limits on stateVectorUpdateHighRes only when outer loop is used.
     if ( limitHuInOuterLoop ) then
@@ -343,7 +343,7 @@ program midas_var
            dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
       call inc_getIncrement( controlVectorIncrSum, stateVectorIncrSum, cvm_nvadim )
       call gio_readMaskFromFile( stateVectorIncrSum, './analysisgrid' )
-      call msg_memUsage("var")
+      call msg_memUsage('var')
 
       call inc_writeIncrement( stateVectorIncrSum, &     ! IN
                                ip3ForWriteToFile_opt=0 ) ! IN
@@ -352,7 +352,7 @@ program midas_var
       call inc_writeIncrement( stateVectorIncr, &        ! IN
                                ip3ForWriteToFile_opt=0 ) ! IN
     end if
-    call msg_memUsage("var")
+    call msg_memUsage('var')
 
     call gsv_deallocate( stateVectorIncr )
 
@@ -366,7 +366,7 @@ program midas_var
     ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
     call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
                                    stateVectorUpdateHighRes )
-    call msg_memUsage("var")
+    call msg_memUsage('var')
 
     ! Determine if to apply varqc to Jo of non-linear operator
     applyVarqcOnNlJo = ( varqcActive .and. numInnerLoopIterDone > numIterWithoutVarqc )
@@ -379,7 +379,7 @@ program midas_var
                                 filterObsAndInitOer_opt=filterObsAndInitOer, &
                                 applyVarqcOnNlJo_opt=applyVarqcOnNlJo , &
                                 callSetErrGpsgb_opt=filterObsAndInitOer )
-    call msg_memUsage("var")
+    call msg_memUsage('var')
   end if
 
   ! Memory deallocations for non diagonal R matrices for radiances
@@ -404,7 +404,7 @@ program midas_var
   ! compute and write the analysis (as well as the increment on the trial grid)
   call inc_writeIncAndAnalHighRes( stateVectorTrial, stateVectorPsfc, &
                                    stateVectorAnal )
-  call msg_memUsage("var")
+  call msg_memUsage('var')
 
   if (mmpi_myid == 0) then
     clmsg = 'REBM_DONE'

@@ -1182,11 +1182,11 @@ module gridStateVector_mod
     if ( maxval(statevector%allLonPerPE) > 2*minval(statevector%allLonPerPE) .or. &
          maxval(statevector%allLatPerPE) > 2*minval(statevector%allLatPerPE) ) then
       numCalls = numCalls + 1
-      if (mpi_myid == 0 .and. (numCalls <= 5)) then
+      if (mmpi_myid == 0 .and. (numCalls <= 5)) then
         call msg('gsv_checkMpiDistribution', & 
             new_line('')//'=============================================================' &
           //new_line('')//'WARNING: bad choice of mpi topology!' &
-          //new_line('')//'   mpi x, y dimensions = '//str(mpi_npex)//', '//str(mpi_npey) &
+          //new_line('')//'   mpi x, y dimensions = '//str(mmpi_npex)//', '//str(mmpi_npey) &
           //new_line('')//'   min(lonPerPE) = '//str(minval(statevector%allLonPerPE)) &
           //new_line('')//'   max(lonPerPE) = '//str(maxval(statevector%allLonPerPE)) &
           //new_line('')//'   min(latPerPE) = '//str(minval(statevector%allLatPerPE)) &
