@@ -29,7 +29,7 @@ module message_mod
   end interface
 
   ! private module variables
-  integer, parameter    :: msg_maxOriginLen = 30
+  integer, parameter    :: msg_maxIndent = 10
   integer, parameter    :: msg_lineLen = 70
   integer, parameter    :: msg_num2strBufferLen = 200
 
@@ -189,13 +189,15 @@ module message_mod
     character(len=*), intent(in) :: message    ! message to be printed
   
     ! Locals:
-    integer :: originLen, oneLineMsgLen, i
+    integer :: originLen, oneLineMsgLen, indentLen, i
     character(len=15) :: firstLineFormat, otherLineFormat
     character(len=msg_lineLen)  :: msgLine
     character(len=msg_lineLen)  :: readLine
 
-    if (len(origin) > msg_maxOriginLen) then
-      call utl_abort('DBGmad : fix that!')
+    if (len(origin) > msg_lineLen) call utl_abort('msg_write: too long origin name')
+    indentLen = originLen
+    if (len(origin) > msg_maxIndent) then
+      indentLen = msg_maxIndent
     end if
     originLen = len(origin)
     oneLineMsgLen = msg_lineLen - originLen - 2
@@ -212,6 +214,7 @@ module message_mod
       write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A', &
                                               len(trim(msgLine)),')'
       write(*,firstLineFormat) origin, ': ', message(1:oneLineMsgLen)
+      oneLineMsgLen = msg_lineLen - indentLen - 2
       do
         if ( i >= len(message) ) then
           ! message printed
@@ -225,9 +228,9 @@ module message_mod
           msgLine = msg_breakOnSpace(readLine)
         end if
         i = i + len(trim(msgLine)) +1
-        write(otherLineFormat,'(A,I2,A,I2,A)') '(A',originLen+2,',A', &
+        write(otherLineFormat,'(A,I2,A,I2,A)') '(A',indentLen+2,',A', &
                                                 len(trim(msgLine)),')'
-        write(*,otherLineFormat) repeat(' ',originLen+2),trim(msgLine)
+        write(*,otherLineFormat) repeat(' ',indentLen+2),trim(msgLine)
       end do
     else
       ! Single lines message
