@@ -13,7 +13,7 @@ module message_mod
   integer, external :: get_max_rss
 
   ! public procedures
-  public :: msg_message, msg_memUsage
+  public :: msg_message, msg_memUsage, msg_setVerbThreshold
   public :: msg_str
   
   interface msg_str
@@ -103,6 +103,33 @@ module message_mod
                       verb_opt, mpiAll_opt)
 
   end subroutine msg_memUsage
+
+  !--------------------------------------------------------------------------
+  ! msg_setVerbThreshold
+  !--------------------------------------------------------------------------
+  subroutine msg_setVerbThreshold(threshold_opt)
+    !
+    ! :Purpose: Sets the verbosity level at runtime, overrides the namelist
+    !           value if set.
+    !
+    implicit none
+
+    ! Arguments:
+    integer, optional, intent(in) :: threshold_opt
+
+    ! Locals:
+    integer :: threshold
+
+    if (present(threshold_opt)) then
+      threshold = threshold_opt
+    else
+      threshold = 1
+    end if
+    call msg_message( 'msg_setVerbThreshold', 'Setting verbosity threshold to '&
+                      //msg_str(threshold), verb_opt=3)
+    verbosityThreshold = threshold
+
+  end subroutine
 
   !--------------------------------------------------------------------------
   ! msg_readNml (private)
