@@ -14,9 +14,10 @@ module message_mod
 
   ! public procedures
   public :: msg, msg_memUsage, msg_setVerbThreshold
-  public :: msg_str
-  
-  interface msg_str
+
+  ! intrinsic type string representations
+  public :: str
+  interface str
     module procedure msg_log2str
     module procedure msg_int2str
     module procedure msg_real42str
@@ -99,7 +100,7 @@ module message_mod
     integer :: usageMb
 
     usageMb = get_max_rss()/1024
-    call msg( origin, "Memory Used: "//msg_str(usageMb)//" Mb", verb_opt, mpiAll_opt)
+    call msg( origin, "Memory Used: "//str(usageMb)//" Mb", verb_opt, mpiAll_opt)
 
   end subroutine msg_memUsage
 
@@ -125,7 +126,7 @@ module message_mod
       threshold = 1
     end if
     call msg( 'msg_setVerbThreshold', 'Setting verbosity threshold to '&
-              //msg_str(threshold), verb_opt=3)
+              //str(threshold), verb_opt=3)
     verbosityThreshold = threshold
 
   end subroutine
@@ -413,7 +414,7 @@ module message_mod
     ! Arguments
     logical, dimension(:), intent(in) :: array
     character(len=:), allocatable     :: string
-    logical, optional                 :: vertical_opt
+    logical, roptional                 :: vertical_opt
 
     ! Locals:
     integer           :: i
