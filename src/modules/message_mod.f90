@@ -70,7 +70,7 @@ module message_mod
 
     verbLevel = 1
     if (present(verb_opt)) verbLevel = verb_opt
-    mpiAll = .false.
+    mpiAll = .true.
     if (present(mpiAll_opt)) mpiAll = mpiAll_opt
 
     if (verbLevel <= verbosityThreshold) then
@@ -414,7 +414,7 @@ module message_mod
     ! Arguments
     logical, dimension(:), intent(in) :: array
     character(len=:), allocatable     :: string
-    logical, roptional                 :: vertical_opt
+    logical, optional                 :: vertical_opt
 
     ! Locals:
     integer           :: i
