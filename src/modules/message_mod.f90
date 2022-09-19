@@ -13,7 +13,7 @@ module message_mod
   integer, external :: get_max_rss
 
   ! public procedures
-  public :: msg_message, msg_memUsage, msg_setVerbThreshold
+  public :: msg, msg_memUsage, msg_setVerbThreshold
   public :: msg_str
   
   interface msg_str
@@ -40,9 +40,9 @@ module message_mod
   contains
   
   !--------------------------------------------------------------------------
-  ! msg_message
+  ! msg
   !--------------------------------------------------------------------------
-  subroutine msg_message(origin, message, verb_opt, mpiAll_opt)
+  subroutine msg(origin, message, verb_opt, mpiAll_opt)
     !
     ! :Purpose: Output message if its verbosity level is greater or equal than
     !           the user provided verbosity threshold (see `msg_readNml()`).
@@ -79,7 +79,7 @@ module message_mod
         if (mpi_myid == 0) call msg_write(origin, message)
       end if
     end if
-    end subroutine msg_message
+    end subroutine msg
 
   !--------------------------------------------------------------------------
   ! msg_memUsage
@@ -99,8 +99,7 @@ module message_mod
     integer :: usageMb
 
     usageMb = get_max_rss()/1024
-    call msg_message( origin, "Memory Used: "//msg_str(usageMb)//" Mb", &
-                      verb_opt, mpiAll_opt)
+    call msg( origin, "Memory Used: "//msg_str(usageMb)//" Mb", verb_opt, mpiAll_opt)
 
   end subroutine msg_memUsage
 
@@ -125,8 +124,8 @@ module message_mod
     else
       threshold = 1
     end if
-    call msg_message( 'msg_setVerbThreshold', 'Setting verbosity threshold to '&
-                      //msg_str(threshold), verb_opt=3)
+    call msg( 'msg_setVerbThreshold', 'Setting verbosity threshold to '&
+              //msg_str(threshold), verb_opt=3)
     verbosityThreshold = threshold
 
   end subroutine
@@ -139,7 +138,7 @@ module message_mod
     ! :Purpose: Reads the module configuration namelist
     !
     ! :Namelist parameters:
-    !       :verbosityThreshold:  Each call to `msg_message()` specifies a verbosity
+    !       :verbosityThreshold:  Each call to `msg()` specifies a verbosity
     !                             level; this threshold configures until which level
     !                             messages will be outputed.
     !
@@ -161,14 +160,14 @@ module message_mod
   
     if ( .not. utl_isNamelistPresent('NAMMSG','./flnml') ) then
       if ( mpi_myid == 0 ) then
-        write(*,*) 'msg_message: NAMMSG is missing in the namelist.'
+        write(*,*) 'msg: NAMMSG is missing in the namelist.'
         write(*,*) '             The default values will be taken.'
       end if
     else
       nulnam=0
       ierr=fnom(nulnam, 'flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=nammsg,iostat=ierr)
-      if (ierr /= 0) call utl_abort('msg_message: Error reading namelist NAMMSG')
+      if (ierr /= 0) call utl_abort('msg: Error reading namelist NAMMSG')
       if (mpi_myid == 0) write(*,nml=nammsg)
       ierr = fclos(nulnam)
     end if
