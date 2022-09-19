@@ -193,13 +193,19 @@ module message_mod
     character(len=15) :: firstLineFormat, otherLineFormat
     character(len=msg_lineLen)  :: msgLine
     character(len=msg_lineLen)  :: readLine
+    character(len=:), allocatable :: originTrunc
 
-    if (len(origin) > msg_lineLen) call utl_abort('msg_write: too long origin name')
+    if (len(origin) > msg_lineLen) then
+      originTrunc = origin(1:msg_lineLen)
+    else
+      originTrunc = origin
+    end if
+    originLen = len(originTrunc)
+
     indentLen = originLen
-    if (len(origin) > msg_maxIndent) then
+    if (originLen > msg_maxIndent) then
       indentLen = msg_maxIndent
     end if
-    originLen = len(origin)
     oneLineMsgLen = msg_lineLen - originLen - 2
   
     if (len(message) > oneLineMsgLen) then
@@ -213,7 +219,7 @@ module message_mod
       i = i + len(trim(msgLine)) +1
       write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A', &
                                               len(trim(msgLine)),')'
-      write(*,firstLineFormat) origin, ': ', message(1:oneLineMsgLen)
+      write(*,firstLineFormat) originTrunc, ': ', message(1:oneLineMsgLen)
       oneLineMsgLen = msg_lineLen - indentLen - 2
       do
         if ( i >= len(message) ) then
@@ -236,7 +242,7 @@ module message_mod
       ! Single lines message
       ! format: "origin: short message"
       write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A',len(message),')'
-      write(*,firstLineFormat) origin, ': ', message
+      write(*,firstLineFormat) originTrunc, ': ', message
     end if
     contains
       !----------------------------------------------------------------------
