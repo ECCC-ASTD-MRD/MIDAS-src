@@ -92,10 +92,12 @@ mind is provided [here](codingStd_top10.md).
   Optionally, a _verbosity level_ that specifies how important is the message
   can be provided.  The verbosity thresholds are defined as follow:
 
-    * 0 : critical, always printed
+    * `msg_ALWAYS` : always printed, irrespectively of threshold
+    * 0 : critical, should always be printed
     * 1 : default priority, printed in operational context
     * 2 : detailed output, provides extra information
     * 3 : intended for developers, printed for debugging or specific diagnostcs
+    * `msg_NEVER` : never printed, irrespectively of threshold
 
 ### More detailed rules:
 

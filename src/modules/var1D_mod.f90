@@ -153,7 +153,8 @@ contains
     if (mmpi_myId ==0) then
       call gsv_allocate(stateVector, numstep=tim_nstepobsinc, hco_ptr=hco_Ygrid, vco_ptr=column%vco, &
            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
-           dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false.)
+           dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false., &
+           besilent_opt=.false.)
       write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'	
     end if
 

@@ -648,7 +648,7 @@ module gridStateVector_mod
   subroutine gsv_allocate(statevector, numStep, hco_ptr, vco_ptr, dateStamp_opt, dateStampList_opt,  &
                           mpi_local_opt, mpi_distribution_opt, horizSubSample_opt,                   &
                           varNames_opt, dataKind_opt, allocHeightSfc_opt, hInterpolateDegree_opt,    &
-                          hExtrapolateDegree_opt, allocHeight_opt, allocPressure_opt)
+                          hExtrapolateDegree_opt, allocHeight_opt, allocPressure_opt, beSilent_opt)
     !
     ! :Purpose: Allocates the struct_gsv memory, sets horizontal and vertical 
     !           coordinates, sets some options and MPI distribution 
@@ -673,17 +673,25 @@ module gridStateVector_mod
     logical,          optional, intent(in)    :: allocPressure_opt      ! force the allocation of 'P_T' and 'P_M'
     character(len=*), optional, intent(in)    :: hInterpolateDegree_opt ! set the horizontal interpolation degree
     character(len=*), optional, intent(in)    :: hExtrapolateDegree_opt ! set the horizontal extrapolation degree
+    logical,          optional, intent(in)    :: beSilent_opt           ! limit outputs to listing
 
     ! Locals:
     integer :: ierr,iloc,varIndex,varIndex2,stepIndex,lon1,lat1,k1,kIndex,kIndex2,levUV
     character(len=4) :: UVname
-    logical :: allocPressure, allocHeight
+    logical :: beSilent, allocPressure, allocHeight
+    integer :: verbLevel
 
     call utl_tmg_start(168, 'low-level--gsv_allocate')
 
     if (.not. initialized) then
       call msg('gsv_allocate','gsv_setup must be called first to be able to use this module. Call it now')
       call gsv_setup
+    end if
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
     end if
 
     ! set the horizontal and vertical coordinates
@@ -886,10 +894,15 @@ module gridStateVector_mod
 
     statevector%nk=iloc
 
+    if (beSilent) then
+      verbLevel = msg_NEVER
+    else
+      verbLevel = 2
+    end if
     call msg( 'gsv_allocate', 'statevector%nk = '//str(statevector%nk)&
               //new_line('')//'varOffset='//str(statevector%varOffset)&
               //new_line('')//'varNumLev='//str(statevector%varNumLev),&
-              verb_opt=2, mpiAll_opt=.false.)
+              verb_opt=verbLevel, mpiAll_opt=.false.)
 
     ! determine range of values for the 'k' index (vars+levels)
     if ( statevector%mpi_distribution == 'VarsLevs' ) then

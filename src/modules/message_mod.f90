@@ -52,10 +52,12 @@ module message_mod
     !           the user provided verbosity threshold (see `msg_readNml()`).
     !           The verbosity levels are:
     !
-    !                             * 0 : critical, always printed
-    !                             * 1 : default priority; printed in operational context
-    !                             * 2 : detailed output, provides extra information
-    !                             * 3 : intended for developers, printed for debugging or specific diagnostcs
+    !                             * msg_ALWAYS : always printed, irrespectively of the threshold
+    !                             * 0          : critical, should always printed
+    !                             * 1          : default priority; printed in operational context
+    !                             * 2          : detailed output, provides extra information
+    !                             * 3          : intended for developers, printed for debugging or specific diagnostcs
+    !                             * msg_NEVER  : never printed, irrespectively of the threshold
     !
     implicit none
 
@@ -69,8 +71,6 @@ module message_mod
     logical :: mpiAll
     integer :: verbLevel
 
-    call msg_readNml()
-
     if (present(verb_opt)) then
       verbLevel = verb_opt
     else
@@ -83,11 +83,24 @@ module message_mod
       mpiAll = .true.
     end if
 
-    if (verbLevel <= verbosityThreshold) then
+    if (verbLevel == msg_ALWAYS) then
       if (mpiAll) then
         call msg_write(origin, message)
       else
         if (mmpi_myid == 0) call msg_write(origin, message)
+      end if
+
+    else if (verbLevel == msg_NEVER) then
+      return
+
+    else
+      call msg_readNml()
+      if (verbLevel <= verbosityThreshold) then
+        if (mpiAll) then
+          call msg_write(origin, message)
+        else
+          if (mmpi_myid == 0) call msg_write(origin, message)
+        end if
       end if
     end if
   end subroutine msg
@@ -137,7 +150,7 @@ module message_mod
       threshold = msg_DEFAULT
     end if
     call msg( 'msg_setVerbThreshold', 'Setting verbosity threshold to '&
-              //str(threshold), verb_opt=3)
+              //str(threshold), verb_opt=msg_ALWAYS)
     verbosityThreshold = threshold
 
   end subroutine
@@ -171,13 +184,8 @@ module message_mod
     verbosityThreshold = msg_DEFAULT
   
     if ( .not. utl_isNamelistPresent('NAMMSG','./flnml') ) then
-      !! DBGmad : find a solution, maybe in conjonction with the beSilent option to be implemented in msg()
-      !call msg( 'msg_readNml', 'NAMMSG is missing in the namelist. The default values will be taken.', &
-      !        mpiAll_opt=.false.)
-      if ( mmpi_myid == 0 ) then
-        write(*,*) 'msg: NAMMSG is missing in the namelist.'
-        write(*,*) '             The default values will be taken.'
-      end if
+      call msg( 'msg_readNml', 'NAMMSG is missing in the namelist. The default values will be taken.', &
+                mpiAll_opt=.false., verb_opt=msg_ALWAYS)
     else
       nulnam = 0
       ierr = fnom(nulnam, 'flnml','FTN+SEQ+R/O',0)
