@@ -215,7 +215,7 @@ module message_mod
     character(len=15) :: firstLineFormat, otherLineFormat
     character(len=msg_lineLen)  :: msgLine
     character(len=msg_lineLen)  :: readLine
-    character(len=:), allocatable :: originTrunc
+    character(len=:), allocatable :: originTrunc, adjustedLine
 
     if (len(origin) > msg_lineLen) then
       originTrunc = origin(1:msg_lineLen)
@@ -255,10 +255,11 @@ module message_mod
           readLine = message(posIdx+1:posIdx+oneLineMsgLen+1)
           msgLine = msg_breakOnSpace(readLine)
         end if
-        posIdx = posIdx + len(trim(msgLine)) +1
+        adjustedLine = adjustl(trim(msgLine))
+        posIdx = posIdx + len(adjustedLine) +1
         write(otherLineFormat,'(A,I2,A,I2,A)') '(A',indentLen+2,',A', &
-                                                len(trim(msgLine)),')'
-        write(*,otherLineFormat) repeat(' ',indentLen+2),trim(msgLine)
+                                                len(adjustedLine),')'
+        write(*,otherLineFormat) repeat(' ',indentLen+2),adjustedLine
       end do
     else
       ! Single lines message
@@ -277,7 +278,7 @@ module message_mod
         implicit none
     
         ! Arguments:
-        character(len=msg_lineLen), intent(in)  :: line
+        character(len=*),           intent(in)  :: line
         character(len=msg_lineLen)              :: shorterLine
         integer :: idx
     
