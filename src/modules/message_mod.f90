@@ -18,6 +18,8 @@ module message_mod
   integer, public, parameter :: msg_NEVER    =  99 ! verbosity level indicating a message is never printed irrespectively of set threshold
   integer, public, parameter :: msg_DEFAULT  =   1 ! verbosity level indicating a message is never printed irrespectively of set threshold
 
+  integer, public :: msg_NML ! verbosity level fixed from namelist
+
   ! intrinsic type string representations
   public :: str
   interface str
@@ -133,27 +135,27 @@ module message_mod
   !--------------------------------------------------------------------------
   subroutine msg_setVerbThreshold(threshold_opt)
     !
-    ! :Purpose: Sets the verbosity level at runtime, overrides the namelist
-    !           value if set.
+    ! :Purpose: Sets the verbosity level at runtime for debugging purposes,
+    !           overrides the namelist value.  If optional argument is absent,
+    !           revert verbosity to namelist value.
     !
     implicit none
 
     ! Arguments:
     integer, optional, intent(in) :: threshold_opt
 
-    ! Locals:
-    integer :: threshold
-
     if (present(threshold_opt)) then
-      threshold = threshold_opt
+      verbosityThreshold = threshold_opt
+      call msg( 'msg_setVerbThreshold', 'WARNING: Setting verbosity threshold to '&
+                //str(verbosityThreshold)//' for DEBUGGING purposes.', verb_opt=msg_ALWAYS)
     else
-      threshold = msg_DEFAULT
+      call msg_readNML()
+      verbosityThreshold = msg_NML
+      call msg( 'msg_setVerbThreshold', 'WARNING: Resetting verbosity threshold to namelist value ('&
+                //str(verbosityThreshold)//')', verb_opt=msg_ALWAYS)
     end if
-    call msg( 'msg_setVerbThreshold', 'Setting verbosity threshold to '&
-              //str(threshold), verb_opt=msg_ALWAYS)
-    verbosityThreshold = threshold
 
-  end subroutine
+  end subroutine msg_setVerbThreshold
 
   !--------------------------------------------------------------------------
   ! msg_readNml (private)
@@ -194,6 +196,7 @@ module message_mod
       if (mmpi_myid == 0) write(*,nml=nammsg)
       ierr = fclos(nulnam)
     end if
+    msg_NML = verbosityThreshold
 
   end subroutine msg_readNml
 
