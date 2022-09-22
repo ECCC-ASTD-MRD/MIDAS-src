@@ -45,7 +45,7 @@ mind is provided [here](codingStd_top10.md).
   functionality when you are editing Fortran source files.
 - Although Fortran has no reserved keywords, you should avoid naming
   your program units and variables with names that match an intrinsic
-  `FUNCTION` or `SUBROUTINE`. Similarly, you should avoid naming your
+  `function` or `subroutine`. Similarly, you should avoid naming your
   program units and variables with names that match a keyword in a
   Fortran statement.
 - To improve readability, write your code using the lower case for all
@@ -76,57 +76,78 @@ mind is provided [here](codingStd_top10.md).
   grep/search for these names as compared with a variable named i, for
   example).
 
+### Provided Functionalities to Use
+
+- Use [`msg()`](src/modules/message_mod.f90) instead of naked
+  `write(*,*)` to output information: provide the _origin_ of the message (such
+  as the caller subroutine, function or program).
+  ```fortran
+  call msg('int_tInterp_gsv', 'START', verb_opt=2)
+  ! prints a short message on all MPI tiles when verbosity threshold >= 2
+  ...
+  call msg('int_tInterp_gsv', 'numStepIn='//msg_str(numStepIn)&
+       //',numStepOut='//msg_str(numStepOut), mpiAll_opt=.false.)
+  ! prints a short message with some numerical values on MPI tile 0 only
+  ```
+  Optionally, a _verbosity level_ that specifies how important is the message
+  can be provided.  The verbosity thresholds are defined as follow:
+
+    * `msg_ALWAYS` : always printed, irrespectively of threshold
+    * 0 : critical, should always be printed
+    * 1 : default priority, printed in operational context
+    * 2 : detailed output, provides extra information
+    * 3 : intended for developers, printed for debugging or specific diagnostcs
+    * `msg_NEVER` : never printed, irrespectively of threshold
+
 ### More detailed rules:
 
-- Use the new and clearer syntax for `LOGICAL` comparisons, i.e.:
-
-```fortran
-== instead of .EQ.
-/= instead of .NE.
-&gt; instead of .GT.
-&lt; instead of .LT.
-&gt;= instead of .GE.
-&lt;= instead of .LE.
-```
+- Use the new and clearer syntax for `logical` comparisons, i.e.:
+  ```fortran
+  == instead of .eq.
+  /= instead of .ne.
+  > instead of .gt.
+  < instead of .lt.
+  >= instead of .ge.
+  <= instead of .le.
+  ```
 
 - Positive logic is usually easier to understand. When using an
-  `IF-ELSE-END IF` construct you should use positive logic in the IF
+  `if-else-end if` construct you should use positive logic in the IF
   test, provided that the positive and the negative blocks are about
   the same length. It may be more appropriate to use negative logic if
   the negative block is significantly longer than the positive block.
 - To improve readability, you should always use the optional space to
   separate the following Fortran keywords:
-
-```fortran
-else if
-end do
-end forall
-end function
-end if
-end interface
-end module
-end program
-end select
-end subroutine
-end type
-end where
-select case
-```
+  ```fortran
+  else if
+  end do
+  end forall
+  end function
+  end if
+  end interface
+  end module
+  end program
+  end select
+  end subroutine
+  end type
+  end where
+  select case
+  ```
 
 - If you have a large or complex code block embedding other code
   blocks, you may consider naming some or all of them to improve
   readability.
-- Improve readability by always using the full version of the `END`
-  statement (i.e. `END SUBROUTINE <name>` or `END FUNCTION <name>`
-  instead of just `END`) at the end of each sub-program unit.
-- Where possible, consider using `CYCLE`, `EXIT` or a `WHERE`-construct to
+- Improve readability by always using the full version of the `end`
+  statement (i.e. `end subroutine <name>` or `end function <name>`
+  instead of just `end`) at the end of each sub-program unit.
+- Where possible, consider using `cycle`, `exit` or a `where`-construct to
   simplify complicated `DO`-loops.
-- When writing a `REAL` literal with an integer value, put a `0` after the
-  decimal point (i.e. `1.0` as opposed to `1.0`) to improve readability.
+- When writing a `real` literal with an integer value, put a `0` after the
+  decimal point (i.e. `1.0` as opposed to `1`) to improve readability.
   For double precision real literals (`real(8)`) always include "`d0`"
   as in `1.0d0` to ensure the correct precision.
 - Where reasonable and sensible to do so, you should try to match the
-  names of dummy and actual arguments to a `SUBROUTINE`/`FUNCTION`.
+  names of dummy and actual arguments to a `subroutine`/`function`.
 - In an array assignment, it is recommended that you use array
   notations to improve readability, e.g.  
   Avoid this:
@@ -136,11 +157,11 @@ select case
   ```
   Use this instead:
   ```fortran
-  array1(:,&nbsp;:) = 1
-  array2(:,&nbsp;:) = array1(:,&nbsp;:) * scalar
+  array1(:,:) = 1
+  array2(:,:) = array1(:,:) * scalar
   ```
 
-- Use `IMPLICIT NONE` in all program units. This forces you to declare
+- Use `implicit none` in all program units. This forces you to declare
   all your variables explicitly. This helps to reduce bugs in your
   program that will otherwise be difficult to track.
 - Design any derived data types carefully and use them to group
@@ -153,101 +174,114 @@ select case
   explicity declare public using a `public` statement near the
   beginning of the module to make it clear to a user what is
   accessible from the outside world.
-- Where possible, an `ALLOCATE` statement for an `ALLOCATABLE` array (or a
-  `POINTER` used as a dynamic array) should be coupled with a `DEALLOCATE`
-  within the same scope. If an `ALLOCATABLE` array is a PUBLIC
-  MODULE variable, it is highly desirable if its memory allocation and
-  deallocation are only performed in procedures within the MODULE in
-  which it is declared. You may consider writing specific SUBROUTINES
-  within the MODULE to handle these memory managements.
-- To avoid memory fragmentation, it is desirable to `DEALLOCATE` in
-  reverse order of `ALLOCATE`, as in:
-
+- Where possible, an `allocate` statement for an `allocatable` array (or a
+  `pointer` used as a dynamic array) should be coupled with a `deallocate`
+  within the same scope. if an `allocatable` array is a public
+  `module` variable, it is highly desirable if its memory allocation and
+  deallocation are only performed in procedures within the `module` in
+  which it is declared. You may consider writing specific `subroutines`
+  within the module to handle these memory managements.
+- To avoid memory fragmentation, it is desirable to `deallocate` in
+  reverse order of `allocate`, as in:
   ```fortran
-  ALLOCATE(a(n))
-  ALLOCATE(b(n))
-  ALLOCATE(c(n))
-
+  allocate(a(n))
+  allocate(b(n))
+  allocate(c(n))
   ! ... do something ...
-
-  DEALLOCATE(c)
-  DEALLOCATE(b)
-  DEALLOCATE(a)
+  deallocate(c)
+  deallocate(b)
+  deallocate(a)
   ```
 
-- Inside a function or subroutine, always define a local `POINTER` before using it. 
-  DO NOT define a `POINTER` in its declaration by pointing it to the intrinsic
-  function `NULL()` since this will invoke an implicit "`save`" attribute which is very
+- Inside a function or subroutine, always define a local `pointer` before using it. 
+  do not define a `pointer` in its declaration by pointing it to the intrinsic
+  function `null()` since this will invoke an implicit "`save`" attribute which is very
   dangerous! 
-  Instead, make sure that your POINTER is defined or
-  nullified early on in the program unit. Similarly, NULLIFY a POINTER
-  when it is no longer in use, either by using the NULLIFY statement
-  or by pointing your `POINTER` to `NULL()`.
-  This recommandation does not apply to `POINTER` global to a module
+  Instead, make sure that your `pointer` is defined or
+  nullified early on in the program unit. similarly, `nullify` a `pointer`
+  when it is no longer in use, either by using the `nullify` statement
+  or by pointing your `pointer` to `null()`.
+  This recommandation does not apply to `pointer` global to a module
   or program.
   (The reason for this, is that the declaration statement is actually
   executed **only** on the first call, the only one for module or program
   pointer, but for functions or subroutines, subsequent calls will not
   re-declare the pointer to `null()` such that it might already points
   to some value obtained in the previous call.)
-- Avoid the `DIMENSION` attribute or statement. Declare the DIMENSION
+- Avoid the `dimension` attribute or statement. declare the `dimension`
   with the declared variables. E.g.:
-
   Avoid this:
   ```fortran
-  INTEGER, DIMENSION(10)&nbsp;:: array1
-  INTEGER&nbsp;:: array2
-  DIMENSION&nbsp;:: array2(20)
+  integer, dimension(10) :: array1
+  integer :: array2
+  dimension :: array2(20)
   ```
   Instead, do this:
   ```fortran
-  INTEGER&nbsp;:: array1(10), array2(20)
+  integer :: array1(10), array2(20)
   ```
 
-- Avoid `COMMON` blocks and `BLOCK DATA` program units. Instead, use a
-  `MODULE` with `PUBLIC` variables.
-- Avoid the `EQUIVALENCE` statement. Use a `POINTER` or a derived data
-  type, and the `TRANSFER` intrinsic function to convert between types.
-- Avoid the `PAUSE` statement, as your program will hang in a batch
+- Never initialize a local variable on the declaration unless the `save`
+  attribute is explicitely present.  
+  Avoid this:
+  ```fortran
+  logical :: trueByDefault = .true.
+  ```
+  Instead, do this:
+  ```fortran
+  logical :: trueByDefault
+  trueByDefault = .true.
+  ```
+  If you actually want the local variable to keep it's value after passing out
+  of scope, be explicit:
+  ```fortran
+  logical, save :: thisIsTheFirstCall = .true.
+  ```
+
+- Avoid `common` blocks and `block data` program units. instead, use a
+  `module` with `public` variables.
+- Avoid the `equivalence` statement. Use a `pointer` or a derived data
+  type, and the `transfer` intrinsic function to convert between types.
+- Avoid the `pause` statement, as your program will hang in a batch
   environment. If you need to halt your program for interactive use,
-  consider using a `READ*` statement instead.
-- Avoid the `ENTRY` statement. Use a `MODULE` or internal `SUBROUTINE`.
-- Avoid the `GOTO` statement.
-- Avoid numbered statement labels. `DO ... label CONTINUE` constructs
-  should be replaced by `DO ... END DO` constructs. Every `DO` loop must
-  be terminated with a corresponding `END DO`.
-- Never use a `FORMAT` statement - they require the use of labels, and
+  consider using a `read*` statement instead.
+- Avoid the `entry` statement. Use a `module` or internal `subroutine`.
+- Avoid the `goto` statement.
+- Avoid numbered statement labels. `do ... label continue` constructs
+  should be replaced by `do ... end do` constructs. every `do` loop must
+  be terminated with a corresponding `end do`.
+- Never use a `format` statement - they require the use of labels, and
   obscure the meaning of the I/O statement. The formatting information
-  can be placed explicitly within the `READ`, `WRITE` or `PRINT` statement,
-  or be assigned to a `CHARACTER` variable in a `PARAMETER` statement in
+  can be placed explicitly within the `read`, `write` or `print` statement,
+  or be assigned to a `character` variable in a `parameter` statement in
   the header of the routine for later use in I/O statements. Never
   place output text within the format specifier, i.e. only format
-  information may be placed within the `FMT=` part of an I/O statement.
+  information may be placed within the `fmt=` part of an I/O statement.
   All variables and literals, including any character literals, must
   be 'arguments' of the I/O routine itself. This improves readability
   by clearly separating what is to be read/written from how to
   read/write it.
-- Avoid the `FORALL` statement/construct. Despite what it is supposed to
-  do, `FORALL` is often difficult for compilers to optimise (see, for
+- Avoid the `forall` statement/construct. Despite what it is supposed to
+  do, `forall` is often difficult for compilers to optimise (see, for
   example, Implementing the Standards including Fortran 2003 by NAG).
-  Stick to the equivalent `DO` construct, `WHERE` statement/construct or
+  Stick to the equivalent `do` construct, `where` statement/construct or
   array assignments unless there are actual performance benefits from
-  using `FORALL`.
-- A `FUNCTION` should be `PURE`, i.e. it should have no side effects (e.g.
+  using `forall`.
+- A `function` should be `pure`, i.e. it should have no side effects (e.g.
   altering an argument or module variable, or performing I/O). If you
   need to perform a task with side effects, you should use a
-  `SUBROUTINE` instead.
-- Declare the `INTENT` of all arguments to a subroutine or function.
+  `subroutine` instead.
+- Declare the `intent` of all arguments to a subroutine or function.
   This allows checks against unintended access of variables to be done
   at compile time. The above point requiring functions to be pure
-  means that all arguments of a `FUNCTION` should be declared as
-  `INTENT(IN)`.
-- Avoid `RECURSIVE` procedures if possible. `RECURSIVE` procedures are
+  means that all arguments of a `function` should be declared as
+  `intent(in)`.
+- Avoid `recursive` procedures if possible. `recursive` procedures are
   usually difficult to understand, and are always difficult to
   optimise in a supercomputer environment.
 - Avoid using the specific names of intrinsic procedures. Use the
   generic names of intrinsic procedures where possible.
-- Not necessary to use the `ONLY` clause in a `USE <module>` statement,
+- Not necessary to use the `only` clause in a `use <module>` statement,
   since each module should have few public symbols and all should be
   named beginning with the module prefix.
 - The use of operator overloading is discouraged, as it can lead to
