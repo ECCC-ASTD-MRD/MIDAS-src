@@ -16,9 +16,9 @@ module message_mod
   ! public module variables
   integer, public, parameter :: msg_ALWAYS   = -99 ! verbosity level indicating a message is always printed irrespectively of set threshold
   integer, public, parameter :: msg_NEVER    =  99 ! verbosity level indicating a message is never printed irrespectively of set threshold
-  integer, public, parameter :: msg_DEFAULT  =   1 ! verbosity level indicating a message is never printed irrespectively of set threshold
+  integer, public, parameter :: msg_DEFAULT  =   1 ! default verbosity level
 
-  integer, public :: msg_NML ! verbosity level fixed from namelist
+  integer, public :: msg_NML = msg_DEFAULT ! verbosity level fixed from namelist
 
   ! intrinsic type string representations
   public :: str
@@ -39,8 +39,6 @@ module message_mod
   integer, parameter    :: msg_lineLen = 70
   integer, parameter    :: msg_num2strBufferLen = 200
 
-  ! Namelist variables
-  !-------------------
   integer :: verbosityThreshold
 
   contains
@@ -133,26 +131,29 @@ module message_mod
   !--------------------------------------------------------------------------
   ! msg_setVerbThreshold
   !--------------------------------------------------------------------------
-  subroutine msg_setVerbThreshold(threshold_opt)
+  subroutine msg_setVerbThreshold(threshold, beSilent_opt)
     !
-    ! :Purpose: Sets the verbosity level at runtime for debugging purposes,
-    !           overrides the namelist value.  If optional argument is absent,
-    !           revert verbosity to namelist value.
+    ! :Purpose: Sets the verbosity level.
     !
     implicit none
 
     ! Arguments:
-    integer, optional, intent(in) :: threshold_opt
+    integer,           intent(in) :: threshold
+    logical, optional, intent(in) :: beSilent_opt
 
-    if (present(threshold_opt)) then
-      verbosityThreshold = threshold_opt
+    ! Locals:
+    logical :: beSilent
+
+    if (present(beSilent_opt)) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    verbosityThreshold = threshold
+    if (.not. beSilent) then
       call msg( 'msg_setVerbThreshold', 'WARNING: Setting verbosity threshold to '&
                 //str(verbosityThreshold)//' for DEBUGGING purposes.', verb_opt=msg_ALWAYS)
-    else
-      call msg_readNML()
-      verbosityThreshold = msg_NML
-      call msg( 'msg_setVerbThreshold', 'WARNING: Resetting verbosity threshold to namelist value ('&
-                //str(verbosityThreshold)//')', verb_opt=msg_ALWAYS)
     end if
 
   end subroutine msg_setVerbThreshold
@@ -165,16 +166,16 @@ module message_mod
     ! :Purpose: Reads the module configuration namelist
     !
     ! :Namelist parameters:
-    !       :verbosityThreshold:  Each call to `msg()` specifies a verbosity
-    !                             level; this threshold configures until which level
-    !                             messages will be outputed.
+    !       :verbosity:   Each call to `msg()` specifies a verbosity level;
+    !                     this threshold configures until which level
+    !                     messages will be outputed.
     !
     implicit none
 
     ! Locals:
     logical, save :: alreadyRead = .false.
-    integer :: nulnam, ierr, fnom, fclos
-    namelist /NAMMSG/verbosityThreshold
+    integer :: verbosity, nulnam, ierr, fnom, fclos
+    namelist /NAMMSG/verbosity
   
     if (alreadyRead) then
       return
@@ -183,7 +184,7 @@ module message_mod
     end if
   
     ! default namelist value
-    verbosityThreshold = msg_DEFAULT
+    verbosity = msg_DEFAULT
   
     if ( .not. utl_isNamelistPresent('NAMMSG','./flnml') ) then
       call msg( 'msg_readNml', 'NAMMSG is missing in the namelist. The default values will be taken.', &
@@ -196,7 +197,8 @@ module message_mod
       if (mmpi_myid == 0) write(*,nml=nammsg)
       ierr = fclos(nulnam)
     end if
-    msg_NML = verbosityThreshold
+    msg_NML = verbosity
+    call msg_setVerbThreshold(msg_NML, beSilent_opt=.true.)
 
   end subroutine msg_readNml
 
