@@ -5230,7 +5230,7 @@ module gridStateVector_mod
 
     ! Locals:
     real(8) :: lnvlev(nlev),lnvlevout(nlevout),plong2
-    integer :: ilev,ilon,ilat,i,j,ilongout,ilatout
+    integer :: ilev,ilon,ilat,ilatp1,i,j,ilongout,ilatout
     logical :: same_vlev
 
     real(8) :: DLDX, DLDY, DLDP, DLW1, DLW2, DLW3, DLW4
@@ -5270,20 +5270,29 @@ module gridStateVector_mod
         do ilat = 2, nlat
           if (xlatout(ilatout) <= xlat(ilat)) exit
         end do
-        ilat = ilat-1
+        ilat = min(ilat-1,nlat)
+        ilatp1 = min(ilat+1,nlat)
     
         ! Set lat/long interpolation weights
     
         if (nlongout > 1) then
           DLDX = (xlongout(ilongout) - xlong(ilon))/(xlong(ilon+1)-xlong(ilon))
-          DLDY = (xlatout(ilatout) - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
+          if (ilat < nlat) then
+            DLDY = (xlatout(ilatout) - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
+          else
+            DLDY = (xlatout(ilatout) - xlat(ilat))/(xlat(ilat)-xlat(ilat-1))
+          end if
 
           DLW1 = (1.d0-DLDX) * (1.d0-DLDY)
           DLW2 =       DLDX  * (1.d0-DLDY)
           DLW3 = (1.d0-DLDX) *       DLDY
           DLW4 =       DLDX  *       DLDY
         else
-          DLDY = (xlatout(ilatout) - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
+          if (ilat < nlat) then
+            DLDY = (xlatout(ilatout) - xlat(ilat))/(xlat(ilat+1)-xlat(ilat))
+          else
+            DLDY = (xlatout(ilatout) - xlat(ilat))/(xlat(ilat)-xlat(ilat-1))
+          end if
 
           DLW1 = (1.d0-DLDY)
           DLW3 = DLDY        
@@ -5311,24 +5320,24 @@ module gridStateVector_mod
             
             fieldout(ilongout,ilatout,i) = DLDP* (DLW1 * field(ilon,ilat,ilev) &
                            + DLW2 * field(ilon+1,ilat,ilev) &
-                           + DLW3 * field(ilon,ilat+1,ilev) &
-                           + DLW4 * field(ilon+1,ilat+1,ilev)) &
+                           + DLW3 * field(ilon,ilatp1,ilev) &
+                           + DLW4 * field(ilon+1,ilatp1,ilev)) &
              + (1.d0-DLDP)* (DLW1 * field(ilon,ilat,ilev+1) &
                            + DLW2 * field(ilon+1,ilat,ilev+1) &
-                           + DLW3 * field(ilon,ilat+1,ilev+1) &
-                           + DLW4 * field(ilon+1,ilat+1,ilev+1))                               
+                           + DLW3 * field(ilon,ilatp1,ilev+1) &
+                           + DLW4 * field(ilon+1,ilatp1,ilev+1))                               
           end do
         else if (nlongout > 1) then
           do ilev = 1, nlevout           
             fieldout(ilongout,ilatout,ilev) = DLW1 * field(ilon,ilat,ilev) &
                            + DLW2 * field(ilon+1,ilat,ilev) &
-                           + DLW3 * field(ilon,ilat+1,ilev) &
-                           + DLW4 * field(ilon+1,ilat+1,ilev)
+                           + DLW3 * field(ilon,ilatp1,ilev) &
+                           + DLW4 * field(ilon+1,ilatp1,ilev)
           end do
         else 
           do ilev = 1, nlevout           
             fieldout(ilongout,ilatout,ilev) = DLW1 * field(ilon,ilat,ilev) &
-                           + DLW3 * field(ilon,ilat+1,ilev) 
+                           + DLW3 * field(ilon,ilatp1,ilev) 
           end do
         end if 
       end do
