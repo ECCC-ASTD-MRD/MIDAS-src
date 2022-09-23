@@ -513,7 +513,7 @@ contains
         deltaLat3 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex + 1))
 
         deltaLat = max(deltaLat1, deltaLat2, deltaLat3)
-        if (deltaLat > minDeltaLat) maxDeltaLat = deltaLat
+        if (deltaLat > maxDeltaLat) maxDeltaLat = deltaLat
 
       end do      
     end do
@@ -588,7 +588,11 @@ contains
           deltaLon3 = abs(deltaLon3 * cos(hco%lat2d_4(lonIndex,latIndex)))
 
           deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
+<<<<<<< HEAD
           if (deltaLon < minDeltaLon) minDeltaLon = deltaLon
+=======
+          if (deltaLon < minDeltaLon ) minDeltaLon = deltaLon
+>>>>>>> 513a54bff... Issue#679: merge request comments
 
         end if
 
@@ -680,8 +684,13 @@ contains
     
     write(*,*) 'hco_mpiBcast: starting'
     
+<<<<<<< HEAD
     if (mmpi_myid > 0) then
       if(.not.associated(hco)) then
+=======
+    if ( mmpi_myid > 0 ) then
+      if( .not.associated(hco) ) then
+>>>>>>> 513a54bff... Issue#679: merge request comments
         allocate(hco)
       else
         call utl_abort('hco_mpiBcast: hco must be nullified for mpi task id > 0')
@@ -698,7 +707,11 @@ contains
     call rpn_comm_bcast(hco%ig2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ig3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ig4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
+<<<<<<< HEAD
     if (mmpi_myid > 0) then
+=======
+    if ( mmpi_myid > 0 ) then
+>>>>>>> 513a54bff... Issue#679: merge request comments
       allocate(hco%lat(hco%nj))
       allocate(hco%lon(hco%ni))
       allocate(hco%lat2d_4(hco%ni,hco%nj))
@@ -720,16 +733,27 @@ contains
     call rpn_comm_bcast(hco%xlon1_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%xlat2_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%xlon2_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
+<<<<<<< HEAD
     if (hco%grtyp == 'U') then
       if (mmpi_myid > 0) then
+=======
+    if ( hco%grtyp == 'U' ) then
+      if ( mmpi_myid > 0 ) then
+>>>>>>> 513a54bff... Issue#679: merge request comments
         allocate(hco%tictacU(5 + 2 * (10 + hco%ni + hco%nj/2)))
       end if
       call rpn_comm_bcast(hco%tictacU, size(hco%tictacU), 'MPI_REAL4', 0, 'GRID', ierr)
     end if
     
+<<<<<<< HEAD
     if (mmpi_myid > 0) then
       if (hco%grtyp == 'G') then
         hco%EZscintID  = ezqkdef(hco%ni, hco%nj, hco%grtyp, hco%ig1, hco%ig2, hco%ig3, hco%ig4, 0)
+=======
+    if ( mmpi_myid > 0 ) then
+      if ( hco%grtyp == 'G' ) then
+        hco%EZscintID  = ezqkdef( hco%ni, hco%nj, hco%grtyp, hco%ig1, hco%ig2, hco%ig3, hco%ig4, 0 )
+>>>>>>> 513a54bff... Issue#679: merge request comments
       else
         ! special treatment since EZscintID not properly communicated: keep as is
         write(*,*) 'hco_mpiBcast: Warning! Grid ID for EZSCINT not communicated for grtyp = ', hco%grtyp
@@ -1166,7 +1190,11 @@ contains
     integer, intent(in)       :: ni, nj
 
     allocate(hco)
+<<<<<<< HEAD
     if (mmpi_myid == 0) then
+=======
+    if (mmpi_myid == 0 ) then
+>>>>>>> 513a54bff... Issue#679: merge request comments
       hco%initialized = .true.
       hco%ni = ni
       hco%nj = nj

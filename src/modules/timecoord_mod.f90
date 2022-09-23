@@ -463,7 +463,7 @@ contains
   !----------------------------------------------------------------------------------------
   subroutine tim_dateStampToYYYYMMDDHH(dateStamp, prnttime, dd, mm, ndays, yyyy, verbose_opt)
     !
-    !: Purpose: to get day (DD), month (MM), number of days in this month 
+    ! :Purpose: to get day (DD), month (MM), number of days in this month 
     !           and year (YYYY) from dateStamp
     !  
     

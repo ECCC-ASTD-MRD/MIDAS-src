@@ -261,7 +261,7 @@ module gridStateVector_mod
 
     do procIndex = 1, mmpi_nprocs
       if ((kIndex >= statevector%allKBeg(procIndex)) .and.  &
-            (kIndex <= statevector%allKEnd(procIndex))) then
+          (kIndex <= statevector%allKEnd(procIndex))) then
           MpiId = procIndex - 1
           return
       end if
@@ -683,6 +683,8 @@ module gridStateVector_mod
 
     call utl_tmg_start(168, 'low-level--gsv_allocate')
 
+    call utl_tmg_start(168, 'low-level--gsv_allocate')
+
     if (.not. initialized) then
       call msg('gsv_allocate','gsv_setup must be called first to be able to use this module. Call it now')
       call gsv_setup
@@ -817,7 +819,7 @@ module gridStateVector_mod
     end if
 
     ! determine lat/lon index ranges
-    if (statevector%mpi_distribution == 'Tiles') then
+    if (stateVector%mpi_distribution == 'Tiles') then
       call mmpi_setup_latbands(statevector%nj,  &
                                statevector%latPerPE, statevector%latPerPEmax, &
                                statevector%myLatBeg, statevector%myLatEnd)
@@ -900,9 +902,9 @@ module gridStateVector_mod
       verbLevel = 2
     end if
     call msg('gsv_allocate', 'statevector%nk = '//str(statevector%nk)&
-              //new_line('')//'varOffset='//str(statevector%varOffset)&
-              //new_line('')//'varNumLev='//str(statevector%varNumLev),&
-              verb_opt=verbLevel, mpiAll_opt=.false.)
+             //new_line('')//'varOffset='//str(statevector%varOffset)&
+             //new_line('')//'varNumLev='//str(statevector%varNumLev),&
+             verb_opt=verbLevel, mpiAll_opt=.false.)
 
     ! determine range of values for the 'k' index (vars+levels)
     if (statevector%mpi_distribution == 'VarsLevs') then
@@ -4979,7 +4981,7 @@ module gridStateVector_mod
     real(4), pointer     :: field_out_r4(:,:,:,:), field_in_r4(:,:,:,:)
     real(8), pointer     :: field_out_r8(:,:,:,:), field_in_r8(:,:,:,:)
 
-    if (statevector_tiles%mpi_distribution /= 'Tiles') then
+    if (stateVector_tiles%mpi_distribution /= 'Tiles') then
       call utl_abort('gsv_transposeTilesToMpiGlobal: input statevector must have Tiles mpi distribution')
     end if
 
@@ -5150,41 +5152,41 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_dotProduct
   !--------------------------------------------------------------------------
-  subroutine gsv_dotProduct(statevector_a,statevector_b,dotsum)
+  subroutine gsv_dotProduct(stateVector_a,stateVector_b,dotsum)
     !
     ! :Purpose: Computes the dot product of two statevectors
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)  :: statevector_a,statevector_b
+    type(struct_gsv), intent(in)  :: stateVector_a,stateVector_b
     real(8),          intent(out) :: dotsum
 
     ! Locals:
     integer          :: jstep,jlon,jlev,jlat,lon1,lon2,lat1,lat2
     integer          :: k1,k2
 
-    if (.not.statevector_a%allocated) then
+    if (.not.stateVector_a%allocated) then
       call utl_abort('gsv_dotProduct: gridStateVector_in not yet allocated')
     end if
     if (.not.statevector_b%allocated) then
       call utl_abort('gsv_dotProduct: gridStateVector_inout not yet allocated')
     end if
 
-    lon1 = statevector_a%myLonBeg
-    lon2 = statevector_a%myLonEnd
-    lat1 = statevector_a%myLatBeg
-    lat2 = statevector_a%myLatEnd
-    k1 = statevector_a%mykBeg
-    k2 = statevector_a%mykEnd
+    lon1 = stateVector_a%myLonBeg
+    lon2 = stateVector_a%myLonEnd
+    lat1 = stateVector_a%myLatBeg
+    lat2 = stateVector_a%myLatEnd
+    k1 = stateVector_a%mykBeg
+    k2 = stateVector_a%mykEnd
 
     dotsum = 0.0D0
-    do jstep = 1, statevector_a%numStep
+    do jstep = 1, stateVector_a%numStep
       do jlev = k1,k2
         do jlat = lat1, lat2
           do jlon = lon1, lon2
-            dotsum = dotsum + statevector_a%gd_r8(jlon,jlat,jlev,jstep) * &
-                              statevector_b%gd_r8(jlon,jlat,jlev,jstep)
+            dotsum = dotsum + stateVector_a%gd_r8(jlon,jlat,jlev,jstep) * &
+                              stateVector_b%gd_r8(jlon,jlat,jlev,jstep)
           end do 
         end do
       end do
@@ -5535,7 +5537,7 @@ module gridStateVector_mod
     end if
     
     call utl_tmg_stop(176)
-    
+
   end subroutine gsv_smoothHorizontal
 
   !--------------------------------------------------------------------------
