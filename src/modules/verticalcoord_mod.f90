@@ -25,7 +25,9 @@ module verticalCoord_mod
   use Vgrid_Descriptors
   use varNameList_mod
   use utilities_mod
+  
   implicit none
+  
   private
 
   ! public derived type
@@ -90,7 +92,7 @@ contains
   !--------------------------------------------------------------------------
   ! vco_SetupFromFile
   !--------------------------------------------------------------------------
-  subroutine vco_SetupFromFile(vco,templatefile,etiket_opt,beSilent_opt)
+  subroutine vco_SetupFromFile(vco, templatefile, etiket_opt, beSilent_opt)
     ! 
     ! :Purpose: Initialize vertical coordinate object with information from 
     !           a standard file.
@@ -110,7 +112,6 @@ contains
     integer, parameter :: maxNumRecords = 1000
     integer :: recordIndex, numRecords, ikeys(maxNumRecords)
     integer :: fnom,fstouv,fstfrm,fclos,fstprm,fstinl
-    integer,   pointer :: vgd_ip1_M(:), vgd_ip1_T(:)
     integer :: ip1_sfc
     character(len=10) :: blk_S
     logical :: fileExists, atmFieldFound, sfcFieldFound, oceanFieldFound
@@ -122,8 +123,6 @@ contains
     character(len=2)  :: typvar
     character(len=4)  :: nomvar
     character(len=1)  :: grtyp
-
-    nullify(vgd_ip1_M, vgd_ip1_T)
 
     if ( associated(vco) ) then
       call utl_abort('vco_setupFromFile: the supplied vco pointer is not null!')
@@ -174,9 +173,8 @@ contains
 
       ierr = fstinl(nultemplate,ini,inj,ink,-1,etiket,-1,-1,-1,' ', &
                     ' ',ikeys,numRecords,maxNumRecords)
-      if ( ikeys(1) <= 0 ) then
-        call utl_abort('vco_setupFromFile: Could not find any records ' //  &
-                       'in the supplied file')
+      if (ikeys(1) <= 0) then
+        call utl_abort('vco_setupFromFile: Could not find any records in the supplied file')
       end if
       if (.not. beSilent) then
         write(*,*) 'vco_setupFromFile: number of records found = ', numRecords
@@ -197,7 +195,7 @@ contains
         ! check for record with ocean data
         call convip(ip1, vertCoordValue, Ip1Kind, -1, blk_s, .false.) 
         if (Ip1Kind == 0 .and. &
-            vnl_varKindFromVarname(trim(nomvar)) == 'OC' ) then
+            vnl_varKindFromVarname(trim(nomvar)) == 'OC') then
           oceanFieldFound = .true.
           exit record_loop
         end if
@@ -223,11 +221,11 @@ contains
 
     ! call appropriate setup routine based on what was found in template file
     if (atmFieldFound) then
-      call vco_setupAtmFromFile(vco,templatefile,etiket,beSilent)
+      call vco_setupAtmFromFile(vco, templatefile, etiket, beSilent)
     else if (oceanFieldFound) then
-      call vco_setupOceanFromFile(vco,templatefile,etiket,beSilent)
+      call vco_setupOceanFromFile(vco, templatefile, etiket, beSilent)
     else if (sfcFieldFound) then
-      call vco_setupSfcFromFile(vco,beSilent)
+      call vco_setupSfcFromFile(vco, beSilent)
     else
       call utl_abort('vco_setupFromFile: could not setup vco from template file')
     end if
@@ -237,7 +235,7 @@ contains
   !--------------------------------------------------------------------------
   ! vco_setupAtmFromFile
   !--------------------------------------------------------------------------
-  subroutine vco_setupAtmFromFile(vco,templatefile,etiket,beSilent)
+  subroutine vco_setupAtmFromFile(vco, templatefile, etiket, beSilent)
     ! 
     ! :Purpose: Initialize vertical coordinate object with information from 
     !           a standard file. Use vgrid descriptor for atmospheric fields.
@@ -265,14 +263,14 @@ contains
     ! Open the template file
     nultemplate = 0
     ierr = fnom(nultemplate,templatefile,'RND+OLD+R/O',0)
-    if ( ierr == 0 ) then
+    if (ierr == 0) then
       ierr = fstouv(nultemplate,'RND+OLD')
     else
       call utl_abort('vco_setupAtmFromFile: CANNOT OPEN TEMPLATE FILE!')
     end if
 
     ! Try creating vgrid descriptor
-    stat = vgd_new(vco%vgrid,unit=nultemplate,format="fst",ip1=-1,ip2=-1)
+    stat = vgd_new(vco%vgrid, unit = nultemplate, format = "fst", ip1 = -1, ip2 = -1)
     if (stat == VGD_OK) then
       vco%vgridPresent = .true.
     else
@@ -283,13 +281,13 @@ contains
     if (mmpi_myid == 0 .and. .not. beSilent) then
       call flush(6) ! possibly needed so vgd_print output appears correctly in listing
       stat = vgd_print(vco%vgrid)
-      if ( stat /= VGD_OK )then
+      if (stat /= VGD_OK)then
         call utl_abort('vco_setupAtmFromFile: ERROR with vgd_print')
       end if
     end if
 
     ! Get version of the vertical coordinate
-    stat = vgd_get(vco%vgrid,key='ig_1 - vertical coord code',value=Vcode)
+    stat = vgd_get(vco%vgrid, key = 'ig_1 - vertical coord code', value = Vcode)
     if ( stat /= VGD_OK ) then
       call utl_abort('vco_setupAtmFromFile: problem with vgd_get: key= ig_1 - vertical coord code')
     end if
@@ -299,8 +297,8 @@ contains
     vco%Vcode = Vcode
 
     ! Get vgrid values for ip1
-    stat = vgd_get(vco%vgrid,key='vipm - vertical levels (m)',value=vgd_ip1_m)
-    stat = vgd_get(vco%vgrid,key='vipt - vertical ip1 levels (t)',value=vgd_ip1_t)
+    stat = vgd_get(vco%vgrid, key='vipm - vertical levels (m)', value = vgd_ip1_m)
+    stat = vgd_get(vco%vgrid, key='vipt - vertical ip1 levels (t)', value = vgd_ip1_t)
 
     vgd_nlev_M = size(vgd_ip1_M)
     vgd_nlev_T = size(vgd_ip1_T)
@@ -322,7 +320,7 @@ contains
         if (ikey > 0) vco%nlev_T = vco%nlev_T + 1
       end do
     end if
-    if ( vco%nlev_T == 0 .and. .not. beSilent ) then
+    if (vco%nlev_T == 0 .and. .not. beSilent) then
       write(*,*) 
       write(*,*) 'vco_setupAtmFromFile: Could not find a valid thermodynamic variable in the template file!'
     end if
@@ -340,7 +338,7 @@ contains
       nomvar_M = 'UU  '
       do jlev = 1, vgd_nlev_M
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
-        if (ikey.gt.0) vco%nlev_M = vco%nlev_M + 1
+        if (ikey > 0) vco%nlev_M = vco%nlev_M + 1
       end do
     end if
     if (vco%nlev_M == 0) then
@@ -350,7 +348,7 @@ contains
       nomvar_M = 'PP  '
       do jlev = 1, vgd_nlev_M
         ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
-        if ( ikey > 0 ) vco%nlev_M = vco%nlev_M + 1
+        if (ikey > 0) vco%nlev_M = vco%nlev_M + 1
       end do
     end if
     if (vco%nlev_M == 0 .and. .not. beSilent) then
@@ -395,9 +393,9 @@ contains
     nlevMatched = 0
     do jlev = 1, vgd_nlev_M
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_M(jlev), -1, -1, ' ', nomvar_M)
-      if ( ikey > 0 ) then
+      if (ikey > 0) then
         nlevMatched = nlevMatched + 1
-        if (nlevMatched.gt.vco%nlev_M) then
+        if (nlevMatched > vco%nlev_M) then
           call utl_abort('vco_setupAtmFromFile: Problem with consistency between vgrid descriptor and template file (momentum)')
         end if
         vco%ip1_M(nlevMatched) = vgd_ip1_M(jlev)
@@ -412,7 +410,7 @@ contains
     nlevMatched = 0
     do jlev = 1, vgd_nlev_T
       ikey = fstinf(nultemplate, ni, nj, nk, -1 ,etiket, vgd_ip1_T(jlev), -1, -1, ' ', nomvar_T)
-      if ( ikey > 0 ) then
+      if (ikey > 0) then
         nlevMatched = nlevMatched + 1
         if (nlevMatched > vco%nlev_T) then
           call utl_abort('vco_setupAtmFromFile: Problem with consistency between vgrid descriptor and template file (thermo)')
@@ -429,22 +427,22 @@ contains
     call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
     ip1_found = .false.
     do jlev = 1, vgd_nlev_T
-      if (ip1_sfc .eq. vgd_ip1_T(jlev)) then
+      if (ip1_sfc == vgd_ip1_T(jlev)) then
         ip1_found = .true.
         vco%ip1_sfc = vgd_ip1_T(jlev)
       end if
     end do
-    if (.not.ip1_found) then
+    if (.not. ip1_found) then
       write(*,*) 'vco_setupAtmFromFile: Could not find IP1=',ip1_sfc
       call utl_abort('vco_setupAtmFromFile: No surface level found in Vgrid!!!')
     else
-      if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'vco_setupAtmFromFile: Set surface level IP1=',vco%ip1_sfc
+      if (mmpi_myid == 0 .and. .not. beSilent) write(*,*) 'vco_setupAtmFromFile: Set surface level IP1=', vco%ip1_sfc
     end if
 
     ! determine IP1s of 2m and 10m levels
     call set_2m_10m_levels(vco)
 
-    vco%initialized=.true.
+    vco%initialized = .true.
 
     ierr =  fstfrm(nultemplate)
     ierr =  fclos (nultemplate)
@@ -674,8 +672,8 @@ contains
 
     write(*,*) 'vco_mpiBcast: starting'
 
-    if ( mmpi_myid > 0 ) then
-      if ( .not.associated(vco) ) then
+    if (mmpi_myid > 0) then
+      if (.not.associated(vco)) then
         allocate(vco)
       else 
         call utl_abort('vco_mpiBcast: vco must be nullified for mpi task id > 0')
@@ -693,7 +691,7 @@ contains
     call rpn_comm_bcast(vco%Vcode       , 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(vco%nlev_other, vnl_numvarmaxOther, 'MPI_INTEGER', 0, 'GRID', ierr)
     if (vco%nLev_depth > 0) then
-      if ( mmpi_myid > 0 ) then
+      if (mmpi_myid > 0) then
         allocate(vco%ip1_depth(vco%nlev_depth))
         allocate(vco%depths(vco%nlev_depth))
       end if
@@ -701,24 +699,24 @@ contains
       call rpn_comm_bcast(vco%depths    , vco%nlev_depth, 'MPI_REAL8'  , 0, 'GRID', ierr)
     end if
     if (vco%vgridPresent) then
-      if ( mmpi_myid == 0 ) then
+      if (mmpi_myid == 0) then
         vgd_nlev_M = size(vco%ip1_M)
         vgd_nlev_T = size(vco%ip1_T)
       end if
       call rpn_comm_bcast(vgd_nlev_M, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       call rpn_comm_bcast(vgd_nlev_T, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      if ( mmpi_myid > 0 ) then
+      if (mmpi_myid > 0) then
         allocate(vco%ip1_M(vgd_nlev_M))
         allocate(vco%ip1_T(vgd_nlev_T))
       end if
-      call rpn_comm_bcast(vco%ip1_M, vgd_nlev_M, 'MPI_INTEGER', 0, 'GRID', ierr)
-      call rpn_comm_bcast(vco%ip1_T, vgd_nlev_T, 'MPI_INTEGER', 0, 'GRID', ierr)
+      if (vgd_nlev_M > 0) call rpn_comm_bcast(vco%ip1_M, vgd_nlev_M, 'MPI_INTEGER', 0, 'GRID', ierr)
+      if (vgd_nlev_T > 0) call rpn_comm_bcast(vco%ip1_T, vgd_nlev_T, 'MPI_INTEGER', 0, 'GRID', ierr)
     end if
 
     ! now do bcast for vgrid object
     if (vco%vgridPresent) then
 
-      if ( mmpi_myid == 0 ) then
+      if (mmpi_myid == 0) then
         ierr = vgd_get(vco%vgrid,'VTBL',vgdtable)
         vgdtable_dim1 = size(vgdtable,1)
         vgdtable_dim2 = size(vgdtable,2)
@@ -738,7 +736,7 @@ contains
       call rpn_comm_bcast(vgdtable_dim1, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       call rpn_comm_bcast(vgdtable_dim2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       call rpn_comm_bcast(vgdtable_dim3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-      if ( mmpi_myid > 0 ) allocate(vgdtable(vgdtable_dim1, vgdtable_dim2, vgdtable_dim3)) 
+      if (mmpi_myid > 0) allocate(vgdtable(vgdtable_dim1, vgdtable_dim2, vgdtable_dim3)) 
       call rpn_comm_bcast(vgdtable, size(vgdtable), 'MPI_REAL8', 0, 'GRID', ierr)
       ! others
       call rpn_comm_bcast(vgddate, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
@@ -751,7 +749,7 @@ contains
       call rpn_comm_bcast(vgdip2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       call rpn_comm_bcast(vgdip3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
       
-      if ( mmpi_myid > 0 ) then
+      if (mmpi_myid > 0) then
         ierr = vgd_new(vco%vgrid,vgdtable)
         ierr = vgd_put(vco%vgrid,'DATE',vgddate)
         ierr = vgd_put(vco%vgrid,'ETIK',vgdetik)
@@ -881,7 +879,8 @@ contains
        write(*,*) 'vco_equal: nlev_M not equal', vco1%nlev_M, vco2%nlev_M
        return
     end if
-    if ( vco1%vgridPresent .and. vco2%vgridPresent ) then
+    if (vco1%vgridPresent .and. vco2%vgridPresent .and. &
+        vco1%nlev_T > 0 .and. vco2%nlev_T > 0) then
       equal = equal .and. all(vco1%ip1_T(:) == vco2%ip1_T(:))
       if (.not. equal) then
         write(*,*) 'vco_equal: ip1_T not equal'

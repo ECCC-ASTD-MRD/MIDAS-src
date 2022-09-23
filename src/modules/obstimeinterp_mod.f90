@@ -108,18 +108,18 @@ contains
       end if
     end do
 
-    formatspec ='(1X,A6,":"'
+    formatspec ='(1x,a6,":"'
     do stepIndex = 1,nStepObs
-      formatspec = trim(formatspec)//',1X,I7' ! this is for each time bin
+      formatspec = trim(formatspec)//',1x,i9' ! this is for each time bin
     end do
-    formatspec = trim(formatspec)//',1X,I9' ! this is for the total
+    formatspec = trim(formatspec)//',1x,i9' ! this is for the total
     formatspec = trim(formatspec)//')'
 
-    formatspec2 = '(1X,A6,":"'
+    formatspec2 = '(1x,a6,":"'
     do stepIndex = 1,nStepObs
-      formatspec2 = trim(formatspec2)//',1X,I7'
+      formatspec2 = trim(formatspec2)//',1x,i9'
     end do
-    formatspec2 = trim(formatspec2)//',1X,A9)'
+    formatspec2 = trim(formatspec2)//',1x,a9)'
 
     write(*,*) '-----------------------------------------------------------------'
     write(*,*) 'Distribution of number of headers over stepobs ON LOCAL PROCESSOR'

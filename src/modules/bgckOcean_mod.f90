@@ -31,10 +31,10 @@ module bgckOcean_mod
   use statetocolumn_mod 
   use bufr_mod
   use mathPhysConstants_mod
+  use timeCoord_mod
 
   implicit none
 
-  
   save
   private
 
@@ -42,44 +42,73 @@ module bgckOcean_mod
   public :: ocebg_bgCheckSST
  
   ! External functions
-  integer, external :: fnom, fclos  
+  integer, external :: fnom, fclos
 
-  character(len=20) :: timeInterpType_nl       ! 'NEAREST' or 'LINEAR'
-  integer           :: numObsBatches           ! number of batches for calling interp setup
-  namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches
+  ! mpi topology
+  integer           :: myLatBeg, myLatEnd
+  integer           :: myLonBeg, myLonEnd
+  integer           :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
+
+ ! namelist variables with setting default values
+  character(len=20) :: timeInterpType_nl = 'NEAREST' ! 'NEAREST' or 'LINEAR'
+  integer           :: numObsBatches     = 20        ! number of batches for calling interp setup
+  logical           :: checkWinds        = .false.   ! if .true., check the winds for the last four
+                                                     ! days to amplify the error in the zone of maximum wind speed
+  integer           :: ndaysWinds        = 4         ! number of days in the 'winds' file to detect tropical storm (TS)
+  integer           :: timeStepWinds     = 6         ! in hours, winds are available every timeStepWinds-hours
+  integer           :: windForecastLeadtime = 6      ! in hours, lead time of wind forecast in the input file
+  real(4)           :: minLatNH = 10.                ! min lat of Northern hemisphere latutude band where TS is detected
+  real(4)           :: maxLatNH = 40.                ! max lat of Northern hemisphere latutude band where TS is detected
+  real(4)           :: maxLatExceptionNH = 45.       ! max lat of Northern hemisphere latutude band
+                                                     ! allows for TS to penetrate further North in some months 
+  integer           :: nmonthsExceptionNH  = 0.      ! number of months where TS penetrates exceptionnally North
+  character(len=3)  :: monthExceptionNH(12) = '   '  ! exceptional months where TS allowed to penetrated further North 
+  real(4)           :: minLatSH = -35.               ! min lat of Southern hemisphere latutude band where TS is detected
+  real(4)           :: maxLatSH = -10.               ! max lat of Southern hemisphere latutude band where TS is detected
+  real(8)           :: smoothLenghtScale = 50000.    ! lenght scale. in m, to smooth the amplification error field
+  namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches, checkWinds, ndaysWinds, timeStepWinds, &
+                             windForecastLeadtime, minLatNH, maxLatNH, maxLatExceptionNH, nmonthsExceptionNH, &
+                             monthExceptionNH, minLatSH, maxLatSH, smoothLenghtScale
+
+  character(len=3), parameter :: months(12) = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
   contains
 
   !----------------------------------------------------------------------------------------
   ! ocebg_bgCheckSST
   !----------------------------------------------------------------------------------------
-  subroutine ocebg_bgCheckSST(obsData, columnTrlOnTrlLev, hco)
+  subroutine ocebg_bgCheckSST(obsData, dateStamp, columnTrlOnTrlLev, hco)
     !
-    !: Purpose: to compute SST data background Check  
+    ! :Purpose: to compute SST data background Check  
     !           
     
     implicit none
 
     ! Arguments:
     type(struct_obs)       , intent(inout)       :: obsData           ! obsSpaceData object
+    integer                , intent(in)          :: dateStamp         ! date stamp
     type(struct_columnData), intent(inout)       :: columnTrlOnTrlLev ! column data on trl levels
     type(struct_hco)       , intent(in), pointer :: hco               ! horizontal trl grid
 
     ! Locals:
-    type(struct_gsv)        :: stateVector   ! state vector containing std B estimation field
-    integer                 :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
-    integer                 :: numberObs, numberObsRejected
-    integer                 :: numberObsInsitu, numberObsInsituRejected, codeType  
-    real(8)                 :: OER, OmP, FGE, bgCheck
-    logical                 :: llok
-    type(struct_columnData) :: columnFGE
-    
-    write(*,*) 'ocebg_bgCheckSST: performing background check for the SST data...'
-    
-    ! Setting default namelist variable values
-    timeInterpType_nl = 'NEAREST'
-    numObsBatches = 20
+    type(struct_gsv)            :: stateVector           ! state vector containing std B estimation field
+    type(struct_gsv)            :: stateVectorAmplFactor ! state vector for error amplification field
+    real(4), pointer            :: stateVectorAmplFactor_ptr(:,:,:)
+    integer                     :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
+    integer                     :: numberObs, numberObsRejected
+    integer                     :: numberObsInsitu, numberObsInsituRejected, codeType  
+    real(8)                     :: OER, OmP, FGE, bgCheck
+    type(struct_columnData)     :: columnFGE
+    real(4), pointer            :: stateVector_ptr(:,:,:)
+    logical                     :: checkMonth, llok
+    integer                     :: lonIndex, latIndex, monthIndex, exceptMonthIndex
 
+    write(*,*) 'ocebg_bgCheckSST: performing background check for the SST data...'
+
+    ! get mpi topology
+    call mmpi_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    call mmpi_setup_latbands(hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    
     ! Read the namelist
     if (.not. utl_isNamelistPresent('namOceanBGcheck','./flnml')) then
       if (mmpi_myid == 0) then
@@ -96,18 +125,61 @@ module bgckOcean_mod
     end if
     write(*,*) 'ocebg_bgCheckSST: interpolation type: ', timeInterpType_nl
     write(*,*) 'ocebg_bgCheckSST: number obs batches: ', numObsBatches
+    write(*,*) 'ocebg_bgCheckSST: check winds to detect tropical storms (TS): ', checkWinds
 
     ! Read First Guess Error (FGE) and put it into stateVector
-    call gsv_allocate(stateVector, 1, hco, columnTrlOnTrlLev % vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVector, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
                       hInterpolateDegree_opt = 'NEAREST', &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVector, './bgstddev', 'STDDEV', 'X', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
-    
+    if (checkWinds) then
+      call utl_tmg_start(123, '--checkWindsForSST') 
+      write(*,*) 'ocebg_bgCheckSST: looking for tropical storms...'
+      write(*,*) 'ocebg_bgCheckSST: number of days with available winds in the input winds file: ', ndaysWinds 
+      write(*,*) 'ocebg_bgCheckSST: winds are provided every: ', timeStepWinds, ' hours'
+      write(*,*) 'ocebg_bgCheckSST: wind forecast lead time: ', windForecastLeadtime, ' hours'
+      do exceptMonthIndex = 1, nmonthsExceptionNH
+        checkMonth = .False.
+        loop_month: do monthIndex = 1, 12
+          if (monthExceptionNH(exceptMonthIndex) == months(monthIndex)) then
+            checkMonth = .True.
+            exit loop_month
+          end if
+        end do loop_month
+        if (.not. checkMonth) then
+          write(*,*) 'ocebg_bgCheckSST: month should be one of these: ', months(:) 
+          call utl_abort('ocebg_bgCheckSST: unknown month '//monthExceptionNH(exceptMonthIndex))
+        end if
+      end do
+      
+      ! amplification error field state vector  
+      call gsv_allocate(stateVectorAmplFactor, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
+                        hInterpolateDegree_opt = 'LINEAR', datestamp_opt = dateStamp, &
+                        mpi_local_opt = .true., varNames_opt = (/'TM'/))
+      call gsv_getField(stateVectorAmplFactor, stateVectorAmplFactor_ptr)
+      stateVectorAmplFactor_ptr(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1) = 1.0d0
+
+      call ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco)
+      
+      ! FGE state vector
+      call gsv_getField(stateVector, stateVector_ptr)
+
+      ! Apply tropical storm correction to the FGE field:
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          stateVector_ptr(lonIndex, latIndex, 1) = stateVector_ptr(lonIndex, latIndex, 1) * &
+                                                   stateVectorAmplFactor_ptr(lonIndex, latIndex, 1)
+        end do
+      end do      
+      call gsv_deallocate(stateVectorAmplFactor)
+      call utl_tmg_stop(123)
+    end if
+
     call col_setVco(columnFGE, col_getVco(columnTrlOnTrlLev))
     call col_allocate(columnFGE, col_getNumCol(columnTrlOnTrlLev))
    
-    ! Convert stateVector to column object
+    ! Convert FGE stateVector to column object
     call s2c_nl(stateVector, obsData, columnFGE, hco, timeInterpType = timeInterpType_nl, &
                 moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
 
@@ -140,13 +212,12 @@ module bgckOcean_mod
             if (obsFlag >= 2) then
               numberObsRejected = numberObsRejected + 1
 	      if (codeType /= codtyp_get_codtyp('satob')) numberObsInsituRejected = numberObsInsituRejected + 1
-	      write(*,'(a,i7,a,i7,a)')'ocebg_bgCheckSST: ********** reject: ', numberObsRejected, ', header index: ', headerIndex, &
-                                    obs_elem_c(obsData, 'STID' , headerIndex)//' data: '
-	      write(*,'(a,i5,a,4f10.4)') 'ocebg_bgCheckSST: codtype: ', codeType, &
-              ', lon/lat/obs.value/OmP: ', &
-              obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
-              obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
-              obs_bodyElem_r(obsData, obs_var, bodyIndex), OmP
+	      write(*,'(i10,a,i5,4f10.4,i5)') numberObsRejected, &
+                                              ', sensor, codtype, lon, lat, obs.value, OmP, flag: '&
+                                              //obs_elem_c(obsData, 'STID' , headerIndex)//' data: ', codeType, &
+                                              obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8,&
+                                              obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8,&
+                                              obs_bodyElem_r(obsData, obs_var, bodyIndex), OmP, obsFlag 
             end if
 	    	      
 	    ! update background check flags based on bgCheck
@@ -173,7 +244,7 @@ module bgckOcean_mod
 
     if (numberObs > 0) then
       write(*,*)' '
-      write(*,*) 'ocebg_bgCheckSST: background check of TM data is computed'
+      write(*,*) 'ocebg_bgCheckSST: background check of SST (TM) data is computed'
       write(*,*) '***************************************************************************************'
       write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST: total ', numberObsRejected, ' observations out of (ALL) ', numberObs,' rejected'
       write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST: where ', numberObsInsituRejected, ' insitu observations out of ', &
@@ -184,7 +255,7 @@ module bgckOcean_mod
     
     call gsv_deallocate(stateVector)
     call col_deallocate(columnFGE)
-    
+
   end subroutine ocebg_bgCheckSST
 
   !--------------------------------------------------------------------------
@@ -192,8 +263,8 @@ module bgckOcean_mod
   !--------------------------------------------------------------------------
   function ocebg_setFlag(obsVarno, bgCheck) result(obsFlag)
     !
-    !:Purpose: Set background-check flags according to values set in a table.
-    !          Original values in table come from ECMWF.
+    ! :Purpose: Set background-check flags according to values set in a table.
+    !           Original values in table come from ECMWF.
     !
 
     implicit none
@@ -205,7 +276,7 @@ module bgckOcean_mod
     real(8), intent(in) :: bgCheck  ! normalized background departure
 
     ! Locals:      
-    real(8), parameter :: multipleSST(3) = (/  5.d0, 25.d0, 30.d0 /)
+    real(8), parameter :: multipleSST(3) = (/5.d0, 25.d0, 30.d0/)
 
     obsFlag = 0
  
@@ -220,5 +291,116 @@ module bgckOcean_mod
     end if
 
   end function ocebg_setFlag
-  
+
+  !--------------------------------------------------------------------------
+  ! ocebg_getFGEamplification
+  !--------------------------------------------------------------------------
+  subroutine ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco)
+    !
+    ! :Purpose: Read wind speed fields for the last four days.
+    !           In the operations: 
+    !           The background error used during the background check is then
+    !           amplified in those regions by a factor that varies from 1,
+    !           where the maximum wind speed is 21m/s or less, to 12,
+    !           where the maximum wind speed is 24m/s or more.
+    !           The factor is then filtered to produce a smoothly varying
+    !           field. This amplified background error is used only to
+    !           perform the background check. 
+
+    implicit none
+
+    ! Arguments
+    type(struct_gsv), intent(inout)       :: stateVectorAmplFactor ! state vector to save amplification factor
+    integer         , intent(in)          :: dateStamp             ! date stamp
+    type(struct_hco), intent(in), pointer :: hco                   ! horizontal trl grid
+
+    ! locals
+    type(struct_gsv)          :: stateVector         ! state vector for surface winds
+    type(struct_vco), pointer :: vco_winds           ! vertical grid structure for winds
+    real(4)         , pointer :: uu_ptr4d(:,:,:,:)   ! pointer to get UU wind component
+    real(4)         , pointer :: vv_ptr4d(:,:,:,:)   ! pointer to get VV wind component
+    integer                   :: dataStampList(ndaysWinds * 24 / timeStepWinds) ! datastamp list for wind fields
+    real(4)                   :: windSpeed
+    integer                   :: hour, day, monthNumber
+    integer                   :: yyyy, ndays, timeStepIndex, ierr
+    real(8)                   :: deltaT, lat
+    integer                   :: lonIndex, latIndex, monthIndex
+    real(4)         , pointer :: stateVectorAmplFactor_ptr(:,:,:)
+    real(8)                   :: amplFactor
+
+    nullify(vco_winds)
+    
+    ! looking for the earliest valid time:
+    deltaT = - real(ndaysWinds * 24 - windForecastLeadtime)
+    call incdatr(dataStampList(1), dateStamp, deltaT)
+
+    ! scanning the datastamps up from the earliest to the last valid time
+    deltaT = real(timeStepWinds)
+    do timeStepIndex = 2, ndaysWinds * 24 / timeStepWinds
+      call incdatr(dataStampList(timeStepIndex), dataStampList(timeStepIndex - 1), deltaT)
+    end do
+
+    call vco_SetupFromFile(vco_winds,'./winds')
+    call gsv_allocate(stateVector, ndaysWinds * 24 / timeStepWinds, hco, vco_winds, &
+                      dateStampList_opt = dataStampList, dataKind_opt = 4, &
+                      varNames_opt=(/'UU','VV'/), mpi_local_opt=.true., &
+                      hInterpolateDegree_opt='LINEAR')
+      
+    write(*,*) 'ocebg_getFGEamplification: reading wind speed fields...'
+    do timeStepIndex = 1, ndaysWinds * 24 / timeStepWinds
+      call tim_dateStampToYYYYMMDDHH(dataStampList(timeStepIndex), hour, day, monthNumber, &
+                                     ndays, yyyy, verbose_opt = .False.)
+      write(*,*) 'ocebg_getFGEamplification: ', timeStepIndex, dataStampList(timeStepIndex), yyyy, monthNumber, day, hour   
+      call gio_readFromFile(stateVector, './winds', ' ', ' ', stepIndex_opt = timeStepIndex, &
+                            containsFullField_opt=.true.)
+    end do
+
+    call gsv_getField(stateVector, uu_ptr4d, 'UU')
+    call gsv_getField(stateVector, vv_ptr4d, 'VV')
+    call gsv_getField(stateVectorAmplFactor, stateVectorAmplFactor_ptr)
+
+    write(*,*) ''
+    write(*,*) 'ocebg_getFGEamplification: detecting tropical storms (TS)...'
+
+    time_loop: do timeStepIndex = 1, ndaysWinds * 24 / timeStepWinds
+
+      call tim_dateStampToYYYYMMDDHH(dataStampList(timeStepIndex), hour, day, monthNumber, &
+                                     ndays, yyyy, verbose_opt = .False.)
+      do monthIndex = 1, nmonthsExceptionNH
+        if (months(monthNumber) == monthExceptionNH(monthIndex)) then
+          maxLatNH = maxLatExceptionNH
+          write(*,*) 'ocebg_getFGEamplification: TS is allowed to penetrate up to ', maxLatNH, &
+                     ' degrees North; current month: ', months(monthNumber)
+        end if
+      end do
+
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+
+          lat = real(hco%lat2d_4(lonIndex, latIndex), 8) * MPC_DEGREES_PER_RADIAN_R8
+          if ((lat > minLatNH .and. lat < maxLatNH) .or. (lat > minLatSH .and. lat < maxLatSH)) then
+            windSpeed = sqrt(uu_ptr4d(lonIndex, latIndex, 1, timeStepIndex) * &
+                             uu_ptr4d(lonIndex, latIndex, 1, timeStepIndex) + &
+                             vv_ptr4d(lonIndex, latIndex, 1, timeStepIndex) * &
+                             vv_ptr4d(lonIndex, latIndex, 1, timeStepIndex))
+            amplFactor = max(1.0d0, min(4.0d0 * max(0.0d0,(windSpeed - 20.75d0)), 12.0d0))
+            ! stateVectorAmplFactor_ptr may already be assigned with a value > 1.0 in a previous state 
+            if(amplFactor > stateVectorAmplFactor_ptr(lonIndex, latIndex, 1)) then
+              stateVectorAmplFactor_ptr(lonIndex, latIndex, 1) = amplFactor
+            end if
+          endif
+
+        end do
+      end do
+
+    end do time_loop
+
+    call gsv_deallocate(stateVector)
+
+    call gio_writeToFile(stateVectorAmplFactor, './amplification', 'ORIG')      
+    call gsv_smoothHorizontal(stateVectorAmplFactor, smoothLenghtScale)
+    call gio_writeToFile(stateVectorAmplFactor, './amplification', 'SMOOTH')        
+
+  end subroutine ocebg_getFGEamplification
+
 end module bgckOcean_mod  

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Wind check to amplify FGE in the SST data background check (#679 and !642)
  * Added a listing output interface with configurable verbosity and intrinsic type string representations (#688 and !639)
  * Added ability to update SQLite columns if they don't previously exist (#601 and !630)
  * Added and improved new observation chemical constituent observation operator options (#18 and !636)

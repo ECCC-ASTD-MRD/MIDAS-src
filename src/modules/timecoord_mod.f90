@@ -34,7 +34,7 @@ module timeCoord_mod
   ! public procedures
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
-  public :: tim_getDateStampFromFile, tim_dateStampToDDMMYYYY
+  public :: tim_getDateStampFromFile, tim_dateStampToYYYYMMDDHH
 
   character(len=4) :: varNameForDate
   character(len=6) :: tim_referencetime
@@ -213,7 +213,7 @@ contains
       ! Check if file for any date within the analysis window (except the last) exists
       inquire(file=trim(fileName), exist=fileExists)
       if (.not.fileExists) then
-        call utl_abort('tim_getDateStampFromFile: File not found')
+        call utl_abort('tim_getDateStampFromFile: file not found '//trim(fileName))
       end if
 
       ! Determine variable to use for the date (default is P0)
@@ -461,23 +461,25 @@ contains
   !----------------------------------------------------------------------------------------
   ! tim_dateStampToDDMMYYYY
   !----------------------------------------------------------------------------------------
-  subroutine tim_dateStampToDDMMYYYY(dateStamp, dd, mm, ndays, yyyy)
+  subroutine tim_dateStampToYYYYMMDDHH(dateStamp, prnttime, dd, mm, ndays, yyyy, verbose_opt)
     !
-    !: Purpose: to get day (DD), month (MM), number of days in this month 
+    ! :Purpose: to get day (DD), month (MM), number of days in this month 
     !           and year (YYYY) from dateStamp
     !  
     
     implicit none
   
     ! arguments
-    integer, intent(in)  :: dateStamp
-    integer, intent(inout) :: dd, mm, ndays, yyyy
+    integer, intent(in)           :: dateStamp
+    integer, intent(inout)        :: prnttime, dd, mm, ndays, yyyy
+    logical, intent(in), optional :: verbose_opt
     
     ! locals
     character(len=8)            :: yyyymmdd
     character(len=3), parameter :: months(12) = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     integer                     :: ndaysM(12)    
-    integer                     :: imode, ierr, newdate, prntdate, prnttime
+    integer                     :: imode, ierr, newdate, prntdate
+    logical                     :: verbose = .True.
 
     ndaysM(:) = [   31,    28,    31,    30,    31,    30,    31,    31,    30,    31,    30,    31]
     
@@ -492,12 +494,16 @@ contains
     if (mm == 2 .and. mod(yyyy,4)==0) ndaysM(mm) = 29
     ndays = ndaysM(mm)
     
-    write(*,*) 'tim_dateStampToDDMMYYYY:  date = ', prntdate
-    write(*,*) 'tim_dateStampToDDMMYYYY:  year = ', yyyy
-    write(*,'(a,i5,a,i5,a)') 'tim_dateStampToDDMMYYYY: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)' 
-    write(*,*) 'tim_dateStampToDDMMYYYY:   day = ', dd
-    write(*,*) 'tim_dateStampToDDMMYYYY:  time = ', prnttime
+    if (present(verbose_opt)) verbose = verbose_opt
+    
+    if(verbose) then
+      write(*,*) 'tim_dateStampToYYYYMMDDHH:  date = ', prntdate
+      write(*,*) 'tim_dateStampToYYYYMMDDHH:  year = ', yyyy
+      write(*,'(a,i5,a,i5,a)') 'tim_dateStampToYYYYMMDDHH: month = ', mm, ' ( '// months(mm)//' where there are ', ndays, ' days)' 
+      write(*,*) 'tim_dateStampToYYYYMMDDHH:   day = ', dd
+      write(*,*) 'tim_dateStampToYYYYMMDDHH:  time = ', prnttime
+    end if     
   
-  end subroutine tim_dateStampToDDMMYYYY
+  end subroutine tim_dateStampToYYYYMMDDHH
 
 end module timeCoord_mod

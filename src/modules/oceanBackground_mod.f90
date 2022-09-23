@@ -123,12 +123,12 @@ module oceanBackground_mod
     real(8)         , intent(inout)       :: output(:,:)      ! interpolated SST field from climatology
   
     ! locals
-    integer          :: day, month, yyyy, ndays, nextMonth
+    integer          :: hour, day, month, yyyy, ndays, nextMonth
     type(struct_gsv) :: stateVector, stateVector_nextMonth
     real(4), pointer :: clim_ptr(:, :, :), clim_nextMonth_ptr(:, :, :)
     integer          :: lonIndex, latIndex
    
-    call tim_dateStampToDDMMYYYY(dateStamp, day, month, ndays, yyyy)
+    call tim_dateStampToYYYYMMDDHH(dateStamp, hour, day, month, ndays, yyyy)
     write(*,'(a,3i5,a,i12,a)') 'obgd_getClimatology: interpolating climatology for day/month/year (datestamp): ', &
     day, month, yyyy, '(', datestamp, ')'
 
