@@ -59,6 +59,7 @@ module HorizontalCoord_mod
     real(8)              :: dlat   ! in radians
     real(8)              :: dlon   ! in radians
     real(8)              :: maxGridSpacing ! in meter
+    real(8)              :: minGridSpacing ! in meter
     logical              :: global
     logical              :: rotated
     real(8)              :: xlat1, xlat1_yan
@@ -89,8 +90,12 @@ contains
     real(8), allocatable :: lat_8(:)
     real(8), allocatable :: lon_8(:)
 
-    real(8) :: maxDeltaLat, deltaLon, maxDeltaLon, maxGridSpacing 
+    real(8) :: maxDeltaLat, maxDeltaLon, maxGridSpacing, deltaLon, deltaLat 
+    real(8) :: minDeltaLat, minDeltaLon, minGridSpacing 
+    real(8) :: deltaLon1, deltaLon2, deltaLon3, deltaLon4
+    real(8) :: deltaLat1, deltaLat2, deltaLat3, deltaLat4
     real(8), save :: maxGridSpacingPrevious = -1.0d0
+    real(8), save :: minGridSpacingPrevious = -1.0d0
     real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4
     real(4) :: xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4
     
@@ -105,7 +110,8 @@ contains
     integer :: ig1, ig2, ig3, ig4
     integer :: ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac
     integer :: ni_yy, nj_yy,  ig1_yy, ig2_yy, ig3_yy, ig4_yy
-    integer :: latIndex, lonIndex, latIndexBeg, latIndexEnd  
+    integer :: latIndex, lonIndex, latIndexBeg, latIndexEnd
+    real(4), parameter :: absMaxLat = 85. ! abs of latitude threshold where to compute minGridSpacing in 3.2 
 
     logical :: FileExist, global, rotated, foundVarNameInFile
 
@@ -114,7 +120,7 @@ contains
     character(len=1 ) :: grtyp, grtypTicTac
     character(len=12) :: etiket
     
-    if( .not.associated(hco) ) then
+    if(.not.associated(hco)) then
       allocate(hco)
     else
       call utl_abort('hco_setupFromFile: supplied hco must be null')
@@ -133,7 +139,7 @@ contains
       ! First try to use P0
       nomvar = 'P0'
       
-      if ( .not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile)) ) then
+      if (.not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile))) then
         ! P0 not present, look for another suitable variable in the file
         
         foundVarNameInFile = .false.
@@ -141,14 +147,14 @@ contains
           nomvar = vnl_varNameList(varIndex)
 
           ! check if variable is in the file
-          if ( .not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile)) ) cycle
+          if (.not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile))) cycle
 
           foundVarNameInFile = .true.
           exit
           
         end do
 
-        if ( .not. foundVarNameInFile) call utl_abort('hco_SetupFromFile: NO variables found in the file!!!')
+        if (.not. foundVarNameInFile) call utl_abort('hco_SetupFromFile: NO variables found in the file!!!')
 
       end if
 
@@ -162,10 +168,10 @@ contains
     !
     inquire(file=trim(TemplateFile), exist=FileExist)
     
-    if ( FileExist ) then
+    if (FileExist) then
       iu_template = 0
       ier = fnom(iu_template,trim(TemplateFile),'RND+OLD+R/O',0)
-      if ( ier == 0 ) then
+      if (ier == 0) then
         write(*,*)
         write(*,*) 'hco_setupFromFile: Template File =', trim(TemplateFile)
         ier = fstouv(iu_template,'RND+OLD')
@@ -194,9 +200,9 @@ contains
     ip3    = -1
     typvar = ' '
     
-    key = fstinf( iu_template,                                & ! IN
-                  ni, nj, nk,                                 & ! OUT
-                  dateo, etiket, ip1, ip2, ip3, typvar, nomvar )! IN
+    key = fstinf(iu_template,                               & ! IN
+                 ni, nj, nk,                                & ! OUT
+                 dateo, etiket, ip1, ip2, ip3, typvar, nomvar)! IN
 
     if (key < 0) then
       write(*,*)
@@ -205,19 +211,19 @@ contains
       call utl_abort('hco_setupFromFile: unable to setup the structure')
     end if
 
-    ier = fstprm( key,                                             & ! IN
-                  dateo, deet, npas, ni, nj, nk, nbits,            & ! OUT
-                  datyp, ip1, ip2, ip3, typvar, nomvar, etiket,    & ! OUT
-                  grtyp, ig1, ig2, ig3,                            & ! OUT
-                  ig4, swa, lng, dltf, ubc, extra1, extra2, extra3 ) ! OUT
+    ier = fstprm(key,                                            & ! IN
+                 dateo, deet, npas, ni, nj, nk, nbits,           & ! OUT
+                 datyp, ip1, ip2, ip3, typvar, nomvar, etiket,   & ! OUT
+                 grtyp, ig1, ig2, ig3,                           & ! OUT
+                 ig4, swa, lng, dltf, ubc, extra1, extra2, extra3) ! OUT
 
-    if ( trim(grtyp) == 'G' .and. ig2 == 1 ) then
+    if (trim(grtyp) == 'G' .and. ig2 == 1) then
       call utl_abort('hco_setupFromFile: ERROR: due to bug in ezsint, Gaussian grid with ig2=1 no longer supported')
     end if
 
-    EZscintID  = ezqkdef( ni, nj, grtyp, ig1, ig2, ig3, ig4, iu_template )   ! IN
+    EZscintID  = ezqkdef(ni, nj, grtyp, ig1, ig2, ig3, ig4, iu_template)   ! IN
     numSubGrid = 1
-    EZscintIDsubGrids(:) = -999
+    EZscintIDsubGrids(:) = MPC_missingValue_INT
 
     allocate(lat_8(1:nj))
     allocate(lon_8(1:ni))
@@ -225,20 +231,20 @@ contains
     allocate(hco%lat2d_4(1:ni,1:nj))
     allocate(hco%lon2d_4(1:ni,1:nj))
     
-    ier = gdll( EZscintID,               & ! IN
-                hco%lat2d_4, hco%lon2d_4 ) ! OUT
+    ier = gdll(EZscintID,              & ! IN
+               hco%lat2d_4, hco%lon2d_4) ! OUT
     
-    xlat1_yan_4 = -999.9
-    xlon1_yan_4 = -999.9
-    xlat2_yan_4 = -999.9
-    xlon2_yan_4 = -999.9
+    xlat1_yan_4 = MPC_missingValue_R4
+    xlon1_yan_4 = MPC_missingValue_R4
+    xlat2_yan_4 = MPC_missingValue_R4
+    xlon2_yan_4 = MPC_missingValue_R4
 
     grtypTicTac = 'X'
 
     if (mmpi_myid == 0) write(*,*) 'hco_setupFromFile: grtyp, ni, nj = ', grtyp, ni, nj
 
     !- 2.2 Rotated lat-lon grid
-    if ( trim(grtyp) == 'Z' ) then
+    if (trim(grtyp) == 'Z') then
       
       !-  2.2.1 Read the Longitudes
       dateo  = -1
@@ -249,10 +255,10 @@ contains
       typvar = 'X'
       nomvar = '>>'
       
-      ier = utl_fstlir( lon_8,                                      & ! OUT 
-                        iu_template,                                & ! IN
-                        ni_t, nj_t, nlev_t,                         & ! OUT
-                        dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+      ier = utl_fstlir(lon_8,                                     & ! OUT 
+                       iu_template,                               & ! IN
+                       ni_t, nj_t, nlev_t,                        & ! OUT
+                       dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
 
       if (ier < 0) then
         write(*,*)
@@ -261,7 +267,7 @@ contains
       end if
       
       !  Test if the dimensions are compatible with the grid
-      if ( ni_t /= ni .or. nj_t /= 1 ) then
+      if (ni_t /= ni .or. nj_t /= 1) then
         write(*,*)
         write(*,*) 'hco_SetupFromFile: Incompatible >> grid descriptors !'
         write(*,*) 'Found     :', ni_t, nj_t
@@ -278,10 +284,10 @@ contains
       typvar = 'X'
       nomvar = '^^'
       
-      ier = utl_fstlir( lat_8,                                      & ! OUT 
-                        iu_template,                                & ! IN
-                        ni_t, nj_t, nlev_t,                         & ! OUT
-                        dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
+      ier = utl_fstlir(lat_8,                                     & ! OUT 
+                       iu_template,                               & ! IN
+                       ni_t, nj_t, nlev_t,                        & ! OUT
+                       dateo, etiket, ip1, ip2, ip3, typvar,nomvar)  ! IN
 
       if (ier < 0) then
         write(*,*)
@@ -290,7 +296,7 @@ contains
       end if
 
       !  Test if the dimensions are compatible with the grid
-      if ( ni_t /= 1 .or. nj_t /= nj ) then
+      if (ni_t /= 1 .or. nj_t /= nj) then
         write(*,*)
         write(*,*) 'hco_SetupFromFile: Incompatible ^^ grid descriptors !'
         write(*,*) 'Found     :', ni_t, nj_t
@@ -307,22 +313,22 @@ contains
       typvar = 'X'
       nomvar = '^^'
       
-      key = fstinf( iu_template,                                   & ! IN
-                    ni_t, nj_t, nk,                                & ! OUT
-                    dateo, etiket, ip1, ip2, ip3, typvar, nomvar )   ! IN
+      key = fstinf(iu_template,                                & ! IN
+                   ni_t, nj_t, nk,                             & ! OUT
+                   dateo, etiket, ip1, ip2, ip3, typvar, nomvar)   ! IN
 
-      ier = fstprm( key,                                           & ! IN
-                    dateo, deet, npas, ni_t, nj_t, nk, nbits,      & ! OUT
-                    datyp, ip1, ip2, ip3, typvar, nomvar, etiket,  & ! OUT
-                    grtypTicTac, ig1_tictac, ig2_tictac,           & ! OUT
-                    ig3_tictac, ig4_tictac, swa, lng, dltf,        & ! OUT
-                    ubc, extra1, extra2, extra3 )                    ! OUT
+      ier = fstprm(key,                                          & ! IN
+                   dateo, deet, npas, ni_t, nj_t, nk, nbits,     & ! OUT
+                   datyp, ip1, ip2, ip3, typvar, nomvar, etiket, & ! OUT
+                   grtypTicTac, ig1_tictac, ig2_tictac,          & ! OUT
+                   ig3_tictac, ig4_tictac, swa, lng, dltf,       & ! OUT
+                   ubc, extra1, extra2, extra3)                    ! OUT
 
-      call cigaxg ( grtypTicTac,                                   & ! IN
-                    xlat1_4, xlon1_4, xlat2_4, xlon2_4,            & ! OUT
-                    ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac ) ! IN
+      call cigaxg (grtypTicTac,                                  & ! IN
+                   xlat1_4, xlon1_4, xlat2_4, xlon2_4,           & ! OUT
+                   ig1_tictac, ig2_tictac, ig3_tictac, ig4_tictac) ! IN
 
-      if ( xlat1_4 == 0.0 .and. xlat2_4 == 0.0 ) then
+      if (xlat1_4 == 0.0 .and. xlat2_4 == 0.0) then
         rotated = .false.
       else
         rotated = .true.
@@ -333,11 +339,11 @@ contains
       end if
 
       !- 2.2.4 Is this a global or a LAM domain ?
-      call global_or_lam( global,     & ! OUT
-                          lon_8, ni )   ! IN
+      call global_or_lam(global,  & ! OUT
+                         lon_8, ni) ! IN
 
       !- 2.3 Gaussian Grid
-    else if ( trim(grtyp) == 'G' ) then
+    else if (trim(grtyp) == 'G') then
     
       !-  2.3.1 Find the latitudes and longitudes
       lon_8(:) = real(hco%lon2d_4(:,nj/2),8)
@@ -354,7 +360,7 @@ contains
       global = .true.
     
       !- 2.4 Universal Grid (Yin-Yang) - not fully supported: use at own risk!
-    else if ( trim(grtyp) == 'U' ) then
+    else if (trim(grtyp) == 'U') then
       
       !-  2.4.1 Read the tic-tac vector
       dateo  = -1
@@ -367,10 +373,10 @@ contains
 
       ni_tictacU = 5 + 2 * (10 + ni + nj/2)
       allocate(hco%tictacU(ni_tictacU))
-      ier = fstlir( hco%tictacU,                                 & ! OUT 
-                    iu_template,                                 & ! IN
-                    ni_t, nj_t, nlev_t,                          & ! OUT
-                    dateo, etiket, ip1, ip2, ip3, typvar, nomvar)  ! IN
+      ier = fstlir(hco%tictacU,                                & ! OUT 
+                   iu_template,                                & ! IN
+                   ni_t, nj_t, nlev_t,                         & ! OUT
+                   dateo, etiket, ip1, ip2, ip3, typvar, nomvar) ! IN
     
       if (ier < 0) then
         write(*,*)
@@ -379,7 +385,7 @@ contains
       end if
 
       !  Test if the dimensions are compatible with the grid
-      if ( ni_t /= ni_tictacU .or. nj_t /= 1 ) then
+      if (ni_t /= ni_tictacU .or. nj_t /= 1) then
         write(*,*)
         write(*,*) 'hco_SetupFromFile: Incompatible ^> grid descriptors !'
         write(*,*) 'Found     :', ni_t, nj_t
@@ -388,12 +394,12 @@ contains
       end if
 
       !-  2.4.1 Initialize latitudes and longitudes to dummy values - should not be used!
-      lon_8(:) = -999.999d0
-      lat_8(:) = -999.999d0
+      lon_8(:) = MPC_missingValue_R8
+      lat_8(:) = MPC_missingValue_R8
       
       !-  2.4.2 Yin-Yan subgrid IDs
       numSubGrid = ezget_nsubgrids(EZscintID)
-      if ( numSubGrid /= 2 ) then
+      if (numSubGrid /= 2) then
         call utl_abort('hco_setupFromFile: CONFUSED! number of sub grids must be 2')
       end if
       ier = ezget_subgridids(EZscintID, EZscintIDsubGrids)
@@ -401,17 +407,17 @@ contains
       !-  2.4.3 Determine parameters related to Yin and Yan grid rotations
       rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
       
-      ier = ezgprm( EZscintIDsubGrids(1), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy )
+      ier = ezgprm(EZscintIDsubGrids(1), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy)
       grtypTicTac = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
-      call cigaxg ( grtypTicTac,                        & ! IN
-                    xlat1_4, xlon1_4, xlat2_4, xlon2_4, & ! OUT
-                    ig1_yy, ig2_yy, ig3_yy, ig4_yy )      ! IN
+      call cigaxg (grtypTicTac,                        & ! IN
+                   xlat1_4, xlon1_4, xlat2_4, xlon2_4, & ! OUT
+                   ig1_yy, ig2_yy, ig3_yy, ig4_yy)       ! IN
       
-      ier = ezgprm( EZscintIDsubGrids(2), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy )
+      ier = ezgprm(EZscintIDsubGrids(2), grtypTicTac, ni_yy, nj_yy, ig1_yy, ig2_yy, ig3_yy, ig4_yy)
       grtypTicTac = 'E' ! needed since ezgprm returns 'Z', but grtyp for tictac should be 'E'
-      call cigaxg ( grtypTicTac,                                        & ! IN
-                    xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4, & ! OUT
-                    ig1_yy, ig2_yy, ig3_yy, ig4_yy )                      ! IN
+      call cigaxg (grtypTicTac,                                        & ! IN
+                   xlat1_yan_4, xlon1_yan_4, xlat2_yan_4, xlon2_yan_4, & ! OUT
+                   ig1_yy, ig2_yy, ig3_yy, ig4_yy)                       ! IN
       
       rotated = .true.  ! since Yin-Yan is made up of 2 grids with different rotations
       
@@ -419,7 +425,7 @@ contains
       global = .true.
       
       !- 2.5 Irregular structure
-    else if ( trim(grtyp) == 'Y' ) then
+    else if (trim(grtyp) == 'Y') then
       
       !- 2.5.1 This grid type is not rotated
       rotated = .false.
@@ -432,12 +438,12 @@ contains
       
       !- 2.5.2 Test using first row of longitudes (should work for ORCA grids)
       lon_8(:) = hco%lon2d_4(:,1)
-      call global_or_lam( global,     & ! OUT
-                          lon_8, ni )   ! IN
+      call global_or_lam(global,  & ! OUT
+                         lon_8, ni) ! IN
       
       !-  2.5.3 Initialize latitudes and longitudes to dummy values - should not be used!
-      lon_8(:) = -999.999d0
-      lat_8(:) = -999.999d0
+      lon_8(:) = MPC_missingValue_R8
+      lat_8(:) = MPC_missingValue_R8
       
     else
       write(*,*)
@@ -451,7 +457,7 @@ contains
     allocate(hco%lat(1:nj))
     allocate(hco%lon(1:ni))
     
-    if ( present(gridName_opt) ) then
+    if (present(gridName_opt)) then
       hco%gridname     = trim(gridName_opt)
     else
       hco%gridname     = 'UNDEFINED'
@@ -490,43 +496,119 @@ contains
     deallocate(lon_8)
     
     !- 3.1 Compute maxGridSpacing 
-    if ( trim(grtyp) == 'U' ) then
-      latIndexBeg = 1
+
+    latIndexBeg = 1
+    if (trim(grtyp) == 'U') then
       latIndexEnd = nj / 2
     else
-      latIndexBeg = 1
       latIndexEnd = nj
     end if
     
-    maxDeltaLat = maxval( abs(hco%lat2d_4(2:ni,(latIndexBeg+1):latIndexEnd) - &
-         hco%lat2d_4(1:(ni-1),latIndexBeg:(latIndexEnd-1))) )
+    maxDeltaLat = 0.0d0
+    do lonIndex = 1, ni - 1
+      do latIndex = latIndexBeg, latIndexEnd - 1
+
+        deltaLat1 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex    , latIndex + 1))
+        deltaLat2 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex    ))
+        deltaLat3 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex + 1))
+
+        deltaLat = max(deltaLat1, deltaLat2, deltaLat3)
+        if (deltaLat > minDeltaLat) maxDeltaLat = deltaLat
+
+      end do      
+    end do
+
     maxDeltaLon = 0.0d0
     do lonIndex = 1, ni - 1
       do latIndex = latIndexBeg, latIndexEnd - 1
-        deltaLon = abs(hco%lon2d_4(lonIndex+1,latIndex+1) - hco%lon2d_4(lonIndex,latIndex))
-        
-        if ( deltaLon > MPC_PI_R8 ) deltaLon = deltaLon - 2.0d0 * MPC_PI_R8 
-        
-        deltaLon = deltaLon * cos(hco%lat2d_4(lonIndex,latIndex))
-      
-        if ( deltaLon > maxDeltaLon ) maxDeltaLon = deltaLon
+
+        deltaLon1 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex    , latIndex + 1))
+        deltaLon2 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex    ))
+        deltaLon3 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex + 1))
+ 
+        if (deltaLon1 > MPC_PI_R8) deltaLon1 = deltaLon1 - 2.0d0 * MPC_PI_R8 
+        deltaLon1 = abs(deltaLon1 * cos(hco%lat2d_4(lonIndex,latIndex)))
+        if (deltaLon2 > MPC_PI_R8) deltaLon2 = deltaLon2 - 2.0d0 * MPC_PI_R8 
+        deltaLon2 = abs(deltaLon2 * cos(hco%lat2d_4(lonIndex,latIndex)))
+        if (deltaLon3 > MPC_PI_R8) deltaLon3 = deltaLon3 - 2.0d0 * MPC_PI_R8 
+        deltaLon3 = abs(deltaLon3 * cos(hco%lat2d_4(lonIndex,latIndex)))
+
+        deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
+        if (deltaLon > maxDeltaLon) maxDeltaLon = deltaLon
+	
       end do
     end do
 
-    maxGridSpacing = ec_ra * sqrt(2.0d0) * max(maxDeltaLon,maxDeltaLat)
+    maxGridSpacing = ec_ra * sqrt(2.0d0) * max(maxDeltaLon, maxDeltaLat)
   
-    if ( mmpi_myid == 0 .and. maxGridSpacing /= maxGridSpacingPrevious ) then
+    if (mmpi_myid == 0 .and. maxGridSpacing /= maxGridSpacingPrevious) then
       maxGridSpacingPrevious = maxGridSpacing
       write(*,*) 'hco_setupFromFile: maxDeltaLat=', maxDeltaLat * MPC_DEGREES_PER_RADIAN_R8, ' deg'
       write(*,*) 'hco_setupFromFile: maxDeltaLon=', maxDeltaLon * MPC_DEGREES_PER_RADIAN_R8, ' deg'
       write(*,*) 'hco_setupFromFile: maxGridSpacing=', maxGridSpacing, ' m'
     end if
   
-    if ( maxGridSpacing > 1.0d6 ) then
+    if (maxGridSpacing > 1.0d6) then
       call utl_abort('hco_setupFromFile: maxGridSpacing is greater than 1000 km.')
     end if
     
     hco%maxGridSpacing = maxGridSpacing
+
+    !- 3.2 Compute minGridSpacing 
+    
+    minDeltaLat = 1.0d6
+    do lonIndex = 1, ni - 1
+      do latIndex = latIndexBeg, latIndexEnd - 1
+
+        deltaLat1 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex    , latIndex + 1))
+        deltaLat2 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex    ))
+        deltaLat3 = abs(hco%lat2d_4(lonIndex, latIndex) - hco%lat2d_4(lonIndex + 1, latIndex + 1))
+
+        deltaLat = max(deltaLat1, deltaLat2, deltaLat3)
+        if (deltaLat < minDeltaLat) minDeltaLat = deltaLat
+
+      end do      
+    end do
+
+    minDeltaLon = 1.0d6
+    do lonIndex = 1, ni - 1
+      do latIndex = latIndexBeg, latIndexEnd - 1
+        
+        if(abs(hco%lat2d_4(lonIndex, latIndex)) * MPC_DEGREES_PER_RADIAN_R8 < absMaxLat) then
+
+          deltaLon1 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex    , latIndex + 1))
+          deltaLon2 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex    ))
+          deltaLon3 = abs(hco%lon2d_4(lonIndex, latIndex) - hco%lon2d_4(lonIndex + 1, latIndex + 1))
+
+          if (deltaLon1 > MPC_PI_R8) deltaLon1 = deltaLon1 - 2.0d0 * MPC_PI_R8 
+          deltaLon1 = abs(deltaLon1 * cos(hco%lat2d_4(lonIndex,latIndex)))
+          if (deltaLon2 > MPC_PI_R8) deltaLon2 = deltaLon2 - 2.0d0 * MPC_PI_R8 
+          deltaLon2 = abs(deltaLon2 * cos(hco%lat2d_4(lonIndex,latIndex)))
+          if (deltaLon3 > MPC_PI_R8) deltaLon3 = deltaLon3 - 2.0d0 * MPC_PI_R8 
+          deltaLon3 = abs(deltaLon3 * cos(hco%lat2d_4(lonIndex,latIndex)))
+
+          deltaLon = max(deltaLon1, deltaLon2, deltaLon3)
+          if (deltaLon < minDeltaLon) minDeltaLon = deltaLon
+
+        end if
+
+      end do
+    end do
+
+    minGridSpacing = ec_ra * sqrt(2.0d0) * min(minDeltaLon, minDeltaLat)
+  
+    if (mmpi_myid == 0 .and. minGridSpacing /= minGridSpacingPrevious) then
+      minGridSpacingPrevious = minGridSpacing
+      write(*,*) 'hco_setupFromFile: minDeltaLat=', minDeltaLat * MPC_DEGREES_PER_RADIAN_R8, ' deg'
+      write(*,*) 'hco_setupFromFile: minDeltaLon=', minDeltaLon * MPC_DEGREES_PER_RADIAN_R8, ' deg'
+      write(*,*) 'hco_setupFromFile: minGridSpacing=', minGridSpacing, ' m'
+    end if
+  
+    if (minGridSpacing > 1.0d6) then
+      call utl_abort('hco_setupFromFile: minGridSpacing is greater than 1000 km.')
+    end if
+    
+    hco%minGridSpacing = minGridSpacing
   
     !
     !- 4.  Close the input file
@@ -560,11 +642,11 @@ contains
     write(*,*) 'next_lon = ',next_lon
     write(*,*) 'lon(1)   = ',lon(1)
     
-    if ( next_lon - lon(1) > 360.0d0 .or. &
-         next_lon - lon(1) < 3.0*dx ) then
+    if (next_lon - lon(1) > 360.0d0 .or. &
+         next_lon - lon(1) < 3.0*dx) then
       
       global = .true.
-      if ( lon(1) == lon(ni) ) then
+      if (lon(1) == lon(ni)) then
         write(*,*)
         write(*,*) ' *** Global Grid where i = ni (repetition) '
       else  
@@ -598,8 +680,8 @@ contains
     
     write(*,*) 'hco_mpiBcast: starting'
     
-    if ( mmpi_myid > 0 ) then
-      if( .not.associated(hco) ) then
+    if (mmpi_myid > 0) then
+      if(.not.associated(hco)) then
         allocate(hco)
       else
         call utl_abort('hco_mpiBcast: hco must be nullified for mpi task id > 0')
@@ -616,7 +698,7 @@ contains
     call rpn_comm_bcast(hco%ig2, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ig3, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%ig4, 1, 'MPI_INTEGER', 0, 'GRID', ierr)
-    if ( mmpi_myid > 0 ) then
+    if (mmpi_myid > 0) then
       allocate(hco%lat(hco%nj))
       allocate(hco%lon(hco%ni))
       allocate(hco%lat2d_4(hco%ni,hco%nj))
@@ -638,16 +720,16 @@ contains
     call rpn_comm_bcast(hco%xlon1_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%xlat2_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
     call rpn_comm_bcast(hco%xlon2_yan, 1, 'MPI_REAL8', 0, 'GRID', ierr)
-    if ( hco%grtyp == 'U' ) then
-      if ( mmpi_myid > 0 ) then
+    if (hco%grtyp == 'U') then
+      if (mmpi_myid > 0) then
         allocate(hco%tictacU(5 + 2 * (10 + hco%ni + hco%nj/2)))
       end if
       call rpn_comm_bcast(hco%tictacU, size(hco%tictacU), 'MPI_REAL4', 0, 'GRID', ierr)
     end if
     
-    if ( mmpi_myid > 0 ) then
-      if ( hco%grtyp == 'G' ) then
-        hco%EZscintID  = ezqkdef( hco%ni, hco%nj, hco%grtyp, hco%ig1, hco%ig2, hco%ig3, hco%ig4, 0 )
+    if (mmpi_myid > 0) then
+      if (hco%grtyp == 'G') then
+        hco%EZscintID  = ezqkdef(hco%ni, hco%nj, hco%grtyp, hco%ig1, hco%ig2, hco%ig3, hco%ig4, 0)
       else
         ! special treatment since EZscintID not properly communicated: keep as is
         write(*,*) 'hco_mpiBcast: Warning! Grid ID for EZSCINT not communicated for grtyp = ', hco%grtyp
@@ -726,7 +808,7 @@ contains
   !--------------------------------------------------------------------------
   ! hco_deallocate
   !--------------------------------------------------------------------------
-  subroutine hco_deallocate( hco )
+  subroutine hco_deallocate(hco)
     implicit none
     type(struct_hco), pointer :: hco
 
@@ -799,7 +881,7 @@ contains
         x_a_4 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf)/sp
 
         if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
-          poids(lonIndex,latIndex) = min( 1.0d0, x_a_4 )
+          poids(lonIndex,latIndex) = min(1.0d0, x_a_4)
         end if
         if (poids(lonIndex,latIndex)*(1.0-poids(lonIndex,latIndex)) > 0.d0) then
           sp1 = sp1 + poids(lonIndex,latIndex)*area_4(lonIndex,latIndex)
@@ -817,7 +899,7 @@ contains
         x_a_4 = poids(lonIndex,latIndex)*(2.d0*acos(-1.d0) - sf1)/sp1
 
         if (poids(lonIndex,latIndex)*(1.d0-poids(lonIndex,latIndex)) > 0.d0) then
-          poids(lonIndex,latIndex) = min( 1.d0, x_a_4 )
+          poids(lonIndex,latIndex) = min(1.d0, x_a_4)
         end if
  
       end do
@@ -872,10 +954,10 @@ contains
     xc = x
     yc = y
 
-    if ( x > 0.d0 ) xc = - x
-    if ( y > 0.d0 ) yc = - y
+    if (x > 0.d0) xc = - x
+    if (y > 0.d0) yc = - y
 
-    if ( abs(xc) < tol ) then
+    if (abs(xc) < tol) then
       xi = xc
       yi = ymin
     else
@@ -884,14 +966,14 @@ contains
       s2 = ymin/(xb-xmin)
 
       x1 = s2*xmin/(s2-s1)
-      if (x1 > xb ) then
+      if (x1 > xb) then
         xi = ymin/s1
         yi = ymin
       else
         test = -1.d0
         dxs  = -xb/(np-1)
         i = 1
-        do while (test < 0.d0 )
+        do while (test < 0.d0)
           xp1 = (i-1)*dxs + xb
           xp2 =   (i)*dxs + xb
           xr1 = atan2(sin(ymin),-cos(ymin)*cos(xp1))
@@ -907,8 +989,8 @@ contains
       end if
     end if
 
-    if ( x > 0.d0 ) xi = - xi
-    if ( y > 0.d0 ) yi = - yi
+    if (x > 0.d0) xi = - xi
+    if (y > 0.d0) yi = - yi
 
   end subroutine inter_curve_boundary_yy
 
@@ -955,7 +1037,7 @@ contains
 
     if (trim(hco%grtyp) == 'U') then ! case of a Yin-Yang grid
       write(*,*) 'compute weights for Yin_Yang grid'      
-      ni = nint(hco%tictacU(sindx  ))
+      ni = nint(hco%tictacU(sindx))
       nj = nint(hco%tictacU(sindx+1))
       allocate (F_mask_8 (ni,nj))
       allocate (F_mask(ni,2*nj))
@@ -971,7 +1053,7 @@ contains
       end do
       do latIndex=1,nj
         yg(latIndex)=  deg2rad*hco%tictacU(sindx+10+ni+latIndex-1)
-        weight (:,latIndex) = cos( deg2rad* hco%tictacU(sindx+10+ni+latIndex-1))
+        weight (:,latIndex) = cos(deg2rad* hco%tictacU(sindx+10+ni+latIndex-1))
         weight (:,nj+latIndex)= weight (:,latIndex)
       end do
       call  grid_mask (F_mask_8,dx,dy,xg,yg,ni,nj)
@@ -1053,17 +1135,17 @@ contains
     t2x = (x-xb1)*(xb2-x)
     t1y = (y-ymin)*(ymax-y)
 
-    if ( t1x < 0.d0 .or. t1y < 0.d0 ) then
+    if (t1x < 0.d0 .or. t1y < 0.d0) then
       yyg_weight = 0.0
-    else if ( t2x > 0.d0 .and. t1y > 0.d0 ) then
+    else if (t2x > 0.d0 .and. t1y > 0.d0) then
       yyg_weight = 1.d0
     else
       dcell = 0.5d0*dsqrt(dx**2 + dy**2)
 
       call inter_curve_boundary_yy (x, y, xi, yi, np)
 
-      di = sqrt( xi**2 + yi**2 )
-      dp = sqrt(  x**2 +  y**2 )
+      di = sqrt(xi**2 + yi**2)
+      dp = sqrt(x**2 +  y**2)
       df = dp - di
       d  = min(max(-dcell,df),dcell)
       yyg_weight = 0.5d0*(1.d0 - (d/dcell))
@@ -1074,7 +1156,7 @@ contains
   !--------------------------------------------------------------------------
   ! hco_setupYgrid
   !--------------------------------------------------------------------------
-  subroutine hco_setupYgrid( hco, ni, nj)
+  subroutine hco_setupYgrid(hco, ni, nj)
     !
     ! :Purpose: to initialize hco structure for a Y grid
     !           
@@ -1084,13 +1166,13 @@ contains
     integer, intent(in)       :: ni, nj
 
     allocate(hco)
-    if (mmpi_myid == 0 ) then
+    if (mmpi_myid == 0) then
       hco%initialized = .true.
       hco%ni = ni
       hco%nj = nj
       hco%grtyp = 'Y'
       hco%grtypTicTac = 'L'
-      if (allocated(hco%lat2d_4) ) then
+      if (allocated(hco%lat2d_4)) then
         deallocate(hco%lat2d_4)
         deallocate(hco%lon2d_4) 
       end if

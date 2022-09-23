@@ -95,6 +95,7 @@ grep -irh 'call utl_tmg_start' |grep -v grep| sed 's/^.*tmg_start\(.*\)/\1/gI' |
 120, '--CalcStats_Corr'
 121, '--CalcStats_UVtoPsiChi'
 122, '--AnalErrOI_FindObs'
+123, '--checkWindsForSST'
 
 140, '--ADV_GSV'
 141, '----ADV_GSV_Comm'
@@ -126,3 +127,4 @@ grep -irh 'call utl_tmg_start' |grep -v grep| sed 's/^.*tmg_start\(.*\)/\1/gI' |
 173, 'low-level--czp_calcHeight_tl'
 174, 'low-level--czp_calcHeight_ad'
 175, 'low-level--utl_copyFile'
+176, 'low-level--gsv_smoothHorizontal'

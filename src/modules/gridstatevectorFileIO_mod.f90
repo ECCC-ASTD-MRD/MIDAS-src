@@ -92,7 +92,7 @@ module gridStateVectorFileIO_mod
     else
       stepIndex = statevector_out%anltime
     end if
-    if ( stepIndex > stateVector_out%numStep .or. stepIndex < 1 ) then
+    if (stepIndex > stateVector_out%numStep .or. stepIndex < 1) then
       write(*,*) 'stepIndex = ', stepIndex
       call utl_abort('gio_readFromFile: invalid value for stepIndex')
     end if
@@ -117,12 +117,12 @@ module gridStateVectorFileIO_mod
     end if
 
     ! set up vertical and horizontal coordinate for input file
-    if ( present(vcoFileIn_opt)) then
+    if (present(vcoFileIn_opt)) then
       vco_file => vcoFileIn_opt
       write(*,*)
       write(*,*) 'gio_readFromFile: vertical levels defined in user-supplied vco object will be read'
     else
-      call vco_setupFromFile(vco_file,trim(fileName),beSilent_opt=.true.)
+      call vco_setupFromFile(vco_file,trim(fileName), beSilent_opt=.true.)
       write(*,*)
       write(*,*) 'gio_readFromFile: all the vertical levels will be read from ', trim(fileName) 
     end if
@@ -132,13 +132,13 @@ module gridStateVectorFileIO_mod
     do varIndex = 1, vnl_numvarmax
       varName = vnl_varNameList(varIndex)
 
-      if ( .not. gsv_varExist(statevector_out,varName) ) cycle
+      if (.not. gsv_varExist(statevector_out,varName)) cycle
 
       ! make sure variable is in the file
-      if ( .not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName)) ) cycle
+      if (.not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName))) cycle
 
       ! adopt a variable on the full/dynamic LAM grid
-      if ( .not. statevector_out%hco%global .and. (trim(varName) == 'TM' .or. trim(varName) == 'MG')) cycle
+      if (.not. statevector_out%hco%global .and. (trim(varName) == 'TM' .or. trim(varName) == 'MG')) cycle
 
       foundVarNameInFile = .true.
 
@@ -147,25 +147,25 @@ module gridStateVectorFileIO_mod
     end do
 
     ! special case when only TM (Surface Temperature) is in the file:
-    if ( .not. foundVarNameInFile ) then
+    if (.not. foundVarNameInFile) then
       varname = 'TM'
-      if ( gsv_varExist( statevector_out, varname ) .and. &
-           utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+      if (gsv_varExist( statevector_out, varname) .and. &
+          utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
         foundVarNameInFile = .true.
     end if   
 
     ! to be safe for situations where, e.g. someone wants to only read MG from a file
-    if ( .not. foundVarNameInFile ) then
+    if (.not. foundVarNameInFile) then
       varname = 'P0'
-      if ( utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+      if (utl_varNamePresentInFile( varname, fileName_opt = trim( fileName))) &
         foundVarNameInFile = .true.
     end if   
 
-    if ( .not. foundVarNameInFile) call utl_abort('gio_readFromFile: NO variables found in the file!!!')
+    if (.not. foundVarNameInFile) call utl_abort('gio_readFromFile: NO variables found in the file!!!')
 
     write(*,*) 'gio_readFromFile: defining hco by varname= ', varName
 
-    call hco_setupFromFile( hco_file, trim(fileName), ' ', gridName_opt='FILEGRID', varName_opt = varName )
+    call hco_setupFromFile(hco_file, trim(fileName), ' ', gridName_opt='FILEGRID', varName_opt = varName)
 
     ! test if horizontal and/or vertical interpolation needed for statevector grid
     doVertInterp = .not.vco_equal(vco_file,statevector_out%vco)
@@ -173,15 +173,15 @@ module gridStateVectorFileIO_mod
     write(*,*) 'gio_readFromFile: doVertInterp = ', doVertInterp, ', doHorizInterp = ', doHorizInterp
 
     ! call appropriate subroutine to do actual work
-    if ( (doVertInterp .or. doHorizInterp) .and. statevector_out%mpi_distribution=='Tiles' ) then
+    if ((doVertInterp .or. doHorizInterp) .and. statevector_out%mpi_distribution=='Tiles') then
       call readFromFileAndInterpToTiles(statevector_out, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField, PsfcReference_opt)
-    else if ( (doVertInterp .or. doHorizInterp) .and. .not.stateVector_out%mpi_local ) then
+    else if ((doVertInterp .or. doHorizInterp) .and. .not.stateVector_out%mpi_local) then
       call readFromFileAndInterp1Proc(statevector_out, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField)
-    else if ( .not.(doVertInterp .or. doHorizInterp) .and. stateVector_out%mpi_local ) then
+    else if (.not.(doVertInterp .or. doHorizInterp) .and. stateVector_out%mpi_local) then
       call readFromFileAndTransposeToTiles(statevector_out, fileName,  &
              etiket_in, typvar_in, stepIndex, unitConversion,  &
              readHeightSfc, containsFullField)
@@ -629,7 +629,7 @@ module gridStateVectorFileIO_mod
       ignoreDate = .false.
     end if
 
-    if ( .not. associated( statevector%dateStampList )) then
+    if (.not. associated(statevector%dateStampList)) then
       call utl_abort('gio_readFile: dateStampList of statevector is not associated with a target!')
     else
       dateStampList(:) = statevector%dateStampList(:)
@@ -644,19 +644,19 @@ module gridStateVectorFileIO_mod
     write(*,*) 'gio_readFile: file name = ',trim(fileName)
     ierr = fnom(nulfile,trim(fileName),'RND+OLD+R/O',0)
 
-    if ( ierr >= 0 ) then
+    if (ierr >= 0) then
       ierr  =  fstouv(nulfile,'RND+OLD')
     else
       call utl_abort('gio_readFile: problem opening input file')
     end if
 
-    if (nulfile == 0 ) then
+    if (nulfile == 0) then
       call utl_abort('gio_readFile: unit number for input file not valid')
     end if
 
     ! Read surface height if requested
-    if ( present(readHeightSfc_opt) ) then
-      if ( readHeightSfc_opt .and. gsv_isAssocHeightSfc(statevector) ) then
+    if (present(readHeightSfc_opt)) then
+      if (readHeightSfc_opt .and. gsv_isAssocHeightSfc(statevector)) then
         write(*,*) 'gio_readFile: reading the surface height'
         varName = 'GZ'
         ip1 = statevector%vco%ip1_sfc
@@ -665,21 +665,21 @@ module gridStateVectorFileIO_mod
                       -1, etiket_in, &
                       -1, -1, -1, typvar_var, varName)
 
-        if ( ikey < 0 ) then
-          if ( trim(typvar_in) /= "" ) then
+        if (ikey < 0) then
+          if (trim(typvar_in) /= "") then
             typvar_var(2:2) = '@'
             ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
                  -1, etiket_in, &
                  -1, -1, -1, typvar_var, varName)
           end if
-          if ( ikey < 0 ) then
-            write(*,*) 'gio_readFile: etiket_in = ',etiket_in
-            write(*,*) 'gio_readFile: typvar_in = ',typvar_in
+          if (ikey < 0) then
+            write(*,*) 'gio_readFile: etiket_in = ', etiket_in
+            write(*,*) 'gio_readFile: typvar_in = ', typvar_in
             call utl_abort('gio_readFile: Problem with reading surface height from file')
           end if
         end if
 
-        if ( ni_file /= statevector%hco%ni .or. nj_file /= statevector%hco%nj ) then
+        if (ni_file /= statevector%hco%ni .or. nj_file /= statevector%hco%nj) then
           write(*,*) 'ni, nj in file        = ', ni_file, nj_file
           write(*,*) 'ni, nj in statevector = ', statevector%hco%ni, statevector%hco%nj
           call utl_abort('gio_readFile: Dimensions of surface height not consistent')
@@ -687,13 +687,13 @@ module gridStateVectorFileIO_mod
 
         allocate(gd2d_file_r4(ni_file,nj_file))
         gd2d_file_r4(:,:) = 0.0d0
-        ierr = fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
+        ierr = fstlir(gd2d_file_r4(:,:), nulfile, ni_file, nj_file, nk_file,  &
                       -1,etiket_in,ip1,-1,-1,  &
                       typvar_var,varName)
-        if ( ierr < 0 ) then
-          write(*,*) 'ip1 = ',ip1
-          write(*,*) 'etiket_in = ',etiket_in
-          write(*,*) 'typvar_var = ',typvar_var
+        if (ierr < 0) then
+          write(*,*) 'ip1 = ', ip1
+          write(*,*) 'etiket_in = ', etiket_in
+          write(*,*) 'typvar_var = ', typvar_var
           call utl_abort('gio_readFile: Problem with reading surface height from file')
         end if
         heightSfc_ptr => gsv_getHeightSfc(statevector)
@@ -727,19 +727,19 @@ module gridStateVectorFileIO_mod
         ! special case when only TM (Surface Temperature) is in the file:
         if ( .not. foundVarNameInFile ) then
           varname = 'TM'
-          if ( gsv_varExist( statevector, varname ) .and. &
-               utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+          if (gsv_varExist( statevector, varname ) .and. &
+              utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
             foundVarNameInFile = .true.
         end if   
 
         ! to be safe for situations where, e.g. someone wants to only read MG from a file
-        if ( .not. foundVarNameInFile ) then
+        if (.not. foundVarNameInFile) then
           varname = 'P0'
-          if ( utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+          if (utl_varNamePresentInFile( varname, fileName_opt = trim( fileName))) &
             foundVarNameInFile = .true.
         end if
 
-        if ( .not. foundVarNameInFile) call utl_abort('gio_readFile: NO variable is in the file')
+        if (.not. foundVarNameInFile) call utl_abort('gio_readFile: NO variable is in the file')
 
         call hco_setupFromFile(hco_file, filename, ' ', 'INPUTFILE', varName_opt=varName)
 
@@ -751,10 +751,10 @@ module gridStateVectorFileIO_mod
         if (interpToPhysicsGrid) then
           var_loop: do varIndex = 1, vnl_numvarmax
             varName = vnl_varNameList(varIndex)
-            if ( .not. gsv_varExist(statevector,varName)) cycle var_loop
-            if ( .not. vnl_isPhysicsVar(varName) ) cycle var_loop
-            if ( utl_varNamePresentInFile(varName, fileName_opt=filename) .and. &
-               .not. associated(statevector%hco_physics) ) then
+            if (.not. gsv_varExist(statevector,varName)) cycle var_loop
+            if (.not. vnl_isPhysicsVar(varName)) cycle var_loop
+            if (utl_varNamePresentInFile(varName, fileName_opt=filename) .and. &
+               .not. associated(statevector%hco_physics)) then
               write(*,*) 'gio_readFile: set up physics grid using the variable:', varName
               call hco_SetupFromFile(statevector%hco_physics, filename, ' ', &
                                      'INPUTFILE', varName_opt=varName)
@@ -822,26 +822,26 @@ module gridStateVectorFileIO_mod
                       datestamplist(stepIndex), etiket_in, &
                       -1, -1, -1, typvar_var, varNameToRead)
 
-        if ( ikey < 0 ) then
-          if ( trim(typvar_in) /= "" ) then
+        if (ikey < 0) then
+          if (trim(typvar_in) /= '') then
             typvar_var(2:2) = '@'
-            ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
+            ikey = fstinf(nulfile, ni_var, nj_var, nk_var, &
                           datestamplist(stepIndex), etiket_in, &
                           -1, -1, -1, typvar_var, varNameToRead)
           end if
           if (ikey < 0) then
             write(*,*) 'gio_readFile: looking for datestamp = ', datestamplist(stepIndex)
-            write(*,*) 'gio_readFile: etiket_in = ',etiket_in
-            write(*,*) 'gio_readFile: typvar_in = ',typvar_in
+            write(*,*) 'gio_readFile: etiket_in = ', etiket_in
+            write(*,*) 'gio_readFile: typvar_in = ', typvar_in
             call utl_abort('gio_readFile: cannot find field ' // trim(varNameToRead) // ' in file ' // trim(fileName))
           end if
         end if
 
-        ierr = fstprm( ikey,                                                               & ! IN
-                       dateo_var, deet_var, npas_var, ni_var, nj_var, nk_var, nbits_var,   & ! OUT
-                       datyp_var, ip1_var, ip2_var, ip3_var, typvar_var, nomvar_var,       & ! OUT
-                       etiket_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, swa_var, & ! OUT
-                       lng_var, dltf_var, ubc_var, extra1_var, extra2_var, extra3_var )      ! OUT
+        ierr = fstprm(ikey,                                                               & ! IN
+                      dateo_var, deet_var, npas_var, ni_var, nj_var, nk_var, nbits_var,   & ! OUT
+                      datyp_var, ip1_var, ip2_var, ip3_var, typvar_var, nomvar_var,       & ! OUT
+                      etiket_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, swa_var, & ! OUT
+                      lng_var, dltf_var, ubc_var, extra1_var, extra2_var, extra3_var )      ! OUT
         statevector%deet                      = deet_var
         statevector%ip2List(stepIndex)        = ip2_var
         statevector%npasList(stepIndex)       = npas_var
@@ -853,7 +853,7 @@ module gridStateVectorFileIO_mod
           call utl_abort('gio_readFile: read a mask file by mistake - need to modify file or fix the code')
         end if
 
-        if ( ni_var == hco_file%ni .and. nj_var == hco_file%nj ) then
+        if (ni_var == hco_file%ni .and. nj_var == hco_file%nj) then
           ierr = fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
                         datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
                         typvar_var,varNameToRead)
@@ -862,10 +862,10 @@ module gridStateVectorFileIO_mod
           write(*,*)
           write(*,*) 'gio_readFile: variable on a different horizontal grid = ',trim(varNameToRead)
           write(*,*) ni_var, hco_file%ni, nj_var, hco_file%nj
-          if ( interpToPhysicsGrid ) then
-            if ( associated(statevector%hco_physics) ) then
-              if ( ni_var == statevector%hco_physics%ni .and. &
-                   nj_var == statevector%hco_physics%nj ) then
+          if (interpToPhysicsGrid) then
+            if (associated(statevector%hco_physics)) then
+              if (ni_var == statevector%hco_physics%ni .and. &
+                  nj_var == statevector%hco_physics%nj) then
                 write(*,*) 'gio_readFile: this variable on same grid as other physics variables'
                 statevector%onPhysicsGrid(vnl_varListIndex(varName)) = .true.
               else
@@ -880,7 +880,7 @@ module gridStateVectorFileIO_mod
             call utl_abort('gio_readFile: This is not allowed in global mode!')
           end if
 
-          EZscintID_var  = ezqkdef( ni_var, nj_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, nulfile ) ! IN
+          EZscintID_var  = ezqkdef(ni_var, nj_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, nulfile) ! IN
 
           allocate(gd2d_var_r4(ni_var,nj_var))
           gd2d_var_r4(:,:) = 0.0
@@ -916,15 +916,15 @@ module gridStateVectorFileIO_mod
           end select
         endif
 
-        if (ierr.lt.0)then
-          write(*,*) varNameToRead,ip1,datestamplist(stepIndex)
+        if (ierr < 0)then
+          write(*,*) varNameToRead, ip1, datestamplist(stepIndex)
           call utl_abort('gio_readFile: Problem with reading file')
         end if
 
         ! When mpi distribution could put UU on a different mpi task than VV
         ! or only one wind component present in statevector
         ! then we re-read the corresponding UV component and store it
-        if ( statevector%extraUVallocated ) then
+        if (statevector%extraUVallocated) then
           if (varName == 'UU') then
             ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
                           datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &

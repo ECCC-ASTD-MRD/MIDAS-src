@@ -48,12 +48,30 @@
    sqlExtraHeader=' id_stn in ("METO-A","METO-B","METO-C","NOAA19","N20","NPP","AMSR2") '
 / 
  &namSSTbiasEstimate
-   numberSensors = 5
+   numberSensors = 7
    sensorList(1)='AMSR2'
    sensorList(2)='METO-B'
    sensorList(3)='METO-A'
    sensorList(4)='NOAA19'
    sensorList(5)='NPP'
+   sensorList(6)='N20'
+   sensorList(7)='METO-C'
+   
+/
+ &namOceanBGcheck
+   checkWinds=.true.
+   ndaysWinds=4
+   timeStepWinds=6
+   windForecastLeadtime=6
+   minLatNH=10.
+   maxLatNH=40.
+   maxLatExceptionNH=45.
+   nmonthsExceptionNH=2
+   monthExceptionNH(1)='Aug'
+   monthExceptionNH(2)='Sep'
+   minLatSH=-35.
+   maxLatSH=-10.
+   smoothLenghtScale=50000.
 /
  &namSQLUpdate
   numberUpdateItems=3

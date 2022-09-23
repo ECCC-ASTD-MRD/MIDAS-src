@@ -226,7 +226,7 @@ program midas_obsSelection
   end if
 
   ! Do the ocean data background check
-  if (obs_famExist(obsSpaceData, 'TM')) call ocebg_bgCheckSST(obsSpaceData, columnTrlOnTrlLev, hco_trl)
+  if (obs_famExist(obsSpaceData, 'TM')) call ocebg_bgCheckSST(obsSpaceData, dateStamp, columnTrlOnTrlLev, hco_trl)
 
   if (doThinning) then
 
