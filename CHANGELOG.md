@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed bug in horizontal interpolation of stddev in `bmatrixchem_mod` (#696 and !643)
  * Fixed outputting of analysis members in observation space (#693 and !638)
  * Impose lower and upper limits on cloud variables (#674 and !622)
  * Fixed code documentation links (#681 and !627)
