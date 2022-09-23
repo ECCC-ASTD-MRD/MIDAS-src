@@ -5385,7 +5385,7 @@ module gridStateVector_mod
 
     logical :: maskNegatives, binIntegerTest, binRealTest
     
-    call utl_tmg_start(176, 'low-level--gsv_smoothHorizontal')
+    call utl_tmg_start(169, 'low-level--gsv_smoothHorizontal')
 
     if (horizontalScale <= 0.0d0) then
       call msg('gsv_smoothHorizontal', 'specified scale <= 0, returning')
@@ -5536,7 +5536,7 @@ module gridStateVector_mod
       call gsv_deallocate(statevector_varsLevs)
     end if
     
-    call utl_tmg_stop(176)
+    call utl_tmg_stop(169)
 
   end subroutine gsv_smoothHorizontal
 
