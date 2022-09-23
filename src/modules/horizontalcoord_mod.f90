@@ -26,8 +26,11 @@ module HorizontalCoord_mod
   use utilities_mod
   use varNameList_mod
   use physicsFunctions_mod
+  
   implicit none
+  
   save
+  
   private
 
   ! Public derived type

@@ -25,7 +25,9 @@ module verticalCoord_mod
   use Vgrid_Descriptors
   use varNameList_mod
   use utilities_mod
+  
   implicit none
+  
   private
 
   ! public derived type

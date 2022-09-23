@@ -19,7 +19,7 @@ module bgckOcean_mod
   !
   ! :Purpose: to perform ocean data background Check
   !
-  use mpi_mod
+  use midasMpi_mod
   use utilities_mod
   use obsSpaceData_mod
   use columnData_mod
@@ -32,7 +32,6 @@ module bgckOcean_mod
   use bufr_mod
   use mathPhysConstants_mod
   use timeCoord_mod
-  use mpivar_mod
 
   implicit none
 
