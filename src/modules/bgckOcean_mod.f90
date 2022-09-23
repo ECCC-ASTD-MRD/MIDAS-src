@@ -43,7 +43,7 @@ module bgckOcean_mod
   public :: ocebg_bgCheckSST
  
   ! External functions
-  integer, external :: fnom, fclos, ezwdint
+  integer, external :: fnom, fclos
 
   ! mpi topology
   integer           :: myLatBeg, myLatEnd
