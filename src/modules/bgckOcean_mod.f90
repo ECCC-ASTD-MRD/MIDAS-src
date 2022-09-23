@@ -35,7 +35,6 @@ module bgckOcean_mod
 
   implicit none
 
-  
   save
   private
 
@@ -71,6 +70,8 @@ module bgckOcean_mod
                              windForecastLeadtime, minLatNH, maxLatNH, maxLatExceptionNH, nmonthsExceptionNH, &
                              monthExceptionNH, minLatSH, maxLatSH, smoothLenghtScale
 
+  character(len=3), parameter :: months(12) = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
   contains
 
   !----------------------------------------------------------------------------------------
@@ -101,13 +102,12 @@ module bgckOcean_mod
     real(4), pointer            :: stateVector_ptr(:,:,:)
     logical                     :: checkMonth, llok
     integer                     :: lonIndex, latIndex, monthIndex, exceptMonthIndex
-    character(len=3), parameter :: months(12) = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
     write(*,*) 'ocebg_bgCheckSST: performing background check for the SST data...'
 
     ! get mpi topology
-    call mpivar_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
-    call mpivar_setup_latbands(hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mmpi_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    call mmpi_setup_latbands(hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
     
     ! Read the namelist
     if (.not. utl_isNamelistPresent('namOceanBGcheck','./flnml')) then
@@ -244,7 +244,7 @@ module bgckOcean_mod
 
     if (numberObs > 0) then
       write(*,*)' '
-      write(*,*) 'ocebg_bgCheckSST: background check of TM data is computed'
+      write(*,*) 'ocebg_bgCheckSST: background check of SST (TM) data is computed'
       write(*,*) '***************************************************************************************'
       write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST: total ', numberObsRejected, ' observations out of (ALL) ', numberObs,' rejected'
       write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST: where ', numberObsInsituRejected, ' insitu observations out of ', &
@@ -293,7 +293,7 @@ module bgckOcean_mod
   end function ocebg_setFlag
 
   !--------------------------------------------------------------------------
-  ! ocebg_setFlag
+  ! ocebg_getFGEamplification
   !--------------------------------------------------------------------------
   subroutine ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco)
     !
