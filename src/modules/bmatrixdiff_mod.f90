@@ -27,6 +27,7 @@ MODULE BmatrixDiff_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use varNameList_mod
+  use physicsFunctions_mod
   use utilities_mod
   use diffusion_mod
   implicit none
@@ -92,17 +93,19 @@ CONTAINS
     character(len=15)         :: bdiff_mode
     type(struct_vco), pointer :: vco_anl
     integer                   :: nulnam, ierr, fnom, fclos
-    integer                   :: variableIndex
+    integer                   :: variableIndex, latIndex, latIndexIgnore
+    real(8)                   :: maxDistance
+    real(8), allocatable      :: distance(:)
     ! namelist variables
     real    :: corr_len( maxNumVars )  ! Horizontal correlation length scale (km)
     real    :: stab( maxNumVars )      ! Stability criteria (definitely < 0.5)
     integer :: nsamp(maxNumVars)       ! Number of samples in the estimation of the normalization factors by randomization.
-    integer :: latIndexIgnore          ! Number of latitude points near each numerical pole to be ignored
+    real(8) :: latIgnoreFraction       ! Relative zonal grid spacing limit where lats near each numerical pole are ignored
     logical :: useImplicit(maxNumVars) ! Indicate to use the implicit formulation of the diffusion operator (.true.) or
                                        ! the explicit version (.false.).
     character(len=*), parameter :: myName = 'bdiff_setup'
     
-    NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, useImplicit, scaleFactor, stddevMode, homogeneous_std, latIndexIgnore
+    NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, useImplicit, scaleFactor, stddevMode, homogeneous_std, latIgnoreFraction
 
     call utl_tmg_start(65,'----B_DIFF_Setup')
     if(mmpi_myid == 0) write(*,*) myName//': starting'
@@ -116,7 +119,7 @@ CONTAINS
     scaleFactor(:) = 0.0d0
     stddevMode  = 'GD2D'
     homogeneous_std(:) = -1.0d0
-    latIndexIgnore = 0
+    latIgnoreFraction = 1.0d6 ! large value so that nothing is ignored by default
 
     if ( .not. utl_isNamelistPresent('NAMBDIFF','./flnml') ) then
       if ( mmpi_myid == 0 ) then
@@ -221,6 +224,34 @@ CONTAINS
 
     ni_l = hco_in%ni
     nj_l = hco_in%nj
+
+    ! Compute latIndexIgnore from latIgnoreFraction
+    if (latIgnoreFraction < 1.0) then
+      allocate(distance(nj_l))
+      do latIndex = 1, nj_l
+        distance(latIndex) = &
+             phf_calcDistance(real(hco_in%lat2d_4(ni_l/2,latIndex),8), real(hco_in%lon2d_4((ni_l/2)+1,latIndex),8), &
+                              real(hco_in%lat2d_4(ni_l/2,latIndex),8), real(hco_in%lon2d_4((ni_l/2)  ,latIndex),8))
+      end do
+      maxDistance = maxval(distance(:))
+      if (mmpi_myid==0) write(*,*) myName//': maxDistance = ', maxDistance
+      latIndexIgnore = 0
+      latLoop: do latIndex = 1, nj_l
+        if (distance(latIndex)/maxDistance > latIgnoreFraction) then
+          if (mmpi_myid==0) then
+            write(*,*) '   latIndex-1, distance, fraction = ', latIndex-1, distance(latIndex-1), distance(latIndex-1)/maxDistance 
+            write(*,*) '***latIndex  , distance, fraction = ', latIndex  , distance(latIndex  ), distance(latIndex  )/maxDistance 
+            write(*,*) '   latIndex+1, distance, fraction = ', latIndex+1, distance(latIndex+1), distance(latIndex+1)/maxDistance
+          end if
+          latIndexIgnore = latIndex
+          exit latLoop
+        end if
+      end do latLoop
+      deallocate(distance)
+    else
+      latIndexIgnore = 0
+    end if
+    if (mmpi_myid==0) write(*,*) myName//': latIndexIgnore = ', latIndexIgnore
 
     allocate( diffID( numvar2d ) )
     do variableIndex = 1, numvar2d

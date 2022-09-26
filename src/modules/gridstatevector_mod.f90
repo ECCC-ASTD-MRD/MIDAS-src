@@ -683,8 +683,6 @@ module gridStateVector_mod
 
     call utl_tmg_start(168, 'low-level--gsv_allocate')
 
-    call utl_tmg_start(168, 'low-level--gsv_allocate')
-
     if (.not. initialized) then
       call msg('gsv_allocate','gsv_setup must be called first to be able to use this module. Call it now')
       call gsv_setup

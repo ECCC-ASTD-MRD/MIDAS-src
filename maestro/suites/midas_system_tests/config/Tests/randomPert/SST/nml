@@ -17,7 +17,7 @@
   stddevMode = 'HOMO'
   useImplicit = 200*.false.
   homogeneous_std = 200*0.25
-  latIndexIgnore = 250 
+  latIgnoreFraction = 0.422 
 /
  &NAMENKF
    NENS=10
