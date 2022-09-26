@@ -809,7 +809,7 @@ module gridStateVectorFileIO_mod
           ip1 = vco_ip1_other(levIndex)
         else if (varLevel == 'DP') then
           ip1 = vco_file%ip1_depth(levIndex)
-        else if (varLevel == 'SFDP') then
+        else if (varLevel == 'SSDP') then
           ip1 = -1
         else
           write(*,*) 'varLevel =', varLevel
@@ -891,8 +891,8 @@ module gridStateVectorFileIO_mod
                         typvar_in,varNameToRead)
 
           ierr = ezdefset(hco_file%EZscintID,EZscintID_var)
-          ierr = int_sint( gd2d_file_r4, gd2d_var_r4, &
-                           interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+          ierr = int_hInterpScalar( gd2d_file_r4, gd2d_var_r4, &
+                                    interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
 
           ! read the corresponding mask if it exists
           if (typvar_var(2:2) == '@') then
@@ -1552,7 +1552,7 @@ module gridStateVectorFileIO_mod
               ip1 = vco_ip1_other(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'DP') then
               ip1 = statevector%vco%ip1_depth(levIndex)
-            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFDP') then
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SSDP') then
               ip1 = statevector%vco%ip1_seaLevel
             else
               varLevel = vnl_varLevelFromVarname(vnl_varNameList(varIndex))
@@ -1625,8 +1625,8 @@ module gridStateVectorFileIO_mod
               allocate(work2dFile_r4(statevector%hco_physics%ni,statevector%hco_physics%nj))
               work2dFile_r4(:,:) = 0.0
               ierr = ezdefset( statevector%hco_physics%EZscintID, statevector%hco%EZscintID )
-              ierr = int_sint( work2dFile_r4, work2d_r4, &
-                               interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+              ierr = int_hInterpScalar( work2dFile_r4, work2d_r4, &
+                                        interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
 
               !- Writing to file
               ierr = fstecr(work2dFile_r4, work_r4, npak, nulfile, dateo, deet, npas, &

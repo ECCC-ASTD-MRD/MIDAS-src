@@ -39,22 +39,22 @@ module interpolation_mod
   public :: int_vInterp_gsv, int_vInterp_gsv_r4
   public :: int_tInterp_gsv
   public :: int_vInterp_col
-  public :: int_sint, int_ezgdef, int_cxgaig
+  public :: int_hInterpScalar, int_ezgdef, int_cxgaig
 
   ! module interfaces
   ! -----------------
 
-  interface int_sint
-    module procedure int_sint_gsv
-    module procedure int_sint_r4_2d
-    module procedure int_sint_r8_2d
-  end interface int_sint
+  interface int_hInterpScalar
+    module procedure int_hInterpScalar_gsv
+    module procedure int_hInterpScalar_r4_2d
+    module procedure int_hInterpScalar_r8_2d
+  end interface int_hInterpScalar
 
-  interface int_uvint
-    module procedure int_uvint_gsv
-    module procedure int_uvint_r4_2d
-    module procedure int_uvint_r8_2d
-  end interface int_uvint
+  interface int_hInterpUV
+    module procedure int_hInterpUV_gsv
+    module procedure int_hInterpUV_r4_2d
+    module procedure int_hInterpUV_r8_2d
+  end interface int_hInterpUV
 
   ! Namelist variables
   ! ------------------
@@ -223,7 +223,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),       intent(in)    :: statevector_in   ! statevector that will contain the horizontally interpolated fields
+    type(struct_gsv),       intent(inout) :: statevector_in   ! statevector that will contain the horizontally interpolated fields
     type(struct_gsv),       intent(inout) :: statevector_out  ! Reference statevector providing the horizontal structure
 
     ! Locals:
@@ -270,14 +270,16 @@ contains
           if ( trim(varName) == 'UU' ) then
             ! interpolate both UV components and keep both UU and VV
             do levIndex = 1, nlev
-              ierr = int_uvint( statevector_out, statevector_in, 'BOTH', levIndex, stepIndex, &
-                                interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+              ierr = int_hInterpUV( statevector_out, statevector_in, 'BOTH', levIndex, stepIndex, &
+                                    interpDegree=trim(interpolationDegree), &
+                                    extrapDegree_opt=trim(extrapolationDegree) )
             end do
           else
             ! interpolate scalar variable
             do levIndex = 1, nlev
-              ierr = int_sint( statevector_out, statevector_in, varName, levIndex, stepIndex, &
-                               interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+              ierr = int_hInterpScalar( statevector_out, statevector_in, varName, levIndex, stepIndex, &
+                                        interpDegree=trim(interpolationDegree), &
+                                        extrapDegree_opt=trim(extrapolationDegree) )
             end do
           end if
         end do var_loop
@@ -302,16 +304,19 @@ contains
 
           if ( trim(varName) == 'UU' ) then
             ! interpolate both UV components and keep UU in main vector
-            ierr = int_uvint( statevector_out, statevector_in, 'UU', kIndex, stepIndex, &
-                              interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+            ierr = int_hInterpUV( statevector_out, statevector_in, 'UU', kIndex, stepIndex, &
+                                  interpDegree=trim(interpolationDegree), &
+                                  extrapDegree_opt=trim(extrapolationDegree) )
           else if ( trim(varName) == 'VV' ) then
             ! interpolate both UV components and keep VV in main vector
-            ierr = int_uvint( statevector_out, statevector_in, 'VV', kIndex, stepIndex, &
-                              interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+            ierr = int_hInterpUV( statevector_out, statevector_in, 'VV', kIndex, stepIndex, &
+                                  interpDegree=trim(interpolationDegree), &
+                                  extrapDegree_opt=trim(extrapolationDegree) )
           else
             ! interpolate scalar variable
-            ierr = int_sint( statevector_out, statevector_in, 'ALL', kIndex, stepIndex, &
-                             interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+            ierr = int_hInterpScalar( statevector_out, statevector_in, 'ALL', kIndex, stepIndex, &
+                                      interpDegree=trim(interpolationDegree), &
+                                      extrapDegree_opt=trim(extrapolationDegree) )
           end if
         end do k_loop
 
@@ -321,8 +326,9 @@ contains
 
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
       write(*,*) 'int_hInterp_gsv: interpolating surface height'
-      ierr = int_sint( statevector_out, statevector_in, 'ZSFC', 1, 1, &
-                       interpDegree=trim(interpolationDegree), extrapDegree_opt=trim(extrapolationDegree) )
+      ierr = int_hInterpScalar( statevector_out, statevector_in, 'ZSFC', 1, 1, &
+                                interpDegree=trim(interpolationDegree), &
+                                extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
   end subroutine int_hInterp_gsv
@@ -1079,8 +1085,8 @@ contains
     implicit none
 
     ! Arguments:
-    character(len=*) :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
+    character(len=*), intent(in)           :: interpDegree
+    character(len=*), intent(in), optional :: extrapDegree_opt
 
     ! Locals:
     character(len=12) :: extrapDegree
@@ -1108,29 +1114,29 @@ contains
   end subroutine int_setezopt
 
   !--------------------------------------------------------------------------
-  ! int_sint_gsv
+  ! int_hInterpScalar_gsv
   !--------------------------------------------------------------------------
-  function int_sint_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex, &
+  function int_hInterpScalar_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex, &
                         interpDegree, extrapDegree_opt) result(ierr)
     !
     ! :Purpose: Horizontal interpolation of 2D scalar field that use stateVector
-    !           objects for input and output. Accessed through int_sint.
+    !           objects for input and output. Accessed through int_hInterpScalar.
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: stateVectorOut
-    type(struct_gsv) :: stateVectorIn
-    character(len=*) :: varName
-    integer          :: levIndex
-    integer          :: stepIndex
-    character(len=*)           :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
+    type(struct_gsv), intent(inout) :: stateVectorOut
+    type(struct_gsv), intent(inout) :: stateVectorIn
+    character(len=*), intent(in)    :: varName
+    integer         , intent(in)    :: levIndex
+    integer         , intent(in)    :: stepIndex
+    character(len=*), intent(in)           :: interpDegree
+    character(len=*), intent(in), optional :: extrapDegree_opt
     integer :: ierr
 
     ! Locals:
-    real(4), pointer :: zout4(:,:,:,:), zin4(:,:,:,:)
-    real(8), pointer :: zout8(:,:,:,:), zin8(:,:,:,:)
+    real(4), pointer :: fieldOut_r4(:,:,:,:), fieldIn_r4(:,:,:,:)
+    real(8), pointer :: fieldOut_r8(:,:,:,:), fieldIn_r8(:,:,:,:)
     real(8), pointer :: heightSfcOut(:,:), heightSfcIn(:,:)
     integer :: ezsint, ezdefset
 
@@ -1142,7 +1148,7 @@ contains
       if (stateVectorIn%hco%grtyp == 'Y') then
         ! for now, only comptable for real(4)
         if(stateVectorOut%dataKind /= 4 .or. stateVectorIn%dataKind /= 4) then
-          call utl_abort('int_sint_gsv: cloudToGrid only implemented for real(4)')
+          call utl_abort('int_hInterpScalar_gsv: cloudToGrid only implemented for real(4)')
         end if
         ierr = int_sintCloudToGrid_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex)
         return
@@ -1160,64 +1166,64 @@ contains
       heightSfcOut => gsv_getHeightSfc(stateVectorOut)
 
       ! allocate real(4) buffers and copy to/from for interpolation
-      allocate(zin4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
-      allocate(zout4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
-      zin4(:,:,1,1) = heightSfcIn(:,:)
-      ierr = ezsint(zout4(:,:,1,1),zin4(:,:,1,1))
-      heightSfcOut(:,:) = zout4(:,:,1,1)
-      deallocate(zin4,zout4)
+      allocate(fieldIn_r4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
+      allocate(fieldOut_r4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
+      fieldIn_r4(:,:,1,1) = heightSfcIn(:,:)
+      ierr = ezsint(fieldOut_r4(:,:,1,1),fieldIn_r4(:,:,1,1))
+      heightSfcOut(:,:) = fieldOut_r4(:,:,1,1)
+      deallocate(fieldIn_r4,fieldOut_r4)
 
     else if (stateVectorOut%dataKind == 4 .and. stateVectorIn%dataKind == 4) then
 
       if (trim(varName) == 'ALL') then
-        call gsv_getField(stateVectorOut, zout4)
-        call gsv_getField(stateVectorIn,  zin4)
+        call gsv_getField(stateVectorOut, fieldOut_r4)
+        call gsv_getField(stateVectorIn,  fieldIn_r4)
      else
-        call gsv_getField(stateVectorOut, zout4, varName)
-        call gsv_getField(stateVectorIn,  zin4,  varName)
+        call gsv_getField(stateVectorOut, fieldOut_r4, varName)
+        call gsv_getField(stateVectorIn,  fieldIn_r4,  varName)
       end if
 
-      ierr = ezsint(zout4(:,:,levIndex,stepIndex),zin4(:,:,levIndex,stepIndex))
+      ierr = ezsint(fieldOut_r4(:,:,levIndex,stepIndex),fieldIn_r4(:,:,levIndex,stepIndex))
 
     else if (stateVectorOut%dataKind == 8 .and. stateVectorIn%dataKind == 8) then
 
       if (trim(varName) == 'ALL') then
-        call gsv_getField(stateVectorOut, zout8)
-        call gsv_getField(stateVectorIn,  zin8)
+        call gsv_getField(stateVectorOut, fieldOut_r8)
+        call gsv_getField(stateVectorIn,  fieldIn_r8)
       else
-        call gsv_getField(stateVectorOut, zout8, varName)
-        call gsv_getField(stateVectorIn,  zin8,  varName)
+        call gsv_getField(stateVectorOut, fieldOut_r8, varName)
+        call gsv_getField(stateVectorIn,  fieldIn_r8,  varName)
       end if
 
       ! allocate real(4) buffers and copy to/from for interpolation
-      allocate(zin4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
-      allocate(zout4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
-      zin4(:,:,1,1) = zin8(:,:,levIndex,stepIndex)
-      ierr = ezsint(zout4(:,:,1,1),zin4(:,:,1,1))
-      zout8(:,:,levIndex,stepIndex) = zout4(:,:,1,1)
-      deallocate(zin4,zout4)
+      allocate(fieldIn_r4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
+      allocate(fieldOut_r4(stateVectorOut%hco%ni,stateVectorOut%hco%nj,1,1))
+      fieldIn_r4(:,:,1,1) = fieldIn_r8(:,:,levIndex,stepIndex)
+      ierr = ezsint(fieldOut_r4(:,:,1,1),fieldIn_r4(:,:,1,1))
+      fieldOut_r8(:,:,levIndex,stepIndex) = fieldOut_r4(:,:,1,1)
+      deallocate(fieldIn_r4,fieldOut_r4)
 
     else
 
-      call utl_abort('int_sint_gsv: not implemented for mixed dataKind')
+      call utl_abort('int_hInterpScalar_gsv: not implemented for mixed dataKind')
 
     end if
 
-  end function int_sint_gsv
+  end function int_hInterpScalar_gsv
 
   !--------------------------------------------------------------------------
-  ! int_sint_r4_2d
+  ! int_hInterpScalar_r4_2d
   !--------------------------------------------------------------------------
-  function int_sint_r4_2d(zout4, zin4, interpDegree, extrapDegree_opt) result(ierr)
+  function int_hInterpScalar_r4_2d(fieldOut_r4, fieldIn_r4, interpDegree, extrapDegree_opt) result(ierr)
     !
     ! :Purpose: Horizontal interpolation of 2D scalar field that use real(4) arrays
-    !           for input and output. Accessed through int_sint.
+    !           for input and output. Accessed through int_hInterpScalar.
     !
     implicit none
 
     ! Arguments:
-    real(4) :: zout4(:,:)
-    real(4) :: zin4(:,:)
+    real(4), intent(inout) :: fieldOut_r4(:,:)
+    real(4), intent(in)    :: fieldIn_r4(:,:)
     integer :: ierr
     character(len=*)           :: interpDegree
     character(len=*), optional :: extrapDegree_opt
@@ -1230,9 +1236,9 @@ contains
 
     ! do the standard interpolation
     call int_setezopt(interpDegree, extrapDegree_opt)   
-    ierr = ezsint(zout4,zin4)
+    ierr = ezsint(fieldOut_r4,fieldIn_r4)
 
-  end function int_sint_r4_2d
+  end function int_hInterpScalar_r4_2d
 
   !--------------------------------------------------------------------------
   ! int_sintCloudToGrid_gsv
@@ -1241,7 +1247,7 @@ contains
     !
     ! :Purpose: Perform horizontal interpolation for 1 level and time step (and variable)
     !           in the case where the input data is a cloud of points (i.e. a Y grid) and
-    !           the output is on a regular grid. Accessed through int_sint.
+    !           the output is on a regular grid. Accessed through int_hInterpScalar.
     !
     ! :Note:  When varName=='ALL', the argument levIndex is actually kIndex
     !
@@ -1258,10 +1264,10 @@ contains
     ! Locals:
     integer :: gdxyfll, omp_get_thread_num
     integer :: niCloud, njCloud, niGrid, njGrid, myThreadNum
-    integer :: top, bottom, left, right, np, lonIndexCloud, latIndexCloud
-    integer :: boxSize, k, l, m, lonIndexGrid, latIndexGrid
-    integer :: in(100), jn(100), ngp, nfill(mmpi_numThread), nhole(mmpi_numThread), nextrap0, nextrap1
-    integer, allocatable :: icount(:,:), icount2(:,:), maskGrid(:,:), maskCloud(:,:)
+    integer :: top, bottom, left, right, numBoxIndexes, lonIndexCloud, latIndexCloud
+    integer :: boxSize, lonBoxIndex, latBoxIndex, boxIndex, lonIndexGrid, latIndexGrid
+    integer :: lonBoxIndexes(100), latBoxIndexes(100), ngp, nfill(mmpi_numThread), nhole(mmpi_numThread), nextrap0, nextrap1
+    integer, allocatable :: numFilledByAvg(:,:), filledByInterp(:,:), maskGrid(:,:), maskCloud(:,:)
     real(4), pointer     :: fieldCloud_4d(:,:,:,:), fieldGrid_4d(:,:,:,:)
     real(4), pointer     :: fieldCloud(:,:), fieldGrid(:,:)
     real(4), allocatable :: fieldGrid_tmp(:,:)
@@ -1294,8 +1300,8 @@ contains
 
     allocate(xCloud(niCloud, njCloud))
     allocate(yCloud(niCloud, njCloud))
-    allocate(icount(niGrid, njGrid))
-    allocate(icount2(niGrid, njGrid))
+    allocate(numFilledByAvg(niGrid, njGrid))
+    allocate(filledByInterp(niGrid, njGrid))
     allocate(maskCloud(niCloud, njCloud))
     allocate(maskGrid(niGrid, njGrid))
     allocate(fieldGrid_tmp(niGrid,njGrid))
@@ -1332,7 +1338,7 @@ contains
 
     ! Average values of cloud points neighbouring a grid location
     fieldGrid(:,:) = 0.0
-    icount(:,:) = 0
+    numFilledByAvg(:,:) = 0
     do latIndexCloud = 1, njCloud
       do lonIndexCloud = 1, niCloud
         lonIndexGrid = nint(xCloud(lonIndexCloud,latIndexCloud))
@@ -1342,7 +1348,7 @@ contains
           if ( maskCloud(lonIndexCloud,latIndexCloud) == 1 ) then
             fieldGrid(lonIndexGrid,latIndexGrid) = fieldGrid(lonIndexGrid,latIndexGrid) +  &
                                                    fieldCloud(lonIndexCloud,latIndexCloud)
-            icount(lonIndexGrid,latIndexGrid) = icount(lonIndexGrid,latIndexGrid) + 1
+            numFilledByAvg(lonIndexGrid,latIndexGrid) = numFilledByAvg(lonIndexGrid,latIndexGrid) + 1
           end if
         end if
       end do
@@ -1350,9 +1356,9 @@ contains
 
     do latIndexGrid = 1, njGrid
       do lonIndexGrid = 1, niGrid
-        if(icount(lonIndexGrid,latIndexGrid) > 0) then
+        if(numFilledByAvg(lonIndexGrid,latIndexGrid) > 0) then
           fieldGrid(lonIndexGrid,latIndexGrid) = fieldGrid(lonIndexGrid,latIndexGrid)/ &
-                                                 real(icount(lonIndexGrid,latIndexGrid))
+                                                 real(numFilledByAvg(lonIndexGrid,latIndexGrid))
         end if
       end do
     end do
@@ -1362,12 +1368,12 @@ contains
     nfill(:) = 0
     nhole(:) = 0
     boxSizeLoop: do boxSize = 1, maxBoxSize
-      icount2(:,:) = 0
-      !$OMP PARALLEL DO PRIVATE(latIndexGrid,lonIndexGrid,myThreadNum,top,bottom,left,right,np,l,k,in,jn,ngp,m)
+      filledByInterp(:,:) = 0
+      !$OMP PARALLEL DO PRIVATE(latIndexGrid,lonIndexGrid,myThreadNum,top,bottom,left,right,numBoxIndexes,lonBoxIndex,latBoxIndex,lonBoxIndexes,latBoxIndexes,ngp,boxIndex)
       do latIndexGrid = 1, njGrid
         myThreadNum = 1 + omp_get_thread_num()
         do lonIndexGrid = 1, niGrid
-          if (icount(lonIndexGrid,latIndexGrid) > 0) cycle
+          if (numFilledByAvg(lonIndexGrid,latIndexGrid) > 0) cycle
 
           if (boxSize == 1) nhole(myThreadNum) = nhole(myThreadNum) + 1
 
@@ -1376,42 +1382,42 @@ contains
           left   = lonIndexGrid - boxSize
           right  = lonIndexGrid + boxSize
 
-          np = 0
-          l = bottom
-          do k = left, right
-            np = np + 1
-            in(np) = k
-            jn(np) = l
+          numBoxIndexes = 0
+          latBoxIndex = bottom
+          do lonBoxIndex = left, right
+            numBoxIndexes = numBoxIndexes + 1
+            lonBoxIndexes(numBoxIndexes) = lonBoxIndex
+            latBoxIndexes(numBoxIndexes) = latBoxIndex
           end do
-          k = right
-          do l = bottom + 1, top
-            np = np + 1
-            in(np) = k
-            jn(np) = l
+          lonBoxIndex = right
+          do latBoxIndex = bottom + 1, top
+            numBoxIndexes = numBoxIndexes + 1
+            lonBoxIndexes(numBoxIndexes) = lonBoxIndex
+            latBoxIndexes(numBoxIndexes) = latBoxIndex
           end do
-          l = top
-          do k = right - 1, left, -1
-            np = np + 1
-            in(np) = k
-            jn(np) = l
+          latBoxIndex = top
+          do lonBoxIndex = right - 1, left, -1
+            numBoxIndexes = numBoxIndexes + 1
+            lonBoxIndexes(numBoxIndexes) = lonBoxIndex
+            latBoxIndexes(numBoxIndexes) = latBoxIndex
           end do
-          k = left
-          do l = top - 1, bottom + 1, -1
-            np = np + 1
-            in(np) = k
-            jn(np) = l
+          lonBoxIndex = left
+          do latBoxIndex = top - 1, bottom + 1, -1
+            numBoxIndexes = numBoxIndexes + 1
+            lonBoxIndexes(numBoxIndexes) = lonBoxIndex
+            latBoxIndexes(numBoxIndexes) = latBoxIndex
           end do
 
           ngp = 0
-          do m = 1, np
+          do boxIndex = 1, numBoxIndexes
 
-            if (in(m) >= 1 .and. in(m) <= niGrid .and.    &
-                jn(m) >= 1 .and. jn(m) <= njGrid) then
-              if ( icount(in(m),jn(m)) > 0 ) then
+            if (lonBoxIndexes(boxIndex) >= 1 .and. lonBoxIndexes(boxIndex) <= niGrid .and.    &
+                latBoxIndexes(boxIndex) >= 1 .and. latBoxIndexes(boxIndex) <= njGrid) then
+              if ( numFilledByAvg(lonBoxIndexes(boxIndex),latBoxIndexes(boxIndex)) > 0 ) then
 
                 fieldGrid_tmp(lonIndexGrid,latIndexGrid) = &
                      fieldGrid_tmp(lonIndexGrid,latIndexGrid) +  &
-                     fieldGrid(in(m),jn(m))
+                     fieldGrid(lonBoxIndexes(boxIndex),latBoxIndexes(boxIndex))
                 ngp = ngp + 1
 
               end if
@@ -1421,7 +1427,7 @@ contains
 
           if (ngp /= 0) then
             ! mark the grid point as being filled by interpolation on the grid
-            icount2(lonIndexGrid,latIndexGrid) = 1
+            filledByInterp(lonIndexGrid,latIndexGrid) = 1
             fieldGrid_tmp(lonIndexGrid,latIndexGrid) = fieldGrid_tmp(lonIndexGrid,latIndexGrid)/real(ngp)
             nfill(myThreadNum) = nfill(myThreadNum) + 1
           end if
@@ -1431,7 +1437,7 @@ contains
       !$OMP END PARALLEL DO
 
       fieldGrid(:,:) = fieldGrid_tmp(:,:)
-      icount(:,:) = icount(:,:) + icount2(:,:)
+      numFilledByAvg(:,:) = numFilledByAvg(:,:) + filledByInterp(:,:)
     end do boxSizeLoop
 
     ! find any remaining grid points that are likely water and assign value
@@ -1455,7 +1461,7 @@ contains
       ! assign grid mask to value of mask at nearest cloud location
       do latIndexGrid = 1, njGrid
         do lonIndexGrid = 1, niGrid
-          if (icount(lonIndexGrid,latIndexGrid) > 0) cycle
+          if (numFilledByAvg(lonIndexGrid,latIndexGrid) > 0) cycle
 
           ! find nearest cloud location
           refPosition(:) = kdtree2_3dPosition(real(stateVectorGrid%hco%lon2d_4(lonIndexGrid,latIndexGrid),8), &
@@ -1489,17 +1495,17 @@ contains
     end if
 
     ! fill in remaining grid points
-    if (count(icount(:,:) > 0) > 0) then
+    if (count(numFilledByAvg(:,:) > 0) > 0) then
 
       ! compute spatial mean of assigned grid values
       extrapValue = 0.0d0
       do latIndexGrid = 1, njGrid
         do lonIndexGrid = 1, niGrid
-          if (icount(lonIndexGrid,latIndexGrid) == 0) cycle
+          if (numFilledByAvg(lonIndexGrid,latIndexGrid) == 0) cycle
           extrapValue = extrapValue + real(fieldGrid(lonIndexGrid,latIndexGrid),8)
         end do
       end do
-      extrapValue = extrapValue / real(count(icount(:,:) > 0),8)
+      extrapValue = extrapValue / real(count(numFilledByAvg(:,:) > 0),8)
 
       ! set unassigned grid points and count them
       nextrap0 = 0
@@ -1507,7 +1513,7 @@ contains
       do latIndexGrid = 1, njGrid
         do lonIndexGrid = 1, niGrid
 
-          if (icount(lonIndexGrid,latIndexGrid) > 0) cycle
+          if (numFilledByAvg(lonIndexGrid,latIndexGrid) > 0) cycle
 
           fieldGrid(lonIndexGrid,latIndexGrid) = extrapValue
 
@@ -1540,8 +1546,8 @@ contains
     deallocate(fieldGrid_tmp)
     deallocate(xCloud)
     deallocate(yCloud)
-    deallocate(icount)
-    deallocate(icount2)
+    deallocate(numFilledByAvg)
+    deallocate(filledByInterp)
     deallocate(maskCloud)
     deallocate(maskGrid)
 
@@ -1552,18 +1558,18 @@ contains
   end function int_sintCloudToGrid_gsv
 
   !--------------------------------------------------------------------------
-  ! int_sint_r8_2d
+  ! int_hInterpScalar_r8_2d
   !--------------------------------------------------------------------------
-  function int_sint_r8_2d(zout8, zin8, interpDegree, extrapDegree_opt) result(ierr)
+  function int_hInterpScalar_r8_2d(fieldOut_r8, fieldIn_r8, interpDegree, extrapDegree_opt) result(ierr)
     !
     ! :Purpose: Horizontal interpolation of 2D scalar field that use real(8) arrays
-    !           for input and output. Accessed through int_sint.
+    !           for input and output. Accessed through int_hInterpScalar.
     !
     implicit none
 
     ! Arguments:
-    real(8) :: zout8(:,:)
-    real(8) :: zin8(:,:)
+    real(8), intent(inout) :: fieldOut_r8(:,:)
+    real(8), intent(in)    :: fieldIn_r8(:,:)
     integer :: ierr
     character(len=*)           :: interpDegree
     character(len=*), optional :: extrapDegree_opt
@@ -1581,18 +1587,18 @@ contains
 
     call int_setezopt(interpDegree, extrapDegree_opt)   
 
-    nii = size(zin8,1)
-    nji = size(zin8,2)
+    nii = size(fieldIn_r8,1)
+    nji = size(fieldIn_r8,2)
 
-    nio = size(zout8,1)
-    njo = size(zout8,2)
+    nio = size(fieldOut_r8,1)
+    njo = size(fieldOut_r8,2)
 
     allocate(bufferi4(nii,nji))
     allocate(buffero4(nio,njo))
 
     do jk2 = 1,nji
       do jk1 = 1,nii
-        bufferi4(jk1,jk2) = zin8(jk1,jk2)
+        bufferi4(jk1,jk2) = fieldIn_r8(jk1,jk2)
       end do
     end do
 
@@ -1600,34 +1606,34 @@ contains
 
     do jk2 = 1,njo
       do jk1 = 1,nio
-        zout8(jk1,jk2) = buffero4(jk1,jk2)
+        fieldOut_r8(jk1,jk2) = buffero4(jk1,jk2)
       end do
     end do
 
     deallocate(bufferi4)
     deallocate(buffero4)
 
-  end function int_sint_r8_2d
+  end function int_hInterpScalar_r8_2d
 
   !--------------------------------------------------------------------------
-  ! int_uvint_gsv
+  ! int_hInterpUV_gsv
   !--------------------------------------------------------------------------
-  function int_uvint_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex, &
-                         interpDegree, extrapDegree_opt) result(ierr)
+  function int_hInterpUV_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex, &
+                             interpDegree, extrapDegree_opt) result(ierr)
     !
     ! :Purpose: Horizontal interpolation of 2D vector field that use stateVector objects
-    !           for input and output. Accessed through int_uvint.
+    !           for input and output. Accessed through int_hInterpUV.
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv) :: stateVectorOut
-    type(struct_gsv) :: stateVectorIn
-    character(len=*) :: varName
-    integer          :: levIndex
-    integer          :: stepIndex
-    character(len=*)           :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
+    type(struct_gsv), intent(inout) :: stateVectorOut
+    type(struct_gsv), intent(inout) :: stateVectorIn
+    character(len=*), intent(in)    :: varName
+    integer         , intent(in)    :: levIndex
+    integer         , intent(in)    :: stepIndex
+    character(len=*), intent(in)           :: interpDegree
+    character(len=*), intent(in), optional :: extrapDegree_opt
     integer :: ierr
 
     ! Locals:
@@ -1637,7 +1643,7 @@ contains
     real(8), pointer :: UVout8(:,:,:), UVin8(:,:,:)
     integer :: ezuvint, ezdefset
 
-    write(*,*) 'int_uvint_gsv: starting'
+    write(*,*) 'int_hInterpUV_gsv: starting'
 
     ! read the namelist
     call int_readNml()
@@ -1645,7 +1651,7 @@ contains
     ! check if special interpolation is required
     if (stateVectorIn%hco%initialized .and. stateVectorOut%hco%initialized) then
       if (stateVectorIn%hco%grtyp == 'Y') then
-        call utl_abort('int_uvint_gsv: cloudToGrid not implemented')
+        call utl_abort('int_hInterpUV_gsv: cloudToGrid not implemented')
       end if
     end if
 
@@ -1679,7 +1685,7 @@ contains
                        UVin4(:,:,stepIndex), VVin4(:,:,levIndex,stepIndex))
       else
         write(*,*) 'varName = ', trim(varName)
-        call utl_abort('int_uvint_gsv: unexpected varName')
+        call utl_abort('int_hInterpUV_gsv: unexpected varName')
       end if
 
     else if (stateVectorOut%dataKind == 8 .and. stateVectorIn%dataKind == 8) then
@@ -1722,36 +1728,36 @@ contains
         VVout8(:,:,levIndex,stepIndex) = VVout4(:,:,1,1)
       else
         write(*,*) 'varName = ', trim(varName)
-        call utl_abort('int_uvint_gsv: unexpected varName')
+        call utl_abort('int_hInterpUV_gsv: unexpected varName')
       end if
 
       deallocate(UUin4,VVin4,UUout4,VVout4)
 
     else
 
-      call utl_abort('int_uvint_gsv: not implemented for mixed dataKind')
+      call utl_abort('int_hInterpUV_gsv: not implemented for mixed dataKind')
 
     end if
 
-  end function int_uvint_gsv
+  end function int_hInterpUV_gsv
 
   !--------------------------------------------------------------------------
-  ! int_uvint_r4_2d
+  ! int_hInterpUV_r4_2d
   !--------------------------------------------------------------------------
-  function int_uvint_r4_2d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
+  function int_hInterpUV_r4_2d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
     !
     ! :Purpose: Horizontal interpolation of 2D vector field that use real(4) arrays
-    !           for input and output. Accessed through int_uvint.
+    !           for input and output. Accessed through int_hInterpUV.
     !
     implicit none
 
     ! Arguments:
-    real(4) :: uuout(:,:)
-    real(4) :: vvout(:,:)
-    real(4) :: uuin(:,:)
-    real(4) :: vvin(:,:)
-    character(len=*)           :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
+    real(4), intent(inout) :: uuout(:,:)
+    real(4), intent(inout) :: vvout(:,:)
+    real(4), intent(in)    :: uuin(:,:)
+    real(4), intent(in)    :: vvin(:,:)
+    character(len=*), intent(in)           :: interpDegree
+    character(len=*), intent(in), optional :: extrapDegree_opt
     integer :: ierr
 
     ! Locals:
@@ -1764,25 +1770,25 @@ contains
     call int_setezopt(interpDegree, extrapDegree_opt)   
     ierr = ezuvint(uuout, vvout, uuin, vvin)
 
-  end function int_uvint_r4_2d
+  end function int_hInterpUV_r4_2d
 
   !--------------------------------------------------------------------------
-  ! int_uvint_r8_2d
+  ! int_hInterpUV_r8_2d
   !--------------------------------------------------------------------------
-  function int_uvint_r8_2d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
+  function int_hInterpUV_r8_2d(uuout, vvout, uuin, vvin, interpDegree, extrapDegree_opt) result(ierr)
     !
     ! :Purpose: Horizontal interpolation of 2D vector field that use real(8) arrays
-    !           for input and output. Accessed through int_uvint.
+    !           for input and output. Accessed through int_hInterpUV.
     !
     implicit none
 
     ! Arguments:
-    real(8) :: uuout(:,:)
-    real(8) :: vvout(:,:)
-    real(8) :: uuin(:,:)
-    real(8) :: vvin(:,:)
-    character(len=*)           :: interpDegree
-    character(len=*), optional :: extrapDegree_opt
+    real(8), intent(inout) :: uuout(:,:)
+    real(8), intent(inout) :: vvout(:,:)
+    real(8), intent(in)    :: uuin(:,:)
+    real(8), intent(in)    :: vvin(:,:)
+    character(len=*), intent(in)           :: interpDegree
+    character(len=*), intent(in), optional :: extrapDegree_opt
     integer :: ierr
 
     ! Locals:
@@ -1831,7 +1837,7 @@ contains
     deallocate(bufuuout4)
     deallocate(bufvvout4)
 
-  end function int_uvint_r8_2d
+  end function int_hInterpUV_r8_2d
 
   !--------------------------------------------------------------------------
   ! int_ezgdef
@@ -1844,16 +1850,16 @@ contains
 
     ! Arguments:
     integer :: vezgdef
-    integer :: ni
-    integer :: nj
-    integer :: ig1
-    integer :: ig2
-    integer :: ig3
-    integer :: ig4
-    real(8) :: ax(:)
-    real(8) :: ay(:)
-    character(len=*) :: grtyp
-    character(len=*) :: grtypref
+    integer, intent(in) :: ni
+    integer, intent(in) :: nj
+    integer, intent(in) :: ig1
+    integer, intent(in) :: ig2
+    integer, intent(in) :: ig3
+    integer, intent(in) :: ig4
+    real(8), intent(in) :: ax(:)
+    real(8), intent(in) :: ay(:)
+    character(len=*), intent(in) :: grtyp
+    character(len=*), intent(in) :: grtypref
 
     ! Locals:
     integer :: ier2, jk, ilenx, ileny
@@ -1900,15 +1906,15 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: ig1
-    integer :: ig2
-    integer :: ig3
-    integer :: ig4   
-    real(8) :: xlat0
-    real(8) :: xlon0
-    real(8) :: dlat
-    real(8) :: dlon 
-    character(len=*) :: grtyp 
+    integer, intent(in) :: ig1
+    integer, intent(in) :: ig2
+    integer, intent(in) :: ig3
+    integer, intent(in) :: ig4   
+    real(8), intent(in) :: xlat0
+    real(8), intent(in) :: xlon0
+    real(8), intent(in) :: dlat
+    real(8), intent(in) :: dlon 
+    character(len=*), intent(in) :: grtyp 
 
     ! Locals:
     real(4) :: xlat04, xlon04, dlat4, dlon4

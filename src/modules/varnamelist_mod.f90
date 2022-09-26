@@ -552,7 +552,7 @@ module varNameList_mod
       end if
 
       if (varLevel == 'SF' .and. varKindList(vnl_varListIndex(varName)) == 'OC') then
-        varLevel = 'SFDP'
+        varLevel = 'SSDP'
       end if
 
     end function vnl_varLevelFromVarname

@@ -3463,7 +3463,7 @@ contains
     ! desired output = token
     ! EZDEFSET: interpolate from input grids to output grid
     ! success = key
-    ! int_SINT: interpolation of the field on the input grid to observation profiles
+    ! int_hInterpScalar: interpolation of the field on the input grid to observation profiles
     ! success = 0
     ! desired output = FIELD_intrpl
     write(*,*) 
@@ -3473,8 +3473,8 @@ contains
     ix9 = ezdefset(iv7,ix8)
     write(*,*) 'variable = LG           : ezdefset : return = ', ix9
 
-    ix10 = int_sint(glace_intrpl,glace,interpDegree='NEAREST')
-    write(*,*) 'variable = LG           : int_sint  : return = ', ix10
+    ix10 = int_hInterpScalar(glace_intrpl,glace,interpDegree='NEAREST')
+    write(*,*) 'variable = LG           : int_hInterpScalar  : return = ', ix10
 
     write(*,*) 
 
@@ -3484,8 +3484,8 @@ contains
     iy9 = ezdefset(iv7,iy8)
     write(*,*) 'variable = ', snowvar, '           : ezdefset : return = ', iy9
 
-    iy10 = int_sint(neige_intrpl,neige,interpDegree='NEAREST')
-    write(*,*) 'variable = ', snowvar, '           : int_sint  : return = ', iy10
+    iy10 = int_hInterpScalar(neige_intrpl,neige,interpDegree='NEAREST')
+    write(*,*) 'variable = ', snowvar, '           : int_hInterpScalar  : return = ', iy10
 
     write(*,*) 
 
@@ -3495,8 +3495,8 @@ contains
     iz9 = ezdefset(iv7,iz8)
     write(*,*) 'variable = AL           : ezdefset : return = ', iz9
 
-    iz10 = int_sint(alb_intrpl,alb,interpDegree='NEAREST')
-    write(*,*) 'variable = AL           : int_sint  : return = ', iz10
+    iz10 = int_hInterpScalar(alb_intrpl,alb,interpDegree='NEAREST')
+    write(*,*) 'variable = AL           : int_hInterpScalar  : return = ', iz10
 
 
     ! fstfrm: close the standard files

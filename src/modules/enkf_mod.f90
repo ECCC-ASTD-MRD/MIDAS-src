@@ -803,7 +803,7 @@ contains
             ! Only treat varLevIndex values that correspond with current levIndex
             varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
             if (varLevel == 'SF'   .or. varLevel == 'SFMM' .or. &
-                varLevel == 'SFTH' .or. varLevel == 'SFDP') then
+                varLevel == 'SFTH' .or. varLevel == 'SSDP') then
               varKind = vnl_varKindFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
               if (varKind == 'OC') then
                 levIndex2 = 1
@@ -842,7 +842,7 @@ contains
             ! Only treat varLevIndex values that correspond with current levIndex
             varLevel = vnl_varLevelFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
             if (varLevel == 'SF'   .or. varLevel == 'SFMM' .or. &
-                varLevel == 'SFTH' .or. varLevel == 'SFDP') then
+                varLevel == 'SFTH' .or. varLevel == 'SSDP') then
               varKind = vnl_varKindFromVarname(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex))
               if (varKind == 'OC') then
                 levIndex2 = 1
