@@ -57,7 +57,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! loc_setup
   !--------------------------------------------------------------------------
-  subroutine loc_setup(loc, cvDim_out, hco_loc, vco_loc, nEns, pressureProfile, ntrunc, locType, &
+  subroutine loc_setup(loc, cvDim_out, hco_loc, vco_loc, nEns, vertLocation, ntrunc, locType, &
                        locMode, horizLengthScale1, horizLengthScale2, vertLengthScale)
     implicit none
 
@@ -70,7 +70,7 @@ CONTAINS
     integer, intent(in) :: nEns
     integer, intent(in) :: nTrunc
 
-    real(8), intent(in) :: pressureProfile(:)
+    real(8), intent(in) :: vertLocation(:)
     real(8), intent(in) :: horizLengthScale1
     real(8), intent(in) :: horizLengthScale2
     real(8), intent(in) :: vertLengthScale
@@ -94,7 +94,9 @@ CONTAINS
       else
         nLev = loc%vco%nLev_T
       end if
-    else !  vco_anl%Vcode == 0
+    else if ( loc%vco%nLev_depth > 0 ) then
+      nLev = loc%vco%nLev_depth
+    else
       nLev = 1
     end if
 
@@ -102,7 +104,7 @@ CONTAINS
     case('spectral')
        if (mmpi_myid == 0) write(*,*)
        if (mmpi_myid == 0) write(*,*) 'loc_setup: LocType = ', trim(locType)
-       call lsp_setup(hco_loc, nEns, nLev, pressureProfile, ntrunc, locType,          & ! IN
+       call lsp_setup(hco_loc, nEns, nLev, vertLocation, ntrunc, locType,          & ! IN
                       locMode, horizLengthScale1, horizLengthScale2, vertLengthScale, & ! IN
                       cvDim_out, loc%lsp, nEnsOverDimension)                            ! OUT
     case default

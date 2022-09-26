@@ -414,7 +414,7 @@ program midas_letkf
 
   ! For ice/ocean DA: remove obs that are too close to land
   if (minDistanceToLand > 0.0D0) then
-    call ens_copyMask(ensembleTrl4D,oceanMask)
+    call ens_getMask(ensembleTrl4D,oceanMask)
     call eob_removeObsNearLand(ensObs, oceanMask, minDistanceToLand)
   end if
 

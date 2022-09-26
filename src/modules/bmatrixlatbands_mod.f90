@@ -31,6 +31,7 @@ module bMatrixLatBands_mod
   use verticalCoord_mod
   use varNameList_mod
   use utilities_mod
+  use interpolation_mod
   implicit none
   save
   private
@@ -909,9 +910,9 @@ contains
        !- 1.2.3 The std. dev. are NOT on the analysis grid. Interpolation is needed
        iset = ezdefset(AnalGridID,itggid)
        if ( TweakTG ) then
-          ierr = utl_ezsint(tgstdbg,dltg,interpDegree='NEAREST')
+          ierr = int_hInterpScalar(tgstdbg,dltg,interpDegree='NEAREST')
        else
-          ierr = utl_ezsint(tgstdbg,dltg,interpDegree='CUBIC')
+          ierr = int_hInterpScalar(tgstdbg,dltg,interpDegree='CUBIC')
        end if
 
     end if
@@ -1045,8 +1046,8 @@ contains
       ierr = ezdefset(AnalGridID     , TrialGridID     ) ! IN,  IN
 
       ! Nearest-neighbor interpolation
-      ierr = utl_ezsint(AnalLandSeaMask, TrialLandSeaMask, interpDegree='NEAREST') ! OUT, IN
-      ierr = utl_ezsint(AnalSeaIceMask , TrialSeaIceMask, interpDegree='NEAREST')  ! OUT, IN
+      ierr = int_hInterpScalar(AnalLandSeaMask, TrialLandSeaMask, interpDegree='NEAREST') ! OUT, IN
+      ierr = int_hInterpScalar(AnalSeaIceMask , TrialSeaIceMask,  interpDegree='NEAREST') ! OUT, IN
 
       deallocate(TrialLandSeaMask)
       deallocate(TrialSeaIceMask)

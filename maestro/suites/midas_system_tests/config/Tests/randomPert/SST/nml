@@ -1,0 +1,41 @@
+ &NAMBHI
+  SCALEFACTOR = 200*0.0d0
+/
+ &NAMBEN
+  NENS = 90
+  SCALEFACTOR = 200*1.0d0
+  HLOCALIZE = 1000.0D0
+  VLOCALIZE = 1000.0D0
+  ensContainsFullField = .false.
+  ensDateOfValidity = -1
+/
+ &NAMBDIFF
+  SCALEFACTOR = 200*1.0
+  corr_len = 200*200.0
+  stab     = 200*0.2
+  nsamp    = 200*5000
+  stddevMode = 'HOMO'
+  useImplicit = 200*.false.
+  homogeneous_std = 200*0.25
+  latIgnoreFraction = 0.422 
+/
+ &NAMENKF
+   NENS=10
+   SEED=-999 ! If -999, seed is set using the date
+   DATE=-1
+   REMOVE_MEAN=T
+   MPITOPOINDEPENDENT = .true.
+   readEnsMean = T
+   setPertZeroUnderIce = T
+   iceFractionThreshold = 0.2
+   previousDateFraction = 0.8
+   numBits = 16
+/
+ &NAMTIME
+  DSTEPOBS = 24.0d0
+  DSTEPOBSINC = 24.0d0
+  DWINDOWSIZE = 24.0d0
+/
+ &NAMSTATE
+   ANLVAR(1)   ='TM'
+/

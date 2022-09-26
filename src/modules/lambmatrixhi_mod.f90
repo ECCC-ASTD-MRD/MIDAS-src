@@ -30,6 +30,7 @@ module lamBMatrixHI_mod
   use utilities_mod
   use gridVariableTransforms_mod
   use varNameList_mod
+  use interpolation_mod
   implicit none
   save
   private
@@ -680,13 +681,13 @@ contains
            ControlVariable(var)%GpStdDev(:,:,k) = StdDev2D(:,:)
         else
            ! Note: EZSCINT setup was done above
-           ier = utl_ezsint(StdDev2D_Regrid, StdDev2D, interpDegree='LINEAR')
+           ier = int_hInterpScalar(StdDev2D_Regrid, StdDev2D, interpDegree='LINEAR')
            ControlVariable(var)%GpStdDev(:,:,k) = StdDev2D_Regrid(:,:)
         end if
 
         !- 1.3 Scaling
         ControlVariable(var)%GpStdDev(:,:,k) = ControlVariable(var)%GpStdDev(:,:,k) * &
-                                                 UnitConv * scaleFactor(k)
+                                               UnitConv * scaleFactor(k)
 
       end do
 

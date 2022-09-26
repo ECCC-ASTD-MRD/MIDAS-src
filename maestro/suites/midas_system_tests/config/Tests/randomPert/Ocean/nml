@@ -1,0 +1,35 @@
+ &NAMBHI
+  SCALEFACTOR = 200*0.0d0
+/
+ &NAMBEN
+  NENS = 36
+  SCALEFACTOR = 32*1.0d0,0.8d0,0.6d0,0.4d0,0.2d0,20*0.0d0
+  HLOCALIZE = 1000.0D0
+  VLOCALIZE = 1000.0D0
+  ensContainsFullField = .false.
+  ensDateOfValidity = -1
+/
+ &NAMENKF
+   NENS=10
+   SEED=-999 ! If -999, seed is set using the date
+   DATE=-1
+   REMOVE_MEAN=T
+   MPITOPOINDEPENDENT = .true.
+   readEnsMean = T
+   setPertZeroUnderIce = T
+   iceFractionThreshold = 0.2
+   previousDateFraction = 0.9
+   numBits = 16
+/
+ &NAMINT
+  maxBoxSize = 12
+  checkCloudToGridUnassigned = F
+/
+ &NAMTIME
+  DSTEPOBS = 6.0d0
+  DSTEPOBSINC = 6.0d0
+/
+ &NAMSTATE
+   ANLVAR(1)   ='TM'
+   ANLVAR(2)   ='GL'
+/

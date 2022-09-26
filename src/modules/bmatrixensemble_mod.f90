@@ -61,12 +61,12 @@ module BmatrixEnsemble_mod
   type :: struct_bEns
     logical             :: initialized = .false.
 
-    real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:)
+    real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:), scaleFactor_DP(:)
     real(8)             :: scaleFactor_SF
 
     integer             :: ni, nj, myLonBeg, myLonEnd, myLatBeg, myLatEnd
-    integer             :: nLevInc_M, nLevInc_T, nLevEns_M, nLevEns_T
-    integer             :: topLevIndex_M, topLevIndex_T
+    integer             :: nLevInc_M, nLevInc_T, nLevInc_DP, nLevEns_M, nLevEns_T, nLevEns_DP
+    integer             :: topLevIndex_M, topLevIndex_T, topLevIndex_DP
     integer             :: nEnsOverDimension
     integer             :: cvDim_mpilocal, cvDim_mpiglobal
     integer             :: numStep, numStepAssimWindow
@@ -171,6 +171,7 @@ module BmatrixEnsemble_mod
   character(len=4), parameter  :: varNameALFAatmMM(1) = (/ 'ALFA' /)
   character(len=4), parameter  :: varNameALFAatmTH(1) = (/ 'ALFT' /)
   character(len=4), parameter  :: varNameALFAsfc(1)   = (/ 'ALFS' /)
+  character(len=4), parameter  :: varNameALFAocean(1) = (/ 'ALFO' /)
 
   logical, parameter :: verbose = .false. ! Control parameter for the level of listing output
 
@@ -426,7 +427,7 @@ CONTAINS
 
     real(8), allocatable :: advectFactorFSOFcst_M(:),advectFactorAssimWindow_M(:)
 
-    real(8),pointer :: pressureProfileEns_M(:), pressureProfileFile_M(:), pressureProfileInc_M(:)
+    real(8),pointer :: vertLocationEns(:), vertLocationFile(:), vertLocationInc(:)
 
     real(4), pointer :: bin2d(:,:,:)
     real(8), pointer :: HeightSfc(:,:)
@@ -518,20 +519,31 @@ CONTAINS
       write(*,*) 'ben_setupOneInstance: all the vertical levels will be read in the ensemble '
       if ( bEns(instanceIndex)%vco_anl%nLev_M > 0 .and. bEns(instanceIndex)%vco_anl%vgridPresent ) then
         pSurfRef = 101000.D0
-        nullify(pressureProfileInc_M)
-        status = vgd_levels( bEns(instanceIndex)%vco_anl%vgrid, ip1_list=bEns(instanceIndex)%vco_anl%ip1_M, levels=pressureProfileInc_M, &
-             sfc_field=pSurfRef, in_log=.false.)
+        nullify(vertLocationInc)
+        status = vgd_levels( bEns(instanceIndex)%vco_anl%vgrid, &
+                             ip1_list=bEns(instanceIndex)%vco_anl%ip1_M, &
+                             levels=vertLocationInc, &
+                             sfc_field=pSurfRef, in_log=.false. )
         if (status /= VGD_OK) call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
-        nullify(pressureProfileFile_M)
-        status = vgd_levels( bEns(instanceIndex)%vco_file%vgrid, ip1_list=bEns(instanceIndex)%vco_file%ip1_M, levels=pressureProfileFile_M, &
-             sfc_field=pSurfRef, in_log=.false.)
+        nullify(vertLocationFile)
+        status = vgd_levels( bEns(instanceIndex)%vco_file%vgrid, &
+                             ip1_list=bEns(instanceIndex)%vco_file%ip1_M, &
+                             levels=vertLocationFile, &
+                             sfc_field=pSurfRef, in_log=.false.)
         if (status /= VGD_OK) call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
       
-        EnsTopMatchesAnlTop = abs( log(pressureProfileFile_M(1)) - log(pressureProfileInc_M(1)) ) < 0.1d0
+        do levIndex = 1, bEns(instanceIndex)%vco_anl%nLev_M
+          vertLocationInc(levIndex) = log(vertLocationInc(levIndex))
+        end do
+        do levIndex = 1, bEns(instanceIndex)%vco_file%nLev_M
+          vertLocationFile(levIndex) = log(vertLocationFile(levIndex))
+        end do
+
+        EnsTopMatchesAnlTop = abs( vertLocationFile(1) - vertLocationInc(1) ) < 0.1d0
         write(*,*) 'ben_setupOneInstance: EnsTopMatchesAnlTop, presEns, presInc = ', &
-             EnsTopMatchesAnlTop, pressureProfileFile_M(1), pressureProfileInc_M(1)
-        deallocate(pressureProfileFile_M)
-        deallocate(pressureProfileInc_M)
+             EnsTopMatchesAnlTop, vertLocationFile(1), vertLocationInc(1)
+        deallocate(vertLocationFile)
+        deallocate(vertLocationInc)
       else
         ! not sure what this mean when no MM levels
         write(*,*) 'ben_setupOneInstance: nLev_M       = ', bEns(instanceIndex)%vco_anl%nLev_M
@@ -555,12 +567,15 @@ CONTAINS
       write(*,*) 'ben_setupOneInstance: vco_anl%Vcode = ', bEns(instanceIndex)%vco_anl%Vcode, ', vco_ens%Vcode = ', bEns(instanceIndex)%vco_ens%Vcode
       call utl_abort('ben_setupOneInstance: vertical levels of ensemble not compatible with analysis grid')
     end if
-    bEns(instanceIndex)%nLevEns_M = bEns(instanceIndex)%vco_ens%nLev_M
-    bEns(instanceIndex)%nLevEns_T = bEns(instanceIndex)%vco_ens%nLev_T
-    bEns(instanceIndex)%nLevInc_M = bEns(instanceIndex)%vco_anl%nLev_M
-    bEns(instanceIndex)%nLevInc_T = bEns(instanceIndex)%vco_anl%nLev_T
-    bEns(instanceIndex)%topLevIndex_M = bEns(instanceIndex)%nLevInc_M-bEns(instanceIndex)%nLevEns_M+1
-    bEns(instanceIndex)%topLevIndex_T = bEns(instanceIndex)%nLevInc_T-bEns(instanceIndex)%nLevEns_T+1
+    bEns(instanceIndex)%nLevEns_M  = bEns(instanceIndex)%vco_ens%nLev_M
+    bEns(instanceIndex)%nLevEns_T  = bEns(instanceIndex)%vco_ens%nLev_T
+    bEns(instanceIndex)%nLevEns_DP = bEns(instanceIndex)%vco_ens%nLev_Depth
+    bEns(instanceIndex)%nLevInc_M  = bEns(instanceIndex)%vco_anl%nLev_M
+    bEns(instanceIndex)%nLevInc_T  = bEns(instanceIndex)%vco_anl%nLev_T
+    bEns(instanceIndex)%nLevInc_DP = bEns(instanceIndex)%vco_anl%nLev_Depth
+    bEns(instanceIndex)%topLevIndex_M  = bEns(instanceIndex)%nLevInc_M  - bEns(instanceIndex)%nLevEns_M+1
+    bEns(instanceIndex)%topLevIndex_T  = bEns(instanceIndex)%nLevInc_T  - bEns(instanceIndex)%nLevEns_T+1
+    bEns(instanceIndex)%topLevIndex_DP = bEns(instanceIndex)%nLevInc_DP - bEns(instanceIndex)%nLevEns_DP+1
 
     if (bEns(instanceIndex)%vco_anl%Vcode == 5002) then
       if ( (bEns(instanceIndex)%nLevEns_T /= (bEns(instanceIndex)%nLevEns_M+1)) .and. (bEns(instanceIndex)%nLevEns_T /= 1 .or. bEns(instanceIndex)%nLevEns_M /= 1) ) then
@@ -628,7 +643,21 @@ CONTAINS
       
       bEns(instanceIndex)%scaleFactor_SF = bEns(instanceIndex)%scaleFactor_T(bEns(instanceIndex)%nLevEns_T)
 
-    else ! vco_anl%Vcode == 0
+    else if (bEns(instanceIndex)%nLevEns_DP > 0) then
+      ! Ocean variables on depth levels
+      write(*,*) 'nlev_Depth=', bEns(instanceIndex)%nLevEns_DP
+      bEns(instanceIndex)%varNameALFA(:) = varNameALFAocean(:)
+      allocate(bEns(instanceIndex)%scaleFactor_DP(bEns(instanceIndex)%nLevEns_DP))
+      do levIndex = 1, bEns(instanceIndex)%nLevEns_DP
+        if (bEns(instanceIndex)%scaleFactor(levIndex) > 0.0d0) then 
+          bEns(instanceIndex)%scaleFactor(levIndex) = sqrt(bEns(instanceIndex)%scaleFactor(levIndex))
+        else
+          bEns(instanceIndex)%scaleFactor(levIndex) = 0.0d0
+        end if
+      end do
+      bEns(instanceIndex)%scaleFactor_DP(1:bEns(instanceIndex)%nLevEns_DP) = bEns(instanceIndex)%scaleFactor(1:bEns(instanceIndex)%nLevEns_DP)
+    else
+      ! 2D surface variables
       bEns(instanceIndex)%varNameALFA(:) = varNameALFAsfc(:)
       if (bEns(instanceIndex)%scaleFactor(1) > 0.0d0) then 
         bEns(instanceIndex)%scaleFactor_SF = sqrt(bEns(instanceIndex)%scaleFactor(1))
@@ -724,32 +753,40 @@ CONTAINS
       ! Setup the localization
       if ( bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005 ) then
         pSurfRef = 101000.D0
-        nullify(pressureProfileInc_M)
-        status = vgd_levels( bEns(instanceIndex)%vco_anl%vgrid, ip1_list=bEns(instanceIndex)%vco_anl%ip1_M, levels=pressureProfileInc_M, &
+        nullify(vertLocationInc)
+        status = vgd_levels( bEns(instanceIndex)%vco_anl%vgrid, &
+                             ip1_list=bEns(instanceIndex)%vco_anl%ip1_M, &
+                             levels=vertLocationInc, &
                              sfc_field=pSurfRef, in_log=.false.)
         if (status /= VGD_OK)then
           call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
         end if
 
-        allocate(pressureProfileEns_M(bEns(instanceIndex)%nLevEns_M))
-        pressureProfileEns_M(1:bEns(instanceIndex)%nLevEns_M) = pressureProfileInc_M(bEns(instanceIndex)%topLevIndex_M:bEns(instanceIndex)%nLevInc_M)
-        deallocate(pressureProfileInc_M)
-      else ! vco_anl%Vcode == 0
-        allocate(pressureProfileEns_M(1))
-        pressureProfileEns_M(:) = pSurfRef
+        allocate(vertLocationEns(bEns(instanceIndex)%nLevEns_M))
+        do levIndex = 1, bEns(instanceIndex)%nLevEns_M
+          vertLocationEns(levIndex) = log(vertLocationInc(levIndex+bEns(instanceIndex)%topLevIndex_M-1))
+        end do
+        deallocate(vertLocationInc)
+      else if ( bEns(instanceIndex)%vco_anl%nLev_depth > 0 ) then
+        allocate(vertLocationEns(bEns(instanceIndex)%vco_anl%nLev_depth))
+        vertLocationEns(:) = bEns(instanceIndex)%vco_anl%depths(:)
+      else
+        pSurfRef = 101000.D0
+        allocate(vertLocationEns(1))
+        vertLocationEns(:) = pSurfRef
       end if
 
       allocate(bEns(instanceIndex)%locStorage(bEns(instanceIndex)%nWaveBand))
       do waveBandIndex = 1, bEns(instanceIndex)%nWaveBand
         call loc_setup(bEns(instanceIndex)%locStorage(waveBandIndex), bEns(instanceIndex)%cvDim_mpilocal,          & ! OUT
                        bEns(instanceIndex)%hco_ens, bEns(instanceIndex)%vco_ens, bEns(instanceIndex)%nEns,         & ! IN
-                       pressureProfileEns_M, bEns(instanceIndex)%nTrunc, 'spectral',                               & ! IN
+                       vertLocationEns, bEns(instanceIndex)%nTrunc, 'spectral',                               & ! IN
                        bEns(instanceIndex)%localizationType, bEns(instanceIndex)%hLocalize(waveBandIndex),         & ! IN
                        bEns(instanceIndex)%hLocalize(waveBandIndex+1), bEns(instanceIndex)%vLocalize(waveBandIndex)) ! IN
       end do
 
       cvDim = bEns(instanceIndex)%cvDim_mpilocal
-      deallocate(pressureProfileEns_M)
+      deallocate(vertLocationEns)
 
     end if
 
@@ -1242,8 +1279,15 @@ CONTAINS
             multFactor = bEns(instanceIndex)%scaleFactor_M(lev)
           else if ( vnl_varLevelFromVarname(varName) == 'TH' ) then
             multFactor = bEns(instanceIndex)%scaleFactor_T(lev)
-          else ! SF
+          else  if ( vnl_varLevelFromVarname(varName) == 'SF' ) then
             multFactor = bEns(instanceIndex)%scaleFactor_SF
+          else if ( vnl_varLevelFromVarname(varName) == 'DP' ) then
+            multFactor = bEns(instanceIndex)%scaleFactor_DP(lev)
+          else if ( vnl_varLevelFromVarname(varName) == 'SS' ) then
+            multFactor = bEns(instanceIndex)%scaleFactor_DP(1)
+          else
+            write(*,*) 'varName = ', varName, ', varLevel = ', vnl_varLevelFromVarname(varName)
+            call utl_abort('setupEnsemble: unknown varLevel')
           end if
 
           multFactor = multFactor/sqrt(1.0d0*dble(bEns(instanceIndex)%nEns-bEns(instanceIndex)%numSubEns))
@@ -2159,7 +2203,6 @@ CONTAINS
       if ( vnl_varLevelFromVarname(varName) /= 'SF' .and. &
            vnl_varLevelFromVarname(varName) == vnl_varLevelFromVarname(bEns(instanceIndex)%varNameALFA(1)) ) then
         ! The non-surface variable varName is on the same levels than the amplitude field
-
         ensAmplitude_oneLev => ens_getOneLev_r8(ensAmplitude,lev)
         ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
 
@@ -2213,16 +2256,26 @@ CONTAINS
         end if
 
       else if (vnl_varLevelFromVarname(varName) == 'SF') then
-        ! Surface variable cases
 
+        ! Surface variable cases (atmosphere or surface only)
         if (bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005) then
           ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,bEns(instanceIndex)%nLevEns_M)
         else ! vco_anl%Vcode == 0
           ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,1)
         end if
         ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
+
+      else if (vnl_varLevelFromVarname(varName) == 'SS') then
+
+        ! Surface variable cases (ocean)
+        ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,1)
+
       else
+
+        write(*,*) 'variable name = ', varName
+        write(*,*) 'varLevel      = ', vnl_varLevelFromVarname(varName)
         call utl_abort('ben_addEnsMember: unknown value of varLevel')
+
       end if
 
       call utl_tmg_start(59,'--------AddMemInner_TL')
@@ -2259,6 +2312,10 @@ CONTAINS
         topLevOffset = bEns(instanceIndex)%topLevIndex_M
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
         topLevOffset = bEns(instanceIndex)%topLevIndex_T
+      else if (vnl_varLevelFromVarname(varName) == 'SS') then
+        topLevOffset = 1
+      else if (vnl_varLevelFromVarname(varName) == 'DP') then
+        topLevOffset = 1
       else
         call utl_abort('ben_addEnsMember: unknown value of varLevel')
       end if

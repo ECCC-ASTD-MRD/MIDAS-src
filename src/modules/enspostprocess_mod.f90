@@ -1536,7 +1536,7 @@ contains
       ! set the variable name and depth for each element of column
       do kIndex = 1, numK
         nomvar_v(kIndex) = gsv_getVarNameFromK(stateVectorStdDev,kIndex)
-        if (vnl_varLevelFromVarName(nomvar_v(kIndex)) == 'SFDP') then
+        if (vnl_varLevelFromVarName(nomvar_v(kIndex)) == 'SS') then
           pressureOrDepth(kIndex) = 0.0
         else
           levIndex = gsv_getLevFromK(stateVectorStdDev, kIndex)

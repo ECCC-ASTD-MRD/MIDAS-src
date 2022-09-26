@@ -268,7 +268,7 @@ module gridStateVectorFileIO_mod
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
                       hExtrapolateDegree_opt=statevector_out%hExtrapolateDegree )
 
-    call int_hInterp_gsv_r4(statevector_file_r4, statevector_hinterp_r4)
+    call int_hInterp_gsv(statevector_file_r4, statevector_hinterp_r4)
 
     call gsv_deallocate(statevector_file_r4)
 
@@ -391,6 +391,7 @@ module gridStateVectorFileIO_mod
     !-- 4.0 Copy result to output statevector
     call gsv_copy(statevector_tiles, statevector_out, stepIndexOut_opt=stepIndex)
 
+    call gsv_deallocate(statevector_tiles)
     call gsv_deallocate(statevector_file_r4)
     deallocate(varNamesToRead)
 
@@ -462,7 +463,7 @@ module gridStateVectorFileIO_mod
                       hInterpolateDegree_opt=statevector_out_r4%hInterpolateDegree,  &
                       hExtrapolateDegree_opt=statevector_out_r4%hExtrapolateDegree)
 
-    call int_hInterp_gsv_r4(statevector_file_r4, statevector_hinterp_r4)
+    call int_hInterp_gsv(statevector_file_r4, statevector_hinterp_r4)
 
     call gsv_deallocate(statevector_file_r4)
 
@@ -579,7 +580,6 @@ module gridStateVectorFileIO_mod
     real(4), pointer :: gd2d_file_r4(:,:), gd2d_r4_UV_ptr(:,:,:)
     real(8), pointer :: heightSfc_ptr(:,:)
     real(4), allocatable :: gd2d_var_r4(:,:)
-    integer, allocatable :: mask(:,:)
 
     character(len=4)  :: varName, varNameToRead
     character(len=4)  :: varLevel
@@ -590,13 +590,14 @@ module gridStateVectorFileIO_mod
     logical :: foundVarNameInFile, ignoreDate, interpToPhysicsGrid
     NAMELIST /NAMSTIO/interpToPhysicsGrid
 
+    write(*,*) 'gio_readFile: starting'
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
     interpToPhysicsGrid = .false.
     if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
       if ( mmpi_myid == 0 ) then
-        write(*,*) 'gio_readFile: namstio is missing in the namelist.'
-        write(*,*) '                     The default values will be taken.'
+        write(*,*) 'gio_readFile: namstio is missing in the namelist. The default values will be taken.'
       end if
-
     else
       ! Read namelist NAMSTIO
       nulnam=0
@@ -808,7 +809,7 @@ module gridStateVectorFileIO_mod
           ip1 = vco_ip1_other(levIndex)
         else if (varLevel == 'DP') then
           ip1 = vco_file%ip1_depth(levIndex)
-        else if (varLevel == 'SFDP') then
+        else if (varLevel == 'SS') then
           ip1 = -1
         else
           write(*,*) 'varLevel =', varLevel
@@ -890,7 +891,8 @@ module gridStateVectorFileIO_mod
                         typvar_in,varNameToRead)
 
           ierr = ezdefset(hco_file%EZscintID,EZscintID_var)
-          ierr = utl_ezsint( gd2d_file_r4, gd2d_var_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+          ierr = int_hInterpScalar( gd2d_file_r4, gd2d_var_r4, &
+                                    interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
 
           ! read the corresponding mask if it exists
           if (typvar_var(2:2) == '@') then
@@ -945,8 +947,10 @@ module gridStateVectorFileIO_mod
       end do k_loop
     end do
 
-    if (statevector%hco%global .and. statevector%mykCount > 0) call hco_deallocate(hco_file)
-    if (allocated(mask)) deallocate(mask)
+    if (statevector%hco%global .and. statevector%mykCount > 0) then
+      write(*,*) 'deallocating hco_file'
+      call hco_deallocate(hco_file)
+    end if
 
     ierr = fstfrm(nulfile)
     ierr = fclos(nulfile)        
@@ -954,6 +958,9 @@ module gridStateVectorFileIO_mod
 
     ! Read in an oceanMask if it is present in the file
     call gio_readMaskFromFile(statevector, trim(filename))
+
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'gio_readFile: finished'
 
   end subroutine gio_readFile
 
@@ -1262,10 +1269,8 @@ module gridStateVectorFileIO_mod
     interpToPhysicsGrid = .false.
     if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
       if ( mmpi_myid == 0 ) then
-        write(*,*) 'gio_writeToFile: namstio is missing in the namelist.'
-        write(*,*) '                     The default values will be taken.'
+        write(*,*) 'gio_writeToFile: namstio is missing in the namelist. The default values will be taken.'
       end if
-
     else
       ! Read namelist NAMSTIO
       nulnam=0
@@ -1547,7 +1552,7 @@ module gridStateVectorFileIO_mod
               ip1 = vco_ip1_other(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'DP') then
               ip1 = statevector%vco%ip1_depth(levIndex)
-            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SFDP') then
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SS') then
               ip1 = statevector%vco%ip1_seaLevel
             else
               varLevel = vnl_varLevelFromVarname(vnl_varNameList(varIndex))
@@ -1608,7 +1613,9 @@ module gridStateVectorFileIO_mod
 
             !- Convert Kelvin to Celcius only if full field
             if (containsFullField .and. (trim(nomvar) == 'TT' .or. trim(nomvar) == 'TM')  ) then
-              work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
+              where (work2d_r4(:,:) > 100.0)
+                work2d_r4(:,:) = work2d_r4(:,:) - mpc_k_c_degree_offset_r4
+              end where
             end if
 
             !- Do interpolation back to physics grid, if needed
@@ -1618,7 +1625,8 @@ module gridStateVectorFileIO_mod
               allocate(work2dFile_r4(statevector%hco_physics%ni,statevector%hco_physics%nj))
               work2dFile_r4(:,:) = 0.0
               ierr = ezdefset( statevector%hco_physics%EZscintID, statevector%hco%EZscintID )
-              ierr = utl_ezsint( work2dFile_r4, work2d_r4, interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+              ierr = int_hInterpScalar( work2dFile_r4, work2d_r4, &
+                                        interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
 
               !- Writing to file
               ierr = fstecr(work2dFile_r4, work_r4, npak, nulfile, dateo, deet, npas, &
@@ -1887,10 +1895,10 @@ module gridStateVectorFileIO_mod
         end if
 
         if ( trim(varName) == 'TM' .and. containsFullField ) then
-          if (maxval(field_r4_ptr(:,:,kIndex,stepIndex)) < 50.0) then
+          where (field_r4_ptr(:,:,kIndex,stepIndex) < 100.0)
             field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + &
                                                        mpc_k_c_degree_offset_r8, 4 )
-          end if
+          end where
         end if
 
         if ( trim(varName) == 'VIS' .and. containsFullField ) then
