@@ -748,7 +748,7 @@ contains
     end if
     
     if (mmpi_myid > 0) then
-      if ( hco%grtyp == 'G' .or. hco%grtyp == 'B' ) then
+      if (hco%grtyp == 'G' .or. hco%grtyp == 'B') then
         hco%EZscintID  = ezqkdef(hco%ni, hco%nj, hco%grtyp, hco%ig1, hco%ig2, hco%ig3, hco%ig4, 0)
       else
         ! special treatment since EZscintID not properly communicated: keep as is
