@@ -386,13 +386,13 @@ module gridStateVector_mod
     !
     ! :Purpose: Returns the number of levels for a given type of variable;
     !           varLevel can be one of 'TH', 'MM', 'SF', 'SFMM', 'SFTH', 'DP',
-    !           'SSDP' or 'OT'.
+    !           'SS' or 'OT'.
     !
     implicit none
 
     ! Arguments:
     type(struct_gsv),           intent(in) :: statevector ! Input statevector
-    character(len=*),           intent(in) :: varLevel    ! Variable type in 'TH', 'MM', 'SF', 'SFMM', 'SFTH', 'DP', 'SSDP' or 'OT'
+    character(len=*),           intent(in) :: varLevel    ! Variable type in 'TH', 'MM', 'SF', 'SFMM', 'SFTH', 'DP', 'SS' or 'OT'
     character(len=*), optional, intent(in) :: varName_opt ! Variable name when varLevel='OT'
 
     ! Locals:

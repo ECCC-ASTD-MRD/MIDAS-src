@@ -88,10 +88,10 @@ module varNameList_mod
 
   character(len=4), parameter :: varLevelList2D(vnl_numvarmax2D) = (/    &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
+                                 'SS',  'SF',  'SF',  'SF',  'SS',  'SF',  'SF',  'SF',  'SF',  &
                                  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
-                                 'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
-                                 'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  &
-                                 'SF'/)
+                                 'SF',  'SF',  'SF',  'SF',  'SF',  'SF',  'SS',  'SS',  'SS',  &
+                                 'SS'/)
 
   character(len=2), parameter :: varKindList2D(vnl_numvarmax2D) = (/     &
                                  'MT',  'MT',  'MT',  'MT',  'CH',  'CH',  'CH',  'CH',  'CH', &
@@ -549,10 +549,6 @@ module varNameList_mod
         else
           call utl_abort('vnl_varLevelFromVarname: something is wrong')
         end if
-      end if
-
-      if (varLevel == 'SF' .and. varKindList(vnl_varListIndex(varName)) == 'OC') then
-        varLevel = 'SSDP'
       end if
 
     end function vnl_varLevelFromVarname

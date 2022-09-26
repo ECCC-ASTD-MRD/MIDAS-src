@@ -809,7 +809,7 @@ module gridStateVectorFileIO_mod
           ip1 = vco_ip1_other(levIndex)
         else if (varLevel == 'DP') then
           ip1 = vco_file%ip1_depth(levIndex)
-        else if (varLevel == 'SSDP') then
+        else if (varLevel == 'SS') then
           ip1 = -1
         else
           write(*,*) 'varLevel =', varLevel
@@ -1552,7 +1552,7 @@ module gridStateVectorFileIO_mod
               ip1 = vco_ip1_other(levIndex)
             else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'DP') then
               ip1 = statevector%vco%ip1_depth(levIndex)
-            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SSDP') then
+            else if (vnl_varLevelFromVarname(vnl_varNameList(varIndex)) == 'SS') then
               ip1 = statevector%vco%ip1_seaLevel
             else
               varLevel = vnl_varLevelFromVarname(vnl_varNameList(varIndex))

@@ -1283,7 +1283,7 @@ CONTAINS
             multFactor = bEns(instanceIndex)%scaleFactor_SF
           else if ( vnl_varLevelFromVarname(varName) == 'DP' ) then
             multFactor = bEns(instanceIndex)%scaleFactor_DP(lev)
-          else if ( vnl_varLevelFromVarname(varName) == 'SSDP' ) then
+          else if ( vnl_varLevelFromVarname(varName) == 'SS' ) then
             multFactor = bEns(instanceIndex)%scaleFactor_DP(1)
           else
             write(*,*) 'varName = ', varName, ', varLevel = ', vnl_varLevelFromVarname(varName)
@@ -2265,7 +2265,7 @@ CONTAINS
         end if
         ensAmplitude_MT_ptr(1:,1:,bEns(instanceIndex)%myLonBeg:,bEns(instanceIndex)%myLatBeg:) => ensAmplitude_oneLev(1:bEns(instanceIndex)%nEns,:,:,:)
 
-      else if (vnl_varLevelFromVarname(varName) == 'SSDP') then
+      else if (vnl_varLevelFromVarname(varName) == 'SS') then
 
         ! Surface variable cases (ocean)
         ensAmplitude_oneLev   => ens_getOneLev_r8(ensAmplitude,1)
@@ -2312,7 +2312,7 @@ CONTAINS
         topLevOffset = bEns(instanceIndex)%topLevIndex_M
       else if (vnl_varLevelFromVarname(varName) == 'TH') then
         topLevOffset = bEns(instanceIndex)%topLevIndex_T
-      else if (vnl_varLevelFromVarname(varName) == 'SSDP') then
+      else if (vnl_varLevelFromVarname(varName) == 'SS') then
         topLevOffset = 1
       else if (vnl_varLevelFromVarname(varName) == 'DP') then
         topLevOffset = 1
