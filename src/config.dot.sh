@@ -67,11 +67,11 @@ if [ -n "${MIDAS_COMPILE_COMPF_GLOBAL}" ];then
 fi
 
 # Set the optimization level
-if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 -o "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
+if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
     FOPTMIZ=4
 else
     echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
-    exit 1
+    return 1
 fi
 
 ## https://stackoverflow.com/a/4025065
@@ -114,7 +114,7 @@ check_ec_atomic_profile_version () {
     if [ "$(vercomp 1.11.0 ${EC_ATOMIC_PROFILE_VERSION})" = '>' ]; then
         echo "EC_ATOMIC_PROFILE_VERSION=${EC_ATOMIC_PROFILE_VERSION} but should be greater or equal to 1.11.0"
         echo "Please use login profile greater of equal to /fs/ssm/eccc/mrd/ordenv/profile/1.11.0"
-        exit 1
+        return 1
     fi
 }
 
@@ -122,101 +122,35 @@ check_ec_atomic_profile_version () {
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
-if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
-    check_ec_atomic_profile_version
-    echo "... loading compiler hpco/exp/intelpsxe-cluster-19.0.3.199"
-    . ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199
-    LIBIRC=irc
-    echo "... loading code tools rpn/code-tools/1.5.0"
-    . ssmuse-sh -d eccc/mrd/rpn/code-tools/1.5.0
-elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
-    check_ec_atomic_profile_version
-    echo "... loading Intel compiler"
-    . r.env.dot --comp 19.0.5
-    echo "... loaded compiler ${COMP_ARCH}"
-    echo "... loading craype-hugepages16M"
-    module load craype-hugepages16M
-elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
-    echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2"
-    . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2
-else
-    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
-    exit 1
-fi
+echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2"
+. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2
 
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 
-if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
-    ## for rmn, rpncomm
-    echo "... loading eccc/mrd/rpn/libs/19.6.0"
-    . r.load.dot eccc/mrd/rpn/libs/19.6.0
-    ## for openmpi
-    echo "... loading hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045"
-    . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045
-    echo "... loading hdf5"
-    . ssmuse-sh -x hpco/exp/hdf5-netcdf4/serial/static/intel-19.0.3.199/01
-elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
-    ## for rmn, rpncomm
-    echo "... loading eccc/mrd/rpn/libs/19.6.0"
-    . r.load.dot eccc/mrd/rpn/libs/19.6.0
-    echo "... loading cray-hdf5"
-    module load cray-hdf5
-    echo "... loading cray-netcdf"
-    module load cray-netcdf
-    echo "... loading hpco/exp/sqlite/3.29.0"
-    . ssmuse-sh -d hpco/exp/sqlite/3.29.0
-elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
-    ## for rmn, rpncomm
-    echo "... loading eccc/mrd/rpn/libs/20220216"
-    . r.load.dot eccc/mrd/rpn/libs/20220216
-    echo "... loading hdf5"
-    . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
-fi
+## for rmn, rpncomm
+echo "... loading eccc/mrd/rpn/libs/20220216"
+. r.load.dot eccc/mrd/rpn/libs/20220216
+echo "... loading hdf5"
+. ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
 
-if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 -o "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
-    ## for 'vgrid'
-    echo "... loading eccc/mrd/rpn/vgrid/6.5.0"
-    . ssmuse-sh -d eccc/mrd/rpn/vgrid/6.5.0
-    VGRID_LIBNAME="vgrid"
+## for 'vgrid'
+echo "... loading eccc/mrd/rpn/vgrid/20220216"
+. ssmuse-sh -d eccc/mrd/rpn/vgrid/20220216
+VGRID_LIBNAME="vgrid"
 
-    echo "... loading eccc/cmd/cmda/libs/19.7.0-1/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmda/libs/19.7.0-1/${COMP_ARCH}
+echo "... loading eccc/cmd/cmda/libs/20220216/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/20220216/${COMP_ARCH}
 
-    ## For 'perftools' needed for TMG timings
-    if [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
-        echo "... loading main/opt/perftools/perftools-2.0/PrgEnv-intel-6.0.5"
-        . ssmuse-sh -x main/opt/perftools/perftools-2.0/PrgEnv-intel-6.0.5
-    else
-        echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
-        . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
-    fi
-  
-     echo "... loading /fs/ssm/eccc/mrd/rpn/anl/rttov/13v1.1/${COMP_ARCH}"
-    . r.load.dot -d /fs/ssm/eccc/mrd/rpn/anl/rttov/13v1.1/${COMP_ARCH} 
-	
-    ## for 'random_tools'
-    echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1"
-    . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCRU1
-elif [ "${ORDENV_PLAT}" =  rhel-8-icelake-64 ]; then
-    ## for 'vgrid'
-    echo "... loading eccc/mrd/rpn/vgrid/20220216"
-    . ssmuse-sh -d eccc/mrd/rpn/vgrid/20220216
-    VGRID_LIBNAME="vgrid"
+echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
+. ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
 
-    echo "... loading eccc/cmd/cmda/libs/20220216/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/cmd/cmda/libs/20220216/${COMP_ARCH}
+echo "... loading eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}"
+. r.load.dot eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}
 
-    echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
-    . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
-
-    echo "... loading eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}"
-    . r.load.dot eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}
-
-    ## for 'random_tools'
-    echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2-cdt-1.5.5/${COMP_ARCH}"
-    . ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2-cdt-1.5.5/${COMP_ARCH}
-fi
+## for 'random_tools'
+echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2-cdt-1.5.5/${COMP_ARCH}"
+. ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2-cdt-1.5.5/${COMP_ARCH}
 
 ## loading makedep90
 echo "... loading makedepf90"
@@ -224,16 +158,7 @@ echo "... loading makedepf90"
 
 COMPF_GLOBAL="-openmp -mpi ${MIDAS_COMPILE_COMPF_GLOBAL}"
 OPTF="-check noarg_temp_created -no-wrap-margin -warn all -warn errors"
-if [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
-    OPTF="-mkl ${OPTF}"
-elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    OPTF="-qmkl ${OPTF} -warn noexternal"
-elif [ "${ORDENV_PLAT}" = sles-15-skylake-64-xc50 ]; then
-    OPTF="${OPTF}"
-else
-    echo "... This platform 'ORDENV_PLAT=${ORDENV_PLAT}' is not supported."
-    exit 1
-fi
+OPTF="-qmkl ${OPTF} -warn noexternal"
 
 if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     FOPTMIZ=0

@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
+ * Removed multi-platform compilation support (#663 and !640)
  * Removed code documentation for `v_3.6` branch (#681 and !627)
  * Removed comment about documentation temporarily pointing to master (#657 and !611)
 

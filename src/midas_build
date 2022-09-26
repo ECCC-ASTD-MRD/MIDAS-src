@@ -49,8 +49,12 @@ __revstring=$(${__toplevel}/midas.version.sh)
 
 ##=========================================================
 ##  sourcing user configuration
+if [ ! "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
+  echo "Only ORDENV_PLAT=rhel-8-icelake-64 supported"
+  exit 1
+fi
 __midas_dot_cfg=${__here}/config.dot.sh
-source ${__midas_dot_cfg}  &> .tmp.config.out
+source ${__midas_dot_cfg}  &> .tmp.config.out || echo "An error occured in the build configuration"
 __listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 __listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
 mv .tmp.config.out ${__listing_config}
