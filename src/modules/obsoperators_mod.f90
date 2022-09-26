@@ -1145,7 +1145,7 @@ contains
        !
        ! GPS profile structure:
        !
-       call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zHeight,prf)
+       call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zUU,zVV,zHeight,prf)
        ldsc=.not.btest(iclf,16-3)
        !
        ! Prepare the vector of all the observations:
@@ -2437,7 +2437,7 @@ contains
                      ! Evaluate H(xb)DX
                      ZMHXL = 0.d0
                      do JV = 1, 4*NGPSLEV
-                        ZMHXL = ZMHXL + gps_vRO_Jacobian(iProfile,NH1,JV) * DX(JV)
+                        ZMHXL = ZMHXL + gps_vRO_Jacobian4(iProfile,NH1,JV) * DX(JV)
                      end do
 
                      ! Store in CMA
@@ -3071,7 +3071,7 @@ contains
                      ZINC = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
 
                      ! O-F Tested criteria:
-                     DPJO1(1:4*NGPSLEV) = ZINC * gps_vRO_Jacobian(iProfile,NH1,:)
+                     DPJO1(1:4*NGPSLEV) = ZINC * gps_vRO_Jacobian4(iProfile,NH1,1:4*NGPSLEV)
 
                      ! Accumulate the gradient of the observation cost function:
                      DPJO0(1:4*NGPSLEV) = DPJO0(1:4*NGPSLEV) + DPJO1(1:4*NGPSLEV)
@@ -3489,8 +3489,12 @@ contains
     allocate(zuu (ngpslev))
     allocate(zvv (ngpslev))
 
-    if ( allocated(gps_vro_jacobian) ) write(*,*) 'oop_calcGPSROJacobian: WARNING, gps_vro_jacobian is already allocated. Re-allocating'
-    call utl_reallocate(gps_vro_jacobian,gps_numroprofiles,gpsro_maxprfsize,4*ngpslev)
+    if ( .not. allocated(gps_vRO_Jacobian4) ) then
+      allocate( gps_vRO_Jacobian4(gps_numroprofiles,gpsro_maxprfsize,4*ngpslev) )
+      allocate( gps_vRO_lJac4    (gps_numROProfiles) )
+      gps_vRO_Jacobian4 = 0.d0
+      gps_vRO_lJac4 = .False.
+    end if
 
     allocate( h    (gpsro_maxprfsize) )
     allocate( azmv (gpsro_maxprfsize) )
@@ -3525,6 +3529,7 @@ contains
         ! If assimilations are requested, prepare and apply the observation operator
         ASSIMILATE: if (assim) then
           iProfile = gps_iprofile_from_index(headerIndex)
+          if (gps_vRO_lJac4(iProfile)) cycle                  ! If already done, end this HEADER
           varNum = gps_vRO_IndexPrf(iProfile, 2)
 
           ! Profile at the observation location:
@@ -3568,7 +3573,7 @@ contains
           zvv(ngpslev) = zuu(nwndlev)
 
           ! GPS profile structure:
-          call gps_struct1sw_v2(ngpslev,zlat,zlon,zazm,zmt,rad,geo,zp0,zpp,ztt,zhu,zHeight,prf)
+          call gps_struct1sw_v2(ngpslev,zlat,zlon,zazm,zmt,rad,geo,zp0,zpp,ztt,zhu,zuu,zvv,zHeight,prf)
 
           ! Prepare the vector of all the observations:
           nh1 = 0
@@ -3591,9 +3596,9 @@ contains
             call gps_refopv (h, nh, prf, rstv)
           end if
           do nh1 = 1, nh
-            gps_vro_jacobian(iprofile,nh1,:)= rstv(nh1)%dvar(1:4*ngpslev)
-          enddo
-
+            gps_vRO_Jacobian4(iprofile,nh1,1:4*ngpslev)= rstv(nh1)%dvar(1:4*ngpslev)
+          end do
+          gps_vRO_lJac4(iProfile) = .True.
         endif ASSIMILATE
       endif DATYP
     enddo HEADER
@@ -3604,8 +3609,8 @@ contains
 
     deallocate(zvv)
     deallocate(zuu)
-    deallocate(zhu)
     deallocate(zHeight)
+    deallocate(zhu)
     deallocate(ztt)
     deallocate(zpp)
 

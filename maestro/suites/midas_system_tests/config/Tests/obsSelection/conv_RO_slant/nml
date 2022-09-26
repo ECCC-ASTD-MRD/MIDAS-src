@@ -71,6 +71,7 @@
   HTPMAX   = 70000.D0,
   BGCKBAND = 0.05D0,
   gpsroError = 'DYNAMIC',
+  gpsroEotvos= .False.,
 /
  &NAMGPSGB
    DZMIN      = 2.0D0,

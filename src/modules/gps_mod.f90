@@ -33,9 +33,10 @@ module gps_mod
   public :: gps_profile, gps_profilezd, gps_diff
 
   ! public variables
-  public :: gps_numROProfiles, gps_vRO_IndexPrf, gps_vRO_Jacobian, gps_vRO_lJac
+  public :: gps_numROProfiles, gps_vRO_IndexPrf
+  public :: gps_vRO_Jacobian4, gps_vRO_lJac4, gps_vRO_Jacobian2, gps_vRO_lJac2
   public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, BGCKBAND, WGPS
-  public :: gpsroError, gpsroBNorm
+  public :: gpsroError, gpsroBNorm, gpsroEotvos
   public :: gpsgravitysrf, p_tc, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
   public :: ltestop, llblmet, lbevis, irefopt, iztdop, lassmet, l1obs, yzderrwgt, numgpsztd
   public :: vgpsztd_index, ngpscvmx, dzmax, yztderr, ysferrwgt
@@ -207,8 +208,10 @@ module gps_mod
 !
   integer                                :: gps_numROProfiles
   integer         , allocatable          :: gps_vRO_IndexPrf(:,:)   ! index for each profile
-  real*8          , allocatable          :: gps_vRO_Jacobian(:,:,:)
-  logical         , allocatable          :: gps_vRO_lJac(:)
+  real*8          , allocatable          :: gps_vRO_Jacobian4(:,:,:)
+  real*8          , allocatable          :: gps_vRO_Jacobian2(:,:,:)
+  logical         , allocatable          :: gps_vRO_lJac4(:)
+  logical         , allocatable          :: gps_vRO_lJac2(:)
 
 !     Contents of previous comdeck comgpsro
 !     -------------------------------------
@@ -223,8 +226,9 @@ module gps_mod
 !     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
 !     gpsroError: key for using dynamic/static refractivity error estimation (default 'DYNAMIC')
 !     gpsroBNorm: Whether to normalize based on B=H(x) (default=.True.), or upon an approximate exponential reference.
+!     gpsroEotvos: Add an operator-only Eotvos correction to local gravity (shift of altitudes, default False)
 !
-!     J.M. Aparicio, Apr 2008
+!     J.M. Aparicio, Apr 2008, 2022
 !
 !     Revision 01: M. Bani Shahabadi, Nov 2018
 !       - adding the gpsroError key to use static error estimation for the refractivity.
@@ -235,10 +239,10 @@ module gps_mod
   REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, HTPMAXER
   REAL*4  WGPS(0:1023,4)
   character(len=20) :: gpsroError
-  LOGICAL :: gpsroBNorm
+  LOGICAL :: gpsroBNorm, gpsroEotvos
 
   NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,HTPMAXER, &
-                      BGCKBAND,WGPS, gpsroError, gpsroBNorm
+                      BGCKBAND,WGPS, gpsroError, gpsroBNorm, gpsroEotvos
 
 
 !modgpsztd_mod
@@ -1003,7 +1007,7 @@ contains
   end subroutine gps_struct1sw
 
   subroutine gps_struct1sw_v2(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rTT,rHU,rALT,prf)
+       rP0,rPP,rTT,rHU,rUU,rVV,rALT,prf)
     implicit none
 
     ! Arguments:
@@ -1018,12 +1022,15 @@ contains
     real(dp)        , intent(in)  :: rPP (ngpssize)
     real(dp)        , intent(in)  :: rTT (ngpssize)
     real(dp)        , intent(in)  :: rHU (ngpssize)
+    real(dp)        , intent(in)  :: rUU (ngpssize)
+    real(dp)        , intent(in)  :: rVV (ngpssize)
     real(dp)        , intent(in)  :: rALT (ngpssize)
 
     type(gps_profile), intent(out) :: prf
 
     ! Locals
     integer(i4)                   :: i
+    real(dp)                      :: rALT_E(ngpssize)
 
 
     real(dp) , parameter           :: delta = 0.6077686814144_dp
@@ -1075,8 +1082,13 @@ contains
     !
     ! Fill altitude placeholders:
     !
+    if (gpsroEotvos) then
+      call gpsro_Eotvos_dH(ngpslev, rLat, rALT, rUU, rVV, rALT_E)
+    else
+      rALT_E(1:ngpslev) = rALT(1:ngpslev)
+    end if
     do i = 1, ngpslev
-       prf%gst(i)%Var                 = rALT(i)
+       prf%gst(i)%Var                 = rALT_E(i)
        prf%gst(i)%DVar                = 0._dp
        prf%gst(i)%DVar(2*ngpslev+i)   = 1._dp
     end do
@@ -1138,6 +1150,35 @@ contains
     gpscompressibility = 1._dp-pt*(a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2)+pt*pt*(d+e*x2)
   end function gpscompressibility
 
+  subroutine gpsro_Eotvos_dH(ngpslev, rLat, rALT, rUU, rVV, rALT_E)
+    implicit none
+
+    ! Arguments:
+    integer,  intent(in)   :: ngpslev
+    real(dp), intent(in)   :: rLat
+    real(dp), intent(in)   :: rALT(ngpslev)
+    real(dp), intent(in)   :: rUU (ngpslev)
+    real(dp), intent(in)   :: rVV (ngpslev)
+    real(dp), intent(out)  :: rALT_E(ngpslev)
+
+    ! Locals
+    integer                :: i
+    real(dp)               :: cLat, dALT, Eot, Eot2, dALTE, ddAL, acc
+
+    cLat=cos(rLat)
+    rALT_E(ngpslev) = rALT(ngpslev)
+    acc = 0.d0
+    do i = ngpslev-1, 1, -1
+      dALT = rALT(i) - rALT(i+1)
+      Eot = 2*ec_wgs_OmegaPrime*cLat*rUU(i)
+      Eot2= (rUU(i)**2+rVV(i)**2)/ec_wgs_a
+      dALTE = dALT*(1.d0+(Eot+Eot2)/ec_rg)
+      ddAL = dALTE - dALT
+      acc = acc + ddAL
+      rALT_E(i) = rALT(i) + acc
+      !write(*,'(A15,I4,8F15.8)')'EOTVOS shift', i, rALT(i), rALT_E(i), dALT, Eot, Eot2, ddAL, acc
+    end do
+  end subroutine gpsro_Eotvos_dH
 
 !modgps04profilezd
 
@@ -2826,13 +2867,15 @@ contains
       n(levIndexAnl)  = 1._dp+nu(levIndexAnl)*1e-6_dp
       z(levIndexAnl)  = n(levIndexAnl)*(prf%Rad+prf%geoid+prf%gst(levIndexAnl))
     end do
-    ! number of levels in the profile
+    ! number of observed levels in the profile
     numLevels  = size(impv)
     if (nval < numLevels) numLevels=nval
     
     do levIndexObs =  numLevels,1,-1
       a2 = impv(levIndexObs)*impv(levIndexObs)
       a  = impv(levIndexObs)
+      cazm = cos(azmv(levIndexObs))
+      sazm = sin(azmv(levIndexObs))
       !find model levels that bracket the observation
       !   note to self:   like in GEM, level=1 is the highest level
       do levIndexAnl = 1, ngpslev-1
@@ -2844,8 +2887,6 @@ contains
     
       if  (levelLow/=0) then
         h_0  = h(levelLow)+(((a-z(levelLow))/(z(levelHigh)-z(levelLow)))*(h(levelHigh)-h(levelLow)))  
-        cazm = cos(azmv(levelLow))
-        sazm = sin(azmv(levelLow)) 
         N0a  = nu(levelLow)
         gz   = (lnu(levelLow+1)%Var-lnu(levelLow)%Var)/(h(levelLow+1)%Var-h(levelLow)%Var)
         NAa  = nu(levelLow)*exp(gz*(h_0-h(levelLow)))
@@ -2916,6 +2957,7 @@ contains
     BGCKBAND   = 0.05d0
     gpsroError = 'DYNAMIC'
     gpsroBNorm = .True.
+    gpsroEotvos= .False.
 !
 !   Force a pre-NML default for the effective data weight of all
 !   GPSRO satellites. This array has rows 0-1023 (following BUFR element
@@ -2938,7 +2980,7 @@ contains
     if (HTPMAXER < 0.0D0) HTPMAXER = HTPMAX
     if(mmpi_myid.eq.0) then
       write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN, &
-           HTPMAX,HTPMAXER,BGCKBAND, trim(gpsroError), gpsroBNorm
+           HTPMAX,HTPMAXER,BGCKBAND, trim(gpsroError), gpsroBNorm, gpsroEotvos
       do SatID = 0, 1023
         if (WGPS(SatID,2) /= 0.) then
           write(*,*)'WGPS', SatID, WGPS(SatID, 1:4)

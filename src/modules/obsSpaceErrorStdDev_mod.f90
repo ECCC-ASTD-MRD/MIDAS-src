@@ -1360,6 +1360,7 @@ module obsSpaceErrorStdDev_mod
       REAL*8, allocatable :: zDP(:)
       REAL*8, allocatable :: zTT(:)
       REAL*8, allocatable :: zHU(:)
+      REAL*8, allocatable :: zHT(:)
       REAL*8, allocatable :: zUU(:)
       REAL*8, allocatable :: zVV(:)
       INTEGER status
@@ -1388,18 +1389,20 @@ module obsSpaceErrorStdDev_mod
       NGPSLEV=col_getNumLev(columnTrlOnAnlIncLev,'TH')
       NWNDLEV=col_getNumLev(columnTrlOnAnlIncLev,'MM')
       LFIRST=.FALSE.
-      if ( .NOT.allocated(gps_vRO_Jacobian) ) then
+      if ( .NOT.allocated(gps_vRO_Jacobian2) ) then
          LFIRST = .TRUE.
          allocate(zPP (NGPSLEV))
          allocate(zDP (NGPSLEV))
          allocate(zTT (NGPSLEV))
          allocate(zHU (NGPSLEV))
+         allocate(zHT (NGPSLEV))
          allocate(zUU (NGPSLEV))
          allocate(zVV (NGPSLEV))
 
-         allocate(gps_vRO_Jacobian(gps_numROProfiles,GPSRO_MAXPRFSIZE,2*NGPSLEV+1))
-         allocate(gps_vRO_lJac    (gps_numROProfiles))
-         gps_vRO_lJac=.false.
+         allocate(gps_vRO_Jacobian2(gps_numROProfiles,GPSRO_MAXPRFSIZE,2*NGPSLEV+1))
+         allocate(gps_vRO_lJac2    (gps_numROProfiles))
+         gps_vRO_Jacobian2 = 0.d0
+         gps_vRO_lJac2 = .False.
 
          allocate( H    (GPSRO_MAXPRFSIZE) )
          allocate( AZMV (GPSRO_MAXPRFSIZE) )
@@ -1445,7 +1448,7 @@ module obsSpaceErrorStdDev_mod
 
                ! Profile at the observation location:
 
-               if (.not.gps_vRO_lJac(iProfile)) then
+               if (.not.gps_vRO_lJac2(iProfile)) then
 
                   ! Basic geometric variables of the profile:
 
@@ -1478,6 +1481,7 @@ module obsSpaceErrorStdDev_mod
                      zPP(JL) = col_getPressure(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
                      zTT(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT') - p_TC
                      zHU(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'HU')
+                     zHT(JL) = col_getHeight(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
                      zUU(JL) = 0.d0
                      zVV(JL) = 0.d0
                   ENDDO
@@ -1491,6 +1495,7 @@ module obsSpaceErrorStdDev_mod
                   ! GPS profile structure:
 
                   call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+                  !call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,zHT,prf)
 
                   ! Prepare the vector of all the observations:
 
@@ -1514,9 +1519,9 @@ module obsSpaceErrorStdDev_mod
                      CALL GPS_REFOPV (H,       NH, PRF, RSTV)
                   ENDIF
                   DO NH1=1,NH
-                     gps_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
+                     gps_vRO_Jacobian2(iProfile,NH1,1:2*NGPSLEV+1)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
                   ENDDO
-                  gps_vRO_lJac(iProfile)=.true.
+                  gps_vRO_lJac2(iProfile) = .True.
                endif
 
                ! Local error
@@ -1545,7 +1550,7 @@ module obsSpaceErrorStdDev_mod
 
                      ZFGE = 0.d0
                      DO JV = 1, 2*PRF%NGPSLEV+1
-                        ZFGE = ZFGE + (gps_vRO_Jacobian(iProfile,NH1,JV) * DV(JV))**2
+                        ZFGE = ZFGE + (gps_vRO_Jacobian2(iProfile,NH1,JV) * DV(JV))**2
                      ENDDO
                      ZFGE = SQRT(ZFGE)
                      ZERR = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
@@ -1571,11 +1576,11 @@ module obsSpaceErrorStdDev_mod
 
          deallocate(zVV)
          deallocate(zUU)
+         deallocate(zHT)
          deallocate(zHU)
          deallocate(zTT)
          deallocate(zDP)
          deallocate(zPP)
-         deallocate(gps_vRO_Jacobian)
       ENDIF
 
       WRITE(*,*)'EXIT SETFGEDIFF'

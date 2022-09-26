@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added ability to output trial and analysis ensemble members in obs space to diag files (#621 and !608)
  * Introduction of RTTOV-SCATT controlled by NAMTOV namelist section logical array useRttovScatt (#320 and !607)
  * Added cleaning for ObsDb files after observation thinning (#631 and !604)
+ * Added ability to consider vertical coriolis accel to h/p relationship (GPSRO operator only) (#644)
 
 ### Changed
 
@@ -37,6 +38,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * moved column interpolation in `interpolation_mod` (#683 and !628)
  * SST bias estimation code is more efficient when treating missing data (#678 and !625)
  * SST observation errors are now read from namelist namSSTObsErrors (#676 and !623)
+ * Split Jacobian cache for GPSRO operators, to avoid potential interference between a) TL, AD operators and b) FGE (#644)
 
 ### Fixed
 
