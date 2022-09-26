@@ -101,7 +101,7 @@ contains
     if (.not. doThinning) return
 
     call utl_tmg_start(114,'--ObsThinning')
-    call thn_surfaceInTime(obsdat, step, deltmax, useBlackList,considerSHIPstnID)
+    call thn_surfaceInTime(obsdat, step, deltmax, useBlackList, considerSHIPstnID)
     call utl_tmg_stop(114)
 
   end subroutine thn_thinSurface
@@ -661,7 +661,8 @@ contains
     type(struct_obs), intent(inout) :: obsdat
     real(8),          intent(in)    :: step
     integer,          intent(in)    :: deltmax
-    logical,          intent(in)    :: useBlackList, considerSHIPstnID
+    logical,          intent(in)    :: useBlackList
+    logical,          intent(in)    :: considerSHIPstnID
 
     ! Drifter removal parameters:
     ! Remove incomplete DRIFTER reports (using listEleBadDrifter)?
@@ -983,7 +984,8 @@ contains
             ! If reports are spatially colocated or have same stnid
             if ( ( (obsLonMpi(obsIndex) == obsLonMpi(obsIndex2)) .and. &
                    (obsLatMpi(obsIndex) == obsLatMpi(obsIndex2)) ) .or. &
-                 ( considerSHIPstnID .and. obsStnidMpi(obsIndex) == obsStnidMpi(obsIndex2)) ) then
+                 ( considerSHIPstnID .and. &
+                   (obsStnidMpi(obsIndex) == obsStnidMpi(obsIndex2)) ) ) then
               ! If both reports have same codtyp
               if (obsCodtypIndexMpi(obsIndex) == obsCodtypIndexMpi(obsIndex2)) then
                 ! If current report closer to bin time
