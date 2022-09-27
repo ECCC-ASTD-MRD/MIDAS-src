@@ -22,9 +22,8 @@ module obsFiles_mod
   !           only supported formats are:
   !
   !              1. BURP
-  !              2. CMA (binary format of obsSpaceData contents)
-  !              3. SQLITE (burp2rdb format)
-  !              4. SQLITE (obsDB format)
+  !              2. SQLITE (burp2rdb format)
+  !              3. SQLITE (obsDB format)
   !
   use midasMpi_mod
   use ramdisk_mod
@@ -33,7 +32,6 @@ module obsFiles_mod
   use burpFiles_mod
   use sqliteFiles_mod
   use obsdbFiles_mod
-  use cmaFiles_mod
   use bufr_mod
   use obsSubSpaceData_mod
   use obsUtil_mod
@@ -96,8 +94,6 @@ contains
     !
     if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE') then
       obsFilesSplit = .true.
-    else if ( obsFileType == 'CMA' ) then
-      obsFilesSplit = .false.
     else
       call utl_abort('obsf_setup: invalid observation file type: ' // trim(obsFileType))
     end if
@@ -146,34 +142,25 @@ contains
 
     call obsf_determineFileType(obsFileType)
 
-    if ( obsFileType == 'CMA' ) then
+    ! for every splitted file, the file type is defined separately 
+    do fileIndex = 1, obsf_nfiles
 
-      ! read same global CMA file on all mpi tasks
-      call cma_readFiles(obsSpaceData)
-
-    else 
-
-      ! for every splitted file, the file type is defined separately 
-      do fileIndex = 1, obsf_nfiles
-
-        call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
-        if ( obsFileType == 'BURP' )   then
-          ! Add extra bias correction element to GP and TO files
-          if ( bcc_biasActive( obsf_cfamtyp(fileIndex) ) .or. ( obsf_cfamtyp(fileIndex) == 'TO' ) ) &
-               call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
-          call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      if ( obsFileType == 'BURP' )   then
+        ! Add extra bias correction element to GP and TO files
+        if ( bcc_biasActive( obsf_cfamtyp(fileIndex) ) .or. ( obsf_cfamtyp(fileIndex) == 'TO' ) ) &
+             call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
+        call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+      end if
+      if ( obsFileType == 'SQLITE' ) then
+        if ( odbf_isActive() ) then
+          call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        else
+          call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
-        if ( obsFileType == 'SQLITE' ) then
-          if ( odbf_isActive() ) then
-            call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
-          else
-            call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
-          end if
-        end if
+      end if
 
-      end do
-
-    end if
+    end do
 
     ! abort if NAMTOV does not exist but there are radiance observation files
     if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') .and. &
@@ -261,11 +248,6 @@ contains
       if ( present(HXens_mpiglobal_opt) .and. mmpi_myid == 0 ) then
         call obsf_writeHX(obsSpaceData, HXens_mpiglobal_opt)
       end if
-
-    else if ( obsFileType == 'CMA' ) then
-
-      ! only 1 mpi task should do the writing
-      if( mmpi_myid == 0 ) call cma_writeFiles( obsSpaceData, HXens_mpiglobal_opt )
 
     end if
 
@@ -721,28 +703,23 @@ contains
 
     write(*,*) 'obsf_determineSplitFileType: read obs file: ', trim(fileName)
    
-    if ( index(trim(fileName), 'cma' ) > 0 ) then
-      obsFileType = 'CMA'
+    ierr = wkoffit(trim(fileName))
+
+    if (ierr.eq.6) then
+      obsFiletype = 'BURP'
     else
 
-      ierr = wkoffit(trim(fileName))
+      unitFile = 0
+      ierr = fnom(unitFile, fileName, 'FTN+SEQ+FMT+R/O', 0)
+      read(unitFile,'(A)') fileStart
+      ierr = fclos(unitFile)
 
-      if (ierr.eq.6) then
-         obsFiletype = 'BURP'
+      if ( index( fileStart, 'SQLite format 3' ) > 0 ) then
+        obsFileType = 'SQLITE'
       else
-
-         unitFile = 0
-         ierr = fnom(unitFile, fileName, 'FTN+SEQ+FMT+R/O', 0)
-         read(unitFile,'(A)') fileStart
-         ierr = fclos(unitFile)
-
-         if ( index( fileStart, 'SQLite format 3' ) > 0 ) then
-            obsFileType = 'SQLITE'
-         else
-            call utl_abort('obsf_determineSplitFileType: unknown obs file type')
-         end if
-
+        call utl_abort('obsf_determineSplitFileType: unknown obs file type')
       end if
+
     end if
 
     write(*,*) 'obsf_determineSplitFileType: obsFileType = ', obsFileType

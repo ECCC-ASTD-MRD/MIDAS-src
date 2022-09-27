@@ -47,7 +47,6 @@ calcstatsglb_mod.f90
 calcstatslam_mod.f90
 obsOperatorsChem_mod.f90
 clib_interfaces_mod.ftn90
-cmafiles_mod.f90
 codeprecision_mod.ftn90
 codtyp_mod.f90
 columndata_mod.f90
@@ -139,7 +138,6 @@ calcstatsglb_mod.f90
 calcstatslam_mod.f90
 obsOperatorsChem_mod.f90
 clib_interfaces_mod.ftn90
-cmafiles_mod.f90
 codeprecision_mod.ftn90
 codtyp_mod.f90
 columndata_mod.f90

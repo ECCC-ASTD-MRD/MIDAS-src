@@ -50,7 +50,6 @@ bmatrixchem_mod.f90
 obsfiles_mod.f90
 sqliteread_mod.f90
 sqlitefiles_mod.f90
-cmafiles_mod.f90
 burpfiles_mod.f90
 obsUtil_mod.f90
 sqliteUtilities_mod.f90
