@@ -38,7 +38,6 @@ bmatrixchem_mod.f90
 bmatrixdiff_mod.f90
 bmatrixensemble_mod.f90
 bmatrixhi_mod.f90
-bmatrixlatbands_mod.f90
 bufr_mod.f90
 build.out
 burpfiles_mod.f90
@@ -129,7 +128,6 @@ bmatrixchem_mod.f90
 bmatrixdiff_mod.f90
 bmatrixensemble_mod.f90
 bmatrixhi_mod.f90
-bmatrixlatbands_mod.f90
 bufr_mod.f90
 build.out
 burpfiles_mod.f90

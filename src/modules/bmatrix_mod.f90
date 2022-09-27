@@ -30,7 +30,6 @@ module BMatrix_mod
   use bMatrixEnsemble_mod
   use bMatrixChem_mod
   use bMatrixDiff_mod
-  use bMatrixLatBands_mod
   use controlVector_mod
   use verticalCoord_mod
   use gridStateVector_mod
@@ -47,10 +46,10 @@ module BMatrix_mod
 
   logical :: globalGrid = .true.
 
-  integer,          parameter :: numMasterBmat = 5
-  character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/'HI'  , 'LATB'  , 'ENS'  , 'CHM'  , 'DIFF'  /)
-  character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI', 'B_LATB', 'B_ENS', 'B_CHM', 'B_DIFF'/)
-  logical,          parameter :: masterbmatIs3dList (numMasterBmat) = (/.true., .true.  , .false., .true. , .true.  /)
+  integer,          parameter :: numMasterBmat = 4
+  character(len=4), parameter :: masterBmatTypeList (numMasterBmat) = (/'HI'  , 'ENS'  , 'CHM'  , 'DIFF'  /)
+  character(len=8), parameter :: masterBmatLabelList(numMasterBmat) = (/'B_HI', 'B_ENS', 'B_CHM', 'B_DIFF'/)
+  logical,          parameter :: masterbmatIs3dList (numMasterBmat) = (/.true., .false., .true. , .true.  /)
 
   integer            :: numBmat
   integer, parameter :: numBmatMax = 50
@@ -125,25 +124,9 @@ contains
 
         cvdimPerInstance(1) = cvdim
 
-      case ('LATB')
-
-        !- 2.2 Time-Mean Lat-Bands...
-        nBmatInstance = 1 ! hardwired
-        allocate(cvdimPerInstance(nBmatInstance))
-
-        if ( globalGrid ) then
-          write(*,*) 'Setting up the modular GLOBAL LatBands covariances...'
-          call blb_Setup( hco_anl, vco_anl, & ! IN
-                          cvdim )             ! OUT
-        else
-          cvdim=0
-        end if
-
-        cvdimPerInstance(1) = cvdim
-
       case ('ENS')
 
-        !- 2.3 Flow-dependent Ensemble-Based
+        !- 2.2 Flow-dependent Ensemble-Based
         write(*,*)
         write(*,*) 'Setting up the modular ENSEMBLE covariances...'
         call ben_Setup( hco_anl, hco_core, vco_anl, & ! IN
@@ -153,7 +136,7 @@ contains
 
       case ('CHM')
 
-        !- 2.4  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
         nBmatInstance = 1 ! hardwired
         allocate(cvdimPerInstance(nBmatInstance))
 
@@ -170,7 +153,7 @@ contains
 
       case ('DIFF')
 
-        !- 2.5 Covariances modelled using a diffusion operator.
+        !- 2.4 Covariances modelled using a diffusion operator.
         nBmatInstance = 1 ! hardwired
         allocate(cvdimPerInstance(nBmatInstance))
 
@@ -187,7 +170,7 @@ contains
 
       end select
 
-      !- 2.6 Append the info to the B matrix info arrays and setup the proper control sub-vectors
+      !- 2.5 Append the info to the B matrix info arrays and setup the proper control sub-vectors
       do bMatInstanceIndex = 1, nBmatInstance
 
         numBmat = numBmat + 1
@@ -310,19 +293,9 @@ contains
         end if
         call utl_tmg_stop(52)
 
-      case ('LATB')
-
-        !- 2.2 Time-Mean Lat-Bands...
-        call utl_tmg_start(52,'----B_HI_TL')
-        if ( globalGrid ) then
-          call blb_bsqrt( subVector,       & ! IN
-                          statevector_temp ) ! OUT
-        end if
-        call utl_tmg_stop(52)
-
       case ('CHM')
 
-        !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        !- 2.2  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
         call utl_tmg_start(68,'----B_CHM_TL')
         if ( globalGrid ) then
           call bchm_bsqrt( subVector,        &  ! IN
@@ -333,7 +306,7 @@ contains
 
       case ('DIFF')
 
-        !- 2.4 Covariances modelled using a diffusion operator.
+        !- 2.3 Covariances modelled using a diffusion operator.
         call utl_tmg_start(66,'----B_DIFF_TL')
         call bdiff_bsqrt( subVector,       & ! IN
                           statevector_temp ) ! OUT
@@ -341,7 +314,7 @@ contains
 
       case ('ENS')
 
-        !- 2.5 Flow-dependent Ensemble-Based
+        !- 2.4 Flow-dependent Ensemble-Based
         call utl_tmg_start(57,'----B_ENS_TL')
         call ben_bsqrt( bmatInstanceID(bmatIndex), subVector, & ! IN
                         statevector_temp,                     & ! OUT
@@ -440,19 +413,9 @@ contains
         end if
         call utl_tmg_stop(69)
 
-      case ('LATB')
-
-        !- 2.4 Time-Mean Lat-Bands...
-        call utl_tmg_start(53,'----B_HI_AD')
-        if ( globalGrid ) then
-          call blb_bsqrtad( statevector_temp, & ! IN
-                            subVector )         ! OUT
-        end if
-        call utl_tmg_stop(53)
-
       case ('HI')
 
-        !- 2.5 Time-Mean Homogeneous and Isotropic...
+        !- 2.4 Time-Mean Homogeneous and Isotropic...
         call utl_tmg_start(53,'----B_HI_AD')
         if ( globalGrid ) then
           call bhi_bsqrtad( statevector_temp, &  ! IN
@@ -485,7 +448,6 @@ contains
     implicit none 
 
     call bhi_finalize()
-    call blb_finalize()
     call ben_finalize()
     call bchm_finalize()
     call lbhi_finalize()
@@ -533,28 +495,21 @@ contains
           call lbhi_reduceToMPILocal( subVector_mpilocal,subVector_mpiglobal )
         end if
 
-      case ('LATB')
-
-        !- 2.2 Time-Mean Lat-Bands...
-        if ( globalGrid ) then
-          call blb_reduceToMPILocal( subVector_mpilocal, subVector_mpiglobal )
-        end if
-
       case ('CHM')
 
-        !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        !- 2.2  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
         if ( globalGrid ) then
           call bchm_reduceToMPILocal( subVector_mpilocal, subVector_mpiglobal )
         end if
 
       case ('DIFF')
 
-        !- 2.4 Covariances modelled using a diffusion operator.
+        !- 2.3 Covariances modelled using a diffusion operator.
         call bdiff_reduceToMPILocal( subVector_mpilocal, subVector_mpiglobal )
 
       case ('ENS')
 
-        !- 2.5 Flow-dependent Ensemble-Based
+        !- 2.4 Flow-dependent Ensemble-Based
         call ben_reduceToMPILocal(subVector_mpilocal, subVector_mpiglobal, bmatInstanceID(bmatIndex))
 
       end select
@@ -603,29 +558,22 @@ contains
           call lbhi_reduceToMPILocal_r4( subVector_mpilocal,subVector_mpiglobal )
         end if
 
-      case ('LATB')
-
-        !- 2.2 Time-Mean Lat-Bands...
-        if ( globalGrid ) then
-          call blb_reduceToMPILocal_r4( subVector_mpilocal, subVector_mpiglobal )
-        end if
-
       case ('CHM')
 
-        !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        !- 2.2  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
         if ( globalGrid ) then
           call bchm_reduceToMPILocal_r4( subVector_mpilocal, subVector_mpiglobal )
         end if
 
       case ('DIFF')
 
-        !- 2.4 Covariances modelled using a diffusion operator.
+        !- 2.3 Covariances modelled using a diffusion operator.
         call utl_abort('bmat_reduceToMPILocal_r4: not yet implemented for bMatrixDiff')
         !call bdiff_reduceToMPILocal_r4( subVector_mpilocal, subVector_mpiglobal )
 
       case ('ENS')
 
-        !- 2.5 Flow-dependent Ensemble-Based
+        !- 2.4 Flow-dependent Ensemble-Based
         call ben_reduceToMPILocal_r4(subVector_mpilocal, subVector_mpiglobal, bmatInstanceID(bmatIndex))
 
       end select
@@ -674,28 +622,21 @@ contains
           call lbhi_expandToMPIGlobal( subVector_mpilocal,subVector_mpiglobal )
         end if
 
-      case ('LATB')
-
-        !- 2.2 Time-Mean Lat-Bands...
-        if ( globalGrid ) then
-          call blb_expandToMPIGlobal( subVector_mpilocal, subVector_mpiglobal )
-        end if
-
       case ('CHM')
 
-        !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        !- 2.2  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
         if ( globalGrid ) then
           call bchm_expandToMPIGlobal( subVector_mpilocal, subVector_mpiglobal )
         end if
 
       case ('DIFF')
 
-        !- 2.4 Covariances modelled using a diffusion operator.
+        !- 2.3 Covariances modelled using a diffusion operator.
         !call bdiff_expandToMPIGlobal( subVector_mpilocal, subVector_mpiglobal )
 
       case ('ENS')
 
-        !- 2.5 Flow-dependent Ensemble-Based
+        !- 2.4 Flow-dependent Ensemble-Based
         call ben_expandToMPIGlobal(subVector_mpilocal, subVector_mpiglobal, bmatInstanceID(bmatIndex) )
 
       end select
@@ -744,28 +685,21 @@ contains
           call lbhi_expandToMPIGlobal_r4( subVector_mpilocal,subVector_mpiglobal )
         end if
 
-      case ('LATB')
-
-        !- 2.2 Time-Mean Lat-Bands...
-        if ( globalGrid ) then
-          call blb_expandToMPIGlobal_r4( subVector_mpilocal, subVector_mpiglobal )
-        end if
-
       case ('CHM')
 
-        !- 2.3  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
+        !- 2.2  Static (Time-Mean Homogeneous and Isotropic) covariances for constituents
         if ( globalGrid ) then
           call bchm_expandToMPIGlobal_r4( subVector_mpilocal, subVector_mpiglobal )
         end if
 
       case ('DIFF')
 
-        !- 2.4 Covariances modelled using a diffusion operator.
+        !- 2.3 Covariances modelled using a diffusion operator.
         !call bdiff_expandToMPIGlobal_r4( subVector_mpilocal, subVector_mpiglobal )
 
       case ('ENS')
 
-        !- 2.5 Flow-dependent Ensemble-Based
+        !- 2.4 Flow-dependent Ensemble-Based
         call ben_expandToMPIGlobal_r4(subVector_mpilocal, subVector_mpiglobal, bmatInstanceID(bmatIndex) )
 
       end select

@@ -42,7 +42,6 @@ bmatrixhi_mod.f90
 bmatrixensemble_mod.f90
 obserrors_mod.f90
 bmatrixdiff_mod.f90
-bmatrixlatbands_mod.f90
 bmatrixchem_mod.f90
 
 3. Observation input/output
