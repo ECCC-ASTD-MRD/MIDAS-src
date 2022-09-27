@@ -972,7 +972,7 @@ contains
     !
     implicit none
 
-    integer :: fnom, fclos, nulnam, ierr, indexData
+    integer :: fnom, fclos, nulnam, ierr
     namelist /namSSTObsErrors/ numberSSTDatasets, SSTdataParams
     
     if (utl_isNamelistPresent('namSSTObsErrors','./flnml')) then

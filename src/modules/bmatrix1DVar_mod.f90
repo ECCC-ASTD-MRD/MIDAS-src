@@ -244,7 +244,7 @@ contains
     end if
 
     if (firstCall) then
-      call var1D_setup(vco_in, obsSpaceData)
+      call var1D_setup(obsSpaceData)
       firstCall = .false.
     end if
 
@@ -435,7 +435,7 @@ contains
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
     integer :: levIndex1
     integer :: varLevIndex, varLevIndex1, varLevIndex2 
-    integer :: status, numStep, ierr, levIndexColumn
+    integer :: status, numStep, levIndexColumn
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
     real(8) :: scaleFactor_SF, ZR
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
@@ -446,7 +446,6 @@ contains
     integer :: nLevEns_M, nLevEns_T
     integer :: nLevInc_M, nLevInc_T
     integer :: topLevIndex_M, topLevIndex_T
-    integer :: idate, itime
     integer, external :: newdate
     character(len=4), pointer :: varNames(:)
     real(8) :: logP1, logP2

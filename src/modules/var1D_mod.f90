@@ -49,13 +49,12 @@ contains
   !--------------------------------------------------------------------------
   !  var1D_setup
   !--------------------------------------------------------------------------
-  subroutine var1D_setup(vco_in, obsSpaceData)
+  subroutine var1D_setup(obsSpaceData)
     !
     ! :Purpose: to setup var1D module
     !
     implicit none
     ! arguments:
-    type(struct_vco), pointer, intent(in):: vco_in
     type (struct_obs), intent(in)        :: obsSpaceData
     ! locals:
     integer :: countGood, headerIndex

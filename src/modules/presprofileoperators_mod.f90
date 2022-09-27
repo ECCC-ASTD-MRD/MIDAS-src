@@ -2640,7 +2640,7 @@ module presProfileOperators_mod
     logical :: success(numTargetLevs)
     character(len=20) :: skipType
 
-    integer :: levelIndex,JK,ILMAX2,ILMIN2
+    integer :: levelIndex,ILMAX2,ILMIN2
     integer :: ILMIN, ILMAX
     real(8) :: SumWeights, TargetLayerThickWgt, ptop, pbtm
     

@@ -5388,7 +5388,7 @@ module gridStateVector_mod
     type(struct_gsv), target  :: stateVector_varsLevs
 
     integer :: latIndex, lonIndex, stepIndex, kIndex
-    integer :: latIndex2, lonIndex2, maxDeltaIndex, minDeltaIndex, count
+    integer :: latIndex2, lonIndex2, maxDeltaIndex, count
     integer :: latBeg, latEnd, lonBeg, lonEnd
     integer :: myBinInteger
 

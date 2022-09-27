@@ -1059,7 +1059,6 @@ contains
     ! locals: 
     character(len=3000)         :: query
     character(len=10)           :: sqlDataType
-    integer                     :: ierr
     character(len=*), parameter :: myName = 'sqlr_addColumn'
     type(fSQL_STATUS)        :: stat ! sqlite error status
     type(fSQL_DATABASE)      :: db   ! sqlite file handle

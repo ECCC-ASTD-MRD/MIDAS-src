@@ -778,8 +778,6 @@ contains
     character(len=*), intent(in) :: trlmFileName
 
     ! Local Variables
-    integer :: fnom, fclos, nulnam, ierr
-
     type(struct_gsv) :: stateVectorBkGnd
     type(struct_gsv) :: stateVectorAnal
     real(8), pointer :: bkGndDaysSinceLastObs_ptr(:,:,:,:), analysisDaysSinceLastObs_ptr(:,:,:,:)

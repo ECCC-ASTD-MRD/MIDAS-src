@@ -3867,7 +3867,7 @@ contains
 
     ! Locals:
     real(8), allocatable :: bigArray(:,:,:,:)
-    integer :: i, j, k, l, ichan,igas,ierr, countUniqueChannel, indexchan(size(channels)), listAll(tvs_maxChannelNumber)
+    integer :: i, j, ichan, ierr, countUniqueChannel, indexchan(size(channels)), listAll(tvs_maxChannelNumber)
     logical :: associated0
     integer :: nlte_count, nlte_start,isol,isat,nlte_file_nchan
     integer, allocatable :: nlte_chans(:) 
