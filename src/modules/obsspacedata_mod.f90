@@ -1356,7 +1356,6 @@ module ObsSpaceData_mod
 
 
    ! PUBLIC METHODS:
-   public obs_append     ! append an obsdat object to another obsdat object
    public obs_bodyElem_i ! obtain an integer body element from observation object
    public obs_bodyElem_r ! obtain a real body element from the observation object
    public obs_bodyPrimaryKey ! obtain the body primary key value
@@ -1378,7 +1377,6 @@ module ObsSpaceData_mod
    public obs_columnIndexFromName_RH !         "
    public obs_columnDataType ! tell user if column index has real or integer data
    public obs_copy       ! copy an obsdat object
-   public obs_count_headers ! count the stations and observations in the object
    public obs_elem_c     ! obtain character element from the observation object
    public obs_enkf_prntbdy! print all data records associated with an observation
    public obs_enkf_prnthdr! print the header of an observation record
@@ -1389,7 +1387,6 @@ module ObsSpaceData_mod
    public obs_extractObsRealHeaderColumn  ! return entire selected column (real/header)
    public obs_extractObsIntHeaderColumn   ! return entire selected column (int/header)
    public obs_finalize   ! object clean-up
-   public obs_generate_header ! fill in observation-data header, from burp files
    public obs_getBodyIndex ! obtain an element from the current body list
    public obs_getFamily  ! return the family of a datum
    public obs_getHeaderIndex ! obtain an element from the current header list
@@ -1410,16 +1407,11 @@ module ObsSpaceData_mod
    public obs_numHeader  ! returns the number of headers recorded
    public obs_numHeader_max ! returns the dimensioned number of headers
    public obs_numHeader_mpiglobal ! returns mpi-global number of headers recorded
-   public obs_order      ! put obs data in the order required for assimilation
    public obs_print      ! obs_enkf_prnthdr & obs_enkf_prntbdy for each station
-   public obs_prnt_csv   ! call obs_tosqlhdr and obs_tosqlbdy for each station
    public obs_prntbdy    ! print the body data for one header
    public obs_prnthdr    ! print the data contained in one header
-   public obs_read       ! read the observation data from binary files
-   public obs_creatSubCMA ! create a sub-CMA from the global CMA.  
    public obs_reduceToMpiLocal ! retain only data pertinent to the mpi-local PE
    public obs_squeeze    ! reallocate objects arrays to reduce memory use
-   public obs_select     ! select observations in a vertical range
    public obs_setBodyPrimaryKey ! set the value of the body primary key
    public obs_setHeadPrimaryKey ! set the value of the body primary key
    public obs_set_c      ! set a character value in the observation object
@@ -1428,7 +1420,6 @@ module ObsSpaceData_mod
    public obs_setFamily  ! set the family of a datum
    public obs_sethind    ! set the header index in body table
    public obs_famExist   ! checks if a family is present in the observation set
-   public obs_status     ! returns the values of the object's status variables
    public obs_write      ! write the observation data to binary files
                          ! (calls obs_write_hdr, obs_write_bdy, obs_write_hx
                          !  for each station)
@@ -1466,8 +1457,6 @@ module ObsSpaceData_mod
    private obs_columnIndexFromNameForFlavour ! get the index from the name
    private obs_deallocate! array de-allocation
    private obs_mpiDistributeIndices ! distribute header & body indices for mpi parallelization
-   private obs_tosqlbdy  ! write the observation data in comma-separated format
-   private obs_tosqlhdr  ! write the observation header in comma-separated format
    private obs_write_bdy ! write the observation data to binary files
    private obs_write_hdr ! write the observation header to binary files
 
@@ -1722,107 +1711,6 @@ contains
       call ild_initialize(obsdat%header_index_list_depot, obsdat%numHeader_max)
       call ild_initialize(obsdat%body_index_list_depot,   obsdat%numBody_max)
    end subroutine obs_allocate
-
-
-   subroutine obs_append( obsdat, hx, obs_out, hx_out )
-      !
-      ! :Purpose: with a call of type obs_append(obs_1,obs_2) append obs_1 to obs_2
-      !
-
-      type (struct_obs), intent(in)    :: obsdat
-      type (struct_obs), intent(inout) :: obs_out
-      real(8),           intent(in)    :: hx(:,:)
-      real(8),           intent(inout) :: hx_out(:,:)
-
-      integer :: i_data_read,i_data_read_first,i_data_read_last,i_data_write
-      integer :: i_last,istation,i_station_write,nens,i_write_first
-      integer :: loc,loc_last
-      integer :: column_index, pass_offset
-
-      if (obsdat%numHeader == 0) then
-         write(*,*) 'odd input for routine obs_append'
-         write(*,*) 'no stations need to be added to the obsdat.'
-         return
-      endif
-
-      nens=size(hx,1)
-
-      ! Locate the first available locations in the output
-      if (obs_out%numHeader >= 1) then
-                                        ! Memorize pass_offset, since numHeader
-                                        ! will change
-         pass_offset=obs_headElem_i(obs_out,OBS_PAS,obs_out%numHeader) 
-
-         i_last=1
-         loc_last=obs_headElem_i(obs_out, OBS_RLN, 1)
-         storedlast: do istation=2,obs_out%numHeader
-            loc=obs_headElem_i(obs_out, OBS_RLN, istation)
-            if (loc > loc_last) then
-               i_last=istation
-               loc_last=loc
-            endif
-         enddo storedlast
-         ! The first available locations in the output:
-         i_station_write=obs_out%numHeader+1
-         i_data_write=obs_headElem_i(obs_out, OBS_RLN, i_last) &
-                     +obs_headElem_i(obs_out, OBS_NLV, i_last)
-      else
-         pass_offset=0
-         i_station_write=1
-         i_data_write=1
-      endif
-
-      stations: do istation=1,obsdat%numHeader
-         i_data_read_first=obs_headElem_i(obsdat, OBS_RLN, istation)
-         i_data_read_last=i_data_read_first &
-                         +obs_headElem_i(obsdat, OBS_NLV, istation) -1
-         i_write_first=i_data_write
-
-         observations: do i_data_read=i_data_read_first,i_data_read_last
-            do column_index=NBDY_INT_BEG,NBDY_INT_END
-               if(obsdat%intBodies%odc_flavour%columnActive(column_index)) &
-                  call obs_bodySet_i(obs_out, column_index, i_data_write, &
-                       obs_bodyElem_i(obsdat, column_index, i_data_read))
-            enddo
-            do column_index=NBDY_REAL_BEG,NBDY_REAL_END
-               if(obsdat%realBodies%odc_flavour%columnActive(column_index)) &
-                  call obs_bodySet_r(obs_out, column_index, i_data_write, &
-                       obs_bodyElem_r(obsdat, column_index, i_data_read))
-            enddo
-            hx_out(1:nens,i_data_write)=hx(:,i_data_read)
-                                        ! Make HIND point to new header row_index
-            call obs_bodySet_i(obs_out, OBS_HIND, i_data_write, i_station_write)
-            i_data_write=i_data_write+1
-         enddo observations
-
-         do column_index=NHDR_INT_BEG,NHDR_INT_END
-            if(obsdat%intHeaders%odc_flavour%columnActive(column_index)) &
-               call obs_headSet_i(obs_out, column_index, i_station_write, &
-                    obs_headElem_i(obsdat, column_index, istation))
-         enddo
-         call obs_headSet_i(obs_out, OBS_ONM, i_station_write, i_station_write)
-         call obs_headSet_i(obs_out, OBS_RLN, i_station_write, i_write_first)
-
-         if (obs_out%numHeader > 0) then
-            call obs_headSet_i(obs_out, OBS_PAS, i_station_write, &
-                               obs_headElem_i(obs_out,OBS_PAS,i_station_write) &
-                               +pass_offset&
-                              )
-         end if
-
-         do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-            if(obsdat%realHeaders%odc_flavour%columnActive(column_index)) &
-               call obs_headSet_r(obs_out, column_index, i_station_write, &
-                    obs_headElem_r(obsdat, column_index, istation))
-         enddo
-         obs_out%headerPrimaryKey(i_station_write) = obsdat%headerPrimaryKey(istation)
-
-         obs_out%cstnid(  i_station_write)=obsdat%cstnid ( istation)
-         obs_out%cfamily( i_station_write)=obsdat%cfamily( istation)
-
-         i_station_write=i_station_write+1
-      enddo stations
-   end subroutine obs_append
 
 
    function obs_bodyElem_i( obsdat, column_index, row_index) result(value_i)
@@ -2615,66 +2503,6 @@ contains
 
       obs_b%mpi_local     = obs_a%mpi_local
    end subroutine obs_copy
-
-
-   subroutine obs_count_headers( obsdat, kulout )
-     !
-     ! :Purpose: count the number of stations and
-     !           observations that are in the obsdat.
-     !
-     ! :Arguments:
-     !           :obsdat: obsSpaceData object
-     !           :kulout: unit number for ASCII error messages and 
-     !                    observation counts.
-     !
-      implicit none
-
-     ! Arguments: 
-      type (struct_obs), intent(in) :: obsdat
-      integer          , intent(in) :: kulout
-
-      integer, parameter :: MAXID = 256
-      integer  :: allstn,allobs,id,idata,kobs
-      integer, dimension(MAXID)   :: numobs,numstn
-      character(len=100) :: message
-
-      ! initialize totals to zero
-      numstn(:)=0
-      numobs(:)=0
-      allstn=0
-      allobs=0
-
-      do kobs=1,obsdat%numHeader
-         id=obs_headElem_i(obsdat, OBS_ITY, kobs)
-         if(id > MAXID) then
-            id=mod(id,1000)
-         endif
-         if ((id < 1).or.(id > MAXID)) then 
-            write(message,*)'OBS_COUNT_HEADERS: ITY (instrument and ' // &
-                            'retrieval type) out of range: ', id
-            write(kulout,*)message
-            call obs_abort(message); return
-         endif
-         numstn(id)=numstn(id)+1
-         ! idata: number of obs for this station
-         idata = obs_headElem_i(obsdat, OBS_NLV, kobs)
-         numobs(id)=numobs(id)+idata
-      enddo
-
-      write(kulout,*) 'number of stations and observations'
-      write(kulout,*) ' idtype #stations #observations '
-      do id=1,MAXID
-         if (numstn(id) > 0) then
-            write(kulout,'(i3,3x,i7,2x,i8)') id,numstn(id),numobs(id)
-         endif
-         allstn=allstn+numstn(id)
-         allobs=allobs+numobs(id)
-      enddo
-      write(kulout,'(1x,A,I7)') 'total number of stations:     ',allstn
-      write(kulout,'(1x,A,I7)') 'total number of observations: ',allobs
-
-      return
-   end subroutine obs_count_headers
 
 
    subroutine obs_deallocate(obsdat)
@@ -3516,99 +3344,6 @@ contains
    end subroutine obs_finalize
 
 
-   subroutine obs_generate_header(obsdat, ilat, ilon, ialt, inbon, instrum, &
-                                  satzen, isat, itech, nvtyp, ity, idate, &
-                                  itime, clstnid, imask, satazim, sunza, clfr)
-      !
-      ! :Note: Output:
-      !
-      !           - obsdat%realHeaders%columns(OBS_LON,) - in degrees
-      !           - obsdat%realHeaders%columns(OBS_LAT,) - in degrees, equator at 0 degrees
-      !           - obsdat%realHeaders%columns(OBS_ALT,) - in metres, with no offset
-      !
-      use MathPhysConstants_mod
-      implicit none
-
-      type(struct_obs), intent(inout) :: obsdat
-      integer, intent(in) :: ilat
-      integer, intent(in) :: ilon
-      integer, intent(in) :: ialt
-      integer, intent(in) :: inbon
-      integer, intent(in) :: instrum
-      integer, intent(in) :: isat
-      integer, intent(in) :: itech
-      integer, intent(in) :: nvtyp
-      integer, intent(in) :: ity
-      integer, intent(in) :: idate
-      integer, intent(in) :: itime
-      integer, intent(in) :: imask
-      real(kind=pre_obsReal) :: clfr
-      real(kind=pre_obsReal) :: sunza
-      real(kind=pre_obsReal) :: satzen
-      real(kind=pre_obsReal) :: satazim
-      character(len=9), intent(in) :: clstnid
-      real(kind=8) :: torad
-
-      torad=MPC_RADIANS_PER_DEGREE_R8
-
-      !
-      !     IF VALID DATA WERE FOUND GENERATE THE OBSDAT HEADER
-      !      AND INCREMENT OBSDAT%numHeader
-      !
-      ! PLH          if  ( obsdat%numHeader < nmxobs) then
-      if ( obsdat%numHeader < obsdat%numHeader_max) then
-         obsdat%numHeader=obsdat%numHeader + 1
-
-         obsdat%realHeaders%columns(OBS_LON)%value_r(obsdat%numHeader) = real(ilon) *0.01
-         obsdat%realHeaders%columns(OBS_LAT)%value_r(obsdat%numHeader) = real(ilat) *0.01-90.0
-         ! PLH ADDED OBS_BX OBS_BY OBS_BZ
-         obsdat%realHeaders%columns(OBS_BX)%value_r(obsdat%numHeader)=0.0
-         obsdat%realHeaders%columns(OBS_BY)%value_r(obsdat%numHeader)=0.0
-         obsdat%realHeaders%columns(OBS_BZ)%value_r(obsdat%numHeader)=0.0
-
-         obsdat%realHeaders%columns(OBS_ALT)%value_r(obsdat%numHeader) = real(ialt)
-         ! PLH       obsdat%realHeaders%columns(ncmtlo)%value_r(obsdat%numHeader) = (real(ilon)*0.01)*ztorad
-         ! PLH       obsdat%realHeaders%columns(ncmtla)%value_r(obsdat%numHeader) = (real(ilat)*0.01-90.)*ztorad
-         call obs_headSet_i(obsdat, OBS_NLV, obsdat%numHeader, inbon)
-         !       print*,'NOBTOTAL=',obsdat%numHeader
-
-         if ( obsdat%numHeader == 1) then
-            ! This is the first entry into the obsdat
-            call obs_headSet_i(obsdat, OBS_RLN, 1, 1)
-         else
-            call obs_headSet_i(obsdat, OBS_RLN, obsdat%numHeader, &
-                obs_headElem_i(obsdat, OBS_RLN, obsdat%numHeader-1) &
-              + obs_headElem_i(obsdat, OBS_NLV, obsdat%numHeader-1))
-         endif
-         !
-         !          REMAINDER OF HEADER
-         !
-         call obs_headSet_i(obsdat, OBS_ONM, obsdat%numHeader, obsdat%numHeader)
-         call obs_headSet_i(obsdat, OBS_INS, obsdat%numHeader, instrum )
-         call obs_headSet_i(obsdat, OBS_SAT, obsdat%numHeader, isat)
-         call obs_headSet_i(obsdat, OBS_TEC, obsdat%numHeader, itech)
-         call obs_headSet_i(obsdat, OBS_OTP, obsdat%numHeader, nvtyp)
-         call obs_headSet_i(obsdat, OBS_ITY, obsdat%numHeader, ity)
-         call obs_headSet_i(obsdat, OBS_DAT, obsdat%numHeader, idate)
-         call obs_headSet_i(obsdat, OBS_ETM, obsdat%numHeader, itime)
-         obsdat%cstnid(obsdat%numHeader)         = clstnid
-         ! PLH       call obs_headSet_i(obsdat, ncmoec, obsdat%numHeader, 999)
-         call obs_headSet_i(obsdat, OBS_STYP,obsdat%numHeader, imask)
-         call obs_headSet_r(obsdat, OBS_AZA, obsdat%numHeader, satazim)
-         call obs_headSet_r(obsdat, OBS_SUN, obsdat%numHeader, sunza)
-         call obs_headSet_r(obsdat, OBS_SZA, obsdat%numHeader, satzen)
-         call obs_headSet_r(obsdat, OBS_CLF, obsdat%numHeader, clfr)
-         ! PLH       call obs_headSet_i(obsdat, ncmst1, obsdat%numHeader, iflgs)
-
-      else
-
-         call obs_abort('obs_generate_header: numHeader reached numHeader_max')
-
-      endif
-
-   end subroutine obs_generate_header
-
-
    function obs_getBodyIndex_depot(obsdat) result(row_index)
       !
       ! :Purpose:
@@ -4147,92 +3882,6 @@ contains
    end function obs_numHeader_mpiglobal
 
 
-   subroutine obs_order(obsdat)
-      !
-      ! :Purpose:
-      !      Put an obsdat file into the order required for the sequential
-      !      assimilation. Note that it is known, as a by-product of the
-      !      algorithm that was used  to determine the pass and the region for
-      !      each station, at what exact location (information  in OBS_ONM) each
-      !      station has to be. The algorithm requires the exchange of at most
-      !      mxstn headers.  A faster algorithm likely exists.
-      !
-      implicit none
-
-      type (struct_obs), intent(inout) :: obsdat
-
-      integer :: hdr,jk
-      logical :: sorted
-      integer :: bodyElem, first, last
-
-      do hdr = 1, obsdat%numHeader
-         sorted = .false.
-         do while(.not.sorted)
-            jk = obs_headElem_i(obsdat, OBS_ONM, hdr)
-            if ( jk == hdr ) then
-               sorted=.true.
-            else
-               call obs_exchange_stations( obsdat, jk, hdr )
-            endif
-         end do
-      enddo
-
-      do hdr = 1, obsdat%numHeader
-         ! Make the body members of header(hdr) point to the new row_index of hdr.
-         first=        obs_headElem_i(obsdat, OBS_RLN, hdr)
-         last =first + obs_headElem_i(obsdat, OBS_NLV, hdr) -1
-         do bodyElem=first,last
-            call obs_bodySet_i(obsdat, OBS_HIND, bodyElem, hdr)
-         end do
-      enddo
-
-      return
-
-   contains
-
-
-      subroutine obs_exchange_stations( obsdat, j, k ) 
-         !
-         ! :Purpose: exchange the headers of stations j and k 
-         !
-         implicit none
-
-         type (struct_obs), intent(inout) :: obsdat
-         integer          , intent(in)    :: j
-         integer          , intent(in)    :: k
-
-         real(pre_obsReal):: rdum 
-         integer          :: idum
-         integer          :: column_index
-         character(12)    :: cdum
-
-         do column_index=NHDR_INT_BEG, NHDR_INT_END
-            if(obsdat%intHeaders%odc_flavour%columnActive(column_index)) then
-               idum=obs_headElem_i(obsdat, column_index, j)
-               call obs_headSet_i(obsdat, column_index, j, &
-                   obs_headElem_i(obsdat, column_index, k))
-               call obs_headSet_i(obsdat, column_index, k, idum)
-            endif
-         enddo
-
-         do column_index=NHDR_REAL_BEG,NHDR_REAL_END
-            if(obsdat%realHeaders%odc_flavour%columnActive(column_index)) then
-               rdum=obs_headElem_r(obsdat, column_index, j)
-               call obs_headSet_r(obsdat, column_index, j, &
-                   obs_headElem_r(obsdat, column_index, k))
-               call obs_headSet_r(obsdat, column_index, k, rdum)
-            endif
-         enddo
-
-         cdum=obsdat%cstnid(j)
-         obsdat%cstnid(j)=obsdat%cstnid(k)
-         obsdat%cstnid(k)=cdum
-
-         return
-      end subroutine obs_exchange_stations
-   end subroutine obs_order
-
-
    subroutine obs_print( obsdat, nobsout )
       !
       ! :Purpose: print the contents of the obsdat to an ASCII file
@@ -4255,33 +3904,6 @@ contains
 
       return
    end subroutine obs_print
-
-
-   subroutine obs_prnt_csv( obsdat, nhdrsql, nbdysql )
-      !
-      ! :Purpose: print the contents of the obsdat to csv (comma separated
-      !           values) files
-      !
-      ! :Arguments:
-      !           :obsdat:  obsSpaceData object
-      !           :nhdrsql: unit used for printing header
-      !           :nbdysql: unit used for printing body
-      !
-      implicit none
-
-      type (struct_obs), intent(inout) :: obsdat
-      integer          , intent(in)    :: nhdrsql
-      integer          , intent(in)    :: nbdysql
-
-      integer :: jo
-
-      do jo=1,obsdat%numHeader
-         call obs_tosqlhdr(obsdat,jo,nhdrsql)
-         call obs_tosqlbdy(obsdat,jo,nbdysql)
-      enddo
-
-      return
-   end subroutine obs_prnt_csv
 
 
    subroutine obs_prntbdy( obsdat , index_header, unitout_opt )
@@ -4458,238 +4080,6 @@ contains
 
       return
    end subroutine obs_prnthdr
-
-
-   subroutine obs_read( obsdat, hx, nobshdr, nobsbdy, nobshx )
-      !
-      ! :Purpose: read the obsdat structure with observational information from
-      !           unformatted files.  The files have been written by obs_write().
-      !
-      ! :Arguments:
-      !           :obsdat:  obsSpaceData object
-      !           :hx:      observation data
-      !           :nobshdr: unit number of the file with obsdat header info.
-      !           :nobsbdy: unit number of the file with obsdat body info.
-      !           :nobshx:  unit number of the file with hx (-1 if not used)
-      !
-      ! :Note: It is assumed that the obsdat arrays have already been allocated
-      !        with dimensions that will exactly hold the number of data to be read
-      !
-      implicit none
-
-      type (struct_obs), intent(inout) :: obsdat
-      integer          , intent(in)    :: nobshdr
-      integer          , intent(in)    :: nobsbdy
-      integer          , intent(in)    :: nobshx
-      real(8)          , intent(out)   :: hx(:,:)
-
-      integer  :: i,ifirst,ilast,iobscur,istn,j,k,nens
-      integer  :: column_index
-      character(len=100) :: message
-
-      obsdat%mpi_local = .false.
-
-      if (nobshx == -1) then
-         nens=0
-      else
-         nens=size(hx,1)
-      endif
-                                        ! get index of 1st active RB column
-      column_index=odc_columnIndexFromActiveIndex( &
-                                                 obsdat%realBodies%odc_flavour,1)
-      obsdat%numBody=size(obsdat%realBodies%columns(column_index)%value_r,1)
-                                        ! get index of 1st active RH column
-      column_index=odc_columnIndexFromActiveIndex( &
-                                                obsdat%realHeaders%odc_flavour,1)
-      obsdat%numHeader=size(obsdat%realHeaders%columns(column_index)%value_r,1)
-
-      iobscur=0
-
-      ! read stations
-
-      readstn: do istn=1,obsdat%numHeader
-         read(nobshdr,end=288,err=288) &
-            (obsdat%intHeaders%columns(odc_columnIndexFromActiveIndex( &
-                                               obsdat%intHeaders%odc_flavour,i) &
-                                      )%value_i(istn),&
-                 i=1,odc_numActiveColumn(obsdat%intHeaders)),&
-            (obsdat%realHeaders%columns(odc_columnIndexFromActiveIndex( &
-                                              obsdat%realHeaders%odc_flavour,j) &
-                                       )%value_r(istn),&
-                 j=1,odc_numActiveColumn(obsdat%realHeaders)),&
-            obsdat%cstnid(istn), &
-            obsdat%cfamily(istn)
-
-         if (istn == 1) then 
-            call obs_headSet_i(obsdat, OBS_RLN, istn, 1)
-         else
-            call obs_headSet_i (obsdat, OBS_RLN, istn, &
-                 obs_headElem_i(obsdat, OBS_RLN, istn-1) &
-                +obs_headElem_i(obsdat, OBS_NLV, istn-1))
-         endif
-         iobscur=iobscur+obs_headElem_i(obsdat, OBS_NLV, istn)
-         ! now read the observations:
-         ifirst=         obs_headElem_i(obsdat, OBS_RLN, istn)
-         ilast =ifirst + obs_headElem_i(obsdat, OBS_NLV, istn) -1
-         ! only read those columns specified by the user
-         do i=ifirst,ilast
-            read(nobsbdy) &
-              (obsdat%intBodies%columns(odc_ENKF_bdy_int_column_list(j) &
-                                       )%value_i(i),&
-                   j=1,size(odc_ENKF_bdy_int_column_list(:))),&
-              (obsdat%realBodies%columns(odc_ENKF_bdy_real_column_list(k) &
-                                        )%value_r(i),&
-                   k=1,size(odc_ENKF_bdy_real_column_list(:)))
-         enddo
-         if (nens > 0) then
-            do i=ifirst,ilast
-               read(nobshx)  (hx(j,i),j=1,nens)
-            enddo
-         endif
-      enddo readstn
-
-      if (iobscur /= obsdat%numBody) then
-         write(message,*)'OBS_READ: the number of references in the header, ', &
-                         iobscur, ', does not match the body size, ', &
-                         obsdat%numBody
-         call obs_abort(message); return
-      endif
-288   write(*,*) 'file is now empty'
-      write(*,*) 'close nobshdr which is on unit: ',nobshdr
-      close(nobshdr)
-      write(*,*) 'close nobsbdy which is on unit: ',nobsbdy
-      close(nobsbdy)
-      if (nens > 0) then
-         write(*,*) 'close nobshx which is on unit: ',nobshx
-         close(nobshx)
-      endif
-      write(*,*) 'exit from obs_read'
-      return
-
-   end subroutine obs_read
-
-
-   subroutine obs_creatSubCMA(cma,cma_sub,ipasscur,np)
-   !
-   ! :Purpose: create a sub-CMA from the global CMA.
-   !   
-   ! :Arguments: 
-   !           :cma: the global CMA. 
-   !           :ipasscur:  current pass number    
-   !           :np:  number of processors  used .  
-   !           :cma_sub:  the sub-CMA created from the global CMA.  
-   !
-   implicit none
-
-   integer         , intent(in)    :: ipasscur
-   integer         , intent(in)    :: np
-   type(struct_obs), intent(in)    :: cma
-   type(struct_obs), intent(inout) :: cma_sub
-
-! local variables ..
-   integer :: istn,ipass,ireg ,idata
-   integer :: mxstn ,ifirst,ilast, i,j
-   integer :: isize,rsize,active_index ,column_index
-   integer :: ii0,iifirst,ii
-   integer :: numheader, numBody
-   integer :: intHeader
-   integer :: iregcur
-   real(pre_obsReal) :: realHeader
-   integer,save :: istart=1
-!
-   iregcur=1
-   numheader=0
-   numBody=0
-   mxstn=obs_numheader(cma)
-   isize=odc_numActiveColumn(cma%intHeaders)
-   rsize=odc_numActiveColumn(cma%realHeaders)
-   do istn=istart,mxstn
-
-      ipass=obs_headElem_i(cma,OBS_PAS,istn)
-      !ireg=obs_headElem_i(cma,OBS_REG,istn)
-
-      if (ipass /= ipasscur) then
-         istart=istn
-         !cycle
-         exit
-      endif
-      ! default assignment of all input variables to cma_ipasscur .
-      numheader=numheader+1
-      cma_sub%numHeader=numheader
-      idata=numheader
-      do active_index=1,isize
-            column_index=odc_columnIndexFromActiveIndex( &
-                                     cma%intHeaders%odc_flavour, active_index)
-            intHeader=cma%intHeaders%columns(column_index)%value_i(istn)
-            if(cma%intHeaders%odc_flavour%columnActive(column_index))  &
-               call obs_headSet_i(cma_sub, column_index, idata, &
-                                  intHeader)
-      enddo
-!
-      do active_index=1,rsize
-            column_index=odc_columnIndexFromActiveIndex( &
-                                    cma%realHeaders%odc_flavour, active_index)
-            realHeader=cma%realHeaders%columns(column_index)%value_r(istn)
-            if(cma%realHeaders%odc_flavour%columnActive(column_index))  &
-               call obs_headSet_r(cma_sub, column_index, idata, &
-                                  realHeader)
-       enddo
-       cma_sub%cstnid(idata)  =cma%cstnid(istn)
-       cma_sub%cfamily(idata) =cma%cfamily(istn)
-
-       ! determine which process will handle this station.
-       ! the corresponding scatter operation is in program scattercma.
-       !! call obs_headSet_i(cma_sub,OBS_IP,idata,mod(ipasscur,np))
-       ! Use Round-robin obs. distribution.
-         call obs_headSet_i(cma_sub,OBS_IP,idata, mod(obs_headElem_i(cma,OBS_ONM,istn),np))
-
-         ireg=obs_headElem_i(cma_sub, OBS_REG, idata)
-         if (iregcur /= ireg) then
-            iregcur=ireg
-         endif
-
-         if (idata == 1) then
-            call obs_headSet_i(cma_sub, OBS_RLN, idata, 1)
-          else
-            call obs_headSet_i(cma_sub, OBS_RLN, idata, &
-                obs_headElem_i(cma_sub, OBS_RLN, idata-1) &
-               +obs_headElem_i(cma_sub, OBS_NLV, idata-1))
-         endif
-
-         ! now read the bodies:
-         ifirst=         obs_headElem_i(cma_sub, OBS_RLN, idata)
-         ilast =ifirst + obs_headElem_i(cma_sub, OBS_NLV, idata)-1
-         iifirst=obs_headElem_i(cma, OBS_RLN, istn)
-         ii0=0
-         do i=ifirst,ilast
-            ii=iifirst+ii0
-            do j=1,odc_numActiveColumn(cma%intBodies)
-               column_index=odc_columnIndexFromActiveIndex( &
-                            cma%intBodies%odc_flavour,j)
-               cma_sub%intBodies%columns(column_index)%value_i(i)=  &
-                           cma%intBodies%columns(column_index)%value_i(ii)
-           enddo !===> j
-!
-           do j=1,odc_numActiveColumn(cma%realBodies)
-               column_index=odc_columnIndexFromActiveIndex(&
-                             cma%realBodies%odc_flavour,j)
-              cma_sub%realBodies%columns(column_index)%value_r(i)= &
-                  cma%realBodies%columns(column_index)%value_r(ii)
-           enddo ! ===> j
-              ! Make HIND point to new header row_index
-            call obs_bodySet_i(cma_sub, OBS_HIND, i, idata)
-            ii0=ii0+1
-         enddo
-         numBody=numBody+ii0
-
-
-         ! go back to read the next station
-      enddo !  =========>.
-      cma_sub%numBody=numBody
-      cma_sub%mpi_local=.false.
-
-   end subroutine obs_creatSubCMA
-
 
 
    subroutine obs_reduceToMpiLocal(obsdat)
@@ -5549,105 +4939,6 @@ contains
    end subroutine obs_MpiRedistribute
 
 
-   subroutine obs_select( obsdat ,hx, obs_sel, hx_sel, zhamin, zhamax, nens, nobsout )
-      !
-      ! :Purpose: select only the observations with zhamin < lop(P) <= zhamax.   
-      !
-      ! :Arguments:
-      !           :obsdat:  input obsSpaceData object 
-      !           :hx:      interpolated values of obsdat
-      !           :obs_sel: selected obsdat 
-      !           :hx_sel:  interpolated values of obs_sel
-      !           :zhamin,zhamax:  range of zha values to be selected.
-      !           :nens: number of ensemble members
-      !           :nobsout: unit number for the ASCII output
-      !
-      implicit none
-
-      type (struct_obs), intent(in) :: obsdat
-      type (struct_obs), intent(inout) :: obs_sel
-      real(8),           intent(in) :: hx(:,:)
-      real(pre_obsReal), intent(in) :: zhamin
-      real(pre_obsReal), intent(in) :: zhamax
-      real(8),           intent(out):: hx_sel(:,:)
-      integer, intent(in)    :: nens
-      integer, intent(in)    :: nobsout
-
-      integer :: iaccept,idata,ipnt,iwrite
-      integer :: jdata,kobs,kobsout
-      integer :: column_index
-      integer :: active_index
-
-      if(obsdat%mpi_local)then
-         call obs_abort('obs_select() is not equipped to handle the case, ' // &
-                        'mpi_local=.true.')
-         return
-      end if
-
-      write(nobsout,'(1x,A,I7)')'stations prior to selection: ', obsdat%numHeader
-      write(*,*) 'enter obs_select'
-
-      kobsout=0 
-      iwrite=0
-      stations: do kobs=1,obsdat%numHeader
-         ipnt  = obs_headElem_i(obsdat, OBS_RLN, kobs)
-         idata = obs_headElem_i(obsdat, OBS_NLV, kobs)
-         iaccept=0
-         observations: do jdata = ipnt, ipnt + idata - 1
-            ! To remove observations that are not in the desired vertical layer 
-            if ((obs_bodyElem_r(obsdat, OBS_ZHA, jdata) > zhamin).and. &
-                (obs_bodyElem_r(obsdat, OBS_ZHA, jdata) <= zhamax)) then
-               iaccept=iaccept+1
-               iwrite=iwrite+1
-               do active_index=1,odc_numActiveColumn(obsdat%intBodies)
-                  column_index=odc_columnIndexFromActiveIndex( &
-                                      obsdat%intBodies%odc_flavour, active_index)
-                  call obs_bodySet_i(obs_sel, column_index, iwrite, &
-                       obs_bodyElem_i(obsdat, column_index, jdata))
-               enddo
-               do active_index=1,odc_numActiveColumn(obsdat%realBodies)
-                  column_index=odc_columnIndexFromActiveIndex( &
-                                     obsdat%realBodies%odc_flavour, active_index)
-                  call obs_bodySet_r(obs_sel, column_index, iwrite, &
-                       obs_bodyElem_r(obsdat, column_index, jdata))
-               enddo
-               hx_sel(1:nens,iwrite)=hx(1:nens,jdata)
-            endif
-         enddo observations
-
-         ! adjust obs_sel%*Headers%columns
-         if (iaccept > 0) then
-            kobsout=kobsout+1
-            do active_index=1,odc_numActiveColumn(obsdat%intHeaders)
-               column_index=odc_columnIndexFromActiveIndex( &
-                                     obsdat%intHeaders%odc_flavour, active_index)
-               call obs_headSet_i(obs_sel, column_index, kobsout, &
-                    obs_headElem_i(obsdat, column_index, kobs))
-            enddo
-            do active_index=1,odc_numActiveColumn(obsdat%realHeaders)
-               column_index=odc_columnIndexFromActiveIndex( &
-                                    obsdat%realHeaders%odc_flavour, active_index)
-               call obs_headSet_r(obs_sel, column_index, kobsout, &
-                    obs_headElem_r(obsdat, column_index, kobs))
-            enddo
-            obs_sel%cstnid(kobsout)=obsdat%cstnid(kobs)
-            obs_sel%cfamily(kobsout)=obsdat%cfamily(kobs)
-            call obs_headSet_i(obs_sel, OBS_NLV, kobsout, iaccept)
-            call obs_headSet_i(obs_sel, OBS_RLN, kobsout, iwrite-iaccept+1)
-         endif
-      enddo stations
-      obs_sel%mpi_local = .false.
-
-      write(nobsout, '(1x, A, 2F11.6)') &
-                 'after selection of observations in the range: ', zhamin, zhamax
-      write(nobsout,'(1x,A,I7)') &
-         'number of stations containing valid data      ',obs_sel%numHeader
-      write(nobsout,'(1x,A,I7)') & 
-         'number of observations now in the obsdat file ',obs_sel%numBody
-
-   end subroutine obs_select
-
-
    subroutine obs_set_c(obsdat, name, row_index, value)
       !
       ! :Purpose: set a character(len=9) in the observation object
@@ -6119,182 +5410,6 @@ contains
         end do
      end do
    end subroutine obs_sethind
-
-
-   subroutine obs_status(obsdat, obs_full, numstns_out, numobs_out, kulout)
-      !
-      ! :Purpose: obtain basic status of the observation object
-      !      Return the values of the object's status variables.
-      !
-      type (struct_obs), intent(in) :: obsdat
-      logical, intent(out) :: obs_full
-      integer, intent(out) :: numstns_out
-      integer, intent(out) :: numobs_out
-      integer, intent(in)  :: kulout
-
-
-      ! PLH   if ( obsdat%numHeader >= nmxobs ) then
-      ! PLH     if ( obsdat%numBody >= ndatamx .or. obsdat%numHeader >= nmxobs ) then
-      if (     obsdat%numBody   >= obsdat%numBody_max &
-          .or. obsdat%numHeader >= obsdat%numHeader_max) then
-         write(kulout,*) ' OBSDAT FILE FULL'
-         obs_full = .true.
-
-      else
-         obs_full = .false.
-      end if
-
-      numstns_out = obsdat%numHeader
-      numobs_out  = obsdat%numBody
-   end subroutine obs_status
-
-
-   subroutine obs_tosqlbdy(obsdat,kobs,kulout)
-      !
-      ! :Purpose: print all data records associated with a station
-      !
-      ! :Arguments:
-      !           :obsdat: obsSpaceData object
-      !           :kobs: no. of observation
-      !           :kulout: unit used for printing
-      !
-      implicit none
-
-      type (struct_obs), intent(inout) :: obsdat
-      integer,      intent(in) :: kobs
-      integer,      intent(in) :: kulout
-
-      integer  :: idata,idata2,ihaht,ihpht,ioer,ioma,ioma0,iomp,iomp6,ipnt
-      integer  :: ippp, ivnm,ivnmc,istat,isigi, isigo,ivar,jdata,jtrans,var3d
-      integer  :: obsVNM, obsASS, obsZHA, obsVCO, obsFLG
-      integer  :: mrbcol,mrbcvt
-      real     :: rppp
-      character(len=100) :: message
-      external :: mrbcol,mrbcvt
-
-      ipnt  = obs_headElem_i(obsdat, OBS_RLN, kobs)
-      idata = obs_headElem_i(obsdat, OBS_NLV, kobs)
-
-      do jdata = ipnt, ipnt + idata - 1
-         idata2 = jdata -ipnt + 1
-         if (btest(obs_bodyElem_i(obsdat, OBS_FLG, jdata),12)) then
-            var3d=1
-         else
-            var3d=0
-         endif
-
-         ippp=obs_bodyElem_r(obsdat, OBS_PPP, jdata)
-         rppp=float(ippp)
-
-         ivnm=obs_bodyElem_i(obsdat, OBS_VNM, jdata)
-         istat=mrbcol(ivnm,ivnmc,1) 
-         istat=mrbcvt(ivnmc,ivar ,obs_bodyElem_r(obsdat, OBS_VAR, jdata),1,1,1,1)
-         istat=mrbcvt(ivnmc,iomp ,obs_bodyElem_r(obsdat, OBS_OMP, jdata),1,1,1,1)
-         istat=mrbcvt(ivnmc,iomp6,obs_bodyElem_r(obsdat, OBS_OMP6,jdata),1,1,1,1)
-         istat=mrbcvt(ivnmc,ioma ,obs_bodyElem_r(obsdat, OBS_OMA, jdata),1,1,1,1)
-         istat=mrbcvt(ivnmc,ioma0,obs_bodyElem_r(obsdat, OBS_OMA0,jdata),1,1,1,1)
-         istat=mrbcvt(ivnmc,ioer ,obs_bodyElem_r(obsdat, OBS_OER, jdata),1,1,1,1)
-         istat=mrbcvt(ivnmc,ihpht,obs_bodyElem_r(obsdat, OBS_HPHT,jdata),1,1,1,1)
-         istat=mrbcvt(ivnmc,ihaht,obs_bodyElem_r(obsdat, OBS_HAHT,jdata),1,1,1,1)
-         istat=mrbcvt(ivnmc,isigi,obs_bodyElem_r(obsdat, OBS_SIGI,jdata),1,1,1,1)
-         istat=mrbcvt(ivnmc,isigo,obs_bodyElem_r(obsdat, OBS_SIGO,jdata),1,1,1,1)
-         jtrans=obs_bodyElem_i(obsdat, OBS_VCO, jdata)
-         if (jtrans == 1) then
-            istat=mrbcol(7001,ivnmc,1)
-            istat=mrbcvt(ivnmc,ippp,rppp,1,1,1,1)
-         elseif (jtrans == 2) then
-            istat=mrbcol(7004,ivnmc,1)
-            istat=mrbcvt(ivnmc,ippp,rppp,1,1,1,1)
-         elseif (jtrans == 3) then
-            istat=mrbcol(2150,ivnmc,1)
-            istat=mrbcvt(ivnmc,ippp,rppp,1,1,1,1)
-         else
-            write(message,*) &
-               'OBS_TOSQLBDY: attention, mauvaise coordonnee verticale, ', jtrans
-            call obs_abort(message)
-            return
-         endif
-
-         obsVNM = obs_bodyElem_i(obsdat, OBS_VNM, jdata)
-         obsASS = obs_bodyElem_i(obsdat, OBS_ASS, jdata)
-         obsZHA = obs_bodyElem_r(obsdat, OBS_ZHA, jdata)
-         obsVCO = obs_bodyElem_i(obsdat, OBS_VCO, jdata)
-         obsFLG = obs_bodyElem_i(obsdat, OBS_FLG, jdata)
-         write(kulout,fmt=9201) kobs,idata2, obsVNM, ippp, obsASS, &
-            ivar,iomp,iomp6,ioma,ioma0,ioer,ihpht,ihaht,isigi,isigo,var3d,  &
-            obsZHA, obsVCO, obsFLG
-      enddo
-
-9201  format(1x,i9,',',i3,2(',',i6),',',i3,10(',',i8), &
-         ',',i2,',',f10.3,',',i2,',',i12)
-
-      return
-   end subroutine obs_tosqlbdy
-
-
-   subroutine obs_tosqlhdr(obsdata,kobs,kulout)
-      !
-      ! :Purpose: printing of the header of a station record for sql
-      !
-      !
-      ! :Arguments:
-      !          :obsdata: obsSpaceData object
-      !          :kobs: no. of observation
-      !          :kulout: unit used for output
-      !
-      implicit none
-
-      type (struct_obs), intent(inout) :: obsdata
-      integer, intent(in) :: kobs
-      integer, intent(in) :: kulout
-
-      integer :: ialt,idburp,ilon,ilat,iout
-      integer :: obsDAT, obsETM, obsRLN, obsONM, obsINS, obsOTP
-      integer :: obsNLV, obsPAS, obsREG, obsIP
-      character(len=12) :: ccstnid
-      real(8) :: torad 
-
-      torad=4.d0*atan(1.d0)/180.d0
-
-      ccstnid=obsdata%cstnid(kobs)
-
-      ! Replace occasional appearance of "," by "b" in CCSTNID to avoid problem
-      ! when converting this output to sqlite. - Xingxiu Deng, March 2009
-      do
-         iout=index(ccstnid,',')
-         if (iout > 0 ) then
-            ccstnid(iout:iout)='b'
-         else
-            exit
-         endif
-      enddo
-
-      ialt=obs_headElem_r(obsdata, OBS_ALT, kobs)+400
-      ilon=nint((obs_headElem_r(obsdata, OBS_LON, kobs)/torad)*100.0)
-      ilat=nint((obs_headElem_r(obsdata, OBS_LAT, kobs)/torad+90.0)*100.0)
-
-      idburp=mod(obs_headElem_i(obsdata, OBS_ITY, kobs),1000)
-      obsDAT = obs_headElem_i(obsdata, OBS_DAT, kobs)
-      obsETM = obs_headElem_i(obsdata, OBS_ETM, kobs)
-      obsRLN = obs_headElem_i(obsdata, OBS_RLN, kobs)
-      obsONM = obs_headElem_i(obsdata, OBS_ONM, kobs)
-      obsINS = obs_headElem_i(obsdata, OBS_INS, kobs)
-      obsOTP = obs_headElem_i(obsdata, OBS_OTP, kobs)
-      obsNLV = obs_headElem_i(obsdata, OBS_NLV, kobs)
-      obsPAS = obs_headElem_i(obsdata, OBS_PAS, kobs)
-      obsREG = obs_headElem_i(obsdata, OBS_REG, kobs)
-      obsIP  = obs_headElem_i(obsdata, OBS_IP , kobs)
-      write(kulout,fmt=9200) kobs, CCSTNID, obsDAT, obsETM, &
-           obsRLN, obsONM, obsINS, obsOTP, &
-           idburp,ilat,ilon,ialt,              &
-           obsNLV, obsPAS, obsREG, obsIP
-
-9200  format(2x,i9,',',a9,',',i10,',',i8,',',i6,',',i6, &
-         ',',i12,',',i6,4(',',i8),4(',',i6))
-
-      return
-
-   end subroutine obs_tosqlhdr
 
 
    subroutine obs_write(obsdat,hx, &
