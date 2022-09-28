@@ -36,7 +36,6 @@ program midas_obsimpact
   use obsFiles_mod
   use obsErrors_mod
   use gridVariableTransforms_mod
-  use rttov_const, only :inst_name, platform_name
   use fsoi_mod
 
   implicit none

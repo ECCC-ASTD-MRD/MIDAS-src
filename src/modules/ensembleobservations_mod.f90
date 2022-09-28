@@ -24,14 +24,13 @@ MODULE ensembleObservations_mod
   use kdtree2_mod
   use columnData_mod
   use tovs_nl_mod
-  use rttov_types, only: rttov_transmission
+  use rttov_types, only: rttov_transmission, rttov_profile
   use parkind1, only: jpim, jprb
   use midasMpi_mod
   use oceanMask_mod
   use obsSpaceData_mod
   use randomNumber_mod
   use mathPhysConstants_mod
-  use physicsFunctions_mod
   use utilities_mod
   use earthConstants_mod
   use bufr_mod

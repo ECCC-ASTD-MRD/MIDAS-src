@@ -127,7 +127,7 @@ contains
               tt = tt_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)
 
               ! get the saturated vapor pressure from HU
-              husat = foqst8(tt, pressure(lonIndex-lon1+1,latIndex-lat1+1,levIndex) )
+              husat = phf_foqst8(tt, pressure(lonIndex-lon1+1,latIndex-lat1+1,levIndex) )
 
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)
@@ -146,7 +146,7 @@ contains
               tt = tt_ptr_r4(lonIndex,latIndex,levIndex,stepIndex)
 
               ! get the saturated vapor pressure from HU
-              husat = foqst8(tt, pressure(lonIndex-lon1+1,latIndex-lat1+1,levIndex) )
+              husat = phf_foqst8(tt, pressure(lonIndex-lon1+1,latIndex-lat1+1,levIndex) )
 
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)
@@ -229,7 +229,7 @@ contains
               tt = tt_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex)
 
               ! get the saturated vapor pressure from HU
-              husat = foqst8(tt, pressure(memberIndex,stepIndex,levIndex) )
+              husat = phf_foqst8(tt, pressure(memberIndex,stepIndex,levIndex) )
 
               ! limit the humidity to the saturated humidity
               hu_modified = min(husat, hu)

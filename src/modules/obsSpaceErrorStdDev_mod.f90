@@ -322,7 +322,7 @@ module obsSpaceErrorStdDev_mod
       INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
       INTEGER IUBC,IEXTR1,IEXTR2,IEXTR3
 
-      integer :: nLev_M,nLev_T,status,shift_level,Vcode_anl
+      integer :: nLev_M,nLev_T,shift_level,Vcode_anl
 
       integer :: cvdim
 
@@ -355,7 +355,7 @@ module obsSpaceErrorStdDev_mod
       allocate(scaleFactor(max(nLev_M,nLev_T)))
       call bhi_getScaleFactor(scaleFactor)
 
-      status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+      Vcode_anl = vco_anl%Vcode
       if ( Vcode_anl == 5001 ) then
         shift_level = 0
       else if ( Vcode_anl == 5002) then
@@ -1698,7 +1698,7 @@ module obsSpaceErrorStdDev_mod
       ZDZMIN = gps_gb_DZMIN
 
       vco_anl => col_getVco(columnTrlOnAnlIncLev)
-      status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=iversion)
+      iversion = vco_anl%Vcode
       if (iversion .eq. 5002) then
          LSTAG = .TRUE. 
          WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS STAGGERED'
@@ -1850,7 +1850,7 @@ module obsSpaceErrorStdDev_mod
 
          ! approximation for dPdPs               
          if (associated(dPdPs)) then
-           deallocate(dPdPs,stat=status)
+           deallocate(dPdPs)
            nullify(dPdPs)
          end if
          status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dPdPs,ZP0B)

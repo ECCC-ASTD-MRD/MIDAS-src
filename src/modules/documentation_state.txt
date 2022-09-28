@@ -102,7 +102,6 @@ sqlitefiles_mod.f90
 statetocolumn_mod.f90
 thinning_mod.f90
 timecoord_mod.f90
-tovs_extrap_mod.f90
 tovs_lin_mod.f90
 tovs_nl_mod.f90
 calcheightandpressure_mod.f90
@@ -192,7 +191,6 @@ sqlitefiles_mod.f90
 statetocolumn_mod.f90
 thinning_mod.f90
 timecoord_mod.f90
-tovs_extrap_mod.f90
 tovs_lin_mod.f90
 tovs_nl_mod.f90
 calcheightandpressure_mod.f90

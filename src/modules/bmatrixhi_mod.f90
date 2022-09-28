@@ -200,7 +200,7 @@ CONTAINS
       call utl_abort('bmatrixHI: vco from analysisgrid and cov file do not match')
     end if
 
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+    Vcode_anl = vco_anl%Vcode
     if(Vcode_anl .ne. 5002 .and. Vcode_anl .ne. 5005) then
       write(*,*) 'Vcode_anl = ',Vcode_anl
       call utl_abort('bmatrixHI: unknown vertical coordinate type!')
@@ -383,9 +383,9 @@ CONTAINS
   SUBROUTINE BHI_scalestd
     implicit none
 
-    integer :: jlev, jlon, jlat, shift_level, Vcode_anl, status
+    integer :: jlev, jlon, jlat, shift_level, Vcode_anl
 
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+    Vcode_anl = vco_anl%Vcode
     if(Vcode_anl == 5002) then
       shift_level = 1
     else

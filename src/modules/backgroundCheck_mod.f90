@@ -506,7 +506,7 @@ module backgroundCheck_mod
       integer :: stat, iversion
 
       vco_trl => col_getVco(columnTrlOnTrlLev)
-      stat = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=iversion)
+      iversion = vco_trl%vCode
       
       write(*,*)'ENTER BGCSGPSRO'
       

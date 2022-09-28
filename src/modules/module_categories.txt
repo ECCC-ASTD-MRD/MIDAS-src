@@ -76,7 +76,6 @@ humiditylimits_mod.f90
 
 5. Observation operators
 ================================
-tovs_extrap_mod.f90
 gps_mod.f90
 obsoperators_mod.f90
 radvel_mod.f90

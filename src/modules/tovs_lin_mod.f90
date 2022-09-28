@@ -22,7 +22,13 @@ module tovs_lin_mod
   !
   use rttov_interfaces_mod
 
-  use rttov_types, only : rttov_profile, rttov_profile_cloud, rttov_radiance
+  use rttov_types, only :   &
+       rttov_profile       ,&
+       rttov_profile_cloud ,&
+       rttov_radiance      ,&
+       rttov_transmission  ,&
+       rttov_chanprof      ,&
+       rttov_emissivity
   use rttov_const, only : gas_unit_specconc, sensor_id_mw, surftype_sea
   use parkind1, only : jpim, jprb
   use verticalCoord_mod
@@ -31,17 +37,12 @@ module tovs_lin_mod
   use MathPhysConstants_mod
   use obsSpaceData_mod
   use columnData_mod
-  use tovs_extrap_mod
  
   implicit none
   save
   private
 
   public :: tvslin_rttov_tl, tvslin_rttov_ad
-
-  ! public derived types
-  ! public derived type through inheritance (from module rttov_types)
-  public :: rttov_radiance
 
 
 contains
@@ -69,7 +70,7 @@ contains
     integer :: sensorIndex, tovsIndex
     integer :: ilowlvl_M,ilowlvl_T,profileCount,headerIndex,levelIndex,nlv_M,nlv_T
     integer :: profileIndex
-    integer :: status, Vcode
+    integer :: Vcode
 
     character(len=4) :: ozoneVarName
     logical, allocatable :: surfTypeIsWater(:)
@@ -133,8 +134,7 @@ contains
     end if
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
-
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
+    Vcode = vco_anl%Vcode
     
   
     !     1.  Get number of threads available and allocate memory for some variables
@@ -472,7 +472,7 @@ contains
     integer :: sensorIndex, tovsIndex
     integer :: ilowlvl_T,ilowlvl_M,profileCount,headerIndex,nlv_M,nlv_T
     integer :: profileIndex, levelIndex
-    integer :: status, Vcode
+    integer :: Vcode
     real(8), allocatable :: tt_ad(:,:)
     real(8), allocatable :: hu_ad(:,:)
     real(8), allocatable :: pressure_ad(:,:)  
@@ -538,9 +538,7 @@ contains
     end if
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
-    status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode)
-
-
+    Vcode = vco_anl%Vcode
 
     !     1.  Get number of threads available and allocate memory for some variables
  

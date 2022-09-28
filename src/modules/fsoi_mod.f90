@@ -39,6 +39,7 @@ module fsoi_mod
   use tovs_nl_mod
   use timeCoord_mod
   use utilities_mod
+  use rttov_const, only: inst_name, platform_name
   implicit none
   save
   private

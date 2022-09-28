@@ -214,7 +214,7 @@ contains
     ! locals:
     integer :: levelIndex, ierr
     integer, external ::  fnom, fclos
-    integer :: status, Vcode_anl
+    integer :: Vcode_anl
     logical :: fileExists
     integer :: nulbgst=0
     type(struct_vco), pointer :: vco_file => null()
@@ -393,7 +393,7 @@ contains
       call utl_abort('bmat1D_setupBHi: vco from analysisgrid and cov file do not match')
     end if
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: nLev_M, nLev_T=', vco_1Dvar%nLev_M, vco_1Dvar%nLev_T
-    status = vgd_get(vco_anl%vgrid, key='ig_1 - vertical coord code', value=Vcode_anl)
+    Vcode_anl = vco_anl%vCode
     if(Vcode_anl /= 5002 .and. Vcode_anl /= 5005) then
       write(*,*) 'Vcode_anl = ',Vcode_anl
       call utl_abort('bmat1D_setupBHi: unknown vertical coordinate type!')

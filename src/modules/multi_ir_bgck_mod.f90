@@ -23,6 +23,13 @@ module multi_ir_bgck_mod
   use rttov_interfaces_mod
   use tovs_nl_mod
   use rttov_const, only : inst_id_iasi
+  use rttov_types, only :   &
+       rttov_coefs         ,&
+       rttov_profile       ,&
+       rttov_radiance      ,&
+       rttov_transmission  ,&
+       rttov_chanprof      ,&
+       rttov_emissivity
   use utilities_mod
   use obsSpaceData_mod
   use midasMpi_mod

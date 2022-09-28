@@ -1872,7 +1872,7 @@ contains
       vco_anl => col_getVco(columnTrlOnAnlIncLev)
       one=1.0D0
       nlev_T = col_getNumLev(columnTrlOnAnlIncLev,'TH')
-      status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=Vcode_anl)
+      Vcode_anl = vco_anl%vCode
 
       if ( Vcode_anl /= 5002 .and. Vcode_anl /= 5005 ) then
          call utl_abort('subasic_obs: invalid vertical coord!')
@@ -1884,8 +1884,8 @@ contains
       do jlev = 1, nlev_T
          do columnIndex=1,col_getNumCol(columnTrlOnAnlIncLev)
             zhu=col_getElem(columnTrlOnAnlIncLev,jlev,columnIndex,'HU')
-            columnTrlOnAnlIncLev%oltv(1,jlev,columnIndex) = fottva(zhu,one)
-            columnTrlOnAnlIncLev%oltv(2,jlev,columnIndex) = folnqva(zhu,col_getElem(columnTrlOnAnlIncLev,  &
+            columnTrlOnAnlIncLev%oltv(1,jlev,columnIndex) = phf_fottva(zhu,one)
+            columnTrlOnAnlIncLev%oltv(2,jlev,columnIndex) = phf_folnqva(zhu,col_getElem(columnTrlOnAnlIncLev,  &
                  jlev,columnIndex,'TT'),one)
          end do
       end do
@@ -3347,10 +3347,10 @@ contains
     real(8) :: husat, td
 
     ! get the saturated vapor pressure from specific humidity
-    husat = foefq8(hu,pressure)
+    husat = phf_foefq8(hu,pressure)
 
     ! now the dewpoint temperature
-    td = fotw8(husat)
+    td = phf_fotw8(husat)
 
     ! finally the dewpoint depression
     es = min(tt-td,MPC_MAXIMUM_ES_R8)
@@ -3384,16 +3384,16 @@ contains
 
     !- Forward calculations of saturation vapour pressure and dewpoint temperature
     !  and adjoint of vapour pressure from adjoint of dewpoint temperature
-    ZE   = FOEFQ8(HU_trl, PRES_trl)
-    ZTD  = FOTW8 (ZE)
-    dTDdE= FODTW8(ZTD,ZE)
+    ZE   = phf_FOEFQ8(HU_trl, PRES_trl)
+    ZTD  = phf_FOTW8 (ZE)
+    dTDdE= phf_FODTW8(ZTD,ZE)
 
     !- adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
-    ZQBRANCH = FQBRANCH(HU_trl)
+    ZQBRANCH = phf_FQBRANCH(HU_trl)
 
-    dESdLQ = - ZQBRANCH*FOEFQA(1.0d0,dTDdE,HU_trl,PRES_trl)
+    dESdLQ = - ZQBRANCH*phf_FOEFQA(1.0d0,dTDdE,HU_trl,PRES_trl)
 
-    dESdP  = - ZQBRANCH*FOEFQPSA(1.0d0,dTDdE,HU_trl,1.0d0)-  &
+    dESdP  = - ZQBRANCH*phf_FOEFQPSA(1.0d0,dTDdE,HU_trl,1.0d0)-  &
                (1.D0-ZQBRANCH)*(dTDdE*1.0d0)
 
     ES_inc =  dESdLQ*HU_inc/HU_trl + dESdP*P_inc + dESdTT*TT_inc
@@ -3419,16 +3419,16 @@ contains
    
     !- Forward calculations of saturation vapour pressure and dewpoint temperature
     !  and adjoint of vapour pressure from adjoint of dewpoint temperature
-    ZE = FOEFQ8(HU_trl, PRES_trl)
+    ZE = phf_FOEFQ8(HU_trl, PRES_trl)
 
-    ZTD=FOTW8(ZE)
-    dTDdE=FODTW8(ZTD,ZE)
+    ZTD=phf_FOTW8(ZE)
+    dTDdE=phf_FODTW8(ZTD,ZE)
 
     !- adjoint of temp. specific humidity and surface pressure due to changes in vapour pressure
-    ZQBRANCH = FQBRANCH(HU_trl)
-    dESdLQ = - ZQBRANCH*FOEFQA(1.0d0,dTDdE,HU_trl,PRES_trl)
+    ZQBRANCH = phf_FQBRANCH(HU_trl)
+    dESdLQ = - ZQBRANCH*phf_FOEFQA(1.0d0,dTDdE,HU_trl,PRES_trl)
 
-    dESdP  = - ZQBRANCH*FOEFQPSA(1.0d0,dTDdE,HU_trl,1.0d0)-  &
+    dESdP  = - ZQBRANCH*phf_FOEFQPSA(1.0d0,dTDdE,HU_trl,1.0d0)-  &
                (1.D0-ZQBRANCH)*(dTDdE*1.0d0)
 
     ! TLM: ES_inc =  dESdLQ*HU_inc/HU_trl + dESdP*P_inc + dESdTT*TT_inc
@@ -3648,7 +3648,7 @@ contains
     real(8) :: JAC(gps_ncvmx)
 
     integer :: headerIndex, bodyIndex
-    integer :: JL, NFLEV, iztd, icount, stat, vcode
+    integer :: JL, NFLEV, iztd, icount, vcode
 
     logical :: ASSIM
 
@@ -3672,7 +3672,7 @@ contains
     initializeLinearization = .FALSE.
 
     vco_anl => col_getVco(columnTrlOnAnlIncLev)
-    stat = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=vcode)
+    vcode = vco_anl%vCode
 
     ZDZMIN = gps_gb_DZMIN                     ! from modgpsztd_mod
 

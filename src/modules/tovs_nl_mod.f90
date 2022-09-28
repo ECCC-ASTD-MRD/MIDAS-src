@@ -75,7 +75,6 @@ module tovs_nl_mod
   use MathPhysConstants_mod
   use ozoneclim_mod
   use columnData_mod 
-  use tovs_extrap_mod
   use mod_rttov_emis_atlas
   use verticalCoord_mod
   use codePrecision_mod
@@ -95,9 +94,6 @@ module tovs_nl_mod
     integer              :: ltype    ! surface type (1,...,20)
   end type surface_params
 
-  ! public derived type through inheritance (from module rttov_types)
-  public :: rttov_radiance, rttov_profile, rttov_chanprof, rttov_coefs, rttov_transmission, rttov_options, rttov_emissivity
-
   ! public variables (parameters)
   public :: tvs_maxChannelNumber, tvs_maxNumberOfChannels, tvs_maxNumberOfSensors, tvs_defaultEmissivity
   ! public variables (non-parameters)
@@ -107,7 +103,6 @@ module tovs_nl_mod
   public :: tvs_isReallyPresentMpiGlobal
   public :: tvs_nsensors, tvs_platforms, tvs_satellites, tvs_instruments, tvs_channelOffset
   public :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_useO3Climatology
-  public :: platform_name, inst_name ! (from rttov)
   public :: tvs_coefs, tvs_opts, tvs_transmission,tvs_emissivity
   public :: tvs_coef_scatt, tvs_opts_scatt
   public :: tvs_radiance, tvs_surfaceParameters
@@ -2009,7 +2004,7 @@ contains
     integer :: profileCount, headerIndex
     integer :: profileIndex, levelIndex
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
-    integer :: status, Vcode
+    integer :: Vcode
     integer :: ierr,day,month,year,ijour,itime
     integer :: allocStatus(9)
     
@@ -2096,7 +2091,7 @@ contains
     end if
 
     vco => col_getVco(columnTrl)
-    status = vgd_get(vco%vgrid,key='ig_1 - vertical coord code',value=Vcode)
+    Vcode = vco%Vcode
 
     ierr = newdate(datestamp,ijour,itime,-3)
     if (ierr < 0) then
