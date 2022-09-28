@@ -30,6 +30,7 @@ module calcHeightAndPressure_mod
   use gridstatevector_mod
   use columnData_mod
   use utilities_mod
+  use message_mod
   use varnamelist_mod
   use gps_mod
   use HorizontalCoord_mod
@@ -118,7 +119,7 @@ contains
   !---------------------------------------------------------
   ! calcZandP_gsv_nl
   !---------------------------------------------------------
-  subroutine calcZandP_gsv_nl(statevector, beSilent_opt)
+  subroutine calcZandP_gsv_nl(statevector)
     !
     ! :Purpose: pressure and height computation on the grid in proper order
     !           depending on the vgrid kind.
@@ -133,27 +134,18 @@ contains
 
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the Z_*/P_* fields
-    logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
     integer                   :: Vcode
-    logical                   :: beSilent
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-    beSilent = .false. ! DBGmad
-
-    if (.not.beSilent) write(*,*) 'calcZandP_gsv_nl (czp): START'
+    call msg('calcZandP_gsv_nl (czp)', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevector)%vcode
 
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if P_T, P_M not allocated : do nothing
       if (gsv_varExist(statevector, 'P_*')) then
-        call calcPressure_gsv_nl(statevector, beSilent_opt)
+        call calcPressure_gsv_nl(statevector)
         if (gsv_varExist(statevector, 'Z_*')) then
           call calcHeight_gsv_nl(statevector)
         end if
@@ -163,18 +155,18 @@ contains
       if (gsv_varExist(statevector, 'Z_*')) then
           call calcHeight_gsv_nl(statevector)
         if (gsv_varExist(statevector, 'P_*')) then
-          call calcPressure_gsv_nl(statevector, beSilent_opt)
+          call calcPressure_gsv_nl(statevector)
         end if
       end if
     end if
 
+    call msg('calcZandP_gsv_nl (czp)', 'END', verb_opt=2)
   end subroutine calcZandP_gsv_nl
 
   !---------------------------------------------------------
   ! calcZandP_gsv_tl
   !---------------------------------------------------------
-  subroutine calcZandP_gsv_tl(statevector, statevectorRef, &
-                                  beSilent_opt)
+  subroutine calcZandP_gsv_tl(statevector, statevectorRef)
     !
     ! :Purpose: pressure and height incremnt computation on the grid in proper
     !           order depending on the vgrid kind.
@@ -190,21 +182,13 @@ contains
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the Z_*/P_* increments
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
-    logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
-    logical                   :: beSilent
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-    beSilent = .false. ! DBGmad
 
-    if (.not.beSilent) write(*,*) 'calcZandP_gsv_tl (czp): START'
+    call msg('calcZandP_gsv_tl (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevector)
     Vcode = vco%vcode
@@ -216,7 +200,7 @@ contains
         if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
           call utl_abort('calcZandP_gsv_tl: stateVectorRef not initialized')
         end if
-        call calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
+        call calcPressure_gsv_tl(statevector, statevectorRef)
 
         if (gsv_varExist(statevector, 'Z_*')) then
           call calcHeight_gsv_tl(statevector, statevectorRef)
@@ -233,19 +217,19 @@ contains
         call calcHeight_gsv_tl(statevector, statevectorRef)
 
         if (gsv_varExist(statevector, 'P_*')) then
-          call calcPressure_gsv_tl(statevector, statevectorRef, beSilent_opt)
+          call calcPressure_gsv_tl(statevector, statevectorRef)
         end if
 
       end if
     end if
 
+    call msg('calcZandP_gsv_tl (czp)', 'END', verb_opt=2)
   end subroutine calcZandP_gsv_tl
 
   !---------------------------------------------------------
   ! calcZandP_gsv_ad
   !---------------------------------------------------------
-  subroutine calcZandP_gsv_ad(statevector, statevectorRef, &
-                                  beSilent_opt)
+  subroutine calcZandP_gsv_ad(statevector, statevectorRef)
     !
     ! :Purpose: pressure and height increment adjoint computation on the grid
     !           in proper order depending on the vgrid kind
@@ -262,21 +246,13 @@ contains
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the Z_*/P_* increments
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
-    logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
     type(struct_vco), pointer :: vco
     integer                   :: Vcode
-    logical                   :: beSilent
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-    beSilent = .false. ! DBGmad
 
-    if (.not.beSilent) write(*,*) 'calcZandP_gsv_ad (czp): START'
+    call msg('calcZandP_gsv_ad (czp)', 'START', verb_opt=2)
 
     vco => gsv_getVco(statevector)
     Vcode = vco%vcode
@@ -291,7 +267,7 @@ contains
         call calcHeight_gsv_ad(statevector, statevectorRef)
 
         if (gsv_varExist(statevector, 'P_*')) then
-          call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
+          call calcPressure_gsv_ad(statevector, statevectorRef)
         end if
 
       end if
@@ -302,7 +278,7 @@ contains
         if ( .not. gsv_containsNonZeroValues(stateVectorRef) ) then
           call utl_abort('calcZandP_gsv_ad: stateVectorRef not initialized')
         end if
-        call calcPressure_gsv_ad(statevector, statevectorRef, beSilent_opt)
+        call calcPressure_gsv_ad(statevector, statevectorRef)
 
         if (gsv_varExist(statevector, 'Z_*')) then
           call calcHeight_gsv_ad(statevector, statevectorRef)
@@ -311,12 +287,13 @@ contains
       end if
     end if
 
+    call msg('calcZandP_gsv_ad (czp)', 'END', verb_opt=2)
   end subroutine calcZandP_gsv_ad
 
   !---------------------------------------------------------
   ! calcHeight_gsv_nl
   !---------------------------------------------------------
-  subroutine calcHeight_gsv_nl(statevector,beSilent_opt)
+  subroutine calcHeight_gsv_nl(statevector)
     !
     ! :Purpose: Temperature to geopotential transformation on GEM4 staggered
     !           levels
@@ -333,25 +310,15 @@ contains
 
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector
-    logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
     integer :: Vcode
-    logical :: beSilent
 
     real(4), pointer :: ptr_ZT_r4(:,:,:,:), ptr_ZM_r4(:,:,:,:)
     real(8), pointer :: ptr_ZT_r8(:,:,:,:), ptr_ZM_r8(:,:,:,:)
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-    beSilent = .false. ! DBGmad
-
     call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
-
-    if (.not.beSilent) write(*,*) 'calcHeight_gsv_nl (czp): START'
+    call msg('calcHeight_gsv_nl (czp)', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -360,15 +327,13 @@ contains
         call gsv_getField(statevector, ptr_ZM_r4, 'Z_M')
         call calcHeight_gsv_nl_vcode500x( statevector, &
                                           ZT_r4_opt=ptr_ZT_r4, &
-                                          ZM_r4_opt=ptr_ZM_r4, &
-                                          beSilent_opt=beSilent)
+                                          ZM_r4_opt=ptr_ZM_r4)
       else
         call gsv_getField(statevector, ptr_ZT_r8, 'Z_T')
         call gsv_getField(statevector, ptr_ZM_r8, 'Z_M')
         call calcHeight_gsv_nl_vcode500x( statevector, &
                                           ZT_r8_opt=ptr_ZT_r8, &
-                                          ZM_r8_opt=ptr_ZM_r8, &
-                                          beSilent_opt=beSilent)
+                                          ZM_r8_opt=ptr_ZM_r8)
       end if
 
     else if (Vcode == 21001) then
@@ -376,37 +341,38 @@ contains
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_ZT_r4, 'Z_T')
         call gsv_getField(statevector, ptr_ZM_r4, 'Z_M')
-        call calcHeight_gsv_nl_vcode2100x_r4(statevector, ptr_ZT_r4, ptr_ZM_r4, beSilent)
+        call calcHeight_gsv_nl_vcode2100x_r4(statevector, ptr_ZT_r4, ptr_ZM_r4)
       else
         call gsv_getField(statevector, ptr_ZT_r8, 'Z_T')
         call gsv_getField(statevector, ptr_ZM_r8, 'Z_M')
-        call calcHeight_gsv_nl_vcode2100x_r8(statevector, ptr_ZT_r8, ptr_ZM_r8, beSilent)
+        call calcHeight_gsv_nl_vcode2100x_r8(statevector, ptr_ZT_r8, ptr_ZM_r8)
       end if
     end if
 
-    if ( .not. beSilent) then
-      if ( gsv_getDataKind(statevector) == 4 ) then
-        write(*,*) 'Z_M='
-        write(*,*) ptr_ZM_r4( statevector%myLonBeg,statevector%myLatBeg,:,1)
-        write(*,*) 'Z_T='
-        write(*,*) ptr_ZT_r4( statevector%myLonBeg,statevector%myLatBeg,:,1)
-      else
-        write(*,*) 'Z_M='
-        write(*,*) ptr_ZM_r8( statevector%myLonBeg,statevector%myLatBeg,:,1)
-        write(*,*) 'Z_T='
-        write(*,*) ptr_ZT_r8( statevector%myLonBeg,statevector%myLatBeg,:,1)
-      end if
-      write(*,*) 'calcHeight_gsv_nl (czp): END'
+    if ( gsv_getDataKind(statevector) == 4 ) then
+      call msg('calcHeight_gsv_nl (czp)', &
+             new_line('')//'Z_M = '&
+           //str(ptr_ZM_r4(statevector%myLonBeg,statevector%myLatBeg,:,1), vertical_opt=.false.) &
+           //new_line('')//'Z_T = '&
+           //str(ptr_ZT_r4( statevector%myLonBeg,statevector%myLatBeg,:,1), vertical_opt=.false.), &
+           verb_opt=2)
+    else
+      call msg('calcHeight_gsv_nl (czp)', &
+             new_line('')//'Z_M = '&
+           //str(ptr_ZM_r8(statevector%myLonBeg,statevector%myLatBeg,:,1), vertical_opt=.false.) &
+           //new_line('')//'Z_T = '&
+           //str(ptr_ZT_r8( statevector%myLonBeg,statevector%myLatBeg,:,1), vertical_opt=.false.), &
+           verb_opt=2)
     end if
+
+    call msg('calcHeight_gsv_nl (czp)', 'END', verb_opt=2)
     call utl_tmg_stop(172)
-
   end subroutine calcHeight_gsv_nl
   
   !---------------------------------------------------------
   ! czp_calcReturnHeight_gsv_nl
   !---------------------------------------------------------
-  subroutine czp_calcReturnHeight_gsv_nl( statevector, ZT_r4, ZM_r4, &
-                                          ZT_r8, ZM_r8, beSilent_opt)
+  subroutine czp_calcReturnHeight_gsv_nl( statevector, ZT_r4, ZM_r4, ZT_r8, ZM_r8)
     !
     ! :Purpose: DBGmad!
     !
@@ -416,21 +382,12 @@ contains
     type(struct_gsv),           intent(in) :: statevector
     real(4), optional, pointer, intent(inout) :: ZT_r4(:,:,:,:), ZM_r4(:,:,:,:)
     real(8), optional, pointer, intent(inout) :: ZT_r8(:,:,:,:), ZM_r8(:,:,:,:)
-    logical, optional,          intent(in)   :: beSilent_opt
 
     ! Locals
     integer :: Vcode
-    logical :: beSilent
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
 
     call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
-
-    if (.not.beSilent) write(*,*) 'czp_calcReturnHeight_gsv_nl: START'
+    call msg('czp_calcReturnHeight_gsv_nl', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -440,16 +397,14 @@ contains
         end if
         call calcHeight_gsv_nl_vcode500x( statevector, &
                                           ZT_r4_opt=ZT_r4, &
-                                          ZM_r4_opt=ZM_r4, &
-                                          beSilent_opt=beSilent)
+                                          ZM_r4_opt=ZM_r4)
       else
         if ( .not. (present(ZT_r8) .and. present(ZM_r8))) then
           call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}_r4 expected')
         end if
         call calcHeight_gsv_nl_vcode500x( statevector, &
                                           ZT_r8_opt=ZT_r8, &
-                                          ZM_r8_opt=ZM_r8, &
-                                          beSilent_opt=beSilent)
+                                          ZM_r8_opt=ZM_r8)
       end if
 
     else if (Vcode == 21001) then
@@ -457,24 +412,23 @@ contains
         if ( .not. (present(ZT_r4) .and. present(ZM_r4))) then
           call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}_r4 expected')
         end if
-        call calcHeight_gsv_nl_vcode2100x_r4(statevector, ZT_r4, ZM_r4, beSilent)
+        call calcHeight_gsv_nl_vcode2100x_r4(statevector, ZT_r4, ZM_r4)
       else
         if ( .not. (present(ZT_r8) .and. present(ZM_r8))) then
           call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}_r4 expected')
         end if
-        call calcHeight_gsv_nl_vcode2100x_r8(statevector, ZT_r8, ZM_r8, beSilent)
+        call calcHeight_gsv_nl_vcode2100x_r8(statevector, ZT_r8, ZM_r8)
       end if
     end if
 
-    if ( .not. beSilent) write(*,*) 'czp_calcReturnHeight_gsv_nl: END'
+    call msg('czp_calcReturnHeight_gsv_nl', 'END', verb_opt=2)
     call utl_tmg_stop(172) 
-
   end subroutine czp_calcReturnHeight_gsv_nl
 
   !---------------------------------------------------------
   ! calcHeight_gsv_nl_vcode2100x_r4
   !---------------------------------------------------------
-  subroutine calcHeight_gsv_nl_vcode2100x_r4(statevector, Z_T, Z_M, beSilent_opt)
+  subroutine calcHeight_gsv_nl_vcode2100x_r4(statevector, Z_T, Z_M)
     !
     ! :Purpose: DBGmad!
     !
@@ -483,20 +437,14 @@ contains
     ! Arguments
     type(struct_gsv),  intent(in)    :: statevector
     real(4), pointer,  intent(inout) :: Z_T(:,:,:,:), Z_M(:,:,:,:)
-    logical, optional, intent(in)    :: beSilent_opt
 
     ! Locals
-    logical :: beSilent
     integer ::  numStep, stepIndex, status
     real(kind=8), pointer       :: Hsfc(:,:)
     real(kind=4), allocatable   :: Hsfc4(:,:)
     real(kind=4), pointer       :: GZHeight_out(:,:,:)
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
+    call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=3)
 
     if ( .not. gsv_varExist(statevector,'Z_*')) then
         ! DBGmad : probably other vars as well
@@ -541,6 +489,7 @@ contains
     end do
     deallocate(Hsfc4)
 
+    call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'END', verb_opt=3)
   end subroutine calcHeight_gsv_nl_vcode2100x_r4
 
   !---------------------------------------------------------
@@ -562,8 +511,8 @@ contains
     integer                             :: nLon, nLat, nLev
     type(struct_hco), pointer           :: hco
     real(kind=4)                        :: latitude
-    real(kind=4)                        :: gzH, b1, b2, A2, A3, altTmp
-    integer                             :: lonIndex, latIndex, lvlIndex, i
+    real(kind=4)                        :: gzH, b1, b2, A2, A3
+    integer                             :: lonIndex, latIndex, lvlIndex
 
     ! gzHeight comes from external `vgd_levels` which does not know the
     ! mpi shifted indexes
@@ -597,7 +546,7 @@ contains
   !---------------------------------------------------------
   ! calcHeight_gsv_nl_vcode2100x_r8
   !---------------------------------------------------------
-  subroutine calcHeight_gsv_nl_vcode2100x_r8(statevector, Z_T, Z_M, beSilent_opt)
+  subroutine calcHeight_gsv_nl_vcode2100x_r8(statevector, Z_T, Z_M)
     !
     ! :Purpose: DBGmad!
     !
@@ -607,19 +556,13 @@ contains
     ! Arguments
     type(struct_gsv),  intent(in)    :: statevector
     real(8), pointer,  intent(inout) :: Z_T(:,:,:,:), Z_M(:,:,:,:)
-    logical, optional, intent(in)    :: beSilent_opt
 
     ! Locals
-    logical :: beSilent
     integer ::  numStep, stepIndex, status
     real(kind=8), allocatable   :: Hsfc(:,:)
     real(kind=8), pointer       :: GZHeight_out(:,:,:)
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
+    call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=3)
 
     if ( .not. gsv_varExist(statevector,'Z_*')) then
         ! DBGmad : probably other vars as well
@@ -662,6 +605,7 @@ contains
 
     deallocate(Hsfc)
 
+    call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'END', verb_opt=3)
   end subroutine calcHeight_gsv_nl_vcode2100x_r8
 
   !---------------------------------------------------------
@@ -683,8 +627,8 @@ contains
     integer                             :: nLon, nLat, nLev
     type(struct_hco), pointer           :: hco
     real(kind=8)                        :: latitude
-    real(kind=8)                        :: gzH, b1, b2, A2, A3, altTmp
-    integer                             :: lonIndex, latIndex, lvlIndex, i
+    real(kind=8)                        :: gzH, b1, b2, A2, A3
+    integer                             :: lonIndex, latIndex, lvlIndex
 
     ! gzHeight comes from external `vgd_levels` which does not know the
     ! mpi shifted indexes
@@ -719,7 +663,7 @@ contains
   ! calcHeight_gsv_nl_vcode500x
   !---------------------------------------------------------
   subroutine calcHeight_gsv_nl_vcode500x( statevector, ZT_r4_opt, ZM_r4_opt, &
-                                          ZT_r8_opt, ZM_r8_opt, beSilent_opt)
+                                          ZT_r8_opt, ZM_r8_opt)
     !
     ! :Purpose: DBGmad!
     !
@@ -729,10 +673,8 @@ contains
     type(struct_gsv),           intent(in)    :: statevector
     real(4), pointer, optional, intent(inout) :: ZT_r4_opt(:,:,:,:), ZM_r4_opt(:,:,:,:)
     real(8), pointer, optional, intent(inout) :: ZT_r8_opt(:,:,:,:), ZM_r8_opt(:,:,:,:)
-    logical,          optional, intent(in)    :: beSilent_opt
 
     ! Locals
-    logical :: beSilent
     integer ::  lev_M,lev_T,nlev_M,nlev_T,status,Vcode
     integer ::  numStep, stepIndex, latIndex,lonIndex
     real(4) ::  lat_4, heightSfcOffset_T_r4, heightSfcOffset_M_r4
@@ -757,11 +699,7 @@ contains
     real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
     real(8), pointer     :: HeightSfc_ptr_r8(:,:)
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
+    call msg('calcHeight_gsv_nl_vcode500x (czp)', 'START', verb_opt=3)
 
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
@@ -801,16 +739,16 @@ contains
       status = vgd_get( statevector%vco%vgrid, &
                         key='DHT - height of the diagnostic level (t)', &
                         value=heightSfcOffset_T_r4)
-      if ( mmpi_myid == 0 .and. .not.beSilent ) then
-        write(*,*) 'calcHeight_gsv_nl (czp): height offset for near-sfc momentum level is: ', &
-              heightSfcOffset_M_r4, ' metres'
-        write(*,*) 'calcHeight_gsv_nl_vcode500x (czp): height offset for near-sfc thermo level is:   ', &
-              heightSfcOffset_T_r4, ' metres'
-        if ( .not.statevector%addHeightSfcOffset ) then
-          write(*,*) '----------------------------------------------------------------------------------'
-          write(*,*) 'calcHeight_gsv_nl_vcode500x (czp): BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
-          write(*,*) '----------------------------------------------------------------------------------'
-        end if
+      call msg('calcHeight_gsv_nl_vcode500x (czp)', &
+           'height offset for near-sfc momentum level is:'//str(heightSfcOffset_M_r4)//' meters'&
+           //new_line('')//'height offset for near-sfc thermo level is:'//str(heightSfcOffset_T_r4)//' meters', &
+           verb_opt=2, mpiAll_opt=.false.)
+      if ( .not.statevector%addHeightSfcOffset ) then
+        call msg('calcHeight_gsv_nl_vcode500x (czp)', new_line('') &
+             //'--------------------------------------------------------------------------'//new_line('')&
+             //'BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'//new_line('')&
+             //'--------------------------------------------------------------------------', &
+             verb_opt=2, mpiAll_opt=.false.)
       end if
     end if
 
@@ -1075,17 +1013,15 @@ contains
     deallocate(height_T)
     deallocate(tv)
 
-    if ( .not.beSilent ) then
-      write(*,*) 'calcHeight_gsv_nl (czp): statevector%addHeightSfcOffset=', &
-          statevector%addHeightSfcOffset
-    end if
-
+    call msg('calcHeight_gsv_nl_vcode500x (czp)', 'statevector%addHeightSfcOffset='&
+         //str(statevector%addHeightSfcOffset), verb_opt=2)
+    call msg('calcHeight_gsv_nl_vcode500x (czp)', 'END', verb_opt=3)
   end subroutine calcHeight_gsv_nl_vcode500x
 
   !---------------------------------------------------------
   ! calcHeight_gsv_tl
   !---------------------------------------------------------
-  subroutine calcHeight_gsv_tl(statevector,statevectorRef,beSilent_opt)
+  subroutine calcHeight_gsv_tl(statevector,statevectorRef)
     !
     ! :Purpose: Temperature to geopotential transformation on gridstatevector
     !
@@ -1095,22 +1031,12 @@ contains
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector
     type(struct_gsv), intent(in)    :: statevectorRef
-    logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
     integer :: Vcode
-    logical :: beSilent
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-    beSilent = .false. ! DBGmad
 
     call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
-
-    if (.not.beSilent) write(*,*) 'calcHeight_gsv_tl (czp): START'
+    call msg('calcHeight_gsv_tl (czp)', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -1121,7 +1047,6 @@ contains
         call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variables Z_T and Z_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
-    if ( .not. beSilent ) write(*,*) 'calcPressure_gsv_nl (czp): END'
         call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
@@ -1136,8 +1061,7 @@ contains
       call calcHeight_gsv_tl_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'calcHeight_gsv_tl (czp): END'
-
+    call msg('calcHeight_gsv_tl (czp)', 'END', verb_opt=2)
     call utl_tmg_stop(173)
 
     contains
@@ -1170,6 +1094,7 @@ contains
         real(pre_incrReal), pointer ::  delP0_r48(:,:,:,:)
         real(pre_incrReal), pointer ::  delP_T_r48(:,:,:,:), delP_M_r48(:,:,:,:)
 
+        call msg('calcHeight_gsv_tl_vcode500x (czp)', 'START', verb_opt=3)
         Vcode_anl = gsv_getVco(statevectorRef)%vcode
 
         nlev_T = gsv_getNumLev(statevectorRef,'TH')
@@ -1354,6 +1279,7 @@ contains
 
         deallocate(delThick)
 
+        call msg('calcHeight_gsv_tl_vcode500x (czp)', 'END', verb_opt=3)
       end subroutine calcHeight_gsv_tl_vcode500x
 
   end subroutine calcHeight_gsv_tl
@@ -1361,7 +1287,7 @@ contains
   !---------------------------------------------------------
   ! calcHeight_gsv_ad
   !---------------------------------------------------------
-  subroutine calcHeight_gsv_ad(statevector,statevectorRef,beSilent_opt)
+  subroutine calcHeight_gsv_ad(statevector,statevectorRef)
     !
     !:Purpose: Adjoint of temperature to geopotential transformation on
     !          gridstatevector
@@ -1372,22 +1298,12 @@ contains
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector
     type(struct_gsv), intent(in)    :: statevectorRef
-    logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
     integer :: Vcode
-    logical :: beSilent
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-    beSilent = .false. ! DBGmad
 
     call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
-
-    if (.not.beSilent) write(*,*) 'calcHeight_gsv_ad (czp): START'
+    call msg('calcHeight_gsv_ad', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -1412,8 +1328,7 @@ contains
       call calcHeight_gsv_ad_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'calcHeight_gsv_ad (czp): END'
-
+    call msg('calcHeight_gsv_ad', 'END', verb_opt=2)
     call utl_tmg_stop(174)
 
     contains
@@ -1446,6 +1361,8 @@ contains
         real(pre_incrReal), pointer :: delTT_r48(:,:,:,:),delHU_r48(:,:,:,:)
         real(pre_incrReal), pointer :: delP0_r48(:,:,:,:)
         real(pre_incrReal), pointer :: delP_M_r48(:,:,:,:),delP_T_r48(:,:,:,:)
+
+        call msg('calcHeight_gsv_ad_vcode500x (czp)', 'START', verb_opt=3)
 
         nlev_T = gsv_getNumLev(statevectorRef,'TH')
         nlev_M = gsv_getNumLev(statevectorRef,'MM')
@@ -1697,14 +1614,15 @@ contains
         deallocate(delHeight_M)
         deallocate(delHeight_T)
 
-        end subroutine calcHeight_gsv_ad_vcode500x
+        call msg('calcHeight_gsv_ad_vcode500x (czp)', 'END', verb_opt=3)
+      end subroutine calcHeight_gsv_ad_vcode500x
 
   end subroutine calcHeight_gsv_ad
 
   !---------------------------------------------------------
   ! calcPressure_gsv_nl
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl(statevector, beSilent_opt, Ps_in_hPa_opt)
+  subroutine calcPressure_gsv_nl(statevector, Ps_in_hPa_opt)
     !
     ! :Purpose: calculation of the pressure on the grid subroutine
     !
@@ -1712,26 +1630,16 @@ contains
 
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector
-    logical, intent(in), optional   :: beSilent_opt
     logical, optional, intent(in)   :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
     ! Locals
     integer :: Vcode
-    logical :: beSilent
 
     real(4), pointer :: ptr_PT_r4(:,:,:,:), ptr_PM_r4(:,:,:,:)
     real(8), pointer :: ptr_PT_r8(:,:,:,:), ptr_PM_r8(:,:,:,:)
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-    beSilent = .false. ! DBGmad
-
     call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
-
-    if ( .not. beSilent ) write(*,*) 'calcPressure_gsv_nl (czp): computing Pressure on staggered or UNstaggered levels'
+    call msg('calcPressure_gsv_nl (czp)', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -1740,14 +1648,12 @@ contains
         call gsv_getField(statevector, ptr_PM_r4, 'P_M')
         call calcPressure_gsv_nl_vcode500x_r4(statevector, &
                                               ptr_PT_r4, ptr_PM_r4, &
-                                              beSilent_opt=beSilent_opt, &
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
       else
         call gsv_getField(statevector, ptr_PT_r8, 'P_T')
         call gsv_getField(statevector, ptr_PM_r8, 'P_M')
         call calcPressure_gsv_nl_vcode500x_r8(statevector, &
                                               ptr_PT_r8, ptr_PM_r8, &
-                                              beSilent_opt=beSilent_opt, &
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
       end if
     else if (Vcode == 21001) then
@@ -1757,34 +1663,34 @@ contains
         call gsv_getField(statevector, ptr_PM_r4, 'P_M')
         call calcPressure_gsv_nl_vcode2100x(statevector, &
                                             PT_r4_opt=ptr_PT_r4, &
-                                            PM_r4_opt=ptr_PM_r4, &
-                                            beSilent_opt=beSilent)
+                                            PM_r4_opt=ptr_PM_r4)
       else
         call gsv_getField(statevector, ptr_PT_r8, 'P_T')
         call gsv_getField(statevector, ptr_PM_r8, 'P_M')
         call calcPressure_gsv_nl_vcode2100x(statevector, &
                                               PT_r8_opt=ptr_PT_r8, &
-                                              PM_r8_opt=ptr_PM_r8, &
-                                              beSilent_opt=beSilent)
+                                              PM_r8_opt=ptr_PM_r8)
       end if
     end if
 
-    if ( .not. beSilent) then
-      if ( gsv_getDataKind(statevector) == 4 ) then
-        write(*,*) 'P_M='
-        write(*,*) ptr_PM_r4( statevector%myLonBeg,statevector%myLatBeg,:,1)
-        write(*,*) 'P_T='
-        write(*,*) ptr_PT_r4( statevector%myLonBeg,statevector%myLatBeg,:,1)
-      else
-        write(*,*) 'P_M='
-        write(*,*) ptr_PM_r8( statevector%myLonBeg,statevector%myLatBeg,:,1)
-        write(*,*) 'P_T='
-        write(*,*) ptr_PT_r8( statevector%myLonBeg,statevector%myLatBeg,:,1)
-      end if
-      write(*,*) 'calcPressure_gsv_nl (czp): END'
+    if ( gsv_getDataKind(statevector) == 4 ) then
+      call msg('calcPressure_gsv_nl (czp)', &
+             new_line('')//'P_M = '&
+           //str(ptr_PM_r4( statevector%myLonBeg,statevector%myLatBeg,:,1), vertical_opt=.false.) &
+           //new_line('')//'P_T = '&
+           //str(ptr_PT_r4( statevector%myLonBeg,statevector%myLatBeg,:,1), vertical_opt=.false.), &
+           verb_opt=2)
+    else
+      call msg('calcPressure_gsv_nl (czp)', &
+             new_line('')//'P_M = '&
+           //str(ptr_PM_r8( statevector%myLonBeg,statevector%myLatBeg,:,1), vertical_opt=.false.) &
+           //new_line('')//'P_T = '&
+           //str(ptr_PT_r8( statevector%myLonBeg,statevector%myLatBeg,:,1), vertical_opt=.false.), &
+           verb_opt=2)
     end if
+
+    call msg('calcPressure_gsv_nl (czp)', 'END', verb_opt=2)
     call utl_tmg_stop(177)
-
   end subroutine calcPressure_gsv_nl
 
   !---------------------------------------------------------
@@ -1793,7 +1699,7 @@ contains
   subroutine czp_calcReturnPressure_gsv_nl( statevector, &
                                             PT_r4, PM_r4, PsfcRef_r4_opt, &
                                             PT_r8, PM_r8, PsfcRef_r8_opt, &
-                                            beSilent_opt, Ps_in_hPa_opt)
+                                            Ps_in_hPa_opt)
     !
     ! :Purpose: DBGmad 
     !
@@ -1805,22 +1711,13 @@ contains
     real(8), optional, pointer, intent(inout) :: PT_r8(:,:,:,:), PM_r8(:,:,:,:)
     real(8), optional, pointer, intent(in)    :: PsfcRef_r8_opt(:,:,:,:)
     real(4), optional, pointer, intent(in)    :: PsfcRef_r4_opt(:,:,:,:)
-    logical, optional,          intent(in)    :: beSilent_opt
     logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
     ! Locals
     integer :: Vcode
-    logical :: beSilent
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
 
     call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
-
-    if ( .not. beSilent ) write(*,*) 'czp_calcReturnPressure_gsv_nl: START'
+    call msg('czp_calcReturnPressure_gsv_nl', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevector)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -1829,15 +1726,13 @@ contains
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}_r4 expected')
         end if
         call calcPressure_gsv_nl_vcode500x_r4(statevector, PT_r4, PM_r4, &
-                                              PsfcRef_r4_opt, beSilent, &
-                                              Ps_in_hPa_opt)
+                                              PsfcRef_r4_opt, Ps_in_hPa_opt)
       else
         if ( .not. (present(PT_r8) .and. present(PM_r8))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}_r8 expected')
         end if
         call calcPressure_gsv_nl_vcode500x_r8(statevector, PT_r8, PM_r8, &
-                                              PsfcRef_r8_opt, beSilent, &
-                                              Ps_in_hPa_opt)
+                                              PsfcRef_r8_opt, Ps_in_hPa_opt)
       end if
     else if (Vcode == 21001) then
       !! some gsv_varExist(statevector,.)
@@ -1847,45 +1742,40 @@ contains
         end if
         call calcPressure_gsv_nl_vcode2100x(statevector, &
                                             PT_r4_opt=PT_r4, &
-                                            PM_r4_opt=PM_r4, &
-                                            beSilent_opt=beSilent)
+                                            PM_r4_opt=PM_r4)
       else
         if ( .not. (present(PT_r8) .and. present(PM_r8))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}_r8 expected')
         end if
         call calcPressure_gsv_nl_vcode2100x(statevector, &
                                               PT_r8_opt=PT_r8, &
-                                              PM_r8_opt=PM_r8, &
-                                              beSilent_opt=beSilent)
+                                              PM_r8_opt=PM_r8)
       end if
     end if
 
-    if ( .not. beSilent) write(*,*) 'czp_calcReturnPressure_gsv_nl: END'
+    call msg('czp_calcReturnPressure_gsv_nl', 'END', verb_opt=2)
     call utl_tmg_stop(177)
-
   end subroutine czp_calcReturnPressure_gsv_nl
   
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode2100x
   !---------------------------------------------------------
   subroutine calcPressure_gsv_nl_vcode2100x(statevector, PT_r4_opt, PM_r4_opt, &
-                                          PT_r8_opt, PM_r8_opt, beSilent_opt)
+                                          PT_r8_opt, PM_r8_opt)
     implicit none
 
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector
     real(4), pointer, optional, intent(inout) :: PT_r4_opt(:,:,:,:), PM_r4_opt(:,:,:,:)
     real(8), pointer, optional, intent(inout) :: PT_r8_opt(:,:,:,:), PM_r8_opt(:,:,:,:)
-    logical,          optional, intent(in)    :: beSilent_opt
 
     ! Locals
-    logical :: beSilent
     integer ::  stepIndex, latIndex, lonIndex, numStep
     integer ::  lev_M,lev_T,nlev_M,nlev_T,status
 
     real(4) ::  heightSfcOffset_T_r4, heightSfcOffset_M_r4
     real(4) ::  lat_4
-    real(8) ::  hu, tt, cmp, Rgh, P0, dh, tv0, rMt, Z_T, Z_T1, Z_M, Z_M1, logP
+    real(8) ::  hu, tt, cmp, Rgh, P0, dh, tv0, rMt, Z_T, Z_M, Z_M1, logP
     real(8) ::  sLat, cLat, lat_8
     real(8) ::  ScaleFactorBottom
 
@@ -1904,11 +1794,7 @@ contains
     real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
     real(8), pointer     :: HeightSfc_ptr_r8(:,:)
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
+    call msg('calcPressure_gsv_nl_vcode2100x (czp)', 'START', verb_opt=3)
     
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
@@ -1926,16 +1812,16 @@ contains
     status = vgd_get( statevector%vco%vgrid, &
                       key='DHT - height of the diagnostic level (t)', &
                       value=heightSfcOffset_T_r4)
-    if ( mmpi_myid == 0 .and. .not.beSilent ) then
-      write(*,*) 'czp_calcPressure_gsv_nl: height offset for near-sfc momentum level is: ', &
-            heightSfcOffset_M_r4, ' metres'
-      write(*,*) 'calcPressure_gsv_nl_vcode2100x: height offset for near-sfc thermo level is:   ', &
-            heightSfcOffset_T_r4, ' metres'
-      if ( .not.statevector%addHeightSfcOffset ) then
-        write(*,*) '----------------------------------------------------------------------------------'
-        write(*,*) 'calcPressure_gsv_nl_vcode2100x: BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'
-        write(*,*) '----------------------------------------------------------------------------------'
-      end if
+    call msg('calcPressure_gsv_nl_vcode2100x (czp)', &
+         'height offset for near-sfc momentum level is:'//str(heightSfcOffset_M_r4)//' meters'&
+         //new_line('')//'height offset for near-sfc thermo level is:'//str(heightSfcOffset_T_r4)//' meters', &
+         verb_opt=2, mpiAll_opt=.false.)
+    if ( .not.statevector%addHeightSfcOffset ) then
+      call msg('calcPressure_gsv_nl_vcode2100x (czp)', new_line('') &
+             //'--------------------------------------------------------------------------'//new_line('')&
+             //'BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'//new_line('')&
+             //'--------------------------------------------------------------------------', &
+             verb_opt=2, mpiAll_opt=.false.)
     end if
 
     allocate(pressure_T(nlev_T))
@@ -2095,14 +1981,14 @@ contains
     deallocate(pressure_M)
     deallocate(tv)
 
+    call msg('calcPressure_gsv_nl_vcode2100x (czp)', 'END', verb_opt=3)
   end subroutine calcPressure_gsv_nl_vcode2100x
 
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode500x_r8
   !---------------------------------------------------------
   subroutine calcPressure_gsv_nl_vcode500x_r8(statevector, P_T, P_M, &
-                                              PsfcRef_r8_opt, beSilent_opt, &
-                                              Ps_in_hPa_opt)
+                                              PsfcRef_r8_opt, Ps_in_hPa_opt)
     !
     !:Purpose: double-precision calculation of the pressure on the grid.
     !
@@ -2112,21 +1998,15 @@ contains
     type(struct_gsv),           intent(in)    :: statevector
     real(8),           pointer, intent(inout) :: P_T(:,:,:,:), P_M(:,:,:,:)
     real(8), optional, pointer, intent(in)    :: PsfcRef_r8_opt(:,:,:,:)
-    logical, optional,          intent(in)    :: beSilent_opt
     logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
     ! Locals
-    logical :: beSilent
     real(kind=8), allocatable   :: Psfc(:,:)
     real(kind=8), pointer       :: Pressure_out(:,:,:)
     real(kind=8), pointer       :: field_Psfc(:,:,:,:)
     integer                     :: status, stepIndex, numStep
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
+    call msg('calcPressure_gsv_nl_vcode500x_r8 (czp)', 'START', verb_opt=3)
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
@@ -2177,14 +2057,14 @@ contains
 
     deallocate(Psfc)
 
+    call msg('calcPressure_gsv_nl_vcode500x_r8 (czp)', 'END', verb_opt=3)
   end subroutine calcPressure_gsv_nl_vcode500x_r8
 
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode500x_r4
   !---------------------------------------------------------
   subroutine calcPressure_gsv_nl_vcode500x_r4(statevector, P_T, P_M, &
-                                              PsfcRef_r4_opt, beSilent_opt, &
-                                              Ps_in_hPa_opt)
+                                              PsfcRef_r4_opt, Ps_in_hPa_opt)
     !
     !:Purpose: single-precision calculation of the pressure on the grid.
     !
@@ -2194,21 +2074,15 @@ contains
     type(struct_gsv),           intent(in)    :: statevector
     real(4),           pointer, intent(inout) :: P_T(:,:,:,:), P_M(:,:,:,:)
     real(4), optional, pointer, intent(in)    :: PsfcRef_r4_opt(:,:,:,:)
-    logical, optional,          intent(in)    :: beSilent_opt
     logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
     ! Locals
-    logical :: beSilent
     real(kind=4), allocatable   :: Psfc(:,:)
     real(kind=4), pointer       :: Pressure_out(:,:,:)
     real(kind=4), pointer       :: field_Psfc(:,:,:,:)
     integer                     :: status, stepIndex, numStep
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
+    call msg('calcPressure_gsv_nl_vcode500x_r4 (czp)', 'START', verb_opt=3)
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
@@ -2259,13 +2133,13 @@ contains
 
     deallocate(Psfc)
 
+    call msg('calcPressure_gsv_nl_vcode500x_r4 (czp)', 'START', verb_opt=3)
   end subroutine calcPressure_gsv_nl_vcode500x_r4
 
   !---------------------------------------------------------
   ! calcPressure_gsv_tl
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_tl( statevector, statevectorRef, &
-                                      beSilent_opt)
+  subroutine calcPressure_gsv_tl( statevector, statevectorRef)
     !
     !:Purpose: calculation of the Pressure increment on the grid.
     !
@@ -2274,25 +2148,12 @@ contains
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector      ! statevector that will contain the P_T/P_M increments
     type(struct_gsv), intent(in)    :: statevectorRef   ! statevector containing needed reference fields
-    logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
     integer :: Vcode
-    logical :: beSilent
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-    beSilent = .false. ! DBGmad
 
     call utl_tmg_start(178,'low-level--czp_calcPressure_tl')
-
-    if (.not.beSilent) then
-      write(*,*) 'calcPressure_gsv_tl (czp): START'
-      write(*,*) '      computing delP_T/delP_M on the gridstatevector'
-    end if
+    call msg('calcPressure_gsv_tl (czp)', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -2308,7 +2169,7 @@ contains
       call calcPressure_gsv_tl_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'calcPressure_gsv_tl (czp): END'
+    call msg('calcPressure_gsv_tl (czp)', 'END', verb_opt=2)
     call utl_tmg_stop(178)
 
     contains
@@ -2343,6 +2204,7 @@ contains
         integer               :: status, stepIndex,lonIndex,latIndex
         integer               :: lev_M, lev_T, nlev_T, nlev_M, numStep
 
+        call msg('calcPressure_gsv_tl_vcode500x (czp)', 'START', verb_opt=3)
 
         nullify(dP_dPsfc_T)
         nullify(dP_dPsfc_M)
@@ -2448,6 +2310,7 @@ contains
 
         deallocate(Psfc)
 
+        call msg('calcPressure_gsv_tl_vcode500x (czp)', 'END', verb_opt=3)
       end subroutine calcPressure_gsv_tl_vcode500x
 
   end subroutine calcPressure_gsv_tl
@@ -2455,8 +2318,7 @@ contains
   !---------------------------------------------------------
   ! calcPressure_gsv_ad
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_ad( statevector, statevectorRef, &
-                                      beSilent_opt)
+  subroutine calcPressure_gsv_ad( statevector, statevectorRef)
     !
     !:Purpose: adjoint of calculation of the Pressure on the grid.
     !
@@ -2465,24 +2327,12 @@ contains
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector    ! statevector that will contain increment of P_T/P_M
     type(struct_gsv), intent(in)    :: statevectorRef ! statevector containing needed reference fields
-    logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
     integer :: Vcode
-    logical :: beSilent
 
     call utl_tmg_start(179,'low-level--czp_calcPressure_ad')
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-
-    if (.not.beSilent) then
-      write(*,*) 'calcPressure_gsv_ad (czp): START'
-      write(*,*) '      computing adjoint of delP_T/delP_M on the gridstatevector'
-    end if
+    call msg('calcPressure_gsv_ad (czp)', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -2498,7 +2348,7 @@ contains
       call calcPressure_gsv_ad_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'calcPressure_gsv_ad (czp): END'
+    call msg('calcPressure_gsv_ad (czp)', 'END', verb_opt=2)
     call utl_tmg_stop(179)
 
     contains
@@ -2532,6 +2382,8 @@ contains
         real(8), pointer         :: dP_dPsfc_M(:,:,:)
         integer                  :: status, stepIndex,lonIndex,latIndex
         integer                  :: lev_M, lev_T, nlev_T, nlev_M, numStep
+
+        call msg('calcPressure_gsv_ad_vcode500x (czp)', 'START', verb_opt=3)
 
         nullify(delPsfc_r4, delPsfc_r8)
         nullify(field_Psfc)
@@ -2640,6 +2492,7 @@ contains
 
         deallocate(Psfc)
 
+        call msg('calcPressure_gsv_ad_vcode500x (czp)', 'END', verb_opt=3)
       end subroutine calcPressure_gsv_ad_vcode500x
 
   end subroutine calcPressure_gsv_ad
@@ -2651,7 +2504,7 @@ contains
   !---------------------------------------------------------
   ! calcZandP_col_nl
   !---------------------------------------------------------
-  subroutine calcZandP_col_nl(column, beSilent_opt)
+  subroutine calcZandP_col_nl(column)
     !
     ! :Purpose: compute pressure and height in the column in proper order 
     !           depending on the vgrid kind
@@ -2660,46 +2513,38 @@ contains
 
     ! Arguments
     type(struct_columnData), intent(inout) :: column  ! column that will contain the Z_*/P_* fields
-    logical, intent(in), optional          :: beSilent_opt
 
     ! Locals
     integer   :: Vcode
-    logical   :: beSilent
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-    beSilent = .false. ! DBGmad
-
-    if (.not.beSilent) write(*,*) 'calcZandP_col_nl (czp): START'
+    call msg('calcZandP_col_nl (czp)', 'START', verb_opt=2)
 
     Vcode = column%vco%vcode
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if P_T, P_M not allocated : do nothing
       if (col_varExist(column,'P_*')) then
-        call calcPressure_col_nl(column, beSilent_opt=beSilent_opt)
+        call calcPressure_col_nl(column)
         if (col_varExist(column,'Z_*')) then
-          call calcHeight_col_nl(column, beSilent_opt=beSilent_opt)
+          call calcHeight_col_nl(column)
         end if
       end if
     else if (Vcode == 21001) then
       ! if Z_T, Z_M not allocated : do nothing
       if (col_varExist(column,'Z_*')) then
-        call calcHeight_col_nl(column, beSilent_opt=beSilent_opt)
+        call calcHeight_col_nl(column)
         if (col_varExist(column,'P_*')) then
-          call calcPressure_col_nl(column, beSilent_opt=beSilent_opt)
+          call calcPressure_col_nl(column)
         end if
       end if
     end if
   
+    call msg('calcZandP_col_nl (czp)', 'END', verb_opt=2)
   end subroutine calcZandP_col_nl
 
   !---------------------------------------------------------
   ! calcZandP_col_tl
   !---------------------------------------------------------
-  subroutine calcZandP_col_tl(columnInc, columnIncRef, beSilent_opt)
+  subroutine calcZandP_col_tl(columnInc, columnIncRef)
     !
     ! :Purpose: compute pressure and height increment in the column in proper
     !           order depending on the vgrid kind
@@ -2709,27 +2554,17 @@ contains
     ! Arguments
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the Z_*/P_* increments
     type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
-    logical, intent(in), optional          :: beSilent_opt
 
     ! Locals
     integer   :: Vcode
-    logical   :: beSilent
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-    beSilent = .false. ! DBGmad
-
-    if (.not.beSilent) write(*,*) 'calcZandP_col_tl (czp): START'
+    call msg('calcZandP_col_tl (czp)', 'START', verb_opt=2)
 
     Vcode = columnInc%vco%vcode
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if P_T, P_M not allocated : do nothing
       if (col_varExist(columnInc,'P_*')) then
-        call calcPressure_col_tl( columnInc, columnIncRef, &
-                                  beSilent_opt=beSilent_opt)
+        call calcPressure_col_tl( columnInc, columnIncRef)
         if (col_varExist(columnInc,'Z_*')) then
           call calcHeight_col_tl(columnInc, columnIncRef)
         end if
@@ -2740,18 +2575,18 @@ contains
         call calcHeight_col_tl(columnInc, columnIncRef)
 
         if (col_varExist(columnInc,'P_*')) then
-          call calcPressure_col_tl( columnInc, columnIncRef, &
-                                    beSilent_opt=beSilent_opt)
+          call calcPressure_col_tl( columnInc, columnIncRef)
         end if
       end if
     end if
 
+    call msg('calcZandP_col_tl (czp)', 'END', verb_opt=2)
   end subroutine calcZandP_col_tl
 
   !---------------------------------------------------------
   ! calcZandP_col_ad
   !---------------------------------------------------------
-  subroutine calcZandP_col_ad(columnInc, columnIncRef, beSilent_opt)
+  subroutine calcZandP_col_ad(columnInc, columnIncRef)
     !
     ! :Purpose: adjoint of pressure and height increment computation in the
     !           column in proper order depending on the vgrid kind
@@ -2762,20 +2597,11 @@ contains
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the Z_*/P_* increments
     type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
 
-    logical, intent(in), optional          :: beSilent_opt
-
     ! Locals
     integer   :: Vcode
-    logical   :: beSilent
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-    beSilent = .false. ! DBGmad
 
-    if (.not.beSilent) write(*,*) 'calcZandP_col_ad (czp): START'
+    call msg('calcZandP_col_ad (czp)', 'START', verb_opt=2)
 
     Vcode = columnInc%vco%vcode
     if (Vcode == 5002 .or. Vcode == 5005) then
@@ -2783,27 +2609,26 @@ contains
       if (col_varExist(columnInc,'Z_*')) then
         call calcHeight_col_ad(columnInc, columnIncRef)
         if (col_varExist(columnInc,'P_*')) then
-          call calcPressure_col_ad( columnInc, columnIncRef, &
-                                    beSilent_opt=beSilent_opt)
+          call calcPressure_col_ad( columnInc, columnIncRef)
         end if
       end if
     else if (Vcode == 21001) then
       ! if P_T, P_M not allocated : do nothing
       if (col_varExist(columnInc,'P_*')) then
-        call calcPressure_col_ad( columnInc, columnIncRef, &
-                                  beSilent_opt=beSilent_opt)
+        call calcPressure_col_ad( columnInc, columnIncRef)
         if (col_varExist(columnInc,'Z_*')) then
           call calcHeight_col_ad(columnInc, columnIncRef)
         end if
       end if
     end if
 
+    call msg('calcZandP_col_ad (czp)', 'END', verb_opt=2)
   end subroutine calcZandP_col_ad
 
   !---------------------------------------------------------
   ! calcHeight_col_nl
   !---------------------------------------------------------
-  subroutine calcHeight_col_nl(column, beSilent_opt)
+  subroutine calcHeight_col_nl(column)
     !
     ! :Purpose: Temperature to geopotential transformation on the column
     !
@@ -2811,20 +2636,11 @@ contains
 
     ! Arguments
     type(struct_columnData), intent(inout) :: column  ! column that will contain the Z_M/Z_T fields
-    logical, intent(in), optional          :: beSilent_opt
 
     ! Locals
     integer :: vcode
-    logical :: beSilent
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
 
-    if (.not.beSilent) then
-      write(*,*) 'calcHeight_col_nl (czp): START'
-    end if
+    call msg('calcHeight_col_nl (czp)', 'START', verb_opt=2)
 
     Vcode = col_getVco(column)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -2834,7 +2650,12 @@ contains
       call calcHeight_col_nl_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'calcHeight_col_nl (czp): END'
+    call msg('calcHeight_col_nl (czp)', &
+           new_line('')//'Z_M = '//str(col_getColumn(column,1,'Z_M')) &
+         //new_line('')//'Z_T = '//str(col_getColumn(column,1,'Z_T')), & 
+         verb_opt=2)
+
+    call msg('calcHeight_col_nl (czp)', 'END', verb_opt=2)
 
     contains
       !---------------------------------------------------------
@@ -2848,7 +2669,12 @@ contains
         real(8), pointer      :: hPtr(:,:,:)
         integer :: numCol, headerIndex, stat, ilev1, ilev2
 
-        if ( col_getNumCol(column) <= 0 ) return
+        call msg('calcHeight_col_nl_vcode2100x (czp)', 'START', verb_opt=3)
+        if ( col_getNumCol(column) <= 0 ) then
+          call msg('calcHeight_col_nl_vcode2100x (czp)',&
+               'END (number of columns <= 0)', verb_opt=2)
+          return
+        end if
 
         if (.not.col_varExist(column,'ME')) then
           call utl_abort('calcHeight_col_nl (czp): ME must be present as an analysis variable!')
@@ -2869,6 +2695,8 @@ contains
 
         allocate(heights(col_getNumLev(column,'MM'), numCol))
         heights = transpose(hPtr(1,:,:))
+        call msg('calcHeight_col_nl_vcode2100x (czp)', &
+             'MM heights(1,:) = '//str(heights(1,:)),  verb_opt=3)
         ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_M'))
         ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('Z_M'))
         column%all(ilev1:ilev2,:) = heights(:,:)
@@ -2883,6 +2711,8 @@ contains
 
         allocate(heights(col_getNumLev(column,'TH'), numCol))
         heights = transpose(hPtr(1,:,:))
+        call msg('calcHeight_col_nl_vcode2100x (czp)', &
+             'TH heights(1,:) = '//str(heights(1,:)),  verb_opt=3)
         ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_T'))
         ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('Z_T'))
         column%all(ilev1:ilev2,:) = heights(:,:)
@@ -2890,6 +2720,7 @@ contains
 
         deallocate(heights)
         deallocate(hSfc)
+        call msg('calcHeight_col_nl_vcode2100x (czp)', 'END', verb_opt=3)
       end subroutine calcHeight_col_nl_vcode2100x
 
       !---------------------------------------------------------
@@ -2897,6 +2728,7 @@ contains
       !---------------------------------------------------------
       subroutine calcHeight_col_nl_vcode500x
         implicit none
+        call msg('calcHeight_col_nl_vcode500x (czp)', 'END (nothing done)', verb_opt=3)
         continue
       end subroutine calcHeight_col_nl_vcode500x
 
@@ -2905,7 +2737,7 @@ contains
   !---------------------------------------------------------
   ! calcHeight_col_tl
   !---------------------------------------------------------
-  subroutine calcHeight_col_tl(columnInc,columnIncRef, beSilent_opt)
+  subroutine calcHeight_col_tl(columnInc,columnIncRef)
     !
     ! :Purpose: Temperature to geopotential tangent-linear transformation on 
     !           the column
@@ -2915,24 +2747,12 @@ contains
     ! Arguments
     type(struct_columnData), intent(inout)  :: columnInc
     type(struct_columnData), intent(in)     :: columnIncRef
-    logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
     integer :: Vcode
-    logical :: beSilent
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
 
     call utl_tmg_start(173,'low-level--czp_calcHeight_tl')
-
-    if (.not.beSilent) then
-      write(*,*) 'calcHeight_col_tl (czp): START'
-      write(*,*) '      computing delP_T/delP_M in the column'
-    end if
+    call msg('calcHeight_col_tl (czp)', 'START', verb_opt=2)
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -2957,8 +2777,7 @@ contains
       call calcHeight_col_tl_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'calcHeight_col_tl (czp): END'
-
+    call msg('calcHeight_col_tl (czp)', 'END', verb_opt=2)
     call utl_tmg_stop(173)
 
     contains
@@ -2987,6 +2806,8 @@ contains
         real(8), pointer  :: delHeight_M_ptr(:,:),delHeight_T_ptr(:,:)
         real(8), pointer  :: delTT(:,:),delHU(:,:),delP0(:,:)
         real(8), pointer  :: delP_T(:,:), delP_M(:,:)
+
+        call msg('calcHeight_col_tl_vcode500x (czp)', 'START', verb_opt=3)
 
         nlev_T = col_getNumLev(columnIncRef,'TH')
         nlev_M = col_getNumLev(columnIncRef,'MM')
@@ -3113,6 +2934,7 @@ contains
 
         deallocate(delThick)
 
+        call msg('calcHeight_col_tl_vcode500x (czp)', 'END', verb_opt=3)
       end subroutine calcHeight_col_tl_vcode500x
 
   end subroutine calcHeight_col_tl
@@ -3120,7 +2942,7 @@ contains
   !---------------------------------------------------------
   ! calcHeight_col_ad
   !---------------------------------------------------------
-  subroutine calcHeight_col_ad(columnInc,columnIncRef,beSilent_opt)
+  subroutine calcHeight_col_ad(columnInc,columnIncRef)
     !
     !:Purpose: Adjoint of temperature to geopotential transformation on
     !          columnData
@@ -3131,24 +2953,12 @@ contains
     ! Arguments
     type(struct_columnData), intent(inout) :: columnInc
     type(struct_columnData), intent(in) :: columnIncRef
-    logical, intent(in), optional   :: beSilent_opt
 
     ! Locals
     integer :: Vcode
-    logical :: beSilent
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
 
     call utl_tmg_start(174,'low-level--czp_calcHeight_ad')
-
-    if (.not.beSilent) then
-      write(*,*) 'calcHeight_col_ad (czp): START'
-      write(*,*) '      adjoint computing delP_T/delP_M in the column'
-    end if
+    call msg('calcHeight_col_ad (czp)', 'START', verb_opt=2)
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -3173,8 +2983,7 @@ contains
       call calcHeight_col_ad_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'calcHeight_col_ad (czp): END'
-
+    call msg('calcHeight_col_ad (czp)', 'END', verb_opt=2)
     call utl_tmg_stop(174)
 
     contains
@@ -3204,6 +3013,8 @@ contains
         real(8), pointer     :: delHeight_M_ptr(:,:),delHeight_T_ptr(:,:)
         real(8), pointer     :: delTT(:,:),delHU(:,:),delP0(:,:)
         real(8), pointer     :: delP_M(:,:),delP_T(:,:)
+
+        call msg('calcHeight_col_ad_vcode500x (czp)', 'START', verb_opt=3)
 
         nlev_T = col_getNumLev(columnIncRef,'TH')
         nlev_M = col_getNumLev(columnIncRef,'MM')
@@ -3398,6 +3209,7 @@ contains
         deallocate(delHeight_M)
         deallocate(delHeight_T)
 
+        call msg('calcHeight_col_ad_vcode500x (czp)', 'END', verb_opt=3)
       end subroutine calcHeight_col_ad_vcode500x
 
   end subroutine calcHeight_col_ad
@@ -3405,7 +3217,7 @@ contains
   !---------------------------------------------------------
   ! calcPressure_col_nl
   !---------------------------------------------------------
-  subroutine calcPressure_col_nl(column, beSilent_opt)
+  subroutine calcPressure_col_nl(column)
     !
     !:Purpose: calculation of the Pressure in the column.
     !
@@ -3413,22 +3225,11 @@ contains
 
     ! Arguments
     type(struct_columnData), intent(inout)  :: column
-    logical, intent(in), optional           :: beSilent_opt
 
     ! Locals
     integer :: Vcode
-    logical :: beSilent
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-
-    if (.not.beSilent) then
-      write(*,*) 'calcPressure_col_nl (czp): START'
-      write(*,*) '    computing Pressure on staggered or UNstaggered levels'
-    end if
+    call msg('calcPressure_col_nl (czp)', 'START', verb_opt=2)
 
     Vcode = col_getVco(column)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -3444,7 +3245,12 @@ contains
       call calcPressure_col_nl_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'calcPressure_col_nl (czp): END'
+    call msg('calcPressure_col_nl (czp)', &
+           new_line('')//'P_M = '//str(col_getColumn(column,1,'P_M')) &
+         //new_line('')//'P_T = '//str(col_getColumn(column,1,'P_T')), & 
+         verb_opt=2)
+
+    call msg('calcPressure_col_nl (czp)', 'END', verb_opt=2)
 
     contains
       !---------------------------------------------------------
@@ -3468,7 +3274,12 @@ contains
         real(kind=8), pointer     :: zppobs1(:,:,:) => null()
         integer :: headerIndex, status, ilev1, ilev2
 
-        if ( col_getNumCol(column) <= 0 ) return
+        call msg('calcPressure_col_nl_vcode500x (czp)', 'START', verb_opt=3)
+        if ( col_getNumCol(column) <= 0 ) then
+          call msg('calcPressure_col_nl_vcode500x (czp)',&
+               'END (number of columns <= 0)', verb_opt=2)
+          return
+        end if
 
         if (.not.col_varExist(column,'P0')) then
           call utl_abort('calcPressure_col_nl (czp): P0 must be present as an analysis variable!')
@@ -3503,6 +3314,7 @@ contains
 
         deallocate(Psfc)
 
+        call msg('calcPressure_col_nl_vcode500x (czp)', 'END', verb_opt=3)
       end subroutine calcPressure_col_nl_vcode500x
 
   end subroutine calcPressure_col_nl
@@ -3510,7 +3322,7 @@ contains
   !---------------------------------------------------------
   ! calcPressure_col_tl
   !---------------------------------------------------------
-  subroutine calcPressure_col_tl( columnInc, columnIncRef, beSilent_opt)
+  subroutine calcPressure_col_tl( columnInc, columnIncRef)
     !
     !:Purpose: calculation of the Pressure increment in the column.
     !
@@ -3520,22 +3332,10 @@ contains
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain the P_T/P_M increments
     type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
 
-    logical, intent(in), optional          :: beSilent_opt
-
     ! Locals
     integer :: Vcode
-    logical :: beSilent
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-
-    if (.not.beSilent) then
-      write(*,*) 'calcPressure_col_tl (czp): START'
-      write(*,*) '    computing delP_T/delP_M on the column'
-    end if
+    call msg('calcPressure_col_tl (czp)', 'START', verb_opt=2)
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -3551,7 +3351,7 @@ contains
       call calcPressure_col_tl_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'calcPressure_col_tl (czp): END'
+    call msg('calcPressure_col_tl (czp)', 'END', verb_opt=2)
 
     contains
       !---------------------------------------------------------
@@ -3577,6 +3377,8 @@ contains
         real(8), pointer :: dP_dPsfc_T(:), dP_dPsfc_M(:)
         integer          :: status, colIndex
         integer          :: lev_M, lev_T, nlev_T, nlev_M, numColumns
+
+        call msg('calcPressure_col_tl_vcode500x (czp)', 'START', verb_opt=3)
 
         nullify(dP_dPsfc_T)
         nullify(dP_dPsfc_M)
@@ -3629,6 +3431,7 @@ contains
 
         end do
 
+        call msg('calcPressure_col_tl_vcode500x (czp)', 'END', verb_opt=3)
       end subroutine calcPressure_col_tl_vcode500x
 
   end subroutine calcPressure_col_tl
@@ -3636,7 +3439,7 @@ contains
   !---------------------------------------------------------
   ! calcPressure_col_ad
   !---------------------------------------------------------
-  subroutine calcPressure_col_ad( columnInc, columnIncRef, beSilent_opt)
+  subroutine calcPressure_col_ad( columnInc, columnIncRef)
     !
     !:Purpose: adjoint of calculation of the Pressure in the column.
     !
@@ -3646,23 +3449,10 @@ contains
     type(struct_columnData), intent(inout) :: columnInc    ! column that will contain increments of P_M/P_T
     type(struct_columnData), intent(in)    :: columnIncRef ! column containing needed reference fields
 
-    logical, intent(in), optional          :: beSilent_opt
-
     ! Locals
     integer :: Vcode
-    logical :: beSilent
 
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .true.
-    end if
-    beSilent = .false. ! DBGmad
-
-    if (.not.beSilent) then
-      write(*,*) 'calcPressure_col_ad (czp): START'
-      write(*,*) '    adjoint computing of delP_T/delP_M on the column'
-    end if
+    call msg('calcPressure_col_ad (czp)', 'START', verb_opt=2)
 
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -3678,7 +3468,7 @@ contains
       call calcPressure_col_ad_vcode2100x
     end if
 
-    if (.not.beSilent) write(*,*) 'calcPressure_col_ad (czp): END'
+    call msg('calcPressure_col_ad (czp)', 'END', verb_opt=2)
 
     contains
       !---------------------------------------------------------
@@ -3704,6 +3494,8 @@ contains
         real(8), pointer :: dP_dPsfc_T(:), dP_dPsfc_M(:)
         integer          :: status, colIndex
         integer          :: lev_M, lev_T, nlev_T, nlev_M, numColumns
+
+        call msg('calcPressure_col_ad_vcode500x (czp)', 'START', verb_opt=3)
 
         nullify(delPsfc)
         nullify(PsfcRef)
@@ -3758,6 +3550,7 @@ contains
           deallocate(dP_dPsfc_T)
 
         end do
+        call msg('calcPressure_col_ad_vcode500x (czp)', 'END', verb_opt=3)
       end subroutine calcPressure_col_ad_vcode500x
 
   end subroutine calcPressure_col_ad
@@ -3793,7 +3586,7 @@ contains
 
     if ( .not. firstTimeHeightCoeff_gsv ) return
 
-    Write(*,*) "calcHeightCoeff_gsv (czp): START"
+    call msg('calcHeightCoeff_gsv (czp)', 'START', verb_opt=2)
 
     ! initialize and save coefficients for increased efficiency
     ! (assumes no relinearization)
@@ -4018,8 +3811,7 @@ contains
 
     end if if_calcHeightCoeff_gsv_vcodes
 
-    write(*,*) "calcHeightCoeff_gsv (czp): END"
-
+    call msg('calcHeightCoeff_gsv (czp)', 'END', verb_opt=2)
   end subroutine calcHeightCoeff_gsv
 
   !---------------------------------------------------------
@@ -4048,7 +3840,7 @@ contains
 
     if ( .not. firstTimeHeightCoeff_col ) return
 
-    write(*,*) "calcHeightCoeff_col (czp): START"
+    call msg('calcHeightCoeff_col (czp)', 'START', verb_opt=2)
 
     ! initialize and save coefficients for increased efficiency
     ! (assumes no relinearization)
@@ -4220,8 +4012,7 @@ contains
 
     end if if_calcHeightCoeff_col_vcodes
 
-    write(*,*) "calcHeightCoeff_col (czp): END"
-
+    call msg('calcHeightCoeff_col (czp)', 'END', verb_opt=2)
   end subroutine calcHeightCoeff_col
 
   !---------------------------------------------------------

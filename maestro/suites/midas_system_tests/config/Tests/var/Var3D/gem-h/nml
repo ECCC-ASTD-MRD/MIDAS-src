@@ -461,3 +461,6 @@
   BITEMLIST(4)='FGE',
   TYPE_RESUME='POSTALT'
 /
+ &NAMMSG
+  verbosity = 2
+/

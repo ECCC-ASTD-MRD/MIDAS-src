@@ -28,6 +28,7 @@ module interpolation_mod
   use horizontalCoord_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use message_mod
   use kdtree2_mod
   implicit none
   save
@@ -93,6 +94,7 @@ contains
     else
       alreadyRead = .true.
     end if
+    call msg('int_readNml', 'START', verb_opt=2)
 
     ! default values
     vInterpCopyLowestLevel = .false.
@@ -100,10 +102,8 @@ contains
     maxBoxSize = 1
 
     if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
-      if (mmpi_myid == 0) then
-        write(*,*) 'int_readNml: namint is missing in the namelist.'
-        write(*,*) '             The default values will be taken.'
-      end if
+      call msg('int_readNml', 'namint is missing in the namelist.'&
+           //'The default values will be taken.', mpiAll_opt=.false.)
     else
       ! Read namelist NAMINT
       nulnam = 0
@@ -114,6 +114,7 @@ contains
       ierr = fclos(nulnam)
     end if
 
+    call msg('int_readNml', 'END', verb_opt=2)
   end subroutine int_readNml
 
   !--------------------------------------------------------------------------
@@ -143,7 +144,7 @@ contains
     type(struct_gsv) :: statevector_in_varsLevs, statevector_in_varsLevs_hInterp
     type(struct_gsv) :: statevector_in_hInterp
 
-    write(*,*) 'int_interpolate: START'
+    call msg('int_interp_gsv', 'START', verb_opt=2)
 
     !
     !- Error traps
@@ -217,7 +218,7 @@ contains
     call gsv_deallocate(statevector_in_hInterp)
     nullify(varNamesToInterpolate)
 
-    write(*,*) 'int_interpolate: END'
+    call msg('int_interp_gsv', 'END', verb_opt=2)
   end subroutine int_interp_gsv
 
   !--------------------------------------------------------------------------
@@ -238,8 +239,10 @@ contains
     character(len=4) :: varName
     character(len=12):: interpolationDegree, extrapolationDegree
 
+    call msg('int_hInterp_gsv', 'START', verb_opt=2)
+
     if ( hco_equal(statevector_in%hco,statevector_out%hco) ) then
-      write(*,*) 'int_hInterp_gsv: The input and output statevectors are already on same horizontal grids'
+      call msg('int_hInterp_gsv', 'The input and output statevectors are already on same horizontal grids')
       call gsv_copy(statevector_in, statevector_out)
       return
     end if
@@ -254,7 +257,7 @@ contains
 
     if ( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
 
-      write(*,*) 'int_hInterp_gsv: before interpolation (no mpi)'
+      call msg('int_hInterp_gsv', 'before interpolation (no mpi)')
 
       step_loop: do stepIndex = 1, statevector_out%numStep
         ! copy over some time related parameters
@@ -295,7 +298,7 @@ contains
 
     else
 
-      write(*,*) 'int_hInterp_gsv: before interpolation (with mpi)'
+      call msg('int_hInterp_gsv', 'before interpolation (with mpi)')
 
       if ( statevector_in%mpi_distribution /= 'VarsLevs' .or.   &
           statevector_out%mpi_distribution /= 'VarsLevs' ) then
@@ -332,12 +335,13 @@ contains
     end if
 
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
-      write(*,*) 'int_hInterp_gsv: interpolating surface height'
+      call msg('int_hInterp_gsv','interpolating surface height')
       ierr = int_hInterpScalar( statevector_out, statevector_in, 'ZSFC', 1, 1, &
                                 interpDegree=trim(interpolationDegree), &
                                 extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
+    call msg('int_hInterp_gsv', 'END', verb_opt=2)
   end subroutine int_hInterp_gsv
 
   !--------------------------------------------------------------------------
@@ -364,7 +368,6 @@ contains
     integer :: vcode_in, vcode_out
     integer :: nlev_out, nlev_in
     integer :: varIndex, stepIndex
-    integer :: status, nulnam, fnom, ierr, fclos
 
     real(8), pointer  :: hLikeT_in(:,:,:,:), hLikeM_in(:,:,:,:)   ! abstract height dimensioned coordinate
     real(8), pointer  :: hLikeT_out(:,:,:,:), hLikeM_out(:,:,:,:) ! abstract height dimensioned coordinate
@@ -377,11 +380,12 @@ contains
     type(struct_vco), pointer :: vco_in, vco_out
     type(struct_gsv), pointer :: statevector_Zin
 
+    call msg('int_vInterp_gsv', 'START', verb_opt=2)
     ! read the namelist
     call int_readNml()
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      write(*,*) 'int_vInterp_gsv: The input and output statevectors are already on same vertical levels'
+      call msg('int_vInterp_gsv', 'The input and output statevectors are already on same vertical levels')
       call gsv_copy(statevector_in, statevector_out)
       return
     end if
@@ -412,8 +416,10 @@ contains
       checkModelTop = .true.
     end if
     if (checkModelTop) then
+      call msg('int_vInterp_gsv', ' Checking that that the top of the destination grid is not higher than the top of the source grid.')
       if ( vcode_in == 21001 .or. vcode_out == 21001 ) then
-        write(*,*) 'int_vInterp_gsv: bypassing top check ', vcode_in, vcode_out
+        call msg('int_vInterp_gsv', 'bypassing top check, '&
+             //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
         ! DBGmad: a better solution
       else
         call vco_ensureCompatibleTops(vco_in, vco_out)
@@ -483,7 +489,8 @@ contains
                                             PT_r8=hLikeT_in, PM_r8=hLikeM_in, &
                                             PsfcRef_r8_opt=PsfcRef, &
                                             Ps_in_hPa_opt=Ps_in_hPa_opt)
-        write(*,*) 'int_vInterp_gsv converting pressurecoordinates to height-like vcodes=', vcode_in, vcode_out
+        call msg('int_vInterp_gsv','converting pressurecoordinates to height-like, '&
+             //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
         call logP(hLikeM_out)
         call logP(hLikeT_out)
         call logP(hLikeM_in)
@@ -545,6 +552,8 @@ contains
       end if
       nullify(statevector_Zin) 
     end do var_loop
+
+    call msg('int_vInterp_gsv', 'END', verb_opt=2)
 
     contains
 
@@ -632,19 +641,19 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),          intent(in)     :: statevector_in             ! statevector that will contain the vertically interpolated fields
+    type(struct_gsv),  target, intent(in)     :: statevector_in             ! statevector that will contain the vertically interpolated fields
     type(struct_gsv),          intent(inout)  :: statevector_out            ! Reference statevector providing the vertical structure
     logical, optional,         intent(in)     :: Ps_in_hPa_opt              ! If true, conversion from hPa to mbar will be done for surface pressure
     real(4), optional, target, intent(in)     :: PsfcReference_opt(:,:,:,:) ! Provides a surface pressure field to be used instead of the first P0 level
     logical, optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
-    logical :: checkModelTop
+    logical :: checkModelTop, vInterpCopyLowestLevel
+    logical :: svZinAllocated=.false.
 
     integer :: vcode_in, vcode_out
     integer :: nlev_out, nlev_in
     integer :: varIndex, stepIndex
-    integer :: status, nulnam, fnom, ierr, fclos
 
     real(4), pointer  :: hLikeT_in(:,:,:,:), hLikeM_in(:,:,:,:)   ! abstract height dimensioned coordinate
     real(4), pointer  :: hLikeT_out(:,:,:,:), hLikeM_out(:,:,:,:) ! abstract height dimensioned coordinate
@@ -655,13 +664,14 @@ contains
     character(len=4) :: varName
 
     type(struct_vco), pointer :: vco_in, vco_out
-    type(struct_gsv)  :: statevector_Z !needed for vcode 21001 to obtain Z_*
+    type(struct_gsv), pointer :: statevector_Zin
 
+    call msg('int_vInterp_gsv_r4', 'START', verb_opt=2)
     ! read the namelist
     call int_readNml()
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      write(*,*) 'int_vInterp_gsv_r4: The input and output statevectors are already on same vertical levels'
+      call msg('int_vInterp_gsv_r4', 'The input and output statevectors are already on same vertical levels')
       call gsv_copy(statevector_in, statevector_out)
       return
     end if
@@ -692,9 +702,10 @@ contains
       checkModelTop = .true.
     end if
     if (checkModelTop) then
-      write(*,*) 'int_vInterp_gsv_r4: Checking that that the top of the destination grid is not higher than the top of the source grid.'
+      call msg('int_vInterp_gsv_r4', ' Checking that that the top of the destination grid is not higher than the top of the source grid.')
       if ( vcode_in == 21001 .or. vcode_out == 21001 ) then
-        write(*,*) 'int_vInterp_gsv_r4: bypassing top check, vcode_{in,out}=', vcode_in, vcode_out
+        call msg('int_vInterp_gsv_r4', 'bypassing top check, '&
+             //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
         ! DBGmad: a better solution
       else
         call vco_ensureCompatibleTops(vco_in, vco_out)
@@ -739,62 +750,70 @@ contains
         call gsv_getField(statevector_in,PsfcRef,'P0')
       end if
 
-      ! call czp to compute height or pressure
-      ! convert if necessary to height-like abstract coordinate for interpolation
-      if ( vcode_in==5002 .or. vcode_in==5005 ) then
-        call czp_calcReturnPressure_gsv_nl( statevector_in, &
-                                            PT_r4=hLikeT_in, PM_r4=hLikeM_in, &
-                                            PsfcRef_r4_opt=PsfcRef, &
-                                            Ps_in_hPa_opt=Ps_in_hPa_opt)
-        write(*,*) 'int_vInterp_gsv_r4 converting input coordinates to height-like vcode=', vcode_in
-        call logP_r4(hLikeM_in)
-        call logP_r4(hLikeT_in)
-
-      else if ( vcode_in==21001 ) then
-        call gsv_allocate(statevector_Z, statevector_in%numStep, & 
-                          statevector_in%hco, statevector_in%vco, &
-                          dateStampList_opt=statevector_in%datestamplist, &
-                          mpi_local_opt=statevector_in%mpi_local, &
-                          mpi_distribution_opt=statevector_in%mpi_distribution, &
-                          dataKind_opt=statevector_in%dataKind, allocHeightSfc_opt=.true., & 
-                          varNames_opt=(/'TT', 'HU', 'P0', 'Z_M', 'Z_T'/) ) 
-        call gsv_copy(statevector_in, stateVector_Z, allowVarMismatch_opt=.true.) 
-        call czp_calcReturnHeight_gsv_nl( statevector_Z, &
-                                          ZT_r4=hLikeT_in, ZM_r4=hLikeM_in)
-      end if
-
+      ! output grid GEM-P interpolation in log-pressure
       if ( vcode_out==5002 .or. vcode_out==5005 ) then
         call czp_calcReturnPressure_gsv_nl( statevector_out, &
                                             PT_r4=hLikeT_out, PM_r4=hLikeM_out, &
                                             PsfcRef_r4_opt=PsfcRef, &
                                             Ps_in_hPa_opt=Ps_in_hPa_opt)
-        write(*,*) 'int_vInterp_gsv_r4 converting output coordinates to height-like vcode=', vcode_out
+        if ( vcode_in==21001 ) then
+          allocate(statevector_Zin)
+          svZinAllocated=.true.
+          call gsv_allocate(statevector_Zin, statevector_in%numStep, &
+                            statevector_in%hco, statevector_in%vco, &
+                            dateStampList_opt=statevector_in%datestamplist, &
+                            mpi_local_opt=statevector_in%mpi_local, &
+                            mpi_distribution_opt=statevector_in%mpi_distribution, &
+                            dataKind_opt=statevector_in%dataKind, allocHeightSfc_opt=.true., &
+                            varNames_opt=(/'TT', 'HU', 'P0', 'Z_M', 'Z_T'/) )
+          call gsv_copy(statevector_in, stateVector_Zin, allowVarMismatch_opt=.true.)
+          call czp_calcHeight_nl(stateVector_Zin)
+        else
+          statevector_Zin => statevector_in
+        end if
+        call czp_calcReturnPressure_gsv_nl( statevector_Zin, &
+                                            PT_r4=hLikeT_in, PM_r4=hLikeM_in, &
+                                            PsfcRef_r4_opt=PsfcRef, &
+                                            Ps_in_hPa_opt=Ps_in_hPa_opt)
+        call msg('int_vInterp_gsv_r4','converting pressurecoordinates to height-like, '&
+             //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
         call logP_r4(hLikeM_out)
         call logP_r4(hLikeT_out)
+        call logP_r4(hLikeM_in)
+        call logP_r4(hLikeT_in)
+
+      ! output grid GEM-H interpolation in height
       else if ( vcode_out==21001 ) then
-        call gsv_zero(stateVector_Z)
-        call gsv_allocate(statevector_Z, statevector_out%numStep, & 
-                          statevector_out%hco, statevector_out%vco, &
-                          dateStampList_opt=statevector_out%datestamplist, &
-                          mpi_local_opt=statevector_out%mpi_local, &
-                          mpi_distribution_opt=statevector_out%mpi_distribution, &
-                          dataKind_opt=statevector_out%dataKind, allocHeightSfc_opt=.true., & 
-                          varNames_opt=(/'TT', 'HU', 'P0', 'Z_M', 'Z_T'/) ) 
-        call gsv_copy(statevector_out, stateVector_Z, allowVarMismatch_opt=.true.) 
-        call czp_calcReturnHeight_gsv_nl( statevector_Z, &
+        call czp_calcReturnHeight_gsv_nl( statevector_out, &
                                           ZT_r4=hLikeT_out, ZM_r4=hLikeM_out)
+        if ( vcode_in==5005 .or. vcode_in==5002 ) then
+          call utl_abort('DBGmad: not implemented yet')
+        else
+          allocate(statevector_Zin)
+          svZinAllocated=.true.
+          call gsv_allocate(statevector_Zin, statevector_in%numStep, &
+                            statevector_in%hco, statevector_in%vco, &
+                            dateStampList_opt=statevector_in%datestamplist, &
+                            mpi_local_opt=statevector_in%mpi_local, &
+                            mpi_distribution_opt=statevector_in%mpi_distribution, &
+                            dataKind_opt=statevector_in%dataKind, allocHeightSfc_opt=.true., &
+                            varNames_opt=(/'TT', 'HU', 'P0', 'P_M', 'P_T'/) )
+          call gsv_copy(statevector_in, stateVector_Zin, allowVarMismatch_opt=.true.)
+          call czp_calcReturnHeight_gsv_nl( statevector_Zin, &
+                                            ZT_r4=hLikeT_in, ZM_r4=hLikeM_in)
+        end if
       end if
 
       step_loop: do stepIndex = 1, statevector_out%numStep
   
         ! copy over some time related and other parameters
-        statevector_out%deet                      = statevector_in%deet
-        statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
-        statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
-        statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
-        statevector_out%etiket                    = statevector_in%etiket
-        statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
-        statevector_out%hco_physics              => statevector_in%hco_physics
+        statevector_out%deet                      = statevector_Zin%deet
+        statevector_out%dateOriginList(stepIndex) = statevector_Zin%dateOriginList(stepIndex)
+        statevector_out%npasList(stepIndex)       = statevector_Zin%npasList(stepIndex)
+        statevector_out%ip2List(stepIndex)        = statevector_Zin%ip2List(stepIndex)
+        statevector_out%etiket                    = statevector_Zin%etiket
+        statevector_out%onPhysicsGrid(:)          = statevector_Zin%onPhysicsGrid(:)
+        statevector_out%hco_physics              => statevector_Zin%hco_physics
   
         ! do the vertical interpolation
         field_out(:,:,:,stepIndex) = 0.0d0
@@ -813,7 +832,14 @@ contains
       end do step_loop
 
       deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
+      if ( svZinAllocated ) then
+        deallocate(statevector_Zin)
+        svZinAllocated=.false.
+      end if
+      nullify(statevector_Zin) 
     end do var_loop
+
+    call msg('int_vInterp_gsv_r4', 'END', verb_opt=2)
 
     contains
 
@@ -914,7 +940,7 @@ contains
     real(4), pointer  :: gdIn_r4(:,:,:,:), gdOut_r4(:,:,:,:)
     real(8), pointer  :: gdIn_r8(:,:,:,:), gdOut_r8(:,:,:,:)
 
-    write(*,*) 'int_tInterp_gsv: STARTING'
+    call msg('int_tInterp_gsv', 'START', verb_opt=2)
 
     ! read the namelist
     call int_readNml()
@@ -928,11 +954,11 @@ contains
     end if
 
     if ( statevector_in%numStep > statevector_out%numStep ) then
-      write(*,*) 'int_tInterp_gsv: numStep_out is less than numStep_in, calling gsv_copy.'
+      call msg('int_tInterp_gsv', 'numStep_out is less than numStep_in, calling gsv_copy.')
       call gsv_copy(statevector_in, statevector_out, allowTimeMismatch_opt=.true.)
       return
     else if ( statevector_in%numStep == statevector_out%numStep ) then
-      write(*,*) 'int_tInterp_gsv: numStep_out is equal to numStep_in, calling gsv_copy.'
+      call msg('int_tInterp_gsv', 'numStep_out is equal to numStep_in, calling gsv_copy.')
       call gsv_copy(statevector_in, statevector_out, allowVarMismatch_opt=.true.)
       return
     end if
@@ -946,9 +972,8 @@ contains
 
     numStepIn = statevector_in%numStep
     numStepOut = statevector_out%numStep
-    if ( mmpi_myid == 0 ) then
-      write(*,*) 'int_tInterp_gsv: numStepIn=', numStepIn, ',numStepOut=',numStepOut
-    end if
+    call msg('int_tInterp_gsv', 'numStepIn='//str(numStepIn)&
+         //', numStepOut='//str(numStepOut), mpiAll_opt=.false.)
 
     ! compute positive deltaHour between two first stepIndex of statevector_in (input temporal grid). 
     ! If numStepIn == 1, no time interpolation needed (weights are set to zero).
@@ -992,12 +1017,11 @@ contains
         weight2 = deltaHourInOut / deltaHour
       end if
 
-      if ( mmpi_myid == 0 ) then
-        write(*,*) 'int_tInterp_gsv: for stepIndexOut=', stepIndexOut, &
-                   ',stepIndexIn1=', stepIndexIn1, ',stepIndexIn2=', stepIndexIn2, &
-                   ',weight1=', weight1, ',weight2=', weight2, &
-                   ',deltaHourInOut/deltaHour=', deltaHourInOut,'/',deltaHour
-      end if
+      call msg('int_tInterp_gsv', 'for stepIndexOut='//str(stepIndexOut) &
+           //', stepIndexIn1='//str(stepIndexIn1)//', stepIndexIn2='//str(stepIndexIn2) &
+           //', weight1='//str(weight1)//', weight2='//str(weight2) &
+           //', deltaHourInOut/deltaHour='//str(deltaHourInOut)//'/'//str(deltaHour), &
+           mpiAll_opt=.false.)
 
       if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 4 ) then
         call gsv_getField(statevector_in, gdIn_r4)
@@ -1059,7 +1083,7 @@ contains
 
     end do
 
-    write(*,*) 'int_tInterp_gsv: END'
+    call msg('int_tInterp_gsv', 'END', verb_opt=2)
 
   end subroutine int_tInterp_gsv
 
@@ -1091,6 +1115,7 @@ contains
     integer, pointer :: levelWanted(:)
     real(8), allocatable :: psfc_in(:,:)
 
+    call msg('int_vInterp_col', 'START', verb_opt=2)
     varLevel = vnl_varLevelFromVarname(varName)
 
     if ( present(useColumnPressure_opt) ) then
@@ -1104,14 +1129,12 @@ contains
 
     vInterp = .true.
     if ( .not. col_varExist(column_in,'P0' ) ) then
-      write(*,*)
-      write(*,*) 'int_vInterp_col: P0 is missing. Vertical interpolation WILL NOT BE PERFORMED'
+      call msg('int_vInterp_col', 'P0 is missing. Vertical interpolation WILL NOT BE PERFORMED')
       vInterp = .false.
     else if ( col_getNumLev(column_in ,'TH') <= 1 .or. &
               col_getNumLev(column_in ,'MM') <= 1 ) then
       vInterp = .false.
-      write(*,*)
-      write(*,*) 'int_vInterp_col: The input backgrounds are 2D. Vertical interpolation WILL NOT BE PERFORMED'
+      call msg('int_vInterp_col', 'The input backgrounds are 2D. Vertical interpolation WILL NOT BE PERFORMED')
     end if
 
     if_vInterp: if (vInterp) then
@@ -1122,6 +1145,10 @@ contains
         do columnIndex = 1,col_getNumCol(column_in)
           psfc_in(1,columnIndex) = col_getElem(column_out,1,columnIndex,'P0')
         end do
+
+        call msg('int_vInterp_col', 'varName='//varName//' ('//varLevel//'), ' &
+             //'column_in vcode='//str(column_in%vco%vcode)//', '&
+             //'column_out vcode='//str(column_out%vco%vcode), verb_opt=3)
 
         ! Compute pressure
         if ( varLevel == 'TH' ) then
@@ -1182,19 +1209,12 @@ contains
         pres_in  => col_getColumn(column_in ,columnIndex,varName)
         pres_out => col_getColumn(column_out,columnIndex,varName)
 
-        if ( mmpi_myid == 0 .and. columnIndex == 1 .and. &
-             (trim(varName) == 'P_T' ) ) then
-
-          write(*,*) 'useColumnPressure=', useColumnPressure
-
-          write(*,*) 'int_vInterp_col, COLUMN_IN(1):'
-          write(*,*) trim(varName),':'
-          write(*,*) pres_in(:)
-
-          write(*,*) 'int_vInterp_col, COLUMN_OUT(1):'
-          write(*,*) trim(varName),':'
-          write(*,*) pres_out(:)
-          write(*,*)
+        if ( columnIndex == 1 .and. (trim(varName) == 'P_T' ) ) then
+          call msg('int_vInterp_col', 'useColumnPressure='//str(useColumnPressure) &
+               //', '//trim(varName)//':' &
+               //new_line('')//'COLUMN_IN(1):'//str(pres_in(:))&
+               //new_line('')//'COLUMN_OUT(1):'//str(pres_out(:)), &
+               mpiAll_opt=.false.)
         end if
 
         levIndex_in = 1
@@ -1259,7 +1279,7 @@ contains
         deallocate(MMlevelWanted)
 
       else if (column_out%vco%nlev_depth > 0) then
-        write(*,*) 'vco_levelMatchingList: no MM and TH levels, but depth levels exist'
+        call msg('int_vInterp_col', 'vco_levelMatchingList: no MM and TH levels, but depth levels exist')
         if (any(column_out%vco%depths(:) /= column_in%vco%depths(:))) then
           call utl_abort('int_vInterp_col: some depth levels not equal')
         else
@@ -1277,6 +1297,7 @@ contains
 
     end if if_vInterp
 
+    call msg('int_vInterp_col', 'END', verb_opt=2)
   end subroutine int_vInterp_col
 
   !--------------------------------------------------------------------------
@@ -1296,11 +1317,12 @@ contains
     character(len=12) :: extrapDegree
     integer           :: ierr, ezsetopt, ezsetval
 
+    call msg('int_setezopt', 'START', verb_opt=3)
     if ( trim(interpDegree) /= 'LINEAR' .and. &
          trim(interpDegree) /= 'CUBIC' .and. &
          trim(interpDegree) /= 'NEAREST' ) then
-      write(*,*) 'int_setezopt: interpDegree = ', trim(interpDegree)
-      call utl_abort('int_setezopt: invalid interpolation degree')
+
+      call utl_abort('int_setezopt: invalid interpolation degree = '//trim(interpDegree))
     end if
 
     if ( present(extrapDegree_opt) ) then
@@ -1315,6 +1337,7 @@ contains
     end if
     ierr = ezsetopt('EXTRAP_DEGREE', extrapDegree)
 
+    call msg('int_setezopt', 'END', verb_opt=3)
   end subroutine int_setezopt
 
   !--------------------------------------------------------------------------
@@ -1344,6 +1367,7 @@ contains
     real(8), pointer :: heightSfcOut(:,:), heightSfcIn(:,:)
     integer :: ezsint, ezdefset
 
+    call msg('int_hInterpScalar_gsv', 'START', verb_opt=3)
     ! read the namelist
     call int_readNml()
 
@@ -1413,6 +1437,7 @@ contains
 
     end if
 
+    call msg('int_hInterpScalar_gsv', 'END', verb_opt=3)
   end function int_hInterpScalar_gsv
 
   !--------------------------------------------------------------------------
@@ -1435,6 +1460,7 @@ contains
     ! Locals:
     integer :: ezsint
 
+    call msg('int_hInterpScalar_r4_2d', 'START', verb_opt=2)
     ! read the namelist
     call int_readNml()
 
@@ -1442,6 +1468,7 @@ contains
     call int_setezopt(interpDegree, extrapDegree_opt)   
     ierr = ezsint(fieldOut_r4,fieldIn_r4)
 
+    call msg('int_hInterpScalar_r4_2d', 'END', verb_opt=2)
   end function int_hInterpScalar_r4_2d
 
   !--------------------------------------------------------------------------
@@ -1486,6 +1513,7 @@ contains
     real(kdkind)              :: refPosition(3)
 
     call utl_tmg_start(176, 'low-level--int_sintCloudToGrid_gsv')
+    call msg('int_sintCloudToGrid_gsv', 'START', verb_opt=2)
 
     niCloud = stateVectorCloud%hco%ni
     njCloud = stateVectorCloud%hco%nj
@@ -1726,8 +1754,10 @@ contains
           else if (maskGrid(lonIndexGrid,latIndexGrid) == 0) then
             nextrap0 = nextrap0 + 1
           else
-            write(*,*) 'Expecting 0 or 1 for the mask field at grid point: ', &
-                       lonIndexGrid,latIndexGrid,maskGrid(lonIndexGrid,latIndexGrid)
+            call msg('int_sintCloudToGrid_gsv', &
+                 'Expecting 0 or 1 for the mask field at grid point: ' &
+                 //str(lonIndexGrid)//', '//str(latIndexGrid)//', ' &
+                 //str(maskGrid(lonIndexGrid,latIndexGrid)))
             call utl_abort('int_sintCloudToGrid_gsv')
           end if
 
@@ -1736,11 +1766,12 @@ contains
     end if
 
     if ( checkCloudToGridUnassigned ) then
-      write(*,*) 'Total number of grid points:                                   ', niGrid*njGrid
-      write(*,*) 'Number of grid points not covered by the cloud of points:      ', sum(nhole(:))
-      write(*,*) 'Number of grid points filled by neighbours:                    ', sum(nfill(:))
-      write(*,*) 'Number of grid points with extrapolated value in masked area:  ', nextrap0
-      write(*,*) 'Number of grid points with extrapolated value in visible area: ', nextrap1
+      call msg('int_sintCloudToGrid_gsv', & 
+             new_line('')//'Total number of grid points:                                   '//str(niGrid*njGrid) &
+           //new_line('')//'Number of grid points not covered by the cloud of points:      '//str(sum(nhole(:))) &
+           //new_line('')//'Number of grid points filled by neighbours:                    '//str(sum(nfill(:))) &
+           //new_line('')//'Number of grid points with extrapolated value in masked area:  '//str(nextrap0) &
+           //new_line('')//'Number of grid points with extrapolated value in visible area: '//str(nextrap1))
 
       if ( nextrap1 > 0 ) then
         call utl_abort('int_sintCloudToGrid_gsv: Values at some unmasked grid points were not assigned')
@@ -1757,6 +1788,7 @@ contains
 
     ierr = 0
 
+    call msg('int_sintCloudToGrid_gsv', 'END', verb_opt=2)
     call utl_tmg_stop(176)
 
   end function int_sintCloudToGrid_gsv
@@ -1784,6 +1816,7 @@ contains
     real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
     integer :: ezsint
 
+    call msg('int_hInterpScalar_r8_2d', 'START', verb_opt=2)
     ! read the namelist
     call int_readNml()
 
@@ -1817,6 +1850,7 @@ contains
     deallocate(bufferi4)
     deallocate(buffero4)
 
+    call msg('int_hInterpScalar_r8_2d', 'END', verb_opt=2)
   end function int_hInterpScalar_r8_2d
 
   !--------------------------------------------------------------------------
@@ -1847,7 +1881,7 @@ contains
     real(8), pointer :: UVout8(:,:,:), UVin8(:,:,:)
     integer :: ezuvint, ezdefset
 
-    write(*,*) 'int_hInterpUV_gsv: starting'
+    call msg('int_hInterpUV_gsv', 'START', verb_opt=2)
 
     ! read the namelist
     call int_readNml()
@@ -1888,8 +1922,7 @@ contains
         ierr = ezuvint(UVout4(:,:,stepIndex),VVout4(:,:,levIndex,stepIndex), &
                        UVin4(:,:,stepIndex), VVin4(:,:,levIndex,stepIndex))
       else
-        write(*,*) 'varName = ', trim(varName)
-        call utl_abort('int_hInterpUV_gsv: unexpected varName')
+        call utl_abort('int_hInterpUV_gsv: unexpected varName: '//trim(varName))
       end if
 
     else if (stateVectorOut%dataKind == 8 .and. stateVectorIn%dataKind == 8) then
@@ -1931,8 +1964,7 @@ contains
         UVout8(:,:,stepIndex)          = UUout4(:,:,1,1)
         VVout8(:,:,levIndex,stepIndex) = VVout4(:,:,1,1)
       else
-        write(*,*) 'varName = ', trim(varName)
-        call utl_abort('int_hInterpUV_gsv: unexpected varName')
+        call utl_abort('int_hInterpUV_gsv: unexpected varName: '//trim(varName))
       end if
 
       deallocate(UUin4,VVin4,UUout4,VVout4)
@@ -1943,6 +1975,7 @@ contains
 
     end if
 
+    call msg('int_hInterpUV_gsv', 'END', verb_opt=2)
   end function int_hInterpUV_gsv
 
   !--------------------------------------------------------------------------
@@ -1967,6 +2000,7 @@ contains
     ! Locals:
     integer :: ezuvint
 
+    call msg('int_hInterpUV_r4_2d', 'START', verb_opt=2)
     ! read the namelist
     call int_readNml()
 
@@ -1974,6 +2008,7 @@ contains
     call int_setezopt(interpDegree, extrapDegree_opt)   
     ierr = ezuvint(uuout, vvout, uuin, vvin)
 
+    call msg('int_hInterpUV_r4_2d', 'END', verb_opt=2)
   end function int_hInterpUV_r4_2d
 
   !--------------------------------------------------------------------------
@@ -2002,6 +2037,7 @@ contains
     real, allocatable :: bufuuin4(:,:), bufvvin4(:,:)
     integer :: ezuvint
 
+    call msg('int_hInterpUV_r8_2d', 'START', verb_opt=2)
     ! read the namelist
     call int_readNml()
 
@@ -2041,6 +2077,7 @@ contains
     deallocate(bufuuout4)
     deallocate(bufvvout4)
 
+    call msg('int_hInterpUV_r8_2d', 'END', verb_opt=2)
   end function int_hInterpUV_r8_2d
 
   !--------------------------------------------------------------------------
