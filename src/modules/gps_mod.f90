@@ -34,10 +34,9 @@ module gps_mod
 
   ! public variables
   public :: gps_numROProfiles, gps_vRO_IndexPrf
-  public :: gps_vRO_Jacobian4, gps_vRO_lJac4, gps_vRO_Jacobian2, gps_vRO_lJac2
   public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, BGCKBAND, WGPS
-  public :: gpsroError, gpsroBNorm, gpsroEotvos
-  public :: gpsgravitysrf, p_tc, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
+  public :: gpsroError, gpsroBNorm
+  public :: gpsgravitysrf, p_tc, max_gps_data, vgpsztd_jacobian, dzmin
   public :: ltestop, llblmet, lbevis, irefopt, iztdop, lassmet, l1obs, yzderrwgt, numgpsztd
   public :: vgpsztd_index, ngpscvmx, dzmax, yztderr, ysferrwgt
 
@@ -208,10 +207,6 @@ module gps_mod
 !
   integer                                :: gps_numROProfiles
   integer         , allocatable          :: gps_vRO_IndexPrf(:,:)   ! index for each profile
-  real*8          , allocatable          :: gps_vRO_Jacobian4(:,:,:)
-  real*8          , allocatable          :: gps_vRO_Jacobian2(:,:,:)
-  logical         , allocatable          :: gps_vRO_lJac4(:)
-  logical         , allocatable          :: gps_vRO_lJac2(:)
 
 !     Contents of previous comdeck comgpsro
 !     -------------------------------------
@@ -239,7 +234,8 @@ module gps_mod
   REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, HTPMAXER
   REAL*4  WGPS(0:1023,4)
   character(len=20) :: gpsroError
-  LOGICAL :: gpsroBNorm, gpsroEotvos
+  LOGICAL :: gpsroBNorm
+  LOGICAL :: gpsroEotvos
 
   NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,HTPMAXER, &
                       BGCKBAND,WGPS, gpsroError, gpsroBNorm, gpsroEotvos
@@ -254,7 +250,6 @@ module gps_mod
   integer , allocatable   :: vGPSZTD_Index (:)        ! INDEX_HEADER in CMA (ObsSpace) for each ZTD observation
   real*8  , allocatable   :: vGPSZTD_Jacobian (:,:)   ! Jacobian for each ZTD observation (numGPSZTD,ncv)
                                                               ! ncv = 2*nlev+1 = 161  (TTx80, LQx80, P0)
-  logical , allocatable   :: vGPSZTD_lJac (:)         ! logical = true once Jacobian computed/stored
 
 !*    Namelist variables for Ground-based GPS (ZTD)
 !

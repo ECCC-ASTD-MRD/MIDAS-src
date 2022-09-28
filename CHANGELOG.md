@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added ability to consider vertical coriolis accel to h/p relationship (GPSRO operator only) (#644 and !644)
  * Add ability to produce random ocean perturbations (#652 and !637)
    * minor impact: `randomPert` output files now use 4-digit suffixes, instead of 3
  * Added ability to ignore stdID when removing duplicates in `thinning_mod` (#626 and !641)
@@ -25,10 +26,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added ability to output trial and analysis ensemble members in obs space to diag files (#621 and !608)
  * Introduction of RTTOV-SCATT controlled by NAMTOV namelist section logical array useRttovScatt (#320 and !607)
  * Added cleaning for ObsDb files after observation thinning (#631 and !604)
- * Added ability to consider vertical coriolis accel to h/p relationship (GPSRO operator only) (#644)
 
 ### Changed
 
+ * Split Jacobian cache for GPSRO operators, to avoid potential interference between a) TL, AD operators and b) FGE (#644 and !644)
  * Changed machine and processor topology to speed system test /Tests/extractBmatrixFor1Dvar/globalBnmcLand. (#699 and !645) 
  * Removed some observations in the analysisErrorOI test (#698 and !646)
  * Major re-organization of constituents assimilation code, including namelist changes. Minor impact on results. (#18 and !636) 
@@ -38,7 +39,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * moved column interpolation in `interpolation_mod` (#683 and !628)
  * SST bias estimation code is more efficient when treating missing data (#678 and !625)
  * SST observation errors are now read from namelist namSSTObsErrors (#676 and !623)
- * Split Jacobian cache for GPSRO operators, to avoid potential interference between a) TL, AD operators and b) FGE (#644)
 
 ### Fixed
 

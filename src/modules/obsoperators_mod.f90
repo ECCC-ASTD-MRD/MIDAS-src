@@ -54,6 +54,10 @@ module obsOperators_mod
 
   real(8), parameter :: temperatureLapseRate = 0.0065D0 ! K/m (i.e. 6.5 K/km)
 
+  ! RO Jacobian caches
+  real*8 , allocatable :: oop_vRO_Jacobian(:,:,:)
+  logical, allocatable :: oop_vRO_lJac(:)
+
 contains
 
   !--------------------------------------------------------------------------
@@ -2437,7 +2441,7 @@ contains
                      ! Evaluate H(xb)DX
                      ZMHXL = 0.d0
                      do JV = 1, 4*NGPSLEV
-                        ZMHXL = ZMHXL + gps_vRO_Jacobian4(iProfile,NH1,JV) * DX(JV)
+                        ZMHXL = ZMHXL + oop_vRO_Jacobian(iProfile,NH1,JV) * DX(JV)
                      end do
 
                      ! Store in CMA
@@ -3071,7 +3075,7 @@ contains
                      ZINC = obs_bodyElem_r(obsSpaceData,OBS_WORK,bodyIndex)
 
                      ! O-F Tested criteria:
-                     DPJO1(1:4*NGPSLEV) = ZINC * gps_vRO_Jacobian4(iProfile,NH1,1:4*NGPSLEV)
+                     DPJO1(1:4*NGPSLEV) = ZINC * oop_vRO_Jacobian(iProfile,NH1,1:4*NGPSLEV)
 
                      ! Accumulate the gradient of the observation cost function:
                      DPJO0(1:4*NGPSLEV) = DPJO0(1:4*NGPSLEV) + DPJO1(1:4*NGPSLEV)
@@ -3489,11 +3493,11 @@ contains
     allocate(zuu (ngpslev))
     allocate(zvv (ngpslev))
 
-    if ( .not. allocated(gps_vRO_Jacobian4) ) then
-      allocate( gps_vRO_Jacobian4(gps_numroprofiles,gpsro_maxprfsize,4*ngpslev) )
-      allocate( gps_vRO_lJac4    (gps_numROProfiles) )
-      gps_vRO_Jacobian4 = 0.d0
-      gps_vRO_lJac4 = .False.
+    if ( .not. allocated(oop_vRO_Jacobian) ) then
+      allocate( oop_vRO_Jacobian(gps_numroprofiles,gpsro_maxprfsize,4*ngpslev) )
+      allocate( oop_vRO_lJac    (gps_numROProfiles) )
+      oop_vRO_Jacobian = 0.d0
+      oop_vRO_lJac = .False.
     end if
 
     allocate( h    (gpsro_maxprfsize) )
@@ -3529,7 +3533,7 @@ contains
         ! If assimilations are requested, prepare and apply the observation operator
         ASSIMILATE: if (assim) then
           iProfile = gps_iprofile_from_index(headerIndex)
-          if (gps_vRO_lJac4(iProfile)) cycle                  ! If already done, end this HEADER
+          if (oop_vRO_lJac(iProfile)) cycle                  ! If already done, end this HEADER
           varNum = gps_vRO_IndexPrf(iProfile, 2)
 
           ! Profile at the observation location:
@@ -3596,9 +3600,9 @@ contains
             call gps_refopv (h, nh, prf, rstv)
           end if
           do nh1 = 1, nh
-            gps_vRO_Jacobian4(iprofile,nh1,1:4*ngpslev)= rstv(nh1)%dvar(1:4*ngpslev)
+            oop_vRO_Jacobian(iprofile,nh1,1:4*ngpslev)= rstv(nh1)%dvar(1:4*ngpslev)
           end do
-          gps_vRO_lJac4(iProfile) = .True.
+          oop_vRO_lJac(iProfile) = .True.
         endif ASSIMILATE
       endif DATYP
     enddo HEADER

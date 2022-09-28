@@ -93,6 +93,8 @@ module obsSpaceErrorStdDev_mod
 
   type(struct_OmPStdDevCH)  :: OmPstdCH
   type(struct_hco), pointer :: hco_anl => null()
+  real*8 , allocatable :: ose_vRO_Jacobian(:,:,:)
+  logical, allocatable :: ose_vRO_lJac(:)
 
   contains
 
@@ -1389,7 +1391,7 @@ module obsSpaceErrorStdDev_mod
       NGPSLEV=col_getNumLev(columnTrlOnAnlIncLev,'TH')
       NWNDLEV=col_getNumLev(columnTrlOnAnlIncLev,'MM')
       LFIRST=.FALSE.
-      if ( .NOT.allocated(gps_vRO_Jacobian2) ) then
+      if ( .NOT.allocated(ose_vRO_Jacobian) ) then
          LFIRST = .TRUE.
          allocate(zPP (NGPSLEV))
          allocate(zDP (NGPSLEV))
@@ -1399,10 +1401,10 @@ module obsSpaceErrorStdDev_mod
          allocate(zUU (NGPSLEV))
          allocate(zVV (NGPSLEV))
 
-         allocate(gps_vRO_Jacobian2(gps_numROProfiles,GPSRO_MAXPRFSIZE,2*NGPSLEV+1))
-         allocate(gps_vRO_lJac2    (gps_numROProfiles))
-         gps_vRO_Jacobian2 = 0.d0
-         gps_vRO_lJac2 = .False.
+         allocate(ose_vRO_Jacobian(gps_numROProfiles,GPSRO_MAXPRFSIZE,2*NGPSLEV+1))
+         allocate(ose_vRO_lJac    (gps_numROProfiles))
+         ose_vRO_Jacobian = 0.d0
+         ose_vRO_lJac = .False.
 
          allocate( H    (GPSRO_MAXPRFSIZE) )
          allocate( AZMV (GPSRO_MAXPRFSIZE) )
@@ -1448,7 +1450,7 @@ module obsSpaceErrorStdDev_mod
 
                ! Profile at the observation location:
 
-               if (.not.gps_vRO_lJac2(iProfile)) then
+               if (.not.ose_vRO_lJac(iProfile)) then
 
                   ! Basic geometric variables of the profile:
 
@@ -1519,9 +1521,9 @@ module obsSpaceErrorStdDev_mod
                      CALL GPS_REFOPV (H,       NH, PRF, RSTV)
                   ENDIF
                   DO NH1=1,NH
-                     gps_vRO_Jacobian2(iProfile,NH1,1:2*NGPSLEV+1)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
+                     ose_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
                   ENDDO
-                  gps_vRO_lJac2(iProfile) = .True.
+                  ose_vRO_lJac(iProfile) = .True.
                endif
 
                ! Local error
@@ -1550,7 +1552,7 @@ module obsSpaceErrorStdDev_mod
 
                      ZFGE = 0.d0
                      DO JV = 1, 2*PRF%NGPSLEV+1
-                        ZFGE = ZFGE + (gps_vRO_Jacobian2(iProfile,NH1,JV) * DV(JV))**2
+                        ZFGE = ZFGE + (ose_vRO_Jacobian(iProfile,NH1,JV) * DV(JV))**2
                      ENDDO
                      ZFGE = SQRT(ZFGE)
                      ZERR = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
