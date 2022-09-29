@@ -78,10 +78,16 @@ contains
     character(len=*), optional :: fileNameForDate_opt
 
     ! locals
-    integer :: nulnam, ierr, fnom, fclos, newdate, imode, prntdate, prnttime, date
-    real(8) :: dstepobs,dstepobsinc,dwindowsize
+    integer :: nulnam, ierr, fnom, fclos, newdate, imode, prntdate, prnttime
+
+    ! namelist variables:
+    real(8) :: dstepobs
+    real(8) :: dstepobsinc
+    real(8) :: dwindowsize
+    integer :: date
     character(len=6) :: referencetime
     logical :: fullyUseExtremeTimeBins
+
     NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, date, referencetime, fullyUseExtremeTimeBins
 
     if (initialized) then

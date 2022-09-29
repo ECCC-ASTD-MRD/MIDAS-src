@@ -77,19 +77,26 @@ module minimization_mod
   real(8) :: zeps0, zdf1
   integer :: itertot, isimtot, iztrl(5), imode
   integer :: outerLoopIndex
+  integer :: numIterMaxInnerLoopUsed
   logical :: llvazx
   logical :: initializeForOuterLoop
   logical :: deallocHessian
   logical :: isMinimizationFinalCall
+  logical :: oneDVarMode
 
   ! namelist variables
-  real(8) :: REPSG, rdf1fac
-  integer :: numIterMaxInnerLoopUsed
-  integer :: NVAMAJ, NITERMAX, NSIMMAX, nwoqcv
+  real(8) :: REPSG
+  real(8) :: rdf1fac
+  integer :: NVAMAJ
+  integer :: NITERMAX
+  integer :: NSIMMAX
+  integer :: nwoqcv
   integer :: numAnalyses
-  logical :: lxbar, lwrthess, lgrtest, lvazx
-  logical :: lvarqc, writeAnalysis
-  logical :: oneDVarMode
+  logical :: lxbar
+  logical :: lwrthess
+  logical :: lgrtest
+  logical :: lvazx
+  logical :: lvarqc
   character(len=256) :: ensPathName
 
   NAMELIST /NAMMIN/ NVAMAJ, NITERMAX, NSIMMAX

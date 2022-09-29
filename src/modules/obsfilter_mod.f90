@@ -48,8 +48,6 @@ module obsFilter_mod
   integer, target :: filt_nlist(30)
   integer :: filt_nlistflg(15)
 
-  logical :: discardlandsfcwind
-
   real(8) :: filt_rlimlvhu
 
   ! topographic rejection criteria
@@ -63,16 +61,18 @@ module obsFilter_mod
           BUFR_NEPN, BUFR_NEGZ, BUFR_NEZD, BUFR_NEDD, BUFR_NEFF, BUFR_NEUU, BUFR_NEVV, &
           BUFR_NEES, BUFR_NETT, BUFR_NEAL, bufr_vis , bufr_logVis, bufr_gust, bufr_radvel /)
 
-  real(8) :: surfaceBufferZone_Pres
-  real(8) :: surfaceBufferZone_Height
-
   integer, parameter :: nTopoFiltFam = 8
   character(len=2) :: filtTopoList(nTopoFiltFam) = '  '
-  logical :: useEnkfTopoFilt
 
   character(len=48) :: filterMode
 
   logical :: initialized = .false.
+
+  ! Namelist variables:
+  logical :: discardlandsfcwind
+  real(8) :: surfaceBufferZone_Pres
+  real(8) :: surfaceBufferZone_Height
+  logical :: useEnkfTopoFilt
 
 contains
 
@@ -102,16 +102,8 @@ contains
 
     character(len=*), intent(in) :: filterMode_in
 
-    integer :: nulnam, ierr, elem, jflag, ibit
+    integer :: nulnam, ierr, elem, jflag, ibit, obsFamilyIndex, elemIndex
     integer :: fnom, fclos
-    integer :: nelems, nlist(30)
-    integer :: nflags, nlistflg(15), obsFamilyIndex
-    integer :: nelems_altDiffMax, list_altDiffMax(numElem), elemIndex
-    
-    character(len=2) :: list_topoFilt(nTopoFiltFam)
-
-    real(8) :: value_altDiffMax(numElem)
-    real(8) :: rlimlvhu
 
     character(len=35) :: CREASON(-8:13)
     data creason/'JACOBIAN IMPORTANT ABOVE MODEL TOP', &
@@ -136,6 +128,17 @@ contains
          'ERRONEOUS ELEMENT                 ', &
          'ELEMENT EXCEEDS CLIMATE EXTREME   ', &
          'ELEMENT MODIFIED OR GEN BY  ADE   '/
+
+    ! Namelist variables: (local)
+    integer :: nelems
+    integer :: nlist(30)
+    integer :: nflags
+    integer :: nlistflg(15)
+    integer :: nelems_altDiffMax
+    integer :: list_altDiffMax(numElem)
+    character(len=2) :: list_topoFilt(nTopoFiltFam)
+    real(8) :: value_altDiffMax(numElem)
+    real(8) :: rlimlvhu
 
     namelist /namfilt/nelems, nlist, nflags, nlistflg, rlimlvhu, discardlandsfcwind, &
          nelems_altDiffMax, list_altDiffMax, value_altDiffMax, surfaceBufferZone_Pres, &
@@ -1292,8 +1295,11 @@ end subroutine filt_topoAISW
     real(8) :: obsAltitude, radarAltitude, beamElevation
     real(8) :: levelAltLow, levelAltHigh
     real(8) :: levelBracketLow, levelBracketHigh
-    real(8) :: maxRangeInterp, levelRangeNear, levelRangeFar
+    real(8) :: levelRangeNear, levelRangeFar
     
+    ! namelist variables:
+    real(8) :: maxRangeInterp
+
     namelist /namradvel/ maxRangeInterp
 
     if (.not.beSilent) then

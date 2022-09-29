@@ -60,8 +60,12 @@ module midasMpi_mod
   subroutine mmpi_initialize()
     implicit none
     integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
-    integer :: npex,npey,ierr
+    integer :: ierr
     integer :: rpn_comm_comm, rpn_comm_datyp
+
+    ! Namelist variables
+    integer :: npex
+    integer :: npey
 
     ! Initilize MPI
     npex=0

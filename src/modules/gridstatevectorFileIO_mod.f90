@@ -587,7 +587,11 @@ module gridStateVectorFileIO_mod
     type(struct_vco), pointer :: vco_file
     type(struct_hco), pointer :: hco_file
 
-    logical :: foundVarNameInFile, ignoreDate, interpToPhysicsGrid
+    logical :: foundVarNameInFile, ignoreDate
+
+    ! Namelist variables
+    logical :: interpToPhysicsGrid
+
     NAMELIST /NAMSTIO/interpToPhysicsGrid
 
     write(*,*) 'gio_readFile: starting'

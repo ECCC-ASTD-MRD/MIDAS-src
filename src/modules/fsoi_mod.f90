@@ -58,9 +58,21 @@ module fsoi_mod
   type(struct_hco), pointer :: hco_anl => null()
 
   ! namelist variables
-  integer             :: nvamaj, nitermax, nsimmax
-  real(8)             :: leadTime, repsg, rdf1fac,latMinNorm, latMaxNorm, lonMinNorm, lonMaxNorm
-  logical             :: includeUVnorm, includeTTnorm, includeP0norm, includeHUnorm, includeTGnorm
+  integer             :: nvamaj
+  integer             :: nitermax
+  integer             :: nsimmax
+  real(8)             :: leadTime
+  real(8)             :: repsg
+  real(8)             :: rdf1fac
+  real(8)             :: latMinNorm
+  real(8)             :: latMaxNorm
+  real(8)             :: lonMinNorm
+  real(8)             :: lonMaxNorm
+  logical             :: includeUVnorm
+  logical             :: includeTTnorm
+  logical             :: includeP0norm
+  logical             :: includeHUnorm
+  logical             :: includeTGnorm
   character(len=256)  :: forecastPath
   character(len=4)    :: fsoMode
 

@@ -287,23 +287,13 @@ module obsOperatorsChem_mod
   integer, parameter :: assim_maxsize=100           ! max size of assim_* arrays  
 
   integer :: assim_famNum
-  logical :: assim_all(assim_maxfamnum)
-  integer :: assim_num(assim_maxfamnum),assim_varno(assim_maxfamnum,assim_maxsize),assim_nlev(assim_maxfamnum,assim_maxsize)
-  integer :: assim_exclude_nflag(assim_maxfamnum),assim_exclude_flag(assim_maxfamnum,assim_maxsize)
-  character(len=9) :: assim_stnid(assim_maxfamnum,assim_maxsize)
-  character(len=2) :: assim_fam(assim_maxfamnum)
- 
-  character(len=20) :: operatorSubType(2,assim_maxsize)
-  
+
   integer :: oopc_generalizedOperator(0:oopc_constituentsSize)   ! Same as genoper in NAMCHEM
   integer :: oopc_tropo_mode(0:oopc_constituentsSize),oopc_tropo_bound(0:oopc_constituentsSize)
   integer :: oopc_obsdata_maxsize
   real(8) :: oopc_tropo_column_top(0:oopc_constituentsSize)
   logical :: oopc_storeOperators
   
-  ! Identification of the model 
-  character(len=10) :: modelName = 'GEM-MACH' 
-
   ! Setup initialization key
   logical :: initializedChem = .false.    
   
@@ -311,6 +301,19 @@ module obsOperatorsChem_mod
   logical :: initializedOperators = .false.    
  
   type(struct_bcsc_bgStats) :: bgStats ! Background covariances
+
+  ! Namelist variables:
+  character(len=2) :: assim_fam(assim_maxfamnum)
+  logical :: assim_all(assim_maxfamnum)
+  integer :: assim_num(assim_maxfamnum)
+  integer :: assim_varno(assim_maxfamnum,assim_maxsize)
+  integer :: assim_nlev(assim_maxfamnum,assim_maxsize)
+  integer :: assim_exclude_nflag(assim_maxfamnum)
+  integer :: assim_exclude_flag(assim_maxfamnum,assim_maxsize)
+  character(len=9) :: assim_stnid(assim_maxfamnum,assim_maxsize)
+  character(len=20) :: operatorSubType(2,assim_maxsize)
+  character(len=10) :: modelName = 'GEM-MACH' ! Identification of the model
+
 
   !**************************************************************************
   
@@ -528,14 +531,15 @@ module obsOperatorsChem_mod
     ! Locals:
     integer :: fnom, fclos
     integer :: ierr, ios, nulnam, i
+    character(len=10)  :: namfile 
 
-    integer :: genoper(0:oopc_constituentsSize)
-    integer :: tropo_mode(0:oopc_constituentsSize),tropo_bound(0:oopc_constituentsSize)
-    integer :: obsdata_maxsize
+    ! Namelist variables (local)
+    integer :: tropo_mode(0:oopc_constituentsSize)
+    integer :: tropo_bound(0:oopc_constituentsSize)
     real(8) :: tropo_column_top(0:oopc_constituentsSize)
     logical :: storeOperators
-    
-    character(len=10)  :: namfile 
+    integer :: genoper(0:oopc_constituentsSize)
+    integer :: obsdata_maxsize
 
     external fnom,fclos
 

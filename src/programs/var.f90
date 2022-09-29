@@ -87,8 +87,10 @@ program midas_var
   integer, parameter :: maxNumberOfOuterLoopIterations = 15
 
   ! namelist variables
-  integer :: numOuterLoopIterations, numIterMaxInnerLoop(maxNumberOfOuterLoopIterations)
-  logical :: limitHuInOuterLoop, computeFinalNlJo
+  integer :: numOuterLoopIterations
+  integer :: numIterMaxInnerLoop(maxNumberOfOuterLoopIterations)
+  logical :: limitHuInOuterLoop
+  logical :: computeFinalNlJo
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
   NAMELIST /NAMVAR/ computeFinalNlJo
 

@@ -3589,9 +3589,13 @@ contains
 
       logical :: silent_
       integer :: nulnam,fnom,fclos,ierr
-      integer :: nmxobs,ndatamx
-      namelist /namdimo/nmxobs,ndatamx
+
       character(len=120) :: message
+
+      ! Namelist variables:
+      integer :: nmxobs
+      integer :: ndatamx
+      namelist /namdimo/nmxobs,ndatamx
 
       if(.not. obs_class_initialized) then
          call obs_abort('obs_class_initialize must be called before ' // &

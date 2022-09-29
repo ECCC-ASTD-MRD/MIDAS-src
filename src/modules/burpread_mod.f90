@@ -44,27 +44,27 @@ private
 public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume, brpr_addCloudParametersandEmissivity
 public :: brpr_addElementsToBurp, brpr_updateMissingObsFlags, brpr_burpClean
 
-
-! MODULE CONSTANTS ...
-!
-!   These variables are set during object initialization (variational_init) and
-!   are not changed thereafter.
-! bits to verify in Quality Control Flag:
-
-
-INTEGER*4              :: NELEMS,NELEMS_SFC,BLISTELEMENTS(20),BLISTELEMENTS_SFC(20)
-INTEGER*4              :: NELEMS_GPS,LISTE_ELE_GPS(20)
-INTEGER*4              :: BN_ITEMS
-CHARACTER *3           :: BITEMLIST(20)
-CHARACTER *7           :: TYPE_RESUME = 'UNKNOWN'
-
-INTEGER*4              :: BNBITSOFF,BNBITSON,BBITOFF(15),BBITON(15)
-LOGICAL                :: ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,UA_FLAG_HIGH_PRECISION_TT_ES
-LOGICAL                :: READ_QI_GA_MT_SW
-
-logical                :: addBtClearToBurp
-integer*4              :: clwFgElementId, btClearElementId
-
+! Namelist variables
+INTEGER          :: NELEMS
+INTEGER          :: NELEMS_SFC
+INTEGER          :: BNBITSOFF
+INTEGER          :: BNBITSON
+INTEGER          :: BBITOFF(15)
+INTEGER          :: BBITON(15)
+INTEGER          :: NELEMS_GPS
+INTEGER          :: LISTE_ELE_GPS(20)
+INTEGER          :: BLISTELEMENTS(20)
+INTEGER          :: BLISTELEMENTS_SFC(20)
+INTEGER          :: BN_ITEMS
+CHARACTER(len=3) :: BITEMLIST(20)
+CHARACTER(len=7) :: TYPE_RESUME = 'UNKNOWN'
+LOGICAL          :: ENFORCE_CLASSIC_SONDES
+LOGICAL          :: UA_HIGH_PRECISION_TT_ES
+LOGICAL          :: UA_FLAG_HIGH_PRECISION_TT_ES
+LOGICAL          :: READ_QI_GA_MT_SW
+logical          :: addBtClearToBurp
+integer          :: clwFgElementId
+integer          :: btClearElementId
 
 CONTAINS
 
@@ -1791,7 +1791,7 @@ CONTAINS
 
     logical, optional  :: beSilent_opt
     logical            :: beSilent
-    INTEGER*4          :: NULNAM,IER,FNOM,FCLOS
+    INTEGER            :: NULNAM,IER,FNOM,FCLOS
     CHARACTER *256     :: NAMFILE
     CHARACTER(len = *) :: NML_SECTION
 

@@ -346,7 +346,7 @@ contains
     real(pre_obsReal)        :: modelWindSpeed
     real(8)                  :: modelWindSpeed_R8
     integer                  :: iasiImagerCollocationFlag, iasiGeneralQualityFlag
-    integer                  :: obsSat, landSea, terrainType, instrument, sensor, numberElem
+    integer                  :: obsSat, landSea, terrainType, instrument, sensor
     integer                  :: bitIndex, rowIndex, obsNlv, headerIndex, bodyIndex
     integer                  :: bitsFlagOn, bitsFlagOff, numBody, numHeader
     real(pre_obsReal), parameter :: zemFact = 0.01
@@ -358,11 +358,23 @@ contains
     type(fSQL_DATABASE)      :: db         ! type for SQLIte  file handle
     type(fSQL_STATEMENT)     :: stmt,stmt2,stmt3 ! type for precompiled SQLite statements
     type(fSQL_STATUS)        :: stat,stat2 !type for error status
-    character(len=256)       :: listElem, sqlExtraDat, sqlExtraHeader, sqlNull, sqlLimit 
     character(len=256)       :: sqlDataOrder
     character(len=256),allocatable :: listElemArray(:)
     integer,allocatable            :: listElemArrayInteger(:)
-    integer                  :: numberBitsOff, numberBitsOn, bitsOff(15), bitsOn(15), numberRows, numberColumns
+    integer                  :: numberRows, numberColumns
+
+    ! Namelist variables:
+    integer :: numberElem
+    character(len=256)       :: listElem
+    character(len=256)       :: sqlExtraDat
+    character(len=256)       :: sqlExtraHeader
+    character(len=256)       :: sqlNull
+    character(len=256)       :: sqlLimit 
+    integer                  :: numberBitsOff
+    integer                  :: numberBitsOn 
+    integer                  :: bitsOff(15)
+    integer                  :: bitsOn(15)
+
     namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLairs/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
@@ -1114,14 +1126,20 @@ contains
     integer                     :: obsStatus, last_question, landSea, terrainType
     integer(8)                  :: headPrimaryKey, bodyPrimaryKey
     integer                     :: itemIndex, headPrimaryKeyIndex, landSeaIndex
-    integer                     :: headerIndex, bodyIndex, numberUpdateItems, numberUpdateItemsRadar
-    character(len =   3)        :: item, itemUpdateList(15), itemUpdateListRadar(15)
+    integer                     :: headerIndex, bodyIndex
+    character(len =   3)        :: item
     integer                     :: updateList(20), fnom, fclos, nulnam, ierr
     character(len =  10)        :: columnName
     character(len = 128)        :: query
     character(len = 356)        :: itemChar, columnNameChar
     logical                     :: back, nonEmptyColumn, nonEmptyColumn_mpiglobal
     real(4)                     :: romp, obsValue, scaleFactor, columnValue
+
+    ! namelist variables:
+    integer          :: numberUpdateItems
+    integer          :: numberUpdateItemsRadar
+    character(len=3) :: itemUpdateList(15)
+    character(len=3) :: itemUpdateListRadar(15)
 
     namelist/namSQLUpdate/ numberUpdateItems,      itemUpdateList,     &
                            numberUpdateItemsRadar, itemUpdateListRadar

@@ -58,12 +58,16 @@ module columnData_mod
     real(8), pointer  :: lat(:)
   end type struct_columnData
 
-  real(8) :: rhumin, col_rhumin
+  real(8) :: col_rhumin
   logical :: varExistList(vnl_numvarmax)
-  logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
 
   ! Minimum values for variables of CH kind
-  real(8) :: minValVarKindCH(vnl_numVarMax), col_minValVarKindCH(vnl_numVarMax)
+  real(8) :: col_minValVarKindCH(vnl_numVarMax)
+
+  ! Namelist variables
+  real(8) :: rhumin
+  logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
+  real(8) :: minValVarKindCH(vnl_numVarMax)
 
 contains
 
@@ -75,10 +79,12 @@ contains
     integer :: varIndex, loopIndex
     integer :: fnom,fclos,nulnam,ierr
     integer :: numVar3D, numVar2D, numVarOther
+
+    ! Namelist variables (local)
     character(len=4) :: anlvar(vnl_numvarmax)
     character(len=8) :: anltime_bin
-    logical :: conversionVarKindCHtoMicrograms
-    logical :: abortOnMpiImbalance
+    logical          :: conversionVarKindCHtoMicrograms
+    logical          :: abortOnMpiImbalance
 
     namelist /namstate/anlvar,rhumin,anltime_bin,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
                        minValVarKindCH, abortOnMpiImbalance

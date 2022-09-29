@@ -34,6 +34,9 @@ module menetrierDiag_mod
   save
   private
 
+  ! Public Subroutines
+  public :: bmd_setup, bmd_localizationRadii
+
   real(8), pointer :: pressureProfile_M(:), pressureProfile_T(:)
   
   type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
@@ -45,13 +48,16 @@ module menetrierDiag_mod
 
   character(len=4), allocatable :: nomvar3d(:), nomvar2d(:)
 
-  integer :: strideForHLoc, strideForVloc, horizPadding
-  logical :: hLoc, vLoc, global
+  logical :: global
 
   logical :: initialized = .false.
 
-  ! Public Subroutines
-  public :: bmd_setup, bmd_localizationRadii
+  ! Namelist variables:
+  integer :: strideForHLoc
+  integer :: strideForVloc
+  integer :: horizPadding
+  logical :: hLoc
+  logical :: vLoc
 
 contains
 

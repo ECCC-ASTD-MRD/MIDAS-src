@@ -158,14 +158,18 @@ module obsErrors_mod
   character(len=9) :: SAT_AMV(200,10), SAT_LIST(200), MET_LIST(200)
   character(len=9) :: HTM_LIST(200), TMG_LIST(200), NSW_LIST(200)
 
-  logical :: new_oer_sw, obsfile_oer_sw, visAndGustAdded, useTovsUtil
-  logical :: mwAllskyInflateByOmp, mwAllskyInflateByClwDiff
+  logical :: useTovsUtil
+  character(len=48) :: obserrorMode
+
+  ! Namelist variables:
+  logical :: new_oer_sw
+  logical :: obsfile_oer_sw
+  logical :: visAndGustAdded
+  logical :: mwAllskyInflateByOmp
+  logical :: mwAllskyInflateByClwDiff
   real(8) :: amsuaClearClwThresholdSigmaObsInflation(5)
   real(8) :: amsuaStateDepSigmaObsInflationCoeff
-
   logical :: readOldSymmetricObsErrFile
-
-  character(len=48) :: obserrorMode
 
 contains
 

@@ -110,20 +110,12 @@ module obsSpaceDiag_mod
      integer, allocatable :: counts(:,:,:),nstatus(:,:,:,:)
      
      integer :: nlev,nlat,nlon,nbin,nstat
-     real(8) :: deltaLat,deltaLon,deltaLogPressure
+     real(8) :: deltaLat
+     real(8) :: deltaLon
+     real(8) :: deltaLogPressure
      logical :: allow_print_summary,assim_mode
 
   end type struct_osd_diagn
-
-  ! namelist variables
-  integer, parameter :: max_cfg_size=100
-  real(8) :: deltaLat,deltaLon,deltaPressure,deltaHeight
-  integer :: numFamily
-  character(len=2) :: familyList(ofl_numFamily)
-  integer :: numElement
-  integer :: elementList(ofl_numFamily) 
-  integer :: nrandseed
-  logical :: lrandom  
 
   !  Parameters identifying obs sets and related actions for diagnostic calcs of each family
   ! 
@@ -152,12 +144,28 @@ module obsSpaceDiag_mod
   !  obsspace_diagn_filename 
   !                     File name for file containing obs space diagnostics related to chemical constituents.
 
-  integer :: diagn_num(ofl_numFamily),diagn_nset(ofl_numFamily)
+  character(len=100) :: obsspace_diagn_filename(ofl_numFamily)
+  integer, parameter :: max_cfg_size=100
+
+  ! Namelist variables
+  real(8) :: deltaLat
+  real(8) :: deltaLon
+  real(8) :: deltaPressure
+  real(8) :: deltaHeight
+  integer :: numFamily
+  character(len=2) :: familyList(ofl_numFamily)
+  integer :: numElement
+  integer :: elementList(ofl_numFamily) 
+  integer :: nrandseed
+  logical :: lrandom  
+  integer :: diagn_num(ofl_numFamily)
+  integer :: diagn_nset(ofl_numFamily)
   integer :: diagn_varno(ofl_numFamily,max_cfg_size)
   character(len=9) :: diagn_stnid(ofl_numFamily,max_cfg_size)
-  logical :: diagn_save(ofl_numFamily),diagn_all(ofl_numFamily),diagn_unilev(ofl_numFamily,max_cfg_size)
+  logical :: diagn_save(ofl_numFamily)
+  logical :: diagn_all(ofl_numFamily)
+  logical :: diagn_unilev(ofl_numFamily,max_cfg_size)
   real(8) :: diagn_pressmin(ofl_numFamily)
-  character(len=100) :: obsspace_diagn_filename(ofl_numFamily)
 
 contains
 

@@ -58,6 +58,56 @@ module humidityLimits_mod
 contains
 
   !--------------------------------------------------------------------------
+  ! readNameList
+  !--------------------------------------------------------------------------
+  subroutine readNameList
+    !
+    ! :Purpose: Reading NAMQLIM namelist by any subroutines in humidityLimits_mod module.
+    !
+    implicit none
+
+    ! Locals:
+    integer :: nulnam, ierr
+    integer, external :: fnom, fclos
+    logical, save :: nmlAlreadyRead = .false.
+
+    ! Namelist variables:
+    real(8) :: minClwValue ! minimum CLW value
+    real(8) :: maxClwValue ! maximum CLW value
+
+    NAMELIST /NAMQLIM/ minClwValue, maxClwValue
+
+    if ( nmlAlreadyRead ) return
+
+    nmlAlreadyRead = .true.
+
+    !- Setting default values
+    minClwValue = 1.0d-9
+    maxClwValue = 1.0d0
+
+    if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
+      if ( mmpi_myid == 0 ) then
+        write(*,*) 'NAMQLIM is missing in the namelist. The default values will be taken.'
+      end if
+
+    else
+      ! Reading the namelist
+      nulnam = 0
+      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+      read(nulnam, nml=namqlim, iostat=ierr)
+      if ( ierr /= 0) call utl_abort('humidityLimits_mod: Error reading namelist')
+      ierr = fclos(nulnam)
+
+    end if
+    if ( mmpi_myid == 0 ) write(*,nml=namqlim)
+
+    ! Transfer namelist variables to module variables.
+    qlim_minClwValue = minClwValue
+    qlim_maxClwValue = maxClwValue
+
+  end subroutine readNameList
+
+  !--------------------------------------------------------------------------
   ! qlim_saturationLimit_gsv
   !--------------------------------------------------------------------------
   subroutine qlim_saturationLimit_gsv(statevector)
@@ -791,54 +841,7 @@ contains
 
   end subroutine qlim_setMin_ens
   
-  !--------------------------------------------------------------------------
-  ! readNameList
-  !--------------------------------------------------------------------------
-  subroutine readNameList
-    !
-    ! :Purpose: Reading NAMQLIM namelist by any subroutines in humidityLimits_mod module.
-    !
-    implicit none
-
-    ! Locals:
-    real(8) :: minClwValue
-    real(8) :: maxClwValue
-    integer :: nulnam, ierr
-    integer, external :: fnom, fclos
-    logical, save :: nmlAlreadyRead = .false.
-    NAMELIST /NAMQLIM/ minClwValue, maxClwValue
-
-    if ( nmlAlreadyRead ) return
-
-    nmlAlreadyRead = .true.
-
-    !- Setting default values
-    minClwValue = 1.0d-9
-    maxClwValue = 1.0d0
-
-    if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
-      if ( mmpi_myid == 0 ) then
-        write(*,*) 'NAMQLIM is missing in the namelist. The default values will be taken.'
-      end if
-
-    else
-      ! Reading the namelist
-      nulnam = 0
-      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-      read(nulnam, nml=namqlim, iostat=ierr)
-      if ( ierr /= 0) call utl_abort('humidityLimits_mod: Error reading namelist')
-      ierr = fclos(nulnam)
-
-    end if
-    if ( mmpi_myid == 0 ) write(*,nml=namqlim)
-
-    ! Transfer namelist variables to module variables.
-    qlim_minClwValue = minClwValue
-    qlim_maxClwValue = maxClwValue
-
-  end subroutine readNameList
-
- !-----------------------------------------------------------------------
+  !-----------------------------------------------------------------------
   ! qlim_readMinClwValue
   !----------------------------------------------------------------------
   function qlim_readMinClwValue() result(minClwValue)
@@ -857,7 +860,7 @@ contains
 
   end function qlim_readMinClwValue
 
- !-----------------------------------------------------------------------
+  !-----------------------------------------------------------------------
   ! qlim_readMaxClwValue
   !----------------------------------------------------------------------
   function qlim_readMaxClwValue() result(maxClwValue)

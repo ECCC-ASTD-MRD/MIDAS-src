@@ -76,29 +76,39 @@ module calcStatsLam_mod
   type(struct_bhi)  :: bhi
 
   integer :: nEns
-  integer :: nTrunc
   integer :: ip2_ens
 
   logical :: initialized = .false.
-  logical :: NormByStdDev, SetTGtoZero, writeEnsPert
   logical :: vertLoc, horizLoc, stdDevScaling
   logical :: ensContainsFullField
 
-  character(len=12) :: WindTransform
-  character(len=12) :: SpectralWeights
   character(len=2)  :: ctrlVarHumidity
-  character(len=4)  :: correlatedVariables(vnl_numvarmax)
 
   type(struct_ens)  :: ensPerts
 
   real(8), pointer  :: pressureProfile_M(:), pressureProfile_T(:)
 
-  real(8) :: vLocalize_wind, vlocalize_mass, vlocalize_humidity, vlocalize_other ! vertical length scale (in units of ln(Pressure))
-  real(8) :: hlocalize_wind, hlocalize_mass, hlocalize_humidity, hlocalize_other ! vertical length scale (in km)
 
   real(8),allocatable :: scaleFactor_M(:), scaleFactor_T(:)
   real(8)             :: scaleFactor_SF
-  
+
+  ! Namelist variables
+  integer :: nTrunc
+  character(len=12) :: WindTransform
+  logical :: NormByStdDev
+  logical :: SetTGtoZero
+  logical :: writeEnsPert
+  character(len=12) :: SpectralWeights
+  real(8) :: vLocalize_wind     ! vertical length scale (in units of ln(Pressure))
+  real(8) :: vlocalize_mass     ! vertical length scale (in units of ln(Pressure))
+  real(8) :: vlocalize_humidity ! vertical length scale (in units of ln(Pressure))
+  real(8) :: vlocalize_other    ! vertical length scale (in units of ln(Pressure))
+  real(8) :: hlocalize_wind     ! horizontal length scale (in km)
+  real(8) :: hlocalize_mass     ! horizontal length scale (in km)
+  real(8) :: hlocalize_humidity ! horizontal length scale (in km)
+  real(8) :: hlocalize_other    ! horizontal length scale (in km)
+  character(len=4)  :: correlatedVariables(vnl_numvarmax)
+
 contains
   
   !--------------------------------------------------------------------------
@@ -120,19 +130,18 @@ contains
     ! locals
     integer :: nulnam, ier, status
     integer :: fclos, fnom
-    integer :: grd_ext_x, grd_ext_y
     integer :: varIndex, levIndex, k
-
     integer :: numStep
     integer, allocatable :: dateStampList(:)
-
-    real(8) :: scaleFactor(maxNumLevels)
     real(8) :: SurfacePressure
-
     character(len=256)  :: enspathname
     logical :: makeBiPeriodic
-
     character(len=4), pointer :: controlVarNames(:)
+
+    ! Namelist variables (local)
+    real(8) :: scaleFactor(maxNumLevels)
+    integer :: grd_ext_x
+    integer :: grd_ext_y
 
     NAMELIST /NAMCALCSTATS_LAM/nTrunc,grd_ext_x,grd_ext_y,WindTransform,NormByStdDev, &
                                SetTGtoZero,writeEnsPert,SpectralWeights,              &

@@ -69,20 +69,16 @@ for filename in $directory/*.f* ; do
       namelistvars=`echo ${namelistvars//'\n'/ }`
       namelistvars=`echo ${namelistvars//,/ }`
       namelistvars=`echo ${namelistvars//&/}`
+      namelistvars=`echo $namelistvars | tr ' ' '\n' |sort -u |tr '\n' ' '`
       namelistvars="$namelistvars "
       namelistvars2=''
       for index in `seq 1 100`; do
         namelistvar=`echo "$namelistvars" | cut -d' ' -f$index`
         namelistvar=`echo ${namelistvar// /}`
-        #echo "starting work on namelistvar=$namelistvar"
         if [[ -z "${namelistvar// }" ]]; then 
           break
         fi
-        gotitalready=`echo "$namelistvars2" | grep -i $namelistvar`
-        if [[ -z "${gotitalready// }" ]]; then
-          #echo "namelistvar = $namelistvar"
-          namelistvars2="$namelistvars2 $namelistvar"
-        fi
+        namelistvars2="$namelistvars2 $namelistvar"
       done
 
       echo "namelistvars2= $namelistvars2"
@@ -90,7 +86,7 @@ for filename in $directory/*.f* ; do
       echo '<table style="width:100%">' >> $docdir/namelists_html
       for namelistvar in $namelistvars2 ; do
         echo "greping for type definition of variable $namelistvar in $filename"
-        greppedline=`grep -wi $namelistvar $filename | grep -i -E -w 'integer|real|logical|character' |grep -v '^ *!' |head -1`
+        greppedline=`grep -wi $namelistvar $filename | grep -i -E -w 'integer|real|logical|character|^ *type' |grep -v '^ *!' |head -1`
         greppedline="$(echo -e "${greppedline}" | sed -e 's/^[[:space:]]*//')"
         echo "<tr>" >> $docdir/namelists_html
         echo "<td>$namelistvar</td>" >> $docdir/namelists_html

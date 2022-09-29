@@ -53,8 +53,10 @@ program midas_advector
   character(len=256)  :: direction
   integer             :: nEns
   integer             :: dateStart
-  integer             :: advectedFieldNumStep, steeringFlowNumStep
-  real(8)             :: advectedFieldDelThour, steeringFlowDelThour
+  integer             :: advectedFieldNumStep
+  integer             :: steeringFlowNumStep
+  real(8)             :: advectedFieldDelThour
+  real(8)             :: steeringFlowDelThour
   real(8)             :: advectFactor(maxNumLevels)
 
   namelist /namadvector/ fileToAdvec, steeringFlowFile, nEns, &
