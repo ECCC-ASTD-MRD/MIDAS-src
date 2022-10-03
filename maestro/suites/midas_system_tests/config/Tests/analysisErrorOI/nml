@@ -28,15 +28,11 @@
   NLISTFLG(10) = 13
 /
  &namPlatformIce
-  nPlatformIce = 8
-  listPlatformIce(1) = 'DMSP'
-  listPlatformIce(2) = 'GCOM-W1'
-  listPlatformIce(3) = 'METOP-1'
-  listPlatformIce(4) = 'METOP-2'
-  listPlatformIce(5) = 'CIS_DAILY'
-  listPlatformIce(6) = 'RS1_IMG'
-  listPlatformIce(7) = 'CIS_REGIONAL'
-  listPlatformIce(8) = 'iceclake'
+  nPlatformIce = 4
+  listPlatformIce(1) = 'CIS_DAILY'
+  listPlatformIce(2) = 'RS1_IMG'
+  listPlatformIce(3) = 'CIS_REGIONAL'
+  listPlatformIce(4) = 'iceclake'
 /
  &NAMBDIFF
   corr_len = 200*10.0
