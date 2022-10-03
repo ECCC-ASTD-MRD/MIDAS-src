@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
  * Changed machine and processor topology to speed system test /Tests/extractBmatrixFor1Dvar/globalBnmcLand. (#699 and !645) 
+ * Removed some observations in the analysisErrorOI test (#698 and !646)
  * Major re-organization of constituents assimilation code, including namelist changes. Minor impact on results. (#18 and !636) 
  * Merge contents of `mpi_mod` and `mpivar_mod` into `midasMpi_mod` (#690 and !635)
  * Reorganized development information in `README`, `CONTRIBUTING` and `docs/` (#647 and !632)
@@ -52,7 +53,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * Removed observations in the analysisErrorOI test (#698 and !646)
  * Removed multi-platform compilation support (#663 and !640)
  * Removed code documentation for `v_3.6` branch (#681 and !627)
  * Removed comment about documentation temporarily pointing to master (#657 and !611)
