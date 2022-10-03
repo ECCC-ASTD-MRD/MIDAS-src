@@ -2298,15 +2298,14 @@ CONTAINS
 
     if ( present(lmodify_obserror_opt) ) lmodify_obserror = lmodify_obserror_opt
 
-
     if (weightedEstimate) then
       call hco_SetupFromFile(hco_mask, './raob_masque.std', 'WEIGHT', GridName_opt='RadiosondeWeight',varName_opt='WT' )
       call vco_SetupFromFile(vco_mask, './raob_masque.std')   ! IN
 
       call gsv_allocate(stateVector_mask, 1, hco_mask, vco_mask, dateStampList_opt=(/-1/), varNames_opt=(/"WT"/), &
            dataKind_opt=4, mpi_local_opt=.true.,mpi_distribution_opt="Tiles")
-      call gsv_allocate(stateVector_mask_4d, tim_nstepobs, hco_mask, vco_mask, dateStampList_opt=(/-1/), varNames_opt=(/"WT"/), &
-           dataKind_opt=4, mpi_local_opt=.true.,mpi_distribution_opt="Tiles")
+      call gsv_allocate(stateVector_mask_4d, tim_nstepobs, hco_mask, vco_mask, dateStampList_opt=(/ (-1, stepIndex = 1, tim_nstepobs) /), &
+           varNames_opt=(/"WT"/), dataKind_opt=4, mpi_local_opt=.true.,mpi_distribution_opt="Tiles")
 
       call gsv_readFromFile(stateVector_mask,'./raob_masque.std' , 'WEIGHT', 'O', unitConversion_opt=.false., &
            containsFullField_opt=.false.)
