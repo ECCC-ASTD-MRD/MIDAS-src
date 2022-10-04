@@ -43,6 +43,7 @@ module calcHeightAndPressure_mod
   public :: czp_calcHeight_nl, czp_calcHeight_tl, czp_calcHeight_ad
   public :: czp_calcPressure_nl, czp_calcPressure_tl, czp_calcPressure_ad
   public :: czp_calcReturnHeight_gsv_nl, czp_calcReturnPressure_gsv_nl
+  public :: czp_calcReturnHeight_col_nl, czp_calcReturnPressure_col_nl
 
   interface czp_calcZandP_nl
     module procedure calcZandP_gsv_nl
@@ -2638,9 +2639,41 @@ contains
     type(struct_columnData), intent(inout) :: column  ! column that will contain the Z_M/Z_T fields
 
     ! Locals
-    integer :: vcode
+    real(8), pointer  ::  Z_T(:,:), Z_M(:,:)
 
     call msg('calcHeight_col_nl (czp)', 'START', verb_opt=2)
+
+    Z_T(:,:) = col_getAllColumns(column, 'Z_T')
+    Z_M(:,:) = col_getAllColumns(column, 'Z_M')
+    call czp_calcReturnHeight_col_nl(column, Z_T, Z_M)
+    deallocate(Z_T, Z_M)
+
+    call msg('calcHeight_col_nl (czp)', &
+           new_line('')//'Z_M = '//str(col_getColumn(column,1,'Z_M')) &
+         //new_line('')//'Z_T = '//str(col_getColumn(column,1,'Z_T')), &
+         verb_opt=2)
+
+    call msg('calcHeight_col_nl (czp)', 'END', verb_opt=2)
+  end subroutine calcHeight_col_nl
+
+  !---------------------------------------------------------
+  ! czp_calcReturnHeight_col_nl
+  !---------------------------------------------------------
+  subroutine czp_calcReturnHeight_col_nl(column, Z_T, Z_M)
+    !
+    ! :Purpose: Return heights on the column
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
+    real(8), pointer,         intent(inout) :: Z_T(:,:), Z_M(:,:) ! output pointers to computed column height values
+
+    ! Locals
+    integer :: vcode
+    integer :: numCol, headerIndex, stat, ilev1, ilev2
+
+    call msg('czp_calcReturnHeight_col_nl (czp)', 'START', verb_opt=2)
 
     Vcode = col_getVco(column)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
@@ -2650,12 +2683,7 @@ contains
       call calcHeight_col_nl_vcode2100x
     end if
 
-    call msg('calcHeight_col_nl (czp)', &
-           new_line('')//'Z_M = '//str(col_getColumn(column,1,'Z_M')) &
-         //new_line('')//'Z_T = '//str(col_getColumn(column,1,'Z_T')), & 
-         verb_opt=2)
-
-    call msg('calcHeight_col_nl (czp)', 'END', verb_opt=2)
+    call msg('czp_calcReturnHeight_col_nl (czp)', 'END', verb_opt=2)
 
     contains
       !---------------------------------------------------------
@@ -2667,7 +2695,7 @@ contains
         ! Locals
         real(8), allocatable  :: hSfc(:,:), heights(:,:)
         real(8), pointer      :: hPtr(:,:,:)
-        integer :: numCol, headerIndex, stat, ilev1, ilev2
+        integer :: numCol, headerIndex, stat
 
         call msg('calcHeight_col_nl_vcode2100x (czp)', 'START', verb_opt=3)
         if ( col_getNumCol(column) <= 0 ) then
@@ -2677,7 +2705,7 @@ contains
         end if
 
         if (.not.col_varExist(column,'ME')) then
-          call utl_abort('calcHeight_col_nl (czp): ME must be present as an analysis variable!')
+          call utl_abort('calcHeight_col_nl_vcode2100x (czp): ME must be present as an analysis variable!')
         end if
         
         numCol = col_getNumCol(column)
@@ -2690,32 +2718,28 @@ contains
         stat=vgd_levels(column%vco%vgrid, ip1_list=column%vco%ip1_M, &
                         levels=hPtr, sfc_field=hSfc, in_log=.false.)
         if ( stat .ne. VGD_OK ) then
-          call utl_abort('calcHeight_col_nl (czp): ERROR with vgd_levels')
+          call utl_abort('calcHeight_col_nl_vcode2100x (czp): ERROR with vgd_levels')
         end if
 
         allocate(heights(col_getNumLev(column,'MM'), numCol))
         heights = transpose(hPtr(1,:,:))
         call msg('calcHeight_col_nl_vcode2100x (czp)', &
              'MM heights(1,:) = '//str(heights(1,:)),  verb_opt=3)
-        ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_M'))
-        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('Z_M'))
-        column%all(ilev1:ilev2,:) = heights(:,:)
+        Z_M(:,:) = heights(:,:)
         if (associated(hPtr)) deallocate(hPtr)
 
         ! heights on thermo levels
         stat=vgd_levels(column%vco%vgrid, ip1_list=column%vco%ip1_T, &
                         levels=hPtr, sfc_field=hSfc, in_log=.false.)
         if ( stat .ne. VGD_OK ) then
-          call utl_abort('calcHeight_col_nl (czp): ERROR with vgd_levels')
+          call utl_abort('calcHeight_col_nl_vcode2100x (czp): ERROR with vgd_levels')
         end if
 
         allocate(heights(col_getNumLev(column,'TH'), numCol))
         heights = transpose(hPtr(1,:,:))
         call msg('calcHeight_col_nl_vcode2100x (czp)', &
              'TH heights(1,:) = '//str(heights(1,:)),  verb_opt=3)
-        ilev1 = 1 + column%varOffset(vnl_varListIndex('Z_T'))
-        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('Z_T'))
-        column%all(ilev1:ilev2,:) = heights(:,:)
+        Z_T(:,:) = heights(:,:)
         if (associated(hPtr)) deallocate(hPtr)
 
         deallocate(heights)
@@ -2732,7 +2756,7 @@ contains
         continue
       end subroutine calcHeight_col_nl_vcode500x
 
-  end subroutine calcHeight_col_nl
+  end subroutine czp_calcReturnHeight_col_nl
 
   !---------------------------------------------------------
   ! calcHeight_col_tl
@@ -3219,7 +3243,7 @@ contains
   !---------------------------------------------------------
   subroutine calcPressure_col_nl(column)
     !
-    !:Purpose: calculation of the Pressure in the column.
+    !:Purpose: calculation and in-place storage of the Pressure in the column.
     !
     implicit none
 
@@ -3227,17 +3251,48 @@ contains
     type(struct_columnData), intent(inout)  :: column
 
     ! Locals
-    integer :: Vcode
+    real(8), pointer  ::  P_T(:,:), P_M(:,:)
 
     call msg('calcPressure_col_nl (czp)', 'START', verb_opt=2)
+
+    P_T(:,:) = col_getAllColumns(column, 'P_T')
+    P_M(:,:) = col_getAllColumns(column, 'P_M')
+    call czp_calcReturnPressure_col_nl(column, P_T, P_M)
+    deallocate(P_T, P_M)
+
+    call msg('calcPressure_col_nl (czp)', &
+           new_line('')//'P_M = '//str(col_getColumn(column,1,'P_M')) &
+         //new_line('')//'P_T = '//str(col_getColumn(column,1,'P_T')), &
+         verb_opt=2)
+
+    call msg('calcPressure_col_nl (czp)', 'END', verb_opt=2)
+  end subroutine calcPressure_col_nl
+
+  !---------------------------------------------------------
+  ! czp_calcReturnPressure_col_nl
+  !---------------------------------------------------------
+  subroutine czp_calcReturnPressure_col_nl(column, P_T, P_M)
+    !
+    !:Purpose: calculation of the Pressure in the column.
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_columnData),  intent(in)    :: column ! reference column
+    real(8), pointer,         intent(inout) :: P_T(:,:), P_M(:,:) ! output pointers to computed column pressure values
+
+    ! Locals
+    integer :: Vcode
+
+    call msg('czp_calcReturnPressure_col_nl (czp)', 'START', verb_opt=2)
 
     Vcode = col_getVco(column)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(column,'P_*')  ) then
-        call utl_abort('calcPressure_col_nl (czp): for vcode 500x, variables P_M and P_T must be allocated in column')
+        call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 500x, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(column,'P0')  ) then
-        call utl_abort('calcPressure_col_nl (czp): for vcode 500x, variable P0 must be allocated in column')
+        call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 500x, variable P0 must be allocated in column')
       end if
       call calcPressure_col_nl_vcode500x
     else if (Vcode == 21001) then
@@ -3245,12 +3300,7 @@ contains
       call calcPressure_col_nl_vcode2100x
     end if
 
-    call msg('calcPressure_col_nl (czp)', &
-           new_line('')//'P_M = '//str(col_getColumn(column,1,'P_M')) &
-         //new_line('')//'P_T = '//str(col_getColumn(column,1,'P_T')), & 
-         verb_opt=2)
-
-    call msg('calcPressure_col_nl (czp)', 'END', verb_opt=2)
+    call msg('czp_calcReturnPressure_col_nl (czp)', 'END', verb_opt=2)
 
     contains
       !---------------------------------------------------------
@@ -3295,9 +3345,7 @@ contains
         if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
         allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
         zppobs2 = transpose(zppobs1(1,:,:))
-        ilev1 = 1 + column%varOffset(vnl_varListIndex('P_M'))
-        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('P_M'))
-        column%all(ilev1:ilev2,:) = zppobs2(:,:)
+        P_M(:,:) = zppobs2(:,:)
         if (associated(zppobs1))  deallocate(zppobs1)
         deallocate(zppobs2)
 
@@ -3306,9 +3354,7 @@ contains
         if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
         allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
         zppobs2 = transpose(zppobs1(1,:,:))
-        ilev1 = 1 + column%varOffset(vnl_varListIndex('P_T'))
-        ilev2 = ilev1 - 1 + column%varNumLev(vnl_varListIndex('P_T'))
-        column%all(ilev1:ilev2,:) = zppobs2(:,:)
+        P_T(:,:) = zppobs2(:,:)
         if (associated(zppobs1)) deallocate(zppobs1)
         deallocate(zppobs2)
 
@@ -3317,7 +3363,7 @@ contains
         call msg('calcPressure_col_nl_vcode500x (czp)', 'END', verb_opt=3)
       end subroutine calcPressure_col_nl_vcode500x
 
-  end subroutine calcPressure_col_nl
+  end subroutine czp_calcReturnPressure_col_nl
 
   !---------------------------------------------------------
   ! calcPressure_col_tl
