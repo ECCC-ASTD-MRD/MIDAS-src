@@ -33,22 +33,22 @@ module gps_mod
   public :: gps_profile, gps_profilezd, gps_diff
 
   ! public variables
-  public :: gps_numROProfiles, gps_vRO_IndexPrf, gps_vRO_Jacobian, gps_vRO_lJac
-  public :: LEVELGPSRO, GPSRO_MAXPRFSIZE, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, BGCKBAND, WGPS
-  public :: gpsroError, gpsroBNorm
-  public :: gpsgravitysrf, p_tc, max_gps_data, vgpsztd_jacobian, vgpsztd_ljac, dzmin
-  public :: ltestop, llblmet, lbevis, irefopt, iztdop, lassmet, l1obs, yzderrwgt, numgpsztd
-  public :: vgpsztd_index, ngpscvmx, dzmax, yztderr, ysferrwgt
+  public :: gps_numROProfiles, gps_vRO_IndexPrf
+  public :: gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SURFMIN, gps_HSFMIN, gps_HTPMAX, gps_HTPMAXER, gps_BGCKBAND, gps_WGPS
+  public :: gps_roError, gps_roBNorm
+  public :: gps_gravitysrf, gps_gb_maxdata, gps_gb_dzmin
+  public :: gps_gb_ltestop, gps_gb_llblmet, gps_gb_lbevis, gps_gb_irefopt, gps_gb_iztdop, gps_gb_lassmet, gps_gb_l1obs, gps_gb_yzderrwgt, gps_gb_numztd
+  public :: gps_ZTD_Index, gps_ncvmx, gps_gb_dzmax, gps_gb_yztderr, gps_gb_ysferrwgt
 
   ! public procedures
   public :: gps_setupro, gps_iprofile_from_index
-  public :: gps_setupgb, gps_i_from_index
+  public :: gps_setupgb, gps_iztd_from_index
   public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
 
   ! public constants
-  integer, parameter, public :: LEVELGPSRO_BND       = 1
-  integer, parameter, public :: LEVELGPSRO_REF       = 2
-  integer, parameter, public :: LEVELGPSRO_BNDandREF = 3
+  integer, parameter, public :: gps_Level_RO_Bnd       = 1
+  integer, parameter, public :: gps_Level_RO_Ref       = 2
+  integer, parameter, public :: gps_Level_RO_BndandRef = 3
 
 !modgps00base
   
@@ -68,7 +68,7 @@ module gps_mod
   integer(i4), parameter :: ngpsxlow  = 20
 
   ! Associated maximum number of control variables:
-  integer(i4), parameter :: ngpscvmx  = 4*ngpssize
+  integer(i4), parameter :: gps_ncvmx  = 4*ngpssize
 
 !modgps01ctphys
   
@@ -88,14 +88,11 @@ module gps_mod
   real(dp), parameter           :: p_R     = p_Avog*p_Boltz          ! per mol
   real(dp), parameter           :: p_Rd    = p_Avog*p_Boltz/(1.e-3_dp*p_md)   ! per air mass
 
-  ! Units and scales:
-  real(dp), parameter           :: p_TC    = 273.15_dp
-
 !modgps03diff
 
   type gps_diff
      real(dp)           :: Var
-     real(dp)           :: DVar(ngpscvmx)
+     real(dp)           :: DVar(gps_ncvmx)
   end type gps_diff
   
   interface assignment(=)
@@ -207,99 +204,40 @@ module gps_mod
 !
   integer                                :: gps_numROProfiles
   integer         , allocatable          :: gps_vRO_IndexPrf(:,:)   ! index for each profile
-  real*8          , allocatable          :: gps_vRO_Jacobian(:,:,:)
-  logical         , allocatable          :: gps_vRO_lJac(:)
 
-!     Contents of previous comdeck comgpsro
-!     -------------------------------------
-!*    Control variables for GPSRO observations - constant within job
-!
-!     LEVELGPSRO: Data level to use (1 for bending angle, 2 for refractivity)
-!     GPSRO_MAXPRFSIZE: Maximal number of data that is expected from a profile (default 300)
-!     SURFMIN:  Minimum allowed distance to the model surface (default 1000 m)
-!     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
-!     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
-!     HTPMAXER: Maximum MSL height to evaluate the obs error  (default to HTPMAX)
-!     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
-!     gpsroError: key for using dynamic/static refractivity error estimation (default 'DYNAMIC')
-!     gpsroBNorm: Whether to normalize based on B=H(x) (default=.True.), or upon an approximate exponential reference.
-!
-!     J.M. Aparicio, Apr 2008
-!
-!     Revision 01: M. Bani Shahabadi, Nov 2018
-!       - adding the gpsroError key to use static error estimation for the refractivity.
-!         This is for testing in MIDAS based on the cost function. J.M. Aparicio 
-!         recommended to ALWAYS set it to true (dynamic error) for operations.
-!          
-  INTEGER LEVELGPSRO, GPSRO_MAXPRFSIZE
-  REAL*8  SURFMIN, HSFMIN, HTPMAX, BGCKBAND, HTPMAXER
-  REAL*4  WGPS(0:1023,4)
-  character(len=20) :: gpsroError
-  LOGICAL :: gpsroBNorm
-
-  NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,HTPMAXER, &
-                      BGCKBAND,WGPS, gpsroError, gpsroBNorm
+  ! Public versions of namelist variables
+  INTEGER gps_Level_RO, gps_RO_MAXPRFSIZE
+  REAL*8  gps_SurfMin, gps_HsfMin, gps_HtpMax, gps_BgckBand, gps_HtpMaxEr
+  REAL*4  gps_Wgps(0:1023,4)
+  character(len=20) :: gps_roError
+  LOGICAL :: gps_roBNorm, gps_gpsroEotvos
 
 
 !modgpsztd_mod
 
   integer, parameter      ::  max_gps_sites = 1200
-  integer, parameter      ::  max_gps_data  = max_gps_sites*24     ! (max_gps_sites) * (max_num_obs in 6h)
+  integer, parameter      ::  gps_gb_maxdata  = max_gps_sites*24     ! (max_gps_sites) * (max_num_obs in 6h)
 
-  integer                 :: numGPSZTD                ! number of ZTD data to be assimilated
-  integer , allocatable   :: vGPSZTD_Index (:)        ! INDEX_HEADER in CMA (ObsSpace) for each ZTD observation
-  real*8  , allocatable   :: vGPSZTD_Jacobian (:,:)   ! Jacobian for each ZTD observation (numGPSZTD,ncv)
-                                                              ! ncv = 2*nlev+1 = 161  (TTx80, LQx80, P0)
-  logical , allocatable   :: vGPSZTD_lJac (:)         ! logical = true once Jacobian computed/stored
+  integer                 :: gps_gb_numZTD            ! number of ZTD data to be assimilated
+  integer , allocatable   :: gps_ZTD_Index (:)        ! INDEX_HEADER in CMA (ObsSpace) for each ZTD observation
 
-!*    Namelist variables for Ground-based GPS (ZTD)
-!
-!     DZMIN:      Minimum DZ = Zobs-Zmod (m) for which DZ adjustment to ZTD 
-!                 will be made.
-!     YSFERRWGT:  Weighting factor multiplier for GPS surface met errors (to 
-!                 account for time series observations with error correlations)
-!     DZMAX:      Maximum DZ (m) over which the ZTD data are rejected
-!                 due to topography (used in SOBSSFC when LTOPOFILT = .TRUE.)
-!     YZTDERR:    If < 0 then read ZTD errors from data blocks in input
-!                 files (i.e. the formal errors). 
-!                 If > 0 then use value as a constant error (m) for all ZTD
-!                 observations.
-!                 If = 0 then compute error as a function of ZWD.
-!     LASSMET:    Flag to assimilate GPS Met surface P, T, T-Td
-!     LLBLMET:    Flag to indicate that surface met data have been blacklisted
-!                 for GPS sites close to surface weather stations.
-!     YZDERRWGT:  Weighting factor multiplier for GPS ZTD errors (to account
-!                 for time series observations with error correlations)
-!     LBEVIS:     .true.  = use Bevis(1994)  refractivity (k1,k2,k3) constants
-!                 .false. = use Rueger(2002) refractivity (k1,k2,k3) constants
-!     IREFOPT:    1 = conventional expression for refractivity N using k1,k2,k3
-!                 2 = Aparicio & Laroche refractivity N (incl. compressibility)
-!     L1OBS       Flag to select a single ZTD observation using criteria in
-!                 subroutine DOBSGPSGB
-!     LTESTOP     Flag to test ZTD observation operator (Omp and Bgck modes only)
-!                 Runs subroutine SETFGEGPS to do the test.
-!     IZTDOP      1 = normal mode: use stored ZTD profiles to get ZTDmod
-!                 2 = Vedel & Huang ZTD formulation: ZTDmod = ZHD(Pobs) + ZWD
-!
-  REAL*8  DZMIN, YZTDERR, YSFERRWGT, YZDERRWGT
-  REAL(8) :: DZMAX = 1000.0D0 ! need to give it a default value here in case setup not called
-  LOGICAL LASSMET, LLBLMET, LBEVIS, L1OBS, LTESTOP
-  INTEGER IREFOPT, IZTDOP
-
-  NAMELIST /NAMGPSGB/ DZMIN, DZMAX, YZTDERR, LASSMET, YSFERRWGT,  &
-       LLBLMET, YZDERRWGT, LBEVIS, L1OBS, LTESTOP, IREFOPT, IZTDOP
+  ! Public versions of namelist variables
+  REAL*8 gps_gb_DZMIN, gps_gb_YZTDERR, gps_gb_YSFERRWGT, gps_gb_YZDERRWGT
+  REAL(8) :: gps_gb_DZMAX = 1000.d0 ! need to give it a default value here in case setup not called
+  INTEGER gps_gb_IREFOPT, gps_gb_IZTDOP
+  LOGICAL gps_gb_LASSMET, gps_gb_LLBLMET, gps_gb_LBEVIS, gps_gb_L1OBS, gps_gb_LTESTOP
 
 contains
 
 !modgps02wgs84grav
 
-  pure function gpsgravitysrf(sLat)
+  pure function gps_gravitysrf(sLat)
     !
     !:Purpose: Normal gravity on ellipsoidal surface
     !
     implicit none
 
-    real(dp)              :: gpsgravitysrf ! Normal gravity (m/s2)
+    real(dp)              :: gps_gravitysrf ! Normal gravity (m/s2)
 
     ! Arguments:
     real(dp), intent(in)  :: sLat ! sin(Latitude)
@@ -310,16 +248,16 @@ contains
 
     ks2 = ec_wgs_TNGk * sLat*sLat
     e2s = 1._dp - ec_wgs_e2 * sLat*sLat
-    gpsgravitysrf = ec_wgs_GammaE * (1._dp + ks2) / sqrt(e2s)
-  end function gpsgravitysrf
+    gps_gravitysrf = ec_wgs_GammaE * (1._dp + ks2) / sqrt(e2s)
+  end function gps_gravitysrf
 
-  pure function gpsgravityalt(sLat, Altitude)
+  pure function gps_gravityalt(sLat, Altitude)
     !
     !:Purpose: Normal gravity above the ellipsoidal surface
     !
     implicit none
 
-    real(dp)              :: gpsgravityalt ! Normal gravity (m/s2)
+    real(dp)              :: gps_gravityalt ! Normal gravity (m/s2)
 
     ! Arguments:
     real(dp), intent(in)  :: sLat     ! sin(Latitude)
@@ -330,9 +268,9 @@ contains
 
     C1 =-2._dp/ec_wgs_a*(1._dp+ec_wgs_f+ec_wgs_m-2*ec_wgs_f*sLat*sLat)
     C2 = 3._dp/ec_wgs_a**2
-    gpsgravityalt = gpsgravitysrf(sLat)*                                   &
+    gps_gravityalt = gps_gravitysrf(sLat)*                                   &
          (1._dp + C1 * Altitude + C2 * Altitude**2)
-  end function gpsgravityalt
+  end function gps_gravityalt
 
   pure function gpsgeopotential(Latitude, Altitude)
     !
@@ -365,10 +303,10 @@ contains
 
     do i = 0, n-1
        hi(i) = i * dh
-       gi(i) = gpsgravityalt(sLat, hi(i))
+       gi(i) = gps_gravityalt(sLat, hi(i))
     end do
     hi(n) = Altitude
-    gi(n) = gpsgravityalt(sLat, hi(n))
+    gi(n) = gps_gravityalt(sLat, hi(n))
 
     gpsgeopotential = 0._dp
     do i = 1, n
@@ -910,7 +848,7 @@ contains
     ! Fill temperature placeholders:
     !
     do i = 1, ngpslev
-       prf%tst(i)%Var               = rTT(i)+p_TC
+       prf%tst(i)%Var               = rTT(i)+MPC_K_C_DEGREE_OFFSET_R8
        prf%tst(i)%DVar              = 0._dp
        prf%tst(i)%DVar(i)           = 1._dp
     end do
@@ -941,7 +879,7 @@ contains
        dd = mold * (1._dp-x) * (p_md/1000._dp)
        dw = mold * x         * (p_mw/1000._dp)
        ! Aparicio (2011) expression
-       tr = p_TC/t-1._dp
+       tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
        nd1= ( 222.682_dp+   0.069_dp*tr) * dd
        nw1= (6701.605_dp+6385.886_dp*tr) * dw
        n0 = (nd1+nw1)
@@ -968,7 +906,7 @@ contains
     sLat=sin(rLat)
     cLat=cos(rLat)
     dx  = xi(ngpslev)-log(prf%P0)
-    Rgh = gpsgravitysrf(sLat)
+    Rgh = gps_gravitysrf(sLat)
     z   = (-p_Rd/Rgh) * tv(ngpslev) * dx
     prf%gst(ngpslev) = rMT + z
     do i=ngpslev-1,1,-1
@@ -980,9 +918,9 @@ contains
        h0  = prf%gst(i+1)%Var
        Eot = 2*ec_wgs_OmegaPrime*cLat*rUU(i)
        Eot2= (rUU(i)**2+rVV(i)**2)/ec_wgs_a
-       Rgh = gpsgravityalt(sLat, h0)-Eot-Eot2
+       Rgh = gps_gravityalt(sLat, h0)-Eot-Eot2
        dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
-       Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
+       Rgh = gps_gravityalt(sLat, h0+0.5_dp*dh)-Eot-Eot2
        !
        ! Height increment
        !
@@ -1003,7 +941,7 @@ contains
   end subroutine gps_struct1sw
 
   subroutine gps_struct1sw_v2(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rTT,rHU,rALT,prf)
+       rP0,rPP,rTT,rHU,rUU,rVV,rALT,prf)
     implicit none
 
     ! Arguments:
@@ -1018,12 +956,15 @@ contains
     real(dp)        , intent(in)  :: rPP (ngpssize)
     real(dp)        , intent(in)  :: rTT (ngpssize)
     real(dp)        , intent(in)  :: rHU (ngpssize)
+    real(dp)        , intent(in)  :: rUU (ngpssize)
+    real(dp)        , intent(in)  :: rVV (ngpssize)
     real(dp)        , intent(in)  :: rALT (ngpssize)
 
     type(gps_profile), intent(out) :: prf
 
     ! Locals
     integer(i4)                   :: i
+    real(dp)                      :: rALT_E(ngpssize)
 
 
     real(dp) , parameter           :: delta = 0.6077686814144_dp
@@ -1058,7 +999,7 @@ contains
     ! Fill temperature placeholders:
     !
     do i = 1, ngpslev
-       prf%tst(i)%Var               = rTT(i)+p_TC
+       prf%tst(i)%Var               = rTT(i)+MPC_K_C_DEGREE_OFFSET_R8
        prf%tst(i)%DVar              = 0._dp
        prf%tst(i)%DVar(i)           = 1._dp
     end do
@@ -1075,8 +1016,13 @@ contains
     !
     ! Fill altitude placeholders:
     !
+    if (gps_gpsroEotvos) then
+      call gpsro_Eotvos_dH(ngpslev, rLat, rALT, rUU, rVV, rALT_E)
+    else
+      rALT_E(1:ngpslev) = rALT(1:ngpslev)
+    end if
     do i = 1, ngpslev
-       prf%gst(i)%Var                 = rALT(i)
+       prf%gst(i)%Var                 = rALT_E(i)
        prf%gst(i)%DVar                = 0._dp
        prf%gst(i)%DVar(2*ngpslev+i)   = 1._dp
     end do
@@ -1098,7 +1044,7 @@ contains
        dd = mold * (1._dp-x) * (p_md/1000._dp)
        dw = mold * x         * (p_mw/1000._dp)
        ! Aparicio (2011) expression
-       tr = p_TC/t-1._dp
+       tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
        nd1= ( 222.682_dp+   0.069_dp*tr) * dd
        nw1= (6701.605_dp+6385.886_dp*tr) * dw
        n0 = (nd1+nw1)
@@ -1131,13 +1077,42 @@ contains
 
     x  = p_wa*q/(1._dp+p_wb*q)
     ! Estimate, from CIPM, Picard (2008)
-    tc = t-p_TC
+    tc = t-MPC_K_C_DEGREE_OFFSET_R8
     pt = 1.e2_dp*p/t
     tc2= tc*tc
     x2 = x*x
     gpscompressibility = 1._dp-pt*(a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2)+pt*pt*(d+e*x2)
   end function gpscompressibility
 
+  subroutine gpsro_Eotvos_dH(ngpslev, rLat, rALT, rUU, rVV, rALT_E)
+    implicit none
+
+    ! Arguments:
+    integer,  intent(in)   :: ngpslev
+    real(dp), intent(in)   :: rLat
+    real(dp), intent(in)   :: rALT(ngpslev)
+    real(dp), intent(in)   :: rUU (ngpslev)
+    real(dp), intent(in)   :: rVV (ngpslev)
+    real(dp), intent(out)  :: rALT_E(ngpslev)
+
+    ! Locals
+    integer                :: i
+    real(dp)               :: cLat, dALT, Eot, Eot2, dALTE, ddAL, acc
+
+    cLat=cos(rLat)
+    rALT_E(ngpslev) = rALT(ngpslev)
+    acc = 0.d0
+    do i = ngpslev-1, 1, -1
+      dALT = rALT(i) - rALT(i+1)
+      Eot = 2*ec_wgs_OmegaPrime*cLat*rUU(i)
+      Eot2= (rUU(i)**2+rVV(i)**2)/ec_wgs_a
+      dALTE = dALT*(1.d0+(Eot+Eot2)/ec_rg)
+      ddAL = dALTE - dALT
+      acc = acc + ddAL
+      rALT_E(i) = rALT(i) + acc
+      !write(*,'(A15,I4,8F15.8)')'EOTVOS shift', i, rALT(i), rALT_E(i), dALT, Eot, Eot2, ddAL, acc
+    end do
+  end subroutine gpsro_Eotvos_dH
 
 !modgps04profilezd
 
@@ -1233,7 +1208,7 @@ contains
     ! Fill temperature (T) placeholders (C--> K):
     !
     do i = 1, ngpslev
-       prf%tst(i)%Var               = rTT(i)+p_TC
+       prf%tst(i)%Var               = rTT(i)+MPC_K_C_DEGREE_OFFSET_R8
        prf%tst(i)%DVar              = 0._dp
        prf%tst(i)%DVar(i)           = 1._dp
     end do
@@ -1267,7 +1242,7 @@ contains
         q  = prf%qst(i)
         x  = p_wa*q/(1._dp+p_wb*q)
         ! Estimate, from CIPM, Piccard (2008)
-        tc = t-p_TC
+        tc = t-MPC_K_C_DEGREE_OFFSET_R8
         pt = p/t
         tc2 = tc*tc
         x2 = x*x
@@ -1286,7 +1261,7 @@ contains
         dd = mold * (1._dp-x) * (p_md/1000._dp)
         dw = mold * x         * (p_mw/1000._dp)
         ! Aparicio (2011) expression
-        tr = p_TC/t-1._dp
+        tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
         nd1= ( 222.682_dp+   0.069_dp*tr) * dd
         nw1= (6701.605_dp+6385.886_dp*tr) * dw
         n0 = (nd1+nw1)
@@ -1321,7 +1296,7 @@ contains
     ! Geometric height (m) profile from lowest model level to top  --> prf%gst
     sLat = sin(rLat)
     dx  = xi(ngpslev)-log(prf%P0)
-    Rgh = gpsgravitysrf(sLat)
+    Rgh = gps_gravitysrf(sLat)
     z   = (-p_Rd/Rgh) * tv(ngpslev) * dx
     prf%gst(ngpslev) = rMT + z
     do i = ngpslev-1, 1, -1
@@ -1331,9 +1306,9 @@ contains
        ! Gravity acceleration
        !
        h0  = prf%gst(i+1)%Var
-       Rgh = gpsgravityalt(sLat, h0)
+       Rgh = gps_gravityalt(sLat, h0)
        dh  = (-p_Rd/Rgh) * tvm%Var * dx%Var
-       Rgh = gpsgravityalt(sLat, h0+0.5_dp*dh)
+       Rgh = gps_gravityalt(sLat, h0+0.5_dp*dh)
        !
        ! Height increment (m)
        !
@@ -1351,11 +1326,11 @@ contains
        else
          na = N(i) / p
        end if
-       prf%rst(i) = 1.e-6_dp * na * (p_Rd*tv(i))/gpsgravityalt(sLat, prf%gst(i)%Var)
+       prf%rst(i) = 1.e-6_dp * na * (p_Rd*tv(i))/gps_gravityalt(sLat, prf%gst(i)%Var)
     end do
 
     ! ZTD (m) profile from model top down to lowest model level --> prf%ztd
-    prf%ztd(1) = 1.e-6_dp * ((k1*p_Rd*ptop)/(gpsgravityalt(sLat, prf%gst(1)%Var)))
+    prf%ztd(1) = 1.e-6_dp * ((k1*p_Rd*ptop)/(gps_gravityalt(sLat, prf%gst(1)%Var)))
     do i = 2, ngpslev
       !
       ! ZTD increment = Avg(dZTD/dP) * delta_P
@@ -1456,7 +1431,7 @@ contains
     ! Fill temperature (T) placeholders (C--> K):
     !
     do i = 1, ngpslev
-       prf%tst(i)%Var               = rTT(i)+p_TC
+       prf%tst(i)%Var               = rTT(i)+MPC_K_C_DEGREE_OFFSET_R8
        prf%tst(i)%DVar              = 0._dp
        prf%tst(i)%DVar(i)           = 1._dp
     end do
@@ -1499,7 +1474,7 @@ contains
         q  = prf%qst(i)
         x  = p_wa*q/(1._dp+p_wb*q)
         ! Estimate, from CIPM, Piccard (2008)
-        tc = t-p_TC
+        tc = t-MPC_K_C_DEGREE_OFFSET_R8
         pt = p/t
         tc2 = tc*tc
         x2 = x*x
@@ -1518,7 +1493,7 @@ contains
         dd = mold * (1._dp-x) * (p_md/1000._dp)
         dw = mold * x         * (p_mw/1000._dp)
         ! Aparicio (2011) expression
-        tr = p_TC/t-1._dp
+        tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
         nd1= ( 222.682_dp+   0.069_dp*tr) * dd
         nw1= (6701.605_dp+6385.886_dp*tr) * dw
         n0 = (nd1+nw1)
@@ -1561,11 +1536,11 @@ contains
        else
          na = N(i) / p
        end if
-       prf%rst(i) = 1.e-6_dp * na * (p_Rd*tv(i))/gpsgravityalt(sLat, prf%gst(i)%Var)
+       prf%rst(i) = 1.e-6_dp * na * (p_Rd*tv(i))/gps_gravityalt(sLat, prf%gst(i)%Var)
     end do
 
     ! ZTD (m) profile from model top down to lowest model level --> prf%ztd
-    prf%ztd(1) = 1.e-6_dp * ((k1*p_Rd*ptop)/(gpsgravityalt(sLat, prf%gst(1)%Var)))
+    prf%ztd(1) = 1.e-6_dp * ((k1*p_Rd*ptop)/(gps_gravityalt(sLat, prf%gst(1)%Var)))
     do i = 2, ngpslev
       !
       ! ZTD increment = Avg(dZTD/dP) * delta_P
@@ -1620,7 +1595,7 @@ contains
        !Zd=0.78_dp*Zn+0.21_dp*Zo+0.01_dp*Za
        !Zt=(1._dp-q)*Zd+q*Zw
        ! Better estimate, from CIPM, Piccard (2008)
-       tc = t-p_TC
+       tc = t-MPC_K_C_DEGREE_OFFSET_R8
        pt = 1.e2_dp*p/t
        tc2= tc*tc
        x2 = x*x
@@ -1688,7 +1663,7 @@ contains
        if (i==1)       im=1
        if (i==ngpslev) ip=ngpslev
        dddz(i)=den(i)*(log(den(ip))-log(den(im)))/(prf%gst(ip)-prf%gst(im))
-       g=gpsgravityalt(sLat, prf%gst(i)%Var)
+       g=gps_gravityalt(sLat, prf%gst(i)%Var)
        bvf(i)=sqrt((-g)/den(i)*dddz(i))
     end do
   end subroutine gpsbvf
@@ -2158,7 +2133,7 @@ contains
        do j = 1, ngpslev-1
          tbar = (prf%tst(j) + prf%tst(j+1))*0.5_dp
          qbar = (prf%qst(j) + prf%qst(j+1))*0.5_dp
-         qtterm = ((qbar + kappa*qbar**2 )/gpsgravityalt(sLat,prf%gst(j)%Var))*(k2p + k3/tbar)
+         qtterm = ((qbar + kappa*qbar**2 )/gps_gravityalt(sLat,prf%gst(j)%Var))*(k2p + k3/tbar)
          if ( j == 1 ) then
            zsum = qtterm*(prf%pst(j+1)-prf%pst(j))
          else
@@ -2217,7 +2192,7 @@ contains
             qobs   = prf%qst(jloc)
             tvobs  = tvsfc-gamma*dh
             naobs  = (k1/tvobs) + (k2p*(qobs/(eps*tobs))) + (k3*(qobs/(eps*tobs**2)))
-            dztddp = 1.e-6_dp * naobs * (p_Rd*tvobs)/gpsgravityalt(sLat, h)
+            dztddp = 1.e-6_dp * naobs * (p_Rd*tvobs)/gps_gravityalt(sLat, h)
             dztddpm = (dztddp + prf%rst(jloc))/2._dp  ! mean value of dZTD/dp over dh layer
           end if
           ZTDopv = prf%ztd(jloc) + dztddpm*(Pobs-prf%pst(jloc))
@@ -2255,8 +2230,8 @@ contains
 
     do i = 1, ngpslev-1
       qbar = 0.5_dp * (prf%qst(i+1)%Var + prf%qst(i)%Var)
-      gt  = gpsgravityalt(sLat, prf%gst(i)%Var)
-      gb  = gpsgravityalt(sLat, prf%gst(i+1)%Var)
+      gt  = gps_gravityalt(sLat, prf%gst(i)%Var)
+      gb  = gps_gravityalt(sLat, prf%gst(i+1)%Var)
       pt  = prf%pst(i)%Var
       pb  = prf%pst(i+1)%Var
       g   = 0.5_dp * (gt + gb)
@@ -2826,13 +2801,15 @@ contains
       n(levIndexAnl)  = 1._dp+nu(levIndexAnl)*1e-6_dp
       z(levIndexAnl)  = n(levIndexAnl)*(prf%Rad+prf%geoid+prf%gst(levIndexAnl))
     end do
-    ! number of levels in the profile
+    ! number of observed levels in the profile
     numLevels  = size(impv)
     if (nval < numLevels) numLevels=nval
     
     do levIndexObs =  numLevels,1,-1
       a2 = impv(levIndexObs)*impv(levIndexObs)
       a  = impv(levIndexObs)
+      cazm = cos(azmv(levIndexObs))
+      sazm = sin(azmv(levIndexObs))
       !find model levels that bracket the observation
       !   note to self:   like in GEM, level=1 is the highest level
       do levIndexAnl = 1, ngpslev-1
@@ -2844,8 +2821,6 @@ contains
     
       if  (levelLow/=0) then
         h_0  = h(levelLow)+(((a-z(levelLow))/(z(levelHigh)-z(levelLow)))*(h(levelHigh)-h(levelLow)))  
-        cazm = cos(azmv(levelLow))
-        sazm = sin(azmv(levelLow)) 
         N0a  = nu(levelLow)
         gz   = (lnu(levelLow+1)%Var-lnu(levelLow)%Var)/(h(levelLow+1)%Var-h(levelLow)%Var)
         NAa  = nu(levelLow)*exp(gz*(h_0-h(levelLow)))
@@ -2903,11 +2878,40 @@ contains
     implicit none
 
     ! Locals:
-    integer nulnam,ierr,fnom,fclos,SatID
+    integer :: nulnam,ierr,fnom,fclos,SatID
+    
+    !*    Namelist variables for GPS-RO
+    !
+    !     LEVELGPSRO: Data level to use (1 for bending angle, 2 for refractivity)
+    !     GPSRO_MAXPRFSIZE: Maximal number of data that is expected from a profile (default 300)
+    !     SURFMIN:  Minimum allowed distance to the model surface (default 1000 m)
+    !     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
+    !     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
+    !     HTPMAXER: Maximum MSL height to evaluate the obs error  (default to HTPMAX)
+    !     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
+    !     gpsroError: key for using dynamic/static refractivity error estimation (default 'DYNAMIC')
+    !     gpsroBNorm: Whether to normalize based on B=H(x) (default=.True.), or upon an approximate exponential reference.
+    !     gpsroEotvos: Add an operator-only Eotvos correction to local gravity (shift of altitudes, default False)
+    INTEGER LEVELGPSRO
+    INTEGER GPSRO_MAXPRFSIZE
+    REAL*8  SURFMIN
+    REAL*8  HSFMIN
+    REAL*8  HTPMAX
+    REAL*8  BGCKBAND
+    REAL*8  HTPMAXER
+    REAL*4  WGPS(0:1023,4)
+    character(len=20) :: gpsroError
+    LOGICAL :: gpsroBNorm
+    LOGICAL :: gpsroEotvos
+
+    NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,HTPMAXER, &
+                        BGCKBAND,WGPS, gpsroError, gpsroBNorm, gpsroEotvos
+
+
 !
 !   Define default values:
 !
-    LEVELGPSRO = LEVELGPSRO_REF
+    LEVELGPSRO = gps_Level_RO_Ref
     GPSRO_MAXPRFSIZE = 300
     SURFMIN    = 0.d0
     HSFMIN     = 0.d0
@@ -2916,6 +2920,7 @@ contains
     BGCKBAND   = 0.05d0
     gpsroError = 'DYNAMIC'
     gpsroBNorm = .True.
+    gpsroEotvos= .False.
 !
 !   Force a pre-NML default for the effective data weight of all
 !   GPSRO satellites. This array has rows 0-1023 (following BUFR element
@@ -2936,12 +2941,24 @@ contains
     !if(mmpi_myid.eq.0) write(*,nml=NAMGPSRO)
     ierr=fclos(nulnam)
     if (HTPMAXER < 0.0D0) HTPMAXER = HTPMAX
+    gps_Level_RO      = LEVELGPSRO
+    gps_RO_MAXPRFSIZE = GPSRO_MAXPRFSIZE
+    gps_SurfMin       = SURFMIN
+    gps_HsfMin        = HSFMIN
+    gps_HtpMax        = HTPMAX
+    gps_HtpMaxEr      = HTPMAXER
+    gps_BgckBand      = BGCKBAND
+    gps_roError       = gpsroError
+    gps_roBNorm       = gpsroBNorm
+    gps_WGPS = WGPS
+    gps_gpsroEotvos = gpsroEotvos
+
     if(mmpi_myid.eq.0) then
-      write(*,*)'NAMGPSRO',LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN, &
-           HTPMAX,HTPMAXER,BGCKBAND, trim(gpsroError), gpsroBNorm
+      write(*,*)'NAMGPSRO',gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SurfMin, gps_HsfMin, &
+           gps_HtpMax, gps_HtpMaxEr, gps_BgckBand, trim(gps_roError), gps_roBNorm, gpsroEotvos
       do SatID = 0, 1023
         if (WGPS(SatID,2) /= 0.) then
-          write(*,*)'WGPS', SatID, WGPS(SatID, 1:4)
+          write(*,*)'WGPS', SatID, gps_WGPS(SatID, 1:4)
         end if
       end do
     end if
@@ -2980,6 +2997,51 @@ contains
     ! Locals:
     integer :: nulnam,ierr,fnom,fclos
 
+    ! Namelist variables for Ground-based GPS (ZTD)
+    !
+    !     DZMIN:      Minimum DZ = Zobs-Zmod (m) for which DZ adjustment to ZTD 
+    !                 will be made.
+    !     YSFERRWGT:  Weighting factor multiplier for GPS surface met errors (to 
+    !                 account for time series observations with error correlations)
+    !     DZMAX:      Maximum DZ (m) over which the ZTD data are rejected
+    !                 due to topography (used in SOBSSFC when LTOPOFILT = .TRUE.)
+    !     YZTDERR:    If < 0 then read ZTD errors from data blocks in input
+    !                 files (i.e. the formal errors). 
+    !                 If > 0 then use value as a constant error (m) for all ZTD
+    !                 observations.
+    !                 If = 0 then compute error as a function of ZWD.
+    !     LASSMET:    Flag to assimilate GPS Met surface P, T, T-Td
+    !     LLBLMET:    Flag to indicate that surface met data have been blacklisted
+    !                 for GPS sites close to surface weather stations.
+    !     YZDERRWGT:  Weighting factor multiplier for GPS ZTD errors (to account
+    !                 for time series observations with error correlations)
+    !     LBEVIS:     .true.  = use Bevis(1994)  refractivity (k1,k2,k3) constants
+    !                 .false. = use Rueger(2002) refractivity (k1,k2,k3) constants
+    !     IREFOPT:    1 = conventional expression for refractivity N using k1,k2,k3
+    !                 2 = Aparicio & Laroche refractivity N (incl. compressibility)
+    !     L1OBS       Flag to select a single ZTD observation using criteria in
+    !                 subroutine DOBSGPSGB
+    !     LTESTOP     Flag to test ZTD observation operator (Omp and Bgck modes only)
+    !                 Runs subroutine SETFGEGPS to do the test.
+    !     IZTDOP      1 = normal mode: use stored ZTD profiles to get ZTDmod
+    !                 2 = Vedel & Huang ZTD formulation: ZTDmod = ZHD(Pobs) + ZWD
+    !
+    REAL*8  DZMIN
+    REAL(8) :: DZMAX = 1000.0D0 ! need to give it a default value here in case setup not called
+    REAL*8  YZTDERR
+    REAL*8  YSFERRWGT
+    REAL*8  YZDERRWGT
+    LOGICAL LASSMET
+    LOGICAL LLBLMET
+    LOGICAL LBEVIS
+    LOGICAL L1OBS
+    LOGICAL LTESTOP
+    INTEGER IREFOPT
+    INTEGER IZTDOP
+
+    NAMELIST /NAMGPSGB/ DZMIN, DZMAX, YZTDERR, LASSMET, YSFERRWGT,  &
+         LLBLMET, YZDERRWGT, LBEVIS, L1OBS, LTESTOP, IREFOPT, IZTDOP
+
 !*  .  1.1 Default values
 !!  .      --------------
 
@@ -3000,6 +3062,18 @@ contains
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMGPSGB,iostat=ierr)
     if(ierr.ne.0) call utl_abort('gps_setupgb: Error reading namelist')
+    gps_gb_DZMIN     = DZMIN
+    gps_gb_DZMAX     = DZMAX
+    gps_gb_YZTDERR   = YZTDERR
+    gps_gb_LASSMET   = LASSMET
+    gps_gb_YSFERRWGT = YSFERRWGT
+    gps_gb_LLBLMET   = LLBLMET
+    gps_gb_YZDERRWGT = YZDERRWGT
+    gps_gb_LBEVIS    = LBEVIS
+    gps_gb_IREFOPT   = IREFOPT
+    gps_gb_L1OBS     = L1OBS
+    gps_gb_LTESTOP   = LTESTOP
+    gps_gb_IZTDOP    = IZTDOP
     if(mmpi_myid.eq.0) write(*,nml=NAMGPSGB)
     ierr=fclos(nulnam)
 
@@ -3144,7 +3218,7 @@ contains
 
   end subroutine gps_setupgb
 
-  integer function gps_i_from_index(index)
+  integer function gps_iztd_from_index(index)
     implicit none
  
     ! Arguments:
@@ -3153,14 +3227,14 @@ contains
     ! Locals:
     integer i
 
-    gps_i_from_index = -1
-    do i = 1, size(vGPSZTD_Index)
-       if (index .eq. vGPSZTD_Index(i)) then
-          gps_i_from_index = i
+    gps_iztd_from_index = -1
+    do i = 1, size(gps_ZTD_Index)
+       if (index .eq. gps_ZTD_Index(i)) then
+          gps_iztd_from_index = i
           return
        end if
     end do
     return
-  end function gps_i_from_index
+  end function gps_iztd_from_index
 
 end module gps_mod

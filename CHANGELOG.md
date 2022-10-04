@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added ability to consider vertical coriolis accel to h/p relationship (GPSRO operator only) (#644 and !644)
  * Add ability to produce random ocean perturbations (#652 and !637)
    * minor impact: `randomPert` output files now use 4-digit suffixes, instead of 3
  * Added ability to ignore stdID when removing duplicates in `thinning_mod` (#626 and !641)
@@ -28,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Split Jacobian cache for GPSRO operators, to avoid potential interference between a) TL, AD operators and b) FGE (#644 and !644)
  * Changed machine and processor topology to speed system test /Tests/extractBmatrixFor1Dvar/globalBnmcLand. (#699 and !645) 
  * Removed some observations in the analysisErrorOI test (#698 and !646)
  * Major re-organization of constituents assimilation code, including namelist changes. Minor impact on results. (#18 and !636) 

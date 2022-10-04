@@ -2120,14 +2120,14 @@ contains
     allocate(ZUU (NGPSLEV))
     allocate(ZVV (NGPSLEV))
     !
-    allocate(H    (GPSRO_MAXPRFSIZE))
-    allocate(AZMV (GPSRO_MAXPRFSIZE))
-    allocate(ZOBS (GPSRO_MAXPRFSIZE))
-    allocate(ZREF (GPSRO_MAXPRFSIZE))
-    allocate(ZOFF (GPSRO_MAXPRFSIZE))
-    allocate(ZERR (GPSRO_MAXPRFSIZE))
-    allocate(RSTV (GPSRO_MAXPRFSIZE))
-    allocate(ZMHX (GPSRO_MAXPRFSIZE))
+    allocate(H    (gps_RO_MAXPRFSIZE))
+    allocate(AZMV (gps_RO_MAXPRFSIZE))
+    allocate(ZOBS (gps_RO_MAXPRFSIZE))
+    allocate(ZREF (gps_RO_MAXPRFSIZE))
+    allocate(ZOFF (gps_RO_MAXPRFSIZE))
+    allocate(ZERR (gps_RO_MAXPRFSIZE))
+    allocate(RSTV (gps_RO_MAXPRFSIZE))
+    allocate(ZMHX (gps_RO_MAXPRFSIZE))
     !
     !     Loop over all header indices of the 'RO' family:
     !
@@ -2176,14 +2176,14 @@ contains
           Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
           Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
           sLat = sin(zLat)
-          zMT  = zMT * ec_rg / gpsgravitysrf(sLat)
+          zMT  = zMT * ec_rg / gps_gravitysrf(sLat)
           zP0  = col_getElem(columnTrlOnTrlLev,1,headerIndex,'P0')
           DO JL = 1, NGPSLEV
                 !
                 !     *           Profile x
                 !
             ZPP(JL) = col_getPressure(columnTrlOnTrlLev,JL,headerIndex,'TH')
-            ZTT(JL) = col_getElem(columnTrlOnTrlLev,JL,headerIndex,'TT') - p_TC
+            ZTT(JL) = col_getElem(columnTrlOnTrlLev,JL,headerIndex,'TT') - MPC_K_C_DEGREE_OFFSET_R8
             ZHU(JL) = col_getElem(columnTrlOnTrlLev,JL,headerIndex,'HU')
             ZUU(JL) = 0.d0
             ZVV(JL) = 0.d0
@@ -2211,7 +2211,7 @@ contains
              !     
              !     *        GPS profile structure:
              !
-          call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zHeight,prf)
+          call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zTT,zHU,zUU,zVV,zHeight,prf)
              !
              !     *        Prepare the vector of all the observations:
              !
@@ -2253,7 +2253,7 @@ contains
                 !
                 !     *           Normalized offset:
                 !
-            IF (.NOT.gpsroBNorm) then
+            IF (.NOT.gps_roBNorm) then
               ZOFF(NH1) = (ZOBS(NH1) - ZMHX(NH1)) / ZREF(NH1)
             ELSE
               ZOFF(NH1) = (ZOBS(NH1) - ZMHX(NH1)) / ZMHX(NH1)
@@ -2272,12 +2272,12 @@ contains
           end if
 
           if (varNum == bufr_nerf) then
-            if (trim(gpsroError) == 'DYNAMIC') then
+            if (trim(gps_roError) == 'DYNAMIC') then
               do NH1 = 1, NH
                 SUM0=1.d-30
                 SUM1=0.d0
                 do JH = 1, NH
-                  if (H(JH) <= HTPMAXER) then
+                  if (H(JH) <= gps_HtpMaxEr) then
                     DDH=H(JH)-H(NH1)
                     SUM0=SUM0+EXP(-(DDH/DH)**2)
                     SUM1=SUM1+EXP(-(DDH/DH)**2)*ZOFF(JH)**2
@@ -2286,7 +2286,7 @@ contains
                 ZERR(NH1)=(SUM1/SUM0)**0.5D0
                 if (ZERR(NH1) < ZMIN) ZERR(NH1) = ZMIN
               end do
-            else if (trim(gpsroError) == 'STATIC_2018') then
+            else if (trim(gps_roError) == 'STATIC_2018') then
               ! this was introduced by Maziar in late 2018 on advice by Josep
               do NH1 = 1, NH
                 HNH1 = H(NH1)
@@ -2299,7 +2299,7 @@ contains
                 IF (L3) ZERR(NH1)=0.005d0+0.030d0*(HNH1-30000.d0)/30000.d0
                 if (ZERR(NH1) < ZMIN) ZERR(NH1) = ZMIN
               end do
-            else if (trim(gpsroError) == 'STATIC_2014') then
+            else if (trim(gps_roError) == 'STATIC_2014') then
               ! recipe used in EnKF from Josep by email on February 25 2014 
               do NH1 = 1, NH
                 HNH1 = H(NH1)
@@ -2313,10 +2313,10 @@ contains
                 end select
               end do
             else
-              call utl_abort('oer_setErrGPSro: Invalid value for gpsroError')
+              call utl_abort('oer_setErrGPSro: Invalid value for gps_roError')
             endif
           else
-            if (trim(gpsroError) == 'DYNAMIC') then
+            if (trim(gps_roError) == 'DYNAMIC') then
               ZMIN = 0.01D0
               do NH1 = 1, NH
                 HNH1=H(NH1)-Rad
@@ -2325,7 +2325,7 @@ contains
                 DH = 1000.d0 + 0.1d0 * HNH1
                 do JH = 1, NH
                   HJH=H(JH)-Rad
-                  if (HJH <= HTPMAXER) then
+                  if (HJH <= gps_HtpMaxEr) then
                     DDH=HJH-HNH1
                     SUM0=SUM0+EXP(-(DDH/DH)**2+(DDH/DH))
                     SUM1=SUM1+EXP(-(DDH/DH)**2+(DDH/DH))*ZOFF(JH)**2
@@ -2335,7 +2335,7 @@ contains
                 if (ZERR(NH1) < ZMIN) ZERR(NH1) = ZMIN
                 if (H(NH1) < PRF%ast(ngpslev)%Var) ZERR(NH1)=0.08
               end do
-            else if (trim(gpsroError) == 'STATIC_2018') then
+            else if (trim(gps_roError) == 'STATIC_2018') then
               do NH1 = 1, NH
                 ZERR(NH1)=0.05d0
                 HNH1=H(NH1)-Rad
@@ -2371,13 +2371,13 @@ contains
               endif
               F3 = exp(-((H1- 6500.d0)/6500.d0)**2)
               F4 = exp(-((H1-14500.d0)/6500.d0)**2)
-              WFGPS = WGPS(ISAT,1) + WGPS(ISAT,2) * F2 + WGPS(ISAT,3) * F3 + WGPS(ISAT,4) * F4
+              WFGPS = gps_WGPS(ISAT,1) + gps_WGPS(ISAT,2) * F2 + gps_WGPS(ISAT,3) * F3 + gps_WGPS(ISAT,4) * F4
               IF (WFGPS < 1.D0) WFGPS = 1.D0
               WFGPS = sqrt(WFGPS)
               !
                    !     *              Observation error    S
                    !
-              if (.NOT.gpsroBNorm) then
+              if (.NOT.gps_roBNorm) then
                 call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, ZERR(NH1)*ZREF(NH1)*WFGPS)
               else
                 call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, ZERR(NH1)*ZMHX(NH1)*WFGPS)
@@ -2419,11 +2419,11 @@ contains
     !               (GPS surface met obs errors are set before in observation_erreurs_mod.ftn90.
     !               The ZTD error is also initialized to the "formal error" or to 1.0 if missing.)
     !             - Returns ldata=.false. if there are no GPS ZTD data to assimilate
-    !               and also sets the modgpsztd_mod variable numGPSZTD = 0.
+    !               and also sets the modgpsztd_mod variable gps_gb_numZTD = 0.
     !
     IMPLICIT NONE
     !!
-    !! NOTE: YZDERRWGT IN modgpsztd_mod (FROM NML FILE) IS USED FOR ERROR WEIGHTING
+    !! NOTE: gps_gb_YZDERRWGT IN modgpsztd_mod (FROM NML FILE) IS USED FOR ERROR WEIGHTING
     !!       OF TIME SERIES (FGAT) GPS ZTD OBSERVATIONS TO ACCOUNT FOR TEMPORAL ERROR
     !!       CORRELATIONS.
     !!
@@ -2489,9 +2489,9 @@ contains
     LLCZTDE = .FALSE.
     LLRZTDE = .FALSE.
     LLFZTDE = .FALSE.
-    IF (YZTDERR  <  0.0D0) then
+    IF (gps_gb_YZTDERR  <  0.0D0) then
       LLFZTDE = .TRUE.
-    else if (YZTDERR  >  0.0D0) then
+    else if (gps_gb_YZTDERR  >  0.0D0) then
       LLCZTDE = .TRUE.
     ELSE
       LLRZTDE = .TRUE.
@@ -2546,7 +2546,7 @@ contains
           !         ZTD formal error (OBS_OER) and antenna height (OBS_PPP).
         IF (ityp == BUFR_NEZD) then
           IF (LLCZTDE) then
-            ZTDOER = YZTDERR
+            ZTDOER = gps_gb_YZTDERR
             ERRSET = .TRUE.
           end if
           zlev   = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)
@@ -2628,8 +2628,8 @@ contains
               ZTDOER = MAX(ZTDOER, ZTDERR)
             end if
           end if
-             !  *** APPLY TIME-SERIES WEIGHTING FACTOR TO OBSERVATION ERROR (YZDERRWGT=1 FOR 3D THINNING)
-          call obs_bodySet_r(obsSpaceData,OBS_OER,IZTDJ, ZTDOER*YZDERRWGT)
+             !  *** APPLY TIME-SERIES WEIGHTING FACTOR TO OBSERVATION ERROR (gps_gb_YZDERRWGT=1 FOR 3D THINNING)
+          call obs_bodySet_r(obsSpaceData,OBS_OER,IZTDJ, ZTDOER*gps_gb_YZDERRWGT)
           IF (.NOT.analysisMode) call obs_bodySet_r(obsSpaceData,OBS_HPHT,IZTDJ, ZSTDOMP)
           IF (DEBUG .and. (ICOUNT2  <=  50) .and. LESTP) then
             write(*,*) 'TAG    SITE    ZTD    ERROR    ELEV    PSFC    ZWD     STDOMP'
@@ -2646,9 +2646,9 @@ contains
 
     !      IF (DEBUG) call utl_abort('******DEBUG STOP*******')
 
-    IF (.not.ldata) numGPSZTD = 0
+    IF (.not.ldata) gps_gb_numZTD = 0
 
-    IF (ldata .and. .not.beSilent) write(*,*) ' numGPSZTD = ', ICOUNT
+    IF (ldata .and. .not.beSilent) write(*,*) ' gps_gb_numZTD = ', ICOUNT
 
     if (.not.beSilent) write(*,*) 'EXIT SETERRGPSGB'
 

@@ -3421,7 +3421,7 @@ CONTAINS
       integer :: errors(4)
 
       errors(:) = 0
-      deallocate(address, stat=errors(1))
+      if (allocated(address)) deallocate(address, stat=errors(1))
       call BURP_Free(File_in, iostat=errors(2))
       call BURP_Free(Rpt_in, iostat=errors(3))
       call BURP_Free(Block_in, iostat=errors(4))
