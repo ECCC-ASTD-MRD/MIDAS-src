@@ -205,47 +205,12 @@ module gps_mod
   integer                                :: gps_numROProfiles
   integer         , allocatable          :: gps_vRO_IndexPrf(:,:)   ! index for each profile
 
-!     Contents of previous comdeck comgpsro
-!     -------------------------------------
-!*    Control variables for GPSRO observations - constant within job
-!
-!     LEVELGPSRO: Data level to use (1 for bending angle, 2 for refractivity)
-!     GPSRO_MAXPRFSIZE: Maximal number of data that is expected from a profile (default 300)
-!     SURFMIN:  Minimum allowed distance to the model surface (default 1000 m)
-!     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
-!     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
-!     HTPMAXER: Maximum MSL height to evaluate the obs error  (default to HTPMAX)
-!     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
-!     gpsroError: key for using dynamic/static refractivity error estimation (default 'DYNAMIC')
-!     gpsroBNorm: Whether to normalize based on B=H(x) (default=.True.), or upon an approximate exponential reference.
-!     gpsroEotvos: Add an operator-only Eotvos correction to local gravity (shift of altitudes, default False)
-!
-!     J.M. Aparicio, Apr 2008, 2022
-!
-!     Revision 01: M. Bani Shahabadi, Nov 2018
-!       - adding the gpsroError key to use static error estimation for the refractivity.
-!         This is for testing in MIDAS based on the cost function. J.M. Aparicio 
-!         recommended to ALWAYS set it to true (dynamic error) for operations.
-!
+  ! Public versions of namelist variables
   INTEGER gps_Level_RO, gps_RO_MAXPRFSIZE
   REAL*8  gps_SurfMin, gps_HsfMin, gps_HtpMax, gps_BgckBand, gps_HtpMaxEr
   REAL*4  gps_Wgps(0:1023,4)
   character(len=20) :: gps_roError
-  LOGICAL :: gps_roBNorm
-  INTEGER LEVELGPSRO
-  INTEGER GPSRO_MAXPRFSIZE
-  REAL*8  SURFMIN
-  REAL*8  HSFMIN
-  REAL*8  HTPMAX
-  REAL*8  BGCKBAND
-  REAL*8  HTPMAXER
-  REAL*4  WGPS(0:1023,4)
-  character(len=20) :: gpsroError
-  LOGICAL :: gpsroBNorm
-  LOGICAL :: gpsroEotvos
-
-  NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,HTPMAXER, &
-                      BGCKBAND,WGPS, gpsroError, gpsroBNorm, gpsroEotvos
+  LOGICAL :: gps_roBNorm, gps_gpsroEotvos
 
 
 !modgpsztd_mod
@@ -256,54 +221,11 @@ module gps_mod
   integer                 :: gps_gb_numZTD            ! number of ZTD data to be assimilated
   integer , allocatable   :: gps_ZTD_Index (:)        ! INDEX_HEADER in CMA (ObsSpace) for each ZTD observation
 
-!*    Namelist variables for Ground-based GPS (ZTD)
-!
-!     DZMIN:      Minimum DZ = Zobs-Zmod (m) for which DZ adjustment to ZTD 
-!                 will be made.
-!     YSFERRWGT:  Weighting factor multiplier for GPS surface met errors (to 
-!                 account for time series observations with error correlations)
-!     DZMAX:      Maximum DZ (m) over which the ZTD data are rejected
-!                 due to topography (used in SOBSSFC when LTOPOFILT = .TRUE.)
-!     YZTDERR:    If < 0 then read ZTD errors from data blocks in input
-!                 files (i.e. the formal errors). 
-!                 If > 0 then use value as a constant error (m) for all ZTD
-!                 observations.
-!                 If = 0 then compute error as a function of ZWD.
-!     LASSMET:    Flag to assimilate GPS Met surface P, T, T-Td
-!     LLBLMET:    Flag to indicate that surface met data have been blacklisted
-!                 for GPS sites close to surface weather stations.
-!     YZDERRWGT:  Weighting factor multiplier for GPS ZTD errors (to account
-!                 for time series observations with error correlations)
-!     LBEVIS:     .true.  = use Bevis(1994)  refractivity (k1,k2,k3) constants
-!                 .false. = use Rueger(2002) refractivity (k1,k2,k3) constants
-!     IREFOPT:    1 = conventional expression for refractivity N using k1,k2,k3
-!                 2 = Aparicio & Laroche refractivity N (incl. compressibility)
-!     L1OBS       Flag to select a single ZTD observation using criteria in
-!                 subroutine DOBSGPSGB
-!     LTESTOP     Flag to test ZTD observation operator (Omp and Bgck modes only)
-!                 Runs subroutine SETFGEGPS to do the test.
-!     IZTDOP      1 = normal mode: use stored ZTD profiles to get ZTDmod
-!                 2 = Vedel & Huang ZTD formulation: ZTDmod = ZHD(Pobs) + ZWD
-!
+  ! Public versions of namelist variables
   REAL*8 gps_gb_DZMIN, gps_gb_YZTDERR, gps_gb_YSFERRWGT, gps_gb_YZDERRWGT
   REAL(8) :: gps_gb_DZMAX = 1000.d0 ! need to give it a default value here in case setup not called
   INTEGER gps_gb_IREFOPT, gps_gb_IZTDOP
   LOGICAL gps_gb_LASSMET, gps_gb_LLBLMET, gps_gb_LBEVIS, gps_gb_L1OBS, gps_gb_LTESTOP
-  REAL*8  DZMIN
-  REAL(8) :: DZMAX = 1000.0D0 ! need to give it a default value here in case setup not called
-  REAL*8  YZTDERR
-  REAL*8  YSFERRWGT
-  REAL*8  YZDERRWGT
-  LOGICAL LASSMET
-  LOGICAL LLBLMET
-  LOGICAL LBEVIS
-  LOGICAL L1OBS
-  LOGICAL LTESTOP
-  INTEGER IREFOPT
-  INTEGER IZTDOP
-
-  NAMELIST /NAMGPSGB/ DZMIN, DZMAX, YZTDERR, LASSMET, YSFERRWGT,  &
-       LLBLMET, YZDERRWGT, LBEVIS, L1OBS, LTESTOP, IREFOPT, IZTDOP
 
 contains
 
@@ -1094,7 +1016,7 @@ contains
     !
     ! Fill altitude placeholders:
     !
-    if (gpsroEotvos) then
+    if (gps_gpsroEotvos) then
       call gpsro_Eotvos_dH(ngpslev, rLat, rALT, rUU, rVV, rALT_E)
     else
       rALT_E(1:ngpslev) = rALT(1:ngpslev)
@@ -2956,7 +2878,36 @@ contains
     implicit none
 
     ! Locals:
-    integer nulnam,ierr,fnom,fclos,SatID
+    integer :: nulnam,ierr,fnom,fclos,SatID
+    
+    !*    Namelist variables for GPS-RO
+    !
+    !     LEVELGPSRO: Data level to use (1 for bending angle, 2 for refractivity)
+    !     GPSRO_MAXPRFSIZE: Maximal number of data that is expected from a profile (default 300)
+    !     SURFMIN:  Minimum allowed distance to the model surface (default 1000 m)
+    !     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
+    !     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
+    !     HTPMAXER: Maximum MSL height to evaluate the obs error  (default to HTPMAX)
+    !     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
+    !     gpsroError: key for using dynamic/static refractivity error estimation (default 'DYNAMIC')
+    !     gpsroBNorm: Whether to normalize based on B=H(x) (default=.True.), or upon an approximate exponential reference.
+    !     gpsroEotvos: Add an operator-only Eotvos correction to local gravity (shift of altitudes, default False)
+    INTEGER LEVELGPSRO
+    INTEGER GPSRO_MAXPRFSIZE
+    REAL*8  SURFMIN
+    REAL*8  HSFMIN
+    REAL*8  HTPMAX
+    REAL*8  BGCKBAND
+    REAL*8  HTPMAXER
+    REAL*4  WGPS(0:1023,4)
+    character(len=20) :: gpsroError
+    LOGICAL :: gpsroBNorm
+    LOGICAL :: gpsroEotvos
+
+    NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,HTPMAXER, &
+                        BGCKBAND,WGPS, gpsroError, gpsroBNorm, gpsroEotvos
+
+
 !
 !   Define default values:
 !
@@ -3000,6 +2951,8 @@ contains
     gps_roError       = gpsroError
     gps_roBNorm       = gpsroBNorm
     gps_WGPS = WGPS
+    gps_gpsroEotvos = gpsroEotvos
+
     if(mmpi_myid.eq.0) then
       write(*,*)'NAMGPSRO',gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SurfMin, gps_HsfMin, &
            gps_HtpMax, gps_HtpMaxEr, gps_BgckBand, trim(gps_roError), gps_roBNorm, gpsroEotvos
@@ -3043,6 +2996,51 @@ contains
 
     ! Locals:
     integer :: nulnam,ierr,fnom,fclos
+
+    ! Namelist variables for Ground-based GPS (ZTD)
+    !
+    !     DZMIN:      Minimum DZ = Zobs-Zmod (m) for which DZ adjustment to ZTD 
+    !                 will be made.
+    !     YSFERRWGT:  Weighting factor multiplier for GPS surface met errors (to 
+    !                 account for time series observations with error correlations)
+    !     DZMAX:      Maximum DZ (m) over which the ZTD data are rejected
+    !                 due to topography (used in SOBSSFC when LTOPOFILT = .TRUE.)
+    !     YZTDERR:    If < 0 then read ZTD errors from data blocks in input
+    !                 files (i.e. the formal errors). 
+    !                 If > 0 then use value as a constant error (m) for all ZTD
+    !                 observations.
+    !                 If = 0 then compute error as a function of ZWD.
+    !     LASSMET:    Flag to assimilate GPS Met surface P, T, T-Td
+    !     LLBLMET:    Flag to indicate that surface met data have been blacklisted
+    !                 for GPS sites close to surface weather stations.
+    !     YZDERRWGT:  Weighting factor multiplier for GPS ZTD errors (to account
+    !                 for time series observations with error correlations)
+    !     LBEVIS:     .true.  = use Bevis(1994)  refractivity (k1,k2,k3) constants
+    !                 .false. = use Rueger(2002) refractivity (k1,k2,k3) constants
+    !     IREFOPT:    1 = conventional expression for refractivity N using k1,k2,k3
+    !                 2 = Aparicio & Laroche refractivity N (incl. compressibility)
+    !     L1OBS       Flag to select a single ZTD observation using criteria in
+    !                 subroutine DOBSGPSGB
+    !     LTESTOP     Flag to test ZTD observation operator (Omp and Bgck modes only)
+    !                 Runs subroutine SETFGEGPS to do the test.
+    !     IZTDOP      1 = normal mode: use stored ZTD profiles to get ZTDmod
+    !                 2 = Vedel & Huang ZTD formulation: ZTDmod = ZHD(Pobs) + ZWD
+    !
+    REAL*8  DZMIN
+    REAL(8) :: DZMAX = 1000.0D0 ! need to give it a default value here in case setup not called
+    REAL*8  YZTDERR
+    REAL*8  YSFERRWGT
+    REAL*8  YZDERRWGT
+    LOGICAL LASSMET
+    LOGICAL LLBLMET
+    LOGICAL LBEVIS
+    LOGICAL L1OBS
+    LOGICAL LTESTOP
+    INTEGER IREFOPT
+    INTEGER IZTDOP
+
+    NAMELIST /NAMGPSGB/ DZMIN, DZMAX, YZTDERR, LASSMET, YSFERRWGT,  &
+         LLBLMET, YZDERRWGT, LBEVIS, L1OBS, LTESTOP, IREFOPT, IZTDOP
 
 !*  .  1.1 Default values
 !!  .      --------------
