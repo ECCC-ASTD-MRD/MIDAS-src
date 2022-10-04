@@ -131,10 +131,10 @@ module backgroundCheck_mod
    
     implicit none
 
-    ! NOTE 1: YSFERRWGT IN MODGPSZTD_MOD (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
+    ! NOTE 1: gps_gb_YSFERRWGT IN MODGPSZTD_MOD (FROM NML FILE) IS USED HERE FOR ERROR WEIGHTING
     !         OF TIME SERIES (FGAT) GPS MET OBSERVATIONS PS, TS, DPDS. IT IS APPLIED
-    !         (ALONG WITH YZDERRWGT FOR ZTD) IN S/R SETERR AS A MULT. FACTOR TO ERRORS.
-    !         YZDERRWGT AND YSFERRWGT = 1 FOR NORMAL 3D-VAR (3D-THINNING).
+    !         (ALONG WITH gps_gb_YZDERRWGT FOR ZTD) IN S/R SETERR AS A MULT. FACTOR TO ERRORS.
+    !         gps_gb_YZDERRWGT AND gps_gb_YSFERRWGT = 1 FOR NORMAL 3D-VAR (3D-THINNING).
 
     ! Arguments
     character(len=2), intent(in)    :: obsFamily   ! current observation family
@@ -239,9 +239,9 @@ module backgroundCheck_mod
             ! Protect against error std dev values that are too small
             if ( obsFamily == 'GP' ) then
               if ( obsVarno == BUFR_NEZD ) then
-                ZOER = ZOER / YZDERRWGT
+                ZOER = ZOER / gps_gb_YZDERRWGT
               else
-                ZOER = ZOER / YSFERRWGT
+                ZOER = ZOER / gps_gb_YSFERRWGT
               end if
               if ( ZOER < 1.0d-3 .and. obsVarno /= BUFR_NEZD ) then
                 write(*,*)' Problem for GP STNID ZOER= ' , stnid, ZOER
@@ -303,7 +303,7 @@ module backgroundCheck_mod
             end if
 
             stnid = obs_elem_c( obsData, 'STID', headerIndex )
-            if ( obsFlag >= 2 .or. ( LLZD .and. LTESTOP )) then
+            if ( obsFlag >= 2 .or. ( LLZD .and. gps_gb_LTESTOP )) then
               if ( obsFamily /= 'CH' ) then 
                 write(*,122)  &
                    stnid, zlat, zlon, codeType, obsVarno, ZLEV, ZVAR, ZOER,  &
@@ -562,7 +562,7 @@ module backgroundCheck_mod
                   if ( varNum == bufr_nebd ) then
                      ZREF = 0.025d0*exp(-HNH1/6500.d0)
                   else
-                     if ( .not. gpsroBNorm ) then
+                     if ( .not. gps_roBNorm ) then
                        ZREF = 300.d0*exp(-HNH1/6500.d0)
                      else
                        ZREF = ZMHX
@@ -571,13 +571,13 @@ module backgroundCheck_mod
                            
                   ! OMF Tested criteria:
 
-                  if ( .not. gpsroBNorm ) then
-                    if (DABS(ZOMF)/ZREF > BGCKBAND .or. DABS(ZOMF)/ZOER > 3.d0) then
+                  if ( .not. gps_roBNorm ) then
+                    if (DABS(ZOMF)/ZREF > gps_BgckBand .or. DABS(ZOMF)/ZOER > 3.d0) then
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),16))
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),9))
                     end if
                   else
-                    if ( DABS(ZOMF)/ZREF > BGCKBAND ) then
+                    if ( DABS(ZOMF)/ZREF > gps_BgckBand ) then
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),16))
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),9))
                       write(*,'(A40,F10.0,3F12.4)') ' REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF

@@ -294,13 +294,13 @@ contains
       !
       ! Ground-based GPS (GP) data (codtyp 189)
       ! LLOK = .TRUE. DY DEFAULT IF ELEMENT IS IN NLIST
-      ! If LASSMET = .FALSE. don't want to assimilate Ps (BUFR_NEPS),
+      ! If gps_gb_LASSMET = .FALSE. don't want to assimilate Ps (BUFR_NEPS),
       ! Ts (BUFR_NETS), or (T-Td)s (BUFR_NESS)
       !
       if ( idburp == 189 ) then
-        if (.not.lassmet .and. ( ivnm == BUFR_NEPS .or.  &
-                                 ivnm == BUFR_NETS .or.  &
-                                 ivnm == BUFR_NESS )) then
+        if (.not.gps_gb_lassmet .and. ( ivnm == BUFR_NEPS .or.  &
+                                        ivnm == BUFR_NETS .or.  &
+                                        ivnm == BUFR_NESS )) then
           llok = .false.
         end if
       end if
@@ -429,9 +429,9 @@ contains
     character(len=4) :: varLevel
 
     !
-    ! reset dzmax for gb gps ztd to value in namelist file
+    ! reset gps_gb_dzmax for gb gps ztd to value in namelist file
     !
-    altDiffMax(findElemIndex(BUFR_NEZD)) = dzmax
+    altDiffMax(findElemIndex(BUFR_NEZD)) = gps_gb_dzmax
 
     if (  .not.beSilent ) then
       write(*,*) ' '
@@ -1445,7 +1445,7 @@ end subroutine filt_topoAISW
         !
         ! Check if the satellite is within the accepted set:
         !
-        ZSAT = ABS(WGPS(ISAT,1))+ABS(WGPS(ISAT,2))+ABS(WGPS(ISAT,3))+ABS(WGPS(ISAT,4))
+        ZSAT = ABS(gps_WGPS(ISAT,1))+ABS(gps_WGPS(ISAT,2))+ABS(gps_WGPS(ISAT,3))+ABS(gps_WGPS(ISAT,4))
         LSAT = ( ZSAT > 0.d0 )
         !
         ZMT = col_getHeight(columnTrlOnTrlLev,0,index_header,'SF')
@@ -1454,9 +1454,9 @@ end subroutine filt_topoAISW
         !
         JL = 1
         HTP = col_getHeight(columnTrlOnTrlLev,JL,INDEX_HEADER,'TH')
-        HSF = ZMT+SURFMIN
-        IF (HSF < HSFMIN) HSF=HSFMIN
-        IF (HTP > HTPMAX) HTP=HTPMAX
+        HSF = ZMT+gps_SurfMin
+        IF (HSF < gps_HsfMin) HSF=gps_HsfMin
+        IF (HTP > gps_HtpMax) HTP=gps_HtpMax
         HMIN=Geo+HSF
         HMAX=Geo+HTP
         !
@@ -1501,12 +1501,12 @@ end subroutine filt_topoAISW
             IFLG = obs_bodyElem_i(obsSpaceData,OBS_FLG,INDEX_BODY)
             call obs_bodySet_i(obsSpaceData,OBS_FLG,INDEX_BODY, IBSET(IFLG,11))
           end if
-          ! Do not assimilate bending in mode levelgpsro = LEVELGPSRO_REF:
-          if (varNum == bufr_nebd .and. levelgpsro == LEVELGPSRO_REF) then
+          ! Do not assimilate bending in mode gps_Level_RO = gps_Level_RO_Ref:
+          if (varNum == bufr_nebd .and. gps_Level_RO == gps_Level_RO_Ref) then
             call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
           endif
-          ! Do not assimilate refractivity in mode levelgpsro = LEVELGPSRO_BND:
-          if (varNum == bufr_nerf .and. levelgpsro == LEVELGPSRO_BND) then
+          ! Do not assimilate refractivity in mode gps_Level_RO = gps_Level_RO_Bnd:
+          if (varNum == bufr_nerf .and. gps_Level_RO == gps_Level_RO_Bnd) then
             call obs_bodySet_i(obsSpaceData,OBS_ASS,INDEX_BODY, obs_notAssimilated)
           endif
         end do BODY

@@ -752,7 +752,7 @@ module obsSpaceErrorStdDev_mod
       ! OPTIONAL TEST OF THE GB-GPS ZTD OPERATOR JACOBIAN
       ! -------------------------------------------------
 
-      if (ltestop) call setfgegps(column,columnTrlOnAnlIncLev,lobsSpaceData)
+      if (gps_gb_ltestop) call setfgegps(column,columnTrlOnAnlIncLev,lobsSpaceData)
 
       deallocate(scaleFactor)
       call col_deallocate(column)
@@ -1374,8 +1374,8 @@ module obsSpaceErrorStdDev_mod
 
       INTEGER NH, NH1
 
-      ! REAL*8 JAC(ngpscvmx)
-      REAL*8 DV (ngpscvmx)
+      ! REAL*8 JAC(gps_ncvmx)
+      REAL*8 DV (gps_ncvmx)
       TYPE(GPS_PROFILE)           :: PRF
       REAL*8       , allocatable :: H   (:),AZMV(:)
       TYPE(GPS_DIFF), allocatable :: RSTV(:)
@@ -1401,14 +1401,14 @@ module obsSpaceErrorStdDev_mod
          allocate(zUU (NGPSLEV))
          allocate(zVV (NGPSLEV))
 
-         allocate(ose_vRO_Jacobian(gps_numROProfiles,GPSRO_MAXPRFSIZE,2*NGPSLEV+1))
+         allocate(ose_vRO_Jacobian(gps_numROProfiles,gps_RO_MAXPRFSIZE,2*NGPSLEV+1))
          allocate(ose_vRO_lJac    (gps_numROProfiles))
          ose_vRO_Jacobian = 0.d0
          ose_vRO_lJac = .False.
 
-         allocate( H    (GPSRO_MAXPRFSIZE) )
-         allocate( AZMV (GPSRO_MAXPRFSIZE) )
-         allocate( RSTV (GPSRO_MAXPRFSIZE) )
+         allocate( H    (gps_RO_MAXPRFSIZE) )
+         allocate( AZMV (gps_RO_MAXPRFSIZE) )
+         allocate( RSTV (gps_RO_MAXPRFSIZE) )
       endif
 
       vco_anl => col_getVco(columnTrlOnAnlIncLev)
@@ -1465,7 +1465,7 @@ module obsSpaceErrorStdDev_mod
                   Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
                   !Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
                   sLat = sin(zLat)
-                  zMT  = zMT * ec_rg / gpsgravitysrf(sLat)
+                  zMT  = zMT * ec_rg / gps_gravitysrf(sLat)
                   zP0  = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
 
                   ! approximation for dPdPs               
@@ -1481,7 +1481,7 @@ module obsSpaceErrorStdDev_mod
                      ! Profile x
 
                      zPP(JL) = col_getPressure(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
-                     zTT(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT') - p_TC
+                     zTT(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT') - MPC_K_C_DEGREE_OFFSET_R8
                      zHU(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'HU')
                      zHT(JL) = col_getHeight(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
                      zUU(JL) = 0.d0
@@ -1598,7 +1598,7 @@ module obsSpaceErrorStdDev_mod
     !          observation operator
     !
     !:Option: Test ZTD operators (compares H(x+dx)-H(x) with (dH/dx)*dx
-    !         when LTESTOP = .true.)
+    !         when gps_gb_LTESTOP = .true.)
     !
     !:Note:
     !      _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -1606,7 +1606,7 @@ module obsSpaceErrorStdDev_mod
     !                                                                          
     !          :NOTE: Effective Rev644M, this routine is no longer used!       
     !                 FGE for ZTD is no longer needed for background check.    
-    !                 Routine is called only when LTESTOP=.true., in which     
+    !                 Routine is called only when gps_gb_LTESTOP=.true., in which     
     !                 case the operator test only is done.                     
     !                                                                          
     !      _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
@@ -1643,8 +1643,8 @@ module obsSpaceErrorStdDev_mod
       REAL*8 ZP0B, ZP0B_P
       REAL*8 ZMT, ZTOP, ZBOT
  
-      REAL*8 JAC(ngpscvmx)
-      REAL*8 DX (ngpscvmx)
+      REAL*8 JAC(gps_ncvmx)
+      REAL*8 DX (gps_ncvmx)
 
       REAL*8 ZLEV, ZTDOBS, ZPSMOD
       REAL*8 ZLSUM
@@ -1669,7 +1669,7 @@ module obsSpaceErrorStdDev_mod
 
       real*8, dimension(:), pointer :: dPdPs
 
-      IF (numGPSZTD .EQ. 0) RETURN
+      IF (gps_gb_numZTD .EQ. 0) RETURN
 
       ! Initializations
 
@@ -1695,7 +1695,7 @@ module obsSpaceErrorStdDev_mod
 
       STN_JAC = 'FSL_BRFT '
       
-      ZDZMIN = DZMIN
+      ZDZMIN = gps_gb_DZMIN
 
       vco_anl => col_getVco(columnTrlOnAnlIncLev)
       status = vgd_get(vco_anl%vgrid,key='ig_1 - vertical coord code',value=iversion)
@@ -1709,7 +1709,7 @@ module obsSpaceErrorStdDev_mod
          WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
       endif
 
-      IF ( .NOT.LTESTOP ) THEN
+      IF ( .NOT.gps_gb_LTESTOP ) THEN
 
       first_header=-1
       icount = 0
@@ -1770,8 +1770,8 @@ module obsSpaceErrorStdDev_mod
                      ZP0  = col_getElem(column,1,INDEX_HEADER,'P0')
                      DX(3*NFLEV_T+1) = ZP0
                      ZMT  = zHeight(NFLEV_T)
-                     CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZHUB,zHeight,LBEVIS,IREFOPT,PRF)
-                     CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
+                     CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZHUB,zHeight,gps_gb_LBEVIS,gps_gb_IREFOPT,PRF)
+                     CALL gps_ztdopv(ZLEV,PRF,gps_gb_LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,gps_gb_IZTDOP)
                      JAC = ZTDopv%DVar
 
                      DO INDEX_BODY= IDATA, IDATEND
@@ -1817,7 +1817,7 @@ module obsSpaceErrorStdDev_mod
 
       !-------------------------------------------------------------------------
 
-      IF ( LTESTOP ) THEN
+      IF ( gps_gb_LTESTOP ) THEN
       
       allocate(ZTTB_P(NFLEV_T))
       allocate(ZQQB_P(NFLEV_T))
@@ -1906,12 +1906,12 @@ module obsSpaceErrorStdDev_mod
 
            ! Non-linear observation operator --> delta_H = H(x+delta_x) - H(x)
 
-           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZQQB,zHeight,LBEVIS,IREFOPT,PRF)
-           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZTTB_P,ZQQB_P,zHeight_P,LBEVIS,IREFOPT,PRFP)
-           CALL gps_ztdopv(ZLEV,PRF,LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,IZTDOP)
+           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZQQB,zHeight,gps_gb_LBEVIS,gps_gb_IREFOPT,PRF)
+           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZTTB_P,ZQQB_P,zHeight_P,gps_gb_LBEVIS,gps_gb_IREFOPT,PRFP)
+           CALL gps_ztdopv(ZLEV,PRF,gps_gb_LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,gps_gb_IZTDOP)
            JAC  = ZTDopv%DVar
            ZTDM = ZTDopv%Var
-           CALL gps_ztdopv(ZLEV,PRFP,LBEVIS,ZDZMIN,ZTDopvP,ZPSMOD,IZTDOP)
+           CALL gps_ztdopv(ZLEV,PRFP,gps_gb_LBEVIS,ZDZMIN,ZTDopvP,ZPSMOD,gps_gb_IZTDOP)
            DELTAH_NL = ZTDopvP%Var - ZTDopv%Var
 
            ! Linear  --> delta_H = dH/dx * delta_x
