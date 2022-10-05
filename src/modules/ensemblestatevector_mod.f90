@@ -2257,17 +2257,14 @@ CONTAINS
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer,pointer :: dateStampList(:)
-    integer :: batchnum, nsize, status, ierr
+    integer :: batchnum, nsize, ierr
     integer :: yourid, youridx, youridy
     integer :: readFilePE(1000)
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvdispls(mmpi_nprocs)
-    integer :: memberIndexOffset, totalEnsembleSize
-    integer :: length_envVariable
     integer :: lonPerPEmax, latPerPEmax, ni, nj, numK, numStep, numLevelsToSend2
-    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, procIndex
+    integer :: memberIndex, memberIndex2, stepIndex, procIndex
     integer :: kIndexBeg, kIndexEnd, kCount
     character(len=256) :: ensFileName
-    character(len=32)  :: envVariable
     character(len=2)   :: typvar
     character(len=12)  :: etiket
     character(len=4), pointer :: anlVar(:)
@@ -2316,33 +2313,6 @@ CONTAINS
     end if
     if ( ignoreDate .and. (numStep > 1) ) then
       call utl_abort('ens_readEnsemble: cannot ignore date if numStep > 1')
-    end if
-
-    ! Retrieve environment variables related to doing an ensemble of perturbed analyses
-    status = 0
-    call get_environment_variable('envar_memberIndexOffset',envVariable,length_envVariable,status,.true.)
-    if (status.gt.1) then
-      write(*,*) 'ens_readEnsemble: Problem when getting the environment variable envar_memberIndexOffset'
-      memberIndexOffset = 0
-    else if (status == 1) then
-      memberIndexOffset = 0
-    else
-      write(*,*) 'ens_readEnsemble: The environment variable envar_memberIndexOffset has been detected: ',envVariable
-      read(envVariable,'(i8)') memberIndexOffset
-      write(*,*) 'memberIndexOffset = ',memberIndexOffset
-    end if
-
-    status = 0
-    call get_environment_variable('envar_totalEnsembleSize',envVariable,length_envVariable,status,.true.)
-    if (status.gt.1) then
-      write(*,*) 'ens_readEnsemble: Problem when getting the environment variable envar_totalEnsembleSize'
-      totalEnsembleSize = ens%numMembers
-    else if (status == 1) then
-      totalEnsembleSize = ens%numMembers
-    else
-      write(*,*) 'ens_readEnsemble: The environment variable envar_totalEnsembleSize has been detected: ',envVariable
-      read(envVariable,'(i8)') totalEnsembleSize
-      write(*,*) 'totalEnsembleSize = ',totalEnsembleSize
     end if
 
     ! Set up hco and vco for ensemble files
@@ -2454,8 +2424,7 @@ CONTAINS
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
           !  Read the file
-          fileMemberIndex = 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
-          call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=fileMemberIndex)
+          call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=memberIndex)
           typvar = ' '
           etiket = ' '
           if (.not. horizontalInterpNeeded  .and. &
