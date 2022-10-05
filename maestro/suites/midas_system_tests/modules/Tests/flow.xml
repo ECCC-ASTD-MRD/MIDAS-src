@@ -326,6 +326,11 @@
     <FAMILY  name="thin_AL">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
+    </FAMILY>    
+    <SUBMITS sub_name="SST"/>
+    <FAMILY  name="SST">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
     </FAMILY>
   </FAMILY>
 

@@ -64,7 +64,7 @@ program midas_obsSelection
   integer :: get_max_rss, fnom, fclos
 
   ! Namelist variables
-  logical :: doThinning ! Control whether or not thinning is done
+  logical :: doThinning = .false. ! Control whether or not thinning is done
 
   namelist /namObsSelection/ doThinning
 
@@ -78,20 +78,19 @@ program midas_obsSelection
   call utl_tmg_start(0,'Main')
 
   !- 1.2 Read the namelist for obsSelection program (if it exists)
-  doThinning = .false.
-  if (utl_isNamelistPresent('namObsSelection','./flnml')) then
+  if (utl_isNamelistPresent('namObsSelection', './flnml')) then
     nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     if (ierr /= 0) call utl_abort('midas-obsSelection: Error opening file flnml')
-    read(nulnam,nml=namObsSelection,iostat=ierr)
+    read(nulnam, nml = namObsSelection, iostat = ierr)
     if (ierr /= 0) call utl_abort('midas-obsSelection: Error reading namelist')
-    if (mmpi_myid == 0) write(*,nml=namObsSelection)
+    if (mmpi_myid == 0) write(*, nml = namObsSelection)
     ierr = fclos(nulnam)
   else
     write(*,*)
     write(*,*) 'midas-obsSelection: Namelist block namObsSelection is missing in the namelist.'
     write(*,*) '                    The default value will be taken.'
-    if (mmpi_myid == 0) write(*,nml=namObsSelection)
+    if (mmpi_myid == 0) write(*, nml = namObsSelection)
   end if
 
   !
@@ -102,12 +101,12 @@ program midas_obsSelection
   !     
   !- Initialize observation file names, but don't use datestamp
   !
-  call obsf_setup( dateStamp, 'bgck' )
+  call obsf_setup(dateStamp, 'bgck')
 
   !
   !- Initialize the Temporal grid
   !
-  call tim_setup( fileNameForDate_opt='./trlm_01' )
+  call tim_setup(fileNameForDate_opt='./trlm_01')
 
   !
   !- Initialize constants
@@ -256,7 +255,8 @@ program midas_obsSelection
     call thn_thinScat(obsSpaceData)
     call thn_thinSatWinds(obsSpaceData)
     call thn_thinAircraft(obsSpaceData)
-    call thn_thinSurface(obsSpaceData)
+    call thn_thinSurface(obsSpaceData, 'SF') ! surface data thinning
+    call thn_thinSurface(obsSpaceData, 'TM') ! SST thinning
     call thn_thinGbGps(obsSpaceData)
     call thn_thinGpsRo(obsSpaceData)
     call thn_thinAladin(obsSpaceData)

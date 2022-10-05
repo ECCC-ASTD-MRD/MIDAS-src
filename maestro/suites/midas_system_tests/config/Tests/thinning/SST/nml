@@ -1,0 +1,78 @@
+ &thin_surface
+   doThinning   = .true.
+   step         = 24.0d0
+   deltmax      = 1440
+   useBlackList = .false.
+/
+ &NAMSTATE
+  ANLVAR(1) = 'TM'
+/
+ &NAMTIME
+  DSTEPOBS    = 48.0d0
+  DSTEPOBSINC = 48.0d0
+  DWINDOWSIZE = 48.0d0
+/
+ &NAMFILT
+  NELEMS = 1,
+  NLIST(1)=22042,
+  NFLAGS=6,
+  NLISTFLG(1)=2
+  NLISTFLG(2)=3
+  NLISTFLG(3)=4
+  NLISTFLG(4)=10
+  NLISTFLG(5)=11
+  NLISTFLG(6)=12
+/
+ &NAMDIMO
+   NMXOBS=1500000,
+   NDATAMX=1500000
+/
+ &NAMSQLsfc
+   numberElem=1
+   listElem='22042'
+   sqlNull=' and obsvalue is not null '  
+/
+ &namSSTObsErrors
+   numberSSTDatasets = 10
+   !#                     dataType ,    instrument ,   sensor ,  sensorType , codetype , dayError , nightError
+   SSTdataParams(1)  =    'insitu' ,     'drifter' ,       '' ,          '' ,       18 ,     0.36 ,       0.36
+   SSTdataParams(2)  =    'insitu' ,        'ship' ,       '' ,          '' ,       13 ,     0.64 ,       0.64
+   SSTdataParams(3)  =    'insitu' , 'moored buoy' ,       '' ,          '' ,      147 ,     0.49 ,       0.49
+   SSTdataParams(4)  = 'satellite' ,       'AVHRR' , 'NOAA19' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   SSTdataParams(5)  = 'satellite' ,       'AVHRR' , 'METO-A' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   SSTdataParams(6)  = 'satellite' ,       'AVHRR' , 'METO-B' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   SSTdataParams(7)  = 'satellite' ,       'AVHRR' , 'METO-C' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   SSTdataParams(8)  = 'satellite' ,       'VIIRS' ,    'N20' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   SSTdataParams(9)  = 'satellite' ,       'VIIRS' ,    'NPP' ,  'infrared' ,       88 ,     0.80 ,       0.49
+   SSTdataParams(10) = 'satellite' ,       'AMSR2' ,  'AMSR2' , 'microwave' ,       88 ,     0.80 ,       0.80
+/
+ &namReadSSTSat
+   numberElem=1
+   listElem='22042'
+   sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","METO-C","NOAA19","N20","NPP","AMSR2")) '
+   sqlNull=' and obsvalue is not null '
+   sqlExtraHeader=' id_stn in ("METO-A","METO-B","METO-C","NOAA19","N20","NPP","AMSR2") '
+/ 
+ &namOceanBGcheck
+   checkWinds=.true.
+   ndaysWinds=4
+   timeStepWinds=6
+   windForecastLeadtime=6
+   minLatNH=10.
+   maxLatNH=40.
+   maxLatExceptionNH=45.
+   nmonthsExceptionNH=2
+   monthExceptionNH(1)='Aug'
+   monthExceptionNH(2)='Sep'
+   minLatSH=-35.
+   maxLatSH=-10.
+   smoothLenghtScale=50000.
+/
+ &namSQLUpdate
+  numberUpdateItems=3
+  itemUpdateList(1)='OMP'
+  itemUpdateList(2)='OER'
+  itemUpdateList(3)='FGE'
+/
+ &namSQLInsert
+/
