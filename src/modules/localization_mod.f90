@@ -24,7 +24,6 @@ module localization_mod
   use midasMpi_mod
   use utilities_mod
   use localizationSpectral_mod
-  use localizationFunction_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use ensembleStatevector_mod

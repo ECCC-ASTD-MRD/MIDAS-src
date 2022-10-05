@@ -35,11 +35,9 @@ module ensPostProcess_mod
   use gridVariableTransforms_mod
   use bMatrix_mod
   use humidityLimits_mod
-  use localizationFunction_mod
   use varNameList_mod
   use fileNames_mod
   use clib_interfaces_mod
-  use physicsFunctions_mod
   implicit none
   save
   private

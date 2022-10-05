@@ -43,11 +43,14 @@ module increment_mod
 
   integer, external :: get_max_rss
 
-  ! namelist variables
+  ! Namelist variables:
   integer  :: writeNumBits
   logical  :: writeHiresIncrement
-  logical  :: imposeRttovHuLimits, useAnalIncMask
-  character(len=12) :: etiket_anlm, etiket_rehm, etiket_rebm
+  logical  :: imposeRttovHuLimits
+  logical :: useAnalIncMask
+  character(len=12) :: etiket_anlm
+  character(len=12) :: etiket_rehm
+  character(len=12) :: etiket_rebm
   character(len=12) :: hInterpolationDegree
   logical :: applyLiebmann
   logical :: SSTSpread  

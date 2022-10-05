@@ -31,7 +31,6 @@ module analysisErrorOI_mod
   use gridStateVectorFileIO_mod
   use kdtree2_mod
   use midasMpi_mod
-  use obserrors_mod
   use obsSpaceData_mod
   use physicsFunctions_mod
   use stateToColumn_mod
@@ -779,8 +778,6 @@ contains
     character(len=*), intent(in) :: trlmFileName
 
     ! Local Variables
-    integer :: fnom, fclos, nulnam, ierr
-
     type(struct_gsv) :: stateVectorBkGnd
     type(struct_gsv) :: stateVectorAnal
     real(8), pointer :: bkGndDaysSinceLastObs_ptr(:,:,:,:), analysisDaysSinceLastObs_ptr(:,:,:,:)

@@ -20,17 +20,13 @@ module var1D_mod
   ! :Purpose: contains all 1Dvar-related methods.
   !
   use columnData_mod
-  use columnVariableTransforms_mod
-  use controlVector_mod
   use gridStatevector_mod
   use horizontalCoord_mod
   use midasMpi_mod 
   use obsSpaceData_mod
   use timeCoord_mod
-  use utilities_mod
   use verticalCoord_mod
   use codeprecision_mod
-  use tovs_nl_mod
   use mathphysconstants_mod
 
   implicit none
@@ -53,13 +49,12 @@ contains
   !--------------------------------------------------------------------------
   !  var1D_setup
   !--------------------------------------------------------------------------
-  subroutine var1D_setup(vco_in, obsSpaceData)
+  subroutine var1D_setup(obsSpaceData)
     !
     ! :Purpose: to setup var1D module
     !
     implicit none
     ! arguments:
-    type(struct_vco), pointer, intent(in):: vco_in
     type (struct_obs), intent(in)        :: obsSpaceData
     ! locals:
     integer :: countGood, headerIndex

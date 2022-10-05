@@ -63,7 +63,7 @@ program midas_diagBmatrix
   integer :: ierr, nsize, iseed
   integer :: ensIndex, index, kIndex, nkgdim, levIndex, lonIndex, latIndex
   integer :: idate, itime, nulnam, nultxt, dateStamp, numLoc, numStepAmplitude
-  integer :: nlevs, nlevs2, varIndex, ip3, oneobs_timeStepIndex
+  integer :: nlevs, nlevs2, varIndex, ip3
   integer :: locIndex, stepIndexInc, nEns, numBensInstance, instanceIndex
   integer :: amp3dStepIndex, nLonLatPos, lonLatPosIndex
 
@@ -78,7 +78,7 @@ program midas_diagBmatrix
   character(len=128) :: filename, filenameInc, filenameIncNorm, filenameEnsAmp
   character(len=128) :: oneobs_timeStep
   character(len=10)  :: datestr
-  character(len=4)   :: varName, oneobs_varName
+  character(len=4)   :: varName
   character(len=1)   :: locIndexString
   character(len=2)   :: instanceIndexString
 
@@ -87,8 +87,13 @@ program midas_diagBmatrix
   character(len=4)             :: varNameALFA(1)
 
   ! namelist variables
-  integer :: numperturbations, nrandseed, diagdate
-  integer :: oneobs_levs(100), oneobs_lonlat(100,2)
+  integer :: numperturbations
+  integer :: nrandseed
+  integer :: diagdate
+  integer :: oneobs_levs(100)
+  integer :: oneobs_lonlat(100,2)
+  integer :: oneobs_timeStepIndex
+  character(len=4) :: oneobs_varName
   logical :: writeEnsAmplitude
   logical :: writeTextStddev
   logical :: writePsiChiStddev

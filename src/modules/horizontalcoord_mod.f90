@@ -95,8 +95,8 @@ contains
 
     real(8) :: maxDeltaLat, maxDeltaLon, maxGridSpacing, deltaLon, deltaLat 
     real(8) :: minDeltaLat, minDeltaLon, minGridSpacing 
-    real(8) :: deltaLon1, deltaLon2, deltaLon3, deltaLon4
-    real(8) :: deltaLat1, deltaLat2, deltaLat3, deltaLat4
+    real(8) :: deltaLon1, deltaLon2, deltaLon3
+    real(8) :: deltaLat1, deltaLat2, deltaLat3
     real(8), save :: maxGridSpacingPrevious = -1.0d0
     real(8), save :: minGridSpacingPrevious = -1.0d0
     real(4) :: xlat1_4, xlon1_4, xlat2_4, xlon2_4

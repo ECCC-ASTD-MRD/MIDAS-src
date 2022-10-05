@@ -26,7 +26,6 @@ module calcHeightAndPressure_mod
   use midasMpi_mod
   use mathPhysConstants_mod
   use physicsFunctions_mod
-  use earthConstants_mod
   use verticalCoord_mod
   use gridstatevector_mod
   use columnData_mod
@@ -477,7 +476,7 @@ contains
                 end if
                 cmp = gpscompressibility(Pr,tt,hu)
 
-                tv(lev_T) = fotvt8(tt,hu) * cmp
+                tv(lev_T) = phf_fotvt8(tt,hu) * cmp
               end do
 
               rMT = HeightSfc_ptr_r8(lonIndex,latIndex)
@@ -3038,22 +3037,22 @@ contains
                 Rgh = phf_gravityalt(sLat, height_T)
 
                 coeff_T_TT_gsv(lonIndex,latIndex,stepIndex) = &
-                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + &
-                    fotvt8(tt,hu) * cmp_TT) * ratioP1
+                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * (phf_fottva(hu,1.0D0) * cmp + &
+                    phf_fotvt8(tt,hu) * cmp_TT) * ratioP1
 
                 coeff_T_HU_gsv(lonIndex,latIndex,stepIndex) = &
-                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * (folnqva(hu,tt,1.0d0) / &
-                    hu * cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
+                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * (phf_folnqva(hu,tt,1.0d0) / &
+                    hu * cmp + phf_fotvt8(tt,hu) * cmp_HU) * ratioP1
 
                 coeff_T_P0_delP1_gsv(lonIndex,latIndex,stepIndex) = &
-                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
+                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp
 
                 coeff_T_P0_dP_delPT_gsv(lonIndex,latIndex,stepIndex) = &
-                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_1 * &
+                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_1 * &
                     ratioP1
 
                 coeff_T_P0_dP_delP0_gsv(lonIndex,latIndex,stepIndex) = &
-                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * &
+                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_2 * &
                     ratioP1
               else
                 ! compute height coefficients on momentum levels
@@ -3078,22 +3077,22 @@ contains
                 Rgh = phf_gravityalt(sLat, height_T)
 
                 coeff_M_TT_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
-                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + &
-                    fotvt8(tt,hu) * cmp_TT) * ratioP1
+                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * (phf_fottva(hu,1.0D0) * cmp + &
+                    phf_fotvt8(tt,hu) * cmp_TT) * ratioP1
 
                 coeff_M_HU_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
-                    (MPC_RGAS_DRY_AIR_R8 / RgH) * (folnqva(hu,tt,1.0d0) / hu * &
-                    cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
+                    (MPC_RGAS_DRY_AIR_R8 / RgH) * (phf_folnqva(hu,tt,1.0d0) / hu * &
+                    cmp + phf_fotvt8(tt,hu) * cmp_HU) * ratioP1
 
                 coeff_M_P0_delPM_gsv   (lonIndex,latIndex,lev_T,stepIndex) = &
-                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
+                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp
 
                 coeff_M_P0_dP_delPT_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
-                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_1 * &
+                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_1 * &
                     ratioP1
 
                 coeff_M_P0_dP_delP0_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
-                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * &
+                    (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_2 * &
                     ratioP1
               end if
             end do
@@ -3129,22 +3128,22 @@ contains
               Rgh = phf_gravityalt(sLat, height_T)
 
               coeff_M_TT_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
-                  (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + &
-                  fotvt8(tt,hu) * cmp_TT) * ratioP1
+                  (MPC_RGAS_DRY_AIR_R8 / Rgh) * (phf_fottva(hu,1.0D0) * cmp + &
+                  phf_fotvt8(tt,hu) * cmp_TT) * ratioP1
 
               coeff_M_HU_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
-                  (MPC_RGAS_DRY_AIR_R8 / RgH) * (folnqva(hu,tt,1.0d0) / hu * &
-                  cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
+                  (MPC_RGAS_DRY_AIR_R8 / RgH) * (phf_folnqva(hu,tt,1.0d0) / hu * &
+                  cmp + phf_fotvt8(tt,hu) * cmp_HU) * ratioP1
 
               coeff_M_P0_delPM_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
-                  (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
+                  (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp
 
               coeff_M_P0_dP_delPT_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
-                  (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_1 * &
+                  (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_1 * &
                   ratioP1
 
               coeff_M_P0_dP_delP0_gsv(lonIndex,latIndex,lev_T,stepIndex) = &
-                  (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * &
+                  (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_2 * &
                   ratioP1
             end do
           end do
@@ -3259,21 +3258,21 @@ contains
             Rgh = phf_gravityalt(sLat, height_T)
 
             coeff_T_TT_col(colIndex) = &
-                (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + &
-                fotvt8(tt,hu) * cmp_TT) * ratioP1
+                (MPC_RGAS_DRY_AIR_R8 / Rgh) * (phf_fottva(hu,1.0D0) * cmp + &
+                phf_fotvt8(tt,hu) * cmp_TT) * ratioP1
 
             coeff_T_HU_col(colIndex) = &
-                (MPC_RGAS_DRY_AIR_R8 / Rgh) * (folnqva(hu,tt,1.0d0) / hu * &
-                cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
+                (MPC_RGAS_DRY_AIR_R8 / Rgh) * (phf_folnqva(hu,tt,1.0d0) / hu * &
+                cmp + phf_fotvt8(tt,hu) * cmp_HU) * ratioP1
 
             coeff_T_P0_delP1_col   (colIndex) = &
-                (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
+                (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp
 
             coeff_T_P0_dP_delPT_col(colIndex) = &
-                (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_1 * ratioP1
+                (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_1 * ratioP1
 
             coeff_T_P0_dP_delP0_col(colIndex) = &
-                (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * ratioP1
+                (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_2 * ratioP1
           else
             ! compute height coefficients on momentum levels
             ratioP1 = log( P_M_ptr(lev_T  ,colIndex) / &
@@ -3295,21 +3294,21 @@ contains
             Rgh = phf_gravityalt(sLat, height_T)
 
             coeff_M_TT_col(lev_T,colIndex) = &
-                (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + &
-                fotvt8(tt,hu) * cmp_TT) * ratioP1
+                (MPC_RGAS_DRY_AIR_R8 / Rgh) * (phf_fottva(hu,1.0D0) * cmp + &
+                phf_fotvt8(tt,hu) * cmp_TT) * ratioP1
 
             coeff_M_HU_col(lev_T,colIndex) = &
-                (MPC_RGAS_DRY_AIR_R8 / RgH) * (folnqva(hu,tt,1.0d0) / hu * &
-                cmp + fotvt8(tt,hu) * cmp_HU) * ratioP1
+                (MPC_RGAS_DRY_AIR_R8 / RgH) * (phf_folnqva(hu,tt,1.0d0) / hu * &
+                cmp + phf_fotvt8(tt,hu) * cmp_HU) * ratioP1
 
             coeff_M_P0_delPM_col(lev_T,colIndex) = &
-                (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
+                (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp
 
             coeff_M_P0_dP_delPT_col(lev_T,colIndex) = &
-                (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_1 * ratioP1
+                (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_1 * ratioP1
 
             coeff_M_P0_dP_delP0_col(lev_T,colIndex) = &
-                (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * ratioP1
+                (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_2 * ratioP1
           end if
         end do
       end do
@@ -3338,21 +3337,21 @@ contains
           Rgh = phf_gravityalt(sLat, height_T)
 
           coeff_M_TT_col(lev_T,colIndex) = &
-              (MPC_RGAS_DRY_AIR_R8 / Rgh) * (fottva(hu,1.0D0) * cmp + &
-              fotvt8(tt,hu) * cmp_TT) * ratioP1
+              (MPC_RGAS_DRY_AIR_R8 / Rgh) * (phf_fottva(hu,1.0D0) * cmp + &
+              phf_fotvt8(tt,hu) * cmp_TT) * ratioP1
 
           coeff_M_HU_col(lev_T,colIndex) = &
-              (MPC_RGAS_DRY_AIR_R8 / RgH) * (folnqva(hu,tt,1.0d0) / hu * cmp + &
-              fotvt8(tt,hu) * cmp_HU) * ratioP1
+              (MPC_RGAS_DRY_AIR_R8 / RgH) * (phf_folnqva(hu,tt,1.0d0) / hu * cmp + &
+              phf_fotvt8(tt,hu) * cmp_HU) * ratioP1
 
           coeff_M_P0_delPM_col   (lev_T,colIndex) = &
-              (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp
+              (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp
 
           coeff_M_P0_dP_delPT_col(lev_T,colIndex) = &
-              (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_1 * ratioP1
+              (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_1 * ratioP1
 
           coeff_M_P0_dP_delP0_col(lev_T,colIndex) = &
-              (MPC_RGAS_DRY_AIR_R8 / Rgh) * fotvt8(tt,hu) * cmp_P0_2 * ratioP1
+              (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_2 * ratioP1
         end do
       end do
 

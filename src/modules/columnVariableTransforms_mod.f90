@@ -20,11 +20,8 @@ module columnVariableTransforms_mod
   ! :Purpose: To store various functions for variable transforms using inputs
   !           from column(s). Outputs are also placed in a column.
   !
-  use timeCoord_mod
   use columnData_mod
-  use verticalCoord_mod
   use utilities_mod
-  use varNameList_mod
   use calcHeightAndPressure_mod
   use utilities_mod
   

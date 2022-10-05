@@ -22,7 +22,6 @@ module radvel_mod
   !
   use codePrecision_mod
   use earthConstants_mod
-  use utilities_mod
   implicit none
   save
   private

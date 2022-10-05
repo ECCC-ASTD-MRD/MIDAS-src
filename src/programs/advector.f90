@@ -25,11 +25,9 @@ program midas_advector
   use midasMpi_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use timeCoord_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use advection_mod
-  use ensembleStateVector_mod
   implicit none
 
   type(struct_hco), pointer :: hco => null()
@@ -55,8 +53,10 @@ program midas_advector
   character(len=256)  :: direction
   integer             :: nEns
   integer             :: dateStart
-  integer             :: advectedFieldNumStep, steeringFlowNumStep
-  real(8)             :: advectedFieldDelThour, steeringFlowDelThour
+  integer             :: advectedFieldNumStep
+  integer             :: steeringFlowNumStep
+  real(8)             :: advectedFieldDelThour
+  real(8)             :: steeringFlowDelThour
   real(8)             :: advectFactor(maxNumLevels)
 
   namelist /namadvector/ fileToAdvec, steeringFlowFile, nEns, &

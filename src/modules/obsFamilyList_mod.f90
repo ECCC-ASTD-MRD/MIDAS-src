@@ -20,7 +20,6 @@ module obsFamilyList_mod
   ! :Purpose: Contains a list of all recognizable observation families along with 
   !           additional information and procedures regarding these families.
   !
-  use utilities_mod
   
   implicit none
   save

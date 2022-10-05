@@ -38,15 +38,6 @@ program midas_prepcma
 
   implicit none
 
-  ! Namelist
-  NAMELIST /NAMPREPCMA/ cmahdr, cmabdy, cmadim, obsout, brpform,  &
-                        suprep, rejectOutsideTimeWindow, thinning, &
-                        applySatUtil, modifyAmsubObsError, rejectHighLatIR, &
-                        obsClean, writeObsFiles, writeAsciiCmaFiles
-  character(len=256) :: cmahdr, cmabdy, cmadim, obsout, brpform
-  logical :: suprep, rejectOutsideTimeWindow, thinning, applySatUtil
-  logical :: modifyAmsubObsError, rejectHighLatIR, obsClean, writeObsFiles, writeAsciiCmaFiles
-
   integer :: fnom, fclos, nulnam, ierr, dateStamp
   type(struct_obs), target  :: obsSpaceData
   type(struct_oti), pointer :: oti => null()
@@ -67,6 +58,27 @@ program midas_prepcma
   ! For a scalar array, no layer selection will be done
   real(8) :: nsc_pmax(1) = (/ 0.0 /)
   real(8) :: nto_pmax(1) = (/ 0.0 /)
+
+  ! Namelist variables:
+  character(len=256) :: cmahdr
+  character(len=256) :: cmabdy
+  character(len=256) :: cmadim
+  character(len=256) :: obsout
+  character(len=256) :: brpform
+  logical :: suprep
+  logical :: rejectOutsideTimeWindow
+  logical :: thinning
+  logical :: applySatUtil
+  logical :: modifyAmsubObsError
+  logical :: rejectHighLatIR
+  logical :: obsClean
+  logical :: writeObsFiles
+  logical :: writeAsciiCmaFiles
+
+  NAMELIST /NAMPREPCMA/ cmahdr, cmabdy, cmadim, obsout, brpform,  &
+                        suprep, rejectOutsideTimeWindow, thinning, &
+                        applySatUtil, modifyAmsubObsError, rejectHighLatIR, &
+                        obsClean, writeObsFiles, writeAsciiCmaFiles
 
   call ver_printNameAndVersion('prepcma','Prepare observations for LETKF')
 

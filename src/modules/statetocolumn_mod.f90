@@ -30,15 +30,11 @@ module stateToColumn_mod
   use obsSpaceData_mod
   use columnData_mod
   use horizontalCoord_mod
-  use verticalCoord_mod
   use obsTimeInterp_mod
   use windRotation_mod
   use utilities_mod
   use gridVariableTransforms_mod
-  use columnVariableTransforms_mod
   use varNameList_mod
-  use physicsFunctions_mod
-  use timeCoord_mod
   use slantprofilelatlon_mod
   use tovs_nl_mod
   use codtyp_mod

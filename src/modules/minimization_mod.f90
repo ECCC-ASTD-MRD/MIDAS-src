@@ -26,7 +26,6 @@ module minimization_mod
   use verticalCoord_mod
   use columnData_mod
   use obsSpaceData_mod
-  use obsSpaceDiag_mod
   use controlVector_mod
   use midasMpi_mod
   use horizontalCoord_mod
@@ -34,18 +33,12 @@ module minimization_mod
   use gridStateVectorFileIO_mod
   use bmatrix_mod
   use bMatrix1DVar_mod
-  use bmatrixhi_mod
-  use bmatrixchem_mod
-  use bmatrixEnsemble_mod
   use stateToColumn_mod
-  use varNameList_mod
   use varqc_mod
-  use randomNumber_mod
   use rmatrix_mod
   use costFunction_mod
   use residual_mod
   use obsOperators_mod
-  use innovation_mod
   use quasinewton_mod
   use utilities_mod
   use biasCorrectionSat_mod
@@ -84,19 +77,26 @@ module minimization_mod
   real(8) :: zeps0, zdf1
   integer :: itertot, isimtot, iztrl(5), imode
   integer :: outerLoopIndex
+  integer :: numIterMaxInnerLoopUsed
   logical :: llvazx
   logical :: initializeForOuterLoop
   logical :: deallocHessian
   logical :: isMinimizationFinalCall
+  logical :: oneDVarMode
 
   ! namelist variables
-  real(8) :: REPSG, rdf1fac
-  integer :: numIterMaxInnerLoopUsed
-  integer :: NVAMAJ, NITERMAX, NSIMMAX, nwoqcv
+  real(8) :: REPSG
+  real(8) :: rdf1fac
+  integer :: NVAMAJ
+  integer :: NITERMAX
+  integer :: NSIMMAX
+  integer :: nwoqcv
   integer :: numAnalyses
-  logical :: lxbar, lwrthess, lgrtest, lvazx
-  logical :: lvarqc, writeAnalysis
-  logical :: oneDVarMode
+  logical :: lxbar
+  logical :: lwrthess
+  logical :: lgrtest
+  logical :: lvazx
+  logical :: lvarqc
   character(len=256) :: ensPathName
 
   NAMELIST /NAMMIN/ NVAMAJ, NITERMAX, NSIMMAX

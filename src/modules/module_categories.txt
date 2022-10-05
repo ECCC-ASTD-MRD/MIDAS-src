@@ -42,7 +42,6 @@ bmatrixhi_mod.f90
 bmatrixensemble_mod.f90
 obserrors_mod.f90
 bmatrixdiff_mod.f90
-bmatrixlatbands_mod.f90
 bmatrixchem_mod.f90
 
 3. Observation input/output
@@ -50,7 +49,6 @@ bmatrixchem_mod.f90
 obsfiles_mod.f90
 sqliteread_mod.f90
 sqlitefiles_mod.f90
-cmafiles_mod.f90
 burpfiles_mod.f90
 obsUtil_mod.f90
 sqliteUtilities_mod.f90
@@ -78,7 +76,6 @@ humiditylimits_mod.f90
 
 5. Observation operators
 ================================
-tovs_extrap_mod.f90
 gps_mod.f90
 obsoperators_mod.f90
 radvel_mod.f90

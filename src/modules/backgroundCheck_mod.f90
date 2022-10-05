@@ -26,7 +26,6 @@ module backgroundCheck_mod
   use utilities_mod
   use columnData_mod
   use obsSpaceDiag_mod
-  use earthConstants_mod
   use verticalCoord_mod
   use horizontalCoord_mod
   use obsSpaceErrorStdDev_mod
@@ -507,7 +506,7 @@ module backgroundCheck_mod
       integer :: stat, iversion
 
       vco_trl => col_getVco(columnTrlOnTrlLev)
-      stat = vgd_get(vco_trl%vgrid,key='ig_1 - vertical coord code',value=iversion)
+      iversion = vco_trl%vCode
       
       write(*,*)'ENTER BGCSGPSRO'
       

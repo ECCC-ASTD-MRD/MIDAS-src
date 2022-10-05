@@ -322,7 +322,7 @@ module bgckOcean_mod
     integer                   :: dataStampList(ndaysWinds * 24 / timeStepWinds) ! datastamp list for wind fields
     real(4)                   :: windSpeed
     integer                   :: hour, day, monthNumber
-    integer                   :: yyyy, ndays, timeStepIndex, ierr
+    integer                   :: yyyy, ndays, timeStepIndex
     real(8)                   :: deltaT, lat
     integer                   :: lonIndex, latIndex, monthIndex
     real(4)         , pointer :: stateVectorAmplFactor_ptr(:,:,:)

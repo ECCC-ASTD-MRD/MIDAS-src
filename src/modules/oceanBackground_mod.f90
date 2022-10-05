@@ -19,15 +19,12 @@ module oceanBackground_mod
   !
   ! :Purpose: storage for ocean background related subroutines
   !
-  use midasMpi_mod
-  use utilities_mod
   use codtyp_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use timeCoord_mod
-  use codePrecision_mod  
   
   implicit none
 

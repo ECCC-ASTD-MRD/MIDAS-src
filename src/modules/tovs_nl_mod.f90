@@ -75,8 +75,6 @@ module tovs_nl_mod
   use MathPhysConstants_mod
   use ozoneclim_mod
   use columnData_mod 
-  use presProfileOperators_mod
-  use tovs_extrap_mod
   use mod_rttov_emis_atlas
   use verticalCoord_mod
   use codePrecision_mod
@@ -96,9 +94,6 @@ module tovs_nl_mod
     integer              :: ltype    ! surface type (1,...,20)
   end type surface_params
 
-  ! public derived type through inheritance (from module rttov_types)
-  public :: rttov_radiance, rttov_profile, rttov_chanprof, rttov_coefs, rttov_transmission, rttov_options, rttov_emissivity
-
   ! public variables (parameters)
   public :: tvs_maxChannelNumber, tvs_maxNumberOfChannels, tvs_maxNumberOfSensors, tvs_defaultEmissivity
   ! public variables (non-parameters)
@@ -108,7 +103,6 @@ module tovs_nl_mod
   public :: tvs_isReallyPresentMpiGlobal
   public :: tvs_nsensors, tvs_platforms, tvs_satellites, tvs_instruments, tvs_channelOffset
   public :: tvs_debug, tvs_satelliteName, tvs_instrumentName, tvs_useO3Climatology
-  public :: platform_name, inst_name ! (from rttov)
   public :: tvs_coefs, tvs_opts, tvs_transmission,tvs_emissivity
   public :: tvs_coef_scatt, tvs_opts_scatt
   public :: tvs_radiance, tvs_surfaceParameters
@@ -168,8 +162,6 @@ module tovs_nl_mod
   logical :: tvs_mpiTask0ReadCoeffs 
   real(8) :: tvs_cloudScaleFactor 
   logical tvs_debug                                ! Logical key controlling statements to be  executed while debugging TOVS only
-  logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W IR emissivity Atlases
-  logical useMWEmissivityAtlas                     ! Flag to activate use of RTTOV built-in MW emissivity Atlases      
   logical tvs_useO3Climatology                     ! Determine if ozone model field or climatology is used
                                                    ! If ozone model field is specified, related increments will be generated in assimilation
   logical tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option
@@ -178,7 +170,6 @@ module tovs_nl_mod
   logical tvs_useRttovScatt(tvs_maxNumberOfSensors)
   logical tvs_userDefinedDoAzimuthCorrection
   logical tvs_userDefinedIsAzimuthValid
-  integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
 
   character(len=15) tvs_satelliteName(tvs_maxNumberOfSensors)
   character(len=15) tvs_instrumentName(tvs_maxNumberOfSensors)
@@ -201,6 +192,11 @@ module tovs_nl_mod
   type(rttov_transmission), allocatable    :: tvs_transmission(:)   ! transmittances all profiles for HIR quality control
   type(rttov_profile_cloud), target, allocatable :: tvs_cld_profiles_nl(:)! rttov scatt cloud profiles on trial vertical coordinate
   type(rttov_profile_cloud), target, allocatable :: tvs_cld_profiles_tlad(:) ! rttov scatt cloud profiles on increment vertical coordinates
+
+  ! Namelist variables:
+  logical useUofWIREmiss                           ! Flag to activate use of RTTOV U of W IR emissivity Atlases
+  logical useMWEmissivityAtlas                     ! Flag to activate use of RTTOV built-in MW emissivity Atlases      
+  integer mWAtlasId                                ! MW Atlas Id used when useMWEmissivityAtlas == .true. ; 1 TELSEM2, 2 CNRM atlas
 
   integer, external :: get_max_rss
  
@@ -622,23 +618,29 @@ contains
     !
 
     implicit none
-    !Locals:
+    ! Locals:
     integer  sensorIndex, ierr, nulnam
     integer, external :: fclos, fnom
-    integer :: nsensors
-    character(len=15) :: csatid(tvs_maxNumberOfSensors), cinstrumentid(tvs_maxNumberOfSensors)
-    character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors)
+    integer :: instrumentIndex, numMWInstrumToUseCLW
+
+    ! Namelist variables: (local)
     character(len=8)  :: crtmodl
+    integer :: nsensors
+    character(len=15) :: csatid(tvs_maxNumberOfSensors)
+    character(len=15) :: cinstrumentid(tvs_maxNumberOfSensors)
+    logical :: ldbgtov
+    logical :: useO3Climatology
+    logical :: regLimitExtrap
     logical :: doAzimuthCorrection(tvs_maxNumberOfSensors)
     logical :: isAzimuthValid(tvs_maxNumberOfSensors)
-    logical :: useRttovScatt(tvs_maxNumberOfSensors)
     logical :: userDefinedDoAzimuthCorrection
     logical :: userDefinedIsAzimuthValid
-    logical :: ldbgtov, useO3Climatology, regLimitExtrap
-    integer :: instrumentIndex, numMWInstrumToUseCLW
-    logical :: mwInstrumUsingCLW_tl, mwAllskyAssim
     logical :: mpiTask0ReadCoeffs
+    logical :: mwInstrumUsingCLW_tl
     real(8) :: cloudScaleFactor 
+    character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors)
+    logical :: mwAllskyAssim
+    logical :: useRttovScatt(tvs_maxNumberOfSensors)
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
@@ -2010,7 +2012,7 @@ contains
     integer :: profileCount, headerIndex
     integer :: profileIndex, levelIndex
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
-    integer :: status, Vcode
+    integer :: Vcode
     integer :: ierr,day,month,year,ijour,itime
     integer :: allocStatus(9)
     
@@ -2097,7 +2099,7 @@ contains
     end if
 
     vco => col_getVco(columnTrl)
-    status = vgd_get(vco%vgrid,key='ig_1 - vertical coord code',value=Vcode)
+    Vcode = vco%Vcode
 
     ierr = newdate(datestamp,ijour,itime,-3)
     if (ierr < 0) then
@@ -3868,7 +3870,7 @@ contains
 
     ! Locals:
     real(8), allocatable :: bigArray(:,:,:,:)
-    integer :: i, j, k, l, ichan,igas,ierr, countUniqueChannel, indexchan(size(channels)), listAll(tvs_maxChannelNumber)
+    integer :: i, j, ichan, ierr, countUniqueChannel, indexchan(size(channels)), listAll(tvs_maxChannelNumber)
     logical :: associated0
     integer :: nlte_count, nlte_start,isol,isat,nlte_file_nchan
     integer, allocatable :: nlte_chans(:) 

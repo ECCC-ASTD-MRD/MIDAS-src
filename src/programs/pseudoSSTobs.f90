@@ -23,7 +23,6 @@ program midas_pseudoSSTobs
   use utilities_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use timeCoord_mod
   use analysisGrid_mod
   use midasMpi_mod
   use oceanObservations_mod

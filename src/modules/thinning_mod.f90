@@ -1234,7 +1234,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     integer :: countObs, countObsMpi
     integer :: countObsReject, countObsRejectMpi, countObsTotal, countObsTotalMpi
     integer :: headerIndex, bodyIndex, ierr
-    integer :: numLev, levIndex, obsVarNo, obsFlag
+    integer :: numLev
+    integer :: levIndex, obsVarNo, obsFlag
     real(8) :: nextHeightMin
     logical :: rejectObs
     integer, allocatable :: bodyIndexList(:)

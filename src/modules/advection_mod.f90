@@ -25,7 +25,6 @@ MODULE advection_mod
   use midasMpi_mod
   use mathPhysConstants_mod
   use earthConstants_mod
-  use timeCoord_mod
   use ensembleStateVector_mod
   use gridStateVector_mod
   use gridStateVectorFileIO_mod

@@ -48,7 +48,7 @@ module calcStatsGlb_mod
   type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
   type(struct_vco), pointer :: vco_ens ! Ensemble horizontal grid parameters
 
-  integer :: nens,ntrunc,ni,nj,nLevEns_M,nLevEns_T,nLevPtoT,nkgdimEns,varLevOffset(6),nla
+  integer :: nens,ni,nj,nLevEns_M,nLevEns_T,nLevPtoT,nkgdimEns,varLevOffset(6),nla
   integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd, latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
   integer :: mymBeg, mymEnd, mymSkip, mymCount, mynBeg, mynEnd, mynSkip, mynCount
   integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
@@ -72,10 +72,13 @@ module calcStatsGlb_mod
 
   ! For wave band decomposition
   integer, parameter  :: maxNumLocalLength = 20
-  integer             :: waveBandPeaks(maxNumLocalLength)
   integer             :: nWaveBand
 
   logical :: initialized = .false.
+
+  ! Namelist variables
+  integer :: ntrunc
+  integer :: waveBandPeaks(maxNumLocalLength) ! For wave band decomposition
 
   contains
 
@@ -2909,13 +2912,18 @@ module calcStatsGlb_mod
     real(8) :: dnEns
 
     integer :: i, j, k, ens
-    integer :: blocklength_x, blocklength_y, blockpadding, nirefpoint, njrefpoint
+    integer :: blocklength_x, blocklength_y
     integer :: iref_id, jref_id, iref, jref
     integer :: imin, imax, jmin, jmax
 
     character(len=4), pointer :: varNamesList(:)
 
     integer :: ier, fclos, fnom, nulnam
+
+    ! Namelist variables
+    integer :: blockpadding
+    integer :: nirefpoint
+    integer :: njrefpoint
 
     NAMELIST /NAMHVCORREL_LOCAL/nirefpoint, njrefpoint, blockpadding
 

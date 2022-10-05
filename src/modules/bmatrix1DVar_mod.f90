@@ -30,7 +30,6 @@ module bmatrix1DVar_mod
   use timeCoord_mod
   use utilities_mod
   use verticalCoord_mod
-  use codeprecision_mod
   use tovs_nl_mod
   use var1D_mod
   use filenames_mod
@@ -215,7 +214,7 @@ contains
     ! locals:
     integer :: levelIndex, ierr
     integer, external ::  fnom, fclos
-    integer :: status, Vcode_anl
+    integer :: Vcode_anl
     logical :: fileExists
     integer :: nulbgst=0
     type(struct_vco), pointer :: vco_file => null()
@@ -245,7 +244,7 @@ contains
     end if
 
     if (firstCall) then
-      call var1D_setup(vco_in, obsSpaceData)
+      call var1D_setup(obsSpaceData)
       firstCall = .false.
     end if
 
@@ -394,7 +393,7 @@ contains
       call utl_abort('bmat1D_setupBHi: vco from analysisgrid and cov file do not match')
     end if
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: nLev_M, nLev_T=', vco_1Dvar%nLev_M, vco_1Dvar%nLev_T
-    status = vgd_get(vco_anl%vgrid, key='ig_1 - vertical coord code', value=Vcode_anl)
+    Vcode_anl = vco_anl%vCode
     if(Vcode_anl /= 5002 .and. Vcode_anl /= 5005) then
       write(*,*) 'Vcode_anl = ',Vcode_anl
       call utl_abort('bmat1D_setupBHi: unknown vertical coordinate type!')
@@ -436,7 +435,7 @@ contains
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
     integer :: levIndex1
     integer :: varLevIndex, varLevIndex1, varLevIndex2 
-    integer :: status, numStep, ierr, levIndexColumn
+    integer :: status, numStep, levIndexColumn
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
     real(8) :: scaleFactor_SF, ZR
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
@@ -447,7 +446,6 @@ contains
     integer :: nLevEns_M, nLevEns_T
     integer :: nLevInc_M, nLevInc_T
     integer :: topLevIndex_M, topLevIndex_T
-    integer :: idate, itime
     integer, external :: newdate
     character(len=4), pointer :: varNames(:)
     real(8) :: logP1, logP2

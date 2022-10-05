@@ -1764,16 +1764,14 @@ contains
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
     integer(8)           :: obsIdo
     integer              :: midasKey, obsIdf, updateItemIndex, updateValue_i
-    integer              :: headIndex, bodyIndex
+    integer              :: headIndex
     integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
     real(8)              :: updateValue_r
     character(len=3000)  :: query
     character(len=lenSqlName) :: sqlColumnName
     character(len=4)     :: obsSpaceColumnName
-    character(len=20)    :: sqlDataType
     logical              :: midasTableExists
     logical, save        :: nmlAlreadyRead = .false.
-    logical, allocatable :: midasColumnExists(:)
     character(len=6), parameter     :: midasTableType = 'header' !Define the type of MIDAS table: header/body
     
     ! namelist variables
@@ -1982,13 +1980,8 @@ contains
     character(len=4)     :: obsSpaceColumnName
     character(len=lenSqlName) :: sqlColumnName, vnmSqlName, pppSqlName, varSqlName
     character(len=3000)  :: query
-    character(len=20)    :: sqlDataType
     logical              :: midasTableExists
-    logical, allocatable :: midasColumnExists(:)
     logical, save        :: nmlAlreadyRead = .false.
-
-    integer              :: columnIndex, obsColumnIndex
-    character(len=5000)  :: tableInsertColumnList
     character(len=6), parameter  :: midasTableType='body' ! Define the type of MIDAS table: header/body
     
     ! namelist variables
@@ -2234,9 +2227,7 @@ contains
     character(len=*),              intent(in)  :: fileName
 
     ! locals:
-    integer                     :: columnIndex, obsColumnIndex
     character(len=3000)         :: query
-    character(len=20)           :: sqlDataType
     type(fSQL_STATUS)           :: stat ! sqlite error status
     type(fSQL_DATABASE)         :: db   ! sqlite file handle
     character(len=*), parameter :: myName = 'odbf_createMidasHeaderTable'
@@ -2350,7 +2341,6 @@ contains
     ! locals:
     type(fSQL_STATUS)                :: stat ! sqlite error status
     type(fSQL_DATABASE)              :: db   ! sqlite file handle
-    type(fSQL_STATEMENT)             :: stmt ! precompiled sqlite statements
     logical, allocatable             :: midasColumnExists(:)
     character(len=3000)              :: query
     character(len=5000)              :: tableInsertColumnList

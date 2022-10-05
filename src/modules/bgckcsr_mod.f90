@@ -15,7 +15,7 @@
 !-------------------------------------- LICENCE end --------------------------------------
 
 module bgckcsr_mod
-  ! MODULE bgckcsr_mod(prefix='csrbg' category='1. High-level functionality')
+  ! MODULE bgckcsr_mod (prefix='csrbg' category='1. High-level functionality')
   !
   ! :Purpose: To perform CSR data background Check
   !

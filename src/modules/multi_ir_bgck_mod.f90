@@ -23,14 +23,18 @@ module multi_ir_bgck_mod
   use rttov_interfaces_mod
   use tovs_nl_mod
   use rttov_const, only : inst_id_iasi
+  use rttov_types, only :   &
+       rttov_coefs         ,&
+       rttov_profile       ,&
+       rttov_radiance      ,&
+       rttov_transmission  ,&
+       rttov_chanprof      ,&
+       rttov_emissivity
   use utilities_mod
   use obsSpaceData_mod
   use midasMpi_mod
   use columnData_mod
-  use earthConstants_mod
   use MathPhysConstants_mod
-  use verticalCoord_mod
-  use presProfileOperators_mod
   implicit none
   save
   private
@@ -44,11 +48,6 @@ module multi_ir_bgck_mod
 
 
   character(len=7) :: inst(nmaxinst)
-  integer :: ninst
-  ! Reference (and alternate) window channel for clear / cloudy profile detection
-  ! (subroutine cloud_height)
-
-  integer :: iwindow(nmaxinst), iwindow_alt(nmaxinst)
  
   ! Number of channels (and their values) to use for cloud top height detection
   ! with the "background profile matching" method (subroutine cloud_top)
@@ -63,8 +62,6 @@ module multi_ir_bgck_mod
 
   integer, parameter  :: nco2 = 13
 
-  integer :: ilist2(nmaxinst,nco2), ilist2_pair(nmaxinst,nco2)
-
   ! Cloud top units : (1) mb, (2) meters
   ! (subroutines cloud_height (iopt1) and cloud_top (iopt2))
 
@@ -75,31 +72,6 @@ module multi_ir_bgck_mod
   ! (0) brightness temperature, (1) radiance, (2) both
 
   integer, parameter        :: ihgt = 2
-
-  ! Maximum delta temperature allowed between guess and true skin temperature
-  ! over water (dtw) and land (dtl)   (subroutine irbg_doQualityControl)
-
-  real(8) :: dtw,dtl 
-
-  ! Minimum and maximum RTTOV levels for lev_start variable entering CO2 slicing
-  ! In mb, between 50mb and 325mb (subroutine co2_slicing)
-
-  real(8) :: pco2min, pco2max
-
-  ! First channel affected by sun (for channels used only at night)
-  ! (subroutine irbg_doQualityControl)
-
-  integer :: ichn_sun(nmaxinst)
-  
-  ! Minimum solar zenith angle for night (between 90 and 180)
-  ! (subroutine irbg_doQualityControl)
-
-  real(8) :: night_ang
-
-  ! cloud fraction threshold for CrIS cloud detection (from VIIRS cloud mask)
-  ! (subroutine irbg_doQualityControl)
-
-  real(8) ::  crisCloudFractionThreshold
 
   ! Highest flag in post files (value of N in 2^N)
 
@@ -115,6 +87,20 @@ module multi_ir_bgck_mod
   real(8) :: seuilbt_homog(NVIS+1:nChanAVHRR,0:2,1:2)= reshape( (/5.d0, 4.d0, 4.d0, 4.d0, 3.d0, 3.d0, &
                                                                   5.d0, 4.d0, 4.d0, 5.d0, 5.d0, 5.d0, &
                                                                   4.d0, 3.d0, 3.d0, 5.d0, 5.d0, 5.d0/), (/3,3,2/) )
+
+  ! Namelist variables:
+  integer :: ninst
+  integer :: iwindow(nmaxinst)     ! Ref window channel for clear/cloudy profile detection
+  integer :: iwindow_alt(nmaxinst) ! Alternate window channel for clear/cloudy profile detection
+  integer :: ilist2(nmaxinst,nco2)
+  integer :: ilist2_pair(nmaxinst,nco2)
+  integer :: ichn_sun(nmaxinst)    ! First channel affected by sun (for chan used only at night)
+  real(8) :: dtw                   ! Max delta allowed btwn guess and true skin temp over water
+  real(8) :: dtl                   ! Max delta allowed btwn guess and true skin temp over land
+  real(8) :: pco2min               ! Min RTTOV level for lev_start variable entering CO2 slicing in mb
+  real(8) :: pco2max               ! Max RTTOV level for lev_start variable entering CO2 slicing in mb
+  real(8) :: night_ang             ! Min solar zenith angle for night (between 90 and 180)
+  real(8) :: crisCloudFractionThreshold ! threshold for CrIS cloud detection from VIIRS cloud mask
 
   namelist /NAMBGCKIR/ ninst, inst, iwindow, iwindow_alt, ilist1, ilist2, ilist2_pair, ichn_sun
   namelist /NAMBGCKIR/ dtw, dtl, pco2min, pco2max, night_ang, crisCloudFractionThreshold

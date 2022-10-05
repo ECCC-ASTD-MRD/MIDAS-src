@@ -23,7 +23,6 @@ MODULE biasCorrectionConv_mod
   use obsSpaceData_mod
   use MathPhysConstants_mod
   use midasMpi_mod
-  use codePrecision_mod
   use bufr_mod
   use codtyp_mod
 
