@@ -68,7 +68,7 @@ module bgckmicrowave_mod
   real,   parameter :: scatbg_atms_nrl_UTrej=15.0    ! upper trop chans 7-9
   real,   parameter :: mean_Tb_183Ghz_min=240.0      ! min. value for Mean(Tb) chans. 18-22 
 
-  integer, parameter :: mwbg_maxNumSat  = 13
+  integer, parameter :: mwbg_maxNumSat  = 50
   integer, parameter :: mwbg_maxNumChan = 100
   integer, parameter :: mwbg_maxNumTest = 16
 
