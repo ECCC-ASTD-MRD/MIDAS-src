@@ -1263,10 +1263,10 @@ contains
       ! Interpolate weights from coarse to full resolution
       !
       call utl_tmg_start(106,'----InterpolateWeights')
-      !if (wInterpInfo%latLonStep > 1) then
-      !  call enkf_interpWeights(wInterpInfo, weightsMean)
-      !  call enkf_interpWeights(wInterpInfo, weightsMembers)
-      !end if
+      if (wInterpInfo%latLonStep > 1) then
+        call enkf_interpWeights(wInterpInfo, weightsMean)
+        call enkf_interpWeights(wInterpInfo, weightsMembers)
+      end if
       call utl_tmg_stop(106)
 
       call utl_tmg_start(107,'----ApplyWeights')
