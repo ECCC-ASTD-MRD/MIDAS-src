@@ -1198,19 +1198,19 @@ contains
 
         else
 
-          !! no obs near this grid point, mean weights zero, member weights identity
-          !weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
-          !weightsMembersLatLon(:,:,latLonIndex) = 0.0d0
-          !do memberIndex = 1, nEns
-          !  if ( numRetainedEigen > 0 ) then
-          !    do eigenVectorColumnIndex = 1, numRetainedEigen 
-          !      memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex
-          !      weightsMembersLatLon(memberIndexInModEns,memberIndex,latLonIndex) = 1.0d0
-          !    end do
-          !  else
-          !    weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = 1.0d0
-          !  end if
-          !end do
+          ! no obs near this grid point, mean weights zero, member weights identity
+          weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
+          weightsMembersLatLon(:,:,latLonIndex) = 0.0d0
+          do memberIndex = 1, nEns
+            if ( numRetainedEigen > 0 ) then
+              do eigenVectorColumnIndex = 1, numRetainedEigen 
+                memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex
+                weightsMembersLatLon(memberIndexInModEns,memberIndex,latLonIndex) = 1.0d0
+              end do
+            else
+              weightsMembersLatLon(memberIndex,memberIndex,latLonIndex) = 1.0d0
+            end if
+          end do
 
         end if ! numLocalObs > 0
 
