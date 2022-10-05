@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fix some potential out of bounds array access in midas-obsSelection and midas-genCoeff programs (#701 and !647)
 
 ### Removed
 
