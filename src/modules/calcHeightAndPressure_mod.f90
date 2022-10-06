@@ -1861,6 +1861,7 @@ contains
     end if
     HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector)
 
+    !! DBGmad TODO : consider reusing the same code for both `calcPressure_{gsv,col}_nl_vcode2100x`
     do_computePressure_gsv_nl: do stepIndex = 1, numStep
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
@@ -3294,76 +3295,186 @@ contains
       if ( .not. col_varExist(column,'P0')  ) then
         call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 500x, variable P0 must be allocated in column')
       end if
-      call calcPressure_col_nl_vcode500x
+      call calcPressure_col_nl_vcode500x(column, P_T, P_M)
     else if (Vcode == 21001) then
       !! some col_varExist(columnInc,.)
-      call calcPressure_col_nl_vcode2100x
+      call calcPressure_col_nl_vcode2100x(column, P_T, P_M)
     end if
 
     call msg('czp_calcReturnPressure_col_nl (czp)', 'END', verb_opt=2)
-
-    contains
-      !---------------------------------------------------------
-      ! calcPressure_col_nl_vcode2100x
-      !---------------------------------------------------------
-      subroutine calcPressure_col_nl_vcode2100x
-        implicit none
-
-        call utl_abort('calcPressure_col_nl (czp): vcode 21001 not implemented yet')
-
-      end subroutine calcPressure_col_nl_vcode2100x
-
-      !---------------------------------------------------------
-      ! calcPressure_col_nl_vcode500x
-      !---------------------------------------------------------
-      subroutine calcPressure_col_nl_vcode500x
-        implicit none
-
-        ! Locals
-        real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
-        real(kind=8), pointer     :: zppobs1(:,:,:) => null()
-        integer :: headerIndex, status, ilev1, ilev2
-
-        call msg('calcPressure_col_nl_vcode500x (czp)', 'START', verb_opt=3)
-        if ( col_getNumCol(column) <= 0 ) then
-          call msg('calcPressure_col_nl_vcode500x (czp)',&
-               'END (number of columns <= 0)', verb_opt=2)
-          return
-        end if
-
-        if (.not.col_varExist(column,'P0')) then
-          call utl_abort('calcPressure_col_nl (czp): P0 must be present as an analysis variable!')
-        end if
-
-        allocate(Psfc(1,col_getNumCol(column)))
-        do headerIndex = 1,col_getNumCol(column)
-          Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
-        end do
-
-        status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
-                          levels=zppobs1,sfc_field=Psfc,in_log=.false.)
-        if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
-        allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
-        zppobs2 = transpose(zppobs1(1,:,:))
-        P_M(:,:) = zppobs2(:,:)
-        if (associated(zppobs1))  deallocate(zppobs1)
-        deallocate(zppobs2)
-
-        status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_T,  &
-                          levels=zppobs1,sfc_field=Psfc,in_log=.false.)
-        if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
-        allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
-        zppobs2 = transpose(zppobs1(1,:,:))
-        P_T(:,:) = zppobs2(:,:)
-        if (associated(zppobs1)) deallocate(zppobs1)
-        deallocate(zppobs2)
-
-        deallocate(Psfc)
-
-        call msg('calcPressure_col_nl_vcode500x (czp)', 'END', verb_opt=3)
-      end subroutine calcPressure_col_nl_vcode500x
-
   end subroutine czp_calcReturnPressure_col_nl
+
+  !---------------------------------------------------------
+  ! calcPressure_col_nl_vcode2100x
+  !---------------------------------------------------------
+  subroutine calcPressure_col_nl_vcode2100x(column, P_T, P_M)
+    !
+    ! :Purpose:  DBGmad TODO
+    !
+    implicit none
+    !! DBGmad TODO : consider reusing (instead of pasting) the same code for both `calcPressure_{gsv,col}_nl_vcode2100x`
+
+    ! Arguments
+    type(struct_columnData),  intent(in)    :: column ! reference column
+    real(8), pointer,         intent(inout) :: P_T(:, :), P_M(:,:)
+
+    ! Locals
+    real(8), allocatable  :: tv(:)
+    integer :: numCol, nLev_T, nLev_M
+    integer :: colIndex, lev_T, lev_M
+    real(8) :: lat, sLat, cLat
+    real(8) :: P0, rMT, hu, tt, tv0, cmp, dh, Rgh
+    real(8) :: scaleFactorBottom, logP
+    real(8) :: Z_T, Z_M, Z_M1
+
+    call msg('calcPressure_col_nl_vcode2100x (czp)', 'START', verb_opt=3)
+
+    numCol = col_getNumCol(column)
+    nLev_M = col_getNumLev(column, 'MM')
+    nLev_T = col_getNumLev(column, 'TH')
+
+    allocate(tv(nLev_T))
+
+    do_onAllcolumns: do colIndex = lbound(column%lat,1), ubound(column%lat,1)
+      ! column%lat populated in innovation_mod from obsSpaceData latitudes
+      lat = column%lat(colIndex)
+      sLat = sin(lat)
+      cLat = cos(lat)
+
+      ! surface values
+      P0  = col_getElem(  column, 1, colIndex, 'P0') ! surface pressure
+      rMT = col_getHeight(column, 1, colIndex, 'SF') ! surface height
+
+      ! compute pressure on diagnostic (nLev_{T,M}) levels
+      hu = col_getElem(column, nLev_T, colIndex, 'HU')
+      tt = col_getElem(column, nLev_T, colIndex, 'TT')
+      tv0 = fotvt8(tt,hu)
+
+      ! thermo diagnostic level
+      Z_T = col_getHeight(column, nLev_T, colIndex, 'TH')
+      cmp = gpscompressibility(P0,tt,hu)
+      tv(nlev_T) = tv0*cmp
+      dh = Z_T - rMT
+      Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+      P_T(colIndex, nlev_T) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
+
+      ! momentum diagnostic level
+      ! DBGmad : validate that boundary condition implementation
+      Z_M = col_getHeight(column,nLev_M,colIndex,'MM')
+      dh = Z_M - rMT
+      Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
+      P_M(colIndex, nlev_M) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
+
+      call msg('calcPressure_col_nl_vcode2100x (czp)', &
+           'Column index '//str(colIndex) //': lat='//str(lat)&
+           //'   Surface: height='//str(rMT)//', P0='//str(P0) &
+           //'   TH_diag_lvl ('//str(nLev_T)//'): height='//str(Z_T)&
+                                  //', P_T='//str(P_T(colIndex, nlev_T)) &
+           //'   MM_diag_lvl ('//str(nLev_M)//'): height='//str(Z_M)&
+                                  //', P_M='//str(P_M(colIndex, nlev_M)), &
+           verb_opt=5)
+
+      ! compute pressure on all levels above except the last
+      do lev_M = nlev_M-1, 1, -1
+        lev_T = lev_M ! thermo level just below
+        hu   = col_getElem(  column, lev_T,   colIndex, 'HU')
+        tt   = col_getElem(  column, lev_T,   colIndex, 'TT')
+        Z_M  = col_getHeight(column, lev_M,   colIndex, 'MM')
+        Z_M1 = col_getHeight(column, lev_M+1, colIndex, 'MM')
+        Z_T  = col_getHeight(column, lev_T,   colIndex, 'TH')
+
+        tv0 = fotvt8(tt,hu)
+        dh = Z_M - Z_M1
+        Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
+
+        ! approximation of tv from pressure on previous momentum level
+        cmp = gpscompressibility(P_M(colIndex, lev_M+1),tt,hu)
+        tv(lev_T) = tv0*cmp
+        P_M(colIndex, lev_M) = P_M(colIndex, lev_M+1) * &
+                            exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
+        ! first interpolation of thermo pressure
+        scaleFactorBottom = (Z_T-Z_M1)/(Z_M-Z_M1)
+        logP = (1.0D0-scaleFactorBottom)*log(P_M(colIndex, lev_M+1)) + &
+                              scaleFactorBottom*log(P_M(colIndex, lev_M))
+        P_T(colIndex, lev_T) = exp(logP)
+
+        ! second iteration on tv
+        cmp = gpscompressibility(P_T(colIndex, lev_T),tt,hu)
+        tv(lev_T) = tv0*cmp
+        P_M(colIndex, lev_M) = P_M(colIndex, lev_M+1) * &
+                            exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(lev_T))
+
+        ! second iteration interpolation of thermo pressure
+        logP = (1.0D0-scaleFactorBottom)*log(P_M(colIndex, lev_M+1)) + &
+                              scaleFactorBottom*log(P_M(colIndex, lev_M))
+        P_T(colIndex, lev_T) = exp(logP)
+
+      end do
+    end do do_onAllColumns
+
+    deallocate(tv)
+
+    call msg('calcPressure_col_nl_vcode2100x (czp)', 'computed pressures:' &
+           //new_line('')//'P_T(1,:) = '//str(P_T(1,:)) &
+           //new_line('')//'P_M(1,:) = '//str(P_M(1,:)) , verb_opt=5)
+
+    call msg('calcPressure_col_nl_vcode2100x (czp)', 'END', verb_opt=3)
+  end subroutine calcPressure_col_nl_vcode2100x
+
+  !---------------------------------------------------------
+  ! calcPressure_col_nl_vcode500x
+  !---------------------------------------------------------
+  subroutine calcPressure_col_nl_vcode500x(column, P_T, P_M)
+    implicit none
+
+    ! Arguments
+    type(struct_columnData),  intent(in)    :: column ! reference column
+    real(8), pointer,         intent(inout) :: P_T(:,:), P_M(:,:) ! output pointers to computed column pressure values
+
+    ! Locals
+    real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
+    real(kind=8), pointer     :: zppobs1(:,:,:) => null()
+    integer :: headerIndex, status, ilev1, ilev2
+
+    call msg('calcPressure_col_nl_vcode500x (czp)', 'START', verb_opt=3)
+    if ( col_getNumCol(column) <= 0 ) then
+      call msg('calcPressure_col_nl_vcode500x (czp)',&
+           'END (number of columns <= 0)', verb_opt=2)
+      return
+    end if
+
+    if (.not.col_varExist(column,'P0')) then
+      call utl_abort('calcPressure_col_nl (czp): P0 must be present as an analysis variable!')
+    end if
+
+    allocate(Psfc(1,col_getNumCol(column)))
+    do headerIndex = 1,col_getNumCol(column)
+      Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
+    end do
+
+    status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
+                      levels=zppobs1,sfc_field=Psfc,in_log=.false.)
+    if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
+    allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
+    zppobs2 = transpose(zppobs1(1,:,:))
+    P_M(:,:) = zppobs2(:,:)
+    if (associated(zppobs1))  deallocate(zppobs1)
+    deallocate(zppobs2)
+
+    status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_T,  &
+                      levels=zppobs1,sfc_field=Psfc,in_log=.false.)
+    if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
+    allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
+    zppobs2 = transpose(zppobs1(1,:,:))
+    P_T(:,:) = zppobs2(:,:)
+    if (associated(zppobs1)) deallocate(zppobs1)
+    deallocate(zppobs2)
+
+    deallocate(Psfc)
+
+    call msg('calcPressure_col_nl_vcode500x (czp)', 'END', verb_opt=3)
+  end subroutine calcPressure_col_nl_vcode500x
+
 
   !---------------------------------------------------------
   ! calcPressure_col_tl
