@@ -64,7 +64,7 @@ program midas_obsSelection
   integer :: get_max_rss, fnom, fclos
 
   ! Namelist variables
-  logical :: doThinning = .false. ! Control whether or not thinning is done
+  logical :: doThinning ! Control whether or not thinning is done
 
   namelist /namObsSelection/ doThinning
 
@@ -78,6 +78,8 @@ program midas_obsSelection
   call utl_tmg_start(0,'Main')
 
   !- 1.2 Read the namelist for obsSelection program (if it exists)
+  ! set default values for namelist variables
+  doThinning = .false.
   if (utl_isNamelistPresent('namObsSelection', './flnml')) then
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
