@@ -65,13 +65,20 @@ contains
     integer :: fnom, fclos, ierr
 
     ! Namelist variables
-    logical :: doThinning        = .false. ! if false, we return immediately
-    real(8) :: step              = 6.0d0   ! time resolution (in hours)
-    integer :: deltmax           = 90      ! maximum time difference (in minutes)
-    logical :: useBlackList      = .false. ! signal if blacklist file should be read and used
-    logical :: considerSHIPstnID = .true.  ! signal if SHIP stn ID should be considered in thinning
+    logical :: doThinning        ! if false, we return immediately
+    real(8) :: step              ! time resolution (in hours)
+    integer :: deltmax           ! maximum time difference (in minutes)
+    logical :: useBlackList      ! signal if blacklist file should be read and used
+    logical :: considerSHIPstnID ! signal if SHIP stn ID should be considered in thinning
 
     namelist /thin_surface/doThinning, step, deltmax, useBlackList, considerSHIPstnID
+    
+    ! set default values for namelist variables
+    doThinning        = .false. 
+    step              = 6.0d0   
+    deltmax           = 90      
+    useBlackList      = .false. 
+    considerSHIPstnID = .true.
     
     ! return if no surface obs
     if (.not. obs_famExist(obsdat, obsFamily)) return
