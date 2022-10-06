@@ -451,131 +451,131 @@ contains
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLua, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLua')
         if (mmpi_myid == 0) write(*, nml = NAMSQLua)
       case ('ai')
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLai, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLai')
         if (mmpi_myid == 0) write(*, nml = NAMSQLai)
       case ('sw')
         vertCoordFact = 1
         vertCoordType = 2
         read(nulnam, nml = NAMSQLsw, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsw')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsw)
       case ('pr')
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLpr, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLpr')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLpr)
       case ('al')  
         columnsHeader = trim(columnsHeader)//", id_prof"
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLal, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLal')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLal)
       case ('ro')     
         columnsHeader = trim(columnsHeader)//",ro_qc_flag, geoid_undulation, earth_local_rad_curv, id_sat, azimuth"
         vertCoordFact = 1
         vertCoordType = 1
         read(nulnam, nml = NAMSQLro, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLro')
         if (mmpi_myid == 0) write(*, nml = NAMSQLro)
       case ('sf')
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsfc, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsfc')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsfc)
       case ('sst')
         columnsHeader = trim(columnsHeader)//", solar_zenith "
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = namReadSSTSat, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: namReadSSTSat')
         if (mmpi_myid == 0) write(*, nml = namReadSSTSat)
       case ('scat')
         vertCoordFact = 0
         vertCoordType = 1
         read(nulnam, nml = NAMSQLsc, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsc')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsc)
       case('airs')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         write(columnsData,'(a,f3.2,a)') trim(columnsData)//", ifnull(surf_emiss,", tvs_defaultEmissivity, "), bias_corr "
         read(nulnam, nml = NAMSQLairs, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLairs')
         if (mmpi_myid == 0) write(*, nml = NAMSQLairs)
       case('iasi')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth, FANION_QUAL_IASI_SYS_IND, INDIC_NDX_QUAL_GEOM "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLiasi, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLiasi')
         if (mmpi_myid == 0) write(*, nml = NAMSQLiasi)
       case('cris')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss, bias_corr "
         read(nulnam, nml = NAMSQLcris, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLcris')
         if (mmpi_myid == 0) write(*, nml = NAMSQLcris)
       case('crisfsr')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, cloud_cover, solar_azimuth "
         columnsData = trim(columnsData)//", surf_emiss "
         read(nulnam, nml = NAMSQLcrisfsr, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLcrisfsr')
         if (mmpi_myid == 0) write(*, nml = NAMSQLcrisfsr)
       case('amsua')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLamsua, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLamsua')
         if (mmpi_myid == 0) write(*, nml = NAMSQLamsua)
       case('amsub')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLamsub, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLamsub')
         if (mmpi_myid == 0) write(*, nml = NAMSQLamsub)
       case('atms')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type, sensor, solar_azimuth "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLatms, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLatms')
         if (mmpi_myid == 0) write(*, nml = NAMSQLatms)
       case('ssmi')
         columnsHeader = trim(columnsHeader)//", azimuth, terrain_type "
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLssmi, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLssmi')
         if (mmpi_myid == 0) write(*, nml = NAMSQLssmi)
       case('csr')
         columnsData = trim(columnsData)//", bias_corr "
         read(nulnam, nml = NAMSQLcsr, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLcsr')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLcsr)
       case('gl')
         read(nulnam, nml = NAMSQLgl, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLgl')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLgl)
       case('gl_ascat')
         columnsHeader = trim(columnsHeader)//", track_cell_no, mod_wind_spd "
         read(nulnam, nml = NAMSQLgl, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLgl')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLgl)
       case('ra')
         read(nulnam, nml = NAMSQLradar, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLradar')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLradar) 
       case('radvel')
         columnsHeader = trim(columnsHeader) 
         ! add  range to data columns to read
         columnsData = trim(columnsData)//", range "
         read(nulnam, nml = NAMSQLradvel, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist')
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLradvel')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLradvel)
       case DEFAULT
         call utl_abort('sqlr_readSqlite: Unsupported  SCHEMA in SQLITE file!'//trim(rdbSchema))

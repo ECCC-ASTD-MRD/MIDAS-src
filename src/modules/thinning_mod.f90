@@ -51,57 +51,58 @@ contains
   !--------------------------------------------------------------------------
   ! thn_thinSurface
   !--------------------------------------------------------------------------
-  subroutine thn_thinSurface(obsdat)
+  subroutine thn_thinSurface(obsdat, obsFamily)
     ! :Purpose: Main subroutine for thinning of surface obs.
 
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
+    character(len=2), intent(in)    :: obsFamily
 
     ! Locals:
     integer :: nulnam
     integer :: fnom, fclos, ierr
 
     ! Namelist variables
-    logical :: doThinning   ! if false, we return immediately
-    real(8) :: step         ! time resolution (in hours)
-    integer :: deltmax      ! maximum time difference (in minutes)
-    logical :: useBlackList ! signal if blacklist file should be read and used
+    logical :: doThinning        ! if false, we return immediately
+    real(8) :: step              ! time resolution (in hours)
+    integer :: deltmax           ! maximum time difference (in minutes)
+    logical :: useBlackList      ! signal if blacklist file should be read and used
     logical :: considerSHIPstnID ! signal if SHIP stn ID should be considered in thinning
 
     namelist /thin_surface/doThinning, step, deltmax, useBlackList, considerSHIPstnID
     
+    ! set default values for namelist variables
+    doThinning        = .false. 
+    step              = 6.0d0   
+    deltmax           = 90      
+    useBlackList      = .false. 
+    considerSHIPstnID = .true.
+    
     ! return if no surface obs
-    if (.not. obs_famExist(obsdat,'SF')) return
-
-    ! Default values for namelist variables
-    doThinning = .false.
-    step    = 6.0d0
-    deltmax = 90
-    useBlackList = .true.
-    considerSHIPstnID= .true.
+    if (.not. obs_famExist(obsdat, obsFamily)) return
 
     ! Read the namelist for Surface observations (if it exists)
-    if (utl_isNamelistPresent('thin_surface','./flnml')) then
+    if (utl_isNamelistPresent('thin_surface', './flnml')) then
       nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
       if (ierr /= 0) call utl_abort('thn_thinSurface: Error opening file flnml')
-      read(nulnam,nml=thin_surface,iostat=ierr)
+      read(nulnam,nml = thin_surface, iostat = ierr)
       if (ierr /= 0) call utl_abort('thn_thinSurface: Error reading namelist')
-      if (mmpi_myid == 0) write(*,nml=thin_surface)
+      if (mmpi_myid == 0) write(*, nml = thin_surface)
       ierr = fclos(nulnam)
     else
       write(*,*)
       write(*,*) 'thn_thinSurface: Namelist block thin_surface is missing in the namelist.'
       write(*,*) '                 The default value will be taken.'
-      if (mmpi_myid == 0) write(*,nml=thin_surface)
+      if (mmpi_myid == 0) write(*, nml = thin_surface)
     end if
 
     if (.not. doThinning) return
 
     call utl_tmg_start(114,'--ObsThinning')
-    call thn_surfaceInTime(obsdat, step, deltmax, useBlackList, considerSHIPstnID)
+    call thn_surfaceInTime(obsdat, obsFamily, step, deltmax, useBlackList, considerSHIPstnID)
     call utl_tmg_stop(114)
 
   end subroutine thn_thinSurface
@@ -650,7 +651,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_surfaceInTime
   !--------------------------------------------------------------------------
-  subroutine thn_surfaceInTime(obsdat, step, deltmax, useBlackList, considerSHIPstnID)
+  subroutine thn_surfaceInTime(obsdat, obsFamily, step, deltmax, useBlackList, considerSHIPstnID)
     !
     ! :Purpose: Original method for thinning surface data in time.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
@@ -659,6 +660,7 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
+    character(len=*), intent(in)    :: obsFamily
     real(8),          intent(in)    :: step
     integer,          intent(in)    :: deltmax
     logical,          intent(in)    :: useBlackList
@@ -670,21 +672,19 @@ contains
     ! Minimum required number elements (1 is consistent with bextrep in ops)
     integer, parameter :: numEleMinBadDrifter = 1
     ! List of required elements for codtyp 18 (see ops derivate program)
-    integer, parameter :: listEleBadDrifter(4) = (/ 10051, 11011, 11012, 12004 /)
+    integer, parameter :: listEleBadDrifter(5) = (/10051, 11011, 11012, 12004, 22042/)
 
     ! Selection parameters:
     integer, parameter :: numListCodtyp = 8 ! number of elements in listCodtyp
     ! List of codtyps to keep (what about SYNOP mobil? SA+SYNOP?)
-    integer, parameter :: listCodtyp(numListCodtyp) = &
-         (/ 12, 146, 13, 147, 18, 143, 144, 15 /)
+    integer, parameter :: listCodtyp(numListCodtyp) = (/12, 146, 13, 147, 18, 143, 144, 15/)
     character(len=13), parameter :: listCodtypName(numListCodtyp) = &
-         (/ 'SYNOP', 'ASYNOP', 'SHIP', 'ASHIP', &
-            'DRIFTER', 'SWOB_regular', 'ASWOB_regular', 'METAR' /)
+         (/'SYNOP', 'ASYNOP', 'SHIP', 'ASHIP', 'DRIFTER', 'SWOB_regular', 'ASWOB_regular', 'METAR'/)
     ! Codtyps to which list_ele_select will be applied
     integer, parameter :: listCodtypSelect(3) = (/ 15, 143, 144 /)
     ! Elements to select (flags for all other elements will have bit 11 set)
-    integer, parameter :: listEleSelect(13) = &    ! P, T, Td, U, V, VIS, log(VIS), GUST
-         (/ 8194, 10004, 10051, 11011, 11012, 11215, 11216, 12004, 12006, 12203, 20001, 50001, 11041 /) 
+    integer, parameter :: listEleSelect(14) = &    ! P, T, Td, U, V, VIS, log(VIS), GUST
+         (/8194, 10004, 10051, 11011, 11012, 11215, 11216, 12004, 12006, 12203, 20001, 50001, 11041, 22042/) 
 
     ! BlackList parameters:
     character(len=*), parameter :: blackListFileName = 'blacklist_sf'
@@ -726,15 +726,15 @@ contains
 
     ! Check if any observations to be treated
     countObsIn = 0
-    call obs_set_current_header_list(obsdat,'SF')
+    call obs_set_current_header_list(obsdat, obsFamily)
     HEADER0: do
-      headerIndex = obs_getHeaderIndex(obsdat)
+      headerIndex = obs_getHeaderIndex(obsdat)      
+      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if (headerIndex < 0) exit HEADER0
-      countObsIn = countObsIn + 1
+      if (codtyp /= codtyp_get_codtyp('satob')) countObsIn = countObsIn + 1
     end do HEADER0
 
-    call rpn_comm_allReduce(countObsIn, countObsInMpi, 1, 'mpi_integer', &
-                            'mpi_sum', 'grid', ierr)
+    call rpn_comm_allReduce(countObsIn, countObsInMpi, 1, 'mpi_integer', 'mpi_sum', 'grid', ierr)
     write(*,*)
     if (countObsInMpi == 0) then
       write(*,*) 'thn_surfaceInTime: no surface observations present'
@@ -745,7 +745,7 @@ contains
     write(*,*)
 
     ! Compute number of time steps in the window for thinning
-    numStep = 2*nint(((tim_windowsize - step)/2.d0)/step) + 1
+    numStep = 2 * nint(((tim_windowsize - step) / 2.d0) / step) + 1
     write(*,*) 'thn_surfaceInTime: step, numStep = ', real(step), numStep
     write(*,*)
  
@@ -809,14 +809,18 @@ contains
 
     ! Extract needed information from obsSpaceData
     obsIndex = 0
-    call obs_set_current_header_list(obsdat,'SF')
+    call obs_set_current_header_list(obsdat, obsFamily)
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsdat)
+      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if (headerIndex < 0) exit HEADER1
-      obsIndex = obsIndex + 1
+      if (codtyp /= codtyp_get_codtyp('satob')) then
+        obsIndex = obsIndex + 1
+      else
+        cycle HEADER1
+      end if
 
       ! Get index in codtyp list
-      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       do listIndex = 1, numListCodtyp
         if (codtyp == listCodtyp(listIndex)) then
           obsCodtypIndex(obsIndex) = listIndex
@@ -831,7 +835,7 @@ contains
       end if
 
       ! Check if DRIFTER reports contain required element(s), otherwise cycle
-      if ((codtyp == 18) .and. removeBadDrifters) then
+      if ((codtyp == codtyp_get_codtyp('drifter')) .and. removeBadDrifters) then
         numElements = 0
         call obs_set_current_body_list(obsdat, headerIndex)
         BODY1: do 
@@ -884,7 +888,7 @@ contains
       countObsInPerCodtyp(listIndex) = countObsInPerCodtyp(listIndex) + 1
       numEleInPerCodtyp(listIndex) = numEleInPerCodtyp(listIndex) + numElements
 
-      obsStnid(obsIndex) = obs_elem_c(obsdat,'STID',headerIndex)
+      obsStnid(obsIndex) = obs_elem_c(obsdat, 'STID', headerIndex)
 
       obsLon(obsIndex) = nint(100.0 * MPC_DEGREES_PER_RADIAN_R8 * &
                               obs_headElem_r(obsdat, OBS_LON, headerIndex))
@@ -898,13 +902,12 @@ contains
                                obsDate(obsIndex), obsTime(obsIndex), numStep)
       obsStepIndex(obsIndex) = nint(obsStepIndex_r8)
       if (numStep > 1) then
-        obsDelT(obsIndex) = &
-             nint( 60.0 * step * &
-                   (obsStepIndex_r8 - real(obsStepIndex(obsIndex))) )
+        obsDelT(obsIndex) = nint(60.0 * step * (obsStepIndex_r8 - real(obsStepIndex(obsIndex))))
       else
-        ierr = newdate(obsDateStamp, obsDate(obsIndex), obsTime(obsIndex)*10000, 3)
-        call difdatr(obsDateStamp,tim_getDateStamp(),deltaHours)
-        obsDelT(obsIndex) = nint(60.0*deltaHours)
+        ierr = newdate(obsDateStamp, obsDate(obsIndex), obsTime(obsIndex) * 10000, 3)
+	! Difference (in hours) between obs time
+        call difdatr(obsDateStamp, tim_getDateStamp(), deltaHours)
+        obsDelT(obsIndex) = nint(60.0 * deltaHours)
       end if
 
       ! Reject if time difference larger than deltmax
@@ -913,7 +916,6 @@ contains
         numRemovedTime = numRemovedTime + 1
       endif
 
-      write(*,*) 'DEBUG: ', obsLon(obsIndex), obsLat(obsIndex), obsDate(obsIndex), obsTime(obsIndex), obsStnid(obsIndex)
     end do HEADER1
 
     call utl_allReduce(numRemovedDrifter)
@@ -925,33 +927,33 @@ contains
       write(*,*) 'Opening blacklist file'
       numRowBlacklist = 0
       nulfile = 0
-      open (unit=nulfile, file=blackListFileName, status='OLD', iostat=ierr)
+      open (unit = nulfile, file = blackListFileName, status = 'OLD', iostat = ierr)
       if (ierr /= 0) then
         write(*,*) 'Cannot open blacklist file ', trim(blackListFileName)
         call utl_abort('thn_surfaceInTime')
       end if
-      read(nulfile, iostat=istat, fmt='(i6)') numRowBlacklist
+      read(nulfile, iostat = istat, fmt = '(i6)') numRowBlacklist
       write(*,*) 'thn_surfaceInTime: Number of stations in blacklist: ', numRowBlacklist
 
       allocate(stnidBlacklist(numRowBlacklist))
       allocate(dataBlacklist(numRowBlacklist, numEleBlacklist))
       stnidBlacklist(:) = '' ! array of stnid values in blacklist file
-      dataBlacklist(:,:)    = 0 ! blacklist matrix for stnids and elements
+      dataBlacklist(:,:) = 0 ! blacklist matrix for stnids and elements
 
       do rowIndex = 1, numRowBlacklist
-        read(nulfile, iostat=istat, fmt='(x,a8,x,5(x,i1))') &
+        read(nulfile, iostat = istat, fmt = '(x,a8,x,5(x,i1))') &
              stnidBlacklist(rowIndex), &
              (rowBlackList(colIndex), colIndex = 1, numColBlacklist)
         do elemIndex = 1, numEleBlacklist
-          if ( (blacklistMode == 'severe') .or. &
-               (rowBlackList(listColBlackList(elemIndex))==1)) then
-            dataBlacklist(rowIndex,elemIndex) = 1
+          if ((blacklistMode == 'severe') .or. &
+              (rowBlackList(listColBlackList(elemIndex))==1)) then
+            dataBlacklist(rowIndex, elemIndex) = 1
           end if
         end do
       end do
       write(*,*) 'thn_surfaceInTime: Closing blacklist file'
       write(*,*)
-      close (unit=nulfile)
+      close (unit = nulfile)
     end if
 
     ! Gather array information over all mpi tasks
@@ -980,12 +982,12 @@ contains
         do obsIndex2 = 1, obsIndex - 1
           ! If other report OK so far and both reports in same bin
           if ( validMpi(obsIndex2) .and. &
-               (obsStepIndexMpi(obsIndex) == obsStepIndexMpi(obsIndex2)) ) then
+               (obsStepIndexMpi(obsIndex) == obsStepIndexMpi(obsIndex2))) then
             ! If reports are spatially colocated or have same stnid
             if ( ( (obsLonMpi(obsIndex) == obsLonMpi(obsIndex2)) .and. &
                    (obsLatMpi(obsIndex) == obsLatMpi(obsIndex2)) ) .or. &
                  ( considerSHIPstnID .and. &
-                   (obsStnidMpi(obsIndex) == obsStnidMpi(obsIndex2)) ) ) then
+                   (obsStnidMpi(obsIndex) == obsStnidMpi(obsIndex2)))) then
               ! If both reports have same codtyp
               if (obsCodtypIndexMpi(obsIndex) == obsCodtypIndexMpi(obsIndex2)) then
                 ! If current report closer to bin time
@@ -1034,9 +1036,8 @@ contains
     end do ! obsIndex
 
     ! Transfer mpi global array 'valid' to local array
-    call rpn_comm_allGather(countObsIn,       1, 'mpi_integer',  &
-                            countObsInAllMpi, 1, 'mpi_integer', &
-                            'GRID', ierr )
+    call rpn_comm_allGather(countObsIn, 1, 'mpi_integer', countObsInAllMpi, 1, 'mpi_integer', 'GRID', ierr)
+
     countObsInMyOffset = 0
     do procIndex = 1, mmpi_myid
       countObsInMyOffset = countObsInMyOffset + countObsInAllMpi(procIndex)
@@ -1048,11 +1049,16 @@ contains
     ! Do counts of kepts observations
     obsIndex = 0
     countObsOut = 0
-    call obs_set_current_header_list(obsdat,'SF')
+    call obs_set_current_header_list(obsdat, obsFamily)
     HEADER2: do
       headerIndex = obs_getHeaderIndex(obsdat)
+      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if (headerIndex < 0) exit HEADER2
-      obsIndex = obsIndex + 1
+      if (codtyp /= codtyp_get_codtyp('satob')) then
+        obsIndex = obsIndex + 1
+      else
+        cycle HEADER2
+      end if 
 
       ! If rejected, set bit 11 for all data flags
       if (.not. valid(obsIndex)) then
@@ -1063,11 +1069,8 @@ contains
           obsFlag  = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
           call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
         end do BODY3
-        
         cycle HEADER2
       end if
-
-      codtyp   = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
 
       ! Count the number of elements
       numElements = 0
@@ -1090,8 +1093,8 @@ contains
               ! Traverse columns of blacklist matrix
               do elemIndex = 1, numEleBlacklist
                 ! If element is to be blacklisted, set bit 8
-                if ( obsVarNo == listEleBlacklist(elemIndex) .and. &
-                     dataBlacklist(rowIndex,elemIndex) == 1 ) then
+                if (obsVarNo == listEleBlacklist(elemIndex) .and. &
+                    dataBlacklist(rowIndex,elemIndex) == 1) then
                   obsFlag  = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
                   call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,8))
                 end if
@@ -1105,7 +1108,7 @@ contains
           ! If current element not in select list, set bit 11
           if (.not. any(listEleSelect(:) == obsVarNo)) then
             obsFlag  = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
+            write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
             call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
           end if
         end if
@@ -1114,15 +1117,13 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
 
         ! Count output flags with bit 8 set
         if (btest(obsFlag, 8)) then
-          numBit8OutPerCodtyp(obsCodtypIndex(obsIndex)) = &
-               numBit8OutPerCodtyp(obsCodtypIndex(obsIndex)) + 1
+          numBit8OutPerCodtyp(obsCodtypIndex(obsIndex)) = numBit8OutPerCodtyp(obsCodtypIndex(obsIndex)) + 1
           numBit8Out = numBit8Out + 1
         end if
 
         ! Count output flags with bit 11 set
         if (btest(obsFlag, 11)) then
-          numBit11OutPerCodtyp(obsCodtypIndex(obsIndex)) = &
-               numBit11OutPerCodtyp(obsCodtypIndex(obsIndex)) + 1
+          numBit11OutPerCodtyp(obsCodtypIndex(obsIndex)) = numBit11OutPerCodtyp(obsCodtypIndex(obsIndex)) + 1
           numBit11Out = numBit11Out + 1
         end if
 
@@ -1185,8 +1186,8 @@ write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
     write(*,*)
     call utl_allReduce(countObsIn)
     call utl_allReduce(countObsOut)
-    write(*,'(a,i7)') 'Total number of reports in input file:   ', countObsIn
-    write(*,'(a,i7)') 'Total number of reports in output file:  ', countObsOut
+    write(*,'(a,i12)') 'Total number of reports in input file:   ', countObsIn
+    write(*,'(a,i12)') 'Total number of reports in output file:  ', countObsOut
     call utl_allReduce(numEleIn)
     call utl_allReduce(numBit8In)
     call utl_allReduce(numBit11In)

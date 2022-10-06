@@ -21,7 +21,7 @@ program midas_thinning
   ! :Method:  Set bit 11 of *flag* according to an observation-type-specific
   !           algorithm.  Then remove all observations from SQL and/or burp files
   !           for which bit 11 is set. So far, most NWP obs types except radiosonde
-  !           ssmis and surface are treated.
+  !           ssmis are treated.
   !
   use version_mod
   use ramDisk_mod
@@ -98,7 +98,8 @@ program midas_thinning
   call thn_thinScat(obsSpaceData)
   call thn_thinSatWinds(obsSpaceData)
   call thn_thinAircraft(obsSpaceData)
-  call thn_thinSurface(obsSpaceData)
+  call thn_thinSurface(obsSpaceData, 'SF') ! surface data thinning
+  call thn_thinSurface(obsSpaceData, 'TM') ! insitu SST thinning
   call thn_thinGbGps(obsSpaceData)
   call thn_thinGpsRo(obsSpaceData)
   call thn_thinAladin(obsSpaceData)

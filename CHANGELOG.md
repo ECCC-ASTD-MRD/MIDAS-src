@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Adapt `thinning_mod` code to insitu SST data (#703 and !649)
  * Added ability to consider vertical coriolis accel to h/p relationship (GPSRO operator only) (#644 and !644)
  * Add ability to produce random ocean perturbations (#652 and !637)
    * minor impact: `randomPert` output files now use 4-digit suffixes, instead of 3
