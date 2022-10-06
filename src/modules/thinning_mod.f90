@@ -974,13 +974,13 @@ contains
         ! Loop over previously-read reports
         do obsIndex2 = 1, obsIndex - 1
           ! If other report OK so far and both reports in same bin
-          if (validMpi(obsIndex2) .and. &
-              (obsStepIndexMpi(obsIndex) == obsStepIndexMpi(obsIndex2))) then
+          if ( validMpi(obsIndex2) .and. &
+               (obsStepIndexMpi(obsIndex) == obsStepIndexMpi(obsIndex2))) then
             ! If reports are spatially colocated or have same stnid
-            if (((obsLonMpi(obsIndex) == obsLonMpi(obsIndex2)) .and. &
-                (obsLatMpi(obsIndex) == obsLatMpi(obsIndex2)) ) .or. &
-                (considerSHIPstnID .and. &
-                (obsStnidMpi(obsIndex) == obsStnidMpi(obsIndex2)))) then
+            if ( ( (obsLonMpi(obsIndex) == obsLonMpi(obsIndex2)) .and. &
+                   (obsLatMpi(obsIndex) == obsLatMpi(obsIndex2)) ) .or. &
+                 ( considerSHIPstnID .and. &
+                   (obsStnidMpi(obsIndex) == obsStnidMpi(obsIndex2)))) then
               ! If both reports have same codtyp
               if (obsCodtypIndexMpi(obsIndex) == obsCodtypIndexMpi(obsIndex2)) then
                 ! If current report closer to bin time

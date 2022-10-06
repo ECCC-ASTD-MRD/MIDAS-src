@@ -1,7 +1,7 @@
  &thin_surface
    doThinning   = .true.
-   step         = 24.0d0
-   deltmax      = 1440
+   step         = 6.0d0
+   deltmax      = 180
    useBlackList = .false.
 /
  &NAMSTATE
