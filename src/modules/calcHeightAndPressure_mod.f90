@@ -2678,86 +2678,96 @@ contains
 
     Vcode = col_getVco(column)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      call calcHeight_col_nl_vcode500x
+      call calcHeight_col_nl_vcode500x(column, Z_T, Z_M)
     else if (Vcode == 21001) then
       !! some col_varExist(columnInc,.)
-      call calcHeight_col_nl_vcode2100x
+      call calcHeight_col_nl_vcode2100x(column, Z_T, Z_M)
+
     end if
 
     call msg('czp_calcReturnHeight_col_nl (czp)', 'END', verb_opt=2)
-
-    contains
-      !---------------------------------------------------------
-      ! calcHeight_col_nl_vcode2100x
-      !---------------------------------------------------------
-      subroutine calcHeight_col_nl_vcode2100x
-        implicit none
-
-        ! Locals
-        real(8), allocatable  :: hSfc(:,:), heights(:,:)
-        real(8), pointer      :: hPtr(:,:,:)
-        integer :: numCol, headerIndex, stat
-
-        call msg('calcHeight_col_nl_vcode2100x (czp)', 'START', verb_opt=3)
-        if ( col_getNumCol(column) <= 0 ) then
-          call msg('calcHeight_col_nl_vcode2100x (czp)',&
-               'END (number of columns <= 0)', verb_opt=2)
-          return
-        end if
-
-        if (.not.col_varExist(column,'ME')) then
-          call utl_abort('calcHeight_col_nl_vcode2100x (czp): ME must be present as an analysis variable!')
-        end if
-        
-        numCol = col_getNumCol(column)
-        allocate(hSfc(1, numCol))
-        do headerIndex = 1, numCol
-          hSfc(1,headerIndex) = col_getElem(column,1,headerIndex, 'ME')
-        end do
-
-        ! heights on momentum levels
-        stat=vgd_levels(column%vco%vgrid, ip1_list=column%vco%ip1_M, &
-                        levels=hPtr, sfc_field=hSfc, in_log=.false.)
-        if ( stat .ne. VGD_OK ) then
-          call utl_abort('calcHeight_col_nl_vcode2100x (czp): ERROR with vgd_levels')
-        end if
-
-        allocate(heights(col_getNumLev(column,'MM'), numCol))
-        heights = transpose(hPtr(1,:,:))
-        call msg('calcHeight_col_nl_vcode2100x (czp)', &
-             'MM heights(1,:) = '//str(heights(1,:)),  verb_opt=3)
-        Z_M(:,:) = heights(:,:)
-        if (associated(hPtr)) deallocate(hPtr)
-
-        ! heights on thermo levels
-        stat=vgd_levels(column%vco%vgrid, ip1_list=column%vco%ip1_T, &
-                        levels=hPtr, sfc_field=hSfc, in_log=.false.)
-        if ( stat .ne. VGD_OK ) then
-          call utl_abort('calcHeight_col_nl_vcode2100x (czp): ERROR with vgd_levels')
-        end if
-
-        allocate(heights(col_getNumLev(column,'TH'), numCol))
-        heights = transpose(hPtr(1,:,:))
-        call msg('calcHeight_col_nl_vcode2100x (czp)', &
-             'TH heights(1,:) = '//str(heights(1,:)),  verb_opt=3)
-        Z_T(:,:) = heights(:,:)
-        if (associated(hPtr)) deallocate(hPtr)
-
-        deallocate(heights)
-        deallocate(hSfc)
-        call msg('calcHeight_col_nl_vcode2100x (czp)', 'END', verb_opt=3)
-      end subroutine calcHeight_col_nl_vcode2100x
-
-      !---------------------------------------------------------
-      ! calcHeight_col_nl_vcode500x
-      !---------------------------------------------------------
-      subroutine calcHeight_col_nl_vcode500x
-        implicit none
-        call msg('calcHeight_col_nl_vcode500x (czp)', 'END (nothing done)', verb_opt=3)
-        continue
-      end subroutine calcHeight_col_nl_vcode500x
-
   end subroutine czp_calcReturnHeight_col_nl
+
+  !---------------------------------------------------------
+  ! calcHeight_col_nl_vcode2100x
+  !---------------------------------------------------------
+  subroutine calcHeight_col_nl_vcode2100x(column, Z_T, Z_M)
+    implicit none
+
+    ! Arguments
+    type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
+    real(8), pointer,         intent(inout) :: Z_T(:,:), Z_M(:,:) ! output pointers to computed column height values
+
+    ! Locals
+    real(8), allocatable  :: hSfc(:,:), heights(:,:)
+    real(8), pointer      :: hPtr(:,:,:)
+    integer :: numCol, colIndex, stat
+
+    call msg('calcHeight_col_nl_vcode2100x (czp)', 'START', verb_opt=3)
+    if ( col_getNumCol(column) <= 0 ) then
+      call msg('calcHeight_col_nl_vcode2100x (czp)',&
+           'END (number of columns <= 0)', verb_opt=2)
+      return
+    end if
+
+    numCol = col_getNumCol(column)
+    allocate(hSfc(1, numCol))
+    do colIndex = 1, numCol
+      hSfc(1,colIndex) = col_getHeight(column,1,colIndex, 'SF')
+    end do
+
+    ! momentum levels
+    stat=vgd_levels(column%vco%vgrid, ip1_list=column%vco%ip1_M, &
+                    levels=hPtr, sfc_field=hSfc, in_log=.false.)
+    if ( stat .ne. VGD_OK ) then
+      call utl_abort('calcHeight_col_nl_vcode2100x (czp): ERROR with vgd_levels')
+    end if
+
+    allocate(heights(col_getNumLev(column,'MM'), numCol))
+    heights = hPtr(1,:,:)
+    call msg('calcHeight_col_nl_vcode2100x (czp)', &
+         'MM heights(1,:) = '//str(heights(1,:)),  verb_opt=3)
+    Z_M(:,:) = heights(:,:)
+    if (associated(hPtr)) deallocate(hPtr)
+    deallocate(heights)
+
+    ! thermo levels
+    stat=vgd_levels(column%vco%vgrid, ip1_list=column%vco%ip1_T, &
+                    levels=hPtr, sfc_field=hSfc, in_log=.false.)
+    if ( stat .ne. VGD_OK ) then
+      call utl_abort('calcHeight_col_nl_vcode2100x (czp): ERROR with vgd_levels')
+    end if
+
+    allocate(heights(col_getNumLev(column,'TH'), numCol))
+    heights = hPtr(1,:,:)
+    call msg('calcHeight_col_nl_vcode2100x (czp)', &
+         'TH heights(1,:) = '//str(heights(1,:)),  verb_opt=3)
+    Z_T(:,:) = heights(:,:)
+    if (associated(hPtr)) deallocate(hPtr)
+    deallocate(heights)
+
+    deallocate(hSfc)
+    call msg('calcHeight_col_nl_vcode2100x (czp)', 'END', verb_opt=3)
+  end subroutine calcHeight_col_nl_vcode2100x
+
+  !---------------------------------------------------------
+  ! calcHeight_col_nl_vcode500x
+  !---------------------------------------------------------
+  subroutine calcHeight_col_nl_vcode500x(column, Z_T, Z_M)
+    !
+    ! :Purpose: DBGmad TODO
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
+    real(8), pointer,         intent(inout) :: Z_T(:,:), Z_M(:,:) ! output pointers to computed column height values
+
+    !! DBGmad TODO : really do nothing??
+    call msg('calcHeight_col_nl_vcode500x (czp)', 'END (nothing done)', verb_opt=3)
+    continue
+  end subroutine calcHeight_col_nl_vcode500x
+
 
   !---------------------------------------------------------
   ! calcHeight_col_tl
@@ -3372,7 +3382,7 @@ contains
                                   //', P_T='//str(P_T(colIndex, nlev_T)) &
            //'   MM_diag_lvl ('//str(nLev_M)//'): height='//str(Z_M)&
                                   //', P_M='//str(P_M(colIndex, nlev_M)), &
-           verb_opt=5)
+           verb_opt=6)
 
       ! compute pressure on all levels above except the last
       do lev_M = nlev_M-1, 1, -1
@@ -3433,7 +3443,7 @@ contains
 
     ! Locals
     real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
-    real(kind=8), pointer     :: zppobs1(:,:,:) => null()
+    real(kind=8), pointer     :: zppobs1(:,:,:)
     integer :: headerIndex, status, ilev1, ilev2
 
     call msg('calcPressure_col_nl_vcode500x (czp)', 'START', verb_opt=3)
@@ -3456,7 +3466,7 @@ contains
                       levels=zppobs1,sfc_field=Psfc,in_log=.false.)
     if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
     allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
-    zppobs2 = transpose(zppobs1(1,:,:))
+    zppobs2 = zppobs1(1,:,:)
     P_M(:,:) = zppobs2(:,:)
     if (associated(zppobs1))  deallocate(zppobs1)
     deallocate(zppobs2)
@@ -3465,7 +3475,7 @@ contains
                       levels=zppobs1,sfc_field=Psfc,in_log=.false.)
     if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
     allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
-    zppobs2 = transpose(zppobs1(1,:,:))
+    zppobs2 = zppobs1(1,:,:)
     P_T(:,:) = zppobs2(:,:)
     if (associated(zppobs1)) deallocate(zppobs1)
     deallocate(zppobs2)
