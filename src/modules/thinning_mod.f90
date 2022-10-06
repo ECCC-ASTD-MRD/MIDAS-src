@@ -653,7 +653,7 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsdat
-    character(len=2), intent(in)    :: obsFamily
+    character(len=*), intent(in)    :: obsFamily
     real(8),          intent(in)    :: step
     integer,          intent(in)    :: deltmax
     logical,          intent(in)    :: useBlackList
