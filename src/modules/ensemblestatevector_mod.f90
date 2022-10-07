@@ -2257,21 +2257,19 @@ CONTAINS
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer,pointer :: dateStampList(:)
-    integer :: batchnum, nsize, status, ierr
+    integer :: batchIndex, nsize, ierr
     integer :: yourid, youridx, youridy
-    integer :: readFilePE(1000)
+    integer, allocatable :: readFilePE(:), memberIndexFromMemberStep(:), stepIndexFromMemberStep(:)
+    integer, allocatable :: batchIndexFromMemberStep(:)
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvdispls(mmpi_nprocs)
-    integer :: memberIndexOffset, totalEnsembleSize
-    integer :: length_envVariable
-    integer :: lonPerPEmax, latPerPEmax, ni, nj, numK, numStep, numLevelsToSend2
-    integer :: memberIndex, memberIndex2, fileMemberIndex, stepIndex, procIndex
-    integer :: kIndexBeg, kIndexEnd, kCount
+    integer :: lonPerPEmax, latPerPEmax, ni, nj, numK, numStep, numMembers, numLevelsToSend2
+    integer :: memberIndex, memberIndex2, stepIndex, stepIndex2, procIndex, memberStepIndex, memberStepIndex2
+    integer :: kIndexBeg, kIndexEnd, kCount, memberStepIndexStart, lastReadFilePE
     character(len=256) :: ensFileName
-    character(len=32)  :: envVariable
     character(len=2)   :: typvar
     character(len=12)  :: etiket
     character(len=4), pointer :: anlVar(:)
-    logical :: thisProcIsAsender(mmpi_nprocs)
+    logical :: thisProcIsAsender(mmpi_nprocs), doMpiCommunication
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
     logical :: checkModelTop, containsFullField, ignoreDate
     character(len=4), pointer :: varNames(:)
@@ -2293,12 +2291,67 @@ CONTAINS
     nj          = ens%statevector_work%nj
     numK        = ens%statevector_work%nk
     numStep     = ens%statevector_work%numStep
+    numMembers  = ens%numMembers
+
     dateStampList => ens%statevector_work%dateStampList
 
     ens%ensPathName = trim(ensPathName)
 
-    do memberIndex = 1, ens%numMembers
-      readFilePE(memberIndex) = mod(memberIndex-1,mmpi_nprocs)
+    ! Determine which MPI tasks read which members/steps to minimize file copies to ram disk
+    allocate(batchIndexFromMemberStep(numMembers*numStep))
+    allocate(readFilePE(numMembers*numStep))
+    allocate(stepIndexFromMemberStep(numMembers*numStep))
+    allocate(memberIndexFromMemberStep(numMembers*numStep))
+    do stepIndex = 1, numStep
+      do memberIndex = 1, numMembers
+        memberStepIndex = ((stepIndex-1)*numMembers) + memberIndex
+        stepIndexFromMemberStep(memberStepIndex) = stepIndex
+        memberIndexFromMemberStep(memberStepIndex) = memberIndex
+
+        if (memberStepIndex == 1) then
+          ! Very first member/step
+          readFilePE(memberStepIndex) = 0
+          batchIndexFromMemberStep(memberStepIndex) = 1
+        else
+          ! Increment MPI task ID and keep same batch
+          readFilePE(memberStepIndex) = readFilePE(memberStepIndex-1) + 1
+          batchIndexFromMemberStep(memberStepIndex) = batchIndexFromMemberStep(memberStepIndex-1)
+        end if
+
+        ! Decide if we need to move to the next batch
+        if (memberIndex == 1) then
+          if (readFilePE(memberStepIndex) == 0) then
+            ! First MPI task reading member 1, try to fit all others in this batch
+            lastReadFilePE = numMembers - 1
+          else
+            ! Check if we can fit this full time step in this batch
+            if (lastReadFilePE + numMembers < mmpi_nprocs) then
+              lastReadFilePE = lastReadFilePE + numMembers
+            end if
+            ! If numMembers > nprocs, move to next batch
+            if (numMembers > mmpi_nprocs) then
+              readFilePE(memberStepIndex) = 0              
+              batchIndexFromMemberStep(memberStepIndex) = batchIndexFromMemberStep(memberStepIndex-1)+ 1
+              lastReadFilePE = numMembers - 1
+            end if
+          end if
+          ! Ensure we limit ourselves to the total number of MPI tasks
+          lastReadFilePE = min(lastreadFilePE, mmpi_nprocs - 1)
+        end if
+        ! Move to next batch if we reached lastReadFilePE
+        if (readFilePE(memberStepIndex) == lastReadFilePE + 1) then
+          readFilePE(memberStepIndex) = 0
+          batchIndexFromMemberStep(memberStepIndex) = batchIndexFromMemberStep(memberStepIndex-1)+ 1
+          lastReadFilePE = min(numMembers - memberIndex, mmpi_nprocs - 1)
+        end if
+
+        if (mmpi_myid == 0) then
+          write(*,*) 'ens_readEnsemble: batchIndex, memberIndex, stepIndex, memberStepIndex, readFilePE = ', &
+               batchIndexFromMemberStep(memberStepIndex), memberIndex, stepIndex, memberStepIndex, &
+               readFilePE(memberStepIndex)
+        end if
+
+      end do
     end do
 
     ! the default is to check whether output grid has a higher top than input grid during vertical interpolation
@@ -2316,33 +2369,6 @@ CONTAINS
     end if
     if ( ignoreDate .and. (numStep > 1) ) then
       call utl_abort('ens_readEnsemble: cannot ignore date if numStep > 1')
-    end if
-
-    ! Retrieve environment variables related to doing an ensemble of perturbed analyses
-    status = 0
-    call get_environment_variable('envar_memberIndexOffset',envVariable,length_envVariable,status,.true.)
-    if (status.gt.1) then
-      write(*,*) 'ens_readEnsemble: Problem when getting the environment variable envar_memberIndexOffset'
-      memberIndexOffset = 0
-    else if (status == 1) then
-      memberIndexOffset = 0
-    else
-      write(*,*) 'ens_readEnsemble: The environment variable envar_memberIndexOffset has been detected: ',envVariable
-      read(envVariable,'(i8)') memberIndexOffset
-      write(*,*) 'memberIndexOffset = ',memberIndexOffset
-    end if
-
-    status = 0
-    call get_environment_variable('envar_totalEnsembleSize',envVariable,length_envVariable,status,.true.)
-    if (status.gt.1) then
-      write(*,*) 'ens_readEnsemble: Problem when getting the environment variable envar_totalEnsembleSize'
-      totalEnsembleSize = ens%numMembers
-    else if (status == 1) then
-      totalEnsembleSize = ens%numMembers
-    else
-      write(*,*) 'ens_readEnsemble: The environment variable envar_totalEnsembleSize has been detected: ',envVariable
-      read(envVariable,'(i8)') totalEnsembleSize
-      write(*,*) 'totalEnsembleSize = ',totalEnsembleSize
     end if
 
     ! Set up hco and vco for ensemble files
@@ -2426,13 +2452,16 @@ CONTAINS
     end if
 
     !- 2.1 Loop on time, ensemble member, variable, level
-    do stepIndex = 1, numStep
+    memberStepIndexStart = 1
+    stepLoop: do stepIndex = 1, numStep
       write(*,*) ' '
       write(*,*) 'ens_readEnsemble: starting to read time level ', stepIndex
       
-      do memberIndex = 1, ens%numMembers
+      memberLoop: do memberIndex = 1, numMembers
 
-        if (mmpi_myid == readFilePE(memberIndex)) then
+        memberStepIndex = ((stepIndex-1)*numMembers) + memberIndex
+        batchIndex = batchIndexFromMemberStep(memberStepIndex)
+        if (mmpi_myid == readFilePE(memberStepIndex)) then
 
           ! allocate the needed statevector objects
           call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
@@ -2454,8 +2483,7 @@ CONTAINS
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
           !  Read the file
-          fileMemberIndex = 1+mod(memberIndex+memberIndexOffset-1, totalEnsembleSize)
-          call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=fileMemberIndex)
+          call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=memberIndex)
           typvar = ' '
           etiket = ' '
           if (.not. horizontalInterpNeeded  .and. &
@@ -2467,7 +2495,11 @@ CONTAINS
             call gio_readFile(statevector_file_r4, ensFileName, etiket, typvar, &
                               containsFullField, ignoreDate_opt=ignoreDate)
           end if
-          if (stepIndex == numStep) then
+
+          ! Remove file from ram disk if no longer needed
+          if ( all(readFilePE(memberStepIndex+1:numMembers*numStep) /= mmpi_myid) .or. &
+               (stepIndex == numStep) .or. &
+               (batchIndex == maxval(batchIndexFromMemberStep(:))) ) then
             ierr = ram_remove(ensFileName)
           end if
 
@@ -2518,10 +2550,21 @@ CONTAINS
 
         end if ! locally read one member
 
-        !  MPI communication: from 1 ensemble member per process to 1 lat-lon tile per process  
-        if (readFilePE(memberIndex) == (mmpi_nprocs-1) .or. memberIndex == ens%numMembers) then
+        !  MPI communication: from 1 ensemble member per process to 1 lat-lon tile per process
+        if (memberStepIndex == numStep*numMembers) then
+          ! last member/step was read, do last communication
+          doMpiCommunication = .true.
+        else if (batchIndex < batchIndexFromMemberStep(memberStepIndex+1)) then
+          ! next member/step is in next batch, do communication
+          doMpiCommunication = .true.
+        else
+          ! do not do communication, still reading members/steps
+          doMpiCommunication = .false.
+        end if
 
-          batchnum = ceiling(dble(memberIndex)/dble(mmpi_nprocs))
+        if (doMpiCommunication) then
+          write(*,*) 'ens_readEnsemble: Do communication for batchIndex = ', batchIndex
+          write(*,*) '                  for the memberStepIndex range = ', memberStepIndexStart, memberStepIndex
 
           ! determine which tasks have something to send and let everyone know
           do procIndex = 1, mmpi_nprocs
@@ -2583,7 +2626,7 @@ CONTAINS
               allocate(gd_send_r4(1,1,1,1))
               gd_send_r4(:,:,:,:) = 0.0
             end if
-            allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend2,max(mmpi_nprocs,ens%numMembers)))
+            allocate(gd_recv_r4(lonPerPEmax,latPerPEmax,numLevelsToSend2,max(mmpi_nprocs,numMembers)))
             gd_recv_r4(:,:,:,:) = 0.0
 
             if (mmpi_nprocs.gt.1) then
@@ -2594,11 +2637,13 @@ CONTAINS
               gd_recv_r4(:,:,:,1) = gd_send_r4(:,:,:,1)
             end if
 
-            !$OMP PARALLEL DO PRIVATE(kCount,memberIndex2,yourid)
+            !$OMP PARALLEL DO PRIVATE(kCount,memberStepIndex2,memberIndex2,stepIndex2,yourid)
             do kCount = 1, numLevelsToSend2
-              do memberIndex2 = 1+(batchnum-1)*mmpi_nprocs, memberIndex
-                yourid = readFilePE(memberIndex2)
-                ens%allLev_r4(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex, :, :) =  &
+              do memberStepIndex2 = memberStepIndexStart, memberStepIndex
+                memberIndex2 = memberIndexFromMemberStep(memberStepIndex2)
+                stepIndex2   = stepIndexFromMemberStep(memberStepIndex2)
+                yourid = readFilePE(memberStepIndex2)
+                ens%allLev_r4(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex2, :, :) =  &
                      gd_recv_r4(1:ens%statevector_work%lonPerPE, 1:ens%statevector_work%latPerPE, &
                                 kCount, yourid+1)
               end do
@@ -2621,11 +2666,13 @@ CONTAINS
             call gsv_deallocate(statevector_hint_r4)
           end if
 
+          memberStepIndexStart = memberStepIndex + 1
+
         end if ! MPI communication
 
-      end do ! memberIndex
+      end do memberLoop
 
-    end do ! time
+    end do stepLoop
 
     call gsv_communicateTimeParams(ens%statevector_work)
     call ocm_communicateMask(ens%statevector_work%oceanMask)
@@ -2635,6 +2682,10 @@ CONTAINS
     if ( .not. present(vco_file_opt) ) then
       call vco_deallocate(vco_file)
     end if
+    deallocate(readFilePE)
+    deallocate(batchIndexFromMemberStep)
+    deallocate(stepIndexFromMemberStep)
+    deallocate(memberIndexFromMemberStep)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'ens_readEnsemble: finished reading and communicating ensemble members...'
@@ -2675,7 +2726,7 @@ CONTAINS
     real(4), allocatable :: gd_recv_r4(:,:,:,:)
     real(4), pointer     :: ptr3d_r4(:,:,:)
     integer, allocatable :: dateStampList(:)
-    integer :: batchnum, nsize, ierr
+    integer :: batchIndex, nsize, ierr
     integer :: yourid, youridx, youridy
     integer :: writeFilePE(1000)
     integer :: lonPerPE, lonPerPEmax, latPerPE, latPerPEmax, ni, nj
@@ -2780,7 +2831,7 @@ CONTAINS
         !  MPI communication: from 1 lat-lon tile per process to 1 ensemble member per process
         if (writeFilePE(memberIndex) == 0) then
 
-          batchnum = ceiling(dble(memberIndex + mmpi_nprocs - 1)/dble(mmpi_nprocs))
+          batchIndex = ceiling(dble(memberIndex + mmpi_nprocs - 1)/dble(mmpi_nprocs))
 
           do kIndexBeg = 1, numK, numLevelsToSend
             kIndexEnd = min(numK,kIndexBeg+numLevelsToSend-1)
@@ -2789,7 +2840,7 @@ CONTAINS
             if ( ens%dataKind == 8 ) then
               !$OMP PARALLEL DO PRIVATE(kCount,memberIndex2,yourid)
               do kCount = 1, numLevelsToSend2
-                do memberIndex2 = 1+(batchnum-1)*mmpi_nprocs, min(ens%numMembers, batchnum*mmpi_nprocs)
+                do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
                   gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = &
                        real(ens%allLev_r8(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:),4)
@@ -2799,7 +2850,7 @@ CONTAINS
             else
               !$OMP PARALLEL DO PRIVATE(kCount,memberIndex2,yourid)
               do kCount = 1, numLevelsToSend2
-                do memberIndex2 = 1+(batchnum-1)*mmpi_nprocs, min(ens%numMembers, batchnum*mmpi_nprocs)
+                do memberIndex2 = 1+(batchIndex-1)*mmpi_nprocs, min(ens%numMembers, batchIndex*mmpi_nprocs)
                   yourid = writeFilePE(memberIndex2)
                   gd_send_r4(1:lonPerPE,1:latPerPE,kCount,yourid+1) = &
                        ens%allLev_r4(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex,:,:)

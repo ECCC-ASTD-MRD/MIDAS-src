@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Improve parallelization of reading ensemble (#705 and !650)
  * Split Jacobian cache for GPSRO operators, to avoid potential interference between a) TL, AD operators and b) FGE (#644 and !644)
  * Changed machine and processor topology to speed system test /Tests/extractBmatrixFor1Dvar/globalBnmcLand. (#699 and !645) 
  * Removed some observations in the analysisErrorOI test (#698 and !646)
