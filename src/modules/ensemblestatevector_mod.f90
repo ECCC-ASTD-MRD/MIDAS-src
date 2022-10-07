@@ -2259,16 +2259,17 @@ CONTAINS
     integer,pointer :: dateStampList(:)
     integer :: batchIndex, nsize, ierr
     integer :: yourid, youridx, youridy
-    integer, allocatable :: readFilePE(:,:)
+    integer, allocatable :: readFilePE(:), memberIndexFromMemberStep(:), stepIndexFromMemberStep(:)
+    integer, allocatable :: batchIndexFromMemberStep(:)
     integer :: sendsizes(mmpi_nprocs), recvsizes(mmpi_nprocs), senddispls(mmpi_nprocs), recvdispls(mmpi_nprocs)
     integer :: lonPerPEmax, latPerPEmax, ni, nj, numK, numStep, numMembers, numLevelsToSend2
     integer :: memberIndex, memberIndex2, stepIndex, stepIndex2, procIndex, memberStepIndex, memberStepIndex2
-    integer :: kIndexBeg, kIndexEnd, kCount
+    integer :: kIndexBeg, kIndexEnd, kCount, memberStepIndexStart, lastReadFilePE
     character(len=256) :: ensFileName
     character(len=2)   :: typvar
     character(len=12)  :: etiket
     character(len=4), pointer :: anlVar(:)
-    logical :: thisProcIsAsender(mmpi_nprocs)
+    logical :: thisProcIsAsender(mmpi_nprocs), doMpiCommunication
     logical :: verticalInterpNeeded, horizontalInterpNeeded, horizontalPaddingNeeded
     logical :: checkModelTop, containsFullField, ignoreDate
     character(len=4), pointer :: varNames(:)
@@ -2296,11 +2297,60 @@ CONTAINS
 
     ens%ensPathName = trim(ensPathName)
 
-    allocate(readFilePE(numMembers,numStep))
+    ! Determine which MPI tasks read which members/steps to minimize file copies to ram disk
+    allocate(batchIndexFromMemberStep(numMembers*numStep))
+    allocate(readFilePE(numMembers*numStep))
+    allocate(stepIndexFromMemberStep(numMembers*numStep))
+    allocate(memberIndexFromMemberStep(numMembers*numStep))
     do stepIndex = 1, numStep
       do memberIndex = 1, numMembers
         memberStepIndex = ((stepIndex-1)*numMembers) + memberIndex
-        readFilePE(memberIndex,stepIndex) = mod(memberStepIndex-1, mmpi_nprocs)
+        stepIndexFromMemberStep(memberStepIndex) = stepIndex
+        memberIndexFromMemberStep(memberStepIndex) = memberIndex
+
+        if (memberStepIndex == 1) then
+          ! Very first member/step
+          readFilePE(memberStepIndex) = 0
+          batchIndexFromMemberStep(memberStepIndex) = 1
+        else
+          ! Increment MPI task ID and keep same batch
+          readFilePE(memberStepIndex) = readFilePE(memberStepIndex-1) + 1
+          batchIndexFromMemberStep(memberStepIndex) = batchIndexFromMemberStep(memberStepIndex-1)
+        end if
+
+        ! Decide if we need to move to the next batch
+        if (memberIndex == 1) then
+          if (readFilePE(memberStepIndex) == 0) then
+            ! First MPI task reading member 1, try to fit all others in this batch
+            lastReadFilePE = numMembers - 1
+          else
+            ! Check if we can fit this full time step in this batch
+            if (lastReadFilePE + numMembers < mmpi_nprocs) then
+              lastReadFilePE = lastReadFilePE + numMembers
+            end if
+            ! If numMembers > nprocs, move to next batch
+            if (numMembers > mmpi_nprocs) then
+              readFilePE(memberStepIndex) = 0              
+              batchIndexFromMemberStep(memberStepIndex) = batchIndexFromMemberStep(memberStepIndex-1)+ 1
+              lastReadFilePE = numMembers - 1
+            end if
+          end if
+          ! Ensure we limit ourselves to the total number of MPI tasks
+          lastReadFilePE = min(lastreadFilePE, mmpi_nprocs - 1)
+        end if
+        ! Move to next batch if we reached lastReadFilePE
+        if (readFilePE(memberStepIndex) == lastReadFilePE + 1) then
+          readFilePE(memberStepIndex) = 0
+          batchIndexFromMemberStep(memberStepIndex) = batchIndexFromMemberStep(memberStepIndex-1)+ 1
+          lastReadFilePE = min(numMembers - memberIndex, mmpi_nprocs - 1)
+        end if
+
+        if (mmpi_myid == 0) then
+          write(*,*) 'ens_readEnsemble: batchIndex, memberIndex, stepIndex, memberStepIndex, readFilePE = ', &
+               batchIndexFromMemberStep(memberStepIndex), memberIndex, stepIndex, memberStepIndex, &
+               readFilePE(memberStepIndex)
+        end if
+
       end do
     end do
 
@@ -2402,6 +2452,7 @@ CONTAINS
     end if
 
     !- 2.1 Loop on time, ensemble member, variable, level
+    memberStepIndexStart = 1
     stepLoop: do stepIndex = 1, numStep
       write(*,*) ' '
       write(*,*) 'ens_readEnsemble: starting to read time level ', stepIndex
@@ -2409,7 +2460,8 @@ CONTAINS
       memberLoop: do memberIndex = 1, numMembers
 
         memberStepIndex = ((stepIndex-1)*numMembers) + memberIndex
-        if (mmpi_myid == readFilePE(memberIndex,stepIndex)) then
+        batchIndex = batchIndexFromMemberStep(memberStepIndex)
+        if (mmpi_myid == readFilePE(memberStepIndex)) then
 
           ! allocate the needed statevector objects
           call gsv_allocate(statevector_member_r4, 1, hco_ens, vco_ens,  &
@@ -2443,7 +2495,13 @@ CONTAINS
             call gio_readFile(statevector_file_r4, ensFileName, etiket, typvar, &
                               containsFullField, ignoreDate_opt=ignoreDate)
           end if
-          ierr = ram_remove(ensFileName)
+
+          ! Remove file from ram disk if no longer needed
+          if ( all(readFilePE(memberStepIndex+1:numMembers*numStep) /= mmpi_myid) .or. &
+               (stepIndex == numStep) .or. &
+               (batchIndex == maxval(batchIndexFromMemberStep(:))) ) then
+            ierr = ram_remove(ensFileName)
+          end if
 
           ! do any required interpolation
           if (horizontalInterpNeeded .and. verticalInterpNeeded) then
@@ -2493,12 +2551,20 @@ CONTAINS
         end if ! locally read one member
 
         !  MPI communication: from 1 ensemble member per process to 1 lat-lon tile per process
-        !  If: (1) we ran out of MPI tasks to do reading or (2) we ran out of members to read
-        if (readFilePE(memberIndex,stepIndex) == (mmpi_nprocs-1) .or. memberStepIndex == numStep*numMembers) then
+        if (memberStepIndex == numStep*numMembers) then
+          ! last member/step was read, do last communication
+          doMpiCommunication = .true.
+        else if (batchIndex < batchIndexFromMemberStep(memberStepIndex+1)) then
+          ! next member/step is in next batch, do communication
+          doMpiCommunication = .true.
+        else
+          ! do not do communication, still reading members/steps
+          doMpiCommunication = .false.
+        end if
 
-          batchIndex = ceiling(dble(memberStepIndex)/dble(mmpi_nprocs))
+        if (doMpiCommunication) then
           write(*,*) 'ens_readEnsemble: Do communication for batchIndex = ', batchIndex
-          write(*,*) '                  up to memberStepIndex = ', memberStepIndex
+          write(*,*) '                  for the memberStepIndex range = ', memberStepIndexStart, memberStepIndex
 
           ! determine which tasks have something to send and let everyone know
           do procIndex = 1, mmpi_nprocs
@@ -2573,10 +2639,10 @@ CONTAINS
 
             !$OMP PARALLEL DO PRIVATE(kCount,memberStepIndex2,memberIndex2,stepIndex2,yourid)
             do kCount = 1, numLevelsToSend2
-              do memberStepIndex2 = 1+(batchIndex-1)*mmpi_nprocs, memberStepIndex
-                memberIndex2 = mod(memberStepIndex2-1,numMembers)+1
-                stepIndex2 =  ((memberStepIndex2-memberIndex2)/numMembers) + 1
-                yourid = readFilePE(memberIndex2,stepIndex2)
+              do memberStepIndex2 = memberStepIndexStart, memberStepIndex
+                memberIndex2 = memberIndexFromMemberStep(memberStepIndex2)
+                stepIndex2   = stepIndexFromMemberStep(memberStepIndex2)
+                yourid = readFilePE(memberStepIndex2)
                 ens%allLev_r4(kCount+kIndexBeg-1)%onelevel(memberIndex2,stepIndex2, :, :) =  &
                      gd_recv_r4(1:ens%statevector_work%lonPerPE, 1:ens%statevector_work%latPerPE, &
                                 kCount, yourid+1)
@@ -2600,6 +2666,8 @@ CONTAINS
             call gsv_deallocate(statevector_hint_r4)
           end if
 
+          memberStepIndexStart = memberStepIndex + 1
+
         end if ! MPI communication
 
       end do memberLoop
@@ -2615,6 +2683,9 @@ CONTAINS
       call vco_deallocate(vco_file)
     end if
     deallocate(readFilePE)
+    deallocate(batchIndexFromMemberStep)
+    deallocate(stepIndexFromMemberStep)
+    deallocate(memberIndexFromMemberStep)
 
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     write(*,*) 'ens_readEnsemble: finished reading and communicating ensemble members...'
