@@ -116,8 +116,8 @@ contains
     integer :: imode, dateStamp, timePrint, datePrint, randomSeed, newDate
     integer :: nEnsUsed, eigenVectorColumnIndex, eigenVectorLevelIndex
     integer :: memberIndexInModEns, retainedEigenIndex, nLev
-    real(8) :: anlLat, anlLon, anlVertLocation, distance, tolerance, localization
-    real(8) :: modulationFactor
+    real(8) :: anlLat, anlLon, anlVertLocation, anlVertLocationToGetObs
+    real(8) :: distance, tolerance, localization, modulationFactor
 
     integer, allocatable :: localBodyIndices(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
@@ -425,7 +425,7 @@ contains
         anlLon = hco_ens%lon2d_4(lonIndex,latIndex)
         hLocalizeIsConstant = all(hLocalize(:) == hLocalize(1))
         if (vLocalize > 0.0d0 .or. .not.hLocalizeIsConstant) then
-          anlVertLocation = vertLocation_r4(lonIndex,latIndex,levIndex)
+          anlVertLocation = real(vertLocation_r4(lonIndex,latIndex,levIndex),8)
         end if
 
         ! Find which horizontal localization value to use for this analysis level
@@ -435,10 +435,16 @@ contains
           hLocIndex = 1 + count(anlVertLocation > hLocalizePressure(:))
         end if
 
-        ! Get list of nearby observations and distances to gridpoint
+        ! Get list of nearby observations and distances to gridpoint. With modulated-ensembles, 
+        ! we get observations in entire column.
         call utl_tmg_start(102,'----GetLocalBodyIndices')
+        if ( numRetainedEigen > 0 ) then
+          anlVertLocationToGetObs = MPC_missingValue_R8
+        else
+          anlVertLocationToGetObs = anlVertLocation
+        end if
         numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
-                                              distances, anlLat, anlLon, anlVertLocation,  &
+                                              distances, anlLat, anlLon, anlVertLocationToGetObs,  &
                                               hLocalize(hLocIndex), vLocalize, numLocalObsFound)
         if (numLocalObsFound > maxNumLocalObs) then
           countMaxExceeded = countMaxExceeded + 1

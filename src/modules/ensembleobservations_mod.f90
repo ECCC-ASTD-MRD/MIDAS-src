@@ -522,7 +522,7 @@ CONTAINS
       call utl_abort('eob_getLocalBodyIndices: the parameter maxNumLocalObsSearch must be increased')
     end if
 
-    if (vLocalize > 0.0d0) then
+    if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
       ! copy search results to output vectors, only those within vertical localization distance
       numLocalObsFound = 0
       numLocalObs = 0
