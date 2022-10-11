@@ -335,29 +335,14 @@ contains
     end do
 
     !
-    !- Calculate pressure profiles on analysis increment levels
-    !
-    if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
-      call cvt_transform(columnTrlOnAnlIncLev, 'ZandP_nl')
-
-      ! Print pressure on thermo levels for the first original and destination column
-      columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'P_T')
-      columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
-      call msg('inn_setupColumnsOnAnlIncLev', 'before vintprof:'&
-           //new_line('')//'P_T (columnTrlOnTrlLev(1)) = '//str(columnTrlOnTrlLev_ptr(:)) &
-           //new_line('')//'P_T (columnTrlOnAnlIncLev(1)) = '//str(columnTrlOnAnlIncLev_ptr(:)), mpiAll_opt=.false.)
-      
-    end if
-
-    !
     !- Vertical interpolation of 3D variables from trials levels to analysis increment levels
     !
     do jvar = 1, vnl_numvarmax3D
 
       if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList3D(jvar)) ) cycle
       
-      call int_vInterp_col( columnTrlOnTrlLev, columnTrlOnAnlIncLev, vnl_varNameList3D(jvar), &
-                            useColumnPressure_opt=.false.)
+      call int_vInterp_col( columnTrlOnTrlLev, columnTrlOnAnlIncLev, &
+                            vnl_varNameList3D(jvar), useColumnPressure_opt=.false.)
 
       if ( vnl_varNameList3D(jvar) == 'HU  ') then
         ! Imposing a minimum value for HU

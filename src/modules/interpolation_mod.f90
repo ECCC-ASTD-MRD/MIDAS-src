@@ -1103,17 +1103,19 @@ contains
     logical, optional,        intent(in)    :: useColumnPressure_opt  ! if .true. use P_* instead of the pressure provided by vgd_levels 
 
     ! Locals:
-    real(8), pointer :: pres_in(:), pres_out(:)
-    real(8), pointer :: pres1D_in(:)  , pres1D_out(:)
-    real(8), pointer :: pres3D_in(:,:,:), pres3D_out(:,:,:)
+    real(8), pointer :: varInterp_in(:), varInterp_out(:)
+    real(8), pointer :: coordRef_in(:)  , coordRef_out(:)
+    real(8), pointer :: ZT_in(:,:), ZM_in(:,:), PT_in(:,:), PM_in(:,:)
+    real(8), pointer :: PT_out(:,:), PM_out(:,:)
     character(len=4) :: varLevel
     real(8)          :: zwb, zwt
     integer          :: levIndex_out, levIndex_in, columnIndex, status
+    integer          :: vcode_in, vcode_out
+    integer          :: nLevIn_T, nLevIn_M, nLevOut_T, nLevOut_M
     logical          :: vInterp, useColumnPressure
 
     integer, allocatable, target :: THlevelWanted(:), MMlevelWanted(:)
     integer, pointer :: levelWanted(:)
-    real(8), allocatable :: psfc_in(:,:)
 
     call msg('int_vInterp_col', 'START', verb_opt=2)
     varLevel = vnl_varLevelFromVarname(varName)
@@ -1124,8 +1126,8 @@ contains
       useColumnPressure = .true.
     end if
 
-    nullify(pres3D_in)
-    nullify(pres3D_out)
+    call msg('int_vInterp_col', varName//' ('//varLevel &
+         //'), useColumnPressure='//str(useColumnPressure), verb_opt=3)
 
     vInterp = .true.
     if ( .not. col_varExist(column_in,'P0' ) ) then
@@ -1137,114 +1139,95 @@ contains
       call msg('int_vInterp_col', 'The input backgrounds are 2D. Vertical interpolation WILL NOT BE PERFORMED')
     end if
 
+    vcode_in  = column_in%vco%vcode
+    vcode_out = column_out%vco%vcode
+    nLevIn_T  = col_getNumLev(column_in,  'TH')
+    nLevIn_M  = col_getNumLev(column_in,  'MM')
+    nLevOut_T = col_getNumLev(column_out, 'TH')
+    nLevOut_M = col_getNumLev(column_out, 'MM')
+
     if_vInterp: if (vInterp) then
       if ( .not. useColumnPressure ) then
 
-        ! read psfc_in to use in vgd_levels
-        allocate(psfc_in(1,col_getNumCol(column_in)))
-        do columnIndex = 1,col_getNumCol(column_in)
-          psfc_in(1,columnIndex) = col_getElem(column_out,1,columnIndex,'P0')
-        end do
+        call msg('int_vInterp_col', 'vcode_in='//str(vcode_in)//', '&
+             //'vcode_out='//str(vcode_out), verb_opt=3)
 
-        call msg('int_vInterp_col', 'varName='//varName//' ('//varLevel//'), ' &
-             //'column_in vcode='//str(column_in%vco%vcode)//', '&
-             //'column_out vcode='//str(column_out%vco%vcode), verb_opt=3)
+        ! Compute interpolation variables (pressures and or heights)
+        allocate(PT_in( col_getNumCol(column_in),  nLevIn_T))
+        allocate(PM_in( col_getNumCol(column_in),  nLevIn_M))
+        allocate(ZT_in( col_getNumCol(column_in),  nLevIn_T))
+        allocate(ZM_in( col_getNumCol(column_in),  nLevIn_M))
+        allocate(PT_out(col_getNumCol(column_out), nLevOut_T))
+        allocate(PM_out(col_getNumCol(column_out), nLevOut_M))
 
-        ! Compute pressure
-        if ( varLevel == 'TH' ) then
-          ! pres3D_in
-          status = vgd_levels(column_in%vco%vgrid,ip1_list=column_in%vco%ip1_T,  &
-                              levels=pres3D_in,sfc_field=psfc_in,in_log=.false.)
-          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+        call czp_calcReturnPressure_col_nl(column_in, PT_in, PM_in)
+        call czp_calcReturnHeight_col_nl(column_in, ZT_in, ZM_in)
+        call czp_calcReturnPressure_col_nl(column_out, PT_out, PM_out)
 
-          ! pres3D_out
-          status = vgd_levels(column_out%vco%vgrid,ip1_list=column_out%vco%ip1_T,  &
-                              levels=pres3D_out,sfc_field=psfc_in,in_log=.false.)
-          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
-
-        else if ( varLevel == 'MM' ) then
-          ! pres3D_in
-          status = vgd_levels(column_in%vco%vgrid,ip1_list=column_in%vco%ip1_M,  &
-                              levels=pres3D_in,sfc_field=psfc_in,in_log=.false.)
-          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
-
-          ! pres3D_out
-          status = vgd_levels(column_out%vco%vgrid,ip1_list=column_out%vco%ip1_M,  &
-                              levels=pres3D_out,sfc_field=psfc_in,in_log=.false.)
-          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
-
-        else
-          call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
-        end if  ! varLevel
       end if    ! useColumnPressure
 
       do columnIndex = 1, col_getNumCol(column_out)
 
-        ! pres1D_in
-        if ( .not. useColumnPressure ) then
-          pres1D_in => pres3D_in(1,columnIndex,:)
-        else
-          if ( varLevel == 'TH' ) then
-            pres1D_in => col_getColumn(column_in,columnIndex,'P_T')
-          else if ( varLevel == 'MM' ) then
-            pres1D_in => col_getColumn(column_in,columnIndex,'P_M')
+        ! coordRef_{in,out}
+        if ( varLevel == 'TH' ) then
+          if ( .not. useColumnPressure ) then
+            coordRef_in  => PT_in(columnIndex,:)
+            coordRef_out => PT_out(columnIndex,:)
           else
-            call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
+            coordRef_in  => col_getColumn(column_in,columnIndex,'P_T')
+            coordRef_out => col_getColumn(column_out,columnIndex,'P_T')
           end if
+        else if ( varLevel == 'MM' ) then
+          if ( .not. useColumnPressure ) then
+            coordRef_in  => PM_in(columnIndex,:)
+            coordRef_out => PM_out(columnIndex,:)
+          else
+            coordRef_in  => col_getColumn(column_in,columnIndex,'P_M')
+            coordRef_out => col_getColumn(column_out,columnIndex,'P_M')
+          end if
+        else
+          call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
         end if
 
-        ! pres1D_out
-        if ( .not. useColumnPressure ) then
-          pres1D_out => pres3D_out(1,columnIndex,:)
-        else
-          if ( varLevel == 'TH' ) then
-            pres1D_out => col_getColumn(column_out,columnIndex,'P_T')
-          else if ( varLevel == 'MM' ) then
-            pres1D_out => col_getColumn(column_out,columnIndex,'P_M')
-          else
-            call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
-          end if
-        end if
-
-        pres_in  => col_getColumn(column_in ,columnIndex,varName)
-        pres_out => col_getColumn(column_out,columnIndex,varName)
+        varInterp_in  => col_getColumn(column_in ,columnIndex,varName)
+        varInterp_out => col_getColumn(column_out,columnIndex,varName)
 
         if ( columnIndex == 1 .and. (trim(varName) == 'P_T' ) ) then
           call msg('int_vInterp_col', 'useColumnPressure='//str(useColumnPressure) &
                //', '//trim(varName)//':' &
-               //new_line('')//'COLUMN_IN(1):'//str(pres_in(:))&
-               //new_line('')//'COLUMN_OUT(1):'//str(pres_out(:)), &
+               //new_line('')//'COLUMN_IN(1):'//str(varInterp_in(:))&
+               //new_line('')//'COLUMN_OUT(1):'//str(varInterp_out(:)), &
                mpiAll_opt=.false.)
         end if
 
+        ! actual interpolation
+        !! DBGmad : convert to pure logP interpolation 
+        !! (risk to fails tests checks as in 1e4551753895e287f5e (Issue #466: interp in height-like coord: vcode cases)
         levIndex_in = 1
         do levIndex_out = 1, col_getNumLev(column_out,varLevel)
           levIndex_in = levIndex_in + 1
-          do while( pres1D_out(levIndex_out) .gt. pres1D_in(levIndex_in) .and. &
+          do while( coordRef_out(levIndex_out) .gt. coordRef_in(levIndex_in) .and. &
                levIndex_in .lt. col_getNumLev(column_in,varLevel) )
             levIndex_in = levIndex_in + 1
           end do
           levIndex_in = levIndex_in - 1
-          zwb = log(pres1D_out(levIndex_out)/pres1D_in(levIndex_in))/  &
-               log(pres1D_in(levIndex_in+1)/pres1D_in(levIndex_in))
+          zwb = log(coordRef_out(levIndex_out)/coordRef_in(levIndex_in))/  &
+               log(coordRef_in(levIndex_in+1)/coordRef_in(levIndex_in))
           zwt = 1. - zwb
           if (  useColumnPressure .and. &
               (trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) ) then
             ! do nothing, i.e. use the pressures from column_in
           else if ( .not. useColumnPressure .and. &
               (trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) ) then
-            pres_out(levIndex_out) = exp(zwb*log(pres_in(levIndex_in+1)) + zwt*log(pres_in(levIndex_in)))
+            varInterp_out(levIndex_out) = exp(zwb*log(varInterp_in(levIndex_in+1)) + zwt*log(varInterp_in(levIndex_in)))
           else
-            pres_out(levIndex_out) = zwb*pres_in(levIndex_in+1) + zwt*pres_in(levIndex_in)
+            varInterp_out(levIndex_out) = zwb*varInterp_in(levIndex_in+1) + zwt*varInterp_in(levIndex_in)
           end if
         end do
       end do
 
-      if ( .not. useColumnPressure ) then
-        deallocate(pres3D_in)
-        deallocate(pres3D_out)
-        deallocate(psfc_in)
-      end if
+      call msg('int_vInterp_col', trim(varName)//' (in): '//str(varInterp_in)&
+           //new_line('')//trim(varName)//' (out): '//str(varInterp_out), verb_opt=3)
 
     else if_vInterp
 
@@ -1263,15 +1246,15 @@ contains
 
         ! Transfer the corresponding data
         do columnIndex = 1, col_getNumCol(column_out)
-          pres_in  => col_getColumn(column_in ,columnIndex,varName)
-          pres_out => col_getColumn(column_out,columnIndex,varName)
+          varInterp_in  => col_getColumn(column_in ,columnIndex,varName)
+          varInterp_out => col_getColumn(column_out,columnIndex,varName)
           if (vnl_varLevelFromVarname(varName) == 'TH') then
             levelWanted => THlevelWanted
           else
             levelWanted => MMlevelWanted
           end if
           do levIndex_out = 1, col_getNumLev(column_out,varLevel)
-            pres_out(levIndex_out) = pres_in(levelWanted(levIndex_out))
+            varInterp_out(levIndex_out) = varInterp_in(levelWanted(levIndex_out))
           end do
         end do
 
@@ -1285,10 +1268,10 @@ contains
         else
           ! copy over depth levels
           do columnIndex = 1, col_getNumCol(column_out)
-            pres_in  => col_getColumn(column_in ,columnIndex,varName)
-            pres_out => col_getColumn(column_out,columnIndex,varName)
+            varInterp_in  => col_getColumn(column_in ,columnIndex,varName)
+            varInterp_out => col_getColumn(column_out,columnIndex,varName)
             do levIndex_out = 1, col_getNumLev(column_out,varLevel)
-              pres_out(levIndex_out) = pres_in(levIndex_out)
+              varInterp_out(levIndex_out) = varInterp_in(levIndex_out)
             end do
           end do
         end if

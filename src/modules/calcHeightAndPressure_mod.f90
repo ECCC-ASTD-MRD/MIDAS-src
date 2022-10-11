@@ -2725,8 +2725,6 @@ contains
 
     allocate(heights(col_getNumLev(column,'MM'), numCol))
     heights = hPtr(1,:,:)
-    call msg('calcHeight_col_nl_vcode2100x (czp)', &
-         'MM heights(1,:) = '//str(heights(1,:)),  verb_opt=3)
     Z_M(:,:) = heights(:,:)
     if (associated(hPtr)) deallocate(hPtr)
     deallocate(heights)
@@ -2740,8 +2738,6 @@ contains
 
     allocate(heights(col_getNumLev(column,'TH'), numCol))
     heights = hPtr(1,:,:)
-    call msg('calcHeight_col_nl_vcode2100x (czp)', &
-         'TH heights(1,:) = '//str(heights(1,:)),  verb_opt=3)
     Z_T(:,:) = heights(:,:)
     if (associated(hPtr)) deallocate(hPtr)
     deallocate(heights)
@@ -3423,10 +3419,6 @@ contains
     end do do_onAllColumns
 
     deallocate(tv)
-
-    call msg('calcPressure_col_nl_vcode2100x (czp)', 'computed pressures:' &
-           //new_line('')//'P_T(1,:) = '//str(P_T(1,:)) &
-           //new_line('')//'P_M(1,:) = '//str(P_M(1,:)) , verb_opt=5)
 
     call msg('calcPressure_col_nl_vcode2100x (czp)', 'END', verb_opt=3)
   end subroutine calcPressure_col_nl_vcode2100x
