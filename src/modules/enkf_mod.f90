@@ -116,7 +116,7 @@ contains
     integer :: imode, dateStamp, timePrint, datePrint, randomSeed, newDate
     integer :: nEnsUsed, eigenVectorColumnIndex
     integer :: memberIndexInModEns, retainedEigenIndex, nLev
-    real(8) :: anlLat, anlLon, anlVertLocation, anlVertLocationToGetObs
+    real(8) :: anlLat, anlLon, anlVertLocation
     real(8) :: distance, tolerance, localization, modulationFactor
 
     integer, allocatable :: localBodyIndices(:)
@@ -436,13 +436,9 @@ contains
         ! Get list of nearby observations and distances to gridpoint. With modulated-ensembles, 
         ! we get observations in entire column.
         call utl_tmg_start(102,'----GetLocalBodyIndices')
-        if ( numRetainedEigen > 0 ) then
-          anlVertLocationToGetObs = MPC_missingValue_R8
-        else
-          anlVertLocationToGetObs = anlVertLocation
-        end if
+        if ( numRetainedEigen > 0 ) anlVertLocation = MPC_missingValue_R8
         numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
-                                              distances, anlLat, anlLon, anlVertLocationToGetObs,  &
+                                              distances, anlLat, anlLon, anlVertLocation,  &
                                               hLocalize(hLocIndex), vLocalize, numLocalObsFound)
         if (numLocalObsFound > maxNumLocalObs) then
           countMaxExceeded = countMaxExceeded + 1
