@@ -192,6 +192,10 @@ program midas_letkf
   if (hLocalize(1) > 0.0D0 .and. hLocalize(2) < 0.0D0) then
     ! if only 1 value given for hLocalize, use it for entire column
     hLocalize(2:4) = hLocalize(1)
+    if ( mpi_myid == 0 ) write(*,*) 'midas-letkf: hLocalize(2:4) are modified after reading namelist. ' // &
+                                    'hLocalize(2:4)=', hLocalize(1)
+  else if ( hLocalize(1) < 0.0D0 ) then
+    call utl_abort('midas-letkf: hLocalize(1) < 0.0D0')
   end if
   hLocalize(:) = hLocalize(:) * 1000.0D0 ! convert from km to m
   hLocalizePressure(:) = log(hLocalizePressure(:) * MPC_PA_PER_MBAR_R8)
@@ -221,6 +225,12 @@ program midas_letkf
                                                 trim(algorithm))
   end if
 
+  ! check for NO varying horizontal localization lengthscale in letkf with modulated ensembles.
+  if ( any(hLocalize(2:4) /= 0) .and. .not. all(hLocalize(2:4) == hLocalize(1)) .and. &
+       numRetainedEigen /= 0 ) then
+    call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
+                   'letkf with modulated ensembles')
+  end if
   !
   !- 2.  Initialization
   !
