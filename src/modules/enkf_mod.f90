@@ -114,7 +114,7 @@ contains
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
     integer :: imode, dateStamp, timePrint, datePrint, randomSeed, newDate
-    integer :: nEnsUsed, eigenVectorColumnIndex, eigenVectorLevelIndex
+    integer :: nEnsUsed, eigenVectorColumnIndex
     integer :: memberIndexInModEns, retainedEigenIndex, nLev
     real(8) :: anlLat, anlLon, anlVertLocation, anlVertLocationToGetObs
     real(8) :: distance, tolerance, localization, modulationFactor
@@ -180,6 +180,7 @@ contains
     nLev_M     = ens_getNumLev(ensembleAnl, 'MM')
     nLev_depth = ens_getNumLev(ensembleAnl, 'DP')
     nLev_weights = max(nLev_M,nLev_depth)
+    if ( numRetainedEigen > 0 ) nLev_weights = 1
     hco_ens => ens_getHco(ensembleAnl)
     vco_ens => ens_getVco(ensembleAnl)
     myLonBeg = stateVectorMeanAnl%myLonBeg
@@ -1276,35 +1277,25 @@ contains
               if (varKind == 'OC') then
                 levIndex2 = 1
               else
-                levIndex2 = nLev_weights
+                levIndex2 = max(nLev_M,nLev_depth)
               end if
             else if (varLevel == 'MM' .or. varLevel == 'TH' .or. varLevel == 'DP') then
               levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
             else if (varLevel == 'OT') then
               ! Most (all?) variables using the 'other' coordinate are surface
-              levIndex2 = nLev_weights
+              levIndex2 = max(nLev_M,nLev_depth)
             else
               write(*,*) 'varLevel = ', varLevel
               call utl_abort('enkf_LETKFanalyses: unknown varLevel')
             end if
-            if (levIndex2 /= levIndex) cycle
+            if (levIndex2 /= levIndex .and. numRetainedEigen == 0) cycle
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
-            nLev = gsv_getNumLevFromVarName( stateVectorMeanInc, &
-                                             gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex) )
             do stepIndex = 1, tim_nstepobsinc
               ! mean increment
               if ( numRetainedEigen > 0 ) then
                 do memberIndex = 1, nEns
                   do eigenVectorColumnIndex = 1, numRetainedEigen
-
-                    ! maziar: does this cover all cases?
-                    if ( nLev == 1 ) then
-                      eigenVectorLevelIndex = nLev
-                    else
-                      eigenVectorLevelIndex = levIndex
-                    end if
-
-                    call getModulationFactor( stateVectorMeanInc%vco, eigenVectorLevelIndex, &
+                    call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
                                               eigenVectorColumnIndex, numRetainedEigen, &
                                               nEns, vLocalize, &
                                               modulationFactor )
@@ -1346,22 +1337,20 @@ contains
               if (varKind == 'OC') then
                 levIndex2 = 1
               else
-                levIndex2 = nLev_weights
+                levIndex2 = max(nLev_M,nLev_depth)
               end if
             else if (varLevel == 'MM' .or. varLevel == 'TH' .or. varLevel == 'DP') then
               levIndex2 = gsv_getLevFromK(stateVectorMeanInc,varLevIndex)
             else if (varLevel == 'OT') then
               ! Most (all?) variables using the 'other' coordinate are surface
-              levIndex2 = nLev_weights
+              levIndex2 = max(nLev_M,nLev_depth)
             else
               write(*,*) 'varLevel = ', varLevel
               call utl_abort('enkf_LETKFanalyses: unknown varLevel')
             end if
-            if (levIndex2 /= levIndex) cycle
+            if (levIndex2 /= levIndex .and. numRetainedEigen == 0) cycle
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
             memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
-            nLev = gsv_getNumLevFromVarName( stateVectorMeanInc, &
-                                             gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex) )
             do stepIndex = 1, tim_nstepobsinc
               ! Compute analysis member perturbation
               memberAnlPert(:) = 0.0d0
@@ -1375,14 +1364,7 @@ contains
                       ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
                       memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex1
 
-                      ! maziar: does this cover all cases?
-                      if ( nLev == 1 ) then
-                        eigenVectorLevelIndex = nLev
-                      else
-                        eigenVectorLevelIndex = levIndex
-                      end if
-
-                      call getModulationFactor( stateVectorMeanInc%vco, eigenVectorLevelIndex, &
+                      call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
                                                 eigenVectorColumnIndex, numRetainedEigen, &
                                                 nEns, vLocalize, &
                                                 modulationFactor )
