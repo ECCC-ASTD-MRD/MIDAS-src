@@ -64,9 +64,10 @@ program midas_obsSelection
   integer :: get_max_rss, fnom, fclos
 
   ! Namelist variables
-  logical :: doThinning ! Control whether or not thinning is done
+  logical                        :: doThinning  ! Control whether or not thinning is done
+  character(len=9)               :: instName    ! Instrument name
 
-  namelist /namObsSelection/ doThinning
+  namelist /namObsSelection/ instName, doThinning
 
   call ver_printNameAndVersion('obsSelection','Obs Quality Control and Thinning')
 
@@ -85,8 +86,8 @@ program midas_obsSelection
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     if (ierr /= 0) call utl_abort('midas-obsSelection: Error opening file flnml')
     read(nulnam, nml = namObsSelection, iostat = ierr)
-    if (ierr /= 0) call utl_abort('midas-obsSelection: Error reading namelist')
-    if (mmpi_myid == 0) write(*, nml = namObsSelection)
+    if (ierr /= 0) call utl_abort('midas-obsSelection: Error reading namelist namObsSelection')
+    if (mmpi_myid == 0) write(*,nml = namObsSelection)
     ierr = fclos(nulnam)
   else
     write(*,*)
@@ -202,6 +203,13 @@ program midas_obsSelection
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
 
+  ! If MWHS2 data, do satqc before observation innovations
+  if (instName == 'MWHS2') then
+    if (obs_famExist(obsSpaceData,'TO')) then
+      call mwbg_bgCheckMW(obsSpaceData)
+    end if
+  end if
+
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, analysisMode_opt=.false.)
 
@@ -220,7 +228,9 @@ program midas_obsSelection
 
     ! Do the TO background check
     call irbg_bgCheckIR(columnTrlOnTrlLev,obsSpaceData)
-    call mwbg_bgCheckMW(obsSpaceData)
+    if (instName /= 'MWHS2') then
+      call mwbg_bgCheckMW(obsSpaceData)
+    end if
     call csrbg_bgCheckCSR(obsSpaceData)
     call ssbg_bgCheckSsmis(obsSpaceData)
 

@@ -5,6 +5,7 @@
   modLSQ = .true.
 /
  &namObsSelection
+  instName = 'MWHS2'
   doThinning = .false.
 /
  &THIN_TOVS
