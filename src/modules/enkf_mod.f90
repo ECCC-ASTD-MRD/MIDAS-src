@@ -1366,9 +1366,6 @@ contains
               ! Compute analysis member perturbation
               memberAnlPert(:) = 0.0d0
 
-              anlLat = hco_ens%lat2d_4(lonIndex,latIndex) * MPC_DEGREES_PER_RADIAN_R8 
-              anlLon = hco_ens%lon2d_4(lonIndex,latIndex) * MPC_DEGREES_PER_RADIAN_R8
-
               if ( numRetainedEigen > 0 ) then
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
@@ -2209,7 +2206,6 @@ contains
     ! Locals:
     real(8)          :: modulationFactor
     real(4), pointer :: field_out_r4(:,:,:,:)
-    real(4), pointer :: field_mean_r4(:,:,:,:)
 
     integer :: nLev, nlev_out, levIndex, latIndex, lonIndex
     integer :: lon1, lon2, lat1, lat2
@@ -2253,7 +2249,6 @@ contains
         nlev_out  = stateVector_out%varNumLev(varIndex)
 
         call gsv_getField(statevector_out,field_out_r4,varName)
-        if ( varName /= 'Z_T ' .and. varName /= 'Z_M ' .and. varName /= 'P_T ' .and. varName /= 'P_M ' ) call gsv_getField(stateVectorMeanTrl,field_mean_r4,varName)
 
         !!$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex)
         do latIndex = lat1, lat2
