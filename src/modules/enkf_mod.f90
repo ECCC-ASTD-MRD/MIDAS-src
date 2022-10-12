@@ -143,7 +143,7 @@ contains
 
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
-    real(4)              :: pert_r4, meanPert
+    real(4)              :: pert_r4
 
     character(len=4)     :: varLevel
     character(len=2)     :: varKind
@@ -154,9 +154,6 @@ contains
     type(struct_gsv)          :: stateVectorMeanTrl
 
     logical :: hLocalizeIsConstant, firstTime = .true.
-    logical :: printBeforeComm = .true.
-    logical :: printAfterComm = .true.
-    integer :: latIndexPrint, lonIndexPrint
 
     call utl_tmg_start(100,'--LETKFanalysis')
 
@@ -1179,29 +1176,6 @@ contains
 
           end if
 
-!latIndex = myLatIndexesSend(latLonIndex)
-!lonIndex = myLonIndexesSend(latLonIndex)
-!latIndexPrint = 0
-!lonIndexPrint = 0 
-!if ( printBeforeComm .and. levIndex == 47 ) then
-!  printBeforeComm = .false. 
-!  latIndexPrint = latIndex
-!  lonIndexPrint = lonIndex
-!  write(*,*) 'maziar: before comm, numLocalObs=', numLocalObs, ', latIndexPrint=', latIndexPrint, &
-!             ', lonIndexPrint=', lonIndexPrint
-!  do memberIndex2 = 1, nEns
-!    do memberIndex1 = 1, nEns
-!      do eigenVectorColumnIndex = 1, numRetainedEigen
-!        memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex1
-!        write(*,*) 'maziar: before comm, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
-!        ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
-!        ', memberIndexInModEns=', memberIndexInModEns, &
-!        ', weightsMembersLatLon=', weightsMembersLatLon(memberIndexInModEns,memberIndex2,latLonIndex)
-!      end do
-!    end do
-!  end do
-!end if
-
         else
 
           ! no obs near this grid point, mean weights zero, member weights identity
@@ -1277,49 +1251,6 @@ contains
 
       call utl_tmg_start(107,'----ApplyWeights')
 
-      if ( levIndex == 47 .and. numRetainedEigen > 0 ) then
-      !if ( levIndex == 47 .and. numRetainedEigen > 0 .and. mpi_myid == 0 ) then
-      !if ( numRetainedEigen > 0 ) then
-        do latIndex = myLatBegHalo, myLatEndHalo
-          do lonIndex = myLonBegHalo, myLonEndHalo
-            ! If this lat-lon is to be interpolated, then skip calculation
-            if (wInterpInfo%numIndexes(lonIndex,latIndex) > 0) cycle
-
-            anlLat = hco_ens%lat2d_4(lonIndex,latIndex) * MPC_DEGREES_PER_RADIAN_R8 
-            anlLon = hco_ens%lon2d_4(lonIndex,latIndex) * MPC_DEGREES_PER_RADIAN_R8
-            if ( abs(anlLat+43.0) < 1 .and. abs(anlLon-75.0) < 1 ) then
-              if ( latIndex == myLatBegHalo .and. lonIndex == myLonBegHalo ) &
-                write(*,*) 'maziar: max(anlLat)=', maxval(hco_ens%lat2d_4) * MPC_DEGREES_PER_RADIAN_R8, &
-                ', min(anlLat)=', minval(hco_ens%lat2d_4) * MPC_DEGREES_PER_RADIAN_R8, &
-                ', max(anlLon)=', maxval(hco_ens%lon2d_4) * MPC_DEGREES_PER_RADIAN_R8, &
-                ', min(anlLon)=', minval(hco_ens%lon2d_4) * MPC_DEGREES_PER_RADIAN_R8
-
-              write(*,*) 'maziar: anlLat=', anlLat, ', anlLon=', anlLon
-              do memberIndex2 = 1, nEns
-                do memberIndex1 = 1, nEns
-                  do eigenVectorColumnIndex = 1, numRetainedEigen
-                    memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex1
-
-                    if ( memberIndex1 == 1 ) then
-                      write(*,*) 'maziar: weightsMean anlLat/anlLon, memberIndex2=', memberIndex2, &
-                      ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
-                      ', memberIndexInModEns=', memberIndexInModEns, &
-                      ', weightsMean=', weightsMean(memberIndexInModEns,1,lonIndex,latIndex)
-                    end if
-
-                    write(*,*) 'maziar: weightsMember anlLat/anlLon, memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
-                    ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
-                    ', memberIndexInModEns=', memberIndexInModEns, &
-                    ', weightsMembers=', weightsMembers(memberIndexInModEns,memberIndex2,lonIndex,latIndex)
-                  end do
-                end do
-              end do
-            end if
-
-          end do 
-        end do
-      end if
-
       !
       ! Apply the weights to compute the ensemble mean and members
       !
@@ -1380,33 +1311,12 @@ contains
                     pert_r4 = memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
                                         meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
 
-                    !if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. debug ) then
-                    !  write(*,*) 'maziar: MEAN INCR, varName=', gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex),', levIndex=', levIndex, ', stepIndex=', stepIndex
-                    !  write(*,*) 'maziar: modulationFactor=', modulationFactor
-                    !  write(*,*) 'maziar: mean trial=', meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-                    !  write(*,*) 'maziar: original member pert=', pert_r4
-                    !end if
-!if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. stepIndex == 1 .and. &
-!    memberIndex == 1 .and. trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
-!  write(*,*) 'maziar: levIndex=', levIndex, &
-!            ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
-!            ', modulationFactor=', modulationFactor
-!end if
-
-
                     pert_r4 = pert_r4 * real(modulationFactor,4)
 
                     memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex
                     meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
-                         meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
-                         weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r4
-
-                    !if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. debug ) then
-                    !  write(*,*) 'maziar: modulated member pert=', pert_r4
-                    !  write(*,*) 'maziar: memberIndexInModEns=',  memberIndexInModEns
-                    !  write(*,*) 'maziar: mean increment=',  meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-                    !end if
-
+                        meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
+                        weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r4
                   end do
                 end do
               else
@@ -1459,7 +1369,6 @@ contains
               anlLat = hco_ens%lat2d_4(lonIndex,latIndex) * MPC_DEGREES_PER_RADIAN_R8 
               anlLon = hco_ens%lon2d_4(lonIndex,latIndex) * MPC_DEGREES_PER_RADIAN_R8
 
-              meanPert = 0.0
               if ( numRetainedEigen > 0 ) then
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
@@ -1481,40 +1390,10 @@ contains
                                                 nEns, vLocalize, &
                                                 modulationFactor )
 
-                      ! Compute the remaining pert mean to subtract.
-                      if ( abs(anlLat+43.0) < 1 .and. abs(anlLon-75.0) < 1 .and. &
-                        trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' .and. &
-                        memberIndex2 == 1 .and. memberIndex1 == 1 .and. &
-                        eigenVectorColumnIndex == 1 ) then
-
-                        meanPert = sum(memberTrl_ptr_r4(1:nEns,stepIndex,lonIndex,latIndex)) -  &
-                                          nEns * meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-                        meanPert = meanPert / nEns
-                      end if
-
                       ! Compute background ensemble perturbations for the modulated ensemble (Xb_Mod)
                       pert_r4 = memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
                                           meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
                       pert_r4 = pert_r4 * real(modulationFactor,4)
-                      
-                      if ( abs(anlLat+43.0) < 1 .and. abs(anlLon-75.0) < 1 .and. &
-                        trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
-                        if ( memberIndex2 == 1 .and. eigenVectorColumnIndex == 1 ) then
-                          write(*,*) 'maziar: after comm pert check, levIndex=', levIndex, &
-                          ', memberIndex1=', memberIndex1, &
-                          ', pert0=', memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
-                          meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) - meanPert, &
-                          ', meanPert=', meanPert
-                        end if
-
-                        write(*,*) 'maziar: after comm, levIndex=', levIndex, &
-                        ', memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
-                        ', eigenVectorColumnIndex=', eigenVectorColumnIndex, &
-                        ', memberIndexInModEns=', memberIndexInModEns, &
-                        ', modulationFactor=', modulationFactor, &
-                        ', pert=', pert_r4, &
-                        ', weightsMembers=', weightsMembers(memberIndexInModEns,memberIndex2,lonIndex,latIndex)
-                      end if
 
                       ! sum Xb_Mod * Wa over all modulated ensembles to get member perturbations for
                       !   original ensemble (memberIndex2)
@@ -1530,31 +1409,9 @@ contains
 
                 end do ! memberIndex2
 
-
-                !if ( latIndex == myLatBeg .and. lonIndex == myLonBeg .and. debug ) then
-                !  write(*,*) 'maziar: Anal pert, varName=', gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex),', levIndex=', levIndex, ', stepIndex=', stepIndex
-                !  write(*,*) 'maziar: after remove mean weight sum(memberAnlPert)=', sum(memberAnlPert(:))
-                !end if
-
               else
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
-                    if ( abs(anlLat+43.0) < 1 .and. abs(anlLon-75.0) < 1 .and. &
-                      trim(gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex)) == 'TT' ) then
-
-                      if ( memberIndex2 == 1 ) then
-                        write(*,*) 'maziar: after comm pert check, levIndex=', levIndex, &
-                        ', memberIndex1=', memberIndex1, &
-                        ', pert0=', memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
-                        meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)                          
-                      end if
-
-                      write(*,*) 'maziar: after comm, levIndex=', levIndex, &
-                      ', memberIndex2=', memberIndex2, ', memberIndex1=', memberIndex1, &
-                      ', pert=', memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
-                      meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex), &
-                      ', weightsMembers=', weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex)
-                    end if
                     memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
                          weightsMembers(memberIndex1,memberIndex2,lonIndex,latIndex) *  &
                          (memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
@@ -2402,14 +2259,6 @@ contains
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do levIndex = 1, nlev_out
-
-              if ( latIndex == lat1 .and. lonIndex == lon1 .and. debug ) then
-                write(*,*) 'maziar: lat1=', lat1, ', lon1=', lon1
-                write(*,*) 'maziar: varName=', varName,', levIndex=', levIndex, ', stepIndex=', stepIndex
-                if ( varName /= 'Z_T ' .and. varName /= 'Z_M ' .and. varName /= 'P_T ' .and. varName /= 'P_M ' ) write(*,*) 'maziar: mean field=', field_mean_r4(lonIndex,latIndex,levIndex,stepIndex)
-                write(*,*) 'maziar: original pert field=', field_out_r4(lonIndex,latIndex,levIndex,stepIndex)
-              end if
-
               ! maziar: does this cover all cases?
               if ( nlev_out == 1 ) then
                 eigenVectorLevelIndex = nLev
@@ -2422,18 +2271,9 @@ contains
                                         nEns, vLocalizeLengthScale, &
                                         modulationFactor )
 
-              if ( latIndex == lat1 .and. lonIndex == lon1 .and. debug ) then
-                write(*,*) 'maziar: modulationFactor=', modulationFactor
-              end if
-
               field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
                                  field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
                                  real(modulationFactor,4)
-
-              if ( latIndex == lat1 .and. lonIndex == lon1 .and. debug ) then
-                write(*,*) 'maziar: modulated pert field=', field_out_r4(lonIndex,latIndex,levIndex,stepIndex)
-              end if
-
             end do
           end do
         end do
@@ -2542,18 +2382,17 @@ contains
         end do
       end do
 
-      !eigenValues(2:nLev) = 0.0d0
-if (mpi_myid == 0) then
-  do levIndex1 = 1, numRetainedEigen
-    write(*,*) 'maziar: eigen mode=', levIndex1, ', eigenVectors=', eigenVectors(:,levIndex1)
-  end do
-  write(*,*) 'maziar: eigenValues=', eigenValues(1:numRetainedEigen)
+      if (mpi_myid == 0) then
+        do levIndex1 = 1, numRetainedEigen
+          write(*,*) 'maziar: eigen mode=', levIndex1, ', eigenVectors=', eigenVectors(:,levIndex1)
+        end do
+        write(*,*) 'maziar: eigenValues=', eigenValues(1:numRetainedEigen)
 
-  do levIndex1 = 1, nLev
-    write(*,*) 'maziar: verticalLocalizationMat for lev ', levIndex1, '=', verticalLocalizationMat(levIndex1,:)
-    write(*,*) 'maziar: verticalLocalizationMatLowRank for lev ', levIndex1, '=', verticalLocalizationMatLowRank(levIndex1,:)
-  end do
-end if
+        do levIndex1 = 1, nLev
+          write(*,*) 'maziar: verticalLocalizationMat for lev ', levIndex1, '=', verticalLocalizationMat(levIndex1,:)
+          write(*,*) 'maziar: verticalLocalizationMatLowRank for lev ', levIndex1, '=', verticalLocalizationMatLowRank(levIndex1,:)
+        end do
+      end if
     end if
 
     modulationFactor = 1 / sqrt(verticalLocalizationMatLowRank(eigenVectorLevelIndex,eigenVectorLevelIndex)) * &
