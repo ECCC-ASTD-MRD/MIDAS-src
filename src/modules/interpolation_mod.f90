@@ -1300,7 +1300,7 @@ contains
     character(len=12) :: extrapDegree
     integer           :: ierr, ezsetopt, ezsetval
 
-    call msg('int_setezopt', 'START', verb_opt=3)
+    call msg('int_setezopt', 'START', verb_opt=4)
     if ( trim(interpDegree) /= 'LINEAR' .and. &
          trim(interpDegree) /= 'CUBIC' .and. &
          trim(interpDegree) /= 'NEAREST' ) then
@@ -1320,7 +1320,7 @@ contains
     end if
     ierr = ezsetopt('EXTRAP_DEGREE', extrapDegree)
 
-    call msg('int_setezopt', 'END', verb_opt=3)
+    call msg('int_setezopt', 'END', verb_opt=4)
   end subroutine int_setezopt
 
   !--------------------------------------------------------------------------
@@ -1350,7 +1350,7 @@ contains
     real(8), pointer :: heightSfcOut(:,:), heightSfcIn(:,:)
     integer :: ezsint, ezdefset
 
-    call msg('int_hInterpScalar_gsv', 'START', verb_opt=3)
+    call msg('int_hInterpScalar_gsv', 'START', verb_opt=4)
     ! read the namelist
     call int_readNml()
 
@@ -1420,7 +1420,7 @@ contains
 
     end if
 
-    call msg('int_hInterpScalar_gsv', 'END', verb_opt=3)
+    call msg('int_hInterpScalar_gsv', 'END', verb_opt=4)
   end function int_hInterpScalar_gsv
 
   !--------------------------------------------------------------------------
@@ -1443,7 +1443,7 @@ contains
     ! Locals:
     integer :: ezsint
 
-    call msg('int_hInterpScalar_r4_2d', 'START', verb_opt=2)
+    call msg('int_hInterpScalar_r4_2d', 'START', verb_opt=4)
     ! read the namelist
     call int_readNml()
 
@@ -1451,7 +1451,7 @@ contains
     call int_setezopt(interpDegree, extrapDegree_opt)   
     ierr = ezsint(fieldOut_r4,fieldIn_r4)
 
-    call msg('int_hInterpScalar_r4_2d', 'END', verb_opt=2)
+    call msg('int_hInterpScalar_r4_2d', 'END', verb_opt=4)
   end function int_hInterpScalar_r4_2d
 
   !--------------------------------------------------------------------------
@@ -1799,7 +1799,7 @@ contains
     real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
     integer :: ezsint
 
-    call msg('int_hInterpScalar_r8_2d', 'START', verb_opt=2)
+    call msg('int_hInterpScalar_r8_2d', 'START', verb_opt=4)
     ! read the namelist
     call int_readNml()
 
@@ -1833,7 +1833,7 @@ contains
     deallocate(bufferi4)
     deallocate(buffero4)
 
-    call msg('int_hInterpScalar_r8_2d', 'END', verb_opt=2)
+    call msg('int_hInterpScalar_r8_2d', 'END', verb_opt=4)
   end function int_hInterpScalar_r8_2d
 
   !--------------------------------------------------------------------------
@@ -1864,7 +1864,7 @@ contains
     real(8), pointer :: UVout8(:,:,:), UVin8(:,:,:)
     integer :: ezuvint, ezdefset
 
-    call msg('int_hInterpUV_gsv', 'START', verb_opt=2)
+    call msg('int_hInterpUV_gsv', 'START', verb_opt=4)
 
     ! read the namelist
     call int_readNml()
@@ -1958,7 +1958,7 @@ contains
 
     end if
 
-    call msg('int_hInterpUV_gsv', 'END', verb_opt=2)
+    call msg('int_hInterpUV_gsv', 'END', verb_opt=4)
   end function int_hInterpUV_gsv
 
   !--------------------------------------------------------------------------
@@ -1983,7 +1983,7 @@ contains
     ! Locals:
     integer :: ezuvint
 
-    call msg('int_hInterpUV_r4_2d', 'START', verb_opt=2)
+    call msg('int_hInterpUV_r4_2d', 'START', verb_opt=4)
     ! read the namelist
     call int_readNml()
 
@@ -1991,7 +1991,7 @@ contains
     call int_setezopt(interpDegree, extrapDegree_opt)   
     ierr = ezuvint(uuout, vvout, uuin, vvin)
 
-    call msg('int_hInterpUV_r4_2d', 'END', verb_opt=2)
+    call msg('int_hInterpUV_r4_2d', 'END', verb_opt=4)
   end function int_hInterpUV_r4_2d
 
   !--------------------------------------------------------------------------
@@ -2020,7 +2020,7 @@ contains
     real, allocatable :: bufuuin4(:,:), bufvvin4(:,:)
     integer :: ezuvint
 
-    call msg('int_hInterpUV_r8_2d', 'START', verb_opt=2)
+    call msg('int_hInterpUV_r8_2d', 'START', verb_opt=4)
     ! read the namelist
     call int_readNml()
 
@@ -2060,7 +2060,7 @@ contains
     deallocate(bufuuout4)
     deallocate(bufvvout4)
 
-    call msg('int_hInterpUV_r8_2d', 'END', verb_opt=2)
+    call msg('int_hInterpUV_r8_2d', 'END', verb_opt=4)
   end function int_hInterpUV_r8_2d
 
   !--------------------------------------------------------------------------

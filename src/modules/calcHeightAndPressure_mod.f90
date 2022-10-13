@@ -445,7 +445,7 @@ contains
     real(kind=4), allocatable   :: Hsfc4(:,:)
     real(kind=4), pointer       :: GZHeight_out(:,:,:)
 
-    call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=3)
+    call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=4)
 
     if ( .not. gsv_varExist(statevector,'Z_*')) then
         ! DBGmad : probably other vars as well
@@ -490,7 +490,7 @@ contains
     end do
     deallocate(Hsfc4)
 
-    call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'END', verb_opt=3)
+    call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'END', verb_opt=4)
   end subroutine calcHeight_gsv_nl_vcode2100x_r4
 
   !---------------------------------------------------------
@@ -563,7 +563,7 @@ contains
     real(kind=8), allocatable   :: Hsfc(:,:)
     real(kind=8), pointer       :: GZHeight_out(:,:,:)
 
-    call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=3)
+    call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=4)
 
     if ( .not. gsv_varExist(statevector,'Z_*')) then
         ! DBGmad : probably other vars as well
@@ -606,7 +606,7 @@ contains
 
     deallocate(Hsfc)
 
-    call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'END', verb_opt=3)
+    call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'END', verb_opt=4)
   end subroutine calcHeight_gsv_nl_vcode2100x_r8
 
   !---------------------------------------------------------
@@ -700,7 +700,7 @@ contains
     real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
     real(8), pointer     :: HeightSfc_ptr_r8(:,:)
 
-    call msg('calcHeight_gsv_nl_vcode500x (czp)', 'START', verb_opt=3)
+    call msg('calcHeight_gsv_nl_vcode500x (czp)', 'START', verb_opt=4)
 
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
@@ -1016,7 +1016,7 @@ contains
 
     call msg('calcHeight_gsv_nl_vcode500x (czp)', 'statevector%addHeightSfcOffset='&
          //str(statevector%addHeightSfcOffset), verb_opt=2)
-    call msg('calcHeight_gsv_nl_vcode500x (czp)', 'END', verb_opt=3)
+    call msg('calcHeight_gsv_nl_vcode500x (czp)', 'END', verb_opt=4)
   end subroutine calcHeight_gsv_nl_vcode500x
 
   !---------------------------------------------------------
@@ -1095,7 +1095,7 @@ contains
         real(pre_incrReal), pointer ::  delP0_r48(:,:,:,:)
         real(pre_incrReal), pointer ::  delP_T_r48(:,:,:,:), delP_M_r48(:,:,:,:)
 
-        call msg('calcHeight_gsv_tl_vcode500x (czp)', 'START', verb_opt=3)
+        call msg('calcHeight_gsv_tl_vcode500x (czp)', 'START', verb_opt=4)
         Vcode_anl = gsv_getVco(statevectorRef)%vcode
 
         nlev_T = gsv_getNumLev(statevectorRef,'TH')
@@ -1280,7 +1280,7 @@ contains
 
         deallocate(delThick)
 
-        call msg('calcHeight_gsv_tl_vcode500x (czp)', 'END', verb_opt=3)
+        call msg('calcHeight_gsv_tl_vcode500x (czp)', 'END', verb_opt=4)
       end subroutine calcHeight_gsv_tl_vcode500x
 
   end subroutine calcHeight_gsv_tl
@@ -1363,7 +1363,7 @@ contains
         real(pre_incrReal), pointer :: delP0_r48(:,:,:,:)
         real(pre_incrReal), pointer :: delP_M_r48(:,:,:,:),delP_T_r48(:,:,:,:)
 
-        call msg('calcHeight_gsv_ad_vcode500x (czp)', 'START', verb_opt=3)
+        call msg('calcHeight_gsv_ad_vcode500x (czp)', 'START', verb_opt=4)
 
         nlev_T = gsv_getNumLev(statevectorRef,'TH')
         nlev_M = gsv_getNumLev(statevectorRef,'MM')
@@ -1615,7 +1615,7 @@ contains
         deallocate(delHeight_M)
         deallocate(delHeight_T)
 
-        call msg('calcHeight_gsv_ad_vcode500x (czp)', 'END', verb_opt=3)
+        call msg('calcHeight_gsv_ad_vcode500x (czp)', 'END', verb_opt=4)
       end subroutine calcHeight_gsv_ad_vcode500x
 
   end subroutine calcHeight_gsv_ad
@@ -1795,7 +1795,7 @@ contains
     real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
     real(8), pointer     :: HeightSfc_ptr_r8(:,:)
 
-    call msg('calcPressure_gsv_nl_vcode2100x (czp)', 'START', verb_opt=3)
+    call msg('calcPressure_gsv_nl_vcode2100x (czp)', 'START', verb_opt=4)
     
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
@@ -1983,7 +1983,7 @@ contains
     deallocate(pressure_M)
     deallocate(tv)
 
-    call msg('calcPressure_gsv_nl_vcode2100x (czp)', 'END', verb_opt=3)
+    call msg('calcPressure_gsv_nl_vcode2100x (czp)', 'END', verb_opt=4)
   end subroutine calcPressure_gsv_nl_vcode2100x
 
   !---------------------------------------------------------
@@ -2008,7 +2008,7 @@ contains
     real(kind=8), pointer       :: field_Psfc(:,:,:,:)
     integer                     :: status, stepIndex, numStep
 
-    call msg('calcPressure_gsv_nl_vcode500x_r8 (czp)', 'START', verb_opt=3)
+    call msg('calcPressure_gsv_nl_vcode500x_r8 (czp)', 'START', verb_opt=4)
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
@@ -2059,7 +2059,7 @@ contains
 
     deallocate(Psfc)
 
-    call msg('calcPressure_gsv_nl_vcode500x_r8 (czp)', 'END', verb_opt=3)
+    call msg('calcPressure_gsv_nl_vcode500x_r8 (czp)', 'END', verb_opt=4)
   end subroutine calcPressure_gsv_nl_vcode500x_r8
 
   !---------------------------------------------------------
@@ -2084,7 +2084,7 @@ contains
     real(kind=4), pointer       :: field_Psfc(:,:,:,:)
     integer                     :: status, stepIndex, numStep
 
-    call msg('calcPressure_gsv_nl_vcode500x_r4 (czp)', 'START', verb_opt=3)
+    call msg('calcPressure_gsv_nl_vcode500x_r4 (czp)', 'START', verb_opt=4)
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
@@ -2135,7 +2135,7 @@ contains
 
     deallocate(Psfc)
 
-    call msg('calcPressure_gsv_nl_vcode500x_r4 (czp)', 'START', verb_opt=3)
+    call msg('calcPressure_gsv_nl_vcode500x_r4 (czp)', 'START', verb_opt=4)
   end subroutine calcPressure_gsv_nl_vcode500x_r4
 
   !---------------------------------------------------------
@@ -2206,7 +2206,7 @@ contains
         integer               :: status, stepIndex,lonIndex,latIndex
         integer               :: lev_M, lev_T, nlev_T, nlev_M, numStep
 
-        call msg('calcPressure_gsv_tl_vcode500x (czp)', 'START', verb_opt=3)
+        call msg('calcPressure_gsv_tl_vcode500x (czp)', 'START', verb_opt=4)
 
         nullify(dP_dPsfc_T)
         nullify(dP_dPsfc_M)
@@ -2312,7 +2312,7 @@ contains
 
         deallocate(Psfc)
 
-        call msg('calcPressure_gsv_tl_vcode500x (czp)', 'END', verb_opt=3)
+        call msg('calcPressure_gsv_tl_vcode500x (czp)', 'END', verb_opt=4)
       end subroutine calcPressure_gsv_tl_vcode500x
 
   end subroutine calcPressure_gsv_tl
@@ -2385,7 +2385,7 @@ contains
         integer                  :: status, stepIndex,lonIndex,latIndex
         integer                  :: lev_M, lev_T, nlev_T, nlev_M, numStep
 
-        call msg('calcPressure_gsv_ad_vcode500x (czp)', 'START', verb_opt=3)
+        call msg('calcPressure_gsv_ad_vcode500x (czp)', 'START', verb_opt=4)
 
         nullify(delPsfc_r4, delPsfc_r8)
         nullify(field_Psfc)
@@ -2494,7 +2494,7 @@ contains
 
         deallocate(Psfc)
 
-        call msg('calcPressure_gsv_ad_vcode500x (czp)', 'END', verb_opt=3)
+        call msg('calcPressure_gsv_ad_vcode500x (czp)', 'END', verb_opt=4)
       end subroutine calcPressure_gsv_ad_vcode500x
 
   end subroutine calcPressure_gsv_ad
@@ -2703,7 +2703,7 @@ contains
     real(8), pointer      :: hPtr(:,:,:)
     integer :: numCol, colIndex, stat
 
-    call msg('calcHeight_col_nl_vcode2100x (czp)', 'START', verb_opt=3)
+    call msg('calcHeight_col_nl_vcode2100x (czp)', 'START', verb_opt=4)
     if ( col_getNumCol(column) <= 0 ) then
       call msg('calcHeight_col_nl_vcode2100x (czp)',&
            'END (number of columns <= 0)', verb_opt=2)
@@ -2743,7 +2743,7 @@ contains
     deallocate(heights)
 
     deallocate(hSfc)
-    call msg('calcHeight_col_nl_vcode2100x (czp)', 'END', verb_opt=3)
+    call msg('calcHeight_col_nl_vcode2100x (czp)', 'END', verb_opt=4)
   end subroutine calcHeight_col_nl_vcode2100x
 
   !---------------------------------------------------------
@@ -2760,7 +2760,7 @@ contains
     real(8), pointer,         intent(inout) :: Z_T(:,:), Z_M(:,:) ! output pointers to computed column height values
 
     !! DBGmad TODO : really do nothing??
-    call msg('calcHeight_col_nl_vcode500x (czp)', 'END (nothing done)', verb_opt=3)
+    call msg('calcHeight_col_nl_vcode500x (czp)', 'END (nothing done)', verb_opt=4)
     continue
   end subroutine calcHeight_col_nl_vcode500x
 
@@ -2838,7 +2838,7 @@ contains
         real(8), pointer  :: delTT(:,:),delHU(:,:),delP0(:,:)
         real(8), pointer  :: delP_T(:,:), delP_M(:,:)
 
-        call msg('calcHeight_col_tl_vcode500x (czp)', 'START', verb_opt=3)
+        call msg('calcHeight_col_tl_vcode500x (czp)', 'START', verb_opt=4)
 
         nlev_T = col_getNumLev(columnIncRef,'TH')
         nlev_M = col_getNumLev(columnIncRef,'MM')
@@ -2965,7 +2965,7 @@ contains
 
         deallocate(delThick)
 
-        call msg('calcHeight_col_tl_vcode500x (czp)', 'END', verb_opt=3)
+        call msg('calcHeight_col_tl_vcode500x (czp)', 'END', verb_opt=4)
       end subroutine calcHeight_col_tl_vcode500x
 
   end subroutine calcHeight_col_tl
@@ -3045,7 +3045,7 @@ contains
         real(8), pointer     :: delTT(:,:),delHU(:,:),delP0(:,:)
         real(8), pointer     :: delP_M(:,:),delP_T(:,:)
 
-        call msg('calcHeight_col_ad_vcode500x (czp)', 'START', verb_opt=3)
+        call msg('calcHeight_col_ad_vcode500x (czp)', 'START', verb_opt=4)
 
         nlev_T = col_getNumLev(columnIncRef,'TH')
         nlev_M = col_getNumLev(columnIncRef,'MM')
@@ -3240,7 +3240,7 @@ contains
         deallocate(delHeight_M)
         deallocate(delHeight_T)
 
-        call msg('calcHeight_col_ad_vcode500x (czp)', 'END', verb_opt=3)
+        call msg('calcHeight_col_ad_vcode500x (czp)', 'END', verb_opt=4)
       end subroutine calcHeight_col_ad_vcode500x
 
   end subroutine calcHeight_col_ad
@@ -3333,7 +3333,7 @@ contains
     real(8) :: scaleFactorBottom, logP
     real(8) :: Z_T, Z_M, Z_M1
 
-    call msg('calcPressure_col_nl_vcode2100x (czp)', 'START', verb_opt=3)
+    call msg('calcPressure_col_nl_vcode2100x (czp)', 'START', verb_opt=4)
 
     numCol = col_getNumCol(column)
     nLev_M = col_getNumLev(column, 'MM')
@@ -3420,7 +3420,7 @@ contains
 
     deallocate(tv)
 
-    call msg('calcPressure_col_nl_vcode2100x (czp)', 'END', verb_opt=3)
+    call msg('calcPressure_col_nl_vcode2100x (czp)', 'END', verb_opt=4)
   end subroutine calcPressure_col_nl_vcode2100x
 
   !---------------------------------------------------------
@@ -3438,7 +3438,7 @@ contains
     real(kind=8), pointer     :: zppobs1(:,:,:)
     integer :: headerIndex, status, ilev1, ilev2
 
-    call msg('calcPressure_col_nl_vcode500x (czp)', 'START', verb_opt=3)
+    call msg('calcPressure_col_nl_vcode500x (czp)', 'START', verb_opt=4)
     if ( col_getNumCol(column) <= 0 ) then
       call msg('calcPressure_col_nl_vcode500x (czp)',&
            'END (number of columns <= 0)', verb_opt=2)
@@ -3474,7 +3474,7 @@ contains
 
     deallocate(Psfc)
 
-    call msg('calcPressure_col_nl_vcode500x (czp)', 'END', verb_opt=3)
+    call msg('calcPressure_col_nl_vcode500x (czp)', 'END', verb_opt=4)
   end subroutine calcPressure_col_nl_vcode500x
 
 
@@ -3537,7 +3537,7 @@ contains
         integer          :: status, colIndex
         integer          :: lev_M, lev_T, nlev_T, nlev_M, numColumns
 
-        call msg('calcPressure_col_tl_vcode500x (czp)', 'START', verb_opt=3)
+        call msg('calcPressure_col_tl_vcode500x (czp)', 'START', verb_opt=4)
 
         nullify(dP_dPsfc_T)
         nullify(dP_dPsfc_M)
@@ -3590,7 +3590,7 @@ contains
 
         end do
 
-        call msg('calcPressure_col_tl_vcode500x (czp)', 'END', verb_opt=3)
+        call msg('calcPressure_col_tl_vcode500x (czp)', 'END', verb_opt=4)
       end subroutine calcPressure_col_tl_vcode500x
 
   end subroutine calcPressure_col_tl
@@ -3654,7 +3654,7 @@ contains
         integer          :: status, colIndex
         integer          :: lev_M, lev_T, nlev_T, nlev_M, numColumns
 
-        call msg('calcPressure_col_ad_vcode500x (czp)', 'START', verb_opt=3)
+        call msg('calcPressure_col_ad_vcode500x (czp)', 'START', verb_opt=4)
 
         nullify(delPsfc)
         nullify(PsfcRef)
@@ -3709,7 +3709,7 @@ contains
           deallocate(dP_dPsfc_T)
 
         end do
-        call msg('calcPressure_col_ad_vcode500x (czp)', 'END', verb_opt=3)
+        call msg('calcPressure_col_ad_vcode500x (czp)', 'END', verb_opt=4)
       end subroutine calcPressure_col_ad_vcode500x
 
   end subroutine calcPressure_col_ad
