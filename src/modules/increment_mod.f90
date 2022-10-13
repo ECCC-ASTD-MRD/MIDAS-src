@@ -30,6 +30,7 @@ module increment_mod
   use verticalCoord_mod
   use humidityLimits_mod
   use utilities_mod
+  use message_mod
   use gridVariableTransforms_mod
   use BMatrix_mod
   use varNamelist_mod
@@ -41,9 +42,7 @@ module increment_mod
   public :: inc_computeHighResAnalysis, inc_writeIncAndAnalHighRes, inc_getIncrement, inc_writeIncrement
   public :: inc_writeAnalysis, inc_analPostProcessing
 
-  integer, external :: get_max_rss
-
-  ! Namelist variables:
+  ! namelist variables
   integer  :: writeNumBits
   logical  :: writeHiresIncrement
   logical  :: imposeRttovHuLimits
@@ -53,7 +52,7 @@ module increment_mod
   character(len=12) :: etiket_rebm
   character(len=12) :: hInterpolationDegree
   logical :: applyLiebmann
-  logical :: SSTSpread  
+  logical :: SSTSpread
   integer :: SSTSpreadMaxBoxSize
   character(len=10) :: SSTSubgrid
 
@@ -93,10 +92,9 @@ CONTAINS
       SSTsubgrid = '   '
 
       if ( .not. utl_isNamelistPresent('NAMINC','./flnml') ) then
-        if ( mmpi_myid == 0 ) then
-          write(*,*) 'NAMINC is missing in the namelist. The default values will be taken.'
-        end if
-
+        call msg('readNameList (inc)', &
+             'NAMINC is missing in the namelist. The default values will be taken.', &
+             mpiAll_opt=.false.)
       else
         ! Reading the namelist
         nulnam = 0
@@ -137,7 +135,6 @@ CONTAINS
 
     integer              :: stepIndex, numStep
     integer, allocatable :: dateStampList(:)
-    integer              :: get_max_rss
 
     real(pre_incrReal), pointer :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:)
     real(pre_incrReal), pointer :: PsfcIncrement(:,:,:,:)
@@ -146,8 +143,8 @@ CONTAINS
 
     logical  :: allocHeightSfc
 
-    write(*,*) 'inc_computeHighResAnalysis: STARTING'
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg('inc_computeHighResAnalysis', 'START', verb_opt=2)
+    call msg_memUsage('inc_computeHighResAnalysis')
 
     call utl_tmg_start(80,'--Increment')
     call utl_tmg_start(81,'----ComputeHighResAnalysis')
@@ -181,8 +178,8 @@ CONTAINS
                          varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
                          hInterpolateDegree_opt=hInterpolationDegree )
 
-      if( mmpi_myid == 0 ) write(*,*) ''
-      if( mmpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: horizontal interpolation of the Psfc increment'
+      call msg('inc_computeHighResAnalysis', &
+           'horizontal interpolation of the Psfc increment', mpiAll_opt=.false.)
 
       ! Extract Psfc inc at low resolution
       call gsv_allocate( statevectorPsfcLowRes, numStep,  &
@@ -199,7 +196,9 @@ CONTAINS
       call gsv_deallocate(statevectorPsfcLowRes)
 
       ! Compute analysis Psfc to use for interpolation of increment
-      if( mmpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: Computing Psfc analysis to use for interpolation of increment'
+      call msg('inc_computeHighResAnalysis', &
+           'Computing Psfc analysis to use for interpolation of increment', &
+           mpiAll_opt=.false.)
       call gsv_allocate(statevectorPsfcLowResTime, tim_nstepobsinc, hco_trl, vco_trl,  &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                         dataKind_opt=pre_incrReal, &
@@ -222,7 +221,9 @@ CONTAINS
       end if
 
       ! Time interpolation to get high-res Psfc analysis increment
-      if( mmpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: Time interpolation to get high-res Psfc analysis increment'
+      call msg('inc_computeHighResAnalysis', &
+           'Time interpolation to get high-res Psfc analysis increment', &
+           mpiAll_opt=.false.)
       if ( .not. gsv_isAllocated(stateVectorPsfcHighRes) ) then
         call gsv_allocate( stateVectorPsfcHighRes, tim_nstepobs, hco_trl, vco_trl, &
                            dataKind_opt=pre_incrReal, &
@@ -236,8 +237,7 @@ CONTAINS
     end if
 
     ! Compute the analysis
-    if( mmpi_myid == 0 ) write(*,*) ''
-    if( mmpi_myid == 0 ) write(*,*) 'inc_computeHighResAnalysis: compute the analysis'
+    call msg('inc_computeHighResAnalysis', 'compute the analysis', mpiAll_opt=.false.)
 
     ! Interpolate low-res increments to high-res and add to the initial state
     call gsv_allocate( stateVectorHighRes, tim_nstepobs, hco_trl, vco_trl, &
@@ -277,7 +277,7 @@ CONTAINS
     call utl_tmg_stop(81)
     call utl_tmg_stop(80)
 
-    write(*,*) 'inc_computeHighResAnalysis: END'
+    call msg('inc_computeHighResAnalysis', 'END', verb_opt=2)
 
   end subroutine inc_computeHighResAnalysis
 
@@ -287,10 +287,10 @@ CONTAINS
   subroutine inc_analPostProcessing (stateVectorPsfcHighRes, stateVectorUpdateHighRes, & ! IN
                                      stateVectorTrial, stateVectorPsfc, stateVectorAnal) ! OUT
     !
-    ! :Purpose: Post processing of the high resolution analysis including degrading 
+    ! :Purpose: Post processing of the high resolution analysis including degrading
     !           temporal resolution, variable transform, and humidity clipping.
     !
-    implicit none 
+    implicit none
 
     ! Arguments:
     type(struct_gsv), intent(inout)  :: stateVectorPsfcHighRes
@@ -307,8 +307,8 @@ CONTAINS
 
     logical  :: allocHeightSfc
 
-    write(*,*) 'inc_analPostProcessing: STARTING'
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg('inc_analPostProcessing', 'START', verb_opt=2)
+    call msg_memUsage('inc_analPostProcessing')
 
     call utl_tmg_start(80,'--Increment')
     call utl_tmg_start(82,'----AnalPostProcessing')
@@ -325,7 +325,7 @@ CONTAINS
                       allocHeight_opt = .false., allocPressure_opt = .false.)
     call gsv_zero(stateVectorTrial)
     call gio_readTrials(stateVectorTrial)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    call msg_memUsage('inc_analPostProcessing')
 
     if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
       allocHeightSfc = .false.
@@ -351,7 +351,7 @@ CONTAINS
                       allocHeight_opt = .false., allocPressure_opt = .false.)
     call gsv_copy(stateVectorUpdateHighRes, stateVectorAnal, &
                   allowVarMismatch_opt = .true., allowTimeMismatch_opt = .true.)
-      
+
     if (gsv_varExist(stateVectorAnal, 'GL')) then
       ! Impose limits [0,1] on sea ice concentration analysis
       call gsv_getField(stateVectorAnal, oceanIce_ptr, 'GL')
@@ -360,7 +360,7 @@ CONTAINS
     end if
 
     if (applyLiebmann) then
-    
+
       ! Start the variable transformations
       if (gsv_varExist(stateVectorAnal, 'GL')) then
         if (gsv_varExist(stateVectorAnal, 'LG')) then
@@ -368,13 +368,13 @@ CONTAINS
           call gvt_transform(stateVectorAnal, 'oceanIceContinuous', stateVectorRef_opt = stateVectorTrial, varName_opt = 'LG')
         end if
       end if
-    
+
       ! Start the variable transformations
       if(gsv_varExist(stateVectorAnal,'TM')) then
         ! Compute the continuous SST field (TM)
         call gvt_transform(stateVectorAnal, 'oceanIceContinuous', stateVectorRef_opt = stateVectorTrial, varName_opt = 'TM')
       end if
-      
+
     end if
 
     if (SSTSpread) then
@@ -388,20 +388,21 @@ CONTAINS
     call gvt_transform(stateVectorAnal, 'AllTransformedToModel', allowOverWrite_opt = .true.)
 
     ! Impose limits on humidity analysis
-    write(*,*) 'inc_analPostProcessing: calling qlim_saturationLimit'
+    call msg('inc_analPostProcessing', 'calling qlim_saturationLimit')
     call qlim_saturationLimit(stateVectorAnal)
     if (imposeRttovHuLimits) call qlim_rttovLimit(stateVectorAnal)
 
     if (gsv_varKindExist('CH')) then
       ! Apply boundaries to analysis of CH kind variables as needed.
-      write(*,*) 'inc_analPostProcessing: applying minimum values to analysis for variables of CH kind'
+      call msg('inc_analPostProcessing', &
+           'applying minimum values to analysis for variables of CH kind')
       call gvt_transform(stateVectorAnal, 'CH_bounds')
     end if
 
     call utl_tmg_stop(82)
     call utl_tmg_stop(80)
 
-    write(*,*) 'inc_analPostProcessing: END'
+    call msg('inc_analPostProcessing', 'END', verb_opt=2)
 
   end subroutine inc_analPostProcessing
 
@@ -441,8 +442,8 @@ CONTAINS
 
     logical  :: allocHeightSfc, writeHeightSfc
 
-    write(*,*) 'inc_writeIncAndAnalHighRes: STARTING'
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    call msg('inc_writeIncAndAnalHighRes', 'START', verb_opt=2)
+    call msg_memUsage('inc_writeIncAndAnalHighRes')
 
     call utl_tmg_start(80,'--Increment')
     call utl_tmg_start(83,'----WriteIncAndAnalHighRes')
@@ -490,20 +491,24 @@ CONTAINS
 
     ! figure out number of batches of time steps for writing
     numBatch = ceiling(real(stateVectorAnal%numStep) / real(mmpi_nprocs))
-    write(*,*) 'inc_writeIncAndAnalHighRes: writing will be done by number of batches = ', numBatch
+    call msg('inc_writeIncAndAnalHighRes', &
+         'writing will be done by number of batches = '//str(numBatch))
 
     batch_loop: do batchIndex = 1, numBatch
 
       stepIndexBeg = 1 + (batchIndex - 1) * mmpi_nprocs
       stepIndexEnd = min(stateVectorAnal%numStep, stepIndexBeg + mmpi_nprocs - 1)
-      write(*,*) 'inc_writeIncAndAnalHighRes: batchIndex, stepIndexBeg/End = ', batchIndex, stepIndexBeg, stepIndexEnd
+      call msg('inc_writeIncAndAnalHighRes', 'batchIndex = '//str(batchIndex) &
+           //', stepIndexBeg = '//str(stepIndexBeg) &
+           //', stepIndexEnd = '//str(stepIndexEnd))
 
       ! figure out which time step I will write, if any (-1 if none)
       stepIndexToWrite = -1
       do stepIndex = stepIndexBeg, stepIndexEnd
         procToWrite = nint( real(stepIndex - stepIndexBeg) * real(mmpi_nprocs) / real(stepIndexEnd - stepIndexBeg + 1) )
         if ( procToWrite == mmpi_myid ) stepIndexToWrite = stepIndex
-        if ( mmpi_myid == 0 ) write(*,*) 'inc_writeIncAndAnalHighRes: stepIndex, procToWrite = ', stepIndex, procToWrite
+        call msg('inc_writeIncAndAnalHighRes', ' stepIndex = '//str(stepIndex) &
+             //', procToWrite = '//str(procToWrite), mpiAll_opt=.false.)
       end do
 
       ! determine date and allocate stateVector for storing just 1 time step, if I do writing
@@ -531,7 +536,7 @@ CONTAINS
 
       ! write the ANALYSIS file for one timestep on all tasks with data
       if ( stepIndexToWrite /= -1 ) then
-        write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+        call msg_memUsage('inc_writeIncAndAnalHighRes')
         anlFileName = './anlm_' // trim(coffset) // 'm'
         call gio_writeToFile( stateVector_1step_r4, trim(anlFileName), etiket_anlm,  &
                               typvar_opt='A', writeHeightSfc_opt=writeHeightSfc, &
@@ -545,7 +550,7 @@ CONTAINS
 
         ! write the INCREMENT file for one timestep on all tasks with data
         if ( stepIndexToWrite /= -1 ) then
-          write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+          call msg_memUsage('inc_writeIncAndAnalHighRes')
           incFileName = './rehm_' // trim(coffset) // 'm'
           call gio_writeToFile( stateVector_1step_r4, trim(incFileName), etiket_rehm,  &
                                 typvar_opt='R', &
@@ -559,7 +564,7 @@ CONTAINS
 
           ! Also write analysis value of Psfc and surface height to increment file
           if ( stepIndexToWrite /= -1 ) then
-            write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+            call msg_memUsage('inc_writeIncAndAnalHighRes')
             incFileName = './rehm_' // trim(coffset) // 'm'
             call gio_writeToFile( stateVectorPsfc_1step_r4, trim(incFileName), etiket_rehm,  &
                                   typvar_opt='A', writeHeightSfc_opt=writeHeightSfc, &
@@ -587,7 +592,7 @@ CONTAINS
     call utl_tmg_stop(83)
     call utl_tmg_stop(80)
 
-    write(*,*) 'inc_writeIncAndAnalHighRes: END'
+    call msg('inc_writeIncAndAnalHighRes', 'END', verb_opt=2)
 
   end subroutine inc_writeIncAndAnalHighRes
 
@@ -613,13 +618,11 @@ CONTAINS
 
     ! Compute new diagnotics based on NAMSTATE
     if ( gsv_varExist(statevector_incr,'QR') .and. gsv_varExist(statevector_incr,'DD') ) then
-       write(*,*)
-       write(*,*) 'User is asking for Vort-Div analysis increment'
+       call msg('inc_getIncrement', 'User is asking for Vort-Div analysis increment')
        call gvt_transform( statevector_incr, & ! INOUT
                            'UVtoVortDiv' )     ! IN
        if ( gsv_varExist(statevector_incr,'PP') .and. gsv_varExist(statevector_incr,'CC') ) then
-          write(*,*)
-          write(*,*) 'User is asking for Psi-Chi analysis increment'
+          call msg('inc_getIncrement', 'User is asking for Psi-Chi analysis increment')
           call gvt_transform( statevector_incr, & ! INOUT
                               'VortDivToPsiChi')  ! IN
        end if
@@ -650,7 +653,7 @@ CONTAINS
     character(len=4)     :: coffset
     character(len=30)    :: fileName
 
-    if ( mmpi_myid == 0 ) write(*,*) 'inc_writeIncrement: STARTING'
+    call msg('inc_writeIncrement', 'START', verb_opt=2)
 
     call utl_tmg_start(80,'--Increment')
     call utl_tmg_start(85,'----WriteIncrement')
@@ -659,8 +662,8 @@ CONTAINS
     do stepIndex = 1, tim_nstepobsinc
       if (gsv_isAllocated(statevector_incr)) then
         dateStamp = gsv_getDateStamp(stateVector_incr,stepIndex)
-        if ( mmpi_myid == 0 ) write(*,*) 'inc_writeIncrement: writing increment for time step: ', &
-                                         stepIndex, dateStamp
+        call msg('inc_writeIncrement', 'writing increment for time step: ' &
+             //str(stepIndex)//', dateStamp = '//str(dateStamp), mpiAll_opt=.false.)
 
         ! write the increment file for this time step
         call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
@@ -679,7 +682,8 @@ CONTAINS
     call utl_tmg_stop(85)
     call utl_tmg_stop(80)
 
-    if ( mmpi_myid == 0 ) write(*,*) 'inc_writeIncrement: END'
+    call msg('inc_writeIncrement', 'END', verb_opt=2)
+
 
   end subroutine inc_writeIncrement
 
@@ -687,7 +691,7 @@ CONTAINS
   ! inc_writeAnalysis
   !--------------------------------------------------------------------------
   subroutine inc_writeAnalysis(statevector_anal)
-    ! :Purpose: To write to output standard file the analysid from statevector strucure (1Dvar case) 
+    ! :Purpose: To write to output standard file the analysid from statevector strucure (1Dvar case)
     !           to output the results
     !
     implicit none
@@ -700,7 +704,7 @@ CONTAINS
     character(len=4)     :: coffset
     character(len=30)    :: fileName
 
-    if(mmpi_myid == 0) write(*,*) 'inc_writeAnalysis: STARTING'
+    call msg('inc_writeAnalysis', 'START', verb_opt=2)
 
     call utl_tmg_start(80,'--Increment')
     call utl_tmg_start(86,'----WriteAnalysis')
@@ -714,7 +718,8 @@ CONTAINS
     do stepIndex = 1, tim_nstepobsinc
       if (gsv_isAllocated(statevector_anal)) then
         dateStamp = gsv_getDateStamp(statevector_anal,stepIndex)
-        if(mmpi_myid == 0) write(*,*) 'inc_writeAnalysis: writing analysis for time step: ',stepIndex, dateStamp
+        call msg('inc_writeAnalysis', 'writing analysis for time step: ' &
+             //str(stepIndex)//', dateStamp = '//str(dateStamp), mpiAll_opt=.false.)
 
         ! write the increment file for this time step
         call difdatr(dateStamp,tim_getDatestamp(),deltaHours)
@@ -732,6 +737,7 @@ CONTAINS
     call utl_tmg_stop(86)
     call utl_tmg_stop(80)
 
+    call msg('inc_writeAnalysis', 'END', verb_opt=2)
   end subroutine inc_writeAnalysis
 
   !--------------------------------------------------------------------------
@@ -740,7 +746,7 @@ CONTAINS
   subroutine inc_interpolateAndAdd(statevector_in,statevector_inout,scaleFactor_opt, &
                                    PsfcReference_opt, statevectorMaskLAM_opt)
     !
-    ! :Purpose: Interpolate the low-resolution increments to trial grid and add to 
+    ! :Purpose: Interpolate the low-resolution increments to trial grid and add to
     !           get the high-resolution analysis.
     !
     implicit none
@@ -761,7 +767,7 @@ CONTAINS
 
     character(len=4), pointer :: varNamesToInterpolate(:)
 
-    write(*,*) 'inc_interpolateAndAdd: STARTING'
+    call msg('inc_interpolateAndAdd', 'START', verb_opt=2)
 
     ! Error traps
     if ( .not. gsv_isAllocated(statevector_in) ) then
@@ -835,7 +841,7 @@ CONTAINS
     call gsv_deallocate(statevector_in_hvtInterp)
     deallocate(varNamesToInterpolate)
 
-    write(*,*) 'inc_interpolateAndAdd: END'
+    call msg('inc_interpolateAndAdd', 'END', verb_opt=2)
 
   end subroutine inc_interpolateAndAdd
 
