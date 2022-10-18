@@ -65,9 +65,8 @@ program midas_obsSelection
 
   ! Namelist variables
   logical                        :: doThinning  ! Control whether or not thinning is done
-  character(len=9)               :: instName    ! Instrument name
 
-  namelist /namObsSelection/ instName, doThinning
+  namelist /namObsSelection/ doThinning
 
   call ver_printNameAndVersion('obsSelection','Obs Quality Control and Thinning')
 
@@ -152,6 +151,12 @@ program midas_obsSelection
 
   call ssbg_computeSsmisSurfaceType(obsSpaceData)
 
+  ! Only for MWHS2 data and if modLSQ option is set to .true. in nambgck namelist, set values for land qualifier
+  ! indice and terrain type based on calculations
+  if (obs_famExist(obsSpaceData,'TO')) then
+    call mwbg_computeMwhs2SurfaceType(obsSpaceData)
+  end if
+
   !
   !- Basic setup of columnData module
   !
@@ -203,13 +208,6 @@ program midas_obsSelection
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev, columnTrlOnAnlIncLev )
 
-  ! If MWHS2 data, do satqc before observation innovations
-  if (instName == 'MWHS2') then
-    if (obs_famExist(obsSpaceData,'TO')) then
-      call mwbg_bgCheckMW(obsSpaceData)
-    end if
-  end if
-
   ! Compute observation innovations and prepare obsSpaceData for minimization
   call inn_computeInnovation(columnTrlOnTrlLev, obsSpaceData, analysisMode_opt=.false.)
 
@@ -228,9 +226,7 @@ program midas_obsSelection
 
     ! Do the TO background check
     call irbg_bgCheckIR(columnTrlOnTrlLev,obsSpaceData)
-    if (instName /= 'MWHS2') then
-      call mwbg_bgCheckMW(obsSpaceData)
-    end if
+    call mwbg_bgCheckMW(obsSpaceData)
     call csrbg_bgCheckCSR(obsSpaceData)
     call ssbg_bgCheckSsmis(obsSpaceData)
 

@@ -32,13 +32,14 @@ module bgckmicrowave_mod
 
   ! Public functions/subroutines
   public :: mwbg_bgCheckMW
+  public :: mwbg_computeMwhs2SurfaceType
 
   real    :: mwbg_clwQcThreshold
   real    :: mwbg_cloudyClwThresholdBcorr
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
 
-  integer, parameter :: mwbg_maxScanAngle=96
+  integer, parameter :: mwbg_maxScanAngle=98
   real,    parameter :: mwbg_realMissing=-99. 
   integer, parameter :: mwbg_intMissing=-1
 
@@ -65,6 +66,13 @@ module bgckmicrowave_mod
   integer, parameter :: mwbg_maxNumSat  = 13
   integer, parameter :: mwbg_maxNumChan = 100
   integer, parameter :: mwbg_maxNumTest = 16
+
+  ! OPTION for values of MG (land/sea mask) and LG (ice) at each observation
+  ! point using values on 5x5 mesh centered at each point.
+  ! ilsmOpt = 1 --> use MAX value from all 25 mesh points
+  ! ilsmOpt = 2 --> use value at central mesh point (obs location)
+  ! ilsmOpt = 3 --> use AVG value from all 25 mesh points
+  integer, parameter :: ilsmOpt = 2
 
   integer            :: rejectionCodArray (mwbg_maxNumTest, &
                                            mwbg_maxNumChan, &
@@ -3407,8 +3415,7 @@ end subroutine bennartz
     ! STEP 1 ) Determine which obs pts are over open water (i.e NOT near coasts or
     !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL
     !###############################################################################
-    call mwbg_landIceMaskAtms(KNT, zlat, zlon, ilq, itt, &
-                              lsq, trn, waterobs)
+    call mwbg_landIceMaskAtms(KNT, zlat, zlon, lsq, trn, waterobs)
 
     !###############################################################################
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.
@@ -3673,12 +3680,7 @@ end subroutine bennartz
     integer, parameter               :: MXCH2OMPREJ= 6
     integer, parameter               :: MXTOPO     = 3
     integer, parameter               :: MXCLWREJ   = 6
-    ! OPTION for values of MG (land/sea mask) and LG (ice) at each observation
-    ! point using values on 5x5 mesh centered at each point.
-    ! ilsmOpt = 1 --> use MAX value from all 25 mesh points
-    ! ilsmOpt = 2 --> use value at central mesh point (obs location)
-    ! ilsmOpt = 3 --> use AVG value from all 25 mesh points
-    integer, parameter               :: ilsmOpt = 2
+
     integer                          :: iRej
     integer                          :: iNumSeaIce
     integer                          :: JI
@@ -3748,19 +3750,13 @@ end subroutine bennartz
       LLFIRST = .FALSE.
     end if
 
-    if ( modLSQ ) then
-      write(*,*) 'modLSQ option is activated!'
-      write(*,*) '  Output file will contain recomputed values for land/sea qualifier and terrain type based on LG/MG.'
-    endif
-
     ! PART 1 TESTS:
 
     !###############################################################################
     ! STEP 1 ) Determine which obs pts are over open water (i.e NOT near coasts or
     !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL
     !###############################################################################
-    call mwbg_landIceMaskMwhs2(KNT, zlat, zlon, ilq, itt, &
-                               lsq, trn, waterobs,ilsmOpt)
+    call mwbg_landIceMaskMwhs2(KNT, zlat, zlon, lsq, trn, waterobs, ilsmOpt)
 
     !###############################################################################
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.
@@ -4211,7 +4207,7 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! mwbg_landIceMaskAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_landIceMaskAtms(npts,zlat,zlon,ilq,itt, zlq,ztt,waterobs)
+  subroutine mwbg_landIceMaskAtms(npts,zlat,zlon,zlq,ztt,waterobs)
     ! Adapted from: land_ice_mask_ssmis.ftn90 of mwbg_ssmis (D. Anselmo, S. Macpherson)
     !
     ! Object:   This routine sets waterobs array by performing a land/ice proximity check using
@@ -4297,8 +4293,6 @@ end subroutine bennartz
     integer, intent(in)                   :: npts
     real,    intent(in)                   :: zlat(:)
     real,    intent(in)                   :: zlon(:)
-    integer, intent(in)                   :: ilq(:)
-    integer, intent(in)                   :: itt(:)
     integer, intent(out), allocatable     :: zlq(:)
     integer, intent(out), allocatable     :: ztt(:)
     logical, intent(out), allocatable     :: waterobs(:)
@@ -4359,9 +4353,6 @@ end subroutine bennartz
     call utl_reAllocate(zlq, npts)
     call utl_reAllocate(ztt, npts)
     call utl_reAllocate(waterobs, npts)
-
-    zlq(:) = ilq(1:npts)  ! land/sea qualifier
-    ztt(:) = itt(1:npts)  ! terrain type (sea-ice)
 
     ! Open FST file.
     iungeo = 0
@@ -4490,7 +4481,7 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! mwbg_landIceMaskMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_landIceMaskMwhs2(npts,zlat,zlon,ilq,itt, zlq,ztt,waterobs,iopt)
+  subroutine mwbg_landIceMaskMwhs2(npts,zlat,zlon,zlq,ztt,waterobs,iopt)
     ! Adapted from: land_ice_mask_ssmis.ftn90 of mwbg_ssmis (D. Anselmo, S. Macpherson)
     !
     ! Object:   This routine sets waterobs array by performing a land/ice proximity check using
@@ -4582,8 +4573,6 @@ end subroutine bennartz
     integer, intent(in)                   :: iopt
     real,    intent(in)                   :: zlat(:)
     real,    intent(in)                   :: zlon(:)
-    integer, intent(in)                   :: ilq(:)
-    integer, intent(in)                   :: itt(:)
     integer, intent(out), allocatable     :: zlq(:)
     integer, intent(out), allocatable     :: ztt(:)
     logical, intent(out), allocatable     :: waterobs(:)
@@ -4646,9 +4635,6 @@ end subroutine bennartz
     call utl_reAllocate(zlq, npts)
     call utl_reAllocate(ztt, npts)
     call utl_reAllocate(waterobs, npts)
-
-    zlq(:) = ilq(1:npts)  ! land/sea qualifier
-    ztt(:) = itt(1:npts)  ! terrain type (sea-ice)
 
     ! Open FST file.
     iungeo = 0
@@ -4781,6 +4767,79 @@ end subroutine bennartz
     ier = fclos(iungeo)
 
   end subroutine mwbg_landIceMaskMwhs2
+
+  !--------------------------------------------------------------------------
+  ! mwbg_computeMwhs2SurfaceType
+  !--------------------------------------------------------------------------
+
+  subroutine mwbg_computeMwhs2SurfaceType(obsSpaceData)
+    ! :Purpose: Compute surface type element and update obsSpaceData.
+
+    implicit none
+
+    ! Arguments
+    type(struct_obs), intent(inout) :: obsSpaceData           ! ObsSpaceData object
+
+    integer, allocatable :: calcLandQualifierIndice(:)
+    integer, allocatable :: calcTerrainTypeIndice(:)
+    logical, allocatable :: waterobs(:)
+    integer              :: codtyp
+    integer              :: headerIndex
+
+    logical              :: mwhs2DataPresent
+
+    real                 :: obsLatitude(1)
+    real                 :: obsLongitude(1)
+
+    write(*,*) 'ssbg_computeMwhs2SurfaceType: Starting'
+
+    mwhs2DataPresent = .false.
+    call obs_set_current_header_list(obsSpaceData,'TO')
+
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER0
+      codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if ( tvs_isIdBurpInst(codtyp,'mwhs2') ) then
+        mwhs2DataPresent = .true.
+        exit HEADER0
+      end if
+    end do HEADER0
+
+    if ( .not. mwhs2DataPresent ) then
+      write(*,*) 'WARNING: WILL NOT RUN ssbg_computeMwhs2SurfaceType since no MWHS2 DATA is found'
+      return
+    end if
+
+    call mwbg_init()
+
+    if ( .not. modLSQ ) then
+      write(*,*) 'WARNING: WILL NOT RUN ssbg_computeMwhs2SurfaceType since MODLSQ is not activated'
+      return
+    end if
+
+    write(*,*) 'MWHS2 data found and modLSQ option activated!'
+    write(*,*) '-->  Output file will contain recomputed values for land/sea qualifier and terrain type based on LG/MG.'
+
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER1: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER1
+      obsLatitude(1)  = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex )
+      obsLatitude(1)  = obsLatitude(1) *MPC_DEGREES_PER_RADIAN_R8
+      obsLongitude(1) = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex )
+      obsLongitude(1) = obsLongitude(1)*MPC_DEGREES_PER_RADIAN_R8
+      if( obsLongitude(1) > 180. ) obsLongitude(1) = obsLongitude(1) - 360.
+      call mwbg_landIceMaskMwhs2(1, obsLatitude, obsLongitude, calcLandQualifierIndice, &
+                                 calcTerrainTypeIndice, waterobs, ilsmOpt)
+      call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, calcLandQualifierIndice(1))
+      call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, calcTerrainTypeIndice(1))
+
+    end do HEADER1
+
+    write(*,*) 'ssbg_computeMwhs2SurfaceType: Finished'
+
+  end subroutine mwbg_computeMwhs2SurfaceType
 
   !--------------------------------------------------------------------------
   ! mwbg_grossValueCheck  
@@ -6749,14 +6808,13 @@ end subroutine bennartz
     end do HEADER0
 
     if ( .not. mwDataPresent ) then 
-      write(*,*) 'WARNING: WILL NOT RUN mwbg_bgCheckMW since no ATMS or AMSUA'
+      write(*,*) 'WARNING: WILL NOT RUN mwbg_bgCheckMW since no ATMS or AMSUA or MWHS2'
       return
     end if 
 
     write(*,*) ' MWBG QC PROGRAM STARTS ....'
     ! read nambgck
     call mwbg_init()
-
 
     !Quality Control loop over all observations
     !
@@ -6845,6 +6903,10 @@ end subroutine bennartz
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                 atmScatteringIndex, burpFileSatId, RESETQC, modLSQ, &
                                 obsSpaceData, headerIndex)
+        write(*,*) 'landQualifierIndice ='
+        write(*,*) landQualifierIndice
+        write(*,*) 'terrainTypeIndice ='
+        write(*,*) terrainTypeIndice
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
         call utl_abort('midas-bgckMW: unknown instName')
