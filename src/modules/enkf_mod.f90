@@ -1228,10 +1228,12 @@ contains
 
       if ( numRecv > 0 ) then
         call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
+        write(*,*) 'maziar: mpi_waitAll for recv finished'
       end if
 
       if ( numSend > 0 ) then
         call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
+        write(*,*) 'maziar: mpi_waitAll for send finished'
       end if
 
       call utl_tmg_stop(101)
