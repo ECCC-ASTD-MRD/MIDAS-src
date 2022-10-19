@@ -2307,7 +2307,7 @@ contains
 
     ! Locals:
     integer             :: levIndex1, levIndex2, eigenIndex, status
-    integer             :: nLev, matrixRank
+    integer             :: nLev, nLev_M, nLev_depth, matrixRank
     real(8)             :: zr, zcorr, pSurfRef
     real(8)             :: tolerance
     real(8), pointer    :: pressureProfile(:)
@@ -2315,6 +2315,7 @@ contains
     real(8), allocatable, save :: eigenVectors(:,:)
     real(8), allocatable, save :: verticalLocalizationMat(:,:)
     real(8), allocatable, save :: verticalLocalizationMatLowRank(:,:)
+    real(8), allocatable, save :: modulationFactorArray(:,:)
 
     logical, save :: firstCall = .true.
 
@@ -2325,12 +2326,15 @@ contains
       firstCall = .false.
       write(*,*) 'getModulationFactor: computing eigenValues/Vectors'
 
-      nLev = vco%nLev_M
+      nLev_M = vco%nLev_M
+      nLev_depth = vco%nlev_depth
+      nLev = max(nLev_M,nLev_depth)
 
       allocate(eigenValues(nLev))
       allocate(eigenVectors(nLev,nLev))
       allocate(verticalLocalizationMat(nLev,nLev))
       allocate(verticalLocalizationMatLowRank(nLev,nLev))
+      allocate(modulationFactorArray(numRetainedEigen,nLev))
       verticalLocalizationMatLowRank(:,:) = 0.0d0
 
       pSurfRef = 101000.D0
@@ -2376,24 +2380,31 @@ contains
         end do
       end do
 
+      ! now compute the 2D modulationFactor array
+      do levIndex1 = 1, nLev
+        do eigenIndex = 1, numRetainedEigen
+          modulationFactorArray(eigenIndex,levIndex1) = &
+                        1 / sqrt(verticalLocalizationMatLowRank(levIndex1,levIndex1)) * &
+                        eigenVectors(levIndex1,eigenIndex) * &
+                        eigenValues(eigenIndex) ** 0.5 * &
+                        (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
+        end do
+      end do
+
       if (mpi_myid == 0) then
         do levIndex1 = 1, numRetainedEigen
-          write(*,*) 'maziar: eigen mode=', levIndex1, ', eigenVectors=', eigenVectors(:,levIndex1)
+          write(*,*) 'getModulationFactor: eigen mode=', levIndex1, ', eigenVectors=', eigenVectors(:,levIndex1)
         end do
-        write(*,*) 'maziar: eigenValues=', eigenValues(1:numRetainedEigen)
+        write(*,*) 'getModulationFactor: eigenValues=', eigenValues(1:numRetainedEigen)
 
         do levIndex1 = 1, nLev
-          write(*,*) 'maziar: verticalLocalizationMat for lev ', levIndex1, '=', verticalLocalizationMat(levIndex1,:)
-          write(*,*) 'maziar: verticalLocalizationMatLowRank for lev ', levIndex1, '=', verticalLocalizationMatLowRank(levIndex1,:)
+          write(*,*) 'getModulationFactor: verticalLocalizationMat for lev ', levIndex1, '=', verticalLocalizationMat(levIndex1,:)
+          write(*,*) 'getModulationFactor: verticalLocalizationMatLowRank for lev ', levIndex1, '=', verticalLocalizationMatLowRank(levIndex1,:)
         end do
       end if
     end if
 
-    modulationFactor = 1 / sqrt(verticalLocalizationMatLowRank(eigenVectorLevelIndex,eigenVectorLevelIndex)) * &
-                       eigenVectors(eigenVectorLevelIndex,eigenVectorColumnIndex) * &
-                       eigenValues(eigenVectorColumnIndex) ** 0.5 * &
-                       (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
-
+    modulationFactor = modulationFactorArray(eigenVectorColumnIndex,eigenVectorLevelIndex)
   
     call utl_tmg_stop(107)
 
