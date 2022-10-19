@@ -551,10 +551,10 @@ contains
             !
 
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-            call tmg_start(90,'LETKF-eigenDecomp')
+            call utl_tmg_start(104,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
-            call tmg_stop(90)
+            call utl_tmg_stop(104)
 
             ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
             weightsTemp(:) = 0.0d0
@@ -595,10 +595,10 @@ contains
             !
 
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-            call tmg_start(90,'LETKF-eigenDecomp')
+            call utl_tmg_start(104,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
-            call tmg_stop(90)
+            call utl_tmg_stop(104)
 
             ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
             weightsTemp(:) = 0.0d0
@@ -696,10 +696,10 @@ contains
             !
 
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-            call tmg_start(90,'LETKF-eigenDecomp')
+            call utl_tmg_start(104,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
-            call tmg_stop(90)
+            call utl_tmg_stop(104)
 
             ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
             weightsTemp(:) = 0.0d0
@@ -919,10 +919,10 @@ contains
             !
 
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-            call tmg_start(90,'LETKF-eigenDecomp')
+            call utl_tmg_start(104,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
-            call tmg_stop(90)
+            call utl_tmg_stop(104)
             !if (matrixRank < (nEns-1)) then
             !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
             !end if
@@ -968,7 +968,7 @@ contains
             do subEnsIndex = 1, numSubEns
 
               ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
-              call tmg_start(90,'LETKF-eigenDecomp')
+              call utl_tmg_start(104,'------EigenDecomp')
               do memberIndexCV2 = 1, nEnsIndependentPerSubEns_mod
                 memberIndex2 = memberIndexSubEnsComp_mod(memberIndexCV2, subEnsIndex)
                 do memberIndexCV1 = 1, nEnsIndependentPerSubEns_mod
@@ -978,7 +978,7 @@ contains
               end do
               tolerance = 1.0D-50
               call utl_eigenDecomp(YbTinvRYb_CV_mod, eigenValues_CV_mod, eigenVectors_CV_mod, tolerance, matrixRank)
-              call tmg_stop(90)
+              call utl_tmg_stop(104)
 
               ! Loop over members within the current sub-ensemble being updated
               do memberIndexCV = 1, nEnsPerSubEns
@@ -1299,6 +1299,14 @@ contains
               if ( numRetainedEigen > 0 ) then
                 do memberIndex = 1, nEns
                   do eigenVectorColumnIndex = 1, numRetainedEigen
+                    !if ( mpi_myid == 248 ) then
+                    !  write(*,*) 'maziar meanInc: latIndex=',latIndex,',lonIndex=',lonIndex, &
+                    !  ',varLevIndex=',varLevIndex, &
+                    !  ',varName=',gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex), &
+                    !  ',levIndex2=',levIndex2,',stepIndex=',stepIndex, &
+                    !  ',memberIndex=',memberIndex, &
+                    !  ',eigenVectorColumnIndex=',eigenVectorColumnIndex
+                    !end if
                     call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
                                               eigenVectorColumnIndex, numRetainedEigen, &
                                               nEns, vLocalize, &
