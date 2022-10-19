@@ -2317,7 +2317,7 @@ contains
 
     logical, save :: firstCall = .true.
 
-    call utl_tmg_start(107,'------getModulationFactor')
+    !call utl_tmg_start(107,'------getModulationFactor')
 
     ! Compute vertical localization matrix and its eigenValues/Vectors on first call
     if ( firstCall ) then
@@ -2404,7 +2404,7 @@ contains
 
     modulationFactor_r4 = modulationFactorArray_r4(eigenVectorColumnIndex,eigenVectorLevelIndex)
   
-    call utl_tmg_stop(107)
+    !call utl_tmg_stop(107)
 
   end subroutine getModulationFactor
 
