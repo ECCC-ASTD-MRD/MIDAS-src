@@ -117,7 +117,8 @@ contains
     integer :: nEnsUsed, eigenVectorColumnIndex
     integer :: memberIndexInModEns, retainedEigenIndex, nLev
     real(8) :: anlLat, anlLon, anlVertLocation
-    real(8) :: distance, tolerance, localization, modulationFactor
+    real(8) :: distance, tolerance, localization
+    real(4) :: modulationFactor_r4
 
     integer, allocatable :: localBodyIndices(:)
     integer, allocatable :: myLatIndexesRecv(:), myLonIndexesRecv(:)
@@ -1310,11 +1311,9 @@ contains
                     call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
                                               eigenVectorColumnIndex, numRetainedEigen, &
                                               nEns, vLocalize, &
-                                              modulationFactor )
-                    pert_r4 = memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
-                                        meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-
-                    pert_r4 = pert_r4 * real(modulationFactor,4)
+                                              modulationFactor_r4 )
+                    pert_r4 = modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
+                                        meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
 
                     memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex
                     meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
@@ -1379,12 +1378,11 @@ contains
                       call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
                                                 eigenVectorColumnIndex, numRetainedEigen, &
                                                 nEns, vLocalize, &
-                                                modulationFactor )
+                                                modulationFactor_r4 )
 
                       ! Compute background ensemble perturbations for the modulated ensemble (Xb_Mod)
-                      pert_r4 = memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
-                                          meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex)
-                      pert_r4 = pert_r4 * real(modulationFactor,4)
+                      pert_r4 = modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
+                                          meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
 
                       ! sum Xb_Mod * Wa over all modulated ensembles to get member perturbations for
                       !   original ensemble (memberIndex2)
@@ -2201,7 +2199,7 @@ contains
     logical, optional   :: debug_opt
 
     ! Locals:
-    real(8)          :: modulationFactor
+    real(4)          :: modulationFactor_r4
     real(4), pointer :: field_out_r4(:,:,:,:)
 
     integer :: nLev, nlev_out, levIndex, latIndex, lonIndex
@@ -2261,11 +2259,11 @@ contains
               call getModulationFactor( stateVector_in%vco, eigenVectorLevelIndex, &
                                         eigenVectorColumnIndex, numRetainedEigen, &
                                         nEns, vLocalizeLengthScale, &
-                                        modulationFactor )
+                                        modulationFactor_r4 )
 
               field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
                                  field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
-                                 real(modulationFactor,4)
+                                 modulationFactor_r4
             end do
           end do
         end do
@@ -2288,7 +2286,7 @@ contains
   subroutine getModulationFactor( vco, eigenVectorLevelIndex, &
                                   eigenVectorColumnIndex, numRetainedEigen, &
                                   nEns, vLocalizeLengthScale, &
-                                  modulationFactor )
+                                  modulationFactor_r4 )
     !
     !:Purpose: compute modulation factor needed to multiply ensemble
     !          perturbation to get the modulated perturbation:
@@ -2303,7 +2301,7 @@ contains
     integer, intent(in) :: numRetainedEigen
     integer, intent(in) :: nEns
     real(8), intent(in) :: vLocalizeLengthScale
-    real(8), intent(out) :: modulationFactor
+    real(4), intent(out) :: modulationFactor_r4
 
     ! Locals:
     integer             :: levIndex1, levIndex2, eigenIndex, status
@@ -2315,7 +2313,7 @@ contains
     real(8), allocatable, save :: eigenVectors(:,:)
     real(8), allocatable, save :: verticalLocalizationMat(:,:)
     real(8), allocatable, save :: verticalLocalizationMatLowRank(:,:)
-    real(8), allocatable, save :: modulationFactorArray(:,:)
+    real(4), allocatable, save :: modulationFactorArray_r4(:,:)
 
     logical, save :: firstCall = .true.
 
@@ -2334,7 +2332,7 @@ contains
       allocate(eigenVectors(nLev,nLev))
       allocate(verticalLocalizationMat(nLev,nLev))
       allocate(verticalLocalizationMatLowRank(nLev,nLev))
-      allocate(modulationFactorArray(numRetainedEigen,nLev))
+      allocate(modulationFactorArray_r4(numRetainedEigen,nLev))
       verticalLocalizationMatLowRank(:,:) = 0.0d0
 
       pSurfRef = 101000.D0
@@ -2383,11 +2381,11 @@ contains
       ! now compute the 2D modulationFactor array
       do levIndex1 = 1, nLev
         do eigenIndex = 1, numRetainedEigen
-          modulationFactorArray(eigenIndex,levIndex1) = &
+          modulationFactorArray_r4(eigenIndex,levIndex1) = real( &
                         1 / sqrt(verticalLocalizationMatLowRank(levIndex1,levIndex1)) * &
                         eigenVectors(levIndex1,eigenIndex) * &
                         eigenValues(eigenIndex) ** 0.5 * &
-                        (nEns * numRetainedEigen / (nEns - 1)) ** 0.5
+                        (nEns * numRetainedEigen / (nEns - 1)) ** 0.5,4)
         end do
       end do
 
@@ -2404,7 +2402,7 @@ contains
       end if
     end if
 
-    modulationFactor = modulationFactorArray(eigenVectorColumnIndex,eigenVectorLevelIndex)
+    modulationFactor_r4 = modulationFactorArray_r4(eigenVectorColumnIndex,eigenVectorLevelIndex)
   
     call utl_tmg_stop(107)
 
