@@ -363,7 +363,6 @@ contains
 
     ! Locals:
     logical :: checkModelTop, vInterpCopyLowestLevel
-    logical :: svZinAllocated=.false.
 
     integer :: vcode_in, vcode_out
     integer :: nlev_out, nlev_in
@@ -374,11 +373,11 @@ contains
     real(8), pointer  :: field_in(:,:,:,:), field_out(:,:,:,:)
     real(8), pointer  :: PsfcRef(:,:,:,:)
     real(8), pointer  :: heightSfcIn(:,:), heightSfcOut(:,:)
+    real(8), pointer  :: tmpCoord_T(:,:,:,:), tmpCoord_M(:,:,:,:)
 
     character(len=4) :: varName
 
     type(struct_vco), pointer :: vco_in, vco_out
-    type(struct_gsv), pointer :: statevector_Zin
 
     call msg('int_vInterp_gsv', 'START', verb_opt=2)
     ! read the namelist
@@ -456,6 +455,12 @@ contains
       allocate(hLikeM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
                           statevector_out%myLatBeg:statevector_out%myLatEnd, &
                           gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
+      allocate(tmpCoord_T(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                          gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+      allocate(tmpCoord_M(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                          gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
 
       ! define pressures on input and output levels
       if ( present(PsfcReference_opt) ) then
@@ -467,26 +472,18 @@ contains
       ! output grid GEM-P interpolation in log-pressure
       if ( vcode_out==5002 .or. vcode_out==5005 ) then
         call czp_calcReturnPressure_gsv_nl( statevector_out, &
-                                            PT_r8=hLikeT_out, PM_r8=hLikeM_out, &
-                                            PsfcRef_r8_opt=PsfcRef, &
+                                            PTout_r8_opt=hLikeT_out, & 
+                                            PMout_r8_opt=hLikeM_out, &
+                                            PsfcRef_r8_opt=PsfcRef,  &
                                             Ps_in_hPa_opt=Ps_in_hPa_opt)
-        if ( vcode_in==21001 ) then
-          allocate(statevector_Zin)
-          svZinAllocated=.true.
-          call gsv_allocate(statevector_Zin, statevector_in%numStep, &
-                            statevector_in%hco, statevector_in%vco, &
-                            dateStampList_opt=statevector_in%datestamplist, &
-                            mpi_local_opt=statevector_in%mpi_local, &
-                            mpi_distribution_opt=statevector_in%mpi_distribution, &
-                            dataKind_opt=statevector_in%dataKind, allocHeightSfc_opt=.true., &
-                            varNames_opt=(/'TT', 'HU', 'P0', 'Z_M', 'Z_T'/) )
-          call gsv_copy(statevector_in, stateVector_Zin, allowVarMismatch_opt=.true.)
-          call czp_calcHeight_nl(stateVector_Zin)
-        else
-          statevector_Zin => statevector_in
-        end if
-        call czp_calcReturnPressure_gsv_nl( statevector_Zin, &
-                                            PT_r8=hLikeT_in, PM_r8=hLikeM_in, &
+        call czp_calcReturnHeight_gsv_nl( stateVector_in, &
+                                          ZTout_r8_opt=tmpCoord_T, &
+                                          ZMout_r8_opt=tmpCoord_M)
+        call czp_calcReturnPressure_gsv_nl( statevector_in, &
+                                            ZTin_r8_opt=tmpCoord_T, &
+                                            ZMin_r8_opt=tmpCoord_M, &
+                                            PTout_r8_opt=hLikeT_in, &
+                                            PMout_r8_opt=hLikeM_in, &
                                             PsfcRef_r8_opt=PsfcRef, &
                                             Ps_in_hPa_opt=Ps_in_hPa_opt)
         call msg('int_vInterp_gsv','converting pressurecoordinates to height-like, '&
@@ -499,35 +496,32 @@ contains
       ! output grid GEM-H interpolation in height
       else if ( vcode_out==21001 ) then
         call czp_calcReturnHeight_gsv_nl( statevector_out, &
-                                          ZT_r8=hLikeT_out, ZM_r8=hLikeM_out)
-        if ( vcode_in==5005 .or. vcode_in==5002 ) then
-          call utl_abort('DBGmad: not implemented yet')
-        else
-          allocate(statevector_Zin)
-          svZinAllocated=.true.
-          call gsv_allocate(statevector_Zin, statevector_in%numStep, &
-                            statevector_in%hco, statevector_in%vco, &
-                            dateStampList_opt=statevector_in%datestamplist, &
-                            mpi_local_opt=statevector_in%mpi_local, &
-                            mpi_distribution_opt=statevector_in%mpi_distribution, &
-                            dataKind_opt=statevector_in%dataKind, allocHeightSfc_opt=.true., &
-                            varNames_opt=(/'TT', 'HU', 'P0', 'P_M', 'P_T'/) )
-          call gsv_copy(statevector_in, stateVector_Zin, allowVarMismatch_opt=.true.)
-          call czp_calcReturnHeight_gsv_nl( statevector_Zin, &
-                                            ZT_r8=hLikeT_in, ZM_r8=hLikeM_in)
-        end if
+                                          ZTout_r8_opt=hLikeT_out, &
+                                          ZMout_r8_opt=hLikeM_out)
+        call czp_calcReturnPressure_gsv_nl( statevector_in, & 
+                                            PTout_r8_opt=tmpCoord_T, &
+                                            PMout_r8_opt=tmpCoord_M, &
+                                            PsfcRef_r8_opt=PsfcRef,  &
+                                            Ps_in_hPa_opt=Ps_in_hPa_opt)
+        call czp_calcReturnHeight_gsv_nl( statevector_in, &
+                                          PTin_r8_opt=tmpCoord_T, &
+                                          PMin_r8_opt=tmpCoord_M, &
+                                          ZTout_r8_opt=hLikeT_in, &
+                                          ZMout_r8_opt=hLikeM_in)
       end if
+      deallocate(tmpCoord_T)
+      deallocate(tmpCoord_M)
 
       step_loop: do stepIndex = 1, statevector_out%numStep
   
         ! copy over some time related and other parameters
-        statevector_out%deet                      = statevector_Zin%deet
-        statevector_out%dateOriginList(stepIndex) = statevector_Zin%dateOriginList(stepIndex)
-        statevector_out%npasList(stepIndex)       = statevector_Zin%npasList(stepIndex)
-        statevector_out%ip2List(stepIndex)        = statevector_Zin%ip2List(stepIndex)
-        statevector_out%etiket                    = statevector_Zin%etiket
-        statevector_out%onPhysicsGrid(:)          = statevector_Zin%onPhysicsGrid(:)
-        statevector_out%hco_physics              => statevector_Zin%hco_physics
+        statevector_out%deet                      = statevector_in%deet
+        statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
+        statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
+        statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
+        statevector_out%etiket                    = statevector_in%etiket
+        statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
+        statevector_out%hco_physics              => statevector_in%hco_physics
   
         ! do the vertical interpolation
         field_out(:,:,:,stepIndex) = 0.0d0
@@ -546,11 +540,6 @@ contains
       end do step_loop
 
       deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
-      if ( svZinAllocated ) then
-        deallocate(statevector_Zin)
-        svZinAllocated=.false.
-      end if
-      nullify(statevector_Zin) 
     end do var_loop
 
     call msg('int_vInterp_gsv', 'END', verb_opt=2)
@@ -632,6 +621,7 @@ contains
   !--------------------------------------------------------------------------
   ! int_vInterp_gsv_r4
   !--------------------------------------------------------------------------
+  !! DBGmad copy from r8 version 
   subroutine int_vInterp_gsv_r4(statevector_in,statevector_out,Ps_in_hPa_opt, &
                                  PsfcReference_opt,checkModelTop_opt)
     !
@@ -712,132 +702,8 @@ contains
       end if
     end if
 
-    var_loop: do varIndex = 1, vnl_numvarmax
-      varName = vnl_varNameList(varIndex)
-      if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
 
-      nlev_in  = statevector_in%varNumLev(varIndex)
-      nlev_out = statevector_out%varNumLev(varIndex)
-
-      call gsv_getField(statevector_in ,field_in,varName)
-      call gsv_getField(statevector_out,field_out,varName)
-
-      ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
-      if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
-           (vnl_varLevelFromVarname(varName) == 'OT') ) then
-        field_out(:,:,:,:) = field_in(:,:,:,:)
-        cycle var_loop
-      end if
-
-      ! allocating for temporary pressure references
-      allocate(hLikeT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                          gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
-      allocate(hLikeM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                          gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
-      allocate(hLikeT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                          gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
-      allocate(hLikeM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                          gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
-
-      ! define pressures on input and output levels
-      if ( present(PsfcReference_opt) ) then
-        PsfcRef => PsfcReference_opt
-      else
-        call gsv_getField(statevector_in,PsfcRef,'P0')
-      end if
-
-      ! output grid GEM-P interpolation in log-pressure
-      if ( vcode_out==5002 .or. vcode_out==5005 ) then
-        call czp_calcReturnPressure_gsv_nl( statevector_out, &
-                                            PT_r4=hLikeT_out, PM_r4=hLikeM_out, &
-                                            PsfcRef_r4_opt=PsfcRef, &
-                                            Ps_in_hPa_opt=Ps_in_hPa_opt)
-        if ( vcode_in==21001 ) then
-          allocate(statevector_Zin)
-          svZinAllocated=.true.
-          call gsv_allocate(statevector_Zin, statevector_in%numStep, &
-                            statevector_in%hco, statevector_in%vco, &
-                            dateStampList_opt=statevector_in%datestamplist, &
-                            mpi_local_opt=statevector_in%mpi_local, &
-                            mpi_distribution_opt=statevector_in%mpi_distribution, &
-                            dataKind_opt=statevector_in%dataKind, allocHeightSfc_opt=.true., &
-                            varNames_opt=(/'TT', 'HU', 'P0', 'Z_M', 'Z_T'/) )
-          call gsv_copy(statevector_in, stateVector_Zin, allowVarMismatch_opt=.true.)
-          call czp_calcHeight_nl(stateVector_Zin)
-        else
-          statevector_Zin => statevector_in
-        end if
-        call czp_calcReturnPressure_gsv_nl( statevector_Zin, &
-                                            PT_r4=hLikeT_in, PM_r4=hLikeM_in, &
-                                            PsfcRef_r4_opt=PsfcRef, &
-                                            Ps_in_hPa_opt=Ps_in_hPa_opt)
-        call msg('int_vInterp_gsv_r4','converting pressurecoordinates to height-like, '&
-             //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
-        call logP_r4(hLikeM_out)
-        call logP_r4(hLikeT_out)
-        call logP_r4(hLikeM_in)
-        call logP_r4(hLikeT_in)
-
-      ! output grid GEM-H interpolation in height
-      else if ( vcode_out==21001 ) then
-        call czp_calcReturnHeight_gsv_nl( statevector_out, &
-                                          ZT_r4=hLikeT_out, ZM_r4=hLikeM_out)
-        if ( vcode_in==5005 .or. vcode_in==5002 ) then
-          call utl_abort('DBGmad: not implemented yet')
-        else
-          allocate(statevector_Zin)
-          svZinAllocated=.true.
-          call gsv_allocate(statevector_Zin, statevector_in%numStep, &
-                            statevector_in%hco, statevector_in%vco, &
-                            dateStampList_opt=statevector_in%datestamplist, &
-                            mpi_local_opt=statevector_in%mpi_local, &
-                            mpi_distribution_opt=statevector_in%mpi_distribution, &
-                            dataKind_opt=statevector_in%dataKind, allocHeightSfc_opt=.true., &
-                            varNames_opt=(/'TT', 'HU', 'P0', 'P_M', 'P_T'/) )
-          call gsv_copy(statevector_in, stateVector_Zin, allowVarMismatch_opt=.true.)
-          call czp_calcReturnHeight_gsv_nl( statevector_Zin, &
-                                            ZT_r4=hLikeT_in, ZM_r4=hLikeM_in)
-        end if
-      end if
-
-      step_loop: do stepIndex = 1, statevector_out%numStep
-  
-        ! copy over some time related and other parameters
-        statevector_out%deet                      = statevector_Zin%deet
-        statevector_out%dateOriginList(stepIndex) = statevector_Zin%dateOriginList(stepIndex)
-        statevector_out%npasList(stepIndex)       = statevector_Zin%npasList(stepIndex)
-        statevector_out%ip2List(stepIndex)        = statevector_Zin%ip2List(stepIndex)
-        statevector_out%etiket                    = statevector_Zin%etiket
-        statevector_out%onPhysicsGrid(:)          = statevector_Zin%onPhysicsGrid(:)
-        statevector_out%hco_physics              => statevector_Zin%hco_physics
-  
-        ! do the vertical interpolation
-        field_out(:,:,:,stepIndex) = 0.0d0
-        if (vnl_varLevelFromVarname(varName) == 'TH') then
-          call hLike_interpolation_r4(hLikeT_in, hLikeT_out)
-        else
-          call hLike_interpolation_r4(hLikeM_in, hLikeM_out)
-        end if
-
-
-        ! overwrite values at the lowest levels to avoid extrapolation
-        if (vInterpCopyLowestLevel) then
-          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
-        end if
-
-      end do step_loop
-
-      deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
-      if ( svZinAllocated ) then
-        deallocate(statevector_Zin)
-        svZinAllocated=.false.
-      end if
-      nullify(statevector_Zin) 
-    end do var_loop
+    !! DBGmad copy from r8
 
     call msg('int_vInterp_gsv_r4', 'END', verb_opt=2)
 
