@@ -4288,6 +4288,8 @@ contains
 
     real(8)         :: x,tc,pt,tc2,x2
 
+    if ( t <= 0 ) call utl_abort('gpscompressibility: t <= 0')
+
     x  = p_wa * q / (1.D0 + p_wb * q)
     ! Estimate, from CIPM, Picard (2008)
     tc = t - MPC_K_C_DEGREE_OFFSET_R8
@@ -4321,6 +4323,8 @@ contains
 
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
+
+    if ( t <= 0 ) call utl_abort('gpscompressibility_TT: t <= 0')
 
     x  = p_wa * q / (1.D0 + p_wb * q)
     d_x  = 0.0D0
@@ -4363,6 +4367,8 @@ contains
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
 
+    if ( t <= 0 ) call utl_abort('gpscompressibility_HU: t <= 0')
+
     x  = p_wa * q / (1.D0+p_wb*q)
     d_x  = p_wa * (1.0D0 / (1.D0+p_wb*q) - q / (1.D0+p_wb*q)**2 * p_wb * 1.0D0)
     ! Estimate, from CIPM, Picard (2008)
@@ -4403,6 +4409,8 @@ contains
 
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
+
+    if ( t <= 0 ) call utl_abort('gpscompressibility_P0: t <= 0')
 
     x  = p_wa * q / (1.D0+p_wb*q)
     d_x  = 0.0D0
@@ -4447,6 +4455,8 @@ contains
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
 
+    if ( t <= 0 ) call utl_abort('gpscompressibility_P0_1: t <= 0')
+
     x  = p_wa * q / (1.D0+p_wb*q)
     d_x  = 0.0D0
     ! Estimate, from CIPM, Picard (2008)
@@ -4488,6 +4498,8 @@ contains
 
     real(8)         :: x,tc,pt,tc2,x2
     real(8)         :: d_x,d_tc,d_tc2,d_x2
+
+    if ( t <= 0 ) call utl_abort('gpscompressibility_P0_2: t <= 0')
 
     x  = p_wa * q / (1.D0+p_wb*q)
     d_x  = 0.0D0
