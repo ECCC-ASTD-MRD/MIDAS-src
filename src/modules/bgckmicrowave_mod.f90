@@ -6903,10 +6903,6 @@ end subroutine bennartz
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                 atmScatteringIndex, burpFileSatId, RESETQC, modLSQ, &
                                 obsSpaceData, headerIndex)
-        write(*,*) 'landQualifierIndice ='
-        write(*,*) landQualifierIndice
-        write(*,*) 'terrainTypeIndice ='
-        write(*,*) terrainTypeIndice
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
         call utl_abort('midas-bgckMW: unknown instName')
