@@ -383,7 +383,7 @@ contains
   !---------------------------------------------------------
   ! czp_calcReturnHeight_gsv_nl
   !---------------------------------------------------------
-  subroutine czp_calcReturnHeight_gsv_nl( statevector, &
+  subroutine czp_calcReturnHeight_gsv_nl( statevector, statevectorRef_opt, &
                                           PTin_r4_opt, PMin_r4_opt, &
                                           PTin_r8_opt, PMin_r8_opt, &
                                           ZTout_r4_opt, ZMout_r4_opt, &
@@ -394,7 +394,8 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_gsv),           intent(in) :: statevector
+    type(struct_gsv),           intent(in)    :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
     real(4), optional, pointer, intent(in)    :: PTin_r4_opt(:,:,:,:), PMin_r4_opt(:,:,:,:)
     real(8), optional, pointer, intent(in)    :: PTin_r8_opt(:,:,:,:), PMin_r8_opt(:,:,:,:)
     real(4), optional, pointer, intent(inout) :: ZTout_r4_opt(:,:,:,:), ZMout_r4_opt(:,:,:,:)
@@ -424,6 +425,7 @@ contains
           call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}out_r4_opt expected')
         end if
         call calcHeight_gsv_nl_vcode500x( statevector, &
+                                          statevectorRef_opt=statevectorRef_opt, &
                                           PTin_r4_opt=PTgsv_r4, & 
                                           PMin_r4_opt=PMgsv_r4, & 
                                           ZTout_r4_opt=ZTout_r4_opt, &
@@ -442,6 +444,7 @@ contains
           call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=8: Z{T,M}out_r8_opt expected')
         end if
         call calcHeight_gsv_nl_vcode500x( statevector, &
+                                          statevectorRef_opt=statevectorRef_opt, &
                                           PTin_r8_opt=PTgsv_r8, &
                                           PMin_r8_opt=PMgsv_r8, &
                                           ZTout_r8_opt=ZTout_r8_opt, &
@@ -698,7 +701,7 @@ contains
   !---------------------------------------------------------
   ! calcHeight_gsv_nl_vcode500x
   !---------------------------------------------------------
-  subroutine calcHeight_gsv_nl_vcode500x( statevector, &
+  subroutine calcHeight_gsv_nl_vcode500x( statevector, statevectorRef_opt, &
                                           PTin_r4_opt, PMin_r4_opt, &
                                           PTin_r8_opt, PMin_r8_opt, &
                                           ZTout_r4_opt, ZMout_r4_opt, &
@@ -710,6 +713,7 @@ contains
 
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
     real(4), pointer, optional, intent(in)    :: PTin_r4_opt(:,:,:,:), PMin_r4_opt(:,:,:,:)
     real(8), pointer, optional, intent(in)    :: PTin_r8_opt(:,:,:,:), PMin_r8_opt(:,:,:,:)
     real(4), pointer, optional, intent(inout) :: ZTout_r4_opt(:,:,:,:), ZMout_r4_opt(:,:,:,:)
@@ -749,16 +753,6 @@ contains
 
     allocate(tv(nlev_T))
 
-    if ( .not. gsv_varExist(statevector,'TT')  ) then
-      call utl_abort('calcHeight_gsv_nl_vcode500x (czp): variable TT must be allocated in gridstatevector')
-    end if
-    if ( .not. gsv_varExist(statevector,'HU')  ) then
-      call utl_abort('calcHeight_gsv_nl_vcode500x (czp): variable HU must be allocated in gridstatevector')
-    end if
-    if ( .not. gsv_varExist(statevector,'P0')  ) then
-      call utl_abort('calcHeight_gsv_nl_vcode500x (czp): variable P0 must be allocated in gridstatevector')
-    end if
-
     if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
       call utl_abort('calcHeight_gsv_nl_vcode500x (czp): nlev_T is not equal to nlev_M+1!')
     end if
@@ -789,15 +783,20 @@ contains
     allocate(height_T(nlev_T))
     allocate(height_M(nlev_M))
 
+    if ( present(statevectorRef_opt) ) then 
+      if ( .not. statevectorRef_opt%datakind == statevector%datakind ) then 
+          call utl_abort('calcHeight_gsv_nl_vcode500x (czp): statevectorRef_opt inconsistent datakind')
+      end if
+    end if
     if ( statevector%dataKind == 4 ) then
       if ( .not. (present(PTin_r4_opt) .and. present(PMin_r4_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode500x: dataKind=4: P{T,M}in_r4_opt expected')
+        call utl_abort('calcHeight_gsv_nl_vcode500x (czp): dataKind=4: P{T,M}in_r4_opt expected')
       end if
       P_T_ptr_r4 => PTin_r4_opt
       P_M_ptr_r4 => PMin_r4_opt
 
       if ( .not. (present(ZTout_r4_opt) .and. present(ZMout_r4_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode500x: dataKind=4: Z{T,M}out_r4_opt expected')
+        call utl_abort('calcHeight_gsv_nl_vcode500x (czp): dataKind=4: Z{T,M}out_r4_opt expected')
       end if
       height_M_ptr_r4 => ZMout_r4_opt 
       height_T_ptr_r4 => ZTout_r4_opt
@@ -806,19 +805,25 @@ contains
       height_M_ptr_r4(:,:,:,:) = 0.0
       height_T_ptr_r4(:,:,:,:) = 0.0
 
-      call gsv_getField(statevector,hu_ptr_r4,'HU')
-      call gsv_getField(statevector,tt_ptr_r4,'TT')
-      call gsv_getField(statevector,P0_ptr_r4,'P0')
+      if ( present(statevectorRef_opt) ) then 
+        call gsv_getField(statevectorRef_opt,hu_ptr_r4,'HU')
+        call gsv_getField(statevectorRef_opt,tt_ptr_r4,'TT')
+        call gsv_getField(statevectorRef_opt,P0_ptr_r4,'P0')
+      else
+        call gsv_getField(statevector,hu_ptr_r4,'HU')
+        call gsv_getField(statevector,tt_ptr_r4,'TT')
+        call gsv_getField(statevector,P0_ptr_r4,'P0')
+      end if
 
     else ! datakind = 8
       if ( .not. (present(PTin_r8_opt) .and. present(PMin_r8_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode500x: dataKind=8: P{T,M}in_r8_opt expected')
+        call utl_abort('calcHeight_gsv_nl_vcode500x (czp): dataKind=8: P{T,M}in_r8_opt expected')
       end if
       P_T_ptr_r8 => PTin_r8_opt
       P_M_ptr_r8 => PMin_r8_opt
 
       if ( .not. (present(ZTout_r8_opt) .and. present(ZMout_r8_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode500x: dataKind=8: Z{T,M}out_r8_opt expected')
+        call utl_abort('calcHeight_gsv_nl_vcode500x (czp): dataKind=8: Z{T,M}out_r8_opt expected')
       end if
       height_M_ptr_r8 => ZMout_r8_opt 
       height_T_ptr_r8 => ZTout_r8_opt
@@ -827,9 +832,15 @@ contains
       height_M_ptr_r8(:,:,:,:) = 0.0d0
       height_T_ptr_r8(:,:,:,:) = 0.0d0
 
-      call gsv_getField(statevector,hu_ptr_r8,'HU')
-      call gsv_getField(statevector,tt_ptr_r8,'TT')
-      call gsv_getField(statevector,P0_ptr_r8,'P0')
+      if ( present(statevectorRef_opt) ) then 
+        call gsv_getField(statevectorRef_opt,hu_ptr_r8,'HU')
+        call gsv_getField(statevectorRef_opt,tt_ptr_r8,'TT')
+        call gsv_getField(statevectorRef_opt,P0_ptr_r8,'P0')
+      else
+        call gsv_getField(statevector,hu_ptr_r8,'HU')
+        call gsv_getField(statevector,tt_ptr_r8,'TT')
+        call gsv_getField(statevector,P0_ptr_r8,'P0')
+      end if
     end if
 
     HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector)
@@ -1748,11 +1759,11 @@ contains
   !---------------------------------------------------------
   ! czp_calcReturnPressure_gsv_nl
   !---------------------------------------------------------
-  subroutine czp_calcReturnPressure_gsv_nl( statevector, &
+  subroutine czp_calcReturnPressure_gsv_nl( statevector, statevectorRef_opt, &
                                             ZTin_r4_opt, ZMin_r4_opt, &
                                             ZTin_r8_opt, ZMin_r8_opt, &
-                                            PTout_r4_opt, PMout_r4_opt, PsfcRef_r4_opt, &
-                                            PTout_r8_opt, PMout_r8_opt, PsfcRef_r8_opt, &
+                                            PTout_r4_opt, PMout_r4_opt, & 
+                                            PTout_r8_opt, PMout_r8_opt, &
                                             Ps_in_hPa_opt)
     !
     ! :Purpose: DBGmad 
@@ -1761,12 +1772,11 @@ contains
 
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
     real(4), optional, pointer, intent(in)    :: ZTin_r4_opt(:,:,:,:), ZMin_r4_opt(:,:,:,:)
     real(8), optional, pointer, intent(in)    :: ZTin_r8_opt(:,:,:,:), ZMin_r8_opt(:,:,:,:)
     real(4), optional, pointer, intent(inout) :: PTout_r4_opt(:,:,:,:), PMout_r4_opt(:,:,:,:)
     real(8), optional, pointer, intent(inout) :: PTout_r8_opt(:,:,:,:), PMout_r8_opt(:,:,:,:)
-    real(8), optional, pointer, intent(in)    :: PsfcRef_r8_opt(:,:,:,:)
-    real(4), optional, pointer, intent(in)    :: PsfcRef_r4_opt(:,:,:,:)
     logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
     ! Locals
@@ -1784,13 +1794,13 @@ contains
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
         end if
         call calcPressure_gsv_nl_vcode500x_r4(statevector, PTout_r4_opt, PMout_r4_opt, &
-                                              PsfcRef_r4_opt, Ps_in_hPa_opt)
+                                              statevectorRef_opt, Ps_in_hPa_opt)
       else
         if ( .not. (present(PTout_r8_opt) .and. present(PMout_r8_opt))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
         end if
         call calcPressure_gsv_nl_vcode500x_r8(statevector, PTout_r8_opt, PMout_r8_opt, &
-                                              PsfcRef_r8_opt, Ps_in_hPa_opt)
+                                              statevectorRef_opt, Ps_in_hPa_opt)
       end if
     else if (Vcode == 21001) then
       if ( gsv_getDataKind(statevector) == 4 ) then
@@ -1806,7 +1816,7 @@ contains
         if ( .not. (present(PTout_r4_opt) .and. present(PMout_r4_opt))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
         end if
-        call calcPressure_gsv_nl_vcode2100x(statevector, &
+        call calcPressure_gsv_nl_vcode2100x(statevector, statevectorRef_opt, &
                                             ZTin_r4_opt=ZTgsv_r4, &
                                             ZMin_r4_opt=ZMgsv_r4, &
                                             PTout_r4_opt=PTout_r4_opt, &
@@ -1824,7 +1834,7 @@ contains
         if ( .not. (present(PTout_r8_opt) .and. present(PMout_r8_opt))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
         end if
-        call calcPressure_gsv_nl_vcode2100x(statevector, &
+        call calcPressure_gsv_nl_vcode2100x(statevector, statevectorRef_opt, &
                                             ZTin_r8_opt=ZTgsv_r8, &
                                             ZMin_r8_opt=ZMgsv_r8, &
                                             PTout_r8_opt=PTout_r8_opt, &
@@ -1839,7 +1849,7 @@ contains
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode2100x
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl_vcode2100x(statevector, & 
+  subroutine calcPressure_gsv_nl_vcode2100x(statevector, statevectorRef_opt, & 
                                             ZTin_r4_opt, ZMin_r4_opt, &
                                             ZTin_r8_opt, ZMin_r8_opt, &
                                             PTout_r4_opt, PMout_r4_opt, &
@@ -1848,6 +1858,7 @@ contains
 
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
     real(4), pointer, optional, intent(in)    :: ZTin_r4_opt(:,:,:,:), ZMin_r4_opt(:,:,:,:)
     real(8), pointer, optional, intent(in)    :: ZTin_r8_opt(:,:,:,:), ZMin_r8_opt(:,:,:,:)
     real(4), pointer, optional, intent(inout) :: PTout_r4_opt(:,:,:,:), PMout_r4_opt(:,:,:,:)
@@ -1911,40 +1922,57 @@ contains
     allocate(pressure_T(nlev_T))
     allocate(pressure_M(nlev_M))
 
+    if ( present(statevectorRef_opt) ) then 
+      if ( .not. statevectorRef_opt%datakind == statevector%datakind ) then 
+          call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): statevectorRef_opt inconsistent datakind')
+      end if
+    end if
     if ( statevector%dataKind == 4 ) then
       if ( .not. (present(ZTin_r4_opt) .and. present(ZMin_r4_opt))) then
-        call utl_abort('calcPressure_gsv_nl_vcode2100x: dataKind=4: Z{T,M}in_r4_opt expected')
+        call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): dataKind=4: Z{T,M}in_r4_opt expected')
       end if
       height_T_ptr_r4 => ZTin_r4_opt
       height_M_ptr_r4 => ZMin_r4_opt
 
       if ( .not. (present(PTout_r4_opt) .and. present(PMout_r4_opt))) then
-        call utl_abort('calcPressure_gsv_nl_vcode2100x: dataKind=4: P{T,M}out_r4_opt expected')
+        call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): dataKind=4: P{T,M}out_r4_opt expected')
       end if
       P_M_ptr_r4 => PMout_r4_opt
       P_T_ptr_r4 => PTout_r4_opt
-      call gsv_getField(statevector,P0_ptr_r4,'P0')
-      call gsv_getField(statevector,hu_ptr_r4,'HU')
-      call gsv_getField(statevector,tt_ptr_r4,'TT')
+      if ( present(statevectorRef_opt) ) then 
+        call gsv_getField(statevectorRef_opt,hu_ptr_r4,'HU')
+        call gsv_getField(statevectorRef_opt,tt_ptr_r4,'TT')
+        call gsv_getField(statevectorRef_opt,P0_ptr_r4,'P0')
+      else
+        call gsv_getField(statevector,hu_ptr_r4,'HU')
+        call gsv_getField(statevector,tt_ptr_r4,'TT')
+        call gsv_getField(statevector,P0_ptr_r4,'P0')
+      end if
 
       ! initialize the pressure pointer to zero
       P_M_ptr_r4(:,:,:,:) = 0.0
       P_T_ptr_r4(:,:,:,:) = 0.0
     else ! datakind = 8
       if ( .not. (present(ZTin_r8_opt) .and. present(ZMin_r8_opt))) then
-        call utl_abort('calcPressure_gsv_nl_vcode2100x: dataKind=4: Z{T,M}in_r8_opt expected')
+        call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): dataKind=4: Z{T,M}in_r8_opt expected')
       end if
       height_T_ptr_r8 => ZTin_r8_opt
       height_M_ptr_r8 => ZMin_r8_opt
 
       if ( .not. (present(PTout_r8_opt) .and. present(PMout_r8_opt))) then
-        call utl_abort('calcPressure_gsv_nl_vcode2100x: dataKind=8: P{T,M}_r8_opt expected')
+        call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): dataKind=8: P{T,M}_r8_opt expected')
       end if
       P_M_ptr_r8 => PMout_r8_opt
       P_T_ptr_r8 => PTout_r8_opt
-      call gsv_getField(statevector,P0_ptr_r8,'P0')
-      call gsv_getField(statevector,hu_ptr_r8,'HU')
-      call gsv_getField(statevector,tt_ptr_r8,'TT')
+      if ( present(statevectorRef_opt) ) then 
+        call gsv_getField(statevectorRef_opt,hu_ptr_r8,'HU')
+        call gsv_getField(statevectorRef_opt,tt_ptr_r8,'TT')
+        call gsv_getField(statevectorRef_opt,P0_ptr_r8,'P0')
+      else
+        call gsv_getField(statevector,hu_ptr_r8,'HU')
+        call gsv_getField(statevector,tt_ptr_r8,'TT')
+        call gsv_getField(statevector,P0_ptr_r8,'P0')
+      end if
 
       ! initialize the pressure pointer to zero
       P_M_ptr_r8(:,:,:,:) = 0.0d0
@@ -2081,7 +2109,7 @@ contains
   ! calcPressure_gsv_nl_vcode500x_r8
   !---------------------------------------------------------
   subroutine calcPressure_gsv_nl_vcode500x_r8(statevector, P_T, P_M, &
-                                              PsfcRef_r8_opt, Ps_in_hPa_opt)
+                                              statevectorRef_opt, Ps_in_hPa_opt)
     !
     !:Purpose: double-precision calculation of the pressure on the grid.
     !
@@ -2090,7 +2118,7 @@ contains
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector
     real(8),           pointer, intent(inout) :: P_T(:,:,:,:), P_M(:,:,:,:)
-    real(8), optional, pointer, intent(in)    :: PsfcRef_r8_opt(:,:,:,:)
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
     logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
     ! Locals
@@ -2104,11 +2132,8 @@ contains
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
 
-    if ( .not. gsv_varExist(statevector,'P0')) then
-      call utl_abort('calcPressure_gsv_nl_vcode500x_r8 (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
-    end if
-    if ( present(PsfcRef_r8_opt) ) then
-      field_Psfc => PsfcRef_r8_opt
+    if ( present(statevectorRef_opt) ) then
+      call gsv_getField(statevectorRef_opt,field_Psfc,'P0')
     else
       call gsv_getField(statevector,field_Psfc,'P0')
     end if
@@ -2156,8 +2181,8 @@ contains
   !---------------------------------------------------------
   ! calcPressure_gsv_nl_vcode500x_r4
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl_vcode500x_r4(statevector, P_T, P_M, &
-                                              PsfcRef_r4_opt, Ps_in_hPa_opt)
+  subroutine calcPressure_gsv_nl_vcode500x_r4(statevector, P_T, P_M, & 
+                                              statevectorRef_opt, Ps_in_hPa_opt)
     !
     !:Purpose: single-precision calculation of the pressure on the grid.
     !
@@ -2166,7 +2191,7 @@ contains
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector
     real(4),           pointer, intent(inout) :: P_T(:,:,:,:), P_M(:,:,:,:)
-    real(4), optional, pointer, intent(in)    :: PsfcRef_r4_opt(:,:,:,:)
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
     logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
     ! Locals
@@ -2180,11 +2205,8 @@ contains
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
 
-    if ( .not. gsv_varExist(statevector,'P0')) then
-      call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
-    end if
-    if ( present(PsfcRef_r4_opt) ) then
-      field_Psfc => PsfcRef_r4_opt
+    if ( present(statevectorRef_opt) ) then
+      call gsv_getField(statevectorRef_opt,field_Psfc,'P0')
     else
       call gsv_getField(statevector,field_Psfc,'P0')
     end if
