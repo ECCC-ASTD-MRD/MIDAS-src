@@ -1046,12 +1046,13 @@ contains
     type(struct_gsv)         :: stateVectorPerturbationInterp
     type(struct_gsv)         :: stateVectorHuRefState
     type(struct_gsv)         :: stateVectorHuRefStateInterp
+    type(struct_gsv)         :: stateVectorP0Ref
     type(struct_vco), pointer :: vco_randomPert, vco_ens
     type(struct_hco), pointer :: hco_randomPert, hco_ens, hco_core
     character(len=12)  :: etiket
     real(8), allocatable :: controlVector_mpiglobal(:), controlVector(:)
     real(8), allocatable :: perturbationMean(:,:,:)
-    real(8), allocatable :: PsfcReference(:,:,:,:)
+    real(8), pointer     :: PsfcRef(:,:,:,:)
     real(8), pointer     :: perturbation_ptr(:,:,:)
     real(4), pointer     :: memberAnl_ptr_r4(:,:,:,:)
     integer :: cvIndex, memberIndex, varLevIndex, lonIndex, latIndex, stepIndex
@@ -1134,8 +1135,12 @@ contains
                       hInterpolateDegree_opt='LINEAR', &
                       varNames_opt=varNamesWithLQ)
     call gsv_getField(stateVectorPerturbationInterp,perturbation_ptr)
-    allocate(PsfcReference(myLonBeg:myLonEnd,myLatBeg:myLatEnd,1,1))
-    PsfcReference(:,:,:,:) = 100000.0D0
+
+    ! allocate a minimal reference P0
+    call gsv_allocate(statevectorP0Ref, 1, hco_ens, vco_ens, varNames_opt=(/'P0'/))
+    call gsv_getField(statevectorP0Ref, PsfcRef, 'P0')
+    PsfcRef(:,:,:,:) = 100000.0D0
+
 
     ! prepare the reference state HU field for transforming LQ to HU perturbations
     if (ens_varExist(ensembleAnl,'HU')) then
@@ -1184,7 +1189,7 @@ contains
       call utl_tmg_start(4,'--AddEnsRandomPert')
 
       call int_interp_gsv(stateVectorPerturbation, stateVectorPerturbationInterp, &
-                          PsfcReference_opt=PsfcReference)
+                          statevectorRef_opt=statevectorP0Ref)
 
       ! If desired, use member itself as reference state for LQ to HU conversion
       if (ens_varExist(ensembleAnl,'HU') .and. useMemberAsHuRefState) then
@@ -1244,7 +1249,7 @@ contains
     deallocate(perturbationMean)
     call gsv_deallocate(stateVectorPerturbation)
     call gsv_deallocate(stateVectorPerturbationInterp)
-    deallocate(PsfcReference)
+    deallocate(PsfcRef)
     if (gsv_isAllocated(stateVectorHuRefStateInterp)) then
       call gsv_deallocate(stateVectorHuRefStateInterp)
     end if

@@ -51,7 +51,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   subroutine gio_readFromFile(statevector_out, fileName, etiket_in, typvar_in, &
                               stepIndex_opt, unitConversion_opt, &
-                              PsfcReference_opt, readHeightSfc_opt, &
+                              statevectorRef_opt, readHeightSfc_opt, &
                               containsFullField_opt, vcoFileIn_opt)
     !
     ! :Purpose: Read an RPN standard file and put the contents into a
@@ -66,9 +66,9 @@ module gridStateVectorFileIO_mod
     character(len=*),                    intent(in)    :: typvar_in
     integer,          optional,          intent(in)    :: stepIndex_opt
     logical,          optional,          intent(in)    :: unitConversion_opt
+    type(struct_gsv), optional,          intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
     logical,          optional,          intent(in)    :: readHeightSfc_opt
     logical,          optional,          intent(in)    :: containsFullField_opt
-    real(8),          optional,          intent(in)    :: PsfcReference_opt(:,:)
     type(struct_vco), optional, pointer, intent(in)    :: vcoFileIn_opt
 
     ! locals
@@ -176,7 +176,7 @@ module gridStateVectorFileIO_mod
     if ((doVertInterp .or. doHorizInterp) .and. statevector_out%mpi_distribution=='Tiles') then
       call readFromFileAndInterpToTiles(statevector_out, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readHeightSfc, containsFullField, PsfcReference_opt)
+             readHeightSfc, containsFullField, statevectorRef_opt=statevectorRef_opt)
     else if ((doVertInterp .or. doHorizInterp) .and. .not.stateVector_out%mpi_local) then
       call readFromFileAndInterp1Proc(statevector_out, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
@@ -202,7 +202,7 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   subroutine readFromFileAndInterpToTiles(statevector_out, fileName,  &
              vco_file, hco_file, etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readHeightSfc, containsFullField, PsfcReference_opt)
+             readHeightSfc, containsFullField, statevectorRef_opt)
     !
     ! :Purpose: Read an RPN standard file and put the contents into a
     !           stateVector object. Wrapper subroutine that also proceed with
@@ -213,22 +213,21 @@ module gridStateVectorFileIO_mod
     implicit none
 
     ! arguments
-    type(struct_gsv),          intent(inout)  :: statevector_out
-    character(len=*),          intent(in)     :: fileName
-    type(struct_vco), pointer, intent(in)     :: vco_file
-    type(struct_hco), pointer, intent(in)     :: hco_file
-    character(len=*),          intent(in)     :: etiket_in
-    character(len=*),          intent(in)     :: typvar_in
-    integer,                   intent(in)     :: stepIndex
-    logical,                   intent(in)     :: unitConversion
-    logical,                   intent(in)     :: readHeightSfc
-    logical,                   intent(in)     :: containsFullField
-    real(8), optional,         intent(in)     :: PsfcReference_opt(:,:)
+    type(struct_gsv),           intent(inout) :: statevector_out
+    character(len=*),           intent(in)    :: fileName
+    type(struct_vco), pointer,  intent(in)    :: vco_file
+    type(struct_hco), pointer,  intent(in)    :: hco_file
+    character(len=*),           intent(in)    :: etiket_in
+    character(len=*),           intent(in)    :: typvar_in
+    integer,                    intent(in)    :: stepIndex
+    logical,                    intent(in)    :: unitConversion
+    logical,                    intent(in)    :: readHeightSfc
+    logical,                    intent(in)    :: containsFullField
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
 
     ! locals
     real(4), pointer     :: field3d_r4_ptr(:,:,:)
     real(8), pointer     :: field_in_ptr(:,:,:,:), field_out_ptr(:,:,:,:)
-    real(8), allocatable :: PsfcReference4D(:,:,:,:)
 
     character(len=4), pointer :: varNamesToRead(:)
 
@@ -299,16 +298,8 @@ module gridStateVectorFileIO_mod
                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', dataKind_opt=8, &
                       allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead )
 
-    if (present(PsfcReference_opt) ) then
-      allocate(PsfcReference4D(statevector_tiles%myLonBeg:statevector_tiles%myLonEnd, &
-                               statevector_tiles%myLatBeg:statevector_tiles%myLatEnd,1,1))
-      PsfcReference4D(:,:,1,1) = PsfcReference_opt(:,:)
-      call int_vInterp_gsv(statevector_tiles,statevector_vinterp,&
-                            PsfcReference_opt=PsfcReference4D)
-      deallocate(PsfcReference4D)
-    else
-      call int_vInterp_gsv(statevector_tiles,statevector_vinterp)
-    end if
+    call int_vInterp_gsv( statevector_tiles, statevector_vinterp, & 
+                          statevectorRef_opt=statevectorRef_opt)
 
     call gsv_deallocate(statevector_tiles)
 

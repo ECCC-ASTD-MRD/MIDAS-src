@@ -253,7 +253,8 @@ CONTAINS
     if (.not. hco_trl%global .and. useAnalIncMask) then
       if (gsv_varExist(varName='P0')) then
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes, &
-                                   PsfcReference_opt=PsfcAnalysis, statevectorMaskLAM_opt=statevector_mask)
+                                   statevectorRef_opt=stateVectorPsfc, &
+                                   statevectorMaskLAM_opt=statevector_mask)
       else
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes, &
                                    statevectorMaskLAM_opt=statevector_mask)
@@ -261,7 +262,7 @@ CONTAINS
     else
       if (gsv_varExist(varName='P0')) then
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes, &
-                                   PsfcReference_opt=PsfcAnalysis)
+                                   statevectorRef_opt=stateVectorPsfc)
       else
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes)
       end if
@@ -431,7 +432,6 @@ CONTAINS
     integer              :: stepIndex, stepIndexBeg, stepIndexEnd, stepIndexToWrite, numStep
     integer              :: dateStamp, numBatch, batchIndex, procToWrite
     integer, allocatable :: dateStampList(:)
-    integer              :: get_max_rss
 
     character(len=256)  :: incFileName, anlFileName
     character(len=4)    :: coffset
@@ -743,8 +743,9 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! inc_interpolateAndAdd
   !--------------------------------------------------------------------------
-  subroutine inc_interpolateAndAdd(statevector_in,statevector_inout,scaleFactor_opt, &
-                                   PsfcReference_opt, statevectorMaskLAM_opt)
+  subroutine inc_interpolateAndAdd(statevector_in,statevector_inout, &
+                                   statevectorRef_opt, statevectorMaskLAM_opt, &
+                                   scaleFactor_opt)
     !
     ! :Purpose: Interpolate the low-resolution increments to trial grid and add to
     !           get the high-resolution analysis.
@@ -752,18 +753,15 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(in)    :: statevector_in
-    type(struct_gsv), intent(inout) :: statevector_inout
-    real(8), intent(in), optional   :: scaleFactor_opt
-    real(pre_incrReal), intent(in), optional :: PsfcReference_opt(:,:,:,:)
-    type(struct_gsv), intent(in), optional   :: statevectorMaskLAM_opt
+    type(struct_gsv),           intent(in)    :: statevector_in
+    type(struct_gsv),           intent(inout) :: statevector_inout
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt         ! Reference statevector providing optional fields (P0, TT, HU)
+    type(struct_gsv), optional, intent(in)    :: statevectorMaskLAM_opt
+    real(8),          optional, intent(in)    :: scaleFactor_opt
 
     ! Locals:
     type(struct_gsv) :: statevector_in_hvInterp
     type(struct_gsv) :: statevector_in_hvtInterp
-
-    real(4), pointer :: PsfcReference_r4(:,:,:,:)
-    real(8), pointer :: PsfcReference_r8(:,:,:,:)
 
     character(len=4), pointer :: varNamesToInterpolate(:)
 
@@ -776,9 +774,9 @@ CONTAINS
     if ( .not. gsv_isAllocated(statevector_inout) ) then
       call utl_abort('inc_interpolateAndAdd: gridStateVector_inout not yet allocated! Aborting.')
     end if
-    if ( present(PsfcReference_opt) ) then
-      if ( statevector_in%numstep /= size(PsfcReference_opt,4) ) then
-        call utl_abort('inc_interpolateAndAdd: statevector_in%numstep /= numStep of Psfc input')
+    if ( present(statevectorRef_opt) ) then
+      if ( statevector_in%numstep /= statevectorRef_opt%numstep) then
+        call utl_abort('inc_interpolateAndAdd: statevector_in and statevectorRef_opt numstep inconsistent')
       end if
     end if
 
@@ -796,26 +794,8 @@ CONTAINS
                       hInterpolateDegree_opt=statevector_inout%hInterpolateDegree,              &
                       hExtrapolateDegree_opt='VALUE' )
 
-    ! Need to copy input PsfcReference to both real4 and real8 to isolate gsv from pre_incrReal
-    if (gsv_getDataKind(statevector_in)==4) then
-      allocate(PsfcReference_r4(statevector_in_hvInterp%myLonBeg:statevector_in_hvInterp%myLonEnd, &
-                                statevector_in_hvInterp%myLatBeg:statevector_in_hvInterp%myLatEnd, &
-                                1,statevector_in_hvInterp%numStep))
-      if (present(PsfcReference_opt)) then
-        PsfcReference_r4(:,:,:,:) = PsfcReference_opt(:,:,:,:)
-      end if
-      call int_interp_gsv(statevector_in,statevector_in_hvInterp,PsfcReference_r4_opt=PsfcReference_r4)
-      deallocate(PsfcReference_r4)
-    else
-      allocate(PsfcReference_r8(statevector_in_hvInterp%myLonBeg:statevector_in_hvInterp%myLonEnd, &
-                                statevector_in_hvInterp%myLatBeg:statevector_in_hvInterp%myLatEnd, &
-                                1,statevector_in_hvInterp%numStep))
-      if (present(PsfcReference_opt)) then
-        PsfcReference_r8(:,:,:,:) = PsfcReference_opt(:,:,:,:)
-      end if
-      call int_interp_gsv(statevector_in,statevector_in_hvInterp,PsfcReference_opt=PsfcReference_r8)
-      deallocate(PsfcReference_r8)
-    end if
+    call int_interp_gsv(statevector_in, statevector_in_hvInterp, &
+                        statevectorRef_opt=statevectorRef_opt)
 
     ! Do the time interpolation
     call gsv_allocate(statevector_in_hvtInterp, statevector_inout%numstep,                      &
