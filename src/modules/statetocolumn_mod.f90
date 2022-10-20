@@ -1908,7 +1908,8 @@ contains
         else
           cols_recv(:,1) = cols_send(:,1)
         end if
-
+        call utl_tmg_stop(36)
+	
         ! reorganize ensemble of distributed columns
         !$OMP PARALLEL DO PRIVATE (procIndex, kIndex2, headerIndex, headerIndex2)
         proc_loop: do procIndex = 1, mmpi_nprocs
