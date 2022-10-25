@@ -1,0 +1,66 @@
+ &NAMTIME
+  DSTEPOBS = 6.0d0
+  DSTEPOBSINC = 6.0d0
+/
+ &NAMSTATE
+  ANLVAR(1) = 'GL'
+/
+ &NAMDIMO
+   NMXOBS  = 600000
+   NDATAMX = 600000
+/
+ &NAMFILT
+  NELEMS = 4
+  NLIST(1) = 20222
+  NLIST(2) = 20237
+  NLIST(3) = 21169
+  NLIST(4) = 21199
+  NFLAGS = 10
+  NLISTFLG(1) = -4
+  NLISTFLG(2) = -2
+  NLISTFLG(3) = -1
+  NLISTFLG(4) = 0
+  NLISTFLG(5) = 3
+  NLISTFLG(6) = 6
+  NLISTFLG(7) = 7
+  NLISTFLG(8) = 10
+  NLISTFLG(9) = 11
+  NLISTFLG(10) = 13
+/
+ &namPlatformIce
+  nPlatformIce = 8
+  listPlatformIce(1) = 'DMSP'
+  listPlatformIce(2) = 'GCOM-W1'
+  listPlatformIce(3) = 'METOP-1'
+  listPlatformIce(4) = 'METOP-2'
+  listPlatformIce(5) = 'CIS_DAILY'
+  listPlatformIce(6) = 'RS1_IMG'
+  listPlatformIce(7) = 'CIS_REGIONAL'
+  listPlatformIce(8) = 'iceclake'
+/
+ &NAMSQLgl
+  numberElem=4
+  listElem="20222,20237,21169,21199"
+  sqlNull=" and obsvalue is not null "
+/
+ &namSQLUpdate
+ numberUpdateItems=4
+ itemUpdateList(1)='OMP'
+ itemUpdateList(2)='OMA'
+ itemUpdateList(3)='OER'
+ itemUpdateList(4)='FGE'
+/
+ &namSQLInsert
+/
+ &NAMCODTYP
+/
+ &NAMOCEANBGCHECK
+ timeInterpType_nl = 'NEAREST'
+ numObsBatches = 20
+ idStation(1) = 'CIS_DAILY'
+ idStation(2) = 'RS1_IMG'
+ idStation(3) = 'CIS_REGIONAL'
+ OmpRmsdThresh(1) = 0.38
+ OmpRmsdThresh(2) = 0.7
+ OmpRmsdThresh(3) = 0.6
+/
