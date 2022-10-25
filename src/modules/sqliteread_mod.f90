@@ -89,11 +89,11 @@ contains
 
   subroutine sqlr_initHeader(obsdat, rdbSchema, familyType, headerIndex, elev, obsSat, azimuth, geoidUndulation, &
                              earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
-                             solarAzimuth, terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag,    &
+                             solarAzimuth, terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag, &
                              headPrimaryKey, obsLat, obsLon, codeType, obsDate, obsTime, &
                              obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, &
                              beamAzimuth, beamElevation, beamRangeStart, beamRangeEnd,   &
-                             firstBodyIndexOfThisBatch, obsNlv)
+                             firstBodyIndexOfThisBatch, obsNlv, iceChartID)
     !
     ! :Purpose: To initialize the header information when SQLite files are read.
     !
@@ -121,6 +121,7 @@ contains
     integer          , intent(in)    :: trackCellNum
     integer          , intent(in)    :: firstBodyIndexOfThisBatch
     integer          , intent(in)    :: obsNlv
+    integer          , intent(in)    :: iceChartID
     real(pre_obsReal), intent(in)    :: geoidUndulation
     real(pre_obsReal), intent(in)    :: earthLocRadCurv
     real(pre_obsReal), intent(in)    :: elev
@@ -191,6 +192,8 @@ contains
       else if (trim(rdbSchema) == 'gl_ascat') then
          call obs_headSet_i(obsdat, OBS_FOV, headerIndex, trackCellNum)
          call obs_headSet_r(obsdat, OBS_MWS, headerIndex, modelWindSpeed)
+      else if (trim(rdbSchema) == 'gl') then
+         call obs_headSet_i(obsdat, OBS_CHID, headerIndex, iceChartID)
       end if
       if (trim(rdbSchema) == 'radvel') then
           call obs_headSet_r(obsdat, OBS_RZAM, headerIndex, beamAzimuth)
@@ -336,13 +339,13 @@ contains
     real                     :: elev    , obsLat, obsLon, elevFact
     real                     :: beamAzimuth, beamRangeStart, beamRangeEnd, beamElevation          
     real(pre_obsReal)        :: beamAzimuthReal, beamElevationReal
-    real(pre_obsReal)        :: beamLat , beamLon, beamHeight, beamDistance, beamRange
+    real(pre_obsReal)        :: beamLat, beamLon, beamHeight, beamDistance, beamRange
     integer                  :: vertCoordType, vertCoordFact, fnom, fclos, nulnam, ierr, idProf
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
     integer                  :: roQcFlag
     real(pre_obsReal)        :: geoidUndulation, earthLocRadCurv, obsValue, surfEmiss, biasCorrection
     real(8)                  :: geoidUndulation_R8, earthLocRadCurv_R8, azimuthReal_R8
-    integer                  :: trackCellNum
+    integer                  :: trackCellNum, iceChartID
     real(pre_obsReal)        :: modelWindSpeed
     real(8)                  :: modelWindSpeed_R8
     integer                  :: iasiImagerCollocationFlag, iasiGeneralQualityFlag
@@ -359,8 +362,8 @@ contains
     type(fSQL_STATEMENT)     :: stmt,stmt2,stmt3 ! type for precompiled SQLite statements
     type(fSQL_STATUS)        :: stat,stat2 !type for error status
     character(len=256)       :: sqlDataOrder
-    character(len=256),allocatable :: listElemArray(:)
-    integer,allocatable            :: listElemArrayInteger(:)
+    character(len=256), allocatable :: listElemArray(:)
+    integer, allocatable            :: listElemArrayInteger(:)
     integer                  :: numberRows, numberColumns
 
     ! Namelist variables:
@@ -558,6 +561,9 @@ contains
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLcsr')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLcsr)
       case('gl')
+        if (sqlu_sqlColumnExists(fileName, 'header', 'chartIndex') == .true.) then
+          columnsHeader = trim(columnsHeader)//", chartIndex "
+        end if
         read(nulnam, nml = NAMSQLgl, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLgl')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLgl)
@@ -798,18 +804,23 @@ contains
           ! It does not have the obsStatus column.
 
           if (idStation(1:6) == 'METOP-') then
-            call fSQL_get_column(stmt, COL_INDEX = 8, int_var  = trackCellNum)
+            call fSQL_get_column(stmt, COL_INDEX = 8, int_var = trackCellNum)
             if (trackCellNum > 21) trackCellNum = 43 - trackCellNum
-            call fSQL_get_column(stmt, COL_INDEX = 9, real8_var  = modelWindSpeed_R8)
+            call fSQL_get_column(stmt, COL_INDEX = 9, real8_var = modelWindSpeed_R8)
             modelWindSpeed = modelWindSpeed_R8
           end if
 
-      	else if (trim(rdbSchema) == 'sst') then
-        	! satellite SST observations
+          if (sqlu_sqlColumnExists(fileName, 'header', 'chartIndex') == .true.) then
+            call fSQL_get_column(stmt, COL_INDEX = 8, int_var = iceChartID)
+          end if
 
-        	call fSQL_get_column(stmt, COL_INDEX =  8,  int_var = obsStatus)
-        	call fSQL_get_column(stmt, COL_INDEX =  9, real_var = elev           , REAL_MISSING=MPC_missingValue_R4)
-        	call fSQL_get_column(stmt, COL_INDEX = 10, real_var = solarZenithReal, REAL_MISSING=MPC_missingValue_R4)
+        else if (trim(rdbSchema) == 'sst') then
+
+          ! satellite SST observations
+
+          call fSQL_get_column(stmt, COL_INDEX =  8,  int_var = obsStatus)
+          call fSQL_get_column(stmt, COL_INDEX =  9, real_var = elev           , REAL_MISSING=MPC_missingValue_R4)
+          call fSQL_get_column(stmt, COL_INDEX = 10, real_var = solarZenithReal, REAL_MISSING=MPC_missingValue_R4)
 
         else if (trim(familyType) == 'RA') then
           if (trim(rdbSchema) == 'radvel') then
@@ -982,7 +993,7 @@ contains
              trackCellNum, modelWindSpeed,                                                  &
              beamAzimuthReal, beamElevationReal,                                            &
              real(beamRangeStart,kind=pre_obsReal), real(beamRangeEnd,kind=pre_obsReal),    &
-             firstBodyIndexOfThisBatch, obsNlv)
+             firstBodyIndexOfThisBatch, obsNlv, iceChartID)
 
         !reset level counter for next batch of data entries
         obsNlv = 0
