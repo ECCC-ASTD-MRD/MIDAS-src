@@ -377,10 +377,11 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_TTYP= OBS_AQF3+1! TERRAIN TYP INDICE for TOVS QC
    integer, parameter, public :: OBS_INFG= OBS_TTYP+1! SATPLOT INFO FLAG for TOVS
    integer, parameter, public :: OBS_RAIN= OBS_INFG+1! UKMO rain flag for ssmis obs
+   integer, parameter, public :: OBS_CHID= OBS_RAIN+1! id. no. of ice chart
 
 
    ! the last column index for integer header variables defined just above
-   integer, parameter :: NHDR_INT_END = OBS_RAIN
+   integer, parameter :: NHDR_INT_END = OBS_CHID
 
    integer, parameter :: NHDR_INT_SIZE = NHDR_INT_END - NHDR_INT_BEG + 1
 
@@ -393,7 +394,7 @@ module ObsColumnNames_mod
          'ST1 ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
          'SWQ1','SWQ2','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
          'PRFL','PHAS','ORI ','LCH ','RTP ','HDD ','HDT ','TFLG',&
-         'LFLG ','ORBI ','AQF1 ','AQF2 ','AQF3 ','TTYP ','INFG','RAIN'/)
+         'LFLG','ORBI','AQF1','AQF2','AQF3','TTYP','INFG','RAIN','CHID'/)
 
    !
    ! REAL-HEADER COLUMN NUMBERS
@@ -1482,7 +1483,7 @@ module ObsSpaceData_mod
    public :: OBS_CHM, OBS_FOV, OBS_PRFL, OBS_PHAS, OBS_ORI
    public :: OBS_LCH, OBS_RTP, OBS_HDD, OBS_HDT, OBS_TFLG, OBS_LFLG
    public :: OBS_ORBI,OBS_AQF1, OBS_AQF2, OBS_AQF3, OBS_TTYP, OBS_INFG
-   public :: OBS_RAIN
+   public :: OBS_RAIN, OBS_CHID
 
    !    real-header column numbers
    public :: OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ
