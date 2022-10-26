@@ -121,26 +121,23 @@ CONTAINS
     ! Arguments:
     type(struct_gsv), intent(in) :: statevectorIncLowRes
     type(struct_gsv), intent(inout) :: stateVectorUpdateHighRes
-    type(struct_gsv), intent(inout) :: stateVectorPsfcHighRes
+    type(struct_gsv), intent(out) :: stateVectorPsfcHighRes
 
     ! Locals:
-    type(struct_gsv) :: statevectorPsfcLowRes
-    type(struct_gsv) :: statevectorPsfcLowResTime
+    type(struct_gsv) :: statevectorRef, statevectorRefPsfc
+    type(struct_gsv) :: statevectorIncRefLowRes
+    type(struct_gsv) :: statevectorTrlRefVars
+    type(struct_gsv) :: statevectorTrlLowResTime, statevectorTrlLowResVert
     type(struct_gsv) :: statevector_mask
-    type(struct_gsv) :: statevectorPsfc
     type(struct_gsv) :: stateVectorHighRes
 
-    type(struct_vco), pointer :: vco_trl => null()
-    type(struct_hco), pointer :: hco_trl => null()
+    type(struct_vco), pointer :: vco_trl, vco_inc
+    type(struct_hco), pointer :: hco_trl, hco_inc
 
-    integer              :: stepIndex, numStep
+    integer              :: stepIndex, numStep_inc, numStep_trl
     integer, allocatable :: dateStampList(:)
 
-    real(pre_incrReal), pointer :: PsfcTrial(:,:,:,:), PsfcAnalysis(:,:,:,:)
-    real(pre_incrReal), pointer :: PsfcIncrement(:,:,:,:)
-    real(pre_incrReal), pointer :: PsfcIncLowResFrom3Dgsv(:,:,:,:), PsfcIncLowRes(:,:,:,:)
-    real(pre_incrReal), pointer :: analIncMask(:,:,:)
-
+    character(len=4), allocatable :: varNamesRef(:)
     logical  :: allocHeightSfc
 
     call msg('inc_computeHighResAnalysis', 'START', verb_opt=2)
@@ -152,13 +149,22 @@ CONTAINS
     ! Set/Read values for the namelist NAMINC
     call readNameList
 
+    if ( gsv_isAllocated(stateVectorPsfcHighRes) ) then
+      call utl_abort('inc_computeHighResAnalysis: '&
+                      //'stateVectorPsfcHighRes should not be allocated yet')
+    end if
+
     ! Setup timeCoord module (date read from trial file)
-    numStep = tim_nstepobsinc
-    allocate(dateStampList(numStep))
-    call tim_getstamplist(dateStampList,numStep,tim_getDatestamp())
+    numStep_inc = tim_nstepobsinc ! low-res time
+    numStep_trl = tim_nstepobs    ! high-res time
+    allocate(dateStampList(numStep_inc))
+    call tim_getstamplist(dateStampList,numStep_inc,tim_getDatestamp())
 
     hco_trl => gsv_getHco(stateVectorUpdateHighRes)
     vco_trl => gsv_getVco(stateVectorUpdateHighRes)
+    hco_inc => gsv_getHco(statevectorIncLowRes)
+    vco_inc => gsv_getVco(statevectorIncLowRes)
+
     if (vco_trl%Vcode == 0 .or. .not. gsv_varExist(varName='P0')) then
       allocHeightSfc = .false.
     else
@@ -170,77 +176,100 @@ CONTAINS
       call gio_getMaskLAM(statevector_mask, hco_trl, vco_trl, hInterpolationDegree)
     end if
 
-    ! Get the increment of Psfc
-    if ( gsv_varExist(varName='P0') ) then
-      call gsv_allocate( statevectorPsfc, numStep, hco_trl, vco_trl, &
+    if ( gsv_varExist(varName='P0') ) then ! infered that it is an atmospheric state
+      ! Build a reference variables
+      !
+      ! 1- Allocate the target reference statevector for vertical interpolation
+      ! that will be done in inc_interpolateAndAdd.
+      ! The reference needs to have the vertical structure of the input which is the
+      ! increment, but since horizontal interpolation is done first, it needs the
+      ! trial horizontal structure.
+      allocate(varNamesRef(7))
+      varNamesRef = (/'P0', 'TT', 'HU', 'Z_T', 'Z_M', 'P_T', 'P_M'/)
+      call gsv_allocate( statevectorRef, numStep_inc, hco_trl, vco_inc, &
                          dataKind_opt=pre_incrReal, &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                         varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
+                         varNames_opt=varNamesRef, allocHeightSfc_opt=allocHeightSfc, &
                          hInterpolateDegree_opt=hInterpolationDegree )
 
+      ! 2- Restriction of increment to reference variables
+      call gsv_allocate( statevectorIncRefLowRes, numStep_inc, hco_inc, vco_inc,  &
+                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
+                         dataKind_opt=pre_incrReal, varNames_opt=varNamesRef )
+      call gsv_copy(statevectorIncLowRes, statevectorIncRefLowRes, &
+                    allowVarMismatch_opt=.true.)
+
+      ! 3- Spatial interpolation of reference analysis increment
       call msg('inc_computeHighResAnalysis', &
            'horizontal interpolation of the Psfc increment', mpiAll_opt=.false.)
 
-      ! Extract Psfc inc at low resolution
-      call gsv_allocate( statevectorPsfcLowRes, numStep,  &
-                         statevectorIncLowRes%hco, vco_trl,  &
-                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                         dataKind_opt=pre_incrReal, &
-                         varNames_opt=(/'P0'/) )
-      call gsv_getField(statevectorPsfcLowRes,PsfcIncLowRes,'P0')
-      call gsv_getField(statevectorIncLowRes,PsfcIncLowResFrom3Dgsv,'P0')
-      PsfcIncLowRes(:,:,1,:) = PsfcIncLowResFrom3Dgsv(:,:,1,:)
+      call int_interp_gsv(statevectorIncRefLowRes,statevectorRef)
+      call gsv_deallocate(statevectorIncRefLowRes)
 
-      ! Spatial interpolation of Psfc analysis increment
-      call int_interp_gsv(statevectorPsfcLowRes,statevectorPsfc)
-      call gsv_deallocate(statevectorPsfcLowRes)
-
-      ! Compute analysis Psfc to use for interpolation of increment
+      ! 4- Compute analysis of reference variables to use for vertical interpolation
+      ! of increment
       call msg('inc_computeHighResAnalysis', &
-           'Computing Psfc analysis to use for interpolation of increment', &
+           'Computing reference variables analysis to use for interpolation of increment', &
            mpiAll_opt=.false.)
-      call gsv_allocate(statevectorPsfcLowResTime, tim_nstepobsinc, hco_trl, vco_trl,  &
+      ! a) build a restriction to reference variable of trial
+      call gsv_allocate(statevectorTrlRefVars, numStep_trl, &
+                        hco_trl, vco_trl, dateStamp_opt=tim_getDateStamp(), &
+                        mpi_local_opt=.true., dataKind_opt=pre_incrReal, &
+                        varNames_opt=varNamesRef )
+      call gsv_copy(stateVectorUpdateHighRes, statevectorTrlRefVars,&
+                    allowVarMismatch_opt=.true.)
+
+      ! b) bring trial to low res (increment) vertical structure
+      !    (no vertical interpolation reference needed as it is a full state,
+      !    not a incremental state)
+      call gsv_allocate(statevectorTrlLowResVert, numStep_trl, hco_trl, vco_inc,  &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                        dataKind_opt=pre_incrReal, &
-                        varNames_opt=(/'P0'/))
-      call gsv_copy( stateVectorUpdateHighRes, statevectorPsfcLowResTime, &
-                     allowVarMismatch_opt=.true., allowTimeMismatch_opt=.true. )
+                        dataKind_opt=pre_incrReal, varNames_opt=varNamesRef)
+      call int_vInterp_gsv(statevectorTrlRefVars, statevectorTrlLowResVert)
+      ! c) bring trial to low time res
+      call gsv_allocate(statevectorTrlLowResTime, numStep_inc, hco_trl, vco_inc,  &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
+                        dataKind_opt=pre_incrReal, varNames_opt=varNamesRef)
+      call gsv_copy(statevectorTrlLowResVert, statevectorTrlLowResTime, &
+                    allowTimeMismatch_opt=.true.)
+      call gsv_deallocate(statevectorTrlLowResVert)
+      call gsv_deallocate(statevectorTrlRefVars)
+      ! d) build the analysis reference for the increment vertical interpolation.
+      !    At that stage, statevectorRef contains the increment on the trial
+      !    horizontal grid, but analysis vertical structure; consistent for addition.
+      call gsv_add(statevectorTrlLowResTime, statevectorRef)
+      call gsv_deallocate(statevectorTrlLowResTime)
 
-      call gsv_getField(statevectorPsfcLowResTime,PsfcTrial,'P0')
-      call gsv_getField(stateVectorPsfc,PsfcIncrement,'P0')
-      call gsv_getField(stateVectorPsfc,PsfcAnalysis,'P0')
-
-      if (.not. hco_trl%global .and. useAnalIncMask) then
-        call gsv_getField(statevector_mask,analIncMask)
-        do stepIndex = 1, stateVectorPsfc%numStep
-          PsfcAnalysis(:,:,1,stepIndex) = PsfcTrial(:,:,1,stepIndex) + &
-                                          PsfcIncrement(:,:,1,stepIndex) * analIncMask(:,:,1)
-        end do
-      else
-        PsfcAnalysis(:,:,1,:) = PsfcTrial(:,:,1,:) + PsfcIncrement(:,:,1,:)
-      end if
-
-      ! Time interpolation to get high-res Psfc analysis increment
+      ! 5- Time interpolation to get high-res Psfc analysis increment to output
       call msg('inc_computeHighResAnalysis', &
            'Time interpolation to get high-res Psfc analysis increment', &
            mpiAll_opt=.false.)
-      if ( .not. gsv_isAllocated(stateVectorPsfcHighRes) ) then
-        call gsv_allocate( stateVectorPsfcHighRes, tim_nstepobs, hco_trl, vco_trl, &
-                           dataKind_opt=pre_incrReal, &
-                           dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                           varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
-                           hInterpolateDegree_opt=hInterpolationDegree)
-      else
-        call gsv_zero( stateVectorPsfcHighRes )
-      end if
-      call int_tInterp_gsv(statevectorPsfc, stateVectorPsfcHighRes)
+
+      ! a) Restriction to P0 only + vco set on vco_trl for later consistency
+      call gsv_allocate(statevectorRefPsfc, numStep_inc, hco_trl, vco_trl, &
+                        dataKind_opt=pre_incrReal, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
+                        varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
+                        hInterpolateDegree_opt=hInterpolationDegree )
+      call gsv_copy(statevectorRef, statevectorRefPsfc, allowVarMismatch_opt=.true., &
+                    allowVcoMismatch_opt=.true.)
+      ! b) high res time interpolation
+      call gsv_allocate(stateVectorPsfcHighRes, numStep_trl, hco_trl, vco_trl, &
+                        dataKind_opt=pre_incrReal, &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
+                        varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
+                        hInterpolateDegree_opt=hInterpolationDegree)
+      call int_tInterp_gsv(statevectorRefPsfc, stateVectorPsfcHighRes)
+    else
+      call msg('inc_computeHighResAnalysis','P0 not present, not computing reference', &
+               verb_opt=3)
     end if
 
     ! Compute the analysis
     call msg('inc_computeHighResAnalysis', 'compute the analysis', mpiAll_opt=.false.)
 
-    ! Interpolate low-res increments to high-res and add to the initial state
-    call gsv_allocate( stateVectorHighRes, tim_nstepobs, hco_trl, vco_trl, &
+    ! Copy of trial to be passed to inc_interpolateAndAdd
+    call gsv_allocate( stateVectorHighRes, numStep_trl, hco_trl, vco_trl, &
                        dataKind_opt=stateVectorUpdateHighRes%dataKind, &
                        dateStamp_opt=tim_getDateStamp(), &
                        mpi_local_opt=stateVectorUpdateHighRes%mpi_local, &
@@ -250,19 +279,20 @@ CONTAINS
     call gsv_copy( stateVectorUpdateHighRes,stateVectorHighRes, &
                    allowVarMismatch_opt=.true.)
 
+    ! Interpolate low-res increments to high-res and add to the initial state
     if (.not. hco_trl%global .and. useAnalIncMask) then
-      if (gsv_varExist(varName='P0')) then
+      if ( gsv_varExist(varName='P0') ) then ! infered that it is an atmospheric state
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes, &
-                                   statevectorRef_opt=stateVectorPsfc, &
+                                   statevectorRef_opt=statevectorRef, &
                                    statevectorMaskLAM_opt=statevector_mask)
       else
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes, &
                                    statevectorMaskLAM_opt=statevector_mask)
       end if
     else
-      if (gsv_varExist(varName='P0')) then
+      if ( gsv_varExist(varName='P0') ) then ! infered that it is an atmospheric state
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes, &
-                                   statevectorRef_opt=stateVectorPsfc)
+                                   statevectorRef_opt=statevectorRef)
       else
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes)
       end if
@@ -272,7 +302,7 @@ CONTAINS
                    allowVarMismatch_opt=.true.)
     call gsv_deallocate(stateVectorHighRes)
 
-    if ( gsv_isAllocated(statevectorPsfc) ) call gsv_deallocate(statevectorPsfc)
+    if ( gsv_isAllocated(statevectorRef) ) call gsv_deallocate(statevectorRef)
     if ( gsv_isAllocated(statevector_mask) ) call gsv_deallocate(statevector_mask)
 
     call utl_tmg_stop(81)
@@ -341,7 +371,9 @@ CONTAINS
                         dateStamp_opt = tim_getDateStamp(), mpi_local_opt = .true.,  &
                         varNames_opt = (/'P0'/), allocHeightSfc_opt = allocHeightSfc, &
                         hInterpolateDegree_opt = hInterpolationDegree)
-      call gsv_copy(stateVectorPsfcHighRes, stateVectorPsfc, allowTimeMismatch_opt = .true.)
+      call msg('DBGmad inc_analPostProcessing', 'gsv_copy 1')
+      call gsv_copy(stateVectorPsfcHighRes, stateVectorPsfc, &
+                    allowTimeMismatch_opt = .true., allowVarMismatch_opt=.true.)
       call gsv_deallocate(stateVectorPsfcHighRes)
     end if
 
@@ -350,6 +382,7 @@ CONTAINS
                       dateStamp_opt = tim_getDateStamp(), mpi_local_opt = .true., &
                       allocHeightSfc_opt = allocHeightSfc, hInterpolateDegree_opt = 'LINEAR', &
                       allocHeight_opt = .false., allocPressure_opt = .false.)
+    call msg('DBGmad inc_analPostProcessing', 'gsv_copy 2')
     call gsv_copy(stateVectorUpdateHighRes, stateVectorAnal, &
                   allowVarMismatch_opt = .true., allowTimeMismatch_opt = .true.)
 
