@@ -51,7 +51,6 @@
    RLIMLVHU=70.D0,
 /
  &NAMTOV   
-   NSENSORS =  19,
    CSATID(1)        = 'AQUA',
    CINSTRUMENTID(1) = 'AIRS',
    CSATID(2)        = 'METOP-2',

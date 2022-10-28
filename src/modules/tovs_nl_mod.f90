@@ -641,13 +641,12 @@ contains
 
     implicit none
     ! Locals:
-    integer  sensorIndex, ierr, nulnam
+    integer  sensorIndex, nsensors, ierr, nulnam
     integer, external :: fclos, fnom
     integer :: instrumentIndex, numMWInstrumToUseCLW, numMWInstrumToUseHydrometeors
 
     ! Namelist variables: (local)
     character(len=8)  :: crtmodl
-    integer :: nsensors
     character(len=15) :: csatid(tvs_maxNumberOfSensors)
     character(len=15) :: cinstrumentid(tvs_maxNumberOfSensors)
     logical :: ldbgtov
@@ -665,7 +664,7 @@ contains
     character(len=15) :: instrumentNamesUsingHydrometeors(tvs_maxNumberOfSensors)
     logical :: mwAllskyAssim
 
-    namelist /NAMTOV/ nsensors, csatid, cinstrumentid
+    namelist /NAMTOV/ csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
@@ -685,13 +684,12 @@ contains
  
     !   1.1 Default values for namelist variables
 
-    nsensors = 0
     csatid(:) = '***UNDEFINED***'
     cinstrumentid(:) = '***UNDEFINED***'
     doAzimuthCorrection(:) = .false.
     isAzimuthValid(:) = .false.
-    csatid(1) = 'NOAA16'
-    cinstrumentid(1) = 'AMSUA'
+    !csatid(1) = 'NOAA16'
+    !cinstrumentid(1) = 'AMSUA'
     ldbgtov = .false.
     useO3Climatology = .true.
     userDefinedDoAzimuthCorrection = .false.
@@ -721,7 +719,26 @@ contains
 
     !  1.3 Transfer namelist variables to module variables
  
-    tvs_nsensors = nsensors
+    tvs_nsensors = 0
+    sensor_loop:do sensorIndex = 1, tvs_maxNumberOfSensors
+      if (cinstrumentid(sensorIndex) /= "***UNDEFINED***" .and. &
+          csatid(sensorIndex) /= "***UNDEFINED***" ) then
+        tvs_nsensors = tvs_nsensors + 1
+      else
+        exit sensor_loop
+      end if
+    end do sensor_loop
+    nsensors = 0
+    do sensorIndex = 1, tvs_maxNumberOfSensors
+      if (cinstrumentid(sensorIndex) /= "***UNDEFINED***" .and. &
+          csatid(sensorIndex) /= "***UNDEFINED***" ) then
+        nsensors = nsensors + 1
+      end if
+    end do
+    if (nsensors /= tvs_nsensors) then
+      call utl_abort('tvs_setup: check namelist cinstrumentid and csatid arrays indexes should be defined from 1 with increasing values (no hole)')
+    end if
+    
     tvs_debug = ldbgtov
     radiativeTransferCode = crtmodl
     tvs_useO3Climatology = useO3Climatology

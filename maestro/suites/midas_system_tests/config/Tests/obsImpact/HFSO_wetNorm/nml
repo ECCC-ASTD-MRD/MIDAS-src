@@ -93,7 +93,6 @@
    calcHeightPressIncrOnColumn=.TRUE.,
 /
  &NAMTOV   
-   NSENSORS =  42,
    CSATID(1)        = 'AQUA',
    CINSTRUMENTID(1) = 'AIRS',
    CSATID(2)        = 'METOP-2',

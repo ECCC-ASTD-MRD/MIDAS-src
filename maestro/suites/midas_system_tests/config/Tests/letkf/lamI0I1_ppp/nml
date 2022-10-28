@@ -81,7 +81,6 @@
    ANLVAR(9)   ='I1'
 /
  &NAMTOV   
-   NSENSORS =  30,
    CSATID(1)        = 'AQUA',
    CINSTRUMENTID(1) = 'AIRS',
    CSATID(2)        = 'METOP-2',

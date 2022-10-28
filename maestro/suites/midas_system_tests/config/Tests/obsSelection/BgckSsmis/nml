@@ -46,7 +46,6 @@
    ANLVAR(6)   ='TG'
 /
  &NAMTOV
-   NSENSORS         =  3,
    CSATID(1)        = 'DMSP16',
    CINSTRUMENTID(1) = 'SSMIS',
    CSATID(2)        = 'DMSP17',

@@ -89,7 +89,6 @@
    abortonMpiImbalance=.false.
 /
  &NAMTOV   
-   NSENSORS =  5,
    CSATID(1)        = 'GOES13',
    CINSTRUMENTID(1) = 'GOESIMAGER',
    CSATID(2)        = 'GOES15',

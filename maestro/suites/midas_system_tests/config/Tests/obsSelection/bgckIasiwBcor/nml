@@ -47,7 +47,6 @@
    ANLVAR(6)   ='TG'
 /
  &NAMTOV
-   NSENSORS         =  2,
    CSATID(1)        = 'METOP-2',
    CINSTRUMENTID(1) = 'IASI',
    CSATID(2)        = 'METOP-1',

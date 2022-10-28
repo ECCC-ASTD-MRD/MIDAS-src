@@ -74,7 +74,6 @@
    ANLVAR(6)   ='TG'
 /
  &NAMTOV
-   NSENSORS         =  2,
    CSATID(1)        = 'NPP',
    CINSTRUMENTID(1) = 'ATMS',
    CSATID(2)        = 'NOAA20',

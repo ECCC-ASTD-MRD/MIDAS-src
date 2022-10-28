@@ -37,7 +37,6 @@
    NDATAMX=2000000,
 /
  &NAMTOV   
-   NSENSORS =  30,
    CSATID(1)        = 'AQUA',
    CINSTRUMENTID(1) = 'AIRS',
    CSATID(2)        = 'METOP-2',

@@ -37,7 +37,6 @@
    ANLVAR(6)   ='TG'
 /
  &NAMTOV
-   NSENSORS         =  24,
    CSATID(1)        = 'NOAA15',
    CINSTRUMENTID(1) = 'AMSUA',
    CSATID(2)        = 'NOAA16',

@@ -60,15 +60,10 @@
    abortOnMpiImbalance = .false.
 /
  &NAMTOV
-   NSENSORS         =  2,
    CSATID(1)        = 'METOP-1',
    CINSTRUMENTID(1) = 'IASI',
    CSATID(2)        = 'METOP-2',
    CINSTRUMENTID(2) = 'IASI',
-   CSATID(3)        = 'AQUA',
-   CINSTRUMENTID(3) = 'AIRS',
-   CSATID(4)        = 'NPP',
-   CINSTRUMENTID(4) = 'CRIS',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
 /
