@@ -28,25 +28,29 @@ module bgckOcean_mod
   use gridStateVectorFileIO_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use statetocolumn_mod 
+  use statetocolumn_mod
   use bufr_mod
   use mathPhysConstants_mod
+  use timeCoord_mod
 
   implicit none
 
-  
+
   save
   private
 
   ! Public functions/subroutines
-  public :: ocebg_bgCheckSST
- 
-  ! External functions
-  integer, external :: fnom, fclos  
+  public :: ocebg_bgCheckSST, ocebg_bgCheckSeaIce
 
-  character(len=20) :: timeInterpType_nl       ! 'NEAREST' or 'LINEAR'
-  integer           :: numObsBatches           ! number of batches for calling interp setup
-  namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches
+  ! External functions
+  integer, external :: fnom, fclos
+
+  character(len=20)  :: timeInterpType_nl       ! 'NEAREST' or 'LINEAR'
+  integer            :: numObsBatches           ! number of batches for calling interp setup
+  integer, parameter :: numStation = 11
+  character(len=12)  :: idStation(numStation) = 'null'
+  real               :: OmpRmsdThresh(numStation) = 0.0
+  namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches, idStation, OmpRmsdThresh
 
   contains
 
@@ -55,9 +59,9 @@ module bgckOcean_mod
   !----------------------------------------------------------------------------------------
   subroutine ocebg_bgCheckSST(obsData, columnTrlOnTrlLev, hco)
     !
-    !: Purpose: to compute SST data background Check  
-    !           
-    
+    ! :Purpose: to compute SST data background Check
+    !
+
     implicit none
 
     ! Arguments:
@@ -69,13 +73,13 @@ module bgckOcean_mod
     type(struct_gsv)        :: stateVector   ! state vector containing std B estimation field
     integer                 :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
     integer                 :: numberObs, numberObsRejected
-    integer                 :: numberObsInsitu, numberObsInsituRejected, codeType  
+    integer                 :: numberObsInsitu, numberObsInsituRejected, codeType
     real(8)                 :: OER, OmP, FGE, bgCheck
     logical                 :: llok
     type(struct_columnData) :: columnFGE
-    
+
     write(*,*) 'ocebg_bgCheckSST: performing background check for the SST data...'
-    
+
     ! Setting default namelist variable values
     timeInterpType_nl = 'NEAREST'
     numObsBatches = 20
@@ -103,10 +107,10 @@ module bgckOcean_mod
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVector, './bgstddev', 'STDDEV', 'X', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
-    
+
     call col_setVco(columnFGE, col_getVco(columnTrlOnTrlLev))
     call col_allocate(columnFGE, col_getNumCol(columnTrlOnTrlLev))
-   
+
     ! Convert stateVector to column object
     call s2c_nl(stateVector, obsData, columnFGE, hco, timeInterpType = timeInterpType_nl, &
                 moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
@@ -115,28 +119,28 @@ module bgckOcean_mod
     numberObsRejected = 0
     numberObsInsitu = 0
     numberObsInsituRejected = 0
-    
+
     do headerIndex = 1, obs_numheader(obsData)
-      
+
       bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
       obsVarno  = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
       llok = (obs_bodyElem_i(obsData, obs_ass, bodyIndex) == obs_assimilated)
       if (llok) then
         if (obsVarno == bufr_sst) then
-       
+
 	  FGE = col_getElem(columnFGE, 1, headerIndex, 'TM')
 	  OmP = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex)
           OER = obs_bodyElem_r(obsData, OBS_OER , bodyIndex)
 	  codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
-	   
-	  if (FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8) then 
-	    
+
+	  if (FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8) then
+
 	    numberObs = numberObs + 1
 	    if (codeType /= codtyp_get_codtyp('satob')) numberObsInsitu = numberObsInsitu + 1
 	    call obs_bodySet_r(obsData, OBS_HPHT, bodyIndex, FGE)
 	    bgCheck = (OmP)**2 / (FGE**2 + OER**2)
 	    obsFlag = ocebg_setFlag(obsVarno, bgCheck)
-	
+
             if (obsFlag >= 2) then
               numberObsRejected = numberObsRejected + 1
 	      if (codeType /= codtyp_get_codtyp('satob')) numberObsInsituRejected = numberObsInsituRejected + 1
@@ -148,9 +152,9 @@ module bgckOcean_mod
               obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8, &
               obs_bodyElem_r(obsData, obs_var, bodyIndex), OmP
             end if
-	    	      
+
 	    ! update background check flags based on bgCheck
-            ! (element flags + global header flags)  
+            ! (element flags + global header flags)
 	    if (obsFlag == 1) then
               call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 13))
             else if (obsFlag == 2) then
@@ -164,12 +168,12 @@ module bgckOcean_mod
               call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 09))
               call obs_headSet_i(obsData, obs_st1, headerIndex, ibset(obs_headElem_i(obsData, obs_st1, headerIndex), 06))
             end if
-	   
+
           end if
 	end if
       end if
-      
-    end do 
+
+    end do
 
     if (numberObs > 0) then
       write(*,*)' '
@@ -181,30 +185,214 @@ module bgckOcean_mod
       write(*,*) '***************************************************************************************'
       write(*,*)' '
     end if
-    
+
     call gsv_deallocate(stateVector)
     call col_deallocate(columnFGE)
-    
+
   end subroutine ocebg_bgCheckSST
+
+  !----------------------------------------------------------------------------------------
+  ! ocebg_bgCheckSeaIce
+  !----------------------------------------------------------------------------------------
+  subroutine ocebg_bgCheckSeaIce(obsData)
+    !
+    ! :Purpose: Compute sea ice data background check
+    !
+
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsData           ! obsSpaceData object
+
+    ! Locals:
+    integer            :: nulnam, ierr
+    integer            :: headerIndex, bodyIndex, stationIndex, bodyCount
+    integer            :: obsChid, obsDate, obsTime, obsVarno, obsFlag
+    integer            :: obsDateStamp
+    integer, parameter :: maxSwath = 10, maxPerSwath = 100000
+    integer            :: numberObs(maxSwath), bodyIndexList(maxPerSwath,maxSwath)
+    integer            :: minDateStamp(maxSwath), maxDateStamp(maxSwath), swathID(maxSwath)
+    real               :: rmsDiff(maxSwath)
+    integer            :: swathIndex, nSwath
+    real(8)            :: OmP, deltaHours
+    integer            :: numberObsRejected
+    character(len=12)  :: cstnid
+    integer, external  :: newdate
+    integer            :: imode, prntdate, prnttime
+
+    write(*,*) 'ocebg_bgCheckSeaIce: performing background check for the SeaIce data...'
+ 
+    ! Read the namelist
+    if (.not. utl_isNamelistPresent('namOceanBGcheck','./flnml')) then
+      if (mpi_myid == 0) then
+        write(*,*) 'ocebg_bgCheckSeaIce: namOceanBGcheck is missing in the namelist.'
+        write(*,*) 'ocebg_bgCheckSeaIce: the default values will be taken.'
+      end if
+    else
+      ! reading namelist variables
+      nulnam = 0
+      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+      read(nulnam, nml = namOceanBGcheck, iostat = ierr)
+      if (ierr /= 0) call utl_abort('ocebg_bgCheckSeaIce: Error reading namelist')
+      ierr = fclos(nulnam)
+    end if
+    write(*, nml = namOceanBGcheck)
+
+    STATION: do stationIndex = 1, numStation
+
+        write(*,*) 'idStation = ', idStation(stationIndex)
+
+        if (idStation(stationIndex) /= 'null') then
+
+        numberObs(:) = 0
+        rmsDiff(:) = 0.0
+        minDateStamp(:) = tim_getDatestamp()
+        maxDateStamp(:) = tim_getDatestamp()
+        nSwath = 0
+
+        HEADER: do headerIndex = 1, obs_numheader(obsData)
+
+          cstnid = obs_elem_c(obsData, 'STID' , headerIndex )
+          bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
+
+!!$          obsVarno = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
+!!$
+!!$          if (obsVarno == BUFR_ICEC) then
+
+          obsFlag = obs_bodyElem_i(obsData, OBS_FLG, bodyIndex)
+
+!!$          write(*,*) 'obsFlag = ',obsFlag
+
+          if ( (cstnid == idStation(stationIndex)) .and. &
+               (obsFlag == 0 .or. cstnid == 'CIS_REGIONAL') ) then
+
+            obsChid = obs_headElem_i(obsData, obs_chid, headerIndex)
+            obsDate = obs_headElem_i(obsData, OBS_DAT, headerIndex)
+            obsTime = obs_headElem_i(obsData, OBS_ETM, headerIndex)
+
+!!$            write(*,*) 'obsChid = ',obsChid
+!!$            write(*,*) 'obsDate = ',obsDate
+!!$            write(*,*) 'obsTime = ',obsTime
+
+            imode = 3 ! printable to stamp
+            ierr = newdate(obsDateStamp, obsDate, obsTime*10000, imode)
+
+!!$            write(*,*) 'obsDateStamp = ',obsDateStamp
+!!$            write(*,*) 'swathID = ',swathID
+
+            do swathIndex=1, nSwath
+
+              if(obsDateStamp <= maxDateStamp(swathIndex) .and. &
+                 obsDateStamp >= minDateStamp(swathIndex) .and. &
+                 obsChid == swathID(swathIndex)) exit
+
+              call difdatr(obsDateStamp, minDateStamp(swathIndex), deltaHours)
+            
+              if(abs(deltaHours) <= 0.5d0 .and. obsChid == swathID(swathIndex)) exit
+
+            end do
+
+            nSwath = max(nSwath, swathIndex)
+
+            if(swathIndex <= maxSwath) then
+
+              if(numberObs(swathIndex) == 0) then
+                minDateStamp(swathIndex) = obsDateStamp
+                maxDateStamp(swathIndex) = obsDateStamp
+              else
+                minDateStamp(swathIndex) = min(minDateStamp(swathIndex), obsDateStamp)
+                maxDateStamp(swathIndex) = max(maxDateStamp(swathIndex), obsDateStamp)
+              end if
+
+              swathID(swathIndex) = obsChid
+
+              OmP = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex)
+
+!!$              write(*,*) 'OmP = ',OmP
+
+              if (OmP /= MPC_missingValue_R8) then
+
+                numberObs(swathIndex) = numberObs(swathIndex) + 1
+                rmsDiff(swathIndex) = rmsDiff(swathIndex) + (OmP)**2
+                if (numberObs(swathIndex) <= maxPerSwath) then
+                  bodyIndexList(numberObs(swathIndex), swathIndex) = bodyIndex
+                else
+                  call utl_abort('ocebg_bgCheckSeaIce: Increase maxPerSwath')
+                end if
+
+              end if
+
+            else
+
+              call utl_abort('ocebg_bgCheckSeaIce: Increase maxSwath')
+
+            end if
+
+          end if
+
+!!$            end if
+
+        end do HEADER
+
+        do swathIndex = 1, maxSwath
+
+          if (numberObs(swathIndex) > 0) then
+
+            rmsDiff(swathIndex) = sqrt(rmsDiff(swathIndex)/numberObs(swathIndex))
+
+            write(*,*) 'swathIndex = ', swathIndex
+            write(*,*) 'Timespan:'
+            imode = -3 ! stamp to printable
+            ierr = newdate(minDateStamp(swathIndex), prntdate, prnttime, imode)
+            write(*,*) 'From: ', prntdate, prnttime/100
+            ierr = newdate(maxDateStamp(swathIndex), prntdate, prnttime, imode)
+            write(*,*) 'To  : ', prntdate, prnttime/100
+
+            write(*,'(a,f10.4)') 'ocebg_bgCheckSeaIce: RMSD = ', rmsDiff(swathIndex)
+            write(*,'(a,i10)') 'ocebg_bgCheckSeaIce: nobs = ', numberObs(swathIndex)
+
+            if (rmsDiff(swathIndex) > OmpRmsdThresh(stationIndex)) then
+
+              numberObsRejected = 0
+              do bodyCount = 1, numberObs(swathIndex)
+                numberObsRejected = numberObsRejected + 1
+                ! update background check flag
+                call obs_bodySet_i(obsData, obs_flg, bodyIndexList(bodyCount,swathIndex), ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndexList(bodyCount,swathIndex)), 10))
+              end do
+
+	      write(*,'(a,i7,a)')'ocebg_bgCheckSeaIce: ********** reject: ', numberObsRejected, &
+                                    ' '//idStation(stationIndex)//' data'
+
+            end if
+
+          end if
+
+        end do
+
+      end if
+
+    end do STATION
+
+  end subroutine ocebg_bgCheckSeaIce
 
   !--------------------------------------------------------------------------
   ! ocebg_setFlag
   !--------------------------------------------------------------------------
   function ocebg_setFlag(obsVarno, bgCheck) result(obsFlag)
     !
-    !:Purpose: Set background-check flags according to values set in a table.
-    !          Original values in table come from ECMWF.
+    ! :Purpose: Set background-check flags according to values set in a table.
+    !           Original values in table come from ECMWF.
     !
 
     implicit none
-    
-    integer             :: obsFlag  ! obs flag 
+
+    integer             :: obsFlag  ! obs flag
 
     ! Arguments:
     integer, intent(in) :: obsVarno ! obsVarno, Universal Field-Identity Numbers defined in bufr_mod
     real(8), intent(in) :: bgCheck  ! normalized background departure
 
-    ! Locals:      
+    ! Locals:
     real(8), parameter :: multipleSST(3) = (/  5.d0, 25.d0, 30.d0 /)
 
     obsFlag = 0
@@ -220,5 +408,5 @@ module bgckOcean_mod
     end if
 
   end function ocebg_setFlag
-  
-end module bgckOcean_mod  
+
+end module bgckOcean_mod
