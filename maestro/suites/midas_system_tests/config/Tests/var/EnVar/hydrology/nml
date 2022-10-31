@@ -29,10 +29,7 @@
   DSTEPOBSINC = 6.0d0
 /
  &NAMFILT
-  NELEMS = 1,
   NLIST(1)=23040,
-  NFLAGS=0,
-  !NLISTFLG(1)=1,
   list_topoFilt(:)= '  '
 /
  &NAMRMAT

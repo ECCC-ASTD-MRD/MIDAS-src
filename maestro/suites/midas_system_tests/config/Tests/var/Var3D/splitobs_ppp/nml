@@ -42,7 +42,6 @@
   DSTEPOBSINC = 6.0d0
 /
  &NAMFILT
-  NELEMS = 16,
   NLIST(1)=10004,
   NLIST(2)=10051,
   NLIST(3)=12004,
@@ -59,12 +58,9 @@
   NLIST(14)=12163,
   NLIST(15)=15036,
   NLIST(16)=15031,
-  NFLAGS=3,
   NLISTFLG(1)=2,
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
-  NLISTFLG(4)=-5,
-  NLISTFLG(5)=-8,
   list_topoFilt(1) = 'SF'
   list_topoFilt(2) = 'UA'	
   list_topoFilt(3) = 'AI'

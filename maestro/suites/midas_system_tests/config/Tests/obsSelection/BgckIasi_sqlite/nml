@@ -27,17 +27,14 @@
   DSTEPOBS = 0.25D0
 /
  &NAMFILT
-  NELEMS = 3,
   NLIST(1)=12062,
   NLIST(2)=12063,
   NLIST(3)=12163,
-  NFLAGS=5,
   NLISTFLG(1)=4,
   NLISTFLG(2)=5,
   NLISTFLG(3)=9,
   NLISTFLG(4)=12,
   NLISTFLG(5)=-5,
-  NLISTFLG(6)=2,
   list_topoFilt(1) = 'SF'
   list_topoFilt(2) = 'UA'	
   list_topoFilt(3) = 'AI'

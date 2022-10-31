@@ -29,7 +29,6 @@
   DWINDOWSIZE = 1.0D0
 /
  &NAMFILT
-  NELEMS = 18,
   NLIST(1)=10004,
   NLIST(2)=10051,
   NLIST(3)=12004,
@@ -48,16 +47,12 @@
   NLIST(16)=15031,
   NLIST(17)=11041,
   NLIST(18)=50001,
-  NFLAGS=3,
   NLISTFLG(1)=2,
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
-  NLISTFLG(4)=-5,
-  NLISTFLG(5)=-8,
   list_topoFilt(1) = 'SF'
   RLIMLVHU=70.D0,
   DISCARDLANDSFCWIND=.FALSE.
-  nelems_altDiffMax = 1,
   list_altDiffMax(1) = 10051,
   value_altDiffMax(1)=  10.0,
 

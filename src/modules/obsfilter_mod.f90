@@ -136,6 +136,7 @@ contains
     integer :: nlistflg(15)
     integer :: nelems_altDiffMax
     integer :: list_altDiffMax(numElem)
+    integer :: flagIndex, elementIndex
     character(len=2) :: list_topoFilt(nTopoFiltFam)
     real(8) :: value_altDiffMax(numElem)
     real(8) :: rlimlvhu
@@ -147,27 +148,27 @@ contains
     filterMode = filterMode_in
 
     ! set default values for namelist variables
-    nlist(:) = 0
-    nelems = 6
-    nlist(1)=11003
-    nlist(2)=11004
-    nlist(3)=10194
-    nlist(4)=12192
-    nlist(5)=12062
-    nlist(6)=12063
+    nlist(:) =  MPC_missingValue_INT
+    nelems = MPC_missingValue_INT
+    !nlist(1)=11003
+    !nlist(2)=11004
+    !nlist(3)=10194
+    !nlist(4)=12192
+    !nlist(5)=12062
+    !nlist(6)=12063
 
-    nlistflg(:) = 0
-    nflags=6
-    nlistflg(1)=2
-    nlistflg(2)=4
-    nlistflg(3)=5
-    nlistflg(4)=9
-    nlistflg(5)=11
-    nlistflg(6)=12
+    nlistflg(:) = MPC_missingValue_INT
+    nflags = MPC_missingValue_INT
+    !nlistflg(1)=2
+    !nlistflg(2)=4
+    !nlistflg(3)=5
+    !nlistflg(4)=9
+    !nlistflg(5)=11
+    !nlistflg(6)=12
 
-    list_altDiffMax (:) = 0
-    value_altDiffMax(:) = -1.d0
-    nelems_altDiffMax = 0
+    list_altDiffMax (:) = MPC_missingValue_INT
+    value_altDiffMax(:) = MPC_missingValue_R8
+    nelems_altDiffMax = MPC_missingValue_INT
 
     list_topoFilt(:) = '**'
 
@@ -187,10 +188,28 @@ contains
     ierr=fclos(nulnam)
 
     filt_rlimlvhu    = rlimlvhu
-    filt_nelems      = nelems
-    filt_nlist(:)    = nlist(:)
-    filt_nflags      = nflags
-    filt_nlistflg(:) = nlistflg(:)
+    
+    if (nelems /= MPC_missingValue_INT) then
+      call utl_abort('filt_setup: check NAMFILT namelist section; NELEMS should be removed')
+    end if
+    filt_nelems = 0
+    do elementIndex = 1, 30
+      if (nlist(elementIndex) /= MPC_missingValue_INT) then
+        filt_nlist(elementIndex) = nlist(elementIndex)
+        filt_nelems = filt_nelems + 1
+      end if
+    end do
+    
+    if (nflags /= MPC_missingValue_INT) then
+      call utl_abort('filt_setup: check NAMFILT namelist section; NFLAGS should be removed')
+    end if
+    filt_nflags = 0
+    do flagIndex = 1, 15
+      if (nlistflg(flagIndex) /= MPC_missingValue_INT) then
+        filt_nlistflg(flagIndex) = nlistflg(flagIndex)
+        filt_nflags = filt_nflags + 1
+      end if
+    end do
 
     if(mmpi_myid == 0) then
       write(*,'(1X,"***********************************")')
@@ -212,19 +231,23 @@ contains
     !
     !- Set values for altDiffMax
     !
-    if ( nelems_altDiffMax > 0 ) then
-      if ( nelems_altDiffMax > numElem ) then
-        call utl_abort('filt_setup: You have specified too many altDiffMax elements')
-      end if
-      do elem = 1, nelems_altDiffMax
-        elemIndex = findElemIndex(list_altDiffMax(elem))
-        if ( elemIndex >= 1 .and. elemIndex <= numElem ) then
-          altDiffMax(elemIndex) = value_altDiffMax(elem)
-          write(*,*) ' filt_setup: altDiffMax value for ', elemList(elemIndex), ' is set to ', altDiffMax(elemIndex)
-        else
-          call utl_abort('filt_setup: Error in value setting for altDiffMax')
+    if ( nelems_altDiffMax == MPC_missingValue_INT) then
+      !if ( nelems_altDiffMax > numElem ) then
+      !  call utl_abort('filt_setup: You have specified too many altDiffMax elements')
+      !end if
+      do elem = 1, numElem
+        if (list_altDiffMax(elem) /= MPC_missingValue_INT .and. value_altDiffMax(elem) /= MPC_missingValue_R8) then
+          elemIndex = findElemIndex(list_altDiffMax(elem))
+          if ( elemIndex >= 1 .and. elemIndex <= numElem ) then
+            altDiffMax(elemIndex) = value_altDiffMax(elem)
+            write(*,*) ' filt_setup: altDiffMax value for ', elemList(elemIndex), ' is set to ', altDiffMax(elemIndex)
+          else
+            call utl_abort('filt_setup: Error in value setting for altDiffMax')
+          end if
         end if
       end do
+    else
+      call utl_abort('filt_setup: check namelist section NAMFILT: nelems_altDiffMax should be removed')
     end if
 
     !
