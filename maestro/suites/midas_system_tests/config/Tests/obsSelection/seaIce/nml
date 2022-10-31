@@ -6,8 +6,8 @@
   ANLVAR(1) = 'GL'
 /
  &NAMDIMO
-   NMXOBS  = 600000
-   NDATAMX = 600000
+   NMXOBS  = 1000000
+   NDATAMX = 1000000
 /
  &NAMFILT
   NELEMS = 4
@@ -60,7 +60,23 @@
  idStation(1) = 'CIS_DAILY'
  idStation(2) = 'RS1_IMG'
  idStation(3) = 'CIS_REGIONAL'
- OmpRmsdThresh(1) = 0.38
- OmpRmsdThresh(2) = 0.7
- OmpRmsdThresh(3) = 0.6
+ idStation(4) = 'DMSP15'
+ idStation(5) = 'DMSP16'
+ idStation(6) = 'DMSP17'
+ idStation(7) = 'DMSP18'
+ idStation(8) = 'GCOM-W1'
+ idStation(9) = 'METOP-1'
+ idStation(10) = 'METOP-2'
+ idStation(11) = 'iceclake'
+ OmpRmsdThresh(1) = 38.0
+ OmpRmsdThresh(2) = 70.0
+ OmpRmsdThresh(3) = 60.0
+ OmpRmsdThresh(4) = 60.0
+ OmpRmsdThresh(5) = 60.0
+ OmpRmsdThresh(6) = 60.0
+ OmpRmsdThresh(7) = 60.0
+ OmpRmsdThresh(8) = 60.0
+ OmpRmsdThresh(9) = 10.0
+ OmpRmsdThresh(10) = 10.0
+ OmpRmsdThresh(11) = 95.0
 /
