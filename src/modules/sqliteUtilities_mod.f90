@@ -26,7 +26,7 @@ use utilities_mod
 implicit none
 save
 private
-public :: sqlu_sqlColumnExists, sqlu_sqlTableExists, sqlu_getSqlColumnNames
+public :: sqlu_sqlColumnExists, sqlu_sqlTableExists, sqlu_getSqlColumnNames, sqlu_query, sqlu_handleError
 
 ! Arrays used to match SQLite column names with obsSpaceData column names
 integer, parameter :: lenSqlName = 60
@@ -50,12 +50,10 @@ contains
 
     ! locals:
     integer                     :: ierr
-    logical                     :: finished
     character(len=3000)         :: query, sqliteOutput
     character(len=lenSqlName)   :: upperColumnName
     type(fSQL_STATUS)           :: stat ! sqlite error status
     type(fSQL_DATABASE)         :: db   ! sqlite file handle
-    type(fSQL_STATEMENT)        :: stmt ! precompiled sqlite statements
     logical, parameter          :: debug = .false.
     character(len=*), parameter :: myName = 'sqlu_sqlColumnExists'
     
@@ -68,21 +66,16 @@ contains
     upperColumnName = trim(columnName)
     ierr = clib_toUpper(upperColumnName)
 
-    query = "select upper(name) as uppername from pragma_table_info('" // &
-            trim(tableName) // "') where uppername='" // trim(upperColumnName) // "';"
+    query = "select count(*) from pragma_table_info('" // &
+            trim(tableName) // "') where upper(name)='" // trim(upperColumnName) // "';"
     if (debug) write(*,*) myName//': query = ', trim(query)
 
-    call fSQL_prepare( db, trim(query), stmt, stat)
-    finished = .false.
-    call fSQL_get_row( stmt, finished )
-    call fSQL_get_column( stmt, COL_INDEX = 1, CHAR_VAR = sqliteOutput )
-    call fSQL_get_row( stmt, finished )
-    call fSQL_finalize( stmt )
+    sqliteOutput = sqlu_query(db,trim(query))
     if (debug) write(*,*) myName//': output = XXX' // trim(sqliteOutput) // 'XXX'
-    columnExists = (trim(sqliteOutput) == trim(upperColumnName))
+    columnExists = (trim(sqliteOutput) /= '0')
 
     ! close the obsDB file
-    call fSQL_close( db, stat ) 
+    call fSQL_close( db, stat )
 
   end function sqlu_sqlColumnExists
 
@@ -203,5 +196,52 @@ contains
     call fSQL_close( db, stat ) 
 
   end subroutine sqlu_getSqlColumnNames
-  
+
+  !--------------------------------------------------------------------------
+  ! sqlu_query
+  !--------------------------------------------------------------------------
+  function sqlu_query(db,query)
+    !
+    ! :Purpose: To create a query to read an SQLite file
+    !
+    implicit none
+
+    ! arguments
+    type(fSQL_DATABASE)  :: db    ! type handle for  SQLIte file
+    character(len = *)   :: query
+    ! locals
+    character(len = 256) :: sqlu_query, result
+    logical finished
+    type(fSQL_STATEMENT) :: stmt !  prepared statement for  SQLite
+    type(fSQL_STATUS)    :: stat !type error status
+
+    result=''
+    call fSQL_prepare(db, trim(query), stmt, stat)
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat,'fSQL_prepare: ')
+    finished=.false.
+    call fSQL_get_row(stmt, finished)
+
+    ! Put result of query into variable
+    call fSQL_get_column(stmt, COL_INDEX = 1, char_var = result)
+    call fSQL_get_row(stmt, finished)
+    if (.not. finished) write(*,*) ' SQL QUERY ---> QUERY RETURNS MORE THAN ONE ROW...  '
+    call fSQL_finalize(stmt)
+    sqlu_query = trim(result)
+
+  end function sqlu_query
+
+  !--------------------------------------------------------------------------
+  ! sqlu_handleError
+  !--------------------------------------------------------------------------
+  subroutine sqlu_handleError(stat, message)
+    implicit none
+
+    type(FSQL_STATUS)  :: stat
+    character(len = *) :: message
+
+    write(*,*) message, fSQL_errmsg(stat)
+    call utl_abort(trim(message))
+
+  end subroutine sqlu_handleError
+
 end module sqliteUtilities_mod
