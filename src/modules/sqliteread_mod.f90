@@ -21,33 +21,34 @@ module sqliteRead_mod
   !           obsSpaceData object.
   !
 
-use codePrecision_mod
-use obsSpaceData_mod
-use midasMpi_mod
-use fSQLite
-use mathPhysConstants_mod
-use obsUtil_mod
-use utilities_mod
-use bufr_mod
-use ramDisk_mod
-use tovs_nl_mod
-use codtyp_mod
-use obsVariableTransforms_mod
-use obsFilter_mod
-use sqliteUtilities_mod
-use radvel_mod
-use ensembleObservations_mod
+  use codePrecision_mod
+  use obsSpaceData_mod
+  use midasMpi_mod
+  use fSQLite
+  use mathPhysConstants_mod
+  use obsUtil_mod
+  use utilities_mod
+  use bufr_mod
+  use ramDisk_mod
+  use tovs_nl_mod
+  use codtyp_mod
+  use obsVariableTransforms_mod
+  use obsFilter_mod
+  use sqliteUtilities_mod
+  use radvel_mod
+  use ensembleObservations_mod
 
-implicit none   
- 
-save
+  implicit none
 
-private
+  save
 
-public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
-public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles, sqlr_readSqlite_avhrr, sqlr_addCloudParametersandEmissivity
-public :: sqlr_writePseudoSSTobs, sqlr_writeEmptyPseudoSSTobsFile
-contains
+  private
+
+  public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite
+  public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles, sqlr_readSqlite_avhrr, sqlr_addCloudParametersandEmissivity
+  public :: sqlr_writePseudoSSTobs, sqlr_writeEmptyPseudoSSTobsFile
+
+  contains
   
   subroutine sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, numberData, latd, lond)
     !
@@ -220,7 +221,7 @@ contains
     character(len=128)       :: querySqlite, sqliteOutput
 
     querySqlite = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name like '"// tableName //"' ;"
-    sqliteOutput = sqlr_query(db, trim(querySqlite))
+    sqliteOutput = sqlu_query(db, trim(querySqlite))
     if (trim(sqliteOutput) == '1') then
       doesSQLTableExist = .true.
     else
@@ -409,7 +410,7 @@ contains
     end if
 
     query = "select schema from rdb4_schema ;"
-    rdbSchema = sqlr_query(db,trim(query))
+    rdbSchema = sqlu_query(db,trim(query))
     write(*,'(4a)') 'sqlr_readSqlite: rdbSchema is ---> ', trim(rdbSchema)
 
     sqlExtraHeader = ''
@@ -641,7 +642,7 @@ contains
 
     call fSQL_prepare(db, trim(queryData), stmt2, stat2)
     if (fSQL_error(stat2) /= FSQL_OK) then
-      call sqlr_handleError(stat2,'fSQL_prepare has failed for queryData, &
+      call sqlu_handleError(stat2,'fSQL_prepare has failed for queryData, &
                                    this could be caused by an "order by"  &
                                    statement in sqlExtraDat ')
     end if
@@ -714,15 +715,15 @@ contains
 	  queryHeader = 'select '//trim(columnsHeader)//' from header where id_obs = ? '
 	else
 	  queryHeader = 'select '//trim(columnsHeader)//' from header where '//trim(sqlExtraHeader)//' and id_obs = ? '
-	end if  
-			   
+	end if
+
         if (rowIndex == 1) then
           write(*,'(4a)') 'sqlr_readSqlite: ',trim(rdbSchema),' first queryHeader    --> ', trim(queryHeader)
         end if
         call fSQL_prepare(db, queryHeader, stmt, stat)
         if (fSQL_error(stat)  /= FSQL_OK) then
           write(*,*) 'sqlr_readSqlite: problem reading header entry. Query: ', trim(queryHeader)
-          call sqlr_handleError(stat, 'fSQL_prepare')
+          call sqlu_handleError(stat, 'fSQL_prepare')
         end if
          
         call fSQL_bind_param(stmt, param_index = 1, int8_var = headPrimaryKey)
@@ -1013,12 +1014,13 @@ contains
     call fSQL_close(db, stat) 
     if (fSQL_error(stat) /= FSQL_OK) then
       write(*,*) 'sqlr_readSqlite: problem closing sqlite db', trim(fileName)
-      call sqlr_handleError(stat, 'fSQL_close')
+      call sqlu_handleError(stat, 'fSQL_close')
     end if
 
   end subroutine sqlr_readSqlite
 
   !--------------------------------------------------------------------------
+<<<<<<< HEAD:src/modules/sqliteread_mod.f90
   ! sqlr_query
   !--------------------------------------------------------------------------
   function sqlr_query(db,query)
@@ -1114,6 +1116,8 @@ contains
   end subroutine sqlr_addColumn  
 
   !--------------------------------------------------------------------------
+=======
+>>>>>>> 6835b1be2... Issue #677: Function sqlr_handleError moved:src/modules/sqlite_read_mod.f90
   ! sqlr_updateSqlite
   !--------------------------------------------------------------------------
   subroutine sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber)
@@ -1273,7 +1277,7 @@ contains
     write(*,*) 'sqlr_updateSqlite: update query --->  ', query
     call fSQL_do_many(db, 'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;')
     call fSQL_prepare(db, query , stmt, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'fSQL_prepare : ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
     call fSQL_begin(db)
 
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
@@ -1333,7 +1337,7 @@ contains
         headPrimaryKeyIndex = 2
       end if
       call fSQL_prepare(db, query , stmt, stat)
-      if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat,'fSQL_prepare : ')
+      if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat,'fSQL_prepare : ')
 
       HEADER2: do headerIndex = 1,obs_numHeader(obsdat)
          
@@ -1361,7 +1365,7 @@ contains
 
     call fSQL_commit(db, stat)
     if (fSQL_error(stat)  /= FSQL_OK) then
-      call sqlr_handleError(stat, 'sqlr_updateSqlite: fSQL_commit')
+      call sqlu_handleError(stat, 'sqlr_updateSqlite: fSQL_commit')
     end if
     write(*,*) 'sqlr_updateSqlite: End ===================  ', trim(familyType)
 
@@ -1391,7 +1395,7 @@ contains
     write(*,*) 'sqlr_addCloudParametersandEmissivity: create query = ', trim(query)
 
     call fSQL_do(db, trim(query), stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'fSQL_do : ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_do : ')
 
     query = 'insert into cld_params(id_obs,ETOP,VTOP,ECF,VCF,HE,ZTSR,NCO2,ZTM,ZTGM,ZLQM,ZPS) &
          values(?,?,?,?,?,?,?,?,?,?,?,?);'
@@ -1400,7 +1404,7 @@ contains
     write(*,*) ' Insert query = ', trim(query)
 
     call fSQL_prepare(db, query, stmt, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'fSQL_prepare : ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
     call fSQL_begin(db)
     numberInsert=0
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
@@ -1502,7 +1506,7 @@ contains
 
     call fSQL_begin(db)
     call fSQL_prepare(db, query, stmt, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'fSQL_prepare : ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
 
     numberInsert=0
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
@@ -1638,7 +1642,7 @@ contains
     query = ' delete from data where flag & 2048;'
     call fSQL_prepare(db, query, statement, status)
     if (fSQL_error(status) /= FSQL_OK) &
-      call sqlr_handleError(status, 'thinning fSQL_prepare : ')
+      call sqlu_handleError(status, 'thinning fSQL_prepare : ')
     call fSQL_begin(db)
     call fSQL_exec_stmt(statement)
     call fSQL_finalize(statement)
@@ -1977,14 +1981,14 @@ contains
     end if
 
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreate))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreate))
     
     ! If the analysis members in obs space are allocated, make table queries for trial members and analysis members
     if ( present( ensObs_opt ) ) then
       ! Create
       queryCreateEnsObs = 'create table ensobs (id_data integer, id_obs integer, id_member integer, obstrl real, obsanl real);'
       call fSQL_do_many(db, queryCreateEnsObs, stat)
-      if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreateEnsObs))
+      if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreateEnsObs))
     end if
     
     if (addFSOdiag) then
@@ -2002,9 +2006,9 @@ contains
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
     
     if ( present( ensObs_opt ) ) then
       ! Insert
@@ -2013,7 +2017,7 @@ contains
 
       call fSQL_prepare(db, queryCreateEnsObs, stmtEnsObs, stat)
       
-      if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
+      if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
     end if
     
     numberInsertions = 0
@@ -2358,9 +2362,9 @@ contains
                      &create table rdb4_schema(schema varchar(9));'
     
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreate))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreate))
     call fSQL_do_many(db, queryCreateAdd, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreateAdd))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreateAdd))
     
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
@@ -2371,18 +2375,18 @@ contains
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     queryRDBSchema = ' insert into rdb4_schema values(?); '
     queryResume = ' insert into resume (date, time, run) values(?,?,?); '
     write(*,*) 'sqlr_writePseudoSSTobs: Insert query rdb4_schema: ', trim(queryRDBSchema)
     write(*,*) 'sqlr_writePseudoSSTobs: Insert query resume: ', trim(queryResume)
      
     call fSQL_prepare(db, queryRDBSchema, stmtRDBSchema, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     call fSQL_prepare(db, queryResume, stmtResume, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     
     numberInsertions = 0
 
@@ -2550,9 +2554,9 @@ contains
                      &create table rdb4_schema(schema varchar(9));'
     
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreate))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreate))
     call fSQL_do_many(db, queryCreateAdd, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreateAdd))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreateAdd))
     
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
@@ -2563,18 +2567,18 @@ contains
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     queryRDBSchema = ' insert into rdb4_schema values(?); '
     queryResume = ' insert into resume (date, time, run) values(?,?,?); '
     write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query rdb4_schema: ', trim(queryRDBSchema)
     write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query resume: ', trim(queryResume)
      
     call fSQL_prepare(db, queryRDBSchema, stmtRDBSchema, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     call fSQL_prepare(db, queryResume, stmtResume, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     
     call fSQL_bind_param(stmtRDBSchema, param_index = 1, char_var  = 'sf')
     call fSQL_exec_stmt (stmtRDBSchema)
