@@ -554,6 +554,8 @@ program midas_letkf
   call eob_allGather(ensObs,ensObs_mpiglobal)
   if ( numRetainedEigen > 0 ) then
     allocate(ensObsGain_mpiglobal)
+    write(*,*) 'ensObsGain%numMembers=',ensObsGain%numMembers, &
+                ',ensObsGain%numObs=', ensObsGain%numObs
     call eob_allGather(ensObsGain,ensObsGain_mpiglobal)
   else
     ensObsGain_mpiglobal => ensObs_mpiglobal
