@@ -20,7 +20,7 @@ module sqliteFiles_mod
   ! :Purpose: To store the filenames of the sqlite observation files and call
   !           subroutines in readSqlite to read and update sqlite files.
   !
-  
+
   use mathPhysConstants_mod
   use mpiVar_mod
   use sqliteRead_mod
@@ -31,6 +31,7 @@ module sqliteFiles_mod
   use obsUtil_mod
   use obsVariableTransforms_mod
   use ensembleObservations_mod
+  use sqliteUtilities_mod
 
   implicit none
   save
@@ -72,10 +73,10 @@ module sqliteFiles_mod
       write(*,*)'sqlf_getDateStamp: Open File : ', trim(sqliteFileName)
       call fSQL_open(db, trim(sqliteFileName), statusSqlite)
       querySqlite = 'select date from resume;'
-      datetimeSqliteCharacter = sqlr_query(db, trim(querySqlite))
+      datetimeSqliteCharacter = sqlu_query(db, trim(querySqlite))
       read(datetimeSqliteCharacter(1:8),*)  validDate
       querySqlite = 'select time from resume;'
-      datetimeSqliteCharacter = sqlr_query(db, trim(querySqlite))
+      datetimeSqliteCharacter = sqlu_query(db, trim(querySqlite))
       read(datetimeSqliteCharacter, *) validTime 
       call fSQL_close(db, statusSqlite)
     end if
