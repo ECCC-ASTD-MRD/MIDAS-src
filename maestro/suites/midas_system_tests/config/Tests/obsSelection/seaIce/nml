@@ -53,9 +53,8 @@
 /
  &NAMCODTYP
 /
- &NAMOCEANBGCHECK
- timeInterpType_nl = 'NEAREST'
- numObsBatches = 20
+ &NAMICEBGCHECK
+ numStation = 11
  idStation(1) = 'CIS_DAILY'
  idStation(2) = 'RS1_IMG'
  idStation(3) = 'CIS_REGIONAL'
