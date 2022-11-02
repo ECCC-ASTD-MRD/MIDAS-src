@@ -32,6 +32,7 @@ module bgckOcean_mod
   use bufr_mod
   use mathPhysConstants_mod
   use timeCoord_mod
+  use message_mod
 
   implicit none
 
@@ -136,8 +137,8 @@ module bgckOcean_mod
       ierr = fclos(nulnam)
     end if
     call msg('ocebg_bgCheckSST', 'interpolation type: '//timeInterpType_nl)
-    call msg('ocebg_bgCheckSST', 'number obs batches: '//numObsBatches)
-    call msg('ocebg_bgCheckSST', 'check winds to detect tropical storms (TS): '//checkWinds)
+    call msg('ocebg_bgCheckSST', 'number obs batches: '//str(numObsBatches))
+    call msg('ocebg_bgCheckSST', 'check winds to detect tropical storms (TS): '//str(checkWinds))
 
     if (separateSelectCriteria) then
       call msg('ocebg_bgCheckSST', 'a separate selection criteria will be applied...')
@@ -149,7 +150,7 @@ module bgckOcean_mod
                            seaWaterSelectCriteriaInsitu(:)
       write(*,'(a,3f7.2)') 'ocebg_bgCheckSST: sea water selection criteria for SATELLITE data rejection set to: ', &
                            seaWaterSelectCriteriaSatData(:)
-      call msg('ocebg_bgCheckSST', 'sea water fraction threshold is set to: '//seaWaterThreshold)
+      call msg('ocebg_bgCheckSST', 'sea water fraction threshold is set to: '//str(seaWaterThreshold))
       ! read sea water fraction
       call gsv_allocate(stateVectorSeaWaterFraction, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
                         datestamp_opt = -1, mpi_local_opt = .true., &
@@ -175,9 +176,9 @@ module bgckOcean_mod
     if (checkWinds) then
       call utl_tmg_start(123, '--checkWindsForSST') 
       call msg('ocebg_bgCheckSST', 'looking for tropical storms...')
-      call msg('ocebg_bgCheckSST', 'number of days with available winds in the input winds file: '//ndaysWinds)
-      call msg('ocebg_bgCheckSST', 'winds are provided every: '//timeStepWinds//' hours')
-      call msg('ocebg_bgCheckSST', 'wind forecast lead time: '//windForecastLeadtime//' hours')
+      call msg('ocebg_bgCheckSST', 'number of days with available winds in the input winds file: '//str(ndaysWinds))
+      call msg('ocebg_bgCheckSST', 'winds are provided every: '//str(timeStepWinds)//' hours')
+      call msg('ocebg_bgCheckSST', 'wind forecast lead time: '//str(windForecastLeadtime)//' hours')
       do exceptMonthIndex = 1, nmonthsExceptionNH
         checkMonth = .False.
         loop_month: do monthIndex = 1, 12
@@ -187,7 +188,7 @@ module bgckOcean_mod
           end if
         end do loop_month
         if (.not. checkMonth) then
-          call msg('ocebg_bgCheckSST', 'month should be one of these: '//months(:))
+          write(*,*) 'ocebg_bgCheckSST: month should be one of these: ',months(:)
           call utl_abort('ocebg_bgCheckSST: unknown month '//monthExceptionNH(exceptMonthIndex))
         end if
       end do
@@ -358,7 +359,7 @@ module bgckOcean_mod
  
     ! Read the namelist
     if (.not. utl_isNamelistPresent('namIceBGcheck','./flnml')) then
-      if (mpi_myid == 0) then
+      if (mmpi_myid == 0) then
         call msg('ocebg_bgCheckSeaIce', 'namIceBGcheck is missing in the namelist.')
         call msg('ocebg_bgCheckSeaIce', 'the default values will be taken.')
       end if
@@ -463,13 +464,13 @@ module bgckOcean_mod
 
             rmsDiff(swathIndex) = sqrt(rmsDiff(swathIndex)/numberObs(swathIndex))
 
-            call msg('ocebg_bgCheckSeaIce', 'swathIndex = '//swathIndex)
+            call msg('ocebg_bgCheckSeaIce', 'swathIndex = '//str(swathIndex))
             call msg('ocebg_bgCheckSeaIce', 'Timespan:')
             imode = -3 ! stamp to printable
             ierr = newdate(minDateStamp(swathIndex), prntdate, prnttime, imode)
-            call msg('ocebg_bgCheckSeaIce', 'From: '//prntdate//prnttime/100)
+            call msg('ocebg_bgCheckSeaIce', 'From: '//str(prntdate)//str(prnttime/100))
             ierr = newdate(maxDateStamp(swathIndex), prntdate, prnttime, imode)
-            call msg('ocebg_bgCheckSeaIce', 'To  : '//prntdate//prnttime/100)
+            call msg('ocebg_bgCheckSeaIce', 'To  : '//str(prntdate)//str(prnttime/100))
 
             write(*,'(a,f10.4)') 'ocebg_bgCheckSeaIce: RMSD = ', rmsDiff(swathIndex)
             write(*,'(a,i10)') 'ocebg_bgCheckSeaIce: nobs = ', numberObs(swathIndex)
@@ -588,7 +589,7 @@ module bgckOcean_mod
     do timeStepIndex = 1, ndaysWinds * 24 / timeStepWinds
       call tim_dateStampToYYYYMMDDHH(dataStampList(timeStepIndex), hour, day, monthNumber, &
                                      ndays, yyyy, verbose_opt = .False.)
-      call msg('ocebg_getFGEamplification', ' '//timeStepIndex//dataStampList(timeStepIndex)//yyyy//monthNumber//day//hour)
+      call msg('ocebg_getFGEamplification', ' '//str(timeStepIndex)//str(dataStampList(timeStepIndex))//str(yyyy)//str(monthNumber)//str(day)//str(hour))
       call gio_readFromFile(stateVector, './winds', ' ', ' ', stepIndex_opt = timeStepIndex, &
                             containsFullField_opt=.true.)
     end do
@@ -607,7 +608,7 @@ module bgckOcean_mod
       do monthIndex = 1, nmonthsExceptionNH
         if (months(monthNumber) == monthExceptionNH(monthIndex)) then
           maxLatNH = maxLatExceptionNH
-          call msg('ocebg_getFGEamplification', 'TS is allowed to penetrate up to '//maxLatNH &
+          call msg('ocebg_getFGEamplification', 'TS is allowed to penetrate up to '//str(maxLatNH) &
                      //' degrees North; current month: '//months(monthNumber))
         end if
       end do
