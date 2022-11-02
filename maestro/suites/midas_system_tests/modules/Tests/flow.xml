@@ -230,6 +230,7 @@
     <FAMILY  name="BgckChem">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
+    </FAMILY>
     <SUBMITS sub_name="seaIce"/>
     <FAMILY  name="seaIce">
       <SUBMITS sub_name="UnitTest"/>

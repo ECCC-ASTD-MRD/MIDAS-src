@@ -106,6 +106,12 @@ program midas_analysisErrorOI
   call gsv_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
+  !
+  !- Initialize list of analyzed variables.
+  !
+  call gsv_setup
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
   trlmFileName = './trlm_01'
 
   !

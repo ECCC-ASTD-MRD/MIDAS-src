@@ -232,6 +232,9 @@ program midas_obsSelection
   ! Do the sea ice data gross background check
   if (obs_famExist(obsSpaceData, 'GL')) call ocebg_bgCheckSeaIce(obsSpaceData)
 
+  ! Do the sea ice data gross background check
+  if (obs_famExist(obsSpaceData, 'GL')) call ocebg_bgCheckSeaIce(obsSpaceData)
+
   if (doThinning) then
 
     ! Copy original obs files into another directory

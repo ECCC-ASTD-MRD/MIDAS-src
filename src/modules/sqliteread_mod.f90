@@ -1020,52 +1020,6 @@ module sqliteRead_mod
   end subroutine sqlr_readSqlite
 
   !--------------------------------------------------------------------------
-<<<<<<< HEAD:src/modules/sqliteread_mod.f90
-  ! sqlr_query
-  !--------------------------------------------------------------------------
-  function sqlr_query(db,query)
-    !
-    ! :Purpose: To create a query to read an SQLite file
-    !
-    implicit none
-
-    ! arguments
-    type(fSQL_DATABASE)  :: db    ! type handle for  SQLIte file
-    character(len = *)   :: query
-    ! locals
-    character(len = 256) :: sqlr_query, result
-    logical finished
-    type(fSQL_STATEMENT) :: stmt !  prepared statement for  SQLite
-    type(fSQL_STATUS)    :: stat !type error status
-
-    result=''
-    call fSQL_prepare(db, trim(query), stmt, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat,'fSQL_prepare: ')
-    finished=.false.
-    call fSQL_get_row(stmt, finished)
-
-    ! Put result of query into variable
-    call fSQL_get_column(stmt, COL_INDEX = 1, char_var = result)
-    call fSQL_get_row(stmt, finished)
-    if (.not. finished) write(*,*) ' SQL QUERY ---> QUERY RETURNS MORE THAN ONE ROW...  '
-    call fSQL_finalize(stmt)
-    sqlr_query = trim(result)
-
-  end function sqlr_query
-
-
-  subroutine sqlr_handleError(stat, message)
-    implicit none
-
-    type(FSQL_STATUS)  :: stat
-    character(len = *) :: message
-
-    write(*,*) message, fSQL_errmsg(stat)
-    call utl_abort(trim(message))
-
-  end subroutine sqlr_handleError
-
-  !--------------------------------------------------------------------------
   ! sqlr_addColumn
   !--------------------------------------------------------------------------
   subroutine sqlr_addColumn(obsSpaceColIndexSource, columnName, tableName, fileName)
@@ -1116,8 +1070,6 @@ module sqliteRead_mod
   end subroutine sqlr_addColumn  
 
   !--------------------------------------------------------------------------
-=======
->>>>>>> 6835b1be2... Issue #677: Function sqlr_handleError moved:src/modules/sqlite_read_mod.f90
   ! sqlr_updateSqlite
   !--------------------------------------------------------------------------
   subroutine sqlr_updateSqlite(db, obsdat, familyType, fileName, fileNumber)
