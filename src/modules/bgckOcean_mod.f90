@@ -102,16 +102,16 @@ module bgckOcean_mod
     type(struct_hco)       , intent(in), pointer :: hco               ! horizontal trl grid
 
     ! Locals:
-    type(struct_gsv)            :: stateVector           ! state vector containing std B estimation field
+    type(struct_gsv)            :: stateVectorFGE        ! state vector containing std B estimation field
     type(struct_gsv)            :: stateVectorAmplFactor ! state vector for error amplification field
     real(4), pointer            :: stateVectorAmplFactor_ptr(:,:,:)
-    type(struct_gsv)            :: stateVector_seaWaterFraction ! statevector for sea water fraction
+    type(struct_gsv)            :: stateVectorSeaWaterFraction ! statevector for sea water fraction
     integer                     :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
     integer                     :: numberObs, numberObsRejected
     integer                     :: numberObsInsitu, numberObsInsituRejected, codeType  
     real(8)                     :: OER, OmP, FGE, bgCheck, seaWaterFraction
-    type(struct_columnData)     :: columnFGE, columnSeaWater
-    real(4), pointer            :: stateVector_ptr(:,:,:)
+    type(struct_columnData)     :: columnFGE, columnSeaWaterFraction
+    real(4), pointer            :: stateVectorFGE_ptr(:,:,:)
     logical                     :: checkMonth, llok
     integer                     :: lonIndex, latIndex, monthIndex, exceptMonthIndex
 
@@ -151,15 +151,15 @@ module bgckOcean_mod
                            seaWaterSelectCriteriaSatData(:)
       write(*,*) 'ocebg_bgCheckSST: sea water fraction threshold is set to: ', seaWaterThreshold
       ! read sea water fraction
-      call gsv_allocate(stateVector_seaWaterFraction, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
+      call gsv_allocate(stateVectorSeaWaterFraction, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
                         datestamp_opt = -1, mpi_local_opt = .true., &
                         varNames_opt = (/'VF'/), hInterpolateDegree_opt ='LINEAR')
-      call gio_readFromFile(stateVector_seaWaterFraction, './seaice_analysis', ' ','A', &
+      call gio_readFromFile(stateVectorSeaWaterFraction, './seaice_analysis', ' ','A', &
                             unitConversion_opt=.false., containsFullField_opt=.true.)
       ! Convert sea water fraction stateVector to column object
-      call col_setVco(columnSeaWater, col_getVco(columnTrlOnTrlLev))
-      call col_allocate(columnSeaWater, col_getNumCol(columnTrlOnTrlLev), varNames_opt = (/'VF'/))
-      call s2c_nl(stateVector_seaWaterFraction, obsData, columnSeaWater, hco, varName_opt = 'VF', &
+      call col_setVco(columnSeaWaterFraction, col_getVco(columnTrlOnTrlLev))
+      call col_allocate(columnSeaWaterFraction, col_getNumCol(columnTrlOnTrlLev), varNames_opt = (/'VF'/))
+      call s2c_nl(stateVectorSeaWaterFraction, obsData, columnSeaWaterFraction, hco, varName_opt = 'VF', &
                   timeInterpType = timeInterpType_nl, moveObsAtPole_opt = .true., &
                   numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
     else
@@ -167,10 +167,10 @@ module bgckOcean_mod
     end if
 
     ! Read First Guess Error (FGE) and put it into stateVector
-    call gsv_allocate(stateVector, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVectorFGE, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
                       hInterpolateDegree_opt = 'NEAREST', &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
-    call gio_readFromFile(stateVector, './bgstddev', 'STDDEV', 'X', &
+    call gio_readFromFile(stateVectorFGE, './bgstddev', 'STDDEV', 'X', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     if (checkWinds) then
       call utl_tmg_start(123, '--checkWindsForSST') 
@@ -202,13 +202,13 @@ module bgckOcean_mod
       call ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco)
       
       ! FGE state vector
-      call gsv_getField(stateVector, stateVector_ptr)
+      call gsv_getField(stateVectorFGE, stateVectorFGE_ptr)
 
       ! Apply tropical storm correction to the FGE field:
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
-          stateVector_ptr(lonIndex, latIndex, 1) = stateVector_ptr(lonIndex, latIndex, 1) * &
-                                                   stateVectorAmplFactor_ptr(lonIndex, latIndex, 1)
+          stateVectorFGE_ptr(lonIndex, latIndex, 1) = stateVectorFGE_ptr(lonIndex, latIndex, 1) * &
+                                                      stateVectorAmplFactor_ptr(lonIndex, latIndex, 1)
         end do
       end do      
       call gsv_deallocate(stateVectorAmplFactor)
@@ -218,7 +218,7 @@ module bgckOcean_mod
     ! Convert FGE stateVector to column object
     call col_setVco(columnFGE, col_getVco(columnTrlOnTrlLev))
     call col_allocate(columnFGE, col_getNumCol(columnTrlOnTrlLev), varNames_opt = (/'TM'/))
-    call s2c_nl(stateVector, obsData, columnFGE, hco, varName_opt = 'TM', &
+    call s2c_nl(stateVectorFGE, obsData, columnFGE, hco, varName_opt = 'TM', &
                 timeInterpType = timeInterpType_nl, moveObsAtPole_opt = .true., &
                 numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
 
@@ -248,7 +248,7 @@ module bgckOcean_mod
 	    bgCheck = (OmP)**2 / (FGE**2 + OER**2)
 
             if (separateSelectCriteria) then
-              seaWaterFraction = col_getElem(columnSeaWater, 1, headerIndex, 'VF')
+              seaWaterFraction = col_getElem(columnSeaWaterFraction, 1, headerIndex, 'VF')
               if (seaWaterFraction <= seaWaterThreshold) then
                 if(codeType == codtyp_get_codtyp('satob')) then
                   obsFlag = ocebg_setFlag(obsVarno, bgCheck, inlandWaterSelectCriteriaSatData)
@@ -310,9 +310,12 @@ module bgckOcean_mod
       write(*,*)' '
     end if
     
-    call gsv_deallocate(stateVector)
+    call gsv_deallocate(stateVectorFGE)
     call col_deallocate(columnFGE)
-    if (separateSelectCriteria) call col_deallocate(columnSeaWater)
+    if (separateSelectCriteria) then
+      call col_deallocate(columnSeaWaterFraction)
+      call gsv_deallocate(stateVectorSeaWaterFraction)
+    end if      
 
   end subroutine ocebg_bgCheckSST
 
