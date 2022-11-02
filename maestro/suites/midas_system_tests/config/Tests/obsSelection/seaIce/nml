@@ -15,7 +15,7 @@
   NLIST(2) = 20237
   NLIST(3) = 21169
   NLIST(4) = 21199
-  NFLAGS = 10
+  NFLAGS = 9
   NLISTFLG(1) = -4
   NLISTFLG(2) = -2
   NLISTFLG(3) = -1
@@ -25,7 +25,6 @@
   NLISTFLG(7) = 7
   NLISTFLG(8) = 10
   NLISTFLG(9) = 11
-  NLISTFLG(10) = 13
 /
  &namPlatformIce
   nPlatformIce = 8
