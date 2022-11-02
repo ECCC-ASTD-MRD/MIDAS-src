@@ -204,7 +204,7 @@ contains
 
         ! check for record with surface data (and that are not ocean variables)
         call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
-        if (ip1 == 0 .or. ip1 == ip1_sfc .or. ip1 == vco%ip1_seaLevel) then
+        if (ip1 == 0 .or. ip1 == ip1_sfc .or. ip1 == vco%ip1_seaLevel .or. Ip1Kind == 3) then
           sfcFieldFound = .true.
           exit record_loop
         end if

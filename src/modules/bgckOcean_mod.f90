@@ -66,9 +66,20 @@ module bgckOcean_mod
   real(4)           :: minLatSH = -35.               ! min lat of Southern hemisphere latutude band where TS is detected
   real(4)           :: maxLatSH = -10.               ! max lat of Southern hemisphere latutude band where TS is detected
   real(8)           :: smoothLenghtScale = 50000.    ! lenght scale. in m, to smooth the amplification error field
+  real(8)           :: globalSelectCriteria(3) = (/5.d0, 25.d0, 30.d0/) ! global selection criteria
+  logical           :: separateSelectCriteria = .false.! to apply a separate selection criteria on sea/inland waters 
+                                                       ! and insitu/satellite data 
+  real(8)           :: inlandWaterSelectCriteriaSatData(3) = (/5.d0, 25.d0, 30.d0/)
+  real(8)           :: inlandWaterSelectCriteriaInsitu(3)  = (/5.d0, 25.d0, 30.d0/)
+  real(8)           :: seaWaterSelectCriteriaSatData(3)    = (/5.d0, 25.d0, 30.d0/)
+  real(8)           :: seaWaterSelectCriteriaInsitu(3)     = (/5.d0, 25.d0, 30.d0/) 
+  real(4)           :: seaWaterThreshold = 0.1       ! threshold to distinguish inland water from sea water
   namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches, checkWinds, ndaysWinds, timeStepWinds, &
                              windForecastLeadtime, minLatNH, maxLatNH, maxLatExceptionNH, nmonthsExceptionNH, &
-                             monthExceptionNH, minLatSH, maxLatSH, smoothLenghtScale
+                             monthExceptionNH, minLatSH, maxLatSH, smoothLenghtScale, &
+                             globalSelectCriteria, separateSelectCriteria, inlandWaterSelectCriteriaSatData, &
+                             inlandWaterSelectCriteriaInsitu, seaWaterSelectCriteriaSatData, &
+                             seaWaterSelectCriteriaInsitu, seaWaterThreshold 
 
   character(len=3), parameter :: months(12) = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -91,15 +102,16 @@ module bgckOcean_mod
     type(struct_hco)       , intent(in), pointer :: hco               ! horizontal trl grid
 
     ! Locals:
-    type(struct_gsv)            :: stateVector           ! state vector containing std B estimation field
+    type(struct_gsv)            :: stateVectorFGE        ! state vector containing std B estimation field
     type(struct_gsv)            :: stateVectorAmplFactor ! state vector for error amplification field
     real(4), pointer            :: stateVectorAmplFactor_ptr(:,:,:)
+    type(struct_gsv)            :: stateVectorSeaWaterFraction ! statevector for sea water fraction
     integer                     :: nulnam, ierr, headerIndex, bodyIndex, obsFlag, obsVarno
     integer                     :: numberObs, numberObsRejected
     integer                     :: numberObsInsitu, numberObsInsituRejected, codeType  
-    real(8)                     :: OER, OmP, FGE, bgCheck
-    type(struct_columnData)     :: columnFGE
-    real(4), pointer            :: stateVector_ptr(:,:,:)
+    real(8)                     :: OER, OmP, FGE, bgCheck, seaWaterFraction
+    type(struct_columnData)     :: columnFGE, columnSeaWaterFraction
+    real(4), pointer            :: stateVectorFGE_ptr(:,:,:)
     logical                     :: checkMonth, llok
     integer                     :: lonIndex, latIndex, monthIndex, exceptMonthIndex
 
@@ -127,11 +139,38 @@ module bgckOcean_mod
     write(*,*) 'ocebg_bgCheckSST: number obs batches: ', numObsBatches
     write(*,*) 'ocebg_bgCheckSST: check winds to detect tropical storms (TS): ', checkWinds
 
+    if (separateSelectCriteria) then
+      write(*,*) 'ocebg_bgCheckSST: a separate selection criteria will be applied...'
+      write(*,'(a,3f7.2)') 'ocebg_bgCheckSST: inland water selection criteria for INSITU data rejection set to: ', &
+                           inlandWaterSelectCriteriaInsitu(:)
+      write(*,'(a,3f7.2)') 'ocebg_bgCheckSST: inland water selection criteria for SATELLITE data rejection set to: ', &
+                           inlandWaterSelectCriteriaSatData(:)
+      write(*,'(a,3f7.2)') 'ocebg_bgCheckSST: sea water selection criteria for INSITU data rejection set to: ', &
+                           seaWaterSelectCriteriaInsitu(:)
+      write(*,'(a,3f7.2)') 'ocebg_bgCheckSST: sea water selection criteria for SATELLITE data rejection set to: ', &
+                           seaWaterSelectCriteriaSatData(:)
+      write(*,*) 'ocebg_bgCheckSST: sea water fraction threshold is set to: ', seaWaterThreshold
+      ! read sea water fraction
+      call gsv_allocate(stateVectorSeaWaterFraction, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
+                        datestamp_opt = -1, mpi_local_opt = .true., &
+                        varNames_opt = (/'VF'/), hInterpolateDegree_opt ='LINEAR')
+      call gio_readFromFile(stateVectorSeaWaterFraction, './seaice_analysis', ' ','A', &
+                            unitConversion_opt=.false., containsFullField_opt=.true.)
+      ! Convert sea water fraction stateVector to column object
+      call col_setVco(columnSeaWaterFraction, col_getVco(columnTrlOnTrlLev))
+      call col_allocate(columnSeaWaterFraction, col_getNumCol(columnTrlOnTrlLev), varNames_opt = (/'VF'/))
+      call s2c_nl(stateVectorSeaWaterFraction, obsData, columnSeaWaterFraction, hco, varName_opt = 'VF', &
+                  timeInterpType = timeInterpType_nl, moveObsAtPole_opt = .true., &
+                  numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
+    else
+      write(*,'(a,3f7.2)') 'ocebg_bgCheckSST: global selection criteria for data rejection is set to: ', globalSelectCriteria(:)
+    end if
+
     ! Read First Guess Error (FGE) and put it into stateVector
-    call gsv_allocate(stateVector, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
+    call gsv_allocate(stateVectorFGE, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
                       hInterpolateDegree_opt = 'NEAREST', &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
-    call gio_readFromFile(stateVector, './bgstddev', 'STDDEV', 'X', &
+    call gio_readFromFile(stateVectorFGE, './bgstddev', 'STDDEV', 'X', &
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     if (checkWinds) then
       call utl_tmg_start(123, '--checkWindsForSST') 
@@ -163,25 +202,25 @@ module bgckOcean_mod
       call ocebg_getFGEamplification(stateVectorAmplFactor, dateStamp, hco)
       
       ! FGE state vector
-      call gsv_getField(stateVector, stateVector_ptr)
+      call gsv_getField(stateVectorFGE, stateVectorFGE_ptr)
 
       ! Apply tropical storm correction to the FGE field:
       do latIndex = myLatBeg, myLatEnd
         do lonIndex = myLonBeg, myLonEnd
-          stateVector_ptr(lonIndex, latIndex, 1) = stateVector_ptr(lonIndex, latIndex, 1) * &
-                                                   stateVectorAmplFactor_ptr(lonIndex, latIndex, 1)
+          stateVectorFGE_ptr(lonIndex, latIndex, 1) = stateVectorFGE_ptr(lonIndex, latIndex, 1) * &
+                                                      stateVectorAmplFactor_ptr(lonIndex, latIndex, 1)
         end do
       end do      
       call gsv_deallocate(stateVectorAmplFactor)
       call utl_tmg_stop(123)
     end if
 
-    call col_setVco(columnFGE, col_getVco(columnTrlOnTrlLev))
-    call col_allocate(columnFGE, col_getNumCol(columnTrlOnTrlLev))
-   
     ! Convert FGE stateVector to column object
-    call s2c_nl(stateVector, obsData, columnFGE, hco, timeInterpType = timeInterpType_nl, &
-                moveObsAtPole_opt = .true., numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
+    call col_setVco(columnFGE, col_getVco(columnTrlOnTrlLev))
+    call col_allocate(columnFGE, col_getNumCol(columnTrlOnTrlLev), varNames_opt = (/'TM'/))
+    call s2c_nl(stateVectorFGE, obsData, columnFGE, hco, varName_opt = 'TM', &
+                timeInterpType = timeInterpType_nl, moveObsAtPole_opt = .true., &
+                numObsBatches_opt = numObsBatches, dealloc_opt = .true.)
 
     numberObs = 0
     numberObsRejected = 0
@@ -207,7 +246,25 @@ module bgckOcean_mod
 	    if (codeType /= codtyp_get_codtyp('satob')) numberObsInsitu = numberObsInsitu + 1
 	    call obs_bodySet_r(obsData, OBS_HPHT, bodyIndex, FGE)
 	    bgCheck = (OmP)**2 / (FGE**2 + OER**2)
-	    obsFlag = ocebg_setFlag(obsVarno, bgCheck)
+
+            if (separateSelectCriteria) then
+              seaWaterFraction = col_getElem(columnSeaWaterFraction, 1, headerIndex, 'VF')
+              if (seaWaterFraction <= seaWaterThreshold) then
+                if(codeType == codtyp_get_codtyp('satob')) then
+                  obsFlag = ocebg_setFlag(obsVarno, bgCheck, inlandWaterSelectCriteriaSatData)
+                else
+                  obsFlag = ocebg_setFlag(obsVarno, bgCheck, inlandWaterSelectCriteriaInsitu)
+                end if
+              else
+                if(codeType == codtyp_get_codtyp('satob')) then
+                  obsFlag = ocebg_setFlag(obsVarno, bgCheck, seaWaterSelectCriteriaSatData)
+                else
+                  obsFlag = ocebg_setFlag(obsVarno, bgCheck, seaWaterSelectCriteriaInsitu)
+                end if 
+              end if
+            else
+              obsFlag = ocebg_setFlag(obsVarno, bgCheck, globalSelectCriteria)
+            end if
 	
             if (obsFlag >= 2) then
               numberObsRejected = numberObsRejected + 1
@@ -253,15 +310,19 @@ module bgckOcean_mod
       write(*,*)' '
     end if
     
-    call gsv_deallocate(stateVector)
+    call gsv_deallocate(stateVectorFGE)
     call col_deallocate(columnFGE)
+    if (separateSelectCriteria) then
+      call col_deallocate(columnSeaWaterFraction)
+      call gsv_deallocate(stateVectorSeaWaterFraction)
+    end if      
 
   end subroutine ocebg_bgCheckSST
 
   !--------------------------------------------------------------------------
   ! ocebg_setFlag
   !--------------------------------------------------------------------------
-  function ocebg_setFlag(obsVarno, bgCheck) result(obsFlag)
+  function ocebg_setFlag(obsVarno, bgCheck, selectCriteria) result(obsFlag)
     !
     ! :Purpose: Set background-check flags according to values set in a table.
     !           Original values in table come from ECMWF.
@@ -272,20 +333,18 @@ module bgckOcean_mod
     integer             :: obsFlag  ! obs flag 
 
     ! Arguments:
-    integer, intent(in) :: obsVarno ! obsVarno, Universal Field-Identity Numbers defined in bufr_mod
-    real(8), intent(in) :: bgCheck  ! normalized background departure
-
-    ! Locals:      
-    real(8), parameter :: multipleSST(3) = (/5.d0, 25.d0, 30.d0/)
+    integer, intent(in) :: obsVarno          ! obsVarno, Universal Field-Identity Numbers defined in bufr_mod
+    real(8), intent(in) :: bgCheck           ! normalized background departure
+    real(8), intent(in) :: selectCriteria(:) ! selection criteria for three levels 
 
     obsFlag = 0
  
     if (obsVarno == bufr_sst) then
-      if (bgCheck >= multipleSST(1) .and. bgCheck < multipleSST(2)) then
+      if (bgCheck >= selectCriteria(1) .and. bgCheck < selectCriteria(2)) then
         obsFlag = 1
-      else if (bgCheck >= multipleSST(2) .and. bgCheck < multipleSST(3)) then
+      else if (bgCheck >= selectCriteria(2) .and. bgCheck < selectCriteria(3)) then
         obsFlag = 2
-      else if (bgCheck >= multipleSST(3)) then
+      else if (bgCheck >= selectCriteria(3)) then
         obsFlag = 3
       end if
     end if
