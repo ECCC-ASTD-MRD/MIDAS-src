@@ -1,6 +1,7 @@
  &NAMBGCK
   instName = 'MWHS2'
   debug = .false.
+  useUnbiasedObsForClw = .true.
   RESETQC = .false.
   modLSQ = .true.
 /
