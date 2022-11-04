@@ -3,7 +3,7 @@
   DSTEPOBSINC = 6.0d0
 /
  &NAMSTATE
-  ANLVAR(1) = 'GL'
+  ANLVAR(1) = 'GLE'
 /
  &NAMDIMO
    NMXOBS  = 600000
