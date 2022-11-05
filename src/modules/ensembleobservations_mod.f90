@@ -318,10 +318,7 @@ CONTAINS
     call rpn_comm_allgather( ensObsClean%numObs, 1, 'mpi_integer',  &
                              allNumObs, 1, 'mpi_integer', &
                              'GRID', ierr )
-    write(*,*) 'maziar: after rpn_comm_allgather'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
     numObs_mpiglobal = sum(allNumObs(:))
-    write(*,*) 'maziar: sum(allNumObs(:))=', sum(allNumObs(:))
 
     if (ensObs_mpiglobal%allocated) then
       call utl_abort('eob_allGather: output ensObs object must not be already allocated')
@@ -383,39 +380,18 @@ CONTAINS
 
     call rpn_comm_bcast(ensObs_mpiglobal%lat, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
-    write(*,*) 'maziar: after rpn_comm_bcast for lat'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     call rpn_comm_bcast(ensObs_mpiglobal%lon, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
-    write(*,*) 'maziar: after rpn_comm_bcast for lon'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     call rpn_comm_bcast(ensObs_mpiglobal%vertLocation, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
-    write(*,*) 'maziar: after rpn_comm_bcast for vertLocation'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     call rpn_comm_bcast(ensObs_mpiglobal%obsValue, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
-    write(*,*) 'maziar: after rpn_comm_bcast for obsValue'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
-    write(*,*) 'maziar: after rpn_comm_bcast for obsErrInv'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     call rpn_comm_bcast(ensObs_mpiglobal%meanYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
-    write(*,*) 'maziar: after rpn_comm_bcast for meanYb'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     call rpn_comm_bcast(ensObs_mpiglobal%deterYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
-    write(*,*) 'maziar: after rpn_comm_bcast for deterYb'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     call rpn_comm_bcast(ensObs_mpiglobal%assFlag, ensObs_mpiglobal%numObs, 'mpi_integer',  &
                         0, 'GRID', ierr)
     do memberIndex = 1, ensObsClean%numMembers
