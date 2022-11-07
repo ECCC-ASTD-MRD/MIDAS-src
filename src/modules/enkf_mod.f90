@@ -456,12 +456,14 @@ contains
 
           ! Compute value of localization function
           ! Horizontal
+          call utl_tmg_start(184,'------localizationL')
           localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
           ! Vertical when NOT using modulated ensembles - use pressures at the grid point (not obs) location
           if ( vLocalize > 0.0d0 .and. numRetainedEigen == 0 ) then
             distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
             localization = localization * lfn_Response(distance,vLocalize)
           end if
+          call utl_tmg_stop(184)
 
           do memberIndex = 1, nEnsUsed
             YbTinvR(memberIndex,localObsIndex) =  &
@@ -474,6 +476,8 @@ contains
         YbTinvRYb(:,:) = 0.0D0
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
+
+          call utl_tmg_start(185,'------YbTinvRYb1')
           !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEnsUsed
             do memberIndex1 = 1, nEnsUsed
@@ -483,10 +487,12 @@ contains
             end do
           end do
           !$OMP END PARALLEL DO
+          call utl_tmg_stop(185)
 
           ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
           if ( trim(algorithm) == 'CVLETKF-ME' .or. &
                trim(algorithm) == 'LETKF-Gain-ME' ) then
+            call utl_tmg_start(186,'------YbTinvRYb2')
             if (localObsIndex == 1) YbTinvRYb_mod(:,:) = 0.0D0
             !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
             do memberIndex2 = 1, nEns
@@ -497,6 +503,7 @@ contains
               end do
             end do
             !$OMP END PARALLEL DO
+            call utl_tmg_stop(186)
           end if
 
         end do ! localObsIndex
