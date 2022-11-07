@@ -1433,9 +1433,9 @@ contains
     end if
 
     write(*,*) 'maziar: before rpn_comm_barrier'
-    call utl_tmg_start(108,'----Barr')
+    call utl_tmg_start(107,'----Barr')
     call rpn_comm_barrier('GRID',ierr)
-    call utl_tmg_stop(108)
+    call utl_tmg_stop(107)
     write(*,*) 'maziar: after rpn_comm_barrier'
 
     call gsv_deallocate(stateVectorMeanInc)
@@ -2317,7 +2317,7 @@ contains
 
     logical, save :: firstCall = .true.
 
-    !call utl_tmg_start(107,'------getModulationFactor')
+    call utl_tmg_start(108,'------getModulationFactor')
 
     ! Compute vertical localization matrix and its eigenValues/Vectors on first call
     if ( firstCall ) then
@@ -2404,7 +2404,7 @@ contains
 
     modulationFactor_r4 = modulationFactorArray_r4(eigenVectorColumnIndex,eigenVectorLevelIndex)
   
-    !call utl_tmg_stop(107)
+    call utl_tmg_stop(108)
 
   end subroutine getModulationFactor
 
