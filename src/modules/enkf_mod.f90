@@ -1298,24 +1298,20 @@ contains
             do stepIndex = 1, tim_nstepobsinc
               ! mean increment
               if ( numRetainedEigen > 0 ) then
-                do memberIndex = 1, nEns
-                  do eigenVectorColumnIndex = 1, numRetainedEigen
-                    !if ( mpi_myid == 248 ) then
-                    !  write(*,*) 'maziar meanInc: latIndex=',latIndex,',lonIndex=',lonIndex, &
-                    !  ',varLevIndex=',varLevIndex, &
-                    !  ',varName=',gsv_getVarNameFromK(stateVectorMeanInc,varLevIndex), &
-                    !  ',levIndex2=',levIndex2,',stepIndex=',stepIndex, &
-                    !  ',memberIndex=',memberIndex, &
-                    !  ',eigenVectorColumnIndex=',eigenVectorColumnIndex
-                    !end if
-                    call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
-                                              eigenVectorColumnIndex, numRetainedEigen, &
-                                              nEns, vLocalize, &
-                                              modulationFactor_r4 )
+                do eigenVectorColumnIndex = 1, numRetainedEigen
+                  call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
+                                            eigenVectorColumnIndex, numRetainedEigen, &
+                                            nEns, vLocalize, &
+                                            modulationFactor_r4 )
+
+                  do memberIndex = 1, nEns
                     pert_r4 = modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) -  &
                                         meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
 
+                    ! Index of the modulated ensemble member corresponding to original
+                    ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
                     memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex
+
                     meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) =  &
                         meanInc_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) +  &
                         weightsMean(memberIndexInModEns,1,lonIndex,latIndex) * pert_r4
@@ -1368,28 +1364,27 @@ contains
 
               if ( numRetainedEigen > 0 ) then
                 do memberIndex2 = 1, nEns
-                  do memberIndex1 = 1, nEns
-                    do eigenVectorColumnIndex = 1, numRetainedEigen
+                  do eigenVectorColumnIndex = 1, numRetainedEigen
+                    call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
+                          eigenVectorColumnIndex, numRetainedEigen, &
+                          nEns, vLocalize, &
+                          modulationFactor_r4 )
 
-                      ! Index of the modulated ensemble member corresponding to original
-                      ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
-                      memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex1
-
-                      call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
-                                                eigenVectorColumnIndex, numRetainedEigen, &
-                                                nEns, vLocalize, &
-                                                modulationFactor_r4 )
-
+                    do memberIndex1 = 1, nEns
                       ! Compute background ensemble perturbations for the modulated ensemble (Xb_Mod)
                       pert_r4 = modulationFactor_r4 * ( memberTrl_ptr_r4(memberIndex1,stepIndex,lonIndex,latIndex) -  &
                                           meanTrl_ptr_r4(lonIndex,latIndex,varLevIndex,stepIndex) )
 
+                      ! Index of the modulated ensemble member corresponding to original
+                      ! ensemble member index (memberIndex1) and eigenVectorColumnIndex.
+                      memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex1
+                      
                       ! sum Xb_Mod * Wa over all modulated ensembles to get member perturbations for
                       !   original ensemble (memberIndex2)
                       memberAnlPert(memberIndex2) = memberAnlPert(memberIndex2) + &
                            weightsMembers(memberIndexInModEns,memberIndex2,lonIndex,latIndex) *  pert_r4
-                    end do ! eigenVectorIndex
-                  end do ! memberIndex1
+                    end do
+                  end do
 
                   ! Compute final member perturbations by removing background original ensemble perturbations
                   memberAnlPert(memberIndex2) = (memberTrl_ptr_r4(memberIndex2,stepIndex,lonIndex,latIndex) -  &
