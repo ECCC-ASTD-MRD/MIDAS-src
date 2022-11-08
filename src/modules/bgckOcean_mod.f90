@@ -338,7 +338,7 @@ module bgckOcean_mod
     integer            :: headerIndex, bodyIndex, stationIndex, bodyCount
     integer            :: obsChid, obsDate, obsTime, obsVarno, obsFlag
     integer            :: obsDateStamp
-    integer, parameter :: maxSwath = 10, maxPerSwath = 100000
+    integer, parameter :: maxSwath = 10, maxPerSwath = 200000
     integer            :: numberObs(maxSwath), bodyIndexList(maxPerSwath,maxSwath)
     integer            :: minDateStamp(maxSwath), maxDateStamp(maxSwath), swathID(maxSwath)
     real               :: rmsDiff(maxSwath)
