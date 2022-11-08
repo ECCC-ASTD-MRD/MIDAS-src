@@ -2107,7 +2107,7 @@ contains
       call utl_abort('tvs_fillProfiles')
     end if
 
-    write(*,*) 'tvs_fillProfiles: profileType is ', profileType
+    if ( .not. beSilent ) write(*,*) 'tvs_fillProfiles: profileType is ', profileType
 
     call tvs_getProfile(profiles, profileType, cld_profiles)
 
