@@ -2240,7 +2240,7 @@ contains
     end if
 
     ! Compute perturbation by subtracting ensMean
-    call gsv_copy(stateVector_in, stateVector_out)
+    call gsv_copy(stateVector_in, stateVector_out, beSilent_opt=beSilent)
     call gsv_add(stateVectorMeanTrl, stateVector_out, scaleFactor_opt=-1.0d0)
 
     lon1 = stateVector_out%myLonBeg

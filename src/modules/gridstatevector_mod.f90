@@ -1617,7 +1617,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   subroutine gsv_copy(statevector_in, statevector_out, stepIndexOut_opt, &
                       allowTimeMismatch_opt, allowVarMismatch_opt, &
-                      allowVcoMismatch_opt)
+                      allowVcoMismatch_opt, beSilent_opt)
     !
     ! :Purpose: Copies a statevector
     !
@@ -1630,9 +1630,11 @@ module gridStateVector_mod
     logical, optional, intent(in)    :: allowTimeMismatch_opt
     logical, optional, intent(in)    :: allowVarMismatch_opt
     logical, optional, intent(in)    :: allowVcoMismatch_opt
+    logical, optional, intent(in)    :: beSilent_opt
 
     ! Locals:
     logical            :: timeMismatch, allowVarMismatch, varMismatch, allowVcoMismatch
+    logical            :: beSilent
 
     integer :: stepIndex, lonIndex, kIndex, latIndex, levIndex, varIndex, numCommonVar 
     integer :: lon1, lon2, lat1, lat2, k1, k2, step1, step2, stepIn, nlev_in
@@ -1645,7 +1647,13 @@ module gridStateVector_mod
     character(len=10)             :: gsvCopyType 
     character(len=4), pointer     :: varNamesList_in(:), varNamesList_out(:)
 
-    if (present(allowVarMismatch_opt)) then
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+    
+    if ( present(allowVarMismatch_opt) ) then
       allowVarMismatch = allowVarMismatch_opt
     else
       allowVarMismatch = .false.
@@ -2031,7 +2039,7 @@ module gridStateVector_mod
     deallocate(varNameListCommon)
 
     ! Copy mask if it exists
-    call gsv_copyMask(statevector_in, statevector_out)
+    call gsv_copyMask(statevector_in, statevector_out, beSilent_opt=beSilent)
 
   end subroutine gsv_copy
 

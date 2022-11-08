@@ -445,7 +445,8 @@ program midas_letkf
         write(*,*) 'maziar: min(Psfc)=', minval(field_Psfc)
       end if
 
-      call gsv_copy(stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
+      call gsv_copy(stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+                    beSilent_opt=.true.)
       if (nwpFields) then
         call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
       end if
