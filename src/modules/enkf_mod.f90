@@ -2200,8 +2200,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine enkf_getModulatedState( stateVector_in, stateVectorMeanTrl, &
                                      vLocalizeLengthScale, numRetainedEigen, nEns, &
-                                     eigenVectorColumnIndex, beSilent, &
-                                     stateVector_out )
+                                     eigenVectorColumnIndex, stateVector_out, &
+                                     beSilent )
     !
     !:Purpose: Compute vertical localization matrix, and the corresponding
     !          eigenvectors/eigenvalues, to obtain modulated stateVector.
@@ -2215,8 +2215,8 @@ contains
     integer, intent(in) :: numRetainedEigen
     integer, intent(in) :: nEns
     integer, intent(in) :: eigenVectorColumnIndex
-    logical, intent(in) :: beSilent
     type(struct_gsv), intent(inout) :: stateVector_out
+    logical, intent(in) :: beSilent
 
     ! Locals:
     real(4)          :: modulationFactor_r4
