@@ -451,7 +451,8 @@ program midas_letkf
         call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
       end if
       call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                   timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
+                   timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
+                   beSilent_opt=.true. )
 
       ! Compute Y-H(X) in OBS_OMP
       call tmg_start(6,'LETKF-obsOperators')
