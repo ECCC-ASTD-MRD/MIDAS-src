@@ -477,7 +477,7 @@ contains
           bodyIndex = localBodyIndices(localObsIndex)
 
           call utl_tmg_start(185,'------YbTinvRYb1')
-          !!$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2, Yb_r4)
+          !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2, Yb_r4)
           do memberIndex2 = 1, nEnsUsed
             Yb_r4 = ensObsGain_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
             do memberIndex1 = 1, nEnsUsed
@@ -486,7 +486,7 @@ contains
                    YbTinvR(memberIndex1,localObsIndex) * Yb_r4
             end do
           end do
-          !!$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
           call utl_tmg_stop(185)
 
           ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
@@ -494,7 +494,7 @@ contains
                trim(algorithm) == 'LETKF-Gain-ME' ) then
             call utl_tmg_start(186,'------YbTinvRYb2')
             if (localObsIndex == 1) YbTinvRYb_mod(:,:) = 0.0D0
-            !!$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
+            !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2, Yb_r4)
             do memberIndex2 = 1, nEns
               Yb_r4 = ensObs_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
               do memberIndex1 = 1, nEnsUsed
@@ -503,7 +503,7 @@ contains
                      YbTinvR(memberIndex1,localObsIndex) * Yb_r4
               end do
             end do
-            !!$OMP END PARALLEL DO
+            !$OMP END PARALLEL DO
             call utl_tmg_stop(186)
           end if
 
