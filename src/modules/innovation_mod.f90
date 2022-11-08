@@ -494,9 +494,17 @@ contains
 
     call utl_tmg_start(10,'--Observations')
 
-    write(*,*)
-    write(*,*) '--Starting subroutine inn_computeInnovation--'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( .not. beSilent ) then
+      write(*,*)
+      write(*,*) '--Starting subroutine inn_computeInnovation--'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
 
     if ( present(filterObsAndInitOer_opt) ) then
       filterObsAndInitOer = filterObsAndInitOer_opt
@@ -514,12 +522,6 @@ contains
       destObsColumn = destObsColumn_opt
     else
       destObsColumn = obs_omp
-    end if
-
-    if ( present(beSilent_opt) ) then
-      beSilent = beSilent_opt
-    else
-      beSilent = .false.
     end if
 
     if ( present(callFiltTopo_opt) ) then
@@ -679,8 +681,10 @@ contains
     if ( .not.beSilent ) write(*,*) 'oti_timeBinning: After filtering done in inn_computeInnovation'
     if ( .not.beSilent ) call oti_timeBinning(obsSpaceData,tim_nstepobs)
 
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-    write(*,*) '--Done subroutine inn_computeInnovation--'
+    if ( .not. beSilent ) then
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+      write(*,*) '--Done subroutine inn_computeInnovation--'
+    end if
 
     call utl_tmg_stop(10)
 
