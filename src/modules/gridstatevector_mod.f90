@@ -2046,7 +2046,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_copyMask
   !--------------------------------------------------------------------------
-  subroutine gsv_copyMask(statevector_in,statevector_out)
+  subroutine gsv_copyMask(statevector_in,statevector_out,beSilent_opt)
     !
     ! :Purpose: Copy ocean mask, if it exists.
     !
@@ -2055,9 +2055,20 @@ module gridStateVector_mod
     ! Arguments:
     type(struct_gsv), intent(in)     :: statevector_in
     type(struct_gsv), intent(inout)  :: statevector_out
+    logical, optional, intent(in)    :: beSilent_opt
+
+    ! Locals:
+    logical :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
 
     ! Copy mask if it exists
-    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask)
+    call ocm_copyMask(statevector_in%oceanMask, statevector_out%oceanMask,&
+                      beSilent_opt=beSilent)
 
   end subroutine gsv_copyMask
 
@@ -3382,7 +3393,8 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_transposeTilesToVarsLevs
   !--------------------------------------------------------------------------
-  subroutine gsv_transposeTilesToVarsLevs(statevector_in, statevector_out)
+  subroutine gsv_transposeTilesToVarsLevs(statevector_in, statevector_out, &
+                                          beSilent_opt)
     !
     !:Purpose: Transposes the data from mpi_distribution=Tiles to VarsLevs
     !
@@ -3391,6 +3403,7 @@ module gridStateVector_mod
     ! Arguments:
     type(struct_gsv), intent(in)    :: statevector_in
     type(struct_gsv), intent(inout) :: statevector_out
+    logical, optional, intent(in)   :: beSilent_opt
 
     ! Locals:
     integer :: youridx, youridy, yourid, nsize, maxkcount, ierr, mpiTagUU, mpiTagVV
@@ -3402,9 +3415,18 @@ module gridStateVector_mod
     real(8), pointer     :: field_in_r8_ptr(:,:,:,:), field_out_r8_ptr(:,:,:,:)
     real(8), pointer     :: field_height_in_ptr(:,:), field_height_out_ptr(:,:)
     real(8), allocatable :: gd_send_height(:,:), gd_recv_height(:,:,:)
+    logical :: beSilent
 
-    call msg('gsv_transposeTilesToVarsLevs','START', verb_opt=2)
-    call msg_memUsage('gsv_transposeTilesToVarsLevs')
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+    
+    if ( .not. beSilent ) then
+      call msg('gsv_transposeTilesToVarsLevs','START', verb_opt=2)
+      call msg_memUsage('gsv_transposeTilesToVarsLevs')
+    end if
 
     if (statevector_in%mpi_distribution /= 'Tiles') then
       call utl_abort('gsv_transposeTilesToVarsLevs: input statevector must have Tiles mpi distribution') 
@@ -3678,10 +3700,12 @@ module gridStateVector_mod
     end if ! heightSfcPresent
 
     ! Copy over the mask, if it exists
-    call gsv_copyMask(statevector_in, statevector_out)
-
-    call msg('gsv_transposeTilesToVarsLevs','END', verb_opt=2)
-    call msg_memUsage('gsv_transposeTilesToVarsLevs')
+    call gsv_copyMask(statevector_in, statevector_out, beSilent_opt=beSilent)
+    
+    if ( .not. beSilent ) then
+      call msg('gsv_transposeTilesToVarsLevs','END', verb_opt=2)
+      call msg_memUsage('gsv_transposeTilesToVarsLevs')
+    end if
 
     if (sendrecvKind == 4) then
       call utl_tmg_stop(165)
