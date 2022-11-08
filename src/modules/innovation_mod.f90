@@ -552,7 +552,7 @@ contains
     if ( filterObsAndInitOer .and. callFiltTopo ) then
       call filt_topo(columnTrlOnTrlLev,obsSpaceData,beSilent)
     else
-      if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_topo'
+      if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'inn_computeInnovation: skip filt_topo'
     end if
    
     ! Remove surface station wind observations
@@ -560,7 +560,7 @@ contains
       if ( filterObsAndInitOer ) then
         call filt_surfaceWind(obsSpaceData, beSilent)
       else
-        if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind'
+        if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'inn_computeInnovation: skip filt_surfaceWind'
       end if
     end if
 
@@ -582,7 +582,7 @@ contains
     if ( filterObsAndInitOer ) then
       call oer_sw(columnTrlOnTrlLev,obsSpaceData)
     else
-      if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_sw'
+      if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'inn_computeInnovation: skip oer_sw'
     end if
     
     call oop_ppp_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'SW', destObsColumn)
@@ -599,7 +599,7 @@ contains
      ! Filter Radar for Doppler velocity
       call filt_radvel(columnTrlOnTrlLev, obsSpaceData, beSilent)
     else
-      if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_radvel'
+      if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'inn_computeInnovation: skip filt_radvel'
     end if
 
     call oop_raDvel_nl(columnTrlOnTrlLev,obsSpaceData, beSilent, 'RA', destObsColumn)  
@@ -613,7 +613,7 @@ contains
       call filt_backScatAnisIce(obsSpaceData, beSilent)
       call oer_setErrBackScatAnisIce(columnTrlOnTrlLev, obsSpaceData, beSilent)
     else
-      if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce'
+      if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce'
     end if
 
     call oop_ice_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, 'GL', destObsColumn)
@@ -642,7 +642,7 @@ contains
         call filt_gpsro(columnTrlOnTrlLev, obsSpaceData, beSilent)
         call oer_SETERRGPSRO(columnTrlOnTrlLev, obsSpaceData, beSilent)
       else
-        if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip filt_gpsro, and oer_SETERRGPSRO'
+        if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'inn_computeInnovation: skip filt_gpsro, and oer_SETERRGPSRO'
       end if
       call oop_gpsro_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, destObsColumn)
     end if
@@ -655,7 +655,7 @@ contains
       if ( CallSetErrGpsgb ) then
         call oer_SETERRGPSGB(columnTrlOnTrlLev, obsSpaceData, beSilent, lgpdata, analysisMode)
       else
-        if ( mmpi_myid == 0 ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB'
+        if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'inn_computeInnovation: skip oer_SETERRGPSGB'
       end if
       if (lgpdata) call oop_gpsgb_nl(columnTrlOnTrlLev, obsSpaceData, beSilent, &
                                      destObsColumn, analysisMode_opt=analysisMode)   
@@ -674,7 +674,7 @@ contains
 
     ! Compute Jo components and print
     call cfn_sumJo(obsSpaceData, Jo, beSilent_opt=beSilent)
-    if ( mmpi_myid == 0 ) write(*,'(a15,f25.17)') 'Total Jo = ',Jo
+    if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,'(a15,f25.17)') 'Total Jo = ',Jo
 
     if ( .not.beSilent ) write(*,*) 'oti_timeBinning: After filtering done in inn_computeInnovation'
     if ( .not.beSilent ) call oti_timeBinning(obsSpaceData,tim_nstepobs)
