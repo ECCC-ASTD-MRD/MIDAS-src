@@ -62,7 +62,6 @@ module enkf_mod
   end type struct_enkfInterpInfo
 
   integer, external :: get_max_rss
-  logical :: debug
 
 contains
 
@@ -2201,8 +2200,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine enkf_getModulatedState( stateVector_in, stateVectorMeanTrl, &
                                      vLocalizeLengthScale, numRetainedEigen, nEns, &
-                                     eigenVectorColumnIndex, &
-                                     stateVector_out, debug_opt )
+                                     eigenVectorColumnIndex, beSilent, &
+                                     stateVector_out )
     !
     !:Purpose: Compute vertical localization matrix, and the corresponding
     !          eigenvectors/eigenvalues, to obtain modulated stateVector.
@@ -2216,8 +2215,8 @@ contains
     integer, intent(in) :: numRetainedEigen
     integer, intent(in) :: nEns
     integer, intent(in) :: eigenVectorColumnIndex
+    logical, intent(in) :: beSilent
     type(struct_gsv), intent(inout) :: stateVector_out
-    logical, optional   :: debug_opt
 
     ! Locals:
     real(4)          :: modulationFactor_r4
@@ -2229,7 +2228,7 @@ contains
 
     character(len=4) :: varName
 
-    write(*,*) 'enkf_getModulatedState: START'
+    if ( .not. beSilent ) write(*,*) 'enkf_getModulatedState: START'
 
     if ( stateVector_in%dataKind /= 4 ) then
       call utl_abort('enkf_getModulatedState: only dataKind=4 is implemented')
@@ -2238,12 +2237,6 @@ contains
     nLev = stateVector_in%vco%nLev_M
     if ( vLocalizeLengthScale <= 0.0d0 .or. nLev <= 1 ) then
       call utl_abort('enkf_getModulatedState: no vertical localization')
-    end if
-
-    if ( present(debug_opt) ) then
-      debug = debug_opt
-    else
-      debug = .false.
     end if
 
     ! Compute perturbation by subtracting ensMean
@@ -2297,7 +2290,7 @@ contains
     ! v_k = v'_k + v_mean
     call gsv_add(stateVectorMeanTrl, stateVector_out)
 
-    write(*,*) 'enkf_getModulatedState: END'
+    if ( .not. beSilent ) write(*,*) 'enkf_getModulatedState: END'
 
   end subroutine enkf_getModulatedState
 

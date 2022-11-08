@@ -437,8 +437,8 @@ program midas_letkf
       ! modulate the member with eigenvectors of vertical localization matrix
       call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
                                    vLocalize, numRetainedEigen, nEns, &
-                                   eigenVectorIndex, &
-                                   stateVector4Dmod, debug_opt=debug )
+                                   eigenVectorIndex, beSilent=.true., &
+                                   stateVector4Dmod )
       if ( debug ) then
         call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
         write(*,*) 'maziar: max(Psfc)=', maxval(field_Psfc)
