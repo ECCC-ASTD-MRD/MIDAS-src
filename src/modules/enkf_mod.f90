@@ -2273,7 +2273,7 @@ contains
               call getModulationFactor( stateVector_in%vco, eigenVectorLevelIndex, &
                                         eigenVectorColumnIndex, numRetainedEigen, &
                                         nEns, vLocalizeLengthScale, &
-                                        modulationFactor_r4 )
+                                        modulationFactor_r4, beSilent_opt=beSilent )
 
               field_out_r4(lonIndex,latIndex,levIndex,stepIndex) = &
                                  field_out_r4(lonIndex,latIndex,levIndex,stepIndex) * &
@@ -2300,7 +2300,7 @@ contains
   subroutine getModulationFactor( vco, eigenVectorLevelIndex, &
                                   eigenVectorColumnIndex, numRetainedEigen, &
                                   nEns, vLocalizeLengthScale, &
-                                  modulationFactor_r4 )
+                                  modulationFactor_r4, beSilent_opt )
     !
     !:Purpose: compute modulation factor needed to multiply ensemble
     !          perturbation to get the modulated perturbation:
@@ -2316,6 +2316,7 @@ contains
     integer, intent(in) :: nEns
     real(8), intent(in) :: vLocalizeLengthScale
     real(4), intent(out) :: modulationFactor_r4
+    logical, intent(in), optional :: beSilent_opt
 
     ! Locals:
     integer             :: levIndex1, levIndex2, eigenIndex, status
@@ -2328,15 +2329,24 @@ contains
     real(8), allocatable, save :: verticalLocalizationMat(:,:)
     real(8), allocatable, save :: verticalLocalizationMatLowRank(:,:)
     real(4), allocatable, save :: modulationFactorArray_r4(:,:)
+    logical :: beSilent
 
     logical, save :: firstCall = .true.
 
     call utl_tmg_start(108,'------getModulationFactor')
 
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
     ! Compute vertical localization matrix and its eigenValues/Vectors on first call
     if ( firstCall ) then
       firstCall = .false.
-      write(*,*) 'getModulationFactor: computing eigenValues/Vectors'
+      if ( mpi_myid == 0 .and. .not. beSilent ) then
+        write(*,*) 'getModulationFactor: computing eigenValues/Vectors'
+      end if
 
       nLev_M = vco%nLev_M
       nLev_depth = vco%nlev_depth
@@ -2403,7 +2413,7 @@ contains
         end do
       end do
 
-      if (mpi_myid == 0) then
+      if ( mpi_myid == 0 .and. .not. beSilent ) then
         do levIndex1 = 1, numRetainedEigen
           write(*,*) 'getModulationFactor: eigen mode=', levIndex1, ', eigenVectors=', eigenVectors(:,levIndex1)
         end do
