@@ -406,11 +406,12 @@ program midas_letkf
 
     write(*,*) ''
     write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
-    write(*,*) ''
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     ! copy 1 member to a stateVector
     call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
-    call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true.)
+    call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+                  beSilent_opt=.true.)
 
     ! copy the surface height field
     if (nwpFields) then
@@ -419,7 +420,8 @@ program midas_letkf
 
     ! Compute and set Yb in ensObs
     call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                 timeInterpType=obsTimeInterpType, dealloc_opt=.false. )
+                 timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
+                 beSilent_opt=.true. )
 
     ! Compute Y-H(X) in OBS_OMP
     call tmg_start(6,'LETKF-obsOperators')
@@ -432,7 +434,7 @@ program midas_letkf
     ! Compute and set Yb in ensObsGain
     do eigenVectorIndex = 1, numRetainedEigen
       if ( mpi_myid == 0 ) then
-        write(*,*) 'midas-letkf: computing modulated member ', &
+        write(*,*) 'midas-letkf: apply nonlinear H to modulated member ', &
                    eigenVectorIndex, '/', numRetainedEigen
       end if
 
