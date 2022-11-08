@@ -144,7 +144,7 @@ contains
 
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
-    real(4)              :: pert_r4
+    real(4)              :: pert_r4, Yb_r4
 
     character(len=4)     :: varLevel
     character(len=2)     :: varKind
@@ -478,12 +478,13 @@ contains
           bodyIndex = localBodyIndices(localObsIndex)
 
           call utl_tmg_start(185,'------YbTinvRYb1')
-          !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
+          !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2, Yb_r4)
           do memberIndex2 = 1, nEnsUsed
+            Yb_r4 = ensObsGain_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
             do memberIndex1 = 1, nEnsUsed
               YbTinvRYb(memberIndex1,memberIndex2) =  &
                    YbTinvRYb(memberIndex1,memberIndex2) +  &
-                   YbTinvR(memberIndex1,localObsIndex) * ensObsGain_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
+                   YbTinvR(memberIndex1,localObsIndex) * Yb_r4
             end do
           end do
           !$OMP END PARALLEL DO
@@ -494,12 +495,13 @@ contains
                trim(algorithm) == 'LETKF-Gain-ME' ) then
             call utl_tmg_start(186,'------YbTinvRYb2')
             if (localObsIndex == 1) YbTinvRYb_mod(:,:) = 0.0D0
-            !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
+            !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2, Yb_r4)
             do memberIndex2 = 1, nEns
+              Yb_r4 = ensObs_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
               do memberIndex1 = 1, nEnsUsed
                 YbTinvRYb_mod(memberIndex1,memberIndex2) =  &
                      YbTinvRYb_mod(memberIndex1,memberIndex2) +  &
-                     YbTinvR(memberIndex1,localObsIndex) * ensObs_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
+                     YbTinvR(memberIndex1,localObsIndex) * Yb_r4
               end do
             end do
             !$OMP END PARALLEL DO
@@ -1137,6 +1139,7 @@ contains
                 weightsTemp(:) = 0.0d0
                 do localObsIndex = 1, numLocalObs
                   bodyIndex = localBodyIndices(localObsIndex)
+                  Yb_r4 = ensObs_mpiglobal%Yb_r4(memberIndex,bodyIndex)
                   do memberIndexCV1 = 1, nEnsIndependentPerSubEns
                     memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
                     weightsTemp(memberIndexCV1) =  & 
@@ -1144,8 +1147,7 @@ contains
                          YbTinvR(memberIndex1,localObsIndex) *  &
                          ( ensObs_mpiglobal%obsValue(bodyIndex) +  &
                            ensObs_mpiglobal%randPert_r4(memberIndex,bodyIndex) -  &
-                           ( ensObs_mpiglobal%meanYb(bodyIndex) +  &
-                             ensObs_mpiglobal%Yb_r4(memberIndex,bodyIndex) ) )
+                           ( ensObs_mpiglobal%meanYb(bodyIndex) + Yb_r4 ) )
                   end do
                 end do
 
