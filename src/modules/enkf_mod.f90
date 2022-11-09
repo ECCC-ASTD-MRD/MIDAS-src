@@ -477,7 +477,7 @@ contains
           bodyIndex = localBodyIndices(localObsIndex)
 
           call utl_tmg_start(185,'------YbTinvRYb1')
-          !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2) collapse(2)
+          !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEnsUsed
             do memberIndex1 = 1, nEnsUsed
               YbTinvRYb(memberIndex1,memberIndex2) =  &
