@@ -475,7 +475,6 @@ contains
         YbTinvRYb(:,:) = 0.0D0
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
-
           call utl_tmg_start(185,'------YbTinvRYb1')
           !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEnsUsed
@@ -487,25 +486,28 @@ contains
           end do
           !$OMP END PARALLEL DO
           call utl_tmg_stop(185)
+        end do
 
-          ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
-          if ( trim(algorithm) == 'CVLETKF-ME' .or. &
-               trim(algorithm) == 'LETKF-Gain-ME' ) then
+
+        ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
+        if ( trim(algorithm) == 'CVLETKF-ME' .or. &
+              trim(algorithm) == 'LETKF-Gain-ME' ) then
+          do localObsIndex = 1, numLocalObs
+            bodyIndex = localBodyIndices(localObsIndex)
             call utl_tmg_start(186,'------YbTinvRYb2')
             if (localObsIndex == 1) YbTinvRYb_mod(:,:) = 0.0D0
             !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
             do memberIndex2 = 1, nEns
               do memberIndex1 = 1, nEnsUsed
                 YbTinvRYb_mod(memberIndex1,memberIndex2) =  &
-                     YbTinvRYb_mod(memberIndex1,memberIndex2) +  &
-                     YbTinvR(memberIndex1,localObsIndex) * ensObs_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
+                    YbTinvRYb_mod(memberIndex1,memberIndex2) +  &
+                    YbTinvR(memberIndex1,localObsIndex) * ensObs_mpiglobal%Yb_r4(memberIndex2, bodyIndex)
               end do
             end do
             !$OMP END PARALLEL DO
             call utl_tmg_stop(186)
-          end if
-
-        end do ! localObsIndex
+          end do
+        end if
         call utl_tmg_stop(105)
 
         ! Rest of the computation of local weights for this grid point
