@@ -3820,15 +3820,6 @@ end subroutine bennartz
                                               MXCLWREJ, chanFlaggedForAllskyGenCoeff, icano)
 
     !###############################################################################
-    ! STEP 7) If MODLSQ activated, replace the land qualifier and the terrain type
-    !         indices by the values calculated internally.
-
-    if ( modLSQ ) then
-      call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, lsq(1))
-      call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, trn(1))
-    end if
-
-    !###############################################################################
     ! PART 2 TESTS:
     !###############################################################################
 
@@ -4032,7 +4023,7 @@ end subroutine bennartz
     if (instName == 'ATMS') readGlaceMask = .False.
     if(ifFirstCall) then
       IUNGEO = 0
-      IER = FNOM(IUNGEO,'trlm_01','STD+RND+R/O',0)
+      IER = FNOM(IUNGEO,fileMgLg,'STD+RND+R/O',0)
 
       ! 3) Lecture des champs geophysiques (MF/MX) du modele
       IER = FSTOUV(IUNGEO,'RND')
