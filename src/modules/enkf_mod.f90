@@ -200,8 +200,8 @@ contains
     allocate(localBodyIndices(maxNumLocalObs))
     allocate(distances(maxNumLocalObs))
     allocate(YbTinvR(nEnsUsed,maxNumLocalObs))
-    allocate(YbTinvRCopy(maxNumLocalObs,nEnsUsed))
-    allocate(YbCopy(maxNumLocalObs,nEnsUsed))
+    allocate(YbTinvRCopy(nEnsUsed,maxNumLocalObs))
+    allocate(YbCopy(nEnsUsed,maxNumLocalObs))
     allocate(YbTinvRYb(nEnsUsed,nEnsUsed))
     if ( trim(algorithm) == 'CVLETKF-ME' .or. &
          trim(algorithm) == 'LETKF-Gain-ME' ) then
@@ -478,25 +478,25 @@ contains
         YbTinvRYb(:,:) = 0.0D0
         ! make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4
         call utl_tmg_start(187,'------YbArraysCopy')
+        YbCopy(:,:) = 0.0
+        YbTinvRCopy(:,:) = 0.0d0
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
           do memberIndex2 = 1, nEnsUsed
-            YbCopy(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
-            YbTinvRCopy(localObsIndex,memberIndex2) = YbTinvR(memberIndex2,localObsIndex)
+            YbCopy(memberIndex2,localObsIndex) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
+            YbTinvRCopy(memberIndex2,localObsIndex) = YbTinvR(memberIndex2,localObsIndex)
           end do
         end do
         call utl_tmg_stop(187)
 
         YbTinvRYb(:,:) = 0.0D0
         call utl_tmg_start(185,'------YbTinvRYb1')
-        !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2, localObsIndex)
+        !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
         do memberIndex2 = 1, nEnsUsed
           do memberIndex1 = 1, nEnsUsed
-            do localObsIndex = 1, numLocalObs
-              YbTinvRYb(memberIndex1,memberIndex2) =  &
-                  YbTinvRYb(memberIndex1,memberIndex2) +  &
-                  YbTinvRCopy(localObsIndex,memberIndex1) * YbCopy(localObsIndex,memberIndex2)
-            end do
+            YbTinvRYb(memberIndex1,memberIndex2) =  &
+                YbTinvRYb(memberIndex1,memberIndex2) +  &
+                sum(YbTinvRCopy(memberIndex1,1:numLocalObs) * YbCopy(memberIndex2,1:numLocalObs))
           end do
         end do
         !$OMP END PARALLEL DO
