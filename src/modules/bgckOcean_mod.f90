@@ -237,8 +237,8 @@ module bgckOcean_mod
         if (obsVarno == bufr_sst) then
 
 	  FGE = col_getElem(columnFGE, 1, headerIndex, 'TM')
-	  OmP = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex)
-          OER = obs_bodyElem_r(obsData, OBS_OER , bodyIndex)
+	  OmP = obs_bodyElem_r(obsData, OBS_OMP, bodyIndex)
+          OER = obs_bodyElem_r(obsData, OBS_OER, bodyIndex)
 	  codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
 
 	  if (FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8) then
@@ -375,125 +375,115 @@ module bgckOcean_mod
 
     STATION: do stationIndex = 1, numStation
 
-        call msg('ocebg_bgCheckSeaIce', 'doing idStation: '//idStation(stationIndex))
+      call msg('ocebg_bgCheckSeaIce', 'doing idStation: '//idStation(stationIndex))
 
-        if (idStation(stationIndex) /= 'null') then
+      if (idStation(stationIndex) == 'null') cycle STATION
 
-        numberObs(:) = 0
-        rmsDiff(:) = 0.0
-        minDateStamp(:) = tim_getDatestamp()
-        maxDateStamp(:) = tim_getDatestamp()
-        nSwath = 0
+      numberObs(:) = 0
+      rmsDiff(:) = 0.0
+      minDateStamp(:) = tim_getDatestamp()
+      maxDateStamp(:) = tim_getDatestamp()
+      nSwath = 0
 
-        HEADER: do headerIndex = 1, obs_numheader(obsData)
+      HEADER: do headerIndex = 1, obs_numheader(obsData)
 
-          cstnid = obs_elem_c(obsData, 'STID' , headerIndex )
-          bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
+        cstnid = obs_elem_c(obsData, 'STID' , headerIndex )
+        bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
 
-!!$          obsVarno = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
-!!$
-!!$          if (obsVarno == BUFR_ICEC) then
+        obsFlag = obs_bodyElem_i(obsData, OBS_FLG, bodyIndex)
 
-          obsFlag = obs_bodyElem_i(obsData, OBS_FLG, bodyIndex)
+        if ( (cstnid /= idStation(stationIndex)) .or. &
+             (obsFlag /= 0 .and. cstnid /= 'CIS_REGIONAL') ) cycle HEADER
 
-          if ( (cstnid == idStation(stationIndex)) .and. &
-               (obsFlag == 0 .or. cstnid == 'CIS_REGIONAL') ) then
+        obsChid = obs_headElem_i(obsData, obs_chid, headerIndex)
+        obsDate = obs_headElem_i(obsData, OBS_DAT, headerIndex)
+        obsTime = obs_headElem_i(obsData, OBS_ETM, headerIndex)
 
-            obsChid = obs_headElem_i(obsData, obs_chid, headerIndex)
-            obsDate = obs_headElem_i(obsData, OBS_DAT, headerIndex)
-            obsTime = obs_headElem_i(obsData, OBS_ETM, headerIndex)
+        imode = 3 ! printable to stamp
+        ierr = newdate(obsDateStamp, obsDate, obsTime*10000, imode)
 
-            imode = 3 ! printable to stamp
-            ierr = newdate(obsDateStamp, obsDate, obsTime*10000, imode)
+        do swathIndex=1, nSwath
 
-            do swathIndex=1, nSwath
+          if(obsDateStamp <= maxDateStamp(swathIndex) .and. &
+             obsDateStamp >= minDateStamp(swathIndex) .and. &
+             obsChid == swathID(swathIndex)) exit
 
-              if(obsDateStamp <= maxDateStamp(swathIndex) .and. &
-                 obsDateStamp >= minDateStamp(swathIndex) .and. &
-                 obsChid == swathID(swathIndex)) exit
-
-              call difdatr(obsDateStamp, minDateStamp(swathIndex), deltaHours)
+          call difdatr(obsDateStamp, minDateStamp(swathIndex), deltaHours)
             
-              if(abs(deltaHours) <= 0.5d0 .and. obsChid == swathID(swathIndex)) exit
-
-            end do
-
-            nSwath = max(nSwath, swathIndex)
-
-            if(swathIndex <= maxSwath) then
-
-              if(numberObs(swathIndex) == 0) then
-                minDateStamp(swathIndex) = obsDateStamp
-                maxDateStamp(swathIndex) = obsDateStamp
-              else
-                minDateStamp(swathIndex) = min(minDateStamp(swathIndex), obsDateStamp)
-                maxDateStamp(swathIndex) = max(maxDateStamp(swathIndex), obsDateStamp)
-              end if
-
-              swathID(swathIndex) = obsChid
-
-              OmP = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex)
-
-              if (OmP /= MPC_missingValue_R8) then
-
-                numberObs(swathIndex) = numberObs(swathIndex) + 1
-                rmsDiff(swathIndex) = rmsDiff(swathIndex) + (OmP)**2
-                if (numberObs(swathIndex) <= maxPerSwath) then
-                  bodyIndexList(numberObs(swathIndex), swathIndex) = bodyIndex
-                else
-                  call utl_abort('ocebg_bgCheckSeaIce: Increase maxPerSwath')
-                end if
-
-              end if
-
-            else
-
-              call utl_abort('ocebg_bgCheckSeaIce: Increase maxSwath')
-
-            end if
-
-          end if
-
-!!$            end if
-
-        end do HEADER
-
-        do swathIndex = 1, maxSwath
-
-          if (numberObs(swathIndex) > 0) then
-
-            rmsDiff(swathIndex) = sqrt(rmsDiff(swathIndex)/numberObs(swathIndex))
-
-            call msg('ocebg_bgCheckSeaIce', 'swathIndex = '//str(swathIndex))
-            call msg('ocebg_bgCheckSeaIce', 'Timespan:')
-            imode = -3 ! stamp to printable
-            ierr = newdate(minDateStamp(swathIndex), prntdate, prnttime, imode)
-            call msg('ocebg_bgCheckSeaIce', 'From: '//str(prntdate)//str(prnttime/100))
-            ierr = newdate(maxDateStamp(swathIndex), prntdate, prnttime, imode)
-            call msg('ocebg_bgCheckSeaIce', 'To  : '//str(prntdate)//str(prnttime/100))
-
-            write(*,'(a,f10.4)') 'ocebg_bgCheckSeaIce: RMSD = ', rmsDiff(swathIndex)
-            write(*,'(a,i10)') 'ocebg_bgCheckSeaIce: nobs = ', numberObs(swathIndex)
-
-            if (rmsDiff(swathIndex) > OmpRmsdThresh(stationIndex)) then
-
-              numberObsRejected = 0
-              do bodyCount = 1, numberObs(swathIndex)
-                numberObsRejected = numberObsRejected + 1
-                ! update background check flag
-                call obs_bodySet_i(obsData, obs_flg, bodyIndexList(bodyCount,swathIndex), ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndexList(bodyCount,swathIndex)), 10))
-              end do
-
-	      write(*,'(a,i7,a)')'ocebg_bgCheckSeaIce: ********** reject: ', numberObsRejected, &
-                                    ' '//idStation(stationIndex)//' data'
-
-            end if
-
-          end if
+          if(abs(deltaHours) <= 0.5d0 .and. obsChid == swathID(swathIndex)) exit
 
         end do
 
-      end if
+        nSwath = max(nSwath, swathIndex)
+
+        if(swathIndex <= maxSwath) then
+
+          if(numberObs(swathIndex) == 0) then
+            minDateStamp(swathIndex) = obsDateStamp
+            maxDateStamp(swathIndex) = obsDateStamp
+          else
+            call difdatr(obsDateStamp, minDateStamp(swathIndex), deltaHours)
+            if(deltaHours < 0.0d0) minDateStamp(swathIndex) = obsDateStamp
+            call difdatr(obsDateStamp, maxDateStamp(swathIndex), deltaHours)
+            if(deltaHours > 0.0d0) maxDateStamp(swathIndex) = obsDateStamp
+          end if
+
+          swathID(swathIndex) = obsChid
+
+          OmP = obs_bodyElem_r(obsData, OBS_OMP, bodyIndex)
+
+          if (OmP /= MPC_missingValue_R8) then
+
+            numberObs(swathIndex) = numberObs(swathIndex) + 1
+            rmsDiff(swathIndex) = rmsDiff(swathIndex) + (OmP)**2
+            if (numberObs(swathIndex) <= maxPerSwath) then
+              bodyIndexList(numberObs(swathIndex), swathIndex) = bodyIndex
+            else
+              call utl_abort('ocebg_bgCheckSeaIce: Increase maxPerSwath')
+            end if
+
+          end if
+
+        else
+
+          call utl_abort('ocebg_bgCheckSeaIce: Increase maxSwath')
+
+        end if
+
+      end do HEADER
+
+      SWATH: do swathIndex = 1, maxSwath
+
+        if (numberObs(swathIndex) == 0) cycle SWATH
+
+        rmsDiff(swathIndex) = sqrt(rmsDiff(swathIndex)/numberObs(swathIndex))
+
+        call msg('ocebg_bgCheckSeaIce', 'swathIndex = '//str(swathIndex))
+        call msg('ocebg_bgCheckSeaIce', 'Timespan:')
+        imode = -3 ! stamp to printable
+        ierr = newdate(minDateStamp(swathIndex), prntdate, prnttime, imode)
+        call msg('ocebg_bgCheckSeaIce', 'From: '//str(prntdate)//str(prnttime/100))
+        ierr = newdate(maxDateStamp(swathIndex), prntdate, prnttime, imode)
+        call msg('ocebg_bgCheckSeaIce', 'To  : '//str(prntdate)//str(prnttime/100))
+
+        write(*,'(a,f10.4)') 'ocebg_bgCheckSeaIce: RMSD = ', rmsDiff(swathIndex)
+        write(*,'(a,i10)') 'ocebg_bgCheckSeaIce: nobs = ', numberObs(swathIndex)
+
+        if (rmsDiff(swathIndex) > OmpRmsdThresh(stationIndex)) then
+
+          numberObsRejected = 0
+          do bodyCount = 1, numberObs(swathIndex)
+            numberObsRejected = numberObsRejected + 1
+            ! update background check flag
+            call obs_bodySet_i(obsData, obs_flg, bodyIndexList(bodyCount,swathIndex), ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndexList(bodyCount,swathIndex)), 10))
+          end do
+
+          write(*,'(a,i7,a)')'ocebg_bgCheckSeaIce: ********** reject: ', numberObsRejected, &
+                                    ' '//idStation(stationIndex)//' data'
+
+        end if
+
+      end do SWATH
 
     end do STATION
 
