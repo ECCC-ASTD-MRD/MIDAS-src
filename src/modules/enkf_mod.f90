@@ -491,15 +491,23 @@ contains
 
         YbTinvRYb(:,:) = 0.0D0
         call utl_tmg_start(185,'------YbTinvRYb1')
-        !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
-        do memberIndex2 = 1, nEnsUsed
-          do memberIndex1 = 1, nEnsUsed
-            YbTinvRYb(memberIndex1,memberIndex2) =  &
-                YbTinvRYb(memberIndex1,memberIndex2) +  &
-                sum(YbTinvRCopy(1:numLocalObs,memberIndex1) * YbCopy(1:numLocalObs,memberIndex2))
-          end do
-        end do
-        !$OMP END PARALLEL DO
+        !!$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
+        !do memberIndex2 = 1, nEnsUsed
+        !  do memberIndex1 = 1, nEnsUsed
+        !    YbTinvRYb(memberIndex1,memberIndex2) =  &
+        !        YbTinvRYb(memberIndex1,memberIndex2) +  &
+        !        sum(YbTinvRCopy(1:numLocalObs,memberIndex1) * YbCopy(1:numLocalObs,memberIndex2))
+        !  end do
+        !end do
+        !!$OMP END PARALLEL DO
+        call dgemm( &
+          'T','N', &
+          nEnsUsed,nEnsUsed,numLocalObs, &
+          1.0d0, &
+          YbTinvRCopy,numLocalObs, &
+          YbCopy,numLocalObs, &
+          0.0d0, &
+          YbTinvRYb,nEnsUsed)
         call utl_tmg_stop(185)
 
         ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
