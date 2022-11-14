@@ -200,8 +200,8 @@ contains
     allocate(localBodyIndices(maxNumLocalObs))
     allocate(distances(maxNumLocalObs))
     allocate(YbTinvR(nEnsUsed,maxNumLocalObs))
-    allocate(YbTinvRCopy(nEnsUsed,maxNumLocalObs))
-    allocate(YbCopy(nEnsUsed,maxNumLocalObs))
+    allocate(YbTinvRCopy(maxNumLocalObs,nEnsUsed))
+    allocate(YbCopy(maxNumLocalObs,nEnsUsed))
     allocate(YbTinvRYb(nEnsUsed,nEnsUsed))
     if ( trim(algorithm) == 'CVLETKF-ME' .or. &
          trim(algorithm) == 'LETKF-Gain-ME' ) then
@@ -483,8 +483,8 @@ contains
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
           do memberIndex2 = 1, nEnsUsed
-            YbCopy(memberIndex2,localObsIndex) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
-            YbTinvRCopy(memberIndex2,localObsIndex) = YbTinvR(memberIndex2,localObsIndex)
+            YbCopy(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
+            YbTinvRCopy(localObsIndex,memberIndex2) = YbTinvR(memberIndex2,localObsIndex)
           end do
         end do
         call utl_tmg_stop(187)
@@ -496,7 +496,7 @@ contains
           do memberIndex1 = 1, nEnsUsed
             YbTinvRYb(memberIndex1,memberIndex2) =  &
                 YbTinvRYb(memberIndex1,memberIndex2) +  &
-                sum(YbTinvRCopy(memberIndex1,1:numLocalObs) * YbCopy(memberIndex2,1:numLocalObs))
+                sum(YbTinvRCopy(1:numLocalObs,memberIndex1) * YbCopy(1:numLocalObs,memberIndex2))
           end do
         end do
         !$OMP END PARALLEL DO
