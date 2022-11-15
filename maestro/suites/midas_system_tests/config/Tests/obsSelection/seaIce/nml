@@ -1,0 +1,80 @@
+ &NAMTIME
+  DSTEPOBS = 6.0d0
+  DSTEPOBSINC = 6.0d0
+/
+ &NAMSTATE
+  ANLVAR(1) = 'GL'
+/
+ &NAMDIMO
+   NMXOBS  = 1000000
+   NDATAMX = 1000000
+/
+ &NAMFILT
+  NELEMS = 4
+  NLIST(1) = 20222
+  NLIST(2) = 20237
+  NLIST(3) = 21169
+  NLIST(4) = 21199
+  NFLAGS = 9
+  NLISTFLG(1) = -4
+  NLISTFLG(2) = -2
+  NLISTFLG(3) = -1
+  NLISTFLG(4) = 0
+  NLISTFLG(5) = 3
+  NLISTFLG(6) = 6
+  NLISTFLG(7) = 7
+  NLISTFLG(8) = 10
+  NLISTFLG(9) = 11
+/
+ &namPlatformIce
+  nPlatformIce = 8
+  listPlatformIce(1) = 'DMSP'
+  listPlatformIce(2) = 'GCOM-W1'
+  listPlatformIce(3) = 'METOP-1'
+  listPlatformIce(4) = 'METOP-2'
+  listPlatformIce(5) = 'CIS_DAILY'
+  listPlatformIce(6) = 'RS1_IMG'
+  listPlatformIce(7) = 'CIS_REGIONAL'
+  listPlatformIce(8) = 'iceclake'
+/
+ &NAMSQLgl
+  numberElem=4
+  listElem="20222,20237,21169,21199"
+  sqlNull=" and obsvalue is not null "
+/
+ &namSQLUpdate
+ numberUpdateItems=4
+ itemUpdateList(1)='OMP'
+ itemUpdateList(2)='OMA'
+ itemUpdateList(3)='OER'
+ itemUpdateList(4)='FGE'
+/
+ &namSQLInsert
+/
+ &NAMCODTYP
+/
+ &NAMICEBGCHECK
+ numStation = 11
+ idStation(1) = 'CIS_DAILY'
+ idStation(2) = 'RS1_IMG'
+ idStation(3) = 'CIS_REGIONAL'
+ idStation(4) = 'DMSP15'
+ idStation(5) = 'DMSP16'
+ idStation(6) = 'DMSP17'
+ idStation(7) = 'DMSP18'
+ idStation(8) = 'GCOM-W1'
+ idStation(9) = 'METOP-1'
+ idStation(10) = 'METOP-2'
+ idStation(11) = 'iceclake'
+ OmpRmsdThresh(1) = 38.0
+ OmpRmsdThresh(2) = 70.0
+ OmpRmsdThresh(3) = 60.0
+ OmpRmsdThresh(4) = 60.0
+ OmpRmsdThresh(5) = 60.0
+ OmpRmsdThresh(6) = 60.0
+ OmpRmsdThresh(7) = 60.0
+ OmpRmsdThresh(8) = 60.0
+ OmpRmsdThresh(9) = 10.0
+ OmpRmsdThresh(10) = 10.0
+ OmpRmsdThresh(11) = 95.0
+/

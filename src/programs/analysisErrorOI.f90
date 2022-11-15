@@ -99,6 +99,12 @@ program midas_analysisErrorOI
   !
   if (mmpi_myid == 0) call mpc_printConstants(6)
 
+  !
+  !- Initialize list of analyzed variables.
+  !
+  call gsv_setup
+  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
   trlmFileName = './trlm_01'
 
   !
@@ -146,12 +152,6 @@ program midas_analysisErrorOI
   !- Initialize the observation error covariances
   !
   call oer_setObsErrors(obsSpaceData, varMode) ! IN
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-  !
-  !- Initialize list of analyzed variables.
-  !
-  call gsv_setup
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Sea ice concentration

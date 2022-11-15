@@ -177,6 +177,50 @@ EOF
     fi
 elif [ "${filetype}" = SQLite ]; then
     rdbout=${fam}.obs
+
+    if [ "${splitobs_mode}" = 'conflict' ]; then
+
+	# Increment the header table primary key (id_obs) to avoid conflict in the final merge file.
+
+	# Find largest id_obs and id_data
+
+	max_id_obs=0
+	max_id_data=0
+	for file in ${files}; do
+	    echo $file
+	    id_data=$(echo "select max(id_data) from data;" | ${sqlite3_cmd} ${file})
+	    id_obs=$(echo "select max(id_obs) from header;" | ${sqlite3_cmd} ${file})
+
+	    if [ "${id_data}" -gt ${max_id_data} ]; then
+		max_id_data=${id_data}
+	    fi
+	    if [ "${id_obs}" -gt ${max_id_obs} ]; then
+		max_id_obs=${id_obs}
+	    fi
+	done
+
+	# Increment the header table primary key (id_obs).
+
+	nfiles=0
+	for file in ${files}; do
+
+            nfiles=$((nfiles+1))
+	    inc_id_obs=$((max_id_obs * nfiles))
+	    inc_id_data=$((max_id_data * nfiles))
+
+	    echo "update header set id_obs=${inc_id_obs}+id_obs ; update data   set id_obs=${inc_id_obs}+id_obs ; update data   set id_data=${inc_id_data}+id_data ;" | ${sqlite3_cmd} $file
+
+	    if [[ "${fam}" = gl_cis* ]]; then
+
+		echo "alter table header ADD COLUMN chartIndex INTEGER;" | ${sqlite3_cmd} $file
+		echo "update header set chartIndex=${nfiles};" | ${sqlite3_cmd} $file
+
+	    fi
+
+	done
+
+    fi ## End of 'if [ "${splitobs_mode}" = 'conflict' ]'
+
     ## on copie le schema de la base de donnees
     ${echo_cmd} .schema | ${sqlite3_cmd} ${bfile} | ${sqlite3_cmd} ${rdbout}
 
@@ -272,7 +316,9 @@ fi
 if [[ "${fam}" = *.updated ]]; then
     ${cp_cmd} ${fam}.obs ${obsout}/$(${echo_cmd} ${fam} | ${sed_cmd} 's/\.updated$//')
 else
-    ${cp_cmd} ${fam}.obs ${obsout}/${fam}
+    if [ "${PWD}" != "${obsout}/${fam}" ]; then
+	${cp_cmd} ${fam}.obs ${obsout}/${fam}
+    fi
 fi
 
 cd ${MIDAS_WORKDIR}

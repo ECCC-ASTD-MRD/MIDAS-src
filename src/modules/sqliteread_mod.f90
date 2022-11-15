@@ -21,33 +21,34 @@ module sqliteRead_mod
   !           obsSpaceData object.
   !
 
-use codePrecision_mod
-use obsSpaceData_mod
-use midasMpi_mod
-use fSQLite
-use mathPhysConstants_mod
-use obsUtil_mod
-use utilities_mod
-use bufr_mod
-use ramDisk_mod
-use tovs_nl_mod
-use codtyp_mod
-use obsVariableTransforms_mod
-use obsFilter_mod
-use sqliteUtilities_mod
-use radvel_mod
-use ensembleObservations_mod
+  use codePrecision_mod
+  use obsSpaceData_mod
+  use midasMpi_mod
+  use fSQLite
+  use mathPhysConstants_mod
+  use obsUtil_mod
+  use utilities_mod
+  use bufr_mod
+  use ramDisk_mod
+  use tovs_nl_mod
+  use codtyp_mod
+  use obsVariableTransforms_mod
+  use obsFilter_mod
+  use sqliteUtilities_mod
+  use radvel_mod
+  use ensembleObservations_mod
 
-implicit none   
- 
-save
+  implicit none
 
-private
+  save
 
-public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite, sqlr_query
-public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles, sqlr_readSqlite_avhrr, sqlr_addCloudParametersandEmissivity
-public :: sqlr_writePseudoSSTobs, sqlr_writeEmptyPseudoSSTobsFile
-contains
+  private
+
+  public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite
+  public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles, sqlr_readSqlite_avhrr, sqlr_addCloudParametersandEmissivity
+  public :: sqlr_writePseudoSSTobs, sqlr_writeEmptyPseudoSSTobsFile
+
+  contains
   
   subroutine sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, numberData, latd, lond)
     !
@@ -89,11 +90,11 @@ contains
 
   subroutine sqlr_initHeader(obsdat, rdbSchema, familyType, headerIndex, elev, obsSat, azimuth, geoidUndulation, &
                              earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
-                             solarAzimuth, terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag,    &
+                             solarAzimuth, terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag, &
                              headPrimaryKey, obsLat, obsLon, codeType, obsDate, obsTime, &
                              obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, &
                              beamAzimuth, beamElevation, beamRangeStart, beamRangeEnd,   &
-                             firstBodyIndexOfThisBatch, obsNlv)
+                             firstBodyIndexOfThisBatch, obsNlv, iceChartID)
     !
     ! :Purpose: To initialize the header information when SQLite files are read.
     !
@@ -121,6 +122,7 @@ contains
     integer          , intent(in)    :: trackCellNum
     integer          , intent(in)    :: firstBodyIndexOfThisBatch
     integer          , intent(in)    :: obsNlv
+    integer          , intent(in)    :: iceChartID
     real(pre_obsReal), intent(in)    :: geoidUndulation
     real(pre_obsReal), intent(in)    :: earthLocRadCurv
     real(pre_obsReal), intent(in)    :: elev
@@ -191,6 +193,8 @@ contains
       else if (trim(rdbSchema) == 'gl_ascat') then
          call obs_headSet_i(obsdat, OBS_FOV, headerIndex, trackCellNum)
          call obs_headSet_r(obsdat, OBS_MWS, headerIndex, modelWindSpeed)
+      else if (trim(rdbSchema) == 'gl') then
+         call obs_headSet_i(obsdat, OBS_CHID, headerIndex, iceChartID)
       end if
       if (trim(rdbSchema) == 'radvel') then
           call obs_headSet_r(obsdat, OBS_RZAM, headerIndex, beamAzimuth)
@@ -217,7 +221,7 @@ contains
     character(len=128)       :: querySqlite, sqliteOutput
 
     querySqlite = "SELECT count(*) FROM sqlite_master WHERE type='table' AND name like '"// tableName //"' ;"
-    sqliteOutput = sqlr_query(db, trim(querySqlite))
+    sqliteOutput = sqlu_query(db, trim(querySqlite))
     if (trim(sqliteOutput) == '1') then
       doesSQLTableExist = .true.
     else
@@ -336,13 +340,13 @@ contains
     real                     :: elev    , obsLat, obsLon, elevFact
     real                     :: beamAzimuth, beamRangeStart, beamRangeEnd, beamElevation          
     real(pre_obsReal)        :: beamAzimuthReal, beamElevationReal
-    real(pre_obsReal)        :: beamLat , beamLon, beamHeight, beamDistance, beamRange
+    real(pre_obsReal)        :: beamLat, beamLon, beamHeight, beamDistance, beamRange
     integer                  :: vertCoordType, vertCoordFact, fnom, fclos, nulnam, ierr, idProf
     real                     :: zenithReal, solarZenithReal, CloudCoverReal, solarAzimuthReal
     integer                  :: roQcFlag
     real(pre_obsReal)        :: geoidUndulation, earthLocRadCurv, obsValue, surfEmiss, biasCorrection
     real(8)                  :: geoidUndulation_R8, earthLocRadCurv_R8, azimuthReal_R8
-    integer                  :: trackCellNum
+    integer                  :: trackCellNum, iceChartID
     real(pre_obsReal)        :: modelWindSpeed
     real(8)                  :: modelWindSpeed_R8
     integer                  :: iasiImagerCollocationFlag, iasiGeneralQualityFlag
@@ -359,8 +363,8 @@ contains
     type(fSQL_STATEMENT)     :: stmt,stmt2,stmt3 ! type for precompiled SQLite statements
     type(fSQL_STATUS)        :: stat,stat2 !type for error status
     character(len=256)       :: sqlDataOrder
-    character(len=256),allocatable :: listElemArray(:)
-    integer,allocatable            :: listElemArrayInteger(:)
+    character(len=256), allocatable :: listElemArray(:)
+    integer, allocatable            :: listElemArrayInteger(:)
     integer                  :: numberRows, numberColumns
 
     ! Namelist variables:
@@ -406,7 +410,7 @@ contains
     end if
 
     query = "select schema from rdb4_schema ;"
-    rdbSchema = sqlr_query(db,trim(query))
+    rdbSchema = sqlu_query(db,trim(query))
     write(*,'(4a)') 'sqlr_readSqlite: rdbSchema is ---> ', trim(rdbSchema)
 
     sqlExtraHeader = ''
@@ -558,6 +562,9 @@ contains
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLcsr')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLcsr)
       case('gl')
+        if (sqlu_sqlColumnExists(fileName, 'header', 'chartIndex') == .true.) then
+          columnsHeader = trim(columnsHeader)//", chartIndex "
+        end if
         read(nulnam, nml = NAMSQLgl, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLgl')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLgl)
@@ -635,7 +642,7 @@ contains
 
     call fSQL_prepare(db, trim(queryData), stmt2, stat2)
     if (fSQL_error(stat2) /= FSQL_OK) then
-      call sqlr_handleError(stat2,'fSQL_prepare has failed for queryData, &
+      call sqlu_handleError(stat2,'fSQL_prepare has failed for queryData, &
                                    this could be caused by an "order by"  &
                                    statement in sqlExtraDat ')
     end if
@@ -708,15 +715,15 @@ contains
 	  queryHeader = 'select '//trim(columnsHeader)//' from header where id_obs = ? '
 	else
 	  queryHeader = 'select '//trim(columnsHeader)//' from header where '//trim(sqlExtraHeader)//' and id_obs = ? '
-	end if  
-			   
+	end if
+
         if (rowIndex == 1) then
           write(*,'(4a)') 'sqlr_readSqlite: ',trim(rdbSchema),' first queryHeader    --> ', trim(queryHeader)
         end if
         call fSQL_prepare(db, queryHeader, stmt, stat)
         if (fSQL_error(stat)  /= FSQL_OK) then
           write(*,*) 'sqlr_readSqlite: problem reading header entry. Query: ', trim(queryHeader)
-          call sqlr_handleError(stat, 'fSQL_prepare')
+          call sqlu_handleError(stat, 'fSQL_prepare')
         end if
          
         call fSQL_bind_param(stmt, param_index = 1, int8_var = headPrimaryKey)
@@ -798,18 +805,23 @@ contains
           ! It does not have the obsStatus column.
 
           if (idStation(1:6) == 'METOP-') then
-            call fSQL_get_column(stmt, COL_INDEX = 8, int_var  = trackCellNum)
+            call fSQL_get_column(stmt, COL_INDEX = 8, int_var = trackCellNum)
             if (trackCellNum > 21) trackCellNum = 43 - trackCellNum
-            call fSQL_get_column(stmt, COL_INDEX = 9, real8_var  = modelWindSpeed_R8)
+            call fSQL_get_column(stmt, COL_INDEX = 9, real8_var = modelWindSpeed_R8)
             modelWindSpeed = modelWindSpeed_R8
           end if
 
-      	else if (trim(rdbSchema) == 'sst') then
-        	! satellite SST observations
+          if (sqlu_sqlColumnExists(fileName, 'header', 'chartIndex') == .true.) then
+            call fSQL_get_column(stmt, COL_INDEX = 8, int_var = iceChartID)
+          end if
 
-        	call fSQL_get_column(stmt, COL_INDEX =  8,  int_var = obsStatus)
-        	call fSQL_get_column(stmt, COL_INDEX =  9, real_var = elev           , REAL_MISSING=MPC_missingValue_R4)
-        	call fSQL_get_column(stmt, COL_INDEX = 10, real_var = solarZenithReal, REAL_MISSING=MPC_missingValue_R4)
+        else if (trim(rdbSchema) == 'sst') then
+
+          ! satellite SST observations
+
+          call fSQL_get_column(stmt, COL_INDEX =  8,  int_var = obsStatus)
+          call fSQL_get_column(stmt, COL_INDEX =  9, real_var = elev           , REAL_MISSING=MPC_missingValue_R4)
+          call fSQL_get_column(stmt, COL_INDEX = 10, real_var = solarZenithReal, REAL_MISSING=MPC_missingValue_R4)
 
         else if (trim(familyType) == 'RA') then
           if (trim(rdbSchema) == 'radvel') then
@@ -982,7 +994,7 @@ contains
              trackCellNum, modelWindSpeed,                                                  &
              beamAzimuthReal, beamElevationReal,                                            &
              real(beamRangeStart,kind=pre_obsReal), real(beamRangeEnd,kind=pre_obsReal),    &
-             firstBodyIndexOfThisBatch, obsNlv)
+             firstBodyIndexOfThisBatch, obsNlv, iceChartID)
 
         !reset level counter for next batch of data entries
         obsNlv = 0
@@ -1002,55 +1014,10 @@ contains
     call fSQL_close(db, stat) 
     if (fSQL_error(stat) /= FSQL_OK) then
       write(*,*) 'sqlr_readSqlite: problem closing sqlite db', trim(fileName)
-      call sqlr_handleError(stat, 'fSQL_close')
+      call sqlu_handleError(stat, 'fSQL_close')
     end if
 
   end subroutine sqlr_readSqlite
-
-  !--------------------------------------------------------------------------
-  ! sqlr_query
-  !--------------------------------------------------------------------------
-  function sqlr_query(db,query)
-    !
-    ! :Purpose: To create a query to read an SQLite file
-    !
-    implicit none
-
-    ! arguments
-    type(fSQL_DATABASE)  :: db    ! type handle for  SQLIte file
-    character(len = *)   :: query
-    ! locals
-    character(len = 256) :: sqlr_query, result
-    logical finished
-    type(fSQL_STATEMENT) :: stmt !  prepared statement for  SQLite
-    type(fSQL_STATUS)    :: stat !type error status
-
-    result=''
-    call fSQL_prepare(db, trim(query), stmt, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat,'fSQL_prepare: ')
-    finished=.false.
-    call fSQL_get_row(stmt, finished)
-
-    ! Put result of query into variable
-    call fSQL_get_column(stmt, COL_INDEX = 1, char_var = result)
-    call fSQL_get_row(stmt, finished)
-    if (.not. finished) write(*,*) ' SQL QUERY ---> QUERY RETURNS MORE THAN ONE ROW...  '
-    call fSQL_finalize(stmt)
-    sqlr_query = trim(result)
-
-  end function sqlr_query
-
-
-  subroutine sqlr_handleError(stat, message)
-    implicit none
-
-    type(FSQL_STATUS)  :: stat
-    character(len = *) :: message
-
-    write(*,*) message, fSQL_errmsg(stat)
-    call utl_abort(trim(message))
-
-  end subroutine sqlr_handleError
 
   !--------------------------------------------------------------------------
   ! sqlr_addColumn
@@ -1262,7 +1229,7 @@ contains
     write(*,*) 'sqlr_updateSqlite: update query --->  ', query
     call fSQL_do_many(db, 'PRAGMA  synchronous = OFF; PRAGMA journal_mode = OFF;')
     call fSQL_prepare(db, query , stmt, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'fSQL_prepare : ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
     call fSQL_begin(db)
 
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
@@ -1322,7 +1289,7 @@ contains
         headPrimaryKeyIndex = 2
       end if
       call fSQL_prepare(db, query , stmt, stat)
-      if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat,'fSQL_prepare : ')
+      if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat,'fSQL_prepare : ')
 
       HEADER2: do headerIndex = 1,obs_numHeader(obsdat)
          
@@ -1350,7 +1317,7 @@ contains
 
     call fSQL_commit(db, stat)
     if (fSQL_error(stat)  /= FSQL_OK) then
-      call sqlr_handleError(stat, 'sqlr_updateSqlite: fSQL_commit')
+      call sqlu_handleError(stat, 'sqlr_updateSqlite: fSQL_commit')
     end if
     write(*,*) 'sqlr_updateSqlite: End ===================  ', trim(familyType)
 
@@ -1380,7 +1347,7 @@ contains
     write(*,*) 'sqlr_addCloudParametersandEmissivity: create query = ', trim(query)
 
     call fSQL_do(db, trim(query), stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'fSQL_do : ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_do : ')
 
     query = 'insert into cld_params(id_obs,ETOP,VTOP,ECF,VCF,HE,ZTSR,NCO2,ZTM,ZTGM,ZLQM,ZPS) &
          values(?,?,?,?,?,?,?,?,?,?,?,?);'
@@ -1389,7 +1356,7 @@ contains
     write(*,*) ' Insert query = ', trim(query)
 
     call fSQL_prepare(db, query, stmt, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'fSQL_prepare : ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
     call fSQL_begin(db)
     numberInsert=0
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
@@ -1491,7 +1458,7 @@ contains
 
     call fSQL_begin(db)
     call fSQL_prepare(db, query, stmt, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'fSQL_prepare : ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
 
     numberInsert=0
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
@@ -1627,7 +1594,7 @@ contains
     query = ' delete from data where flag & 2048;'
     call fSQL_prepare(db, query, statement, status)
     if (fSQL_error(status) /= FSQL_OK) &
-      call sqlr_handleError(status, 'thinning fSQL_prepare : ')
+      call sqlu_handleError(status, 'thinning fSQL_prepare : ')
     call fSQL_begin(db)
     call fSQL_exec_stmt(statement)
     call fSQL_finalize(statement)
@@ -1966,14 +1933,14 @@ contains
     end if
 
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreate))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreate))
     
     ! If the analysis members in obs space are allocated, make table queries for trial members and analysis members
     if ( present( ensObs_opt ) ) then
       ! Create
       queryCreateEnsObs = 'create table ensobs (id_data integer, id_obs integer, id_member integer, obstrl real, obsanl real);'
       call fSQL_do_many(db, queryCreateEnsObs, stat)
-      if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreateEnsObs))
+      if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_do_many with query: '//trim(queryCreateEnsObs))
     end if
     
     if (addFSOdiag) then
@@ -1991,9 +1958,9 @@ contains
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
     
     if ( present( ensObs_opt ) ) then
       ! Insert
@@ -2002,7 +1969,7 @@ contains
 
       call fSQL_prepare(db, queryCreateEnsObs, stmtEnsObs, stat)
       
-      if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
+      if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeSqlDiagFile: fSQL_prepare: ')
     end if
     
     numberInsertions = 0
@@ -2347,9 +2314,9 @@ contains
                      &create table rdb4_schema(schema varchar(9));'
     
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreate))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreate))
     call fSQL_do_many(db, queryCreateAdd, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreateAdd))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreateAdd))
     
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
@@ -2360,18 +2327,18 @@ contains
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     queryRDBSchema = ' insert into rdb4_schema values(?); '
     queryResume = ' insert into resume (date, time, run) values(?,?,?); '
     write(*,*) 'sqlr_writePseudoSSTobs: Insert query rdb4_schema: ', trim(queryRDBSchema)
     write(*,*) 'sqlr_writePseudoSSTobs: Insert query resume: ', trim(queryResume)
      
     call fSQL_prepare(db, queryRDBSchema, stmtRDBSchema, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     call fSQL_prepare(db, queryResume, stmtResume, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     
     numberInsertions = 0
 
@@ -2539,9 +2506,9 @@ contains
                      &create table rdb4_schema(schema varchar(9));'
     
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreate))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreate))
     call fSQL_do_many(db, queryCreateAdd, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreateAdd))
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreateAdd))
     
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
@@ -2552,18 +2519,18 @@ contains
 
     call fSQL_begin(db)
     call fSQL_prepare(db, queryData, stmtData, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     queryRDBSchema = ' insert into rdb4_schema values(?); '
     queryResume = ' insert into resume (date, time, run) values(?,?,?); '
     write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query rdb4_schema: ', trim(queryRDBSchema)
     write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query resume: ', trim(queryResume)
      
     call fSQL_prepare(db, queryRDBSchema, stmtRDBSchema, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     call fSQL_prepare(db, queryResume, stmtResume, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlr_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
+    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     
     call fSQL_bind_param(stmtRDBSchema, param_index = 1, char_var  = 'sf')
     call fSQL_exec_stmt (stmtRDBSchema)

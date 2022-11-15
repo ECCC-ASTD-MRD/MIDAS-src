@@ -28,10 +28,11 @@ module bgckOcean_mod
   use gridStateVectorFileIO_mod
   use horizontalCoord_mod
   use verticalCoord_mod
-  use statetocolumn_mod 
+  use statetocolumn_mod
   use bufr_mod
   use mathPhysConstants_mod
   use timeCoord_mod
+  use message_mod
 
   implicit none
 
@@ -39,8 +40,8 @@ module bgckOcean_mod
   private
 
   ! Public functions/subroutines
-  public :: ocebg_bgCheckSST
- 
+  public :: ocebg_bgCheckSST, ocebg_bgCheckSeaIce
+
   ! External functions
   integer, external :: fnom, fclos
 
@@ -90,9 +91,9 @@ module bgckOcean_mod
   !----------------------------------------------------------------------------------------
   subroutine ocebg_bgCheckSST(obsData, dateStamp, columnTrlOnTrlLev, hco)
     !
-    ! :Purpose: to compute SST data background Check  
-    !           
-    
+    ! :Purpose: to compute SST data background Check
+    !
+
     implicit none
 
     ! Arguments:
@@ -115,7 +116,7 @@ module bgckOcean_mod
     logical                     :: checkMonth, llok
     integer                     :: lonIndex, latIndex, monthIndex, exceptMonthIndex
 
-    write(*,*) 'ocebg_bgCheckSST: performing background check for the SST data...'
+    call msg('ocebg_bgCheckSST', 'performing background check for the SST data...')
 
     ! get mpi topology
     call mmpi_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
@@ -124,8 +125,8 @@ module bgckOcean_mod
     ! Read the namelist
     if (.not. utl_isNamelistPresent('namOceanBGcheck','./flnml')) then
       if (mmpi_myid == 0) then
-        write(*,*) 'ocebg_bgCheckSST: namOceanBGcheck is missing in the namelist.'
-        write(*,*) 'ocebg_bgCheckSST: the default values will be taken.'
+        call msg('ocebg_bgCheckSST', 'namOceanBGcheck is missing in the namelist.')
+        call msg('ocebg_bgCheckSST', 'the default values will be taken.')
       end if
     else
       ! reading namelist variables
@@ -135,12 +136,12 @@ module bgckOcean_mod
       if (ierr /= 0) call utl_abort('ocebg_bgCheckSST: Error reading namelist')
       ierr = fclos(nulnam)
     end if
-    write(*,*) 'ocebg_bgCheckSST: interpolation type: ', timeInterpType_nl
-    write(*,*) 'ocebg_bgCheckSST: number obs batches: ', numObsBatches
-    write(*,*) 'ocebg_bgCheckSST: check winds to detect tropical storms (TS): ', checkWinds
+    call msg('ocebg_bgCheckSST', 'interpolation type: '//timeInterpType_nl)
+    call msg('ocebg_bgCheckSST', 'number obs batches: '//str(numObsBatches))
+    call msg('ocebg_bgCheckSST', 'check winds to detect tropical storms (TS): '//str(checkWinds))
 
     if (separateSelectCriteria) then
-      write(*,*) 'ocebg_bgCheckSST: a separate selection criteria will be applied...'
+      call msg('ocebg_bgCheckSST', 'a separate selection criteria will be applied...')
       write(*,'(a,3f7.2)') 'ocebg_bgCheckSST: inland water selection criteria for INSITU data rejection set to: ', &
                            inlandWaterSelectCriteriaInsitu(:)
       write(*,'(a,3f7.2)') 'ocebg_bgCheckSST: inland water selection criteria for SATELLITE data rejection set to: ', &
@@ -149,7 +150,7 @@ module bgckOcean_mod
                            seaWaterSelectCriteriaInsitu(:)
       write(*,'(a,3f7.2)') 'ocebg_bgCheckSST: sea water selection criteria for SATELLITE data rejection set to: ', &
                            seaWaterSelectCriteriaSatData(:)
-      write(*,*) 'ocebg_bgCheckSST: sea water fraction threshold is set to: ', seaWaterThreshold
+      call msg('ocebg_bgCheckSST', 'sea water fraction threshold is set to: '//str(seaWaterThreshold))
       ! read sea water fraction
       call gsv_allocate(stateVectorSeaWaterFraction, 1, hco, columnTrlOnTrlLev%vco, dataKind_opt = 4, &
                         datestamp_opt = -1, mpi_local_opt = .true., &
@@ -174,10 +175,10 @@ module bgckOcean_mod
                           unitConversion_opt=.false., containsFullField_opt=.true.)
     if (checkWinds) then
       call utl_tmg_start(123, '--checkWindsForSST') 
-      write(*,*) 'ocebg_bgCheckSST: looking for tropical storms...'
-      write(*,*) 'ocebg_bgCheckSST: number of days with available winds in the input winds file: ', ndaysWinds 
-      write(*,*) 'ocebg_bgCheckSST: winds are provided every: ', timeStepWinds, ' hours'
-      write(*,*) 'ocebg_bgCheckSST: wind forecast lead time: ', windForecastLeadtime, ' hours'
+      call msg('ocebg_bgCheckSST', 'looking for tropical storms...')
+      call msg('ocebg_bgCheckSST', 'number of days with available winds in the input winds file: '//str(ndaysWinds))
+      call msg('ocebg_bgCheckSST', 'winds are provided every: '//str(timeStepWinds)//' hours')
+      call msg('ocebg_bgCheckSST', 'wind forecast lead time: '//str(windForecastLeadtime)//' hours')
       do exceptMonthIndex = 1, nmonthsExceptionNH
         checkMonth = .False.
         loop_month: do monthIndex = 1, 12
@@ -187,7 +188,7 @@ module bgckOcean_mod
           end if
         end do loop_month
         if (.not. checkMonth) then
-          write(*,*) 'ocebg_bgCheckSST: month should be one of these: ', months(:) 
+          write(*,*) 'ocebg_bgCheckSST: month should be one of these: ',months(:)
           call utl_abort('ocebg_bgCheckSST: unknown month '//monthExceptionNH(exceptMonthIndex))
         end if
       end do
@@ -226,22 +227,22 @@ module bgckOcean_mod
     numberObsRejected = 0
     numberObsInsitu = 0
     numberObsInsituRejected = 0
-    
+
     do headerIndex = 1, obs_numheader(obsData)
-      
+
       bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
       obsVarno  = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
       llok = (obs_bodyElem_i(obsData, obs_ass, bodyIndex) == obs_assimilated)
       if (llok) then
         if (obsVarno == bufr_sst) then
-       
+
 	  FGE = col_getElem(columnFGE, 1, headerIndex, 'TM')
-	  OmP = obs_bodyElem_r(obsData, OBS_OMP , bodyIndex)
-          OER = obs_bodyElem_r(obsData, OBS_OER , bodyIndex)
+	  OmP = obs_bodyElem_r(obsData, OBS_OMP, bodyIndex)
+          OER = obs_bodyElem_r(obsData, OBS_OER, bodyIndex)
 	  codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
-	   
-	  if (FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8) then 
-	    
+
+	  if (FGE /= MPC_missingValue_R8 .and. OmP /= MPC_missingValue_R8) then
+
 	    numberObs = numberObs + 1
 	    if (codeType /= codtyp_get_codtyp('satob')) numberObsInsitu = numberObsInsitu + 1
 	    call obs_bodySet_r(obsData, OBS_HPHT, bodyIndex, FGE)
@@ -276,9 +277,9 @@ module bgckOcean_mod
                                               obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8,&
                                               obs_bodyElem_r(obsData, obs_var, bodyIndex), OmP, obsFlag 
             end if
-	    	      
+
 	    ! update background check flags based on bgCheck
-            ! (element flags + global header flags)  
+            ! (element flags + global header flags)
 	    if (obsFlag == 1) then
               call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 13))
             else if (obsFlag == 2) then
@@ -292,24 +293,24 @@ module bgckOcean_mod
               call obs_bodySet_i(obsData, obs_flg, bodyIndex  , ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndex)  , 09))
               call obs_headSet_i(obsData, obs_st1, headerIndex, ibset(obs_headElem_i(obsData, obs_st1, headerIndex), 06))
             end if
-	   
+
           end if
 	end if
       end if
-      
-    end do 
+
+    end do
 
     if (numberObs > 0) then
-      write(*,*)' '
-      write(*,*) 'ocebg_bgCheckSST: background check of SST (TM) data is computed'
+      write(*,*)
+      call msg('ocebg_bgCheckSST', 'background check of SST (TM) data is computed')
       write(*,*) '***************************************************************************************'
       write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST: total ', numberObsRejected, ' observations out of (ALL) ', numberObs,' rejected'
       write(*,'(a, i7,a,i7,a)') 'ocebg_bgCheckSST: where ', numberObsInsituRejected, ' insitu observations out of ', &
                                 numberObsInsitu,' insitu obs. rejected'
       write(*,*) '***************************************************************************************'
-      write(*,*)' '
+      write(*,*)
     end if
-    
+
     call gsv_deallocate(stateVectorFGE)
     call col_deallocate(columnFGE)
     if (separateSelectCriteria) then
@@ -318,6 +319,175 @@ module bgckOcean_mod
     end if      
 
   end subroutine ocebg_bgCheckSST
+
+  !----------------------------------------------------------------------------------------
+  ! ocebg_bgCheckSeaIce
+  !----------------------------------------------------------------------------------------
+  subroutine ocebg_bgCheckSeaIce(obsData)
+    !
+    ! :Purpose: Compute sea ice data background check
+    !
+
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsData           ! obsSpaceData object
+
+    ! Locals:
+    integer            :: nulnam, ierr
+    integer            :: headerIndex, bodyIndex, stationIndex, bodyCount
+    integer            :: obsChid, obsDate, obsTime, obsVarno, obsFlag
+    integer            :: obsDateStamp
+    integer, parameter :: maxSwath = 10, maxPerSwath = 200000
+    integer            :: numberObs(maxSwath), bodyIndexList(maxPerSwath,maxSwath)
+    integer            :: minDateStamp(maxSwath), maxDateStamp(maxSwath), swathID(maxSwath)
+    real               :: rmsDiff(maxSwath)
+    integer            :: swathIndex, nSwath
+    real(8)            :: OmP, deltaHours
+    integer            :: numberObsRejected
+    character(len=12)  :: cstnid
+    integer, external  :: newdate
+    integer            :: imode, prntdate, prnttime
+
+    ! Namelist variables: (local)
+    integer           :: numStation = 11
+    character(len=12) :: idStation(11) = 'null'
+    real              :: OmpRmsdThresh(11) = 0.0
+    namelist /namIceBGcheck/ numStation, idStation, OmpRmsdThresh
+
+    call msg('ocebg_bgCheckSeaIce', 'performing background check for the SeaIce data...')
+ 
+    ! Read the namelist
+    if (.not. utl_isNamelistPresent('namIceBGcheck','./flnml')) then
+      if (mmpi_myid == 0) then
+        call msg('ocebg_bgCheckSeaIce', 'namIceBGcheck is missing in the namelist.')
+        call msg('ocebg_bgCheckSeaIce', 'the default values will be taken.')
+      end if
+    else
+      ! reading namelist variables
+      nulnam = 0
+      ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+      read(nulnam, nml = namIceBGcheck, iostat = ierr)
+      if (ierr /= 0) call utl_abort('ocebg_bgCheckSeaIce: Error reading namelist')
+      ierr = fclos(nulnam)
+    end if
+    write(*, nml = namIceBGcheck)
+
+    STATION: do stationIndex = 1, numStation
+
+      call msg('ocebg_bgCheckSeaIce', 'doing idStation: '//idStation(stationIndex))
+
+      if (idStation(stationIndex) == 'null') cycle STATION
+
+      numberObs(:) = 0
+      rmsDiff(:) = 0.0
+      minDateStamp(:) = tim_getDatestamp()
+      maxDateStamp(:) = tim_getDatestamp()
+      nSwath = 0
+
+      HEADER: do headerIndex = 1, obs_numheader(obsData)
+
+        cstnid = obs_elem_c(obsData, 'STID' , headerIndex )
+        bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
+
+        obsFlag = obs_bodyElem_i(obsData, OBS_FLG, bodyIndex)
+
+        if ( (cstnid /= idStation(stationIndex)) .or. &
+             (obsFlag /= 0 .and. cstnid /= 'CIS_REGIONAL') ) cycle HEADER
+
+        obsChid = obs_headElem_i(obsData, obs_chid, headerIndex)
+        obsDate = obs_headElem_i(obsData, OBS_DAT, headerIndex)
+        obsTime = obs_headElem_i(obsData, OBS_ETM, headerIndex)
+
+        imode = 3 ! printable to stamp
+        ierr = newdate(obsDateStamp, obsDate, obsTime*10000, imode)
+
+        do swathIndex=1, nSwath
+
+          if(obsDateStamp <= maxDateStamp(swathIndex) .and. &
+             obsDateStamp >= minDateStamp(swathIndex) .and. &
+             obsChid == swathID(swathIndex)) exit
+
+          call difdatr(obsDateStamp, minDateStamp(swathIndex), deltaHours)
+            
+          if(abs(deltaHours) <= 0.5d0 .and. obsChid == swathID(swathIndex)) exit
+
+        end do
+
+        nSwath = max(nSwath, swathIndex)
+
+        if(swathIndex <= maxSwath) then
+
+          if(numberObs(swathIndex) == 0) then
+            minDateStamp(swathIndex) = obsDateStamp
+            maxDateStamp(swathIndex) = obsDateStamp
+          else
+            call difdatr(obsDateStamp, minDateStamp(swathIndex), deltaHours)
+            if(deltaHours < 0.0d0) minDateStamp(swathIndex) = obsDateStamp
+            call difdatr(obsDateStamp, maxDateStamp(swathIndex), deltaHours)
+            if(deltaHours > 0.0d0) maxDateStamp(swathIndex) = obsDateStamp
+          end if
+
+          swathID(swathIndex) = obsChid
+
+          OmP = obs_bodyElem_r(obsData, OBS_OMP, bodyIndex)
+
+          if (OmP /= MPC_missingValue_R8) then
+
+            numberObs(swathIndex) = numberObs(swathIndex) + 1
+            rmsDiff(swathIndex) = rmsDiff(swathIndex) + (OmP)**2
+            if (numberObs(swathIndex) <= maxPerSwath) then
+              bodyIndexList(numberObs(swathIndex), swathIndex) = bodyIndex
+            else
+              call utl_abort('ocebg_bgCheckSeaIce: Increase maxPerSwath')
+            end if
+
+          end if
+
+        else
+
+          call utl_abort('ocebg_bgCheckSeaIce: Increase maxSwath')
+
+        end if
+
+      end do HEADER
+
+      SWATH: do swathIndex = 1, maxSwath
+
+        if (numberObs(swathIndex) == 0) cycle SWATH
+
+        rmsDiff(swathIndex) = sqrt(rmsDiff(swathIndex)/numberObs(swathIndex))
+
+        call msg('ocebg_bgCheckSeaIce', 'swathIndex = '//str(swathIndex))
+        call msg('ocebg_bgCheckSeaIce', 'Timespan:')
+        imode = -3 ! stamp to printable
+        ierr = newdate(minDateStamp(swathIndex), prntdate, prnttime, imode)
+        call msg('ocebg_bgCheckSeaIce', 'From: '//str(prntdate)//str(prnttime/100))
+        ierr = newdate(maxDateStamp(swathIndex), prntdate, prnttime, imode)
+        call msg('ocebg_bgCheckSeaIce', 'To  : '//str(prntdate)//str(prnttime/100))
+
+        write(*,'(a,f10.4)') 'ocebg_bgCheckSeaIce: RMSD = ', rmsDiff(swathIndex)
+        write(*,'(a,i10)') 'ocebg_bgCheckSeaIce: nobs = ', numberObs(swathIndex)
+
+        if (rmsDiff(swathIndex) > OmpRmsdThresh(stationIndex)) then
+
+          numberObsRejected = 0
+          do bodyCount = 1, numberObs(swathIndex)
+            numberObsRejected = numberObsRejected + 1
+            ! update background check flag
+            call obs_bodySet_i(obsData, obs_flg, bodyIndexList(bodyCount,swathIndex), ibset(obs_bodyElem_i(obsData, obs_flg, bodyIndexList(bodyCount,swathIndex)), 10))
+          end do
+
+          write(*,'(a,i7,a)')'ocebg_bgCheckSeaIce: ********** reject: ', numberObsRejected, &
+                                    ' '//idStation(stationIndex)//' data'
+
+        end if
+
+      end do SWATH
+
+    end do STATION
+
+  end subroutine ocebg_bgCheckSeaIce
 
   !--------------------------------------------------------------------------
   ! ocebg_setFlag
@@ -329,8 +499,8 @@ module bgckOcean_mod
     !
 
     implicit none
-    
-    integer             :: obsFlag  ! obs flag 
+
+    integer             :: obsFlag  ! obs flag
 
     ! Arguments:
     integer, intent(in) :: obsVarno          ! obsVarno, Universal Field-Identity Numbers defined in bufr_mod
@@ -405,11 +575,11 @@ module bgckOcean_mod
                       varNames_opt=(/'UU','VV'/), mpi_local_opt=.true., &
                       hInterpolateDegree_opt='LINEAR')
       
-    write(*,*) 'ocebg_getFGEamplification: reading wind speed fields...'
+    call msg('ocebg_getFGEamplification', 'reading wind speed fields...')
     do timeStepIndex = 1, ndaysWinds * 24 / timeStepWinds
       call tim_dateStampToYYYYMMDDHH(dataStampList(timeStepIndex), hour, day, monthNumber, &
                                      ndays, yyyy, verbose_opt = .False.)
-      write(*,*) 'ocebg_getFGEamplification: ', timeStepIndex, dataStampList(timeStepIndex), yyyy, monthNumber, day, hour   
+      call msg('ocebg_getFGEamplification', ' '//str(timeStepIndex)//str(dataStampList(timeStepIndex))//str(yyyy)//str(monthNumber)//str(day)//str(hour))
       call gio_readFromFile(stateVector, './winds', ' ', ' ', stepIndex_opt = timeStepIndex, &
                             containsFullField_opt=.true.)
     end do
@@ -418,8 +588,8 @@ module bgckOcean_mod
     call gsv_getField(stateVector, vv_ptr4d, 'VV')
     call gsv_getField(stateVectorAmplFactor, stateVectorAmplFactor_ptr)
 
-    write(*,*) ''
-    write(*,*) 'ocebg_getFGEamplification: detecting tropical storms (TS)...'
+    write(*,*)
+    call msg('ocebg_getFGEamplification', 'detecting tropical storms (TS)...')
 
     time_loop: do timeStepIndex = 1, ndaysWinds * 24 / timeStepWinds
 
@@ -428,8 +598,8 @@ module bgckOcean_mod
       do monthIndex = 1, nmonthsExceptionNH
         if (months(monthNumber) == monthExceptionNH(monthIndex)) then
           maxLatNH = maxLatExceptionNH
-          write(*,*) 'ocebg_getFGEamplification: TS is allowed to penetrate up to ', maxLatNH, &
-                     ' degrees North; current month: ', months(monthNumber)
+          call msg('ocebg_getFGEamplification', 'TS is allowed to penetrate up to '//str(maxLatNH) &
+                     //' degrees North; current month: '//months(monthNumber))
         end if
       end do
 
@@ -462,4 +632,4 @@ module bgckOcean_mod
 
   end subroutine ocebg_getFGEamplification
 
-end module bgckOcean_mod  
+end module bgckOcean_mod
