@@ -139,8 +139,8 @@ contains
     real(8), allocatable :: weightsTemp(:), weightsTemp2(:)
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
-    real(8), allocatable :: memberAnlPert(:)
-    real(4), allocatable :: vertLocation_r4(:,:,:), YbCopy(:,:)
+    real(8), allocatable :: memberAnlPert(:), YbCopy(:,:)
+    real(4), allocatable :: vertLocation_r4(:,:,:)
 
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
@@ -478,12 +478,12 @@ contains
         YbTinvRYb(:,:) = 0.0D0
         ! make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4
         call utl_tmg_start(187,'------YbArraysCopy')
-        YbCopy(:,:) = 0.0
+        YbCopy(:,:) = 0.0d0
         YbTinvRCopy(:,:) = 0.0d0
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
           do memberIndex2 = 1, nEnsUsed
-            YbCopy(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
+            YbCopy(localObsIndex,memberIndex2) = real(ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex),8)
             YbTinvRCopy(localObsIndex,memberIndex2) = YbTinvR(memberIndex2,localObsIndex)
           end do
         end do
