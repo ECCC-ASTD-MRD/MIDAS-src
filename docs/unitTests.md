@@ -82,10 +82,9 @@ since it is ignored by Git.
 
 You can activate the code coverage reporting by setting
 ```bash
-export MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS=yes
+export MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS='an absolute path where the code coverage data can be saved'
 ``̀
 before compiling the program.
-
 
 ## Updating Test Results
 

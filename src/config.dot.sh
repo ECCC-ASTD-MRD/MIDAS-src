@@ -166,11 +166,19 @@ if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     COMPF_NOC="${COMPF_GLOBAL} ${OPTF} -debug"
     COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
     echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
-elif [ "${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS:-no}" = yes ]; then
+elif [ "${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS:-no}" != no ]; then
     FOPTMIZ=0
-    codecov_dir=${__compiledir_link}/codecov_prof
-    [ ! -d "${codecov_dir}" ] && mkdir ${codecov_dir}
-    COMPF="${COMPF_GLOBAL} ${OPTF} -debug -prof-gen=srcpos -prof-dir=${codecov_dir}"
+    [[ "${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}" != /* ]] && {
+        echo "Please provide an absolute path to variable 'MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS'"
+        echo "This value was given: ${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}"
+        false
+    }
+    [ ! -d "${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}" ] && mkdir -p ${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}
+    [ ! -d "${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}" ] && {
+        echo "Could not create the directory ${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}"
+        false
+    }
+    COMPF="${COMPF_GLOBAL} ${OPTF} -debug -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}"
     COMPF_NOC=${COMPF}
 else
     COMPF="${COMPF_GLOBAL} ${OPTF}"
