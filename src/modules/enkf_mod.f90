@@ -500,18 +500,14 @@ contains
         !  end do
         !end do
         !!$OMP END PARALLEL DO
-        !$OMP PARALLEL DO PRIVATE (memberIndex2)
-        do memberIndex2 = 1, nEnsUsed
-          call dgemm( &
-            'T','N', &
-            nEnsUsed,1,numLocalObs, &
-            1.0d0, &
-            YbTinvRCopy,maxNumLocalObs, &
-            YbCopy(:,memberIndex2),maxNumLocalObs, &
-            0.0d0, &
-            YbTinvRYb(:,memberIndex2),nEnsUsed)
-        end do
-        !$OMP END PARALLEL DO
+        call dgemm( &
+          'T','N', &
+          nEnsUsed,nEnsUsed,numLocalObs, &
+          1.0d0, &
+          YbTinvRCopy,maxNumLocalObs, &
+          YbCopy,maxNumLocalObs, &
+          0.0d0, &
+          YbTinvRYb,nEnsUsed)
         call utl_tmg_stop(185)
 
         ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
