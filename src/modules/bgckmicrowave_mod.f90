@@ -2870,7 +2870,7 @@ contains
       endif
     end do 
 
-end subroutine bennartz
+  end subroutine bennartz
 
   !--------------------------------------------------------------------------
   ! atmsTest1Flagbit7Check
@@ -2951,7 +2951,7 @@ end subroutine bennartz
     integer                                                   :: INDXTOPO 
 
     testIndex = 2
-    if ( itest(testIndex) .eq. 1 ) then
+    if ( itest(testIndex) == 1 ) then
       do nDataIndex=1,KNT
         do nChannelIndex=1,KNO
           INDXTOPO = ISRCHEQI(ICHTOPO, MXTOPO, KCANO(nChannelIndex,nDataIndex))
@@ -3689,7 +3689,6 @@ end subroutine bennartz
     integer                          :: INDX
     integer                          :: ISFCREJ(MXSFCREJ)
     integer                          :: ICH2OMPREJ(MXCH2OMPREJ)
-    integer                          :: B7CHCK(KNO,KNT)
     real, allocatable                :: ROGUEFAC(:)
     real                             :: ZCRIT(MXTOPO)
     real                             :: scatBgRej
@@ -3724,11 +3723,6 @@ end subroutine bennartz
     !   Channel AMSUB-4 (mwhs2 ch 13) is rejected for topography > 2000m.
     ICHTOPO(:) = (/11, 12, 13/)
     ZCRIT(:) = (/2500., 2250., 2000./)
-
-    !  Test selection (0=skip test, 1=do test)
-    !              1  2  3  4  5
-    ITEST(:)  = 0
-    ITEST(1:5) = (/0, 0, 0, 0, 0/)
 
     ! Channels excluded from gen_bias_corr in all-sky mode
     chanFlaggedForAllskyGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
@@ -3832,52 +3826,14 @@ end subroutine bennartz
     call utl_reAllocate(icheck, KNO, KNT)
     !  Initialisations
     ICHECK(:,:) = 0
-    B7CHCK(:,:) = 0
 
     if ( RESETQC ) KMARQ(:,:) = 0
-
-    ! 1) test 1: Check flag bit 7 on from the first bgckAtms program
-    !  Includes observations flagged for cloud liquid water, scattering index,
-    !  dryness index plus failure of several QC checks.
-    call atmsTest1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, &
-                                 STNID,  B7CHCK)
-
-    ! 2) test 2: Topography check (partial)
-    call atmsTest2TopographyCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
-                                   KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, ICHECK)
-    ! 3) test 3: Uncorrected Tb check (single)
-    !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
-    call atmsTest3UncorrectedTbCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
-                                      KMARQ, B7CHCK, ICHECK)
-    ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
-    !             Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial)
-    !  Les observations, dont le residu (O-P) depasse par un facteur (roguefac)
-    !   l'erreur totale des TOVS.
-    !  N.B.: a reject by any of the 3 amsua surface channels 1-3 produces the
-    !           rejection of ATMS sfc/tropospheric channels 1-6 and 16-17.
-    !  OVER OPEN WATER
-    !    ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
-    call atmsTest4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
-                              clwThreshArr, useStateDepSigmaObs, sigmaObsErr, waterobs, &
-                              PTBOMP, clwObs, clwFG, IDENT, MXSFCREJ, ISFCREJ, ICH2OMPREJ, &
-                              MXCH2OMPREJ, KMARQ, B7CHCK, ICHECK)
-
-    ! 5) test 5: Channel selection using array IUTILST(chan,sat)
-    !  IUTILST = 0 (blacklisted)
-    !            1 (assmilate)
-    call atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
-                                               IUTILST, KMARQ, ICHECK)
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
     !            =0, aucun rejet,
     !            >0, au moins un canal rejete.
-    do JJ=1,KNT
-      KCHKPRF(JJ) = 0
-      do JI=1,KNO
-        KCHKPRF(JJ) = MAX(KCHKPRF(JJ),ICHECK(JI,JJ))
-      end do
-    end do
+    KCHKPRF(:) = 0
 
     if ( mwbg_debug ) then
       write(*,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
