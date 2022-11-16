@@ -504,8 +504,8 @@ contains
           'T','N', &
           nEnsUsed,nEnsUsed,numLocalObs, &
           1.0d0, &
-          YbTinvRCopy,maxNumLocalObs, &
-          YbCopy,maxNumLocalObs, &
+          YbTinvRCopy,numLocalObs, &
+          YbCopy,numLocalObs, &
           0.0d0, &
           YbTinvRYb,nEnsUsed)
         call utl_tmg_stop(185)
