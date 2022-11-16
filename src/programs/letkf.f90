@@ -445,8 +445,8 @@ program midas_letkf
                                    beSilent=.true. )
       if ( debug ) then
         call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
-        write(*,*) 'maziar: max(Psfc)=', maxval(field_Psfc)
-        write(*,*) 'maziar: min(Psfc)=', minval(field_Psfc)
+        write(*,*) 'midas-letkf: max(Psfc)=', maxval(field_Psfc), &
+                   ', min(Psfc)=', minval(field_Psfc)
       end if
 
       call gsv_copy(stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &

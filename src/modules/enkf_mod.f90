@@ -416,7 +416,6 @@ contains
       end do
       call utl_tmg_stop(101)
 
-      write(*,*) 'maziar: before LATLON_LOOP'
       LATLON_LOOP: do latLonIndex = 1, myNumLatLonSend
         latIndex = myLatIndexesSend(latLonIndex)
         lonIndex = myLonIndexesSend(latLonIndex)
@@ -1266,7 +1265,6 @@ contains
         call utl_tmg_stop(101)
 
       end do LATLON_LOOP
-      write(*,*) 'maziar: after LATLON_LOOP'
 
       !
       ! Wait for communiations to finish before continuing
@@ -1277,12 +1275,10 @@ contains
 
       if ( numRecv > 0 ) then
         call mpi_waitAll(numRecv, requestIdRecv(1:numRecv), MPI_STATUSES_IGNORE, ierr)
-        write(*,*) 'maziar: mpi_waitAll for recv finished'
       end if
 
       if ( numSend > 0 ) then
         call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
-        write(*,*) 'maziar: mpi_waitAll for send finished'
       end if
 
       call utl_tmg_stop(101)
@@ -1292,10 +1288,8 @@ contains
       !
       call utl_tmg_start(106,'----InterpolateWeights')
       if (wInterpInfo%latLonStep > 1) then
-        write(*,*) 'maziar: before enkf_interpWeights'
         call enkf_interpWeights(wInterpInfo, weightsMean)
         call enkf_interpWeights(wInterpInfo, weightsMembers)
-        write(*,*) 'maziar: after enkf_interpWeights'
       end if
       call utl_tmg_stop(106)
 
@@ -1308,7 +1302,6 @@ contains
       call gsv_getField(stateVectorMeanTrl,meanTrl_ptr_r4)
       call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
 
-      write(*,*) 'maziar: before applying weights'
       !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, varLevIndex, varLevel, varKind, levIndex2, memberTrl_ptr_r4, memberAnl_ptr_r4), &
       !$OMP PRIVATE(memberAnlPert, stepIndex, memberIndex, memberIndex2, memberIndex1, eigenVectorColumnIndex, pert_r4), &
       !$OMP PRIVATE(memberIndexInModEns, modulationFactor)
@@ -1460,7 +1453,6 @@ contains
         end do LON_LOOP5
       end do
       !$OMP END PARALLEL DO
-      write(*,*) 'maziar: after applying weights'
 
       call utl_tmg_stop(107)
 
@@ -1474,11 +1466,9 @@ contains
       write(*,*) '                      Therefore will keep closest obs only.'
     end if
 
-    write(*,*) 'maziar: before rpn_comm_barrier'
     call utl_tmg_start(107,'----Barr')
     call rpn_comm_barrier('GRID',ierr)
     call utl_tmg_stop(107)
-    write(*,*) 'maziar: after rpn_comm_barrier'
 
     call gsv_deallocate(stateVectorMeanInc)
     call gsv_deallocate(stateVectorMeanTrl)
@@ -2285,7 +2275,6 @@ contains
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do levIndex = 1, nlev_out
-              ! maziar: does this cover all cases?
               if ( nlev_out == 1 ) then
                 eigenVectorLevelIndex = nLev
               else
