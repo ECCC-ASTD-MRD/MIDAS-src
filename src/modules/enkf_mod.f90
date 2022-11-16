@@ -500,18 +500,16 @@ contains
         !  end do
         !end do
         !!$OMP END PARALLEL DO
-        !$OMP PARALLEL DO PRIVATE (memberIndex1,memberIndex2)
+        !$OMP PARALLEL DO PRIVATE (memberIndex2)
         do memberIndex2 = 1, nEnsUsed
-          do memberIndex1 = 1, nEnsUsed
-            call dgemm( &
-              'T','N', &
-              1,1,numLocalObs, &
-              1.0d0, &
-              YbTinvRCopy(:,memberIndex1),maxNumLocalObs, &
-              YbCopy(:,memberIndex2),maxNumLocalObs, &
-              0.0d0, &
-              YbTinvRYb(memberIndex1,memberIndex2),1)
-          end do
+          call dgemm( &
+            'T','N', &
+            nEnsUsed,1,numLocalObs, &
+            1.0d0, &
+            YbTinvRCopy,maxNumLocalObs, &
+            YbCopy(:,memberIndex2),maxNumLocalObs, &
+            0.0d0, &
+            YbTinvRYb(:,memberIndex2),nEnsUsed)
         end do
         !$OMP END PARALLEL DO
         call utl_tmg_stop(185)
