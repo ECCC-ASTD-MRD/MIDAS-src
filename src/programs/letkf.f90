@@ -207,15 +207,13 @@ program midas_letkf
   if ( trim(algorithm) /= 'LETKF'           .and. &
        trim(algorithm) /= 'CVLETKF'         .and. &
        trim(algorithm) /= 'CVLETKF-PERTOBS' .and. &
-       trim(algorithm) /= 'LETKF-ME'        .and. &
        trim(algorithm) /= 'LETKF-Gain'      .and. &
        trim(algorithm) /= 'LETKF-Gain-ME'   .and. &
        trim(algorithm) /= 'CVLETKF-ME' ) then
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
   end if
 
-  if ( trim(algorithm) == 'LETKF-ME' .or. trim(algorithm) == 'CVLETKF-ME' .or. &
-       trim(algorithm) == 'LETKF-Gain-ME' ) then
+  if ( trim(algorithm) == 'LETKF-Gain-ME' .or. trim(algorithm) == 'CVLETKF-ME' ) then
     if ( numRetainedEigen < 1 ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
                                                'equal or greater than one for LETKF algorithm: ' // &
                                                trim(algorithm))
@@ -605,7 +603,6 @@ program midas_letkf
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, &
                           mpiDistribution, numRetainedEigen)
-  call tmg_stop(3)
 
   !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
   if ( outputEnsObs ) then
