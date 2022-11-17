@@ -64,7 +64,7 @@ program midas_obsSelection
   integer :: get_max_rss, fnom, fclos
 
   ! Namelist variables
-  logical :: doThinning ! Control whether or not thinning is done
+  logical                        :: doThinning  ! Control whether or not thinning is done
 
   namelist /namObsSelection/ doThinning
 
@@ -85,8 +85,8 @@ program midas_obsSelection
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     if (ierr /= 0) call utl_abort('midas-obsSelection: Error opening file flnml')
     read(nulnam, nml = namObsSelection, iostat = ierr)
-    if (ierr /= 0) call utl_abort('midas-obsSelection: Error reading namelist')
-    if (mmpi_myid == 0) write(*, nml = namObsSelection)
+    if (ierr /= 0) call utl_abort('midas-obsSelection: Error reading namelist namObsSelection')
+    if (mmpi_myid == 0) write(*,nml = namObsSelection)
     ierr = fclos(nulnam)
   else
     write(*,*)
@@ -150,6 +150,12 @@ program midas_obsSelection
   ! if ssmis, compute the surface type ele and update obspacedata
 
   call ssbg_computeSsmisSurfaceType(obsSpaceData)
+
+  ! Only for MWHS2 data and if modLSQ option is set to .true. in nambgck namelist, set values for land qualifier
+  ! indice and terrain type based on calculations
+  if (obs_famExist(obsSpaceData,'TO')) then
+    call mwbg_computeMwhs2SurfaceType(obsSpaceData)
+  end if
 
   !
   !- Basic setup of columnData module

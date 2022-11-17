@@ -32,33 +32,47 @@ module bgckmicrowave_mod
 
   ! Public functions/subroutines
   public :: mwbg_bgCheckMW
+  public :: mwbg_computeMwhs2SurfaceType
 
   real    :: mwbg_clwQcThreshold
   real    :: mwbg_cloudyClwThresholdBcorr
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
 
-  integer, parameter :: mwbg_maxScanAngle=96
+  integer, parameter :: mwbg_maxScanAngle=98
   real,    parameter :: mwbg_realMissing=-99. 
   integer, parameter :: mwbg_intMissing=-1
 
   ! Module variable
 
   integer, parameter :: mwbg_atmsNumSfcSensitiveChannel = 6
-  character(len=128), parameter :: glmg_file='fstglmg'  ! glace de mer file
+  character(len=128), parameter :: fileMgLg='fstglmg'  ! glace de mer file
   ! Upper limit for CLW (kg/m**2) for Tb rejection over water
   real,   parameter :: clw_atms_nrl_LTrej=0.175      ! lower trop chans 1-6, 16-20
   real,   parameter :: clw_atms_nrl_UTrej=0.2        ! upper trop chans 7-9, 21-22
+  real,   parameter :: clw_mwhs2_nrl_LTrej=0.175
+  real,   parameter :: clw_mwhs2_nrl_UTrej=0.2
   ! Other NRL thresholds
   real,   parameter :: scatec_atms_nrl_LTrej=9.0     ! lower trop chans 1-6, 16-22
   real,   parameter :: scatec_atms_nrl_UTrej=18.0    ! upper trop chans 7-9
   real,   parameter :: scatbg_atms_nrl_LTrej=10.0    ! lower trop chans 1-6
   real,   parameter :: scatbg_atms_nrl_UTrej=15.0    ! upper trop chans 7-9
+  real,   parameter :: scatec_mwhs2_nrl_LTrej=9.0    ! all MWHS-2 channels (over water)
+  real,   parameter :: scatbg_mwhs2_cmc_LANDrej=0.0  ! all MWHS-2 channels (all surfaces)
+  real,   parameter :: scatbg_mwhs2_cmc_ICErej=40.0
+  real,   parameter :: scatbg_mwhs2_cmc_SEA=15.0
   real,   parameter :: mean_Tb_183Ghz_min=240.0      ! min. value for Mean(Tb) chans. 18-22 
 
   integer, parameter :: mwbg_maxNumSat  = 13
   integer, parameter :: mwbg_maxNumChan = 100
   integer, parameter :: mwbg_maxNumTest = 16
+
+  ! OPTION for values of MG (land/sea mask) and LG (ice) at each observation
+  ! point using values on 5x5 mesh centered at each point.
+  ! ilsmOpt = 1 --> use MAX value from all 25 mesh points
+  ! ilsmOpt = 2 --> use value at central mesh point (obs location)
+  ! ilsmOpt = 3 --> use AVG value from all 25 mesh points
+  integer, parameter :: ilsmOpt = 2
 
   integer            :: rejectionCodArray (mwbg_maxNumTest, &
                                            mwbg_maxNumChan, &
@@ -75,12 +89,13 @@ module bgckmicrowave_mod
   real                          :: cloudyClwThresholdBcorr       ! 
   logical                       :: useUnbiasedObsForClw          !
   logical                       :: RESETQC                       ! reset Qc flags option
+  logical                       :: modLSQ                        !
   logical                       :: debug                         ! debug mode
 
 
   namelist /nambgck/instName, clwQcThreshold, &
                     useUnbiasedObsForClw, debug, RESETQC,  &
-                    cloudyClwThresholdBcorr 
+                    cloudyClwThresholdBcorr, modLSQ
 
 contains
 
@@ -100,6 +115,7 @@ contains
     useUnbiasedObsForClw = .false.
     cloudyClwThresholdBcorr = 0.05
     RESETQC = .false.
+    modLSQ = .false.
 
     nulnam = 0
     ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
@@ -1861,19 +1877,19 @@ contains
 
     do JJ=1,KNT
       KCHKPRF(JJ) = 0
-      do JI=1,KNO 
+      do JI=1,KNO
         KCHKPRF(JJ) = MAX(KCHKPRF(JJ),ICHECK(JI,JJ))
       end do
     end do
 
     if ( mwbg_debug ) then
       write(*,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
-    end if 
+    end if
 
-    ! Copy the modified FLAG to the 1D array, used outside this s/r. 
+    ! Copy the modified FLAG to the 1D array, used outside this s/r.
     do JJ=1,KNT
       do JI=1,KNO
-        INDX = (JJ-1)*KNO + JI 
+        INDX = (JJ-1)*KNO + JI
         IMARQ(INDX) = KMARQ(JI,JJ)
       end do
     end do
@@ -2161,19 +2177,19 @@ contains
 
     do JJ=1,KNT
       KCHKPRF(JJ) = 0
-      do JI=1,KNO 
+      do JI=1,KNO
         KCHKPRF(JJ) = MAX(KCHKPRF(JJ),ICHECK(JI,JJ))
       end do
     end do
 
     if ( mwbg_debug ) then
       write(*,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
-    end if 
+    end if
 
-    ! Copy the modified FLAG to the 1D array, used outside this s/r. 
+    ! Copy the modified FLAG to the 1D array, used outside this s/r.
     do JJ=1,KNT
       do JI=1,KNO
-        INDX = (JJ-1)*KNO + JI 
+        INDX = (JJ-1)*KNO + JI
         IMARQ(INDX) = KMARQ(JI,JJ)
       end do
     end do
@@ -2336,7 +2352,7 @@ contains
           print *, ' -----------------------------------------------------'
           print *, ' ' 
 
-        else if (instName == "ATMS") then 
+        else if (instName == "ATMS" .or. instName == "MWHS2") then
           write(*,'(//,1x,59("-"))')
           write(*,'(t10,"|",t19,"1. REJECTION CATEGORIES")')
           write(*,'(" CHANNEL",t10,"|",50("-"))')
@@ -2361,7 +2377,7 @@ contains
           print *, ' -----------------------------------------------------'
           print *, ' Definition of rejection categories: '
           print *, ' -----------------------------------------------------'
-          print *, '  1 - first bgckAtms program reject [bit 7]'
+          print *, '  1 - first bgckAtms/bgckMwhs2 program reject [bit 7]'
           print *, '  2 - topography reject'
           print *, '  3 - uncorrected radiance'
           print *, '  4 - innovation (O-P) based reject'
@@ -2854,7 +2870,7 @@ contains
       endif
     end do 
 
-end subroutine bennartz
+  end subroutine bennartz
 
   !--------------------------------------------------------------------------
   ! atmsTest1Flagbit7Check
@@ -2935,7 +2951,7 @@ end subroutine bennartz
     integer                                                   :: INDXTOPO 
 
     testIndex = 2
-    if ( itest(testIndex) .eq. 1 ) then
+    if ( itest(testIndex) == 1 ) then
       do nDataIndex=1,KNT
         do nChannelIndex=1,KNO
           INDXTOPO = ISRCHEQI(ICHTOPO, MXTOPO, KCANO(nChannelIndex,nDataIndex))
@@ -3107,7 +3123,7 @@ end subroutine bennartz
           end if
           ! For sigmaObsErrUsed=MPC_missingValue_R4 (clwObs=mwbg_realMissing
           ! in all-sky mode), the observation is flagged for rejection in 
-          ! mwbg_reviewAllcriteriaforFinalFlags.
+          ! mwbg_reviewAllCritforFinalFlagsAtms.
           XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
           if ( PTBOMP(nChannelIndex,nDataIndex)      /= mwbg_realMissing    .and. &
               ABS(PTBOMP(nChannelIndex,nDataIndex))  >= XCHECKVAL .and. &
@@ -3248,12 +3264,12 @@ end subroutine bennartz
                                ICANO, ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
                                ISCNPOS, MTINTRP, globMarq, IMARQ, clwObs, clwFG, riwv, &
                                STNID, RESETQC)
-                               
+
 
     !:Purpose:                   Effectuer le controle de qualite des radiances tovs.
     !
- 
-    implicit none 
+
+    implicit none
     !Arguments
     integer, intent(in)              :: IUTILST(:,:)           ! channel Selection using array IUTILST(chan,sat)
     !                                                            IUTILST = 0 (blacklisted)
@@ -3264,11 +3280,11 @@ end subroutine bennartz
     real(8), intent(in)              :: clwThreshArr(:,:,:)
     real(8), intent(in)              :: sigmaObsErr(:,:,:)
     logical, intent(in)              :: useStateDepSigmaObs(:,:) ! if using state dependent obs error
-    integer, intent(in)              :: KNO                    ! nombre de canaux des observations 
+    integer, intent(in)              :: KNO                    ! nombre de canaux des observations
     integer, intent(in)              :: KNT                    ! nombre de tovs
     real,    intent(in)              :: zlat(:)
     real,    intent(in)              :: zlon(:)
-    integer, intent(in)              :: ilq(:) 
+    integer, intent(in)              :: ilq(:)
     integer, intent(in)              :: itt(:)
     real,    intent(inout)           :: zenith(:)
     integer, intent(in)              :: qcflag2(:)
@@ -3300,7 +3316,7 @@ end subroutine bennartz
     integer                          :: KCANO(KNO,KNT)
     integer                          :: KMARQ(KNO,KNT)
     integer, allocatable             :: lsq(:)
-    integer, allocatable             :: trn(:) 
+    integer, allocatable             :: trn(:)
     integer,allocatable              :: KCHKPRF(:)
 
     logical, allocatable             :: waterobs(:)
@@ -3311,17 +3327,17 @@ end subroutine bennartz
     logical, allocatable             :: iwvreject(:)
     logical, allocatable             :: precipobs(:)
     real, allocatable                :: zdi(:)
-    real, allocatable                :: scatec(:) 
-    real, allocatable                :: scatbg(:) 
-    real, allocatable                :: SeaIce(:) 
+    real, allocatable                :: scatec(:)
+    real, allocatable                :: scatbg(:)
+    real, allocatable                :: SeaIce(:)
 
-    integer, parameter               :: maxScanAngleAMSU = 96 
-    integer, parameter               :: MXSFCREJ   = 8 
-    integer, parameter               :: MXCH2OMPREJ= 6  
-    integer, parameter               :: MXTOPO     = 5 
+    integer, parameter               :: maxScanAngleAMSU = 96
+    integer, parameter               :: MXSFCREJ   = 8
+    integer, parameter               :: MXCH2OMPREJ= 6
+    integer, parameter               :: MXTOPO     = 5
     integer, parameter               :: MXCLWREJ   = 6
-    integer                          :: iRej 
-    integer                          :: iNumSeaIce 
+    integer                          :: iRej
+    integer                          :: iNumSeaIce
     integer                          :: JI
     integer                          :: JJ
     integer                          :: kk
@@ -3331,21 +3347,21 @@ end subroutine bennartz
     integer                          :: B7CHCK(KNO,KNT)
     real, allocatable                :: ROGUEFAC(:)
     real                             :: ZCRIT(MXTOPO)
-    integer                          :: ITEST(mwbg_maxNumTest) 
+    integer                          :: ITEST(mwbg_maxNumTest)
     integer                          :: chanFlaggedForAllskyGenCoeff(MXCLWREJ)
-    integer                          :: ICHTOPO(MXTOPO) 
+    integer                          :: ICHTOPO(MXTOPO)
     logical, save                    :: LLFIRST = .true.
-    integer, save                    :: numReportWithMissigTb
-    integer, save                    :: drycnt                          ! Number of pts flagged for AMSU-B Dryness Index             
-    integer, save                    :: landcnt                         ! Number of obs pts found over land/ice 
-    integer, save                    :: rejcnt                          ! Number of problem obs pts (Tb err, QCfail) 
-    integer, save                    :: iwvcnt                          ! Number of pts with Mean 183 Ghz Tb < 240K 
+    integer, save                    :: numReportWithMissingTb
+    integer, save                    :: drycnt                          ! Number of pts flagged for AMSU-B Dryness Index
+    integer, save                    :: landcnt                         ! Number of obs pts found over land/ice
+    integer, save                    :: rejcnt                          ! Number of problem obs pts (Tb err, QCfail)
+    integer, save                    :: iwvcnt                          ! Number of pts with Mean 183 Ghz Tb < 240K
     integer, save                    :: pcpcnt                          ! Number of scatter/precip obs
-    integer, save                    :: cldcnt                          ! Number of water point covered by cloud 
+    integer, save                    :: cldcnt                          ! Number of water point covered by cloud
     integer, save                    :: flgcnt                          ! Total number of filtered obs pts
-    integer, save                    :: seaIcePointNum                  ! Number of waterobs points converted to sea ice points 
-    integer, save                    :: clwMissingPointNum              ! Number of points where cloudLiquidWaterPath/SI missing 
-    !                                                                     over water due bad data 
+    integer, save                    :: seaIcePointNum                  ! Number of waterobs points converted to sea ice points
+    integer, save                    :: clwMissingPointNum              ! Number of points where cloudLiquidWaterPath/SI missing
+    !                                                                     over water due bad data
 
     call utl_reAllocate(ROGUEFAC, KNO+tvs_channelOffset(KNOSAT))
     ROGUEFAC(:) = (/2.0, 2.0, 2.0, 3.0, 3.0, 4.0, 4.0, 4.0, &
@@ -3369,16 +3385,16 @@ end subroutine bennartz
     ZCRIT(:) = (/250., 2000., 2000., 2250., 2500./)
 
     !  Test selection (0=skip test, 1=do test)
-    !              1  2  3  4  5 
+    !              1  2  3  4  5
     ITEST(:)  = 0
     ITEST(1:5) = (/1, 1, 1, 1, 1/)
 
     ! Channels excluded from gen_bias_corr in all-sky mode
     chanFlaggedForAllskyGenCoeff(:) = (/ 1, 2, 3, 4, 5, 6/)
-       
+
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
-      numReportWithMissigTb = 0
+      numReportWithMissingTb = 0
       flgcnt = 0
       landcnt = 0
       rejcnt = 0
@@ -3397,34 +3413,33 @@ end subroutine bennartz
 
     !###############################################################################
     ! STEP 1 ) Determine which obs pts are over open water (i.e NOT near coasts or
-    !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL    
+    !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL
     !###############################################################################
-    call mwbg_landIceMaskAtms(KNT, zlat, zlon, ilq, itt, &
-                              lsq, trn, waterobs)
+    call mwbg_landIceMaskAtms(KNT, zlat, zlon, lsq, trn, waterobs)
 
     !###############################################################################
-    ! STEP 2 ) Check for values of TB that are missing or outside physical limits.    
+    ! STEP 2 ) Check for values of TB that are missing or outside physical limits.
     !###############################################################################
 
     call mwbg_grossValueCheck(KNT, KNO, ztb, 50., 380., grossrej)
-     
+
     !###############################################################################
-    ! STEP 3 ) Preliminary QC checks --> set lqc(KNT,KNO)=.true. 
-    !          for data that fail QC     
+    ! STEP 3 ) Preliminary QC checks --> set lqc(KNT,KNO)=.true.
+    !          for data that fail QC
     !###############################################################################
 
     call mwbg_firstQcCheckAtms(zenith, ilq, itt, zlat, zlon, ztb, ISCNPOS, &
                                KNO, KNT, lqc, grossrej, lsq, trn, qcflag1, &
                                qcflag2, ICANO, reportHasMissingTb)
 
-    if ( reportHasMissingTb ) numReportWithMissigTb = numReportWithMissigTb + 1
+    if ( reportHasMissingTb ) numReportWithMissingTb = numReportWithMissingTb + 1
     !  Exclude problem points from further calculations
     do kk = 1,KNT
       if ( COUNT(lqc(kk,:)) == KNO ) grossrej(kk) = .true.
     end do
 
     !###############################################################################
-    ! STEP 4 ) mwbg_nrlFilterAtms returns clwObs, clwFG, scatec, scatbg and also does sea-ice 
+    ! STEP 4 ) mwbg_nrlFilterAtms returns clwObs, clwFG, scatec, scatbg and also does sea-ice
     !          detection missing value for  clwObs, scatec, scatbg  is -99.0 (e.g. over
     !          land or sea-ice).Sets trn=0 (sea ice) for points where retrieved SeaIce
     !          >=0.55. Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
@@ -3434,30 +3449,30 @@ end subroutine bennartz
                             grossrej, clwObs, clwFG, scatec, scatbg, iNumSeaIce, iRej, SeaIce)
     seaIcePointNum = seaIcePointNum + iNumSeaIce
     clwMissingPointNum = clwMissingPointNum + iRej
-      
+
     !###############################################################################
     ! STEP 5 ) Apply NRL cloud filter, scattering index and sea-ice detection algorithms
     !          to OPEN WATER (waterobs=true) points.
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
-    
-    call mwbg_flagDataUsingNrlCriteria(KNT, KNO, ztb, biasCorr, clwObs, scatec, scatbg, &
+
+    call mwbg_flagDataUsingNrlCritAtms(KNT, KNO, ztb, biasCorr, clwObs, scatec, scatbg, &
                                        SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
                                        iwvreject, cloudobs, precipobs, cldcnt , ident, riwv, zdi)
 
     !###############################################################################
-    ! STEP 5 ) ! Review all the checks previously made to determine which obs are to be 
-    !            accepted for assimilation and which are to be flagged for exclusion 
-    !            (IMARQ). 
+    ! STEP 6 ) ! Review all the checks previously made to determine which obs are to be
+    !            accepted for assimilation and which are to be flagged for exclusion
+    !            (IMARQ).
     !            grossrej()  = .true. if any channel had a gross error at the point
     !            cloudobs()  = .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
     !            precipobs() = .true. if precip. detected through NRL scattering indices
     !            waterobs()  = .true. if open water point
-    !            iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry 
+    !            iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry
     !            for ch.20-22 over land)
     !###############################################################################
 
-    call mwbg_reviewAllcriteriaforFinalFlags(KNT, KNO, lqc, grossrej, waterobs, &
+    call mwbg_reviewAllCritforFinalFlagsAtms(KNT, KNO, lqc, grossrej, waterobs, &
                                              precipobs, clwObs, clwFG, scatec, scatbg, &
                                              iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
                                              drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
@@ -3477,7 +3492,7 @@ end subroutine bennartz
     !  Initialisations
     ICHECK(:,:) = 0
     B7CHCK(:,:) = 0
-   
+
     if ( RESETQC ) KMARQ(:,:) = 0
 
     ! 1) test 1: Check flag bit 7 on from the first bgckAtms program
@@ -3488,16 +3503,16 @@ end subroutine bennartz
 
     ! 2) test 2: Topography check (partial)
     call atmsTest2TopographyCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
-                                   KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, ICHECK) 
+                                   KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, ICHECK)
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
     call atmsTest3UncorrectedTbCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
-                                      KMARQ, B7CHCK, ICHECK) 
+                                      KMARQ, B7CHCK, ICHECK)
     ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     !             Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial)
-    !  Les observations, dont le residu (O-P) depasse par un facteur (roguefac) 
+    !  Les observations, dont le residu (O-P) depasse par un facteur (roguefac)
     !   l'erreur totale des TOVS.
-    !  N.B.: a reject by any of the 3 amsua surface channels 1-3 produces the 
+    !  N.B.: a reject by any of the 3 amsua surface channels 1-3 produces the
     !           rejection of ATMS sfc/tropospheric channels 1-6 and 16-17.
     !  OVER OPEN WATER
     !    ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
@@ -3505,7 +3520,7 @@ end subroutine bennartz
                               clwThreshArr, useStateDepSigmaObs, sigmaObsErr, waterobs, &
                               PTBOMP, clwObs, clwFG, IDENT, MXSFCREJ, ISFCREJ, ICH2OMPREJ, &
                               MXCH2OMPREJ, KMARQ, B7CHCK, ICHECK)
- 
+
     ! 5) test 5: Channel selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
     !            1 (assmilate)
@@ -3518,19 +3533,19 @@ end subroutine bennartz
     !            >0, au moins un canal rejete.
     do JJ=1,KNT
       KCHKPRF(JJ) = 0
-      do JI=1,KNO 
+      do JI=1,KNO
         KCHKPRF(JJ) = MAX(KCHKPRF(JJ),ICHECK(JI,JJ))
       end do
     end do
 
     if ( mwbg_debug ) then
       write(*,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
-    end if 
+    end if
 
-    ! Copy the modified FLAG to the 1D array, used outside this s/r. 
+    ! Copy the modified FLAG to the 1D array, used outside this s/r.
     do JJ=1,KNT
       do JI=1,KNO
-        INDX = (JJ-1)*KNO + JI 
+        INDX = (JJ-1)*KNO + JI
         IMARQ(INDX) = KMARQ(JI,JJ)
       end do
     end do
@@ -3540,7 +3555,7 @@ end subroutine bennartz
 
     if(mwbg_debug) then
       write(*,*) ' --------------------------------------------------------------- '
-      write(*,*) ' Number of BURP file reports where Tb set to mwbg_realMissing  = ', numReportWithMissigTb
+      write(*,*) ' Number of BURP file reports where Tb set to mwbg_realMissing  = ', numReportWithMissingTb
       write(*,*) ' --------------------------------------------------------------- '
       write(*,*) ' 1. Number of obs pts found over land/ice           = ', landcnt
       write(*,*) ' 2. Number of problem obs pts (Tb err, QCfail)      = ', rejcnt
@@ -3581,7 +3596,304 @@ end subroutine bennartz
   end subroutine mwbg_tovCheckAtms
 
   !--------------------------------------------------------------------------
-  ! mwbg_readGeophysicFieldsAndInterpolate 
+  ! mwbg_tovCheckMwhs2
+  !--------------------------------------------------------------------------
+  subroutine mwbg_tovCheckMwhs2(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+                                IUTILST, zlat, zlon, ilq, itt, zenith, qcflag2, qcflag1, &
+                                ICANO, ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
+                                ISCNPOS, MTINTRP, globMarq, IMARQ, clwObs, clwFG, riwv, &
+                                STNID, RESETQC, modLSQ, obsSpaceData, headerIndex)
+
+
+    !:Purpose:                   Effectuer le controle de qualite des radiances tovs.
+    !
+
+    implicit none
+    !Arguments
+    integer, intent(in)              :: IUTILST(:,:)           ! channel Selection using array IUTILST(chan,sat)
+    !                                                            IUTILST = 0 (blacklisted)
+    !                                                            1 (assmilate)
+    !                                                            2 (assimilate over open water only)
+
+    real(8), intent(in)              :: TOVERRST(:,:)          ! l'erreur totale des TOVS
+    real(8), intent(in)              :: clwThreshArr(:,:,:)
+    real(8), intent(in)              :: sigmaObsErr(:,:,:)
+    logical, intent(in)              :: useStateDepSigmaObs(:,:) ! if using state dependent obs error
+    integer, intent(in)              :: KNO                    ! nombre de canaux des observations
+    integer, intent(in)              :: KNT                    ! nombre de tovs
+    real,    intent(in)              :: zlat(:)
+    real,    intent(in)              :: zlon(:)
+    integer, intent(in)              :: ilq(:)
+    integer, intent(in)              :: itt(:)
+    real,    intent(inout)           :: zenith(:)
+    integer, intent(in)              :: qcflag2(:)
+    integer, intent(in)              :: qcflag1(:,:)
+    integer, intent(inout)           :: globMarq(:)
+    integer, intent(in)              :: ISCNPOS(KNT)           ! position sur le "scan"
+    integer, intent(in)              :: ICANO(:)               ! canaux des observations
+    integer, intent(in)              :: KNOSAT                 ! numero de satellite (i.e. indice)
+    real, intent(inout)              :: ztb(:)                 ! radiances
+    real, intent(in)                 :: biasCorr(:)            ! correction aux radiances
+    real, intent(in)                 :: zomp(:)                ! residus (o-p)
+    real, intent(in)                 :: MTINTRP(KNT)           ! topographie du modele
+    integer, allocatable, intent(out):: IDENT(:)               ! flag to identify all obs pts in report
+    !                                                            as being over land/ice, cloudy, bad IWV
+    character *9, intent(in)         :: STNID                  ! identificateur du satellite
+    logical, intent(in)              :: RESETQC                ! reset du controle de qualite?
+    logical, intent(in)              :: modLSQ                 ! If active, recalculate values for land/sea
+                                                               ! qualifier and terrain type based on LG/MG
+    integer,allocatable, intent(out) :: ICHECK(:,:)            ! indicateur controle de qualite tovs par canal
+    !                                                            =0, ok,
+    !                                                            >0, rejet,
+    integer, intent(inout)           :: IMARQ(:)               ! marqueurs des radiances
+    !                                                          satellite, critere et par canal
+    !                                                             (chech n2) par satellite, critere et par canal
+    real, allocatable, intent(out)   :: clwObs(:)
+    real, allocatable, intent(out)   :: clwFG(:)
+    real, allocatable, intent(out)   :: riwv(:)
+
+    type(struct_obs), intent(inout)  :: obsSpaceData           ! obspaceData Object
+    integer, intent(in)              :: headerIndex            ! header Index
+
+    !locals
+    real                             :: PTBOMP(KNO,KNT)
+    integer                          :: KCANO(KNO,KNT)
+    integer                          :: KMARQ(KNO,KNT)
+    integer, allocatable             :: lsq(:)
+    integer, allocatable             :: trn(:)
+    integer,allocatable              :: KCHKPRF(:)
+
+    logical, allocatable             :: waterobs(:)
+    logical, allocatable             :: grossrej(:)
+    logical                          :: reportHasMissingTb
+    logical, allocatable             :: lqc(:,:)
+    logical, allocatable             :: cloudobs(:)
+    logical, allocatable             :: iwvreject(:)
+    logical, allocatable             :: precipobs(:)
+    real, allocatable                :: zdi(:)
+    real, allocatable                :: scatec(:)
+    real, allocatable                :: scatbg(:)
+    real, allocatable                :: SeaIce(:)
+
+    integer, parameter               :: maxScanAngleAMSU = 98
+    integer, parameter               :: MXSFCREJ   = 8
+    integer, parameter               :: MXCH2OMPREJ= 6
+    integer, parameter               :: MXTOPO     = 3
+    integer, parameter               :: MXCLWREJ   = 6
+
+    integer                          :: iRej
+    integer                          :: iNumSeaIce
+    integer                          :: JI
+    integer                          :: JJ
+    integer                          :: kk
+    integer                          :: INDX
+    integer                          :: ISFCREJ(MXSFCREJ)
+    integer                          :: ICH2OMPREJ(MXCH2OMPREJ)
+    real, allocatable                :: ROGUEFAC(:)
+    real                             :: ZCRIT(MXTOPO)
+    real                             :: scatBgRej
+    integer                          :: ITEST(mwbg_maxNumTest)
+    integer                          :: chanFlaggedForAllskyGenCoeff(MXCLWREJ)
+    integer                          :: ICHTOPO(MXTOPO)
+    logical, save                    :: LLFIRST = .true.
+    integer, save                    :: numReportWithMissingTb
+    integer, save                    :: drycnt                          ! Number of pts flagged for AMSU-B Dryness Index
+    integer, save                    :: landcnt                         ! Number of obs pts found over land/ice
+    integer, save                    :: rejcnt                          ! Number of problem obs pts (Tb err, QCfail)
+    integer, save                    :: iwvcnt                          ! Number of pts with Mean 183 Ghz Tb < 240K
+    integer, save                    :: pcpcnt                          ! Number of scatter/precip obs
+    integer, save                    :: cldcnt                          ! Number of water point covered by cloud
+    integer, save                    :: flgcnt                          ! Total number of filtered obs pts
+    integer, save                    :: seaIcePointNum                  ! Number of waterobs points converted to sea ice points
+    integer, save                    :: clwMissingPointNum              ! Number of points where cloudLiquidWaterPath/SI missing
+    !                                                                     over water due bad data
+
+    call utl_reAllocate(ROGUEFAC, KNO+tvs_channelOffset(KNOSAT))
+    ROGUEFAC(:) = (/2.0, 9.9, 9.9, 9.9, 9.9, 9.9, 9.9, 9.9, &
+                    9.9, 2.0, 4.0, 4.0, 4.0, 4.0, 4.0/)
+    if ( tvs_mwAllskyAssim ) ROGUEFAC(1:3) = 9.9
+
+    ! Channel sets for rejection in test 9
+    !   These AMSU-B channels are rejected if ch. 10 O-P fails rogue check over OPEN WATER only
+    ICH2OMPREJ(:) = (/10, 11, 12, 13, 14, 15/)
+
+    !  Data for TOPOGRAPHY CHECK
+    !   Channel AMSUB-3 (mwhs2 ch 11) is rejected for topography > 2500m.
+    !                   (mwhs2 ch 12) is rejected for topography > 2250m.
+    !   Channel AMSUB-4 (mwhs2 ch 13) is rejected for topography > 2000m.
+    ICHTOPO(:) = (/11, 12, 13/)
+    ZCRIT(:) = (/2500., 2250., 2000./)
+
+    ! Channels excluded from gen_bias_corr in all-sky mode
+    chanFlaggedForAllskyGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
+
+    ! Initialisation, la premiere fois seulement!
+    if (LLFIRST) then
+      numReportWithMissingTb = 0
+      flgcnt = 0
+      landcnt = 0
+      rejcnt = 0
+      cldcnt = 0
+      iwvcnt = 0
+      pcpcnt = 0
+      drycnt = 0
+      seaIcePointNum = 0
+      clwMissingPointNum = 0
+      rejectionCodArray(:,:,:)  = 0
+      rejectionCodArray2(:,:,:) = 0
+      LLFIRST = .FALSE.
+    end if
+
+    ! PART 1 TESTS:
+
+    !###############################################################################
+    ! STEP 1 ) Determine which obs pts are over open water (i.e NOT near coasts or
+    !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL
+    !###############################################################################
+    call mwbg_landIceMaskMwhs2(KNT, zlat, zlon, lsq, trn, waterobs, ilsmOpt)
+
+    !###############################################################################
+    ! STEP 2 ) Check for values of TB that are missing or outside physical limits.
+    !###############################################################################
+
+    call mwbg_grossValueCheck(KNT, KNO, ztb, 50., 380., grossrej)
+
+    !###############################################################################
+    ! STEP 3 ) Preliminary QC checks --> set lqc(KNT,KNO)=.true.
+    !          for data that fail QC
+    !###############################################################################
+
+    call mwbg_firstQcCheckMwhs2(zenith, ilq, itt, zlat, zlon, ztb, ISCNPOS, &
+                                KNO, KNT, lqc, grossrej, lsq, trn, qcflag1, &
+                                qcflag2, ICANO, reportHasMissingTb, modLSQ)
+
+    if ( reportHasMissingTb ) numReportWithMissingTb = numReportWithMissingTb + 1
+    !  Exclude problem points from further calculations
+    do kk = 1,KNT
+      if ( COUNT(lqc(kk,:)) == KNO ) grossrej(kk) = .true.
+    end do
+
+    !###############################################################################
+    ! STEP 4 ) mwbg_nrlFilterMwhs2 returns clwObs, clwFG, scatec, scatbg and also does sea-ice
+    !          detection missing value for  clwObs, scatec, scatbg  is -99.0 (e.g. over
+    !          land or sea-ice).Sets trn=0 (sea ice) for points where retrieved SeaIce
+    !          >=0.55. Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
+    !###############################################################################
+
+    call mwbg_nrlFilterMwhs2(KNT, KNO, ztb, zomp, biasCorr, zenith, zlat, lsq, trn, waterobs, &
+                             grossrej, clwObs, clwFG, scatec, scatbg, iNumSeaIce, iRej, SeaIce)
+    seaIcePointNum = seaIcePointNum + iNumSeaIce
+    clwMissingPointNum = clwMissingPointNum + iRej
+
+    !###############################################################################
+    ! STEP 5 ) Apply NRL cloud filter, scattering index and sea-ice detection algorithms
+    !          to OPEN WATER (waterobs=true) points.
+    ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
+    !###############################################################################
+
+    call mwbg_flagDataUsingNrlCritMwhs2(KNT, KNO, ztb, biasCorr, clwObs, scatec, scatbg, &
+                                        SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
+                                        iwvreject, cloudobs, precipobs, cldcnt , ident, riwv, zdi)
+
+    !###############################################################################
+    ! STEP 6 ) ! Review all the checks previously made to determine which obs are to be
+    !            accepted for assimilation and which are to be flagged for exclusion
+    !            (IMARQ).
+    !            grossrej()  = .true. if any channel had a gross error at the point
+    !            cloudobs()  = .true. if CLW > clw_mwhs2_nrl_LTrej (0.175) or precipobs
+    !            precipobs() = .true. if precip. detected through NRL scattering indices
+    !            waterobs()  = .true. if open water point
+    !            iwvreject() = .true. if Mean 183 Ghz [ch. 11-15] Tb < 240K (too dry
+    !            for ch.11-13 over land)
+    !###############################################################################
+
+    call mwbg_reviewAllCritforFinalFlagsMwhs2(KNT, KNO, lqc, grossrej, trn, waterobs, &
+                                              precipobs, clwObs, clwFG, scatec, scatbg, &
+                                              iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
+                                              drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
+                                              MXCLWREJ, chanFlaggedForAllskyGenCoeff, icano)
+
+    !###############################################################################
+    ! PART 2 TESTS:
+    !###############################################################################
+
+    ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
+    call copy1Dimto2DimRealArray(ZOMP, KNO, KNT, PTBOMP)
+    call copy1Dimto2DimIntegerArray(ICANO, KNO, KNT, KCANO)
+    call copy1Dimto2DimIntegerArray(IMARQ, KNO, KNT, KMARQ)
+    ! allocations
+    call utl_reAllocate(kchkprf, KNT)
+    call utl_reAllocate(icheck, KNO, KNT)
+    !  Initialisations
+    ICHECK(:,:) = 0
+
+    if ( RESETQC ) KMARQ(:,:) = 0
+
+    !  Synthese de la controle de qualite au niveau de chaque point
+    !  d'observation. Code:
+    !            =0, aucun rejet,
+    !            >0, au moins un canal rejete.
+    KCHKPRF(:) = 0
+
+    if ( mwbg_debug ) then
+      write(*,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
+    end if
+
+    ! Copy the modified FLAG to the 1D array, used outside this s/r.
+    do JJ=1,KNT
+      do JI=1,KNO
+        INDX = (JJ-1)*KNO + JI
+        IMARQ(INDX) = KMARQ(JI,JJ)
+      end do
+    end do
+
+    ! reset global marker flag (55200) and mark it if observtions are rejected
+    call resetQcCases(RESETQC, KCHKPRF, globMarq)
+
+    if(mwbg_debug) then
+      write(*,*) ' --------------------------------------------------------------- '
+      write(*,*) ' Number of BURP file reports where Tb set to mwbg_realMissing  = ', numReportWithMissingTb
+      write(*,*) ' --------------------------------------------------------------- '
+      write(*,*) ' 1. Number of obs pts found over land/ice           = ', landcnt
+      write(*,*) ' 2. Number of problem obs pts (Tb err, QCfail)      = ', rejcnt
+      write(*,*) ' 3. Number of cloudy obs  (CLW > clw_min)           = ', cldcnt
+      write(*,*) ' 4. Number of scatter/precip obs                    = ', pcpcnt
+      write(*,*) ' 5. Number of pts with Mean 183 Ghz Tb < 240K       = ', iwvcnt
+      write(*,*) ' 6. Number of pts flagged for AMSU-B Dryness Index  = ', drycnt
+      write(*,*) ' --------------------------------------------------------------- '
+      write(*,*) ' Total number of filtered obs pts                   = ', flgcnt
+      write(*,*) ' ----------------------------------------------------------------'
+      write(*,*) ' '
+      write(*,*) ' Number of waterobs points converted to sea ice points         = ', seaIcePointNum
+      write(*,*) ' Number of points where CLW/SI missing over water due bad data = ', clwMissingPointNum
+      write(*,*) ' --------------------------------------------------------------- '
+
+      write(*,*) '   Meaning of IDENT flag bits: '
+      write(*,*) ' '
+      write(*,*) '      BIT    Meaning'
+      write(*,*) '       0     off=land or sea-ice, on=open water away from coast'
+      write(*,*) '       1     Mean 183 Ghz [ch. 11-15] is missing'
+      write(*,*) '       2     NRL CLW is missing (over water)'
+      write(*,*) '       3     NRL > clw_mwhs2_nrl_LTrej (0.175 kg/m2) (cloudobs)'
+      write(*,*) '       4     scatec > Lower Troposphere limit=9 (precipobs)'
+      write(*,*) '       5     Mean 183 Ghz [ch. 11-15] Tb < 240K'
+      write(*,*) '       6     CLW > clw_mwhs2_nrl_UTrej (0.200 kg/m2)'
+      write(*,*) '       7     Dryness Index rejection (for ch. 11)'
+      write(*,*) '       8     scatbg > CMC amsu-b limit (land=0,sea=15,ice=40)'
+      write(*,*) '       9     Dryness Index rejection (for ch. 12)'
+      write(*,*) '      10     Sea ice > 0.55 detected'
+      write(*,*) '      11     Gross error in Tb (any chan.) or other QC problem (all channels rejected)'
+      write(*,*) ' '
+      write(*,*) '   New Element 13209 in BURP file = CLW (kg/m2)'
+      write(*,*) '   New Element 13208 in BURP file = Bennartz-Grody Scattering Index'
+      write(*,*) '   New Element 25174 in BURP file = IDENT flag'
+      write(*,*) ' '
+    end if
+
+  end subroutine mwbg_tovCheckMwhs2
+
+  !--------------------------------------------------------------------------
+  ! mwbg_readGeophysicFieldsAndInterpolate
   !--------------------------------------------------------------------------
   subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, zlat, zlon, MTINTRP, MGINTRP, GLINTRP)
 
@@ -3594,14 +3906,14 @@ end subroutine bennartz
     !         Glace de Mer (GL)
     !         Masque Terre-Mer (MG)
     !         Then Interpolate Those variables to observation location
-    !Arguments: 
+    !Arguments:
     character(*),       intent(in)   :: instName       ! Instrument Name
     real,               intent(in)   :: zlat(:)        ! Obseravtion Lats
     real,               intent(in)   :: zlon(:)        ! Observation Lons
     real, allocatable,  intent(out)  :: MGINTRP(:)     ! Glace de mer interpolees au pt d'obs.
     real, allocatable,  intent(out)  :: MTINTRP(:)     ! topographie filtree (en metres) et interpolees
     real ,allocatable,  intent(out)  :: GLINTRP(:)     ! Glace de mer interpolees au pt d'obs.
-  
+
     ! Locals:
     real, allocatable, save  :: GL(:)                  ! Modele Glace de Mer (GL)
     real, allocatable, save  :: MG(:)                  ! Modele Masque Terre-Mer (MG)
@@ -3611,11 +3923,11 @@ end subroutine bennartz
     integer,           save  ::  gdmt                  ! topo interpolation param
     integer,           save  ::  gdmg                  ! mask terre-mer interpolation param
     integer,           save  ::  gdgl                  ! glace interpolation param
-    integer                  ::  gdllsval          
+    integer                  ::  gdllsval
     integer                  :: IUNGEO
-    logical                  :: readGlaceMask 
-    logical                  :: debug 
-    integer                  :: ier, irec 
+    logical                  :: readGlaceMask
+    logical                  :: debug
+    integer                  :: ier, irec
     integer                  :: ezqkdef, ezsetopt
     integer                  :: FSTINF,FSTPRM,FCLOS
     integer                  :: FSTLIR,FSTFRM, FNOM, FSTOUV
@@ -3627,7 +3939,7 @@ end subroutine bennartz
     character(len=12)        :: ETIKXX
     character(len=4)         :: CLNOMVAR
     character(len=4)         :: NOMVXX
-    character(len=2)         :: TYPXX 
+    character(len=2)         :: TYPXX
     character(len=1)         :: GRTYP
     integer                  :: NLAT
     integer                  :: NLON
@@ -3657,17 +3969,17 @@ end subroutine bennartz
     zlonNum = size(zlon)
     if (zlatNum .ne. zlonNum) then
       call utl_abort ('bgckMicrowave_mod: ERREUR: OBSERVATION ZLAT and ZLON should have SAME LENGTH')
-    else 
+    else
       dataNum = zlatNum
     end if
 
-    ! STEP 1: READ MT, GL and MG from the FST FILE 
-    debug = mwbg_debug 
+    ! STEP 1: READ MT, GL and MG from the FST FILE
+    debug = mwbg_debug
     readGlaceMask = .True.
     if (instName == 'ATMS') readGlaceMask = .False.
     if(ifFirstCall) then
-      IUNGEO = 0 
-      IER = FNOM(IUNGEO,glmg_file,'STD+RND+R/O',0)
+      IUNGEO = 0
+      IER = FNOM(IUNGEO,fileMgLg,'STD+RND+R/O',0)
 
       ! 3) Lecture des champs geophysiques (MF/MX) du modele
       IER = FSTOUV(IUNGEO,'RND')
@@ -3686,19 +3998,19 @@ end subroutine bennartz
       else
         call utl_abort ('bgckMicrowave_mod: ERREUR: LA TOPOGRAPHIE (MF or MX) EST INEXISTANTE')
       end if
-      
-      IER = FSTPRM ( IREC, IDUM1, IDUM2, IDUM3, IDUM4, & 
+
+      IER = FSTPRM ( IREC, IDUM1, IDUM2, IDUM3, IDUM4, &
           IDUM5, IDUM6, IDUM7, IDUM8, IDUM9, IDUM10,  &
           IDUM11, TYPXX, NOMVXX, ETIKXX, GRTYP, IG1, &
           IG2, IG3, IG4, IDUM12, IDUM13, IDUM14,  &
           IDUM15, IDUM16, IDUM17, IDUM18 )
        write (*,*) ' GRILLE MT : ',grtyp,ni,nj, &
                 ig1,ig2,ig3,ig4
-      ier  = ezsetopt('INTERP_DEGREE','LINEAR')  
-      ier  = ezsetopt('EXTRAP_DEGREE','ABORT')  
+      ier  = ezsetopt('INTERP_DEGREE','LINEAR')
+      ier  = ezsetopt('EXTRAP_DEGREE','ABORT')
       gdmt = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
 
-      if (readGlaceMask) then 
+      if (readGlaceMask) then
         ! MG
         IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','MG')
         if (IREC .LT. 0) then
@@ -3717,8 +4029,8 @@ end subroutine bennartz
              IDUM15, IDUM16, IDUM17, IDUM18 )
         write (*,*) ' GRILLE MG : ',grtyp,ni,nj, &
                 ig1,ig2,ig3,ig4
-        ier  = ezsetopt('INTERP_DEGREE','LINEAR')  
-        ier  = ezsetopt('EXTRAP_DEGREE','ABORT')  
+        ier  = ezsetopt('INTERP_DEGREE','LINEAR')
+        ier  = ezsetopt('EXTRAP_DEGREE','ABORT')
         gdmg = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
         ! GL
         IREC = FSTINF(IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1,' ','GL')
@@ -3731,38 +4043,38 @@ end subroutine bennartz
         IER = FSTLIR(GL,IUNGEO,NI,NJ,NK,-1,' ',-1,-1,-1, &
                  ' ','GL')
 
-        IER = FSTPRM ( IREC, IDUM1, IDUM2, IDUM3, IDUM4, & 
+        IER = FSTPRM ( IREC, IDUM1, IDUM2, IDUM3, IDUM4, &
              IDUM5, IDUM6, IDUM7, IDUM8, IDUM9, IDUM10, &
              IDUM11, TYPXX, NOMVXX, ETIKXX, GRTYP, IG1, &
              IG2, IG3, IG4, IDUM12, IDUM13, IDUM14, &
              IDUM15, IDUM16, IDUM17, IDUM18 )
         write (*,*) ' GRILLE GL : ',grtyp,ni,nj, &
                 ig1,ig2,ig3,ig4
-        ier  = ezsetopt('INTERP_DEGREE','LINEAR')  
-        ier  = ezsetopt('EXTRAP_DEGREE','ABORT')  
+        ier  = ezsetopt('INTERP_DEGREE','LINEAR')
+        ier  = ezsetopt('EXTRAP_DEGREE','ABORT')
         gdgl = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
-      else 
+      else
         gdgl = -1
         gdmg = -1
-      end if 
+      end if
       IER = FSTFRM(IUNGEO)
       IER = FCLOS(IUNGEO)
-      ifFirstCall = .False. 
+      ifFirstCall = .False.
     end if
 
     ! STEP 3:  Interpolation de la glace et le champ terre/mer du modele aux pts TOVS.
     ! N.B.: on examine ces champs sur une boite centree sur chaque obs.
     boxPointNum = MXLAT*MXLON
     if(allocated(ZLATBOX)) deallocate(ZLATBOX)
-    allocate (ZLATBOX(boxPointNum, dataNum) , STAT=ier) 
+    allocate (ZLATBOX(boxPointNum, dataNum) , STAT=ier)
     if(allocated(ZLONBOX)) deallocate(ZLONBOX)
-    allocate (ZLONBOX(boxPointNum, dataNum) , STAT=ier) 
+    allocate (ZLONBOX(boxPointNum, dataNum) , STAT=ier)
     if(allocated(MTINTBOX)) deallocate(MTINTBOX)
-    allocate (MTINTBOX(boxPointNum, dataNum) , STAT=ier) 
+    allocate (MTINTBOX(boxPointNum, dataNum) , STAT=ier)
     if(allocated(GLINTBOX)) deallocate(GLINTBOX)
-    allocate (GLINTBOX(boxPointNum, dataNum) , STAT=ier) 
+    allocate (GLINTBOX(boxPointNum, dataNum) , STAT=ier)
     if(allocated(MGINTBOX)) deallocate(MGINTBOX)
-    allocate (MGINTBOX(boxPointNum, dataNum) , STAT=ier) 
+    allocate (MGINTBOX(boxPointNum, dataNum) , STAT=ier)
     NLAT = (MXLAT-1)/2
     NLON = (MXLON-1)/2
     do dataIndex = 1, dataNum
@@ -3786,7 +4098,7 @@ end subroutine bennartz
     if (ier < 0) then
       call utl_abort ('bgckMicrowave_mod: ERROR in the interpolation of MT')
     end if
-    if(readGlaceMask) then   
+    if(readGlaceMask) then
       ier = gdllsval(gdmg,mgintbox,mg,ZLATBOX,ZLONBOX,boxPointNum*dataNum)
       if (ier < 0) then
         call utl_abort ('bgckMicrowave_mod: ERROR in the interpolation of MG')
@@ -3795,14 +4107,14 @@ end subroutine bennartz
       if (ier < 0) then
         call utl_abort ('bgckMicrowave_mod: ERROR in the interpolation of GL')
       end if
-    end if 
+    end if
 
     if(allocated(MTINTRP)) deallocate(MTINTRP)
-    allocate (MTINTRP(dataNum) , STAT=ier) 
+    allocate (MTINTRP(dataNum) , STAT=ier)
     if(allocated(MGINTRP)) deallocate(MGINTRP)
-    allocate (MGINTRP(dataNum) , STAT=ier) 
+    allocate (MGINTRP(dataNum) , STAT=ier)
     if(allocated(GLINTRP)) deallocate(GLINTRP)
-    allocate (GLINTRP(dataNum) , STAT=ier) 
+    allocate (GLINTRP(dataNum) , STAT=ier)
     do dataIndex = 1, dataNum
       if (DEBUG) then
         print *, ' ------------------  '
@@ -3826,7 +4138,7 @@ end subroutine bennartz
       GLINTRP(dataIndex) = 0.0
       do boxPointIndex=1,MXLAT*MXLON
         MTINTRP(dataIndex) = MAX(MTINTRP(dataIndex),MTINTBOX(boxPointIndex,dataIndex)/TOPOFACT)
-        if(readGlaceMask) then      
+        if(readGlaceMask) then
           MGINTRP(dataIndex) = MAX(MGINTRP(dataIndex),MGINTBOX(boxPointIndex,dataIndex))
           GLINTRP(dataIndex) = MAX(GLINTRP(dataIndex),GLINTBOX(boxPointIndex,dataIndex))
         end if
@@ -3842,7 +4154,7 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   ! mwbg_landIceMaskAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_landIceMaskAtms(npts,zlat,zlon,ilq,itt, zlq,ztt,waterobs)
+  subroutine mwbg_landIceMaskAtms(npts,zlat,zlon,zlq,ztt,waterobs)
     ! Adapted from: land_ice_mask_ssmis.ftn90 of mwbg_ssmis (D. Anselmo, S. Macpherson)
     !
     ! Object:   This routine sets waterobs array by performing a land/ice proximity check using
@@ -3884,12 +4196,6 @@ end subroutine bennartz
     !
     !               MG value = 1.0  ==>  LAND       MG value = 0.0  ==>  OCEAN
     !               LG value = 1.0  ==>  ICE        LG value = 0.0  ==>  NO ICE
-    !
-    !
-    ! Version:      Date:      Comment:
-    ! --------      -----      --------
-    !   0.1       16/08/12     Original adapted code.      S. Macpherson  
-    !   0.2       01/03/14     Open glmg_file in R/O mode  S. Macpherson
     !
     !--------------------------------------------------------------------
     !  Variable Definitions
@@ -3934,8 +4240,6 @@ end subroutine bennartz
     integer, intent(in)                   :: npts
     real,    intent(in)                   :: zlat(:)
     real,    intent(in)                   :: zlon(:)
-    integer, intent(in)                   :: ilq(:) 
-    integer, intent(in)                   :: itt(:)
     integer, intent(out), allocatable     :: zlq(:)
     integer, intent(out), allocatable     :: ztt(:)
     logical, intent(out), allocatable     :: waterobs(:)
@@ -3966,7 +4270,7 @@ end subroutine bennartz
     character(len=4)  :: nomvxx
     character(len=2)  :: typxx
     character(len=1), save :: grtyp,grtyplg
-  
+
     logical  :: llg
 
     ! F90 allocatable arrays:
@@ -3975,7 +4279,7 @@ end subroutine bennartz
     real, allocatable       :: mgintob(:),lgintob(:)
     real, allocatable       :: zlatbox(:,:),zlonbox(:,:)
     real, allocatable       :: mgintrp(:),lgintrp(:)
-  
+
     ! RMNLIB interpolating functions:
     integer :: ezsetopt,ezqkdef
     integer :: gdllsval,gdid,gdidlg
@@ -3997,12 +4301,9 @@ end subroutine bennartz
     call utl_reAllocate(ztt, npts)
     call utl_reAllocate(waterobs, npts)
 
-    zlq(:) = ilq(1:npts)  ! land/sea qualifier
-    ztt(:) = itt(1:npts)  ! terrain type (sea-ice)
-    
     ! Open FST file.
     iungeo = 0
-    ier = fnom( iungeo,glmg_file,'STD+RND+R/O',0 )
+    ier = fnom( iungeo,fileMgLg,'STD+RND+R/O',0 )
     ier = fstouv( iungeo,'RND' )
 
     if (firstCall) then
@@ -4080,14 +4381,13 @@ end subroutine bennartz
       end do
     end do
 
-
     ! Interpolate values from MG and LG field to grid pts of mesh centred over each obs pt.
     ! Determine for each obs pt, the max interpolated MG and LG value within the box
     ! surrounding it.
     ier    = ezsetopt('INTERP_DEGREE','LINEAR')
     gdid   = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
     gdidlg = ezqkdef(nilg,njlg,grtyplg,ig1lg,ig2lg,ig3lg,ig4lg,iungeo)
-    
+
     call utl_reAllocate(mgintrp, npts)
     call utl_reAllocate(lgintrp, npts)
 
@@ -4125,6 +4425,368 @@ end subroutine bennartz
 
   end subroutine mwbg_landIceMaskAtms
 
+  !--------------------------------------------------------------------------
+  ! mwbg_landIceMaskMwhs2
+  !--------------------------------------------------------------------------
+  subroutine mwbg_landIceMaskMwhs2(npts,zlat,zlon,zlq,ztt,waterobs,iopt)
+    ! Adapted from: land_ice_mask_ssmis.ftn90 of mwbg_ssmis (D. Anselmo, S. Macpherson)
+    !
+    ! Object:   This routine sets waterobs array by performing a land/ice proximity check using
+    !           using analysis MG and LG (or GL) fields used by the model which produces the trial field.
+    !           The purpose of this check is to remove obs that reside close to coasts or ice,
+    !           and so whose TBs may be contaminated.
+    !           The GEM Global (glbhyb2) analysis contains MG and LG fields (on different grids).
+    !
+    !           NOTE: The 0.1 deg binary ice field check from land_ice_mask_ssmis.ftn90
+    !           was removed. The land/sea qualifier (zlq) and terrain type (ztt) are modified
+    !           to indicate proximity to land and sea-ice but are NOT changed in output BURP file.
+    !
+    !           In the application of this check, a 5x5 mesh, with spacing defined by rlat_km and
+    !           rlon_km, is positioned with its center over an obs pt (2 grid pts on either side
+    !           of the obs pt; size of mesh is equal to 4*rlat_km x 4*rlon_km). The values of MG
+    !           and LG are evaluated at the grid points of this mesh. For iopt=1 (or 3), The maximum
+    !           (or average) determines whether the obs pt is too close to ice or land to be retained.
+    !           For iopt=2, the value at the central mesh point is used.
+    !           **NOTE: the threshold value for MG has a very strong effect on the distance
+    !                   from land that is permitted for an obs to be retained
+    !
+    !
+    !      Maximum FOV             x---x---x---x---x     ^
+    !         = 75km x 75km        |   |   |   |   |     |
+    !         for Meso-sphere CHs  x---x---x---x---x     |
+    !         = 74km x 47km        |   |   |   |   |     |
+    !         for 19 GHz           x---x---o---x---x     | = 4*rlat_km
+    !                              |   |   |   |   |     | = 4*40 km
+    !                           ^  x---x---x---x---x     | = 160 km = 80 km north & south
+    !                   rlat_km |  |   |   |   |   |     |
+    !                           v  x---x---x---x---x     v
+    !                                          <--->
+    !                                         rlon_km
+    !
+    !                              <--------------->
+    !                                 = 4*rlon_km
+    !                                 = 4*40 km
+    !                                 = 160 km = 80 km east & west
+    !
+    !
+    !               MG value = 1.0  ==>  LAND       MG value = 0.0  ==>  OCEAN
+    !               LG value = 1.0  ==>  ICE        LG value = 0.0  ==>  NO ICE
+    !
+    !--------------------------------------------------------------------
+    !  Variable Definitions
+    !  --------------------
+    ! - npts       : input  -  number of input obs pts in report
+    ! - zlat       : input  -  array holding lat values for all obs pts in report
+    ! - zlon       : input  -  array holding lon values for all obs pts in report
+    ! - zlq        : in/out -  array holding land/sea qualifier values for all obs
+    !                        pts of report (0 = land, 1 = sea)
+    ! - ztt        : in/out -  array holding terrain-type values for all obs pts
+    !                        of current report (-1 land/open water, 0 = ice)
+    ! - waterobs   : output -  logical array identifying for each obs in current report
+    !                        whether it is over open water, far from coast/ice
+    ! - iopt       : input  -  option for "interpolated" value of MG, LG at each location
+    !                        1 = use MAX value taken from all mesh grid points
+    !                        2 = use CENTRAL mesh point value (value at obs location)
+    !                        3 = use AVG value of all mesh grid points
+    ! - mxlat      : internal-  number of grid pts in lat. direction for mesh
+    ! - mxlon      : internal-  number of grid pts in lon. direction for mesh
+    ! - rlat_km    : internal-  spacing desired between mesh grid points in km
+    !                        along lat. direction
+    ! - rlon_km    : internal-  spacing desired between mesh grid points in km
+    !                        along lon. direction
+    ! - dlat       : internal-  spacing between mesh grid points along lon. direction
+    !                        in degrees computed from rlat_km
+    ! - dlon       : internal-  spacing between mesh grid points along lon. direction
+    !                        in degrees computed from rlon_km
+    ! - rkm_per_deg : internal- distance in km per degree
+    !                           = Earth radius * PI/180.0
+    !                           = 6371.01 km * PI/180.0
+    !                           = 111.195 km
+    ! - nlat,nlon  : internal-  used to define the lat/lon of the grid pts of mesh
+    ! - zlatbox    : internal-  lat values at all grid pts of mesh for all obs pts
+    ! - zlonbox    : internal-  lon values at all grid pts of mesh for all obs pts
+    ! - latmesh    : internal-  lat values at all grid pts of mesh for 1 obs pt
+    ! - lonmesh    : internal-  lon values at all grid pts of mesh for 1 obs pt
+    ! - mgintob    : internal-  interpolated MG values at all grid pts of mesh for 1 obs pt
+    ! - lgintob    : internal-  interpolated LG values at all grid pts of mesh for 1 obs pt
+    ! - mgintrp    : internal-  max. interpolated MG value on mesh for all obs pts
+    ! - lgintrp    : internal-  max. interpolated LG value on mesh for all obs pts
+    ! - MGthresh   : internal-  maximum allowable land fraction for obs to be kept
+    ! - LGthresh   : internal-  maximum allowable ice  fraction for obs to be kept
+    implicit none
+
+    ! Arguments:
+    integer, intent(in)                   :: npts
+    integer, intent(in)                   :: iopt
+    real,    intent(in)                   :: zlat(:)
+    real,    intent(in)                   :: zlon(:)
+    integer, intent(out), allocatable     :: zlq(:)
+    integer, intent(out), allocatable     :: ztt(:)
+    logical, intent(out), allocatable     :: waterobs(:)
+
+    ! Locals:
+    logical, save :: firstCall=.true.
+    integer, parameter :: mxlat=5,mxlon=5
+    integer :: iungeo
+
+    integer :: ier,key
+    integer, save :: ni,nj,nk,nilg,njlg
+    integer, save :: ig1,ig2,ig3,ig4,ig1lg,ig2lg,ig3lg,ig4lg
+    integer :: idum4,idum5,idum6,idum7,idum8,idum9,idum10,idum11
+    integer :: idum12,idum13,idum14,idum15,idum16,idum17,idum18
+
+    integer :: indx,ii,jj,kk
+    integer :: nlat,nlon
+
+    integer, parameter :: ii_obsloc=((mxlat*mxlon)/2)+1  ! 1D-index of central mesh-point (obs location)
+
+    real, parameter :: pi=3.141592654
+    real, parameter :: MGthresh=0.01,LGthresh=0.01
+    real, parameter :: rlat_km=40.0,rlon_km=40.0
+    real, parameter :: rkm_per_deg=111.195
+
+    real :: xlat,xlatrad,xlon,rii,rjj
+    real :: dlat,dlon
+
+    character(len=12) :: etikxx
+    character(len=4)  :: nomvxx
+    character(len=2)  :: typxx
+    character(len=1), save :: grtyp,grtyplg
+
+    logical  :: llg
+
+    ! F90 allocatable arrays:
+    real, allocatable, save :: mg(:),lg(:)
+    real, allocatable       :: latmesh(:),lonmesh(:)
+    real, allocatable       :: mgintob(:),lgintob(:)
+    real, allocatable       :: zlatbox(:,:),zlonbox(:,:)
+    real, allocatable       :: mgintrp(:),lgintrp(:)
+
+    ! RMNLIB interpolating functions:
+    integer :: ezsetopt,ezqkdef
+    integer :: gdllsval,gdid,gdidlg
+
+    ! Define FORTRAN FST functions:
+    integer, external :: fstinf,fstprm,fstlir,fnom,fclos
+    integer, external :: fstouv,fstfrm,fstinl,fstvoi
+
+    integer :: idum1,idum2,idum3
+
+    ! Allocate space for arrays holding values on mesh grid pts.
+    call utl_reAllocate(latmesh, mxlat*mxlon)
+    call utl_reAllocate(lonmesh, mxlat*mxlon)
+    call utl_reAllocate(mgintob, mxlat*mxlon)
+    call utl_reAllocate(lgintob, mxlat*mxlon)
+    call utl_reAllocate(zlatbox, mxlat*mxlon, npts)
+    call utl_reAllocate(zlonbox, mxlat*mxlon, npts)
+    call utl_reAllocate(zlq, npts)
+    call utl_reAllocate(ztt, npts)
+    call utl_reAllocate(waterobs, npts)
+
+    ! Open FST file.
+    iungeo = 0
+    ier = fnom( iungeo,fileMgLg,'STD+RND+R/O',0 )
+    ier = fstouv( iungeo,'RND' )
+
+    if (firstCall) then
+      firstCall = .false.
+
+      ! Read MG field.
+      key = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ' ,'MG')
+      if ( key <  0 ) then
+        call utl_abort('mwbg_landIceMaskMwhs2: The MG field is MISSING')
+      end if
+
+      call utl_reAllocate(mg, ni*nj)
+
+      ier = fstlir(mg,iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ','MG')
+
+      ier = fstprm(key,idum1,idum2,idum3,idum4,idum5,idum6,idum7,idum8,    &
+                   idum9,idum10,idum11,typxx,nomvxx,etikxx,grtyp,ig1,ig2,  &
+                   ig3,ig4,idum12,idum13,idum14,idum15,idum16,idum17,      &
+                   idum18)
+
+      ! Read LG field. Use GL field as backup.
+      ! **CAUTION**: Discontinuities in GL field may cause interpolation problems! LG field is preferable.
+      llg = .false.
+      key = fstinf(iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ' ,'LG')
+      if ( key <  0 ) then
+        key = fstinf(iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ' ,'GL')
+        if ( key <  0 ) then
+          call utl_abort('mwbg_landIceMaskMwhs2: The LG or GL field is MISSING')
+        end if
+      else
+        llg = .true.
+      end if
+
+      call utl_reAllocate(lg, nilg*njlg)
+
+      if ( llg ) then
+        ier = fstlir(lg,iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ','LG')
+      else
+        ier = fstlir(lg,iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ','GL')
+      end if
+
+      ier = fstprm(key,idum1,idum2,idum3,idum4,idum5,idum6,idum7,idum8,          &
+                   idum9,idum10,idum11,typxx,nomvxx,etikxx,grtyplg,ig1lg,ig2lg,  &
+                   ig3lg,ig4lg,idum12,idum13,idum14,idum15,idum16,idum17,        &
+                   idum18)
+
+    end if ! firstCall
+
+    ! For each obs pt, define a grid of artificial pts surrounding it.
+    nlat = ( mxlat - 1 ) / 2
+    nlon = ( mxlon - 1 ) / 2
+
+    dlat = rlat_km / rkm_per_deg
+    do kk = 1, npts
+      indx = 0
+
+      do ii = -nlat, nlat
+        rii = float(ii)
+        xlat = zlat(kk) + rii*dlat
+        xlat = max( -90.0, min(90.0,xlat) )
+        xlatrad = xlat*pi/180.0
+
+        do jj = -nlon, nlon
+          dlon = rlon_km / ( rkm_per_deg*cos(xlatrad) )
+          rjj = float(jj)
+          indx = indx + 1
+          xlon = zlon(kk) + rjj*dlon
+          if ( xlon < -180. ) xlon = xlon + 360.
+          if ( xlon >  180. ) xlon = xlon - 360.
+          if ( xlon <    0. ) xlon = xlon + 360.
+          zlatbox(indx,kk) = xlat
+          zlonbox(indx,kk) = xlon
+        end do
+
+      end do
+    end do
+
+    ! Interpolate values from MG and LG field to grid pts of mesh centred over each obs pt.
+    ! Determine for each obs pt, the max interpolated MG and LG value within the box
+    ! surrounding it.
+    ier    = ezsetopt('INTERP_DEGREE','LINEAR')
+    gdid   = ezqkdef(ni,nj,grtyp,ig1,ig2,ig3,ig4,iungeo)
+    gdidlg = ezqkdef(nilg,njlg,grtyplg,ig1lg,ig2lg,ig3lg,ig4lg,iungeo)
+
+    call utl_reAllocate(mgintrp, npts)
+    call utl_reAllocate(lgintrp, npts)
+
+    mgintrp(:) = 0.0
+    lgintrp(:) = 0.0
+    do kk = 1, npts
+
+      latmesh = zlatbox(:,kk)
+      lonmesh = zlonbox(:,kk)
+
+      ier  = gdllsval(gdid,mgintob,mg,latmesh,lonmesh,mxlat*mxlon)
+      ier  = gdllsval(gdidlg,lgintob,lg,latmesh,lonmesh,mxlat*mxlon)
+
+      if ( iopt == 1 ) then
+        mgintrp(kk) = maxval(mgintob(:))
+        lgintrp(kk) = maxval(lgintob(:))
+      elseif ( iopt == 2) then
+        mgintrp(kk) = mgintob(ii_obsloc)
+        lgintrp(kk) = lgintob(ii_obsloc)
+      else
+        mgintrp(kk) = sum(mgintob(:))/real((mxlat*mxlon))
+        lgintrp(kk) = sum(lgintob(:))/real((mxlat*mxlon))
+      endif
+
+    end do
+
+    !  Initialize all obs as being over land and free of ice or snow.
+    !  Determine which obs are over open water.
+    waterobs(:) = .false.   ! not over open water
+    ztt(:) = -1             ! no ice (reset terain type)
+    zlq(:) = 0              ! land   (reset land/sea qualifier)
+
+    do kk = 1, npts
+      if ( mgintrp(kk) < MGthresh ) zlq(kk) = 1  ! ocean point away from coast
+      if ( lgintrp(kk) >= LGthresh .and. zlq(kk) == 1 ) ztt(kk) = 0  ! sea-ice affected point
+      if ( lgintrp(kk)  < LGthresh .and. zlq(kk) == 1 ) then
+        waterobs(kk) = .true.  ! water point not in close proximity to land or sea-ice
+      end if
+    end do
+
+    ier = fstfrm(iungeo)
+    ier = fclos(iungeo)
+
+  end subroutine mwbg_landIceMaskMwhs2
+
+  !--------------------------------------------------------------------------
+  ! mwbg_computeMwhs2SurfaceType
+  !--------------------------------------------------------------------------
+
+  subroutine mwbg_computeMwhs2SurfaceType(obsSpaceData)
+    ! :Purpose: Compute surface type element and update obsSpaceData.
+
+    implicit none
+
+    ! Arguments
+    type(struct_obs), intent(inout) :: obsSpaceData           ! ObsSpaceData object
+
+    integer, allocatable :: calcLandQualifierIndice(:)
+    integer, allocatable :: calcTerrainTypeIndice(:)
+    logical, allocatable :: waterobs(:)
+    integer              :: codtyp
+    integer              :: headerIndex
+
+    logical              :: mwhs2DataPresent
+
+    real                 :: obsLatitude(1)
+    real                 :: obsLongitude(1)
+
+    write(*,*) 'ssbg_computeMwhs2SurfaceType: Starting'
+
+    mwhs2DataPresent = .false.
+    call obs_set_current_header_list(obsSpaceData,'TO')
+
+    HEADER0: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER0
+      codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+      if ( tvs_isIdBurpInst(codtyp,'mwhs2') ) then
+        mwhs2DataPresent = .true.
+        exit HEADER0
+      end if
+    end do HEADER0
+
+    if ( .not. mwhs2DataPresent ) then
+      write(*,*) 'WARNING: WILL NOT RUN ssbg_computeMwhs2SurfaceType since no MWHS2 DATA is found'
+      return
+    end if
+
+    call mwbg_init()
+
+    if ( .not. modLSQ ) then
+      write(*,*) 'WARNING: WILL NOT RUN ssbg_computeMwhs2SurfaceType since MODLSQ is not activated'
+      return
+    end if
+
+    write(*,*) 'MWHS2 data found and modLSQ option activated!'
+    write(*,*) '-->  Output file will contain recomputed values for land/sea qualifier and terrain type based on LG/MG.'
+
+    call obs_set_current_header_list(obsSpaceData,'TO')
+    HEADER1: do
+      headerIndex = obs_getHeaderIndex(obsSpaceData)
+      if (headerIndex < 0) exit HEADER1
+      obsLatitude(1)  = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex )
+      obsLatitude(1)  = obsLatitude(1) *MPC_DEGREES_PER_RADIAN_R8
+      obsLongitude(1) = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex )
+      obsLongitude(1) = obsLongitude(1)*MPC_DEGREES_PER_RADIAN_R8
+      if( obsLongitude(1) > 180. ) obsLongitude(1) = obsLongitude(1) - 360.
+      call mwbg_landIceMaskMwhs2(1, obsLatitude, obsLongitude, calcLandQualifierIndice, &
+                                 calcTerrainTypeIndice, waterobs, ilsmOpt)
+      call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, calcLandQualifierIndice(1))
+      call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, calcTerrainTypeIndice(1))
+
+    end do HEADER1
+
+    write(*,*) 'ssbg_computeMwhs2SurfaceType: Finished'
+
+  end subroutine mwbg_computeMwhs2SurfaceType
 
   !--------------------------------------------------------------------------
   ! mwbg_grossValueCheck  
@@ -4172,7 +4834,7 @@ end subroutine bennartz
     !  This routine performs basic quality control checks on the data. It sets array
     !  lqc(nt,nval) elements to .true. to flag data with failed checks.
     !
-    !  The 7 QC checks are:
+    !  The 6 QC checks are:
     !                 - 1) Invalid land/sea qualifier or terrain type,
     !                 - 2) Invalid field of view number,
     !                 - 3) Satellite zenith angle missing or out of range, (> 75 deg),
@@ -4186,7 +4848,7 @@ end subroutine bennartz
 
     !
     !  In most cases, lqc(ii,nval) is set to .true. for all channels at point ii
-    !  if the check detects a problem. In addition, Tb (ztb) is set to missing_value 
+    !  if the check detects a problem. In addition, Tb (ztb) is set to missing_value
     !  for checks 3 and 4 fails.
     implicit none
 
@@ -4275,7 +4937,7 @@ end subroutine bennartz
       end if
       if ( fail ) lqc(ii,:) = .true.
     end do
- 
+
     ! 2) invalid field of view number
     do ii = 1,nt
       fail = .false.
@@ -4370,7 +5032,7 @@ end subroutine bennartz
     !  See http://www.wmo.int/pages/prog/www/WMOCodes/WMO306_vI2/2010edition/BUFRver16/BUFR_16_0_0_TableD.pdf
 
     indx1 = 1
-    do ii = 1,nt 
+    do ii = 1,nt
       fail1 = .false.
       fail = .false.
       if ( (qcflag1(ii,1) > 0) .or. (qcflag1(ii,2) >= 32) .or. (qcflag1(ii,3) >= 64) ) then
@@ -4394,11 +5056,219 @@ end subroutine bennartz
       if ( fail ) write(*,*) 'WARNING: DATA BLOCK QC flag ele33081 >= 4 for one or more channels! lat, lon = ', zlat(ii), zlon(ii)
       indx1 = indx1 + nval
     end do
-     
+
     !write(*,*) 'mwbg_firstQcCheckAtms: Number of data processed and flagged = ', &
     !           nt*nval, count(lqc)
 
   end subroutine mwbg_firstQcCheckAtms
+
+  !--------------------------------------------------------------------------
+  ! mwbg_firstQcCheckMwhs2
+  !--------------------------------------------------------------------------
+  subroutine mwbg_firstQcCheckMwhs2(zenith, ilq, itt, zlat, zlon, ztb, scanpos, &
+                                    nval, nt, lqc, grossrej, lsq, trn, qcflag1, qcflag2, &
+                                    ican, reportHasMissingTb, modLSQ)
+    !  This routine performs basic quality control checks on the data. It sets array
+    !  lqc(nt,nval) elements to .true. to flag data with failed checks. Check 1
+    !  (for ilq,itt) and check 5 are skipped if modlsqtt=.true., as the original values
+    !  will be replaced in output file by lsq,trn.
+    !
+    !  The 5 QC checks are:
+    !                 - 1) Invalid land/sea qualifier or terrain type,
+    !                 - 2) Invalid field of view number,
+    !                 - 3) Satellite zenith angle missing or out of range, (> 75 deg),
+    !                 - 4) lat,lon check (lat,lon = O(-90.), 0(-180.))
+    !                 - 5) Change in (computed) lsq,trn from (input) ilq,itt (from MG,LG fields)
+    !                      ilq= 0,1 (from hi-res land/sea mask interpolated to obs point [CMDA])
+    !                      itt=-1,0 (from hi-res ice analysis  interpolated to obs point [CMDA])
+    !                      lsq= 0,1 (from max interp MG (0.0 to 1.0) in box surrounding obs point)
+    !                      trn=-1,0 (from max interp LG (0.0 to 1.0) in box surrounding obs point)
+
+    !
+    !  In most cases, lqc(ii,nval) is set to .true. for all channels at point ii
+    !  if the check detects a problem. In addition, Tb (ztb) is set to missing_value
+    !  for checks 3 and 4 fails.
+    implicit none
+
+    ! Arguments
+    integer,              intent(in)                :: ilq(:)
+    integer,              intent(in)                :: itt(:)
+    integer,              intent(in)                :: scanpos(:)
+    integer,              intent(in)                :: ican(:)
+    integer,              intent(in)                :: qcflag2(:)
+    integer,              intent(in)                :: qcflag1(:,:)
+    integer,              intent(in)                :: nt
+    integer,              intent(in)                :: nval
+    integer,              intent(in)                :: lsq(:)
+    integer,              intent(in)                :: trn(:)
+    logical,              intent(in)                :: grossrej(:)     ! dim(nt), true if 1 or more Tb fail gross error check
+    real,                 intent(in)                :: zlat(:)
+    real,                 intent(in)                :: zlon(:)
+    real,                 intent(inout)             :: ztb(:)
+    real,                 intent(inout)             :: zenith(:)
+    logical,              intent(out)               :: reportHasMissingTb ! true if Tb(ztb) are set to missing_value
+    logical,              intent(in)                :: modLSQ
+    logical, allocatable, intent(out)               :: lqc(:,:)        ! dim(nt,nval), lqc = .false. on input
+
+    ! Locals
+    integer :: ii, jj, indx1, icount
+    logical :: fail, fail1, fail2
+
+    reportHasMissingTb = .false.
+    call utl_reAllocate(lqc, nt, nval)
+    lqc(:,:) = .false.  ! Flag for preliminary QC checks
+    ! Global rejection checks
+
+    ! Check if number of channels is correct
+    !if ( nval /= mwbg_maxNumChan ) then
+    !  write(*,*) 'WARNING: Number of channels (',nval, ') is not equal to mwbg_maxNumChan (', mwbg_maxNumChan,')'
+    !  write(*,*) '         All data flagged as bad and returning to calling routine!'
+    !  lqc(:,:) = .true.  ! flag all data in report as bad
+    !  return
+    !end if
+
+    ! Check for errors in channel numbers (should be 1-15 for each location ii)
+    indx1 = 1
+    fail = .false.
+    do ii = 1,nt
+      do jj = 1, nval
+        if ( ican(indx1+jj-1) /= jj ) fail = .true.
+      end do
+      indx1 = indx1 + nval
+    end do
+    if ( fail ) then
+      write(*,*) 'WARNING: Bad channel number(s) detected!'
+      write(*,*) '         All data flagged as bad and returning to calling routine!'
+      write(*,*) '  ican(nt*nval) array = ', ican(:)
+      lqc(:,:) = .true.  ! flag all data in report as bad
+      return
+    end if
+
+    ! 1) invalid land/sea qualifier or terrain type
+    !  ilq = 0 (land),     1 (sea)
+    !  itt = 0 (sea-ice), -1 otherwise
+    !  lsq = 1 (sea, away from land/coast [MG]),      0 otherwise
+    !  trn = 0 (over or near analyzed sea-ice [LG]), -1 otherwise
+
+    ! Checks on ilq,itt are not done if values are to be replaced in output file.
+
+    if ( .not. modLSQ ) then
+      do ii = 1,nt
+        fail = .false.
+        if ( ilq(ii) < 0  .or. ilq(ii) > 2 ) fail = .true.
+        if ( itt(ii) < -1 .or. itt(ii) > 1 ) fail = .true.
+        if ( fail ) then
+          write(*,*) 'WARNING: Invalid land/sea qualifier or terrain type!'
+          write(*,*) '  ilq, itt, (lat, lon) = ', ilq(ii), itt(ii), '(',zlat(ii), zlon(ii),')'
+        end if
+
+        if ( ilq(ii) == 0 .and. itt(ii) == 0 ) then
+          fail = .true.
+          write(*,*) 'WARNING: Sea ice point (itt=0) at land point (ilq=0)!'
+          write(*,*) ' lat, lon =  ', zlat(ii), zlon(ii)
+        end if
+        if ( fail ) lqc(ii,:) = .true.
+      end do
+    end if
+
+    do ii = 1,nt
+      fail = .false.
+      if ( lsq(ii) < 0  .or. lsq(ii) > 2 ) fail = .true.
+      if ( trn(ii) < -1 .or. trn(ii) > 1 ) fail = .true.
+      if ( fail ) then
+        write(*,*) 'WARNING: Invalid model-based (MG/LG) land/sea qualifier or terrain type!'
+        write(*,*) '  lsq, trn, (lat, lon) = ', lsq(ii), trn(ii), '(',zlat(ii), zlon(ii),')'
+      end if
+      if ( fail ) lqc(ii,:) = .true.
+    end do
+
+    ! 2) invalid field of view number
+    do ii = 1,nt
+      fail = .false.
+      if ( scanpos(ii) < 1  .or. scanpos(ii) > mwbg_maxScanAngle ) then
+        fail = .true.
+        write(*,*) 'WARNING: Invalid field of view! scanpos, lat, lon = ', scanpos(ii), zlat(ii), zlon(ii)
+      end if
+      if ( fail ) lqc(ii,:) = .true.
+    end do
+
+    ! 3) satellite zenith angle missing or out of range (> 75 deg)
+    !  If bad zenith, then set Tb (and zenith) = missing value
+    indx1 = 1
+    do ii = 1,nt
+      fail = .false.
+      if ( zenith(ii) > 75.0 .or. zenith(ii) < 0. ) then
+        fail = .true.
+        write(*,*) 'WARNING: Bad or missing zenith angle! zenith, lat, lon = ', zenith(ii), zlat(ii), zlon(ii)
+        zenith(ii) = mwbg_realMissing
+        reportHasMissingTb = .true.
+      end if
+      do jj = 1,nval
+        if ( fail ) then
+          lqc(ii,jj) = .true.
+          ztb(indx1+jj-1) = mwbg_realMissing
+        end if
+      end do
+      indx1 = indx1 + nval
+    end do
+
+    ! 4) Lat,lon check
+    ! Check for undecoded BURP file integer values of lat,lon = 0,0
+    ! (usually associated with missing zenith angle and erroneous Tb=330K)
+
+    icount = 0
+    indx1 = 1
+    do ii = 1,nt
+      fail = .false.
+      if ( zlat(ii) == -90.0  .and. zlon(ii) == -180.0 ) then
+        fail = .true.
+        icount =  icount + 1
+        reportHasMissingTb = .true.
+      end if
+      do jj = 1, nval
+        if ( fail ) then
+          lqc(ii,jj) = .true.
+          ztb(indx1+jj-1) = mwbg_realMissing
+        end if
+      end do
+      indx1 = indx1 + nval
+    end do
+    if ( icount > 0 ) write(*,*) 'WARNING: Bad lat,lon pair(s) detected. Number of locations = ', icount
+
+    icount = 0
+    indx1 = 1
+    do ii = 1,nt
+      fail = .false.
+      if ( abs(zlat(ii)) > 90.0  .or. abs(zlon(ii)) > 180.0 ) then
+        fail = .true.
+        icount =  icount + 1
+        reportHasMissingTb = .true.
+      end if
+      do jj = 1, nval
+        if ( fail ) then
+          lqc(ii,jj) = .true.
+          ztb(indx1+jj-1) = mwbg_realMissing
+        end if
+      end do
+      indx1 = indx1 + nval
+    end do
+    if ( icount > 0 ) write(*,*) 'WARNING: Lat or lon out of range! Number of locations = ', icount
+
+    !  5) Change in land/sea qualifier or terrain-type based on MG,LG fields
+    if ( .not. modLSQ ) then
+      icount = 0
+      do ii = 1,nt
+        fail = .false.
+        if ( (ilq(ii) /= lsq(ii)) .or. (itt(ii) /= trn(ii)) ) then
+          fail = .true.
+        end if
+        if ( fail ) then
+          icount =  icount + 1
+        end if
+      end do
+    end if
+
+  end subroutine mwbg_firstQcCheckMwhs2
 
   !--------------------------------------------------------------------------
   ! mwbg_nrlFilterAtms
@@ -4406,9 +5276,9 @@ end subroutine bennartz
   subroutine mwbg_nrlFilterAtms(ni, KNO, ztbcor, zomp, biasCorr, pangl, plat, ilansea, iglace, waterobs, &
                                 grossrej, clwObs, clwFG, si_ecmwf, si_bg, iNumSeaIce, iRej,SeaIce)
     !OBJET          Compute the following parameters using 5 ATMS channels:
-    !                  - sea ice, 
-    !                  - cloud liquid water from observation (clwObs), 
-    !                  - cloud liquid water from first guess (clwFG), 
+    !                  - sea ice,
+    !                  - cloud liquid water from observation (clwObs),
+    !                  - cloud liquid water from first guess (clwFG),
     !                  - 2 scattering indices (si) (ECMWF, Bennartz-Grody)
     !               The five channels used are: 23Ghz, 31Ghz, 50Ghz, 89Ghz, and 165Ghz.
     !
@@ -4424,8 +5294,8 @@ end subroutine bennartz
     !
     !
     !ARGUMENTS      - ier         - output - error return code for each location:
-    !                                        0, ok,  
-    !                                        1, input parameter out of range or grossrej=.true. 
+    !                                        0, ok,
+    !                                        1, input parameter out of range or grossrej=.true.
     !               - ni          - input  -  number of points to process (= NT)
     !               - tb23        - input  -  23Ghz brightness temperature (K) -- ch. 1
     !               - tb23FG      - input  -  23Ghz brightness temperature (K) from first guess -- ch. 1
@@ -4448,10 +5318,10 @@ end subroutine bennartz
     !                                       with sea-ice detected (from algorithm)
     !               - iRej        - in/out -  running counter for number of locations with bad
     !                                       pangl, plat, ilansea, or with grossrej=true
-    !               - SeaIce      - output -  computed sea-ice fraction from tb23 & tb50 
+    !               - SeaIce      - output -  computed sea-ice fraction from tb23 & tb50
     !
     !               - ice         - internal -  sea ice
-    !             
+    !
     !
     ! Notes: In the case where an output parameter cannot be calculated, the
     !        value of this parameter is set to the missing value, i.e. -99.
@@ -4466,8 +5336,8 @@ end subroutine bennartz
     integer, intent(in)                   ::  ilansea(:)
     integer, intent(inout)                ::  iglace(:)
     integer, intent(out)                  ::  iRej
-   
-    
+
+
     logical, intent(in)                   ::  grossrej(:)
     logical, intent(inout)                ::  waterobs(:)
 
@@ -4478,9 +5348,9 @@ end subroutine bennartz
     real, intent(in)                      ::  plat(:)
     real, allocatable, intent(out)        ::  clwObs(:)
     real, allocatable, intent(out)        ::  clwFG(:)
-    real, allocatable, intent(out)        ::  si_ecmwf(:) 
-    real, allocatable, intent(out)        ::  si_bg(:) 
-    real, allocatable, intent(out)        ::  SeaIce(:) 
+    real, allocatable, intent(out)        ::  si_ecmwf(:)
+    real, allocatable, intent(out)        ::  si_bg(:)
+    real, allocatable, intent(out)        ::  SeaIce(:)
 
     ! Locals
     integer                               :: ier(ni)
@@ -4520,7 +5390,7 @@ end subroutine bennartz
     call utl_reAllocate(si_bg,ni)
     call utl_reAllocate(SeaIce,ni)
     ! extract required channels:
-    !  23 Ghz = AMSU-A 1 = ATMS channel 1 
+    !  23 Ghz = AMSU-A 1 = ATMS channel 1
     !  31 Ghz = AMSU-A 2 = ATMS channel 2
     !  50 Ghz = AMSU-A 3 = ATMS channel 3
     !  53 Ghz = AMSU-A 5 = ATMS channel 6
@@ -4545,7 +5415,7 @@ end subroutine bennartz
       bcor165(ii)    = biasCorr(indx1+16)
       indx1 = indx2 + 1
     end do
-    
+
     ier = 0
 
     ! 1) Initialise parameters:
@@ -4562,17 +5432,17 @@ end subroutine bennartz
     do i = 1, ni
       if ( pangl(i)   <   0.  .or. &
            pangl(i)   >  70.  .or. &
-           plat(i)    < -90.  .or. & 
-           plat(i)    >  90.  .or. &  
-           ilansea(i) <   0   .or. & 
+           plat(i)    < -90.  .or. &
+           plat(i)    >  90.  .or. &
+           ilansea(i) <   0   .or. &
            ilansea(i) >   1        ) then
          ier(i) = 1
       end if
 
-      ! Skip computations for points where all data are rejected  (bad Tb ANY channel)       
+      ! Skip computations for points where all data are rejected  (bad Tb ANY channel)
       if ( grossrej(i) ) then
-        ier(i) = 1 
-      end if 
+        ier(i) = 1
+      end if
     end do
 
     ! 3) Compute parameters:
@@ -4608,15 +5478,15 @@ end subroutine bennartz
           else
             ice(i) = 2.85 + 0.020*t23 - 0.028*t50
           end if
-          
+
           SeaIce(i) = ice(i)
-          
+
           if ( ice(i) >= 0.55 .and. waterobs(i) ) then
             iNumSeaIce = iNumSeaIce + 1
             waterobs(i) = .false.
             iglace(i) = 0
           end if
-          
+
         end if
 
         ! Compute clwObs, clwFG, and Scattering Indices (over open water only)
@@ -4653,9 +5523,271 @@ end subroutine bennartz
   end subroutine mwbg_nrlFilterAtms
 
   !--------------------------------------------------------------------------
-  ! mwbg_flagDataUsingNrlCriteria 
+  ! mwbg_nrlFilterMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_flagDataUsingNrlCriteria(nt, nval, ztbcor, biasCorr, clwObs, scatec, scatbg, SeaIce, grossrej, waterobs, &
+  subroutine mwbg_nrlFilterMwhs2(ni, KNO, ztbcor, zomp, biasCorr, pangl, plat, ilansea, iglace, waterobs, &
+                                 grossrej, clwObs, clwFG, si_ecmwf, si_bg, iNumSeaIce, iRej,SeaIce)
+    !OBJET          Compute the following parameters using 2 MWHS2 channels:
+    !                  - sea ice,
+    !                  - cloud liquid water from observation (clwObs),
+    !                  - cloud liquid water from first guess (clwFG),
+    !                  - 2 scattering indices (si) (ECMWF, Bennartz-Grody)
+    !               The two channels used are: 89Ghz, and 165Ghz.
+    !
+    !NOTES*
+    !                - open water points are converted to sea-ice points if sea ice concentration >= 0.55
+    !                   and iglace (itt or terrain type) is changed accordingly
+    !                - clwObs are missing when out-of-range parameters/Tb detected or grossrej = .true.
+    !                - clwObs and si_ecmwf only computed over open water away from coasts and sea-ice
+    !                - si_bg is computed for all points
+    !                - clwObs and si = -99.0 where value cannot be computed.
+    !
+    !REFERENCES     Ben Ruston, NRL Monterey
+    !                  JCSDA Seminar 12/12/12: Impact of NPP Satellite Assimilation in the U.S. Navy Global Modeling System
+    !
+    !
+    !ARGUMENTS      - ier         - output - error return code for each location:
+    !                                        0, ok,
+    !                                        1, input parameter out of range or grossrej=.true.
+    !               - ni          - input  -  number of points to process (= NT)
+    !               - tb23        - input  -  23Ghz brightness temperature (K) -- ch. 1 [missing for MWHS-2]
+    !               - tb23FG      - input  -  23Ghz brightness temperature (K) from first guess -- ch. 1
+    !               - tb31        - input  -  31Ghz brightness temperature (K) -- ch. 2 [missing for MWHS-2]
+    !               - tb31FG      - input  -  31Ghz brightness temperature (K) from first guess -- ch. 2
+    !               - tb50        - input  -  50Ghz brightness temperature (K) -- ch. 3 [missing for MWHS-2]
+    !               - tb89        - input  -  89Ghz brightness temperature (K) -- ch. 16
+    !               - tb165       - input  -  165Ghz brightness temperature (K) -- ch. 17
+    !               - pangl       - input  -  satellite zenith angle (deg.)
+    !               - plat        - input  -  latitude (deg.)
+    !               - ilansea     - input  -  land/sea indicator (0=land, 1=ocean)
+    !               - iglace      - in/out -  terrain type (0=ice, -1 otherwise)
+    !               - waterobs    - in/out -  .true. if open water point (away from coasts and sea-ice)
+    !               - grossrej    - input  -  .true. if any channel had a gross error from mwbg_grossValueCheck
+    !               - clwObs      - output -  cloud liquid water from observation (kg/m**2) from tb23 & tb31
+    !               - clwFG       - output -  cloud liquid water from first guess (kg/m**2) from tb23FG & tb31FG
+    !               - si_ecmwf    - output -  ECMWF scattering index from tb89 & tb165
+    !               - si_bg       - output -  Bennartz-Grody scattering index from tb89 & tb165
+    !               - iNumSeaIce  - in/out -  running counter for number of open water points
+    !                                       with sea-ice detected (from algorithm)
+    !               - iRej        - in/out -  running counter for number of locations with bad
+    !                                       pangl, plat, ilansea, or with grossrej=true
+    !               - SeaIce      - output -  computed sea-ice fraction from tb23 & tb50
+    !
+    !               - ice         - internal -  sea ice
+    !
+    !
+    ! Notes: In the case where an output parameter cannot be calculated, the
+    !        value of this parameter is set to the missing value, i.e. -99.
+    !
+    implicit none
+
+    integer    ::  i
+
+    integer, intent(in)                   ::  ni
+    integer, intent(in)                   ::  KNO
+    integer, intent(out)                  ::  iNumSeaIce
+    integer, intent(in)                   ::  ilansea(:)
+    integer, intent(inout)                ::  iglace(:)
+    integer, intent(out)                  ::  iRej
+
+
+    logical, intent(in)                   ::  grossrej(:)
+    logical, intent(inout)                ::  waterobs(:)
+
+    real, intent(in)                      ::  ztbcor(:)
+    real, intent(in)                      ::  zomp(:)
+    real, intent(in)                      ::  biasCorr(:)
+    real, intent(in)                      ::  pangl(:)
+    real, intent(in)                      ::  plat(:)
+    real, allocatable, intent(out)        ::  clwObs(:)
+    real, allocatable, intent(out)        ::  clwFG(:)
+    real, allocatable, intent(out)        ::  si_ecmwf(:)
+    real, allocatable, intent(out)        ::  si_bg(:)
+    real, allocatable, intent(out)        ::  SeaIce(:)
+
+    ! Locals
+    integer                               :: ier(ni)
+    real                                  ::  ice(ni)
+    real                                  :: tb23(ni)
+    real                                  :: tb23FG(ni)
+    real                                  :: tb31(ni)
+    real                                  :: tb31FG(ni)
+    real                                  :: tb50(ni)
+    real                                  :: tb89(ni)
+    real                                  :: tb165(ni)
+    real                                  :: bcor23(ni)
+    real                                  :: bcor31(ni)
+    real                                  :: bcor50(ni)
+    real                                  :: bcor89(ni)
+    real                                  :: bcor165(ni)
+    integer                               :: indx1
+    integer                               :: indx2
+    integer                               :: ii
+    real                                  :: aa
+    real                                  :: deltb
+    real                                  :: abslat
+    real                                  :: cosz
+    real                                  :: t23
+    real                                  :: t23FG
+    real                                  :: t31
+    real                                  :: t31FG
+    real                                  :: t50
+    real                                  :: t89
+    real                                  :: t165
+
+
+    ! Allocation
+    call utl_reAllocate(clwObs,ni)
+    call utl_reAllocate(clwFG,ni)
+    call utl_reAllocate(si_ecmwf,ni)
+    call utl_reAllocate(si_bg,ni)
+    call utl_reAllocate(SeaIce,ni)
+
+    !! extract required channels:  ATMS ch.   MWHS-2 ch.
+    !!   23 Ghz = AMSU-A 1 =        1          n/a
+    !!   31 Ghz = AMSU-A 2 =        2          n/a
+    !!   50 Ghz = AMSU-A 3 =        3          n/a
+    !!   53 Ghz = AMSU-A 5 =        6          n/a
+    !!   89 Ghz = AMSU-A 15/ B 1 = 16           1
+    !!  150 Ghz = AMSU-B 2 =       17          10
+    !!  183 Ghz = AMSU-B 3 =       22          11
+    !!  183 Ghz = AMSU-B 5 =       18          15
+    !
+    !   Extract Tb for channels 1 (AMSU-B 1) and 10 (AMSU-B 2) for Bennartz SI
+    !   Extract Tb for channels 22 (AMSU-B 3) and 18 (AMSU-B 5) for Dryness Index (DI)
+
+    indx1 = 1
+    do ii = 1, ni
+      indx2 = ii*KNO
+      tb23(ii)      = mwbg_realMissing
+      tb23FG(ii)    = mwbg_realMissing
+      bcor23(ii)    = mwbg_realMissing
+      tb31(ii)      = mwbg_realMissing
+      tb31FG(ii)    = mwbg_realMissing
+      bcor31(ii)    = mwbg_realMissing
+      tb50(ii)      = mwbg_realMissing
+      bcor50(ii)    = mwbg_realMissing
+      tb89(ii)      = ztbcor(indx1)
+      bcor89(ii)    = biasCorr(indx1)
+      tb165(ii)    = ztbcor(indx1+9)
+      bcor165(ii)    = biasCorr(indx1+9)
+      indx1 = indx2 + 1
+    end do
+
+    ier = 0
+
+    ! 1) Initialise parameters:
+    do i = 1, ni
+      ice(i)      = mwbg_realMissing
+      clwObs(i)   = mwbg_realMissing
+      clwFG(i)    = mwbg_realMissing
+      si_ecmwf(i) = mwbg_realMissing
+      si_bg(i)    = mwbg_realMissing
+      SeaIce(i)   = 0.0
+    end do
+
+    ! 2) Validate input parameters:
+    do i = 1, ni
+      if ( pangl(i)   <   0.  .or. &
+           pangl(i)   >  70.  .or. &
+           plat(i)    < -90.  .or. &
+           plat(i)    >  90.  .or. &
+           ilansea(i) <   0   .or. &
+           ilansea(i) >   1        ) then
+         ier(i) = 1
+      end if
+
+      ! Skip computations for points where all data are rejected  (bad Tb ANY channel)
+      if ( grossrej(i) ) then
+        ier(i) = 1
+      end if
+    end do
+
+    ! 3) Compute parameters:
+    do i = 1, ni
+
+      if ( ier(i) == 0 ) then
+
+        abslat = abs(plat(i))
+        cosz   = cosd(pangl(i))
+
+        if ( mwbg_useUnbiasedObsForClw ) then
+          t23 = tb23(i)
+          t31 = tb31(i)
+          t50 = tb50(i)
+          t89 = tb89(i)
+          t165 = tb165(i)
+        else
+          t23 = tb23(i) - bcor23(i)
+          t31 = tb31(i) - bcor31(i)
+          t50 = tb50(i) - bcor50(i)
+          t89 = tb89(i) - bcor89(i)
+          t165 = tb165(i) - bcor165(i)
+        end if
+        deltb = t89 - t165
+        t23FG = tb23FG(i)
+        t31FG = tb31FG(i)
+
+        ! Check for sea-ice over water points. Set terrain type to 0 if ice>=0.55 detected.
+        if ( ilansea(i) == 1 .and. t23 .ne. mwbg_realMissing ) then  ! water point
+
+          if ( abslat < 50. ) then
+            ice(i) = 0.0
+          else
+            ice(i) = 2.85 + 0.020*t23 - 0.028*t50
+          end if
+
+          SeaIce(i) = ice(i)
+
+          if ( ice(i) >= 0.55 .and. waterobs(i) ) then
+            iNumSeaIce = iNumSeaIce + 1
+            waterobs(i) = .false.
+            iglace(i) = 0
+          end if
+
+        end if
+
+        ! Compute clwObs, clwFG, and Scattering Indices (over open water only)
+        if ( waterobs(i) ) then
+          if ( t23 .ne. mwbg_realMissing ) then
+            if ( t23 < 284. .and. t31 < 284. ) then
+              aa = 8.24 - (2.622 - 1.846 * cosz) * cosz
+              clwObs(i) = aa + 0.754 * alog(285.0 - t23) - 2.265 * alog(285.0 - t31)
+              clwObs(i) = clwObs(i) * cosz
+              if ( clwObs(i) < 0.0 ) clwObs(i) = 0.0
+
+              clwFG(i) = aa + 0.754 * alog(285.0 - t23FG) - 2.265 * alog(285.0 - t31FG)
+              clwFG(i) = clwFG(i) * cosz
+              if ( clwFG(i) < 0.0 ) clwFG(i) = 0.0
+            end if
+          end if
+          si_ecmwf(i) = deltb - (-46.94 + 0.248 * pangl(i))
+          si_bg(i)    = deltb - (-39.201 + 0.1104 * pangl(i))
+        else
+          si_bg(i)    = deltb - (0.158 + 0.0163 * pangl(i))
+        end if
+
+      else  ! ier(i) .eq. 1 case
+         iRej = iRej + 1
+
+      end if ! if ( ier(i) .eq. 0 )
+
+      if ( mwbg_debug .and. (i <= 100) ) then
+        write(*,*) ' '
+        write(*,*) ' i,tb23(i),tb23FG(i),tb31(i),tb31FG(i),tb50(i),tb89(i),tb165(i),pangl(i),plat(i), ilansea(i) = ', &
+     &             i,tb23(i),tb23FG(i),tb31(i),tb31FG(i),tb50(i),tb89(i),tb165(i),pangl(i),plat(i), ilansea(i)
+        write(*,*) ' ier(i),ice(i),clwObs(i),clwFG(i),si_ecmwf(i),si_bg(i),iglace(i),waterobs(i) =',ier(i),ice(i),&
+     &             clwObs(i),clwFG(i),si_ecmwf(i),si_bg(i),iglace(i),waterobs(i)
+      end if
+
+    end do   ! i loop over ni points
+
+  end subroutine mwbg_nrlFilterMwhs2
+
+  !--------------------------------------------------------------------------
+  ! mwbg_flagDataUsingNrlCritAtms
+  !--------------------------------------------------------------------------
+  subroutine mwbg_flagDataUsingNrlCritAtms(nt, nval, ztbcor, biasCorr, clwObs, scatec, scatbg, SeaIce, grossrej, waterobs, &
                                            useUnbiasedObsForClw, iwvreject, cloudobs, precipobs,  cldcnt, ident, riwv, zdi)
 
     !:Purpose:                       Set the  Information flag (ident) values (new BURP element 025174 in header)
@@ -4674,19 +5806,19 @@ end subroutine bennartz
     !                               - 11     Gross error in Tb (any chan.)  (all channels rejected)
 
     ! Arguments
-    integer, intent(in)                        :: nt  
-    integer, intent(in)                        :: nval 
+    integer, intent(in)                        :: nt
+    integer, intent(in)                        :: nval
     real, intent(in)                           :: ztbcor(:)
     real, intent(in)                           :: biasCorr(:)
     real, intent(in)                           :: clwObs (:)
-    real, intent(in)                           :: scatec(:) 
-    real, intent(in)                           :: scatbg(:) 
+    real, intent(in)                           :: scatec(:)
+    real, intent(in)                           :: scatbg(:)
     real, intent(in)                           :: SeaIce (:)
 
     logical, intent(in)                        :: useUnbiasedObsForClw
     logical, intent(in)                        :: grossrej(:)
     logical, intent(in)                        :: waterobs(:)
-    integer, intent(inout)                     :: cldcnt 
+    integer, intent(inout)                     :: cldcnt
     logical, allocatable, intent(out)          :: cloudobs(:)
     logical, allocatable, intent(out)          :: iwvreject(:)
     logical, allocatable, intent(out)          :: precipobs(:)
@@ -4699,10 +5831,10 @@ end subroutine bennartz
     integer                                    :: indx2
     integer                                    :: ii
     integer                                    :: n_cld
-    real, allocatable                          :: ztb_amsub3(:)  
-    real, allocatable                          :: bcor_amsub3(:)  
-    real, allocatable                          :: ztb_amsub5(:) 
-    real, allocatable                          :: bcor_amsub5(:) 
+    real, allocatable                          :: ztb_amsub3(:)
+    real, allocatable                          :: bcor_amsub3(:)
+    real, allocatable                          :: ztb_amsub5(:)
+    real, allocatable                          :: bcor_amsub5(:)
     real                                       ::  ztb183(5)
 
 
@@ -4781,7 +5913,7 @@ end subroutine bennartz
     where ( clwObs > clw_atms_nrl_UTrej) ident = IBSET(ident,6)
     where ( scatec > scatec_atms_nrl_UTrej .or. scatbg > scatbg_atms_nrl_UTrej ) ident = IBSET(ident,8)
     where ( SeaIce >= 0.55 ) ident = IBSET(ident,10)
-      
+
     where ( waterobs .and. (clwObs == -99.) ) ident = IBSET(ident,2)
     where ( riwv == -99.)                   ident = IBSET(ident,1)
 
@@ -4800,32 +5932,181 @@ end subroutine bennartz
       end where
     end if
 
-  end subroutine mwbg_flagDataUsingNrlCriteria
+  end subroutine mwbg_flagDataUsingNrlCritAtms
 
   !--------------------------------------------------------------------------
-  ! mwbg_reviewAllcriteriaforFinalFlags
+  ! mwbg_flagDataUsingNrlCritMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_reviewAllcriteriaforFinalFlags(nt, nval, lqc, grossrej, waterobs, &
+  subroutine mwbg_flagDataUsingNrlCritMwhs2(nt, nval, ztbcor, biasCorr, clwObs, scatec, scatbg, SeaIce, grossrej, waterobs, &
+                                            useUnbiasedObsForClw, iwvreject, cloudobs, precipobs,  cldcnt, ident, riwv, zdi)
+
+    !:Purpose:                       Set the  Information flag (ident) values (new BURP element 025174 in header)
+    !                                BIT    Meaning
+    !                                - 0     off=land or sea-ice, on=open water away from coast
+    !                                - 1     Mean 183 Ghz [ch. 18-22] is missing
+    !                                - 2     CLW is missing (over water)
+    !                                - 3     CLW > clw_mwhs2_nrl_LTrej (0.175 kg/m2) (cloudobs)
+    !                                - 4     scatec > Lower Troposphere limit 9/10 (precipobs)
+    !                                - 5     Mean 183 Ghz [ch. 18-22] Tb < 240K
+    !                                - 6     CLW > clw_mwhs2_nrl_UTrej (0.200 kg/m2)
+    !                                - 7     Dryness Index rejection (for ch. 22)
+    !                                - 8     scatbg > CMC amsu-b limit (land=0,sea=15,ice=40)
+    !                                - 9     Dryness Index rejection (for ch. 21)
+    !                               - 10     Sea ice > 0.55 detected
+    !                               - 11     Gross error in Tb (any chan.)  (all channels rejected)
+
+    ! Arguments
+    integer, intent(in)                        :: nt
+    integer, intent(in)                        :: nval
+    real, intent(in)                           :: ztbcor(:)
+    real, intent(in)                           :: biasCorr(:)
+    real, intent(in)                           :: clwObs (:)
+    real, intent(in)                           :: scatec(:)
+    real, intent(in)                           :: scatbg(:)
+    real, intent(in)                           :: SeaIce (:)
+
+    logical, intent(in)                        :: useUnbiasedObsForClw
+    logical, intent(in)                        :: grossrej(:)
+    logical, intent(in)                        :: waterobs(:)
+    integer, intent(inout)                     :: cldcnt
+    logical, allocatable, intent(out)          :: cloudobs(:)
+    logical, allocatable, intent(out)          :: iwvreject(:)
+    logical, allocatable, intent(out)          :: precipobs(:)
+    integer, allocatable, intent(out)          :: ident(:)
+    real, allocatable, intent(out)             :: zdi(:)
+    real, allocatable, intent(out)             :: riwv(:)
+
+    ! Locals
+    integer                                    :: indx1
+    integer                                    :: indx2
+    integer                                    :: ii
+    integer                                    :: n_cld
+    real, allocatable                          :: ztb_amsub3(:)
+    real, allocatable                          :: bcor_amsub3(:)
+    real, allocatable                          :: ztb_amsub5(:)
+    real, allocatable                          :: bcor_amsub5(:)
+    real                                       ::  ztb183(5)
+
+
+    call utl_reAllocate(cloudobs, nt)
+    call utl_reAllocate(iwvreject, nt)
+    call utl_reAllocate(ident, nt)
+    call utl_reAllocate(precipobs, nt)
+    call utl_reAllocate(riwv, nt)
+    call utl_reAllocate(ztb_amsub3, nt)
+    call utl_reAllocate(bcor_amsub3, nt)
+    call utl_reAllocate(ztb_amsub5, nt)
+    call utl_reAllocate(bcor_amsub5, nt)
+
+    ! To begin, assume that all obs are good.
+    ident(:) = 0
+    cloudobs(:)  = .false.
+    iwvreject(:) = .false.
+    precipobs(:) = .false.
+
+    ! Extract Tb for channels 1 (AMSU-B 1) and 10 (AMSU-B 2) for Bennartz SI
+    ! Extract Tb for channels 11 (AMSU-B 3) and 15 (AMSU-B 5) for Dryness Index (DI)
+
+    indx1 = 1
+    do ii = 1, nt
+      indx2 = ii*nval
+      ztb_amsub3(ii) = ztbcor(indx1+10)
+      bcor_amsub3(ii) = biasCorr(indx1+10)
+      ztb_amsub5(ii) = ztbcor(indx1+14)
+      bcor_amsub5(ii) = biasCorr(indx1+14)
+      indx1 = indx2 + 1
+    end do
+
+
+    ! Flag data using NRL criteria
+
+    ! Compute Mean 183 Ghz [ch. 11-15] Tb (riwv)
+    riwv = -99.0
+    indx1 = 1
+    do ii = 1, nt
+      indx2 = ii*nval
+      if (.not.grossrej(ii)) then
+        if ( useUnbiasedObsForClw ) then
+          ztb183(1) = ztbcor(indx1+10)
+          ztb183(2) = ztbcor(indx1+11)
+          ztb183(3) = ztbcor(indx1+12)
+          ztb183(4) = ztbcor(indx1+13)
+          ztb183(5) = ztbcor(indx1+14)
+        else
+          ztb183(1) = ztbcor(indx1+10) - biasCorr(indx1+10)
+          ztb183(2) = ztbcor(indx1+11) - biasCorr(indx1+11)
+          ztb183(3) = ztbcor(indx1+12) - biasCorr(indx1+12)
+          ztb183(4) = ztbcor(indx1+13) - biasCorr(indx1+13)
+          ztb183(5) = ztbcor(indx1+14) - biasCorr(indx1+14)
+        end if
+        riwv(ii)  = sum(ztb183)/5.0
+        if ( riwv(ii) < mean_Tb_183Ghz_min ) iwvreject(ii) = .true.
+      else
+        iwvreject(ii) = .true.
+      end if
+      indx1 = indx2 + 1
+    end do
+
+    !  Set bits in ident flag to identify where various data selection criteria are met
+    !     precipobs = .true  where ECMWF or BG scattering index > min_threshold (LT)
+    !     cloudobs  = .true. where CLW > min_threshold (LT) or if precipobs = .true
+
+    where ( grossrej ) ident = IBSET(ident,11)
+    where ( scatec > scatec_mwhs2_nrl_LTrej ) precipobs = .true.
+    n_cld = count(clwObs > clw_mwhs2_nrl_LTrej)
+    cldcnt  = cldcnt  + n_cld
+    where ( (clwObs > clw_mwhs2_nrl_LTrej) .or. precipobs ) cloudobs = .true.
+    where ( waterobs )  ident = IBSET(ident,0)
+    where ( iwvreject ) ident = IBSET(ident,5)
+    where ( precipobs ) ident = IBSET(ident,4)
+    where ( clwObs > clw_mwhs2_nrl_LTrej) ident = IBSET(ident,3)
+    where ( clwObs > clw_mwhs2_nrl_UTrej) ident = IBSET(ident,6)
+    where ( SeaIce >= 0.55 ) ident = IBSET(ident,10)
+
+    where ( waterobs .and. (clwObs == -99.) ) ident = IBSET(ident,2)
+    where ( riwv == -99.)                   ident = IBSET(ident,1)
+
+    ! Compute the simple AMSU-B Dryness Index zdi for all points = Tb(ch.3)-Tb(ch.5)
+    if ( useUnbiasedObsForClw ) then
+      where ( .not.grossrej )
+        zdi = ztb_amsub3 - ztb_amsub5
+      elsewhere
+        zdi = mwbg_realMissing
+      end where
+    else
+      where ( .not.grossrej )
+        zdi = (ztb_amsub3 - bcor_amsub3) - (ztb_amsub5 - bcor_amsub5)
+      elsewhere
+        zdi = mwbg_realMissing
+      end where
+    end if
+
+  end subroutine mwbg_flagDataUsingNrlCritMwhs2
+
+  !--------------------------------------------------------------------------
+  ! mwbg_reviewAllCritforFinalFlagsAtms
+  !--------------------------------------------------------------------------
+  subroutine mwbg_reviewAllCritforFinalFlagsAtms(nt, nval, lqc, grossrej, waterobs, &
                                                  precipobs, clwObs, clwFG, scatec, scatbg, &
                                                  iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
                                                  drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
                                                  MXCLWREJ, chanFlaggedForAllskyGenCoeff, icano)
 
     !:Purpose:                   Review all the checks previously made to determine which obs are to be accepted
-    !                            for assimilation and which are to be flagged for exclusion (lflagchn). 
+    !                            for assimilation and which are to be flagged for exclusion (lflagchn).
     !                            - grossrej()  = .true. if any channel had a gross error at the point
     !                            - cloudobs()  = .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
     !                            - precipobs() = .true. if precip. detected through NRL scattering indices
     !                            - waterobs()  = .true. if open water point
     !                            - iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
     ! Arguments
-    integer, intent(in)                        :: nt  
-    integer, intent(in)                        :: nval 
+    integer, intent(in)                        :: nt
+    integer, intent(in)                        :: nval
     logical, intent(in)                        :: lqc(:,:)
     real, intent(inout)                        :: clwObs(:)
     real, intent(inout)                        :: clwFG(:)
-    real, intent(in)                           :: scatec(:) 
-    real, intent(in)                           :: scatbg(:) 
+    real, intent(in)                           :: scatec(:)
+    real, intent(in)                           :: scatbg(:)
     logical, intent(in)                        :: grossrej(:)
     logical, intent(in)                        :: waterobs(:)
     logical, intent(in)                        :: iwvreject(:)
@@ -4835,18 +6116,18 @@ end subroutine bennartz
     real, intent(inout)                        :: riwv(:)
     integer, intent(inout)                     :: IMARQ(:)
     integer, intent(inout)                     :: globMarq(:)
-    integer, intent(inout)                     :: drycnt 
-    integer, intent(inout)                     :: landcnt 
-    integer, intent(inout)                     :: rejcnt 
-    integer, intent(inout)                     :: iwvcnt 
-    integer, intent(inout)                     :: pcpcnt 
-    integer, intent(inout)                     :: flgcnt 
+    integer, intent(inout)                     :: drycnt
+    integer, intent(inout)                     :: landcnt
+    integer, intent(inout)                     :: rejcnt
+    integer, intent(inout)                     :: iwvcnt
+    integer, intent(inout)                     :: pcpcnt
+    integer, intent(inout)                     :: flgcnt
     integer, intent(in)                        :: MXCLWREJ
     integer, intent(in)                        :: chanFlaggedForAllskyGenCoeff(:)
     integer, intent(in)                        :: icano(:)
 
     ! Locals
-    real                                       :: clwObsFGaveraged 
+    real                                       :: clwObsFGaveraged
     logical, allocatable                       :: lflagchn(:,:)
     integer                                    :: kk, j, ipos, INDXCAN
 
@@ -4856,16 +6137,18 @@ end subroutine bennartz
 
     lflagchn(:,:) = lqc(:,:)  ! initialize with flags set in mwbg_firstQcCheckAtms
     do kk = 1, nt
-      ! Reject all channels if gross Tb error detected in any channel or other problems 
+      ! Reject all channels if gross Tb error detected in any channel or other problems
       if ( grossrej(kk) ) then
         lflagchn(kk,:) = .true.
       else
+
         ! OVER LAND OR SEA-ICE,
         !    -- CLW/SI not determined over land
-        !    -- surface emissivity effects lower tropospheric and window channels     
+        !    -- surface emissivity effects lower tropospheric and window channels
         !    -- reject window & lower tropospheric channels 1-6, 16-19
         !    -- reject ch. 20-22 if iwvreject = .true.  [ Mean 183 Ghz [ch. 18-22] Tb < 240K ]
         !    -- check DI for AMSU-B like channels
+
         if  ( .not. waterobs(kk) ) then
           lflagchn(kk,1:mwbg_atmsNumSfcSensitiveChannel)     = .true.      ! AMSU-A 1-6
           lflagchn(kk,16:19)     = .true.      ! AMSU-B (like 1,2,5)
@@ -4887,7 +6170,9 @@ end subroutine bennartz
           if ( zdi(kk) > -8.0 ) then
             lflagchn(kk,20) = .true.
           end if
-        end if
+
+        else  ! if waterobs(kk)
+
         ! OVER WATER,
         !    in clear-sky mode:
         !    -- reject ch. 5-6, if CLW > clw_atms_nrl_LTrej or CLW = -99.0
@@ -4902,7 +6187,7 @@ end subroutine bennartz
         !    -- reject ch. 1-6        if scatbg > 10 or scatbg = -99.0
         !    -- reject ch. 7-9        if scatbg > 15 or scatbg = -99.0
         !    -- reject ch. 16-22      if iwvreject = .true.   [ Mean 183 Ghz [ch. 18-22] Tb < 240K ]
-        if  ( waterobs(kk) ) then
+
           if ( clwObs(kk)   >  clw_atms_nrl_LTrej )  then
             if ( tvs_mwAllskyAssim ) then
               lflagchn(kk,1:4) = .true.
@@ -4911,11 +6196,11 @@ end subroutine bennartz
             else
               lflagchn(kk,1:mwbg_atmsNumSfcSensitiveChannel) = .true.
             end if
-            lflagchn(kk,16:20) = .true. 
+            lflagchn(kk,16:20) = .true.
           end if
           if ( clwObs(kk)   >  clw_atms_nrl_UTrej )  then
             lflagchn(kk,7:9)   = .true.
-            lflagchn(kk,21:22) = .true. 
+            lflagchn(kk,21:22) = .true.
           end if
           if ( scatec(kk) >  scatec_atms_nrl_LTrej ) then
             lflagchn(kk,1:mwbg_atmsNumSfcSensitiveChannel) = .true.
@@ -4933,10 +6218,10 @@ end subroutine bennartz
           if ( riwv(kk) == -99. ) then     ! riwv = mean_Tb_183Ghz
             ident(kk) = IBSET(ident(kk),1)
             lflagchn(kk,16:22) = .true.
-          end if           
-        end if
+          end if
+        end if  ! if waterobs(kk)
 
-      end if
+      end if  ! if .not. grossrej(kk)
 
       if ( .not. waterobs(kk) ) landcnt  = landcnt  + 1
       if ( grossrej(kk) )  rejcnt = rejcnt + 1
@@ -4944,7 +6229,7 @@ end subroutine bennartz
       if ( precipobs(kk) .and. waterobs(kk) ) then
         pcpcnt = pcpcnt + 1
       end if
-        
+
       if ( ANY(lflagchn(kk,:)) ) flgcnt = flgcnt + 1
     end do
 
@@ -4955,8 +6240,8 @@ end subroutine bennartz
     where (clwObs == -99. ) clwFG = mwbg_realMissing
     where (riwv == -99. ) riwv = mwbg_realMissing
 
-    ! Modify data flag values (set bit 7) for rejected data  
-    ! In all-sky mode, turn on bit=23 for cloud-affected radiances when 
+    ! Modify data flag values (set bit 7) for rejected data
+    ! In all-sky mode, turn on bit=23 for cloud-affected radiances when
     ! there is mismatch between clwObs and clwFG (to be used in gen_bias_corr)
     ipos=0
     do kk =1, nt
@@ -4978,13 +6263,210 @@ end subroutine bennartz
     end do
 
 
-    ! Set bit 6 in 24-bit global flags if any data rejected  
+    ! Set bit 6 in 24-bit global flags if any data rejected
     do kk =1, nt
       if ( ANY(lflagchn(kk,:)) ) globMarq(kk) = IBSET(globMarq(kk),6)
     end do
-  
-  end subroutine mwbg_reviewAllcriteriaforFinalFlags
 
+  end subroutine mwbg_reviewAllCritforFinalFlagsAtms
+
+  !--------------------------------------------------------------------------
+  ! mwbg_reviewAllCritforFinalFlagsMwhs2
+  !--------------------------------------------------------------------------
+  subroutine mwbg_reviewAllCritforFinalFlagsMwhs2(nt, nval, lqc, grossrej, trn, waterobs, &
+                                                  precipobs, clwObs, clwFG, scatec, scatbg, &
+                                                  iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
+                                                  drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
+                                                  MXCLWREJ, chanFlaggedForAllskyGenCoeff, icano)
+
+    !:Purpose:                   Review all the checks previously made to determine which obs are to be accepted
+    !                            for assimilation and which are to be flagged for exclusion (lflagchn).
+    !                            - grossrej()  = .true. if any channel had a gross error at the point
+    !                            - cloudobs()  = .true. if CLW > clw_mwhs2_nrl_LTrej (0.175) or precipobs
+    !                            - precipobs() = .true. if precip. detected through NRL scattering indices
+    !                            - waterobs()  = .true. if open water point
+    !                            - iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
+    ! Arguments
+    integer, intent(in)                        :: nt
+    integer, intent(in)                        :: nval
+    logical, intent(in)                        :: lqc(:,:)
+    real, intent(inout)                        :: clwObs(:)
+    real, intent(inout)                        :: clwFG(:)
+    real, intent(in)                           :: scatec(:)
+    real, intent(in)                           :: scatbg(:)
+    logical, intent(in)                        :: grossrej(:)
+    logical, intent(in)                        :: waterobs(:)
+    logical, intent(in)                        :: iwvreject(:)
+    logical, intent(in)                        :: precipobs(:)
+    integer, intent(inout)                     :: ident(:)
+    real, intent(in)                           :: zdi(:)
+    real, intent(inout)                        :: riwv(:)
+    integer, intent(inout)                     :: IMARQ(:)
+    integer, intent(inout)                     :: globMarq(:)
+    integer, intent(inout)                     :: drycnt
+    integer, intent(inout)                     :: landcnt
+    integer, intent(inout)                     :: rejcnt
+    integer, intent(inout)                     :: iwvcnt
+    integer, intent(inout)                     :: pcpcnt
+    integer, intent(inout)                     :: flgcnt
+    integer, intent(inout)                     :: trn(:)
+    integer, intent(in)                        :: MXCLWREJ
+    integer, intent(in)                        :: chanFlaggedForAllskyGenCoeff(:)
+    integer, intent(in)                        :: icano(:)
+
+    ! Locals
+    real                                       :: clwObsFGaveraged
+    real                                       :: scatbg_rej
+    logical, allocatable                       :: lflagchn(:,:)
+    integer                                    :: kk, j, ipos, INDXCAN
+
+
+    ! Allocation
+    call utl_reAllocate(lflagchn,nt, nval)
+
+    lflagchn(:,:) = lqc(:,:)  ! initialize with flags set in mwbg_firstQcCheckMwhs2
+    do kk = 1, nt
+      ! Reject all channels if gross Tb error detected in any channel or other problems
+      if ( grossrej(kk) ) then
+        lflagchn(kk,:) = .true.
+      else
+
+        ! OVER LAND OR SEA-ICE,
+        !    -- CLW/SI not determined over land
+        !    -- surface emissivity effects lower tropospheric and window channels
+        !    -- reject window & lower tropospheric channels 1,10,14,15
+        !    -- reject ch. 11-13 if iwvreject = .true.  [ Mean 183 Ghz [ch. 18-22] Tb < 240K ]
+        !    -- check DI for AMSU-B like channels
+        !    -- reject all channels if scatbg exceeds CMC thresholds for AMSU-B
+
+        if  ( .not. waterobs(kk) ) then
+          lflagchn(kk,(/ 1,10,14,15 /)) = .true.      ! AMSU-B (like 1,2,5)
+          if ( iwvreject(kk) ) lflagchn(kk,11:13) = .true.  ! AMSU-B (like 4,3)
+
+          ! Dryness index (for AMSU-B channels 11-14 assimilated over land/sea-ice)
+          ! Channel AMSUB-3 (MWHS-2 channel 11) is rejected for a dryness index >    0.
+          !                 (MWHS-2 channel 12) is rejected for a dryness index >   -5.
+          ! Channel AMSUB-4 (MWHS-2 channel 13) is rejected for a dryness index >   -8.
+          if ( zdi(kk) > 0.0 ) then
+            lflagchn(kk,11) = .true.
+            ident(kk) = IBSET(ident(kk),7)
+          end if
+          if ( zdi(kk) > -5.0 ) then
+            lflagchn(kk,12) = .true.
+            ident(kk) = IBSET(ident(kk),9)
+            drycnt = drycnt + 1
+          end if
+          if ( zdi(kk) > -8.0 ) then
+            lflagchn(kk,13) = .true.
+          end if
+
+          ! Bennartz -Grody SI check thresholds (same as for QC of AMSU-B/MHS)
+          if ( trn(kk) == 0 ) then ! sea-ice
+            scatbg_rej = scatbg_mwhs2_cmc_ICErej
+          else                     ! land
+            scatbg_rej = scatbg_mwhs2_cmc_LANDrej
+          end if
+          if ( scatbg(kk) > scatbg_rej ) then
+            lflagchn(kk,:) = .true.
+            ident(kk) = IBSET(ident(kk),8)
+          end if
+
+        else  ! if waterobs(kk)
+
+        ! OVER WATER,
+        !-----------------------------------------------------------------
+        ! PLACEHOLDER VALUES FOR ALLSKY ASSIM, SINCE NOT IMPLEMENTED YET
+        !    in clear-sky mode:
+        !    -- reject ch. 1, if CLW > clw_mwhs2_nrl_LTrej or CLW = -99.0
+        !    in all-sky mode:
+        !    -- reject ch. 1, if CLW > mwbg_clwQcThreshold or CLW = -99.0
+        !-----------------------------------------------------------------
+        !    -- reject ch. 1, 10, 13-15 if CLW > clw_mwhs2_nrl_LTrej
+        !    -- reject ch. 11-12 if CLW > clw_mwhs2_nrl_UTrej
+        !    -- reject ch. 1, 10-15 if scatec > 9  or scatec = -99.0
+        !    -- reject ch. 1, 10-15 if iwvreject = .true.   [ Mean 183 Ghz [ch. 11-15] Tb < 240K ]
+        !    -- reject all channels if scatbg exceeds CMC SEA threshold for AMSU-B
+
+          if ( clwObs(kk)   >  clw_mwhs2_nrl_LTrej )  then
+            if ( tvs_mwAllskyAssim ) then ! NEVER TRUE SINCE NOT IMPLEMENTED YET
+              clwObsFGaveraged = 0.5 * (clwObs(kk) + clwFG(kk))
+              if ( clwObsFGaveraged > mwbg_clwQcThreshold ) lflagchn(kk,1) = .true.
+            else
+              lflagchn(kk,1) = .true.
+            end if
+            lflagchn(kk,(/ 10,13,14,15 /)) = .true.
+          end if
+          if ( clwObs(kk)   >  clw_mwhs2_nrl_UTrej )  then
+            lflagchn(kk,11:12) = .true.
+          end if
+          if ( scatec(kk) >  scatec_mwhs2_nrl_LTrej ) then
+            lflagchn(kk,1) = .true.
+            lflagchn(kk,10:15) = .true.
+          end if
+          if ( iwvreject(kk) ) then
+            lflagchn(kk,1) = .true.
+            lflagchn(kk,10:15) = .true.
+          end if
+          if ( riwv(kk) == -99. ) then     ! riwv = mean_Tb_183Ghz
+            ident(kk) = IBSET(ident(kk),1)
+            lflagchn(kk,1) = .true.
+            lflagchn(kk,10:15) = .true.
+          end if
+          ! Bennartz-Grody SI check thresholds (same as for QC of AMSU-B/MHS)
+          if ( scatbg(kk) > scatbg_mwhs2_cmc_SEA ) then
+            lflagchn(kk,:) = .true.
+            ident(kk) = IBSET(ident(kk),8)
+          end if
+        end if  ! if waterobs(kk)
+
+      end if  ! if .not. grossrej(kk)
+
+      if ( .not. waterobs(kk) ) landcnt  = landcnt  + 1
+      if ( grossrej(kk) )  rejcnt = rejcnt + 1
+      if ( iwvreject(kk))  iwvcnt = iwvcnt + 1
+      if ( precipobs(kk) .and. waterobs(kk) ) then
+        pcpcnt = pcpcnt + 1
+      end if
+
+      if ( ANY(lflagchn(kk,:)) ) flgcnt = flgcnt + 1
+    end do
+
+    ! RESET riwv array to Bennartz-Grody scattering index for output to BURP file
+    riwv(:) = scatbg(:)
+    ! Set missing clwObs and riwv to BURP missing value (mwbg_realMissing)
+    where (clwObs == -99. ) clwObs = mwbg_realMissing
+    where (clwObs == -99. ) clwFG = mwbg_realMissing
+    where (riwv == -99. ) riwv = mwbg_realMissing
+
+    ! Modify data flag values (set bit 7) for rejected data
+    ! In all-sky mode, turn on bit=23 for cloud-affected radiances when
+    ! there is mismatch between clwObs and clwFG (to be used in gen_bias_corr)
+    ipos=0
+    do kk =1, nt
+      clwObsFGaveraged = 0.5 * (clwObs(kk) + clwFG(kk))
+
+      do j = 1, nval
+        ipos = ipos + 1
+        if (lflagchn(kk,j)) then
+          IMARQ(ipos) = IBSET(IMARQ(ipos),7)
+        end if
+
+        INDXCAN = ISRCHEQI(chanFlaggedForAllskyGenCoeff, MXCLWREJ, ICANO(ipos))
+        if ( tvs_mwAllskyAssim .and. waterobs(kk) .and. INDXCAN /= 0 .and. &
+             (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
+              clwObs(kk) == mwbg_realMissing) ) then
+          IMARQ(ipos) = IBSET(IMARQ(ipos),23)
+        end if
+      end do
+    end do
+
+
+    ! Set bit 6 in 24-bit global flags if any data rejected
+    do kk =1, nt
+      if ( ANY(lflagchn(kk,:)) ) globMarq(kk) = IBSET(globMarq(kk),6)
+    end do
+
+  end subroutine mwbg_reviewAllCritforFinalFlagsMwhs2
 
   function calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg) result(sigmaObsErrUsed)
     implicit none
@@ -5209,7 +6691,7 @@ end subroutine bennartz
   !--------------------------------------------------------------------------
   subroutine mwbg_bgCheckMW( obsSpaceData )
 
-    !:Purpose:        do the quality controle for ATMS, AMSUA and AMSUB
+    !:Purpose:        Do the quality control for ATMS, AMSUA, AMSUB and MWHS2
 
     implicit None
 
@@ -5218,7 +6700,7 @@ end subroutine bennartz
 
     ! Locals
     integer                       :: numObsToProcess               ! number of obs in current report
-    integer                       :: headerIndex                   !header Index 
+    integer                       :: headerIndex                   ! header Index
     integer                       :: sensorIndex                   ! satellite index in obserror file
     integer                       :: actualNumChannel              ! iactual Number of channel for instrument
     integer                       :: codtyp                        ! codetype
@@ -5273,14 +6755,13 @@ end subroutine bennartz
     end do HEADER0
 
     if ( .not. mwDataPresent ) then 
-      write(*,*) 'WARNING: WILL NOT RUN mwbg_bgCheckMW since no ATMS or AMSUA'
+      write(*,*) 'WARNING: WILL NOT RUN mwbg_bgCheckMW since no ATMS or AMSUA or MWHS2'
       return
     end if 
 
     write(*,*) ' MWBG QC PROGRAM STARTS ....'
     ! read nambgck
     call mwbg_init()
-
 
     !Quality Control loop over all observations
     !
@@ -5357,6 +6838,18 @@ end subroutine bennartz
                                modelInterpTerrain, obsGlobalMarker, obsFlags,            &
                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                atmScatteringIndex, burpFileSatId, RESETQC)
+      else if (instName == 'MWHS2') then
+        call mwbg_tovCheckMwhs2(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+                                oer_tovutil, obsLatitude, obsLongitude,&
+                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
+                                obsQcFlag2, obsQcFlag1, &
+                                obsChannels, obsTb, obsTbBiasCorr, ompTb, qcIndicator,   &
+                                actualNumChannel, numObsToProcess, sensorIndex,          &
+                                newInformationFlag, satScanPosition,   &
+                                modelInterpTerrain, obsGlobalMarker, obsFlags,            &
+                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                                atmScatteringIndex, burpFileSatId, RESETQC, modLSQ, &
+                                obsSpaceData, headerIndex)
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
         call utl_abort('midas-bgckMW: unknown instName')
