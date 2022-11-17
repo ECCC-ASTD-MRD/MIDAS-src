@@ -785,7 +785,13 @@ contains
 
     if ( present(statevectorRef_opt) ) then 
       if ( .not. statevectorRef_opt%datakind == statevector%datakind ) then 
-          call utl_abort('calcHeight_gsv_nl_vcode500x (czp): statevectorRef_opt inconsistent datakind')
+        call utl_abort('calcHeight_gsv_nl_vcode500x (czp): statevectorRef_opt inconsistent datakind')
+      end if
+      if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector))) then
+        call utl_abort('calcHeight_gsv_nl_vcode500x (czp): statevectorRef_opt inconsistent vertical structure')
+      end if
+      if ( .not. hco_equal(gsv_getHco(statevectorRef_opt), gsv_getHco(statevector))) then
+        call utl_abort('calcHeight_gsv_nl_vcode500x (czp): statevectorRef_opt inconsistent horizontal grid')
       end if
     end if
     if ( statevector%dataKind == 4 ) then
@@ -1924,7 +1930,13 @@ contains
 
     if ( present(statevectorRef_opt) ) then 
       if ( .not. statevectorRef_opt%datakind == statevector%datakind ) then 
-          call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): statevectorRef_opt inconsistent datakind')
+        call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): statevectorRef_opt inconsistent datakind')
+      end if
+      if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector))) then
+        call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): statevectorRef_opt inconsistent vertical structure')
+      end if
+      if ( .not. hco_equal(gsv_getHco(statevectorRef_opt), gsv_getHco(statevector))) then
+        call utl_abort('calcPressure_gsv_nl_vcode2100x (czp): statevectorRef_opt inconsistent horizontal grid')
       end if
     end if
     if ( statevector%dataKind == 4 ) then

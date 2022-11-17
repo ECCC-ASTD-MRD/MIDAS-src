@@ -379,7 +379,15 @@ contains
     ! read the namelist
     call int_readNml()
 
+    vco_in  => gsv_getVco(statevector_in)
+    vco_out => gsv_getVco(statevector_out)
+    vcode_in  = vco_in%vcode
+    vcode_out = vco_out%vcode
+
     if (present(statevectorRef_opt)) then
+      if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector_in))) then
+        call utl_abort('int_vInterp_gsv: reference must have input vertical structure')
+      end if
       statevectorRef => statevectorRef_opt
     else
       statevectorRef => statevector_in
@@ -404,11 +412,6 @@ contains
       heightSfcOut => gsv_getHeightSfc(statevector_out)
       heightSfcOut(:,:) = heightSfcIn(:,:)
     end if
-
-    vco_in  => gsv_getVco(statevector_in)
-    vco_out => gsv_getVco(statevector_out)
-    vcode_in  = vco_in%vcode
-    vcode_out = vco_out%vcode
 
     ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
     if ( present(checkModelTop_opt) ) then
@@ -480,7 +483,6 @@ contains
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
         else if ( vcode_in==21001 ) then
           call czp_calcReturnHeight_gsv_nl( statevector_in, &
-                                            statevectorRef_opt=statevectorRef, &
                                             ZTout_r8_opt=tmpCoord_T, &
                                             ZMout_r8_opt=tmpCoord_M)
           call czp_calcReturnPressure_gsv_nl( statevector_in, &
@@ -492,7 +494,7 @@ contains
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
         end if
 
-        call msg('int_vInterp_gsv','converting pressurecoordinates to height-like, '&
+        call msg('int_vInterp_gsv','converting pressure coordinates to height-like, '&
              //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
         call logP(hLikeM_out)
         call logP(hLikeT_out)
@@ -502,12 +504,10 @@ contains
       ! output grid GEM-H interpolation in height
       else if ( vcode_out==21001 ) then
         call czp_calcReturnHeight_gsv_nl( statevector_out, &
-                                          statevectorRef_opt=statevectorRef, &
                                           ZTout_r8_opt=hLikeT_out, &
                                           ZMout_r8_opt=hLikeM_out)
         if ( vcode_in==21001 ) then
           call czp_calcReturnHeight_gsv_nl( statevector_in, &
-                                            statevectorRef_opt=statevectorRef, &
                                             ZTout_r8_opt=hLikeT_in, &
                                             ZMout_r8_opt=hLikeM_in)
         else if ( vcode_in==5002 .or. vcode_in==5005 ) then
