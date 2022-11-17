@@ -192,7 +192,7 @@ program midas_letkf
   if (hLocalize(1) > 0.0D0 .and. hLocalize(2) < 0.0D0) then
     ! if only 1 value given for hLocalize, use it for entire column
     hLocalize(2:4) = hLocalize(1)
-    if ( mpi_myid == 0 ) write(*,*) 'midas-letkf: hLocalize(2:4) are modified after reading namelist. ' // &
+    if ( mmpi_myid == 0 ) write(*,*) 'midas-letkf: hLocalize(2:4) are modified after reading namelist. ' // &
                                     'hLocalize(2:4)=', hLocalize(1)
   else if ( hLocalize(1) < 0.0D0 ) then
     call utl_abort('midas-letkf: hLocalize(1) < 0.0D0')
@@ -433,7 +433,7 @@ program midas_letkf
 
     ! Compute and set Yb in ensObsGain
     do eigenVectorIndex = 1, numRetainedEigen
-      if ( mpi_myid == 0 ) then
+      if ( mmpi_myid == 0 ) then
         write(*,*) 'midas-letkf: apply nonlinear H to modulated member ', &
                    eigenVectorIndex, '/', numRetainedEigen
       end if

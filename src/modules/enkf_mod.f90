@@ -475,7 +475,6 @@ contains
         end do ! localObsIndex
 
         call utl_tmg_start(105,'------CalcYbTinvRYb')
-        YbTinvRYb(:,:) = 0.0D0
         ! make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4
         call utl_tmg_start(187,'------YbArraysCopy')
         YbGainCopy(:,:) = 0.0
@@ -1304,7 +1303,7 @@ contains
 
       !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, varLevIndex, varLevel, varKind, levIndex2, memberTrl_ptr_r4, memberAnl_ptr_r4), &
       !$OMP PRIVATE(memberAnlPert, stepIndex, memberIndex, memberIndex2, memberIndex1, eigenVectorColumnIndex, pert_r4), &
-      !$OMP PRIVATE(memberIndexInModEns, modulationFactor)
+      !$OMP PRIVATE(memberIndexInModEns, modulationFactor_r4)
       do latIndex = myLatBeg, myLatEnd
         LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
 
@@ -2355,7 +2354,7 @@ contains
     ! Compute vertical localization matrix and its eigenValues/Vectors on first call
     if ( firstCall ) then
       firstCall = .false.
-      if ( mpi_myid == 0 .and. .not. beSilent ) then
+      if ( mmpi_myid == 0 .and. .not. beSilent ) then
         write(*,*) 'getModulationFactor: computing eigenValues/Vectors'
       end if
 
@@ -2424,7 +2423,7 @@ contains
         end do
       end do
 
-      if ( mpi_myid == 0 .and. .not. beSilent ) then
+      if ( mmpi_myid == 0 .and. .not. beSilent ) then
         do levIndex1 = 1, numRetainedEigen
           write(*,*) 'getModulationFactor: eigen mode=', levIndex1, ', eigenVectors=', eigenVectors(:,levIndex1)
         end do
