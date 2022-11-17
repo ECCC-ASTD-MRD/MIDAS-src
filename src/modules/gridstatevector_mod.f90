@@ -1612,7 +1612,8 @@ module gridStateVector_mod
   ! gsv_copy
   !--------------------------------------------------------------------------
   subroutine gsv_copy(statevector_in, statevector_out, stepIndexOut_opt, &
-                      allowTimeMismatch_opt, allowVarMismatch_opt)
+                      allowTimeMismatch_opt, allowVarMismatch_opt, &
+                      allowVcoMismatch_opt)
     !
     ! :Purpose: Copies a statevector
     !
@@ -1624,9 +1625,10 @@ module gridStateVector_mod
     integer, optional, intent(in)    :: stepIndexOut_opt
     logical, optional, intent(in)    :: allowTimeMismatch_opt
     logical, optional, intent(in)    :: allowVarMismatch_opt
+    logical, optional, intent(in)    :: allowVcoMismatch_opt
 
     ! Locals:
-    logical            :: timeMismatch, allowVarMismatch, varMismatch
+    logical            :: timeMismatch, allowVarMismatch, varMismatch, allowVcoMismatch
 
     integer :: stepIndex, lonIndex, kIndex, latIndex, levIndex, varIndex, numCommonVar 
     integer :: lon1, lon2, lat1, lat2, k1, k2, step1, step2, stepIn, nlev_in
@@ -1645,6 +1647,22 @@ module gridStateVector_mod
       allowVarMismatch = .false.
     end if
     varMismatch = .false.
+
+    ! asserting grid structure consistency
+    if ( .not. hco_equal(gsv_getHco(statevector_in),gsv_getHco(statevector_out)) ) then
+      call utl_abort('gsv_copy: horizontal structure inconsistency')
+    end if
+
+    if (present(allowVcoMismatch_opt)) then
+      allowVcoMismatch = allowVcoMismatch_opt
+    else
+      allowVcoMismatch = .false.
+    end if
+    if ( .not. vco_equal(gsv_getVco(statevector_in),gsv_getVco(statevector_out)) ) then
+      if ( .not. allowVcoMismatch) then
+        call utl_abort('gsv_copy: vertical structure inconsistency')
+      end if
+    end if
 
     timeMismatch = .false.
     if (present(allowTimeMismatch_opt)) then
@@ -2120,6 +2138,9 @@ module gridStateVector_mod
     type(struct_gsv), intent(in)    :: statevector_in
     type(struct_gsv), intent(inout) :: statevector_out
 
+    if ( .not. hco_equal(gsv_getHco(statevector_in), gsv_getHco(statevector_out))) then
+      call utl_abort('gsv_copyHeightSfc: inconsistent horizontal structure')
+    end if
     if (.not.statevector_in%allocated) then
       call utl_abort('gsv_copyHeightSfc: gridStateVector_in not yet allocated')
     end if
