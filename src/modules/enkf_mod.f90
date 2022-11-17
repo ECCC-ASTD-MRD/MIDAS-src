@@ -140,7 +140,7 @@ contains
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
     real(8), allocatable :: memberAnlPert(:)
-    real(4), allocatable :: vertLocation_r4(:,:,:), YbCopy(:,:), YbGainCopy(:,:)
+    real(4), allocatable :: vertLocation_r4(:,:,:), YbCopy_r4(:,:), YbGainCopy_r4(:,:)
 
     real(4), pointer     :: meanTrl_ptr_r4(:,:,:,:), meanAnl_ptr_r4(:,:,:,:), meanInc_ptr_r4(:,:,:,:)
     real(4), pointer     :: memberTrl_ptr_r4(:,:,:,:), memberAnl_ptr_r4(:,:,:,:)
@@ -201,12 +201,12 @@ contains
     allocate(distances(maxNumLocalObs))
     allocate(YbTinvR(nEnsUsed,maxNumLocalObs))
     allocate(YbTinvRCopy(maxNumLocalObs,nEnsUsed))
-    allocate(YbGainCopy(maxNumLocalObs,nEnsUsed))
+    allocate(YbGainCopy_r4(maxNumLocalObs,nEnsUsed))
     allocate(YbTinvRYb(nEnsUsed,nEnsUsed))
     if ( trim(algorithm) == 'CVLETKF-ME' .or. &
          trim(algorithm) == 'LETKF-Gain-ME' ) then
       allocate(YbTinvRYb_mod(nEnsUsed,nEns))
-      allocate(YbCopy(maxNumLocalObs,nEnsUsed))
+      allocate(YbCopy_r4(maxNumLocalObs,nEnsUsed))
     end if
     allocate(eigenValues(nEnsUsed))
     allocate(eigenVectors(nEnsUsed,nEnsUsed))
@@ -477,12 +477,12 @@ contains
         call utl_tmg_start(105,'------CalcYbTinvRYb')
         ! make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4
         call utl_tmg_start(187,'------YbArraysCopy')
-        YbGainCopy(:,:) = 0.0
+        YbGainCopy_r4(:,:) = 0.0
         YbTinvRCopy(:,:) = 0.0d0
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
           do memberIndex2 = 1, nEnsUsed
-            YbGainCopy(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
+            YbGainCopy_r4(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
             YbTinvRCopy(localObsIndex,memberIndex2) = YbTinvR(memberIndex2,localObsIndex)
           end do
         end do
@@ -495,7 +495,7 @@ contains
           do memberIndex1 = 1, nEnsUsed
             YbTinvRYb(memberIndex1,memberIndex2) =  &
                 YbTinvRYb(memberIndex1,memberIndex2) +  &
-                sum(YbTinvRCopy(1:numLocalObs,memberIndex1) * YbGainCopy(1:numLocalObs,memberIndex2))
+                sum(YbTinvRCopy(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))
           end do
         end do
         !$OMP END PARALLEL DO
@@ -506,11 +506,11 @@ contains
               trim(algorithm) == 'LETKF-Gain-ME' ) then
           ! make copy of ensObs_mpiglobal%Yb_r4
           call utl_tmg_start(187,'------YbArraysCopy')
-          YbCopy(:,:) = 0.0
+          YbCopy_r4(:,:) = 0.0
           do localObsIndex = 1, numLocalObs
             bodyIndex = localBodyIndices(localObsIndex)
             do memberIndex2 = 1, nEnsUsed
-              YbCopy(localObsIndex,memberIndex2) = ensObs_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
+              YbCopy_r4(localObsIndex,memberIndex2) = ensObs_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
             end do
           end do
           call utl_tmg_stop(187)
@@ -522,7 +522,7 @@ contains
             do memberIndex1 = 1, nEnsUsed
               YbTinvRYb_mod(memberIndex1,memberIndex2) =  &
                   YbTinvRYb_mod(memberIndex1,memberIndex2) +  &
-                  sum(YbTinvRCopy(1:numLocalObs,memberIndex1) * YbCopy(1:numLocalObs,memberIndex2))
+                  sum(YbTinvRCopy(1:numLocalObs,memberIndex1) * YbCopy_r4(1:numLocalObs,memberIndex2))
             end do
           end do
           !$OMP END PARALLEL DO
