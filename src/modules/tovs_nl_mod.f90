@@ -921,7 +921,10 @@ contains
     end do
 
     if (first) then
-     ! read the namelist
+      if ( utl_isNamelistPresent('NAMCHANOFFSET', './flnml') ) then
+        call utl_abort('sensors: NAMCHANOFFSET namelist section should be now in flnml_static !')
+      end if
+      ! read the namelist
       nulnam = 0
       ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
       if (ierr /= 0) then
@@ -1069,6 +1072,9 @@ contains
     end if
 
     if (first) then
+      if ( utl_isNamelistPresent('NAMTOVSINST', './flnml') ) then
+        call utl_abort('tvs_getAllIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
+      end if
       nulnam = 0
       ninst_tovs = 0
       list_inst(:) = -1
@@ -1129,6 +1135,9 @@ contains
     end if
 
     if (first) then
+       if ( utl_isNamelistPresent('NAMTOVSINST', './flnml') ) then
+        call utl_abort('tvs_isIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
+      end if
       nulnam = 0
       ninst_tovs = 0
       list_inst(:) = -1
@@ -1194,6 +1203,9 @@ contains
     end if
 
     if (first) then
+      if ( utl_isNamelistPresent('NAMHYPER', './flnml') ) then
+        call utl_abort('tvs_isIdBurpHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
+      end if
       nulnam = 0
       ninst_hyper = 0
       list_inst(:) = -1
@@ -1345,8 +1357,11 @@ contains
     integer, external :: fclos, fnom
     character (len=8) :: name_inst(maxsize)
     namelist /NAMHYPER/ name_inst
-
+    
     if (first) then
+      if ( utl_isNamelistPresent('NAMHYPER', './flnml') ) then
+        call utl_abort('tvs_isInstrumHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
+      end if
       nulnam = 0
       ninst_hir = 0
       name_inst(:) = 'XXXXXXX'
@@ -1461,6 +1476,9 @@ contains
 
     namelist /NAMGEO/ name_inst
     if (first) then
+      if ( utl_isNamelistPresent('NAMGEO', './flnml') ) then
+        call utl_abort('tvs_isInstrumGeostationary: NAMGEO namelist section should be now in flnml_static !')
+      end if
       nulnam = 0
       ninst_geo = 0
       name_inst(:) = 'XXXXXX'
@@ -1581,6 +1599,10 @@ contains
     !   1.0 Find instrument
 
     if (first) then
+      if ( utl_isNamelistPresent('NAMINST', './flnml') ) then
+        call utl_abort('tvs_mapInstrum: NAMINST namelist section should be now in flnml_static !')
+      end if
+      
       ! set the default values
       listburp(:) = -1
       listinstrum(:) = 'XXXXXXXX'
@@ -1645,6 +1667,9 @@ contains
 
     namelist /NAMGEOBUFR/ name_inst
     if (lfirst) then
+      if ( utl_isNamelistPresent('NAMGEOBUFR', './flnml') ) then
+        call utl_abort('tvs_isNameGeostationary: NAMGEOBUFR namelist section should be now in flnml_static !')
+      end if
       nulnam = 0
       ninst_geo = 0
       name_inst(:) = 'XXXXXXXX'
@@ -1741,6 +1766,9 @@ contains
 
     !     Fill tables from namelist at the first call 
     if (first) then
+      if ( utl_isNamelistPresent('NAMSAT', './flnml') ) then
+        call utl_abort('tvs_mapSat: NAMSAT namelist section should be now in flnml_static !')
+      end if
       ! set the default values
       listburp(:) = -1
       listsat(:) = -1
