@@ -2158,7 +2158,11 @@ module sqliteRead_mod
 
         numberInsertions = numberInsertions + 1
 
-        if ( present( ensObs_opt ) ) then    
+        if ( present( ensObs_opt ) ) then
+          if ( .not. allocated(ensObs_opt%Ya_r4) ) then
+            call utl_abort('sqlr_writeSqlDiagFile: ensObs%Ya_r4 must be allocated and it is not')
+          end if
+
           ! Loop over members. insert order: id_data, id_obs, id_member, obstrl, obsanl
           do memberIndex = 1, ensObs_opt%numMembers
             ENSOBSTRL = ensObs_opt%Yb_r4(memberIndex,bodyIndex) + ensObs_opt%meanYb(bodyIndex) ! Yb_r4 has mean removed, so add back

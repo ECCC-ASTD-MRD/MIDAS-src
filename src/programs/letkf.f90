@@ -287,6 +287,7 @@ program midas_letkf
 
   ! Allocate vectors for storing HX values
   call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
+  if ( outputEnsObs ) allocate(ensObs%Ya_r4(ensObs%numMembers,ensObs%numObs))
   call eob_zero(ensObs)
   if ( numRetainedEigen > 0 ) then
     nEnsMod = nEns * numRetainedEigen
