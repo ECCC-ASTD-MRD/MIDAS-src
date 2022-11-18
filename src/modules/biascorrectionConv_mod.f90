@@ -142,7 +142,7 @@ CONTAINS
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam,nml=nambiasconv,iostat=ierr)
       if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section NAMBIASCONV')
-      if ( mpi_myid == 0 ) write(*,nml=nambiasconv)
+      if ( mmpi_myid == 0 ) write(*,nml=nambiasconv)
       ierr = fclos(nulnam)
     else
       write(*,*)
@@ -163,7 +163,7 @@ CONTAINS
         ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
         read(nulnam,nml=namsondetypes,iostat=ierr)
         if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section NAMSONDETYPES')
-        if ( mpi_myid == 0 ) write(*,nml=namsondetypes)
+        if ( mmpi_myid == 0 ) write(*,nml=namsondetypes)
         ierr = fclos(nulnam)
       else 
         write(*,*)
@@ -1338,7 +1338,7 @@ CONTAINS
     
     debug = .false.
     
-    debug = debug .and. ( mpi_myid == 0 )
+    debug = debug .and. ( mmpi_myid == 0 )
 
     ! Read the ascii files containing TT and TD bis profiles by sonde-type and by station
     if ( .not.uaRevOnly ) then
