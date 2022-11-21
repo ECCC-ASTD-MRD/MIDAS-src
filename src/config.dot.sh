@@ -12,7 +12,7 @@ set -x
 ###########################################################
 MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld}
 MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
-MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS=${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS:-no}
+MIDAS_CODECOVERAGE_DATAPATH=${MIDAS_CODECOVERAGE_DATAPATH:-}
 MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-ppp5}
 MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN:-true}
 MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL:-}
@@ -166,19 +166,19 @@ if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     COMPF_NOC="${COMPF_GLOBAL} ${OPTF} -debug"
     COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
     echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
-elif [ "${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS:-no}" != no ]; then
+elif [ -n "${MIDAS_CODECOVERAGE_DATAPATH}" ]; then
     FOPTMIZ=0
-    [[ "${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}" != /* ]] && {
-        echo "Please provide an absolute path to variable 'MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS'"
-        echo "This value was given: ${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}"
+    [[ "${MIDAS_CODECOVERAGE_DATAPATH}" != /* ]] && {
+        echo "Please provide an absolute path to variable 'MIDAS_CODECOVERAGE_DATAPATH'"
+        echo "This value was given: ${MIDAS_CODECOVERAGE_DATAPATH}"
         false
     }
-    [ ! -d "${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}" ] && mkdir -p ${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}
-    [ ! -d "${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}" ] && {
-        echo "Could not create the directory ${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}"
+    [ ! -d "${MIDAS_CODECOVERAGE_DATAPATH}" ] && mkdir -p ${MIDAS_CODECOVERAGE_DATAPATH}
+    [ ! -d "${MIDAS_CODECOVERAGE_DATAPATH}" ] && {
+        echo "Could not create the directory ${MIDAS_CODECOVERAGE_DATAPATH}"
         false
     }
-    COMPF="${COMPF_GLOBAL} ${OPTF} -debug -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_ADD_CODECOVERAGE_OPTIONS}"
+    COMPF="${COMPF_GLOBAL} ${OPTF} -debug -prof-gen=srcpos -prof-dir=${MIDAS_CODECOVERAGE_DATAPATH}"
     COMPF_NOC=${COMPF}
 else
     COMPF="${COMPF_GLOBAL} ${OPTF}"
