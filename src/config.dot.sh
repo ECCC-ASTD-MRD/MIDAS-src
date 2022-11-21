@@ -172,6 +172,7 @@ else
 fi
 
 if [ -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]; then
+    echo "... > !WARNING! You are compiling in CODE COVERAGE MODE: '${COMPF}'"
     FOPTMIZ=0
     [[ "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" != /* ]] && {
         echo "Please provide an absolute path to variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH'"
