@@ -166,7 +166,12 @@ if [ "${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}" = yes ]; then
     COMPF_NOC="${COMPF_GLOBAL} ${OPTF} -debug"
     COMPF="${COMPF_NOC} -check all -fp-speculation=safe -init=snan,arrays"
     echo "... > !WARNING! You are compiling in DEBUG MODE: '${COMPF}'"
-elif [ -n "${MIDAS_CODECOVERAGE_DATAPATH}" ]; then
+else
+    COMPF="${COMPF_GLOBAL} ${OPTF}"
+    COMPF_NOC=${COMPF}
+fi
+
+if [ -n "${MIDAS_CODECOVERAGE_DATAPATH}" ]; then
     FOPTMIZ=0
     [[ "${MIDAS_CODECOVERAGE_DATAPATH}" != /* ]] && {
         echo "Please provide an absolute path to variable 'MIDAS_CODECOVERAGE_DATAPATH'"
@@ -178,11 +183,8 @@ elif [ -n "${MIDAS_CODECOVERAGE_DATAPATH}" ]; then
         echo "Could not create the directory ${MIDAS_CODECOVERAGE_DATAPATH}"
         false
     }
-    COMPF="${COMPF_GLOBAL} ${OPTF} -debug -prof-gen=srcpos -prof-dir=${MIDAS_CODECOVERAGE_DATAPATH}"
-    COMPF_NOC=${COMPF}
-else
-    COMPF="${COMPF_GLOBAL} ${OPTF}"
-    COMPF_NOC=${COMPF}
+    COMPF="${COMPF} -prof-gen=srcpos -prof-dir=${MIDAS_CODECOVERAGE_DATAPATH}"
+    COMPF_NOC="${COMPF_NOC} -prof-gen=srcpos -prof-dir=${MIDAS_CODECOVERAGE_DATAPATH}"
 fi
 
 GPP_INCLUDE_PATH="$(s.prefix -I $(s.generate_ec_path --include))"
