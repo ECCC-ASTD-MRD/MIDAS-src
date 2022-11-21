@@ -454,7 +454,7 @@ contains
         !< MW RT options
         tvs_opts(sensorIndex) % rt_mw % clw_data = tvs_isInstrumUsingCLW(tvs_instruments(sensorIndex)) ! disponibilite du profil d'eau liquide
         tvs_opts(sensorIndex) % rt_mw % fastem_version = 6  ! use fastem version 6 microwave sea surface emissivity model (1-6)
-        tvs_opts(sensorIndex) % rt_mw%clw_scheme = 1 ! default and recommended is 2 just for backward compatibility
+        tvs_opts(sensorIndex) % rt_mw % clw_scheme = 1 ! default and recommended is 2 just for backward compatibility
         !< Interpolation options
         tvs_opts(sensorIndex) % interpolation % addinterp = .true. ! use of internal profile interpolator (rt calculation on model levels)
         tvs_opts(sensorIndex) % interpolation % lgradp = .true.    ! allow tl/ad of user pressure levels
@@ -467,15 +467,37 @@ contains
         tvs_opts(sensorIndex) % rt_all % ch4_data = .false.
 
         if ( tvs_useRttovScatt(sensorIndex) ) then
+          !TYPE(rttov_opts_config) :: config                      !< General configuration options
+              !LOGICAL(jplm) :: apply_reg_limits = .FALSE.  !< Switch to restrict input profiles to coef training limits
+              !LOGICAL(jplm) :: verbose          = .TRUE.   !< Switch for verbose output
+              !LOGICAL(jplm) :: do_checkinput    = .TRUE.   !< Switch to apply internal profile checking
+              ! Deprecated options: recommend default values
+              !LOGICAL(jplm) :: fix_hgpl         = .TRUE.   !< Switch to apply fix to match 2m p with elevation in geometry
+                                                            !!   calculations (deprecated)
+          !LOGICAL(jplm) :: lusercfrac            = .FALSE.       !< Switch to enable user-specified effective cloud fraction
+          !REAL(jprb)    :: cc_threshold          = 1.E-3_jprb    !< Minimum effective cloud fraction threshold to consider scattering
+          !REAL(jprb)    :: ice_polarisation      = 1.40_jprb     !< Polarised scattering factor for ice hydrometeors (<0 = no polarisation)
+          !LOGICAL(jplm) :: ozone_data            = .FALSE.       !< Switch to enable input of O3 profile
+                                                                  ! because standard RTTOV coefficients in the MW have no ozone sensitivity
+          !LOGICAL(jplm) :: rad_down_lin_tau      = .TRUE.        !< Linear-in-tau or layer-mean for downwelling radiances
+          !LOGICAL(jplm) :: hydro_cfrac_tlad      = .TRUE.        !< Switch for hydrometeor TL/AD sensitivity to effective cfrac
+          !LOGICAL(jplm) :: zero_hydro_tlad       = .FALSE.       !< Switch for hydrometeor TL/AD sensitivity in layers with zero
+                                                                  !!   hydrometeor concentration
+          ! Deprecated options: recommend default values
+          !LOGICAL(jplm) :: dtau_test             = .FALSE.       !< Switch to apply dtau test in transmit/integrate
+                                                                  !!   calculations (deprecated)
           tvs_opts_scatt(sensorIndex) % interp_mode = interp_rochon_loglinear_wfn ! Set interpolation method
           tvs_opts_scatt(sensorIndex) % reg_limit_extrap = tvs_regLimitExtrap 
           tvs_opts_scatt(sensorIndex) % fastem_version = tvs_opts(sensorIndex) % rt_mw % fastem_version  
           tvs_opts_scatt(sensorIndex) % supply_foam_fraction = .false.
+          tvs_opts_scatt(sensorIndex) % use_t2m_opdep = .false.
           tvs_opts_scatt(sensorIndex) % use_q2m = .false.
+          tvs_opts_scatt(sensorIndex) % lgradp = .true.
           tvs_opts_scatt(sensorIndex) % lusercfrac = .false. ! to evaluate
           tvs_opts_scatt(sensorIndex) % config % do_checkinput = .true.
           tvs_opts_scatt(sensorIndex) % config % apply_reg_limits = .true.
-          tvs_opts_scatt(sensorIndex) % config % verbose = .true.  
+          tvs_opts_scatt(sensorIndex) % config % verbose = .true.
+          tvs_opts_scatt(sensorIndex) % config % fix_hgpl= .false.
         end if
         ! Enable printing of warnings
 
@@ -505,7 +527,7 @@ contains
           call rttov_read_scattcoeffs(errorstatus(1), tvs_opts_scatt(sensorIndex), tvs_coefs(sensorIndex), &
                tvs_coef_scatt(sensorIndex), file_coef=hydrotableFilename)
           if (errorstatus(1) /= errorstatus_success) then
-            write(*,*) 'tvs_rttov_read_coefs: fatal error reading RTTOV-SCATT coefficients', hydrotableFilename
+            write(*,*) 'rttov_read_scattcoeffs: fatal error reading RTTOV-SCATT coefficients', hydrotableFilename
             call utl_abort('tvs_setupAlloc')
           end if
         end if
@@ -2038,7 +2060,7 @@ contains
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
     integer :: Vcode
     integer :: ierr,day,month,year,ijour,itime
-    integer :: allocStatus(9)
+    integer :: allocStatus(12)
     
     integer,external ::  omp_get_num_threads
     integer,external ::  newdate
@@ -2053,6 +2075,9 @@ contains
     real(8), allocatable :: ozone(:,:)
     character(len=4)     :: ozoneVarName
     real(8), allocatable :: clw   (:,:)
+    real(8), allocatable :: ciw   (:,:)
+    real(8), allocatable :: rainflux  (:,:)
+    real(8), allocatable :: snowflux  (:,:)
     logical, allocatable :: surfTypeIsWater(:)
     logical :: runObsOperatorWithClw
     type(rttov_profile), pointer :: profiles(:)
@@ -2167,7 +2192,15 @@ contains
         allocate (clw       (nlv_T,profileCount),stat= allocStatus(6))
         clw(:,:) = qlim_readMinClwValue()
       end if
-      allocate (surfTypeIsWater(profileCount),stat= allocStatus(7)) 
+      if ( tvs_useRttovScatt(sensorIndex) ) then
+        allocate (ciw       (nlv_T,profileCount),stat= allocStatus(7))
+        allocate (rainFlux  (nlv_T,profileCount),stat= allocStatus(8))
+        allocate (snowFlux  (nlv_T,profileCount),stat= allocStatus(9))
+        ciw(:,:) = 0.d0
+        rainFlux(:,:) = 0.d0
+        snowFlux(:,:) = 0.d0
+      end if
+      allocate (surfTypeIsWater(profileCount),stat= allocStatus(10)) 
       surfTypeIsWater(:) = .false.
 
       call utl_checkAllocationStatus(allocStatus, ' tvs_fillProfiles')
@@ -2182,19 +2215,27 @@ contains
         headerIndex = tvs_headerIndex(tovsIndex)
         sensorHeaderIndexes(profileCount) = headerIndex
 
-        call rttov_alloc_prof(allocStatus(1), 1, profiles(tovsIndex:tovsIndex), nlv_T,  & ! 1 = nprofiles un profil a la fois
-             tvs_opts(sensorIndex), asw=1, coefs=tvs_coefs(sensorIndex), init=.true. )    ! asw =1 allocation
+        call rttov_alloc_prof(                 &
+             allocStatus(1),                   &
+             1,                                & ! 1 = nprofiles un profil a la fois
+             profiles(tovsIndex:tovsIndex),    &
+             nlv_T,                            & 
+             tvs_opts(sensorIndex),            &
+             asw=1,                            & ! asw =1 allocation
+             coefs=tvs_coefs(sensorIndex),     &
+             init=.true. )                       
         if (tvs_useRttovScatt(sensorIndex)) then
-          call rttov_alloc_scatt_prof(           &   
-               allocstatus(2),                   &
-               1,                                &
-               cld_profiles(tovsIndex:tovsIndex),&
-               nlv_T,                            &
-               nhydro=5,                         &
-               nhydro_frac=5,                    &
-               asw=1_jpim,                       &  ! 1 => allocate
-               init=.true.                        )
-               !flux_conversion=0 )                 !
+          call rttov_alloc_scatt_prof(            &   
+               allocstatus(2),                    &
+               1,                                 &
+               cld_profiles(tovsIndex:tovsIndex), &
+               nlv_T,                             &
+               nhydro=5,                          & ! depending on what is defined in the Mie tables
+               nhydro_frac=1,                     & ! 1 cloud fraction for all variable or nhydro 1 cloud fraction for each variable
+               asw=1_jpim,                        & ! 1 => allocate
+               init=.true.,                       & ! initialize profiles to zero
+               flux_conversion=[1,2,0,0,0] )        !flux_conversion  input units: 0 (default) => kg/kg,
+                                                    ! 1,2 => kg/m2/s, optional for rain, snow
         end if
         call utl_checkAllocationStatus(allocStatus(1:2), ' tvs_setupAlloc tvs_fillProfiles')
 
@@ -2214,7 +2255,7 @@ contains
           write(*,*) 'replaced by 0.0 !!!'
           profiles(tovsIndex) % zenangle = 0.d0
         end if
- 
+  
         profiles(tovsIndex) % azangle = tvs_getCorrectedSatelliteAzimuth(obsSpaceData, headerIndex)
         profiles(tovsIndex) % sunazangle  = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex) ! necessaire pour radiation solaire
         iplatform = tvs_coefs(sensorIndex) % coef % id_platform
@@ -2228,14 +2269,38 @@ contains
 
         do levelIndex = 1, nlv_T
           pressure(levelIndex,profileCount) = col_getPressure(columnTrl,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
-          if ( runObsOperatorWithClw .and. surfTypeIsWater(profileCount) ) then
+          if ( (runObsOperatorWithClw .and. surfTypeIsWater(profileCount)) .or. tvs_useRttovScatt(sensorIndex)) then
             clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
             if ( clw(levelIndex,profileCount) < qlim_readMinClwValue() .or. &
                  clw(levelIndex,profileCount) > qlim_readMaxClwValue() ) then
               write(*,*) 'tvs_fillProfiles: clw=' , clw(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has clw outside RTTOV bounds')
             end if
-            clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor 
+            clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor
+          end if
+          if ( tvs_useRttovScatt(sensorIndex) ) then
+            ciw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LICR')
+            rainFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'RF')
+            snowFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'SF')
+            if ( ciw(levelIndex,profileCount) < 0.d0 .or. &
+                 ciw(levelIndex,profileCount) > 1.d0 ) then
+              write(*,*) 'tvs_fillProfiles: ciw=' , ciw(:,profileCount) 
+              call utl_abort('tvs_fillProfiles: columnTrl has ciw outside RTTOV bounds')
+            end if
+            if ( rainFlux(levelIndex,profileCount) < 0.d0 .or. &
+                 rainFlux(levelIndex,profileCount) > 1.d0 ) then
+              write(*,*) 'tvs_fillProfiles: rainFlux=' , rainFlux(:,profileCount) 
+              call utl_abort('tvs_fillProfiles: columnTrl has rain flux outside RTTOV bounds')
+            end if
+            if ( snowFlux(levelIndex,profileCount) < 0.d0 .or. &
+                 snowFlux(levelIndex,profileCount) > 1.d0 ) then
+              write(*,*) 'tvs_fillProfiles: snowFlux=' , snowFlux(:,profileCount) 
+              call utl_abort('tvs_fillProfiles: columnTrl has snow flux outside RTTOV bounds')
+            end if
+            ciw(levelIndex,profileCount) = ciw(levelIndex,profileCount) * tvs_cloudScaleFactor
+            rainFlux(levelIndex,profileCount) = rainFlux(levelIndex,profileCount) * tvs_cloudScaleFactor
+            snowFlux(levelIndex,profileCount) = snowFlux(levelIndex,profileCount) * tvs_cloudScaleFactor
+            !should we introduce a separate scaling factor for various variables ? 
           end if
         end do
         
@@ -2292,9 +2357,9 @@ contains
             cld_profiles(tovsIndex) % ph (levelIndex+1) = 0.5d0 * (profiles(tovsIndex) % p(levelIndex) + profiles(tovsIndex) % p(levelIndex+1) )
           end do
           cld_profiles(tovsIndex) % ph (nlv_T+1) = profiles(tovsIndex) % s2m % p
-          !1 rain, 2 snow, 3 graupel, 4 cloud water, 5 cloud ice
+          !1 rain, 2 snow, 3 graupel, 4 cloud water, 5 cloud ice see Mie table file
           cld_profiles(tovsIndex) % hydro  (1:nlv_T,1:5) = 0.d0   ! 
-          cld_profiles(tovsIndex) % hydro_frac (1:nlv_T,1:5) = 0.d0   ! 
+          cld_profiles(tovsIndex) % hydro_frac (1:nlv_T,1) = 0.d0   ! 
         end if
         column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
         profiles(tovsIndex) % t(:)   = column_ptr(:)
@@ -2314,15 +2379,22 @@ contains
         ! using the minimum CLW value for land FOV
         if ( runObsOperatorWithClw ) then
           if (tvs_useRttovScatt(sensorIndex)) then
+            cld_profiles(tovsIndex) % hydro(:,1) = rainFlux(:,profileIndex)
+            cld_profiles(tovsIndex) % hydro(:,2) = snowFlux(:,profileIndex)
             cld_profiles(tovsIndex) % hydro(:,4) = clw(:,profileIndex)
-            where (cld_profiles(tovsIndex) % hydro(:,4) > 0.d0)
-              cld_profiles(tovsIndex) % hydro_frac(:,4) = 1.d0
+            cld_profiles(tovsIndex) % hydro(:,5) = ciw(:,profileIndex)
+            
+            where (cld_profiles(tovsIndex) % hydro(:,1) > 0.d0 .or. &
+                   cld_profiles(tovsIndex) % hydro(:,2) > 0.d0 .or. &
+                   cld_profiles(tovsIndex) % hydro(:,4) > 0.d0 .or. &
+                   cld_profiles(tovsIndex) % hydro(:,5) > 0.d0 )
+              cld_profiles(tovsIndex) % hydro_frac(:,1) = 1.d0
             elsewhere
-              cld_profiles(tovsIndex) % hydro_frac(:,4) = 0.d0
+              cld_profiles(tovsIndex) % hydro_frac(:,1) = 0.d0
             end where
           else
             profiles(tovsIndex) % clw(:) = clw(:,profileIndex)
-          end if  
+          end if
         end if
       end do
 
@@ -2337,7 +2409,12 @@ contains
       if ( runObsOperatorWithClw ) then
         deallocate (clw       ,stat= allocStatus(8))
       end if
-      deallocate (surfTypeIsWater,stat= allocStatus(9)) 
+      if ( allocated(ciw) ) then
+        deallocate (ciw,      stat= allocStatus(9))
+        deallocate (rainFlux, stat= allocStatus(10))
+        deallocate (snowFlux, stat= allocStatus(11))
+      end if
+      deallocate (surfTypeIsWater,stat= allocStatus(12)) 
 
       call utl_checkAllocationStatus(allocStatus, ' tvs_fillProfiles', .false.)
      
@@ -2645,7 +2722,7 @@ contains
         call rttov_alloc_transmission(allocStatus(1), transmission1, nlevels=nlv_T, &
              nchanprof=tvs_nchan(sensorId), asw=asw, init=.true.)
         ! allocate radiance structure for 1 profile
-        call rttov_alloc_rad (allocStatus(1),tvs_nchan(sensorId), radiancedata_d1,nlv_T,asw,init=.true.)
+        call rttov_alloc_rad (allocStatus(2),tvs_nchan(sensorId), radiancedata_d1,nlv_T,asw,init=.true.)
         ! allocate chanprof for 1 profile
         allocate(chanprof1(tvs_nchan(sensorId)))
         do  channelIndex = 1,tvs_nchan(sensorId)
@@ -2694,7 +2771,7 @@ contains
         call rttov_alloc_transmission(allocStatus(1),transmission1,nlevels=nlv_T,  &
              nchanprof=tvs_nchan(sensorId), asw=asw )
         ! radiance deallocation for 1 profile
-        call rttov_alloc_rad (allocStatus(1), tvs_nchan(sensorId), radiancedata_d1, nlv_T, asw)
+        call rttov_alloc_rad (allocStatus(2), tvs_nchan(sensorId), radiancedata_d1, nlv_T, asw)
 
       else
 
