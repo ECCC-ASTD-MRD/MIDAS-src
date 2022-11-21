@@ -689,7 +689,7 @@ contains
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam, nml=namtov, iostat=ierr)
-    if (ierr /= 0) call utl_abort('tvs_setup: Error reading namelist')
+    if (ierr /= 0) call utl_abort('tvs_setup: Error reading namelist NAMTOV')
 
     if (mmpi_myid == 0) write(*,nml=namtov)
     ierr = fclos(nulnam)
@@ -921,18 +921,21 @@ contains
     end do
 
     if (first) then
-     ! read the namelist
+      if ( utl_isNamelistPresent('NAMCHANOFFSET', './flnml') ) then
+        call utl_abort('sensors: NAMCHANOFFSET namelist section should be now in flnml_static !')
+      end if
+      ! read the namelist
       nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
       if (ierr /= 0) then
-        write(*,*) 'Error while opening namelist file !'
+        write(*,*) 'Error while opening flnml_static namelist file !'
         call utl_abort('sensors')
       end if
       listoffset(:) = 0
       listinstrum(:) = 'XXXXXXXX'
       read(nulnam,NAMCHANOFFSET, iostat=ierr)
       if (ierr /= 0) then
-        write(*,*) 'Error while reading namelist file !'
+        write(*,*) 'Error while reading NAMCHANOFFSET namelist section in flnml_static file !'
         call utl_abort('sensors')
       end if
       do instrumentIndex=0, ninst - 1
@@ -1069,13 +1072,16 @@ contains
     end if
 
     if (first) then
+      if ( utl_isNamelistPresent('NAMTOVSINST', './flnml') ) then
+        call utl_abort('tvs_getAllIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
+      end if
       nulnam = 0
       ninst_tovs = 0
       list_inst(:) = -1
       inst_names(:) = 'XXXXXX'
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
       read(nulnam, nml=namtovsinst, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_getAllIdBurpTovs: Error reading namelist')
+      if (ierr /= 0) call utl_abort('tvs_getAllIdBurpTovs: Error reading NAMTOVSINST namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namtovsinst)
       ierr = fclos(nulnam)
       do instrumentIndex=1, ninst
@@ -1129,13 +1135,16 @@ contains
     end if
 
     if (first) then
+       if ( utl_isNamelistPresent('NAMTOVSINST', './flnml') ) then
+        call utl_abort('tvs_isIdBurpTovs: NAMTOVSINST namelist section should be now in flnml_static !')
+      end if
       nulnam = 0
       ninst_tovs = 0
       list_inst(:) = -1
       inst_names(:) = 'XXXXXX'
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
       read(nulnam, nml=namtovsinst, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_isIdBurpTovs: Error reading namelist')
+      if (ierr /= 0) call utl_abort('tvs_isIdBurpTovs: Error reading NAMTOVSINST namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namtovsinst)
       ierr = fclos(nulnam)
       do instrumentIndex=1, ninst
@@ -1194,13 +1203,16 @@ contains
     end if
 
     if (first) then
+      if ( utl_isNamelistPresent('NAMHYPER', './flnml') ) then
+        call utl_abort('tvs_isIdBurpHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
+      end if
       nulnam = 0
       ninst_hyper = 0
       list_inst(:) = -1
       name_inst(:) = 'XXXXXX'
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
       read(nulnam, nml=namhyper, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_isIdBurpHyperSpectral: Error reading namelist')
+      if (ierr /= 0) call utl_abort('tvs_isIdBurpHyperSpectral: Error reading NAMHYPER namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
       ierr = fclos(nulnam)
       do instrumentIndex=1, ninst
@@ -1345,14 +1357,17 @@ contains
     integer, external :: fclos, fnom
     character (len=8) :: name_inst(maxsize)
     namelist /NAMHYPER/ name_inst
-
+    
     if (first) then
+      if ( utl_isNamelistPresent('NAMHYPER', './flnml') ) then
+        call utl_abort('tvs_isInstrumHyperSpectral: NAMHYPER namelist section should be now in flnml_static !')
+      end if
       nulnam = 0
       ninst_hir = 0
       name_inst(:) = 'XXXXXXX'
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
       read(nulnam,nml=namhyper, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_isInstrumHyperSpectral: Error reading namelist')
+      if (ierr /= 0) call utl_abort('tvs_isInstrumHyperSpectral: Error reading namelist section NAMHYPER in flnm_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
       ierr = fclos(nulnam)
       list_inst(:) = -1
@@ -1408,9 +1423,9 @@ contains
       nulnam = 0
       ninst_hir = 0
       name_inst(:) = 'XXXXXXX'
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
       read(nulnam,nml=namhyper, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_isNameHyperSpectral: Error reading namelist')
+      if (ierr /= 0) call utl_abort('tvs_isNameHyperSpectral: Error reading NAMHYPER namelist section in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namhyper)
       ierr = fclos(nulnam)
       do i=1, maxsize
@@ -1461,12 +1476,15 @@ contains
 
     namelist /NAMGEO/ name_inst
     if (first) then
+      if ( utl_isNamelistPresent('NAMGEO', './flnml') ) then
+        call utl_abort('tvs_isInstrumGeostationary: NAMGEO namelist section should be now in flnml_static !')
+      end if
       nulnam = 0
       ninst_geo = 0
       name_inst(:) = 'XXXXXX'
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
       read(nulnam,nml=namgeo, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_isInstrumGeostationary: Error reading namelist')
+      if (ierr /= 0) call utl_abort('tvs_isInstrumGeostationary: Error reading namelist section NAMGEO in flnml_static file')
       if (mmpi_myid == 0) write(*,nml=namgeo)
       ierr = fclos(nulnam)
       list_inst(:) = -1
@@ -1573,7 +1591,7 @@ contains
     character(len=8), save :: listinstrum(mxinstrumburp)
     namelist /NAMINST/ listburp, listinstrum
     logical, save :: first = .true.
-    integer :: nulnam, IER
+    integer :: nulnam, ier
     integer, external :: fnom, fclos
 
     !      Table of BURP satellite sensor identifier element #002019
@@ -1581,20 +1599,24 @@ contains
     !   1.0 Find instrument
 
     if (first) then
+      if ( utl_isNamelistPresent('NAMINST', './flnml') ) then
+        call utl_abort('tvs_mapInstrum: NAMINST namelist section should be now in flnml_static !')
+      end if
+      
       ! set the default values
       listburp(:) = -1
       listinstrum(:) = 'XXXXXXXX'
 
       ! read the namelist
       nulnam = 0
-      IER = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (IER /= 0) then
-        write(*,*) 'Error while opening namelist file !'
+      ier = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
+      if (ier /= 0) then
+        write(*,*) 'Error while opening flnml_static namelist file !'
         call utl_abort('tvs_mapInstrum')
       end if
       read(nulnam,NAMINST,iostat=ier)
-      if (IER /= 0) then
-        write(*,*) 'Error while reading namelist file !'
+      if (ier /= 0) then
+        write(*,*) 'Error while reading NAMINST namelist section in flnml_static file !'
         call utl_abort('tvs_mapInstrum')
       end if
       ier = fclos(nulnam)
@@ -1645,12 +1667,15 @@ contains
 
     namelist /NAMGEOBUFR/ name_inst
     if (lfirst) then
+      if ( utl_isNamelistPresent('NAMGEOBUFR', './flnml') ) then
+        call utl_abort('tvs_isNameGeostationary: NAMGEOBUFR namelist section should be now in flnml_static !')
+      end if
       nulnam = 0
       ninst_geo = 0
       name_inst(:) = 'XXXXXXXX'
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
       read(nulnam,nml=namgeobufr, iostat=ierr)
-      if (ierr /= 0) call utl_abort('tvs_isNameGeostationary: Error reading namelist')
+      if (ierr /= 0) call utl_abort('tvs_isNameGeostationary: Error reading namelist section NAMGEOBUFR in flnml_static_file')
       if (mmpi_myid == 0) write(*,nml=namgeobufr)
       ierr = fclos(nulnam)
       do i=1, maxsize
@@ -1741,20 +1766,23 @@ contains
 
     !     Fill tables from namelist at the first call 
     if (first) then
+      if ( utl_isNamelistPresent('NAMSAT', './flnml') ) then
+        call utl_abort('tvs_mapSat: NAMSAT namelist section should be now in flnml_static !')
+      end if
       ! set the default values
       listburp(:) = -1
       listsat(:) = -1
       listplat(:) = 'XXXXXXXX'
       ! read the namelist
       nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      ierr = fnom(nulnam,'./flnml_static','FTN+SEQ+R/O',0)
       if (ierr /= 0) then
-        write(*,*) 'Error while opening namelist file !'
+        write(*,*) 'Error while opening namelist flnml_static file !'
         call utl_abort('tvs_mapSat')
       end if
       read(nulnam, NAMSAT, iostat = ierr)
       if (ierr /= 0) then
-        write(*,*) 'Error while reading namelist file !'
+        write(*,*) 'Error while reading NAMSAT namelist section in flnml_static file !'
         call utl_abort('tvs_mapSat')
       end if
       ierr = fclos(nulnam)

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Introduction of new namelist file flnml_static for dictionary-like namelist sections (#686 and !654) 
  * Included and adapted bgck.satqc_mwhs2 program (#702 and !653)
  * Gross error check for sea ice observations (#677 and !652)
  * Separate selection criteria for insitu/satellite SST data for sea/inland waters (#710 and !651)
