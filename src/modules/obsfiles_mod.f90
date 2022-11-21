@@ -144,27 +144,26 @@ contains
 
     ! for every splitted file, the file type is defined separately 
     do fileIndex = 1, obsf_nfiles
-
-        call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
-        if ( obsFileType == 'BURP' )   then
-          ! Add extra bias correction elements to conventional (except AI) and TO files
-          ! Bias correction elements for AI are added at the derivate file stage
-          if ( obsf_cfamtyp(fileIndex) == 'TO' ) then
-            call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
-          else if ( obsf_cfamtyp(fileIndex) /= 'AI' ) then
-            if ( bcc_biasActive(obsf_cfamtyp(fileIndex)) ) &
+      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      if ( obsFileType == 'BURP' )   then
+        ! Add extra bias correction elements to conventional and TO files
+        ! Bias correction elements for AI are added at the derivate file stage
+        if ( obsf_cfamtyp(fileIndex) == 'TO' ) then
+          call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
+        else 
+          if ( bcc_biasActive(obsf_cfamtyp(fileIndex)) ) then
             call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
           end if
-          call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
-        if ( obsFileType == 'SQLITE' ) then
-          if (odbf_isActive()) then
-            call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
-          else
-            call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
-          end if
+        call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+      end if
+      if ( obsFileType == 'SQLITE' ) then
+        if (odbf_isActive()) then
+          call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        else
+          call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
         end if
-
+      end if
     end do
 
     ! abort if NAMTOV does not exist but there are radiance observation files
@@ -175,6 +174,7 @@ contains
 
     ! initialize OBS_HIND for each observation
     call obs_sethind(obsSpaceData)
+  
   end subroutine obsf_readFiles
 
 
