@@ -2899,6 +2899,7 @@ contains
     integer :: bodyIndex
 
     
+    btCount = size( originalEmissivity )
     if (useMWEmissivityAtlas) then
 
       if (.not. allocated (tvs_atlas)) allocate(tvs_atlas(tvs_nsensors))
@@ -2929,7 +2930,6 @@ contains
         call utl_abort('tvs_getMWemissivityFromAtlas')
       end if
 
-      btCount = size( originalEmissivity )
       profileCount = size( sensorTovsIndexes )
 
       do profileIndex=1, profileCount !loop on profiles
