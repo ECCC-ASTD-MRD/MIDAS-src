@@ -503,7 +503,7 @@ module backgroundCheck_mod
       integer :: IDATYP, iProfile, varNum
       integer :: IDATA   , IDATEND, bodyIndex
       integer :: NGPSLEV
-      integer :: stat, iversion
+      integer :: iversion
 
       vco_trl => col_getVco(columnTrlOnTrlLev)
       iversion = vco_trl%vCode
