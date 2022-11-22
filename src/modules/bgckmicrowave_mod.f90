@@ -2874,24 +2874,24 @@ contains
   end subroutine bennartz
 
   !--------------------------------------------------------------------------
-  ! atmsTest1Flagbit7Check
+  ! atmsMwhs2Test1Flagbit7Check
   !--------------------------------------------------------------------------
-  subroutine atmsTest1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, STNID,  B7CHCK)
+  subroutine atmsMwhs2Test1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, STNID,  B7CHCK)
 
-    !:Purpose:               1) test 1: Check flag bit 7 on from the first bgckAtms program
+    !:Purpose:               1) test 1: Check flag bit 7 on from the first bgckAtms/bgckMwhs2 program
     !                        Includes observations flagged for cloud liquid water, scattering index,
     !                        dryness index plus failure of several QC checks.
 
 
     ! Arguments
     integer,     intent(in)                                   :: itest(:)                 ! test number
-    integer,     intent(in)                                   :: KCANO(KNO,KNT)                 ! observations channels
+    integer,     intent(in)                                   :: KCANO(KNO,KNT)           ! observations channels
     integer,     intent(inout)                                :: KMARQ(KNO,KNT)           ! observations channels
     integer,     intent(in)                                   :: KNOSAT                   ! numero de satellite (i.e. indice) 
     integer,     intent(in)                                   :: KNO                      ! nombre de canaux des observations 
     integer,     intent(in)                                   :: KNT                      ! nombre de tovs
     character *9,intent(in)                                   :: STNID                    ! identificateur du satellite
-    integer,     intent(inout)                                :: B7CHCK(KNO,KNT)          ! 
+    integer,     intent(inout)                                :: B7CHCK(KNO,KNT) 
     integer,     intent(inout)                                :: ICHECK(KNO,KNT)          ! indicateur du QC par canal
     ! Locals
     integer                                                   :: nDataIndex
@@ -2911,7 +2911,7 @@ contains
             rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
                  rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
             if ( mwbg_debug ) then
-              write(*,*)STNID(2:9),' first bgckAtms program REJECT.', &
+              write(*,*)STNID(2:9),' first bgckAtms/bgckMwhs2 program REJECT.', &
                         'CHANNEL=', KCANO(nChannelIndex,nDataIndex), &
                         ' IMARQ= ',KMARQ(nChannelIndex,nDataIndex)
             end if
@@ -2920,19 +2920,18 @@ contains
       end do
     end if
 
-  end subroutine atmsTest1Flagbit7Check
+  end subroutine atmsMwhs2Test1Flagbit7Check
 
   !--------------------------------------------------------------------------
-  ! atmsTest2TopographyCheck
+  ! atmsMwhs2Test2TopographyCheck
   !--------------------------------------------------------------------------
-  subroutine atmsTest2TopographyCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
-                                      KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, & 
-                                      ICHECK)
+  subroutine atmsMwhs2Test2TopographyCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
+                                           KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, ICHECK)
 
     !:Purpose:               1) test 2: Topography check (partial)
 
     ! Arguments
-    integer,     intent(in)                                   :: itest(:)                 ! test number
+    integer,     intent(in)                                   :: itest(:)                       ! test number
     integer,     intent(in)                                   :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)                                   :: KNOSAT                         ! numero de satellite (i.e. indice) 
     integer,     intent(in)                                   :: KNO                            ! nombre de canaux des observations 
@@ -2944,7 +2943,7 @@ contains
     integer,     intent(in)                                   :: ICHTOPO(MXTOPO) 
     real ,       intent(in)                                   :: ZCRIT(MXTOPO)
     integer,     intent(inout)                                :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(inout)                                :: B7CHCK(KNO,KNT)          ! 
+    integer,     intent(inout)                                :: B7CHCK(KNO,KNT)
     ! Locals
     integer                                                   :: nDataIndex
     integer                                                   :: nChannelIndex
@@ -2978,12 +2977,12 @@ contains
       end do
     end if
 
-  end subroutine atmsTest2TopographyCheck
+  end subroutine atmsMwhs2Test2TopographyCheck
 
   !--------------------------------------------------------------------------
-  ! atmsTest3UncorrectedTbCheck
+  ! atmsMwhs2Test3UncorrectedTbCheck
   !--------------------------------------------------------------------------
-  subroutine atmsTest3UncorrectedTbCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
+  subroutine atmsMwhs2Test3UncorrectedTbCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
                                          KMARQ, B7CHCK, ICHECK)
 
     !:Purpose:                       Test 3: Uncorrected Tb check (single)
@@ -2991,7 +2990,7 @@ contains
     !                                In this case switch bit 11 ON.
 
     ! Arguments
-    integer,     intent(in)                                   :: itest(:)                 ! test number
+    integer,     intent(in)                                   :: itest(:)                       ! test number
     integer,     intent(in)                                   :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)                                   :: KNOSAT                         ! numero de satellite (i.e. indice) 
     integer,     intent(in)                                   :: KNO                            ! nombre de canaux des observations 
@@ -3000,7 +2999,7 @@ contains
     logical,     intent(in)                                   :: RESETQC                        ! resetqc logical
     integer,     intent(inout)                                :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)                                :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(inout)                                :: B7CHCK(KNO,KNT)          ! 
+    integer,     intent(inout)                                :: B7CHCK(KNO,KNT)
     ! Locals
     integer                                                   :: nDataIndex
     integer                                                   :: nChannelIndex
@@ -3035,7 +3034,7 @@ contains
       end if
     end if
 
-  end subroutine atmsTest3UncorrectedTbCheck
+  end subroutine atmsMwhs2Test3UncorrectedTbCheck
 
   !--------------------------------------------------------------------------
   ! atmsTest4RogueCheck
@@ -3073,12 +3072,12 @@ contains
     real,        intent(in)              :: clwFG(:)
     integer,     intent(in)              :: IDENTF(KNT)                    ! data flag ident  
     integer,     intent(in)              :: MXSFCREJ                       ! cst 
-    integer,     intent(in)              :: ISFCREJ(MXSFCREJ)              !
+    integer,     intent(in)              :: ISFCREJ(MXSFCREJ)
     integer,     intent(in)              :: MXCH2OMPREJ                    ! cst 
-    integer,     intent(in)              :: ICH2OMPREJ(MXCH2OMPREJ)        !
+    integer,     intent(in)              :: ICH2OMPREJ(MXCH2OMPREJ)
     integer,     intent(inout)           :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)           :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(inout)           :: B7CHCK(KNO,KNT)                ! 
+    integer,     intent(inout)           :: B7CHCK(KNO,KNT)
 
     ! Locals
     integer                              :: channelval
@@ -3203,12 +3202,152 @@ contains
       end do
     end if
 
-  end subroutine atmsTest4RogueCheck 
+  end subroutine atmsTest4RogueCheck
 
   !--------------------------------------------------------------------------
-  ! atmsTest5ChannelSelectionUsingIutilst
+  ! Mwhs2Test4RogueCheck
   !--------------------------------------------------------------------------
-  subroutine atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
+  subroutine Mwhs2Test4RogueCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
+                                  clwThreshArr, useStateDepSigmaObs, sigmaObsErr, waterobs, &
+                                  PTBOMP, clwObs, clwFG, IDENTF, MXSFCREJ, ISFCREJ, ICH2OMPREJ, &
+                                  MXCH2OMPREJ, KMARQ, B7CHCK, ICHECK)
+
+    !:Purpose:                         test 4: "Rogue check" for (O-P) Tb residuals out of range.
+    !                                  (single/full).
+    !                                  Also, over WATER remove CH.10-15 if CH.10 |O-P|>5K (full)
+    !                                  Les observations, dont le residu (O-P)
+    !                                  depasse par un facteur (roguefac) l'erreur totale des TOVS.
+    !                                  OVER OPEN WATER
+    !                                  ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
+
+    ! Arguments
+    integer,     intent(in)              :: itest(:)                       ! test number
+    integer,     intent(in)              :: KCANO(KNO,KNT)                 ! observations channels
+    integer,     intent(in)              :: KNOSAT                         ! numero de satellite (i.e. indice)
+    integer,     intent(in)              :: KNO                            ! nombre de canaux des observations
+    integer,     intent(in)              :: KNT                            ! nombre de tovs
+    character *9,intent(in)              :: STNID                          ! identificateur du satellite
+    real,        intent(in)              :: ROGUEFAC(:)                    ! rogue factor
+    real(8),     intent(in)              :: TOVERRST(:,:)                  ! erreur totale TOVs
+    logical,     intent(in)              :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
+    real(8),     intent(in)              :: clwThreshArr(:,:,:)            ! cloud threshold array
+    real(8),     intent(in)              :: sigmaObsErr(:,:,:)             ! sigma obs error
+    logical,     intent(in)              :: waterobs(:)                    ! open water obs
+    real,        intent(in)              :: PTBOMP(KNO,KNT)                ! radiance o-p
+    real,        intent(in)              :: clwObs(:)
+    real,        intent(in)              :: clwFG(:)
+    integer,     intent(in)              :: IDENTF(KNT)                    ! data flag ident
+    integer,     intent(in)              :: MXSFCREJ                       ! cst
+    integer,     intent(in)              :: ISFCREJ(MXSFCREJ)
+    integer,     intent(in)              :: MXCH2OMPREJ                    ! cst
+    integer,     intent(in)              :: ICH2OMPREJ(MXCH2OMPREJ)
+    integer,     intent(inout)           :: KMARQ(KNO,KNT)                 ! marqueur de radiance
+    integer,     intent(inout)           :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(inout)           :: B7CHCK(KNO,KNT)
+
+    ! Locals
+    integer                              :: channelval
+    integer                              :: nDataIndex
+    integer                              :: nChannelIndex
+    integer                              :: testIndex
+    integer                              :: INDXCAN
+    real                                 :: XCHECKVAL
+    real                                 :: clwThresh1
+    real                                 :: clwThresh2
+    real                                 :: sigmaThresh1
+    real                                 :: sigmaThresh2
+    real                                 :: sigmaObsErrUsed
+    real                                 :: clwObsFGaveraged
+    logical                              :: CH2OMPREJCT
+    logical                              :: IBIT
+
+    testIndex = 4
+    if ( itest(testIndex) == 1 ) then
+      do nDataIndex=1,KNT
+        CH2OMPREJCT = .FALSE.
+        do nChannelIndex=1,KNO
+          channelval = KCANO(nChannelIndex,nDataIndex)
+          ! using state-dependent obs error only over water.
+          ! obs over sea-ice will be rejected in test 15.
+          if ( tvs_mwAllskyAssim .and. useStateDepSigmaObs(channelval,KNOSAT) &
+                .and. waterobs(nDataIndex) ) then
+            clwThresh1 = clwThreshArr(channelval,KNOSAT,1)
+            clwThresh2 = clwThreshArr(channelval,KNOSAT,2)
+            sigmaThresh1 = sigmaObsErr(channelval,KNOSAT,1)
+            sigmaThresh2 = sigmaObsErr(channelval,KNOSAT,2)
+            clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
+            if ( clwObs(nDataIndex) == mwbg_realMissing ) then
+              sigmaObsErrUsed = MPC_missingValue_R4
+            else
+              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1, &
+                                                        sigmaThresh2,clwObsFGaveraged)
+            end if
+          else
+            sigmaObsErrUsed = TOVERRST(channelval,KNOSAT)
+          end if
+          ! For sigmaObsErrUsed=MPC_missingValue_R4 (clwObs=mwbg_realMissing
+          ! in all-sky mode), the observation is flagged for rejection in
+          ! mwbg_reviewAllCritforFinalFlagsMwhs2.
+          XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
+          if ( PTBOMP(nChannelIndex,nDataIndex)      /= mwbg_realMissing    .and. &
+              ABS(PTBOMP(nChannelIndex,nDataIndex))  >= XCHECKVAL .and. &
+              sigmaObsErrUsed /= MPC_missingValue_R4 ) then
+            ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
+            KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
+            KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
+            rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) =  &
+               rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) + 1
+            if ( B7CHCK(nChannelIndex,nDataIndex) == 0 ) then
+              rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
+                 rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
+            end if
+            if ( mwbg_debug ) then
+              write(*,*)STNID(2:9),'ROGUE CHECK REJECT.NO.', &
+                     ' OBS = ',nDataIndex, &
+                     ' CHANNEL= ',KCANO(nChannelIndex,nDataIndex), &
+                     ' CHECK VALUE= ',XCHECKVAL, &
+                     ' TBOMP= ',PTBOMP(nChannelIndex,nDataIndex), &
+                     ' TOVERRST= ',TOVERRST(channelval,KNOSAT)
+            end if
+          end if
+          if ( channelval == 10 .and. PTBOMP(nChannelIndex,nDataIndex) /= mwbg_realMissing .and. &
+              ABS(PTBOMP(nChannelIndex,nDataIndex)) > 5.0 ) then
+            CH2OMPREJCT = .TRUE.
+          end if
+        end do
+
+        !    Channels 10-15 are rejected if, for ch10 ABS(O-P) > 5K
+        !    Apply over open water only (bit 0 ON in QC integer identf).
+        !    Only apply if obs not rejected in this test already.
+        IBIT = AND(IDENTF(nDataIndex), 2**0)
+        if ( CH2OMPREJCT .and. (IBIT /= 0) ) then
+          do nChannelIndex=1,KNO
+            INDXCAN = ISRCHEQI (ICH2OMPREJ,MXCH2OMPREJ,KCANO(nChannelIndex,nDataIndex))
+            if ( INDXCAN /= 0 )  then
+              if ( ICHECK(nChannelIndex,nDataIndex) /= testIndex ) then
+                ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
+                KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
+                KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
+                rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
+                        rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
+                if ( B7CHCK(nChannelIndex,nDataIndex) == 0 ) then
+                  rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
+                     rejectionCodArray2(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
+                end if
+              end if
+            end if
+          end do
+        end if
+
+      end do
+    end if
+
+  end subroutine Mwhs2Test4RogueCheck
+
+  !--------------------------------------------------------------------------
+  ! atmsMwhs2Test5ChannelSelectionUsingIutilst
+  !--------------------------------------------------------------------------
+  subroutine atmsMwhs2Test5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
                                                    IUTILST, KMARQ, ICHECK)
 
     !:Purpose:                         test 5: Channel selection using array IUTILST(chan,sat)
@@ -3255,7 +3394,7 @@ contains
       write(*,*) 'ICHECK = ',((ICHECK(nChannelIndex,nDataIndex),nChannelIndex=1,KNO),nDataIndex=1,KNT)
     end if
 
-  end subroutine atmsTest5ChannelSelectionUsingIutilst
+  end subroutine atmsMwhs2Test5ChannelSelectionUsingIutilst
 
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAtms 
@@ -3499,16 +3638,16 @@ contains
     ! 1) test 1: Check flag bit 7 on from the first bgckAtms program
     !  Includes observations flagged for cloud liquid water, scattering index,
     !  dryness index plus failure of several QC checks.
-    call atmsTest1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, &
-                                 STNID,  B7CHCK)
+    call atmsMwhs2Test1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, &
+                                      STNID,  B7CHCK)
 
     ! 2) test 2: Topography check (partial)
-    call atmsTest2TopographyCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
-                                   KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, ICHECK)
+    call atmsMwhs2Test2TopographyCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
+                                        KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, ICHECK)
     ! 3) test 3: Uncorrected Tb check (single)
     !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
-    call atmsTest3UncorrectedTbCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
-                                      KMARQ, B7CHCK, ICHECK)
+    call atmsMwhs2Test3UncorrectedTbCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
+                                           KMARQ, B7CHCK, ICHECK)
     ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     !             Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial)
     !  Les observations, dont le residu (O-P) depasse par un facteur (roguefac)
@@ -3525,8 +3664,8 @@ contains
     ! 5) test 5: Channel selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
     !            1 (assmilate)
-    call atmsTest5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
-                                               IUTILST, KMARQ, ICHECK)
+    call atmsMwhs2Test5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
+                                                    IUTILST, KMARQ, ICHECK)
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
@@ -3672,6 +3811,7 @@ contains
     integer                          :: kk
     integer                          :: INDX
     integer                          :: ICH2OMPREJ(MXCH2OMPREJ)
+    integer                          :: B7CHCK(KNO,KNT)
     real, allocatable                :: ROGUEFAC(:)
     real                             :: ZCRIT(MXTOPO)
     integer                          :: chanFlaggedForAllskyGenCoeff(MXCLWREJ)
@@ -3704,6 +3844,11 @@ contains
     !   Channel AMSUB-4 (mwhs2 ch 13) is rejected for topography > 2000m.
     ICHTOPO(:) = (/11, 12, 13/)
     ZCRIT(:) = (/2500., 2250., 2000./)
+
+    !  Test selection (0=skip test, 1=do test)
+    !              1  2  3  4  5
+    ITEST(:)  = 0
+    ITEST(1:5) = (/1, 1, 1, 1, 1/)
 
     ! Channels excluded from gen_bias_corr in all-sky mode
     chanFlaggedForAllskyGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
@@ -3807,14 +3952,50 @@ contains
     call utl_reAllocate(icheck, KNO, KNT)
     !  Initialisations
     ICHECK(:,:) = 0
+    B7CHCK(:,:) = 0
 
     if ( RESETQC ) KMARQ(:,:) = 0
+
+    ! 1) test 1: Check flag bit 7 on from the first bgckMwhs2 program
+    !  Includes observations flagged for cloud liquid water, scattering index,
+    !  dryness index plus failure of several QC checks.
+    call atmsMwhs2Test1Flagbit7Check (itest, KCANO, KMARQ, KNOSAT, ICHECK, KNO, KNT, &
+                                      STNID,  B7CHCK)
+
+    ! 2) test 2: Topography check (partial)
+    call atmsMwhs2Test2TopographyCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, MTINTRP, &
+                                        KMARQ, ICHTOPO, MXTOPO, ZCRIT, B7CHCK, ICHECK)
+    ! 3) test 3: Uncorrected Tb check (single)
+    !  Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
+    call atmsMwhs2Test3UncorrectedTbCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, RESETQC, &
+                                           KMARQ, B7CHCK, ICHECK)
+    ! 4) test 4: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
+    !             Also, over WATER remove CH.10-15 if CH.10 |O-P|>5K (full)
+    !  Les observations, dont le residu (O-P) depasse par un facteur (roguefac)
+    !   l'erreur totale des TOVS.
+    !  OVER OPEN WATER
+    !    ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
+    call Mwhs2Test4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
+                              clwThreshArr, useStateDepSigmaObs, sigmaObsErr, waterobs, &
+                              PTBOMP, clwObs, clwFG, IDENT, MXSFCREJ, ISFCREJ, ICH2OMPREJ, &
+                              MXCH2OMPREJ, KMARQ, B7CHCK, ICHECK)
+
+    ! 5) test 5: Channel selection using array IUTILST(chan,sat)
+    !  IUTILST = 0 (blacklisted)
+    !            1 (assmilate)
+    call atmsMwhs2Test5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
+                                                    IUTILST, KMARQ, ICHECK)
 
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
     !            =0, aucun rejet,
     !            >0, au moins un canal rejete.
-    KCHKPRF(:) = 0
+    do JJ=1,KNT
+      KCHKPRF(JJ) = 0
+      do JI=1,KNO
+        KCHKPRF(JJ) = MAX(KCHKPRF(JJ),ICHECK(JI,JJ))
+      end do
+    end do
 
     if ( mwbg_debug ) then
       write(*,*)'KCHKPRF = ',(KCHKPRF(JJ),JJ=1,KNT)
