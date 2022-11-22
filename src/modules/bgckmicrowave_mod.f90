@@ -3209,7 +3209,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine Mwhs2Test4RogueCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
                                   clwThreshArr, useStateDepSigmaObs, sigmaObsErr, waterobs, &
-                                  PTBOMP, clwObs, clwFG, IDENTF, MXSFCREJ, ISFCREJ, ICH2OMPREJ, &
+                                  PTBOMP, clwObs, clwFG, IDENTF, ICH2OMPREJ, &
                                   MXCH2OMPREJ, KMARQ, B7CHCK, ICHECK)
 
     !:Purpose:                         test 4: "Rogue check" for (O-P) Tb residuals out of range.
@@ -3237,8 +3237,6 @@ contains
     real,        intent(in)              :: clwObs(:)
     real,        intent(in)              :: clwFG(:)
     integer,     intent(in)              :: IDENTF(KNT)                    ! data flag ident
-    integer,     intent(in)              :: MXSFCREJ                       ! cst
-    integer,     intent(in)              :: ISFCREJ(MXSFCREJ)
     integer,     intent(in)              :: MXCH2OMPREJ                    ! cst
     integer,     intent(in)              :: ICH2OMPREJ(MXCH2OMPREJ)
     integer,     intent(inout)           :: KMARQ(KNO,KNT)                 ! marqueur de radiance
@@ -3738,10 +3736,11 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckMwhs2(zlat, zlon, ilq, itt, zenith, &
+  subroutine mwbg_tovCheckMwhs2(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+                                IUTILST, zlat, zlon, ilq, itt, zenith, &
                                 ICANO, ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
-                                ISCNPOS, globMarq, IMARQ, clwObs, clwFG, riwv, &
-                                RESETQC, modLSQ)
+                                ISCNPOS, MTINTRP, globMarq, IMARQ, clwObs, clwFG, riwv, &
+                                STNID, RESETQC, modLSQ)
 
 
     !:Purpose:                   Effectuer le controle de qualite des radiances tovs.
@@ -3814,6 +3813,7 @@ contains
     integer                          :: B7CHCK(KNO,KNT)
     real, allocatable                :: ROGUEFAC(:)
     real                             :: ZCRIT(MXTOPO)
+    integer                          :: ITEST(mwbg_maxNumTest)
     integer                          :: chanFlaggedForAllskyGenCoeff(MXCLWREJ)
     integer                          :: ICHTOPO(MXTOPO)
     logical, save                    :: LLFIRST = .true.
@@ -3890,8 +3890,7 @@ contains
     !###############################################################################
 
     call mwbg_firstQcCheckMwhs2(zenith, ilq, itt, zlat, zlon, ztb, ISCNPOS, &
-                                KNO, KNT, lqc, lsq, trn, &
-                                ICANO, reportHasMissingTb, modLSQ)
+                                KNO, KNT, lqc, lsq, trn, ICANO, reportHasMissingTb, modLSQ)
 
     if ( reportHasMissingTb ) numReportWithMissingTb = numReportWithMissingTb + 1
     !  Exclude problem points from further calculations
@@ -3977,7 +3976,7 @@ contains
     !    ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
     call Mwhs2Test4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
                               clwThreshArr, useStateDepSigmaObs, sigmaObsErr, waterobs, &
-                              PTBOMP, clwObs, clwFG, IDENT, MXSFCREJ, ISFCREJ, ICH2OMPREJ, &
+                              PTBOMP, clwObs, clwFG, IDENT, ICH2OMPREJ, &
                               MXCH2OMPREJ, KMARQ, B7CHCK, ICHECK)
 
     ! 5) test 5: Channel selection using array IUTILST(chan,sat)
@@ -5228,8 +5227,7 @@ contains
   ! mwbg_firstQcCheckMwhs2
   !--------------------------------------------------------------------------
   subroutine mwbg_firstQcCheckMwhs2(zenith, ilq, itt, zlat, zlon, ztb, scanpos, &
-                                    nval, nt, lqc, lsq, trn, &
-                                    ican, reportHasMissingTb, modLSQ)
+                                    nval, nt, lqc, lsq, trn, ican, reportHasMissingTb, modLSQ)
     !  This routine performs basic quality control checks on the data. It sets array
     !  lqc(nt,nval) elements to .true. to flag data with failed checks. Check 1
     !  (for ilq,itt) and check 5 are skipped if modlsqtt=.true., as the original values
@@ -6107,8 +6105,6 @@ contains
     !                                - 4     scatec > Lower Troposphere limit 9/10 (precipobs)
     !                                - 5     Mean 183 Ghz [ch. 18-22] Tb < 240K
     !                                - 6     CLW > clw_mwhs2_nrl_UTrej (0.200 kg/m2)
-    !                                - 7     Dryness Index rejection (for ch. 22)
-    !                                - 9     Dryness Index rejection (for ch. 21)
     !                               - 10     Sea ice > 0.55 detected
     !                               - 11     Gross error in Tb (any chan.)  (all channels rejected)
 
@@ -7010,7 +7006,7 @@ contains
                                 newInformationFlag, satScanPosition,   &
                                 obsGlobalMarker, obsFlags,            &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                atmScatteringIndex, RESETQC, modLSQ)
+                                atmScatteringIndex, burpFileSatId, RESETQC, modLSQ)
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
         call utl_abort('midas-bgckMW: unknown instName')
