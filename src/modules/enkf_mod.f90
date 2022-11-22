@@ -206,7 +206,7 @@ contains
     if ( trim(algorithm) == 'CVLETKF-ME' .or. &
          trim(algorithm) == 'LETKF-Gain-ME' ) then
       allocate(YbTinvRYb_mod(nEnsUsed,nEns))
-      allocate(YbCopy_r4(maxNumLocalObs,nEnsUsed))
+      allocate(YbCopy_r4(maxNumLocalObs,nEns))
     end if
     allocate(eigenValues(nEnsUsed))
     allocate(eigenVectors(nEnsUsed,nEnsUsed))
@@ -509,7 +509,7 @@ contains
           YbCopy_r4(:,:) = 0.0
           do localObsIndex = 1, numLocalObs
             bodyIndex = localBodyIndices(localObsIndex)
-            do memberIndex2 = 1, nEnsUsed
+            do memberIndex2 = 1, nEns
               YbCopy_r4(localObsIndex,memberIndex2) = ensObs_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
             end do
           end do
