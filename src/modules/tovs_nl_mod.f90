@@ -2188,7 +2188,7 @@ contains
       allocate (latitudes(profileCount),                             stat = allocStatus(3) )
       allocate (ozone(nlv_T,profileCount),                           stat = allocStatus(4) ) 
       allocate (pressure(nlv_T,profileCount),                        stat = allocStatus(5) )
-      if ( runObsOperatorWithClw ) then
+      if ( runObsOperatorWithClw .or. tvs_useRttovScatt(sensorIndex)) then
         allocate (clw       (nlv_T,profileCount),stat= allocStatus(6))
         clw(:,:) = qlim_readMinClwValue()
       end if
@@ -2279,7 +2279,7 @@ contains
             clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor
           end if
           if ( tvs_useRttovScatt(sensorIndex) ) then
-            ciw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LICR')
+            ciw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'IWCR')
             rainFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'RF')
             snowFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'SF')
             if ( ciw(levelIndex,profileCount) < 0.d0 .or. &
@@ -2406,8 +2406,8 @@ contains
       if (tvs_coefs(sensorIndex) %coef %nozone > 0 .and. .not.tvs_useO3Climatology) then
         deallocate (ozone,             stat = allocStatus(7))
       end if
-      if ( runObsOperatorWithClw ) then
-        deallocate (clw       ,stat= allocStatus(8))
+      if ( allocated(clw) ) then
+        deallocate (clw,      stat= allocStatus(8))
       end if
       if ( allocated(ciw) ) then
         deallocate (ciw,      stat= allocStatus(9))
