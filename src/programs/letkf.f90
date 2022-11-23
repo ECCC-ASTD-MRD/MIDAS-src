@@ -224,8 +224,7 @@ program midas_letkf
   end if
 
   ! check for NO varying horizontal localization lengthscale in letkf with modulated ensembles.
-  if ( any(hLocalize(2:4) /= 0) .and. .not. all(hLocalize(2:4) == hLocalize(1)) .and. &
-       numRetainedEigen /= 0 ) then
+  if ( .not. all(hLocalize(2:4) == hLocalize(1)) .and. numRetainedEigen /= 0 ) then
     call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
                    'letkf with modulated ensembles')
   end if
