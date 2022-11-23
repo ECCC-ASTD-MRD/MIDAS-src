@@ -2376,26 +2376,25 @@ contains
 
         profiles(tovsIndex) % ctp = 1013.25d0
         profiles(tovsIndex) % cfraction = 0.d0
-        ! using the minimum CLW value for land FOV
+        ! using the minimum CLW value for land FOV ???
         if ( runObsOperatorWithClw ) then
-          if (tvs_useRttovScatt(sensorIndex)) then
-            cld_profiles(tovsIndex) % hydro(:,1) = rainFlux(:,profileIndex)
-            cld_profiles(tovsIndex) % hydro(:,2) = snowFlux(:,profileIndex)
-            cld_profiles(tovsIndex) % hydro(:,4) = clw(:,profileIndex)
-            cld_profiles(tovsIndex) % hydro(:,5) = ciw(:,profileIndex)
-            
-            where (cld_profiles(tovsIndex) % hydro(:,1) > 0.d0 .or. &
-                   cld_profiles(tovsIndex) % hydro(:,2) > 0.d0 .or. &
-                   cld_profiles(tovsIndex) % hydro(:,4) > 0.d0 .or. &
-                   cld_profiles(tovsIndex) % hydro(:,5) > 0.d0 )
-              cld_profiles(tovsIndex) % hydro_frac(:,1) = 1.d0
-            elsewhere
-              cld_profiles(tovsIndex) % hydro_frac(:,1) = 0.d0
-            end where
-          else
-            profiles(tovsIndex) % clw(:) = clw(:,profileIndex)
-          end if
+          profiles(tovsIndex) % clw(:) = clw(:,profileIndex)
+        else if (tvs_useRttovScatt(sensorIndex)) then
+          cld_profiles(tovsIndex) % hydro(:,1) = rainFlux(:,profileIndex)
+          cld_profiles(tovsIndex) % hydro(:,2) = snowFlux(:,profileIndex)
+          cld_profiles(tovsIndex) % hydro(:,4) = clw(:,profileIndex)
+          cld_profiles(tovsIndex) % hydro(:,5) = ciw(:,profileIndex)
+          
+          where (cld_profiles(tovsIndex) % hydro(:,1) > 0.d0 .or. &
+                 cld_profiles(tovsIndex) % hydro(:,2) > 0.d0 .or. &
+                 cld_profiles(tovsIndex) % hydro(:,4) > 0.d0 .or. &
+                 cld_profiles(tovsIndex) % hydro(:,5) > 0.d0 )
+                 cld_profiles(tovsIndex) % hydro_frac(:,1) = 1.d0
+          elsewhere
+            cld_profiles(tovsIndex) % hydro_frac(:,1) = 0.d0
+          end where
         end if
+        
       end do
 
       deallocate (pressure,            stat = allocStatus(2))
