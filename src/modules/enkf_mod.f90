@@ -475,7 +475,7 @@ contains
 
         call utl_tmg_start(105,'------CalcYbTinvRYb')
         ! make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4
-        call utl_tmg_start(187,'------YbArraysCopy')
+        call utl_tmg_start(177,'------YbArraysCopy')
         YbGainCopy_r4(:,:) = 0.0
         YbTinvRCopy(:,:) = 0.0d0
         do localObsIndex = 1, numLocalObs
@@ -485,10 +485,10 @@ contains
             YbTinvRCopy(localObsIndex,memberIndex2) = YbTinvR(memberIndex2,localObsIndex)
           end do
         end do
-        call utl_tmg_stop(187)
+        call utl_tmg_stop(177)
 
         YbTinvRYb(:,:) = 0.0D0
-        call utl_tmg_start(185,'------YbTinvRYb1')
+        call utl_tmg_start(178'------YbTinvRYb1')
         !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
         do memberIndex2 = 1, nEnsGain
           do memberIndex1 = 1, nEnsGain
@@ -498,13 +498,13 @@ contains
           end do
         end do
         !$OMP END PARALLEL DO
-        call utl_tmg_stop(185)
+        call utl_tmg_stop(178)
 
         ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
         if ( trim(algorithm) == 'CVLETKF-ME' .or. &
               trim(algorithm) == 'LETKF-Gain-ME' ) then
           ! make copy of ensObs_mpiglobal%Yb_r4
-          call utl_tmg_start(187,'------YbArraysCopy')
+          call utl_tmg_start(179,'------YbArraysCopy')
           YbCopy_r4(:,:) = 0.0
           do localObsIndex = 1, numLocalObs
             bodyIndex = localBodyIndices(localObsIndex)
@@ -512,10 +512,10 @@ contains
               YbCopy_r4(localObsIndex,memberIndex2) = ensObs_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
             end do
           end do
-          call utl_tmg_stop(187)
+          call utl_tmg_stop(179)
 
           YbTinvRYb_mod(:,:) = 0.0D0
-          call utl_tmg_start(186,'------YbTinvRYb2')
+          call utl_tmg_start(180,'------YbTinvRYb2')
           !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEns
             do memberIndex1 = 1, nEnsGain
@@ -525,7 +525,7 @@ contains
             end do
           end do
           !$OMP END PARALLEL DO
-          call utl_tmg_stop(186)
+          call utl_tmg_stop(180)
         end if
         call utl_tmg_stop(105)
 
@@ -1340,7 +1340,7 @@ contains
               memberAnlPert(:) = 0.0d0
 
               if ( useModulatedEns ) then
-                call utl_tmg_start(109,'------ApplyWeightsMember')
+                call utl_tmg_start(182,'------ApplyWeightsMember')
                 do memberIndex2 = 1, nEns
                   do eigenVectorColumnIndex = 1, numRetainedEigen
                     call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
@@ -1370,7 +1370,7 @@ contains
                                                  memberAnlPert(memberIndex2)
 
                 end do ! memberIndex2
-                call utl_tmg_stop(109)
+                call utl_tmg_stop(182)
               else
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
@@ -1404,9 +1404,9 @@ contains
       write(*,*) '                      Therefore will keep closest obs only.'
     end if
 
-    call utl_tmg_start(107,'----Barr')
+    call utl_tmg_start(108,'----Barr')
     call rpn_comm_barrier('GRID',ierr)
-    call utl_tmg_stop(107)
+    call utl_tmg_stop(108)
 
     call gsv_deallocate(stateVectorMeanInc)
     call gsv_deallocate(stateVectorMeanTrl)
@@ -2282,7 +2282,7 @@ contains
 
     logical, save :: firstCall = .true.
 
-    call utl_tmg_start(108,'------getModulationFactor')
+    call utl_tmg_start(181,'------getModulationFactor')
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -2377,7 +2377,7 @@ contains
 
     modulationFactor_r4 = modulationFactorArray_r4(eigenVectorColumnIndex,eigenVectorLevelIndex)
   
-    call utl_tmg_stop(108)
+    call utl_tmg_stop(181)
 
   end subroutine getModulationFactor
 
