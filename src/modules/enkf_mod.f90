@@ -113,7 +113,7 @@ contains
     integer :: myLonBeg, myLonEnd, myLatBeg, myLatEnd, numVarLev
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
     integer :: imode, dateStamp, timePrint, datePrint, randomSeed, newDate
-    integer :: nEnsUsed, eigenVectorColumnIndex
+    integer :: nEnsGain, eigenVectorColumnIndex
     integer :: memberIndexInModEns, retainedEigenIndex, nLev
     real(8) :: anlLat, anlLon, anlVertLocation
     real(8) :: distance, tolerance, localization
@@ -174,9 +174,9 @@ contains
 
     nEns       = ens_getNumMembers(ensembleAnl)
     if ( numRetainedEigen > 0 ) then
-      nEnsUsed   = nEns * numRetainedEigen
+      nEnsGain   = nEns * numRetainedEigen
     else
-      nEnsUsed   = nEns
+      nEnsGain   = nEns
     end if
     nLev_M     = ens_getNumLev(ensembleAnl, 'MM')
     nLev_depth = ens_getNumLev(ensembleAnl, 'DP')
@@ -199,34 +199,34 @@ contains
     !
     allocate(localBodyIndices(maxNumLocalObs))
     allocate(distances(maxNumLocalObs))
-    allocate(YbTinvR(nEnsUsed,maxNumLocalObs))
-    allocate(YbTinvRCopy(maxNumLocalObs,nEnsUsed))
-    allocate(YbGainCopy_r4(maxNumLocalObs,nEnsUsed))
-    allocate(YbTinvRYb(nEnsUsed,nEnsUsed))
+    allocate(YbTinvR(nEnsGain,maxNumLocalObs))
+    allocate(YbTinvRCopy(maxNumLocalObs,nEnsGain))
+    allocate(YbGainCopy_r4(maxNumLocalObs,nEnsGain))
+    allocate(YbTinvRYb(nEnsGain,nEnsGain))
     if ( trim(algorithm) == 'CVLETKF-ME' .or. &
          trim(algorithm) == 'LETKF-Gain-ME' ) then
-      allocate(YbTinvRYb_mod(nEnsUsed,nEns))
+      allocate(YbTinvRYb_mod(nEnsGain,nEns))
       allocate(YbCopy_r4(maxNumLocalObs,nEns))
     end if
-    allocate(eigenValues(nEnsUsed))
-    allocate(eigenVectors(nEnsUsed,nEnsUsed))
-    allocate(PaInv(nEnsUsed,nEnsUsed))
-    allocate(PaSqrt(nEnsUsed,nEnsUsed))
-    allocate(Pa(nEnsUsed,nEnsUsed))
+    allocate(eigenValues(nEnsGain))
+    allocate(eigenVectors(nEnsGain,nEnsGain))
+    allocate(PaInv(nEnsGain,nEnsGain))
+    allocate(PaSqrt(nEnsGain,nEnsGain))
+    allocate(Pa(nEnsGain,nEnsGain))
     allocate(memberAnlPert(nEns))
-    allocate(weightsTemp(nEnsUsed))
-    allocate(weightsTemp2(nEnsUsed))
+    allocate(weightsTemp(nEnsGain))
+    allocate(weightsTemp2(nEnsGain))
     weightsTemp(:) = 0.0d0
     weightsTemp2(:) = 0.0d0
     ! Weights for mean analysis
-    allocate(weightsMean(nEnsUsed,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
+    allocate(weightsMean(nEnsGain,1,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMean(:,:,:,:) = 0.0d0
-    allocate(weightsMeanLatLon(nEnsUsed,1,myNumLatLonSend))
+    allocate(weightsMeanLatLon(nEnsGain,1,myNumLatLonSend))
     weightsMeanLatLon(:,:,:) = 0.0d0
     ! Weights for member analyses
-    allocate(weightsMembers(nEnsUsed,nEns,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
+    allocate(weightsMembers(nEnsGain,nEns,myLonBegHalo:myLonEndHalo,myLatBegHalo:myLatEndHalo))
     weightsMembers(:,:,:,:) = 0.0d0
-    allocate(weightsMembersLatLon(nEnsUsed,nEns,myNumLatLonSend))
+    allocate(weightsMembersLatLon(nEnsGain,nEns,myNumLatLonSend))
     weightsMembersLatLon(:,:,:) = 0.0d0
 
     call gsv_allocate( stateVectorMeanTrl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
@@ -261,7 +261,7 @@ contains
       allocate(memberIndexSubEnsComp(nEnsIndependentPerSubEns,numSubEns))
       if ( numRetainedEigen > 0 ) then
         nEnsPerSubEns_mod = nEnsPerSubEns * numRetainedEigen
-        nEnsIndependentPerSubEns_mod = nEnsUsed - nEnsPerSubEns_mod
+        nEnsIndependentPerSubEns_mod = nEnsGain - nEnsPerSubEns_mod
         allocate(YbTinvRYb_CV_mod(nEnsIndependentPerSubEns_mod,nEnsIndependentPerSubEns_mod))
         allocate(eigenValues_CV_mod(nEnsIndependentPerSubEns_mod))
         allocate(eigenVectors_CV_mod(nEnsIndependentPerSubEns_mod,nEnsIndependentPerSubEns_mod))
@@ -402,12 +402,12 @@ contains
         procIndex = myProcIndexesRecv(latLonIndex)
         recvTag = latLonTagMpiGlobal(lonIndex,latIndex)
 
-        nsize = nEnsUsed
+        nsize = nEnsGain
         numRecv = numRecv + 1
         call mpi_irecv( weightsMean(:,1,lonIndex,latIndex),  &
                         nsize, mmpi_datyp_real8, procIndex-1, recvTag,  &
                         mmpi_comm_grid, requestIdRecv(numRecv), ierr )
-        nsize = nEnsUsed * nEns
+        nsize = nEnsGain * nEns
         numRecv = numRecv + 1
         recvTag = recvTag + maxval(latLonTagMpiGlobal(:,:))
         call mpi_irecv( weightsMembers(:,:,lonIndex,latIndex),  &
@@ -467,7 +467,7 @@ contains
           end if
           call utl_tmg_stop(184)
 
-          do memberIndex = 1, nEnsUsed
+          do memberIndex = 1, nEnsGain
             YbTinvR(memberIndex,localObsIndex) =  &
                  ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
                  localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
@@ -481,7 +481,7 @@ contains
         YbTinvRCopy(:,:) = 0.0d0
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
-          do memberIndex2 = 1, nEnsUsed
+          do memberIndex2 = 1, nEnsGain
             YbGainCopy_r4(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
             YbTinvRCopy(localObsIndex,memberIndex2) = YbTinvR(memberIndex2,localObsIndex)
           end do
@@ -491,8 +491,8 @@ contains
         YbTinvRYb(:,:) = 0.0D0
         call utl_tmg_start(185,'------YbTinvRYb1')
         !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
-        do memberIndex2 = 1, nEnsUsed
-          do memberIndex1 = 1, nEnsUsed
+        do memberIndex2 = 1, nEnsGain
+          do memberIndex1 = 1, nEnsGain
             YbTinvRYb(memberIndex1,memberIndex2) =  &
                 YbTinvRYb(memberIndex1,memberIndex2) +  &
                 sum(YbTinvRCopy(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))
@@ -519,7 +519,7 @@ contains
           call utl_tmg_start(186,'------YbTinvRYb2')
           !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEns
-            do memberIndex1 = 1, nEnsUsed
+            do memberIndex1 = 1, nEnsGain
               YbTinvRYb_mod(memberIndex1,memberIndex2) =  &
                   YbTinvRYb_mod(memberIndex1,memberIndex2) +  &
                   sum(YbTinvRCopy(1:numLocalObs,memberIndex1) * YbCopy_r4(1:numLocalObs,memberIndex2))
@@ -690,7 +690,7 @@ contains
             weightsTemp(:) = 0.0d0
             do localObsIndex = 1, numLocalObs
               bodyIndex = localBodyIndices(localObsIndex)
-              do memberIndex = 1, nEnsUsed
+              do memberIndex = 1, nEnsGain
                 weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
                                            YbTinvR(memberIndex,localObsIndex) *  &
                                            ( ensObs_mpiglobal%obsValue(bodyIndex) - &
@@ -699,7 +699,7 @@ contains
             end do
             weightsTemp2(:) = 0.0d0
             do memberIndex2 = 1, matrixRank
-              do memberIndex1 = 1, nEnsUsed
+              do memberIndex1 = 1, nEnsGain
                 weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
                                              eigenVectors(memberIndex1,memberIndex2) *  &
                                              weightsTemp(memberIndex1)
@@ -707,11 +707,11 @@ contains
             end do
             do memberIndex = 1, matrixRank
               weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                          1.0D0/(eigenValues(memberIndex) + real(nEnsUsed - 1,8))
+                                          1.0D0/(eigenValues(memberIndex) + real(nEnsGain - 1,8))
             end do
             weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
             do memberIndex2 = 1, matrixRank
-              do memberIndex1 = 1, nEnsUsed
+              do memberIndex1 = 1, nEnsGain
                 weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
                      weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
                      eigenVectors(memberIndex1,memberIndex2) *  &
@@ -729,7 +729,7 @@ contains
               ! E^T * YbTinvRYb_mod
               weightsTemp(:) = 0.0d0
               do memberIndex2 = 1, matrixRank
-                do memberIndex1 = 1, nEnsUsed
+                do memberIndex1 = 1, nEnsGain
                   weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
                                               eigenVectors(memberIndex1,memberIndex2) *  &
                                               YbTinvRYb_mod(memberIndex1,memberIndex)
@@ -740,9 +740,9 @@ contains
 
               do memberIndex1 = 1, matrixRank
                 weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
-                                            ( 1.0D0/sqrt(real(nEnsUsed - 1,8)) -   &
+                                            ( 1.0D0/sqrt(real(nEnsGain - 1,8)) -   &
                                               1.0D0/sqrt(eigenValues(memberIndex1) +  &
-                                                          real(nEnsUsed - 1,8)) )
+                                                          real(nEnsGain - 1,8)) )
                 weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
                                             eigenValues(memberIndex1)
               end do
@@ -750,7 +750,7 @@ contains
               ! E * previous_result
               weightsMembersLatLon(:,memberIndex,latLonIndex) = 0.0d0
               do memberIndex2 = 1, matrixRank
-                do memberIndex1 = 1, nEnsUsed
+                do memberIndex1 = 1, nEnsGain
                   weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) =   &
                         weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) +   &
                         eigenVectors(memberIndex1,memberIndex2) *  &
@@ -760,13 +760,13 @@ contains
 
               ! -1 * (Nens-1)^1/2 * previous_result
               weightsMembersLatLon(:,memberIndex,latLonIndex) =  &
-                    -1.0D0 * sqrt(real(nEnsUsed - 1,8)) *  &
+                    -1.0D0 * sqrt(real(nEnsGain - 1,8)) *  &
                     weightsMembersLatLon(:,memberIndex,latLonIndex)
 
             end do
 
             ! Remove the weights mean computed over the columns
-            do memberIndex = 1, nEnsUsed
+            do memberIndex = 1, nEnsGain
               weightsMembersLatLon(memberIndex,:,latLonIndex) =  &
                   weightsMembersLatLon(memberIndex,:,latLonIndex) - &
                   sum(weightsMembersLatLon(memberIndex,:,latLonIndex))/real(nEns,8)
@@ -917,7 +917,7 @@ contains
             call utl_tmg_start(176,'------CalculateWeightsL1')
             do localObsIndex = 1, numLocalObs
               bodyIndex = localBodyIndices(localObsIndex)
-              do memberIndex = 1, nEnsUsed
+              do memberIndex = 1, nEnsGain
                 weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
                                            YbTinvR(memberIndex,localObsIndex) *  &
                                            ( ensObs_mpiglobal%obsValue(bodyIndex) - &
@@ -928,7 +928,7 @@ contains
             weightsTemp2(:) = 0.0d0
             call utl_tmg_start(177,'------CalculateWeightsL2')
             do memberIndex2 = 1, matrixRank
-              do memberIndex1 = 1, nEnsUsed
+              do memberIndex1 = 1, nEnsGain
                 weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
                                              eigenVectors(memberIndex1,memberIndex2) *  &
                                              weightsTemp(memberIndex1)
@@ -938,13 +938,13 @@ contains
             call utl_tmg_start(178,'------CalculateWeightsL3')
             do memberIndex = 1, matrixRank
               weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                          1.0D0/(eigenValues(memberIndex) + real(nEnsUsed - 1,8))
+                                          1.0D0/(eigenValues(memberIndex) + real(nEnsGain - 1,8))
             end do
             call utl_tmg_stop(178)
             weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
             call utl_tmg_start(179,'------CalculateWeightsL4')
             do memberIndex2 = 1, matrixRank
-              do memberIndex1 = 1, nEnsUsed
+              do memberIndex1 = 1, nEnsGain
                 weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
                      weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
                      eigenVectors(memberIndex1,memberIndex2) *  &
@@ -1029,7 +1029,7 @@ contains
 
             ! Remove the weights mean computed over the columns
             call utl_tmg_start(183,'------CalculateWeightsL8')
-            do memberIndex = 1, nEnsUsed
+            do memberIndex = 1, nEnsGain
               weightsMembersLatLon(memberIndex,:,latLonIndex) =  &
                    weightsMembersLatLon(memberIndex,:,latLonIndex) - &
                    sum(weightsMembersLatLon(memberIndex,:,latLonIndex))/real(nEns,8)
@@ -1205,12 +1205,12 @@ contains
           sendTag = latLonTagMpiGlobal(lonIndex,latIndex)
           procIndexSend = myProcIndexesSend(latLonIndex, procIndex)
 
-          nsize = nEnsUsed
+          nsize = nEnsGain
           numSend = numSend + 1
           call mpi_isend( weightsMeanLatLon(:,1,latLonIndex),  &
                           nsize, mmpi_datyp_real8, procIndexSend-1, sendTag,  &
                           mmpi_comm_grid, requestIdSend(numSend), ierr )
-          nsize = nEnsUsed * nEns
+          nsize = nEnsGain * nEns
           numSend = numSend + 1
           sendTag = sendTag + maxval(latLonTagMpiGlobal(:,:))
           call mpi_isend( weightsMembersLatLon(:,:,latLonIndex),  &

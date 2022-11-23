@@ -73,7 +73,7 @@ program midas_letkf
   integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs
   integer :: nulnam, dateStamp, ierr
   integer :: get_max_rss, fclos, fnom, fstopc
-  integer :: nEnsMod, eigenVectorIndex, memberIndexInEnsObs
+  integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
   character(len=256) :: ensFileName, ctrlFileName, recenterFileName
@@ -289,9 +289,9 @@ program midas_letkf
   if ( outputEnsObs ) allocate(ensObs%Ya_r4(ensObs%numMembers,ensObs%numObs))
   call eob_zero(ensObs)
   if ( numRetainedEigen > 0 ) then
-    nEnsMod = nEns * numRetainedEigen
+    nEnsGain = nEns * numRetainedEigen
     allocate(ensObsGain)
-    call eob_allocate(ensObsGain, nEnsMod, obs_numBody(obsSpaceData), obsSpaceData)
+    call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData)
     call eob_zero(ensObsGain)
   else
     ensObsGain => ensObs
