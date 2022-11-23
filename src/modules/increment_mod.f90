@@ -195,7 +195,8 @@ CONTAINS
       ! 2- Restriction of increment to reference variables
       call gsv_allocate( statevectorIncRefLowRes, numStep_inc, hco_inc, vco_inc,  &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                         dataKind_opt=pre_incrReal, varNames_opt=varNamesRef )
+                         dataKind_opt=pre_incrReal, varNames_opt=varNamesRef, &
+                         allocHeightSfc_opt=allocHeightSfc)
       call gsv_copy(statevectorIncLowRes, statevectorIncRefLowRes, &
                     allowVarMismatch_opt=.true.)
 
@@ -215,7 +216,7 @@ CONTAINS
       call gsv_allocate(statevectorTrlRefVars, numStep_trl, &
                         hco_trl, vco_trl, dateStamp_opt=tim_getDateStamp(), &
                         mpi_local_opt=.true., dataKind_opt=pre_incrReal, &
-                        varNames_opt=varNamesRef )
+                        varNames_opt=varNamesRef, allocHeightSfc_opt=allocHeightSfc )
       call gsv_copy(stateVectorUpdateHighRes, statevectorTrlRefVars,&
                     allowVarMismatch_opt=.true.)
 
@@ -224,12 +225,14 @@ CONTAINS
       !    not a incremental state)
       call gsv_allocate(statevectorTrlLowResVert, numStep_trl, hco_trl, vco_inc,  &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                        dataKind_opt=pre_incrReal, varNames_opt=varNamesRef)
+                        dataKind_opt=pre_incrReal, varNames_opt=varNamesRef, &
+                        allocHeightSfc_opt=allocHeightSfc)
       call int_vInterp_gsv(statevectorTrlRefVars, statevectorTrlLowResVert)
       ! c) bring trial to low time res
       call gsv_allocate(statevectorTrlLowResTime, numStep_inc, hco_trl, vco_inc,  &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                        dataKind_opt=pre_incrReal, varNames_opt=varNamesRef)
+                        dataKind_opt=pre_incrReal, varNames_opt=varNamesRef, &
+                        allocHeightSfc_opt=allocHeightSfc)
       call gsv_copy(statevectorTrlLowResVert, statevectorTrlLowResTime, &
                     allowTimeMismatch_opt=.true.)
       call gsv_deallocate(statevectorTrlLowResVert)
