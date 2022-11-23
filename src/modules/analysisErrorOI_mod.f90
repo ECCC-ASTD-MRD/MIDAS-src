@@ -122,6 +122,7 @@ contains
 
     character(len=*), parameter :: myName = 'aer_analysisError'
     character(len=*), parameter :: correlationLengthFileName = './bgstddev'
+    character(len=4), pointer   :: anlVar(:)
     type(struct_gsv)            :: statevector
     real(4), pointer            :: field3D_r4_ptr(:,:,:)
 
@@ -158,13 +159,16 @@ contains
     if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist')
     ierr = fclos(nulnam)
 
+    nullify(anlVar)
+    call gsv_varNamesList(anlVar)
+
     call gsv_allocate( stateVectorBkGnd, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       varNames_opt=(/'GLE'/), dataKind_opt=8 )
+                       varNames_opt=(/anlVar(1)/), dataKind_opt=8 )
     call gsv_allocate( stateVectorAnal,  1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
-                       varNames_opt=(/'GLE'/), dataKind_opt=8 )
+                       varNames_opt=(/anlVar(1)/), dataKind_opt=8 )
 
-    etiket = '            '
+    etiket = 'B-ER STD DEV'
     typvar = 'P@'
 
     call gio_readFromFile( stateVectorBkGnd, trlmFileName, etiket, typvar )
@@ -174,12 +178,12 @@ contains
                  leadTimeInHours)
 
     call gsv_copyMask(stateVectorBkGnd, stateVectorAnal)
-    stateVectorAnal%etiket = stateVectorBkGnd%etiket
+    stateVectorAnal%etiket = 'A-ER STD DEV'
 
     call col_setVco(column, vco_ptr)
-    call col_allocate(column,  obs_numHeader(obsSpaceData), varNames_opt=(/'GLE'/))
+    call col_allocate(column,  obs_numHeader(obsSpaceData), varNames_opt=(/anlVar(1)/))
     call col_setVco(columng, vco_ptr)
-    call col_allocate(columng, obs_numHeader(obsSpaceData), varNames_opt=(/'GLE'/))
+    call col_allocate(columng, obs_numHeader(obsSpaceData), varNames_opt=(/anlVar(1)/))
     call s2c_tl(statevectorBkGnd, column, columng, obsSpaceData)
 
     ni = stateVectorBkGnd%hco%ni
@@ -273,12 +277,12 @@ contains
 
     ! Calculate analysis-error one analysis variable (grid point) at a time
 
-    call gsv_getField(stateVectorBkGnd, bkGndErrorStdDev_ptr, 'GLE')
-    call gsv_getField(stateVectorAnal,  analysisErrorStdDev_ptr, 'GLE')
+    call gsv_getField(stateVectorBkGnd, bkGndErrorStdDev_ptr, anlVar(1))
+    call gsv_getField(stateVectorAnal,  analysisErrorStdDev_ptr, anlVar(1))
 
     ! Initialisation
     do stepIndex = 1, stateVectorBkGnd%numStep
-      do levIndex = 1, gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname('GLE'))
+      do levIndex = 1, gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname(anlVar(1)))
         do latIndex = 1, nj
           do lonIndex = 1, ni
             analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
@@ -292,7 +296,7 @@ contains
 
     STEP: do stepIndex = 1, stateVectorBkGnd%numStep
       LEVEL: do levIndex = 1, &
-                           gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname('GLE'))
+                           gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname(anlVar(1)))
 
         !$omp parallel do default(shared) schedule(dynamic) private(obsOperator, Bmatrix, &
         !$omp        PHiA, innovCovariance, innovCovarianceInverse, obsErrorVariance, &
