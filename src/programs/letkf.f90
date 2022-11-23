@@ -518,29 +518,24 @@ program midas_letkf
 
   ! Apply a background check (reject limit is set in the routine)
   if (backgroundCheck) call eob_backgroundCheck(ensObs)
-  if (backgroundCheck .and. numRetainedEigen > 0 ) call eob_backgroundCheck(ensObsGain)
 
   ! For ice/ocean DA: remove obs that are too close to land
   if (minDistanceToLand > 0.0D0) then
     call ens_getMask(ensembleTrl4D,oceanMask)
     call eob_removeObsNearLand(ensObs, oceanMask, minDistanceToLand)
-    if ( numRetainedEigen > 0 ) call eob_removeObsNearLand(ensObsGain, oceanMask, minDistanceToLand)
   end if
 
   ! Set values of obs_sigi and obs_sigo before hubernorm modifies obs_oer
   call eob_setSigiSigo(ensObs)
-  if ( numRetainedEigen > 0 ) call eob_setSigiSigo(ensObsGain)
 
   ! Apply huber norm quality control procedure (modifies obs_oer)
   if (huberize) call eob_huberNorm(ensObs)
-  if (huberize .and. numRetainedEigen > 0 ) call eob_huberNorm(ensObsGain)
 
   !- Reject all IR radiance observation in arctic and antarctic (.i.e |lat|>60. )
   if (rejectHighLatIR) call enkf_rejectHighLatIR(obsSpaceData)
 
   ! Reject radiance observations too close to the surface
   if (rejectRadNearSfc) call eob_rejectRadNearSfc(ensObs)
-  if (rejectRadNearSfc .and. numRetainedEigen > 0 ) call eob_rejectRadNearSfc(ensObsGain)
 
   ! Compute inverse of obs error variance (done here to use dynamic GPS-RO, GB-GPS based on mean O-P)
   call eob_setObsErrInv(ensObs)
