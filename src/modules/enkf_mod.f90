@@ -459,14 +459,12 @@ contains
 
           ! Compute value of localization function
           ! Horizontal
-          call utl_tmg_start(184,'------localizationL')
           localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
           ! Vertical when NOT using modulated ensembles - use pressures at the grid point (not obs) location
           if ( vLocalize > 0.0d0 .and. numRetainedEigen == 0 ) then
             distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
             localization = localization * lfn_Response(distance,vLocalize)
           end if
-          call utl_tmg_stop(184)
 
           do memberIndex = 1, nEnsGain
             YbTinvR(memberIndex,localObsIndex) =  &
@@ -915,7 +913,6 @@ contains
 
             ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
             weightsTemp(:) = 0.0d0
-            call utl_tmg_start(176,'------CalculateWeightsL1')
             do localObsIndex = 1, numLocalObs
               bodyIndex = localBodyIndices(localObsIndex)
               do memberIndex = 1, nEnsGain
@@ -925,9 +922,7 @@ contains
                                              ensObs_mpiglobal%meanYb(bodyIndex) )
               end do
             end do
-            call utl_tmg_stop(176)
             weightsTemp2(:) = 0.0d0
-            call utl_tmg_start(177,'------CalculateWeightsL2')
             do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEnsGain
                 weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
@@ -935,15 +930,11 @@ contains
                                              weightsTemp(memberIndex1)
               end do
             end do
-            call utl_tmg_stop(177)
-            call utl_tmg_start(178,'------CalculateWeightsL3')
             do memberIndex = 1, matrixRank
               weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
                                           1.0D0/(eigenValues(memberIndex) + real(nEnsGain - 1,8))
             end do
-            call utl_tmg_stop(178)
             weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
-            call utl_tmg_start(179,'------CalculateWeightsL4')
             do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEnsGain
                 weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
@@ -952,7 +943,6 @@ contains
                      weightsTemp2(memberIndex2)
               end do
             end do
-            call utl_tmg_stop(179)
 
             ! Compute ensemble perturbation weights: 
             ! Wa = [ - (Nens-1)^1/2 * E *
@@ -982,7 +972,6 @@ contains
 
                 ! E^T * YbTinvRYb
                 weightsTemp(:) = 0.0d0
-                call utl_tmg_start(180,'------CalculateWeightsL5')
                 do memberIndex2 = 1, matrixRank
                   do memberIndexCV1 = 1, nEnsIndependentPerSubEns_mod
                     memberIndex1 = memberIndexSubEnsComp_mod(memberIndexCV1, subEnsIndex)
@@ -991,11 +980,9 @@ contains
                                                 YbTinvRYb_mod(memberIndex1,memberIndex)
                   end do
                 end do
-                call utl_tmg_stop(180)
 
                 ! {(Nens-1)^-1/2*I - (Lambda + (Nens-1)*I)^-1/2} Lambda^-1 * previous_result
 
-                call utl_tmg_start(181,'------CalculateWeightsL6')
                 do memberIndex1 = 1, matrixRank
                   weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
                                               ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns_mod - 1,8)) -   &
@@ -1004,11 +991,9 @@ contains
                   weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
                                               eigenValues_CV_mod(memberIndex1)
                 end do
-                call utl_tmg_stop(181)
 
                 ! E * previous_result
                 weightsMembersLatLon(:,memberIndex,latLonIndex) = 0.0d0
-                call utl_tmg_start(182,'------CalculateWeightsL7')
                 do memberIndex2 = 1, matrixRank
                   do memberIndexCV1 = 1, nEnsIndependentPerSubEns_mod
                     memberIndex1 = memberIndexSubEnsComp_mod(memberIndexCV1, subEnsIndex)
@@ -1018,7 +1003,6 @@ contains
                          weightsTemp(memberIndex2)
                   end do
                 end do
-                call utl_tmg_stop(182)
 
                 ! -1 * (Nens-1)^1/2 * previous_result
                 weightsMembersLatLon(:,memberIndex,latLonIndex) =  &
@@ -1029,13 +1013,11 @@ contains
             end do ! subEnsIndex
 
             ! Remove the weights mean computed over the columns
-            call utl_tmg_start(183,'------CalculateWeightsL8')
             do memberIndex = 1, nEnsGain
               weightsMembersLatLon(memberIndex,:,latLonIndex) =  &
                    weightsMembersLatLon(memberIndex,:,latLonIndex) - &
                    sum(weightsMembersLatLon(memberIndex,:,latLonIndex))/real(nEns,8)
             end do
-            call utl_tmg_stop(183)
 
           else if (trim(algorithm) == 'CVLETKF-PERTOBS') then
             !
