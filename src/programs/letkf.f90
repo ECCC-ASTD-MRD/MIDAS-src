@@ -108,7 +108,8 @@ program midas_letkf
   logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
   logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
   logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
-  logical  :: debug
+  logical  :: useModulatedEns      ! using modulated ensembles is requested by setting numRetainedEigen.
+  logical  :: debug                ! debug option to print values to the listings.
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
   real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
@@ -215,19 +216,22 @@ program midas_letkf
 
   if ( trim(algorithm) == 'LETKF-Gain-ME' .or. trim(algorithm) == 'CVLETKF-ME' ) then
     if ( numRetainedEigen < 1 ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
-                                               'equal or greater than one for LETKF algorithm: ' // &
-                                               trim(algorithm))
+    'equal or greater than one for LETKF algorithm: ' // &
+    trim(algorithm))
   else
     if ( numRetainedEigen /= 0 ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
-                                                'equal to zero for LETKF algorithm: ' // &
-                                                trim(algorithm))
+    'equal to zero for LETKF algorithm: ' // &
+    trim(algorithm))
   end if
-
+  
   ! check for NO varying horizontal localization lengthscale in letkf with modulated ensembles.
   if ( .not. all(hLocalize(2:4) == hLocalize(1)) .and. numRetainedEigen /= 0 ) then
     call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
-                   'letkf with modulated ensembles')
+    'letkf with modulated ensembles')
   end if
+
+  useModulatedEns = (numRetainedEigen > 0)
+
   !
   !- 2.  Initialization
   !
@@ -288,7 +292,7 @@ program midas_letkf
   call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
   if ( outputEnsObs ) allocate(ensObs%Ya_r4(ensObs%numMembers,ensObs%numObs))
   call eob_zero(ensObs)
-  if ( numRetainedEigen > 0 ) then
+  if ( useModulatedEns ) then
     nEnsGain = nEns * numRetainedEigen
     allocate(ensObsGain)
     call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData)
@@ -299,7 +303,7 @@ program midas_letkf
 
   ! Set lat, lon, obs values in ensObs
   call eob_setLatLonObs(ensObs)
-  if ( numRetainedEigen > 0 ) call eob_setLatLonObs(ensObsGain)
+  if ( useModulatedEns ) call eob_setLatLonObs(ensObsGain)
 
   !- 2.6 Initialize a single columnData object
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -337,7 +341,7 @@ program midas_letkf
                      dataKind_opt=4, allocHeightSfc_opt=.true., &
                      allocHeight_opt=.false., allocPressure_opt=.false. )
   call gsv_zero(stateVector4D)
-  if ( numRetainedEigen > 0 ) then
+  if ( useModulatedEns ) then
     ! same as stateVector4D
     call gsv_allocate( stateVector4Dmod, tim_nstepobs, hco_ens, vco_ens, &
                        dateStamp_opt=tim_getDateStamp(),  &
@@ -471,11 +475,11 @@ program midas_letkf
 
   ! Compute and remove the mean of Yb
   call eob_calcAndRemoveMeanYb(ensObs)
-  if ( numRetainedEigen > 0 ) call eob_calcAndRemoveMeanYb(ensObsGain)
+  if ( useModulatedEns ) call eob_calcAndRemoveMeanYb(ensObsGain)
 
   ! Put HPHT in OBS_HPHT, for writing to obs files
   call eob_setHPHT(ensObs)
-  if ( numRetainedEigen > 0 ) call eob_setHPHT(ensObsGain)
+  if ( useModulatedEns ) call eob_setHPHT(ensObsGain)
 
   ! Compute random observation perturbations
   if (trim(algorithm) == 'CVLETKF-PERTOBS') then
@@ -498,19 +502,19 @@ program midas_letkf
 
   ! Put y-mean(H(X)) in OBS_OMP for writing to obs files (overwrites y-H(mean(X)))
   call eob_setMeanOMP(ensObs)
-  if ( numRetainedEigen > 0 ) call eob_setMeanOMP(ensObsGain)
+  if ( useModulatedEns ) call eob_setMeanOMP(ensObsGain)
 
   ! Set vertical location for all obs for vertical localization (based on ensemble mean pressure and height)
   if (vLocalize > 0.0d0) then
     if (nwpFields) then
       call eob_setTypeVertCoord(ensObs,'logPressure')
-      if ( numRetainedEigen > 0 ) call eob_setTypeVertCoord(ensObsGain,'logPressure')
+      if ( useModulatedEns ) call eob_setTypeVertCoord(ensObsGain,'logPressure')
     else if (oceanFields) then
       call eob_setTypeVertCoord(ensObs,'depth')
-      if ( numRetainedEigen > 0 ) call eob_setTypeVertCoord(ensObsGain,'depth')
+      if ( useModulatedEns ) call eob_setTypeVertCoord(ensObsGain,'depth')
     end if
     call eob_setVertLocation(ensObs, column)
-    if ( numRetainedEigen > 0 ) call eob_setVertLocation(ensObsGain, column)
+    if ( useModulatedEns ) call eob_setVertLocation(ensObsGain, column)
   end if
 
   ! Modify the obs error stddev for AMSUB in the tropics
@@ -539,7 +543,7 @@ program midas_letkf
 
   ! Compute inverse of obs error variance (done here to use dynamic GPS-RO, GB-GPS based on mean O-P)
   call eob_setObsErrInv(ensObs)
-  if ( numRetainedEigen > 0 ) call eob_setObsErrInv(ensObsGain)
+  if ( useModulatedEns ) call eob_setObsErrInv(ensObsGain)
 
   call utl_tmg_start(108,'----Barr')
   call rpn_comm_barrier('GRID',ierr)
@@ -547,7 +551,7 @@ program midas_letkf
 
   ! Clean and globally communicate obs-related data to all mpi tasks
   call eob_allGather(ensObs,ensObs_mpiglobal)
-  if ( numRetainedEigen > 0 ) then
+  if ( useModulatedEns ) then
     allocate(ensObsGain_mpiglobal)
     call eob_allGather(ensObsGain,ensObsGain_mpiglobal)
   else

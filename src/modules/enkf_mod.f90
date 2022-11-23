@@ -154,7 +154,7 @@ contains
     type(struct_gsv)          :: stateVectorMeanInc
     type(struct_gsv)          :: stateVectorMeanTrl
 
-    logical :: hLocalizeIsConstant, firstTime = .true.
+    logical :: hLocalizeIsConstant, useModulatedEns, firstTime = .true.
 
     call utl_tmg_start(100,'--LETKFanalysis')
 
@@ -173,7 +173,8 @@ contains
     allocate(requestIdRecv(3*myNumLatLonRecv))
 
     nEns       = ens_getNumMembers(ensembleAnl)
-    if ( numRetainedEigen > 0 ) then
+    useModulatedEns = (numRetainedEigen > 0)
+    if ( useModulatedEns ) then
       nEnsGain   = nEns * numRetainedEigen
     else
       nEnsGain   = nEns
@@ -181,7 +182,7 @@ contains
     nLev_M     = ens_getNumLev(ensembleAnl, 'MM')
     nLev_depth = ens_getNumLev(ensembleAnl, 'DP')
     nLev_weights = max(nLev_M,nLev_depth)
-    if ( numRetainedEigen > 0 ) nLev_weights = 1
+    if ( useModulatedEns ) nLev_weights = 1
     hco_ens => ens_getHco(ensembleAnl)
     vco_ens => ens_getVco(ensembleAnl)
     myLonBeg = stateVectorMeanAnl%myLonBeg
@@ -259,7 +260,7 @@ contains
       allocate(eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
       allocate(memberIndexSubEns(nEnsPerSubEns,numSubEns))
       allocate(memberIndexSubEnsComp(nEnsIndependentPerSubEns,numSubEns))
-      if ( numRetainedEigen > 0 ) then
+      if ( useModulatedEns ) then
         nEnsPerSubEns_mod = nEnsPerSubEns * numRetainedEigen
         nEnsIndependentPerSubEns_mod = nEnsGain - nEnsPerSubEns_mod
         allocate(YbTinvRYb_CV_mod(nEnsIndependentPerSubEns_mod,nEnsIndependentPerSubEns_mod))
@@ -276,7 +277,7 @@ contains
                  (subEnsIndex-1)*nEnsPerSubEns + memberIndex
           end do
         end do
-        if ( numRetainedEigen > 0 ) then
+        if ( useModulatedEns ) then
           do subEnsIndex = 1, numSubEns
             memberIndex2 = 0
             do memberIndex = 1, nEnsPerSubEns
@@ -292,7 +293,7 @@ contains
           end do
         end if
       else
-        if ( numRetainedEigen > 0 ) then
+        if ( useModulatedEns ) then
           call utl_abort('enkf_LETKFanalyses: randomShuffleSubEns not implemented for algorithm:' // &
                           trim(algorithm))
         end if
@@ -331,7 +332,7 @@ contains
           memberIndex = memberIndex + nEnsPerSubEns
         end do
 
-        if ( numRetainedEigen > 0 ) then
+        if ( useModulatedEns ) then
           memberIndex2 = 1
           do subEnsIndex2 = 1, numSubEns
             if (subEnsIndex2 == subEnsIndex) cycle
@@ -350,14 +351,14 @@ contains
       do subEnsIndex = 1, numSubEns
         write(*,*) 'memberIndexSubEns = '
         write(*,*) memberIndexSubEns(:,subEnsIndex)
-        if ( numRetainedEigen > 0 ) then
+        if ( useModulatedEns ) then
           write(*,*) 'memberIndexSubEns_mod = '
           write(*,*) memberIndexSubEns_mod(:,subEnsIndex)
         end if
 
         write(*,*) 'memberIndexSubEnsComp = '
         write(*,*) memberIndexSubEnsComp(:,subEnsIndex)
-        if ( numRetainedEigen > 0 ) then
+        if ( useModulatedEns ) then
           write(*,*) 'memberIndexSubEnsComp_mod = '
           write(*,*) memberIndexSubEnsComp_mod(:,subEnsIndex)
         end if
@@ -440,7 +441,7 @@ contains
         ! Get list of nearby observations and distances to gridpoint. With modulated-ensembles, 
         ! we get observations in entire column.
         call utl_tmg_start(102,'----GetLocalBodyIndices')
-        if ( numRetainedEigen > 0 ) anlVertLocation = MPC_missingValue_R8
+        if ( useModulatedEns ) anlVertLocation = MPC_missingValue_R8
         numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
                                               distances, anlLat, anlLon, anlVertLocation,  &
                                               hLocalize(hLocIndex), vLocalize, numLocalObsFound)
@@ -1181,7 +1182,7 @@ contains
           weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
           weightsMembersLatLon(:,:,latLonIndex) = 0.0d0
           do memberIndex = 1, nEns
-            if ( numRetainedEigen > 0 ) then
+            if ( useModulatedEns ) then
               do eigenVectorColumnIndex = 1, numRetainedEigen 
                 memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + memberIndex
                 weightsMembersLatLon(memberIndexInModEns,memberIndex,latLonIndex) = 1.0d0
@@ -1291,7 +1292,7 @@ contains
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
             do stepIndex = 1, tim_nstepobsinc
               ! mean increment
-              if ( numRetainedEigen > 0 ) then
+              if ( useModulatedEns ) then
                 do eigenVectorColumnIndex = 1, numRetainedEigen
                   call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
                                             eigenVectorColumnIndex, numRetainedEigen, &
@@ -1356,7 +1357,7 @@ contains
               ! Compute analysis member perturbation
               memberAnlPert(:) = 0.0d0
 
-              if ( numRetainedEigen > 0 ) then
+              if ( useModulatedEns ) then
                 call utl_tmg_start(109,'------ApplyWeightsMember')
                 do memberIndex2 = 1, nEns
                   do eigenVectorColumnIndex = 1, numRetainedEigen
