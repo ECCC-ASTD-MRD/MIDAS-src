@@ -25,6 +25,7 @@ module calcHeightAndPressure_mod
   use codePrecision_mod
   use midasMpi_mod
   use mathPhysConstants_mod
+  use earthConstants_mod
   use physicsFunctions_mod
   use verticalCoord_mod
   use gridstatevector_mod
@@ -877,7 +878,7 @@ contains
             end if
             cmp = gpscompressibility(Pr,tt,hu)
 
-            tv(lev_T) = fotvt8(tt,hu) * cmp
+            tv(lev_T) = phf_fotvt8(tt,hu) * cmp
           end do
 
           rMT = HeightSfc_ptr_r8(lonIndex,latIndex)
@@ -2022,7 +2023,7 @@ contains
             hu = hu_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
             tt = tt_ptr_r8(lonIndex,latIndex,nlev_T,stepIndex)
           end if
-          tv0 = fotvt8(tt,hu)
+          tv0 = phf_fotvt8(tt,hu)
 
           ! thermo diagnostic level
           if ( statevector%dataKind == 4 ) then
@@ -2063,7 +2064,7 @@ contains
               Z_M1 = height_M_ptr_r8(lonIndex,latIndex,lev_M+1,stepIndex)
               Z_T = height_T_ptr_r8(lonIndex,latIndex,lev_T,stepIndex)
             end if
-            tv0 = fotvt8(tt,hu)
+            tv0 = phf_fotvt8(tt,hu)
             dh = Z_M - Z_M1
             Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
 
@@ -3479,7 +3480,7 @@ contains
       ! compute pressure on diagnostic (nLev_{T,M}) levels
       hu = col_getElem(column, nLev_T, colIndex, 'HU')
       tt = col_getElem(column, nLev_T, colIndex, 'TT')
-      tv0 = fotvt8(tt,hu)
+      tv0 = phf_fotvt8(tt,hu)
 
       ! thermo diagnostic level
       Z_T = col_getHeight(column, nLev_T, colIndex, 'TH')
@@ -3514,7 +3515,7 @@ contains
         Z_M1 = col_getHeight(column, lev_M+1, colIndex, 'MM')
         Z_T  = col_getHeight(column, lev_T,   colIndex, 'TH')
 
-        tv0 = fotvt8(tt,hu)
+        tv0 = phf_fotvt8(tt,hu)
         dh = Z_M - Z_M1
         Rgh = phf_gravityalt(sLat, Z_M1+0.5D0*dh)
 
