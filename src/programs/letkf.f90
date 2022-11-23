@@ -461,9 +461,9 @@ program midas_letkf
       ! Copy to ensObsGain: Y-HX for this member
       memberIndexInEnsObs = (eigenVectorIndex - 1) * nEns + memberIndex
       call eob_setYb(ensObsGain, memberIndexInEnsObs)
-    end do
+    end do ! eigenVectorIndex
 
-  end do
+  end do ! memberIndex
   if ( gsv_isAllocated(stateVector4Dmod) ) call gsv_deallocate(stateVector4Dmod)
 
   !- 3.2 Set some additional information in ensObs/ensObsGain and additional quality
