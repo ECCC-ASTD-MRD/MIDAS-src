@@ -422,9 +422,7 @@ program midas_letkf
                  beSilent_opt=.true. )
 
     ! Compute Y-H(X) in OBS_OMP
-    call tmg_start(6,'LETKF-obsOperators')
     call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
-    call tmg_stop(6)
 
     ! Copy to ensObs: Y-HX for this member
     call eob_setYb(ensObs, memberIndex)
@@ -457,10 +455,8 @@ program midas_letkf
                    beSilent_opt=.true. )
 
       ! Compute Y-H(X) in OBS_OMP
-      call tmg_start(6,'LETKF-obsOperators')
       call inn_computeInnovation( column, obsSpaceData, filterObsAndInitOer_opt=.false., &
                                   beSilent_opt=.true. )
-      call tmg_stop(6)
 
       ! Copy to ensObsGain: Y-HX for this member
       memberIndexInEnsObs = (eigenVectorIndex - 1) * nEns + memberIndex
