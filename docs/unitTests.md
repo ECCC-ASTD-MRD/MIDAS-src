@@ -105,6 +105,9 @@ coverage report using [`codecov.sh`](src/codecov.sh):
 
 ```
 
+A [code coverage report has been generated for version
+`v_3.8.1-516-g746c074` if you want to have a
+look](http://goc-dx.science.gc.ca/~erv000/midas/codecoverage-v_3.8.1-516-g746c074/CODE_COVERAGE.HTML)
 
 ## Updating Test Results
 
