@@ -2209,7 +2209,6 @@ contains
 
         call gsv_getField(statevector_out,field_out_r4,varName)
 
-        !!$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex)
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
             do levIndex = 1, nlev_out
@@ -2230,7 +2229,6 @@ contains
             end do
           end do
         end do
-        !!$OMP END PARALLEL DO
 
       end do var_loop
     end do step_loop
