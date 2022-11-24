@@ -333,7 +333,7 @@ contains
 
       if (sensorType == sensor_id_mw) then
         call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount),&
-                                          obsSpaceData, sensorBodyIndexes)
+                                          obsSpaceData)
       else
         emissivity_local(:)%emis_in = surfem1(:)
       end if
@@ -677,7 +677,7 @@ contains
 
       if (sensorType == sensor_id_mw) then
         call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount),&
-                                          obsSpaceData, sensorBodyIndexes)
+                                          obsSpaceData)
       else
         emissivity_local(:)%emis_in = surfem1(:)
       end if

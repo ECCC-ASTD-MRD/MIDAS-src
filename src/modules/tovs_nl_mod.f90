@@ -2614,7 +2614,7 @@ contains
 
       else if (sensorType == sensor_id_mw) then
         call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, sensorTovsIndexes(1:profileCount), &
-                                        obsSpaceData, tvs_bodyIndexFromBtIndex)
+                                        obsSpaceData)
       else
         emissivity_local(:)%emis_in = surfem1(:)
       end if
@@ -2847,6 +2847,12 @@ contains
           
       end do
 
+      ! Append Surface Emissivity into ObsSpaceData
+      do btIndex = 1, btCount
+        bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
+        call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+      end do
+
       !    Deallocate memory
       asw = 0 ! 0 to deallocate
       call rttov_alloc_direct(         &
@@ -2882,7 +2888,7 @@ contains
   !  tvs_getMWemissivityFromAtlas
   !--------------------------------------------------------------------------
   subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorId, chanprof, sensorTovsIndexes, &
-                                        obsSpaceData, tvs_bodyIndexFromBtIndex)
+                                        obsSpaceData)
     implicit none
     type(struct_obs), intent(inout)      :: obsSpaceData
     real(8), intent(in)                  :: originalEmissivity(:)
@@ -2890,7 +2896,6 @@ contains
     integer, intent(in)                  :: sensorId
     type (rttov_chanprof), intent(in)    :: chanprof(:)
     integer, intent(in)                  :: sensorTovsIndexes(:)
-    integer, intent(in)                  :: tvs_bodyIndexFromBtIndex(:)
 
     integer :: returnCode
     real(8) :: mWAtlasSurfaceEmissivity(size(originalEmissivity))
@@ -2955,13 +2960,6 @@ contains
     else
       updatedEmissivity(:)%emis_in = originalEmissivity(:)
     end if
-
-    ! Append Surface Emissivity into ObsSpaceData
-    do btIndex = 1, btCount
-      bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
-      call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, updatedEmissivity(btIndex)%emis_in)
-    end do
-
   end subroutine tvs_getMWemissivityFromAtlas
 
   !--------------------------------------------------------------------------
