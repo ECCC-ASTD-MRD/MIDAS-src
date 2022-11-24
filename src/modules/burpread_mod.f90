@@ -5684,9 +5684,9 @@ CONTAINS
             call handle_error(error, "brpr_addElementsToBurp: burp_write_block #2")
 
           else !other blocks
-
+            
             call burp_write_block(copyReport, block  = inputBlock,  &
-                 convert_block = ( btyp /= 5120), iostat=error)
+                 convert_block = ( btyp /= 5120 .and. btyp /= 2080), iostat=error)
             call handle_error(error, "brpr_addElementsToBurp: burp_write_block #3")
 
           end if
