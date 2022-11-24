@@ -14,7 +14,7 @@
    rejectRadNearSfc         = .false.
    obsTimeInterpType        = 'LINEAR'
    mpiDistribution          = 'ROUNDROBIN'
-   numRetainedEigen         = 10
+   numRetainedEigen         = 20
    debug                    = .false.
 /
  &namEnsPostProcModule
