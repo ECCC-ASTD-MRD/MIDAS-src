@@ -3,6 +3,7 @@
 __toplevel=$(git rev-parse --show-toplevel)
 __revstring=$(${__toplevel}/midas.version.sh)
 __revnum=$(echo ${__revstring} | sed -e 's/v_\([^-]*\)-.*/\1/')
+__status=true
 
 set -x
 ###########################################################
@@ -12,6 +13,7 @@ set -x
 ###########################################################
 MIDAS_COMPILE_DIR_MAIN=${MIDAS_COMPILE_DIR_MAIN:-${HOME}/data_maestro/ords/midas-bld}
 MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS:-no}
+MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-}
 MIDAS_COMPILE_FRONTEND=${MIDAS_COMPILE_FRONTEND:-ppp5}
 MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN:-true}
 MIDAS_COMPILE_COMPF_GLOBAL=${MIDAS_COMPILE_COMPF_GLOBAL:-}
@@ -170,6 +172,23 @@ else
     COMPF_NOC=${COMPF}
 fi
 
+if [ -n "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ]; then
+    echo "... > !WARNING! You are compiling in CODE COVERAGE MODE: '${COMPF}'"
+    FOPTMIZ=0
+    [[ "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" != /* ]] && {
+        echo "Please provide an absolute path to variable 'MIDAS_COMPILE_CODECOVERAGE_DATAPATH'"
+        echo "This value was given: ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
+        __status=false
+    }
+    [ ! -d "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ] && mkdir -p ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}
+    [ ! -d "${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}" ] && {
+        echo "Could not create the directory ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
+        __status=false
+    }
+    COMPF="${COMPF} -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
+    COMPF_NOC="${COMPF_NOC} -prof-gen=srcpos -prof-dir=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}"
+fi
+
 GPP_INCLUDE_PATH="$(s.prefix -I $(s.generate_ec_path --include))"
 GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\" -D__LINE__=#line"
 
@@ -177,7 +196,7 @@ GPP_OPTS="-lang-f90+ -chop_bang -gpp -F ${GPP_INCLUDE_PATH} -D__FILE__=\"#file\"
 if ! which makedepf90
 then 
     echo "<!> makedepf90 unavailable on the system."
-    false 
+    __status=false
 fi
 
 ## loading docopt for analyzeDep.py
@@ -205,3 +224,6 @@ export MIDAS_SSM_MAINTAINER
 export MIDAS_SSM_DESCRIPTION
 export MIDAS_SSM_GITREPO
 export MIDAS_SSM_VERSION
+
+# config return status
+${__status}

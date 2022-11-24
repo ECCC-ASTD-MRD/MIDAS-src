@@ -26,6 +26,7 @@ module biasCorrectionSat_mod
   use obsSpaceData_mod
   use controlVector_mod
   use midasMpi_mod
+  use rttov_const, only : ninst
   use tovs_nl_mod
   use timeCoord_mod
   use columnData_mod
@@ -752,11 +753,11 @@ contains
     character(len=*), parameter :: myName = 'bcs_dumpBiasToSqliteAfterThinning::'
     character(len=30)  :: fileNameExtension
     character(len=4)   :: cmyidx, cmyidy
-    integer            :: tovsCodeTypeListSize, tovsCodeTypeList(10)
+    integer            :: tovsCodeTypeListSize, tovsCodeTypeList(ninst)
     integer            :: tovsFileNameListSize
     character(len=20)  :: tovsFileNameList(30)
     character(len=256) :: fileName
-    integer :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(10)
+    integer :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(ninst)
 
     if (.not. biasActive) return
     if (.not. dumpToSqliteAfterThinning) return

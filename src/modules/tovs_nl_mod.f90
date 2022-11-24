@@ -1086,7 +1086,7 @@ contains
       ierr = fclos(nulnam)
       do instrumentIndex=1, ninst
         if (inst_names(instrumentIndex) == 'XXXXXX' ) then
-          ninst_tovs= instrumentIndex - 1
+          ninst_tovs = instrumentIndex - 1
           exit
         else
           list_inst(instrumentIndex) = codtyp_get_codtyp( inst_names(instrumentIndex) )

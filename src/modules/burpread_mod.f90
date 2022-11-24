@@ -1912,7 +1912,7 @@ CONTAINS
     REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
-    integer                :: LISTE_INFO(28),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    integer                :: LISTE_INFO(29),LISTE_ELE(20),LISTE_ELE_SFC(20)
     
     integer                :: NBELE,NVALE,NTE
     integer                :: J,JJ,K,KK,KL,IL,ERROR,OBSN

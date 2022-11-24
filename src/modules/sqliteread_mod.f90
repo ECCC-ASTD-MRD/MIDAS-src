@@ -31,6 +31,7 @@ module sqliteRead_mod
   use bufr_mod
   use ramDisk_mod
   use tovs_nl_mod
+  use rttov_const, only : ninst
   use codtyp_mod
   use obsVariableTransforms_mod
   use obsFilter_mod
@@ -1676,7 +1677,7 @@ module sqliteRead_mod
     integer                :: familyIndex, codeTypeIndex, fileIndex
     character(len=2)       :: obsFamilyList(50)
     integer                :: obsFamilyListSize
-    integer                :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(30)
+    integer                :: tovsAllCodeTypeListSize, tovsAllCodeTypeList(ninst)
     integer                :: tovsCodeTypeListSize, tovsCodeTypeList(10)
     integer                :: tovsFileNameListSize
     character(len=20)      :: tovsFileNameList(30)

@@ -36,6 +36,7 @@ Their default values (in parentheses), **should be good for most users**.
   variable value** if `MIDAS_COMPILE_CLEAN=false`.  Otherwise, some already
   compiled object will keep the impact of the debug options and may result
   in inconsistencies.
+* `MIDAS_COMPILE_CODECOVERAGE_DATAPATH` : path to store the code coverage diagnostics files
 * `MIDAS_COMPILE_FRONTEND (ppp5)` : cluster on which to proceed with the compilation
 * `MIDAS_COMPILE_CLEAN (true)` : if `true`, remove the build directory after a
   successful installation of the absolutes (if applicable)

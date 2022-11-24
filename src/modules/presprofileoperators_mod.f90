@@ -357,7 +357,7 @@ module presProfileOperators_mod
     lowerlevel(1:kno) = 0
     do pvoIndex=1,kno
       if (.not.validLevel(pvoIndex)) cycle 
-      do pviIndex=lowerlevel(pvoIndex-1),kni
+      do pviIndex=max(1,lowerlevel(pvoIndex-1)),kni
         if ( pvo(pvoIndex) < pvi(pviIndex) ) then
           lowerlevel(pvoIndex) = pviIndex
           exit 

@@ -336,7 +336,7 @@ module bgckOcean_mod
     ! Locals:
     integer            :: nulnam, ierr
     integer            :: headerIndex, bodyIndex, stationIndex, bodyCount
-    integer            :: obsChid, obsDate, obsTime, obsVarno, obsFlag
+    integer            :: obsChid, obsDate, obsTime, obsFlag
     integer            :: obsDateStamp
     integer, parameter :: maxSwath = 10, maxPerSwath = 200000
     integer            :: numberObs(maxSwath), bodyIndexList(maxPerSwath,maxSwath)

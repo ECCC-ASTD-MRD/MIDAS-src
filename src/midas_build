@@ -54,9 +54,15 @@ if [ ! "${ORDENV_PLAT}" = rhel-8-icelake-64 ];then
   exit 1
 fi
 __midas_dot_cfg=${__here}/config.dot.sh
-source ${__midas_dot_cfg}  &> .tmp.config.out || echo "An error occured in the build configuration"
 __listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 __listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
+echo "Sourcing MIDAS build configuration <<< ${__midas_dot_cfg}"
+source ${__midas_dot_cfg}  &> .tmp.config.out
+if [ ! $? -eq 0 ]; then
+  mv .tmp.config.out ${__listing_config}
+  echo "An error occured in the build configuration, consult ${__listing_config}"
+  exit 1
+fi
 mv .tmp.config.out ${__listing_config}
 
 __abs_all=$(ls programs/*.f90 | sed 's/programs\/\(.*\).f90/\1/' )
@@ -117,6 +123,7 @@ function printHeader {
     done
     echo "| code version : ${__revstring}"
     echo "| debug : ${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}"
+    echo "| codecoverage : ${MIDAS_COMPILE_CODECOVERAGE_DATAPATH:-no}"
     echo "| build directory : ${MIDAS_COMPILE_DIR_MAIN}/midas_bld-${__revstring}"
     if [ -n "${__abs_exist_list}" ]; then
         ##-- an absolute is in the targets; installation will be attempted
@@ -236,6 +243,7 @@ export MIDAS_COMPILE_CLEAN=${MIDAS_COMPILE_CLEAN}
 export MIDAS_COMPILE_HEADNODE_FRONTEND=${MIDAS_COMPILE_HEADNODE_FRONTEND}
 export MIDAS_COMPILE_KEEP_LISTING=${MIDAS_COMPILE_KEEP_LISTING}
 export MIDAS_COMPILE_ADD_DEBUG_OPTIONS=${MIDAS_COMPILE_ADD_DEBUG_OPTIONS}
+export MIDAS_COMPILE_CODECOVERAGE_DATAPATH=${MIDAS_COMPILE_CODECOVERAGE_DATAPATH}
 export MIDAS_SSM_TARGET=${MIDAS_SSM_TARGET}
 export MIDAS_SSM_PKGNAME=${MIDAS_SSM_PKGNAME}
 export MIDAS_SSM_MAINTAINER=${MIDAS_SSM_MAINTAINER}

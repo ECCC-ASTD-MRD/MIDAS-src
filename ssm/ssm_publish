@@ -8,7 +8,7 @@ echo "Executing: ${0} ${*}"
 
 script=$0
 
-SSM_PUBLISH_ALLOWED_PROJECTS=${SSM_PUBLISH_ALLOWED_PROJECTS-"midas verdict 1DvarTskin"}
+SSM_PUBLISH_ALLOWED_PROJECTS=${SSM_PUBLISH_ALLOWED_PROJECTS-"midas verdict 1DvarTskin satplot"}
 
 die () {
     set -e

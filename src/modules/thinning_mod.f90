@@ -729,8 +729,8 @@ contains
     call obs_set_current_header_list(obsdat, obsFamily)
     HEADER0: do
       headerIndex = obs_getHeaderIndex(obsdat)      
-      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if (headerIndex < 0) exit HEADER0
+      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if (codtyp /= codtyp_get_codtyp('satob')) countObsIn = countObsIn + 1
     end do HEADER0
 
@@ -812,8 +812,8 @@ contains
     call obs_set_current_header_list(obsdat, obsFamily)
     HEADER1: do
       headerIndex = obs_getHeaderIndex(obsdat)
-      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if (headerIndex < 0) exit HEADER1
+      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if (codtyp /= codtyp_get_codtyp('satob')) then
         obsIndex = obsIndex + 1
       else
@@ -1052,8 +1052,8 @@ contains
     call obs_set_current_header_list(obsdat, obsFamily)
     HEADER2: do
       headerIndex = obs_getHeaderIndex(obsdat)
-      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if (headerIndex < 0) exit HEADER2
+      codtyp = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
       if (codtyp /= codtyp_get_codtyp('satob')) then
         obsIndex = obsIndex + 1
       else
