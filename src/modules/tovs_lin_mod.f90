@@ -77,6 +77,7 @@ contains
     real(8), pointer :: delTT(:), delHU(:), delP(:)
     real(8), pointer :: delO3(:)
     real(8), pointer :: delCLW(:)
+    real(8), pointer :: delCIW(:), delRF(:), delSF(:)
     integer :: btCount
     integer,external :: omp_get_num_threads
     integer :: nthreads, max_nthreads
@@ -217,10 +218,10 @@ contains
                                       cld_profiles_tl,  &
                                       nlv_T,            &
                                       nhydro=5,         &
-                                      nhydro_frac=5,    &
+                                      nhydro_frac=1,    &
                                       asw=asw,          &
-                                      init=.false.       )
-                                      !flux_conversion=0)
+                                      init=.false.,     &  
+                                      flux_conversion=[1,2,0,0,0])
       end if
     
       call utl_checkAllocationStatus(allocStatus(1:2), ' tovs_rtttov_tl rttov_alloc_tl 1')
@@ -258,7 +259,24 @@ contains
             profilesdata_tl(profileIndex) % clw(1:nlv_T)  = 0.d0
           end if
         end if
-         
+        ! using the zero CLW value for land FOV
+        if ( tvs_useRttovScatt(sensorIndex) ) then 
+          if ( surfTypeIsWater(profileIndex) ) then
+            delRF => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'RF')
+            cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,1) = delRF(:)
+            delSF => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'SF')
+            cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,2)  = delSF(:)
+            cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,3)  = 0.d0 ! no information for graupel
+            delCLW => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'LWCR')
+            cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,4) = delCLW(:)
+            delCIW => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'IWCR')
+            cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,5)  = delCIW(:)
+          else
+            cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,1:5)  = 0.d0
+          end if
+          cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,1) = 0.d0   ! no perturbation on cloud fraction as it is a binary variable (or or 1.0) in this implementation
+        end if
+        
         profilesdata_tl(profileIndex) % ctp             = 0.0d0
         profilesdata_tl(profileIndex) % cfraction       = 0.0d0
         profilesdata_tl(profileIndex) % zenangle        = 0.0d0
@@ -287,8 +305,6 @@ contains
             cld_profiles_tl(profileIndex) % ph (levelIndex+1) = 0.5d0 * (profilesdata_tl(profileIndex) % p(levelIndex) + profilesdata_tl(profileIndex) % p(levelIndex+1) )
           end do
           cld_profiles_tl(profileIndex) % ph (nlv_T+1) = profilesdata_tl(profileIndex) % s2m % p
-          cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,1:5) = 0.d0   !
-          cld_profiles_tl(profileIndex) % hydro(1:nlv_T,1:5) = 0.d0   ! 
         end if
       end do
 
@@ -404,14 +420,14 @@ contains
       
       asw = 0 ! 0 to deallocate
       if (tvs_useRttovScatt(sensorIndex)) then
-        call rttov_alloc_scatt_prof (allocStatus(1),   &
-                                     profileCount,     &
-                                     cld_profiles_tl,  &
-                                     nlv_T,            &
-                                     nhydro=5,         &
-                                     nhydro_frac=5,    &
-                                     asw=asw            )
-                                     !flux_conversion=0)
+        call rttov_alloc_scatt_prof (allocStatus(1),              &
+                                     profileCount,                &
+                                     cld_profiles_tl,             &
+                                     nlv_T,                       &
+                                     nhydro=5,                    &
+                                     nhydro_frac=1,               &
+                                     asw=asw,                     &   
+                                     flux_conversion=[1,2,0,0,0])
         deallocate(cld_profiles_tl)
       end if
       call rttov_alloc_tl(                   &
@@ -478,10 +494,12 @@ contains
     real(8), allocatable :: ozone_ad(:,:)
     character(len=4) :: ozoneVarName
     real(8), allocatable :: clw_ad(:,:)
+    real(8), allocatable :: ciw_ad(:,:), rf_ad(:,:), sf_ad(:,:)
     logical, allocatable :: surfTypeIsWater(:), lchannel_subset(:,:)
 
     real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),  &
-                        tg_column(:),p_column(:),o3_column(:),clw_column(:)
+                        tg_column(:),p_column(:),o3_column(:),clw_column(:), &
+                        ciw_column(:), rf_column(:),sf_column(:)
 
     integer :: btCount
     integer :: max_nthreads
@@ -579,6 +597,7 @@ contains
       if (btCount == 0) cycle sensor_loop
      
       allocStatus(:) = 0
+      
       allocate (sensorHeaderIndexes(profileCount),       stat= allocStatus(1) )
       allocate (tt_ad              (nlv_T,profileCount), stat= allocStatus(2) )
       allocate (hu_ad              (nlv_T,profileCount), stat= allocStatus(3))
@@ -593,6 +612,12 @@ contains
       end if
       allocate (surfTypeIsWater(profileCount),stat= allocStatus(7))
       surfTypeIsWater(:) = .false.
+      if ( tvs_useRttovScatt(sensorIndex) ) then
+        allocate (clw_ad(nlv_T,profileCount), stat= allocStatus(8))
+        allocate (ciw_ad(nlv_T,profileCount), stat= allocStatus(9))
+        allocate (rf_ad(nlv_T,profileCount), stat= allocStatus(10))
+        allocate (sf_ad(nlv_T,profileCount), stat= allocStatus(11))
+      end if
 
       call utl_checkAllocationStatus(allocStatus, ' tvslin_fill_profiles_ad')
 
@@ -638,17 +663,17 @@ contains
       if (tvs_useRttovScatt(sensorIndex)) allocate ( frequencies(btCount), stat=allocStatus(3))
       allocate ( sensorBodyIndexes(btCount), stat=allocStatus(4))
       if (tvs_useRttovScatt(sensorIndex)) then
-        allocate(cld_profiles_ad(profileCount))
-        call rttov_alloc_scatt_prof (allocStatus(5),   &
+        allocate(cld_profiles_ad(profileCount), stat=allocStatus(5))
+        call rttov_alloc_scatt_prof (allocStatus(6),   &
                                      profileCount,     &
                                      cld_profiles_ad,  &
                                      nlv_T,            &
                                      nhydro=5,         &
-                                     nhydro_frac=5,    &
-                                     asw=asw            )
-                                     !flux_conversion=0)
+                                     nhydro_frac=1,    &
+                                     asw=asw,          &     
+                                     flux_conversion=[1,2,0,0,0])
       end if
-      call utl_checkAllocationStatus(allocStatus(1:5), ' tvslin_rttov_ad')
+      call utl_checkAllocationStatus(allocStatus(1:6), ' tvslin_rttov_ad')
       
       !  get Hyperspectral IR emissivities
       
@@ -740,6 +765,13 @@ contains
       endif
       if ( runObsOperatorWithClw_ad ) clw_ad(:,:) = 0.d0
 
+      if ( tvs_useRttovScatt(sensorIndex) ) then
+        clw_ad(:,:) = 0.d0
+        ciw_ad(:,:) = 0.d0
+        rf_ad(:,:) = 0.d0
+        sf_ad(:,:) = 0.d0
+      end if
+      
       do btIndex = 1, btCount
         profileIndex = chanprof(btIndex)%prof
         headerIndex = sensorHeaderIndexes(profileIndex)
@@ -773,6 +805,13 @@ contains
 
         if ( runObsOperatorWithClw_ad ) then
           clw_ad(:,profileIndex) = profilesdata_ad(profileIndex) % clw(:)
+        end if
+
+        if ( tvs_useRttovScatt(sensorIndex) ) then
+          rf_ad(:,profileIndex)  = cld_profiles_ad(profileIndex) % hydro(:,1)
+          sf_ad(:,profileIndex)  = cld_profiles_ad(profileIndex) % hydro(:,2)
+          clw_ad(:,profileIndex) = cld_profiles_ad(profileIndex) % hydro(:,4)
+          ciw_ad(:,profileIndex) = cld_profiles_ad(profileIndex) % hydro(:,5)
         end if
       end do
 
@@ -816,6 +855,27 @@ contains
         end do
       end if
 
+      if ( tvs_useRttovScatt(sensorIndex) ) then
+        surfTypeIsWater(profileIndex) = ( tvs_ChangedStypValue(obsSpaceData,sensorHeaderIndexes(profileIndex)) == surftype_sea )
+        if ( surfTypeIsWater(profileIndex) ) then
+          rf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'RF')
+          sf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'SF')
+          clw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'LWCR')
+          ciw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'LICR')
+          do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
+            rf_column(levelIndex) = rf_column(levelIndex) +   &
+                rf_ad(levelIndex,profileIndex)
+            sf_column(levelIndex) = sf_column(levelIndex) +   &
+                sf_ad(levelIndex,profileIndex)
+            clw_column(levelIndex) = clw_column(levelIndex) + &
+                clw_ad(levelIndex,profileIndex)
+            ciw_column(levelIndex) = ciw_column(levelIndex) + &
+                ciw_ad(levelIndex,profileIndex)
+          end do
+        end if
+      end if
+      
+
       deallocate (sensorHeaderIndexes, stat= allocStatus(1) )
       deallocate (tt_ad,               stat= allocStatus(2) )
       deallocate (hu_ad,               stat= allocStatus(3) )
@@ -825,10 +885,15 @@ contains
           deallocate (ozone_ad,        stat= allocStatus(5) )
         end if 
       end if
-      if ( runObsOperatorWithClw_ad ) then
+      if ( allocated(clw_ad) ) then
         deallocate (clw_ad,stat=allocStatus(6))
       end if
       deallocate (surfTypeIsWater,stat=allocStatus(7))
+      if ( allocated(ciw_ad) ) then
+        deallocate (ciw_ad, stat= allocStatus(8))
+        deallocate (rf_ad,  stat= allocStatus(9))
+        deallocate (sf_ad,  stat= allocStatus(10))
+      end if
       
       call utl_checkAllocationStatus(allocStatus, ' tvslin_fill_profiles_ad', .false.)
     
@@ -841,13 +906,13 @@ contains
                                      cld_profiles_ad,  &
                                      nlv_T,            &
                                      nhydro=5,         &
-                                     nhydro_frac=5,    &
-                                     asw=asw            )
-                                     !flux_conversion= )
-        deallocate(cld_profiles_ad)
+                                     nhydro_frac=1,    &
+                                     asw=asw,          &
+                                     flux_conversion= [1,2,0,0,0])
+        deallocate(cld_profiles_ad, stat=allocStatus(2))
       end if
       call rttov_alloc_ad(                  &
-           allocStatus(2),                  &
+           allocStatus(3),                  &
            asw,                             &
            profileCount,                    &
            btCount,                         &
@@ -865,10 +930,10 @@ contains
            emissivity_ad=emissivity_ad )
      
       
-      deallocate ( surfem1,           stat=allocStatus(3))
-      deallocate ( sensorBodyIndexes, stat=allocStatus(4))
-      if (allocated(frequencies)) deallocate ( frequencies, stat=allocStatus(5))
-      call utl_checkAllocationStatus(allocStatus(1:5), ' tvslin_rttov_ad', .false.)
+      deallocate ( surfem1,           stat=allocStatus(4))
+      deallocate ( sensorBodyIndexes, stat=allocStatus(5))
+      if (allocated(frequencies)) deallocate ( frequencies, stat=allocStatus(6))
+      call utl_checkAllocationStatus(allocStatus(1:6), ' tvslin_rttov_ad', .false.)
      
     end do sensor_loop
 
