@@ -1353,7 +1353,7 @@ CONTAINS
       call utl_abort('adv_statevector_tl: vertical levels are not compatible')
     end if
 
-    call utl_tmg_start(140,'--ADV_GSV')
+    call utl_tmg_start(100,'--ADV_GSV')
 
     allocate(field2D_mpiglobal_tiles(adv%lonPerPE,adv%latPerPE,mmpi_nprocs))
     allocate(field2D_mpiglobal(adv%ni,adv%nj))
@@ -1382,15 +1382,15 @@ CONTAINS
 
           ! gather the global field to be interpolated on all tasks
           call rpn_comm_barrier('GRID',ierr)
-          call utl_tmg_start(141,'----ADV_GSV_Comm')
+          call utl_tmg_start(101,'----ADV_GSV_Comm')
           nsize = adv%lonPerPE*adv%latPerPE
           call rpn_comm_allgather(field4D(:,:,levIndex,adv%timeStepIndexSource(stepIndexAF)), nsize, "mpi_double_precision",  &
                                   field2D_mpiglobal_tiles(:,:,:), nsize, "mpi_double_precision",  &
                                   "GRID", ierr )
-          call utl_tmg_stop(141)
+          call utl_tmg_stop(101)
 
           ! rearrange gathered fields for convenience
-          call utl_tmg_start(142,'----ADV_GSV_Shuffling')
+          call utl_tmg_start(102,'----ADV_GSV_Shuffling')
           !$OMP PARALLEL DO PRIVATE (procIDy,procIDx,procID,latIndex,lonIndex,latIndex_mpiglobal,lonIndex_mpiglobal)
           do procIDy = 0, (mmpi_npey-1)
             do procIDx = 0, (mmpi_npex-1)
@@ -1406,13 +1406,13 @@ CONTAINS
             end do ! procIDx
           end do ! procIDy
           !$OMP END PARALLEL DO
-          call utl_tmg_stop(142)
+          call utl_tmg_stop(102)
 
           if (adv%singleTimeStepIndexSource) gatheringDone = .true. 
 
         end if
 
-        call utl_tmg_start(143,'----ADV_GSV_Calc')
+        call utl_tmg_start(103,'----ADV_GSV_Calc')
 
         !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex,lonIndex2,latIndex2,lonIndex2_p1,latIndex2_p1)
         do latIndex = adv%myLatBeg, adv%myLatEnd
@@ -1434,7 +1434,7 @@ CONTAINS
         end do ! latIndex
         !$OMP END PARALLEL DO
 
-        call utl_tmg_stop(143)
+        call utl_tmg_stop(103)
 
       end do ! stepIndexAF
 
@@ -1443,7 +1443,7 @@ CONTAINS
     deallocate(field2D_mpiglobal_tiles)
     deallocate(field2D_mpiglobal)
 
-    call utl_tmg_stop(140)
+    call utl_tmg_stop(100)
 
   END SUBROUTINE adv_statevector_tl
 

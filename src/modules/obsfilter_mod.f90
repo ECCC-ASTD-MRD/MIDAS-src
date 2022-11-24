@@ -1562,7 +1562,7 @@ end subroutine filt_topoAISW
           gps_vRO_IndexPrf(iProfile, 2) = varNum
           gps_vRO_IndexPrf(iProfile, 3) = ISAT
           gps_vRO_IndexPrf(iProfile, 4) = IDSC
-          write(*,*)'RO Prf', gps_numROProfiles, iProfile, varNum, ISAT, IDSC
+          if (.not.beSilent) write(*,*)'RO Prf', gps_numROProfiles, iProfile, varNum, ISAT, IDSC
         end if
       end do HEADER2
     end if

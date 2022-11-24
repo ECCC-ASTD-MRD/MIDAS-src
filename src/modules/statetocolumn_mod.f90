@@ -1655,7 +1655,8 @@ contains
   ! s2c_nl
   !---------------------------------------------------------
   subroutine s2c_nl(stateVector, obsSpaceData, column, hco_core, timeInterpType, &
-                   varName_opt, numObsBatches_opt, dealloc_opt, moveObsAtPole_opt)
+                   varName_opt, numObsBatches_opt, dealloc_opt, moveObsAtPole_opt, &
+                   beSilent_opt)
     !
     ! :Purpose: Non-linear version of the horizontal interpolation,
     !           used for a full field (usually the background state when computing
@@ -1673,6 +1674,7 @@ contains
     integer, optional          :: numObsBatches_opt
     logical, optional          :: dealloc_opt
     logical, optional          :: moveObsAtPole_opt
+    logical, optional          :: beSilent_opt
 
     ! locals
     type(struct_gsv), save :: stateVector_VarsLevs 
@@ -1690,15 +1692,23 @@ contains
     real(8), allocatable :: cols_recv(:,:)
     real(8), allocatable :: cols_send_1proc(:)
     integer, allocatable :: displs(:), nsizes(:)
-    logical              :: dealloc, moveObsAtPole, rejectOutsideObs
+    logical              :: dealloc, moveObsAtPole, rejectOutsideObs, beSilent
     logical, save        :: firstCall = .true.
     character(len=4), pointer :: varNames(:)
 
     call utl_tmg_start(30,'--StateToColumn')
     call utl_tmg_start(34,'----s2c_NL')
 
-    write(*,*) 's2c_nl: STARTING'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+
+    if ( .not. beSilent ) then
+      write(*,*) 's2c_nl: STARTING'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
 
     if ( .not. gsv_isAllocated(stateVector) ) then 
       call utl_abort('s2c_nl: stateVector must be allocated')
@@ -1753,11 +1763,12 @@ contains
                          allocHeightSfc_opt=.true., varNames_opt=varNames )
       deallocate(varNames)
     else
-      if (mmpi_myid == 0) write(*,*) 's2c_nl: avoid re-allocating statevector_VarsLevs'
+      if (mmpi_myid == 0 .and. .not. beSilent) write(*,*) 's2c_nl: avoid re-allocating statevector_VarsLevs'
       call gsv_zero(statevector_VarsLevs)
     end if
 
-    call gsv_transposeTilesToVarsLevs( stateVector, stateVector_VarsLevs )
+    call gsv_transposeTilesToVarsLevs( stateVector, stateVector_VarsLevs, &
+                                        beSilent_opt=beSilent )
 
     numStep = stateVector_VarsLevs%numStep
 
@@ -1790,8 +1801,8 @@ contains
       numHeader = headerIndexEnd - headerIndexBeg + 1
       call rpn_comm_allreduce(numHeader, numHeaderMax, 1,  &
                               'MPI_INTEGER', 'MPI_MAX', 'GRID', ierr)
-      write(*,*) 's2c_nl: headerIndexBeg/End, numHeader = ',  &
-                 headerIndexBeg, headerIndexEnd, numHeader
+      if ( .not. beSilent ) write(*,*) 's2c_nl: headerIndexBeg/End, numHeader = ',  &
+                                        headerIndexBeg, headerIndexEnd, numHeader
       call rpn_comm_allgather(headerIndexBeg,   1,'mpi_integer', &
                               allHeaderIndexBeg,1,'mpi_integer','grid',ierr)
 
@@ -2023,8 +2034,10 @@ contains
 
     firstCall = .false.
 
-    write(*,*) 's2c_nl: FINISHED'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    if ( .not. beSilent ) then
+      write(*,*) 's2c_nl: FINISHED'
+      write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    end if
 
     call utl_tmg_stop(34)
 

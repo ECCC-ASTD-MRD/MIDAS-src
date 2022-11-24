@@ -106,8 +106,6 @@ CONTAINS
     allocate( ensObs%obsValue(ensObs%numObs) )
     allocate( ensObs%obsErrInv(ensObs%numObs) )
     allocate( ensObs%Yb_r4(ensObs%numMembers,ensObs%numObs) )
-    allocate( ensObs%Ya_r4(ensObs%numMembers,ensObs%numObs) )    
-    allocate( ensObs%randPert_r4(ensObs%numMembers,ensObs%numObs) )
     allocate( ensObs%meanYb(ensObs%numObs) )
     allocate( ensObs%deterYb(ensObs%numObs) )
     allocate( ensObs%assFlag(ensObs%numObs) )
@@ -135,8 +133,8 @@ CONTAINS
     deallocate( ensObs%obsValue )
     deallocate( ensObs%obsErrInv )
     deallocate( ensObs%Yb_r4 )
-    deallocate( ensObs%Ya_r4 )
-    deallocate( ensObs%randPert_r4 )
+    if ( allocated(ensObs%Ya_r4) ) deallocate( ensObs%Ya_r4 )
+    if ( allocated(ensObs%randPert_r4) ) deallocate( ensObs%randPert_r4 )
     deallocate( ensObs%meanYb )
     deallocate( ensObs%deterYb )
     deallocate( ensObs%assFlag )
@@ -167,8 +165,8 @@ CONTAINS
     ensObs%obsValue(:)      = 0.0d0
     ensObs%obsErrInv(:)     = 0.0d0
     ensObs%Yb_r4(:,:)       = 0.0
-    ensObs%Ya_r4(:,:)       = 0.0
-    ensObs%randPert_r4(:,:) = 0.0
+    if ( allocated(ensObs%Ya_r4) ) ensObs%Ya_r4(:,:) = 0.0
+    if ( allocated(ensObs%randPert_r4) ) ensObs%randPert_r4(:,:) = 0.0
     ensObs%meanYb(:)        = 0.0d0
     ensObs%deterYb(:)       = 0.0d0
     ensObs%assFlag(:)       = 0
@@ -227,6 +225,12 @@ CONTAINS
 
     write(*,*) 'eob_clean: reducing numObs from ', ensObs%numObs, ' to ', numObsClean
     call eob_allocate(ensObsClean, ensObs%numMembers, numObsClean, ensObs%obsSpaceData)
+    if ( allocated(ensObs%Ya_r4) ) then
+      allocate(ensObsClean%Ya_r4(ensObs%numMembers,numObsClean))
+    end if
+    if ( allocated(ensObs%randPert_r4) ) then
+      allocate(ensObsClean%randPert_r4(ensObs%numMembers,numObsClean))
+    end if
 
     obsCleanIndex = 0
     do obsIndex = 1, ensObs%numObs
@@ -237,8 +241,12 @@ CONTAINS
         ensObsClean%vertLocation(obsCleanIndex)  = ensObs%vertLocation(obsIndex)
         ensObsClean%obsErrInv(obsCleanIndex)     = ensObs%obsErrInv(obsIndex)
         ensObsClean%Yb_r4(:,obsCleanIndex)       = ensObs%Yb_r4(:,obsIndex)
-        ensObsClean%Ya_r4(:,obsCleanIndex)       = ensObs%Ya_r4(:,obsIndex)
-        ensObsClean%randPert_r4(:,obsCleanIndex) = ensObs%randPert_r4(:,obsIndex)
+        if ( allocated(ensObs%Ya_r4) ) then
+          ensObsClean%Ya_r4(:,obsCleanIndex) = ensObs%Ya_r4(:,obsIndex)
+        end if
+        if ( allocated(ensObs%randPert_r4) ) then
+          ensObsClean%randPert_r4(:,obsCleanIndex) = ensObs%randPert_r4(:,obsIndex)
+        end if
         ensObsClean%meanYb(obsCleanIndex)        = ensObs%meanYb(obsIndex)
         ensObsClean%deterYb(obsCleanIndex)       = ensObs%deterYb(obsIndex)
         ensObsClean%obsValue(obsCleanIndex)      = ensObs%obsValue(obsIndex)
@@ -263,8 +271,14 @@ CONTAINS
     ensObsOut%vertLocation(:)  = ensObsIn%vertLocation(:)
     ensObsOut%obsErrInv(:)     = ensObsIn%obsErrInv(:)
     ensObsOut%Yb_r4(:,:)       = ensObsIn%Yb_r4(:,:)
-    ensObsOut%Ya_r4(:,:)       = ensObsIn%Ya_r4(:,:)
-    ensObsOut%randPert_r4(:,:) = ensObsIn%randPert_r4(:,:)
+    if ( allocated(ensObsIn%Ya_r4) ) then
+      allocate( ensObsOut%Ya_r4(ensObsIn%numMembers,ensObsIn%numObs) )
+      ensObsOut%Ya_r4(:,:) = ensObsIn%Ya_r4(:,:)
+    end if
+    if ( allocated(ensObsIn%randPert_r4) ) then
+      allocate( ensObsOut%randPert_r4(ensObsIn%numMembers,ensObsIn%numObs) )
+      ensObsOut%randPert_r4(:,:) = ensObsIn%randPert_r4(:,:)
+    end if
     ensObsOut%meanYb(:)        = ensObsIn%meanYb(:)
     ensObsOut%deterYb(:)       = ensObsIn%deterYb(:)
     ensObsOut%obsValue(:)      = ensObsIn%obsValue(:)
@@ -312,6 +326,12 @@ CONTAINS
       call utl_abort('eob_allGather: output ensObs object must not be already allocated')
     end if
     call eob_allocate(ensObs_mpiglobal, ensObsClean%numMembers, numObs_mpiglobal, ensObsClean%obsSpaceData)
+    if ( allocated(ensObsClean%Ya_r4) ) then
+      allocate(ensObs_mpiglobal%Ya_r4(ensObsClean%numMembers,numObs_mpiglobal))
+    end if
+    if ( allocated(ensObsClean%randPert_r4) ) then
+      allocate(ensObs_mpiglobal%randPert_r4(ensObsClean%numMembers,numObs_mpiglobal))
+    end if
     ensObs_mpiglobal%typeVertCoord = ensObsClean%typeVertCoord
 
     if ( mmpi_myid == 0 ) then
@@ -351,14 +371,16 @@ CONTAINS
       call rpn_comm_gatherv( ensObsClean%Yb_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
                              ensObs_mpiglobal%Yb_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
                              0, 'GRID', ierr )
-      call rpn_comm_gatherv( ensObsClean%Ya_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                             ensObs_mpiglobal%Ya_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                             0, 'GRID', ierr )
-    end do
-    do memberIndex = 1, ensObsClean%numMembers
-      call rpn_comm_gatherv( ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                             ensObs_mpiglobal%randPert_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                             0, 'GRID', ierr )
+      if ( allocated(ensObsClean%Ya_r4) ) then
+        call rpn_comm_gatherv( ensObsClean%Ya_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
+                              ensObs_mpiglobal%Ya_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
+                              0, 'GRID', ierr )
+      end if
+      if ( allocated(ensObsClean%randPert_r4) ) then
+        call rpn_comm_gatherv( ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
+                              ensObs_mpiglobal%randPert_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
+                              0, 'GRID', ierr )
+      end if
     end do
 
     call rpn_comm_bcast(ensObs_mpiglobal%lat, ensObs_mpiglobal%numObs, 'mpi_real8',  &
@@ -380,12 +402,14 @@ CONTAINS
     do memberIndex = 1, ensObsClean%numMembers
       call rpn_comm_bcast(ensObs_mpiglobal%Yb_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                           0, 'GRID', ierr)
-      call rpn_comm_bcast(ensObs_mpiglobal%Ya_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
-                          0, 'GRID', ierr)
-    end do
-    do memberIndex = 1, ensObsClean%numMembers
-      call rpn_comm_bcast(ensObs_mpiglobal%randPert_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
-                          0, 'GRID', ierr)
+      if ( allocated(ensObs_mpiglobal%Ya_r4) ) then
+        call rpn_comm_bcast(ensObs_mpiglobal%Ya_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
+                            0, 'GRID', ierr)
+      end if
+      if ( allocated(ensObs_mpiglobal%randPert_r4) ) then
+        call rpn_comm_bcast(ensObs_mpiglobal%randPert_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
+                            0, 'GRID', ierr)        
+      end if
     end do
 
     call eob_deallocate( ensObsClean )
@@ -522,7 +546,7 @@ CONTAINS
       call utl_abort('eob_getLocalBodyIndices: the parameter maxNumLocalObsSearch must be increased')
     end if
 
-    if (vLocalize > 0.0d0) then
+    if ( vLocalize > 0.0d0 .and. vertLocation /= MPC_missingValue_R8 ) then
       ! copy search results to output vectors, only those within vertical localization distance
       numLocalObsFound = 0
       numLocalObs = 0
@@ -806,6 +830,10 @@ CONTAINS
     type(struct_eob), intent(inout)  :: ensObs
     integer         , intent(in)     :: memberIndex
     integer         , intent(in)     :: obsColumnName
+
+    if ( .not. allocated(ensObs%Ya_r4) ) then
+      call utl_abort('eob_setYa: ensObs%Ya_r4 must be allocated and it is not')
+    end if
         
     ! get the Y-HX value from obsSpaceData
     call obs_extractObsRealBodyColumn_r4(ensObs%Ya_r4(memberIndex,:), ensObs%obsSpaceData, obsColumnName)
@@ -865,6 +893,11 @@ CONTAINS
     real(4) :: meanRandPert, sigObs
 
     call rng_setup(abs(randomSeed))
+    if ( allocated(ensObs%randPert_r4) ) then
+      call utl_abort('eob_calcRandPert: ensObs%randPert_r4 must not be already allocated')
+    end if
+
+    allocate(ensObs%randPert_r4(ensObs%numMembers,ensObs%numObs))
 
     do obsIndex = 1, ensObs%numObs
       sigObs = obs_bodyElem_r(ensObs%obsSpaceData, OBS_OER, obsIndex)

@@ -262,7 +262,7 @@ module oceanMask_mod
   !--------------------------------------------------------------------------
   ! ocm_copyMask
   !--------------------------------------------------------------------------
-  subroutine ocm_copyMask(oceanMask_in,oceanMask_out)
+  subroutine ocm_copyMask(oceanMask_in, oceanMask_out, beSilent_opt)
     !
     ! :Purpose: Copy the mask data from one instance of oceanMask to
     !           another. If the destination instance is not already
@@ -272,10 +272,20 @@ module oceanMask_mod
 
     ! arguments:
     type(struct_ocm), intent(in)    :: oceanMask_in
+    logical, intent(in), optional   :: beSilent_opt
     type(struct_ocm), intent(inout) :: oceanMask_out
 
+    ! locals
+    logical :: beSilent
+
+    if ( present(beSilent_opt) ) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .false.
+    end if
+    
     if (.not.oceanMask_in%maskPresent .or. .not.associated(oceanMask_in%mask)) then
-      write(*,*) 'ocm_copyMask: no input mask, do nothing'
+      if ( .not. beSilent ) write(*,*) 'ocm_copyMask: no input mask, do nothing'
       return
     end if
 
@@ -283,7 +293,7 @@ module oceanMask_mod
       call ocm_allocate(oceanMask_out, oceanMask_in%hco, oceanMask_in%nLev)
     end if
 
-    write(*,*) 'ocm_copyMask: copying over the horizontal mask'
+    if ( .not. beSilent ) write(*,*) 'ocm_copyMask: copying over the horizontal mask'
     oceanMask_out%mask(:,:,:) = oceanMask_in%mask(:,:,:)
     oceanMask_out%maskPresent = .true.
 
