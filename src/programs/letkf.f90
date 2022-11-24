@@ -214,23 +214,26 @@ program midas_letkf
     call utl_abort('midas-letkf: unknown LETKF algorithm: ' // trim(algorithm))
   end if
 
+  if ( numRetainedEigen < 0 ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+    'equal or greater than zero')
+
+  useModulatedEns = (numRetainedEigen > 0)
+
   if ( trim(algorithm) == 'LETKF-Gain-ME' .or. trim(algorithm) == 'CVLETKF-ME' ) then
-    if ( numRetainedEigen < 1 ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+    if ( .not. useModulatedEns ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
     'equal or greater than one for LETKF algorithm: ' // &
     trim(algorithm))
   else
-    if ( numRetainedEigen /= 0 ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
+    if ( useModulatedEns ) call utl_abort('midas-letkf: numRetainedEigen should be ' // &
     'equal to zero for LETKF algorithm: ' // &
     trim(algorithm))
   end if
   
   ! check for NO varying horizontal localization lengthscale in letkf with modulated ensembles.
-  if ( .not. all(hLocalize(2:4) == hLocalize(1)) .and. numRetainedEigen /= 0 ) then
+  if ( .not. all(hLocalize(2:4) == hLocalize(1)) .and. useModulatedEns ) then
     call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
     'letkf with modulated ensembles')
   end if
-
-  useModulatedEns = (numRetainedEigen > 0)
 
   !
   !- 2.  Initialization
