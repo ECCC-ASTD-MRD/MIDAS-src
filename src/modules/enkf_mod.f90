@@ -444,7 +444,7 @@ contains
           ! Horizontal
           localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
           ! Vertical when NOT using modulated ensembles - use pressures at the grid point (not obs) location
-          if ( vLocalize > 0.0d0 .and. numRetainedEigen == 0 ) then
+          if ( vLocalize > 0.0d0 .and. .not. useModulatedEns ) then
             distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
             localization = localization * lfn_Response(distance,vLocalize)
           end if
@@ -1253,7 +1253,7 @@ contains
               write(*,*) 'varLevel = ', varLevel
               call utl_abort('enkf_LETKFanalyses: unknown varLevel')
             end if
-            if (levIndex2 /= levIndex .and. numRetainedEigen == 0) cycle
+            if (levIndex2 /= levIndex .and. .not. useModulatedEns) cycle
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
             do stepIndex = 1, tim_nstepobsinc
               ! mean increment
@@ -1315,7 +1315,7 @@ contains
               write(*,*) 'varLevel = ', varLevel
               call utl_abort('enkf_LETKFanalyses: unknown varLevel')
             end if
-            if (levIndex2 /= levIndex .and. numRetainedEigen == 0) cycle
+            if (levIndex2 /= levIndex .and. .not. useModulatedEns) cycle
             memberTrl_ptr_r4 => ens_getOneLev_r4(ensembleTrl,varLevIndex)
             memberAnl_ptr_r4 => ens_getOneLev_r4(ensembleAnl,varLevIndex)
             do stepIndex = 1, tim_nstepobsinc
