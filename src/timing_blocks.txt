@@ -91,7 +91,7 @@ grep -irh 'call utl_tmg_start' |grep -v grep| sed 's/^.*tmg_start\(.*\)/\1/gI' |
 122, '--AnalErrOI_FindObs'
 123, '--checkWindsForSST'
 
-130, '--getModulationFactor'
+130, '--getModulatedState'
 131, '--LETKFanalysis'
 132, '----CommWeights'
 133, '----GetLocalBodyIndices'

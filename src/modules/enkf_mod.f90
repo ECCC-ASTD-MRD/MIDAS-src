@@ -2161,6 +2161,8 @@ contains
 
     character(len=4) :: varName
 
+    call utl_tmg_start(130,'--getModulatedState')
+
     if ( .not. beSilent ) write(*,*) 'enkf_getModulatedState: START'
 
     if ( stateVector_in%dataKind /= 4 ) then
@@ -2222,6 +2224,8 @@ contains
 
     if ( .not. beSilent ) write(*,*) 'enkf_getModulatedState: END'
 
+    call utl_tmg_stop(130)
+
   end subroutine enkf_getModulatedState
 
   !--------------------------------------------------------------------------
@@ -2262,8 +2266,6 @@ contains
     logical :: beSilent
 
     logical, save :: firstCall = .true.
-
-    call utl_tmg_start(130,'--getModulationFactor')
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -2358,8 +2360,6 @@ contains
 
     modulationFactor_r4 = modulationFactorArray_r4(eigenVectorColumnIndex,eigenVectorLevelIndex)
   
-    call utl_tmg_stop(130)
-
   end subroutine getModulationFactor
 
 end module enkf_mod
