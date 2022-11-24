@@ -154,7 +154,7 @@ contains
 
     logical :: hLocalizeIsConstant, useModulatedEns, firstTime = .true.
 
-    call utl_tmg_start(130,'--LETKFanalysis')
+    call utl_tmg_start(131,'--LETKFanalysis')
 
     write(*,*) 'enkf_LETKFanalyses: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -357,15 +357,15 @@ contains
       call enkf_computeVertLocation(vertLocation_r4,stateVectorMeanTrl)
     end if
 
-    call utl_tmg_start(142,'----Barr')
+    call utl_tmg_start(141,'----Barr')
     call rpn_comm_barrier('GRID',ierr)
-    call utl_tmg_stop(142)
+    call utl_tmg_stop(141)
 
     ! get mpi global list of tags used for mpi send/recv
-    call utl_tmg_start(143, '----GetGlobalTags')
+    call utl_tmg_start(142, '----GetGlobalTags')
     allocate(latLonTagMpiGlobal(stateVectorMeanAnl%ni,stateVectorMeanAnl%nj))
     call enkf_LETKFgetMpiGlobalTags(latLonTagMpiGlobal,myLatIndexesRecv,myLonIndexesRecv)
-    call utl_tmg_stop(143)
+    call utl_tmg_stop(142)
 
     ! Compute the weights for ensemble mean and members
     countMaxExceeded = 0
@@ -377,7 +377,7 @@ contains
       !
       ! First post all recv instructions for communication of weights
       !
-      call utl_tmg_start(131,'----CommWeights')
+      call utl_tmg_start(132,'----CommWeights')
       numSend = 0
       numRecv = 0
       do latLonIndex = 1, myNumLatLonRecv
@@ -398,7 +398,7 @@ contains
                         nsize, mmpi_datyp_real8, procIndex-1, recvTag,  &
                         mmpi_comm_grid, requestIdRecv(numRecv), ierr )
       end do
-      call utl_tmg_stop(131)
+      call utl_tmg_stop(132)
 
       LATLON_LOOP: do latLonIndex = 1, myNumLatLonSend
         latIndex = myLatIndexesSend(latLonIndex)
@@ -423,7 +423,7 @@ contains
 
         ! Get list of nearby observations and distances to gridpoint. With modulated-ensembles, 
         ! we get observations in entire column.
-        call utl_tmg_start(132,'----GetLocalBodyIndices')
+        call utl_tmg_start(133,'----GetLocalBodyIndices')
         if ( useModulatedEns ) anlVertLocation = MPC_missingValue_R8
         numLocalObs = eob_getLocalBodyIndices(ensObs_mpiglobal, localBodyIndices,     &
                                               distances, anlLat, anlLon, anlVertLocation,  &
@@ -432,9 +432,9 @@ contains
           countMaxExceeded = countMaxExceeded + 1
           maxCountMaxExceeded = max(maxCountMaxExceeded, numLocalObsFound)
         end if
-        call utl_tmg_stop(132)
+        call utl_tmg_stop(133)
 
-        call utl_tmg_start(133,'----CalculateWeights')
+        call utl_tmg_start(134,'----CalculateWeights')
 
         ! Extract initial quantities YbTinvR and first term of PaInv (YbTinvR*Yb)
         do localObsIndex = 1, numLocalObs
@@ -456,9 +456,9 @@ contains
           end do
         end do ! localObsIndex
 
-        call utl_tmg_start(135,'------CalcYbTinvRYb')
+        call utl_tmg_start(136,'------CalcYbTinvRYb')
         ! make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4
-        call utl_tmg_start(136,'--------YbArraysCopy')
+        call utl_tmg_start(137,'--------YbArraysCopy')
         YbGainCopy_r4(:,:) = 0.0
         YbTinvRCopy(:,:) = 0.0d0
         do localObsIndex = 1, numLocalObs
@@ -468,10 +468,10 @@ contains
             YbTinvRCopy(localObsIndex,memberIndex2) = YbTinvR(memberIndex2,localObsIndex)
           end do
         end do
-        call utl_tmg_stop(136)
+        call utl_tmg_stop(137)
 
         YbTinvRYb(:,:) = 0.0D0
-        call utl_tmg_start(137,'--------YbTinvRYb1')
+        call utl_tmg_start(138,'--------YbTinvRYb1')
         !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
         do memberIndex2 = 1, nEnsGain
           do memberIndex1 = 1, nEnsGain
@@ -481,13 +481,13 @@ contains
           end do
         end do
         !$OMP END PARALLEL DO
-        call utl_tmg_stop(137)
+        call utl_tmg_stop(138)
 
         ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
         if ( trim(algorithm) == 'CVLETKF-ME' .or. &
               trim(algorithm) == 'LETKF-Gain-ME' ) then
           ! make copy of ensObs_mpiglobal%Yb_r4
-          call utl_tmg_start(136,'--------YbArraysCopy')
+          call utl_tmg_start(137,'--------YbArraysCopy')
           YbCopy_r4(:,:) = 0.0
           do localObsIndex = 1, numLocalObs
             bodyIndex = localBodyIndices(localObsIndex)
@@ -495,10 +495,10 @@ contains
               YbCopy_r4(localObsIndex,memberIndex2) = ensObs_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
             end do
           end do
-          call utl_tmg_stop(136)
+          call utl_tmg_stop(137)
 
           YbTinvRYb_mod(:,:) = 0.0D0
-          call utl_tmg_start(138,'--------YbTinvRYb2')
+          call utl_tmg_start(139,'--------YbTinvRYb2')
           !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEns
             do memberIndex1 = 1, nEnsGain
@@ -508,9 +508,9 @@ contains
             end do
           end do
           !$OMP END PARALLEL DO
-          call utl_tmg_stop(138)
+          call utl_tmg_stop(139)
         end if
-        call utl_tmg_stop(135)
+        call utl_tmg_stop(136)
 
         ! Rest of the computation of local weights for this grid point
         if (numLocalObs > 0) then
@@ -528,9 +528,9 @@ contains
 
             ! Compute Pa and sqrt(Pa) matrices from PaInv
             Pa(:,:) = PaInv(:,:)
-            call utl_tmg_start(134,'------EigenDecomp')
+            call utl_tmg_start(135,'------EigenDecomp')
             call utl_matInverse(Pa, nEns, inverseSqrt_opt=PaSqrt)
-            call utl_tmg_stop(134)
+            call utl_tmg_stop(135)
 
             ! Compute ensemble mean local weights as Pa * YbTinvR * (obs - meanYb)
             weightsTemp(:) = 0.0d0
@@ -562,10 +562,10 @@ contains
             !
 
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-            call utl_tmg_start(134,'------EigenDecomp')
+            call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
-            call utl_tmg_stop(134)
+            call utl_tmg_stop(135)
 
             ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
             weightsTemp(:) = 0.0d0
@@ -663,10 +663,10 @@ contains
             !
 
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-            call utl_tmg_start(134,'------EigenDecomp')
+            call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
-            call utl_tmg_stop(134)
+            call utl_tmg_stop(135)
 
             ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
             weightsTemp(:) = 0.0d0
@@ -760,10 +760,10 @@ contains
             !
 
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-            call utl_tmg_start(134,'------EigenDecomp')
+            call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
-            call utl_tmg_stop(134)
+            call utl_tmg_stop(135)
             !if (matrixRank < (nEns-1)) then
             !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
             !end if
@@ -809,7 +809,7 @@ contains
             do subEnsIndex = 1, numSubEns
 
               ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
-              call utl_tmg_start(134,'------EigenDecomp')
+              call utl_tmg_start(135,'------EigenDecomp')
               do memberIndexCV2 = 1, nEnsIndependentPerSubEns
                 memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
                 do memberIndexCV1 = 1, nEnsIndependentPerSubEns
@@ -819,7 +819,7 @@ contains
               end do
               tolerance = 1.0D-50
               call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
-              call utl_tmg_stop(134)
+              call utl_tmg_stop(135)
 
               ! Loop over members within the current sub-ensemble being updated
               do memberIndexCV = 1, nEnsPerSubEns
@@ -886,10 +886,10 @@ contains
             !
 
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-            call utl_tmg_start(134,'------EigenDecomp')
+            call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
-            call utl_tmg_stop(134)
+            call utl_tmg_stop(135)
             !if (matrixRank < (nEns-1)) then
             !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
             !end if
@@ -935,7 +935,7 @@ contains
             do subEnsIndex = 1, numSubEns
 
               ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
-              call utl_tmg_start(134,'------EigenDecomp')
+              call utl_tmg_start(135,'------EigenDecomp')
               do memberIndexCV2 = 1, nEnsIndependentPerSubEns
                 memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
                 do memberIndexCV1 = 1, nEnsIndependentPerSubEns
@@ -945,7 +945,7 @@ contains
               end do
               tolerance = 1.0D-50
               call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
-              call utl_tmg_stop(134)
+              call utl_tmg_stop(135)
 
               ! Loop over members within the current sub-ensemble being updated
               do memberIndexCV = 1, nEnsPerSubEns
@@ -1008,10 +1008,10 @@ contains
             !
 
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
-            call utl_tmg_start(134,'------EigenDecomp')
+            call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
-            call utl_tmg_stop(134)
+            call utl_tmg_stop(135)
             !if (matrixRank < (nEns-1)) then
             !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
             !end if
@@ -1058,7 +1058,7 @@ contains
             do subEnsIndex = 1, numSubEns
 
               ! Use complement (independent) ens to get eigenValues/Vectors of Yb^T R^-1 Yb = E*Lambda*E^T
-              call utl_tmg_start(134,'------EigenDecomp')
+              call utl_tmg_start(135,'------EigenDecomp')
               do memberIndexCV2 = 1, nEnsIndependentPerSubEns
                 memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
                 do memberIndexCV1 = 1, nEnsIndependentPerSubEns
@@ -1068,7 +1068,7 @@ contains
               end do
               tolerance = 1.0D-50
               call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
-              call utl_tmg_stop(134)
+              call utl_tmg_stop(135)
 
               ! Loop over members within the current sub-ensemble being updated
               do memberIndexCV = 1, nEnsPerSubEns
@@ -1159,12 +1159,12 @@ contains
 
         end if ! numLocalObs > 0
 
-        call utl_tmg_stop(133)
+        call utl_tmg_stop(134)
 
         !
         ! Now post all send instructions (each lat-lon may be sent to multiple tasks)
         !
-        call utl_tmg_start(131,'----CommWeights')
+        call utl_tmg_start(132,'----CommWeights')
         latIndex = myLatIndexesSend(latLonIndex)
         lonIndex = myLonIndexesSend(latLonIndex)
         do procIndex = 1, myNumProcIndexesSend(latLonIndex)
@@ -1183,14 +1183,14 @@ contains
                           nsize, mmpi_datyp_real8, procIndexSend-1, sendTag,  &
                           mmpi_comm_grid, requestIdSend(numSend), ierr )
         end do
-        call utl_tmg_stop(131)
+        call utl_tmg_stop(132)
 
       end do LATLON_LOOP
 
       !
       ! Wait for communiations to finish before continuing
       !
-      call utl_tmg_start(131,'----CommWeights')
+      call utl_tmg_start(132,'----CommWeights')
       if (firstTime) write(*,*) 'numSend/Recv = ', numSend, numRecv
       firstTime = .false.
 
@@ -1202,19 +1202,19 @@ contains
         call mpi_waitAll(numSend, requestIdSend(1:numSend), MPI_STATUSES_IGNORE, ierr)
       end if
 
-      call utl_tmg_stop(131)
+      call utl_tmg_stop(132)
 
       !
       ! Interpolate weights from coarse to full resolution
       !
-      call utl_tmg_start(139,'----InterpolateWeights')
+      call utl_tmg_start(140,'----InterpolateWeights')
       if (wInterpInfo%latLonStep > 1) then
         call enkf_interpWeights(wInterpInfo, weightsMean)
         call enkf_interpWeights(wInterpInfo, weightsMembers)
       end if
-      call utl_tmg_stop(139)
+      call utl_tmg_stop(140)
 
-      call utl_tmg_start(140,'----ApplyWeights')
+      call utl_tmg_start(143,'----ApplyWeights')
 
       !
       ! Apply the weights to compute the ensemble mean and members
@@ -1323,7 +1323,7 @@ contains
               memberAnlPert(:) = 0.0d0
 
               if ( useModulatedEns ) then
-                call utl_tmg_start(141,'------ApplyWeightsMember')
+                call utl_tmg_start(144,'------ApplyWeightsMember')
                 do memberIndex2 = 1, nEns
                   do eigenVectorColumnIndex = 1, numRetainedEigen
                     call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
@@ -1353,7 +1353,7 @@ contains
                                                  memberAnlPert(memberIndex2)
 
                 end do ! memberIndex2
-                call utl_tmg_stop(141)
+                call utl_tmg_stop(144)
               else
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
@@ -1375,7 +1375,7 @@ contains
       end do
       !$OMP END PARALLEL DO
 
-      call utl_tmg_stop(140)
+      call utl_tmg_stop(143)
 
     end do LEV_LOOP
 
@@ -1387,9 +1387,9 @@ contains
       write(*,*) '                      Therefore will keep closest obs only.'
     end if
 
-    call utl_tmg_start(142,'----Barr')
+    call utl_tmg_start(141,'----Barr')
     call rpn_comm_barrier('GRID',ierr)
-    call utl_tmg_stop(142)
+    call utl_tmg_stop(141)
 
     call gsv_deallocate(stateVectorMeanInc)
     call gsv_deallocate(stateVectorMeanTrl)
@@ -1397,7 +1397,7 @@ contains
     write(*,*) 'enkf_LETKFanalyses: done'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    call utl_tmg_stop(130)
+    call utl_tmg_stop(131)
 
   end subroutine enkf_LETKFanalyses
 
@@ -2263,7 +2263,7 @@ contains
 
     logical, save :: firstCall = .true.
 
-    call utl_tmg_start(144,'----getModulationFactor')
+    call utl_tmg_start(130,'--getModulationFactor')
 
     if ( present(beSilent_opt) ) then
       beSilent = beSilent_opt
@@ -2358,7 +2358,7 @@ contains
 
     modulationFactor_r4 = modulationFactorArray_r4(eigenVectorColumnIndex,eigenVectorLevelIndex)
   
-    call utl_tmg_stop(144)
+    call utl_tmg_stop(130)
 
   end subroutine getModulationFactor
 
