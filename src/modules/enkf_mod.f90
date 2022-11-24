@@ -1223,9 +1223,9 @@ contains
       call gsv_getField(stateVectorMeanTrl,meanTrl_ptr_r4)
       call gsv_getField(stateVectorMeanAnl,meanAnl_ptr_r4)
 
-      !$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, varLevIndex, varLevel, varKind, levIndex2, memberTrl_ptr_r4, memberAnl_ptr_r4), &
-      !$OMP PRIVATE(memberAnlPert, stepIndex, memberIndex, memberIndex2, memberIndex1, eigenVectorColumnIndex, pert_r4), &
-      !$OMP PRIVATE(memberIndexInModEns, modulationFactor_r4)
+      !!$OMP PARALLEL DO PRIVATE(latIndex, lonIndex, varLevIndex, varLevel, varKind, levIndex2, memberTrl_ptr_r4, memberAnl_ptr_r4), &
+      !!$OMP PRIVATE(memberAnlPert, stepIndex, memberIndex, memberIndex2, memberIndex1, eigenVectorColumnIndex, pert_r4), &
+      !!$OMP PRIVATE(memberIndexInModEns, modulationFactor_r4)
       do latIndex = myLatBeg, myLatEnd
         LON_LOOP5: do lonIndex = myLonBeg, myLonEnd
 
@@ -1373,7 +1373,7 @@ contains
 
         end do LON_LOOP5
       end do
-      !$OMP END PARALLEL DO
+      !!$OMP END PARALLEL DO
 
       call utl_tmg_stop(143)
 
