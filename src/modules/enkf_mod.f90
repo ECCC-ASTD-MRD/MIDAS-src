@@ -1322,8 +1322,9 @@ contains
               ! Compute analysis member perturbation
               memberAnlPert(:) = 0.0d0
 
+              call utl_tmg_start(144,'------ApplyWeightsMember')
+
               if ( useModulatedEns ) then
-                call utl_tmg_start(144,'------ApplyWeightsMember')
                 do memberIndex2 = 1, nEns
                   do eigenVectorColumnIndex = 1, numRetainedEigen
                     call getModulationFactor( stateVectorMeanInc%vco, levIndex2, &
@@ -1353,7 +1354,6 @@ contains
                                                  memberAnlPert(memberIndex2)
 
                 end do ! memberIndex2
-                call utl_tmg_stop(144)
               else
                 do memberIndex2 = 1, nEns
                   do memberIndex1 = 1, nEns
@@ -1364,6 +1364,8 @@ contains
                   end do ! memberIndex1
                 end do ! memberIndex2
               end if
+
+              call utl_tmg_stop(144)
 
               ! Add analysis member perturbation to mean analysis
               memberAnl_ptr_r4(:,stepIndex,lonIndex,latIndex) =  &
