@@ -433,7 +433,7 @@ program midas_letkf
 
     ! Compute and set Yb in ensObsGain
     do eigenVectorIndex = 1, numRetainedEigen
-      if ( mmpi_myid == 0 ) then
+      if ( mmpi_myid == 0 .and. debug ) then
         write(*,*) 'midas-letkf: apply nonlinear H to modulated member ', &
                    eigenVectorIndex, '/', numRetainedEigen
       end if

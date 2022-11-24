@@ -333,20 +333,20 @@ contains
         end do
       end do
 
-      write(*,*) 'nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns = ',  &
-                 nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns
-      do subEnsIndex = 1, numSubEns
-        write(*,*) 'memberIndexSubEns = '
-        write(*,*) memberIndexSubEns(:,subEnsIndex)
-        if ( useModulatedEns ) then
-          write(*,*) 'memberIndexSubEns_mod = '
-          write(*,*) memberIndexSubEns_mod(:,subEnsIndex)
-        end if
-
-        write(*,*) 'memberIndexSubEnsComp = '
-        write(*,*) memberIndexSubEnsComp(:,subEnsIndex)
-
-      end do
+      if ( mmpi_myid == 0 ) then
+        write(*,*) 'nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns = ',  &
+                  nEns, numSubEns, nEnsPerSubEns, nEnsIndependentPerSubEns
+        do subEnsIndex = 1, numSubEns
+          write(*,*) 'memberIndexSubEns = '
+          write(*,*) memberIndexSubEns(:,subEnsIndex)
+          if ( useModulatedEns ) then
+            write(*,*) 'memberIndexSubEns_mod = '
+            write(*,*) memberIndexSubEns_mod(:,subEnsIndex)
+          end if
+          write(*,*) 'memberIndexSubEnsComp = '
+          write(*,*) memberIndexSubEnsComp(:,subEnsIndex)
+        end do
+      end if
 
     end if ! if CVLETKF(-PERTOBS)(-ME) algorithm
 
