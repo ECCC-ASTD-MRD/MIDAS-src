@@ -5362,20 +5362,20 @@ CONTAINS
     integer, allocatable        :: address(:)
     integer                     :: nbele, nvale, nte
     integer                     :: valIndex, tIndex, reportIndex, btyp, idatyp, bfam, error
-    integer                     :: indele, nsize, iun_burpin
+    integer                     :: ind, indele, nsize, iun_burpin
     integer                     :: nulnam
     character(len=9)            :: station_id
     character(len=7), parameter :: opt_missing='MISSING'
     character(len=codtyp_name_length) :: instrumName
     integer                     :: instrumID, previousInstrumID
-    integer, dimension(3)       :: icodele
-    integer, dimension(3)       :: icodeleMrq 
+    integer                     :: icodele(3)
+    integer                     :: icodeleMrq(3) 
     integer                     :: btClearMrqElementID
     real, parameter             :: val_option = -9999.0
     integer, external           :: mrfmxl
     logical                     :: isDerialt, isInstrumUsingCLW
     logical                     :: beSilent
-    integer                     :: nele, i, ind
+    integer                     :: nElem, elemIndex, burpIndex
 
     namelist /NAMADDTOBURP/ addBtClearToBurp, clwFgElementId, btClearElementId
 
@@ -5394,19 +5394,19 @@ CONTAINS
 
     select case(familyType)
     case("TO")
-      nele = 1
+      nElem = 1
       icodele(1) = 12233
     case("GP")
-      nele = 1
+      nElem = 1
       icodele(1) = 15234
     case("UA")
-      nele = 2
+      nElem = 2
       icodele(1:2) = (/12204,12243/)
     case default
       return
     end select
 
-    icodeleMrq(1:nele) =  200000 + icodele(1:nele)
+    icodeleMrq(1:nElem) =  200000 + icodele(1:nElem)
 
     ! Read the NAMADDTOBURP namelist (if it exists)
     
@@ -5417,23 +5417,23 @@ CONTAINS
     
     if ( familyType == "TO" ) then
       if (utl_isNamelistPresent('NAMADDTOBURP','./flnml')) then
-         ! read the namelist
-         nulnam = 0
-         error = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-         read(nulnam, nml=NAMADDTOBURP, iostat=error)
-         if ( error /= 0 ) call utl_abort('brpr_addElementsToBurp: Error reading namelist')
-         write(*,nml=NAMADDTOBURP)
-         error = fclos(nulnam)
+        ! read the namelist
+        nulnam = 0
+        error = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+        read(nulnam, nml=NAMADDTOBURP, iostat=error)
+        if ( error /= 0 ) call utl_abort('brpr_addElementsToBurp: Error reading namelist')
+        write(*,nml=NAMADDTOBURP)
+        error = fclos(nulnam)
       else
-         write(*,*)
-         write(*,*) 'brpr_addElementsToBurp: Namelist block NAMADDTOBURP is missing in the namelist.'
-         write(*,*) '                               The default value will be taken.'
-         write(*,nml=NAMADDTOBURP)
+        write(*,*)
+        write(*,*) 'brpr_addElementsToBurp: Namelist block NAMADDTOBURP is missing in the namelist.'
+        write(*,*) '                               The default value will be taken.'
+        write(*,nml=NAMADDTOBURP)
       end if
 
       ! check clear-sky radiance element is in the namelist
       if ( addBtClearToBurp .and. btClearElementId < 0 ) then
-         call utl_abort('brpr_addElementsToBurp: btClearElementId missing in the namelist')
+        call utl_abort('brpr_addElementsToBurp: btClearElementId missing in the namelist')
       end if
 
       btClearMrqElementID = 200000 + btClearElementId
@@ -5504,29 +5504,29 @@ CONTAINS
       if (station_id(1:2) == '>>') cycle
       
       if ( familyType == "TO" ) then
-         if ( .not. beSilent ) then
-            if ( count == 1 ) then
-               write(*,*) 'brpr_addElementsToBurp: tvs_mwAllskyAssim =', tvs_mwAllskyAssim
-               write(*,*) 'brpr_addElementsToBurp: clwFgElementId =', clwFgElementId 
-            end if
+        if ( .not. beSilent ) then
+          if ( count == 1 ) then
+            write(*,*) 'brpr_addElementsToBurp: tvs_mwAllskyAssim =', tvs_mwAllskyAssim
+            write(*,*) 'brpr_addElementsToBurp: clwFgElementId =', clwFgElementId 
+          end if
 
-            instrumName = codtyp_get_name(idatyp)
-            instrumID = tvs_getInstrumentId(instrumName)
-            isInstrumUsingCLW = tvs_isInstrumUsingCLW(tvs_getInstrumentId(instrumName))
-            if (instrumID /= previousInstrumID) then
-               write(*,*) 'brpr_addElementsToBurp: for report count =', count, &
-                     ', instrumentName=', instrumName, &
-                     ', instrumentId =', instrumID, &
-                     ', isInstrumUsingCLW =', isInstrumUsingCLW
-               previousInstrumID = instrumID
-            end if
-         end if
+          instrumName = codtyp_get_name(idatyp)
+          instrumID = tvs_getInstrumentId(instrumName)
+          isInstrumUsingCLW = tvs_isInstrumUsingCLW(tvs_getInstrumentId(instrumName))
+          if (instrumID /= previousInstrumID) then
+            write(*,*) 'brpr_addElementsToBurp: for report count =', count, &
+              ', instrumentName=', instrumName, &
+              ', instrumentId =', instrumID, &
+              ', isInstrumUsingCLW =', isInstrumUsingCLW
+            previousInstrumID = instrumID
+          end if
+        end if
 
-         ! check clwFG element is in the namelist in all-sky mode.
-         if ( tvs_mwAllskyAssim .and. clwFgElementId < 0 .and. &
-            tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
-            call utl_abort('brpr_addElementsToBurp: clwFgElementId missing in the namelist')
-         end if
+        ! check clwFG element is in the namelist in all-sky mode.
+        if ( tvs_mwAllskyAssim .and. clwFgElementId < 0 .and. &
+          tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+          call utl_abort('brpr_addElementsToBurp: clwFgElementId missing in the namelist')
+        end if
       end if
       
     end do
@@ -5581,25 +5581,25 @@ CONTAINS
 
           if ( isObsBlock(familyType,btyp) .and. bfam == 0 ) then 
 
-            do i = 1, nele
-               ind = burp_find_element(inputBlock, element=icodele(i), iostat=error)
-               if ( ind <= 0 ) then
-                  nbele = nbele + 1
-                  call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
-                  call handle_error(error, "brpr_addElementsToBurp: burp_resize_block #1")
-                  call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodele(i), IOSTAT = error)
-                  call handle_error(error, "brpr_addElementsToBurp: burp_set_element #1")
-                  do valIndex = 1,nvale
-                     do tIndex = 1,nte
-                        call burp_set_rval( inputBlock, &
-                           nele_ind = nbele,            &
-                           nval_ind = valIndex,         &
-                           nt_ind   = tIndex,           &
-                           rval   = val_option, iostat=error)
-                        call handle_error(error, "brpr_addElementsToBurp: burp_set_rval #1")
-                     end do
+            do elemIndex = 1, nElem
+              burpIndex = burp_find_element(inputBlock, element=icodele(elemIndex), iostat=error)
+              if ( burpIndex <= 0 ) then
+                nbele = nbele + 1
+                call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
+                call handle_error(error, "brpr_addElementsToBurp: burp_resize_block #1")
+                call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodele(elemIndex), IOSTAT = error)
+                call handle_error(error, "brpr_addElementsToBurp: burp_set_element #1")
+                do valIndex = 1,nvale
+                  do tIndex = 1,nte
+                    call burp_set_rval( inputBlock, &
+                       nele_ind = nbele,            &
+                       nval_ind = valIndex,         &
+                       nt_ind   = tIndex,           &
+                       rval   = val_option, iostat=error)
+                    call handle_error(error, "brpr_addElementsToBurp: burp_set_rval #1")
                   end do
-               end if
+                end do
+              end if
             end do
         
             ! Adding clear-sky radiance to data block for instrument in all-sky mode.
@@ -5633,25 +5633,25 @@ CONTAINS
             call handle_error(error, "brpr_addElementsToBurp: burp_write_block #1")
 
           else if ( isFlagBlock(familyType,btyp) .and. bfam == 0 ) then     !  MRQ block 
-            do i = 1, nele
-               ind = burp_find_element(inputBlock, element=icodeleMrq(i), iostat=error)
-               if ( ind <= 0 ) then
-                  nbele = nbele + 1
-                  call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
-                  call handle_error(error, "brpr_addElementsToBurp: burp_resize_block #2")
-                  Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodeleMrq(i), IOSTAT = error)
-                  call handle_error(error, "brpr_addElementsToBurp: burp_set_element #3")
-                  do valIndex = 1,nvale
-                     do tIndex = 1, nte
-                        call burp_set_tblval( inputBlock, &
-                           nele_ind = nbele,            &
-                           nval_ind = valIndex,         &
-                           nt_ind   = tIndex,           &
-                           tblval   = 0, iostat=error)
+            do elemIndex = 1, nElem
+              ind = burp_find_element(inputBlock, element=icodeleMrq(elemIndex), iostat=error)
+              if ( ind <= 0 ) then
+                nbele = nbele + 1
+                call burp_resize_block(InputBlock, ADD_NELE = 1, IOSTAT = error)
+                call handle_error(error, "brpr_addElementsToBurp: burp_resize_block #2")
+                Call burp_set_element(InputBlock, NELE_IND = nbele, ELEMENT = icodeleMrq(elemIndex), IOSTAT = error)
+                call handle_error(error, "brpr_addElementsToBurp: burp_set_element #3")
+                do valIndex = 1,nvale
+                  do tIndex = 1, nte
+                    call burp_set_tblval( inputBlock, &
+                         nele_ind = nbele,            &
+                         nval_ind = valIndex,         &
+                         nt_ind   = tIndex,           &
+                         tblval   = 0, iostat=error)
                         call handle_error(error, "brpr_addElementsToBurp: burp_set_tblval #1")
-                     end do
                   end do
-               end if
+                end do
+              end if
             end do
         
             ! Adding clear-sky radiance to MRQ block for instrument in all-sky mode.

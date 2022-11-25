@@ -93,8 +93,8 @@ MODULE biasCorrectionConv_mod
   
   ! Structure to hold dictionary containing the BUFR sonde type codes associated with each sonde type
   type sondeType
-     character(len=8)  :: name
-     integer           :: codes(20)
+    character(len=8)  :: name
+    integer           :: codes(20)
   end type sondeType
   
   type(sondeType), allocatable  :: rsTypes(:)
@@ -118,7 +118,7 @@ CONTAINS
     !
     implicit none
     !Locals:
-    integer  :: ierr, nulnam, iSondeIndex
+    integer  :: ierr, nulnam, sondeIndex
     
     if ( initialized ) then
       write(*,*) "bcc_readConfig has already been called. Returning..."
@@ -172,9 +172,9 @@ CONTAINS
       if ( nlNbSondes > nSondesMax ) call utl_abort('bcc_readconfig: Number of sonde types in namelist exceeds nSondesMax!')
       if ( nlNbSondes <= 0 )         call utl_abort('bcc_readconfig: Number of sonde types in namelist <= 0!')
       allocate( rsTypes(nlNbSondes) )
-      do iSondeIndex = 1, nlNbSondes
-        rsTypes(iSondeIndex)%name     = nlSondeTypes(iSondeIndex)
-        rsTypes(iSondeIndex)%codes(:) = nlSondeCodes(iSondeIndex,:)
+      do sondeIndex = 1, nlNbSondes
+        rsTypes(sondeIndex)%name     = nlSondeTypes(sondeIndex)
+        rsTypes(sondeIndex)%codes(:) = nlSondeCodes(sondeIndex,:)
       end do
     end if
     
@@ -214,7 +214,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   ! bcc_GetUACorrection
   !-----------------------------------------------------------------------
-   subroutine bcc_GetUACorrection(varName,stnIndex,sondeTypeIndex,sondeType,jCat,timeOfDayX,latband,obsPressure,corr,sourceCorr)
+   subroutine bcc_GetUACorrection(varName,stnIndex,sondeTypeIndex,sondeType,biasProfileCategory,timeOfDayX,latband,obsPressure,corr,sourceCorr)
     !
     ! :Purpose: Return a TT or TD bias correction (corr) 
     
@@ -223,7 +223,7 @@ CONTAINS
     !      stnIndex       = (int) station index (in uaStations) = -1 if station was not found in bcor file
     !      sondeTypeIndex = (int) sonde type index (in rsTypes) =  0 if sonde-type code is not associated with any type
     !      sondeType      = (str) sonde-type from rsTypes
-    !      jCat           = (int) bias profile category = 1 (ascent/none) or 3 (descent)
+    !      biasProfileCategory = (int) bias profile category = 1 (ascent/none) or 3 (descent)
     !      timeOfDayX     = (float)  0.0 (night) <= TimeOfDayX <= 1.0 (day), depends on solar_elev
     !      latband        = (int) 1-5
     !      obsPressure    = (float) pressure level (mb) of observation
@@ -238,10 +238,10 @@ CONTAINS
     !    ttCorrections(sondeTypeIndex,latband,j,MandLev)
     !    tdCorrections(sondeTypeIndex,latband,j,MandLev)
     ! where MandLev = 1 (1000 mb) to 16 (10 mb)
-    ! If uaNbiasCat = 1 (jCat = 1)
+    ! If uaNbiasCat = 1 (biasProfileCategory = 1)
     !       j = 1 (night)
     !           2 (day)
-    ! If uaNbiasCat = 2 (jCat = 1 [ascent] or 3 [descent])
+    ! If uaNbiasCat = 2 (biasProfileCategory = 1 [ascent] or 3 [descent])
     !       j = 1 (night-ascent)
     !           2 (day-ascent)
     !           3 (night-descent)
@@ -256,7 +256,7 @@ CONTAINS
     !Arguments:
     integer, intent(in)           ::  stnIndex
     integer, intent(in)           ::  sondeTypeIndex
-    integer, intent(in)           ::  jCat
+    integer, intent(in)           ::  biasProfileCategory
     integer, intent(in)           ::  latband
     real(8), intent(in)           ::  timeOfDayX
     real(8), intent(in)           ::  obsPressure
@@ -269,7 +269,7 @@ CONTAINS
     real(8) ::  corrDay, corrNight
     real(8) ::  weight1, weight2, deltaPressure, pressureAbove, pressureBelow, corrAbove, corrBelow
     real(8) ::  corrAboveNight, corrBelowNight, corrAboveDay, corrBelowDay
-    integer ::  iLevel, iLevelIndex
+    integer ::  level, levelIndex
     logical ::  profileExistsStn, profileExistsStype, doInterp
 
     sourceCorr = "none"
@@ -280,7 +280,7 @@ CONTAINS
     else
       if ( sondeTypeIndex > 0 ) then
         ! Check that correction profile for this station, sonde-type and TimeOfDay is available for use
-        profileExistsStn = biasCorrPresentStn(stnIndex,sondeTypeIndex,jCat)
+        profileExistsStn = biasCorrPresentStn(stnIndex,sondeTypeIndex,biasProfileCategory)
       else ! There are no bias profiles for this station/stype combination
         profileExistsStn = .false.
       end if
@@ -290,7 +290,7 @@ CONTAINS
     profileExistsStype = .false.
     if ( trim(sondeType) /= 'unknown' .and. trim(sondeType) /= 'Others' .and. trim(sondeType) /= 'None' ) then
       ! Check if correction profile for this sonde-type,latband,and TimeOfDay is available for use
-      profileExistsStype = biasCorrPresentStype(sondeTypeIndex,latband,jCat)
+      profileExistsStype = biasCorrPresentStype(sondeTypeIndex,latband,biasProfileCategory)
     end if
        
     if ( .not.profileExistsStn  .and. .not.profileExistsStype ) then
@@ -301,21 +301,21 @@ CONTAINS
     ! Fill the night and day bias correction profiles
     if ( varName == 'TT' ) then
       if ( profileExistsStn ) then
-        corrProfileStnNight(:)   = ttCorrectionsStn(stnIndex,sondeTypeIndex,jCat,:)
-        corrProfileStnDay(:)     = ttCorrectionsStn(stnIndex,sondeTypeIndex,jCat+1,:)
+        corrProfileStnNight(:)   = ttCorrectionsStn(stnIndex,sondeTypeIndex,biasProfileCategory,:)
+        corrProfileStnDay(:)     = ttCorrectionsStn(stnIndex,sondeTypeIndex,biasProfileCategory+1,:)
       end if
       if ( profileExistsStype ) then
-        corrProfileStypeNight(:) = ttCorrections(sondeTypeIndex,latband,jCat,:)
-        corrProfileStypeDay(:)   = ttCorrections(sondeTypeIndex,latband,jCat+1,:)
+        corrProfileStypeNight(:) = ttCorrections(sondeTypeIndex,latband,biasProfileCategory,:)
+        corrProfileStypeDay(:)   = ttCorrections(sondeTypeIndex,latband,biasProfileCategory+1,:)
       end if
     else if ( varName == 'TD' ) then
       if ( profileExistsStn ) then
-         corrProfileStnNight(:)   = tdCorrectionsStn(stnIndex,sondeTypeIndex,jCat,:)
-         corrProfileStnDay(:)     = tdCorrectionsStn(stnIndex,sondeTypeIndex,jCat+1,:)
+         corrProfileStnNight(:)   = tdCorrectionsStn(stnIndex,sondeTypeIndex,biasProfileCategory,:)
+         corrProfileStnDay(:)     = tdCorrectionsStn(stnIndex,sondeTypeIndex,biasProfileCategory+1,:)
       end if
       if ( profileExistsStype ) then
-         corrProfileStypeNight(:) = tdCorrections(sondeTypeIndex,latband,jCat,:)
-         corrProfileStypeDay(:)   = tdCorrections(sondeTypeIndex,latband,jCat+1,:)
+         corrProfileStypeNight(:) = tdCorrections(sondeTypeIndex,latband,biasProfileCategory,:)
+         corrProfileStypeDay(:)   = tdCorrections(sondeTypeIndex,latband,biasProfileCategory+1,:)
       end if
     else 
       call utl_abort('bcc_GetUACorrection: Unsupported varName '//varName)
@@ -330,18 +330,18 @@ CONTAINS
     
     ! Check if obsPressure is outside range of levels (no interpolation possible)
     if ( obsPressure >= mandLevs(1) ) then
-      iLevelIndex = 1
+      levelIndex = 1
     else if ( obsPressure <= mandLevs(nMandLevs) ) then 
-      iLevelIndex = nMandLevs
+      levelIndex = nMandLevs
     else
-      iLevelIndex = 0
+      levelIndex = 0
     end if
     
     ! Check if obsPressure is close to one of the 16 mandatory levels (no interpolation needed)
-    if ( iLevelIndex == 0 ) then
-      do iLevel = 1, nMandLevs
-        if ( abs(obsPressure-mandLevs(iLevel)) <= tolPress(iLevel) ) then
-          iLevelIndex = iLevel
+    if ( levelIndex == 0 ) then
+      do level = 1, nMandLevs
+        if ( abs(obsPressure-mandLevs(level)) <= tolPress(level) ) then
+          levelIndex = level
           exit
         end if
       end do
@@ -349,17 +349,17 @@ CONTAINS
     
     ! If obsPressure is close to one of the 16 mandatory levels get the correction for the mandatory level: 
     ! Use correction by station with correction by stype as backup
-    if ( iLevelIndex > 0 ) then
+    if ( levelIndex > 0 ) then
       if ( profileExistsStn ) then
-        corrNight = corrProfileStnNight(iLevelIndex)
-        corrDay   = corrProfileStnDay(iLevelIndex)
+        corrNight = corrProfileStnNight(levelIndex)
+        corrDay   = corrProfileStnDay(levelIndex)
         sourceCorr = "stn"
         corr = bcc_UACorrection(timeOfDayX,corrNight,corrDay)
         if ( corr == MPC_missingValue_R8 ) then
           sourceCorr = "none"
           if ( profileExistsStype ) then
-            corrNight = corrProfileStypeNight(iLevelIndex)
-            corrDay   = corrProfileStypeDay(iLevelIndex)
+            corrNight = corrProfileStypeNight(levelIndex)
+            corrDay   = corrProfileStypeDay(levelIndex)
             sourceCorr = "stype"
             corr = bcc_UACorrection(timeOfDayX,corrNight,corrDay)
             if ( corr == MPC_missingValue_R8 ) sourceCorr = "none"
@@ -367,8 +367,8 @@ CONTAINS
         end if
       else
         if ( profileExistsStype ) then
-          corrNight = corrProfileStypeNight(iLevelIndex)
-          corrDay   = corrProfileStypeDay(iLevelIndex)
+          corrNight = corrProfileStypeNight(levelIndex)
+          corrDay   = corrProfileStypeDay(levelIndex)
           sourceCorr = "stype"
           corr = bcc_UACorrection(timeOfDayX,corrNight,corrDay)
           if ( corr == MPC_missingValue_R8 ) sourceCorr = "none"
@@ -384,14 +384,14 @@ CONTAINS
       corrBelow = MPC_missingValue_R8
       
       if ( profileExistsStn ) then
-        do iLevel = 1, nMandLevs-1
-          if ( obsPressure <= mandLevs(iLevel) .and. obsPressure > mandLevs(iLevel+1) ) then
-            pressureBelow = mandLevs(iLevel)
-            pressureAbove = mandLevs(iLevel+1)
-            corrBelowNight = corrProfileStnNight(iLevel)
-            corrAboveNight = corrProfileStnNight(iLevel+1)
-            corrBelowDay   = corrProfileStnDay(iLevel)
-            corrAboveDay   = corrProfileStnDay(iLevel+1)
+        do level = 1, nMandLevs-1
+          if ( obsPressure <= mandLevs(level) .and. obsPressure > mandLevs(level+1) ) then
+            pressureBelow = mandLevs(level)
+            pressureAbove = mandLevs(level+1)
+            corrBelowNight = corrProfileStnNight(level)
+            corrAboveNight = corrProfileStnNight(level+1)
+            corrBelowDay   = corrProfileStnDay(level)
+            corrAboveDay   = corrProfileStnDay(level+1)
             exit
           end if
         end do
@@ -414,14 +414,14 @@ CONTAINS
       
       if ( corrAbove == MPC_missingValue_R8 .or. corrBelow == MPC_missingValue_R8 ) then
         if ( profileExistsStype ) then
-          do iLevel = 1, nMandLevs-1
-            if ( obsPressure <= mandLevs(iLevel) .and. obsPressure > mandLevs(iLevel+1) ) then
-              pressureBelow = mandLevs(iLevel)
-              pressureAbove = mandLevs(iLevel+1)
-              corrBelowNight = corrProfileStypeNight(iLevel)
-              corrAboveNight = corrProfileStypeNight(iLevel+1)
-              corrBelowDay   = corrProfileStypeDay(iLevel)
-              corrAboveDay   = corrProfileStypeDay(iLevel+1)
+          do level = 1, nMandLevs-1
+            if ( obsPressure <= mandLevs(level) .and. obsPressure > mandLevs(level+1) ) then
+              pressureBelow = mandLevs(level)
+              pressureAbove = mandLevs(level+1)
+              corrBelowNight = corrProfileStypeNight(level)
+              corrAboveNight = corrProfileStypeNight(level+1)
+              corrBelowDay   = corrProfileStypeDay(level)
+              corrAboveDay   = corrProfileStypeDay(level+1)
               exit
             end if
           end do
@@ -462,25 +462,25 @@ CONTAINS
   !-----------------------------------------------------------------------
   ! bcc_StationIndex
   !-----------------------------------------------------------------------  
-  function bcc_StationIndex(Station) result(StationIndex)
+  function bcc_StationIndex(station) result(stationIndexOut)
     !
-    ! :Purpose: Return the Station index (order in array uaStations) corresponding to Station
-    !           Returns -1 if Station is not found in uaStations.
+    ! :Purpose: Return the station index (order in array uaStations) corresponding to station
+    !           Returns -1 if station is not found in uaStations.
     !
     implicit none
     
-    integer  :: StationIndex
+    integer  :: stationIndexOut
      
     !Arguments:
-    character(len=*), intent(in)  :: Station
+    character(len=*), intent(in)  :: station
     !Locals:
-    integer    :: iStn
+    integer    :: stationIndex
     
     if ( allocated(uaStations) ) then
-      StationIndex = -1
-      do iStn = 1, nStationMaxUA
-        if ( trim(uaStations(iStn)) == trim(Station) ) then
-          StationIndex = iStn
+      stationIndexOut = -1
+      do stationIndex = 1, nStationMaxUA
+        if ( trim(uaStations(stationIndex)) == trim(station) ) then
+          stationIndexOut = stationIndex
           exit
         end if
       end do
@@ -493,7 +493,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   ! bcc_SondeIndex
   !-----------------------------------------------------------------------
-  function bcc_SondeIndex(SondeType) result(SondeIndex)
+  function bcc_SondeIndex(sondeType) result(sondeIndex)
     !
     ! :Purpose: Return the Sonde Type index (order in array rsTypes) corresponding to the SondeType
     !           Requires array of sondeType structures (rsTypes) to be allocated and filled.
@@ -501,11 +501,11 @@ CONTAINS
     !
     implicit none
     
-    integer  :: SondeIndex
+    integer  :: sondeIndex
     !Arguments:
-    character(len=*), intent(in)  :: SondeType
+    character(len=*), intent(in)  :: sondeType
     !Locals:
-    integer    :: iType, ntypes
+    integer    :: typeIndex, ntypes
     
     if ( allocated(rsTypes) ) then
       ntypes = nlNbSondes
@@ -514,9 +514,9 @@ CONTAINS
     end if
     
     SondeIndex = -1
-    do iType = 1, ntypes
-      if ( trim(rsTypes(iType)%name) == trim(SondeType) ) then
-        SondeIndex = iType
+    do typeIndex = 1, ntypes
+      if ( trim(rsTypes(typeIndex)%name) == trim(sondeType) ) then
+        sondeIndex = typeIndex
         exit
       end if
     end do
@@ -526,10 +526,10 @@ CONTAINS
   !-----------------------------------------------------------------------
   ! bcc_GetSondeType
   !-----------------------------------------------------------------------
-  subroutine bcc_GetSondeType(code,sondeType,sondeTypeIndex)
+  subroutine bcc_GetSondeType(sondeTypeCode,sondeType,sondeTypeIndex)
     !
-    ! :Purpose: Returns the sonde type and index given a BUFR table sonde type code (BUFR ele 002011)
-    !           Returns sondeType='unknown', sondeTypeIndex=0 if code is not found.
+    ! :Purpose: Returns the sonde type and index given a BUFR table sondeTypeCode (BUFR elem 002011)
+    !           Returns sondeType='unknown', sondeTypeIndex=0 if sondeTypeCode is not found.
     !
     
     ! Requires array of sonde_type structures (rsTypes) to be allocated and filled with the 
@@ -537,11 +537,11 @@ CONTAINS
     !
     implicit none
     !Arguments:
-    integer, intent(in)            :: code
+    integer, intent(in)            :: sondeTypeCode
     character(len=*), intent(out)  :: sondeType
     integer, intent(out)           :: sondeTypeIndex
     !Locals:
-    integer  :: iType, ntypes, icode
+    integer  :: typeIndex, ntypes, sondeCode
     
     if ( allocated(rsTypes) ) then
       ntypes = nlNbSondes
@@ -549,22 +549,22 @@ CONTAINS
       call utl_abort('bcc_GetSondeType: array rsTypes not allocated!')
     end if
     
-    if ( code == 190 .or. code == 192 ) then     ! NCAR dropsonde (BUFR only)
-      icode = 13                                 ! RS92 code
-    else if ( code == 191 .or. code == 193 ) then ! NCAR dropsonde (BUFR only)
-      icode = 41                                 ! RS41 code
-    else if ( code >=100 .and. code < 200 ) then
-      icode = code - 100
+    if ( sondeTypeCode == 190 .or. sondeTypeCode == 192 ) then      ! NCAR dropsonde (BUFR only)
+      sondeCode = 13                                 ! RS92 code
+    else if ( sondeTypeCode == 191 .or. sondeTypeCode == 193 ) then ! NCAR dropsonde (BUFR only)
+      sondeCode = 41                                 ! RS41 code
+    else if ( sondeTypeCode >=100 .and. sondeTypeCode < 200 ) then
+      sondeCode = sondeTypeCode - 100
     else 
-      icode = code
+      sondeCode = sondeTypeCode
     end if
     
     sondeType = 'unknown'
     sondeTypeIndex = 0
-    do iType = 1, ntypes
-      if ( ANY(rsTypes(iType)%codes == icode) ) then
-        sondeType = rsTypes(iType)%name 
-        sondeTypeIndex = iType
+    do typeIndex = 1, ntypes
+      if ( ANY(rsTypes(typeIndex)%codes == sondeCode) ) then
+        sondeType = rsTypes(typeIndex)%name 
+        sondeTypeIndex = typeIndex
         exit
       end if
     end do
@@ -644,7 +644,7 @@ CONTAINS
   !----------------------------------------------------------------------------------------
   ! bcc_uaPhase
   !----------------------------------------------------------------------------------------
-  function bcc_uaPhase(CodeType) result(uaPhase)
+  function bcc_uaPhase(codeType) result(uaPhase)
     !
     ! :Purpose: Returns the radiosonde phase (1=ascent, 2=descent) given a header code type
     !
@@ -653,9 +653,9 @@ CONTAINS
     integer  :: uaPhase 
     
     !Arguments:
-    integer, intent(in)   ::  CodeType
+    integer, intent(in)   ::  codeType
     
-    if (CodeType == 37) then
+    if (codeType == codtyp_get_codtyp('tempdrop')) then
       uaPhase = 2
     else
       uaPhase = 1
@@ -666,34 +666,34 @@ CONTAINS
   !-----------------------------------------------------------------------
   ! bcc_LatBand
   !-----------------------------------------------------------------------
-  function bcc_LatBand(lat) result(LatBand)
+  function bcc_LatBand(latInRadians) result(latBand)
     !
     ! :Purpose: Returns latitude band number given latitude (radians)
     !
     implicit none
     
-    integer :: LatBand
+    integer :: latBand
     
     !Arguments:
-    real(8), intent(in) ::  lat    ! radians
+    real(8), intent(in) ::  latInRadians 
     !Locals:
-    real(8)             ::  zlat
+    real(8)             ::  latInDegrees
     
     if ( uaNlatBands /= 5 ) then
-      LatBand = -1
+      latBand = -1
     else
-      zlat = MPC_DEGREES_PER_RADIAN_R8 * lat
-      if (zlat < -90.0d0 ) LatBand = 1  ! Should never be the case!
-      if   (zlat >= -90.0d0   .and. zlat < -60.0d0) then
-         LatBand = 1
-      else if (zlat >= -60.0d0 .and. zlat < -20.0d0) then
-         LatBand = 2
-      else if (zlat >= -20.0d0 .and. zlat <  20.0d0) then
-         LatBand = 3
-      else if (zlat >= 20.0d0  .and. zlat <  60.0d0) then
-         LatBand = 4
+      latInDegrees = MPC_DEGREES_PER_RADIAN_R8 * latInRadians
+      if (latInDegrees < -90.0d0 ) latBand = 1  ! Should never be the case!
+      if   (latInDegrees >= -90.0d0   .and. latInDegrees < -60.0d0) then
+         latBand = 1
+      else if (latInDegrees >= -60.0d0 .and. latInDegrees < -20.0d0) then
+         latBand = 2
+      else if (latInDegrees >= -20.0d0 .and. latInDegrees <  20.0d0) then
+         latBand = 3
+      else if (latInDegrees >= 20.0d0  .and. latInDegrees <  60.0d0) then
+         latBand = 4
       else
-         LatBand = 5
+         latBand = 5
       end if
     end if
     
@@ -1116,7 +1116,8 @@ CONTAINS
   !-----------------------------------------------------------------------
   subroutine bcc_readUABcorStype(biasCorrectionFileName,nGroups)
     !
-    ! :Purpose: Read night and day TT, TD biases by SONDE TYPE and latitude band on 16 mandatory levels for UA family. 
+    ! :Purpose: Read night and day TT, TD biases by SONDE TYPE and latitude band on 16 mandatory levels for UA family.
+     
     !           The first line is the sonde-type (and latitude band if uaNlatBands=5). Sonde type = 'END' for end of file.
     !           nGroups groups of of 16 lines follow, e.g., nGroups = 2: one group for ascending sonde observations and 
     !                                                                    one for descending sonde observations
@@ -1132,7 +1133,7 @@ CONTAINS
 
     !Locals:
     integer :: ierr, nulcoeff
-    integer :: iSondeType, jGroup, ilatband, levelIndex, jGroupIndex, jmax
+    integer :: sondeTypeIndex, group, latBand, levelIndex, groupIndex, maxGroups
     real(8) :: ttBiasNight, ttBiasDay, tdBiasNight, tdBiasDay
     character(len=8) :: sondeType
 
@@ -1144,11 +1145,11 @@ CONTAINS
       call utl_abort('bcc_readUABcorStype: unable to open radiosonde bias correction file ' // biasCorrectionFileName )
     end if
 
-    jmax = nGroups*2
+    maxGroups = nGroups*2
     
-    allocate( ttCorrections(nSondesMax,uaNlatBands,jmax,nMandLevs) )
-    allocate( tdCorrections(nSondesMax,uaNlatBands,jmax,nMandLevs) )
-    allocate( biasCorrPresentStype(nSondesMax,uaNlatBands,jmax) )
+    allocate( ttCorrections(nSondesMax,uaNlatBands,maxGroups,nMandLevs) )
+    allocate( tdCorrections(nSondesMax,uaNlatBands,maxGroups,nMandLevs) )
+    allocate( biasCorrPresentStype(nSondesMax,uaNlatBands,maxGroups) )
 
     ttCorrections(:,:,:,:) =  MPC_missingValue_R8
     tdCorrections(:,:,:,:) =  MPC_missingValue_R8
@@ -1160,32 +1161,32 @@ CONTAINS
       
       if ( uaNlatBands == 1 ) then
         read (nulcoeff, *, iostat=ierr) sondeType
-        ilatband = 1
+        latBand = 1
       else
-        read (nulcoeff, *, iostat=ierr) sondeType, ilatband
+        read (nulcoeff, *, iostat=ierr) sondeType, latBand
       end if
       if ( ierr /= 0 ) then
-        call utl_abort('bcc_readUABcorStype: error reading sondeType, ilatband in radiosonde bias correction file ' // biasCorrectionFileName )
+        call utl_abort('bcc_readUABcorStype: error reading sondeType, latBand in radiosonde bias correction file ' // biasCorrectionFileName )
       end if
       if ( trim(sondeType) == 'END' ) exit main_loop
-      isondeType = bcc_SondeIndex(sondeType)
-      if ( isondeType < 0 ) call utl_abort('bcc_readUABcorStype: Unknown sonde type '//sondeType)
-      if ( ilatband < 0 .or. ilatband > uaNlatBands ) then
-        write(*,*) 'sondeType, latband = ',  sondeType, ilatband
+      sondeTypeIndex = bcc_SondeIndex(sondeType)
+      if ( sondeTypeIndex < 0 ) call utl_abort('bcc_readUABcorStype: Unknown sonde type '//sondeType)
+      if ( latBand < 0 .or. latBand > uaNlatBands ) then
+        write(*,*) 'sondeType, latband = ',  sondeType, latBand
         call utl_abort('bcc_readUABcorStype: Latitude band out of range 0-5!')
       end if
       ! Skip sondeType/latband 0 (globe) if present
-      if ( ilatband == 0 ) then
-        do jGroup = 1, nGroups
+      if ( latBand == 0 ) then
+        do group = 1, nGroups
           do levelIndex = 1, nMandLevs
             read (nulcoeff, *, iostat=ierr) ttBiasNight, ttBiasDay, tdBiasNight, tdBiasDay
           end do
         end do
         cycle main_loop
       end if
-      sondeTypes(isondeType) = sondeType
-      do jGroup = 1, nGroups
-        jGroupIndex = (jGroup-1)*2 + 1
+      sondeTypes(sondeTypeIndex) = sondeType
+      do group = 1, nGroups
+        groupIndex = (group-1)*2 + 1
         do levelIndex = 1, nMandLevs
           read (nulcoeff, *, iostat=ierr) ttBiasNight, ttBiasDay, tdBiasNight, tdBiasDay
           if ( ierr /= 0 ) then
@@ -1195,13 +1196,13 @@ CONTAINS
           if ( ttBiasDay == uaMissingValue )   ttBiasDay   = MPC_missingValue_R8
           if ( tdBiasNight == uaMissingValue ) tdBiasNight = MPC_missingValue_R8
           if ( tdBiasDay == uaMissingValue )   tdBiasDay   = MPC_missingValue_R8
-          if ( ttBiasNight /= MPC_missingValue_R8 ) ttCorrections(isondeType,ilatband,jGroupIndex,levelIndex)   = -1.0d0*ttBiasNight
-          if ( ttBiasDay /= MPC_missingValue_R8 )   ttCorrections(isondeType,ilatband,jGroupIndex+1,levelIndex) = -1.0d0*ttBiasDay
-          if ( tdBiasNight /= MPC_missingValue_R8 ) tdCorrections(isondeType,ilatband,jGroupIndex,levelIndex)   = -1.0d0*tdBiasNight
-          if ( tdBiasDay /= MPC_missingValue_R8 )   tdCorrections(isondeType,ilatband,jGroupIndex+1,levelIndex) = -1.0d0*tdBiasDay
+          if ( ttBiasNight /= MPC_missingValue_R8 ) ttCorrections(sondeTypeIndex,latBand,groupIndex,levelIndex)   = -1.0d0*ttBiasNight
+          if ( ttBiasDay /= MPC_missingValue_R8 )   ttCorrections(sondeTypeIndex,latBand,groupIndex+1,levelIndex) = -1.0d0*ttBiasDay
+          if ( tdBiasNight /= MPC_missingValue_R8 ) tdCorrections(sondeTypeIndex,latBand,groupIndex,levelIndex)   = -1.0d0*tdBiasNight
+          if ( tdBiasDay /= MPC_missingValue_R8 )   tdCorrections(sondeTypeIndex,latBand,groupIndex+1,levelIndex) = -1.0d0*tdBiasDay
         end do
-        if ( ttCorrections(isondeType,ilatband,jGroupIndex,Index500mb)   /= MPC_missingValue_R8 ) biasCorrPresentStype(isondeType,ilatband,jGroupIndex)   = .true.
-        if ( ttCorrections(isondeType,ilatband,jGroupIndex+1,Index500mb) /= MPC_missingValue_R8 ) biasCorrPresentStype(isondeType,ilatband,jGroupIndex+1) = .true.
+        if ( ttCorrections(sondeTypeIndex,latBand,groupIndex,Index500mb)   /= MPC_missingValue_R8 ) biasCorrPresentStype(sondeTypeIndex,latBand,groupIndex)   = .true.
+        if ( ttCorrections(sondeTypeIndex,latBand,groupIndex+1,Index500mb) /= MPC_missingValue_R8 ) biasCorrPresentStype(sondeTypeIndex,latBand,groupIndex+1) = .true.
       end do
       
     end do main_loop
@@ -1215,7 +1216,8 @@ CONTAINS
   !-----------------------------------------------------------------------
   subroutine bcc_readUABcorStn(biasCorrectionFileName,nProfsMin,nGroups)
     !
-    ! :Purpose: Read TT, TD biases by STATION/sonde-type on 16 mandatory levels for UA family. 
+    ! :Purpose: Read TT, TD biases by STATION/sonde-type on 16 mandatory levels for UA family.
+     
     !           The first line is the station and sonde-type followed by number of profiles. 
     !           Station = 'END' for end of file.
     !           nGroups groups of of 16 lines follow, e.g., nGroups = 2: one group for ascending sonde observations and 
@@ -1234,8 +1236,8 @@ CONTAINS
     integer, intent(in)          :: nGroups
 
     !Locals:
-    integer :: ierr, nulcoeff, iStn, iType
-    integer :: jGroup, levelIndex, nProfs, jGroupIndex, jmax
+    integer :: ierr, nulcoeff, stationIndex, typeIndex
+    integer :: group, levelIndex, nProfs, groupIndex, maxGroups
     real(8) :: ttBiasNight, ttBiasDay, tdBiasNight, tdBiasDay
     character(len=8) :: sondeType
     character(len=9) :: station, stnPrev
@@ -1248,19 +1250,19 @@ CONTAINS
       call utl_abort('bcc_readUABcorStn: unable to open radiosonde bias correction file ' // biasCorrectionFileName )
     end if
     
-    jmax = nGroups*2
+    maxGroups = nGroups*2
 
-    allocate( ttCorrectionsStn(nStationMaxUA,nSondesMax,jmax,nMandLevs) )
-    allocate( tdCorrectionsStn(nStationMaxUA,nSondesMax,jmax,nMandLevs) )
+    allocate( ttCorrectionsStn(nStationMaxUA,nSondesMax,maxGroups,nMandLevs) )
+    allocate( tdCorrectionsStn(nStationMaxUA,nSondesMax,maxGroups,nMandLevs) )
     allocate( uaStations(nStationMaxUA) )
-    allocate( biasCorrPresentStn(nStationMaxUA,nSondesMax,jmax) )
+    allocate( biasCorrPresentStn(nStationMaxUA,nSondesMax,maxGroups) )
 
     ttCorrectionsStn(:,:,:,:) =  MPC_missingValue_R8
     tdCorrectionsStn(:,:,:,:) =  MPC_missingValue_R8
     uaStations(:) = 'empty'
     biasCorrPresentStn(:,:,:) = .false.
    
-    iStn = 0
+    stationIndex = 0
     stnPrev = "toto"
     main_loop: do 
       
@@ -1269,27 +1271,27 @@ CONTAINS
         call utl_abort('bcc_readUABcorStn: error reading station line in radiosonde bias correction file ' // biasCorrectionFileName )
       end if
       if ( trim(station) == 'END' ) exit main_loop
-      iType = bcc_SondeIndex(sondeType)
-      if ( iType < 0 ) call utl_abort('bcc_readUABcorStn:  Unknown sonde type '//sondeType//' not in rsTypes defined in namelist')
+      typeIndex = bcc_SondeIndex(sondeType)
+      if ( typeIndex < 0 ) call utl_abort('bcc_readUABcorStn: Unknown sonde type '//sondeType//' not in rsTypes defined in namelist')
       
       ! If new station, add station to uaStations array.
       ! Assumes entries for the same station and different types are consecutive in bcor file
       if ( trim(station) /= trim(stnPrev) ) then
-        iStn = iStn + 1
-        uaStations(iStn) = station
+        stationIndex = stationIndex + 1
+        uaStations(stationIndex) = station
         stnPrev = station
       end if      
       
       ! Determine which station/sondeType/time-of-day have enough profiles to use the bias corrections
       ! and set logical biasCorrPresentStn accordingly.
       
-      do jGroup = 1, jmax
-        if ( nProfs >= nProfsMin ) biasCorrPresentStn(iStn,iType,jGroup) = .true.
+      do group = 1, maxGroups
+        if ( nProfs >= nProfsMin ) biasCorrPresentStn(stationIndex,typeIndex,group) = .true.
       end do
 
       ! Read the bias correction profiles for this station/sondeType. 
-      do jGroup = 1, nGroups
-        jGroupIndex = (jGroup-1)*2 + 1
+      do group = 1, nGroups
+        groupIndex = (group-1)*2 + 1
         do levelIndex = 1, nMandLevs
           read (nulcoeff, *, iostat=ierr) ttBiasNight, ttBiasDay, tdBiasNight, tdBiasDay
           if ( ierr /= 0 ) then
@@ -1299,10 +1301,10 @@ CONTAINS
           if ( ttBiasDay == uaMissingValue )   ttBiasDay   = MPC_missingValue_R8
           if ( tdBiasNight == uaMissingValue ) tdBiasNight = MPC_missingValue_R8
           if ( tdBiasDay == uaMissingValue )   tdBiasDay   = MPC_missingValue_R8
-          if ( ttBiasNight /= MPC_missingValue_R8 ) ttCorrectionsStn(iStn,iType,jGroupIndex,levelIndex)   = -1.0d0*ttBiasNight
-          if ( ttBiasDay /= MPC_missingValue_R8 )   ttCorrectionsStn(iStn,iType,jGroupIndex+1,levelIndex) = -1.0d0*ttBiasDay
-          if ( tdBiasNight /= MPC_missingValue_R8 ) tdCorrectionsStn(iStn,iType,jGroupIndex,levelIndex)   = -1.0d0*tdBiasNight
-          if ( tdBiasDay /= MPC_missingValue_R8 )   tdCorrectionsStn(iStn,iType,jGroupIndex+1,levelIndex) = -1.0d0*tdBiasDay
+          if ( ttBiasNight /= MPC_missingValue_R8 ) ttCorrectionsStn(stationIndex,typeIndex,groupIndex,levelIndex)   = -1.0d0*ttBiasNight
+          if ( ttBiasDay /= MPC_missingValue_R8 )   ttCorrectionsStn(stationIndex,typeIndex,groupIndex+1,levelIndex) = -1.0d0*ttBiasDay
+          if ( tdBiasNight /= MPC_missingValue_R8 ) tdCorrectionsStn(stationIndex,typeIndex,groupIndex,levelIndex)   = -1.0d0*tdBiasNight
+          if ( tdBiasDay /= MPC_missingValue_R8 )   tdCorrectionsStn(stationIndex,typeIndex,groupIndex+1,levelIndex) = -1.0d0*tdBiasDay
         end do
       end do
 
@@ -1331,11 +1333,11 @@ CONTAINS
     !
     implicit none
     !Arguments:
-    type(struct_obs)        :: obsSpaceData
+    type(struct_obs), intent(inout) :: obsSpaceData
     !Locals:
     integer  :: headerIndex, bodyIndex, codtyp
     integer  :: flag, bufrCode, sondeTypeCode, sondeTypeIndex, stnIndex
-    integer  :: date, time, latband, jCat, phase
+    integer  :: date, time, latBand, groupIndex, phase
     integer  :: countTTCorrections,  countESCorrections, countUnknownStype, countMissingStype
     integer  :: countUnknownStation, countTTCorrByStation, countTTCorrByStype, countTTObs, countRS41
     integer  :: countCat1, countCat2, countNight, countDay, countDawnDusk
@@ -1344,7 +1346,7 @@ CONTAINS
     real(8)  :: solarElev, corr, p1, p2, p3, p4
     real(8)  :: timeOfDayX
     character(len=9)  :: stnid, stnidPrev
-    character(len=8)  :: SondeType
+    character(len=8)  :: sondeType
     character(len=5)  :: sourceCorr
     logical  :: newStation, debug, stationFound, realRS41
 
@@ -1388,99 +1390,99 @@ CONTAINS
 
       stnid  = trim(obs_elem_c(obsSpaceData,'STID',headerIndex))
       if ( trim(stnid) /= trim(stnidPrev) ) then
-         newStation = .true.
-         stnidPrev = stnid
+        newStation = .true.
+        stnidPrev = stnid
       else 
-         newStation = .false.
+        newStation = .false.
       end if
       
       ! Get the information needed to apply the bias corrections from the first header for this station
       if ( newStation .and. .not.uaRevOnly ) then
          
-         !! Station index in list of stations (uaStations) from ua_bcors_stn file
-         stationFound = .false.
-         stnIndex = bcc_StationIndex(stnid)
-         if (debug) write(*,*) 'stnid, index = ', stnid, stnIndex
-         if ( stnIndex > 0 ) then
-           stationFound = .true.
-         else 
-           countUnknownStation = countUnknownStation + 1
-           if (debug) write(*,*) 'Unknown station (not in ua_bcors_stn file) '//stnid
-         end if
+        !! Station index in list of stations (uaStations) from ua_bcors_stn file
+        stationFound = .false.
+        stnIndex = bcc_StationIndex(stnid)
+        if (debug) write(*,*) 'stnid, index = ', stnid, stnIndex
+        if ( stnIndex > 0 ) then
+          stationFound = .true.
+        else 
+          countUnknownStation = countUnknownStation + 1
+          if (debug) write(*,*) 'Unknown station (not in ua_bcors_stn file) '//stnid
+        end if
          
-         !! Date and lat,lon
-         codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex) ! CODE TYPE
-         date   = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex) ! YYYYMMDD
-         time   = obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex) ! HHMM
-         lat    = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) ! radians!
-         lon    = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) ! radians!
+        !! Date and lat,lon
+        codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex) ! CODE TYPE
+        date   = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex) ! YYYYMMDD
+        time   = obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex) ! HHMM
+        lat    = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) ! radians!
+        lon    = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) ! radians!
          
-         ! Sonde phase: 1=asc, 2=desc
-         phase  = bcc_uaPhase(codtyp)
+        ! Sonde phase: 1=asc, 2=desc
+        phase  = bcc_uaPhase(codtyp)
          
-         if (uaNbiasCat == 2) then
-            jCat = (phase-1)*2 + 1
-         else
-            jCat = 1
-         end if
+        if (uaNbiasCat == 2) then
+          groupIndex = (phase-1)*2 + 1
+        else
+          groupIndex = 1
+        end if
          
-         if ( jCat == 1 ) then 
-            countCat1 = countCat1 + 1
-         else
-            countCat2 = countCat2 + 1
-         end if
+        if ( groupIndex == 1 ) then 
+          countCat1 = countCat1 + 1
+        else
+          countCat2 = countCat2 + 1
+        end if
          
-         !! Get the sonde type index in rsTypes read from namelist
-         sondeTypeCode  = obs_headElem_i(obsSpaceData, OBS_RTP, headerIndex)  ! sonde type BUFR code (WMO table)
-         if (debug) then
-            write(*,*) 'stnid, sondeTypeCode, date, time, lat'
-            write(*,*) stnid, sondeTypeCode, date, time, lat*MPC_DEGREES_PER_RADIAN_R8
-         end if
-         if ( sondeTypeCode == -999 ) then
-            sondeTypeCode = 0
-            countMissingStype = countMissingStype + 1
-            write (*,'(a60)') "bcc_applyUABcor: Missing sonde type at stn "//stnid
-         end if
-         call bcc_GetSondeType(sondeTypeCode,SondeType,sondeTypeIndex)
-         if ( sondeTypeIndex == 0 ) then
-            countUnknownStype = countUnknownStype + 1
-            write (*,'(a70,i4)') "bcc_applyUABcor: Unknown sonde-type code at stn "//stnid//". Code = ", sondeTypeCode
-         end if
-         if (debug) write(*,*) 'SondeType, sondeTypeIndex = ', SondeType, sondeTypeIndex
+        !! Get the sonde type index in rsTypes read from namelist
+        sondeTypeCode  = obs_headElem_i(obsSpaceData, OBS_RTP, headerIndex)  ! sonde type BUFR code (WMO table)
+        if (debug) then
+          write(*,*) 'stnid, sondeTypeCode, date, time, lat'
+          write(*,*) stnid, sondeTypeCode, date, time, lat*MPC_DEGREES_PER_RADIAN_R8
+        end if
+        if ( sondeTypeCode == -999 ) then
+          sondeTypeCode = 0
+          countMissingStype = countMissingStype + 1
+          write (*,'(a60)') "bcc_applyUABcor: Missing sonde type at stn "//stnid
+        end if
+        call bcc_GetsondeType(sondeTypeCode,sondeType,sondeTypeIndex)
+        if ( sondeTypeIndex == 0 ) then
+          countUnknownStype = countUnknownStype + 1
+          write (*,'(a70,i4)') "bcc_applyUABcor: Unknown sonde-type code at stn "//stnid//". Code = ", sondeTypeCode
+        end if
+        if (debug) write(*,*) 'sondeType, sondeTypeIndex = ', sondeType, sondeTypeIndex
          
-         !! We assume that a sonde type of "RS41" reported by Chinese UA stations is not correct
-         realRS41 = .false.
-         if ( trim(SondeType) == "RS41" ) then
-           if ( stnid(1:1) == "5" ) then
-             realRS41 = .false.
-           else
-             realRS41 = .true.
-           end if
-         end if
+        !! We assume that a sonde type of "RS41" reported by Chinese UA stations is not correct
+        realRS41 = .false.
+        if ( trim(sondeType) == "RS41" ) then
+          if ( stnid(1:1) == "5" ) then
+            realRS41 = .false.
+          else
+            realRS41 = .true.
+          end if
+        end if
          
-         !! Time-of-day x-value
-         call bcc_GetSolarElevation(lat,lon,date,time,solarElev)
-         call bcc_GetTimeOfDay(solarElev,timeOfDayX)
-         if ( timeOfDayX == 0.0 ) then
-            countNight = countNight+1
-         else if ( timeOfDayX == 1.0 ) then
-            countDay = countDay+1
-         else
-            countDawnDusk = countDawnDusk+1
-         end if
+        !! Time-of-day x-value
+        call bcc_GetSolarElevation(lat,lon,date,time,solarElev)
+        call bcc_GetTimeOfDay(solarElev,timeOfDayX)
+        if ( timeOfDayX == 0.0 ) then
+          countNight = countNight+1
+        else if ( timeOfDayX == 1.0 ) then
+          countDay = countDay+1
+        else
+          countDawnDusk = countDawnDusk+1
+        end if
          
-         !! Latitude band
-         if ( uaNlatBands == 1 ) then
-            latband = 1
-         else
-            latband = bcc_LatBand(lat)
-            if ( latband == -1 ) then
-               write(*,*) "uaNlatBands = ", uaNlatBands
-               call utl_abort("bcc_applyUABcor: uaNlatBands must equal 5")
-            end if
-         end if
+        !! Latitude band
+        if ( uaNlatBands == 1 ) then
+          latBand = 1
+        else
+          latBand = bcc_LatBand(lat)
+          if ( latBand == -1 ) then
+            write(*,*) "uaNlatBands = ", uaNlatBands
+            call utl_abort("bcc_applyUABcor: uaNlatBands must equal 1 or 5")
+          end if
+        end if
 
-         if (debug) write(*,*) 'solarElev, timeOfDayX, latband = ',solarElev, timeOfDayX, latband
+        if (debug) write(*,*) 'solarElev, timeOfDayX, latBand = ',solarElev, timeOfDayX, latBand
          
       end if
       
@@ -1498,9 +1500,9 @@ CONTAINS
 
         ! Assumes that normal (non high-precision) codes are used for TT and ES observations in obsSpaceData
         if ( bufrCode == BUFR_NETT ) then
-           ttBodyIndex = bodyIndex
+          ttBodyIndex = bodyIndex
         else if ( bufrCode == BUFR_NEES ) then
-           esBodyIndex = bodyIndex
+          esBodyIndex = bodyIndex
         end if
         
       end do BODY
@@ -1509,123 +1511,123 @@ CONTAINS
       
       ! TT bias correction
       if ( ttBodyIndex >= 0 ) then
-         bodyIndex = ttBodyIndex
-         ttOriginal  = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
-         tt          = ttOriginal
-         pressure    = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex ) * MPC_MBAR_PER_PA_R8
-         flag        = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
-         oldCorr     = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
-         corr        = MPC_missingValue_R8
-         if ( debug .and. pressure == 500.0d0 ) write(*,*) 'TTin',ttBodyIndex,pressure,tt
-         if ( tt /= MPC_missingValue_R8 ) then
-            if ( btest(flag, 6) .and. oldCorr /= MPC_missingValue_R8 ) then
-               tt = tt - oldCorr
-               flag = ibclr(flag, 6)
-            end if
-            if ( uaRevOnly ) corr = 0.0d0
-            if ( .not.uaRevOnly ) then
-              ! Get the TT correction for this station, sonde type, time-of-day and level
-              ! stnIndex   = -1 if station not found in bcor file
-              ! sondeTypeIndex =  0 if sonde-type code is not associated with any of the types in
-              !                namelist (rsTypes) including stypes "Others" and "None" [code=0]
-              countTTObs = countTTObs + 1
-              if ( realRS41 ) then
-                 corr = MPC_missingValue_R8
-                 countRS41 = countRS41 + 1
-              else
-                 call bcc_GetUACorrection('TT',stnIndex,sondeTypeIndex,SondeType,jCat,timeOfDayX,latband,pressure,corr,sourceCorr)
-                 if ( sourceCorr == 'stn' ) then
-                    countTTCorrByStation = countTTCorrByStation + 1
-                 else if ( sourceCorr == 'stype' ) then
-                    countTTCorrByStype = countTTCorrByStype + 1
-                 end if
-                 if ( debug .and. pressure == 500.0d0 ) write(*,*) 'corrTT, source, jCat = ',corr, sourceCorr, jCat
+        bodyIndex = ttBodyIndex
+        ttOriginal  = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+        tt          = ttOriginal
+        pressure    = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex ) * MPC_MBAR_PER_PA_R8
+        flag        = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
+        oldCorr     = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
+        corr        = MPC_missingValue_R8
+        if ( debug .and. pressure == 500.0d0 ) write(*,*) 'TTin',ttBodyIndex,pressure,tt
+        if ( tt /= MPC_missingValue_R8 ) then
+          if ( btest(flag, 6) .and. oldCorr /= MPC_missingValue_R8 ) then
+            tt = tt - oldCorr
+            flag = ibclr(flag, 6)
+          end if
+          if ( uaRevOnly ) corr = 0.0d0
+          if ( .not.uaRevOnly ) then
+            ! Get the TT correction for this station, sonde type, time-of-day and level
+            ! stnIndex   = -1 if station not found in bcor file
+            ! sondeTypeIndex =  0 if sonde-type code is not associated with any of the types in
+            !                namelist (rsTypes) including stypes "Others" and "None" [code=0]
+            countTTObs = countTTObs + 1
+            if ( realRS41 ) then
+              corr = MPC_missingValue_R8
+              countRS41 = countRS41 + 1
+            else
+              call bcc_GetUACorrection('TT',stnIndex,sondeTypeIndex,sondeType,groupIndex,timeOfDayX,latBand,pressure,corr,sourceCorr)
+              if ( sourceCorr == 'stn' ) then
+                 countTTCorrByStation = countTTCorrByStation + 1
+              else if ( sourceCorr == 'stype' ) then
+                 countTTCorrByStype = countTTCorrByStype + 1
               end if
-              if ( corr /= MPC_missingValue_R8 ) then
-                 tt = tt + corr
-                 flag = ibset(flag, 6)
-                 countTTCorrections = countTTCorrections + 1
-              else
-                 if ( .not.realRS41 .and. uaRejUnBcor ) flag = ibset(flag, 11)
-              end if
+              if ( debug .and. pressure == 500.0d0 ) write(*,*) 'corrTT, source, groupIndex = ',corr, sourceCorr, groupIndex
             end if
-         end if
-         if ( debug .and. pressure == 500.0d0 ) write(*,*) 'TTout, corr, flag = ', tt, corr, flag
-         call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
-         call obs_bodySet_r( obsSpaceData, OBS_VAR , bodyIndex, tt   )
-         call obs_bodySet_i( obsSpaceData, OBS_FLG , bodyIndex, flag ) 
+            if ( corr /= MPC_missingValue_R8 ) then
+              tt = tt + corr
+              flag = ibset(flag, 6)
+              countTTCorrections = countTTCorrections + 1
+            else
+              if ( .not.realRS41 .and. uaRejUnBcor ) flag = ibset(flag, 11)
+            end if
+          end if
+        end if
+        if ( debug .and. pressure == 500.0d0 ) write(*,*) 'TTout, corr, flag = ', tt, corr, flag
+        call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
+        call obs_bodySet_r( obsSpaceData, OBS_VAR , bodyIndex, tt   )
+        call obs_bodySet_i( obsSpaceData, OBS_FLG , bodyIndex, flag ) 
       end if
       
       ! ES bias correction
       if ( esBodyIndex >= 0 .and. ttBodyIndex >= 0 ) then
-         bodyIndex   = esBodyIndex
-         esOriginal  = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
-         es          = esOriginal
-         pressure    = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex ) * MPC_MBAR_PER_PA_R8
-         flag        = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
-         oldCorr     = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
-         corr        = MPC_missingValue_R8
-         if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ESin',esBodyIndex,pressure,es
-         if ( es /= MPC_missingValue_R8 ) then
-            if ( btest(flag, 6) .and. oldCorr /= MPC_missingValue_R8 ) then
-               es = es - oldCorr
-               flag = ibclr(flag, 6)
+        bodyIndex   = esBodyIndex
+        esOriginal  = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex )
+        es          = esOriginal
+        pressure    = obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex ) * MPC_MBAR_PER_PA_R8
+        flag        = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex )
+        oldCorr     = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex )
+        corr        = MPC_missingValue_R8
+        if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ESin',esBodyIndex,pressure,es
+        if ( es /= MPC_missingValue_R8 ) then
+          if ( btest(flag, 6) .and. oldCorr /= MPC_missingValue_R8 ) then
+            es = es - oldCorr
+            flag = ibclr(flag, 6)
+          end if
+          if ( uaRevOnly ) corr = 0.0d0
+          if ( .not.uaRevOnly ) then
+            if ( realRS41 ) then
+              corr = MPC_missingValue_R8
+            else
+              call bcc_GetUACorrection('TD',stnIndex,sondeTypeIndex,sondeType,groupIndex,timeOfDayX,latBand,pressure,corr,sourceCorr)
+              if ( debug .and. pressure == 500.0d0 ) write(*,*) 'corrTD, source, groupIndex = ',corr, sourceCorr, groupIndex
             end if
-            if ( uaRevOnly ) corr = 0.0d0
-            if ( .not.uaRevOnly ) then
-              if ( realRS41 ) then
-                 corr = MPC_missingValue_R8
-              else
-                 call bcc_GetUACorrection('TD',stnIndex,sondeTypeIndex,SondeType,jCat,timeOfDayX,latband,pressure,corr,sourceCorr)
-                 if ( debug .and. pressure == 500.0d0 ) write(*,*) 'corrTD, source, jCat = ',corr, sourceCorr, jCat
-              end if
-              if ( corr /= MPC_missingValue_R8 ) then
-                 td = (ttOriginal - es) + corr
-                 es = tt - td
-                 if ( es < 0.0 ) es =  0.0d0
-                 if ( es > 30.0) es = 30.0d0
-                 corr =  es - esOriginal
-                 if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ES corr =',corr
-                 flag = ibset(flag, 6)
-                 countESCorrections = countESCorrections + 1
-              else
-                 if ( .not.realRS41 .and. uaRejUnBcor ) flag = ibset(flag, 11)
-              end if
+            if ( corr /= MPC_missingValue_R8 ) then
+              td = (ttOriginal - es) + corr
+              es = tt - td
+              if ( es < 0.0 ) es =  0.0d0
+              if ( es > 30.0) es = 30.0d0
+              corr =  es - esOriginal
+              if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ES corr =',corr
+              flag = ibset(flag, 6)
+              countESCorrections = countESCorrections + 1
+            else
+              if ( .not.realRS41 .and. uaRejUnBcor ) flag = ibset(flag, 11)
             end if
-         end if
-         if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ESout, corr, flag = ', es, corr, flag
-         call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
-         call obs_bodySet_r( obsSpaceData, OBS_VAR , bodyIndex, es   )
-         call obs_bodySet_i( obsSpaceData, OBS_FLG , bodyIndex, flag ) 
+          end if
+        end if
+        if ( debug .and. pressure == 500.0d0 ) write(*,*) 'ESout, corr, flag = ', es, corr, flag
+        call obs_bodySet_r( obsSpaceData, OBS_BCOR, bodyIndex, corr )
+        call obs_bodySet_r( obsSpaceData, OBS_VAR , bodyIndex, es   )
+        call obs_bodySet_i( obsSpaceData, OBS_FLG , bodyIndex, flag ) 
       end if     
               
     end do HEADER
     
     if ( .not.uaRevOnly ) then
-       write (*, '(a60, i10)' ) "bcc_applyUABcor: Number of TT obs corrected          = ", countTTCorrections
-       write (*, '(a60, i10)' ) "bcc_applyUABcor: Number of ES obs corrected          = ", countESCorrections
-       write (*, '(a60, i10)' ) "bcc_applyUABcor: Number obs with unknown station     = ", countUnknownStation
-       write (*, '(a60, i10)' ) "bcc_applyUABcor: Number obs with missing sonde type  = ", countMissingStype
-       write (*, '(a60, i10)' ) "bcc_applyUABcor: Number obs with unknown sonde code  = ", countUnknownStype
-       write (*, '(a40)'      ) "----------------------------------------"
-       write (*, '(a60, i10)' ) "bcc_applyUABcor: Total number of TT observations     = ", countTTObs
-       if ( countTTObs > 0 ) then
-         p1 = (float(countTTCorrByStation)/float(countTTObs))*100.d0
-         p2 = (float(countTTCorrByStype)/float(countTTObs))*100.d0
-         p3 = 100.d0 - (p1+p2)
-         p4 = (float(countRS41)/float(countTTObs))*100.
-         write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage corrected by STATION     = ", p1
-         write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage corrected by SONDE-TYPE  = ", p2
-         write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage uncorrected              = ", p3
-         write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage RS41                     = ", p4
-         write (*, '(a60, i10)' )  "bcc_applyUABcor: Number of night profiles            = ", countNight
-         write (*, '(a60, i10)' )  "bcc_applyUABcor: Number of day profiles              = ", countDay
-         write (*, '(a60, i10)' )  "bcc_applyUABcor: Number of dawn-dusk profiles        = ", countDawnDusk
-         if (uaNbiasCat == 2) then
-           write (*, '(a60, i10)' )  "bcc_applyUABcor: Number of ascent profiles            = ", countCat1
-           write (*, '(a60, i10)' )  "bcc_applyUABcor: Number of descent profiles           = ", countCat2
-         end if
-       end if
+      write (*, '(a60, i10)' ) "bcc_applyUABcor: Number of TT obs corrected          = ", countTTCorrections
+      write (*, '(a60, i10)' ) "bcc_applyUABcor: Number of ES obs corrected          = ", countESCorrections
+      write (*, '(a60, i10)' ) "bcc_applyUABcor: Number obs with unknown station     = ", countUnknownStation
+      write (*, '(a60, i10)' ) "bcc_applyUABcor: Number obs with missing sonde type  = ", countMissingStype
+      write (*, '(a60, i10)' ) "bcc_applyUABcor: Number obs with unknown sonde code  = ", countUnknownStype
+      write (*, '(a40)'      ) "----------------------------------------"
+      write (*, '(a60, i10)' ) "bcc_applyUABcor: Total number of TT observations     = ", countTTObs
+      if ( countTTObs > 0 ) then
+        p1 = (float(countTTCorrByStation)/float(countTTObs))*100.d0
+        p2 = (float(countTTCorrByStype)/float(countTTObs))*100.d0
+        p3 = 100.d0 - (p1+p2)
+        p4 = (float(countRS41)/float(countTTObs))*100.
+        write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage corrected by STATION     = ", p1
+        write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage corrected by SONDE-TYPE  = ", p2
+        write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage uncorrected              = ", p3
+        write (*, '(a60, f7.2)' ) "bcc_applyUABcor: Percentage RS41                     = ", p4
+        write (*, '(a60, i10)' )  "bcc_applyUABcor: Number of night profiles            = ", countNight
+        write (*, '(a60, i10)' )  "bcc_applyUABcor: Number of day profiles              = ", countDay
+        write (*, '(a60, i10)' )  "bcc_applyUABcor: Number of dawn-dusk profiles        = ", countDawnDusk
+        if (uaNbiasCat == 2) then
+          write (*, '(a60, i10)' )  "bcc_applyUABcor: Number of ascent profiles            = ", countCat1
+          write (*, '(a60, i10)' )  "bcc_applyUABcor: Number of descent profiles           = ", countCat2
+        end if
+      end if
     end if
     
     if ( allocated(ttCorrections) )        deallocate(ttCorrections)
@@ -1646,24 +1648,27 @@ CONTAINS
   !-----------------------------------------------------------------------
   ! bcc_biasActive
   !-----------------------------------------------------------------------
-  logical function bcc_biasActive(obsFam)
+  function bcc_biasActive(obsFam) result(biasActive)
     !
     ! :Purpose: returns True if bias correction is active for the given conventional observation family
     !
     implicit none
+ 
     character(len=*),intent(in) :: obsFam
+    
+    logical :: biasActive 
 
     if (.not.initialized) call bcc_readConfig()
     
     select case(trim(obsFam))
     case('GP')
-      bcc_biasActive = bcc_gpBiasActive
+      biasActive = bcc_gpBiasActive
     case('UA')
-      bcc_biasActive = bcc_uaBiasActive
+      biasActive = bcc_uaBiasActive
     case('AI')
-      bcc_biasActive = bcc_aiBiasActive
+      biasActive = bcc_aiBiasActive
     case default
-      bcc_biasActive = .false.
+      biasActive = .false.
     end select
 
   end function bcc_biasActive
