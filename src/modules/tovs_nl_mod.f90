@@ -2848,10 +2848,12 @@ contains
       end do
 
       ! Append Surface Emissivity into ObsSpaceData
-      do btIndex = 1, btCount
-        bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
-        call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
-      end do
+      if (.not. (bgckMode .and. tvs_isInstrumHyperSpectral(instrum)) ) then
+        do btIndex = 1, btCount
+          bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
+          call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+        end do
+      end if
 
       !    Deallocate memory
       asw = 0 ! 0 to deallocate
