@@ -39,6 +39,7 @@ module analysisErrorOI_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use obsOperators_mod
+  use message_mod
 
   implicit none
 
@@ -149,15 +150,23 @@ contains
     write(*,*) '** '//myName//': Calculate analysis-error variance **'
     write(*,*) '**********************************************************'
 
-    ! reading namelist variables
+    ! Read the namelist
     ! default values
-    maxAnalysisErrorStdDev = 1.0
-
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam, nml = namaer, iostat = ierr)
-    if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist')
-    ierr = fclos(nulnam)
+    maxAnalysisErrorStdDev = 1.0d0
+    if (.not. utl_isNamelistPresent('namaer','./flnml')) then
+      if (mmpi_myid == 0) then
+        call msg(myName, 'namaer is missing in the namelist.')
+        call msg(myName, 'the default values will be taken.')
+      end if
+    else
+      ! reading namelist variables
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam, nml = namaer, iostat = ierr)
+      if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist')
+      ierr = fclos(nulnam)
+    end if
+    write(*, nml = namaer)
 
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
