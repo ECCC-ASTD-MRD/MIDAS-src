@@ -1137,7 +1137,7 @@ contains
     call gsv_getField(stateVectorPerturbationInterp,perturbation_ptr)
 
     ! allocate a minimal reference P0
-    call gsv_allocate(statevectorP0Ref, 1, hco_ens, vco_ens, varNames_opt=(/'P0'/))
+    call gsv_allocate(statevectorP0Ref, 1, hco_ens, vco_randomPert, varNames_opt=(/'P0'/))
     call gsv_getField(statevectorP0Ref, PsfcRef, 'P0')
     PsfcRef(:,:,:,:) = 100000.0D0
 
