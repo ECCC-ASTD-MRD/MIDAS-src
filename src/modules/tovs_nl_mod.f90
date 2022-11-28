@@ -1821,14 +1821,13 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getChanProf
   !--------------------------------------------------------------------------
-  subroutine tvs_getChanprof(sensorId, sensorTovsIndexes, obsSpaceData, chanprof, lchannel_subset_opt, iptobs_cma_opt)
+  subroutine tvs_getChanprof(sensorTovsIndexes, obsSpaceData, chanprof, lchannel_subset_opt, iptobs_cma_opt)
     ! 
     ! :Purpose: subroutine to initialize the chanprof structure used by RTTOV
     !
     implicit none
 
     ! Arguments:
-    integer, intent(in)              :: sensorId
     integer, intent(in)              :: sensorTovsIndexes(:)
     type(struct_obs), intent(in)     :: obsSpaceData
     type(rttov_chanprof), intent(out):: chanprof(:)
@@ -2551,7 +2550,7 @@ contains
         
       else
         allocate( lchannel_subset(profileCount,tvs_nchan(sensorId)) )
-        call tvs_getChanprof(sensorId, sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, lchannel_subset_opt = lchannel_subset, iptobs_cma_opt = tvs_bodyIndexFromBtIndex)
+        call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, lchannel_subset_opt = lchannel_subset, iptobs_cma_opt = tvs_bodyIndexFromBtIndex)
         if (tvs_useRttovScatt(sensorId)) then
           call rttov_scatt_setupindex (  &
                rttov_err_stat,           &
@@ -2628,8 +2627,8 @@ contains
         end do
 
       else if (sensorType == sensor_id_mw) then
-        call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, sensorTovsIndexes(1:profileCount), &
-                                        obsSpaceData)
+        call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorId, chanprof, &
+             sensorTovsIndexes(1:profileCount))
       else
         emissivity_local(:)%emis_in = surfem1(:)
       end if
@@ -2902,10 +2901,9 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_getMWemissivityFromAtlas
   !--------------------------------------------------------------------------
-  subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorId, chanprof, sensorTovsIndexes, &
-                                        obsSpaceData)
+  subroutine tvs_getMWemissivityFromAtlas(originalEmissivity, updatedEmissivity, sensorId, chanprof, sensorTovsIndexes)
     implicit none
-    type(struct_obs), intent(inout)      :: obsSpaceData
+
     real(8), intent(in)                  :: originalEmissivity(:)
     type (rttov_emissivity), intent(out) :: updatedEmissivity(:)
     integer, intent(in)                  :: sensorId
@@ -2915,9 +2913,7 @@ contains
     integer :: returnCode
     real(8) :: mWAtlasSurfaceEmissivity(size(originalEmissivity))
     integer :: btCount, profileCount
-    integer :: profileIndex, btIndex, jj
-    integer :: bodyIndex
-
+    integer :: profileIndex, btIndex, sensorIndex
     
     btCount = size( originalEmissivity )
     if (useMWEmissivityAtlas) then
@@ -2953,14 +2949,14 @@ contains
       profileCount = size( sensorTovsIndexes )
 
       do profileIndex=1, profileCount !loop on profiles
-        jj = sensorTovsIndexes(profileIndex)
+        sensorIndex = sensorTovsIndexes(profileIndex)
   
         do btIndex=1, btCount !loop on channels
           if (chanprof(btIndex)%prof==profileIndex) then
             ! Now we have 0.75 in originalEmissivity(:) for land and sea ice
             ! and the MW atlas emissivity in mWAtlasSurfaceEmissivity(:)
 
-            if ( tvs_profiles_nl(jj)% skin % surftype == surftype_land .and. &
+            if ( tvs_profiles_nl(sensorIndex)% skin % surftype == surftype_land .and. &
                  mWAtlasSurfaceEmissivity(btIndex) > 0.d0 .and. &
                  mWAtlasSurfaceEmissivity(btIndex) <= 1.d0 ) then ! check for missing values
               updatedEmissivity(btIndex)%emis_in = mWAtlasSurfaceEmissivity(btIndex)
