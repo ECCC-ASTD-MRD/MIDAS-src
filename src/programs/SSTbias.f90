@@ -45,15 +45,20 @@ program midas_sstBias
   real(8)                     :: searchRadius            ! horizontal search radius, in km, for obs gridding
   character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
                                  varMode        = 'analysis'
+  type(struct_columnData)     :: column                  ! column data
+  integer                     :: dateStamp               ! datestamp for output file
+  
+  ! namelist parameters 
   real(4)                     :: iceFractionThreshold    ! consider no ice condition below this threshold
   real(4)                     :: maxBias                 ! max acceptable difference (insitu - satellite) 
   integer                     :: numberSensors           ! number of sensors to treat
   integer                     :: numberPointsBG          ! parameter, number of matchups of the background bias estimation
-  character(len=10)           :: sensorList( 10 )        ! list of sensors
-  integer                     :: dateStamp
-  type(struct_columnData)     :: column                  ! column data 
+  character(len=10)           :: sensorList(10)          ! list of sensors
   character(len=20)           :: timeInterpType_nl       ! 'NEAREST' or 'LINEAR'
   integer                     :: numObsBatches           ! number of batches for calling interp setup
+  logical                     :: saveAuxFields           ! to store or not auxiliary fields: nobs and weight        
+  real(4)                     :: weightMin               ! minimum value of weight for the current day bias
+  real(4)                     :: weightMax               ! maximum value of weight for the current day bias
    
   istamp = exdb('SSTBIASESTIMATION','DEBUT','NON')
 
@@ -74,7 +79,8 @@ program midas_sstBias
   call SSTbias_setup('VAR') ! obsColumnMode
   
   call sstb_computeBias(obsSpaceData, hco_anl, vco_anl, iceFractionThreshold, searchRadius, &
-                        numberSensors, sensorList, maxBias, numberPointsBG, dateStamp)
+                        numberSensors, sensorList, maxBias, numberPointsBG, dateStamp, &
+                        weightMin, weightMax, saveAuxFields)
 			 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
@@ -106,7 +112,8 @@ program midas_sstBias
     character(len=*), parameter :: gridFile = './analysisgrid'
     integer                     :: sensorIndex
     namelist /namSSTbiasEstimate/ searchRadius, maxBias, iceFractionThreshold, numberPointsBG, &
-                                  timeInterpType_nl, numObsBatches, numberSensors, sensorList
+                                  timeInterpType_nl, numObsBatches, numberSensors, sensorList, &
+                                  weightMin, weightMax, saveAuxFields
     
     write(*,*) ''
     write(*,*) '-------------------------------------------------'
@@ -135,6 +142,9 @@ program midas_sstBias
     timeInterpType_nl = 'NEAREST'
     numObsBatches = 20
     sensorList(:) = ''
+    weightMin = 0.0
+    weightMax = 1.0
+    saveAuxFields = .False.
     
     ! Read the namelist
     nulnam = 0
@@ -150,6 +160,7 @@ program midas_sstBias
     do sensorIndex = 1, numberSensors
       write(*,*) 'SSTbias_setup: sensor index: ', sensorIndex, ', sensor: ', sensorList( sensorIndex )
     end do
+    write(*,*) 'SSTbias_setup: weight limits for current bias estimate: ', weightMin, weightMax
        
     !
     !- Initialize constants

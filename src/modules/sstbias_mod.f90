@@ -57,7 +57,8 @@ module SSTbias_mod
   ! sstb_computeBias
   !--------------------------------------------------------------------------
   subroutine sstb_computeBias(obsData, hco, vco, iceFractionThreshold, searchRadius, &
-                              numberSensors, sensorList, maxBias, numberPointsBG, dateStamp)
+                              numberSensors, sensorList, maxBias, numberPointsBG, dateStamp, &
+                              weightMin, weightMax, saveAuxFields)
     !
     ! :Purpose: compute bias for SST satellite data with respect to insitu data 
     !  
@@ -71,20 +72,23 @@ module SSTbias_mod
     real(8)         , intent(in)             :: searchRadius         ! horizontal search radius for obs gridding
     integer         , intent(in)             :: numberSensors        ! Current satellites: AMSR2, METO-B, METO-A, NOAA19, NPP
     character(len=*), intent(in)             :: sensorList(:)        ! list of satellite names
-    real(4)         , intent(in)             :: maxBias              ! max insitu - satellite difference in degrees  
+    real(4)         , intent(in)             :: maxBias              ! max allowed insitu-satellite difference in degrees, defined in namelist  
     integer         , intent(in)             :: numberPointsBG       ! namelist parameter: number of points used to compute background state
     integer         , intent(in)             :: dateStamp            ! dateStamp to put into fstd file with bias estimation
+    logical         , intent(in)             :: saveAuxFields        ! to store or not auxiliary fields: nobs and weight        
+    real(4)         , intent(in)             :: weightMin            ! minimum value of weight from namelist
+    real(4)         , intent(in)             :: weightMax            ! maximum value of weight from namelist
       									    
     ! locals
     integer                     :: sensorIndex, productIndex
-    real(8)                     :: insituGrid   (hco % ni, hco % nj)
-    real(8)                     :: satelliteGrid(hco % ni, hco % nj)
-    logical                     :: mask(hco % ni, hco % nj), openWater(hco % ni, hco % nj) 
+    real(8)                     :: insituGrid   (hco%ni, hco%nj)
+    real(8)                     :: satelliteGrid(hco%ni, hco%nj)
+    logical                     :: mask(hco%ni, hco%nj), openWater(hco%ni, hco%nj) 
     type(struct_ocm)            :: oceanMask
     integer                     :: numberOpenWaterPoints, lonIndex, latIndex
     integer                     :: nobsFoundInsitu, nobsFoundSatellite
     type(struct_gsv)            :: stateVector_ice
-    real(4), pointer            :: seaice_ptr(:, :, :)
+    real(4), pointer            :: seaice_ptr(:,:,:)
     integer         , parameter :: numberProducts = 2  ! day and night
     character(len=*), parameter :: listProducts(numberProducts)= (/'day', 'night'/)
 
@@ -92,8 +96,8 @@ module SSTbias_mod
     write(*,*) 'sstb_computeBias: Sea-ice Fraction threshold: ', iceFractionThreshold
     
     ! get mpi topology
-    call mmpi_setup_lonbands(hco % ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
-    call mmpi_setup_latbands(hco % nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
+    call mmpi_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
+    call mmpi_setup_latbands(hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
 
     ! get latest sea-ice analysis
     call gsv_allocate(stateVector_ice, 1, hco, vco, dataKind_opt = 4, &
@@ -110,8 +114,8 @@ module SSTbias_mod
     numberOpenWaterPoints = 0
     mask(:, :) = .false.
     openWater(:, :) = .false.
-    do latIndex = 1, hco % nj
-      do lonIndex = 1, hco % ni
+    do latIndex = 1, hco%nj
+      do lonIndex = 1, hco%ni
         if (oceanMask%mask(lonIndex, latIndex, 1)) then
           mask(lonIndex, latIndex) = .true.
           if (seaice_ptr(lonIndex, latIndex, 1) <= iceFractionThreshold) then
@@ -143,7 +147,8 @@ module SSTbias_mod
           if (nobsFoundSatellite > 0) then
             call sstb_getGriddedBias(satelliteGrid(:, :), insituGrid, hco, vco, mask, openWater, &
                                      maxBias, sensorList(sensorIndex), numberOpenWaterPoints, &
-                                     numberPointsBG, listProducts(productIndex), dateStamp)
+                                     numberPointsBG, listProducts(productIndex), dateStamp, &
+                                     weightMin, weightMax, saveAuxFields)
           else
             write(*,*) 'sstb_computeBias: WARNING: missing ', trim(sensorList(sensorIndex)), ' ', &
                        trim(listProducts(productIndex)),' data.' 
@@ -345,7 +350,8 @@ module SSTbias_mod
   ! sstb_getGriddedBias
   !--------------------------------------------------------------------------
   subroutine sstb_getGriddedBias(satelliteGrid, insituGrid, hco, vco,  mask, openWater, maxBias, &
-                                 sensor, numberOpenWaterPoints, numberPointsBG, dayOrNight, dateStamp)
+                                 sensor, numberOpenWaterPoints, numberPointsBG, dayOrNight, &
+                                 dateStamp, weightMin, weightMax, saveAuxFields)
     !
     ! :Purpose: compute the satellite SST data bias estimation field on a grid
     !           
@@ -356,16 +362,19 @@ module SSTbias_mod
     real(8)         , intent(inout)          :: insituGrid(:,:)      ! gridded insitu data
     type(struct_hco), intent(in)   , pointer :: hco                  ! horizontal grid structure
     type(struct_vco), intent(in)   , pointer :: vco                  ! vertical grid structure
-    logical         , intent(in)             :: mask(:, :)           ! land-ocean mask
-    logical         , intent(in)             :: openWater(:, :)      ! open water points (.true.)
-    real(4)         , intent(in)             :: maxBias              ! maximum difference in degrees between satellite and insitu SST
-    character(len=*), intent(in)             :: sensor               ! current sensor
+    logical         , intent(in)             :: mask(:,:)            ! land-ocean mask
+    logical         , intent(in)             :: openWater(:,:)       ! open water points (.true.)
+    real(4)         , intent(in)             :: maxBias              ! max allowed insitu-satellite difference in degrees, defined in namelist 
+    character(len=*), intent(in)             :: sensor               ! current sensor name
     integer         , intent(in)             :: numberOpenWaterPoints! number of open water points to allocate kd-tree work arrays 
     integer         , intent(in)             :: numberPointsBG       ! namelist parameter: number of points 
                                                                      ! used to compute the previous (background) bias estimation
     character(len=*), intent(in)             :: dayOrNight           ! look for daytime or nighttime obs
     integer         , intent(in)             :: dateStamp            ! dateStamp to put into fstd file with bias estimation
-        
+    logical         , intent(in)             :: saveAuxFields        ! to store or not auxiliary fields: nobs and weight        
+    real(4)         , intent(in)             :: weightMin            ! minimum value of weight from namelist
+    real(4)         , intent(in)             :: weightMax            ! maximum value of weight from namelist
+
     ! locals
     real(4), parameter          :: solarZenithThreshold = 90.0       ! to distinguish day and night
     type(kdtree2), pointer      :: tree => null() 
@@ -381,12 +390,15 @@ module SSTbias_mod
     real(kdkind)                :: searchRadiusSquared
     type(struct_gsv)            :: stateVector                      ! state vector containing bias estimation field
     type(struct_gsv)            :: stateVector_searchRadius, stateVector_previous
-    real(4), pointer            :: griddedBias_r4_ptr(:, :, :), searchRadius_ptr(:, :, :)
-    real(4), pointer            :: griddedBias_r4_previous_ptr(:, :, :)
+    type(struct_gsv)            :: stateVectorNobs, stateVectorWeight    
+    real(4), pointer            :: griddedBias_r4_ptr(:,:,:), searchRadius_ptr(:,:,:)
+    real(4), pointer            :: nobsField_r4_ptr(:,:,:), weightField_r4_ptr(:,:,:)
+    real(4), pointer            :: griddedBias_r4_previous_ptr(:,:,:)
     integer, allocatable        :: gridPointIndexes(:,:)
     real(8)                     :: weight, distance, correlation, lengthscale, difference, numberPoints
     character(len=1)            :: extension
     character(len=*), parameter :: outputFileName = './satellite_bias.fst'
+    character(len=*), parameter :: outputAuxFileName = './auxOutput.fst' ! auxiliary file name to store nobs^a and weight
     
     write(*,*) ''
     write(*,*) 'sstb_getGriddedBias: computing bias for: '//trim(sensor)//' '//trim(dayOrNight)
@@ -405,14 +417,14 @@ module SSTbias_mod
     call lfn_setup('FifthOrder')
     
     indexCounter = 0
-    do latIndex = 1, hco % nj
-      do lonIndex = 1, hco % ni 
+    do latIndex = 1, hco%nj
+      do lonIndex = 1, hco%ni 
     
         if (openWater(lonIndex, latIndex) == .true.) then
 
           indexCounter = indexCounter + 1
-          lon_grd = real(hco % lon2d_4 (lonIndex, latIndex), 8)
-          lat_grd = real(hco % lat2d_4 (lonIndex, latIndex), 8)
+          lon_grd = real(hco%lon2d_4(lonIndex, latIndex), 8)
+          lat_grd = real(hco%lat2d_4(lonIndex, latIndex), 8)
           positionArray(:, indexCounter) = kdtree2_3dPosition(lon_grd, lat_grd)
           gridPointIndexes(1, indexCounter) = lonIndex
           gridPointIndexes(2, indexCounter) = latIndex
@@ -445,6 +457,19 @@ module SSTbias_mod
     ! pointer for bias estimation stateVector
     call gsv_getField(stateVector, griddedBias_r4_ptr)
 
+    if (saveAuxFields) then
+      ! output nobs state vector
+      call gsv_allocate(stateVectorNobs, 1, hco, vco, dataKind_opt = 4, &
+                        datestamp_opt = dateStamp, mpi_local_opt = .true., varNames_opt = (/'TM'/))
+      ! pointer for nobs stateVector
+      call gsv_getField(stateVectorNobs, nobsField_r4_ptr)
+      ! output weight state vector
+      call gsv_allocate(stateVectorWeight, 1, hco, vco, dataKind_opt = 4, &
+                        datestamp_opt = dateStamp, mpi_local_opt = .true., varNames_opt = (/'TM'/))
+      ! pointer for weight stateVector
+      call gsv_getField(stateVectorWeight, weightField_r4_ptr)
+    end if
+
     ! do the search
     write(*,*) 'sstb_getGriddedBias: do the search for '//trim(sensor)//' '//trim(dayOrNight)//'...' 
 
@@ -452,30 +477,35 @@ module SSTbias_mod
       do lonIndex = myLonBeg, myLonEnd 
     
         griddedBias_r4_ptr(lonIndex, latIndex, 1) = 0.0d0
-        numberPoints = 0.0d0
+	numberPoints = 0.0d0
+	
+        if (saveAuxFields) then
+          nobsField_r4_ptr(lonIndex, latIndex, 1) = 0.0d0
+	  weightField_r4_ptr(lonIndex, latIndex, 1) = 0.0d0
+        end if
     
         if (mask(lonIndex, latIndex) == .true.) then
     
-          lon_grd = real(hco % lon2d_4 (lonIndex, latIndex), 8)
-          lat_grd = real(hco % lat2d_4 (lonIndex, latIndex), 8)
+          lon_grd = real(hco%lon2d_4(lonIndex, latIndex), 8)
+          lat_grd = real(hco%lat2d_4(lonIndex, latIndex), 8)
           refPosition(:) = kdtree2_3dPosition(lon_grd, lat_grd)
           searchRadiusSquared = (1.1d0 * searchRadius_ptr(lonIndex, latIndex, 1) * 1000.d0)**2 ! convert from km to m2
           call kdtree2_r_nearest(tp = tree, qv = refPosition, r2 = searchRadiusSquared, &
-                                  nfound = numPointsFound, nalloc = maxPointsSearch, results = searchResults)
+                                 nfound = numPointsFound, nalloc = maxPointsSearch, results = searchResults)
           if (numPointsFound > 0) then
             do localIndex = 1, numPointsFound
-              localLonIndex = gridPointIndexes(1, searchResults(localIndex) % idx)
-              localLatIndex = gridPointIndexes(2, searchResults(localIndex) % idx)
+              localLonIndex = gridPointIndexes(1, searchResults(localIndex)%idx)
+              localLatIndex = gridPointIndexes(2, searchResults(localIndex)%idx)
               difference = satelliteGrid(localLonIndex, localLatIndex) - &
                            insituGrid(localLonIndex, localLatIndex)
               if (insituGrid   (localLonIndex, localLatIndex) /= MPC_missingValue_R8 .and. &
-                   satelliteGrid(localLonIndex, localLatIndex) /= MPC_missingValue_R8 .and. &
-                   abs(difference) < maxBias) then
-                distance = sqrt(searchResults(localIndex) % dis)
+                  satelliteGrid(localLonIndex, localLatIndex) /= MPC_missingValue_R8 .and. &
+                  abs(difference) < maxBias) then
+                distance = sqrt(searchResults(localIndex)%dis)
                 lengthscale = 1000.d0 * searchRadius_ptr(lonIndex, latIndex, 1)
                 correlation = lfn_response(distance, lengthscale)
                 griddedBias_r4_ptr(lonIndex, latIndex, 1) = griddedBias_r4_ptr(lonIndex, latIndex, 1) + &
-                                                              correlation * difference 
+                                                            correlation * difference 
                 numberPoints = numberPoints + correlation
               end if
             end do
@@ -487,14 +517,30 @@ module SSTbias_mod
         end if
 
         weight = numberPoints / (numberPoints + numberPointsBG)
-        griddedBias_r4_ptr(lonIndex, latIndex, 1) = (1.0d0 - weight)  * griddedBias_r4_previous_ptr(lonIndex, latIndex, 1) + &
-                                                      weight              * griddedBias_r4_ptr(lonIndex, latIndex, 1)
+        if (weight < weightMin) weight = weightMin
+        if (weight > weightMax) weight = weightMax
+       
+	if (saveAuxFields) then
+          weightField_r4_ptr(lonIndex, latIndex, 1) = weight
+	  nobsField_r4_ptr(lonIndex, latIndex, 1) = numberPoints
+	end if
+	  
+	! computation of the bias:
+        griddedBias_r4_ptr(lonIndex, latIndex, 1) = (1.0d0 - weight) * griddedBias_r4_previous_ptr(lonIndex, latIndex, 1) + &
+                                                    weight * griddedBias_r4_ptr(lonIndex, latIndex, 1)
 
       end do
     end do
     
     call rpn_comm_barrier('GRID', ierr)
     call gio_writeToFile(stateVector, outputFileName, 'B_'//trim(sensor)//'_'//trim(extension))
+
+    if (saveAuxFields) then
+      call gio_writeToFile(stateVectorNobs, outputAuxFileName, 'N_'//trim(sensor)//'_'//trim(extension))
+      call gio_writeToFile(stateVectorWeight, outputAuxFileName, 'W_'//trim(sensor)//'_'//trim(extension))
+      call gsv_deallocate(stateVectorNobs)
+      call gsv_deallocate(stateVectorWeight)
+    end if
     
     deallocate(gridPointIndexes)
     deallocate(positionArray)
