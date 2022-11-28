@@ -23,6 +23,7 @@ module message_mod
   ! intrinsic type string representations
   public :: str
   interface str
+    module procedure msg_str2str
     module procedure msg_log2str
     module procedure msg_int2str
     module procedure msg_real42str
@@ -298,6 +299,37 @@ module message_mod
     
       end function msg_breakOnSpace
   end subroutine msg_write
+
+  !--------------------------------------------------------------------------
+  ! msg_str2str (private)
+  !--------------------------------------------------------------------------
+  function msg_str2str(stringIn, trim_opt) result(string)
+    !
+    ! :Purpose: Trivial overloading (for uniformity of concatenation)
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in)  :: stringIn
+    character(len=:), allocatable :: string
+    logical, optional             :: trim_opt
+
+    ! Locals:
+    logical :: doTrim
+
+    if ( present(trim_opt) ) then
+      doTrim = trim_opt
+    else
+      doTrim = .true.
+    end if
+
+    if (doTrim) then
+      string = "'"//trim(stringIn)//"'"
+    else
+      string = "'"//stringIn//"'"
+    end if
+
+  end function msg_str2str
 
   !--------------------------------------------------------------------------
   ! msg_log2str (private)
