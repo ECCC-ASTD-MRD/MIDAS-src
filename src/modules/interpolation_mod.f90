@@ -358,7 +358,7 @@ contains
     logical,          optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
-    logical :: checkModelTop, vInterpCopyLowestLevel
+    logical :: checkModelTop
 
     integer :: vcode_in, vcode_out
     integer :: nlev_out, nlev_in
@@ -652,7 +652,7 @@ contains
     logical,          optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
-    logical :: checkModelTop, vInterpCopyLowestLevel
+    logical :: checkModelTop
 
     integer :: vcode_in, vcode_out
     integer :: nlev_out, nlev_in
