@@ -1836,7 +1836,7 @@ contains
     integer, intent(out), optional   :: iptobs_cma_opt(:)
 
     ! Locals:
-    integer :: count, profileIndex, headerIndex, istart, iend, bodyIndex, channelNumber, nrank, iobs
+    integer :: count, profileIndex, headerIndex, istart, iend, bodyIndex, channelNumber, iobs
     integer :: ChannelIndex
 
     ! Build the list of channels/profiles indices
@@ -1853,17 +1853,14 @@ contains
           if (obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == obs_assimilated) then
             call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
                                                 channelNumber, channelIndex )
-            do nrank = 1, tvs_nchan(sensorId)
-              if ( channelNumber == tvs_ichan(nrank,sensorId) ) exit
-            end do
-            if (nrank /= tvs_nchan(sensorId)+1) then
+            if (channelIndex >0) then
               count =  count + 1
               chanprof(count)%prof = profileIndex
-              chanprof(count)%chan = nrank
+              chanprof(count)%chan = channelIndex
               if (present(iptobs_cma_opt)) iptobs_cma_opt(count) = bodyIndex
-              if (present( lchannel_subset_opt )) lchannel_subset_opt(profileIndex,nrank) = .true.
+              if (present( lchannel_subset_opt )) lchannel_subset_opt(profileIndex,channelIndex) = .true.
             else
-              write(*,*) 'strange channel number',channelNumber
+              write(*,*) 'tvs_getChanProf: strange channel number',channelNumber
             end if
           end if
         end do
@@ -2486,7 +2483,7 @@ contains
       allocate(tvs_bodyIndexFromBtIndex(btCount))
 
       if ( btCount == 0 ) cycle sensor_loop
-      
+      tvs_bodyIndexFromBtIndex(:) = -1      
       allocate ( surfem1          (btCount) ,stat=allocStatus(1))
 
       asw = 1 ! Allocation
@@ -2534,6 +2531,24 @@ contains
             chanprof(btIndex)%chan = channelIndex
           end do
         end do
+        
+        do profileIndex = 1, profileCount
+          headerIndex = tvs_headerIndex(sensorTovsIndexes(profileIndex))
+          if (headerIndex > 0) then
+            istart = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
+            iend = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + istart - 1
+            do bodyIndex = istart, iend
+              call tvs_getChannelNumIndexFromPPP( obsSpaceData, headerIndex, bodyIndex, &
+                  channelNumber, channelIndex )
+              if (channelIndex > 0) then
+                tvs_bodyIndexFromBtIndex((profileIndex-1)*tvs_nchan(sensorId)+channelIndex) = bodyIndex
+              else
+                write(*,*) 'tvs_rttov: strange channel number',channelNumber
+              end if
+            end do
+          end if
+        end do
+        
       else
         allocate( lchannel_subset(profileCount,tvs_nchan(sensorId)) )
         call tvs_getChanprof(sensorId, sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, lchannel_subset_opt = lchannel_subset, iptobs_cma_opt = tvs_bodyIndexFromBtIndex)
@@ -2848,12 +2863,10 @@ contains
       end do
 
       ! Append Surface Emissivity into ObsSpaceData
-      if (.not. (bgckMode .and. tvs_isInstrumHyperSpectral(instrum)) ) then
-        do btIndex = 1, btCount
-          bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
-          call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
-        end do
-      end if
+      do btIndex = 1, btCount
+        bodyIndex = tvs_bodyIndexFromBtIndex(btIndex)
+        if (bodyIndex > 0) call obs_bodySet_r(obsSpaceData, OBS_SEM, bodyIndex, emissivity_local(btIndex)%emis_out)
+      end do
 
       !    Deallocate memory
       asw = 0 ! 0 to deallocate
