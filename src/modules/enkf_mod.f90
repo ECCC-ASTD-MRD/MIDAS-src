@@ -277,7 +277,6 @@ contains
             memberIndex2 = 0
             do memberIndex = 1, nEnsPerSubEns
               do eigenVectorColumnIndex = 1, numRetainedEigen
-                !memberIndex2 = memberIndex2 + memberIndex
                 memberIndex2 = memberIndex2 + 1
                 memberIndexInModEns = (eigenVectorColumnIndex - 1) * nEns + &
                                         memberIndex
@@ -288,11 +287,6 @@ contains
           end do
         end if
       else
-        if ( useModulatedEns ) then
-          call utl_abort('enkf_LETKFanalyses: randomShuffleSubEns not implemented for algorithm:' // &
-                          trim(algorithm))
-        end if
-
         ! compute random seed from the date for randomly forming subensembles
         imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
         dateStamp = tim_getDateStamp()
@@ -314,6 +308,19 @@ contains
                  randomMemberIndexArray((subEnsIndex-1)*nEnsPerSubEns + memberIndex)
           end do
         end do
+        if ( useModulatedEns ) then
+          do subEnsIndex = 1, numSubEns
+            memberIndex2 = 0
+            do memberIndex = 1, nEnsPerSubEns
+              do eigenVectorColumnIndex = 1, numRetainedEigen
+                memberIndex2 = memberIndex2 + 1
+                memberIndexSubEns_mod(memberIndex2,subEnsIndex) =  &
+                      randomMemberIndexArray((subEnsIndex-1)*nEnsPerSubEns + memberIndex) + &
+                      (eigenVectorColumnIndex - 1) * nEns
+              end do
+            end do
+          end do
+        end if        
       end if
 
       do subEnsIndex = 1, numSubEns
