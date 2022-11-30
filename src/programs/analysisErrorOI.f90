@@ -50,7 +50,6 @@ program midas_analysisErrorOI
   type(struct_columnData), target :: trlColumnOnAnlLev
   type(struct_hco)      , pointer :: hco_anl => null()
   type(struct_vco)      , pointer :: vco_anl => null()
-  type(struct_hco)      , pointer :: hco_core => null()
 
   istamp = exdb('ANALYSISERROROI','DEBUT','NON')
 
@@ -114,14 +113,6 @@ program midas_analysisErrorOI
   if (mmpi_myid == 0) write(*,*) 'var_setup: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, trlmFileName, 'B-ER STD DEV') ! IN
 
-  if ( hco_anl % global ) then
-    hco_core => hco_anl
-  else
-    !- Initialize the core (Non-Extended) analysis grid
-    if (mmpi_myid == 0) write(*,*)'var_setup: Set hco parameters for core grid'
-    call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
-  end if
-
   !
   !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
   !
@@ -157,6 +148,7 @@ program midas_analysisErrorOI
   ! Sea ice concentration
   call filt_iceConcentration(obsSpaceData, beSilent=.false.)
   call filt_backScatAnisIce(obsSpaceData, beSilent=.false.)
+  call oer_setErrBackScatAnisIce( obsSpaceData, beSilent=.false. )
 
   ! Compute the analysis-error
   call aer_analysisError(obsSpaceData, hco_anl, vco_anl, trlmFileName)
