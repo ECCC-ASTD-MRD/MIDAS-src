@@ -20,14 +20,24 @@ program dumpBmatrix
   integer extractDate, nlev_T, nlev_M,Vcode, ip1_sfc, ip1_T_2m, ip1_M_10m,varCount,nkgdim, nLonLatPos
   integer, allocatable :: ip1_T(:), ip1_M(:)  
   character(len=4), allocatable :: varList(:)
+  character(len=256) :: bmatFileName
   real(4) :: latitude, longitude
   real(8), allocatable :: Bmatrix(:,:)
   integer :: nulmat, ierr
   integer, external :: fnom, fclos
   integer :: iBand, i,j
   
+  if ( command_argument_count() /= 1 ) then
+    write(*,*) '<!> wrong argument number <!>'
+    write(*,*) '    SYNOPSIS:'
+    write(*,*) '       ./dumpBmatrix <bmatFileName>'
+    call exit(1)
+  end if
+
+  call get_command_argument(1,bmatFileName)
+
   nulmat = 0
-  ierr = fnom(nulmat,'./Bmatrix.bin','FTN+SEQ+UNF',0)
+  ierr = fnom(nulmat,trim(bmatFileName),'FTN+SEQ+UNF',0)
   read(nulmat) extractDate, nlev_T, nlev_M, Vcode, &
       ip1_sfc, ip1_T_2m, ip1_M_10m, varCount, nkgdim, nLonLatPos
   write(*,*) extractDate, nlev_T, nlev_M, Vcode, &
