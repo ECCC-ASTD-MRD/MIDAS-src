@@ -17,15 +17,18 @@
 
 program dumpBmatrix
   implicit none
-  integer extractDate, nlev_T, nlev_M,Vcode, ip1_sfc, ip1_T_2m, ip1_M_10m,varCount,nkgdim, nLonLatPos
-  integer, allocatable :: ip1_T(:), ip1_M(:)  
+  integer               :: extractDate, nlev_T, nlev_M,Vcode, ip1_sfc, ip1_T_2m
+  integer               :: ip1_M_10m,varCount,nkgdim, nBands
+  integer               :: nulmat, ierr
+  integer               :: indexBand, indexI,indexJ
+  integer, allocatable  :: ip1_T(:), ip1_M(:)
+  integer, external     :: fnom, fclos
+  real(4)               :: latitude, longitude
+  real(8), allocatable  :: Bmatrix(:,:)
+
   character(len=4), allocatable :: varList(:)
-  character(len=256) :: bmatFileName
-  real(4) :: latitude, longitude
-  real(8), allocatable :: Bmatrix(:,:)
-  integer :: nulmat, ierr
-  integer, external :: fnom, fclos
-  integer :: iBand, i,j
+  character(len=256)            :: bmatFileName
+
   
   if ( command_argument_count() /= 1 ) then
     write(*,*) '<!> wrong argument number <!>'
@@ -39,9 +42,11 @@ program dumpBmatrix
   nulmat = 0
   ierr = fnom(nulmat,trim(bmatFileName),'FTN+SEQ+UNF',0)
   read(nulmat) extractDate, nlev_T, nlev_M, Vcode, &
-      ip1_sfc, ip1_T_2m, ip1_M_10m, varCount, nkgdim, nLonLatPos
-  write(*,*) extractDate, nlev_T, nlev_M, Vcode, &
-      ip1_sfc, ip1_T_2m, ip1_M_10m, varCount, nkgdim, nLonLatPos
+      ip1_sfc, ip1_T_2m, ip1_M_10m, varCount, nkgdim, nBands
+  write(*,*) extractDate
+  write(*,*) nlev_T, nlev_M, Vcode
+  write(*,*) ip1_sfc, ip1_T_2m, ip1_M_10m
+  write(*,*) varCount, nkgdim, nBands
   allocate(ip1_T(nlev_T),ip1_M(nlev_M),varList(varCount))
   allocate(Bmatrix(nkgdim,nkgdim))
   read(nulmat) ip1_T(:), ip1_M(:), varList(:)
@@ -49,12 +54,12 @@ program dumpBmatrix
   write(*,*) ip1_M
   write(*,*) varList
   
-  do iband = 1, nLonLatPos 
+  do indexBand = 1, nBands 
     read(nulmat) latitude, longitude,  Bmatrix(:,:)
     write(*,*) latitude, longitude
-    do i = 1, nkgdim
-      do j =i, nkgdim
-        write(*,*) i,j,Bmatrix(i,j)
+    do indexI = 1, nkgdim
+      do indexJ =indexI, nkgdim
+        write(*,*) indexI,indexJ,Bmatrix(indexI,indexJ)
       end do
     end do
   end do
