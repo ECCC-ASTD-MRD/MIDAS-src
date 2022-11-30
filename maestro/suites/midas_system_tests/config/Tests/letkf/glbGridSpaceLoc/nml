@@ -14,6 +14,7 @@
    rejectRadNearSfc         = .false.
    obsTimeInterpType        = 'LINEAR'
    mpiDistribution          = 'ROUNDROBIN'
+   randomShuffleSubEns      = .true. 
    numRetainedEigen         = 5
    debug                    = .false.
 /
