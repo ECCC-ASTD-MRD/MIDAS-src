@@ -631,6 +631,8 @@ contains
     call gio_writeToFile( stateVectorAnal, './anlm_000m', '', typvar_opt='A@', &
                           containsFullField_opt=.true. )
 
+    call col_deallocate( columng )
+    call col_deallocate( column )
     call gsv_deallocate( stateVectorBkGnd )
     call gsv_deallocate( stateVectorAnal )
 
@@ -906,6 +908,8 @@ contains
     call gio_writeToFile( stateVectorAnal, './anlm_000m', '', typvar_opt='A@', &
                           containsFullField_opt=.true. )
 
+    call col_deallocate( columng )
+    call col_deallocate( column )
     call gsv_deallocate( stateVectorBkGnd )
     call gsv_deallocate( stateVectorAnal )
 
