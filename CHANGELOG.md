@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Random shuffle of subensembles for letkf with modulate ensembles (#722 and !661)
+   * minor impact on results: `numRetainedEigen` is reduced to 5 and random shuffling is activated.
  * Revised SST satellite data estimation (#723 and !659)
  * Added optional bias correction of radiosonde temperature and humidity data (#545 and !657)
  * grid-space localization in letkf (#609 and !656)
