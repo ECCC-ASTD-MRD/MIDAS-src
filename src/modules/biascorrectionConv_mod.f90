@@ -117,6 +117,7 @@ CONTAINS
     ! :Purpose: Read NAMBIASCONV namelist section and NAMSONDETYPES section if uaBiasActive=true
     !
     implicit none
+
     !Locals:
     integer  :: ierr, nulnam, sondeIndex
     
@@ -214,7 +215,7 @@ CONTAINS
   !-----------------------------------------------------------------------
   ! bcc_GetUACorrection
   !-----------------------------------------------------------------------
-   subroutine bcc_GetUACorrection(varName,stnIndex,sondeTypeIndex,sondeType,biasProfileCategory,timeOfDayX,latband,obsPressure,corr,sourceCorr)
+  subroutine bcc_GetUACorrection(varName,stnIndex,sondeTypeIndex,sondeType,biasProfileCategory,timeOfDayX,latband,obsPressure,corr,sourceCorr)
     !
     ! :Purpose: Return a TT or TD bias correction (corr) 
     
@@ -251,8 +252,8 @@ CONTAINS
     ! correction at the observation level (obsPressure).
     ! Persistence is applied for observations outside the range of the mandatory levels.
     !
-    
     implicit none
+
     !Arguments:
     integer, intent(in)           ::  stnIndex
     integer, intent(in)           ::  sondeTypeIndex
@@ -264,6 +265,7 @@ CONTAINS
     character(len=*), intent(in)  ::  sondeType
     real(8), intent(out)          ::  corr
     character(len=*), intent(out) ::  sourceCorr
+
     !Locals:
     real(8) ::  corrProfileStnDay(16), corrProfileStnNight(16), corrProfileStypeDay(16), corrProfileStypeNight(16)
     real(8) ::  corrDay, corrNight
@@ -473,6 +475,7 @@ CONTAINS
      
     !Arguments:
     character(len=*), intent(in)  :: station
+
     !Locals:
     integer    :: stationIndex
     
@@ -502,8 +505,10 @@ CONTAINS
     implicit none
     
     integer  :: sondeIndex
+
     !Arguments:
     character(len=*), intent(in)  :: sondeType
+
     !Locals:
     integer    :: typeIndex, ntypes
     
@@ -536,10 +541,12 @@ CONTAINS
     ! sonde type codes associated with each sonde-type (read from namelist).
     !
     implicit none
+
     !Arguments:
     integer, intent(in)            :: sondeTypeCode
     character(len=*), intent(out)  :: sondeType
     integer, intent(out)           :: sondeTypeIndex
+
     !Locals:
     integer  :: typeIndex, ntypes, sondeCode
     
@@ -586,12 +593,14 @@ CONTAINS
     !       time = time/10000
     !
     implicit none
+
     !Arguments:
     integer, intent(in)  :: date          ! yyyymmdd
     integer, intent(in)  :: time          ! hhmm
     real(8), intent(in)  :: lat           ! radians
     real(8), intent(in)  :: lon           ! radians
     real(8), intent(out) :: solarElev     ! degrees
+
     !Locals:
     integer :: days(13) = (/0,31,28,31,30,31,30,31,31,30,31,30,31/)
     integer :: leap_years(7) = (/2016,2020,2024,2028,2032,2036,2040/)
@@ -676,6 +685,7 @@ CONTAINS
     
     !Arguments:
     real(8), intent(in) ::  latInRadians 
+
     !Locals:
     real(8)             ::  latInDegrees
     
@@ -713,6 +723,7 @@ CONTAINS
     !           Missing value = 99.0.
     !
     implicit none
+
     !Arguments:
     character(len=*), intent(in) :: biasEstimateFile
 
@@ -776,8 +787,10 @@ CONTAINS
     ! :Purpose:  to apply aircraft (AI) bias corrections to observations in ObsSpaceData
     !
     implicit none
+
     !Arguments:
     type(struct_obs)        :: obsSpaceData
+
     !Locals:
     integer  :: headerIndex, bodyIndex, codtyp
     integer  :: flag, phase, bufrCode
@@ -957,8 +970,10 @@ CONTAINS
     !           Missing value = -999.00
     !
     implicit none
+
     !Arguments:
     character(len=*), intent(in) :: biasEstimateFile
+
     !Locals:
     integer :: ierr, nulcoeff
     integer :: stationIndex
@@ -1004,8 +1019,10 @@ CONTAINS
     ! :Purpose:  to apply GB-GPS (GP) ZTD bias corrections to ZTD observations in ObsSpaceData
     !
     implicit none
+
     !Arguments:
     type(struct_obs)  :: obsSpaceData
+
     !Locals:
     integer  :: headerIndex, bodyIndex
     integer  :: flag, bufrCode
@@ -1230,6 +1247,7 @@ CONTAINS
     !           ttCorrectionsStn(iStn,iType,TOD,level) = MPC_missingValue_R8 if TTcorrectionValue == -99.0
     !
     implicit none
+
     !Arguments:
     character(len=*), intent(in) :: biasCorrectionFileName
     integer, intent(in)          :: nProfsMin
@@ -1332,8 +1350,10 @@ CONTAINS
     !  Routine does nothing if uaBiasActive = .false. (just returns to calling routine)
     !
     implicit none
+
     !Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
+
     !Locals:
     integer  :: headerIndex, bodyIndex, codtyp
     integer  :: flag, bufrCode, sondeTypeCode, sondeTypeIndex, stnIndex
@@ -1399,7 +1419,7 @@ CONTAINS
       ! Get the information needed to apply the bias corrections from the first header for this station
       if ( newStation .and. .not.uaRevOnly ) then
          
-        !! Station index in list of stations (uaStations) from ua_bcors_stn file
+        ! Station index in list of stations (uaStations) from ua_bcors_stn file
         stationFound = .false.
         stnIndex = bcc_StationIndex(stnid)
         if (debug) write(*,*) 'stnid, index = ', stnid, stnIndex
@@ -1410,7 +1430,7 @@ CONTAINS
           if (debug) write(*,*) 'Unknown station (not in ua_bcors_stn file) '//stnid
         end if
          
-        !! Date and lat,lon
+        ! Date and lat,lon
         codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex) ! CODE TYPE
         date   = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex) ! YYYYMMDD
         time   = obs_headElem_i(obsSpaceData, OBS_ETM, headerIndex) ! HHMM
@@ -1432,7 +1452,7 @@ CONTAINS
           countCat2 = countCat2 + 1
         end if
          
-        !! Get the sonde type index in rsTypes read from namelist
+        ! Get the sonde type index in rsTypes read from namelist
         sondeTypeCode  = obs_headElem_i(obsSpaceData, OBS_RTP, headerIndex)  ! sonde type BUFR code (WMO table)
         if (debug) then
           write(*,*) 'stnid, sondeTypeCode, date, time, lat'
@@ -1450,7 +1470,7 @@ CONTAINS
         end if
         if (debug) write(*,*) 'sondeType, sondeTypeIndex = ', sondeType, sondeTypeIndex
          
-        !! We assume that a sonde type of "RS41" reported by Chinese UA stations is not correct
+        ! We assume that a sonde type of "RS41" reported by Chinese UA stations is not correct
         realRS41 = .false.
         if ( trim(sondeType) == "RS41" ) then
           if ( stnid(1:1) == "5" ) then
@@ -1460,7 +1480,7 @@ CONTAINS
           end if
         end if
          
-        !! Time-of-day x-value
+        ! Time-of-day x-value
         call bcc_GetSolarElevation(lat,lon,date,time,solarElev)
         call bcc_GetTimeOfDay(solarElev,timeOfDayX)
         if ( timeOfDayX == 0.0 ) then
@@ -1471,7 +1491,7 @@ CONTAINS
           countDawnDusk = countDawnDusk+1
         end if
          
-        !! Latitude band
+        ! Latitude band
         if ( uaNlatBands == 1 ) then
           latBand = 1
         else
