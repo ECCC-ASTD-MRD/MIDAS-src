@@ -132,10 +132,11 @@ module oMinusF_mod
       !- 1.10 Setup and read observations
       call inn_setupObs(obsSpaceData, hco_anl, obsColumnMode, obsMpiStrategy,trim(varMode))!IN
 
-      ! Apply optional bias corrections when namelist logicals aiBiasActive, gpBiasActive are TRUE
-      ! (Only reverse existing corrections when namelist logicals aiRevOnly, gpRevOnly are TRUE)
-      call bcc_applyAIBcor(obsSpaceData)    
-      call bcc_applyGPBcor(obsSpaceData)      
+      ! Apply optional bias corrections when namelist logicals {fam}BiasActive are TRUE
+      ! (Only reverse existing corrections when namelist logicals {fam}RevOnly are TRUE)
+      if (obs_famExist(obsSpaceData,'AI')) call bcc_applyAIBcor(obsSpaceData)    
+      if (obs_famExist(obsSpaceData,'GP')) call bcc_applyGPBcor(obsSpaceData)
+      if (obs_famExist(obsSpaceData,'UA')) call bcc_applyUABcor(obsSpaceData)
       
       !- 1.11 Basic setup of columnData module
       call col_setup

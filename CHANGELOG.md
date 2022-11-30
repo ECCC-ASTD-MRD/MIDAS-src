@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+
+ * Added optional bias correction of radiosonde temperature and humidity data (#545 and !657)
  * grid-space localization in letkf (#609 and !656)
  * Add a [code coverage tool](docs/unitTests.md#activating-the-code-coverage-report) (#680 and !626)
  * Add grid consistency checks in `gsv_copy` and `gsv_copyHeightSfc` (#717 and !658)

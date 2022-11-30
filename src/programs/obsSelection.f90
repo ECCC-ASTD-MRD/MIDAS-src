@@ -181,12 +181,14 @@ program midas_obsSelection
   call gsv_setup
 
   ! Apply optional bias corrections
-  call bcc_applyAIBcor(obsSpaceData)    
-  call bcc_applyGPBcor(obsSpaceData)
   if (obs_famExist(obsSpaceData, 'TM')) then
     call sstb_applySatelliteSSTBiasCorrection(obsSpaceData, hco_anl, vco_anl, columnTrlOnAnlIncLev)
   end if  
-  
+
+  if (obs_famExist(obsSpaceData,'AI')) call bcc_applyAIBcor(obsSpaceData)    
+  if (obs_famExist(obsSpaceData,'GP')) call bcc_applyGPBcor(obsSpaceData)
+  if (obs_famExist(obsSpaceData,'UA')) call bcc_applyUABcor(obsSpaceData)
+    
   ! Reading trials
   call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
   allocHeightSfc = ( vco_trl%Vcode /= 0 )
