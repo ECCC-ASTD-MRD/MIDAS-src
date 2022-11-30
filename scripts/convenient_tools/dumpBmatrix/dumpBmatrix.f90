@@ -21,12 +21,13 @@ program dumpBmatrix
   integer               :: ip1_M_10m,varCount,nkgdim, nBands
   integer               :: nulmat, ierr
   integer               :: indexBand, indexI,indexJ
-  integer, allocatable  :: ip1_T(:), ip1_M(:)
+  integer               :: levelIndex, controlVectorIndex, varIndex
+  integer, allocatable  :: ip1_T(:), ip1_M(:), controlVectorIp1(:)
   integer, external     :: fnom, fclos
   real(4)               :: latitude, longitude
   real(8), allocatable  :: Bmatrix(:,:)
 
-  character(len=4), allocatable :: varList(:)
+  character(len=4), allocatable :: varList(:), controlVectorVar(:)
   character(len=256)            :: bmatFileName
 
   
@@ -53,13 +54,44 @@ program dumpBmatrix
   write(*,*) ip1_T
   write(*,*) ip1_M
   write(*,*) varList
+
+
+  allocate(controlVectorVar(nkgdim))
+  allocate(controlVectorIp1(nkgdim))
+  controlVectorIndex = 0
+  do varIndex = 1, varCount
+    select case(trim(varList(varIndex)))
+    case('TT','HU')
+      do levelIndex= 1, nlev_T
+        controlVectorIndex =  controlVectorIndex + 1
+        controlVectorVar(controlVectorIndex) = varList(varIndex)
+        controlVectorIp1(controlVectorIndex) = ip1_T(levelIndex)
+      end do
+    case('UU','VV')
+      do levelIndex= 1, nlev_M
+        controlVectorIndex =  controlVectorIndex + 1
+        controlVectorVar(controlVectorIndex) = varList(varIndex)
+        controlVectorIp1(controlVectorIndex) = ip1_M(levelIndex)
+      end do
+    case('P0','TG')
+      controlVectorIndex =  controlVectorIndex + 1
+      controlVectorVar(controlVectorIndex) = varList(varIndex)
+      controlVectorIp1(controlVectorIndex) = ip1_sfc
+    case default
+      write(*,*) "Unknown variable ", varList(varIndex)
+      call exit(1)
+    end select
+  end do
   
   do indexBand = 1, nBands 
     read(nulmat) latitude, longitude,  Bmatrix(:,:)
     write(*,*) '--- band ', indexBand, latitude, longitude
     do indexI = 1, nkgdim
       do indexJ =indexI, nkgdim
-        write(*,*) indexBand, indexI,indexJ,Bmatrix(indexI,indexJ)
+        write(*,'(3(i3,1x),2(A4,1x),2(i12,1x),e18.10)') indexBand, indexI,indexJ, &
+            controlVectorVar(indexI),controlVectorVar(indexJ), &
+            controlVectorIp1(indexI),controlVectorIp1(indexJ), &
+            Bmatrix(indexI,indexJ)
       end do
     end do
   end do
@@ -67,5 +99,7 @@ program dumpBmatrix
   ierr=fclos(nulmat)
   deallocate(ip1_T,ip1_M,varList)
   deallocate(Bmatrix)
+  deallocate(controlVectorVar)
+  deallocate(controlVectorIp1)
   
 end program dumpBmatrix
