@@ -56,10 +56,10 @@ program dumpBmatrix
   
   do indexBand = 1, nBands 
     read(nulmat) latitude, longitude,  Bmatrix(:,:)
-    write(*,*) latitude, longitude
+    write(*,*) '--- band ', indexBand, latitude, longitude
     do indexI = 1, nkgdim
       do indexJ =indexI, nkgdim
-        write(*,*) indexI,indexJ,Bmatrix(indexI,indexJ)
+        write(*,*) indexBand, indexI,indexJ,Bmatrix(indexI,indexJ)
       end do
     end do
   end do
