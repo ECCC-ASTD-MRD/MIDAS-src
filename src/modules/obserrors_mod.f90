@@ -29,12 +29,17 @@ module obsErrors_mod
   use utilities_mod
   use earthConstants_mod
   use gps_mod
+  use horizontalCoord_mod
+  use verticalCoord_mod
   use columnData_mod
+  use gridStateVector_mod
+  use gridStateVectorFileIO_mod
   use rmatrix_mod
   use varNameList_mod
   use obsfiles_mod
   use burp_module
   use rttov_const, only: surftype_sea
+  use statetocolumn_mod
   implicit none
   save
   private
@@ -2661,17 +2666,21 @@ contains
   !--------------------------------------------------------------------------
   ! oer_setErrBackScatAnisIce
   !--------------------------------------------------------------------------
-  subroutine oer_setErrBackScatAnisIce(columnTrlOnTrlLev, obsSpaceData, beSilent)
+  subroutine oer_setErrBackScatAnisIce(obsSpaceData, beSilent, columnTrlOnTrlLev_opt)
     !
     ! :Purpose: Compute estimated errors for ASCAT backscatter anisotropy observations
     !
     implicit none
 
-    type(struct_columnData), intent(in) :: columnTrlOnTrlLev
-    type(struct_obs)                    :: obsSpaceData
-    logical,                 intent(in) :: beSilent
+    type(struct_obs)                  :: obsSpaceData
+    logical,               intent(in) :: beSilent
+    type(struct_columnData), optional :: columnTrlOnTrlLev_opt
 
     ! locals
+    type(struct_columnData)   :: columnTrlOnTrlLev
+    type(struct_hco), pointer :: hco_trl => null()
+    type(struct_vco), pointer :: vco_trl => null()
+    type(struct_gsv) :: stateVector
     integer :: headerIndex, bodyIndex
     integer :: idate, imonth, varno
     integer :: trackCellNum
@@ -2680,8 +2689,11 @@ contains
 
     character(len=*), parameter :: myName = 'oer_setErrBackScatAnisIce'
     character(len=8)            :: ccyymmdd
+    logical :: alreadyReadGL
 
     if (.not. beSilent) write(*,*) 'ENTER '//myName
+
+    alreadyReadGL = .false.
 
     !
     !     Loop over all header indices of the 'GL' family:
@@ -2690,8 +2702,6 @@ contains
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
-      idate = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex)
-      trackCellNum = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
       call obs_set_current_body_list(obsSpaceData, headerIndex)
       BODY: do 
         bodyIndex = obs_getBodyIndex(obsSpaceData)
@@ -2701,18 +2711,45 @@ contains
         !
         varno = obs_bodyElem_i(obsSpaceData, OBS_VNM , bodyIndex)
         if (varno == BUFR_ICES) then
-           write(ccyymmdd, FMT='(i8.8)') idate
-           read(ccyymmdd(5:6), FMT='(i2)') imonth
-           conc = col_getElem(columnTrlOnTrlLev,1,headerIndex,'GL')
-           obsErrStdDev = SQRT(((1.0-conc)*ascatAnisSigmaOpenWater(trackCellNum,imonth))**2 + &
-                                       (conc*ascatAnisSigmaIce(trackCellNum,imonth))**2)
 
-           call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, obsErrStdDev)
+          if (present(columnTrlOnTrlLev_opt)) then
+            conc = col_getElem(columnTrlOnTrlLev_opt,1,headerIndex,'GL')
+          else
+            if (.not. alreadyReadGL) then
+              ! Need background ice concentration
+              call hco_SetupFromFile( hco_trl, './bgSeaIceConc', '', varName_opt='GL' )
+              call vco_SetupFromFile( vco_trl, './bgSeaIceConc')
+              call gsv_allocate( stateVector, 1, hco_trl, vco_trl, dateStamp_opt=-1, &
+                                 mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                                 dataKind_opt=4, hInterpolateDegree_opt='LINEAR', &
+                                 varNames_opt=(/'GL'/) )
+              call gsv_zero( stateVector )
+              call gio_readFromFile( stateVector, './bgSeaIceConc', '', 'P@', &
+                                     unitConversion_opt = .false. )
+              call col_setVco(columnTrlOnTrlLev, vco_trl)
+              call col_allocate(columnTrlOnTrlLev, obs_numHeader(obsSpaceData), mpiLocal_opt=.true.)
+              call s2c_nl( stateVector, obsSpaceData, columnTrlOnTrlLev, hco_trl, &
+                           timeInterpType='NEAREST' )
+              call gsv_deallocate( stateVector )
+              alreadyReadGL = .true.
+            end if
+            conc = col_getElem(columnTrlOnTrlLev,1,headerIndex,'GL')
+          end if
+          trackCellNum = obs_headElem_i(obsSpaceData, OBS_FOV, headerIndex)
+          idate = obs_headElem_i(obsSpaceData, OBS_DAT, headerIndex)
+          write(ccyymmdd, FMT='(i8.8)') idate
+          read(ccyymmdd(5:6), FMT='(i2)') imonth
+          obsErrStdDev = SQRT(((1.0-conc)*ascatAnisSigmaOpenWater(trackCellNum,imonth))**2 + &
+                                          (conc*ascatAnisSigmaIce(trackCellNum,imonth))**2)
+
+          call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, obsErrStdDev)
 
         end if
       end do BODY
     end do HEADER
 
+    if (alreadyReadGL) call col_deallocate(columnTrlOnTrlLev)
+ 
     if (.not. beSilent) write(*,*) myName//': done'
 
   end subroutine oer_setErrBackScatAnisIce
