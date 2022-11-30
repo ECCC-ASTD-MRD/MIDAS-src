@@ -206,15 +206,15 @@ contains
                correlationLengthFileName
     call gsv_allocate( statevector, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
                        dataKind_opt=4, hInterpolateDegree_opt='LINEAR', &
-                       varNames_opt=(/'GL'/) )
+                       varNames_opt=(/anlVar(1)/) )
     call gsv_zero( statevector )
     call gio_readFromFile( statevector, correlationLengthFileName, 'CORRLEN', ' ', &
                            unitConversion_opt = .false. )
 
-    call gsv_getField( statevector, field3D_r4_ptr, 'GL' )
+    call gsv_getField( statevector, field3D_r4_ptr, anlVar(1) )
     ! Convert from km to meters
     Lcorr(:,:) = 1000.0d0*real(field3D_r4_ptr( :, :, 1 ), 8)
-    write(*,*) myName//': correlation length scale 2D field for variable GL min/max: ', &
+    write(*,*) myName//': min/max correlation length scale 2D field: ', &
                minval( Lcorr(:,:) ), maxval( Lcorr(:,:) )
     call gsv_deallocate( statevector )
 
