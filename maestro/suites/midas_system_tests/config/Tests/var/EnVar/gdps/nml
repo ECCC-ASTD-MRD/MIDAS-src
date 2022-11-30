@@ -1,19 +1,30 @@
  &NAMBHI
    NTRUNC  = 270,
-   SCALEFACTOR   = 100*0.375D0
+   SCALEFACTOR = 17*0.25D0,0.225D0,0.2D0,0.175D0,0.15D0,0.125D0,0.1D0,0.075D0,0.05D0,0.025D0,100*0.0D0
    READWRITE_SQRT = .true.
 /
  &NAMBEN
-   NTRUNC  = 31,
+   NTRUNC  = 80,
    NENS = 256
-   SCALEFACTOR=3*0.00D0,0.075D0,0.15D0,0.225D0,0.30D0,0.375D0,0.45D0,0.525D0,0.60D0,0.675D0,100*0.75D0
+   SCALEFACTOR=3*0.00D0,0.1D0,0.2D0,0.3D0,0.4D0,0.5D0,0.6D0,0.7D0,0.8D0,0.9D0,100*1.0D0
+   ENSPATHNAME='./ensemble/'
+   LOCALIZATIONTYPE = 'ScaleDependent'
+   WAVEBANDPEAKS = 80,20,4
+   HLOCALIZE = 1000.0,2400.0,3300.0
+   VLOCALIZE = 2.0d0,2.0d0,2.0d0
    huMinValue = 1.0D-7
+   INCLUDEANLVAR(1) = 'UU'
+   INCLUDEANLVAR(2) = 'VV'
+   INCLUDEANLVAR(3) = 'TT'
+   INCLUDEANLVAR(4) = 'HU'
+   INCLUDEANLVAR(5) = 'P0'
+   INCLUDEANLVAR(6) = 'TG'
 /
- &NAMS2C
-  SLANTPATH_TO_NL   = .FALSE.,
-  SLANTPATH_TO_TLAD = .FALSE.,
-  SLANTPATH_RO_NL   = .FALSE.,
-  calcHeightPressIncrOnColumn = .FALSE.
+ &NAMBCHM
+   NTRUNC  = 270,
+   SCALEFACTOR(1,1:100) = 100*1.0D0
+   STDDEVMODE = 'GD3D'
+   READWRITE_SQRT = .true.
 /
  &NAMMIN
    NVAMAJ = 25,
@@ -27,18 +38,20 @@
 /
  &NAMINC
    hInterpolationDegree = 'CUBIC'
-   etiket_rebm ='XXXXXX'
+   etiket_rehm = '${EXP_ETIKET}'
+   etiket_rebm = '${EXP_ETIKET}'
+   etiket_anlm = '${EXP_ETIKET}'
 /
  &NAMDIMO
    NMXOBS=100000,
-   NDATAMX=1000000,
+   NDATAMX=8000000,
 /
  &NAMTIME
   DSTEPOBS = 0.25d0
   DSTEPOBSINC = 1.0d0
 /
  &NAMFILT
-  NELEMS = 16,
+  NELEMS = 22,
   NLIST(1)=10004,
   NLIST(2)=10051,
   NLIST(3)=12004,
@@ -55,25 +68,25 @@
   NLIST(14)=12163,
   NLIST(15)=15036,
   NLIST(16)=15031,
-  NFLAGS=3,
+  NLIST(17)=15198,
+  NLIST(18)=15199,
+  NLIST(19)=15008,
+  NLIST(20)=15207,
+  NLIST(21)=15208,
+  NLIST(22)=15230,
+  NFLAGS=4,
   NLISTFLG(1)=2,
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
-  NLISTFLG(4)=-5,
-  NLISTFLG(5)=-8,
-  list_topoFilt(1) = 'SF'
-  list_topoFilt(2) = 'UA'	
-  list_topoFilt(3) = 'AI'
-  list_topoFilt(4) = 'SW'
-  list_topoFilt(5) = 'PR'
-  list_topoFilt(6) = 'TO'
+  NLISTFLG(4)=11,
+  NLISTFLG(5)=-5,
+  NLISTFLG(6)=-8,
   RLIMLVHU=70.D0,
 /
  &NAMRMAT
    rmat_lnonDiagR=.true.
 /
  &NAMSTATE
-   addHeightSfcOffset = .false.
    RHUMIN  = 1.0D-07
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
@@ -81,9 +94,17 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+   ANLVAR(7)   ='LWCR'
+   ANLVAR(8)   ='O3L'
+/
+ &NAMS2C
+   SLANTPATH_TO_NL   = .TRUE.,
+   SLANTPATH_TO_TLAD = .FALSE.,
+   SLANTPATH_RO_NL   = .TRUE.,
+   calcHeightPressIncrOnColumn=.TRUE.,
 /
  &NAMTOV   
-   NSENSORS =  30,
+   NSENSORS =  37,
    CSATID(1)        = 'AQUA',
    CINSTRUMENTID(1) = 'AIRS',
    CSATID(2)        = 'METOP-2',
@@ -144,18 +165,39 @@
    CINSTRUMENTID(29) = 'CRIS',
    CSATID(30)        = 'HMWARI-8',
    CINSTRUMENTID(30) = 'AHI',
+   CSATID(31)        = 'MSG1',
+   CINSTRUMENTID(31) = 'SEVIRI',
+   CSATID(32)        = 'MSG4',
+   CINSTRUMENTID(32) = 'SEVIRI',
+   CSATID(33)        = 'HMWARI-9',
+   CINSTRUMENTID(33) = 'AHI',
+   CSATID(34)        = 'GOES16',
+   CINSTRUMENTID(34) = 'ABI',
+   CSATID(35)        = 'NOAA20',
+   CINSTRUMENTID(35) = 'ATMS',
+   CSATID(36)        = 'NPP',
+   CINSTRUMENTID(36) = 'CRISFSR',
+   CSATID(37)        = 'NOAA20',
+   CINSTRUMENTID(37) = 'CRISFSR',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
-   regLimitExtrap=.false.
+   instrumentNamesUsingCLW(1) = 'amsua'
+   mwInstrumUsingCLW_tl = .true.
+   cloudScaleFactor = 0.5D0
+   mwAllskyAssim = .true.
 /
  &NAMCODTYP
+   cnames(1)='crisfsr',
+   icod(1)=202,
 /
- &NAMGPSRO
-  LEVELGPSRO=2,
-  SURFMIN  = 1000.D0,
-  HSFMIN   = 1000.D0,
-  HTPMAX   = 40000.D0,
-  BGCKBAND = 0.05D0,
+&NAMGPSRO
+   LEVELGPSRO = 2,
+   SURFMIN    = 1000.D0,
+   HSFMIN     = 1000.D0,
+   HTPMAX     = 40000.D0,
+   HTPMAXER   = 40000.D0,
+   BGCKBAND   = 0.05D0,
+   gpsroError = 'DYNAMIC',
 /
  &NAMGPSGB
    DZMIN       = 2.0D0,
@@ -192,6 +234,9 @@
   NELEMS=10,
   BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220
 /
+ &NAMADDTOBURP
+  clwFgElementId = 13109
+/
  &NAMBURP_FILTER_TOVS
   BNBITSOFF=0,
   BBITOFF(1)=2,
@@ -202,11 +247,23 @@
   NELEMS=1
   BLISTELEMENTS=12163
 /
+ &NAMBURP_FILTER_CHM_SFC
+  BNBITSOFF=0,
+  NELEMS_SFC=3,
+  BLISTELEMENTS_SFC=15198,15208,8090 
+/
+ &NAMBURP_FILTER_CHM
+  BNBITSOFF=0,
+  NELEMS=6,
+  BLISTELEMENTS=15198,15199,15008,15208,15230,8090 
+/
  &NAMPHY
   NEW_TETENS_COEFS=.true.
 /
  &NAMOER
   NEW_OER_SW=.true.
+  mwAllskyInflateByOmp = .true.
+  mwAllskyInflateByClwDiff = .true.
 /
  &NAMBGCKCONV
   NEW_BGCK_SW=.true.
@@ -219,3 +276,16 @@
   BITEMLIST(4)='FGE',
   TYPE_RESUME='POSTALT'
 /
+ &NAMCHEM 
+  MODELNAME='GEM'              ! To identify O3L instead of TO3 from BUFR no.
+  assim_all(1)=.false.
+  assim_num(1)=7
+  assim_stnid(1,1)='00322000'  ! GOME2B (excluded GOME2A 00422000)
+  assim_stnid(1,2)='22*94700'  ! OMPS-NM on NPP and NOAA-20
+  assim_nlev(1,2)=1            ! OMPS Total column
+  assim_stnid(1,3)='AUROMI00'  ! OMI on AURA
+  assim_stnid(1,4)='R2494700'  ! OMPSNP NPP with 6 layers
+  assim_stnid(1,5)='R2362400'  ! SBUV2 with 6 layers
+  assim_stnid(1,6)='78538700'  ! MLS on AURA
+  assim_stnid(1,7)='06412500'  ! TROPOMI on S5P
+/    
