@@ -12,15 +12,13 @@
   <SUBMITS sub_name="obsImpact"/>
   <SUBMITS sub_name="diagHBHt"/>
   <SUBMITS sub_name="genCoeff"/>
-  <SUBMITS sub_name="SSTbias"/>
   <SUBMITS sub_name="calcStats"/>
   <SUBMITS sub_name="diagBmatrix"/>
   <SUBMITS sub_name="extractBmatrixFor1Dvar"/>
   <SUBMITS sub_name="var1D"/>
   <SUBMITS sub_name="analysisErrorOI"/>
-  <SUBMITS sub_name="pseudoSSTobs"/>
-  <SUBMITS sub_name="SSTtrial"/>
-
+  <SUBMITS sub_name="SST"/>
+  
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
     <FAMILY  name="EnVar">
@@ -484,11 +482,6 @@
     <MODULE  name="UnitTest"/>
   </FAMILY>
 
-  <FAMILY  name="SSTbias">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
-  </FAMILY>
-
   <FAMILY  name="calcStats">
     <SUBMITS sub_name="lam"/>
     <FAMILY  name="lam">
@@ -556,14 +549,22 @@
     <MODULE  name="UnitTest"/>
   </FAMILY>
  
-  <FAMILY  name="pseudoSSTobs">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
-  </FAMILY>
-
-  <FAMILY  name="SSTtrial">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
+  <FAMILY  name="SST">
+    <SUBMITS sub_name="SSTtrial"/>
+    <FAMILY  name="SSTtrial">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="pseudoSSTobs"/>
+    <FAMILY  name="pseudoSSTobs">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <SUBMITS sub_name="SSTbias"/>
+    <FAMILY  name="SSTbias">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
   </FAMILY>
 
 </MODULE>

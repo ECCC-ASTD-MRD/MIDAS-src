@@ -33,6 +33,9 @@
    sensorList(1)='AMSR2'
    sensorList(2)='METO-B'
    sensorList(3)='METO-C'
+   weightMin = 0.0
+   weightMax = 0.2
+   saveAuxFields = .True.
 /
  &NAMSQLsfc
    numberElem=1

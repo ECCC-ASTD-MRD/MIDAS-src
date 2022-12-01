@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Revised SST satellite data estimation (#723 and !659)
  * Added optional bias correction of radiosonde temperature and humidity data (#545 and !657)
  * grid-space localization in letkf (#609 and !656)
  * Add a [code coverage tool](docs/unitTests.md#activating-the-code-coverage-report) (#680 and !626)
