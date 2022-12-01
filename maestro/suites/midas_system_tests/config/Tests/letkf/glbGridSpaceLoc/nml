@@ -14,7 +14,8 @@
    rejectRadNearSfc         = .false.
    obsTimeInterpType        = 'LINEAR'
    mpiDistribution          = 'ROUNDROBIN'
-   numRetainedEigen         = 20
+   randomShuffleSubEns      = .true. 
+   numRetainedEigen         = 5
    debug                    = .false.
 /
  &namEnsPostProcModule
