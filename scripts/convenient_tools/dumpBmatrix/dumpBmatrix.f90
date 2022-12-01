@@ -88,7 +88,7 @@ program dumpBmatrix
     write(*,*) '--- band ', indexBand, latitude, longitude
     do indexI = 1, nkgdim
       do indexJ =indexI, nkgdim
-        write(*,'(3(i3,1x),2(A4,1x),2(i12,1x),e18.10)') indexBand, indexI,indexJ, &
+        write(*,'(3(i3,1x),2(A4,1x),2(i12,1x),e23.15)') indexBand, indexI,indexJ, &
             controlVectorVar(indexI),controlVectorVar(indexJ), &
             controlVectorIp1(indexI),controlVectorIp1(indexJ), &
             Bmatrix(indexI,indexJ)
