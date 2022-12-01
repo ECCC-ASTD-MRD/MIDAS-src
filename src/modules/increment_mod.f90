@@ -134,6 +134,9 @@ CONTAINS
     type(struct_vco), pointer :: vco_trl, vco_inc
     type(struct_hco), pointer :: hco_trl, hco_inc
 
+    real(pre_incrReal), pointer :: PsfcIncPrior(:,:,:,:), PsfcIncMasked(:,:,:,:)
+    real(pre_incrReal), pointer :: analIncMask(:,:,:)
+
     integer              :: stepIndex, numStep_inc, numStep_trl
     integer, allocatable :: dateStampList(:)
 
@@ -206,6 +209,15 @@ CONTAINS
 
       call int_interp_gsv(statevectorIncRefLowRes,statevectorRef)
       call gsv_deallocate(statevectorIncRefLowRes)
+      !- Apply mask to increment in LAM
+      if (.not. hco_trl%global .and. useAnalIncMask) then
+        call gsv_getField(statevectorRef,PsfcIncPrior,'P0')
+        call gsv_getField(statevectorRef,PsfcIncMasked,'P0')
+        call gsv_getField(statevector_mask,analIncMask)
+        do stepIndex = 1, statevectorRef%numStep
+          PsfcIncMasked(:,:,1,stepIndex) = PsfcIncPrior(:,:,1,stepIndex) * analIncMask(:,:,1)
+        end do
+      end if
 
       ! 4- Compute analysis of reference variables to use for vertical interpolation
       ! of increment
