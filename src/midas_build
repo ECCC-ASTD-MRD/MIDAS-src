@@ -305,6 +305,15 @@ mv ${__listing_config} ${__listing_frontend}
 ##=========================================================
 ## Checking if compilation and linking have been successful
 
+## Check for unused variables
+typeset __remark_unused_variables=$(grep 'remark #7712: ' ${__listing_frontend} | sort -u)
+if [ -n "${__remark_unused_variables}" ]; then
+    echo
+    echo "<!> Some unused variables have been found.  Would you please remove them?"
+    echo
+    echo "${__remark_unused_variables}"
+fi
+
 ## regex elements to find errors
 typeset __err_regex='error #|(?<!-)undefined|make.*Circular|[Ff]ailed| Error '
 
