@@ -57,7 +57,6 @@ program midas_letkf
   type(struct_gsv)          :: stateVector4D
   type(struct_gsv)          :: stateVector4Dmod
   type(struct_gsv)          :: stateVectorWithZandP4D
-  type(struct_gsv)          :: stateVectorWithZandP4Dmod
   type(struct_gsv)          :: stateVectorHeightSfc
   type(struct_gsv)          :: stateVectorCtrlTrl
   type(struct_gsv)          :: stateVectorRecenter

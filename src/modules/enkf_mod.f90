@@ -113,7 +113,7 @@ contains
     integer :: myLonBegHalo, myLonEndHalo, myLatBegHalo, myLatEndHalo
     integer :: imode, dateStamp, timePrint, datePrint, randomSeed, newDate
     integer :: nEnsGain, eigenVectorColumnIndex
-    integer :: memberIndexInModEns, retainedEigenIndex, nLev
+    integer :: memberIndexInModEns
     real(8) :: anlLat, anlLon, anlVertLocation
     real(8) :: distance, tolerance, localization
     real(4) :: modulationFactor_r4

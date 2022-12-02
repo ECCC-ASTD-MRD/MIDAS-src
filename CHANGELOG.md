@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed uninitialized variable that impacts the surface emissivity written in SQLite files (#721 and !660)
+  * minor impact on results for SQLite outputs on surface emissivity
  * Fixed bug in horizontal interpolation of stddev in `bmatrixchem_mod` (#696 and !643)
  * Fixed outputting of analysis members in observation space (#693 and !638)
  * Impose lower and upper limits on cloud variables (#674 and !622)

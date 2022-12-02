@@ -313,7 +313,7 @@ contains
       if ( tvs_isInstrumHyperSpectral(instrum) ) call tvs_getHIREmissivities(sensorTovsIndexes(1:profileCount), &
            obsSpaceData, surfem1)      
       allocate( lchannel_subset(profileCount,tvs_nchan(sensorIndex)) )
-      call tvs_getChanprof(sensorIndex, sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
+      call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
            iptobs_cma_opt=sensorBodyIndexes, lchannel_subset_opt = lchannel_subset)
       if (tvs_useRttovScatt(sensorIndex)) then
         call rttov_scatt_setupindex (       &
@@ -332,8 +332,7 @@ contains
       call tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
 
       if (sensorType == sensor_id_mw) then
-        call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount),&
-                                          obsSpaceData, sensorBodyIndexes)
+        call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount))
       else
         emissivity_local(:)%emis_in = surfem1(:)
       end if
@@ -657,7 +656,7 @@ contains
 
       ! Build the list of channels/profiles indices
       allocate( lchannel_subset(profileCount,tvs_nchan(sensorIndex)) )
-      call tvs_getChanprof(sensorIndex, sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
+      call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, &
          iptobs_cma_opt = sensorBodyIndexes, lchannel_subset_opt = lchannel_subset)
       if (tvs_useRttovScatt(sensorIndex)) then
         call rttov_scatt_setupindex (       &
@@ -676,8 +675,7 @@ contains
       call tvs_getOtherEmissivities(chanprof, sensorTovsIndexes, sensorType, instrum, surfem1, calcemis)
 
       if (sensorType == sensor_id_mw) then
-        call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount),&
-                                          obsSpaceData, sensorBodyIndexes)
+        call tvs_getMWemissivityFromAtlas(surfem1(1:btcount), emissivity_local, sensorIndex, chanprof, sensorTovsIndexes(1:profileCount))
       else
         emissivity_local(:)%emis_in = surfem1(:)
       end if
