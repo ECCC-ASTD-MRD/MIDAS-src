@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Remove variable GLE (#718 and !664)
  * Random shuffle of subensembles for letkf with modulate ensembles (#722 and !661)
  * Revised SST satellite data estimation (#723 and !659)
  * Added optional bias correction of radiosonde temperature and humidity data (#545 and !657)
@@ -41,6 +40,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Remove variable GLE (#718 and !664)
  * Improve parallelization of reading ensemble (#705 and !650)
  * Split Jacobian cache for GPSRO operators, to avoid potential interference between a) TL, AD operators and b) FGE (#644 and !644)
  * Changed machine and processor topology to speed system test /Tests/extractBmatrixFor1Dvar/globalBnmcLand. (#699 and !645) 
