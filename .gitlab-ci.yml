@@ -92,7 +92,7 @@ splitobs_rdb_tests:
 midas_tests:
    stage: test
    script:
-     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.5
+     - . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
      - cd maestro/suites/midas_system_tests
      - suite=midas-$(echo ${CI_BUILD_REF} | cut -c-10)
      - ./install_suite.sh $suite run $MIDAS_ABS

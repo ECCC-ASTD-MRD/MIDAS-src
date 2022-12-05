@@ -42,7 +42,7 @@ We strongly suggest anyone considering to contribute to the MIDAS
 To simply get a local copy of the code from an existing branch
 associated with an issue, we suggest the command:
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.5
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
 clone_projet --no-central -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
 or if one is interested in the latest version of the `main` branch
@@ -53,7 +53,7 @@ clone_projet --no-central -c main git@gitlab.science.gc.ca:atmospheric-data-assi
 ## Getting code related to IC-3 system on HPCR-U2
 
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.5
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
 clone_projet --no-central -c v_3.7 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-3.7
 ```
 
@@ -61,11 +61,11 @@ If you created a new branch with the GitLab web UI, then the branch
 has been created using the default branch which is `main`.  One must
 reset it to the release branch.  One can simply do:
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.5
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
 clone_projet --no-central -c v_3.7 git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 cd midas-${ISSUE_NUMBER}
 git checkout -b ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab
-git push origin ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab --force
+git push origin ${ISSUE_NUMBER}-complete-the-name-of-the-branch-as-on-GitLab --force-with-lease
 ```
 
 # Compiling MIDAS
