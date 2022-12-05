@@ -85,7 +85,7 @@ Once the code is ready to share (not necessarily final) or ready to merge:
 ```bash
 git push origin HEAD
 ```
-(Note: if you are using `set_centraldepot`, the remote depot is named `central` instead of `origin`)
+(Note: if you are using `setcentraldepot.dot`, the remote depot is named `central` instead of `origin`)
 
   - The `git push` command can be done many times during the course of development.
   - To remind yourself of all of the changes already commited to your branch, first run
