@@ -39,6 +39,7 @@ module analysisErrorOI_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use obsOperators_mod
+  use message_mod
 
   implicit none
 
@@ -46,6 +47,9 @@ module analysisErrorOI_mod
 
   ! public subroutines and functions
   public :: aer_analysisError, aer_daysSinceLastObs
+
+  ! public variables
+  public :: aer_backgroundEtiket
 
   type struct_neighborhood
    integer          :: numObs
@@ -67,6 +71,9 @@ module analysisErrorOI_mod
 
   real(8) :: interpWeight(maxNumLocalGridptsSearch)
   integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)
+
+  character(len=12), parameter :: aer_backgroundEtiket = 'B-ER STD DEV'
+  character(len=12), parameter :: aer_analysisEtiket = 'A-ER STD DEV'
 
 contains
 
@@ -122,11 +129,11 @@ contains
 
     character(len=*), parameter :: myName = 'aer_analysisError'
     character(len=*), parameter :: correlationLengthFileName = './bgstddev'
+    character(len=4), pointer   :: anlVar(:)
     type(struct_gsv)            :: statevector
     real(4), pointer            :: field3D_r4_ptr(:,:,:)
 
     character(len=2 ) :: typvar
-    character(len=12) :: etiket
 
     type(struct_columnData) :: column
     type(struct_columnData) :: columng
@@ -148,38 +155,53 @@ contains
     write(*,*) '** '//myName//': Calculate analysis-error variance **'
     write(*,*) '**********************************************************'
 
-    ! reading namelist variables
+    ! Read the namelist
     ! default values
-    maxAnalysisErrorStdDev = 1.0
+    maxAnalysisErrorStdDev = 1.0d0
+    if (.not. utl_isNamelistPresent('namaer','./flnml')) then
+      if (mmpi_myid == 0) then
+        call msg(myName, 'namaer is missing in the namelist.')
+        call msg(myName, 'the default values will be taken.')
+      end if
+    else
+      ! reading namelist variables
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam, nml = namaer, iostat = ierr)
+      if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist')
+      ierr = fclos(nulnam)
+    end if
+    write(*, nml = namaer)
 
-    nulnam = 0
-    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-    read(nulnam, nml = namaer, iostat = ierr)
-    if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist')
-    ierr = fclos(nulnam)
+    nullify(anlVar)
+    call gsv_varNamesList(anlVar)
+
+    if (size(anlVar) > 1 .or. anlVar(1) /= 'GL') then
+      call msg(myName, 'The code has only been tested with the analysis variable GL.')
+      call utl_abort( myName//': Check namelist and/or revise the code.')
+    end if
 
     call gsv_allocate( stateVectorBkGnd, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       varNames_opt=(/'GLE'/), dataKind_opt=8 )
+                       varNames_opt=(/anlVar(1)/), dataKind_opt=8 )
     call gsv_allocate( stateVectorAnal,  1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
-                       varNames_opt=(/'GLE'/), dataKind_opt=8 )
+                       varNames_opt=(/anlVar(1)/), dataKind_opt=8 )
 
-    etiket = '            '
     typvar = 'P@'
 
-    call gio_readFromFile( stateVectorBkGnd, trlmFileName, etiket, typvar )
+    call gio_readFromFile( stateVectorBkGnd, trlmFileName, aer_backgroundEtiket, typvar )
 
     leadTimeInHours = real(stateVectorBkGnd%deet*stateVectorBkGnd%npasList(1),8)/3600.0d0
     call incdatr(stateVectorAnal%dateOriginList(1), stateVectorBkGnd%dateOriginList(1), &
                  leadTimeInHours)
 
     call gsv_copyMask(stateVectorBkGnd, stateVectorAnal)
-    stateVectorAnal%etiket = stateVectorBkGnd%etiket
+    stateVectorAnal%etiket = aer_analysisEtiket
 
     call col_setVco(column, vco_ptr)
-    call col_allocate(column,  obs_numHeader(obsSpaceData), varNames_opt=(/'GLE'/))
+    call col_allocate(column,  obs_numHeader(obsSpaceData), varNames_opt=(/anlVar(1)/))
     call col_setVco(columng, vco_ptr)
-    call col_allocate(columng, obs_numHeader(obsSpaceData), varNames_opt=(/'GLE'/))
+    call col_allocate(columng, obs_numHeader(obsSpaceData), varNames_opt=(/anlVar(1)/))
     call s2c_tl(statevectorBkGnd, column, columng, obsSpaceData)
 
     ni = stateVectorBkGnd%hco%ni
@@ -193,15 +215,15 @@ contains
                correlationLengthFileName
     call gsv_allocate( statevector, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
                        dataKind_opt=4, hInterpolateDegree_opt='LINEAR', &
-                       varNames_opt=(/'GL'/) )
+                       varNames_opt=(/anlVar(1)/) )
     call gsv_zero( statevector )
     call gio_readFromFile( statevector, correlationLengthFileName, 'CORRLEN', ' ', &
                            unitConversion_opt = .false. )
 
-    call gsv_getField( statevector, field3D_r4_ptr, 'GL' )
+    call gsv_getField( statevector, field3D_r4_ptr, anlVar(1) )
     ! Convert from km to meters
     Lcorr(:,:) = 1000.0d0*real(field3D_r4_ptr( :, :, 1 ), 8)
-    write(*,*) myName//': correlation length scale 2D field for variable GL min/max: ', &
+    write(*,*) myName//': min/max correlation length scale 2D field: ', &
                minval( Lcorr(:,:) ), maxval( Lcorr(:,:) )
     call gsv_deallocate( statevector )
 
@@ -273,12 +295,12 @@ contains
 
     ! Calculate analysis-error one analysis variable (grid point) at a time
 
-    call gsv_getField(stateVectorBkGnd, bkGndErrorStdDev_ptr, 'GLE')
-    call gsv_getField(stateVectorAnal,  analysisErrorStdDev_ptr, 'GLE')
+    call gsv_getField(stateVectorBkGnd, bkGndErrorStdDev_ptr, anlVar(1))
+    call gsv_getField(stateVectorAnal,  analysisErrorStdDev_ptr, anlVar(1))
 
     ! Initialisation
     do stepIndex = 1, stateVectorBkGnd%numStep
-      do levIndex = 1, gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname('GLE'))
+      do levIndex = 1, gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname(anlVar(1)))
         do latIndex = 1, nj
           do lonIndex = 1, ni
             analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
@@ -292,7 +314,7 @@ contains
 
     STEP: do stepIndex = 1, stateVectorBkGnd%numStep
       LEVEL: do levIndex = 1, &
-                           gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname('GLE'))
+                           gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname(anlVar(1)))
 
         !$omp parallel do default(shared) schedule(dynamic) private(obsOperator, Bmatrix, &
         !$omp        PHiA, innovCovariance, innovCovarianceInverse, obsErrorVariance, &
@@ -618,6 +640,8 @@ contains
     call gio_writeToFile( stateVectorAnal, './anlm_000m', '', typvar_opt='A@', &
                           containsFullField_opt=.true. )
 
+    call col_deallocate( columng )
+    call col_deallocate( column )
     call gsv_deallocate( stateVectorBkGnd )
     call gsv_deallocate( stateVectorAnal )
 
@@ -893,6 +917,8 @@ contains
     call gio_writeToFile( stateVectorAnal, './anlm_000m', '', typvar_opt='A@', &
                           containsFullField_opt=.true. )
 
+    call col_deallocate( columng )
+    call col_deallocate( column )
     call gsv_deallocate( stateVectorBkGnd )
     call gsv_deallocate( stateVectorAnal )
 

@@ -613,7 +613,7 @@ contains
     if ( filterObsAndInitOer ) then
       call filt_iceConcentration(obsSpaceData, beSilent)
       call filt_backScatAnisIce(obsSpaceData, beSilent)
-      call oer_setErrBackScatAnisIce(columnTrlOnTrlLev, obsSpaceData, beSilent)
+      call oer_setErrBackScatAnisIce(obsSpaceData, beSilent, columnTrlOnTrlLev_opt=columnTrlOnTrlLev)
     else
       if ( mmpi_myid == 0 .and. .not. beSilent ) write(*,*) 'inn_computeInnovation: skip filt_iceConcentration, filt_backScatAnisIce, and oer_setErrBackScatAnisIce'
     end if

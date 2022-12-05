@@ -83,7 +83,7 @@ module gridStateVectorFileIO_mod
 
     nullify(vco_file, hco_file)
 
-    write(*,*) ''
+    write(*,*)
     write(*,*) 'gio_readFromFile: START'
     call utl_tmg_start(160,'low-level--gsv_readFromFile')
 
@@ -165,7 +165,7 @@ module gridStateVectorFileIO_mod
 
     write(*,*) 'gio_readFromFile: defining hco by varname= ', varName
 
-    call hco_setupFromFile(hco_file, trim(fileName), ' ', gridName_opt='FILEGRID', varName_opt = varName)
+    call hco_setupFromFile(hco_file, trim(fileName), etiket_in, gridName_opt='FILEGRID', varName_opt = varName)
 
     ! test if horizontal and/or vertical interpolation needed for statevector grid
     doVertInterp = .not.vco_equal(vco_file,statevector_out%vco)

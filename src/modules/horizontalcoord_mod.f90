@@ -248,14 +248,14 @@ contains
 
     !- 2.2 Rotated lat-lon grid
     if (trim(grtyp) == 'Z') then
-      
+
       !-  2.2.1 Read the Longitudes
       dateo  = -1
-      etiket = EtiketName
+      etiket = ''
       ip1    = ig1
       ip2    = ig2
-      ip3    = -1
-      typvar = 'X'
+      ip3    = ig3
+      typvar = ''
       nomvar = '>>'
       
       ier = utl_fstlir(lon_8,                                     & ! OUT 
@@ -280,11 +280,11 @@ contains
 
       !-  2.2.2 Read the latitudes
       dateo  = -1
-      etiket = EtiketName
+      etiket = ''
       ip1    = ig1
       ip2    = ig2
-      ip3    = -1
-      typvar = 'X'
+      ip3    = ig3
+      typvar = ''
       nomvar = '^^'
       
       ier = utl_fstlir(lat_8,                                     & ! OUT 
@@ -309,11 +309,11 @@ contains
       
       !- 2.2.3 Do we have a rotated grid ?
       dateo  = -1
-      etiket = EtiketName
+      etiket = ''
       ip1    = ig1
       ip2    = ig2
-      ip3    = -1
-      typvar = 'X'
+      ip3    = ig3
+      typvar = ''
       nomvar = '^^'
       
       key = fstinf(iu_template,                                & ! IN
