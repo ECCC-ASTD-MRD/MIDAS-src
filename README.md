@@ -145,3 +145,8 @@ This scripts finds the trial name extensions in an assimilation window.
 
 See [`findTrials/README.md`](tools/findTrials/README.md) for more details.
 
+## `dumpBmatrix`
+
+This standalone program dump 1D covariance values from the binary file `Bmatrix.bin`.
+
+See [`scripts/convenient_tools/dumpBmatrix/README.md`](scripts/convenient_tools/dumpBmatrix/README.md) for more details.

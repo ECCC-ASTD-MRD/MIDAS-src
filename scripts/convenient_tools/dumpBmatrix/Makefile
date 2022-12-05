@@ -1,4 +1,3 @@
-
 FC     := s.f90
 LIBRMN := rmnMP
 
