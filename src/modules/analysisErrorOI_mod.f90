@@ -48,6 +48,9 @@ module analysisErrorOI_mod
   ! public subroutines and functions
   public :: aer_analysisError, aer_daysSinceLastObs
 
+  ! public variables
+  public :: aer_backgroundEtiket
+
   type struct_neighborhood
    integer          :: numObs
    integer, pointer :: headerIndex(:)
@@ -68,6 +71,9 @@ module analysisErrorOI_mod
 
   real(8) :: interpWeight(maxNumLocalGridptsSearch)
   integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)
+
+  character(len=12), parameter :: aer_backgroundEtiket = 'B-ER STD DEV'
+  character(len=12), parameter :: aer_analysisEtiket = 'A-ER STD DEV'
 
 contains
 
@@ -128,7 +134,6 @@ contains
     real(4), pointer            :: field3D_r4_ptr(:,:,:)
 
     character(len=2 ) :: typvar
-    character(len=12) :: etiket
 
     type(struct_columnData) :: column
     type(struct_columnData) :: columng
@@ -171,23 +176,27 @@ contains
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
 
+    if (size(anlVar) > 1 .or. anlVar(1) /= 'GL') then
+      call msg(myName, 'The code has only been tested with the analysis variable GL.')
+      call utl_abort( myName//': Check namelist and/or revise the code.')
+    end if
+
     call gsv_allocate( stateVectorBkGnd, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        varNames_opt=(/anlVar(1)/), dataKind_opt=8 )
     call gsv_allocate( stateVectorAnal,  1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
                        varNames_opt=(/anlVar(1)/), dataKind_opt=8 )
 
-    etiket = 'B-ER STD DEV'
     typvar = 'P@'
 
-    call gio_readFromFile( stateVectorBkGnd, trlmFileName, etiket, typvar )
+    call gio_readFromFile( stateVectorBkGnd, trlmFileName, aer_backgroundEtiket, typvar )
 
     leadTimeInHours = real(stateVectorBkGnd%deet*stateVectorBkGnd%npasList(1),8)/3600.0d0
     call incdatr(stateVectorAnal%dateOriginList(1), stateVectorBkGnd%dateOriginList(1), &
                  leadTimeInHours)
 
     call gsv_copyMask(stateVectorBkGnd, stateVectorAnal)
-    stateVectorAnal%etiket = 'A-ER STD DEV'
+    stateVectorAnal%etiket = aer_analysisEtiket
 
     call col_setVco(column, vco_ptr)
     call col_allocate(column,  obs_numHeader(obsSpaceData), varNames_opt=(/anlVar(1)/))
