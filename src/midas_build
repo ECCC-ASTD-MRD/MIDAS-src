@@ -305,6 +305,7 @@ mv ${__listing_config} ${__listing_frontend}
 ##=========================================================
 ## Checking if compilation and linking have been successful
 
+typeset __remarks=0
 ## Check for unused variables
 typeset __remark_unused_variables=$(grep 'remark #7712: ' ${__listing_frontend} | sort -u)
 if [ -n "${__remark_unused_variables}" ]; then
@@ -312,6 +313,7 @@ if [ -n "${__remark_unused_variables}" ]; then
     echo "<!> Some unused variables have been found.  Would you please remove them?"
     echo
     echo "${__remark_unused_variables}"
+    __remarks=1
 fi
 
 ## regex elements to find errors
@@ -360,17 +362,19 @@ then
             echo "| MIDAS INSTALLATION COMPLETED |"
             echo "|   ALL PROGRAMS INSTALLED     |"
             echo "|                              |"
-            echo "+------------------------------+"
         else
             echo
             echo "+------------------------------+"
             echo "|                              |"
             echo "| MIDAS INSTALLATION COMPLETED |"
             echo "|                              |"
-            echo "+------------------------------+"
             echo "    All target programs have been installed correctly!"
             for __abs in ${__abs_exist_list}; do echo "    * ${__abs}"; done
         fi
+        if [ "${__remarks}" -eq 1 ]; then
+            echo "| <!> with some remarks <!>    |"
+        fi
+        echo "+------------------------------+"
         echo
         echo "  > ${MIDAS_COMPILE_DIR_MAIN}/${MIDAS_ABS_LEAFDIR}"
         echo
