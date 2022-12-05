@@ -111,7 +111,7 @@ program midas_analysisErrorOI
   !
   if (mmpi_myid == 0) write(*,*)
   if (mmpi_myid == 0) write(*,*) 'var_setup: Set hco parameters for analysis grid'
-  call hco_SetupFromFile(hco_anl, trlmFileName, 'B-ER STD DEV') ! IN
+  call hco_SetupFromFile(hco_anl, trlmFileName, aer_backgroundEtiket) ! IN
 
   !
   !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
