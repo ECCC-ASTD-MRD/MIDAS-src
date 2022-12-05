@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Changed `var/EnVar/gdps` config to follow ops, updated unit test ref (#720 and !663)
  * Remove variable GLE (#718 and !664)
  * Improve parallelization of reading ensemble (#705 and !650)
  * Split Jacobian cache for GPSRO operators, to avoid potential interference between a) TL, AD operators and b) FGE (#644 and !644)
