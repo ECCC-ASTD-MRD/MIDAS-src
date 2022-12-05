@@ -38,12 +38,10 @@ That button will create automatically a new branch at the same point as the `mai
 **Get a local copy of that branch**  
 
 ```bash
-. ssmuse-sh -d eccc/cmd/cmdi/utils/2.5 ## needed only if it is not already loaded in your interactive profile
+. ssmuse-sh -d eccc/cmd/cmdi/utils/2.6 ## needed only if it is not already loaded in your interactive profile
 . setcentraldepot.dot unset  ## needed only if 'setcentraldepot.dot' has already been called
 clone_projet -c ${ISSUE_NUMBER} git@gitlab.science.gc.ca:atmospheric-data-assimilation/midas.git midas-${ISSUE_NUMBER}
 ```
-(For this to work, you need to create a file `~/.gitlab-private-token`
-like explained in the [Git documentation (see section "Interaction avec GitLab en utilisant des scripts")](https://wiki.cmc.ec.gc.ca/wiki/Git/Doc#Outil_de_partage_de_code:_gitlab.science.gc.ca))
 
 When these steps have been completed make sure to move the issue to the ~Doing
 column on the [issue board](https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/boards)
