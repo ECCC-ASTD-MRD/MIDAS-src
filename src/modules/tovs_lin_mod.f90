@@ -259,7 +259,7 @@ contains
             profilesdata_tl(profileIndex) % clw(1:nlv_T)  = 0.d0
           end if
         end if
-        ! using the zero CLW value for land FOV
+
         if ( tvs_useRttovScatt(sensorIndex) ) then 
           if ( surfTypeIsWater(profileIndex) ) then
             delRF => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'RF')
@@ -597,7 +597,6 @@ contains
       if (btCount == 0) cycle sensor_loop
      
       allocStatus(:) = 0
-      
       allocate (sensorHeaderIndexes(profileCount),       stat= allocStatus(1) )
       allocate (tt_ad              (nlv_T,profileCount), stat= allocStatus(2) )
       allocate (hu_ad              (nlv_T,profileCount), stat= allocStatus(3))

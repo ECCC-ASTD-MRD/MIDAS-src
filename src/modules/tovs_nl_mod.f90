@@ -467,42 +467,31 @@ contains
         tvs_opts(sensorIndex) % rt_all % ch4_data = .false.
 
         if ( tvs_useRttovScatt(sensorIndex) ) then
-          !TYPE(rttov_opts_config) :: config                      !< General configuration options
-              !LOGICAL(jplm) :: apply_reg_limits = .FALSE.  !< Switch to restrict input profiles to coef training limits
-              !LOGICAL(jplm) :: verbose          = .TRUE.   !< Switch for verbose output
-              !LOGICAL(jplm) :: do_checkinput    = .TRUE.   !< Switch to apply internal profile checking
-              ! Deprecated options: recommend default values
-              !LOGICAL(jplm) :: fix_hgpl         = .TRUE.   !< Switch to apply fix to match 2m p with elevation in geometry
-                                                            !!   calculations (deprecated)
-          !LOGICAL(jplm) :: lusercfrac            = .FALSE.       !< Switch to enable user-specified effective cloud fraction
-          !REAL(jprb)    :: cc_threshold          = 1.E-3_jprb    !< Minimum effective cloud fraction threshold to consider scattering
-          !REAL(jprb)    :: ice_polarisation      = 1.40_jprb     !< Polarised scattering factor for ice hydrometeors (<0 = no polarisation)
-          !LOGICAL(jplm) :: ozone_data            = .FALSE.       !< Switch to enable input of O3 profile
-                                                                  ! because standard RTTOV coefficients in the MW have no ozone sensitivity
-          !LOGICAL(jplm) :: rad_down_lin_tau      = .TRUE.        !< Linear-in-tau or layer-mean for downwelling radiances
-          !LOGICAL(jplm) :: hydro_cfrac_tlad      = .TRUE.        !< Switch for hydrometeor TL/AD sensitivity to effective cfrac
-          !LOGICAL(jplm) :: zero_hydro_tlad       = .FALSE.       !< Switch for hydrometeor TL/AD sensitivity in layers with zero
-                                                                  !!   hydrometeor concentration
-          ! Deprecated options: recommend default values
-          !LOGICAL(jplm) :: dtau_test             = .FALSE.       !< Switch to apply dtau test in transmit/integrate
-                                                                  !!   calculations (deprecated)
-          tvs_opts_scatt(sensorIndex) % interp_mode = interp_rochon_loglinear_wfn ! Set interpolation method
+          tvs_opts_scatt(sensorIndex) % interp_mode =  tvs_opts(sensorIndex) % interpolation % interp_mode ! Set interpolation method
           tvs_opts_scatt(sensorIndex) % reg_limit_extrap = tvs_regLimitExtrap 
           tvs_opts_scatt(sensorIndex) % fastem_version = tvs_opts(sensorIndex) % rt_mw % fastem_version  
           tvs_opts_scatt(sensorIndex) % supply_foam_fraction = .false.
-          tvs_opts_scatt(sensorIndex) % use_t2m_opdep = .false.
-          tvs_opts_scatt(sensorIndex) % use_q2m = .false.
+          tvs_opts_scatt(sensorIndex) % use_t2m_opdep = tvs_opts(sensorIndex) % rt_all % use_t2m_opdep
+          tvs_opts_scatt(sensorIndex) % use_q2m = tvs_opts(sensorIndex) % rt_all % use_q2m
           tvs_opts_scatt(sensorIndex) % lgradp = .true.
-          tvs_opts_scatt(sensorIndex) % lusercfrac = .false. ! to evaluate
-          tvs_opts_scatt(sensorIndex) % config % do_checkinput = .true.
-          tvs_opts_scatt(sensorIndex) % config % apply_reg_limits = .true.
+          tvs_opts_scatt(sensorIndex) % lusercfrac = .false. !< Switch to enable user-specified effective cloud fraction ??
+          tvs_opts_scatt(sensorIndex) % config % do_checkinput = tvs_opts(sensorIndex) % config % do_checkinput
+          tvs_opts_scatt(sensorIndex) % config % apply_reg_limits = tvs_opts(sensorIndex) % config % apply_reg_limits
           tvs_opts_scatt(sensorIndex) % config % verbose = .true.
-          tvs_opts_scatt(sensorIndex) % config % fix_hgpl= .false.
+          tvs_opts_scatt(sensorIndex) % config % fix_hgpl= tvs_opts(sensorIndex) % config % fix_hgpl
+          ! other option may be considered:
+          !real(jprb)    :: cc_threshold          = 1.E-3_jprb    !< Minimum effective cloud fraction threshold to consider scattering
+          !real(jprb)    :: ice_polarisation      = 1.40_jprb     !< Polarised scattering factor for ice hydrometeors (<0 = no polarisation)
+          !logical(jplm) :: ozone_data            = .false.       !< Switch to enable input of O3 profile
+                                                                  ! because standard RTTOV coefficients in the MW have no ozone sensitivity
+          !logical(jplm) :: rad_down_lin_tau      = .true.        !< Linear-in-tau or layer-mean for downwelling radiances
+          !logical(jplm) :: hydro_cfrac_tlad      = .true.        !< Switch for hydrometeor TL/AD sensitivity to effective cfrac
+          !logical(jplm) :: zero_hydro_tlad       = .false.       !< Switch for hydrometeor TL/AD sensitivity in layers with zero
+                                                                  !   hydrometeor concentration
         end if
-        ! Enable printing of warnings
+        
 
         errorStatus = errorStatus_success
-
         call utl_tmg_start(16,'----RttovSetup')
         write(*,*) ' sensorIndex,tvs_nchan(sensorIndex)',  sensorIndex,tvs_nchan(sensorIndex)
         if ( tvs_mpiTask0ReadCoeffs ) then
@@ -2255,7 +2244,7 @@ contains
           write(*,*) 'replaced by 0.0 !!!'
           profiles(tovsIndex) % zenangle = 0.d0
         end if
-  
+ 
         profiles(tovsIndex) % azangle = tvs_getCorrectedSatelliteAzimuth(obsSpaceData, headerIndex)
         profiles(tovsIndex) % sunazangle  = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex) ! necessaire pour radiation solaire
         iplatform = tvs_coefs(sensorIndex) % coef % id_platform
@@ -2357,9 +2346,6 @@ contains
             cld_profiles(tovsIndex) % ph (levelIndex+1) = 0.5d0 * (profiles(tovsIndex) % p(levelIndex) + profiles(tovsIndex) % p(levelIndex+1) )
           end do
           cld_profiles(tovsIndex) % ph (nlv_T+1) = profiles(tovsIndex) % s2m % p
-          !1 rain, 2 snow, 3 graupel, 4 cloud water, 5 cloud ice see Mie table file
-          cld_profiles(tovsIndex) % hydro  (1:nlv_T,1:5) = 0.d0   ! 
-          cld_profiles(tovsIndex) % hydro_frac (1:nlv_T,1) = 0.d0   ! 
         end if
         column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
         profiles(tovsIndex) % t(:)   = column_ptr(:)
@@ -2376,7 +2362,6 @@ contains
 
         profiles(tovsIndex) % ctp = 1013.25d0
         profiles(tovsIndex) % cfraction = 0.d0
-        ! using the minimum CLW value for land FOV ???
         if ( runObsOperatorWithClw ) then
           profiles(tovsIndex) % clw(:) = clw(:,profileIndex)
         else if (tvs_useRttovScatt(sensorIndex)) then
@@ -2393,8 +2378,7 @@ contains
           elsewhere
             cld_profiles(tovsIndex) % hydro_frac(:,1) = 0.d0
           end where
-        end if
-        
+        end if     
       end do
 
       deallocate (pressure,            stat = allocStatus(2))
