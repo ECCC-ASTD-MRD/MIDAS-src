@@ -230,7 +230,7 @@ Progress")](https://docs.gitlab.com/ce/user/project/merge_requests/work_in_progr
 You will see instructions about this feature in the **GitLab** merge
 request page.
 
-Once the `Merge Request` is accepted with with the `main` branch as target (as 
+Once the `Merge Request` is accepted with the `main` branch as target (as 
 is generally the case), the modifications are pushed and the system tests are
 automatically launched to guarantee that all the tests pass for the `main` branch.  The [instructions for automatic
 testing using **GitLab-CI** are available in a separate file](docs/CI.md).
