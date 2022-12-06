@@ -127,14 +127,31 @@ Then we are ready to perform the *rebase* of your branch onto the `main` branch:
 git pull --rebase origin main
 ```
 
-Resolve any possible conflicts between your changes and the recent changes made
+The *rebase* procedure attempts to apply the changes from each of your commits
+onto the current `main` branch, one-by-one. When applying each of these commits
+a conflict may occur between your changes and the recent changes made
 to the `main` branch by other people. It is helpful to often use:
 ```bash
 git status
 ```
 to let `git` tell you which files have a conflict and also suggest
-what to do after the conflict has been resolved. Once the *rebase* is
-sucessfully completed you should verify that the current state of the
+what to do after the conflict has been resolved.
+
+When a conflict occurs, the affected file will contain two versions of a portion of
+the code: first from the "base" onto which your commit is being added
+(starting from the current `main` branch), followed by the version from your
+commit. These conflicting versions of the code are indicated in the file by:
+```bash
+<<<<<<
+[version from the base onto which your commit is being added]
+=====
+[version from your commit]
+>>>>>
+```
+More detail on resolving conflicts can be found at:
+https://docs.github.com/en/get-started/using-git/resolving-merge-conflicts-after-a-git-rebase
+
+Once the *rebase* is sucessfully completed you should verify that the current state of the
 code is as expected, that is, the only difference with respect to `origin/main`
 are your desired changes:
 ```bash
