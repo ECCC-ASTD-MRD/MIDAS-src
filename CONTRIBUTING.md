@@ -103,9 +103,15 @@ git log --oneline ..origin/main
 ```
 
 If the command returns something, that means the `main` branch has
-evolved since the time you created your branch. To synchronize your
-branch, you can *rebase* your changes in your branch on top of the
-latest commit in the `main` branch in the **GitLab** project.
+evolved since the time you created your branch. It may be useful to
+get an overview of the changes (if there are many) by checking the
+additions made to the `CHANGELOG`:
+```bash
+git diff ..origin/main -- CHANGELOG.md
+```
+
+To synchronize your branch, you can *rebase* your changes in your branch on top
+of the latest commit in the `main` branch in the **GitLab** project.
 
 [Note: Because *rebase* will replace existing commits with new
 versions of these commits, you should not *rebase* a branch if it has
