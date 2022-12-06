@@ -10,8 +10,8 @@ toplevel=$(git rev-parse --show-toplevel)
 
 # CHOOSE WHETHER OR NOT TO GENERATE DEPENDENCY GRAPHS (COSTLY) AND NAMELIST INFORMATION
 
-do_graphs=yes
-do_namelists=yes
+do_graphs=no
+do_namelists=no
 
 # PREPARE THE MODULE DEPENDENCY ARRAYS
 
@@ -41,6 +41,7 @@ done
 echo "Number of programs = $numPrograms"
 
 module_filelist=`ls -dR -1 $codedir/modules/*f*90`
+#module_filelist=""
 
 # DEFINE THE MODULE CATEGORY NAMES FOR EACH NUMERICAL CODE
 
@@ -219,7 +220,7 @@ in comments immediately following the program or module or subroutine
 statement will be included. It can be formatted using *reStructuredText*.
 A primer on this markup language can be found here:
 
-http://openalea.gforge.inria.fr/doc/openalea/doc/_build/html/source/sphinx/rest_syntax.html
+https://sphinx-tutorial.readthedocs.io/cheatsheet/
 
 https://matplotlib.org/sampledoc/cheatsheet.html
 

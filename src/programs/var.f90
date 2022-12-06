@@ -16,8 +16,56 @@
 
 program midas_var
   !
-  ! :Purpose: Main program for variational minimization or background check 
-  !           (depending on the mode selected in the namelist).
+  ! :Purpose: Main program for performing data assimilation using one
+  !           of the following algorithms based on the variational approach:
+  !
+  !             - 3D-Var
+  !             - 3D- or 4D-EnVar
+  !
+  !           The choice of 3D-Var vs. 4D-EnVar is controlled by the weights given
+  !           to the climatological (i.e. static) and ensemble-based background
+  !           error covariance (i.e. B matrix) components. The weights for all B
+  !           matrix components are zero be default and can be set to a nonzero
+  !           value through the namelist variable ``SCALEFACTOR`` in the namelist
+  !           block for each corresponding fortran module. For example, ``NAMBEN``
+  !           is the namelist block associated with the ``bmatrixEnsemble_mod``
+  !           module.
+  !
+  !           Either algorithm can be used in combination with "First guess at appropriate
+  !           time" (i.e. FGAT) which is controlled by the namelist variable ``DSTEPOBS``::
+  !
+  !             &NAMTIM
+  !             DSTEPOBS = 1.0D0
+  !
+  !           which specifies the length of time (in hours) between times when the background
+  !           state must be available for use in computing the innovation (i.e. O-B). By
+  !           specifying a value less than the assimilation window length (which is usually 6
+  !           hours for NWP applications), the background state will be used at multiple
+  !           times within the assimilation window (i.e. FGAT).
+  !
+  !           Similarly, the choice between 3D- and 4D-EnVar is controlled by the
+  !           namelist variable ``DSTEPOBSINC`` (also in ``&NAMTIM``) which specifies
+  !           the length of time (in hours) between times when the analysis increment
+  !           is computed. In the context of EnVar, if this is less than the assimilation
+  !           time window, then the ensembles used to construct the ensemble-based B
+  !           matrix component will be used at multiple times within the assimilation
+  !           window to obtain 4D covariances (i.e. 4D-EnVar). 
+  !
+  !
+  ! **Table of modules and associated namelist blocks used to configure the variational analysis:**
+  ! 
+  ! ======================== =========== ============================================================== ========
+  ! Module                   Namelist    Description of what is controlled                              Link 
+  ! ======================== =========== ============================================================== ========
+  ! ``timeCoord_mod``        ``NAMTIM``  assimilation time window length, temporal resolution of        `X <../modules/timecoord_mod.html>`_
+  !                                      the background state and increment
+  ! ``bMatrixEnsemble_mod``  ``NAMBEN``  weight and other parameters for ensemble-based B matrix        `X <../modules/bmatrixensemble_mod.html>`_
+  !                                      component
+  ! ``bMatrixHI_mod``        ``NAMBHI``  weight and other parameters for the climatological B matrix    `X <../modules/bmatrixhi_mod.html>`_
+  !                                      component based on homogeneous-isotropic covariances
+  !                                      represented in spectral space
+  ! ======================== =========== ============================================================== ========
+  !
   !
   use version_mod
   use codePrecision_mod
