@@ -424,7 +424,8 @@ contains
       if ( vcode_in == 21001 .or. vcode_out == 21001 ) then
         call msg('int_vInterp_gsv', 'bypassing top check, '&
              //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
-        ! DBGmad: a better solution
+        ! Development notes (@mad001)
+        !   we should consider having a new criterion that works for GEM-H as well
       else
         call vco_ensureCompatibleTops(vco_in, vco_out)
       end if
@@ -715,7 +716,8 @@ contains
       if ( vcode_in == 21001 .or. vcode_out == 21001 ) then
         call msg('int_vInterp_gsv_r4', 'bypassing top check, '&
              //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
-        ! DBGmad: a better solution
+        ! Development notes (@mad001)
+        !   we should consider having a new criterion that works for GEM-H as well
       else
         call vco_ensureCompatibleTops(vco_in, vco_out)
       end if
@@ -1213,8 +1215,11 @@ contains
         end if
 
         ! actual interpolation
-        !! DBGmad : convert to pure logP interpolation 
-        !! (risk to fails tests checks as in 1e4551753895e287f5e (Issue #466: interp in height-like coord: vcode cases)
+        !   Development notes (@mad001)
+        !     Potential issue with GEM-H height based interpolation
+        !     we should consider to convert to pure logP interpolation
+        !     as we did for int_vInterp_gsv
+        !     see also #466 https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues/466#note_497052
         levIndex_in = 1
         do levIndex_out = 1, col_getNumLev(column_out,varLevel)
           levIndex_in = levIndex_in + 1

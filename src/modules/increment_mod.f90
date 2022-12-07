@@ -179,10 +179,10 @@ CONTAINS
       call gio_getMaskLAM(statevector_mask, hco_trl, vco_trl, hInterpolationDegree)
     end if
 
-    if ( gsv_varExist(varName='P0') ) then ! infered that it is an atmospheric state
+    ref_building: if ( gsv_varExist(varName='P0') ) then ! infered that it is an atmospheric state
       ! Build a reference variables
       !
-      ! 1- Allocate the target reference statevector for vertical interpolation
+      ! - Allocate the target reference statevector for vertical interpolation
       ! that will be done in inc_interpolateAndAdd.
       ! The reference needs to have the vertical structure of the input which is the
       ! increment, but since horizontal interpolation is done first, it needs the
@@ -195,7 +195,7 @@ CONTAINS
                          varNames_opt=varNamesRef, allocHeightSfc_opt=allocHeightSfc, &
                          hInterpolateDegree_opt=hInterpolationDegree )
 
-      ! 2- Restriction of increment to reference variables
+      ! - Restriction of increment to reference variables
       call gsv_allocate( statevectorIncRefLowRes, numStep_inc, hco_inc, vco_inc,  &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                          dataKind_opt=pre_incrReal, varNames_opt=varNamesRef, &
@@ -203,7 +203,7 @@ CONTAINS
       call gsv_copy(statevectorIncLowRes, statevectorIncRefLowRes, &
                     allowVarMismatch_opt=.true.)
 
-      ! 3- Spatial interpolation of reference analysis increment
+      ! - Spatial interpolation of reference analysis increment
       call msg('inc_computeHighResAnalysis', &
            'horizontal interpolation of the Psfc increment', mpiAll_opt=.false.)
 
@@ -219,12 +219,12 @@ CONTAINS
         end do
       end if
 
-      ! 4- Compute analysis of reference variables to use for vertical interpolation
+      ! - Compute analysis of reference variables to use for vertical interpolation
       ! of increment
       call msg('inc_computeHighResAnalysis', &
            'Computing reference variables analysis to use for interpolation of increment', &
            mpiAll_opt=.false.)
-      ! a) build a restriction to reference variable of trial
+      !   - build a restriction to reference variable of trial
       call gsv_allocate(statevectorTrlRefVars, numStep_trl, &
                         hco_trl, vco_trl, dateStamp_opt=tim_getDateStamp(), &
                         mpi_local_opt=.true., dataKind_opt=pre_incrReal, &
@@ -232,15 +232,15 @@ CONTAINS
       call gsv_copy(stateVectorUpdateHighRes, statevectorTrlRefVars,&
                     allowVarMismatch_opt=.true.)
 
-      ! b) bring trial to low res (increment) vertical structure
-      !    (no vertical interpolation reference needed as it is a full state,
-      !    not a incremental state)
+      !   - bring trial to low res (increment) vertical structure
+      !     (no vertical interpolation reference needed as it is a full state,
+      !     not a incremental state)
       call gsv_allocate(statevectorTrlLowResVert, numStep_trl, hco_trl, vco_inc,  &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                         dataKind_opt=pre_incrReal, varNames_opt=varNamesRef, &
                         allocHeightSfc_opt=allocHeightSfc)
       call int_vInterp_gsv(statevectorTrlRefVars, statevectorTrlLowResVert)
-      ! c) bring trial to low time res
+      !   - bring trial to low time res
       call gsv_allocate(statevectorTrlLowResTime, numStep_inc, hco_trl, vco_inc,  &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                         dataKind_opt=pre_incrReal, varNames_opt=varNamesRef, &
@@ -249,18 +249,18 @@ CONTAINS
                     allowTimeMismatch_opt=.true.)
       call gsv_deallocate(statevectorTrlLowResVert)
       call gsv_deallocate(statevectorTrlRefVars)
-      ! d) build the analysis reference for the increment vertical interpolation.
-      !    At that stage, statevectorRef contains the increment on the trial
-      !    horizontal grid, but analysis vertical structure; consistent for addition.
+      !   - build the analysis reference for the increment vertical interpolation.
+      !     At that stage, statevectorRef contains the increment on the trial
+      !     horizontal grid, but analysis vertical structure; consistent for addition.
       call gsv_add(statevectorTrlLowResTime, statevectorRef)
       call gsv_deallocate(statevectorTrlLowResTime)
 
-      ! 5- Time interpolation to get high-res Psfc analysis increment to output
+      ! - Time interpolation to get high-res Psfc analysis increment to output
       call msg('inc_computeHighResAnalysis', &
            'Time interpolation to get high-res Psfc analysis increment', &
            mpiAll_opt=.false.)
 
-      ! a) Restriction to P0 only + vco set on vco_trl for later consistency
+      !   - Restriction to P0 only + vco set on vco_trl for later consistency
       call gsv_allocate(statevectorRefPsfc, numStep_inc, hco_trl, vco_trl, &
                         dataKind_opt=pre_incrReal, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
@@ -268,17 +268,17 @@ CONTAINS
                         hInterpolateDegree_opt=hInterpolationDegree )
       call gsv_copy(statevectorRef, statevectorRefPsfc, allowVarMismatch_opt=.true., &
                     allowVcoMismatch_opt=.true.)
-      ! b) high res time interpolation
+      !   - high res time interpolation
       call gsv_allocate(stateVectorPsfcHighRes, numStep_trl, hco_trl, vco_trl, &
                         dataKind_opt=pre_incrReal, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                         varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
                         hInterpolateDegree_opt=hInterpolationDegree)
       call int_tInterp_gsv(statevectorRefPsfc, stateVectorPsfcHighRes)
-    else
+    else ref_building
       call msg('inc_computeHighResAnalysis','P0 not present, not computing reference', &
                verb_opt=3)
-    end if
+    end if ref_building
 
     ! Compute the analysis
     call msg('inc_computeHighResAnalysis', 'compute the analysis', mpiAll_opt=.false.)
@@ -386,7 +386,6 @@ CONTAINS
                         dateStamp_opt = tim_getDateStamp(), mpi_local_opt = .true.,  &
                         varNames_opt = (/'P0'/), allocHeightSfc_opt = allocHeightSfc, &
                         hInterpolateDegree_opt = hInterpolationDegree)
-      call msg('DBGmad inc_analPostProcessing', 'gsv_copy 1')
       call gsv_copy(stateVectorPsfcHighRes, stateVectorPsfc, &
                     allowTimeMismatch_opt = .true., allowVarMismatch_opt=.true.)
       call gsv_deallocate(stateVectorPsfcHighRes)
@@ -397,7 +396,6 @@ CONTAINS
                       dateStamp_opt = tim_getDateStamp(), mpi_local_opt = .true., &
                       allocHeightSfc_opt = allocHeightSfc, hInterpolateDegree_opt = 'LINEAR', &
                       allocHeight_opt = .false., allocPressure_opt = .false.)
-    call msg('DBGmad inc_analPostProcessing', 'gsv_copy 2')
     call gsv_copy(stateVectorUpdateHighRes, stateVectorAnal, &
                   allowVarMismatch_opt = .true., allowTimeMismatch_opt = .true.)
 
