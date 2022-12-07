@@ -45,10 +45,6 @@ module gps_mod
   public :: gps_setupgb, gps_iztd_from_index
   public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
   public :: gps_geopotential
-  ! DEBUG mad001 : either that or rename and make public gpsgeopotential
-  interface gps_geopotential
-    module procedure gpsgeopotential
-  end interface gps_geopotential
 
   ! public constants
   integer, parameter, public :: gps_Level_RO_Bnd       = 1
@@ -277,7 +273,7 @@ contains
          (1._dp + C1 * Altitude + C2 * Altitude**2)
   end function gps_gravityalt
 
-  pure function gpsgeopotential(Latitude, Altitude)
+  pure function gps_geopotential(Latitude, Altitude)
     !
     !:Purpose: Geopotential energy at a given point.
     !          Result is based on the WGS84 approximate expression for the
@@ -286,7 +282,7 @@ contains
     !
     implicit none
 
-    real(dp)              :: gpsgeopotential ! Geopotential (m2/s2)
+    real(dp)              :: gps_geopotential ! Geopotential (m2/s2)
 
     ! Arguments:
     real(dp), intent(in)  :: Latitude ! (rad)
@@ -313,14 +309,14 @@ contains
     hi(n) = Altitude
     gi(n) = gps_gravityalt(sLat, hi(n))
 
-    gpsgeopotential = 0._dp
+    gps_geopotential = 0._dp
     do i = 1, n
-       gpsgeopotential = gpsgeopotential + 0.5_dp * (gi(i)+gi(i-1)) * (hi(i)-hi(i-1))
+       gps_geopotential = gps_geopotential + 0.5_dp * (gi(i)+gi(i-1)) * (hi(i)-hi(i-1))
     end do
 
     deallocate(hi)
     deallocate(gi)
-  end function gpsgeopotential
+  end function gps_geopotential
 
   subroutine gpsRadii(Latitude, RadN, RadM)
     implicit none
