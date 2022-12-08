@@ -123,9 +123,7 @@ is a good idea (for safety reasons) to create a local copy of your branch before
 performing the *rebase*. This is performed using the following commands:
 ```bash
 # Create a new branch based on your currently checked out branch
-git checkout -b <name of branch>_beforeRebase1
-# Re-checkout your branch
-git checkout <name of branch>
+git branch <name of branch>_beforeRebase1
 ```
 
 Then we are ready to perform the *rebase* of your branch onto the `main` branch:
