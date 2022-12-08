@@ -17,12 +17,51 @@
 program midas_var
   !
   ! :Purpose: Main program for performing data assimilation using one of the
-  !           following algorithms based on the variational approach:
+  !           following algorithms based on the incremental variational
+  !           approach:
   !
   !             - 3D-Var
   !             - 3D- or 4D-EnVar
   !
-  !           The choice of 3D-Var vs. 4D-EnVar is controlled by the weights
+  !           ---
+  !
+  ! :Algorithm: The incremental variational data assimilation approach uses
+  !             observations to compute a correction to the background state
+  !             (i.e. the analysis increment) while taking into account the
+  !             specified uncertainties for the both the observations and the
+  !             background state (i.e. the R and B covariance matrices,
+  !             respectively). The analysis increment is computed by finding the
+  !             minimum value of a cost function. This cost function is a scalar
+  !             measure of the weighted departure of the corrected state from
+  !             both the background state and the observations. The minimization
+  !             is perfomed with a standard minimization algorithm (currently
+  !             the quasi-Newton algorithm) that employs the gradient of the
+  !             cost function to enable the minimum to be found (or at least
+  !             approximated with sufficient accuracy) with a very small number
+  !             of iterations. The analysis increment is not assumed to be on
+  !             the same horizontal and vertical grid as the background
+  !             state. In addition, the temporal resolution of the background
+  !             state and analysis increment are not assumed to be equal.
+  !
+  !             ---
+  !
+  !             In practical terms, the background state is used to compute the
+  !             "innovation" (i.e. the difference between the observations and
+  !             the background state in observation space: ``y-H(xb)``) which is
+  !             used in the cost function calculation. Versions of the
+  !             observation operators that are are linearized with respect to
+  !             the background state (or updated background state when using the
+  !             outer loop) are also used in the cost function calculation to
+  !             transform the analysis increment into observation space.
+  !
+  !             ---
+  !
+  ! :Synopsis: This will be a description of what is called by the program.
+  !
+  !            ---
+  !
+  !
+  ! :Options: The choice of 3D-Var vs. 4D-EnVar is controlled by the weights
   !           given to the climatological (i.e. static) and ensemble-based
   !           background error covariance (i.e. B matrix) components. The
   !           weights for all B matrix components are zero be default and can be
@@ -31,7 +70,7 @@ program midas_var
   !           fortran module. For example, ``NAMBEN`` is the namelist block
   !           associated with the ``bmatrixEnsemble_mod`` module.
   !
-  !           .
+  !           ---
   !
   !           Either algorithm can be used in combination with "First guess at
   !           appropriate time" (i.e. FGAT) which is controlled by the namelist
@@ -47,7 +86,7 @@ program midas_var
   !           applications), the background state will be used at multiple times
   !           within the assimilation window (i.e. FGAT).
   !
-  !           .
+  !           ---
   !
   !           Similarly, the choice between 3D- and 4D-EnVar is controlled by
   !           the namelist variable ``DSTEPOBSINC`` (also in ``&NAMTIM``) which
@@ -58,20 +97,27 @@ program midas_var
   !           multiple times within the assimilation window to obtain 4D
   !           covariances (i.e. 4D-EnVar).
   !
+  !           ---
   !
-  ! **Table of modules and associated namelist blocks used to configure the variational analysis:**
+  !           The use of an outer loop is controlled by the namelist block
+  !           ``&NAMVAR`` read by the ``var`` program. Some of the other
+  !           relevant namelist blocks used the used to configure the
+  !           variational analysis are listed in the following table:
   ! 
-  ! ======================== =========== ============================================================== ========
-  ! Module                   Namelist    Description of what is controlled                              Link 
-  ! ======================== =========== ============================================================== ========
-  ! ``timeCoord_mod``        ``NAMTIM``  assimilation time window length, temporal resolution of        `X <../modules/timecoord_mod.html>`_
+  ! ======================== =========== ==============================================================
+  ! Module                   Namelist    Description of what is controlled
+  ! ======================== =========== ==============================================================
+  ! ``minimization_mod``     ``NAMMIN``  maximum number of iterations, convergence criteria and many
+  !                                      additional parameters for controlling the minimization
+  ! ``timeCoord_mod``        ``NAMTIM``  assimilation time window length, temporal resolution of
   !                                      the background state and increment
-  ! ``bMatrixEnsemble_mod``  ``NAMBEN``  weight and other parameters for ensemble-based B matrix        `X <../modules/bmatrixensemble_mod.html>`_
+  ! ``bMatrixEnsemble_mod``  ``NAMBEN``  weight and other parameters for ensemble-based B matrix
   !                                      component
-  ! ``bMatrixHI_mod``        ``NAMBHI``  weight and other parameters for the climatological B matrix    `X <../modules/bmatrixhi_mod.html>`_
+  ! ``bMatrixHI_mod``        ``NAMBHI``  weight and other parameters for the climatological B matrix
   !                                      component based on homogeneous-isotropic covariances
   !                                      represented in spectral space
-  ! ======================== =========== ============================================================== ========
+  ! Other B matrix modules   various     weight and other parameters for each type of B matrix
+  ! ======================== =========== ==============================================================
   !
   !
   use version_mod

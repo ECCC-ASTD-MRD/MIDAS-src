@@ -18,7 +18,9 @@ tasks in two dimensions. In the above example, the 540 MPI tasks are decomposed
 into 10 MPI tasks in the "x" direction and 54 MPI tasks in the "y"
 direction. This is used in various contexts in MIDAS, including to distribute
 the data of the data object associated with the ``gridStateVector_mod`` module
-in the two horizontal dimensions. This is known as the "Tiles" MPI distribution.
+in the two horizontal dimensions. This is known as the "Tiles" MPI distribution
+and is the most common way gridded data (including both single states and
+ensembles of states) is represented within MIDAS programs.
 
 .. image:: ../../docs/images/mpi_2D_decomposition.png
   :width: 700
@@ -63,4 +65,31 @@ horizontal and vertical interpolation with data that is originally in the
    horizontal grid points on each.
 
 Therefore subroutines are included in MIDAS that perform various transpositions
-between different pairs of MPI distributions.
+between different pairs of MPI distributions. For the data associated with the
+``gridStateVector_mod`` module, these subroutines are located in the same module.
+
+Observation-related information stored in the object associated with the
+``obsSpaceData_mod`` module is also distributed across all MPI tasks. In this
+case, the data are distributed in an arbitrary way, not associated with
+geographical location or any other feature of the observations. The only goal is
+to distribute each type of observation as evenly as possible over the MPI tasks
+to equalize the computational effort needed to run the observation operators
+(i.e. load balancing). This distribution is maintained throughout the execution
+of most MIDAS programs, including the reading and writing of the observations
+from/to the files. The observation operators require as input a state vector
+interpolated to the horizontal locations and times of the observations in the
+form of the object associated with the ``columnData_mod`` module which is also
+distributed over the MPI tasks in the same way as the observations. When this
+column object is computed from gridded data by the ``stateToColumn_mod`` module,
+MPI communication is required to take the gridded input data on the "Tiles" MPI
+distribution and produce the column object on the same MPI distribution as the
+observations. The column object includes all vertical levels and variables.
+
+.. image:: ../../docs/images/mpi_tilesToColumn.png
+  :width: 700
+
+**Figure 3:** Example of 16 observations distributed arbitrarily over 4 MPI
+tasks (indicated by the different colours) and the corresponding column
+representation of data (e.g. background state values after horizontal and
+temporal interpolation) used as input for the observation operators.
+

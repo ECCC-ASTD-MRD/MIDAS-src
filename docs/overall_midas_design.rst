@@ -24,13 +24,8 @@ The MIDAS modules can be divided into several general categories, listed in the
 order that they exist in the dependency hierarchy (i.e. higher-level modules can
 "use" lower-level modules, but not vice versa):
 
-* high-level functionality (e.g. ``innovation_mod``, ``minimization_mod``)
-* transformation of data objects (e.g. ``stateToColumn_mod``, ``gridVariableTransforms_mod``)
-* high-level data objects (e.g. ``gridStateVector_mod``, ``columnData_mod``, ``obsSpaceData_mod``)
-* low-level data objects (e.g. ``horizontalCoord_mod``, ``verticalCoord_mod``)
-* low-level utilities (e.g. ``physicsFunctions_mod``, ``utilities_mod``)
-
-
-.. |br| raw:: html
-
-* blah blah
+* High-level functionality (e.g. ``innovation_mod``, ``minimization_mod``)
+* Transformation of data objects (e.g. ``stateToColumn_mod``, ``gridVariableTransforms_mod``)
+* High-level data objects (e.g. ``gridStateVector_mod``, ``columnData_mod``, ``obsSpaceData_mod``)
+* Low-level data objects (e.g. ``horizontalCoord_mod``, ``verticalCoord_mod``)
+* Low-level utilities (e.g. ``physicsFunctions_mod``, ``utilities_mod``)
