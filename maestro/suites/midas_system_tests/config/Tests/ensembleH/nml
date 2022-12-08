@@ -1,5 +1,6 @@
  &NAMENSEMBLEH
    NENS = 16
+   writeEnsObsLocal = .true.
 /
  &NAMTIME
    DSTEPOBS = 1.0d0
