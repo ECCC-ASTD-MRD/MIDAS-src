@@ -76,8 +76,9 @@ program midas_ensembleH
                                !   used only when generating modulated ensembles.
   real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
                                !   used only when generating modulated ensembles.
+  logical  :: writeEnsObsLocal
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
-                         vLocalize
+                         vLocalize, writeEnsObsLocal
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -106,6 +107,7 @@ program midas_ensembleH
   obsTimeInterpType     = 'LINEAR'
   numRetainedEigen      = 0
   vLocalize             = -1.0D0
+  writeEnsObsLocal      = .false.
 
   ! Read the namelist
   nulnam = 0
@@ -285,6 +287,9 @@ program midas_ensembleH
   call gsv_deallocate(stateVector4D)
   call gsv_deallocate(stateVectorMeanTrl4D)
   call gsv_deallocate(stateVectorHeightSfc)
+
+  ! write local ensObs to file
+  if ( writeEnsObsLocal ) call eob_writeToFilesMpiLocal(ensObs)
 
   ! Clean and globally communicate obs-related data, then write to files
   call eob_allGather(ensObs,ensObs_mpiglobal)
