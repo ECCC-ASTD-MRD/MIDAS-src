@@ -17,10 +17,18 @@
 module calcHeightAndPressure_mod
   ! MODULE czp_calcHeightAndPressure (prefix='czp' category='4. Data Object transformations')
   !
-  ! :Purpose: Subroutines for computing height and/or pressure depending on the 
-  !           vgrid kind.
+  ! :Purpose: Subroutines for computing height and/or pressure on statevectors
+  !           and columns depending on the vgrid kind.
   !           Nonlinear, tangent-linear and adjoint versions of these
   !           transformations are included in separate subroutines.
+  !           Depending on the vertical representation of the state or column,
+  !           pressure or height values are either computed or retrieved using
+  !           the [vgrid](https://gitlab.science.gc.ca/RPN-SI/vgrid) library.
+  !           When computation is required (for instance to compute height on a
+  !           GEM-P, represented on pressure coordinates), thermodynamical 
+  !           variables are required, typically `P0`, `TT` and `HU`.
+  !           Height and pressure values are obtained for both thermodynamical
+  !           and momentum levels and labeled `Z_T` (`P_T`) and `Z_M` (`P_M`).
   !
   use codePrecision_mod
   use midasMpi_mod
@@ -85,16 +93,6 @@ module calcHeightAndPressure_mod
     module procedure calcPressure_col_ad
   end interface czp_calcPressure_ad
 
-  ! constants from gps_mod
-  ! Air properties:
-  real(8), parameter :: p_md = 28.965516D0            ! From Aparicio(2011)
-  real(8), parameter :: p_mw = 18.015254D0            ! From Aparicio(2011)
-  real(8), parameter :: p_wa = p_md/p_mw
-  real(8), parameter :: p_wb = (p_md-p_mw)/p_mw
-  ! Angular velocity of the Earth (omegaPrime) (radians/s).
-  ! Standard Earth, rotating with a constant angular velocity (IAU, GRS67).
-  real(8), parameter :: ec_wgs_OmegaPrime = 7292115.1467D-11
-
   ! private module variables
   real(8), allocatable :: coeff_M_TT_gsv(:,:,:,:), coeff_M_HU_gsv(:,:,:,:)
   real(8), allocatable :: coeff_T_TT_gsv(:,:,:),   coeff_T_HU_gsv(:,:,:)
@@ -123,7 +121,7 @@ contains
   !---------------------------------------------------------
   subroutine calcZandP_gsv_nl(statevector)
     !
-    ! :Purpose: pressure and height computation on the grid in proper order
+    ! :Purpose: Pressure and height computation on the grid in proper order
     !           depending on the vgrid kind.
     !           Depending on the vcode, the routine will check the existence of
     !           P_* (vcode=500x) or Z_* (vcode=2100x) first and proceed with
@@ -170,7 +168,7 @@ contains
   !---------------------------------------------------------
   subroutine calcZandP_gsv_tl(statevector, statevectorRef)
     !
-    ! :Purpose: pressure and height incremnt computation on the grid in proper
+    ! :Purpose: Pressure and height increment computation on the grid in proper
     !           order depending on the vgrid kind.
     !           Depending on the vcode, the routine will check the existence of
     !           P_* (vcode=500x) or Z_* (vcode=2100x) first and proceed with
@@ -233,7 +231,7 @@ contains
   !---------------------------------------------------------
   subroutine calcZandP_gsv_ad(statevector, statevectorRef)
     !
-    ! :Purpose: pressure and height increment adjoint computation on the grid
+    ! :Purpose: Pressure and height increment adjoint computation on the grid
     !           in proper order depending on the vgrid kind
     !           Depending on the vcode, the routine will check the existence of
     !           Z_* (vcode=500x) or P_* (vcode=2100x) first and proceed with
@@ -297,16 +295,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_gsv_nl(statevector)
     !
-    ! :Purpose: Temperature to geopotential transformation on GEM4 staggered
-    !           levels
-    !           NOTE: we assume
-    !           1) nlev_T = nlev_M+1 (only for 5002?)
-    !           2) alt_T(nlev_T) = alt_M(nlev_M), both at the surface
-    !           3) a thermo level exists at the top, higher than the highest
-    !              momentum level
-    !           4) the placement of the thermo levels means that alt_T is the
-    !              average of 2 nearest alt_M
-    !              (according to Ron and Claude)
+    ! :Purpose: Compute or retreive heights and store values in statevector.
     !
     implicit none
 
@@ -349,7 +338,8 @@ contains
       end if
 
     else if (Vcode == 21001) then
-      !! some gsv_varExist(statevector,.)
+      ! Development notes (@mad001) 
+      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_ZT_r4, 'Z_T')
         call gsv_getField(statevector, ptr_ZM_r4, 'Z_M')
@@ -390,7 +380,8 @@ contains
                                           ZTout_r4_opt, ZMout_r4_opt, &
                                           ZTout_r8_opt, ZMout_r8_opt)
     !
-    ! :Purpose: DBGmad!
+    ! :Purpose: Compute or retreive heights and return values in pointer arguments.
+    !           Proceeds to vcode dispatching.
     !
     implicit none
 
@@ -475,7 +466,9 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_gsv_nl_vcode2100x_r4(statevector, Z_T, Z_M)
     !
-    ! :Purpose: DBGmad!
+    ! :Purpose: Retreive heights for GEM-H statevector, return height values 
+    !           in pointer arguments.
+    !           real(4) version
     !
     implicit none
 
@@ -492,7 +485,6 @@ contains
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=4)
 
     if ( .not. gsv_varExist(statevector,'Z_*')) then
-        ! DBGmad : probably other vars as well
       call utl_abort('calcHeight_gsv_nl_vcode2100x_r4 (czp): Z_T/Z_M do not exist in statevector!')
     end if
 
@@ -542,8 +534,9 @@ contains
   !---------------------------------------------------------
   function gz2alt_r4(statevector, gzHeight) result(alt)
     !
-    ! :Purpose: iterative conversion of geopotential height to geometric
+    ! :Purpose: Iterative conversion of geopotential height to geometric
     !           altitude.  (solution proposed by J. Aparicio)
+    !           real(4) version.
     !
     implicit none
 
@@ -593,9 +586,10 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_gsv_nl_vcode2100x_r8(statevector, Z_T, Z_M)
     !
-    ! :Purpose: DBGmad!
+    ! :Purpose: Retreive heights for GEM-H statevector, return height values 
+    !           in pointer arguments.
+    !           real(8) version
     !
-    ! DBGmad : the real(8) flow has to be tested
     implicit none
 
     ! Arguments
@@ -653,8 +647,9 @@ contains
   !---------------------------------------------------------
   function gz2alt_r8(statevector, gzHeight) result(alt)
     !
-    ! :Purpose: iterative conversion of geopotential height to geometric
+    ! :Purpose: Iterative conversion of geopotential height to geometric
     !           altitude.  (solution proposed by J. Aparicio)
+    !           real(8) version.
     !
     implicit none
 
@@ -708,7 +703,15 @@ contains
                                           ZTout_r4_opt, ZMout_r4_opt, &
                                           ZTout_r8_opt, ZMout_r8_opt)
     !
-    ! :Purpose: DBGmad!
+    ! :Purpose: Compute heights for GEM-P statevector, return height values 
+    !           in pointer arguments.
+    !           Assumptions:
+    !           1) nlev_T = nlev_M+1 (for vcode=5002)
+    !           2) alt_T(nlev_T) = alt_M(nlev_M), both at the surface
+    !           3) a thermo level exists at the top, higher than the highest
+    !              momentum level
+    !           4) the placement of the thermo levels means that alt_T is the
+    !              average of 2 nearest alt_M (according to Ron and Claude)
     !
     implicit none
 
@@ -1083,8 +1086,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_gsv_tl(statevector,statevectorRef)
     !
-    ! :Purpose: Temperature to geopotential transformation on gridstatevector
-    !
+    ! :Purpose: Tangent height computation on statevector.
     !
     implicit none
 
@@ -1117,7 +1119,8 @@ contains
       end if
       call calcHeight_gsv_tl_vcode500x
     else if (Vcode == 21001) then
-      !! some gsv_varExist(statevector,.)
+      ! Development notes (@mad001)
+      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcHeight_gsv_tl_vcode2100x
     end if
 
@@ -1349,9 +1352,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_gsv_ad(statevector,statevectorRef)
     !
-    !:Purpose: Adjoint of temperature to geopotential transformation on
-    !          gridstatevector
-    !
+    ! :Purpose: Adjoint of height computation on statevector.
     !
     implicit none
 
@@ -1384,7 +1385,8 @@ contains
       end if
       call calcHeight_gsv_ad_vcode500x
     else if (Vcode == 21001) then
-      !! some gsv_varExist(statevector,.)
+      ! Development notes (@mad001)
+      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcHeight_gsv_ad_vcode2100x
     end if
 
@@ -1442,7 +1444,6 @@ contains
         call calcHeightCoeff_gsv(statevectorRef)
 
         ! loop over all lat/lon/step
-
         call gsv_getField(statevectorRef,height_M_ptr,'Z_M')
         call gsv_getField(statevectorRef,height_T_ptr,'Z_T')
         call gsv_getField(statevectorRef,P_T,'P_T')
@@ -1684,7 +1685,7 @@ contains
   !---------------------------------------------------------
   subroutine calcPressure_gsv_nl(statevector, Ps_in_hPa_opt)
     !
-    ! :Purpose: calculation of the pressure on the grid subroutine
+    ! :Purpose: Pressure computation, values stored in statevector.
     !
     implicit none
 
@@ -1719,7 +1720,8 @@ contains
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
       end if
     else if (Vcode == 21001) then
-      !! some gsv_varExist(statevector,.)
+      ! Development notes (@mad001)
+      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_ZT_r4, 'Z_T')
         call gsv_getField(statevector, ptr_ZM_r4, 'Z_M')
@@ -1773,7 +1775,8 @@ contains
                                             PTout_r8_opt, PMout_r8_opt, &
                                             Ps_in_hPa_opt)
     !
-    ! :Purpose: DBGmad 
+    ! :Purpose: Compute or retreive pressures and return values in pointer arguments.
+    !           Proceeds to vcode dispatching.
     !
     implicit none
 
@@ -1861,6 +1864,10 @@ contains
                                             ZTin_r8_opt, ZMin_r8_opt, &
                                             PTout_r4_opt, PMout_r4_opt, &
                                             PTout_r8_opt, PMout_r8_opt)
+    !
+    ! :Purpose: Compute pressure and return values in pointer arguments.
+    !           GEM-H statevector input.
+    !
     implicit none
 
     ! Arguments
@@ -1993,7 +2000,9 @@ contains
     end if
     HeightSfc_ptr_r8 => gsv_getHeightSfc(statevector)
 
-    !! DBGmad TODO : consider reusing the same code for both `calcPressure_{gsv,col}_nl_vcode2100x`
+    ! Development notes (@mad001)
+    !   if feasible, consider reusing the same code for both 
+    !   `calcPressure_{gsv,col}_nl_vcode2100x`
     do_computePressure_gsv_nl: do stepIndex = 1, numStep
       do latIndex = statevector%myLatBeg, statevector%myLatEnd
         do lonIndex = statevector%myLonBeg, statevector%myLonEnd
@@ -2038,7 +2047,6 @@ contains
           pressure_T(nlev_T) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
           ! momentum diagnostic level
-          ! DBGmad : validate that boundary condition implementation
           if ( statevector%dataKind == 4 ) then
             Z_M = real(height_M_ptr_r4(lonIndex,latIndex,nlev_M,stepIndex),8)
           else
@@ -2124,7 +2132,8 @@ contains
   subroutine calcPressure_gsv_nl_vcode500x_r8(statevector, P_T, P_M, &
                                               statevectorRef_opt, Ps_in_hPa_opt)
     !
-    !:Purpose: double-precision calculation of the pressure on the grid.
+    ! :Purpose: Pressure retrieval for GEM-P real(8) statevector, values
+    !           values returned in pointers.
     !
     implicit none
 
@@ -2197,7 +2206,8 @@ contains
   subroutine calcPressure_gsv_nl_vcode500x_r4(statevector, P_T, P_M, & 
                                               statevectorRef_opt, Ps_in_hPa_opt)
     !
-    !:Purpose: single-precision calculation of the pressure on the grid.
+    ! :Purpose: Pressure retrieval for GEM-P real(4) statevector, values
+    !           values returned in pointers.
     !
     implicit none
 
@@ -2269,7 +2279,7 @@ contains
   !---------------------------------------------------------
   subroutine calcPressure_gsv_tl( statevector, statevectorRef)
     !
-    !:Purpose: calculation of the Pressure increment on the grid.
+    !:Purpose: Tangent of pressure computation.
     !
     implicit none
 
@@ -2293,7 +2303,8 @@ contains
       end if
       call calcPressure_gsv_tl_vcode500x
     else if (Vcode == 21001) then
-      !! some gsv_varExist(statevector,.)
+      ! Development notes (@mad001)
+      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcPressure_gsv_tl_vcode2100x
     end if
 
@@ -2448,7 +2459,7 @@ contains
   !---------------------------------------------------------
   subroutine calcPressure_gsv_ad( statevector, statevectorRef)
     !
-    !:Purpose: adjoint of calculation of the Pressure on the grid.
+    !:Purpose: Adjoint of pressure computation.
     !
     implicit none
 
@@ -2472,7 +2483,8 @@ contains
       end if
       call calcPressure_gsv_ad_vcode500x
     else if (Vcode == 21001) then
-      !! some gsv_varExist(statevector,.)
+      ! Development notes (@mad001)
+      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcPressure_gsv_ad_vcode2100x
     end if
 
@@ -2634,7 +2646,7 @@ contains
   !---------------------------------------------------------
   subroutine calcZandP_col_nl(column)
     !
-    ! :Purpose: compute pressure and height in the column in proper order 
+    ! :Purpose: Compute pressure and height in the column in proper order
     !           depending on the vgrid kind
     !
     implicit none
@@ -2674,7 +2686,7 @@ contains
   !---------------------------------------------------------
   subroutine calcZandP_col_tl(columnInc, columnIncRef)
     !
-    ! :Purpose: compute pressure and height increment in the column in proper
+    ! :Purpose: Compute pressure and height increment in the column in proper
     !           order depending on the vgrid kind
     !
     implicit none
@@ -2716,7 +2728,7 @@ contains
   !---------------------------------------------------------
   subroutine calcZandP_col_ad(columnInc, columnIncRef)
     !
-    ! :Purpose: adjoint of pressure and height increment computation in the
+    ! :Purpose: Adjoint of pressure and height increment computation in the
     !           column in proper order depending on the vgrid kind
     !
     implicit none
@@ -2758,7 +2770,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_col_nl(column)
     !
-    ! :Purpose: Temperature to geopotential transformation on the column
+    ! :Purpose: Compute or retreive heights on the column.
     !
     implicit none
 
@@ -2788,7 +2800,7 @@ contains
   !---------------------------------------------------------
   subroutine czp_calcReturnHeight_col_nl(column, Z_T, Z_M)
     !
-    ! :Purpose: Return heights on the column
+    ! :Purpose: Return heights on the column.
     !
     implicit none
 
@@ -2798,7 +2810,6 @@ contains
 
     ! Locals
     integer :: vcode
-    integer :: numCol, headerIndex, stat, ilev1, ilev2
 
     call msg('czp_calcReturnHeight_col_nl (czp)', 'START', verb_opt=2)
 
@@ -2806,7 +2817,8 @@ contains
     if (Vcode == 5005 .or. Vcode == 5002) then
       call calcHeight_col_nl_vcode500x(column, Z_T, Z_M)
     else if (Vcode == 21001) then
-      !! some col_varExist(columnInc,.)
+      ! Development notes (@mad001)
+      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcHeight_col_nl_vcode2100x(column, Z_T, Z_M)
 
     end if
@@ -2818,6 +2830,9 @@ contains
   ! calcHeight_col_nl_vcode2100x
   !---------------------------------------------------------
   subroutine calcHeight_col_nl_vcode2100x(column, Z_T, Z_M)
+    !
+    ! :Purpose: Return heights on a GEM-H column.
+    !
     implicit none
 
     ! Arguments
@@ -2877,7 +2892,8 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_col_nl_vcode500x(column, Z_T, Z_M)
     !
-    ! :Purpose: DBGmad TODO
+    ! :Purpose: Compute heights for GEM-P columns, return height values 
+    !           in pointer arguments.
     !
     implicit none
 
@@ -2885,7 +2901,12 @@ contains
     type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
     real(8), pointer,         intent(inout) :: Z_T(:,:), Z_M(:,:) ! output pointers to computed column height values
 
-    !! DBGmad TODO : really do nothing??
+    ! Developement notes (@mad001)
+    !   Null subroutine, no computation needed at time of writing.
+    !   The code is traversed because of `calcZandP_nl` call in `cvt` (agnostic if
+    !   dealing with GEM-P or GEM-H), but the results for heights are not used 
+    !   at this time.
+    !   We keep that stub however for future functionalities.
     call msg('calcHeight_col_nl_vcode500x (czp)', 'END (nothing done)', verb_opt=4)
     continue
   end subroutine calcHeight_col_nl_vcode500x
@@ -2896,8 +2917,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_col_tl(columnInc,columnIncRef)
     !
-    ! :Purpose: Temperature to geopotential tangent-linear transformation on 
-    !           the column
+    ! :Purpose: Tangent height computation on the column.
     !
     implicit none
 
@@ -2930,7 +2950,8 @@ contains
       end if
       call calcHeight_col_tl_vcode500x
     else if (Vcode == 21001) then
-      !! some gsv_varExist(statevector,.)
+      ! Development notes (@mad001)
+      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcHeight_col_tl_vcode2100x
     end if
 
@@ -3101,8 +3122,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_col_ad(columnInc,columnIncRef)
     !
-    !:Purpose: Adjoint of temperature to geopotential transformation on
-    !          columnData
+    ! :Purpose: Adjoint of height computation on the column.
     !
     !
     implicit none
@@ -3136,7 +3156,8 @@ contains
       end if
       call calcHeight_col_ad_vcode500x
     else if (Vcode == 21001) then
-      !! some col_varExist(columnInc,.)
+      ! Development notes (@mad001)
+      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcHeight_col_ad_vcode2100x
     end if
 
@@ -3376,7 +3397,7 @@ contains
   !---------------------------------------------------------
   subroutine calcPressure_col_nl(column)
     !
-    !:Purpose: calculation and in-place storage of the Pressure in the column.
+    ! :Purpose: Pressure computation on the column.
     !
     implicit none
 
@@ -3406,7 +3427,7 @@ contains
   !---------------------------------------------------------
   subroutine czp_calcReturnPressure_col_nl(column, P_T, P_M)
     !
-    !:Purpose: calculation of the Pressure in the column.
+    ! :Purpose: Pressure computation on the column, return values in pointers.
     !
     implicit none
 
@@ -3429,7 +3450,8 @@ contains
       end if
       call calcPressure_col_nl_vcode500x(column, P_T, P_M)
     else if (Vcode == 21001) then
-      !! some col_varExist(columnInc,.)
+      ! Development notes (@mad001)
+      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcPressure_col_nl_vcode2100x(column, P_T, P_M)
     end if
 
@@ -3441,10 +3463,13 @@ contains
   !---------------------------------------------------------
   subroutine calcPressure_col_nl_vcode2100x(column, P_T, P_M)
     !
-    ! :Purpose:  DBGmad TODO
+    ! :Purpose: Compute pressure and return values in pointer arguments.
+    !           GEM-H column input.
     !
     implicit none
-    !! DBGmad TODO : consider reusing (instead of pasting) the same code for both `calcPressure_{gsv,col}_nl_vcode2100x`
+    ! Development notes (@mad001)
+    !   if feasible, consider reusing the same code for both 
+    !   `calcPressure_{gsv,col}_nl_vcode2100x`
 
     ! Arguments
     type(struct_columnData),  intent(in)    :: column ! reference column
@@ -3491,7 +3516,6 @@ contains
       P_T(colIndex, nlev_T) = P0*exp(-Rgh*dh/MPC_RGAS_DRY_AIR_R8/tv(nlev_T))
 
       ! momentum diagnostic level
-      ! DBGmad : validate that boundary condition implementation
       Z_M = col_getHeight(column,nLev_M,colIndex,'MM')
       dh = Z_M - rMT
       Rgh = phf_gravityalt(sLat, rMT+0.5D0*dh)
@@ -3562,7 +3586,7 @@ contains
     ! Locals
     real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
     real(kind=8), pointer     :: zppobs1(:,:,:)
-    integer :: headerIndex, status, ilev1, ilev2
+    integer :: headerIndex, status
 
     call msg('calcPressure_col_nl_vcode500x (czp)', 'START', verb_opt=4)
     if ( col_getNumCol(column) <= 0 ) then
@@ -3609,7 +3633,7 @@ contains
   !---------------------------------------------------------
   subroutine calcPressure_col_tl( columnInc, columnIncRef)
     !
-    !:Purpose: calculation of the Pressure increment in the column.
+    !:Purpose: Tangent pressure computation on the column.
     !
     implicit none
 
@@ -3632,7 +3656,8 @@ contains
       end if
       call calcPressure_col_tl_vcode500x
     else if (Vcode == 21001) then
-      !! some col_varExist(columnInc,.)
+      ! Development notes (@mad001)
+      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcPressure_col_tl_vcode2100x
     end if
 
@@ -3726,7 +3751,7 @@ contains
   !---------------------------------------------------------
   subroutine calcPressure_col_ad( columnInc, columnIncRef)
     !
-    !:Purpose: adjoint of calculation of the Pressure in the column.
+    !:Purpose: Adjoint of pressure computation on the column.
     !
     implicit none
 
@@ -3749,7 +3774,8 @@ contains
       end if
       call calcPressure_col_ad_vcode500x
     else if (Vcode == 21001) then
-      !! some col_varExist(columnInc,.)
+      ! Development notes (@mad001)
+      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcPressure_col_ad_vcode2100x
     end if
 
@@ -4325,7 +4351,7 @@ contains
 
     if ( t <= 0 ) call utl_abort('gpscompressibility: t <= 0')
 
-    x  = p_wa * q / (1.D0 + p_wb * q)
+    x  = gps_p_wa * q / (1.D0 + gps_p_wb * q)
     ! Estimate, from CIPM, Picard (2008)
     tc = t - MPC_K_C_DEGREE_OFFSET_R8
     pt = p / t
@@ -4361,7 +4387,7 @@ contains
 
     if ( t <= 0 ) call utl_abort('gpscompressibility_TT: t <= 0')
 
-    x  = p_wa * q / (1.D0 + p_wb * q)
+    x  = gps_p_wa * q / (1.D0 + gps_p_wb * q)
     d_x  = 0.0D0
     ! Estimate, from CIPM, Picard (2008)
     tc = t - MPC_K_C_DEGREE_OFFSET_R8
@@ -4404,8 +4430,8 @@ contains
 
     if ( t <= 0 ) call utl_abort('gpscompressibility_HU: t <= 0')
 
-    x  = p_wa * q / (1.D0+p_wb*q)
-    d_x  = p_wa * (1.0D0 / (1.D0+p_wb*q) - q / (1.D0+p_wb*q)**2 * p_wb * 1.0D0)
+    x  = gps_p_wa * q / (1.D0+gps_p_wb*q)
+    d_x  = gps_p_wa * (1.0D0 / (1.D0+gps_p_wb*q) - q / (1.D0+gps_p_wb*q)**2 * gps_p_wb * 1.0D0)
     ! Estimate, from CIPM, Picard (2008)
     tc = t - MPC_K_C_DEGREE_OFFSET_R8
     d_tc = 0.0D0
@@ -4420,49 +4446,6 @@ contains
         pt * (a1*d_tc + a2*d_tc2 + b1*d_tc*x + (b0+b1*tc)*d_x + c1*d_tc*x2 + &
         (c0+c1*tc)*d_x2) + 2*pt*d_pt*(d+e*x2) + pt*pt*e*d_x2
   end function gpscompressibility_HU
-
-  !---------------------------------------------------------
-  ! gpscompressibility_P0
-  !---------------------------------------------------------
-  function gpscompressibility_P0(p,t,q,dpdp0)
-    implicit none
-    ! Arguments
-    real(8), intent(in)  :: p,t,q,dpdp0
-
-    ! Locals
-    real(8)              :: gpscompressibility_P0
-
-    real(8), parameter   :: a0= 1.58123D-6
-    real(8), parameter   :: a1=-2.9331D-8
-    real(8), parameter   :: a2= 1.1043D-10
-    real(8), parameter   :: b0= 5.707D-6
-    real(8), parameter   :: b1=-2.051D-8
-    real(8), parameter   :: c0= 1.9898D-4
-    real(8), parameter   :: c1=-2.376D-6
-    real(8), parameter   :: d = 1.83D-11
-    real(8), parameter   :: e =-0.765D-8
-
-    real(8)         :: x,tc,pt,tc2,x2
-    real(8)         :: d_x,d_tc,d_pt,d_tc2,d_x2
-
-    if ( t <= 0 ) call utl_abort('gpscompressibility_P0: t <= 0')
-
-    x  = p_wa * q / (1.D0+p_wb*q)
-    d_x  = 0.0D0
-    ! Estimate, from CIPM, Picard (2008)
-    tc = t - MPC_K_C_DEGREE_OFFSET_R8
-    d_tc = 0.0D0
-    pt = p / t
-    d_pt = dpdp0 / t
-    tc2= tc * tc
-    d_tc2= 2 * tc * d_tc
-    x2 = x * x
-    d_x2 = 2 * x * d_x
-    gpscompressibility_P0 = &
-        -d_pt * (a0+a1*tc+a2*tc2+(b0+b1*tc)*x+(c0+c1*tc)*x2) - &
-        pt * (a1*d_tc + a2*d_tc2 + b1*d_tc*x + (b0+b1*tc)*d_x + c1*d_tc*x2 + &
-        (c0+c1*tc)*d_x2) + 2*pt*d_pt*(d+e*x2) + pt*pt*e*d_x2
-  end function gpscompressibility_P0
 
   !---------------------------------------------------------
   ! gpscompressibility_P0_1
@@ -4492,7 +4475,7 @@ contains
 
     if ( t <= 0 ) call utl_abort('gpscompressibility_P0_1: t <= 0')
 
-    x  = p_wa * q / (1.D0+p_wb*q)
+    x  = gps_p_wa * q / (1.D0+gps_p_wb*q)
     d_x  = 0.0D0
     ! Estimate, from CIPM, Picard (2008)
     tc = t - MPC_K_C_DEGREE_OFFSET_R8
@@ -4536,7 +4519,7 @@ contains
 
     if ( t <= 0 ) call utl_abort('gpscompressibility_P0_2: t <= 0')
 
-    x  = p_wa * q / (1.D0+p_wb*q)
+    x  = gps_p_wa * q / (1.D0+gps_p_wb*q)
     d_x  = 0.0D0
     ! Estimate, from CIPM, Picard (2008)
     tc = t - MPC_K_C_DEGREE_OFFSET_R8

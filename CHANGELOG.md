@@ -45,6 +45,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Refactored `czp`, `int` and `inc` in preparation of GEM-H support (#466 and !668)
+   * minor impact: many programs impacted by non significant numerical differences
  * Changed `var/EnVar/gdps` config to follow ops, updated unit test ref (#720 and !663)
  * Remove variable GLE (#718 and !664)
  * Improve parallelization of reading ensemble (#705 and !650)
