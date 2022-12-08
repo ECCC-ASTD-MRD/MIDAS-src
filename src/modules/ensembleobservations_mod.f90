@@ -492,16 +492,20 @@ CONTAINS
     ! locals
     integer :: unitNum, ierr, obsIndex, memberIndex
     character(len=40) :: fileName
-    character(len=4)  :: memberIndexStr, myidStr
+    character(len=4)  :: memberIndexStr, myidxStr, myidyStr
+    character(len=30) :: fileNameExtention
     integer :: fnom, fclos
 
     if ( .not. ensObs%allocated ) then
       call utl_abort('eob_writeToFilesMpiLocal: this object is not allocated')
     end if
 
+    write(myidxStr,'(I4.4)') (mmpi_myidx + 1)
+    write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
+    fileNameExtention = trim(myidxStr) // '_' // trim(myidyStr)
+    
     ! write the lat, lon and obs values to a file
-    write(myidStr,'(I0.4)') mmpi_myid
-    fileName = 'eob_Lat_Lon_ObsValue.myid_' // myidStr
+    fileName = 'eob_Lat_Lon_ObsValue.myid_' // trim(fileNameExtention)
     write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
     unitNum = 0
     ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
@@ -512,8 +516,8 @@ CONTAINS
 
     ! write the contents of Yb, 1 member per file
     do memberIndex = 1, ensObs%numMembers
-      write(memberIndexStr,'(I0.4)') memberIndex
-      fileName = 'eob_HX_' // memberIndexStr // '.myid_' // myidStr
+      write(memberIndexStr,'(I4.4)') memberIndex
+      fileName = 'eob_HX_' // memberIndexStr // '.myid_' // trim(fileNameExtention)
       write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
       unitNum = 0
       ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
