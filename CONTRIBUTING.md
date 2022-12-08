@@ -236,6 +236,7 @@ testing using **GitLab-CI** are available in a separate file](docs/CI.md).
 
 # Advanced Topics
 
+* [Activating the code coverage report](docs/unitTests.md#activating-the-code-coverage-report)
 * [Creating SSM packages](docs/ssm.md)
 * [Managing Continuous Integration](docs/CI.md) 
 * [Advanced Unit Testing Topics](docs/unitTests.md) 
