@@ -411,12 +411,12 @@ program midas_letkf
   !
 
   !- 3.1 Loop over all members and compute HX for each
-  do memberIndex = 1, nEns
-
-    write(*,*) ''
-    if ( readEnsObsFromFile ) then
-      call eob_readFromFilesMpiLocal(ensObs, memberIndex)
-    else
+  if ( readEnsObsFromFile ) then
+    call eob_readFromFilesMpiLocal(ensObs)
+  else
+    do memberIndex = 1, nEns
+  
+      write(*,*) ''
       write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
       write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
@@ -440,45 +440,45 @@ program midas_letkf
 
       ! Copy to ensObs: Y-HX for this member
       call eob_setYb(ensObs, memberIndex)
-    end if
 
-    ! Compute and set Yb in ensObsGain
-    do eigenVectorIndex = 1, numRetainedEigen
-      if ( mmpi_myid == 0 .and. debug ) then
-        write(*,*) 'midas-letkf: apply nonlinear H to modulated member ', &
-                   eigenVectorIndex, '/', numRetainedEigen
-      end if
+      ! Compute and set Yb in ensObsGain
+      do eigenVectorIndex = 1, numRetainedEigen
+        if ( mmpi_myid == 0 .and. debug ) then
+          write(*,*) 'midas-letkf: apply nonlinear H to modulated member ', &
+                    eigenVectorIndex, '/', numRetainedEigen
+        end if
 
-      ! modulate the member with eigenvectors of vertical localization matrix
-      call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
-                                   vLocalize, numRetainedEigen, nEns, &
-                                   eigenVectorIndex, stateVector4Dmod, &
-                                   beSilent=.true. )
-      if ( debug ) then
-        call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
-        write(*,*) 'midas-letkf: max(Psfc)=', maxval(field_Psfc), &
-                   ', min(Psfc)=', minval(field_Psfc)
-      end if
+        ! modulate the member with eigenvectors of vertical localization matrix
+        call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
+                                    vLocalize, numRetainedEigen, nEns, &
+                                    eigenVectorIndex, stateVector4Dmod, &
+                                    beSilent=.true. )
+        if ( debug ) then
+          call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
+          write(*,*) 'midas-letkf: max(Psfc)=', maxval(field_Psfc), &
+                    ', min(Psfc)=', minval(field_Psfc)
+        end if
 
-      call gsv_copy(stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
-                    beSilent_opt=.true.)
-      if (nwpFields) then
-        call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
-      end if
-      call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                   timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
-                   beSilent_opt=.true. )
+        call gsv_copy(stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+                      beSilent_opt=.true.)
+        if (nwpFields) then
+          call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+        end if
+        call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+                    timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
+                    beSilent_opt=.true. )
 
-      ! Compute Y-H(X) in OBS_OMP
-      call inn_computeInnovation( column, obsSpaceData, filterObsAndInitOer_opt=.false., &
-                                  beSilent_opt=.true. )
+        ! Compute Y-H(X) in OBS_OMP
+        call inn_computeInnovation( column, obsSpaceData, filterObsAndInitOer_opt=.false., &
+                                    beSilent_opt=.true. )
 
-      ! Copy to ensObsGain: Y-HX for this member
-      memberIndexInEnsObs = (eigenVectorIndex - 1) * nEns + memberIndex
-      call eob_setYb(ensObsGain, memberIndexInEnsObs)
-    end do ! eigenVectorIndex
+        ! Copy to ensObsGain: Y-HX for this member
+        memberIndexInEnsObs = (eigenVectorIndex - 1) * nEns + memberIndex
+        call eob_setYb(ensObsGain, memberIndexInEnsObs)
+      end do ! eigenVectorIndex
 
-  end do ! memberIndex
+    end do ! memberIndex
+  end if
   if ( gsv_isAllocated(stateVector4Dmod) ) call gsv_deallocate(stateVector4Dmod)
 
   ! write local ensObs to file

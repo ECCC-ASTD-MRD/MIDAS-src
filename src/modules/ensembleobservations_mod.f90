@@ -492,7 +492,7 @@ CONTAINS
     ! locals
     integer :: unitNum, ierr, obsIndex, memberIndex
     character(len=40) :: fileName
-    character(len=4)  :: memberIndexStr, myidxStr, myidyStr
+    character(len=4)  :: myidxStr, myidyStr
     character(len=30) :: fileNameExtention
     integer :: fnom, fclos
 
@@ -509,23 +509,22 @@ CONTAINS
     write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
     unitNum = 0
     ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
-    write(unitNum) ensObs%numObs
+    write(unitNum) ensObs%numMembers, ensObs%numObs
     write(unitNum) (ensObs%lat(obsIndex), obsIndex = 1, ensObs%numObs)
     write(unitNum) (ensObs%lon(obsIndex), obsIndex = 1, ensObs%numObs)
     write(unitNum) (ensObs%obsValue(obsIndex), obsIndex = 1, ensObs%numObs)
     ierr = fclos(unitNum)
 
-    ! write the contents of Yb, 1 member per file
+    ! write the contents of Yb for all the members to one file
+    fileName = 'eob_HX.myid_' // trim(fileNameExtention)
+    write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
+    unitNum = 0
+    ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
+    write(unitNum) (memberIndex, memberIndex = 1, ensObs%numMembers)
     do memberIndex = 1, ensObs%numMembers
-      write(memberIndexStr,'(I4.4)') memberIndex
-      fileName = 'eob_HX_' // memberIndexStr // '.myid_' // trim(fileNameExtention)
-      write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
-      unitNum = 0
-      ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
-      write(unitNum) memberIndex
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
-      ierr = fclos(unitNum)
     end do
+    ierr = fclos(unitNum)
 
   end subroutine eob_writeToFilesMpiLocal
 
@@ -549,7 +548,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_readFromFilesMpiLocal
   !--------------------------------------------------------------------------
-  subroutine eob_readFromFilesMpiLocal(ensObs, memberIndex)
+  subroutine eob_readFromFilesMpiLocal(ensObs)
     !
     ! :Purpose: Read ensObs%Yb of mpi local object from file
     !
@@ -557,15 +556,15 @@ CONTAINS
 
     ! arguments
     type(struct_eob), intent(inout) :: ensObs
-    integer, intent(in)             :: memberIndex
     
     ! locals
     real(8), allocatable :: latReadFromFile(:), lonReadFromFile(:)
     real(8), allocatable :: obsValueReadFromFile(:)
-    integer :: unitNum, ierr, memberIndexStored, numObs
+    integer, allocatable :: memberIndexStored(:)
+    integer :: unitNum, ierr, memberIndex, numMembers, numObs
     integer :: fnom, fclos
     character(len=40) :: fileName
-    character(len=4)  :: memberIndexStr, myidxStr, myidyStr
+    character(len=4)  :: myidxStr, myidyStr
     character(len=30) :: fileNameExtention
 
     if ( .not. ensObs%allocated ) then
@@ -581,10 +580,11 @@ CONTAINS
     write(*,*) 'eob_readFromFilesMpiLocal: fileName = ',trim(fileName)
     unitNum = 0
     ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF+OLD+R/O',0)
-    read(unitNum) numObs
-    if ( ensObs%numObs /= numObs ) then
-      call utl_abort('eob_readFromFilesMpiLocal: ensObs%numObs /= numObs')
+    read(unitNum) numMembers, numObs
+    if ( ensObs%numMembers /= numMembers .or. ensObs%numObs /= numObs ) then
+      call utl_abort('eob_readFromFilesMpiLocal: ensObs%numMembers[numObs] do not match with that of file')
     end if
+    allocate(memberIndexStored(numMembers))
     allocate(latReadFromFile(numObs))
     allocate(lonReadFromFile(numObs))
     allocate(obsValueReadFromFile(numObs))
@@ -598,17 +598,15 @@ CONTAINS
       call utl_abort('eob_readFromFilesMpiLocal: file do not match ensObs')
     end if
 
-    !- Open file containing Yb and read ensObs%Yb
-    write(memberIndexStr,'(I4.4)') memberIndex
-    fileName = 'eob_HX_' // memberIndexStr // '.myid_' // trim(fileNameExtention)
-    write(*,*) 'eob_readFromFilesMpiLocal: fileName = ',trim(fileName)
+    ! Open file containing Yb and read ensObs%Yb
+    fileName = 'eob_HX.myid_' // trim(fileNameExtention)
+    write(*,*) 'eob_readFromFilesMpiLocal: reading ',trim(fileName)
     unitNum = 0
     ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF+OLD+R/O',0)
-    read(unitNum) memberIndexStored
-    if ( memberIndex /= memberIndexStored ) then
-      call utl_abort('eob_readFromFilesMpiLocal: memberIndex /= memberIndexStored')
-    end if
-    read(unitNum) ensObs%Yb_r4(memberIndex,1:numObs)
+    read(unitNum) memberIndexStored(:)
+    do memberIndex = 1, ensObs%numMembers
+      read(unitNum) ensObs%Yb_r4(memberIndex,1:numObs)
+    end do
     ierr = fclos(unitNum)
 
   end subroutine eob_readFromFilesMpiLocal
