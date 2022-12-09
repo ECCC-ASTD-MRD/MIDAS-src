@@ -109,6 +109,8 @@ program midas_letkf
   logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
   logical  :: useModulatedEns      ! using modulated ensembles is requested by setting numRetainedEigen.
   logical  :: debug                ! debug option to print values to the listings.
+  logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
+  logical  :: writeEnsObsToFile    ! write ensObs to file.
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
   real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
@@ -123,6 +125,7 @@ program midas_letkf
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                      obsTimeInterpType, mpiDistribution, etiket_anl, &
+                     readEnsObsFromFile, writeEnsObsToFile, &
                      numRetainedEigen, debug
 
   ! Some high-level configuration settings
@@ -177,6 +180,8 @@ program midas_letkf
   obsTimeInterpType     = 'LINEAR'
   mpiDistribution       = 'ROUNDROBIN'
   etiket_anl            = 'ENS_ANL'
+  readEnsObsFromFile    = .false.
+  writeEnsObsToFile     = .false.
   numRetainedEigen      = 0
   debug                 = .false.
 
@@ -409,29 +414,33 @@ program midas_letkf
   do memberIndex = 1, nEns
 
     write(*,*) ''
-    write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if ( readEnsObsFromFile ) then
+      call eob_readFromFilesMpiLocal(ensObs, memberIndex)
+    else
+      write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
+      write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-    ! copy 1 member to a stateVector
-    call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
-    call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
-                  beSilent_opt=.true.)
+      ! copy 1 member to a stateVector
+      call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
+      call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+                    beSilent_opt=.true.)
 
-    ! copy the surface height field
-    if (nwpFields) then
-      call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+      ! copy the surface height field
+      if (nwpFields) then
+        call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+      end if
+
+      ! Compute and set Yb in ensObs
+      call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+                  timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
+                  beSilent_opt=.true. )
+
+      ! Compute Y-H(X) in OBS_OMP
+      call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
+
+      ! Copy to ensObs: Y-HX for this member
+      call eob_setYb(ensObs, memberIndex)
     end if
-
-    ! Compute and set Yb in ensObs
-    call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                 timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
-                 beSilent_opt=.true. )
-
-    ! Compute Y-H(X) in OBS_OMP
-    call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
-
-    ! Copy to ensObs: Y-HX for this member
-    call eob_setYb(ensObs, memberIndex)
 
     ! Compute and set Yb in ensObsGain
     do eigenVectorIndex = 1, numRetainedEigen
@@ -471,6 +480,9 @@ program midas_letkf
 
   end do ! memberIndex
   if ( gsv_isAllocated(stateVector4Dmod) ) call gsv_deallocate(stateVector4Dmod)
+
+  ! write local ensObs to file
+  if ( writeEnsObsToFile ) call eob_writeToFilesMpiLocal(ensObs)
 
   !- 3.2 Set some additional information in ensObs/ensObsGain and additional quality
   !      control before finally communicating ensObs/ensObsGain globally
