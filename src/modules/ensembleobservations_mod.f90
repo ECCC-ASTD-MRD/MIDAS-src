@@ -50,7 +50,7 @@ MODULE ensembleObservations_mod
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
   public :: eob_removeObsNearLand
   public :: eob_writeToFiles, eob_writeToFilesMpiLocal
-  public :: eob_readFromFiles, eob_readYbFromFilesMpiLocal
+  public :: eob_readFromFiles, eob_readFromFilesMpiLocal
 
   integer, parameter :: maxNumLocalObsSearch = 500000
   integer,external   :: get_max_rss
@@ -509,6 +509,7 @@ CONTAINS
     write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
     unitNum = 0
     ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
+    write(unitNum) ensObs%numObs
     write(unitNum) (ensObs%lat(obsIndex), obsIndex = 1, ensObs%numObs)
     write(unitNum) (ensObs%lon(obsIndex), obsIndex = 1, ensObs%numObs)
     write(unitNum) (ensObs%obsValue(obsIndex), obsIndex = 1, ensObs%numObs)
@@ -521,7 +522,7 @@ CONTAINS
       write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
       unitNum = 0
       ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
-      write(unitNum) memberIndex, ensObs%numObs
+      write(unitNum) memberIndex
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
       ierr = fclos(unitNum)
     end do
@@ -546,9 +547,9 @@ CONTAINS
   end subroutine eob_readFromFiles
 
   !--------------------------------------------------------------------------
-  ! eob_readYbFromFilesMpiLocal
+  ! eob_readFromFilesMpiLocal
   !--------------------------------------------------------------------------
-  subroutine eob_readYbFromFilesMpiLocal(ensObs, fileName)
+  subroutine eob_readFromFilesMpiLocal(ensObs, memberIndex)
     !
     ! :Purpose: Read ensObs%Yb of mpi local object from file
     !
@@ -556,28 +557,61 @@ CONTAINS
 
     ! arguments
     type(struct_eob), intent(inout) :: ensObs
-    character(len=*), intent(in)    :: fileName
-
+    integer, intent(in)             :: memberIndex
+    
     ! locals
-    integer :: unitNum, ierr, memberIndex, numObs
+    real(8), allocatable :: latReadFromFile(:), lonReadFromFile(:)
+    real(8), allocatable :: obsValueReadFromFile(:)
+    integer :: unitNum, ierr, memberIndexStored, numObs
     integer :: fnom, fclos
+    character(len=40) :: fileName
+    character(len=4)  :: memberIndexStr, myidxStr, myidyStr
+    character(len=30) :: fileNameExtention
 
     if ( .not. ensObs%allocated ) then
-      call utl_abort('eob_readYbFromFilesMpiLocal: this object is not allocated')
+      call utl_abort('eob_readFromFilesMpiLocal: this object is not allocated')
     end if
 
-    !- Open input field
+    write(myidxStr,'(I4.4)') (mmpi_myidx + 1)
+    write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
+    fileNameExtention = trim(myidxStr) // '_' // trim(myidyStr)
+
+    ! Open file containing lat/lon/obsValue and check they match ensObs
+    fileName = 'eob_Lat_Lon_ObsValue.myid_' // trim(fileNameExtention)
+    write(*,*) 'eob_readFromFilesMpiLocal: fileName = ',trim(fileName)
     unitNum = 0
-    write(*,*) 'eob_readYbFromFilesMpiLocal: fileName = ',trim(fileName)
     ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF+OLD+R/O',0)
-    read(unitNum) memberIndex, numObs
+    read(unitNum) numObs
     if ( ensObs%numObs /= numObs ) then
-      call utl_abort('eob_readYbFromFilesMpiLocal: ensObs%numObs /= numObs')
+      call utl_abort('eob_readFromFilesMpiLocal: ensObs%numObs /= numObs')
+    end if
+    allocate(latReadFromFile(numObs))
+    allocate(lonReadFromFile(numObs))
+    allocate(obsValueReadFromFile(numObs))
+    read(unitNum) latReadFromFile(:)
+    read(unitNum) lonReadFromFile(:)
+    read(unitNum) ObsValueReadFromFile(:)
+    ierr = fclos(unitNum)
+    if ( .not. all(latReadFromFile(:) == ensObs%lat(:)) .or. &
+         .not. all(lonReadFromFile(:) == ensObs%lon(:)) .or. &
+         .not. all(obsValueReadFromFile(:) == ensObs%obsValue(:)) ) then
+      call utl_abort('eob_readFromFilesMpiLocal: file do not match ensObs')
+    end if
+
+    !- Open file containing Yb and read ensObs%Yb
+    write(memberIndexStr,'(I4.4)') memberIndex
+    fileName = 'eob_HX_' // memberIndexStr // '.myid_' // trim(fileNameExtention)
+    write(*,*) 'eob_readFromFilesMpiLocal: fileName = ',trim(fileName)
+    unitNum = 0
+    ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF+OLD+R/O',0)
+    read(unitNum) memberIndexStored
+    if ( memberIndex /= memberIndexStored ) then
+      call utl_abort('eob_readFromFilesMpiLocal: memberIndex /= memberIndexStored')
     end if
     read(unitNum) ensObs%Yb_r4(memberIndex,1:numObs)
     ierr = fclos(unitNum)
 
-  end subroutine eob_readYbFromFilesMpiLocal
+  end subroutine eob_readFromFilesMpiLocal
 
   !--------------------------------------------------------------------------
   ! eob_getLocalBodyIndices
