@@ -491,6 +491,7 @@ CONTAINS
 
     ! locals
     integer :: unitNum, ierr, obsIndex, memberIndex
+    integer :: obsVcoCode(ensObs%numObs)
     character(len=40) :: fileName
     character(len=4)  :: myidxStr, myidyStr
     character(len=30) :: fileNameExtention
@@ -499,6 +500,8 @@ CONTAINS
     if ( .not. ensObs%allocated ) then
       call utl_abort('eob_writeToFilesMpiLocal: this object is not allocated')
     end if
+
+    call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
 
     write(myidxStr,'(I4.4)') (mmpi_myidx + 1)
     write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
@@ -512,6 +515,7 @@ CONTAINS
     write(unitNum) ensObs%numMembers, ensObs%numObs
     write(unitNum) (ensObs%lat(obsIndex), obsIndex = 1, ensObs%numObs)
     write(unitNum) (ensObs%lon(obsIndex), obsIndex = 1, ensObs%numObs)
+    write(unitNum) (obsVcoCode(obsIndex), obsIndex = 1, ensObs%numObs)
     write(unitNum) (ensObs%obsValue(obsIndex), obsIndex = 1, ensObs%numObs)
     ierr = fclos(unitNum)
 
@@ -525,6 +529,11 @@ CONTAINS
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
     end do
     ierr = fclos(unitNum)
+    write(*,*) 'maziar: write lat=', ensObs%lat(1:ensObs%numObs)
+    write(*,*) 'maziar: write lon=', ensObs%lon(1:ensObs%numObs)
+    write(*,*) 'maziar: write obsVcoCode=', obsVcoCode(1:ensObs%numObs)
+    write(*,*) 'maziar: write obsValue=', ensObs%obsValue(1:ensObs%numObs)
+    write(*,*) 'maziar: write for member=1, Yb_r4=', ensObs%Yb_r4(1,1:ensObs%numObs)
 
   end subroutine eob_writeToFilesMpiLocal
 
@@ -558,9 +567,10 @@ CONTAINS
     type(struct_eob), intent(inout) :: ensObs
     
     ! locals
-    real(8), allocatable :: latReadFromFile(:), lonReadFromFile(:)
-    real(8), allocatable :: obsValueReadFromFile(:)
-    integer, allocatable :: memberIndexStored(:)
+    real(8) :: latFromFile(ensObs%numObs), lonFromFile(ensObs%numObs)
+    real(8) :: obsValueFromFile(ensObs%numObs)
+    integer :: obsVcoCode(ensObs%numObs), obsVcoCodeFromFile(ensObs%numObs)
+    integer :: memberIndexFromFile(ensObs%numMembers)
     integer :: unitNum, ierr, memberIndex, obsIndex, numMembers, numObs
     integer :: fnom, fclos
     character(len=40) :: fileName
@@ -571,30 +581,30 @@ CONTAINS
       call utl_abort('eob_readFromFilesMpiLocal: this object is not allocated')
     end if
 
+    call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
+
     write(myidxStr,'(I4.4)') (mmpi_myidx + 1)
     write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
     fileNameExtention = trim(myidxStr) // '_' // trim(myidyStr)
 
     ! Open file containing lat/lon/obsValue and check they match ensObs
     fileName = 'eob_Lat_Lon_ObsValue.myid_' // trim(fileNameExtention)
-    write(*,*) 'eob_readFromFilesMpiLocal: fileName = ',trim(fileName)
+    write(*,*) 'eob_readFromFilesMpiLocal: reading = ',trim(fileName)
     unitNum = 0
-    ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF+OLD+R/O',0)
+    ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
     read(unitNum) numMembers, numObs
     if ( ensObs%numMembers /= numMembers .or. ensObs%numObs /= numObs ) then
       call utl_abort('eob_readFromFilesMpiLocal: ensObs%numMembers[numObs] do not match with that of file')
     end if
-    allocate(memberIndexStored(numMembers))
-    allocate(latReadFromFile(numObs))
-    allocate(lonReadFromFile(numObs))
-    allocate(obsValueReadFromFile(numObs))
-    read(unitNum) latReadFromFile(:)
-    read(unitNum) lonReadFromFile(:)
-    read(unitNum) ObsValueReadFromFile(:)
+    read(unitNum) (latFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+    read(unitNum) (lonFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+    read(unitNum) (obsVcoCodeFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+    read(unitNum) (obsValueFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
     ierr = fclos(unitNum)
-    if ( .not. all(latReadFromFile(:) == ensObs%lat(:)) .or. &
-         .not. all(lonReadFromFile(:) == ensObs%lon(:)) .or. &
-         .not. all(obsValueReadFromFile(:) == ensObs%obsValue(:)) ) then
+    if ( .not. all(latFromFile(:) == ensObs%lat(:)) .or. &
+         .not. all(lonFromFile(:) == ensObs%lon(:)) .or. &
+         .not. all(obsValueFromFile(:) == ensObs%obsValue(:)) .or. &
+         .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:)) ) then
       call utl_abort('eob_readFromFilesMpiLocal: file do not match ensObs')
     end if
 
@@ -602,12 +612,20 @@ CONTAINS
     fileName = 'eob_HX.myid_' // trim(fileNameExtention)
     write(*,*) 'eob_readFromFilesMpiLocal: reading ',trim(fileName)
     unitNum = 0
-    ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF+OLD+R/O',0)
-    read(unitNum) memberIndexStored(:)
+    ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
+    read(unitNum) (memberIndexFromFile(memberIndex), memberIndex = 1, ensObs%numMembers)
+    write(*,*) 'maziar: memberIndexFromFile=', memberIndexFromFile(:)
     do memberIndex = 1, ensObs%numMembers
-      read(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, numObs) 
+      !if ( memberIndex == 1 ) write(*,*) 'maziar: before read ensObs%Yb_r4=',ensObs%Yb_r4(memberIndex,1:numObs)
+      read(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
+      !if ( memberIndex == 1 ) write(*,*) 'maziar: after read ensObs%Yb_r4=',ensObs%Yb_r4(memberIndex,1:numObs)
     end do
     ierr = fclos(unitNum)
+    write(*,*) 'maziar: read lat=', ensObs%lat(1:ensObs%numObs)
+    write(*,*) 'maziar: read lon=', ensObs%lon(1:ensObs%numObs)
+    write(*,*) 'maziar: read obsVcoCode=', obsVcoCode(1:ensObs%numObs)
+    write(*,*) 'maziar: read obsValue=', ensObs%obsValue(1:ensObs%numObs)
+    write(*,*) 'maziar: read for member=1, Yb_r4=', ensObs%Yb_r4(1,1:ensObs%numObs)
 
   end subroutine eob_readFromFilesMpiLocal
 
