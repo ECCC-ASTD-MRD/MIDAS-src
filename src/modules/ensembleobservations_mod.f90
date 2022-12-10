@@ -561,7 +561,7 @@ CONTAINS
     real(8), allocatable :: latReadFromFile(:), lonReadFromFile(:)
     real(8), allocatable :: obsValueReadFromFile(:)
     integer, allocatable :: memberIndexStored(:)
-    integer :: unitNum, ierr, memberIndex, numMembers, numObs
+    integer :: unitNum, ierr, memberIndex, obsIndex, numMembers, numObs
     integer :: fnom, fclos
     character(len=40) :: fileName
     character(len=4)  :: myidxStr, myidyStr
@@ -605,7 +605,7 @@ CONTAINS
     ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF+OLD+R/O',0)
     read(unitNum) memberIndexStored(:)
     do memberIndex = 1, ensObs%numMembers
-      read(unitNum) ensObs%Yb_r4(memberIndex,1:numObs)
+      read(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, numObs) 
     end do
     ierr = fclos(unitNum)
 
