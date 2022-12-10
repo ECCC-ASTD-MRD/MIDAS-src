@@ -491,7 +491,8 @@ CONTAINS
 
     ! locals
     integer :: unitNum, ierr, obsIndex, memberIndex
-    integer :: obsVcoCode(ensObs%numObs)
+    integer :: obsVcoCode(ensObs%numObs), obsAssFlag(ensObs%numObs)
+    integer :: obsFlag(ensObs%numObs)
     character(len=40) :: fileName
     character(len=4)  :: myidxStr, myidyStr
     character(len=30) :: fileNameExtention
@@ -501,9 +502,9 @@ CONTAINS
       call utl_abort('eob_writeToFilesMpiLocal: this object is not allocated')
     end if
 
-    call eob_setAssFlag(ensObs)
-
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
+    call obs_extractObsIntBodyColumn(obsAssFlag, ensObs%obsSpaceData, OBS_ASS)
+    call obs_extractObsIntBodyColumn(obsFlag, ensObs%obsSpaceData, OBS_FLG)
 
     write(myidxStr,'(I4.4)') (mmpi_myidx + 1)
     write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
@@ -519,7 +520,8 @@ CONTAINS
     write(unitNum) (ensObs%lon(obsIndex), obsIndex = 1, ensObs%numObs)
     write(unitNum) (obsVcoCode(obsIndex), obsIndex = 1, ensObs%numObs)
     write(unitNum) (ensObs%obsValue(obsIndex), obsIndex = 1, ensObs%numObs)
-    write(unitNum) (ensObs%assFlag(obsIndex), obsIndex = 1, ensObs%numObs)
+    write(unitNum) (obsAssFlag(obsIndex), obsIndex = 1, ensObs%numObs)
+    write(unitNum) (obsFlag(obsIndex), obsIndex = 1, ensObs%numObs)
     ierr = fclos(unitNum)
 
     ! write the contents of Yb for all the members to one file
@@ -573,7 +575,7 @@ CONTAINS
     real(8) :: latFromFile(ensObs%numObs), lonFromFile(ensObs%numObs)
     real(8) :: obsValueFromFile(ensObs%numObs)
     integer :: obsVcoCode(ensObs%numObs), obsVcoCodeFromFile(ensObs%numObs)
-    integer :: memberIndexFromFile(ensObs%numMembers)
+    integer :: obsFlag(ensObs%numObs), memberIndexFromFile(ensObs%numMembers)
     integer :: unitNum, ierr, memberIndex, obsIndex, numMembers, numObs
     integer :: fnom, fclos
     character(len=40) :: fileName
@@ -605,21 +607,21 @@ CONTAINS
     read(unitNum) (obsValueFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
     
     if ( .not. all(latFromFile(:) == ensObs%lat(:)) .or. &
-    .not. all(lonFromFile(:) == ensObs%lon(:)) .or. &
-    .not. all(obsValueFromFile(:) == ensObs%obsValue(:)) .or. &
-    .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:)) ) then
+         .not. all(lonFromFile(:) == ensObs%lon(:)) .or. &
+         .not. all(obsValueFromFile(:) == ensObs%obsValue(:)) .or. &
+         .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:)) ) then
       call utl_abort('eob_readFromFilesMpiLocal: file do not match ensObs')
     end if
     
-    ! read assimilation flag from file and modify obsSpaceData
+    ! read assimilation/obs flags from file and modify obsSpaceData
     read(unitNum) (ensObs%assFlag(obsIndex), obsIndex = 1, ensObs%numObs)
+    read(unitNum) (obsFlag(obsIndex), obsIndex = 1, ensObs%numObs)
     do obsIndex = 1, obs_numbody(ensObs%obsSpaceData)
       ! skip this obs it is already set to be assimilated
       if ( ensObs%assFlag(obsIndex) == obs_assimilated ) cycle
 
       call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, obsIndex, obs_notAssimilated)
-      call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, obsIndex,  &
-                         IBSET(obs_bodyElem_i(ensObs%obsSpaceData, OBS_FLG, obsIndex),18))
+      call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, obsIndex, obsFlag(obsIndex))
     end do
     ierr = fclos(unitNum)
 
