@@ -611,8 +611,16 @@ CONTAINS
       call utl_abort('eob_readFromFilesMpiLocal: file do not match ensObs')
     end if
     
-    ! read assimilation flag
+    ! read assimilation flag from file and modify obsSpaceData
     read(unitNum) (ensObs%assFlag(obsIndex), obsIndex = 1, ensObs%numObs)
+    do obsIndex = 1, obs_numbody(ensObs%obsSpaceData)
+      ! skip this obs it is already set to be assimilated
+      if ( ensObs%assFlag(obsIndex) == obs_assimilated ) cycle
+
+      call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, obsIndex, obs_notAssimilated)
+      call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, obsIndex,  &
+                         IBSET(obs_bodyElem_i(ensObs%obsSpaceData, OBS_FLG, obsIndex),18))
+    end do
     ierr = fclos(unitNum)
 
     ! Open file containing Yb and read ensObs%Yb
