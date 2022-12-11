@@ -534,11 +534,6 @@ CONTAINS
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
     end do
     ierr = fclos(unitNum)
-    !write(*,*) 'maziar: write lat=', ensObs%lat(1:ensObs%numObs)
-    !write(*,*) 'maziar: write lon=', ensObs%lon(1:ensObs%numObs)
-    !write(*,*) 'maziar: write obsVcoCode=', obsVcoCode(1:ensObs%numObs)
-    !write(*,*) 'maziar: write obsValue=', ensObs%obsValue(1:ensObs%numObs)
-    !write(*,*) 'maziar: write for member=1, Yb_r4=', ensObs%Yb_r4(1,1:ensObs%numObs)
 
   end subroutine eob_writeToFilesMpiLocal
 
@@ -631,18 +626,10 @@ CONTAINS
     unitNum = 0
     ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
     read(unitNum) (memberIndexFromFile(memberIndex), memberIndex = 1, ensObs%numMembers)
-    write(*,*) 'maziar: memberIndexFromFile=', memberIndexFromFile(:)
     do memberIndex = 1, ensObs%numMembers
-      !if ( memberIndex == 1 ) write(*,*) 'maziar: before read ensObs%Yb_r4=',ensObs%Yb_r4(memberIndex,1:numObs)
       read(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
-      !if ( memberIndex == 1 ) write(*,*) 'maziar: after read ensObs%Yb_r4=',ensObs%Yb_r4(memberIndex,1:numObs)
     end do
     ierr = fclos(unitNum)
-    !write(*,*) 'maziar: read lat=', ensObs%lat(1:ensObs%numObs)
-    !write(*,*) 'maziar: read lon=', ensObs%lon(1:ensObs%numObs)
-    !write(*,*) 'maziar: read obsVcoCode=', obsVcoCode(1:ensObs%numObs)
-    !write(*,*) 'maziar: read obsValue=', ensObs%obsValue(1:ensObs%numObs)
-    !write(*,*) 'maziar: read for member=1, Yb_r4=', ensObs%Yb_r4(1,1:ensObs%numObs)
 
   end subroutine eob_readFromFilesMpiLocal
 
