@@ -30,7 +30,9 @@ module version_mod
 contains
 
   subroutine ver_printNameAndVersion(progName, progDescription)
-    ! :Purpose: Print the program name, description and version to listing
+    !
+    !:Purpose: Print the program name, description and version to listing
+    !
     implicit none
 
     ! Arguments:

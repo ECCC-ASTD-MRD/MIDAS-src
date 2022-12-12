@@ -3862,7 +3862,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_getCommonChannelSet(channels,countUniqueChannel, listAll)
     !
-    !  :Purpose: get common channels among all MPI tasks
+    !:Purpose: get common channels among all MPI tasks
     !
     implicit none
     !Arguments:
@@ -3927,12 +3927,12 @@ contains
   !--------------------------------------------------------------------------
   subroutine tvs_rttov_read_coefs(err, coefs, opts, channels, instrument)
     !
-    !  :Purpose: MPI wrapper for rttov_read_coefs
-    !            the coefficient files are read by MPI task 0
-    !            and then broadcasted to the other tasks according to the selected
-    !            channels. Argument channels is mandatory (it is optional in rttov_setup)
-    !            optional argument channels_rec was removed (it is useful only in principal component mode)
-    !            other optionnal arguments were removed :
+    ! :Purpose: MPI wrapper for rttov_read_coefs
+    !           the coefficient files are read by MPI task 0
+    !           and then broadcasted to the other tasks according to the selected
+    !           channels. Argument channels is mandatory (it is optional in rttov_setup)
+    !           optional argument channels_rec was removed (it is useful only in principal component mode)
+    !           other optionnal arguments were removed :
     !                          *  form_coef, to specify format
     !                          *  form_scaer,        
     !                          *  form_sccld,        
@@ -3947,13 +3947,13 @@ contains
     !                          *  file_id_pccoef,
     !                          *  path,  to specify the path to look for coefficient files
     !
-    !            if necessary these arguments could be  added (ask S. Heilliette)
-    !            also this subroutine will work only for clear sky radiance computations
-    !            if somebody wants to do realistic cloud or aerosol affected radiance simulations
-    !            some changes are needed. Ask me in that case. (S. Heilliette) 
-    !            It is implicitely assumed that the options are the same for all MPI tasks for a given instrument
-    !            No check will be done (options for task 0 will be used for all tasks). 
-    !            Only differences in channel lists are accounted for.
+    !           if necessary these arguments could be  added (ask S. Heilliette)
+    !           also this subroutine will work only for clear sky radiance computations
+    !           if somebody wants to do realistic cloud or aerosol affected radiance simulations
+    !           some changes are needed. Ask me in that case. (S. Heilliette) 
+    !           It is implicitely assumed that the options are the same for all MPI tasks for a given instrument
+    !           No check will be done (options for task 0 will be used for all tasks). 
+    !           Only differences in channel lists are accounted for.
     !
 
     implicit none

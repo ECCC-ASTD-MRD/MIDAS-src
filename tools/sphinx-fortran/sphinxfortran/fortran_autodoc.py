@@ -3,7 +3,7 @@
 
 
 """
-# Copyright or © or Copr. Actimar/IFREMER (2010-2019)
+# Copyright Actimar/IFREMER (2010-2019)
 #
 # This software is a computer program whose purpose is to provide
 # utilities for handling oceanographic and atmospheric data,
@@ -1222,7 +1222,7 @@ class F90toRst(object):
         description = self.format_lines(comments, indent + 1)
 
         # Add use of modules
-        use = self.format_use(block, indent=indent + 1, short=True)
+        use = self.format_use(block, indent=indent + 1) #, short=True)
 
         # Add calls
         calls = []
@@ -1257,6 +1257,57 @@ class F90toRst(object):
 
     format_function = format_routine
     format_subroutine = format_routine
+
+    def format_program(self, block, indent=0):
+        """Format the description of a function, a subroutine or a program"""
+        # Declaration of a subroutine or function
+        if isinstance(block, six.string_types):
+            if block not in list(self.programs.keys()) + \
+                    list(self.routines.keys()):
+                raise F90toRstException(
+                    'Unknown function, subroutine or program: %s' %
+                    block)
+            if block in self.programs:
+                block = self.programs[block]
+            else:
+                block = self.routines[block]
+        elif block['name'] not in list(self.modules.keys()) + list(self.routines.keys()) + list(self.programs.keys()):
+            raise F90toRstException(
+                'Unknown %s: %s' %
+                (block['block'], block['name']))
+
+        name = block['name']
+        blocktype = block['block']
+        signature = '(%s)' % self.format_signature(
+            block) if blocktype != 'program' else ''
+        declaration = self.format_declaration(
+            blocktype, '%(name)s%(signature)s' %
+            locals(), indent=indent)
+        #declaration = self.indent(indent)+'.. f:%(blocktype)s:: %(name)s%(signature)s\n\n'%locals()
+
+        comments = list(block['desc']) + ['']
+
+        # Description
+        description = self.format_lines(comments, indent=indent)
+
+        # Add use of modules
+        use = self.format_use(block, indent=indent) #, short=True)
+
+        # Add calls
+        calls = []
+        module = block.get('module')
+        # - call tos
+        if block['callto']:
+            callto = ', '.join([self.format_funcref(fn, module)
+                                for fn in block['callto']])
+            #callto = ', '.join([self.format_funcref(self.routines[fn]['name'], module) for fn in block['callto']])
+            if callto == '':
+                callto = 'None'
+            callto = self.format_subsection('Routines called', indent=indent) + callto
+            #callto = ':Call_to: ' + callto
+            calls.append(callto)
+        calls = '\n' + self.format_lines(calls, indent=indent)
+        return declaration + description + use + calls + '\n\n'
 
     def format_quickaccess(self, module, indent=indent):
         """Format an abstract of all types, variables and routines of a module"""
@@ -1659,7 +1710,8 @@ class FortranAutoProgramDirective(Directive):
 #            self.warning('Wrong program name: '+program)
 
         # Get rst
-        raw_text = f90torst.format_routine(program)
+        #raw_text = f90torst.format_routine(program)
+        raw_text = f90torst.format_program(program)
 
         # Insert it
         source = self.state_machine.input_lines.source(

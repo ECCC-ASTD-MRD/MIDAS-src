@@ -2250,12 +2250,12 @@ contains
   ! ssbg_inovqcSsmis
   !--------------------------------------------------------------------------
   subroutine ssbg_inovqcSsmis(obsSpaceData, headerIndex, flagsInovQc)
-!  :Purpose: Identify those observations in SSMIS data that have O-P
-!            values greater than a threshold proportional to known
-!            standard deviations (computed when the bias correction
-!            coefficients were derived). The flags of these observations
-!            are adjusted accordingly (ie bit 9 switched ON).
-!            Also,
+!:Purpose: Identify those observations in SSMIS data that have O-P
+!          values greater than a threshold proportional to known
+!          standard deviations (computed when the bias correction
+!          coefficients were derived). The flags of these observations
+!          are adjusted accordingly (ie bit 9 switched ON).
+!          Also,
 !              -- flag channels for systematic rejection based on UTIL
 !                 value in stats_*_errtot file or because flag bit 6 OFF
 !                 (uncorrected data)

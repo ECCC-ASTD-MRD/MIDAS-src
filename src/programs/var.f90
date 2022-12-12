@@ -16,97 +16,188 @@
 
 program midas_var
   !
-  ! :Purpose: Main program for performing data assimilation using one of the
-  !           following algorithms based on the incremental variational
-  !           approach:
+  !:Purpose: Main program for performing data assimilation using one of the
+  !          following algorithms based on the incremental variational
+  !          approach:
   !
-  !             - 3D-Var
-  !             - 3D- or 4D-EnVar
+  !            - 3D-Var
+  !            - 3D- or 4D-EnVar
   !
-  !           ---
+  !          ---
   !
-  ! :Algorithm: The incremental variational data assimilation approach uses
-  !             observations to compute a correction to the background state
-  !             (i.e. the analysis increment) while taking into account the
-  !             specified uncertainties for the both the observations and the
-  !             background state (i.e. the R and B covariance matrices,
-  !             respectively). The analysis increment is computed by finding the
-  !             minimum value of a cost function. This cost function is a scalar
-  !             measure of the weighted departure of the corrected state from
-  !             both the background state and the observations. The minimization
-  !             is perfomed with a standard minimization algorithm (currently
-  !             the quasi-Newton algorithm) that employs the gradient of the
-  !             cost function to enable the minimum to be found (or at least
-  !             approximated with sufficient accuracy) with a very small number
-  !             of iterations. The analysis increment is not assumed to be on
-  !             the same horizontal and vertical grid as the background
-  !             state. In addition, the temporal resolution of the background
-  !             state and analysis increment are not assumed to be equal.
+  !:Algorithm: The incremental variational data assimilation approach uses
+  !            observations to compute a correction to the background state
+  !            (i.e. the analysis increment) while taking into account the
+  !            specified uncertainties for both the observations and the
+  !            background state (i.e. the R and B covariance matrices,
+  !            respectively). The analysis increment is computed by finding the
+  !            minimum value of a cost function. This cost function is a scalar
+  !            measure of the weighted departure of the corrected state from
+  !            both the background state and the observations. The minimization
+  !            is perfomed with a standard minimization algorithm (currently
+  !            the quasi-Newton algorithm) that employs the gradient of the
+  !            cost function to enable the minimum to be found (or at least
+  !            approximated with sufficient accuracy) with relatively few
+  !            iterations. The analysis increment is not assumed to be on the
+  !            same horizontal and vertical grid as the background state. In
+  !            addition, the temporal resolution of the background state and
+  !            analysis increment are not assumed to be equal.
   !
-  !             ---
+  !            --
   !
-  !             In practical terms, the background state is used to compute the
-  !             "innovation" (i.e. the difference between the observations and
-  !             the background state in observation space: ``y-H(xb)``) which is
-  !             used in the cost function calculation. Versions of the
-  !             observation operators that are are linearized with respect to
-  !             the background state (or updated background state when using the
-  !             outer loop) are also used in the cost function calculation to
-  !             transform the analysis increment into observation space.
+  !            In practical terms, the background state is used to compute the
+  !            "innovation" vector, that is, the difference between the
+  !            observations and the background state in observation space:
+  !            ``y-H(xb)``. The function ``H()`` represents the non-linear
+  !            observation operators that map a gridded state vector into
+  !            observation space. The innovation vector is used in the cost
+  !            function calculation. Versions of the observation operators that
+  !            are linearized with respect to the background state (or updated
+  !            background state when using the outer loop) are also used in the
+  !            cost function calculation to transform the analysis increment
+  !            into observation space. The gradient of the cost function is
+  !            computed using the adjoint of these linearized operators.
   !
-  !             ---
+  !            --
   !
-  ! :Synopsis: This will be a description of what is called by the program.
+  !            After the minimization, the analysis increment is spatially
+  !            interpolated to the same grid as the background state and then
+  !            added to this state to obtain the analysis. For some variables a
+  !            physical constraint is imposed on the analysis
+  !            (e.g. non-negative humidity or sea-ice concentration between 0
+  !            and 1) and then the analysis increment is recomputed.
   !
-  !            ---
+  !            --
   !
+  !:Synopsis: Below is a summary of the ``var`` program calling sequence:
   !
-  ! :Options: The choice of 3D-Var vs. 4D-EnVar is controlled by the weights
-  !           given to the climatological (i.e. static) and ensemble-based
-  !           background error covariance (i.e. B matrix) components. The
-  !           weights for all B matrix components are zero be default and can be
-  !           set to a nonzero value through the namelist variable
-  !           ``SCALEFACTOR`` in the namelist block for each corresponding
-  !           fortran module. For example, ``NAMBEN`` is the namelist block
-  !           associated with the ``bmatrixEnsemble_mod`` module.
+  !             - **Initial setups:**
   !
-  !           ---
+  !               - Setup horizontal and vertical grid objects for "analysis
+  !                 grid" from ``analysisgrid`` file and for "trial grid" from
+  !                 first trial file: ``trlm_01``.
   !
-  !           Either algorithm can be used in combination with "First guess at
-  !           appropriate time" (i.e. FGAT) which is controlled by the namelist
-  !           variable ``DSTEPOBS``::
+  !               - Setup ``obsSpaceData`` object and read observations from
+  !                 files: ``inn_setupObs``.
   !
-  !             &NAMTIM
-  !             DSTEPOBS = 1.0D0
+  !               - Setup ``columnData`` and ``gridStateVector`` modules (read
+  !                 list of analysis variables from namelist) and allocate column
+  !                 object for storing trial on analysis levels.
   !
-  !           which specifies the length of time (in hours) between times when
-  !           the background state must be available for use in computing the
-  !           innovation (i.e. O-B). By specifying a value less than the
-  !           assimilation window length (which is usually 6 hours for NWP
-  !           applications), the background state will be used at multiple times
-  !           within the assimilation window (i.e. FGAT).
+  !               - Setup the observation error statistics in ``obsSpaceData``
+  !                 object: ``oer_setObsErrors``.
   !
-  !           ---
+  !               - Allocate a stateVector object on the trial grid and then
+  !                 read the trials: ``gio_readTrials``.
   !
-  !           Similarly, the choice between 3D- and 4D-EnVar is controlled by
-  !           the namelist variable ``DSTEPOBSINC`` (also in ``&NAMTIM``) which
-  !           specifies the length of time (in hours) between times when the
-  !           analysis increment is computed. In the context of EnVar, if this
-  !           is less than the assimilation time window, then the ensembles used
-  !           to construct the ensemble-based B matrix component will be used at
-  !           multiple times within the assimilation window to obtain 4D
-  !           covariances (i.e. 4D-EnVar).
+  !               - Setup the B matrices: ``bmat_setup``.
   !
-  !           ---
+  !               - Setup the ``gridVariableTransforms`` and ``minimization``
+  !                 modules.
   !
-  !           The use of an outer loop is controlled by the namelist block
-  !           ``&NAMVAR`` read by the ``var`` program. Some of the other
-  !           relevant namelist blocks used the used to configure the
-  !           variational analysis are listed in the following table:
+  !             - **Outer loop** (only 1 iteration when no outer loop is used)
+  !               during which the analysis increment is computed to correct the
+  !               current "updated state" which is used to compute the
+  !               innovation and serve as the starting point for the
+  !               minimization of the following outer loop iteration:
+  !
+  !               - Impose RTTOV humidity limits on updated state (initially the
+  !                 trial) on trial grid: ``qlim_rttovLimit``.
+  !
+  !               - Use the updated state on trial grid to setup the reference
+  !                 state used by ``gridVariableTransforms`` module for height
+  !                 calculations.
+  !
+  !               - Compute ``columnTrlOnTrlLev`` and ``columnTrlOnAnlIncLev`` from
+  !                 updated state: ``inn_setupColumnsOnTrlLev``,
+  !                 ``inn_setupColumnsOnAnlIncLev``
+  !
+  !               - Compute innovation from updated state:
+  !                 ``inn_computeInnovation``.
+  !
+  !               - Use the updated state on trial grid to setup the reference
+  !                 state used by ``gridVariableTransforms`` module for ``LQ``
+  !                 to ``HU`` calculations.
+  !
+  !               - Do the minimization for this outer loop iteration:
+  !                 ``min_minimize`` to obtain ``controlVectorIncr``.
+  !
+  !               - Update sum of all computed increment control vectors:
+  !                 ``controlVectorIncrSum(:)`` which is needed in the
+  !                 background cost function for outer loop.
+  !
+  !               - Compute ``stateVectorIncr`` (on analysis grid) from
+  !                 ``controlVectorIncr``: ``inc_getIncrement``.
+  !
+  !               - Interpolate and add ``stateVectorIncr`` to the updated
+  !                 state: ``inc_computeHighResAnalysis``.
+  !
+  !               - If requested, impose saturation and RTTOV humidity limits on
+  !                 the updated state.
+  !
+  !               - Write increment (or sum of increments when outer loop used)
+  !                 to file: ``inc_writeIncrement``.
+  !
+  !               - End of outer loop.
+  !
+  !             - If requested, compute final cost function value using
+  !               non-linear observation operators.
+  !
+  !             - Write the final analysis and recomputed complete increment on
+  !               the trial grid: ``inc_writeincAndAnalHighRes``.
+  !
+  !             - Various final steps, including: write the Hessian to binary
+  !               file (``min_writeHessian``), update the observation files
+  !               (``obsf_writeFiles``).
+  !
+  !           --
+  !
+  !:Options: The choice of 3D-Var vs. 4D-EnVar is controlled by the weights
+  !          given to the climatological (i.e. static) and ensemble-based
+  !          background error covariance (i.e. B matrix) components. The weights
+  !          for all B matrix components are zero be default and can be set to a
+  !          nonzero value through the namelist variable ``SCALEFACTOR`` in the
+  !          namelist block for each corresponding fortran module. For example,
+  !          ``NAMBEN`` is the namelist block associated with the
+  !          ``bmatrixEnsemble_mod`` module.
+  !
+  !          --
+  !
+  !          Either algorithm can be used in combination with "First guess at
+  !          appropriate time" (i.e. FGAT) which is controlled by the namelist
+  !          variable ``DSTEPOBS``::
+  !
+  !            &NAMTIM
+  !            DSTEPOBS = 1.0D0
+  !
+  !          which specifies the length of time (in hours) between times when
+  !          the background state must be available for use in computing the
+  !          innovation (i.e. O-B). By specifying a value less than the
+  !          assimilation window length (which is usually 6 hours for NWP
+  !          applications), the background state will be used at multiple times
+  !          within the assimilation window (i.e. FGAT).
+  !
+  !          --
+  !
+  !          Similarly, the choice between 3D- and 4D-EnVar is controlled by
+  !          the namelist variable ``DSTEPOBSINC`` (also in ``&NAMTIM``) which
+  !          specifies the length of time (in hours) between times when the
+  !          analysis increment is computed. In the context of EnVar, if this
+  !          is less than the assimilation time window, then the ensembles used
+  !          to construct the ensemble-based B matrix component will be used at
+  !          multiple times within the assimilation window to obtain 4D
+  !          covariances (i.e. 4D-EnVar).
+  !
+  !          --
+  !
+  !          The use of an outer loop is controlled by the namelist block
+  !          ``&NAMVAR`` read by the ``var`` program. Some of the other
+  !          relevant namelist blocks used the used to configure the
+  !          variational analysis are listed in the following table:
   ! 
-  ! ======================== =========== ==============================================================
+  !======================== =========== ==============================================================
   ! Module                   Namelist    Description of what is controlled
-  ! ======================== =========== ==============================================================
+  !======================== =========== ==============================================================
   ! ``minimization_mod``     ``NAMMIN``  maximum number of iterations, convergence criteria and many
   !                                      additional parameters for controlling the minimization
   ! ``timeCoord_mod``        ``NAMTIM``  assimilation time window length, temporal resolution of
@@ -117,8 +208,7 @@ program midas_var
   !                                      component based on homogeneous-isotropic covariances
   !                                      represented in spectral space
   ! Other B matrix modules   various     weight and other parameters for each type of B matrix
-  ! ======================== =========== ==============================================================
-  !
+  !======================== =========== ==============================================================
   !
   use version_mod
   use codePrecision_mod
