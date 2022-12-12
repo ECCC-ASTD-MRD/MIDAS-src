@@ -140,15 +140,17 @@ program midas_var
   !
   !               - End of outer loop.
   !
-  !             - If requested, compute final cost function value using
-  !               non-linear observation operators.
+  !             - **Final steps**, after the outer loop:
   !
-  !             - Write the final analysis and recomputed complete increment on
-  !               the trial grid: ``inc_writeincAndAnalHighRes``.
+  !               - If requested, compute final cost function value using
+  !                 non-linear observation operators.
   !
-  !             - Various final steps, including: write the Hessian to binary
-  !               file (``min_writeHessian``), update the observation files
-  !               (``obsf_writeFiles``).
+  !               - Write the final analysis and recomputed complete increment on
+  !                 the trial grid: ``inc_writeincAndAnalHighRes``.
+  !
+  !               - Various final steps, including: write the Hessian to binary
+  !                 file (``min_writeHessian``), update the observation files
+  !                 (``obsf_writeFiles``).
   !
   !           --
   !

@@ -84,7 +84,10 @@ for file in $module_filelist ; do
   cd _src_files
   bname=`basename $file`
   rm -f $bname
-  ln -s ../$file ./
+  #ln -s ../$file ./
+  cp ../$file ./
+  # Removing the single space between '!' and ':something:' fixes many bad formatting cases.
+  sed -i -E 's/! :(.*):/!:\1:/g' ./$bname
   cd ../
 done
 
