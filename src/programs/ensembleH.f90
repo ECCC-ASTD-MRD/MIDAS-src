@@ -76,7 +76,9 @@ program midas_ensembleH
                                !   used only when generating modulated ensembles.
   real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
                                !   used only when generating modulated ensembles.
-  NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, vLocalize
+  logical  :: writeEnsObsGainGlobal ! writing ensObsGain_mpiglobal to files.
+  NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
+                         vLocalize, writeEnsObsGainGlobal
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -100,11 +102,12 @@ program midas_ensembleH
   call ram_setup
 
   ! Setting default namelist variable values
-  nEns              = 10
-  ensPathName       = 'ensemble'
-  obsTimeInterpType = 'LINEAR'
-  numRetainedEigen  = 0
-  vLocalize         = -1.0D0
+  nEns                  = 10
+  ensPathName           = 'ensemble'
+  obsTimeInterpType     = 'LINEAR'
+  numRetainedEigen      = 0
+  vLocalize             = -1.0D0
+  writeEnsObsGainGlobal = .false.
 
   ! Read the namelist
   nulnam = 0
@@ -293,6 +296,12 @@ program midas_ensembleH
   ! Clean and globally communicate obs-related data, then write to files
   call eob_allGather( ensObs,ensObs_mpiglobal )
   call eob_writeToFiles( ensObs_mpiglobal )
+  if ( useModulatedEns ) then
+    allocate( ensObsGain_mpiglobal )
+    call eob_allGather( ensObsGain, ensObsGain_mpiglobal )
+    call eob_writeToFiles( ensObsGain_mpiglobal, &
+                           writeEnsObsGainGlobal_opt=writeEnsObsGainGlobal )
+  end if
 
   !
   !- MPI, tmg finalize
