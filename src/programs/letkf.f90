@@ -82,6 +82,7 @@ program midas_letkf
 
   logical :: nwpFields   ! indicates if fields are on momentum and thermo levels
   logical :: oceanFields ! indicates if fields are on depth levels
+  logical :: useModulatedEns ! using modulated ensembles is requested by setting numRetainedEigen.
 
   ! interpolation information for weights (in enkf_mod)
   type(struct_enkfInterpInfo) :: wInterpInfo
@@ -107,7 +108,6 @@ program midas_letkf
   logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
   logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
   logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
-  logical  :: useModulatedEns      ! using modulated ensembles is requested by setting numRetainedEigen.
   logical  :: debug                ! debug option to print values to the listings.
   logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
   logical  :: writeEnsObsToFile    ! write ensObs to file.
