@@ -224,7 +224,7 @@ contains
                                       flux_conversion=[1,2,0,0,0])
       end if
     
-      call utl_checkAllocationStatus(allocStatus(1:2), ' tovs_rtttov_tl rttov_alloc_tl 1')
+      call utl_checkAllocationStatus(allocStatus(1:2), ' tvslin_rtttov_tl rttov_alloc_tl 1')
 
       profileCount = 0
 
@@ -310,7 +310,7 @@ contains
 
       deallocate (sensorHeaderIndexes,  stat= allocStatus(1) )
       deallocate (surfTypeIsWater,stat= allocStatus(2)) 
-      call utl_checkAllocationStatus(allocStatus, 'tvslin_rttov_tl', .false.)
+      call utl_checkAllocationStatus(allocStatus, ' tvslin_rttov_tl', .false.)
 
       !  set nthreads to actual number of threads which will be used.
 
@@ -323,7 +323,7 @@ contains
       if ( tvs_useRttovScatt(sensorIndex) ) then
         allocate (frequencies(btCount), stat=allocStatus(3))
       end if
-      call utl_checkAllocationStatus(allocStatus(1:3), ' tovs_rtttov_tl')
+      call utl_checkAllocationStatus(allocStatus(1:3), ' tvslin_rtttov_tl')
     
       !    get Hyperspecral IR emissivities
       if ( tvs_isInstrumHyperSpectral(instrum) ) call tvs_getHIREmissivities(sensorTovsIndexes(1:profileCount), &
@@ -398,7 +398,7 @@ contains
         Write(*,*) 'Error in rttov_parallel_tl',errorstatus
         write(*,*) 'temperature           profile=',profiles(sensorTovsIndexes(1)) % t(:)
         write(*,*) 'temperature increment profile=',profilesdata_tl(1) % t(:)
-        call utl_abort('tovs_rttov_tl')
+        call utl_abort('tvslin_rttov_tl')
       end if
 
       !  2.4  Store hx in obsSpaceData,OBS_WORK
@@ -618,7 +618,7 @@ contains
         allocate (sf_ad(nlv_T,profileCount), stat= allocStatus(11))
       end if
 
-      call utl_checkAllocationStatus(allocStatus, ' tvslin_fill_profiles_ad')
+      call utl_checkAllocationStatus(allocStatus, ' tvslin_rttov_ad')
 
       !  loop over all obs.
       profileCount = 0 
