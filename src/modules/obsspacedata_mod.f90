@@ -17,13 +17,6 @@
 
 ! ObsSpaceData_mod:  the module, ObsSpaceData_mod, follows IndexListDepot_mod
 
-! NOTE:  Throughout this file:
-!             column_index   - is not (in general) indexed from one.  Each column
-!                              index has an equivalent name, OBS_*.
-!             active_index   - is indexed from one by definition (a column index)
-!             row_index      - is indexed from one.  It has no equivalent name.
-!             bodyIndex, etc.- necessarily a row index
-!             HeaderIndex,etc.-necessarily a row index
 
 module IndexListDepot_mod
   ! MODULE indexListDepot_mod (prefix='ild' category='7. Low-level data objects and utilities')
@@ -1348,11 +1341,112 @@ end module ObsDataColumn_mod
 module ObsSpaceData_mod
   ! MODULE obsSpaceData_mod (prefix='obs' category='6. High-level data objects')
   !
-  ! :Purpose: This module contains a structure definition, struct_obs, and
+  ! :Purpose: This module contains the definition of the structure named "struct_obs" and
   !           methods for accessing its data.  An instance of struct_obs contains
   !           all information pertaining to a set of observation-space data.
-  !           (This had evolved from the CMA structure, originated in work by
-  !           D. Vasiljevic at ECMWF.)
+  !
+  !           This has evolved from the CMA structure, originated in work by
+  !           D. Vasiljevic at ECMWF.
+  !
+  !           --
+  !
+  !           Very generally, obsSpaceData can be thought as two tables linked to one another. 
+  !           
+  !           A "Header" table:
+  ! 
+  !           +-----------------+------+------+------+
+  !           | headerIndex     | Lat  | Lon  | ...  |
+  !           +=================+======+======+======+
+  !           |    1            |      |      |      |
+  !           +-----------------+------+------+------+
+  !           |    2            |      |      |      |
+  !           +-----------------+------+------+------+
+  !           |    ...          |      |      |      |
+  !           +-----------------+------+------+------+
+  !           | n_header        |      |      |      |
+  !           +-----------------+------+------+------+
+  !
+  !           and a "data" table:
+  ! 
+  !           +-----------------+-------------------------+-------------+------+
+  !           | dataIndex       | Associated headerIndex  | Obs Value   | ...  |
+  !           +=================+=========================+=============+======+
+  !           |    1            |            1            |             |      |
+  !           +-----------------+-------------------------+-------------+------+
+  !           |    2            |            1            |             |      |
+  !           +-----------------+-------------------------+-------------+------+
+  !           |    3            |            1            |             |      |
+  !           +-----------------+-------------------------+-------------+------+
+  !           |    4            |            1            |             |      |
+  !           +-----------------+-------------------------+-------------+------+
+  !           |    5            |            2            |             |      |
+  !           +-----------------+-------------------------+-------------+------+
+  !           |    6            |            2            |             |      |
+  !           +-----------------+-------------------------+-------------+------+
+  !           |    7            |            3            |             |      |
+  !           +-----------------+-------------------------+-------------+------+
+  !           |    8            |            3            |             |      |
+  !           +-----------------+-------------------------+-------------+------+
+  !           |    9            |            3            |             |      |
+  !           +-----------------+-------------------------+-------------+------+
+  !           | n_data          |                         |             |      |
+  !           +-----------------+-------------------------+-------------+------+
+  !
+  !           --
+  !
+  !           * For satellite observations
+  !               * One header contains information on lat/lon, azimuth, zenith angle and time. 
+  !               * Data entries contain: channels, measurement value, etc. 
+  !
+  !             .. image:: /_static/satellite.png
+  !                 :align: center
+  !
+  !           --
+  !
+  !           * For radar observations
+  !               * One header for each radar "ray". Contains information on lat/lon of radar, elevation, azimuth, etc. 
+  !               * Data entries contain: range, altitude, Doppler velocity, etc. 
+  !
+  !             .. image:: /_static/radar.png
+  !                 :align: center
+  !
+  !           --
+  !
+  !           * For gps radio occultation (GPS-RO)
+  !               * One header for each profile. Contains information on lat/lon time, etc. 
+  !               * Data entries contain: bending angle, refractivity, etc.
+  !
+  !             .. image:: /_static/gps_ro.png
+  !                 :align: center
+  !
+  !           --
+  !
+  !           * For other observations types such as radiosondes and aircrafts, there is one data entry per header rentry. 
+  !               * headers contain information on lat/lon, time, etc. 
+  !               * Data entries contain measurement values. 
+  !
+  !             .. image:: /_static/others.png
+  !                 :align: center
+  !
+  !
+  ! :What:  The module  "ObsSpaceData_mod" relies on three other modules:
+  !
+  !          * ``IndexListDepot_mod``
+  !          * ``ObsColumnNames_mod``
+  !          * ``ObsDataColumn_mod``
+  ! 
+  ! :Note:  Throughout this file:
+  !
+  !          * Column_index  is not (in general) indexed from one.  
+  !          * Each column index has an equivalent name, ``OBS_*`` as defined in ``ObsColumnNames_mod``.
+  !          * Active_index is indexed from one by definition (a column index).
+  !          * row_index is indexed from one.  It has no equivalent name.
+  !          * ``bodyIndex``, etc. is necessarily a row index
+  !          * ``HeaderIndex``, etc. is necessarily a row index
+  !
+  !
+  ! :Schematics:
+  ! 
   !
    use codePrecision_mod
    use ObsColumnNames_mod
