@@ -37,27 +37,30 @@ program midas_ensembleH
   use innovation_mod
   use ensembleObservations_mod
   use ensembleStateVector_mod
+  use enkf_mod
   implicit none
 
   type(struct_obs), target  :: obsSpaceData
   type(struct_ens)          :: ensembleTrl4D
   type(struct_gsv)          :: stateVectorMeanTrl4D
   type(struct_gsv)          :: stateVector4D
+  type(struct_gsv)          :: stateVector4Dmod
   type(struct_gsv)          :: stateVectorWithZandP4D
   type(struct_gsv)          :: stateVectorHeightSfc
   type(struct_columnData)   :: column
 
-  type(struct_eob)          :: ensObs, ensObs_mpiglobal
+  type(struct_eob), target  :: ensObs, ensObs_mpiglobal
+  type(struct_eob), pointer :: ensObsGain, ensObsGain_mpiglobal
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()
 
-  integer              :: fclos, fnom, fstopc, ierr
-  integer              :: memberIndex
-  integer              :: nulnam, dateStamp
-  integer              :: get_max_rss
+  integer :: get_max_rss, fclos, fnom, fstopc, ierr
+  integer :: memberIndex, nulnam, dateStamp
+  integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
   integer, allocatable :: dateStampList(:)
 
+  logical  :: useModulatedEns
 
   character(len=256)  :: ensFileName
   character(len=9)    :: obsColumnMode
@@ -67,8 +70,13 @@ program midas_ensembleH
 
   ! namelist variables
   character(len=256) :: ensPathName
+  character(len=20)  :: obsTimeInterpType ! type of time interpolation to obs time
   integer  :: nEns
-  NAMELIST /NAMENSEMBLEH/nEns, ensPathName
+  integer  :: numRetainedEigen ! number of retained eigenValues/Vectors of vertical localization matrix
+                               !   used only when generating modulated ensembles.
+  real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
+                               !   used only when generating modulated ensembles.
+  NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, vLocalize
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -94,6 +102,9 @@ program midas_ensembleH
   ! Setting default namelist variable values
   nEns              = 10
   ensPathName       = 'ensemble'
+  obsTimeInterpType = 'LINEAR'
+  numRetainedEigen  = 0
+  vLocalize         = -1.0D0
 
   ! Read the namelist
   nulnam = 0
@@ -103,6 +114,14 @@ program midas_ensembleH
   if ( mmpi_myid == 0 ) write(*,nml=namensembleh)
   ierr = fclos(nulnam)
   
+  if ( numRetainedEigen < 0 ) call utl_abort('midas-ensembleH: numRetainedEigen should be ' // &
+                                             'equal or greater than zero')
+
+  useModulatedEns = ( numRetainedEigen > 0 )
+  if ( useModulatedEns .and. vLocalize <= 0 ) then
+    call utl_abort('midas-ensembleH: vLocalize should be greater than zero for modulated ens')
+  end if
+
   ! Read the observations
   call obsf_setup( dateStamp, midasMode, obsFileType_opt = obsFileType )
   if ( obsFileType /= 'BURP' .and. obsFileType /= 'SQLITE' ) then
@@ -152,9 +171,19 @@ program midas_ensembleH
   ! Allocate and initialize eob object for storing HX values
   call eob_allocate( ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData )
   call eob_zero( ensObs )
+  if ( useModulatedEns ) then
+    nEnsGain = nEns * numRetainedEigen
+    allocate( ensObsGain )
+    call eob_allocate( ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData )
+    call eob_zero( ensObsGain )
+  else
+    ensObsGain => ensObs
+  end if
   
   ! Set lat, lon, obs values in ensObs
   call eob_setLatLonObs( ensObs )
+  if ( useModulatedEns ) call eob_setLatLonObs( ensObsGain )
+
 
   ! Read the sfc height from ensemble member 1
   call gsv_allocate( stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
@@ -176,6 +205,15 @@ program midas_ensembleH
                      dataKind_opt=4, allocHeightSfc_opt=.true., &
                      allocHeight_opt=.false., allocPressure_opt=.false. )
   call gsv_zero( stateVector4D )
+  if ( useModulatedEns ) then
+    ! same as stateVector4D
+    call gsv_allocate( stateVector4Dmod, tim_nstepobs, hco_ens, vco_ens, &
+                       dateStamp_opt=tim_getDateStamp(),  &
+                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                       dataKind_opt=4, allocHeightSfc_opt=.true., &
+                       allocHeight_opt=.false., allocPressure_opt=.false. )
+    call gsv_zero( stateVector4Dmod )
+  end if
   
   ! Allocate statevector for storing state with heights and pressures allocated (for s2c_nl)
   call gsv_allocate( stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, &
@@ -208,7 +246,7 @@ program midas_ensembleH
 
     ! Compute and set Yb in ensObs
     call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                timeInterpType='LINEAR', dealloc_opt=.false., &
+                timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
                 beSilent_opt=.true. )
 
     ! Compute Y-H(X) in OBS_OMP
@@ -216,9 +254,38 @@ program midas_ensembleH
 
     ! Copy to ensObs: Y-HX for this member
     call eob_setYb( ensObs, memberIndex )
+
+    ! Compute and set Yb in ensObsGain
+    do eigenVectorIndex = 1, numRetainedEigen
+      if ( mmpi_myid == 0 ) write(*,*) 'midas-ensembleH: apply nonlinear H to modulated member ', &
+                                        eigenVectorIndex, '/', numRetainedEigen
+
+      ! modulate the member with eigenvectors of vertical localization matrix
+      call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
+                                   vLocalize, numRetainedEigen, nEns, &
+                                   eigenVectorIndex, stateVector4Dmod, &
+                                   beSilent=.true. )
+
+      call gsv_copy( stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+                     beSilent_opt=.true. )
+      call gsv_copyHeightSfc( stateVectorHeightSfc, stateVectorWithZandP4D )
+
+      call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+                  timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
+                  beSilent_opt=.true. )
+
+      ! Compute Y-H(X) in OBS_OMP
+      call inn_computeInnovation( column, obsSpaceData, filterObsAndInitOer_opt=.false., &
+                                  beSilent_opt=.true. )
+
+      ! Copy to ensObsGain: Y-HX for this member
+      memberIndexInEnsObs = (eigenVectorIndex - 1) * nEns + memberIndex
+      call eob_setYb( ensObsGain, memberIndexInEnsObs )
+    end do ! eigenVectorIndex
     
   end do
   call gsv_deallocate( stateVectorWithZandP4D )
+  if ( gsv_isAllocated(stateVector4Dmod) ) call gsv_deallocate( stateVector4Dmod )
   call gsv_deallocate( stateVector4D )
   call gsv_deallocate( stateVectorMeanTrl4D )
   call gsv_deallocate( stateVectorHeightSfc )
