@@ -167,10 +167,6 @@ program midas_ensembleH
   ! Initialize the observation error covariances
   call oer_setObsErrors( obsSpaceData, midasMode ) ! IN
 
-  ! maziar: do we need this?
-  ! Call suprep again to filter out channels according to 'util' column of stats_tovs
-  !call filt_suprep(obsSpaceData)
-
   ! Allocate and initialize eob object for storing HX values
   call eob_allocate( ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData )
   call eob_zero( ensObs )
