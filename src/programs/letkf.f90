@@ -413,6 +413,8 @@ program midas_letkf
   !- 3.1 Loop over all members and compute HX for each
   if ( readEnsObsFromFile ) then
     call eob_readFromFilesMpiLocal(ensObs)
+    if ( useModulatedEns ) call eob_readFromFilesMpiLocal(ensObsGain, &
+                                                          readEnsObsGain_opt=.true.)
   else
     do memberIndex = 1, nEns
   
@@ -482,7 +484,11 @@ program midas_letkf
   if ( gsv_isAllocated(stateVector4Dmod) ) call gsv_deallocate(stateVector4Dmod)
 
   ! write local ensObs to file
-  if ( writeEnsObsToFile ) call eob_writeToFilesMpiLocal(ensObs)
+  if ( writeEnsObsToFile ) then
+    call eob_writeToFilesMpiLocal(ensObs)
+    if ( useModulatedEns ) call eob_writeToFilesMpiLocal(ensObsGain, &
+                                                         writeEnsObsGain_opt=.true.)
+  end if
 
   !- 3.2 Set some additional information in ensObs/ensObsGain and additional quality
   !      control before finally communicating ensObs/ensObsGain globally

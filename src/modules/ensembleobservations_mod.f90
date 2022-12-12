@@ -480,7 +480,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_writeToFilesMpiLocal
   !--------------------------------------------------------------------------
-  subroutine eob_writeToFilesMpiLocal(ensObs)
+  subroutine eob_writeToFilesMpiLocal(ensObs, writeEnsObsGain_opt)
     !
     ! :Purpose: Write the contents of an ensObs mpi local object to files
     !
@@ -488,6 +488,7 @@ CONTAINS
 
     ! arguments
     type(struct_eob), intent(in) :: ensObs
+    logical, optional, intent(in) :: writeEnsObsGain_opt
 
     ! locals
     integer :: unitNum, ierr, obsIndex, memberIndex
@@ -497,11 +498,18 @@ CONTAINS
     character(len=4)  :: myidxStr, myidyStr
     character(len=30) :: fileNameExtention
     integer :: fnom, fclos
+    logical :: writeEnsObsGain, fileExists
 
     if ( .not. ensObs%allocated ) then
       call utl_abort('eob_writeToFilesMpiLocal: this object is not allocated')
     end if
 
+    if ( present(writeEnsObsGain_opt) ) then
+      writeEnsObsGain = writeEnsObsGain_opt
+    else
+      writeEnsObsGain = .false.
+    end if
+    
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
     call obs_extractObsIntBodyColumn(obsAssFlag, ensObs%obsSpaceData, OBS_ASS)
     call obs_extractObsIntBodyColumn(obsFlag, ensObs%obsSpaceData, OBS_FLG)
@@ -510,23 +518,39 @@ CONTAINS
     write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
     fileNameExtention = trim(myidxStr) // '_' // trim(myidyStr)
     
-    ! write the lat, lon and obs values to a file
-    fileName = 'eob_Lat_Lon_ObsValue.myid_' // trim(fileNameExtention)
-    write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
-    unitNum = 0
-    ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
-    write(unitNum) ensObs%numMembers, ensObs%numObs
-    write(unitNum) (ensObs%lat(obsIndex), obsIndex = 1, ensObs%numObs)
-    write(unitNum) (ensObs%lon(obsIndex), obsIndex = 1, ensObs%numObs)
-    write(unitNum) (obsVcoCode(obsIndex), obsIndex = 1, ensObs%numObs)
-    write(unitNum) (ensObs%obsValue(obsIndex), obsIndex = 1, ensObs%numObs)
-    write(unitNum) (obsAssFlag(obsIndex), obsIndex = 1, ensObs%numObs)
-    write(unitNum) (obsFlag(obsIndex), obsIndex = 1, ensObs%numObs)
-    ierr = fclos(unitNum)
+    ! write  observation info to a file
+    if ( .not. writeEnsObsGain ) then
+      fileName = 'eob_obsInfo.myid_' // trim(fileNameExtention)
+      write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
+      inquire(file=trim(fileName),exist=fileExists)
+      if ( fileExists ) then
+        call utl_abort('eob_writeToFilesMpiLocal: file should not exist')
+      end if
+      
+      unitNum = 0
+      ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
+      write(unitNum) ensObs%numMembers, ensObs%numObs
+      write(unitNum) (ensObs%lat(obsIndex), obsIndex = 1, ensObs%numObs)
+      write(unitNum) (ensObs%lon(obsIndex), obsIndex = 1, ensObs%numObs)
+      write(unitNum) (obsVcoCode(obsIndex), obsIndex = 1, ensObs%numObs)
+      write(unitNum) (ensObs%obsValue(obsIndex), obsIndex = 1, ensObs%numObs)
+      write(unitNum) (obsAssFlag(obsIndex), obsIndex = 1, ensObs%numObs)
+      write(unitNum) (obsFlag(obsIndex), obsIndex = 1, ensObs%numObs)
+      ierr = fclos(unitNum)
+    end if
 
     ! write the contents of Yb for all the members to one file
-    fileName = 'eob_HX.myid_' // trim(fileNameExtention)
+    if ( writeEnsObsGain ) then
+      fileName = 'eobGain_HX.myid_' // trim(fileNameExtention)
+    else
+      fileName = 'eob_HX.myid_' // trim(fileNameExtention)
+    end if
     write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
+    inquire(file=trim(fileName),exist=fileExists)
+    if ( fileExists ) then
+      call utl_abort('eob_writeToFilesMpiLocal: file should not exist')
+    end if
+
     unitNum = 0
     ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
     write(unitNum) (memberIndex, memberIndex = 1, ensObs%numMembers)
@@ -557,7 +581,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_readFromFilesMpiLocal
   !--------------------------------------------------------------------------
-  subroutine eob_readFromFilesMpiLocal(ensObs)
+  subroutine eob_readFromFilesMpiLocal(ensObs, readEnsObsGain_opt)
     !
     ! :Purpose: Read ensObs%Yb of mpi local object from file
     !
@@ -565,6 +589,7 @@ CONTAINS
 
     ! arguments
     type(struct_eob), intent(inout) :: ensObs
+    logical, optional, intent(in) :: readEnsObsGain_opt
     
     ! locals
     real(8) :: latFromFile(ensObs%numObs), lonFromFile(ensObs%numObs)
@@ -573,6 +598,7 @@ CONTAINS
     integer :: obsFlag(ensObs%numObs), memberIndexFromFile(ensObs%numMembers)
     integer :: unitNum, ierr, memberIndex, obsIndex, numMembers, numObs
     integer :: fnom, fclos
+    logical :: readEnsObsGain, fileExists
     character(len=40) :: fileName
     character(len=4)  :: myidxStr, myidyStr
     character(len=30) :: fileNameExtention
@@ -587,9 +613,14 @@ CONTAINS
     write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
     fileNameExtention = trim(myidxStr) // '_' // trim(myidyStr)
 
-    ! Open file containing lat/lon/obsValue and check they match ensObs
-    fileName = 'eob_Lat_Lon_ObsValue.myid_' // trim(fileNameExtention)
-    write(*,*) 'eob_readFromFilesMpiLocal: reading = ',trim(fileName)
+    ! read file containing observation info and check they match ensObs
+    fileName = 'eob_obsInfo.myid_' // trim(fileNameExtention)
+    write(*,*) 'eob_readFromFilesMpiLocal: reading ',trim(fileName)
+    inquire(file=trim(fileName),exist=fileExists)
+    if ( .not. fileExists ) then
+      call utl_abort('eob_readFromFilesMpiLocal: file does not exist')
+    end if
+
     unitNum = 0
     ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
     read(unitNum) numMembers, numObs
@@ -621,8 +652,17 @@ CONTAINS
     ierr = fclos(unitNum)
 
     ! Open file containing Yb and read ensObs%Yb
-    fileName = 'eob_HX.myid_' // trim(fileNameExtention)
+    if ( readEnsObsGain ) then
+      fileName = 'eobGain_HX.myid_' // trim(fileNameExtention)
+    else
+      fileName = 'eob_HX.myid_' // trim(fileNameExtention)
+    end if
     write(*,*) 'eob_readFromFilesMpiLocal: reading ',trim(fileName)
+    inquire(file=trim(fileName),exist=fileExists)
+    if ( .not. fileExists ) then
+      call utl_abort('eob_readFromFilesMpiLocal: file does not exist')
+    end if
+    
     unitNum = 0
     ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
     read(unitNum) (memberIndexFromFile(memberIndex), memberIndex = 1, ensObs%numMembers)
