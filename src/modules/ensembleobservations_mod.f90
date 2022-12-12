@@ -427,7 +427,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_writeToFiles
   !--------------------------------------------------------------------------
-  subroutine eob_writeToFiles(ensObs, writeEnsObsGainGlobal_opt)
+  subroutine eob_writeToFiles(ensObs, inputIsEnsObsGainGlobal_opt, &
+                                      writeEnsObsGainGlobal_opt)
     !
     ! :Purpose: Write the contents of an ensObs object to files
     !
@@ -435,6 +436,7 @@ CONTAINS
 
     ! arguments
     type(struct_eob), intent(in) :: ensObs
+    logical, optional, intent(in) :: inputIsEnsObsGainGlobal_opt
     logical, optional, intent(in) :: writeEnsObsGainGlobal_opt
 
     ! locals
@@ -442,7 +444,7 @@ CONTAINS
     character(len=40) :: fileName
     character(len=4)  :: memberIndexStr
     integer :: fnom, fclos
-    logical :: writeEnsObsGainGlobal
+    logical :: inputIsEnsObsGainGlobal, writeEnsObsGainGlobal
 
     ! only the first mpi task does writing, assuming mpi gather already done
     if ( mmpi_myid /= 0 ) return
@@ -451,14 +453,22 @@ CONTAINS
       call utl_abort('eob_writeToFiles: this object is not allocated')
     end if
 
+    if ( present(inputIsEnsObsGainGlobal_opt) ) then
+      inputIsEnsObsGainGlobal = inputIsEnsObsGainGlobal_opt
+    else
+      inputIsEnsObsGainGlobal = .false.
+    end if
+
     if ( present(writeEnsObsGainGlobal_opt) ) then
       writeEnsObsGainGlobal = writeEnsObsGainGlobal_opt
     else
       writeEnsObsGainGlobal = .false.
     end if
 
+    if ( inputIsEnsObsGainGlobal .and. .not. writeEnsObsGainGlobal ) return
+    
     ! write the lat, lon and obs values to a file
-    if ( .not. writeEnsObsGainGlobal ) then
+    if ( .not. inputIsEnsObsGainGlobal ) then
       fileName = 'eob_Lat_Lon_ObsValue'
       write(*,*) 'eob_writeToFiles: writing ',trim(filename)
       unitNum = 0

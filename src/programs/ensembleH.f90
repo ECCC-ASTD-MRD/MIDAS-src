@@ -299,7 +299,7 @@ program midas_ensembleH
   if ( useModulatedEns ) then
     allocate( ensObsGain_mpiglobal )
     call eob_allGather( ensObsGain, ensObsGain_mpiglobal )
-    call eob_writeToFiles( ensObsGain_mpiglobal, &
+    call eob_writeToFiles( ensObsGain_mpiglobal, inputIsEnsObsGainGlobal_opt=.true., &
                            writeEnsObsGainGlobal_opt=writeEnsObsGainGlobal )
   end if
 
