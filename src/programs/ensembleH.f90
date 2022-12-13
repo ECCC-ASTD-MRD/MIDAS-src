@@ -76,9 +76,8 @@ program midas_ensembleH
                                !   used only when generating modulated ensembles.
   real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
                                !   used only when generating modulated ensembles.
-  logical  :: writeEnsObsGainGlobal ! writing ensObsGain_mpiglobal to files.
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
-                         vLocalize, writeEnsObsGainGlobal
+                         vLocalize
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -107,7 +106,6 @@ program midas_ensembleH
   obsTimeInterpType     = 'LINEAR'
   numRetainedEigen      = 0
   vLocalize             = -1.0D0
-  writeEnsObsGainGlobal = .false.
 
   ! Read the namelist
   nulnam = 0
