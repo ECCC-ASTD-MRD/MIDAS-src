@@ -235,29 +235,28 @@ CONTAINS
                         varNames_opt=varNamesRef, allocHeightSfc_opt=allocHeightSfc )
       call gsv_copy(stateVectorUpdateHighRes, statevectorTrlRefVars,&
                     allowVarMismatch_opt=.true.)
-
+      !   - bring trial to low time res
+      call gsv_allocate(statevectorTrlLowResTime, numStep_inc, hco_trl, vco_trl,  &
+                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
+                        dataKind_opt=pre_incrReal, varNames_opt=varNamesRef, &
+                        allocHeightSfc_opt=allocHeightSfc)
+      call gsv_copy(statevectorTrlRefVars, statevectorTrlLowResTime, &
+                    allowTimeMismatch_opt=.true.)
       !   - bring trial to low res (increment) vertical structure
       !     (no vertical interpolation reference needed as it is a full state,
       !     not a incremental state)
-      call gsv_allocate(statevectorTrlLowResVert, numStep_trl, hco_trl, vco_inc,  &
+      call gsv_allocate(statevectorTrlLowResVert, numStep_inc, hco_trl, vco_inc,  &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                         dataKind_opt=pre_incrReal, varNames_opt=varNamesRef, &
                         allocHeightSfc_opt=allocHeightSfc)
-      call int_vInterp_gsv(statevectorTrlRefVars, statevectorTrlLowResVert)
-      !   - bring trial to low time res
-      call gsv_allocate(statevectorTrlLowResTime, numStep_inc, hco_trl, vco_inc,  &
-                        dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                        dataKind_opt=pre_incrReal, varNames_opt=varNamesRef, &
-                        allocHeightSfc_opt=allocHeightSfc)
-      call gsv_copy(statevectorTrlLowResVert, statevectorTrlLowResTime, &
-                    allowTimeMismatch_opt=.true.)
-      call gsv_deallocate(statevectorTrlLowResVert)
+      call int_vInterp_gsv(statevectorTrlLowResTime, statevectorTrlLowResVert)
+      call gsv_deallocate(statevectorTrlLowResTime)
       call gsv_deallocate(statevectorTrlRefVars)
       !   - build the analysis reference for the increment vertical interpolation.
       !     At that stage, statevectorRef contains the increment on the trial
       !     horizontal grid, but analysis vertical structure; consistent for addition.
-      call gsv_add(statevectorTrlLowResTime, statevectorRef)
-      call gsv_deallocate(statevectorTrlLowResTime)
+      call gsv_add(statevectorTrlLowResVert, statevectorRef)
+      call gsv_deallocate(statevectorTrlLowResVert)
 
       ! - Time interpolation to get high-res Psfc analysis increment to output
       call msg('inc_computeHighResAnalysis', &
