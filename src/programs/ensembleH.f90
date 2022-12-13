@@ -290,12 +290,11 @@ program midas_ensembleH
 
   ! Clean and globally communicate obs-related data, then write to files
   call eob_allGather(ensObs,ensObs_mpiglobal)
-  call eob_writeToFiles(ensObs_mpiglobal)
+  call eob_writeToFiles(ensObs_mpiglobal, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
   if (useModulatedEns) then
     allocate(ensObsGain_mpiglobal)
     call eob_allGather(ensObsGain, ensObsGain_mpiglobal)
-    call eob_writeToFiles(ensObsGain_mpiglobal, inputIsEnsObsGainGlobal_opt=.true., &
-                           writeEnsObsGainGlobal_opt=writeEnsObsGainGlobal)
+    call eob_writeToFiles(ensObsGain_mpiglobal, outputFilenamePrefix='eobGain_HX', writeObsInfo=.false.)
   end if
 
   !
