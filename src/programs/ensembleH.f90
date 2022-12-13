@@ -136,7 +136,6 @@ program midas_ensembleH
 
   ! Setup timeCoord module, get datestamp from ensemble member
   call tim_setup(fileNameForDate_opt = ensFileName)
-  call tim_setDateStamp(dateStamp)
   allocate(dateStampList(tim_nstepobs))
   call tim_getstamplist(dateStampList,tim_nstepobs,tim_getDatestamp())
   
