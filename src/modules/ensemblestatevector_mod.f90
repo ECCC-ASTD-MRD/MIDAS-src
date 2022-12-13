@@ -68,6 +68,7 @@ module ensembleStateVector_mod
     logical                       :: allocated = .false.
     integer                       :: numMembers
     integer                       :: dataKind = 4 ! default value
+    integer                       :: fileMemberIndex1 = 1 ! first member number in ensemble set
     type(struct_gsv)              :: statevector_work
     type(struct_hco), pointer     :: hco_core
     type(struct_oneLev_r8), allocatable :: allLev_ensMean_r8(:), allLev_ensStdDev_r8(:)
@@ -105,7 +106,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ens_allocate(ens, numMembers, numStep, hco_comp, vco_ens, &
                           dateStampList, hco_core_opt, varNames_opt, dataKind_opt, &
-                          hInterpolateDegree_opt)
+                          hInterpolateDegree_opt, fileMemberIndex1_opt)
     !
     !:Purpose: Allocate an ensembleStateVector object
     !
@@ -120,6 +121,7 @@ CONTAINS
     integer,                             intent(in)    :: dateStampList(:)
     character(len=*), optional,          intent(in)    :: varNames_opt(:)
     integer, optional,                   intent(in)    :: dataKind_opt
+    integer, optional,                   intent(in)    :: fileMemberIndex1_opt
     character(len=*), optional,          intent(in)    :: hInterpolateDegree_opt
 
     ! Locals:
@@ -132,6 +134,8 @@ CONTAINS
     end if
 
     if ( present(dataKind_opt) ) ens%dataKind = dataKind_opt
+
+    if ( present(fileMemberIndex1_opt) ) ens%fileMemberIndex1 = fileMemberIndex1_opt
 
     if ( present(hInterpolateDegree_opt) ) then
       ! set the horizontal interpolation degree
@@ -2372,7 +2376,8 @@ CONTAINS
     end if
 
     ! Set up hco and vco for ensemble files
-    call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1, copyToRamDisk_opt=.false.)
+    call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1, copyToRamDisk_opt=.false., &
+                         fileMemberIndex1_opt=ens%fileMemberIndex1)
 
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
@@ -2483,7 +2488,8 @@ CONTAINS
           write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
           !  Read the file
-          call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=memberIndex)
+          call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=memberIndex, &
+                               fileMemberIndex1_opt=ens%fileMemberIndex1)
           typvar = ' '
           etiket = ' '
           if (.not. horizontalInterpNeeded  .and. &
@@ -2906,7 +2912,8 @@ CONTAINS
           else
             call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=memberIndex, &
                                   ensFileNamePrefix_opt=ensFileNamePrefix, &
-                                  shouldExist_opt=.false., ensembleFileExtLength_opt=ensFileExtLength )
+                                  shouldExist_opt=.false., ensembleFileExtLength_opt=ensFileExtLength, &
+                                  fileMemberIndex1_opt=ens%fileMemberIndex1 )
           end if
 
           ! Determine if ensemble is full fields (if yes, will be converted from K to C)

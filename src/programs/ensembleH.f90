@@ -74,11 +74,12 @@ program midas_ensembleH
   integer  :: nEns
   integer  :: numRetainedEigen ! number of retained eigenValues/Vectors of vertical localization matrix
                                !   used only when generating modulated ensembles.
+  integer  :: fileMemberIndex1 ! first member number in ensemble set.
   real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
                                !   used only when generating modulated ensembles.
   logical  :: writeEnsObsToFile
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
-                         vLocalize, writeEnsObsToFile
+                         vLocalize, writeEnsObsToFile, fileMemberIndex1
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -108,6 +109,7 @@ program midas_ensembleH
   numRetainedEigen      = 0
   vLocalize             = -1.0D0
   writeEnsObsToFile     = .false.
+  fileMemberIndex1      = 1
 
   ! Read the namelist
   nulnam = 0
@@ -132,7 +134,8 @@ program midas_ensembleH
   end if
 
   ! Use the first ensemble member to initialize datestamp and grid
-  call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1)
+  call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1, &
+                       fileMemberIndex1_opt=fileMemberIndex1)
 
   ! Setup timeCoord module, get datestamp from ensemble member
   call tim_setup(fileNameForDate_opt = ensFileName)
@@ -167,12 +170,14 @@ program midas_ensembleH
   call oer_setObsErrors(obsSpaceData, midasMode) ! IN
 
   ! Allocate and initialize eob object for storing HX values
-  call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
+  call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData, &
+                    fileMemberIndex1_opt=fileMemberIndex1)
   call eob_zero(ensObs)
   if (useModulatedEns) then
     nEnsGain = nEns * numRetainedEigen
     allocate(ensObsGain)
-    call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData)
+    call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData, &
+                      fileMemberIndex1_opt=fileMemberIndex1)
     call eob_zero(ensObsGain)
   else
     ensObsGain => ensObs
@@ -222,7 +227,8 @@ program midas_ensembleH
 
   ! Allocate ensembles, read the Trl ensemble
   call utl_tmg_start(2,'--ReadEnsemble')
-  call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
+  call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList, &
+                    fileMemberIndex1_opt=fileMemberIndex1)
   call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false.)
   call utl_tmg_stop(2)
 

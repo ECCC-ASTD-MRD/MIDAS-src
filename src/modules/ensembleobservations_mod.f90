@@ -59,6 +59,7 @@ MODULE ensembleObservations_mod
     logical                       :: allocated = .false.
     integer                       :: numMembers       ! number of ensemble members
     integer                       :: numObs           ! number of observations
+    integer                       :: fileMemberIndex1 = 1 ! first member number in ensemble set
     character(len=20)             :: typeVertCoord = 'undefined' ! 'logPressure' or 'depth'
     type(struct_obs), pointer     :: obsSpaceData     ! pointer to obsSpaceData object
     real(8), allocatable          :: lat(:), lon(:)   ! lat/lon of observation
@@ -80,7 +81,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_allocate
   !--------------------------------------------------------------------------
-  subroutine eob_allocate(ensObs, numMembers, numObs, obsSpaceData)
+  subroutine eob_allocate(ensObs, numMembers, numObs, obsSpaceData, &
+                          fileMemberIndex1_opt)
     !
     ! :Purpose: Allocate an ensObs object
     !
@@ -91,11 +93,15 @@ CONTAINS
     integer                 , intent(in)    :: numMembers
     integer                 , intent(in)    :: numObs
     type(struct_obs), target, intent(in)    :: obsSpaceData
+    integer, optional       , intent(in)    :: fileMemberIndex1_opt
+
 
     if ( ensObs%allocated ) then
       write(*,*) 'eob_allocate: this object is already allocated, deallocating first.'
       call eob_deallocate( ensObs )
     end if
+
+    if ( present(fileMemberIndex1_opt) ) ensObs%fileMemberIndex1 = fileMemberIndex1_opt
 
     ensObs%obsSpaceData  => obsSpaceData
     ensObs%numMembers    = numMembers
@@ -326,7 +332,8 @@ CONTAINS
     if (ensObs_mpiglobal%allocated) then
       call utl_abort('eob_allGather: output ensObs object must not be already allocated')
     end if
-    call eob_allocate(ensObs_mpiglobal, ensObsClean%numMembers, numObs_mpiglobal, ensObsClean%obsSpaceData)
+    call eob_allocate(ensObs_mpiglobal, ensObsClean%numMembers, numObs_mpiglobal, ensObsClean%obsSpaceData, &
+                      fileMemberIndex1_opt=ensObs%fileMemberIndex1)
     if ( allocated(ensObsClean%Ya_r4) ) then
       allocate(ensObs_mpiglobal%Ya_r4(ensObsClean%numMembers,numObs_mpiglobal))
     end if
@@ -469,6 +476,8 @@ CONTAINS
       write(memberIndexStr,'(I0.4)') memberIndex
       fileName = trim(outputFilenamePrefix) // '_' // memberIndexStr
       write(*,*) 'eob_writeToFiles: writing ',trim(filename)
+      write(*,*) 'eob_writeToFiles: ensObs%fileMemberIndex1=', ensObs%fileMemberIndex1, &
+                 ', file corresponds to ', ensObs%fileMemberIndex1 + memberIndex - 1
       unitNum = 0
       ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
