@@ -142,7 +142,7 @@ CONTAINS
     integer, allocatable :: dateStampList(:)
 
     character(len=4), allocatable :: varNamesRef(:)
-    logical  :: allocHeightSfc
+    logical  :: allocHeightSfc, refStateNeeded
 
     call msg('inc_computeHighResAnalysis', 'START', verb_opt=2)
     call msg_memUsage('inc_computeHighResAnalysis')
@@ -157,6 +157,9 @@ CONTAINS
       call utl_abort('inc_computeHighResAnalysis: '&
                       //'stateVectorPsfcHighRes should not be allocated yet')
     end if
+
+    ! If P0 present it is infered the statevector is a 3D atmospheric state
+    refStateNeeded =  gsv_varExist(varName='P0')
 
     ! Setup timeCoord module (date read from trial file)
     numStep_inc = tim_nstepobsinc ! low-res time
@@ -180,7 +183,7 @@ CONTAINS
       call gio_getMaskLAM(statevector_mask, hco_trl, vco_trl, hInterpolationDegree)
     end if
 
-    ref_building: if ( gsv_varExist(varName='P0') ) then ! infered that it is an atmospheric state
+    ref_building: if ( refStateNeeded ) then
       ! Build a reference variables
       !
       ! - Allocate the target reference statevector for vertical interpolation
@@ -297,7 +300,7 @@ CONTAINS
 
     ! Interpolate low-res increments to high-res and add to the initial state
     if (.not. hco_trl%global .and. useAnalIncMask) then
-      if ( gsv_varExist(varName='P0') ) then ! infered that it is an atmospheric state
+      if ( refStateNeeded ) then
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes, &
                                    statevectorRef_opt=statevectorRef, &
                                    statevectorMaskLAM_opt=statevector_mask)
@@ -306,7 +309,7 @@ CONTAINS
                                    statevectorMaskLAM_opt=statevector_mask)
       end if
     else
-      if ( gsv_varExist(varName='P0') ) then ! infered that it is an atmospheric state
+      if ( refStateNeeded ) then
         call inc_interpolateAndAdd(statevectorIncLowRes, stateVectorHighRes, &
                                    statevectorRef_opt=statevectorRef)
       else
