@@ -489,7 +489,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_writeToFilesMpiLocal
   !--------------------------------------------------------------------------
-  subroutine eob_writeToFilesMpiLocal(ensObs, writeEnsObsGain_opt)
+  subroutine eob_writeToFilesMpiLocal(ensObs, outputFilenamePrefix, writeObsInfo)
     !
     ! :Purpose: Write the contents of an ensObs mpi local object to files
     !
@@ -497,7 +497,8 @@ CONTAINS
 
     ! arguments
     type(struct_eob), intent(in) :: ensObs
-    logical, optional, intent(in) :: writeEnsObsGain_opt
+    character(len=*), intent(in) :: outputFilenamePrefix
+    logical,          intent(in) :: writeObsInfo
 
     ! locals
     integer :: unitNum, ierr, obsIndex, memberIndex
@@ -507,18 +508,12 @@ CONTAINS
     character(len=4)  :: myidxStr, myidyStr
     character(len=30) :: fileNameExtention
     integer :: fnom, fclos
-    logical :: writeEnsObsGain, fileExists
+    logical :: fileExists
 
-    if ( .not. ensObs%allocated ) then
+    if (.not. ensObs%allocated) then
       call utl_abort('eob_writeToFilesMpiLocal: this object is not allocated')
     end if
 
-    if ( present(writeEnsObsGain_opt) ) then
-      writeEnsObsGain = writeEnsObsGain_opt
-    else
-      writeEnsObsGain = .false.
-    end if
-    
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
     call obs_extractObsIntBodyColumn(obsAssFlag, ensObs%obsSpaceData, OBS_ASS)
     call obs_extractObsIntBodyColumn(obsFlag, ensObs%obsSpaceData, OBS_FLG)
@@ -527,8 +522,8 @@ CONTAINS
     write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
     fileNameExtention = trim(myidxStr) // '_' // trim(myidyStr)
     
-    ! write  observation info to a file
-    if ( .not. writeEnsObsGain ) then
+    ! write observation info to a file
+    if (writeObsInfo) then
       fileName = 'eob_obsInfo.myid_' // trim(fileNameExtention)
       write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
       inquire(file=trim(fileName),exist=fileExists)
@@ -549,11 +544,7 @@ CONTAINS
     end if
 
     ! write the contents of Yb for all the members to one file
-    if ( writeEnsObsGain ) then
-      fileName = 'eobGain_HX.myid_' // trim(fileNameExtention)
-    else
-      fileName = 'eob_HX.myid_' // trim(fileNameExtention)
-    end if
+    fileName = trim(outputFilenamePrefix) // '.myid_' // trim(fileNameExtention)
     write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
     inquire(file=trim(fileName),exist=fileExists)
     if ( fileExists ) then
