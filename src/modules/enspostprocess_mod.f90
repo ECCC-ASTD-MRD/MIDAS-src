@@ -1249,7 +1249,7 @@ contains
     deallocate(perturbationMean)
     call gsv_deallocate(stateVectorPerturbation)
     call gsv_deallocate(stateVectorPerturbationInterp)
-    deallocate(PsfcRef)
+    call gsv_deallocate(stateVectorP0Ref)
     if (gsv_isAllocated(stateVectorHuRefStateInterp)) then
       call gsv_deallocate(stateVectorHuRefStateInterp)
     end if

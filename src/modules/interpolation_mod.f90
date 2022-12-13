@@ -569,7 +569,8 @@ contains
         implicit none
 
         ! Arguments:
-        real(8), pointer, intent(in)  :: hLike_in(:,:,:,:), hLike_out(:,:,:,:)   ! abstract height dimensioned coordinate
+        real(8), pointer, intent(in)  :: hLike_in(:,:,:,:)  ! abstract height dimensioned input coordinate
+        real(8), pointer, intent(in)  :: hLike_out(:,:,:,:) ! abstract height dimensioned target coordinate
 
         ! Locals:
         integer :: latIndex, lonIndex, levIndex_out, levIndex_in
@@ -864,7 +865,8 @@ contains
         implicit none
 
         ! Arguments:
-        real(4), pointer, intent(in)  :: hLike_in(:,:,:,:), hLike_out(:,:,:,:)   ! abstract height dimensioned coordinate
+        real(4), pointer, intent(in)  :: hLike_in(:,:,:,:)  ! abstract height dimensioned input coordinate
+        real(4), pointer, intent(in)  :: hLike_out(:,:,:,:) ! abstract height dimensioned target coordinate
 
         ! Locals:
         integer :: latIndex, lonIndex, levIndex_out, levIndex_in

@@ -388,10 +388,14 @@ contains
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
-    real(4), optional, pointer, intent(in)    :: PTin_r4_opt(:,:,:,:), PMin_r4_opt(:,:,:,:)
-    real(8), optional, pointer, intent(in)    :: PTin_r8_opt(:,:,:,:), PMin_r8_opt(:,:,:,:)
-    real(4), optional, pointer, intent(inout) :: ZTout_r4_opt(:,:,:,:), ZMout_r4_opt(:,:,:,:)
-    real(8), optional, pointer, intent(inout) :: ZTout_r8_opt(:,:,:,:), ZMout_r8_opt(:,:,:,:)
+    real(4), optional, pointer, intent(in)    :: PTin_r4_opt(:,:,:,:)
+    real(4), optional, pointer, intent(in)    :: PMin_r4_opt(:,:,:,:)
+    real(8), optional, pointer, intent(in)    :: PTin_r8_opt(:,:,:,:)
+    real(8), optional, pointer, intent(in)    :: PMin_r8_opt(:,:,:,:)
+    real(4), optional, pointer, intent(inout) :: ZTout_r4_opt(:,:,:,:)
+    real(4), optional, pointer, intent(inout) :: ZMout_r4_opt(:,:,:,:)
+    real(8), optional, pointer, intent(inout) :: ZTout_r8_opt(:,:,:,:)
+    real(8), optional, pointer, intent(inout) :: ZMout_r8_opt(:,:,:,:)
 
     ! Locals
     integer :: Vcode
@@ -474,7 +478,8 @@ contains
 
     ! Arguments
     type(struct_gsv),  intent(in)    :: statevector
-    real(4), pointer,  intent(inout) :: Z_T(:,:,:,:), Z_M(:,:,:,:)
+    real(4), pointer,  intent(inout) :: Z_T(:,:,:,:)
+    real(4), pointer,  intent(inout) :: Z_M(:,:,:,:)
 
     ! Locals
     integer ::  numStep, stepIndex, status
@@ -594,18 +599,16 @@ contains
 
     ! Arguments
     type(struct_gsv),  intent(in)    :: statevector
-    real(8), pointer,  intent(inout) :: Z_T(:,:,:,:), Z_M(:,:,:,:)
+    real(8), pointer,  intent(inout) :: Z_T(:,:,:,:)
+    real(8), pointer,  intent(inout) :: Z_M(:,:,:,:)
 
     ! Locals
     integer ::  numStep, stepIndex, status
-    real(kind=8), allocatable   :: Hsfc(:,:)
-    real(kind=8), pointer       :: GZHeight_out(:,:,:)
+    real(kind=8), pointer   :: Hsfc(:,:), GZHeight_out(:,:,:)
 
     call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=4)
 
-    allocate(Hsfc(statevector%myLonBeg:statevector%myLonEnd, &
-                  statevector%myLatBeg:statevector%myLatEnd))
-    Hsfc = gsv_getHeightSfc(statevector)
+    Hsfc => gsv_getHeightSfc(statevector)
     numStep = statevector%numStep
 
     do stepIndex = 1, numStep
@@ -636,8 +639,6 @@ contains
       Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
       deallocate(GZHeight_out)
     end do
-
-    deallocate(Hsfc)
 
     call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'END', verb_opt=4)
   end subroutine calcHeight_gsv_nl_vcode2100x_r8
@@ -718,10 +719,14 @@ contains
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
-    real(4), pointer, optional, intent(in)    :: PTin_r4_opt(:,:,:,:), PMin_r4_opt(:,:,:,:)
-    real(8), pointer, optional, intent(in)    :: PTin_r8_opt(:,:,:,:), PMin_r8_opt(:,:,:,:)
-    real(4), pointer, optional, intent(inout) :: ZTout_r4_opt(:,:,:,:), ZMout_r4_opt(:,:,:,:)
-    real(8), pointer, optional, intent(inout) :: ZTout_r8_opt(:,:,:,:), ZMout_r8_opt(:,:,:,:)
+    real(4), pointer, optional, intent(in)    :: PTin_r4_opt(:,:,:,:)
+    real(4), pointer, optional, intent(in)    :: PMin_r4_opt(:,:,:,:)
+    real(8), pointer, optional, intent(in)    :: PTin_r8_opt(:,:,:,:)
+    real(8), pointer, optional, intent(in)    :: PMin_r8_opt(:,:,:,:)
+    real(4), pointer, optional, intent(inout) :: ZTout_r4_opt(:,:,:,:)
+    real(4), pointer, optional, intent(inout) :: ZMout_r4_opt(:,:,:,:)
+    real(8), pointer, optional, intent(inout) :: ZTout_r8_opt(:,:,:,:)
+    real(8), pointer, optional, intent(inout) :: ZMout_r8_opt(:,:,:,:)
 
     ! Locals
     integer ::  lev_M,lev_T,nlev_M,nlev_T,status,Vcode
@@ -1783,10 +1788,14 @@ contains
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
-    real(4), optional, pointer, intent(in)    :: ZTin_r4_opt(:,:,:,:), ZMin_r4_opt(:,:,:,:)
-    real(8), optional, pointer, intent(in)    :: ZTin_r8_opt(:,:,:,:), ZMin_r8_opt(:,:,:,:)
-    real(4), optional, pointer, intent(inout) :: PTout_r4_opt(:,:,:,:), PMout_r4_opt(:,:,:,:)
-    real(8), optional, pointer, intent(inout) :: PTout_r8_opt(:,:,:,:), PMout_r8_opt(:,:,:,:)
+    real(4), optional, pointer, intent(in)    :: ZTin_r4_opt(:,:,:,:)
+    real(4), optional, pointer, intent(in)    :: ZMin_r4_opt(:,:,:,:)
+    real(8), optional, pointer, intent(in)    :: ZTin_r8_opt(:,:,:,:)
+    real(8), optional, pointer, intent(in)    :: ZMin_r8_opt(:,:,:,:)
+    real(4), optional, pointer, intent(inout) :: PTout_r4_opt(:,:,:,:)
+    real(4), optional, pointer, intent(inout) :: PMout_r4_opt(:,:,:,:)
+    real(8), optional, pointer, intent(inout) :: PTout_r8_opt(:,:,:,:)
+    real(8), optional, pointer, intent(inout) :: PMout_r8_opt(:,:,:,:)
     logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
     ! Locals
@@ -1873,10 +1882,14 @@ contains
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
-    real(4), pointer, optional, intent(in)    :: ZTin_r4_opt(:,:,:,:), ZMin_r4_opt(:,:,:,:)
-    real(8), pointer, optional, intent(in)    :: ZTin_r8_opt(:,:,:,:), ZMin_r8_opt(:,:,:,:)
-    real(4), pointer, optional, intent(inout) :: PTout_r4_opt(:,:,:,:), PMout_r4_opt(:,:,:,:)
-    real(8), pointer, optional, intent(inout) :: PTout_r8_opt(:,:,:,:), PMout_r8_opt(:,:,:,:)
+    real(4), pointer, optional, intent(in)    :: ZTin_r4_opt(:,:,:,:)
+    real(4), pointer, optional, intent(in)    :: ZMin_r4_opt(:,:,:,:)
+    real(8), pointer, optional, intent(in)    :: ZTin_r8_opt(:,:,:,:)
+    real(8), pointer, optional, intent(in)    :: ZMin_r8_opt(:,:,:,:)
+    real(4), pointer, optional, intent(inout) :: PTout_r4_opt(:,:,:,:)
+    real(4), pointer, optional, intent(inout) :: PMout_r4_opt(:,:,:,:)
+    real(8), pointer, optional, intent(inout) :: PTout_r8_opt(:,:,:,:)
+    real(8), pointer, optional, intent(inout) :: PMout_r8_opt(:,:,:,:)
 
     ! Locals
     integer ::  stepIndex, latIndex, lonIndex, numStep
@@ -2139,7 +2152,8 @@ contains
 
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector
-    real(8),           pointer, intent(inout) :: P_T(:,:,:,:), P_M(:,:,:,:)
+    real(8),           pointer, intent(inout) :: P_T(:,:,:,:)
+    real(8),           pointer, intent(inout) :: P_M(:,:,:,:)
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
     logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
@@ -2213,7 +2227,8 @@ contains
 
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector
-    real(4),           pointer, intent(inout) :: P_T(:,:,:,:), P_M(:,:,:,:)
+    real(4),           pointer, intent(inout) :: P_T(:,:,:,:)
+    real(4),           pointer, intent(inout) :: P_M(:,:,:,:)
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing optional fields (P0, TT, HU)
     logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
 
@@ -2782,10 +2797,9 @@ contains
 
     call msg('calcHeight_col_nl (czp)', 'START', verb_opt=2)
 
-    Z_T(:,:) = col_getAllColumns(column, 'Z_T')
-    Z_M(:,:) = col_getAllColumns(column, 'Z_M')
+    Z_T => col_getAllColumns(column, 'Z_T')
+    Z_M => col_getAllColumns(column, 'Z_M')
     call czp_calcReturnHeight_col_nl(column, Z_T, Z_M)
-    deallocate(Z_T, Z_M)
 
     call msg('calcHeight_col_nl (czp)', &
            new_line('')//'Z_M = '//str(col_getColumn(column,1,'Z_M')) &
@@ -2806,7 +2820,8 @@ contains
 
     ! Arguments
     type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
-    real(8), pointer,         intent(inout) :: Z_T(:,:), Z_M(:,:) ! output pointers to computed column height values
+    real(8), pointer,         intent(inout) :: Z_T(:,:) ! output pointer to computed column height values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: Z_M(:,:) ! output pointer to computed column height values on momentum levels
 
     ! Locals
     integer :: vcode
@@ -2837,10 +2852,11 @@ contains
 
     ! Arguments
     type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
-    real(8), pointer,         intent(inout) :: Z_T(:,:), Z_M(:,:) ! output pointers to computed column height values
+    real(8), pointer,         intent(inout) :: Z_T(:,:) ! output pointer to computed column height values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: Z_M(:,:) ! output pointer to computed column height values on momentum levels
 
     ! Locals
-    real(8), allocatable  :: hSfc(:,:), heights(:,:)
+    real(8), allocatable  :: hSfc(:,:)
     real(8), pointer      :: hPtr(:,:,:)
     integer :: numCol, colIndex, stat
 
@@ -2863,12 +2879,8 @@ contains
     if ( stat .ne. VGD_OK ) then
       call utl_abort('calcHeight_col_nl_vcode2100x (czp): ERROR with vgd_levels')
     end if
-
-    allocate(heights(col_getNumLev(column,'MM'), numCol))
-    heights = hPtr(1,:,:)
-    Z_M(:,:) = heights(:,:)
+    Z_M(:,:) = hPtr(1,:,:)
     if (associated(hPtr)) deallocate(hPtr)
-    deallocate(heights)
 
     ! thermo levels
     stat=vgd_levels(column%vco%vgrid, ip1_list=column%vco%ip1_T, &
@@ -2876,12 +2888,8 @@ contains
     if ( stat .ne. VGD_OK ) then
       call utl_abort('calcHeight_col_nl_vcode2100x (czp): ERROR with vgd_levels')
     end if
-
-    allocate(heights(col_getNumLev(column,'TH'), numCol))
-    heights = hPtr(1,:,:)
-    Z_T(:,:) = heights(:,:)
+    Z_T(:,:) = hPtr(1,:,:)
     if (associated(hPtr)) deallocate(hPtr)
-    deallocate(heights)
 
     deallocate(hSfc)
     call msg('calcHeight_col_nl_vcode2100x (czp)', 'END', verb_opt=4)
@@ -2899,7 +2907,8 @@ contains
 
     ! Arguments
     type(struct_columnData),  intent(in)    :: column  ! reference column containing temperature and geopotential
-    real(8), pointer,         intent(inout) :: Z_T(:,:), Z_M(:,:) ! output pointers to computed column height values
+    real(8), pointer,         intent(inout) :: Z_T(:,:) ! output pointer to computed column height values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: Z_M(:,:) ! output pointer to computed column height values on momentum levels
 
     ! Developement notes (@mad001)
     !   Null subroutine, no computation needed at time of writing.
@@ -3409,10 +3418,9 @@ contains
 
     call msg('calcPressure_col_nl (czp)', 'START', verb_opt=2)
 
-    P_T(:,:) = col_getAllColumns(column, 'P_T')
-    P_M(:,:) = col_getAllColumns(column, 'P_M')
+    P_T => col_getAllColumns(column, 'P_T')
+    P_M => col_getAllColumns(column, 'P_M')
     call czp_calcReturnPressure_col_nl(column, P_T, P_M)
-    deallocate(P_T, P_M)
 
     call msg('calcPressure_col_nl (czp)', &
            new_line('')//'P_M = '//str(col_getColumn(column,1,'P_M')) &
@@ -3433,7 +3441,8 @@ contains
 
     ! Arguments
     type(struct_columnData),  intent(in)    :: column ! reference column
-    real(8), pointer,         intent(inout) :: P_T(:,:), P_M(:,:) ! output pointers to computed column pressure values
+    real(8), pointer,         intent(inout) :: P_T(:,:) ! output pointer to computed column pressure values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: P_M(:,:) ! output pointer to computed column pressure values on momentum levels
 
     ! Locals
     integer :: Vcode
@@ -3473,7 +3482,8 @@ contains
 
     ! Arguments
     type(struct_columnData),  intent(in)    :: column ! reference column
-    real(8), pointer,         intent(inout) :: P_T(:, :), P_M(:,:)
+    real(8), pointer,         intent(inout) :: P_T(:,:) ! output pointer to computed column pressure values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: P_M(:,:) ! output pointer to computed column pressure values on momentum levels
 
     ! Locals
     real(8), allocatable  :: tv(:)
@@ -3581,11 +3591,12 @@ contains
 
     ! Arguments
     type(struct_columnData),  intent(in)    :: column ! reference column
-    real(8), pointer,         intent(inout) :: P_T(:,:), P_M(:,:) ! output pointers to computed column pressure values
+    real(8), pointer,         intent(inout) :: P_T(:,:) ! output pointer to computed column pressure values on thermodynamic levels
+    real(8), pointer,         intent(inout) :: P_M(:,:) ! output pointer to computed column pressure values on momentum levels
 
     ! Locals
-    real(kind=8), allocatable :: Psfc(:,:),zppobs2(:,:)
-    real(kind=8), pointer     :: zppobs1(:,:,:)
+    real(kind=8), allocatable :: Psfc(:,:)
+    real(kind=8), pointer     :: zppobs(:,:,:)
     integer :: headerIndex, status
 
     call msg('calcPressure_col_nl_vcode500x (czp)', 'START', verb_opt=4)
@@ -3605,22 +3616,16 @@ contains
     end do
 
     status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
-                      levels=zppobs1,sfc_field=Psfc,in_log=.false.)
+                      levels=zppobs,sfc_field=Psfc,in_log=.false.)
     if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
-    allocate(zppobs2(col_getNumLev(column,'MM'),col_getNumCol(column)))
-    zppobs2 = zppobs1(1,:,:)
-    P_M(:,:) = zppobs2(:,:)
-    if (associated(zppobs1))  deallocate(zppobs1)
-    deallocate(zppobs2)
+    P_M(:,:) = zppobs(1,:,:)
+    if (associated(zppobs))  deallocate(zppobs)
 
     status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_T,  &
-                      levels=zppobs1,sfc_field=Psfc,in_log=.false.)
+                      levels=zppobs,sfc_field=Psfc,in_log=.false.)
     if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
-    allocate(zppobs2(col_getNumLev(column,'TH'),col_getNumCol(column)))
-    zppobs2 = zppobs1(1,:,:)
-    P_T(:,:) = zppobs2(:,:)
-    if (associated(zppobs1)) deallocate(zppobs1)
-    deallocate(zppobs2)
+    P_T(:,:) = zppobs(1,:,:)
+    if (associated(zppobs)) deallocate(zppobs)
 
     deallocate(Psfc)
 
@@ -4331,8 +4336,11 @@ contains
   !---------------------------------------------------------
   function gpscompressibility(p,t,q)
     implicit none
+
     ! Arguments
-    real(8), intent(in)  :: p,t,q
+    real(8), intent(in)  :: p
+    real(8), intent(in)  :: t
+    real(8), intent(in)  :: q
 
     ! Locals
     real(8)              :: gpscompressibility
@@ -4366,8 +4374,11 @@ contains
   !---------------------------------------------------------
   function gpscompressibility_TT(p,t,q)
     implicit none
+
     ! Arguments
-    real(8), intent(in)  :: p,t,q
+    real(8), intent(in)  :: p
+    real(8), intent(in)  :: t
+    real(8), intent(in)  :: q
 
     ! Locals
     real(8)              :: gpscompressibility_TT
@@ -4409,8 +4420,11 @@ contains
   !---------------------------------------------------------
   function gpscompressibility_HU(p,t,q)
     implicit none
+
     ! Arguments
-    real(8), intent(in)  :: p,t,q
+    real(8), intent(in)  :: p
+    real(8), intent(in)  :: t
+    real(8), intent(in)  :: q
 
     ! Locals
     real(8)              :: gpscompressibility_HU
@@ -4455,7 +4469,10 @@ contains
     implicit none
 
     ! Arguments
-    real(8), intent(in)  :: p,t,q,dpdp0
+    real(8), intent(in)  :: p
+    real(8), intent(in)  :: t
+    real(8), intent(in)  :: q
+    real(8), intent(in)  :: dpdp0
 
     ! Locals
     real(8)              :: gpscompressibility_P0_1
@@ -4499,7 +4516,9 @@ contains
     implicit none
 
     ! Arguments
-    real(8), intent(in)  :: p,t,q
+    real(8), intent(in)  :: p
+    real(8), intent(in)  :: t
+    real(8), intent(in)  :: q
 
     ! Locals
     real(8)              :: gpscompressibility_P0_2

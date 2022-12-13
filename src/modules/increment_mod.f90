@@ -127,7 +127,8 @@ CONTAINS
     type(struct_gsv) :: statevectorRef, statevectorRefPsfc
     type(struct_gsv) :: statevectorIncRefLowRes
     type(struct_gsv) :: statevectorTrlRefVars
-    type(struct_gsv) :: statevectorTrlLowResTime, statevectorTrlLowResVert
+    type(struct_gsv) :: statevectorTrlLowResTime
+    type(struct_gsv) :: statevectorTrlLowResVert
     type(struct_gsv) :: statevector_mask
     type(struct_gsv) :: stateVectorHighRes
 
