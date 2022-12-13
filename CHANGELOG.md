@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Use of hydrometeor fields LWCR, IWCR, RF and SF from GEM outputs instead of zero in RttovScatt mode (#712 and !655)
  * The compiler warnings about unused variables now appear in the `midas_build` compilation listing (#730 and !665)
  * Include 1DVar Bmatrix dump tool under `/scripts` (#727 and !662)
  * Random shuffle of subensembles for letkf with modulate ensembles (#722 and !661)
