@@ -427,7 +427,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_writeToFiles
   !--------------------------------------------------------------------------
-  subroutine eob_writeToFiles(ensObs)
+  subroutine eob_writeToFiles(ensObs, outputFilenamePrefix, writeObsInfo)
     !
     ! :Purpose: Write the contents of an ensObs object to files
     !
@@ -435,6 +435,8 @@ CONTAINS
 
     ! arguments
     type(struct_eob), intent(in) :: ensObs
+    character(len=*), intent(in) :: outputFilenamePrefix
+    logical,          intent(in) :: writeObsInfo
 
     ! locals
     integer :: unitNum, ierr, obsIndex, memberIndex
@@ -445,24 +447,26 @@ CONTAINS
     ! only the first mpi task does writing, assuming mpi gather already done
     if (mmpi_myid /= 0) return
 
-    if ( .not.ensObs%allocated ) then
+    if (.not.ensObs%allocated) then
       call utl_abort('eob_writeToFiles: this object is not allocated')
     end if
 
     ! write the lat, lon and obs values to a file
-    fileName = 'eob_Lat_Lon_ObsValue'
-    write(*,*) 'eob_writeToFiles: writing ',trim(filename)
-    unitNum = 0
-    ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
-    write(unitNum) (ensObs%lat(obsIndex), obsIndex = 1, ensObs%numObs)
-    write(unitNum) (ensObs%lon(obsIndex), obsIndex = 1, ensObs%numObs)
-    write(unitNum) (ensObs%obsValue(obsIndex), obsIndex = 1, ensObs%numObs)
-    ierr = fclos(unitNum)
+    if (writeObsInfo) then
+      fileName = 'eob_Lat_Lon_ObsValue'
+      write(*,*) 'eob_writeToFiles: writing ',trim(filename)
+      unitNum = 0
+      ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
+      write(unitNum) (ensObs%lat(obsIndex), obsIndex = 1, ensObs%numObs)
+      write(unitNum) (ensObs%lon(obsIndex), obsIndex = 1, ensObs%numObs)
+      write(unitNum) (ensObs%obsValue(obsIndex), obsIndex = 1, ensObs%numObs)
+      ierr = fclos(unitNum)
+    end if
 
     ! write the contents of Yb, 1 member per file
     do memberIndex = 1, ensObs%numMembers
       write(memberIndexStr,'(I0.4)') memberIndex
-      fileName = 'eob_HX_' // memberIndexStr
+      fileName = trim(outputFilenamePrefix) // '_' // memberIndexStr
       write(*,*) 'eob_writeToFiles: writing ',trim(filename)
       unitNum = 0
       ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
