@@ -111,34 +111,34 @@ program midas_ensembleH
 
   ! Read the namelist
   nulnam = 0
-  ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
-  read( nulnam, nml=namensembleh, iostat=ierr )
-  if ( ierr /= 0) call utl_abort('midas-ensembleH: Error reading namelist')
-  if ( mmpi_myid == 0 ) write(*,nml=namensembleh)
+  ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+  read(nulnam, nml=namensembleh, iostat=ierr)
+  if (ierr /= 0) call utl_abort('midas-ensembleH: Error reading namelist')
+  if (mmpi_myid == 0) write(*,nml=namensembleh)
   ierr = fclos(nulnam)
   
-  if ( numRetainedEigen < 0 ) call utl_abort('midas-ensembleH: numRetainedEigen should be ' // &
+  if (numRetainedEigen < 0) call utl_abort('midas-ensembleH: numRetainedEigen should be ' // &
                                              'equal or greater than zero')
 
-  useModulatedEns = ( numRetainedEigen > 0 )
-  if ( useModulatedEns .and. vLocalize <= 0 ) then
+  useModulatedEns = (numRetainedEigen > 0)
+  if (useModulatedEns .and. vLocalize <= 0) then
     call utl_abort('midas-ensembleH: vLocalize should be greater than zero for modulated ens')
   end if
 
   ! Read the observations
-  call obsf_setup( dateStamp, midasMode, obsFileType_opt = obsFileType )
-  if ( obsFileType /= 'BURP' .and. obsFileType /= 'SQLITE' ) then
+  call obsf_setup(dateStamp, midasMode, obsFileType_opt = obsFileType)
+  if (obsFileType /= 'BURP' .and. obsFileType /= 'SQLITE') then
     call utl_abort('midas-ensembleH: only BURP and SQLITE are valid obs file formats')
   end if
 
   ! Use the first ensemble member to initialize datestamp and grid
-  call fln_ensFileName( ensFileName, ensPathName, memberIndex_opt=1 )
+  call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1)
 
   ! Setup timeCoord module, get datestamp from ensemble member
-  call tim_setup( fileNameForDate_opt = ensFileName )
+  call tim_setup(fileNameForDate_opt = ensFileName)
   call tim_setDateStamp(dateStamp)
-  allocate( dateStampList(tim_nstepobs) )
-  call tim_getstamplist( dateStampList,tim_nstepobs,tim_getDatestamp() )
+  allocate(dateStampList(tim_nstepobs))
+  call tim_getstamplist(dateStampList,tim_nstepobs,tim_getDatestamp())
   
   write(*,*) 'midas-ensembleH: dateStamp = ',dateStamp
 
@@ -148,88 +148,88 @@ program midas_ensembleH
   !- Initialize the Ensemble grid
   if (mmpi_myid == 0) write(*,*) ''
   if (mmpi_myid == 0) write(*,*) 'midas-ensembleH: Set hco and vco parameters for ensemble grid'
-  call hco_SetupFromFile( hco_ens, ensFileName, ' ', 'ENSFILEGRID')
-  call vco_setupFromFile( vco_ens, ensFileName )
+  call hco_SetupFromFile(hco_ens, ensFileName, ' ', 'ENSFILEGRID')
+  call vco_setupFromFile(vco_ens, ensFileName)
 
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   ! read in the observations
-  call inn_setupObs( obsSpaceData, hco_ens, obsColumnMode, obsMpiStrategy, midasMode )
+  call inn_setupObs(obsSpaceData, hco_ens, obsColumnMode, obsMpiStrategy, midasMode)
 
   ! Initialize obs error covariances
-  call oer_setObsErrors( obsSpaceData, midasMode )
+  call oer_setObsErrors(obsSpaceData, midasMode)
 
   call col_setup
-  call col_setVco( column, vco_ens )
-  call col_allocate( column, obs_numheader(obsSpaceData) )
+  call col_setVco(column, vco_ens)
+  call col_allocate(column, obs_numheader(obsSpaceData))
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   ! Initialize the observation error covariances
-  call oer_setObsErrors( obsSpaceData, midasMode ) ! IN
+  call oer_setObsErrors(obsSpaceData, midasMode) ! IN
 
   ! Allocate and initialize eob object for storing HX values
-  call eob_allocate( ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData )
-  call eob_zero( ensObs )
-  if ( useModulatedEns ) then
+  call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
+  call eob_zero(ensObs)
+  if (useModulatedEns) then
     nEnsGain = nEns * numRetainedEigen
-    allocate( ensObsGain )
-    call eob_allocate( ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData )
-    call eob_zero( ensObsGain )
+    allocate(ensObsGain)
+    call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData)
+    call eob_zero(ensObsGain)
   else
     ensObsGain => ensObs
   end if
   
   ! Set lat, lon, obs values in ensObs
-  call eob_setLatLonObs( ensObs )
-  if ( useModulatedEns ) call eob_setLatLonObs( ensObsGain )
+  call eob_setLatLonObs(ensObs)
+  if (useModulatedEns) call eob_setLatLonObs(ensObsGain)
 
 
   ! Read the sfc height from ensemble member 1
-  call gsv_allocate( stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/) )
-  call gio_readFromFile( stateVectorHeightSfc, ensFileName, ' ', ' ',  &
-                         containsFullField_opt=.true., readHeightSfc_opt=.true. )
+  call gsv_allocate(stateVectorHeightSfc, 1, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
+                    mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                    dataKind_opt=4, allocHeightSfc_opt=.true., varNames_opt=(/'P0','TT'/))
+  call gio_readFromFile(stateVectorHeightSfc, ensFileName, ' ', ' ',  &
+                        containsFullField_opt=.true., readHeightSfc_opt=.true.)
 
   ! Allocate statevector related to ensemble mean
-  call gsv_allocate( stateVectorMeanTrl4D, tim_nstepobs, hco_ens, vco_ens, &
-                     dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true., &
-                     allocHeight_opt=.false., allocPressure_opt=.false. )
-  call gsv_zero( stateVectorMeanTrl4D )
-  call gsv_allocate( stateVector4D, tim_nstepobs, hco_ens, vco_ens, &
-                     dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true., &
-                     allocHeight_opt=.false., allocPressure_opt=.false. )
-  call gsv_zero( stateVector4D )
-  if ( useModulatedEns ) then
+  call gsv_allocate(stateVectorMeanTrl4D, tim_nstepobs, hco_ens, vco_ens, &
+                    dateStamp_opt=tim_getDateStamp(),  &
+                    mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                    dataKind_opt=4, allocHeightSfc_opt=.true., &
+                    allocHeight_opt=.false., allocPressure_opt=.false.)
+  call gsv_zero(stateVectorMeanTrl4D)
+  call gsv_allocate(stateVector4D, tim_nstepobs, hco_ens, vco_ens, &
+                    dateStamp_opt=tim_getDateStamp(),  &
+                    mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                    dataKind_opt=4, allocHeightSfc_opt=.true., &
+                    allocHeight_opt=.false., allocPressure_opt=.false.)
+  call gsv_zero(stateVector4D)
+  if (useModulatedEns) then
     ! same as stateVector4D
-    call gsv_allocate( stateVector4Dmod, tim_nstepobs, hco_ens, vco_ens, &
-                       dateStamp_opt=tim_getDateStamp(),  &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       dataKind_opt=4, allocHeightSfc_opt=.true., &
-                       allocHeight_opt=.false., allocPressure_opt=.false. )
-    call gsv_zero( stateVector4Dmod )
+    call gsv_allocate(stateVector4Dmod, tim_nstepobs, hco_ens, vco_ens, &
+                      dateStamp_opt=tim_getDateStamp(),  &
+                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                      dataKind_opt=4, allocHeightSfc_opt=.true., &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
+    call gsv_zero(stateVector4Dmod)
   end if
   
   ! Allocate statevector for storing state with heights and pressures allocated (for s2c_nl)
-  call gsv_allocate( stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, &
-                     dateStamp_opt=tim_getDateStamp(),  &
-                     mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                     dataKind_opt=4, allocHeightSfc_opt=.true. )
-  call gsv_zero( stateVectorWithZandP4D )
+  call gsv_allocate(stateVectorWithZandP4D, tim_nstepobs, hco_ens, vco_ens, &
+                    dateStamp_opt=tim_getDateStamp(),  &
+                    mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
+                    dataKind_opt=4, allocHeightSfc_opt=.true.)
+  call gsv_zero(stateVectorWithZandP4D)
 
   ! Allocate ensembles, read the Trl ensemble
   call utl_tmg_start(2,'--ReadEnsemble')
-  call ens_allocate( ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList )
-  call ens_readEnsemble( ensembleTrl4D, ensPathName, biPeriodic=.false. )
+  call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
+  call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false.)
   call utl_tmg_stop(2)
 
   ! Compute ensemble mean and copy to meanTrl stateVectors
-  call ens_computeMean( ensembleTrl4D )
-  call ens_copyEnsMean( ensembleTrl4D, stateVectorMeanTrl4D )
+  call ens_computeMean(ensembleTrl4D)
+  call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
 
   do memberIndex = 1, nEns
 
@@ -238,65 +238,65 @@ program midas_ensembleH
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     ! copy 1 member to a stateVector
-    call ens_copyMember( ensembleTrl4D, stateVector4D, memberIndex )
-    call gsv_copy( stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
-                   beSilent_opt=.true. )
-    call gsv_copyHeightSfc( stateVectorHeightSfc, stateVectorWithZandP4D )
+    call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
+    call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+                  beSilent_opt=.true.)
+    call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
 
     ! Compute and set Yb in ensObs
-    call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+    call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
                 timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
-                beSilent_opt=.true. )
+                beSilent_opt=.true.)
 
     ! Compute Y-H(X) in OBS_OMP
-    call inn_computeInnovation( column, obsSpaceData, beSilent_opt=.true. )
+    call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
 
     ! Copy to ensObs: Y-HX for this member
-    call eob_setYb( ensObs, memberIndex )
+    call eob_setYb(ensObs, memberIndex)
 
     ! Compute and set Yb in ensObsGain
     do eigenVectorIndex = 1, numRetainedEigen
-      if ( mmpi_myid == 0 ) write(*,*) 'midas-ensembleH: apply nonlinear H to modulated member ', &
+      if (mmpi_myid == 0) write(*,*) 'midas-ensembleH: apply nonlinear H to modulated member ', &
                                         eigenVectorIndex, '/', numRetainedEigen
 
       ! modulate the member with eigenvectors of vertical localization matrix
-      call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
-                                   vLocalize, numRetainedEigen, nEns, &
-                                   eigenVectorIndex, stateVector4Dmod, &
-                                   beSilent=.true. )
+      call enkf_getModulatedState(stateVector4D, stateVectorMeanTrl4D, &
+                                  vLocalize, numRetainedEigen, nEns, &
+                                  eigenVectorIndex, stateVector4Dmod, &
+                                  beSilent=.true.)
 
-      call gsv_copy( stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
-                     beSilent_opt=.true. )
-      call gsv_copyHeightSfc( stateVectorHeightSfc, stateVectorWithZandP4D )
+      call gsv_copy(stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+                    beSilent_opt=.true.)
+      call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
 
-      call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+      call s2c_nl(stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
                   timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
-                  beSilent_opt=.true. )
+                  beSilent_opt=.true.)
 
       ! Compute Y-H(X) in OBS_OMP
-      call inn_computeInnovation( column, obsSpaceData, filterObsAndInitOer_opt=.false., &
-                                  beSilent_opt=.true. )
+      call inn_computeInnovation(column, obsSpaceData, filterObsAndInitOer_opt=.false., &
+                                 beSilent_opt=.true.)
 
       ! Copy to ensObsGain: Y-HX for this member
       memberIndexInEnsObs = (eigenVectorIndex - 1) * nEns + memberIndex
-      call eob_setYb( ensObsGain, memberIndexInEnsObs )
+      call eob_setYb(ensObsGain, memberIndexInEnsObs)
     end do ! eigenVectorIndex
     
   end do
-  call gsv_deallocate( stateVectorWithZandP4D )
-  if ( gsv_isAllocated(stateVector4Dmod) ) call gsv_deallocate( stateVector4Dmod )
-  call gsv_deallocate( stateVector4D )
-  call gsv_deallocate( stateVectorMeanTrl4D )
-  call gsv_deallocate( stateVectorHeightSfc )
+  call gsv_deallocate(stateVectorWithZandP4D)
+  if (gsv_isAllocated(stateVector4Dmod)) call gsv_deallocate(stateVector4Dmod)
+  call gsv_deallocate(stateVector4D)
+  call gsv_deallocate(stateVectorMeanTrl4D)
+  call gsv_deallocate(stateVectorHeightSfc)
 
   ! Clean and globally communicate obs-related data, then write to files
-  call eob_allGather( ensObs,ensObs_mpiglobal )
-  call eob_writeToFiles( ensObs_mpiglobal )
-  if ( useModulatedEns ) then
-    allocate( ensObsGain_mpiglobal )
-    call eob_allGather( ensObsGain, ensObsGain_mpiglobal )
-    call eob_writeToFiles( ensObsGain_mpiglobal, inputIsEnsObsGainGlobal_opt=.true., &
-                           writeEnsObsGainGlobal_opt=writeEnsObsGainGlobal )
+  call eob_allGather(ensObs,ensObs_mpiglobal)
+  call eob_writeToFiles(ensObs_mpiglobal)
+  if (useModulatedEns) then
+    allocate(ensObsGain_mpiglobal)
+    call eob_allGather(ensObsGain, ensObsGain_mpiglobal)
+    call eob_writeToFiles(ensObsGain_mpiglobal, inputIsEnsObsGainGlobal_opt=.true., &
+                           writeEnsObsGainGlobal_opt=writeEnsObsGainGlobal)
   end if
 
   !
@@ -313,8 +313,8 @@ program midas_ensembleH
   !
   !- 7.  Ending
   !
-  if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
-  if ( mmpi_myid == 0 ) write(*,*) ' MIDAS-ENSEMBLEH ENDS'
-  if ( mmpi_myid == 0 ) write(*,*) ' --------------------------------'
+  if (mmpi_myid == 0) write(*,*) ' --------------------------------'
+  if (mmpi_myid == 0) write(*,*) ' MIDAS-ENSEMBLEH ENDS'
+  if (mmpi_myid == 0) write(*,*) ' --------------------------------'
 
 end program midas_ensembleH
