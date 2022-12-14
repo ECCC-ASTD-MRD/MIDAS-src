@@ -60,7 +60,7 @@ program midas_ensembleH
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
   integer, allocatable :: dateStampList(:)
 
-  logical  :: useModulatedEns
+  logical  :: useModulatedEns, writeGlobalEnsObsToFile, writeLocalEnsObsToFile
 
   character(len=256)  :: ensFileName
   character(len=9)    :: obsColumnMode
@@ -77,9 +77,9 @@ program midas_ensembleH
   integer  :: fileMemberIndex1 ! first member number in ensemble set.
   real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
                                !   used only when generating modulated ensembles.
-  logical  :: writeEnsObsToFile
+  character(len=20)  :: writeEnsObsToFileType
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
-                         vLocalize, writeEnsObsToFile, fileMemberIndex1
+                         vLocalize, writeEnsObsToFileType, fileMemberIndex1
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -108,7 +108,7 @@ program midas_ensembleH
   obsTimeInterpType     = 'LINEAR'
   numRetainedEigen      = 0
   vLocalize             = -1.0D0
-  writeEnsObsToFile     = .false.
+  writeEnsObsToFileType = 'GLOBAL'
   fileMemberIndex1      = 1
 
   ! Read the namelist
@@ -126,6 +126,15 @@ program midas_ensembleH
   if (useModulatedEns .and. vLocalize <= 0) then
     call utl_abort('midas-ensembleH: vLocalize should be greater than zero for modulated ens')
   end if
+
+  if (.not. (trim(writeEnsObsToFileType) == 'LOCAL' .or. trim(writeEnsObsToFileType) == 'GLOBAL' .or. &
+             trim(writeEnsObsToFileType) == 'BOTH' .or. trim(writeEnsObsToFileType) == 'NONE')) then
+    call utl_abort('midas-ensembleH: writeEnsObsToFileType does not have right value')
+  end if
+  writeGlobalEnsObsToFile = (trim(writeEnsObsToFileType) == 'GLOBAL' .or. &
+                             trim(writeEnsObsToFileType) == 'BOTH')
+  writeLocalEnsObsToFile  = (trim(writeEnsObsToFileType) == 'LOCAL' .or. &
+                             trim(writeEnsObsToFileType) == 'BOTH')
 
   ! Read the observations
   call obsf_setup(dateStamp, midasMode, obsFileType_opt = obsFileType)
@@ -295,18 +304,21 @@ program midas_ensembleH
   call gsv_deallocate(stateVectorHeightSfc)
 
   ! write local ensObs to file
-  if (writeEnsObsToFile) call eob_writeToFilesMpiLocal(ensObs, outputFilenamePrefix='eob_HX', &
-                                                       writeObsInfo=.true.)
+  if (writeLocalEnsObsToFile) then
+    call eob_writeToFilesMpiLocal(ensObs, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
+  end if
 
   ! Clean and globally communicate obs-related data, then write to files
-  call eob_allGather(ensObs,ensObs_mpiglobal)
-  call eob_writeToFiles(ensObs_mpiglobal, outputFilenamePrefix='eob_HX', &
-                        writeObsInfo=.true.)
-  if (useModulatedEns) then
-    allocate(ensObsGain_mpiglobal)
-    call eob_allGather(ensObsGain, ensObsGain_mpiglobal)
-    call eob_writeToFiles(ensObsGain_mpiglobal, outputFilenamePrefix='eobGain_HX', &
-                          writeObsInfo=.false.)
+  if (writeGlobalEnsObsToFile) then
+    call eob_allGather(ensObs,ensObs_mpiglobal)
+    call eob_writeToFiles(ensObs_mpiglobal, outputFilenamePrefix='eob_HX', &
+                          writeObsInfo=.true.)
+    if (useModulatedEns) then
+      allocate(ensObsGain_mpiglobal)
+      call eob_allGather(ensObsGain, ensObsGain_mpiglobal)
+      call eob_writeToFiles(ensObsGain_mpiglobal, outputFilenamePrefix='eobGain_HX', &
+                            writeObsInfo=.false.)
+    end if
   end if
 
   !
