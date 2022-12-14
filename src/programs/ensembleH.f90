@@ -253,8 +253,11 @@ program midas_ensembleH
     ! read the mean stateVector and copy to ens%stateVector_work
     call fln_ensTrlFileName(inFileName, '.', tim_getDateStamp())
     inFileName = trim(inFileName) // '_trialmean'
-    call gio_readFromFile(stateVectorMeanTrl4D, inFileName, ' ', ' ',  &
-                          containsFullField_opt=.true., readHeightSfc_opt=.true.)
+    do stepIndex = 1, tim_nstepobs
+      call gio_readFromFile(stateVectorMeanTrl4D, inFileName, ' ', ' ',  &
+                            containsFullField_opt=.true., readHeightSfc_opt=.true., &
+                            stepIndex_opt=stepIndex)
+    end do
     call ens_copyToEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
   else
     call ens_computeMean(ensembleTrl4D)
@@ -265,9 +268,9 @@ program midas_ensembleH
     call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
     outFileName = trim(outFileName) // '_trialmean'
     do stepIndex = 1, tim_nstepobs
-      call gio_writeToFile(stateVectorMeanTrl4D, outFileName, 'E27_0_0PAVG',  &
-                           typvar_opt='P', writeHeightSfc_opt=.true., numBits_opt=16,  &
-                           stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+      call gio_writeToFile(stateVectorMeanTrl4D, outFileName, ' ',  &
+                           containsFullField_opt=.true., writeHeightSfc_opt=.true., &
+                           stepIndex_opt=stepIndex)
     end do
   end if
 
