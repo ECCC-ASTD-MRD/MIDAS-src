@@ -2506,8 +2506,8 @@ CONTAINS
           ! do any required interpolation
           if (horizontalInterpNeeded .and. verticalInterpNeeded) then
             call int_hInterp_gsv(statevector_file_r4, statevector_hint_r4)
-            call int_vInterp_gsv_r4(statevector_hint_r4, statevector_member_r4,         &
-                                     Ps_in_hPa_opt=.true.,checkModelTop_opt=checkModelTop)
+            call int_vInterp_gsv( statevector_hint_r4, statevector_member_r4,         &
+                                  Ps_in_hPa_opt=.true.,checkModelTop_opt=checkModelTop)
 
           else if (horizontalInterpNeeded .and. .not. verticalInterpNeeded) then
             call int_hInterp_gsv(statevector_file_r4, statevector_member_r4)
@@ -2518,8 +2518,8 @@ CONTAINS
             else
               call gsv_copy(statevector_file_r4, statevector_hint_r4)
             end if
-            call int_vInterp_gsv_r4(statevector_hint_r4, statevector_member_r4,         &
-                                     Ps_in_hPa_opt=.true.,checkModelTop_opt=checkModelTop)
+            call int_vInterp_gsv( statevector_hint_r4, statevector_member_r4,         &
+                                  Ps_in_hPa_opt=.true.,checkModelTop_opt=checkModelTop)
 
           else if (horizontalPaddingNeeded) then
             call gsv_hPad(statevector_file_r4, statevector_member_r4)

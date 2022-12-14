@@ -37,7 +37,7 @@ module interpolation_mod
   ! public subroutines and functions
   public :: int_interp_gsv
   public :: int_hInterp_gsv
-  public :: int_vInterp_gsv, int_vInterp_gsv_r4
+  public :: int_vInterp_gsv
   public :: int_tInterp_gsv
   public :: int_vInterp_col
   public :: int_hInterpScalar, int_ezgdef, int_cxgaig
@@ -201,15 +201,9 @@ contains
       checkModelTop = .true.
     end if
     
-    if ( gsv_getDataKind(statevector_in_VarsLevs) == 4) then
-      call vInterp_gsv_r4(statevector_in_hInterp,statevector_out,&
-                              statevectorRef_opt=statevectorRef_opt, &
-                              checkModelTop_opt=checkModelTop)
-    else 
-      call int_vInterp_gsv(   statevector_in_hInterp,statevector_out,&
-                              statevectorRef_opt=statevectorRef_opt, &
-                              checkModelTop_opt=checkModelTop)
-    end if
+    call int_vInterp_gsv(statevector_in_hInterp,statevector_out,&
+                         statevectorRef_opt=statevectorRef_opt, &
+                         checkModelTop_opt=checkModelTop)
 
     call gsv_deallocate(statevector_in_hInterp)
     nullify(varNamesToInterpolate)
@@ -346,7 +340,52 @@ contains
   subroutine int_vInterp_gsv( statevector_in,statevector_out,statevectorRef_opt, &
                               Ps_in_hPa_opt,checkModelTop_opt)
     !
-    ! :Purpose: Vertical interpolation
+    ! :Purpose: Vertical interpolation.
+    !           Interpolation coordinates are either height or log(P)
+    !           based on target vertical descriptor vcode.
+    !           * When target vertical coordinates are pressure (interpolating
+    !             to GEM-P), log(P) is used;
+    !           * When they are height (interpolating to GEM-H), height is used.
+    !           Call to ``calcHeightAndPressure_mod`` will return required
+    !           interpolation coordinates (log is then applied when required).
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv),           target, intent(in)     :: statevector_in             ! Statevector input
+    type(struct_gsv),                   intent(inout)  :: statevector_out            ! Statevector providing the target horizontal and vertical structure and will contain the interpolated fields
+    type(struct_gsv), optional, target, intent(in)     :: statevectorRef_opt         ! Reference statevector providing fields P0, TT and HU
+    logical,          optional,         intent(in)     :: Ps_in_hPa_opt              ! If true, conversion from hPa to mbar will be done for surface pressure
+    logical,          optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
+
+    call msg('int_vInterp_gsv', 'START', verb_opt=2)
+
+    ! read the namelist
+    call int_readNml()
+
+    if ( gsv_getDataKind(statevector_in) == 8 & 
+         .and. gsv_getDataKind(statevector_out) == 8 ) then 
+      call vInterp_gsv_r8(statevector_in,statevector_out,statevectorRef_opt, &
+                              Ps_in_hPa_opt,checkModelTop_opt)
+    else if ( gsv_getDataKind(statevector_in) == 4 &
+         .and. gsv_getDataKind(statevector_out) == 4 ) then 
+      call vInterp_gsv_r4(statevector_in,statevector_out,statevectorRef_opt, &
+                              Ps_in_hPa_opt,checkModelTop_opt)
+    else
+      call utl_abort('int_vInterp_gsv: input and output statevectors must be of same dataKind')
+    end if
+
+    call msg('int_vInterp_gsv', 'END', verb_opt=2)
+
+  end subroutine int_vInterp_gsv
+
+  !--------------------------------------------------------------------------
+  ! vInterp_gsv_r8
+  !--------------------------------------------------------------------------
+  subroutine vInterp_gsv_r8(statevector_in,statevector_out,statevectorRef_opt, &
+                                Ps_in_hPa_opt,checkModelTop_opt)
+    !
+    ! :Purpose: Vertical interpolation, ``real(8)`` version.
     !
     implicit none
 
@@ -375,9 +414,7 @@ contains
 
     type(struct_vco), pointer :: vco_in, vco_out
 
-    call msg('int_vInterp_gsv', 'START', verb_opt=2)
-    ! read the namelist
-    call int_readNml()
+    call msg('vInterp_gsv_r8', 'START', verb_opt=4)
 
     vco_in  => gsv_getVco(statevector_in)
     vco_out => gsv_getVco(statevector_out)
@@ -386,7 +423,7 @@ contains
 
     if (present(statevectorRef_opt)) then
       if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector_in))) then
-        call utl_abort('int_vInterp_gsv: reference must have input vertical structure')
+        call utl_abort('vInterp_gsv_r8: reference must have input vertical structure')
       end if
       statevectorRef => statevectorRef_opt
     else
@@ -394,17 +431,17 @@ contains
     end if
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call msg('int_vInterp_gsv', 'The input and output statevectors are already on same vertical levels')
+      call msg('vInterp_gsv_r8', 'The input and output statevectors are already on same vertical levels')
       call gsv_copy(statevector_in, statevector_out)
       return
     end if
 
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('int_vInterp_gsv: The input and output statevectors are not on the same horizontal grid.')
+      call utl_abort('vInterp_gsv_r8: The input and output statevectors are not on the same horizontal grid.')
     end if
 
     if ( gsv_getDataKind(statevector_in) /= 8 .or. gsv_getDataKind(statevector_out) /= 8 ) then
-      call utl_abort('int_vInterp_gsv: Incorrect value for dataKind. Only compatible with dataKind=8')
+      call utl_abort('vInterp_gsv_r8: Incorrect value for dataKind. Only compatible with dataKind=8')
     end if
 
     if (gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
@@ -420,9 +457,9 @@ contains
       checkModelTop = .true.
     end if
     if (checkModelTop) then
-      call msg('int_vInterp_gsv', ' Checking that that the top of the destination grid is not higher than the top of the source grid.')
+      call msg('vInterp_gsv_r8', ' Checking that that the top of the destination grid is not higher than the top of the source grid.')
       if ( vcode_in == 21001 .or. vcode_out == 21001 ) then
-        call msg('int_vInterp_gsv', 'bypassing top check, '&
+        call msg('vInterp_gsv_r8', 'bypassing top check, '&
              //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
         ! Development notes (@mad001)
         !   we should consider having a new criterion that works for GEM-H as well
@@ -495,12 +532,12 @@ contains
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
         end if
 
-        call msg('int_vInterp_gsv','converting pressure coordinates to height-like, '&
+        call msg('vInterp_gsv_r8','converting pressure coordinates to height-like, '&
              //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
-        call logP(hLikeM_out)
-        call logP(hLikeT_out)
-        call logP(hLikeM_in)
-        call logP(hLikeT_in)
+        call logP_r8(hLikeM_out)
+        call logP_r8(hLikeT_out)
+        call logP_r8(hLikeM_in)
+        call logP_r8(hLikeT_in)
 
       ! output grid GEM-H interpolation in height
       else if ( vcode_out==21001 ) then
@@ -542,9 +579,9 @@ contains
         ! do the vertical interpolation
         field_out(:,:,:,stepIndex) = 0.0d0
         if (vnl_varLevelFromVarname(varName) == 'TH') then
-          call hLike_interpolation(hLikeT_in, hLikeT_out)
+          call hLike_interpolation_r8(hLikeT_in, hLikeT_out)
         else
-          call hLike_interpolation(hLikeM_in, hLikeM_out)
+          call hLike_interpolation_r8(hLikeM_in, hLikeM_out)
         end if
 
 
@@ -558,11 +595,11 @@ contains
       deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
     end do var_loop
 
-    call msg('int_vInterp_gsv', 'END', verb_opt=2)
+    call msg('vInterp_gsv_r8', 'END', verb_opt=4)
 
     contains
 
-      subroutine hLike_interpolation(hLike_in, hLike_out)
+      subroutine hLike_interpolation_r8(hLike_in, hLike_out)
         !
         ! :Purpose: Proceed to actual interpolation in H-logP representation
         !
@@ -601,16 +638,16 @@ contains
         end do
         !$OMP END PARALLEL DO
 
-      end subroutine hLike_interpolation
+      end subroutine hLike_interpolation_r8
 
-  end subroutine int_vInterp_gsv
+  end subroutine vInterp_gsv_r8
 
   !--------------------------------------------------------------------------
-  ! logP
+  ! logP_r8
   !--------------------------------------------------------------------------
-  subroutine logP(presInLogOut)
+  subroutine logP_r8(presInLogOut)
     !
-    ! :Purpose: compute log of pressurce field
+    ! :Purpose: compute log of pressurce field, real(8) version
     !
     implicit none
 
@@ -633,15 +670,15 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-  end subroutine logP
+  end subroutine logP_r8
 
   !--------------------------------------------------------------------------
-  ! int_vInterp_gsv_r4
+  ! vInterp_gsv_r4
   !--------------------------------------------------------------------------
-  subroutine int_vInterp_gsv_r4(statevector_in,statevector_out,statevectorRef_opt, &
+  subroutine vInterp_gsv_r4(statevector_in,statevector_out,statevectorRef_opt, &
                                 Ps_in_hPa_opt,checkModelTop_opt)
     !
-    ! :Purpose: Vertical interpolation
+    ! :Purpose: Vertical interpolation, ``real(4)`` version.
     !
     !
     implicit none
@@ -671,28 +708,35 @@ contains
 
     type(struct_vco), pointer :: vco_in, vco_out
 
-    call msg('int_vInterp_gsv_r4', 'START', verb_opt=2)
-    ! read the namelist
-    call int_readNml()
+    call msg('vInterp_gsv_r4', 'START', verb_opt=4)
+
+    vco_in  => gsv_getVco(statevector_in)
+    vco_out => gsv_getVco(statevector_out)
+    vcode_in  = vco_in%vcode
+    vcode_out = vco_out%vcode
 
     if (present(statevectorRef_opt)) then
+      if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector_in))) then
+        call utl_abort('vInterp_gsv_r4: reference must have input vertical structure')
+      end if
       statevectorRef => statevectorRef_opt
     else
       statevectorRef => statevector_in
     end if
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      call msg('int_vInterp_gsv_r4', 'The input and output statevectors are already on same vertical levels')
+      call msg('vInterp_gsv_r4', 'The input and output statevectors are already on same vertical levels')
       call gsv_copy(statevector_in, statevector_out)
       return
     end if
 
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('int_vInterp_gsv_r4: The input and output statevectors are not on the same horizontal grid.')
+      call utl_abort('vInterp_gsv_r4: The input and output statevectors are not on the same horizontal grid.')
     end if
 
+    ! DBGmad remove?
     if ( gsv_getDataKind(statevector_in) /= 4 .or. gsv_getDataKind(statevector_out) /= 4 ) then
-      call utl_abort('int_vInterp_gsv_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
+      call utl_abort('vInterp_gsv_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
     if (gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
@@ -701,11 +745,7 @@ contains
       heightSfcOut(:,:) = heightSfcIn(:,:)
     end if
 
-    vco_in  => gsv_getVco(statevector_in)
-    vco_out => gsv_getVco(statevector_out)
-    vcode_in  = vco_in%vcode
-    vcode_out = vco_out%vcode
-
+    ! DBGmad move to int_vInterp_gsv?
     ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
     if ( present(checkModelTop_opt) ) then
       checkModelTop = checkModelTop_opt
@@ -713,9 +753,9 @@ contains
       checkModelTop = .true.
     end if
     if (checkModelTop) then
-      call msg('int_vInterp_gsv_r4', ' Checking that that the top of the destination grid is not higher than the top of the source grid.')
+      call msg('vInterp_gsv_r4', ' Checking that that the top of the destination grid is not higher than the top of the source grid.')
       if ( vcode_in == 21001 .or. vcode_out == 21001 ) then
-        call msg('int_vInterp_gsv_r4', 'bypassing top check, '&
+        call msg('vInterp_gsv_r4', 'bypassing top check, '&
              //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
         ! Development notes (@mad001)
         !   we should consider having a new criterion that works for GEM-H as well
@@ -777,7 +817,6 @@ contains
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
         else if ( vcode_in==21001 ) then
           call czp_calcReturnHeight_gsv_nl( statevector_in, &
-                                            statevectorRef_opt=statevectorRef, &
                                             ZTout_r4_opt=tmpCoord_T, &
                                             ZMout_r4_opt=tmpCoord_M)
           call czp_calcReturnPressure_gsv_nl( statevector_in, &
@@ -789,7 +828,7 @@ contains
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
         end if
 
-        call msg('int_vInterp_gsv_r4','converting pressurecoordinates to height-like, '&
+        call msg('vInterp_gsv_r4','converting pressure coordinates to height-like, '&
              //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
         call logP_r4(hLikeM_out)
         call logP_r4(hLikeT_out)
@@ -799,12 +838,10 @@ contains
       ! output grid GEM-H interpolation in height
       else if ( vcode_out==21001 ) then
         call czp_calcReturnHeight_gsv_nl( statevector_out, &
-                                          statevectorRef_opt=statevectorRef, &
                                           ZTout_r4_opt=hLikeT_out, &
                                           ZMout_r4_opt=hLikeM_out)
         if ( vcode_in==21001 ) then
           call czp_calcReturnHeight_gsv_nl( statevector_in, &
-                                            statevectorRef_opt=statevectorRef, &
                                             ZTout_r4_opt=hLikeT_in, &
                                             ZMout_r4_opt=hLikeM_in)
         else if ( vcode_in==5002 .or. vcode_in==5005 ) then
@@ -854,7 +891,7 @@ contains
       deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
     end do var_loop
 
-    call msg('int_vInterp_gsv_r4', 'END', verb_opt=2)
+    call msg('vInterp_gsv_r4', 'END', verb_opt=4)
 
     contains
 
@@ -899,7 +936,7 @@ contains
 
       end subroutine hLike_interpolation_r4
 
-  end subroutine int_vInterp_gsv_r4
+  end subroutine vInterp_gsv_r4
 
   !--------------------------------------------------------------------------
   ! logP_r4

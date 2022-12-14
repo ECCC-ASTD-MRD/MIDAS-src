@@ -473,7 +473,7 @@ module gridStateVectorFileIO_mod
                       mpi_local_opt=.false., dataKind_opt=4,                                     &
                       allocHeightSfc_opt=readHeightSfc, varNames_opt=varNamesToRead)
 
-    call int_vInterp_gsv_r4(statevector_hinterp_r4,statevector_vinterp_r4)
+    call int_vInterp_gsv(statevector_hinterp_r4,statevector_vinterp_r4)
 
     call gsv_deallocate(statevector_hinterp_r4)
 
