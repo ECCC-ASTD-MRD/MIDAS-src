@@ -476,8 +476,10 @@ CONTAINS
       write(memberIndexStr,'(I0.4)') memberIndex
       fileName = trim(outputFilenamePrefix) // '_' // memberIndexStr
       write(*,*) 'eob_writeToFiles: writing ',trim(filename)
-      write(*,*) 'eob_writeToFiles: ensObs%fileMemberIndex1=', ensObs%fileMemberIndex1, &
-                 ', file corresponds to ', ensObs%fileMemberIndex1 + memberIndex - 1
+      if (mmpi_myid == 0) then
+        write(*,*) 'eob_writeToFiles: fileMemberIndex1=', ensObs%fileMemberIndex1, ', memberIndex=', memberIndex, &
+                   ', memberIndex in original ensemble set=', ensObs%fileMemberIndex1 + memberIndex - 1
+      end if
       unitNum = 0
       ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
@@ -547,13 +549,14 @@ CONTAINS
     fileName = trim(outputFilenamePrefix) // '.myid_' // trim(fileNameExtention)
     write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
     inquire(file=trim(fileName),exist=fileExists)
-    if ( fileExists ) then
+    if (fileExists) then
       call utl_abort('eob_writeToFilesMpiLocal: file should not exist')
     end if
 
     unitNum = 0
     ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
-    write(unitNum) (memberIndex, memberIndex = 1, ensObs%numMembers)
+    write(unitNum) ensObs%numMembers
+    write(unitNum) (ensObs%fileMemberIndex1+memberIndex-1, memberIndex = 1, ensObs%numMembers)
     do memberIndex = 1, ensObs%numMembers
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
     end do
@@ -595,9 +598,10 @@ CONTAINS
     real(8) :: latFromFile(ensObs%numObs), lonFromFile(ensObs%numObs)
     real(8) :: obsValueFromFile(ensObs%numObs)
     integer :: obsVcoCode(ensObs%numObs), obsVcoCodeFromFile(ensObs%numObs)
-    integer :: obsFlag(ensObs%numObs), memberIndexFromFile(ensObs%numMembers)
-    integer :: unitNum, ierr, memberIndex, obsIndex, numMembers, numObs
-    integer :: fnom, fclos
+    integer :: obsFlag(ensObs%numObs)
+    integer :: unitNum, ierr, memberIndex, obsIndex, numObsFromFile
+    integer :: numMembersFromFile, numMembersFromFile2, fnom, fclos
+    integer, allocatable :: memberIndexFromFile(:)
     logical :: fileExists
     character(len=40) :: fileName
     character(len=4)  :: myidxStr, myidyStr
@@ -617,26 +621,31 @@ CONTAINS
     fileName = 'eob_obsInfo.myid_' // trim(fileNameExtention)
     write(*,*) 'eob_readFromFilesMpiLocal: reading ',trim(fileName)
     inquire(file=trim(fileName),exist=fileExists)
-    if ( .not. fileExists ) then
+    if (.not. fileExists) then
       call utl_abort('eob_readFromFilesMpiLocal: file does not exist')
     end if
 
     unitNum = 0
     ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
-    read(unitNum) numMembers, numObs
-    if ( ensObs%numMembers /= numMembers .or. ensObs%numObs /= numObs ) then
-      call utl_abort('eob_readFromFilesMpiLocal: ensObs%numMembers[numObs] do not match with that of file')
+    read(unitNum) numMembersFromFile, numObsFromFile
+    if (ensObs%numObs /= numObsFromFile) then
+      call utl_abort('eob_readFromFilesMpiLocal: ensObs%numObs does not match with that of file')
     end if
+    if (ensObs%numMembers /= numMembersFromFile) then
+      write(*,*) 'eob_readFromFilesMpiLocal: ensObs%numMembers=', ensObs%numMembers, &
+                 ', numMembersFromFile= ', numMembersFromFile
+    end if
+
     read(unitNum) (latFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
     read(unitNum) (lonFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
     read(unitNum) (obsVcoCodeFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
     read(unitNum) (obsValueFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
     
-    if ( .not. all(latFromFile(:) == ensObs%lat(:)) .or. &
-         .not. all(lonFromFile(:) == ensObs%lon(:)) .or. &
-         .not. all(obsValueFromFile(:) == ensObs%obsValue(:)) .or. &
-         .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:)) ) then
-      call utl_abort('eob_readFromFilesMpiLocal: file do not match ensObs')
+    if (.not. all(latFromFile(:) == ensObs%lat(:)) .or. &
+        .not. all(lonFromFile(:) == ensObs%lon(:)) .or. &
+        .not. all(obsValueFromFile(:) == ensObs%obsValue(:)) .or. &
+        .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:))) then
+      call utl_abort('eob_readFromFilesMpiLocal: onsInfo file do not match ensObs')
     end if
     
     ! read assimilation/obs flags from file and modify obsSpaceData
@@ -644,7 +653,7 @@ CONTAINS
     read(unitNum) (obsFlag(obsIndex), obsIndex = 1, ensObs%numObs)
     do obsIndex = 1, obs_numbody(ensObs%obsSpaceData)
       ! skip this obs it is already set to be assimilated
-      if ( ensObs%assFlag(obsIndex) == obs_assimilated ) cycle
+      if (ensObs%assFlag(obsIndex) == obs_assimilated) cycle
 
       call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, obsIndex, obs_notAssimilated)
       call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, obsIndex, obsFlag(obsIndex))
@@ -655,15 +664,20 @@ CONTAINS
     fileName = trim(inputFilenamePrefix) // '.myid_' // trim(fileNameExtention)
     write(*,*) 'eob_readFromFilesMpiLocal: reading ',trim(fileName)
     inquire(file=trim(fileName),exist=fileExists)
-    if ( .not. fileExists ) then
-      call utl_abort('eob_readFromFilesMpiLocal: file does not exist')
+    if (.not. fileExists) then
+      call utl_abort('eob_readFromFilesMpiLocal: file storing Yb does not exist')
     end if
     
     unitNum = 0
     ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
-    read(unitNum) (memberIndexFromFile(memberIndex), memberIndex = 1, ensObs%numMembers)
-    do memberIndex = 1, ensObs%numMembers
-      read(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
+    read(unitNum) numMembersFromFile2
+    if (numMembersFromFile /= numMembersFromFile2) then
+      call utl_abort('eob_readFromFilesMpiLocal: numMembersFromFile do not match between files')
+    end if 
+    allocate(memberIndexFromFile(numMembersFromFile))  
+    read(unitNum) (memberIndexFromFile(memberIndex), memberIndex = 1, numMembersFromFile)
+    do memberIndex = 1, numMembersFromFile
+      read(unitNum) (ensObs%Yb_r4(memberIndexFromFile(memberIndex),obsIndex), obsIndex = 1, ensObs%numObs)
     end do
     ierr = fclos(unitNum)
 
