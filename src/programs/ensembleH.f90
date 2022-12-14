@@ -63,8 +63,7 @@ program midas_ensembleH
   logical  :: useModulatedEns, writeGlobalEnsObsToFile, writeLocalEnsObsToFile
 
   character(len=256)  :: ensFileName
-  character(len=256)  :: outFileName
-  character(len=256)  :: inFileName
+  character(len=256)  :: ensMeanFileName
   character(len=9)    :: obsColumnMode
   character(len=48)   :: obsMpiStrategy
   character(len=48)   :: midasMode
@@ -79,12 +78,11 @@ program midas_ensembleH
   integer  :: fileMemberIndex1 ! first member number in ensemble set.
   real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
                                !   used only when generating modulated ensembles.
-  logical  :: writeEnsMean
-  logical  :: readEnsMean
+  logical  :: readEnsMeanFromFile
   character(len=20)  :: writeEnsObsToFileType
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
                          vLocalize, writeEnsObsToFileType, fileMemberIndex1, &
-                         writeEnsMean, readEnsMean
+                         readEnsMeanFromFile
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -115,8 +113,7 @@ program midas_ensembleH
   vLocalize             = -1.0D0
   writeEnsObsToFileType = 'GLOBAL'
   fileMemberIndex1      = 1
-  writeEnsMean          = .false.
-  readEnsMean           = .false.
+  readEnsMeanFromFile   = .false.
 
   ! Read the namelist
   nulnam = 0
@@ -249,12 +246,12 @@ program midas_ensembleH
   call utl_tmg_stop(2)
 
   ! Compute ensemble mean and copy to meanTrl stateVectors
-  if (readEnsMean) then
-    ! read the mean stateVector and copy to ens%stateVector_work
-    call fln_ensTrlFileName(inFileName, '.', tim_getDateStamp())
-    inFileName = trim(inFileName) // '_trialmean'
+  if (readEnsMeanFromFile) then
+    ! read the mean stateVector and copy to ensembleTrl4D object
+    call fln_ensTrlFileName(ensMeanFileName, '.', tim_getDateStamp())
+    ensMeanFileName = trim(ensMeanFileName) // '_trialmean'
     do stepIndex = 1, tim_nstepobs
-      call gio_readFromFile(stateVectorMeanTrl4D, inFileName, ' ', ' ',  &
+      call gio_readFromFile(stateVectorMeanTrl4D, ensMeanFileName, ' ', ' ',  &
                             containsFullField_opt=.true., readHeightSfc_opt=.true., &
                             stepIndex_opt=stepIndex)
     end do
@@ -264,16 +261,6 @@ program midas_ensembleH
     call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
   end if
   
-  if (writeEnsMean) then
-    call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
-    outFileName = trim(outFileName) // '_trialmean'
-    do stepIndex = 1, tim_nstepobs
-      call gio_writeToFile(stateVectorMeanTrl4D, outFileName, ' ',  &
-                           containsFullField_opt=.true., writeHeightSfc_opt=.true., &
-                           stepIndex_opt=stepIndex)
-    end do
-  end if
-
   do memberIndex = 1, nEns
 
     write(*,*) ''
