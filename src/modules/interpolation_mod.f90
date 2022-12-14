@@ -162,7 +162,7 @@ contains
     call gsv_allocate(statevector_in_VarsLevs, statevector_in%numstep, &
                       statevector_in%hco, statevector_in%vco,          &
                       mpi_local_opt=statevector_in%mpi_local, mpi_distribution_opt='VarsLevs',  &
-                      dataKind_opt=statevector_in%dataKind,                                     &
+                      dataKind_opt=gsv_getDataKind(statevector_in), &
                       allocHeightSfc_opt=statevector_in%heightSfcPresent, &
                       varNames_opt=varNamesToInterpolate, &
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
@@ -173,7 +173,7 @@ contains
     call gsv_allocate(statevector_in_VarsLevs_hInterp, statevector_in%numstep, &
                       statevector_out%hco, statevector_in%vco,  &
                       mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='VarsLevs', &
-                      dataKind_opt=statevector_out%dataKind,                                    &
+                      dataKind_opt=gsv_getDataKind(statevector_out), &
                       allocHeightSfc_opt=statevector_out%heightSfcPresent, &
                       varNames_opt=varNamesToInterpolate, &
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
@@ -185,7 +185,7 @@ contains
     call gsv_allocate(statevector_in_hInterp, statevector_in%numstep, &
                       statevector_out%hco, statevector_in%vco,      &
                       mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='Tiles', &
-                      dataKind_opt=statevector_out%dataKind,                                 &
+                      dataKind_opt=gsv_getDataKind(statevector_out), &
                       allocHeightSfc_opt=statevector_out%heightSfcPresent, &
                       varNames_opt=varNamesToInterpolate )
 
@@ -201,8 +201,8 @@ contains
       checkModelTop = .true.
     end if
     
-    if (statevector_in_VarsLevs%dataKind == 4) then
-      call int_vInterp_gsv_r4(statevector_in_hInterp,statevector_out,&
+    if ( gsv_getDataKind(statevector_in_VarsLevs) == 4) then
+      call vInterp_gsv_r4(statevector_in_hInterp,statevector_out,&
                               statevectorRef_opt=statevectorRef_opt, &
                               checkModelTop_opt=checkModelTop)
     else 
@@ -403,7 +403,7 @@ contains
       call utl_abort('int_vInterp_gsv: The input and output statevectors are not on the same horizontal grid.')
     end if
 
-    if ( statevector_in%dataKind /= 8 .or. statevector_out%dataKind /= 8 ) then
+    if ( gsv_getDataKind(statevector_in) /= 8 .or. gsv_getDataKind(statevector_out) /= 8 ) then
       call utl_abort('int_vInterp_gsv: Incorrect value for dataKind. Only compatible with dataKind=8')
     end if
 
@@ -691,7 +691,7 @@ contains
       call utl_abort('int_vInterp_gsv_r4: The input and output statevectors are not on the same horizontal grid.')
     end if
 
-    if ( statevector_in%dataKind /= 4 .or. statevector_out%dataKind /= 4 ) then
+    if ( gsv_getDataKind(statevector_in) /= 4 .or. gsv_getDataKind(statevector_out) /= 4 ) then
       call utl_abort('int_vInterp_gsv_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
@@ -1039,7 +1039,7 @@ contains
            //', deltaHourInOut/deltaHour='//str(deltaHourInOut)//'/'//str(deltaHour), &
            mpiAll_opt=.false.)
 
-      if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 4 ) then
+      if ( gsv_getDataKind(statevector_in) == 4 .and. gsv_getDataKind(statevector_out) == 4 ) then
         call gsv_getField(statevector_in, gdIn_r4)
         call gsv_getField(statevector_out, gdOut_r4)
         !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
@@ -1053,7 +1053,7 @@ contains
           end do
         end do
         !$OMP END PARALLEL DO
-      else if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 8 ) then
+      else if ( gsv_getDataKind(statevector_in) == 4 .and. gsv_getDataKind(statevector_out) == 8 ) then
         call gsv_getField(statevector_in, gdIn_r4)
         call gsv_getField(statevector_out, gdOut_r8)
         !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
@@ -1067,7 +1067,7 @@ contains
           end do
         end do
         !$OMP END PARALLEL DO
-      else if ( statevector_in%dataKind == 8 .and. statevector_out%dataKind == 4 ) then
+      else if ( gsv_getDataKind(statevector_in) == 8 .and. gsv_getDataKind(statevector_out) == 4 ) then
         call gsv_getField(statevector_in, gdIn_r8)
         call gsv_getField(statevector_out, gdOut_r4)
         !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
@@ -1081,7 +1081,7 @@ contains
           end do
         end do
         !$OMP END PARALLEL DO
-      else if ( statevector_in%dataKind == 8 .and. statevector_out%dataKind == 8 ) then
+      else if ( gsv_getDataKind(statevector_in) == 8 .and. gsv_getDataKind(statevector_out) == 8 ) then
         call gsv_getField(statevector_in, gdIn_r8)
         call gsv_getField(statevector_out, gdOut_r8)
         !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
@@ -1377,7 +1377,7 @@ contains
     if (stateVectorIn%hco%initialized .and. stateVectorOut%hco%initialized) then
       if (stateVectorIn%hco%grtyp == 'Y') then
         ! for now, only comptable for real(4)
-        if(stateVectorOut%dataKind /= 4 .or. stateVectorIn%dataKind /= 4) then
+        if( gsv_getDataKind(stateVectorOut) /= 4 .or. gsv_getDataKind(stateVectorIn) /= 4) then
           call utl_abort('int_hInterpScalar_gsv: cloudToGrid only implemented for real(4)')
         end if
         ierr = int_sintCloudToGrid_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex)
@@ -1403,7 +1403,7 @@ contains
       heightSfcOut(:,:) = fieldOut_r4(:,:,1,1)
       deallocate(fieldIn_r4,fieldOut_r4)
 
-    else if (stateVectorOut%dataKind == 4 .and. stateVectorIn%dataKind == 4) then
+    else if ( gsv_getDataKind(stateVectorOut) == 4 .and. gsv_getDataKind(stateVectorIn) == 4) then
 
       if (trim(varName) == 'ALL') then
         call gsv_getField(stateVectorOut, fieldOut_r4)
@@ -1415,7 +1415,7 @@ contains
 
       ierr = ezsint(fieldOut_r4(:,:,levIndex,stepIndex),fieldIn_r4(:,:,levIndex,stepIndex))
 
-    else if (stateVectorOut%dataKind == 8 .and. stateVectorIn%dataKind == 8) then
+    else if ( gsv_getDataKind(stateVectorOut) == 8 .and. gsv_getDataKind(stateVectorIn) == 8) then
 
       if (trim(varName) == 'ALL') then
         call gsv_getField(stateVectorOut, fieldOut_r8)
@@ -1900,7 +1900,7 @@ contains
     ierr = ezdefset(stateVectorOut%hco%EZscintID, stateVectorIn%hco%EZscintID)
     call int_setezopt(interpDegree, extrapDegree_opt)   
 
-    if (stateVectorOut%dataKind == 4 .and. stateVectorIn%dataKind == 4) then
+    if ( gsv_getDataKind(stateVectorOut) == 4 .and. gsv_getDataKind(stateVectorIn) == 4) then
 
       if (trim(varName) == 'BOTH') then
         call gsv_getField(stateVectorOut, UUout4, 'UU')
@@ -1927,7 +1927,7 @@ contains
         call utl_abort('int_hInterpUV_gsv: unexpected varName: '//trim(varName))
       end if
 
-    else if (stateVectorOut%dataKind == 8 .and. stateVectorIn%dataKind == 8) then
+    else if ( gsv_getDataKind(stateVectorOut) == 8 .and. gsv_getDataKind(stateVectorIn) == 8) then
 
       ! allocate real(4) buffers for copying to/from for interpolation
       allocate(UUin4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
