@@ -57,12 +57,13 @@ program midas_ensembleH
 
   integer :: get_max_rss, fclos, fnom, fstopc, ierr
   integer :: memberIndex, nulnam, dateStamp
-  integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
+  integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs, stepIndex
   integer, allocatable :: dateStampList(:)
 
   logical  :: useModulatedEns, writeGlobalEnsObsToFile, writeLocalEnsObsToFile
 
   character(len=256)  :: ensFileName
+  character(len=256)  :: outFileName
   character(len=9)    :: obsColumnMode
   character(len=48)   :: obsMpiStrategy
   character(len=48)   :: midasMode
@@ -77,9 +78,10 @@ program midas_ensembleH
   integer  :: fileMemberIndex1 ! first member number in ensemble set.
   real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
                                !   used only when generating modulated ensembles.
+  logical  :: writeEnsMean
   character(len=20)  :: writeEnsObsToFileType
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
-                         vLocalize, writeEnsObsToFileType, fileMemberIndex1
+                         vLocalize, writeEnsObsToFileType, fileMemberIndex1, writeEnsMean
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -110,6 +112,7 @@ program midas_ensembleH
   vLocalize             = -1.0D0
   writeEnsObsToFileType = 'GLOBAL'
   fileMemberIndex1      = 1
+  writeEnsMean          = .false.
 
   ! Read the namelist
   nulnam = 0
@@ -244,6 +247,15 @@ program midas_ensembleH
   ! Compute ensemble mean and copy to meanTrl stateVectors
   call ens_computeMean(ensembleTrl4D)
   call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
+  if (writeEnsMean) then
+    call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
+    outFileName = trim(outFileName) // '_trialmean'
+    do stepIndex = 1, tim_nstepobs
+      call gio_writeToFile(stateVectorMeanTrl4D, outFileName, 'E27_0_0PAVG',  &
+                           typvar_opt='P', writeHeightSfc_opt=.true., numBits_opt=16,  &
+                           stepIndex_opt=stepIndex, containsFullField_opt=.true.)
+    end do
+  end if
 
   do memberIndex = 1, nEns
 
