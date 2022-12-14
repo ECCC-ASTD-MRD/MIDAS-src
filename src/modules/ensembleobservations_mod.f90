@@ -543,7 +543,7 @@ CONTAINS
       ierr = fclos(unitNum)
     end if
 
-    ! write the contents of Yb for all the members to one file
+    ! Open file and write ensObs%Yb for all the members to one file
     fileName = trim(outputFilenamePrefix) // '.myid_' // trim(fileNameExtention)
     write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
     inquire(file=trim(fileName),exist=fileExists)
@@ -581,7 +581,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_readFromFilesMpiLocal
   !--------------------------------------------------------------------------
-  subroutine eob_readFromFilesMpiLocal(ensObs, readEnsObsGain_opt)
+  subroutine eob_readFromFilesMpiLocal(ensObs, inputFilenamePrefix)
     !
     ! :Purpose: Read ensObs%Yb of mpi local object from file
     !
@@ -589,7 +589,7 @@ CONTAINS
 
     ! arguments
     type(struct_eob), intent(inout) :: ensObs
-    logical, optional, intent(in) :: readEnsObsGain_opt
+    character(len=*),    intent(in) :: inputFilenamePrefix
     
     ! locals
     real(8) :: latFromFile(ensObs%numObs), lonFromFile(ensObs%numObs)
@@ -598,7 +598,7 @@ CONTAINS
     integer :: obsFlag(ensObs%numObs), memberIndexFromFile(ensObs%numMembers)
     integer :: unitNum, ierr, memberIndex, obsIndex, numMembers, numObs
     integer :: fnom, fclos
-    logical :: readEnsObsGain, fileExists
+    logical :: fileExists
     character(len=40) :: fileName
     character(len=4)  :: myidxStr, myidyStr
     character(len=30) :: fileNameExtention
@@ -651,12 +651,8 @@ CONTAINS
     end do
     ierr = fclos(unitNum)
 
-    ! Open file containing Yb and read ensObs%Yb
-    if ( readEnsObsGain ) then
-      fileName = 'eobGain_HX.myid_' // trim(fileNameExtention)
-    else
-      fileName = 'eob_HX.myid_' // trim(fileNameExtention)
-    end if
+    ! Open file and read ensObs%Yb
+    fileName = trim(inputFilenamePrefix) // '.myid_' // trim(fileNameExtention)
     write(*,*) 'eob_readFromFilesMpiLocal: reading ',trim(fileName)
     inquire(file=trim(fileName),exist=fileExists)
     if ( .not. fileExists ) then
