@@ -306,6 +306,10 @@ program midas_ensembleH
   ! write local ensObs to file
   if (writeLocalEnsObsToFile) then
     call eob_writeToFilesMpiLocal(ensObs, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
+    if (useModulatedEns) then
+      call eob_writeToFilesMpiLocal(ensObsGain, outputFilenamePrefix='eobGain_HX', &
+                                    writeObsInfo=.false.)
+    end if
   end if
 
   ! Clean and globally communicate obs-related data, then write to files
