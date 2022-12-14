@@ -69,6 +69,42 @@ program midas_var
   !
   !            --
   !
+  !============================================== ==============================================================
+  ! Input and Output Files                         Description of file
+  !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``flnml_static``                               In - The "static" namelist that should not be modified
+  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
+  ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
+  ! ``bgcov``                                      In - Static (i.e. NMC) B matrix file for NWP fields
+  ! ``bgchemcov``                                  In - Static B matrix file for chemistry fields
+  ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Ensemble member files defining ensemble B matrix
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
+  ! ``obscov``                                     In - Observation error statistics
+  ! ``obserr``                                     In - Observation error statistics
+  ! ``obsinfo_chm``                                In - Something needed for chemistry assimilation?
+  ! ``preconin``                                   In - Preconditioning file (Hessian of the cost function)
+  ! ``rebm_$MMMm`` (e.g. ``rebm_180m``)            Out - Analysis increment on the (low-res) analysis grid
+  ! ``rehm_$MMMm``                                 Out - Analysis increment on the (high-res) trial grid
+  ! ``anlm_$MMMm``                                 Out - Analysis on the trial grid
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
+  ! Remainder are files related to radiance obs:
+  ! ``stats_$SENSOR_assim``                        In - 
+  ! ``stats_tovs``                                 In - 
+  ! ``stats_tovs_symmetricObsErr``                 In - 
+  ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
+  ! ``bcif_$SENSOR``                               In - 
+  ! ``ceres_global.std``                           In - 
+  ! ``champ_fd_181x91``                            In - 
+  ! ``coeff_file_$SENSOR``                         In - 
+  ! ``dynbcor.coeffs.$SENSOR.$MOREINFO``           In - 
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - 
+  ! ``rttov_h2o_limits.dat``                       In - 
+  ! ``ozoneclim98``                                In - 
+  !============================================== ==============================================================
+  !
+  !           --
+  !
   !:Synopsis: Below is a summary of the ``var`` program calling sequence:
   !
   !             - **Initial setups:**
@@ -154,48 +190,36 @@ program midas_var
   !
   !           --
   !
-  !:Options: The choice of 3D-Var vs. 4D-EnVar is controlled by the weights
-  !          given to the climatological (i.e. static) and ensemble-based
-  !          background error covariance (i.e. B matrix) components. The weights
-  !          for all B matrix components are zero be default and can be set to a
-  !          nonzero value through the namelist variable ``SCALEFACTOR`` in the
-  !          namelist block for each corresponding fortran module. For example,
-  !          ``NAMBEN`` is the namelist block associated with the
-  !          ``bmatrixEnsemble_mod`` module.
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#var>`_
+  !          that can affect the ``var`` program.
   !
-  !          --
+  !          * The use of an outer loop is controlled by the namelist block
+  !            ``&NAMVAR`` read by the ``var`` program.
   !
-  !          Either algorithm can be used in combination with "First guess at
-  !          appropriate time" (i.e. FGAT) which is controlled by the namelist
-  !          variable ``DSTEPOBS``::
+  !          * The choice of 3D-Var vs. EnVar is controlled by the weights given
+  !            to the climatological (i.e. static) and ensemble-based background
+  !            error covariance (i.e. B matrix) components. The weights for all
+  !            B matrix components are zero be default and can be set to a
+  !            nonzero value through the namelist variable ``SCALEFACTOR`` in
+  !            the namelist block for each corresponding fortran module.
   !
-  !            &NAMTIM
-  !            DSTEPOBS = 1.0D0
+  !          * Either algorithm can be used in combination with "First guess at
+  !            appropriate time" (i.e. FGAT) which is controlled by the namelist
+  !            variable ``DSTEPOBS`` (in ``NAMTIM``) that specifies the length
+  !            of time (in hours) between times when the background state is
+  !            used to compute the innovation (i.e. O-B).
   !
-  !          which specifies the length of time (in hours) between times when
-  !          the background state must be available for use in computing the
-  !          innovation (i.e. O-B). By specifying a value less than the
-  !          assimilation window length (which is usually 6 hours for NWP
-  !          applications), the background state will be used at multiple times
-  !          within the assimilation window (i.e. FGAT).
+  !          * Similarly, the choice between 3D-EnVar and 4D-EnVar is controlled
+  !            by the namelist variable ``DSTEPOBSINC`` (also in ``&NAMTIM``)
+  !            which specifies the length of time (in hours) between times when
+  !            the analysis increment is computed. In the context of EnVar, if
+  !            this is less than the assimilation time window, then the
+  !            ensembles used to construct the ensemble-based B matrix component
+  !            will be used at multiple times within the assimilation window to
+  !            obtain 4D covariances (i.e. 4D-EnVar).
   !
-  !          --
-  !
-  !          Similarly, the choice between 3D- and 4D-EnVar is controlled by
-  !          the namelist variable ``DSTEPOBSINC`` (also in ``&NAMTIM``) which
-  !          specifies the length of time (in hours) between times when the
-  !          analysis increment is computed. In the context of EnVar, if this
-  !          is less than the assimilation time window, then the ensembles used
-  !          to construct the ensemble-based B matrix component will be used at
-  !          multiple times within the assimilation window to obtain 4D
-  !          covariances (i.e. 4D-EnVar).
-  !
-  !          --
-  !
-  !          The use of an outer loop is controlled by the namelist block
-  !          ``&NAMVAR`` read by the ``var`` program. Some of the other
-  !          relevant namelist blocks used the used to configure the
-  !          variational analysis are listed in the following table:
+  !          * Some of the other relevant namelist blocks used to configure the
+  !            variational analysis are listed in the following table:
   ! 
   !======================== =========== ==============================================================
   ! Module                   Namelist    Description of what is controlled
