@@ -987,6 +987,15 @@ CONTAINS
       call utl_abort('ens_copyToEnsMean: supplied stateVector must be allocated')
     end if
 
+    if (.not. allocated(ens%allLev_ensMean_r8)) then
+      call ens_allocateMean(ens)
+    else
+      do varLevIndex = k1, k2
+        ens%allLev_ensMean_r8(varLevIndex)%onelevel(:,:,:,:) = 0.0d0
+      end do
+    end if
+    ens%meanIsComputed = .true.
+
     if (statevector%dataKind == 8) then
       call gsv_getField(statevector,ptr4d_r8)
       do stepIndex = 1, numStep
