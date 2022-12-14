@@ -295,8 +295,8 @@ program midas_ensembleH
   call gsv_deallocate(stateVectorHeightSfc)
 
   ! write local ensObs to file
-  if ( writeEnsObsToFile ) call eob_writeToFilesMpiLocal(ensObs, outputFilenamePrefix='eob_HX', &
-                                                         writeObsInfo=.true.)
+  if (writeEnsObsToFile) call eob_writeToFilesMpiLocal(ensObs, outputFilenamePrefix='eob_HX', &
+                                                       writeObsInfo=.true.)
 
   ! Clean and globally communicate obs-related data, then write to files
   call eob_allGather(ensObs,ensObs_mpiglobal)

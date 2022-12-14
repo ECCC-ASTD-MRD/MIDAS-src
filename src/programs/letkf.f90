@@ -484,10 +484,11 @@ program midas_letkf
   if ( gsv_isAllocated(stateVector4Dmod) ) call gsv_deallocate(stateVector4Dmod)
 
   ! write local ensObs to file
-  if ( writeEnsObsToFile ) then
-    call eob_writeToFilesMpiLocal(ensObs)
-    if ( useModulatedEns ) call eob_writeToFilesMpiLocal(ensObsGain, &
-                                                         writeEnsObsGain_opt=.true.)
+  if (writeEnsObsToFile) then
+    call eob_writeToFilesMpiLocal(ensObs, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
+    if (useModulatedEns) call eob_writeToFilesMpiLocal(ensObsGain, &
+                                                       outputFilenamePrefix='eobGain_HX', &
+                                                       writeObsInfo=.false.)
   end if
 
   !- 3.2 Set some additional information in ensObs/ensObsGain and additional quality
