@@ -64,6 +64,7 @@ program midas_ensembleH
 
   character(len=256)  :: ensFileName
   character(len=256)  :: outFileName
+  character(len=256)  :: inFileName
   character(len=9)    :: obsColumnMode
   character(len=48)   :: obsMpiStrategy
   character(len=48)   :: midasMode
@@ -79,9 +80,11 @@ program midas_ensembleH
   real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
                                !   used only when generating modulated ensembles.
   logical  :: writeEnsMean
+  logical  :: readEnsMean
   character(len=20)  :: writeEnsObsToFileType
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
-                         vLocalize, writeEnsObsToFileType, fileMemberIndex1, writeEnsMean
+                         vLocalize, writeEnsObsToFileType, fileMemberIndex1, &
+                         writeEnsMean, readEnsMean
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -113,6 +116,7 @@ program midas_ensembleH
   writeEnsObsToFileType = 'GLOBAL'
   fileMemberIndex1      = 1
   writeEnsMean          = .false.
+  readEnsMean           = .false.
 
   ! Read the namelist
   nulnam = 0
@@ -245,8 +249,18 @@ program midas_ensembleH
   call utl_tmg_stop(2)
 
   ! Compute ensemble mean and copy to meanTrl stateVectors
-  call ens_computeMean(ensembleTrl4D)
-  call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
+  if (readEnsMean) then
+    ! read the mean stateVector and copy to ens%stateVector_work
+    call fln_ensTrlFileName(inFileName, '.', tim_getDateStamp())
+    inFileName = trim(inFileName) // '_trialmean'
+    call gio_readFromFile(stateVectorMeanTrl4D, inFileName, ' ', ' ',  &
+                          containsFullField_opt=.true., readHeightSfc_opt=.true.)
+    call ens_copyToEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
+  else
+    call ens_computeMean(ensembleTrl4D)
+    call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
+  end if
+  
   if (writeEnsMean) then
     call fln_ensTrlFileName(outFileName, '.', tim_getDateStamp())
     outFileName = trim(outFileName) // '_trialmean'
