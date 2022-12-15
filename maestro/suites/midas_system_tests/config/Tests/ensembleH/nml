@@ -5,6 +5,7 @@
    writeEnsObsToFileType = 'BOTH'
    fileMemberIndex1 = 6
    readEnsMeanFromFile = .true.
+   numFullEns = 9
 /
  &NAMTIME
    DSTEPOBS = 1.0d0
