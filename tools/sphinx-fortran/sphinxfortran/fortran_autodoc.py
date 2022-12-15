@@ -1171,7 +1171,7 @@ class F90toRst(object):
         return signature
 
     def format_routine(self, block, indent=0):
-        """Format the description of a function, a subroutine or a program"""
+        """Format the description of a function or a subroutine"""
         # Declaration of a subroutine or function
         if isinstance(block, six.string_types):
             if block not in list(self.programs.keys()) + \
@@ -1197,32 +1197,31 @@ class F90toRst(object):
             locals(), indent=indent)
         #declaration = self.indent(indent)+'.. f:%(blocktype)s:: %(name)s%(signature)s\n\n'%locals()
 
-        # Treat variables in comment (subroutines and functions only)
+        # Treat variables in comment
         comments = list(block['desc']) + ['']
-        if blocktype != 'program':
-            found = []
-            for iline in range(len(comments)):
-                if 'vardescmatch' in block:
-                    m = block['vardescmatch'](comments[iline])
-                    if m:
-                        varname = m.group('varname')
-                        found.append(varname)
-                        if varname != '':
-                            comments[iline] = self.format_argfield(
-                                block['vars'][varname], block=block)
-            for varname in block['args'] + block['sortvars']:
-                if varname not in found:
-                    comments.append(
-                        self.format_argfield(
-                            block['vars'][varname],
-                            block=block))
+        found = []
+        for iline in range(len(comments)):
+            if 'vardescmatch' in block:
+                m = block['vardescmatch'](comments[iline])
+                if m:
+                    varname = m.group('varname')
                     found.append(varname)
+                    if varname != '':
+                        comments[iline] = self.format_argfield(
+                            block['vars'][varname], block=block)
+        for varname in block['args'] + block['sortvars']:
+            if varname not in found:
+                comments.append(
+                    self.format_argfield(
+                        block['vars'][varname],
+                        block=block))
+                found.append(varname)
 
         # Description
         description = self.format_lines(comments, indent + 1)
 
         # Add use of modules
-        use = self.format_use(block, indent=indent + 1) #, short=True)
+        use = self.format_use(block, indent=indent + 1)
 
         # Add calls
         calls = []
@@ -1259,7 +1258,7 @@ class F90toRst(object):
     format_subroutine = format_routine
 
     def format_program(self, block, indent=0):
-        """Format the description of a function, a subroutine or a program"""
+        """Format the description of a program"""
         # Declaration of a subroutine or function
         if isinstance(block, six.string_types):
             if block not in list(self.programs.keys()) + \
@@ -1710,7 +1709,6 @@ class FortranAutoProgramDirective(Directive):
 #            self.warning('Wrong program name: '+program)
 
         # Get rst
-        #raw_text = f90torst.format_routine(program)
         raw_text = f90torst.format_program(program)
 
         # Insert it

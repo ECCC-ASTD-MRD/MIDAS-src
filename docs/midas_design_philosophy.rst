@@ -31,3 +31,17 @@ MIDAS design philosophy
   functions and variables accessible by code outside of the module must be
   explicitly defined as ``public`` at the beginning of the module, while the
   default is set to ``private`` for all variables, subroutines and functions.
+
+.. |br| raw:: html
+
+* **Clear relationship between MIDAS modules:** Each FORTRAN module in MIDAS has
+  a short (preferrably 3 letters) prefix associated with it to clearly identify
+  all public subroutines/functions/variables. In addition, public derived types
+  defined in a module are usually named with the prefix ``struct_`` followed by
+  the module prefix, for example, ``struct_hco`` for the module
+  ``horizontalCoord_mod``. To make obvious the relationship between a FORTRAN
+  module and the rest of the MIDAS code, all ``use`` statements appear at the
+  beginning of the module declaration (and not within contained
+  subroutines/functions). For a similar reason, all public entities are
+  explicitly declared ``public`` near the beginning of the source file just
+  after the ``use`` statements.
