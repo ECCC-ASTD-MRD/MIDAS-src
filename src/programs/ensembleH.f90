@@ -56,7 +56,7 @@ program midas_ensembleH
   type(struct_hco), pointer :: hco_ens => null()
 
   integer :: get_max_rss, fclos, fnom, fstopc, ierr
-  integer :: memberIndex, nulnam, dateStamp, numFullEns
+  integer :: memberIndex, nulnam, dateStamp
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs, stepIndex
   integer, allocatable :: originalEnsMemberIndexArray(:), modulatedEnsMemberIndexArray(:)
   integer, allocatable :: dateStampList(:)
@@ -78,13 +78,14 @@ program midas_ensembleH
   integer  :: numRetainedEigen ! number of retained eigenValues/Vectors of vertical localization matrix
                                !   used only when generating modulated ensembles.
   integer  :: fileMemberIndex1 ! first member number in ensemble set.
+  integer  :: numFullEns       ! number of full ensemble set (needed only when generating modulated ensembles)
   real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
                                !   used only when generating modulated ensembles.
   logical  :: readEnsMeanFromFile
   character(len=20)  :: writeEnsObsToFileType
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
                          vLocalize, writeEnsObsToFileType, fileMemberIndex1, &
-                         readEnsMeanFromFile
+                         readEnsMeanFromFile, numFullEns
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -116,6 +117,7 @@ program midas_ensembleH
   writeEnsObsToFileType = 'GLOBAL'
   fileMemberIndex1      = 1
   readEnsMeanFromFile   = .false.
+  numFullEns            = 0
 
   ! Read the namelist
   nulnam = 0
@@ -133,6 +135,11 @@ program midas_ensembleH
     call utl_abort('midas-ensembleH: vLocalize should be greater than zero for modulated ens')
   end if
 
+  if (useModulatedEns .and. numFullEns < nEns) then
+    call utl_abort('midas-ensembleH: For modulated ensembles the number of full ensembles is needed ' // &
+                      'with numFullEns >= nEns')
+  end if
+  
   if (.not. (trim(writeEnsObsToFileType) == 'LOCAL' .or. trim(writeEnsObsToFileType) == 'GLOBAL' .or. &
              trim(writeEnsObsToFileType) == 'BOTH' .or. trim(writeEnsObsToFileType) == 'NONE')) then
     call utl_abort('midas-ensembleH: writeEnsObsToFileType does not have right value')

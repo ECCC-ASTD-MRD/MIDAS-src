@@ -486,7 +486,7 @@ CONTAINS
       unitNum = 0
       ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
       write(unitNum) ensObs%numMembers
-      write(unitNum) (memberIndexArray(memberIndex), memberIndex = 1, ensObs%numMembers)
+      write(unitNum) memberIndexArray(memberIndex)
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
       ierr = fclos(unitNum)
     end do
