@@ -5397,7 +5397,7 @@ contains
 
    subroutine obs_sethind(obsSpaceData)
      !
-     ! :PURPOSE: Set the header index in the body table
+     ! :Purpose: Set the header index in the body table
      !
      implicit none
      type(struct_obs) :: obsSpaceData

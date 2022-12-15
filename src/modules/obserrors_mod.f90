@@ -183,7 +183,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine oer_setInterchanCorr()
     !
-    !  :Purpose: Setup of interchannel observation errors correlations
+    ! :Purpose: Setup of interchannel observation errors correlations
     !    
     use rmatrix_mod
     IMPLICIT NONE

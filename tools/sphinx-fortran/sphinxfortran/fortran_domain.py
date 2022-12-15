@@ -3,7 +3,7 @@
 A fortran domain for sphinx
 
 """
-# Copyright or © or Copr. Actimar/IFREMER (2010-2019)
+# Copyright Actimar/IFREMER (2010-2019)
 #
 # This software is a computer program whose purpose is to provide
 # utilities for handling oceanographic and atmospheric data,

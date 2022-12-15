@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added both high-level and `var` program documentation (#731 and !671)
  * Generate modulated ensembles and compute innovations in ensembleH (#737 and !669)
  * Use of hydrometeor fields LWCR, IWCR, RF and SF from GEM outputs instead of zero in RttovScatt mode (#712 and !655)
  * The compiler warnings about unused variables now appear in the `midas_build` compilation listing (#730 and !665)

@@ -16,6 +16,7 @@ do_namelists=yes
 # PREPARE THE MODULE DEPENDENCY ARRAYS
 
 ORIG_PWD=$PWD
+DOCDIR=$PWD/../../docs
 SRCDIR=$PWD/../../src
 cd $SRCDIR
 . $ORIG_PWD/../prepare_dependencies.sh
@@ -41,6 +42,7 @@ done
 echo "Number of programs = $numPrograms"
 
 module_filelist=`ls -dR -1 $codedir/modules/*f*90`
+#module_filelist=""
 
 # DEFINE THE MODULE CATEGORY NAMES FOR EACH NUMERICAL CODE
 
@@ -82,7 +84,10 @@ for file in $module_filelist ; do
   cd _src_files
   bname=`basename $file`
   rm -f $bname
-  ln -s ../$file ./
+  #ln -s ../$file ./
+  cp ../$file ./
+  # Removing the single space between '!' and ':something:' fixes many bad formatting cases.
+  sed -i -E 's/! :(.*):/!:\1:/g' ./$bname
   cd ../
 done
 
@@ -219,9 +224,22 @@ in comments immediately following the program or module or subroutine
 statement will be included. It can be formatted using *reStructuredText*.
 A primer on this markup language can be found here:
 
-http://openalea.gforge.inria.fr/doc/openalea/doc/_build/html/source/sphinx/rest_syntax.html
+https://sphinx-tutorial.readthedocs.io/cheatsheet/
 
 https://matplotlib.org/sampledoc/cheatsheet.html
+
+High-level documentation
+========================
+
+* Introduction: :doc:\`what is MIDAS? <what_is_midas>\`
+
+* MIDAS :doc:\`code design philosophy. <midas_design_philosophy>\`
+
+* Overall MIDAS :doc:\`code design description. <overall_midas_design>\`
+
+* Use of :doc:\`MPI parallelization in MIDAS. <mpi_in_midas>\`
+
+* MIDAS  \`coding standards <https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/blob/main/docs/codingStandards.md>\`_
 
 EOF
 
@@ -285,6 +303,10 @@ Indices and tables
 * :ref:`search`
 
 EOF
+
+# GET HIGH-LEVEL DOCUMENTATION PAGES FROM DOCS DIRECTORY
+
+cp ${DOCDIR}/*.rst ./
 
 # GENERATE TMG TIMING BLOCK INFORMATION
 
@@ -418,3 +440,4 @@ rm -fR _src_files
 rm -fR _build
 rm -fR *.rst programs modules namelist_listing.txt
 rm -fR graphs
+rm -fR ${SRCDIR}/namelists_in_each_program.rst

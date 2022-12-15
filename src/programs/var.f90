@@ -16,8 +16,225 @@
 
 program midas_var
   !
-  ! :Purpose: Main program for variational minimization or background check 
-  !           (depending on the mode selected in the namelist).
+  !:Purpose: Main program for performing data assimilation using one of the
+  !          following algorithms based on the incremental variational
+  !          approach:
+  !
+  !            - 3D-Var
+  !            - 3D- or 4D-EnVar
+  !
+  !          ---
+  !
+  !:Algorithm: The incremental variational data assimilation approach uses
+  !            observations to compute a correction to the background state
+  !            (i.e. the analysis increment) while taking into account the
+  !            specified uncertainties for both the observations and the
+  !            background state (i.e. the R and B covariance matrices,
+  !            respectively). The analysis increment is computed by finding the
+  !            minimum value of a cost function. This cost function is a scalar
+  !            measure of the weighted departure of the corrected state from
+  !            both the background state and the observations. The minimization
+  !            is perfomed with a standard minimization algorithm (currently
+  !            the quasi-Newton algorithm) that employs the gradient of the
+  !            cost function to enable the minimum to be found (or at least
+  !            approximated with sufficient accuracy) with relatively few
+  !            iterations. The analysis increment is not assumed to be on the
+  !            same horizontal and vertical grid as the background state. In
+  !            addition, the temporal resolution of the background state and
+  !            analysis increment are not assumed to be equal.
+  !
+  !            --
+  !
+  !            In practical terms, the background state is used to compute the
+  !            "innovation" vector, that is, the difference between the
+  !            observations and the background state in observation space:
+  !            ``y-H(xb)``. The function ``H()`` represents the non-linear
+  !            observation operators that map a gridded state vector into
+  !            observation space. The innovation vector is used in the cost
+  !            function calculation. Versions of the observation operators that
+  !            are linearized with respect to the background state (or updated
+  !            background state when using the outer loop) are also used in the
+  !            cost function calculation to transform the analysis increment
+  !            into observation space. The gradient of the cost function is
+  !            computed using the adjoint of these linearized operators.
+  !
+  !            --
+  !
+  !            After the minimization, the analysis increment is spatially
+  !            interpolated to the same grid as the background state and then
+  !            added to this state to obtain the analysis. For some variables a
+  !            physical constraint is imposed on the analysis
+  !            (e.g. non-negative humidity or sea-ice concentration between 0
+  !            and 1) and then the analysis increment is recomputed.
+  !
+  !            --
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files                         Description of file
+  !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``flnml_static``                               In - The "static" namelist that should not be modified
+  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
+  ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
+  ! ``bgcov``                                      In - Static (i.e. NMC) B matrix file for NWP fields
+  ! ``bgchemcov``                                  In - Static B matrix file for chemistry fields
+  ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Ensemble member files defining ensemble B matrix
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
+  ! ``obscov``                                     In - Observation error statistics
+  ! ``obserr``                                     In - Observation error statistics
+  ! ``obsinfo_chm``                                In - Something needed for chemistry assimilation?
+  ! ``preconin``                                   In - Preconditioning file (Hessian of the cost function)
+  ! ``rebm_$MMMm`` (e.g. ``rebm_180m``)            Out - Analysis increment on the (low-res) analysis grid
+  ! ``rehm_$MMMm``                                 Out - Analysis increment on the (high-res) trial grid
+  ! ``anlm_$MMMm``                                 Out - Analysis on the trial grid
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
+  ! Remainder are files related to radiance obs:
+  ! ``stats_$SENSOR_assim``                        In - 
+  ! ``stats_tovs``                                 In - 
+  ! ``stats_tovs_symmetricObsErr``                 In - 
+  ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
+  ! ``bcif_$SENSOR``                               In - 
+  ! ``ceres_global.std``                           In - 
+  ! ``champ_fd_181x91``                            In - 
+  ! ``coeff_file_$SENSOR``                         In - 
+  ! ``dynbcor.coeffs.$SENSOR.$MOREINFO``           In - 
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - 
+  ! ``rttov_h2o_limits.dat``                       In - 
+  ! ``ozoneclim98``                                In - 
+  !============================================== ==============================================================
+  !
+  !           --
+  !
+  !:Synopsis: Below is a summary of the ``var`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Setup horizontal and vertical grid objects for "analysis
+  !                 grid" from ``analysisgrid`` file and for "trial grid" from
+  !                 first trial file: ``trlm_01``.
+  !
+  !               - Setup ``obsSpaceData`` object and read observations from
+  !                 files: ``inn_setupObs``.
+  !
+  !               - Setup ``columnData`` and ``gridStateVector`` modules (read
+  !                 list of analysis variables from namelist) and allocate column
+  !                 object for storing trial on analysis levels.
+  !
+  !               - Setup the observation error statistics in ``obsSpaceData``
+  !                 object: ``oer_setObsErrors``.
+  !
+  !               - Allocate a stateVector object on the trial grid and then
+  !                 read the trials: ``gio_readTrials``.
+  !
+  !               - Setup the B matrices: ``bmat_setup``.
+  !
+  !               - Setup the ``gridVariableTransforms`` and ``minimization``
+  !                 modules.
+  !
+  !             - **Outer loop** (only 1 iteration when no outer loop is used)
+  !               during which the analysis increment is computed to correct the
+  !               current "updated state" which is used to compute the
+  !               innovation and serve as the starting point for the
+  !               minimization of the following outer loop iteration:
+  !
+  !               - Impose RTTOV humidity limits on updated state (initially the
+  !                 trial) on trial grid: ``qlim_rttovLimit``.
+  !
+  !               - Use the updated state on trial grid to setup the reference
+  !                 state used by ``gridVariableTransforms`` module for height
+  !                 calculations.
+  !
+  !               - Compute ``columnTrlOnTrlLev`` and ``columnTrlOnAnlIncLev`` from
+  !                 updated state: ``inn_setupColumnsOnTrlLev``,
+  !                 ``inn_setupColumnsOnAnlIncLev``
+  !
+  !               - Compute innovation from updated state:
+  !                 ``inn_computeInnovation``.
+  !
+  !               - Use the updated state on trial grid to setup the reference
+  !                 state used by ``gridVariableTransforms`` module for ``LQ``
+  !                 to ``HU`` calculations.
+  !
+  !               - Do the minimization for this outer loop iteration:
+  !                 ``min_minimize`` to obtain ``controlVectorIncr``.
+  !
+  !               - Update sum of all computed increment control vectors:
+  !                 ``controlVectorIncrSum(:)`` which is needed in the
+  !                 background cost function for outer loop.
+  !
+  !               - Compute ``stateVectorIncr`` (on analysis grid) from
+  !                 ``controlVectorIncr``: ``inc_getIncrement``.
+  !
+  !               - Interpolate and add ``stateVectorIncr`` to the updated
+  !                 state: ``inc_computeHighResAnalysis``.
+  !
+  !               - If requested, impose saturation and RTTOV humidity limits on
+  !                 the updated state.
+  !
+  !               - Write increment (or sum of increments when outer loop used)
+  !                 to file: ``inc_writeIncrement``.
+  !
+  !               - End of outer loop.
+  !
+  !             - **Final steps**, after the outer loop:
+  !
+  !               - If requested, compute final cost function value using
+  !                 non-linear observation operators.
+  !
+  !               - Write the final analysis and recomputed complete increment on
+  !                 the trial grid: ``inc_writeincAndAnalHighRes``.
+  !
+  !               - Various final steps, including: write the Hessian to binary
+  !                 file (``min_writeHessian``), update the observation files
+  !                 (``obsf_writeFiles``).
+  !
+  !           --
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#var>`_
+  !          that can affect the ``var`` program.
+  !
+  !          * The use of an outer loop is controlled by the namelist block
+  !            ``&NAMVAR`` read by the ``var`` program.
+  !
+  !          * The choice of 3D-Var vs. EnVar is controlled by the weights given
+  !            to the climatological (i.e. static) and ensemble-based background
+  !            error covariance (i.e. B matrix) components. The weights for all
+  !            B matrix components are zero be default and can be set to a
+  !            nonzero value through the namelist variable ``SCALEFACTOR`` in
+  !            the namelist block for each corresponding fortran module.
+  !
+  !          * Either algorithm can be used in combination with "First guess at
+  !            appropriate time" (i.e. FGAT) which is controlled by the namelist
+  !            variable ``DSTEPOBS`` (in ``NAMTIM``) that specifies the length
+  !            of time (in hours) between times when the background state is
+  !            used to compute the innovation (i.e. O-B).
+  !
+  !          * Similarly, the choice between 3D-EnVar and 4D-EnVar is controlled
+  !            by the namelist variable ``DSTEPOBSINC`` (also in ``&NAMTIM``)
+  !            which specifies the length of time (in hours) between times when
+  !            the analysis increment is computed. In the context of EnVar, if
+  !            this is less than the assimilation time window, then the
+  !            ensembles used to construct the ensemble-based B matrix component
+  !            will be used at multiple times within the assimilation window to
+  !            obtain 4D covariances (i.e. 4D-EnVar).
+  !
+  !          * Some of the other relevant namelist blocks used to configure the
+  !            variational analysis are listed in the following table:
+  ! 
+  !======================== =========== ==============================================================
+  ! Module                   Namelist    Description of what is controlled
+  !======================== =========== ==============================================================
+  ! ``minimization_mod``     ``NAMMIN``  maximum number of iterations, convergence criteria and many
+  !                                      additional parameters for controlling the minimization
+  ! ``timeCoord_mod``        ``NAMTIM``  assimilation time window length, temporal resolution of
+  !                                      the background state and increment
+  ! ``bMatrixEnsemble_mod``  ``NAMBEN``  weight and other parameters for ensemble-based B matrix
+  !                                      component
+  ! ``bMatrixHI_mod``        ``NAMBHI``  weight and other parameters for the climatological B matrix
+  !                                      component based on homogeneous-isotropic covariances
+  !                                      represented in spectral space
+  ! Other B matrix modules   various     weight and other parameters for each type of B matrix
+  !======================== =========== ==============================================================
   !
   use version_mod
   use codePrecision_mod

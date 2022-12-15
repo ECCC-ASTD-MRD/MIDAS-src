@@ -17,7 +17,7 @@
 module utilities_mod
   ! MODULE utilities_mod (prefix='utl' category='8. Low-level utilities and constants')
   !
-  ! :Purpose: A place to collect numerous simple utility routines
+  !:Purpose: A place to collect numerous simple utility routines
   !
   use clib_interfaces_mod
   use randomNumber_mod
@@ -225,21 +225,15 @@ contains
 
   function utl_findArrayIndex( klist, klen, kentry ) result(isrcheq)
     !
-    ! :Purpose: Find entry in list.
-    !
-    ! :Arguments:
-    !           :klist: Input list.
-    !           :klen: Dimension of input list.
-    !           :kentry: Entry.
-    !           :isrcheq: Index of entry: (0, not found, >0, found)
+    !:Purpose: Find entry in list.
     !
     implicit none
 
     ! Arguments:
-    INTEGER :: ISRCHEQ
-    INTEGER :: KENTRY
-    integer :: KLEN
-    INTEGER :: KLIST(KLEN)
+    INTEGER :: ISRCHEQ      ! Index of entry: (0, not found, >0, found)
+    INTEGER :: KENTRY       ! Entry.
+    integer :: KLEN         ! Dimension of input list.
+    INTEGER :: KLIST(KLEN)  ! Input list.
 
     ! locals:
     integer :: JI
@@ -258,7 +252,7 @@ contains
 
   subroutine utl_matsqrt(matrix, rank, exponentSign, printInformation_opt )
     ! 
-    ! :Purpose: Calculate square root of an error covariance matrix
+    !:Purpose: Calculate square root of an error covariance matrix
     !
     implicit none
 
@@ -348,8 +342,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine utl_matInverse(matrix, rank, inverseSqrt_opt, printInformation_opt)
     !
-    ! :Purpose: Calculate the inverse of a covariance matrix 
-    !           and, optionally, also the inverse square-root.
+    !:Purpose: Calculate the inverse of a covariance matrix 
+    !          and, optionally, also the inverse square-root.
     !
     implicit none
 
@@ -467,8 +461,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine utl_eigenDecomp(matrix, eigenValues, eigenVectors, tolerance, numReturned, printInformation_opt)
     !
-    ! :Purpose: Calculate eigenValues/Vectors and return only those with eigenValues
-    !           whose magnitude is greater than the specified tolerance.
+    !:Purpose: Calculate eigenValues/Vectors and return only those with eigenValues
+    !          whose magnitude is greater than the specified tolerance.
     !
     implicit none
 
@@ -582,7 +576,7 @@ contains
   !-----------------------------------------
   subroutine utl_pseudo_inverse(inputMatrix, pseudoInverse, threshold_opt)
     !
-    ! :Purpose: to calculate the More-Penrose pseudo inverse of the matrix inputMatrix
+    !:Purpose: to calculate the More-Penrose pseudo inverse of the matrix inputMatrix
     !
     implicit none
     !Arguments:
@@ -664,30 +658,9 @@ contains
                            cdvar,kstampv,knmaxlev,kinmpg,kip1style,kip1kind, &
                            ktrials,koutmpg)
     !
-    ! :Purpose:  Get 3D grid parameters for a specific trial field
-    !            and check for consitancies between grid parameters
-    !            of the levels.
-    !
-    ! :Arguments:
-    !
-    !  :Input:
-    !     :cdvar: variable name to get the vertical levels from
-    !     :kstampv: valid date time stamp of the variable
-    !     :knmaxlev: maximum number of levels
-    !     :kinmpg: file unit of trial field
-    !     :ktrials:  number of trial files.  
-    !
-    !  :Output:
-    !     :kip1s: list of ip1s of variable cdvar
-    !     :kip2: ip2 for variable cdvar
-    !     :kip3: ip3 for variable cdvar
-    !     :knlev: number of levels of variable cdvar
-    !     :cdetiket: etiket of field cdvar
-    !     :cdtypvar: typvar of field cdvar
-    !     :kgid: handle of the field descriptor
-    !     :kip1style: style in which ip1 is encoded (15 or 31 bits)
-    !     :kip1kind: kind of vertical coord encoded in ip1
-    !     :koutmpg: the unit which contains the selected records.  
+    !:Purpose:  Get 3D grid parameters for a specific trial field
+    !           and check for consitancies between grid parameters
+    !           of the levels.
     !
     implicit none
 
@@ -851,13 +824,13 @@ contains
   !--------------------------------------------------------------------------
   subroutine utl_stopAndWait4Debug(message)
     !
-    ! :Purpose: Stop the execution for the process reaching a call to the
-    !           subroutine, then wait until all MPI processes reached such a
-    !           call to utl_stopAndWait4Debug.
-    !           Intended **for debugging puposes only** since it can cause
-    !           unwanted MPI deadlocks - processes waiting infinitely because
-    !           not all MPI processes will ever reach a call to
-    !           utl_stopAndWait4Debug.
+    !:Purpose: Stop the execution for the process reaching a call to the
+    !          subroutine, then wait until all MPI processes reached such a
+    !          call to utl_stopAndWait4Debug.
+    !          Intended **for debugging puposes only** since it can cause
+    !          unwanted MPI deadlocks - processes waiting infinitely because
+    !          not all MPI processes will ever reach a call to
+    !          utl_stopAndWait4Debug.
     !
     implicit none
     character(len=*) :: message
@@ -874,14 +847,7 @@ contains
 
   subroutine utl_open_asciifile(filename,unit)
     ! 
-    ! :Purpose: Opens an ascii file for output 
-    !
-    ! :Arguments:
-    ! :Input:
-    !       :filename: filename
-    !       :unit: unit number to use or 0 to let fnom set value
-    ! :Output:
-    !       :unit: unit number associated with file
+    !:Purpose: Opens an ascii file for output 
     !
     implicit none
 
@@ -910,8 +876,8 @@ contains
 
   function utl_open_file(unit,filename,mode) result(ier)
     ! 
-    ! :Purpose: This is a temporary subroutine to open a file with fnom that is needed due to
-    !           a bug in fnom that does not allow an ascii file to be opened in 'APPEND' mode.  
+    !:Purpose: This is a temporary subroutine to open a file with fnom that is needed due to
+    !          a bug in fnom that does not allow an ascii file to be opened in 'APPEND' mode.  
     !
     implicit none
 
@@ -943,9 +909,9 @@ contains
 
   function utl_stnid_equal(id1,id2) result(same)
     !
-    ! :Purpose: Compares STNID values allowing for * as wildcards and trailing blanks 
+    !:Purpose: Compares STNID values allowing for * as wildcards and trailing blanks 
     !
-    ! :Arguments:
+    !:Arguments:
     !           :id1: reference stnid
     !           :id2: stnid being verified
     !           :same: logical indicating if id1 and id2 match
@@ -990,7 +956,7 @@ contains
 
   character(len=20) function utl_int2str(i)
     !
-    ! :Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort. 
+    !:Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort. 
     !
     implicit none
 
@@ -1004,7 +970,7 @@ contains
 
   character(len=20) function utl_float2str(x)
     !
-    ! :Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort.
+    !:Purpose: Function for integer to string conversion. Helpful when calling subroutine utl_abort.
     !
     implicit none
 
@@ -1018,7 +984,7 @@ contains
 
   subroutine utl_resize_1d_real(arr,dim1)
     !
-    ! :Purpose: Resize 1D array
+    !:Purpose: Resize 1D array
     !
     implicit none
 
@@ -1046,7 +1012,7 @@ contains
 
   subroutine utl_resize_1d_int(arr,dim1)
     !
-    ! :Purpose: Resize 1D array 
+    !:Purpose: Resize 1D array 
     !
     implicit none
 
@@ -1074,7 +1040,7 @@ contains
  
   subroutine utl_resize_1d_str(arr,dim1)
     !
-    ! :Purpose: Resize 1D array
+    !:Purpose: Resize 1D array
     !
     implicit none
 
@@ -1100,7 +1066,7 @@ contains
 
   subroutine utl_resize_2d_real(arr,dim1,dim2)
     !
-    ! :Purpose: Resize 2D array
+    !:Purpose: Resize 2D array
     !
     implicit none
 
@@ -1131,7 +1097,7 @@ contains
 
   subroutine utl_resize_3d_real(arr,dim1,dim2,dim3)
     !
-    ! :Purpose: Resize 3D array
+    !:Purpose: Resize 3D array
     !
     implicit none
 
@@ -1164,20 +1130,10 @@ contains
 
 
   subroutine utl_get_stringId(cstringin,nobslev,CList,NListSize,Nmax,elemId)
-    ! 
-    ! :Purpose: Get element ID from a list of accumulating character strings (e.g. stnids). 
-    !           Called by filt_topoChm in filterobs_mod.ftn90
     !
-    ! :Arguments:
-    !           :Nmax: Max allowed dimension.
-    !           :NListSize: Input number of identified IDs (must be >=0 and <=Nmax)
-    !           :CList: Input list of accumulated character strings for uni and multi-level data.
-    !           :cstringin: Input character string
-    !           :nobslev: Number of elements in profile associated to cstringin.
-    !           :NListSize: Updated number of identified IDs
-    !           :CList: Updated list of accumulated character strings
-    !           :elemId: Index of cstringin within CList_chm
-    !        
+    !:Purpose: Get element ID from a list of accumulating character strings (e.g. stnids). 
+    !          Called by filt_topoChm in filterobs_mod.ftn90
+    !
     implicit none
 
     integer, intent(in)    :: Nmax,nobslev
@@ -1235,20 +1191,9 @@ contains
 
 
   subroutine utl_get_Id(id,IdList,NListSize,Nmax,elemId)
-    ! 
-    ! :Purpose: Get element ID from list of accumulating integer IDs.
     !
-    ! :Arguments:
-    !      :Input:
-    !            :Nmax: Max allowed dimension.
-    !            :NListSize: Input number of IDs (must be >=0 and <=Nmax)
-    !            :IdList: Input list of accumulated IDs.
-    !            :id: Input id for individual obs 
-    !      :Output:
-    !            :NListSize: Updated number of IDs 
-    !            :IdList: Updated list of accumulated IDs.
-    !            :elemId: Index of id within List
-    !     
+    !:Purpose: Get element ID from list of accumulating integer IDs.
+    !
     implicit none
 
     integer, intent(in)    :: Nmax,id
@@ -1282,22 +1227,20 @@ contains
   subroutine utl_readFstField( fname, varName, iip1, iip2, iip3, etiketi, &
                                ni, nj, nkeys, array, xlat_opt, xlong_opt, lvls_opt, kind_opt )
     !
-    ! :Purpose:  Read specified field from standard RPN/fst file. Could be one
+    !:Purpose:  Read specified field from standard RPN/fst file. Could be one
     !           to all levels depending on the input iip1,iip2,iip3 values.
     !
     !           Currently assumes lat/long (or Gaussian) type grids.
     !           See hco_SetupFromFile for example toward future generalizations.
     !           Generalization would require having xlat and xlong being 2D.
     !
-    ! :Arguments:
-    !           :Input:
+    !:Arguments:
     !                 :fname: input filename
     !                 :varName:  search nomvar
     !                 :iip1: search ip1
     !                 :iip2: search ip2
     !                 :iip3: search ip3
     !                 :etiketi: search etiket
-    !           :Output:
     !                 :ni: ni values
     !                 :nj: nj values
     !                 :nkeys: number of records satisfying search criteria
@@ -1886,8 +1829,8 @@ contains
 
   subroutine utl_heapsort2d(array)
     !
-    ! :Purpose: Sort a real 2D array in ascending order according
-    !           to the first column
+    !:Purpose: Sort a real 2D array in ascending order according
+    !          to the first column
     ! 
     implicit none
     real(4), intent(inout) :: array(:,:)
@@ -1979,7 +1922,7 @@ contains
   !--------------------------------------------------------------------------
   function utl_isNamelistPresent(namelistSectionName, namelistFileName) result(found)
     !
-    ! :Purpose: To find if a namelist name tag is present in a namelist file
+    !:Purpose: To find if a namelist name tag is present in a namelist file
     ! 
     implicit none
     logical :: found
@@ -2028,8 +1971,8 @@ contains
   !-----------------------------------------------------------------
   subroutine utl_parseColumns(line, numColumns, stringArray_opt)
     !
-    ! :Purpose: To return column values in array of strings and
-    !           the number of space-delimited columns in a string
+    !:Purpose: To return column values in array of strings and
+    !          the number of space-delimited columns in a string
     ! 
     implicit none
     ! Arguments
@@ -2154,9 +2097,10 @@ contains
   ! utl_allReduce
   !--------------------------------------------------------------------------
   subroutine utl_allReduce(localGlobalValue)
-    ! :Purpose: Perform mpi_allReduce to sum integer values over all
-    !           mpi tasks and copy result back to same variable.
-
+    !
+    !:Purpose: Perform mpi_allReduce to sum integer values over all
+    !          mpi tasks and copy result back to same variable.
+    !
     implicit none
 
     ! Arguments:
@@ -2177,9 +2121,9 @@ contains
   !--------------------------------------------------------------------------
   function utl_findloc_char(charArray, value) result(location)
     !
-    ! :Purpose: A modified version of the fortran function `findloc`.
-    !           If multiple matches are found in the array, a warning
-    !           message is printed to the listing.
+    !:Purpose: A modified version of the fortran function `findloc`.
+    !          If multiple matches are found in the array, a warning
+    !          message is printed to the listing.
     !
     implicit none
 
@@ -2218,9 +2162,9 @@ contains
   !--------------------------------------------------------------------------
   function utl_findloc_int(intArray, value) result(location)
     !
-    ! :Purpose: A modified version of the fortran function `findloc`.
-    !           If multiple matches are found in the array, a warning
-    !           message is printed to the listing.
+    !:Purpose: A modified version of the fortran function `findloc`.
+    !          If multiple matches are found in the array, a warning
+    !          message is printed to the listing.
     !
     implicit none
 
@@ -2259,8 +2203,8 @@ contains
   !--------------------------------------------------------------------------
   function utl_findlocs_char(charArray, value) result(locations)
     !
-    ! :Purpose: A modified version of the fortran function `findloc`.
-    !           Returns an array of all matches found in the array.
+    !:Purpose: A modified version of the fortran function `findloc`.
+    !          Returns an array of all matches found in the array.
     !
     implicit none
 
@@ -2306,8 +2250,9 @@ contains
   ! utl_randomOrderInt
   !--------------------------------------------------------------------------
   subroutine utl_randomOrderInt(intArray,randomSeed)
-    ! :Purpose: Randomly shuffle the order of the integer array elements.
-
+    !
+    !:Purpose: Randomly shuffle the order of the integer array elements.
+    !
     implicit none
 
     ! Arguments:
@@ -2345,8 +2290,9 @@ contains
   ! utl_tmg_start
   !--------------------------------------------------------------------------
   subroutine utl_tmg_start(blockIndex, blockLabel)
-    ! :Purpose: Wrapper for rpnlib subroutine tmg_start
-
+    !
+    !:Purpose: Wrapper for rpnlib subroutine tmg_start
+    !
     implicit none
 
     ! Arguments:
@@ -2373,8 +2319,9 @@ contains
   ! utl_tmg_stop
   !--------------------------------------------------------------------------
   subroutine utl_tmg_stop(blockIndex)
-    ! :Purpose: Wrapper for rpnlib subroutine tmg_stop
-
+    !
+    !:Purpose: Wrapper for rpnlib subroutine tmg_stop
+    !
     implicit none
 
     ! Arguments:
