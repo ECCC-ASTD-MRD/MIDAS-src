@@ -48,7 +48,7 @@ MODULE ensembleObservations_mod
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_copy, eob_zero
   public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
-  public :: eob_removeObsNearLand
+  public :: eob_removeObsNearLand, eob_getMemebrIndexInFullEnsSet
   public :: eob_writeToFilesMpiGlobal, eob_writeToFilesMpiLocal
   public :: eob_readFromFilesMpiGlobal, eob_readFromFilesMpiLocal
 
@@ -435,7 +435,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_writeToFilesMpiGlobal
   !--------------------------------------------------------------------------
-  subroutine eob_writeToFilesMpiGlobal(ensObs, outputFilenamePrefix, writeObsInfo)
+  subroutine eob_writeToFilesMpiGlobal(ensObs, memberIndexArray, outputFilenamePrefix, &
+                                       writeObsInfo)
     !
     ! :Purpose: Write the contents of an ensObs_mpiglobal object to files
     !
@@ -443,6 +444,7 @@ CONTAINS
 
     ! arguments
     type(struct_eob), intent(in) :: ensObs
+    integer,          intent(in) :: memberIndexArray(:)
     character(len=*), intent(in) :: outputFilenamePrefix
     logical,          intent(in) :: writeObsInfo
 
@@ -479,10 +481,12 @@ CONTAINS
       if (mmpi_myid == 0) then
         write(*,*) 'eob_writeToFilesMpiGlobal: fileMemberIndex1=', ensObs%fileMemberIndex1, &
                    ', memberIndex=', memberIndex, &
-                   ', memberIndex in original ensemble set=', ensObs%fileMemberIndex1 + memberIndex - 1
+                   ', memberIndex in original ensemble set=', memberIndexArray(memberIndex)
       end if
       unitNum = 0
       ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
+      write(unitNum) ensObs%numMembers
+      write(unitNum) (memberIndexArray(memberIndex), memberIndex = 1, ensObs%numMembers)
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
       ierr = fclos(unitNum)
     end do
@@ -492,7 +496,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_writeToFilesMpiLocal
   !--------------------------------------------------------------------------
-  subroutine eob_writeToFilesMpiLocal(ensObs, outputFilenamePrefix, writeObsInfo)
+  subroutine eob_writeToFilesMpiLocal(ensObs, memberIndexArray, outputFilenamePrefix, &
+                                      writeObsInfo)
     !
     ! :Purpose: Write the contents of an ensObs mpi local object to files
     !
@@ -500,6 +505,7 @@ CONTAINS
 
     ! arguments
     type(struct_eob), intent(in) :: ensObs
+    integer,          intent(in) :: memberIndexArray(:)
     character(len=*), intent(in) :: outputFilenamePrefix
     logical,          intent(in) :: writeObsInfo
 
@@ -554,11 +560,18 @@ CONTAINS
       call utl_abort('eob_writeToFilesMpiLocal: file should not exist')
     end if
 
+
+    
     unitNum = 0
     ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
     write(unitNum) ensObs%numMembers
-    write(unitNum) (ensObs%fileMemberIndex1+memberIndex-1, memberIndex = 1, ensObs%numMembers)
+    write(unitNum) (memberIndexArray(memberIndex), memberIndex = 1, ensObs%numMembers)
     do memberIndex = 1, ensObs%numMembers
+      if (mmpi_myid == 0) then
+        write(*,*) 'eob_writeToFilesMpiLocal: fileMemberIndex1=', ensObs%fileMemberIndex1, &
+                   ', memberIndex=', memberIndex, &
+                   ', memberIndex in original ensemble set=', memberIndexArray(memberIndex)
+      end if
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
     end do
     ierr = fclos(unitNum)
@@ -1464,6 +1477,63 @@ CONTAINS
 
   end subroutine eob_rejectRadNearSfc
 
+  !--------------------------------------------------------------------------
+  ! eob_getMemebrIndexInFullEnsSet
+  !--------------------------------------------------------------------------
+  subroutine eob_getMemebrIndexInFullEnsSet(ensObs, memberIndexArray, &
+                                            numGroupsToDivideMembers_opt, &
+                                            maxNumMembersPerGroup_opt)
+    !
+    ! :Purpose: get memberIndex array corresponding to the full ensemble set.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_eob),  intent(in) :: ensObs
+    integer,        intent(inout) :: memberIndexArray(:)
+    integer, optional, intent(in) :: numGroupsToDivideMembers_opt
+    integer, optional, intent(in) :: maxNumMembersPerGroup_opt
+
+    ! locals
+    integer :: memberIndex, groupIndex, memberIndexOffset, memberIndexInGroup
+    integer :: numGroupsToDivideMembers, numMembersPerGroup
+
+    if (present(numGroupsToDivideMembers_opt)) then
+      numGroupsToDivideMembers = numGroupsToDivideMembers_opt
+    else
+      numGroupsToDivideMembers = 1
+    end if
+
+    memberIndexOffset = ensObs%fileMemberIndex1
+
+    if (numGroupsToDivideMembers == 1) then
+      do memberIndex = 1, ensObs%numMembers
+        memberIndexArray(memberIndex) = memberIndex + memberIndexOffset - 1
+      end do
+    else
+      if (.not. present(maxNumMembersPerGroup_opt)) then
+        call utl_abort('eob_getMemebrIndexInFullEnsSet: maxNumMembersPerGroup_opt input argument missing')
+      end if
+
+      ! divide members into groups
+      numMembersPerGroup = ensObs%numMembers / numGroupsToDivideMembers
+      if (numMembersPerGroup > maxNumMembersPerGroup_opt) then
+        call utl_abort('eob_getMemebrIndexInFullEnsSet: numMembersPerGroup > maxNumMembersPerGroup_opt')
+      end if
+
+      memberIndex = 0
+      do groupIndex = 1, numGroupsToDivideMembers 
+        do memberIndexInGroup = 1, numMembersPerGroup
+          memberIndex = memberIndex + 1
+          memberIndexArray(memberIndex) = (groupIndex - 1) * maxNumMembersPerGroup_opt + &
+                                          memberIndexInGroup + memberIndexOffset - 1
+        end do
+      end do
+
+    end if
+    
+  end subroutine eob_getMemebrIndexInFullEnsSet
+    
   !--------------------------------------------------------------------------
   ! max_transmission (private routine)
   !--------------------------------------------------------------------------

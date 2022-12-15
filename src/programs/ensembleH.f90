@@ -56,8 +56,9 @@ program midas_ensembleH
   type(struct_hco), pointer :: hco_ens => null()
 
   integer :: get_max_rss, fclos, fnom, fstopc, ierr
-  integer :: memberIndex, nulnam, dateStamp
+  integer :: memberIndex, nulnam, dateStamp, numFullEns
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs, stepIndex
+  integer, allocatable :: originalEnsMemberIndexArray(:), modulatedEnsMemberIndexArray(:)
   integer, allocatable :: dateStampList(:)
 
   logical :: useModulatedEns, writeGlobalEnsObsToFile, writeLocalEnsObsToFile
@@ -324,25 +325,35 @@ program midas_ensembleH
   call gsv_deallocate(stateVectorMeanTrl4D)
   call gsv_deallocate(stateVectorHeightSfc)
 
+  allocate(originalEnsMemberIndexArray(nEns))
+  call eob_getMemebrIndexInFullEnsSet(ensObs, originalEnsMemberIndexArray)
+  if (useModulatedEns) then
+    allocate(modulatedEnsMemberIndexArray(nEnsGain))
+    call eob_getMemebrIndexInFullEnsSet(ensObsGain, modulatedEnsMemberIndexArray, &
+                                        numGroupsToDivideMembers_opt=numRetainedEigen, &
+                                        maxNumMembersPerGroup_opt=numFullEns)
+  end if
+
   ! write local ensObs to file
   if (writeLocalEnsObsToFile) then
-    call eob_writeToFilesMpiLocal(ensObs, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
+    call eob_writeToFilesMpiLocal(ensObs, originalEnsMemberIndexArray, &
+                                  outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
     if (useModulatedEns) then
-      call eob_writeToFilesMpiLocal(ensObsGain, outputFilenamePrefix='eobGain_HX', &
-                                    writeObsInfo=.false.)
+      call eob_writeToFilesMpiLocal(ensObsGain, modulatedEnsMemberIndexArray, &
+                                    outputFilenamePrefix='eobGain_HX', writeObsInfo=.false.)
     end if
   end if
 
   ! Clean and globally communicate obs-related data, then write to files
   if (writeGlobalEnsObsToFile) then
     call eob_allGather(ensObs,ensObs_mpiglobal)
-    call eob_writeToFilesMpiGlobal(ensObs_mpiglobal, outputFilenamePrefix='eob_HX', &
-                          writeObsInfo=.true.)
+    call eob_writeToFilesMpiGlobal(ensObs_mpiglobal, originalEnsMemberIndexArray, &
+                                   outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
     if (useModulatedEns) then
       allocate(ensObsGain_mpiglobal)
       call eob_allGather(ensObsGain, ensObsGain_mpiglobal)
-      call eob_writeToFilesMpiGlobal(ensObsGain_mpiglobal, outputFilenamePrefix='eobGain_HX', &
-                            writeObsInfo=.false.)
+      call eob_writeToFilesMpiGlobal(ensObsGain_mpiglobal, modulatedEnsMemberIndexArray, &
+                                     outputFilenamePrefix='eobGain_HX', writeObsInfo=.false.)
     end if
   end if
 
