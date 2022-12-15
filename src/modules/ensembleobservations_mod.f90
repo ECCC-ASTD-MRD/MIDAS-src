@@ -49,7 +49,7 @@ MODULE ensembleObservations_mod
   public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
   public :: eob_removeObsNearLand
-  public :: eob_writeToFiles, eob_writeToFilesMpiLocal
+  public :: eob_writeToFilesMpiGlobal, eob_writeToFilesMpiLocal
   public :: eob_readFromFiles, eob_readFromFilesMpiLocal
 
   integer, parameter :: maxNumLocalObsSearch = 500000
@@ -433,9 +433,9 @@ CONTAINS
   end subroutine eob_allGather
 
   !--------------------------------------------------------------------------
-  ! eob_writeToFiles
+  ! eob_writeToFilesMpiGlobal
   !--------------------------------------------------------------------------
-  subroutine eob_writeToFiles(ensObs, outputFilenamePrefix, writeObsInfo)
+  subroutine eob_writeToFilesMpiGlobal(ensObs, outputFilenamePrefix, writeObsInfo)
     !
     ! :Purpose: Write the contents of an ensObs_mpiglobal object to files
     !
@@ -456,13 +456,13 @@ CONTAINS
     if (mmpi_myid /= 0) return
 
     if (.not.ensObs%allocated) then
-      call utl_abort('eob_writeToFiles: this object is not allocated')
+      call utl_abort('eob_writeToFilesMpiGlobal: this object is not allocated')
     end if
 
     ! write the lat, lon and obs values to a file
     if (writeObsInfo) then
       fileName = 'eob_Lat_Lon_ObsValue'
-      write(*,*) 'eob_writeToFiles: writing ',trim(filename)
+      write(*,*) 'eob_writeToFilesMpiGlobal: writing ',trim(filename)
       unitNum = 0
       ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
       write(unitNum) (ensObs%lat(obsIndex), obsIndex = 1, ensObs%numObs)
@@ -475,9 +475,10 @@ CONTAINS
     do memberIndex = 1, ensObs%numMembers
       write(memberIndexStr,'(I0.4)') memberIndex
       fileName = trim(outputFilenamePrefix) // '_' // memberIndexStr
-      write(*,*) 'eob_writeToFiles: writing ',trim(filename)
+      write(*,*) 'eob_writeToFilesMpiGlobal: writing ',trim(filename)
       if (mmpi_myid == 0) then
-        write(*,*) 'eob_writeToFiles: fileMemberIndex1=', ensObs%fileMemberIndex1, ', memberIndex=', memberIndex, &
+        write(*,*) 'eob_writeToFilesMpiGlobal: fileMemberIndex1=', ensObs%fileMemberIndex1, &
+                   ', memberIndex=', memberIndex, &
                    ', memberIndex in original ensemble set=', ensObs%fileMemberIndex1 + memberIndex - 1
       end if
       unitNum = 0
@@ -486,7 +487,7 @@ CONTAINS
       ierr = fclos(unitNum)
     end do
 
-  end subroutine eob_writeToFiles
+  end subroutine eob_writeToFilesMpiGlobal
 
   !--------------------------------------------------------------------------
   ! eob_writeToFilesMpiLocal
