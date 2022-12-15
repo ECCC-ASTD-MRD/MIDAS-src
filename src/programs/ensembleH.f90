@@ -60,7 +60,8 @@ program midas_ensembleH
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs, stepIndex
   integer, allocatable :: dateStampList(:)
 
-  logical  :: useModulatedEns, writeGlobalEnsObsToFile, writeLocalEnsObsToFile
+  logical :: useModulatedEns, writeGlobalEnsObsToFile, writeLocalEnsObsToFile
+  logical :: fileExists
 
   character(len=256)  :: ensFileName
   character(len=256)  :: ensMeanFileName
@@ -250,6 +251,10 @@ program midas_ensembleH
     ! read the mean stateVector and copy to ensembleTrl4D object
     call fln_ensTrlFileName(ensMeanFileName, '.', tim_getDateStamp())
     ensMeanFileName = trim(ensMeanFileName) // '_trialmean'
+    inquire(file=trim(ensMeanFileName),exist=fileExists)
+    if (.not. fileExists) then
+      call utl_abort('midas-ensembleH: the ensemble mean file does not exist')
+    end if
     do stepIndex = 1, tim_nstepobs
       call gio_readFromFile(stateVectorMeanTrl4D, ensMeanFileName, ' ', ' ',  &
                             containsFullField_opt=.true., readHeightSfc_opt=.true., &
