@@ -50,7 +50,7 @@ MODULE ensembleObservations_mod
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
   public :: eob_removeObsNearLand
   public :: eob_writeToFilesMpiGlobal, eob_writeToFilesMpiLocal
-  public :: eob_readFromFiles, eob_readFromFilesMpiLocal
+  public :: eob_readFromFilesMpiGlobal, eob_readFromFilesMpiLocal
 
   integer, parameter :: maxNumLocalObsSearch = 500000
   integer,external   :: get_max_rss
@@ -566,21 +566,21 @@ CONTAINS
   end subroutine eob_writeToFilesMpiLocal
 
   !--------------------------------------------------------------------------
-  ! eob_readFromFiles
+  ! eob_readFromFilesMpiGlobal
   !--------------------------------------------------------------------------
-  subroutine eob_readFromFiles(ensObs)
+  subroutine eob_readFromFilesMpiGlobal(ensObs)
     !
-    ! :Purpose: Read the contents of an ensObs object from files
+    ! :Purpose: Read the contents of an ensObs mpi global object from files
     !
     implicit none
 
     ! arguments
     type(struct_eob), intent(inout) :: ensObs
 
-    call utl_abort('eob_readFromFiles: not yet implemented')
-    write(*,*) 'eob_readFromFiles: This structure contains ', ensObs%numMembers, ' members'
+    call utl_abort('eob_readFromFilesMpiGlobal: not yet implemented')
+    write(*,*) 'eob_readFromFilesMpiGlobal: This structure contains ', ensObs%numMembers, ' members'
 
-  end subroutine eob_readFromFiles
+  end subroutine eob_readFromFilesMpiGlobal
 
   !--------------------------------------------------------------------------
   ! eob_readFromFilesMpiLocal
