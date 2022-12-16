@@ -1430,7 +1430,15 @@ CONTAINS
                                         numGroupsToDivideMembers_opt, &
                                         maxNumMembersPerGroup_opt)
     !
-    ! :Purpose: get memberIndex array corresponding to the full ensemble set.
+    ! :Purpose: get memberIndex array corresponding to the full ensemble set. This 
+    !           is useful when ensObs is a subset of full ensemble members. 
+    !           If first member in ensObs is member 6, to get the full ensemble set equivalent of ensObs members:
+    !           a) When members are not grouped (numGroupsToDivideMembers=1), all members are offset by 
+    !              memberIndexOffset (e.g. 6, 7, ..., 6+ensObs%numMermbers)
+    !           b) When members are grouped (numGroupsToDivideMembers/=1), members within each group 
+    !              are offset by memberIndexOffset but there is increment of maxNumMembersPerGroup_opt 
+    !              to jump to the next group (e.g. if maxNumMembersPerGroup_opt=10, for first group 6, 7, 8, 9, 
+    !              for second group 6+10, 7+10, 8+10, 9+10, and so on)
     !
     implicit none
 
