@@ -518,7 +518,10 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine eob_readFromFiles(ensObs, numMembersIneedToRead, inputFilenamePrefix)
     !
-    ! :Purpose: Read ensObs%Yb of mpi local object from file
+    ! :Purpose: Read mpi local ensObs%Yb object from file. Several files in separate subdirectories 
+    !           can be read. Some examples of path+filename are:
+    !           ensObs_0001/eob_HX_0001_0001
+    !           ensObs_0002/eob_HX_0001_0001
     !
     implicit none
 
