@@ -598,7 +598,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_readFromFilesMpiLocal
   !--------------------------------------------------------------------------
-  subroutine eob_readFromFilesMpiLocal(ensObs, inputFilenamePrefix)
+  subroutine eob_readFromFilesMpiLocal(ensObs, numMembersIneedToRead, ensObsPathNamePattern, &
+                                       inputFilenamePrefix)
     !
     ! :Purpose: Read ensObs%Yb of mpi local object from file
     !
@@ -606,6 +607,8 @@ CONTAINS
 
     ! arguments
     type(struct_eob), intent(inout) :: ensObs
+    integer         ,    intent(in) :: numMembersIneedToRead
+    character(len=*),    intent(in) :: ensObsPathNamePattern
     character(len=*),    intent(in) :: inputFilenamePrefix
     
     ! locals
@@ -615,11 +618,14 @@ CONTAINS
     integer :: obsFlag(ensObs%numObs)
     integer :: unitNum, ierr, memberIndex, obsIndex, numObsFromFile
     integer :: numMembersFromFile, numMembersFromFile2, fnom, fclos
+    integer :: fileIndex, numMembersAlreadyRead
     integer, allocatable :: memberIndexFromFile(:)
     logical :: fileExists
-    character(len=40) :: fileName
-    character(len=4)  :: myidxStr, myidyStr
-    character(len=30) :: fileNameExtention
+    character(len=256) :: fileName
+    character(len=100) :: fileBaseName
+    character(len=4)   :: myidxStr, myidyStr
+    character(len=3)   :: fileIndexStr
+    character(len=30)  :: fileNameExtention
 
     if ( .not. ensObs%allocated ) then
       call utl_abort('eob_readFromFilesMpiLocal: this object is not allocated')
@@ -674,26 +680,38 @@ CONTAINS
     end do
     ierr = fclos(unitNum)
 
-    ! Open file and read ensObs%Yb
-    fileName = trim(inputFilenamePrefix) // '.myid_' // trim(fileNameExtention)
-    write(*,*) 'eob_readFromFilesMpiLocal: reading ',trim(fileName)
-    inquire(file=trim(fileName),exist=fileExists)
-    if (.not. fileExists) then
-      call utl_abort('eob_readFromFilesMpiLocal: file storing Yb does not exist')
-    end if
-    
-    unitNum = 0
-    ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
-    read(unitNum) numMembersFromFile2
-    if (numMembersFromFile /= numMembersFromFile2) then
-      call utl_abort('eob_readFromFilesMpiLocal: numMembersFromFile do not match between files')
-    end if 
-    allocate(memberIndexFromFile(numMembersFromFile))  
-    read(unitNum) (memberIndexFromFile(memberIndex), memberIndex = 1, numMembersFromFile)
-    do memberIndex = 1, numMembersFromFile
-      read(unitNum) (ensObs%Yb_r4(memberIndexFromFile(memberIndex),obsIndex), obsIndex = 1, ensObs%numObs)
+    ! loop on all files to read ensObs%Yb for all members
+    fileBaseName = trim(inputFilenamePrefix) // '.myid_' // trim(fileNameExtention)
+
+    fileIndex = 0
+    numMembersAlreadyRead = 0
+    do while (numMembersAlreadyRead < numMembersIneedToRead)
+      fileIndex = fileIndex + 1
+      write(fileIndexStr,'(i3.3)') fileIndex
+      fileName = './' // trim(ensObsPathNamePattern) // '_' // fileIndexStr // &
+                  '/' // fileBaseName
+
+      write(*,*) 'eob_readFromFilesMpiLocal: reading ',trim(fileName)
+      inquire(file=trim(fileName),exist=fileExists)
+      if (.not. fileExists) then
+        call utl_abort('eob_readFromFilesMpiLocal: file storing Yb does not exist')
+      end if
+      
+      unitNum = 0
+      ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
+      read(unitNum) numMembersFromFile2
+      if (numMembersFromFile /= numMembersFromFile2) then
+        call utl_abort('eob_readFromFilesMpiLocal: numMembersFromFile do not match between files')
+      end if 
+      allocate(memberIndexFromFile(numMembersFromFile))  
+      read(unitNum) (memberIndexFromFile(memberIndex), memberIndex = 1, numMembersFromFile)
+      do memberIndex = 1, numMembersFromFile
+        read(unitNum) (ensObs%Yb_r4(memberIndexFromFile(memberIndex),obsIndex), obsIndex = 1, ensObs%numObs)
+      end do
+      ierr = fclos(unitNum)
+
+      numMembersAlreadyRead = numMembersAlreadyRead + numMembersFromFile
     end do
-    ierr = fclos(unitNum)
 
   end subroutine eob_readFromFilesMpiLocal
 
