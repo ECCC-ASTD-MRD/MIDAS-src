@@ -83,7 +83,6 @@ program midas_letkf
   logical :: nwpFields   ! indicates if fields are on momentum and thermo levels
   logical :: oceanFields ! indicates if fields are on depth levels
   logical :: useModulatedEns ! using modulated ensembles is requested by setting numRetainedEigen.
-  logical :: writeLocalEnsObsToFile
 
   ! interpolation information for weights (in enkf_mod)
   type(struct_enkfInterpInfo) :: wInterpInfo
@@ -98,6 +97,7 @@ program midas_letkf
   character(len=256) :: ensPathName ! absolute or relative path to ensemble directory
   integer  :: nEns                 ! ensemble size
   logical  :: randomShuffleSubEns  ! choose to randomly shuffle members into subensembles 
+  logical  :: writeLocalEnsObsToFile ! Controls writing the ensObs to file.
   integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
   integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
   integer  :: numRetainedEigen     ! number of retained eigenValues/Vectors of vertical localization matrix
@@ -118,7 +118,6 @@ program midas_letkf
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   character(len=12) :: etiket_anl        ! etiket for output files
-  character(len=20) :: writeEnsObsToFileType ! Controls which ensObs to write to file.
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName, randomShuffleSubEns,  &
                      hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
@@ -126,7 +125,7 @@ program midas_letkf
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                      obsTimeInterpType, mpiDistribution, etiket_anl, &
-                     readEnsObsFromFile, writeEnsObsToFileType, &
+                     readEnsObsFromFile, writeLocalEnsObsToFile, &
                      numRetainedEigen, debug
 
   ! Some high-level configuration settings
@@ -182,7 +181,7 @@ program midas_letkf
   mpiDistribution       = 'ROUNDROBIN'
   etiket_anl            = 'ENS_ANL'
   readEnsObsFromFile    = .false.
-  writeEnsObsToFileType = 'NONE'
+  writeLocalEnsObsToFile = .false.
   numRetainedEigen      = 0
   debug                 = .false.
 
@@ -239,11 +238,6 @@ program midas_letkf
     call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
     'letkf with modulated ensembles')
   end if
-
-  if (.not. (trim(writeEnsObsToFileType) == 'LOCAL' .or. trim(writeEnsObsToFileType) == 'NONE')) then
-    call utl_abort('midas-letkf: only writeEnsObsToFileType=NONE/LOCAL are implemented')
-  end if
-  writeLocalEnsObsToFile = (trim(writeEnsObsToFileType) == 'LOCAL')
 
   !
   !- 2.  Initialization
