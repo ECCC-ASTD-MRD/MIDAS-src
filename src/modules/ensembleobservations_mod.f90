@@ -516,8 +516,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_readFromFiles
   !--------------------------------------------------------------------------
-  subroutine eob_readFromFiles(ensObs, numMembersIneedToRead, ensObsPathNamePattern, &
-                               inputFilenamePrefix)
+  subroutine eob_readFromFiles(ensObs, numMembersIneedToRead, inputFilenamePrefix)
     !
     ! :Purpose: Read ensObs%Yb of mpi local object from file
     !
@@ -526,7 +525,6 @@ CONTAINS
     ! arguments
     type(struct_eob), intent(inout) :: ensObs
     integer         ,    intent(in) :: numMembersIneedToRead
-    character(len=*),    intent(in) :: ensObsPathNamePattern
     character(len=*),    intent(in) :: inputFilenamePrefix
     
     ! locals
@@ -606,8 +604,7 @@ CONTAINS
     do while (numMembersAlreadyRead < numMembersIneedToRead)
       fileIndex = fileIndex + 1
       write(fileIndexStr,'(i3.3)') fileIndex
-      fileName = './' // trim(ensObsPathNamePattern) // '_' // fileIndexStr // &
-                  '/' // fileBaseName
+      fileName = './ensObs_' // fileIndexStr // '/' // fileBaseName
 
       write(*,*) 'eob_readFromFiles: reading ',trim(fileName)
       inquire(file=trim(fileName),exist=fileExists)

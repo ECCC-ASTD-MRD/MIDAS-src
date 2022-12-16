@@ -97,7 +97,6 @@ program midas_letkf
   logical            :: recenterInputEns  ! read a deterministic state to recenter ensemble
   integer            :: numSubEns  ! number of sub-ensembles to split the full ensemble
   character(len=256) :: ensPathName ! absolute or relative path to ensemble directory
-  character(len=256) :: ensObsPathNamePattern ! path name pattern for ensObs directory
   integer  :: nEns                 ! ensemble size
   logical  :: randomShuffleSubEns  ! choose to randomly shuffle members into subensembles 
   integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
@@ -122,7 +121,7 @@ program midas_letkf
   character(len=12) :: etiket_anl        ! etiket for output files
   character(len=20) :: writeEnsObsToFileType ! Controls which ensObs to write to file.
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
-                     ensPathName, ensObsPathNamePattern, randomShuffleSubEns,  &
+                     ensPathName, randomShuffleSubEns,  &
                      hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
                      maxNumLocalObs, weightLatLonStep,  &
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
@@ -163,7 +162,6 @@ program midas_letkf
   ensPostProcessing     = .false.
   recenterInputEns      = .false.
   ensPathName           = 'ensemble'
-  ensObsPathNamePattern = 'ensObs'
   nEns                  = 10
   numSubEns             = 2
   randomShuffleSubEns   = .false.
@@ -421,8 +419,8 @@ program midas_letkf
 
   !- 3.1 Loop over all members and compute HX for each
   if ( readEnsObsFromFile ) then
-    call eob_readFromFiles(ensObs, nEns, ensObsPathNamePattern, inputFilenamePrefix='eob_HX')
-    if ( useModulatedEns ) call eob_readFromFiles(ensObsGain, nEnsGain, ensObsPathNamePattern, &
+    call eob_readFromFiles(ensObs, nEns, inputFilenamePrefix='eob_HX')
+    if ( useModulatedEns ) call eob_readFromFiles(ensObsGain, nEnsGain, &
                                                   inputFilenamePrefix='eobGain_HX')
   else
     do memberIndex = 1, nEns
