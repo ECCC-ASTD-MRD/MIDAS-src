@@ -49,8 +49,7 @@ MODULE ensembleObservations_mod
   public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
   public :: eob_removeObsNearLand, eob_getMemebrIndexInFullEnsSet
-  public :: eob_writeToFilesMpiGlobal, eob_writeToFilesMpiLocal
-  public :: eob_readFromFilesMpiGlobal, eob_readFromFilesMpiLocal
+  public :: eob_readFromFilesMpiLocal, eob_writeToFilesMpiLocal
 
   integer, parameter :: maxNumLocalObsSearch = 500000
   integer,external   :: get_max_rss
@@ -433,67 +432,6 @@ CONTAINS
   end subroutine eob_allGather
 
   !--------------------------------------------------------------------------
-  ! eob_writeToFilesMpiGlobal
-  !--------------------------------------------------------------------------
-  subroutine eob_writeToFilesMpiGlobal(ensObs, memberIndexArray, outputFilenamePrefix, &
-                                       writeObsInfo)
-    !
-    ! :Purpose: Write the contents of an ensObs_mpiglobal object to files
-    !
-    implicit none
-
-    ! arguments
-    type(struct_eob), intent(in) :: ensObs
-    integer,          intent(in) :: memberIndexArray(:)
-    character(len=*), intent(in) :: outputFilenamePrefix
-    logical,          intent(in) :: writeObsInfo
-
-    ! locals
-    integer :: unitNum, ierr, obsIndex, memberIndex
-    character(len=40) :: fileName
-    character(len=4)  :: memberIndexStr
-    integer :: fnom, fclos
-
-    ! only the first mpi task does writing, assuming mpi gather already done
-    if (mmpi_myid /= 0) return
-
-    if (.not.ensObs%allocated) then
-      call utl_abort('eob_writeToFilesMpiGlobal: this object is not allocated')
-    end if
-
-    ! write the lat, lon and obs values to a file
-    if (writeObsInfo) then
-      fileName = 'eob_Lat_Lon_ObsValue'
-      write(*,*) 'eob_writeToFilesMpiGlobal: writing ',trim(filename)
-      unitNum = 0
-      ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
-      write(unitNum) (ensObs%lat(obsIndex), obsIndex = 1, ensObs%numObs)
-      write(unitNum) (ensObs%lon(obsIndex), obsIndex = 1, ensObs%numObs)
-      write(unitNum) (ensObs%obsValue(obsIndex), obsIndex = 1, ensObs%numObs)
-      ierr = fclos(unitNum)
-    end if
-
-    ! write the contents of Yb, 1 member per file
-    do memberIndex = 1, ensObs%numMembers
-      write(memberIndexStr,'(I0.4)') memberIndex
-      fileName = trim(outputFilenamePrefix) // '_' // memberIndexStr
-      write(*,*) 'eob_writeToFilesMpiGlobal: writing ',trim(filename)
-      if (mmpi_myid == 0) then
-        write(*,*) 'eob_writeToFilesMpiGlobal: fileMemberIndex1=', ensObs%fileMemberIndex1, &
-                   ', memberIndex=', memberIndex, &
-                   ', memberIndex in original ensemble set=', memberIndexArray(memberIndex)
-      end if
-      unitNum = 0
-      ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
-      write(unitNum) ensObs%numMembers
-      write(unitNum) memberIndexArray(memberIndex)
-      write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
-      ierr = fclos(unitNum)
-    end do
-
-  end subroutine eob_writeToFilesMpiGlobal
-
-  !--------------------------------------------------------------------------
   ! eob_writeToFilesMpiLocal
   !--------------------------------------------------------------------------
   subroutine eob_writeToFilesMpiLocal(ensObs, memberIndexArray, outputFilenamePrefix, &
@@ -577,23 +515,6 @@ CONTAINS
     ierr = fclos(unitNum)
 
   end subroutine eob_writeToFilesMpiLocal
-
-  !--------------------------------------------------------------------------
-  ! eob_readFromFilesMpiGlobal
-  !--------------------------------------------------------------------------
-  subroutine eob_readFromFilesMpiGlobal(ensObs)
-    !
-    ! :Purpose: Read the contents of an ensObs mpi global object from files
-    !
-    implicit none
-
-    ! arguments
-    type(struct_eob), intent(inout) :: ensObs
-
-    call utl_abort('eob_readFromFilesMpiGlobal: not yet implemented')
-    write(*,*) 'eob_readFromFilesMpiGlobal: This structure contains ', ensObs%numMembers, ' members'
-
-  end subroutine eob_readFromFilesMpiGlobal
 
   !--------------------------------------------------------------------------
   ! eob_readFromFilesMpiLocal

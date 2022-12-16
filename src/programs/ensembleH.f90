@@ -61,8 +61,7 @@ program midas_ensembleH
   integer, allocatable :: originalEnsMemberIndexArray(:), modulatedEnsMemberIndexArray(:)
   integer, allocatable :: dateStampList(:)
 
-  logical :: useModulatedEns, writeGlobalEnsObsToFile, writeLocalEnsObsToFile
-  logical :: fileExists
+  logical :: useModulatedEns, fileExists
 
   character(len=256)  :: ensFileName
   character(len=256)  :: ensMeanFileName
@@ -82,9 +81,9 @@ program midas_ensembleH
   real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
                                !   used only when generating modulated ensembles.
   logical  :: readEnsMeanFromFile
-  character(len=20)  :: writeEnsObsToFileType
+  logical  :: writeLocalEnsObsToFile
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
-                         vLocalize, writeEnsObsToFileType, fileMemberIndex1, &
+                         vLocalize, writeLocalEnsObsToFile, fileMemberIndex1, &
                          readEnsMeanFromFile, numFullEns
 
   midasMode = 'analysis'
@@ -109,15 +108,15 @@ program midas_ensembleH
   call ram_setup
 
   ! Setting default namelist variable values
-  nEns                  = 10
-  ensPathName           = 'ensemble'
-  obsTimeInterpType     = 'LINEAR'
-  numRetainedEigen      = 0
-  vLocalize             = -1.0D0
-  writeEnsObsToFileType = 'GLOBAL'
-  fileMemberIndex1      = 1
-  readEnsMeanFromFile   = .false.
-  numFullEns            = 0
+  nEns                   = 10
+  ensPathName            = 'ensemble'
+  obsTimeInterpType      = 'LINEAR'
+  numRetainedEigen       = 0
+  vLocalize              = -1.0D0
+  writeLocalEnsObsToFile = .true.
+  fileMemberIndex1       = 1
+  readEnsMeanFromFile    = .false.
+  numFullEns             = 0
 
   ! Read the namelist
   nulnam = 0
@@ -139,15 +138,6 @@ program midas_ensembleH
     call utl_abort('midas-ensembleH: For modulated ensembles the number of full ensembles is needed ' // &
                       'with numFullEns >= nEns')
   end if
-  
-  if (.not. (trim(writeEnsObsToFileType) == 'LOCAL' .or. trim(writeEnsObsToFileType) == 'GLOBAL' .or. &
-             trim(writeEnsObsToFileType) == 'BOTH' .or. trim(writeEnsObsToFileType) == 'NONE')) then
-    call utl_abort('midas-ensembleH: writeEnsObsToFileType does not have right value')
-  end if
-  writeGlobalEnsObsToFile = (trim(writeEnsObsToFileType) == 'GLOBAL' .or. &
-                             trim(writeEnsObsToFileType) == 'BOTH')
-  writeLocalEnsObsToFile  = (trim(writeEnsObsToFileType) == 'LOCAL' .or. &
-                             trim(writeEnsObsToFileType) == 'BOTH')
 
   ! Read the observations
   call obsf_setup(dateStamp, midasMode, obsFileType_opt = obsFileType)
@@ -332,35 +322,20 @@ program midas_ensembleH
   call gsv_deallocate(stateVectorMeanTrl4D)
   call gsv_deallocate(stateVectorHeightSfc)
 
-  allocate(originalEnsMemberIndexArray(nEns))
-  call eob_getMemebrIndexInFullEnsSet(ensObs, originalEnsMemberIndexArray)
-  if (useModulatedEns) then
-    allocate(modulatedEnsMemberIndexArray(nEnsGain))
-    call eob_getMemebrIndexInFullEnsSet(ensObsGain, modulatedEnsMemberIndexArray, &
-                                        numGroupsToDivideMembers_opt=numRetainedEigen, &
-                                        maxNumMembersPerGroup_opt=numFullEns)
-  end if
-
   ! write local ensObs to file
   if (writeLocalEnsObsToFile) then
+    allocate(originalEnsMemberIndexArray(nEns))
+    call eob_getMemebrIndexInFullEnsSet(ensObs, originalEnsMemberIndexArray)
     call eob_writeToFilesMpiLocal(ensObs, originalEnsMemberIndexArray, &
                                   outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
+
     if (useModulatedEns) then
+      allocate(modulatedEnsMemberIndexArray(nEnsGain))
+      call eob_getMemebrIndexInFullEnsSet(ensObsGain, modulatedEnsMemberIndexArray, &
+                                          numGroupsToDivideMembers_opt=numRetainedEigen, &
+                                          maxNumMembersPerGroup_opt=numFullEns)
       call eob_writeToFilesMpiLocal(ensObsGain, modulatedEnsMemberIndexArray, &
                                     outputFilenamePrefix='eobGain_HX', writeObsInfo=.false.)
-    end if
-  end if
-
-  ! Clean and globally communicate obs-related data, then write to files
-  if (writeGlobalEnsObsToFile) then
-    call eob_allGather(ensObs,ensObs_mpiglobal)
-    call eob_writeToFilesMpiGlobal(ensObs_mpiglobal, originalEnsMemberIndexArray, &
-                                   outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
-    if (useModulatedEns) then
-      allocate(ensObsGain_mpiglobal)
-      call eob_allGather(ensObsGain, ensObsGain_mpiglobal)
-      call eob_writeToFilesMpiGlobal(ensObsGain_mpiglobal, modulatedEnsMemberIndexArray, &
-                                     outputFilenamePrefix='eobGain_HX', writeObsInfo=.false.)
     end if
   end if
 
