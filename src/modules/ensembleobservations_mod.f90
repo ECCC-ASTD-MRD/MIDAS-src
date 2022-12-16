@@ -49,7 +49,7 @@ MODULE ensembleObservations_mod
   public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
   public :: eob_removeObsNearLand, eob_getMemberIndexInFullEnsSet
-  public :: eob_readFromFilesMpiLocal, eob_writeToFilesMpiLocal
+  public :: eob_readFromFiles, eob_writeToFiles
 
   integer, parameter :: maxNumLocalObsSearch = 500000
   integer,external   :: get_max_rss
@@ -431,10 +431,10 @@ CONTAINS
   end subroutine eob_allGather
 
   !--------------------------------------------------------------------------
-  ! eob_writeToFilesMpiLocal
+  ! eob_writeToFiles
   !--------------------------------------------------------------------------
-  subroutine eob_writeToFilesMpiLocal(ensObs, memberIndexArray, outputFilenamePrefix, &
-                                      writeObsInfo)
+  subroutine eob_writeToFiles(ensObs, memberIndexArray, outputFilenamePrefix, &
+                              writeObsInfo)
     !
     ! :Purpose: Write the contents of an ensObs mpi local object to files
     !
@@ -457,7 +457,7 @@ CONTAINS
     logical :: fileExists
 
     if (.not. ensObs%allocated) then
-      call utl_abort('eob_writeToFilesMpiLocal: this object is not allocated')
+      call utl_abort('eob_writeToFiles: this object is not allocated')
     end if
 
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
@@ -471,10 +471,10 @@ CONTAINS
     ! write observation info to a file
     if (writeObsInfo) then
       fileName = 'eob_obsInfo.myid_' // trim(fileNameExtention)
-      write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
+      write(*,*) 'eob_writeToFiles: writing ',trim(filename)
       inquire(file=trim(fileName),exist=fileExists)
       if ( fileExists ) then
-        call utl_abort('eob_writeToFilesMpiLocal: file should not exist')
+        call utl_abort('eob_writeToFiles: file should not exist')
       end if
       
       unitNum = 0
@@ -491,10 +491,10 @@ CONTAINS
 
     ! Open file and write ensObs%Yb for all the members to one file
     fileName = trim(outputFilenamePrefix) // '.myid_' // trim(fileNameExtention)
-    write(*,*) 'eob_writeToFilesMpiLocal: writing ',trim(filename)
+    write(*,*) 'eob_writeToFiles: writing ',trim(filename)
     inquire(file=trim(fileName),exist=fileExists)
     if (fileExists) then
-      call utl_abort('eob_writeToFilesMpiLocal: file should not exist')
+      call utl_abort('eob_writeToFiles: file should not exist')
     end if
     
     unitNum = 0
@@ -503,7 +503,7 @@ CONTAINS
     write(unitNum) (memberIndexArray(memberIndex), memberIndex = 1, ensObs%numMembers)
     do memberIndex = 1, ensObs%numMembers
       if (mmpi_myid == 0) then
-        write(*,*) 'eob_writeToFilesMpiLocal: fileMemberIndex1=', ensObs%fileMemberIndex1, &
+        write(*,*) 'eob_writeToFiles: fileMemberIndex1=', ensObs%fileMemberIndex1, &
                    ', memberIndex=', memberIndex, &
                    ', memberIndex in full ensemble set=', memberIndexArray(memberIndex)
       end if
@@ -511,13 +511,13 @@ CONTAINS
     end do
     ierr = fclos(unitNum)
 
-  end subroutine eob_writeToFilesMpiLocal
+  end subroutine eob_writeToFiles
 
   !--------------------------------------------------------------------------
-  ! eob_readFromFilesMpiLocal
+  ! eob_readFromFiles
   !--------------------------------------------------------------------------
-  subroutine eob_readFromFilesMpiLocal(ensObs, numMembersIneedToRead, ensObsPathNamePattern, &
-                                       inputFilenamePrefix)
+  subroutine eob_readFromFiles(ensObs, numMembersIneedToRead, ensObsPathNamePattern, &
+                               inputFilenamePrefix)
     !
     ! :Purpose: Read ensObs%Yb of mpi local object from file
     !
@@ -546,7 +546,7 @@ CONTAINS
     character(len=30)  :: fileNameExtention
 
     if ( .not. ensObs%allocated ) then
-      call utl_abort('eob_readFromFilesMpiLocal: this object is not allocated')
+      call utl_abort('eob_readFromFiles: this object is not allocated')
     end if
 
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
@@ -557,20 +557,20 @@ CONTAINS
 
     ! read file containing observation info and check they match ensObs
     fileName = 'eob_obsInfo.myid_' // trim(fileNameExtention)
-    write(*,*) 'eob_readFromFilesMpiLocal: reading ',trim(fileName)
+    write(*,*) 'eob_readFromFiles: reading ',trim(fileName)
     inquire(file=trim(fileName),exist=fileExists)
     if (.not. fileExists) then
-      call utl_abort('eob_readFromFilesMpiLocal: file does not exist')
+      call utl_abort('eob_readFromFiles: file does not exist')
     end if
 
     unitNum = 0
     ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
     read(unitNum) numMembersFromFile, numObsFromFile
     if (ensObs%numObs /= numObsFromFile) then
-      call utl_abort('eob_readFromFilesMpiLocal: ensObs%numObs does not match with that of file')
+      call utl_abort('eob_readFromFiles: ensObs%numObs does not match with that of file')
     end if
     if (ensObs%numMembers /= numMembersFromFile) then
-      write(*,*) 'eob_readFromFilesMpiLocal: ensObs%numMembers=', ensObs%numMembers, &
+      write(*,*) 'eob_readFromFiles: ensObs%numMembers=', ensObs%numMembers, &
                  ', numMembersFromFile= ', numMembersFromFile
     end if
 
@@ -583,7 +583,7 @@ CONTAINS
         .not. all(lonFromFile(:) == ensObs%lon(:)) .or. &
         .not. all(obsValueFromFile(:) == ensObs%obsValue(:)) .or. &
         .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:))) then
-      call utl_abort('eob_readFromFilesMpiLocal: onsInfo file do not match ensObs')
+      call utl_abort('eob_readFromFiles: onsInfo file do not match ensObs')
     end if
     
     ! read assimilation/obs flags from file and modify obsSpaceData
@@ -609,17 +609,17 @@ CONTAINS
       fileName = './' // trim(ensObsPathNamePattern) // '_' // fileIndexStr // &
                   '/' // fileBaseName
 
-      write(*,*) 'eob_readFromFilesMpiLocal: reading ',trim(fileName)
+      write(*,*) 'eob_readFromFiles: reading ',trim(fileName)
       inquire(file=trim(fileName),exist=fileExists)
       if (.not. fileExists) then
-        call utl_abort('eob_readFromFilesMpiLocal: file storing Yb does not exist')
+        call utl_abort('eob_readFromFiles: file storing Yb does not exist')
       end if
       
       unitNum = 0
       ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
       read(unitNum) numMembersFromFile2
       if (numMembersFromFile /= numMembersFromFile2) then
-        call utl_abort('eob_readFromFilesMpiLocal: numMembersFromFile do not match between files')
+        call utl_abort('eob_readFromFiles: numMembersFromFile do not match between files')
       end if 
       allocate(memberIndexFromFile(numMembersFromFile))  
       read(unitNum) (memberIndexFromFile(memberIndex), memberIndex = 1, numMembersFromFile)
@@ -631,7 +631,7 @@ CONTAINS
       numMembersAlreadyRead = numMembersAlreadyRead + numMembersFromFile
     end do
 
-  end subroutine eob_readFromFilesMpiLocal
+  end subroutine eob_readFromFiles
 
   !--------------------------------------------------------------------------
   ! eob_getLocalBodyIndices

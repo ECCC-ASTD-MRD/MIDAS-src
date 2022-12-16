@@ -421,9 +421,9 @@ program midas_letkf
 
   !- 3.1 Loop over all members and compute HX for each
   if ( readEnsObsFromFile ) then
-    call eob_readFromFilesMpiLocal(ensObs, nEns, ensObsPathNamePattern, inputFilenamePrefix='eob_HX')
-    if ( useModulatedEns ) call eob_readFromFilesMpiLocal(ensObsGain, nEnsGain, ensObsPathNamePattern, &
-                                                          inputFilenamePrefix='eobGain_HX')
+    call eob_readFromFiles(ensObs, nEns, ensObsPathNamePattern, inputFilenamePrefix='eob_HX')
+    if ( useModulatedEns ) call eob_readFromFiles(ensObsGain, nEnsGain, ensObsPathNamePattern, &
+                                                  inputFilenamePrefix='eobGain_HX')
   else
     do memberIndex = 1, nEns
   
@@ -496,15 +496,15 @@ program midas_letkf
   if (writeLocalEnsObsToFile) then
     allocate(originalEnsMemberIndexArray(nEns))
     call eob_getMemberIndexInFullEnsSet(ensObs, originalEnsMemberIndexArray)
-    call eob_writeToFilesMpiLocal(ensObs, originalEnsMemberIndexArray, &
-                                  outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
+    call eob_writeToFiles(ensObs, originalEnsMemberIndexArray, &
+                          outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
     if (useModulatedEns) then
       allocate(modulatedEnsMemberIndexArray(nEnsGain))
       call eob_getMemberIndexInFullEnsSet(ensObsGain, modulatedEnsMemberIndexArray, &
                                           numGroupsToDivideMembers_opt=numRetainedEigen, &
                                           maxNumMembersPerGroup_opt=nEns)
-      call eob_writeToFilesMpiLocal(ensObsGain, modulatedEnsMemberIndexArray, &
-                                    outputFilenamePrefix='eobGain_HX', writeObsInfo=.false.)
+      call eob_writeToFiles(ensObsGain, modulatedEnsMemberIndexArray, &
+                            outputFilenamePrefix='eobGain_HX', writeObsInfo=.false.)
     end if
   end if
 
