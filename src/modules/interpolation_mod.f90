@@ -776,7 +776,8 @@ contains
     ! create reference state on output vco with reference surface fields
     call gsv_allocate(statevectorRef_out, statevectorRef%numstep, &
                       statevectorRef%hco, statevector_out%vco,      &
-                      mpi_local_opt=statevectorRef%mpi_local, mpi_distribution_opt='Tiles', &
+                      mpi_local_opt=statevectorRef%mpi_local,  &
+                      mpi_distribution_opt=statevectorRef%mpi_distribution, &
                       dataKind_opt=gsv_getDataKind(statevectorRef), &
                       allocHeightSfc_opt=statevectorRef%heightSfcPresent, &
                       varNames_opt=(/'P0'/) )

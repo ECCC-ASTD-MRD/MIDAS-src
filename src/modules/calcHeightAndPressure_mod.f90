@@ -2126,12 +2126,12 @@ contains
       ! P_M
       nullify(Pressure_out)
       status = vgd_levels(statevector%vco%vgrid, &
-                        ip1_list=statevector%vco%ip1_M, &
-                        levels=Pressure_out, &
-                        sfc_field=Psfc, &
-                        in_log=.false.)
+                          ip1_list=statevector%vco%ip1_M, &
+                          levels=Pressure_out, &
+                          sfc_field=Psfc, &
+                          in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('calcPressure_gsv_nl_vcode500x_r8 (czp): ERROR with vgd_levels')
+        call utl_abort('calcPressure_gsv_nl_vcode500x_r8 (czp): ERROR with vgd_levels')
       end if
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
@@ -2144,7 +2144,7 @@ contains
                           sfc_field=Psfc, &
                           in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('calcPressure_gsv_nl_vcode500x_r8 (czp): ERROR with vgd_levels')
+        call utl_abort('calcPressure_gsv_nl_vcode500x_r8 (czp): ERROR with vgd_levels')
       end if
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
@@ -2195,12 +2195,12 @@ contains
       ! P_M
       nullify(Pressure_out)
       status = vgd_levels(statevector%vco%vgrid, &
-                        ip1_list=statevector%vco%ip1_M, &
-                        levels=Pressure_out, &
-                        sfc_field=Psfc, &
-                        in_log=.false.)
+                          ip1_list=statevector%vco%ip1_M, &
+                          levels=Pressure_out, &
+                          sfc_field=Psfc, &
+                          in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): ERROR with vgd_levels')
+        call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): ERROR with vgd_levels')
       end if
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
@@ -2213,7 +2213,7 @@ contains
                           sfc_field=Psfc, &
                           in_log=.false.)
       if( status .ne. VGD_OK ) then
-          call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): ERROR with vgd_levels')
+        call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): ERROR with vgd_levels')
       end if
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
