@@ -73,6 +73,7 @@ program midas_letkf
   integer :: nulnam, dateStamp, ierr
   integer :: get_max_rss, fclos, fnom, fstopc
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
+  integer, allocatable :: originalEnsMemberIndexArray(:), modulatedEnsMemberIndexArray(:)
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
   character(len=256) :: ensFileName, ctrlFileName, recenterFileName
@@ -491,10 +492,18 @@ program midas_letkf
 
   ! write local ensObs to file
   if (writeLocalEnsObsToFile) then
-    call eob_writeToFilesMpiLocal(ensObs, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
-    if (useModulatedEns) call eob_writeToFilesMpiLocal(ensObsGain, &
-                                                       outputFilenamePrefix='eobGain_HX', &
-                                                       writeObsInfo=.false.)
+    allocate(originalEnsMemberIndexArray(nEns))
+    call eob_getMemebrIndexInFullEnsSet(ensObs, originalEnsMemberIndexArray)
+    call eob_writeToFilesMpiLocal(ensObs, originalEnsMemberIndexArray, &
+                                  outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
+    if (useModulatedEns) then
+      allocate(modulatedEnsMemberIndexArray(nEnsGain))
+      call eob_getMemebrIndexInFullEnsSet(ensObsGain, modulatedEnsMemberIndexArray, &
+                                          numGroupsToDivideMembers_opt=numRetainedEigen, &
+                                          maxNumMembersPerGroup_opt=nEns)
+      call eob_writeToFilesMpiLocal(ensObsGain, modulatedEnsMemberIndexArray, &
+                                    outputFilenamePrefix='eobGain_HX', writeObsInfo=.false.)
+    end if
   end if
 
   !- 3.2 Set some additional information in ensObs/ensObsGain and additional quality
