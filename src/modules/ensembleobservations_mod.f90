@@ -544,7 +544,8 @@ CONTAINS
     real(8) :: latFromFile(ensObs%numObs), lonFromFile(ensObs%numObs)
     real(8) :: obsValueFromFile(ensObs%numObs)
     integer :: obsVcoCode(ensObs%numObs), obsVcoCodeFromFile(ensObs%numObs)
-    integer :: obsFlag(ensObs%numObs)
+    integer :: obsFlag(ensObs%numObs), assFlagFrom1File(ensObs%numObs)
+    integer :: assFlagFromAllFiles(ensObs%numObs)
     integer :: unitNum, ierr, memberIndex, obsIndex, numObsFromFile
     integer :: numMembersFromFile, numMembersFromFile2, fnom, fclos
     integer :: fileIndex, numMembersAlreadyRead
@@ -561,55 +562,75 @@ CONTAINS
     end if
 
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
+    assFlagFromAllFiles(:) = obs_notAssimilated
 
     write(myidxStr,'(I4.4)') (mmpi_myidx + 1)
     write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
     fileNameExtention = trim(myidxStr) // '_' // trim(myidyStr)
 
-    ! read file containing observation info and check they match ensObs
-    fileName = 'eob_obsInfo_' // trim(fileNameExtention)
-    write(*,*) 'eob_readFromFiles: reading ',trim(fileName)
-    inquire(file=trim(fileName),exist=fileExists)
-    if (.not. fileExists) then
-      call utl_abort('eob_readFromFiles: file does not exist')
-    end if
+    ! loop on all file from different directories, read obsInfo and check they match ensObs
+    fileBaseName = 'eob_obsInfo_' // trim(fileNameExtention)
 
-    unitNum = 0
-    ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
-    read(unitNum) numMembersFromFile, numObsFromFile
-    if (ensObs%numObs /= numObsFromFile) then
-      call utl_abort('eob_readFromFiles: ensObs%numObs does not match with that of file')
-    end if
-    if (ensObs%numMembers /= numMembersFromFile) then
-      write(*,*) 'eob_readFromFiles: ensObs%numMembers=', ensObs%numMembers, &
-                 ', numMembersFromFile= ', numMembersFromFile
-    end if
+    fileIndex = 0
+    numMembersAlreadyRead = 0
+    do while (numMembersAlreadyRead < numMembersToRead)
+      fileIndex = fileIndex + 1
+      write(fileIndexStr,'(i3.3)') fileIndex
+      fileName = './ensObs_' // fileIndexStr // '/' // fileBaseName
 
-    read(unitNum) (latFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
-    read(unitNum) (lonFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
-    read(unitNum) (obsVcoCodeFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
-    read(unitNum) (obsValueFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+      write(*,*) 'eob_readFromFiles: reading ',trim(fileName)
+      inquire(file=trim(fileName),exist=fileExists)
+      if (.not. fileExists) then
+        write(*,*) 'fileName=', fileName
+        call utl_abort('eob_readFromFiles: file does not exist')
+      end if
+
+      unitNum = 0
+      ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
+      read(unitNum) numMembersFromFile, numObsFromFile
+      if (ensObs%numObs /= numObsFromFile) then
+        call utl_abort('eob_readFromFiles: ensObs%numObs does not match with that of file')
+      end if
+
+      read(unitNum) (latFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+      read(unitNum) (lonFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+      read(unitNum) (obsVcoCodeFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+      read(unitNum) (obsValueFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
     
-    if (.not. all(latFromFile(:) == ensObs%lat(:)) .or. &
-        .not. all(lonFromFile(:) == ensObs%lon(:)) .or. &
-        .not. all(obsValueFromFile(:) == ensObs%obsValue(:)) .or. &
-        .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:))) then
-      call utl_abort('eob_readFromFiles: onsInfo file do not match ensObs')
-    end if
+      if (.not. all(latFromFile(:) == ensObs%lat(:)) .or. &
+          .not. all(lonFromFile(:) == ensObs%lon(:)) .or. &
+          .not. all(obsValueFromFile(:) == ensObs%obsValue(:)) .or. &
+          .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:))) then
+        call utl_abort('eob_readFromFiles: onsInfo file do not match ensObs')
+      end if
     
-    ! read assimilation/obs flags from file and modify obsSpaceData
-    read(unitNum) (ensObs%assFlag(obsIndex), obsIndex = 1, ensObs%numObs)
-    read(unitNum) (obsFlag(obsIndex), obsIndex = 1, ensObs%numObs)
-    do obsIndex = 1, obs_numbody(ensObs%obsSpaceData)
+      ! Read assimilation flag for of all files and apply a "logical or" to get the value 
+      !   to put in obsSpaceData. Reda obs flag only on the first file.
+      read(unitNum) (assFlagFrom1File(obsIndex), obsIndex = 1, ensObs%numObs)
+      if (numMembersAlreadyRead==0) then
+        read(unitNum) (obsFlag(obsIndex), obsIndex = 1, ensObs%numObs)
+      end if
+      
+      where (assFlagFromAllFiles(:) == obs_assimilated .or. &
+             assFlagFrom1File(:) == obs_assimilated) 
+        assFlagFromAllFiles(:) = obs_assimilated
+      end where
+
+      ierr = fclos(unitNum)
+
+      numMembersAlreadyRead = numMembersAlreadyRead + numMembersFromFile
+    end do
+
+    ! update assimilation flag in obsSpaceData
+    do obsIndex = 1, ensObs%numObs
       ! skip this obs it is already set to be assimilated
-      if (ensObs%assFlag(obsIndex) == obs_assimilated) cycle
+      if (assFlagFromAllFiles(obsIndex) == obs_assimilated) cycle
 
       call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, obsIndex, obs_notAssimilated)
       call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, obsIndex, obsFlag(obsIndex))
     end do
-    ierr = fclos(unitNum)
 
-    ! loop on all files to read ensObs%Yb for all members
+    ! loop on all files from different directories to read ensObs%Yb for all members
     fileBaseName = trim(inputFilenamePrefix) // '_' // trim(fileNameExtention)
 
     fileIndex = 0
@@ -622,14 +643,15 @@ CONTAINS
       write(*,*) 'eob_readFromFiles: reading ',trim(fileName)
       inquire(file=trim(fileName),exist=fileExists)
       if (.not. fileExists) then
-        call utl_abort('eob_readFromFiles: file storing Yb does not exist')
+        write(*,*) 'fileName=', fileName
+        call utl_abort('eob_readFromFiles: file does not exist')
       end if
       
       unitNum = 0
       ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
-      read(unitNum) numMembersFromFile2
-      if (numMembersFromFile /= numMembersFromFile2) then
-        call utl_abort('eob_readFromFiles: numMembersFromFile do not match between files')
+      read(unitNum) numMembersFromFile
+      if (ensObs%numObs /= numMembersFromFile) then
+        call utl_abort('eob_readFromFiles: ensObs%numObs does not match with that of file')
       end if 
       allocate(memberIndexFromFile(numMembersFromFile))  
       read(unitNum) (memberIndexFromFile(memberIndex), memberIndex = 1, numMembersFromFile)
