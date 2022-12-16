@@ -470,7 +470,7 @@ CONTAINS
     
     ! write observation info to a file
     if (writeObsInfo) then
-      fileName = 'eob_obsInfo.myid_' // trim(fileNameExtention)
+      fileName = 'eob_obsInfo_' // trim(fileNameExtention)
       write(*,*) 'eob_writeToFiles: writing ',trim(filename)
       inquire(file=trim(fileName),exist=fileExists)
       if ( fileExists ) then
@@ -490,7 +490,7 @@ CONTAINS
     end if
 
     ! Open file and write ensObs%Yb for all the members to one file
-    fileName = trim(outputFilenamePrefix) // '.myid_' // trim(fileNameExtention)
+    fileName = trim(outputFilenamePrefix) // '_' // trim(fileNameExtention)
     write(*,*) 'eob_writeToFiles: writing ',trim(filename)
     inquire(file=trim(fileName),exist=fileExists)
     if (fileExists) then
@@ -556,7 +556,7 @@ CONTAINS
     fileNameExtention = trim(myidxStr) // '_' // trim(myidyStr)
 
     ! read file containing observation info and check they match ensObs
-    fileName = 'eob_obsInfo.myid_' // trim(fileNameExtention)
+    fileName = 'eob_obsInfo_' // trim(fileNameExtention)
     write(*,*) 'eob_readFromFiles: reading ',trim(fileName)
     inquire(file=trim(fileName),exist=fileExists)
     if (.not. fileExists) then
@@ -599,7 +599,7 @@ CONTAINS
     ierr = fclos(unitNum)
 
     ! loop on all files to read ensObs%Yb for all members
-    fileBaseName = trim(inputFilenamePrefix) // '.myid_' // trim(fileNameExtention)
+    fileBaseName = trim(inputFilenamePrefix) // '_' // trim(fileNameExtention)
 
     fileIndex = 0
     numMembersAlreadyRead = 0
