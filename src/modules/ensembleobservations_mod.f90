@@ -94,7 +94,6 @@ CONTAINS
     type(struct_obs), target, intent(in)    :: obsSpaceData
     integer, optional       , intent(in)    :: fileMemberIndex1_opt
 
-
     if ( ensObs%allocated ) then
       write(*,*) 'eob_allocate: this object is already allocated, deallocating first.'
       call eob_deallocate( ensObs )
@@ -497,8 +496,6 @@ CONTAINS
     if (fileExists) then
       call utl_abort('eob_writeToFilesMpiLocal: file should not exist')
     end if
-
-
     
     unitNum = 0
     ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
@@ -508,7 +505,7 @@ CONTAINS
       if (mmpi_myid == 0) then
         write(*,*) 'eob_writeToFilesMpiLocal: fileMemberIndex1=', ensObs%fileMemberIndex1, &
                    ', memberIndex=', memberIndex, &
-                   ', memberIndex in original ensemble set=', memberIndexArray(memberIndex)
+                   ', memberIndex in full ensemble set=', memberIndexArray(memberIndex)
       end if
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
     end do
