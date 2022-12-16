@@ -48,8 +48,7 @@ MODULE ensembleObservations_mod
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_copy, eob_zero
   public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
-  public :: eob_removeObsNearLand, eob_getMemberIndexInFullEnsSet
-  public :: eob_readFromFiles, eob_writeToFiles
+  public :: eob_removeObsNearLand, eob_readFromFiles, eob_writeToFiles
 
   integer, parameter :: maxNumLocalObsSearch = 500000
   integer,external   :: get_max_rss
@@ -433,23 +432,26 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_writeToFiles
   !--------------------------------------------------------------------------
-  subroutine eob_writeToFiles(ensObs, memberIndexArray, outputFilenamePrefix, &
-                              writeObsInfo)
+  subroutine eob_writeToFiles(ensObs, outputFilenamePrefix, writeObsInfo, &
+                              numGroupsToDivideMembers_opt, &
+                              maxNumMembersPerGroup_opt)
     !
     ! :Purpose: Write the contents of an ensObs mpi local object to files
     !
     implicit none
 
     ! arguments
-    type(struct_eob), intent(in) :: ensObs
-    integer,          intent(in) :: memberIndexArray(:)
-    character(len=*), intent(in) :: outputFilenamePrefix
-    logical,          intent(in) :: writeObsInfo
+    type(struct_eob),  intent(in) :: ensObs
+    character(len=*),  intent(in) :: outputFilenamePrefix
+    logical,           intent(in) :: writeObsInfo
+    integer, optional, intent(in) :: numGroupsToDivideMembers_opt
+    integer, optional, intent(in) :: maxNumMembersPerGroup_opt
 
     ! locals
     integer :: unitNum, ierr, obsIndex, memberIndex
     integer :: obsVcoCode(ensObs%numObs), obsAssFlag(ensObs%numObs)
     integer :: obsFlag(ensObs%numObs)
+    integer, allocatable :: memberIndexArray(:)
     character(len=40) :: fileName
     character(len=4)  :: myidxStr, myidyStr
     character(len=30) :: fileNameExtention
@@ -489,6 +491,12 @@ CONTAINS
       ierr = fclos(unitNum)
     end if
 
+    ! get memberIndex in the full ensemble set
+    allocate(memberIndexArray(ensObs%numMembers))
+    call getMemberIndexInFullEnsSet(ensObs, memberIndexArray, &
+                                    numGroupsToDivideMembers_opt=numGroupsToDivideMembers_opt, &
+                                    maxNumMembersPerGroup_opt=maxNumMembersPerGroup_opt)
+                                        
     ! Open file and write ensObs%Yb for all the members to one file
     fileName = trim(outputFilenamePrefix) // '_' // trim(fileNameExtention)
     write(*,*) 'eob_writeToFiles: writing ',trim(filename)
@@ -510,6 +518,8 @@ CONTAINS
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
     end do
     ierr = fclos(unitNum)
+
+    deallocate(memberIndexArray)
 
   end subroutine eob_writeToFiles
 
@@ -1414,11 +1424,11 @@ CONTAINS
   end subroutine eob_rejectRadNearSfc
 
   !--------------------------------------------------------------------------
-  ! eob_getMemberIndexInFullEnsSet
+  ! getMemberIndexInFullEnsSet (private routine)
   !--------------------------------------------------------------------------
-  subroutine eob_getMemberIndexInFullEnsSet(ensObs, memberIndexArray, &
-                                            numGroupsToDivideMembers_opt, &
-                                            maxNumMembersPerGroup_opt)
+  subroutine getMemberIndexInFullEnsSet(ensObs, memberIndexArray, &
+                                        numGroupsToDivideMembers_opt, &
+                                        maxNumMembersPerGroup_opt)
     !
     ! :Purpose: get memberIndex array corresponding to the full ensemble set.
     !
@@ -1448,13 +1458,13 @@ CONTAINS
       end do
     else
       if (.not. present(maxNumMembersPerGroup_opt)) then
-        call utl_abort('eob_getMemberIndexInFullEnsSet: maxNumMembersPerGroup_opt input argument missing')
+        call utl_abort('getMemberIndexInFullEnsSet: maxNumMembersPerGroup_opt input argument missing')
       end if
 
       ! divide members into groups
       numMembersPerGroup = ensObs%numMembers / numGroupsToDivideMembers
       if (numMembersPerGroup > maxNumMembersPerGroup_opt) then
-        call utl_abort('eob_getMemberIndexInFullEnsSet: numMembersPerGroup > maxNumMembersPerGroup_opt')
+        call utl_abort('getMemberIndexInFullEnsSet: numMembersPerGroup > maxNumMembersPerGroup_opt')
       end if
 
       memberIndex = 0
@@ -1468,7 +1478,7 @@ CONTAINS
 
     end if
     
-  end subroutine eob_getMemberIndexInFullEnsSet
+  end subroutine getMemberIndexInFullEnsSet
     
   !--------------------------------------------------------------------------
   ! max_transmission (private routine)

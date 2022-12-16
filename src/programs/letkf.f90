@@ -73,7 +73,6 @@ program midas_letkf
   integer :: nulnam, dateStamp, ierr
   integer :: get_max_rss, fclos, fnom, fstopc
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
-  integer, allocatable :: originalEnsMemberIndexArray(:), modulatedEnsMemberIndexArray(:)
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
 
   character(len=256) :: ensFileName, ctrlFileName, recenterFileName
@@ -492,17 +491,11 @@ program midas_letkf
 
   ! write local ensObs to file
   if (writeLocalEnsObsToFile) then
-    allocate(originalEnsMemberIndexArray(nEns))
-    call eob_getMemberIndexInFullEnsSet(ensObs, originalEnsMemberIndexArray)
-    call eob_writeToFiles(ensObs, originalEnsMemberIndexArray, &
-                          outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
+    call eob_writeToFiles(ensObs, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
     if (useModulatedEns) then
-      allocate(modulatedEnsMemberIndexArray(nEnsGain))
-      call eob_getMemberIndexInFullEnsSet(ensObsGain, modulatedEnsMemberIndexArray, &
-                                          numGroupsToDivideMembers_opt=numRetainedEigen, &
-                                          maxNumMembersPerGroup_opt=nEns)
-      call eob_writeToFiles(ensObsGain, modulatedEnsMemberIndexArray, &
-                            outputFilenamePrefix='eobGain_HX', writeObsInfo=.false.)
+      call eob_writeToFiles(ensObsGain, outputFilenamePrefix='eobGain_HX', writeObsInfo=.false., &
+                            numGroupsToDivideMembers_opt=numRetainedEigen, &
+                            maxNumMembersPerGroup_opt=nEns)
     end if
   end if
 
