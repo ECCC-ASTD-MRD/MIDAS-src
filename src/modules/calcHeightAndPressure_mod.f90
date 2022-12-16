@@ -2853,7 +2853,15 @@ contains
     !   at this time.
     !   We keep that stub however for future functionalities.
     call msg('calcHeight_col_nl_vcode500x (czp)', 'END (nothing done)', verb_opt=4)
-    continue
+    return
+
+    ! to prevent 'variable not used remark'
+    if (.false.) then
+      call col_zero(column)
+      Z_T = 0.0
+      Z_M = 0.0
+    end if
+
   end subroutine calcHeight_col_nl_vcode500x
 
 
