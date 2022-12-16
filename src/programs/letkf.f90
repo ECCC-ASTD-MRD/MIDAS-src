@@ -495,12 +495,12 @@ program midas_letkf
   ! write local ensObs to file
   if (writeLocalEnsObsToFile) then
     allocate(originalEnsMemberIndexArray(nEns))
-    call eob_getMemebrIndexInFullEnsSet(ensObs, originalEnsMemberIndexArray)
+    call eob_getMemberIndexInFullEnsSet(ensObs, originalEnsMemberIndexArray)
     call eob_writeToFilesMpiLocal(ensObs, originalEnsMemberIndexArray, &
                                   outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
     if (useModulatedEns) then
       allocate(modulatedEnsMemberIndexArray(nEnsGain))
-      call eob_getMemebrIndexInFullEnsSet(ensObsGain, modulatedEnsMemberIndexArray, &
+      call eob_getMemberIndexInFullEnsSet(ensObsGain, modulatedEnsMemberIndexArray, &
                                           numGroupsToDivideMembers_opt=numRetainedEigen, &
                                           maxNumMembersPerGroup_opt=nEns)
       call eob_writeToFilesMpiLocal(ensObsGain, modulatedEnsMemberIndexArray, &

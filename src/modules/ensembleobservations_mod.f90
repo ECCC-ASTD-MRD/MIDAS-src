@@ -48,7 +48,7 @@ MODULE ensembleObservations_mod
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_copy, eob_zero
   public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
-  public :: eob_removeObsNearLand, eob_getMemebrIndexInFullEnsSet
+  public :: eob_removeObsNearLand, eob_getMemberIndexInFullEnsSet
   public :: eob_readFromFilesMpiLocal, eob_writeToFilesMpiLocal
 
   integer, parameter :: maxNumLocalObsSearch = 500000
@@ -1417,9 +1417,9 @@ CONTAINS
   end subroutine eob_rejectRadNearSfc
 
   !--------------------------------------------------------------------------
-  ! eob_getMemebrIndexInFullEnsSet
+  ! eob_getMemberIndexInFullEnsSet
   !--------------------------------------------------------------------------
-  subroutine eob_getMemebrIndexInFullEnsSet(ensObs, memberIndexArray, &
+  subroutine eob_getMemberIndexInFullEnsSet(ensObs, memberIndexArray, &
                                             numGroupsToDivideMembers_opt, &
                                             maxNumMembersPerGroup_opt)
     !
@@ -1451,13 +1451,13 @@ CONTAINS
       end do
     else
       if (.not. present(maxNumMembersPerGroup_opt)) then
-        call utl_abort('eob_getMemebrIndexInFullEnsSet: maxNumMembersPerGroup_opt input argument missing')
+        call utl_abort('eob_getMemberIndexInFullEnsSet: maxNumMembersPerGroup_opt input argument missing')
       end if
 
       ! divide members into groups
       numMembersPerGroup = ensObs%numMembers / numGroupsToDivideMembers
       if (numMembersPerGroup > maxNumMembersPerGroup_opt) then
-        call utl_abort('eob_getMemebrIndexInFullEnsSet: numMembersPerGroup > maxNumMembersPerGroup_opt')
+        call utl_abort('eob_getMemberIndexInFullEnsSet: numMembersPerGroup > maxNumMembersPerGroup_opt')
       end if
 
       memberIndex = 0
@@ -1471,7 +1471,7 @@ CONTAINS
 
     end if
     
-  end subroutine eob_getMemebrIndexInFullEnsSet
+  end subroutine eob_getMemberIndexInFullEnsSet
     
   !--------------------------------------------------------------------------
   ! max_transmission (private routine)
