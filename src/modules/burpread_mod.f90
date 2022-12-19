@@ -4641,7 +4641,7 @@ CONTAINS
                        tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),indClwFG,1,tIndex)
                   end if
-                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SCAT,idata2)),ind13208,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   idata2 = idata2 + 1
 
@@ -4774,7 +4774,7 @@ CONTAINS
                        tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),indClwFG,1,tIndex)
                   end if
-                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SCAT,idata2)),ind13208,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_IWV,idata2)),ind13095,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_TTYP,idata2),ind13039,1,tIndex)
@@ -4892,7 +4892,7 @@ CONTAINS
                        tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),indClwFG,1,tIndex)
                   end if
-                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SCAT,idata2)),ind13208,1,tIndex)
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_TTYP,idata2),ind13039,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_INFG,idata2),ind25174,1,tIndex)

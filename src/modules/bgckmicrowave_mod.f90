@@ -6524,7 +6524,7 @@ contains
     if ( tvs_mwAllskyAssim ) then
       call obs_headSet_r(obsSpaceData, OBS_CLWB,  headerIndex, cloudLiquidWaterPathFG(1))
     end if
-    call obs_headSet_r(obsSpaceData, OBS_SCAT, headerIndex, atmScatteringIndex(1))
+    call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, atmScatteringIndex(1))
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag(1))
     call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalMarker(1))
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )

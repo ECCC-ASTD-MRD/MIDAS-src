@@ -2101,7 +2101,7 @@ contains
     !-------------------------------------------------------------------------------
     call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, landSeaQualifier(1))
     call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, terrainType(1))
-    call obs_headSet_r(obsSpaceData, OBS_SCAT, headerIndex, scatW(1))
+    call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, scatW(1))
     call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, rclw(1))
     call obs_headSet_r(obsSpaceData, OBS_IWV,  headerIndex, riwv(1))
 
