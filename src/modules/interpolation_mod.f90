@@ -1078,6 +1078,7 @@ contains
         stepIndexIn2 = 1
         weight1 = 1.0d0 
         weight2 = 0.0d0 
+        deltaHourInOut = 0.0d0
       else
         ! find staevector_in%dateStamp on the left and right
         if ( statevector_in%dateStampList(numStepIn) == statevector_out%dateStampList(stepIndexOut) ) then

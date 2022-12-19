@@ -2072,8 +2072,8 @@ contains
                   real(pressure_M(lev_M),4)
             end do
           else
-            P_T_ptr_r8(lonIndex,latIndex,1:nlev_T,stepIndex)=pressure_T(1:lev_T)
-            P_M_ptr_r8(lonIndex,latIndex,1:nlev_M,stepIndex)=pressure_M(1:lev_M)
+            P_T_ptr_r8(lonIndex,latIndex,1:nlev_T,stepIndex)=pressure_T(1:nlev_T)
+            P_M_ptr_r8(lonIndex,latIndex,1:nlev_M,stepIndex)=pressure_M(1:nlev_M)
           end if
 
         end do ! lonIndex
