@@ -397,7 +397,7 @@ contains
     logical,          optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
-    logical :: checkModelTop
+    logical :: checkModelTop, hLikeCalc
 
     integer :: vcode_in, vcode_out
     integer :: nlev_out, nlev_in
@@ -421,6 +421,9 @@ contains
     vco_out => gsv_getVco(statevector_out)
     vcode_in  = vco_in%vcode
     vcode_out = vco_out%vcode
+    nullify(hLikeT_in,hLikeM_in,hLikeT_out,hLikeM_out)
+
+    hLikeCalc = .true.
 
     if (present(statevectorRef_opt)) then
       if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector_in))) then
@@ -496,80 +499,85 @@ contains
         cycle var_loop
       end if
 
-      ! allocating for temporary pressure references
-      allocate(hLikeT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                          gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
-      allocate(hLikeM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                          gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
-      allocate(hLikeT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                          gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
-      allocate(hLikeM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                          gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
-      allocate(tmpCoord_T(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                          gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
-      allocate(tmpCoord_M(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                          gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
+      hLikeCalcIf: if (hLikeCalc) then
+        hLikeCalc = .false.
 
-      ! output grid GEM-P interpolation in log-pressure
-      if ( vcode_out==5002 .or. vcode_out==5005 ) then
-        call czp_calcReturnPressure_gsv_nl( statevectorRef_out, &
-                                            PTout_r8_opt=hLikeT_out, &
-                                            PMout_r8_opt=hLikeM_out, &
-                                            Ps_in_hPa_opt=Ps_in_hPa_opt)
+        ! allocating for temporary pressure references
+        allocate(hLikeT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+        allocate(hLikeM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
+        allocate(hLikeT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                            gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
+        allocate(hLikeM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                            gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
+        allocate(tmpCoord_T(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+        allocate(tmpCoord_M(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
 
-        if ( vcode_in==5002 .or. vcode_in==5005 ) then
-          call czp_calcReturnPressure_gsv_nl( statevectorRef, &
-                                              PTout_r8_opt=hLikeT_in, &
-                                              PMout_r8_opt=hLikeM_in, &
+        ! output grid GEM-P interpolation in log-pressure
+        if ( vcode_out==5002 .or. vcode_out==5005 ) then
+          call czp_calcReturnPressure_gsv_nl( statevectorRef_out, &
+                                              PTout_r8_opt=hLikeT_out, &
+                                              PMout_r8_opt=hLikeM_out, &
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
-        else if ( vcode_in==21001 ) then
-          call czp_calcReturnHeight_gsv_nl( statevectorRef, &
-                                            ZTout_r8_opt=tmpCoord_T, &
-                                            ZMout_r8_opt=tmpCoord_M)
-          call czp_calcReturnPressure_gsv_nl( statevectorRef, &
-                                              ZTin_r8_opt=tmpCoord_T, &
-                                              ZMin_r8_opt=tmpCoord_M, &
-                                              PTout_r8_opt=hLikeT_in, &
-                                              PMout_r8_opt=hLikeM_in, &
-                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
+
+          if ( vcode_in==5002 .or. vcode_in==5005 ) then
+            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
+                                                PTout_r8_opt=hLikeT_in, &
+                                                PMout_r8_opt=hLikeM_in, &
+                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+          else if ( vcode_in==21001 ) then
+            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
+                                              ZTout_r8_opt=tmpCoord_T, &
+                                              ZMout_r8_opt=tmpCoord_M)
+            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
+                                                ZTin_r8_opt=tmpCoord_T, &
+                                                ZMin_r8_opt=tmpCoord_M, &
+                                                PTout_r8_opt=hLikeT_in, &
+                                                PMout_r8_opt=hLikeM_in, &
+                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+          end if
+
+          call msg('vInterp_gsv_r8','converting pressure coordinates to height-like, '&
+                   //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
+          call logP_r8(hLikeM_out)
+          call logP_r8(hLikeT_out)
+          call logP_r8(hLikeM_in)
+          call logP_r8(hLikeT_in)
+
+          ! output grid GEM-H interpolation in height
+        else if ( vcode_out==21001 ) then
+          call czp_calcReturnHeight_gsv_nl( statevectorRef_out, &
+                                            ZTout_r8_opt=hLikeT_out, &
+                                            ZMout_r8_opt=hLikeM_out)
+          if ( vcode_in==21001 ) then
+            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
+                                              ZTout_r8_opt=hLikeT_in, &
+                                              ZMout_r8_opt=hLikeM_in)
+          else if ( vcode_in==5002 .or. vcode_in==5005 ) then
+            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
+                                                PTout_r8_opt=tmpCoord_T, &
+                                                PMout_r8_opt=tmpCoord_M, &
+                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
+                                              PTin_r8_opt=tmpCoord_T, &
+                                              PMin_r8_opt=tmpCoord_M, &
+                                              ZTout_r8_opt=hLikeT_in, &
+                                              ZMout_r8_opt=hLikeM_in)
+          end if
         end if
+        deallocate(tmpCoord_T)
+        deallocate(tmpCoord_M)
 
-        call msg('vInterp_gsv_r8','converting pressure coordinates to height-like, '&
-             //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
-        call logP_r8(hLikeM_out)
-        call logP_r8(hLikeT_out)
-        call logP_r8(hLikeM_in)
-        call logP_r8(hLikeT_in)
-
-      ! output grid GEM-H interpolation in height
-      else if ( vcode_out==21001 ) then
-        call czp_calcReturnHeight_gsv_nl( statevectorRef_out, &
-                                          ZTout_r8_opt=hLikeT_out, &
-                                          ZMout_r8_opt=hLikeM_out)
-        if ( vcode_in==21001 ) then
-          call czp_calcReturnHeight_gsv_nl( statevectorRef, &
-                                            ZTout_r8_opt=hLikeT_in, &
-                                            ZMout_r8_opt=hLikeM_in)
-        else if ( vcode_in==5002 .or. vcode_in==5005 ) then
-          call czp_calcReturnPressure_gsv_nl( statevectorRef, &
-                                              PTout_r8_opt=tmpCoord_T, &
-                                              PMout_r8_opt=tmpCoord_M, &
-                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
-          call czp_calcReturnHeight_gsv_nl( statevectorRef, &
-                                            PTin_r8_opt=tmpCoord_T, &
-                                            PMin_r8_opt=tmpCoord_M, &
-                                            ZTout_r8_opt=hLikeT_in, &
-                                            ZMout_r8_opt=hLikeM_in)
-        end if
-      end if
-      deallocate(tmpCoord_T)
-      deallocate(tmpCoord_M)
+      end if hLikeCalcIf
 
       step_loop: do stepIndex = 1, statevector_out%numStep
   
@@ -590,7 +598,6 @@ contains
           call hLike_interpolation_r8(hLikeM_in, hLikeM_out)
         end if
 
-
         ! overwrite values at the lowest levels to avoid extrapolation
         if (vInterpCopyLowestLevel) then
           field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
@@ -598,9 +605,11 @@ contains
 
       end do step_loop
 
-      deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
     end do var_loop
 
+    if (associated(hLikeT_in)) then
+      deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
+    end if
     call gsv_deallocate(statevectorRef_out)
 
     call msg('vInterp_gsv_r8', 'END', verb_opt=4)
@@ -699,7 +708,7 @@ contains
     logical,          optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
-    logical :: checkModelTop
+    logical :: checkModelTop, hLikeCalc
 
     integer :: vcode_in, vcode_out
     integer :: nlev_out, nlev_in
@@ -723,6 +732,9 @@ contains
     vco_out => gsv_getVco(statevector_out)
     vcode_in  = vco_in%vcode
     vcode_out = vco_out%vcode
+    nullify(hLikeT_in,hLikeM_in,hLikeT_out,hLikeM_out)
+
+    hLikeCalc = .true.
 
     if (present(statevectorRef_opt)) then
       if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector_in))) then
@@ -801,80 +813,85 @@ contains
         cycle var_loop
       end if
 
-      ! allocating for temporary pressure references
-      allocate(hLikeT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                          gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
-      allocate(hLikeM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
+      hLikeCalcIf: if (hLikeCalc) then
+        hLikeCalc = .false.
+
+        ! allocating for temporary pressure references
+        allocate(hLikeT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+        allocate(hLikeM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
+        allocate(hLikeT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                            gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
+        allocate(hLikeM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                            gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
+        allocate(tmpCoord_T(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+        allocate(tmpCoord_M(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
                           gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
-      allocate(hLikeT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                          gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
-      allocate(hLikeM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
-                          statevector_out%myLatBeg:statevector_out%myLatEnd, &
-                          gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
-      allocate(tmpCoord_T(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                          gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
-      allocate(tmpCoord_M(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                          statevector_in%myLatBeg:statevector_in%myLatEnd, &
-                          gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
 
-      ! output grid GEM-P interpolation in log-pressure
-      if ( vcode_out==5002 .or. vcode_out==5005 ) then
-        call czp_calcReturnPressure_gsv_nl( statevectorRef_out, &
-                                            PTout_r4_opt=hLikeT_out, &
-                                            PMout_r4_opt=hLikeM_out, &
-                                            Ps_in_hPa_opt=Ps_in_hPa_opt)
+        ! output grid GEM-P interpolation in log-pressure
+        if ( vcode_out==5002 .or. vcode_out==5005 ) then
+          call czp_calcReturnPressure_gsv_nl( statevectorRef_out, &
+                                              PTout_r4_opt=hLikeT_out, &
+                                              PMout_r4_opt=hLikeM_out, &
+                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
 
-        if ( vcode_in==5002 .or. vcode_in==5005 ) then
-          call czp_calcReturnPressure_gsv_nl( statevectorRef, &
-                                              PTout_r4_opt=hLikeT_in, &
-                                              PMout_r4_opt=hLikeM_in, &
-                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
-        else if ( vcode_in==21001 ) then
-          call czp_calcReturnHeight_gsv_nl( statevectorRef, &
-                                            ZTout_r4_opt=tmpCoord_T, &
-                                            ZMout_r4_opt=tmpCoord_M)
-          call czp_calcReturnPressure_gsv_nl( statevectorRef, &
-                                              ZTin_r4_opt=tmpCoord_T, &
-                                              ZMin_r4_opt=tmpCoord_M, &
-                                              PTout_r4_opt=hLikeT_in, &
-                                              PMout_r4_opt=hLikeM_in, &
-                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
+          if ( vcode_in==5002 .or. vcode_in==5005 ) then
+            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
+                                                PTout_r4_opt=hLikeT_in, &
+                                                PMout_r4_opt=hLikeM_in, &
+                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+          else if ( vcode_in==21001 ) then
+            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
+                                              ZTout_r4_opt=tmpCoord_T, &
+                                              ZMout_r4_opt=tmpCoord_M)
+            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
+                                                ZTin_r4_opt=tmpCoord_T, &
+                                                ZMin_r4_opt=tmpCoord_M, &
+                                                PTout_r4_opt=hLikeT_in, &
+                                                PMout_r4_opt=hLikeM_in, &
+                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+          end if
+
+          call msg('vInterp_gsv_r4','converting pressure coordinates to height-like, '&
+                   //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
+          call logP_r4(hLikeM_out)
+          call logP_r4(hLikeT_out)
+          call logP_r4(hLikeM_in)
+          call logP_r4(hLikeT_in)
+
+          ! output grid GEM-H interpolation in height
+        else if ( vcode_out==21001 ) then
+          call czp_calcReturnHeight_gsv_nl( statevectorRef_out, &
+                                            ZTout_r4_opt=hLikeT_out, &
+                                            ZMout_r4_opt=hLikeM_out)
+          if ( vcode_in==21001 ) then
+            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
+                                              ZTout_r4_opt=hLikeT_in, &
+                                              ZMout_r4_opt=hLikeM_in)
+          else if ( vcode_in==5002 .or. vcode_in==5005 ) then
+            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
+                                                PTout_r4_opt=tmpCoord_T, &
+                                                PMout_r4_opt=tmpCoord_M, &
+                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
+                                              PTin_r4_opt=tmpCoord_T, &
+                                              PMin_r4_opt=tmpCoord_M, &
+                                              ZTout_r4_opt=hLikeT_in, &
+                                              ZMout_r4_opt=hLikeM_in)
+          end if
         end if
+        deallocate(tmpCoord_T)
+        deallocate(tmpCoord_M)
 
-        call msg('vInterp_gsv_r4','converting pressure coordinates to height-like, '&
-             //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
-        call logP_r4(hLikeM_out)
-        call logP_r4(hLikeT_out)
-        call logP_r4(hLikeM_in)
-        call logP_r4(hLikeT_in)
-
-      ! output grid GEM-H interpolation in height
-      else if ( vcode_out==21001 ) then
-        call czp_calcReturnHeight_gsv_nl( statevectorRef_out, &
-                                          ZTout_r4_opt=hLikeT_out, &
-                                          ZMout_r4_opt=hLikeM_out)
-        if ( vcode_in==21001 ) then
-          call czp_calcReturnHeight_gsv_nl( statevectorRef, &
-                                            ZTout_r4_opt=hLikeT_in, &
-                                            ZMout_r4_opt=hLikeM_in)
-        else if ( vcode_in==5002 .or. vcode_in==5005 ) then
-          call czp_calcReturnPressure_gsv_nl( statevectorRef, &
-                                              PTout_r4_opt=tmpCoord_T, &
-                                              PMout_r4_opt=tmpCoord_M, &
-                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
-          call czp_calcReturnHeight_gsv_nl( statevectorRef, &
-                                            PTin_r4_opt=tmpCoord_T, &
-                                            PMin_r4_opt=tmpCoord_M, &
-                                            ZTout_r4_opt=hLikeT_in, &
-                                            ZMout_r4_opt=hLikeM_in)
-        end if
-      end if
-      deallocate(tmpCoord_T)
-      deallocate(tmpCoord_M)
+      end if hLikeCalcIf
 
       step_loop: do stepIndex = 1, statevector_out%numStep
   
@@ -895,7 +912,6 @@ contains
           call hLike_interpolation_r4(hLikeM_in, hLikeM_out)
         end if
 
-
         ! overwrite values at the lowest levels to avoid extrapolation
         if (vInterpCopyLowestLevel) then
           field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
@@ -903,9 +919,11 @@ contains
 
       end do step_loop
 
-      deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
     end do var_loop
 
+    if (associated(hLikeT_in)) then
+      deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
+    end if
     call gsv_deallocate(statevectorRef_out)
 
     call msg('vInterp_gsv_r4', 'END', verb_opt=4)
