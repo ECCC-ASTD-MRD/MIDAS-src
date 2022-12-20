@@ -191,8 +191,8 @@ CONTAINS
       ! The reference needs to have the vertical structure of the input which is the
       ! increment, but since horizontal interpolation is done first, it needs the
       ! trial horizontal structure.
-      allocate(varNamesRef(7))
-      varNamesRef = (/'P0', 'TT', 'HU', 'Z_T', 'Z_M', 'P_T', 'P_M'/)
+      allocate(varNamesRef(3))
+      varNamesRef = (/'P0', 'TT', 'HU'/)
       call gsv_allocate( statevectorRef, numStep_inc, hco_trl, vco_inc, &
                          dataKind_opt=pre_incrReal, &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
