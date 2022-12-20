@@ -295,7 +295,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_gsv_nl(statevector)
     !
-    ! :Purpose: Compute or retreive heights and store values in statevector.
+    ! :Purpose: Compute or retrieve heights and store values in statevector.
     !
     implicit none
 
@@ -380,7 +380,7 @@ contains
                                           ZTout_r4_opt, ZMout_r4_opt, &
                                           ZTout_r8_opt, ZMout_r8_opt)
     !
-    ! :Purpose: Compute or retreive heights and return values in pointer arguments.
+    ! :Purpose: Compute or retrieve heights and return values in pointer arguments.
     !           Proceeds to vcode dispatching.
     !
     implicit none
@@ -398,8 +398,6 @@ contains
 
     ! Locals
     integer :: Vcode
-    real(4), pointer :: PTgsv_r4(:,:,:,:), PMgsv_r4(:,:,:,:)
-    real(8), pointer :: PTgsv_r8(:,:,:,:), PMgsv_r8(:,:,:,:)
 
     call utl_tmg_start(172,'low-level--czp_calcHeight_nl')
     call msg('czp_calcReturnHeight_gsv_nl', 'START', verb_opt=2)
@@ -408,38 +406,26 @@ contains
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         if ( .not. (present(PTin_r4_opt) .and. present(PMin_r4_opt))) then
-          call msg('czp_calcReturnHeight_gsv_nl', 'P{T,M}in_r4_opt not present, '&
-               'using statevector fields', verb_opt=2)
-          call gsv_getField(statevector, PTgsv_r4, 'P_T')
-          call gsv_getField(statevector, PMgsv_r4, 'P_M')
-        else
-          PTgsv_r4 => PTin_r4_opt
-          PMgsv_r4 => PMin_r4_opt
+          call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
         end if
         if ( .not. (present(ZTout_r4_opt) .and. present(ZMout_r4_opt))) then
           call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}out_r4_opt expected')
         end if
         call calcHeight_gsv_nl_vcode500x( statevector, &
-                                          PTin_r4_opt=PTgsv_r4, & 
-                                          PMin_r4_opt=PMgsv_r4, & 
+                                          PTin_r4_opt=PTin_r4_opt, & 
+                                          PMin_r4_opt=PMin_r4_opt, & 
                                           ZTout_r4_opt=ZTout_r4_opt, &
                                           ZMout_r4_opt=ZMout_r4_opt)
       else ! datakind = 8
         if ( .not. (present(PTin_r8_opt) .and. present(PMin_r8_opt))) then
-          call msg('czp_calcReturnHeight_gsv_nl', 'P{T,M}in_r8_opt not present, '&
-               'using statevector fields', verb_opt=2)
-          call gsv_getField(statevector, PTgsv_r8, 'P_T')
-          call gsv_getField(statevector, PMgsv_r8, 'P_M')
-        else
-          PTgsv_r8 => PTin_r8_opt
-          PMgsv_r8 => PMin_r8_opt
+          call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
         end if
         if ( .not. (present(ZTout_r8_opt) .and. present(ZMout_r8_opt))) then
           call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=8: Z{T,M}out_r8_opt expected')
         end if
         call calcHeight_gsv_nl_vcode500x( statevector, &
-                                          PTin_r8_opt=PTgsv_r8, &
-                                          PMin_r8_opt=PMgsv_r8, &
+                                          PTin_r8_opt=PTin_r8_opt, &
+                                          PMin_r8_opt=PMin_r8_opt, &
                                           ZTout_r8_opt=ZTout_r8_opt, &
                                           ZMout_r8_opt=ZMout_r8_opt)
       end if
@@ -467,7 +453,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_gsv_nl_vcode2100x_r4(statevector, Z_T, Z_M)
     !
-    ! :Purpose: Retreive heights for GEM-H statevector, return height values 
+    ! :Purpose: Retrieve heights for GEM-H statevector, return height values 
     !           in pointer arguments.
     !           real(4) version
     !
@@ -588,7 +574,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_gsv_nl_vcode2100x_r8(statevector, Z_T, Z_M)
     !
-    ! :Purpose: Retreive heights for GEM-H statevector, return height values 
+    ! :Purpose: Retrieve heights for GEM-H statevector, return height values 
     !           in pointer arguments.
     !           real(8) version
     !
@@ -1753,7 +1739,7 @@ contains
                                             PTout_r8_opt, PMout_r8_opt, &
                                             Ps_in_hPa_opt)
     !
-    ! :Purpose: Compute or retreive pressures and return values in pointer arguments.
+    ! :Purpose: Compute or retrieve pressures and return values in pointer arguments.
     !           Proceeds to vcode dispatching.
     !
     implicit none
@@ -1772,8 +1758,6 @@ contains
 
     ! Locals
     integer :: Vcode
-    real(4), pointer :: ZTgsv_r4(:,:,:,:), ZMgsv_r4(:,:,:,:)
-    real(8), pointer :: ZTgsv_r8(:,:,:,:), ZMgsv_r8(:,:,:,:)
 
     call utl_tmg_start(177,'low-level--czp_calcPressure_nl')
     call msg('czp_calcReturnPressure_gsv_nl', 'START', verb_opt=2)
@@ -1796,38 +1780,26 @@ contains
     else if (Vcode == 21001) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         if ( .not. (present(ZTin_r4_opt) .and. present(ZMin_r4_opt))) then
-          call msg('czp_calcReturnPressure_gsv_nl', 'Z{T,M}in_r4_opt not present, '&
-               'using statevector fields', verb_opt=2)
-          call gsv_getField(statevector, ZTgsv_r4, 'Z_T')
-          call gsv_getField(statevector, ZMgsv_r4, 'Z_M')
-        else
-          ZTgsv_r4 => ZTin_r4_opt
-          ZMgsv_r4 => ZMin_r4_opt
+          call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: Z{T,M}out_r4_opt expected')
         end if
         if ( .not. (present(PTout_r4_opt) .and. present(PMout_r4_opt))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
         end if
         call calcPressure_gsv_nl_vcode2100x(statevector, &
-                                            ZTin_r4_opt=ZTgsv_r4, &
-                                            ZMin_r4_opt=ZMgsv_r4, &
+                                            ZTin_r4_opt=ZTin_r4_opt, &
+                                            ZMin_r4_opt=ZMin_r4_opt, &
                                             PTout_r4_opt=PTout_r4_opt, &
                                             PMout_r4_opt=PMout_r4_opt)
       else ! datakind = 8
         if ( .not. (present(ZTin_r8_opt) .and. present(ZMin_r8_opt))) then
-          call msg('czp_calcReturnPressure_gsv_nl', 'Z{T,M}in_r8_opt not present, '&
-               'using statevector fields', verb_opt=2)
-          call gsv_getField(statevector, ZTgsv_r8, 'Z_T')
-          call gsv_getField(statevector, ZMgsv_r8, 'Z_M')
-        else
-          ZTgsv_r8 => ZTin_r8_opt
-          ZMgsv_r8 => ZMin_r8_opt
+          call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: Z{T,M}out_r8_opt expected')
         end if
         if ( .not. (present(PTout_r8_opt) .and. present(PMout_r8_opt))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
         end if
         call calcPressure_gsv_nl_vcode2100x(statevector, &
-                                            ZTin_r8_opt=ZTgsv_r8, &
-                                            ZMin_r8_opt=ZMgsv_r8, &
+                                            ZTin_r8_opt=ZTin_r8_opt, &
+                                            ZMin_r8_opt=ZMin_r8_opt, &
                                             PTout_r8_opt=PTout_r8_opt, &
                                             PMout_r8_opt=PMout_r8_opt)
       end if
@@ -2721,7 +2693,7 @@ contains
   !---------------------------------------------------------
   subroutine calcHeight_col_nl(column)
     !
-    ! :Purpose: Compute or retreive heights on the column.
+    ! :Purpose: Compute or retrieve heights on the column.
     !
     implicit none
 
@@ -2766,10 +2738,12 @@ contains
 
     Vcode = col_getVco(column)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
+      if ( .not. (col_varExist(column,'P0') .and. col_varExist(column,'TT') .and. &
+                  col_varExist(column,'HU'))  ) then
+        call utl_abort('czp_calcReturnHeight_col_nl: for vcode 500x, variables P0, TT and HU must be allocated in column')
+      end if
       call calcHeight_col_nl_vcode500x(column, Z_T, Z_M)
     else if (Vcode == 21001) then
-      ! Development notes (@mad001)
-      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcHeight_col_nl_vcode2100x(column, Z_T, Z_M)
 
     end if
@@ -2855,7 +2829,7 @@ contains
     call msg('calcHeight_col_nl_vcode500x (czp)', 'END (nothing done)', verb_opt=4)
     return
 
-    ! to prevent 'variable not used remark'
+    ! to prevent 'variable not used' remark
     if (.false.) then
       call col_zero(column)
       Z_T = 0.0
@@ -3395,16 +3369,15 @@ contains
 
     Vcode = col_getVco(column)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
-      if ( .not. col_varExist(column,'P_*')  ) then
-        call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 500x, variables P_M and P_T must be allocated in column')
-      end if
       if ( .not. col_varExist(column,'P0')  ) then
         call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 500x, variable P0 must be allocated in column')
       end if
       call calcPressure_col_nl_vcode500x(column, P_T, P_M)
     else if (Vcode == 21001) then
-      ! Development notes (@mad001)
-      !   probably some some gsv_varExist(statevector,.) needed for GEM-H
+      if ( .not. (col_varExist(column,'P0') .and. col_varExist(column,'TT') .and. &
+                  col_varExist(column,'HU'))  ) then
+        call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 2100x, variables P0, TT and HU must be allocated in column')
+      end if
       call calcPressure_col_nl_vcode2100x(column, P_T, P_M)
     end if
 
@@ -3423,6 +3396,8 @@ contains
     ! Development notes (@mad001)
     !   if feasible, consider reusing the same code for both 
     !   `calcPressure_{gsv,col}_nl_vcode2100x`
+    !   (@mab001) Also should remove need for `Z_T/M` to be allocated in column
+    !   and use local array instead.
 
     ! Arguments
     type(struct_columnData),  intent(in)    :: column ! reference column
