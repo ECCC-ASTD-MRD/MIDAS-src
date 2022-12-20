@@ -2357,7 +2357,7 @@ contains
         do levelIndex = 1, nlv_T
           pressure(levelIndex,profileCount) = col_getPressure(columnTrl,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           if ((runObsOperatorWithClw .and. surfTypeIsWater(profileCount)) .or. &
-              (runObsOperatorWithHydrometeors .and. surfTypeIsWater(profileCount))) then
+              (runObsOperatorWithHydrometeors)) then
             clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
             if ( clw(levelIndex,profileCount) < qlim_readMinClwValue() .or. &
                  clw(levelIndex,profileCount) > qlim_readMaxClwValue() ) then
@@ -2366,7 +2366,7 @@ contains
             end if
             clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor
           end if
-          if (runObsOperatorWithHydrometeors .and. surfTypeIsWater(profileCount)) then
+          if (runObsOperatorWithHydrometeors) then
             ciw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'IWCR')
             rainFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'RF')
             snowFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'SF')
