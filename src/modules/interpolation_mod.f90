@@ -675,10 +675,10 @@ contains
     integer :: latIdx, lonIdx, levIdx, stepIdx
 
     !$OMP PARALLEL DO PRIVATE(lonIdx,latIdx,levIdx,stepIdx)
-    do lonIdx = lbound(presInLogOut,1), ubound(presInLogOut,1)
-      do latIdx = lbound(presInLogOut,2), ubound(presInLogOut,2)
-        do levIdx = lbound(presInLogOut,3), ubound(presInLogOut,3)
-          do stepIdx = lbound(presInLogOut,4), ubound(presInLogOut,4)
+    do stepIdx = lbound(presInLogOut,4), ubound(presInLogOut,4)
+      do levIdx = lbound(presInLogOut,3), ubound(presInLogOut,3)
+        do latIdx = lbound(presInLogOut,2), ubound(presInLogOut,2)
+          do lonIdx = lbound(presInLogOut,1), ubound(presInLogOut,1)
             presInLogOut(lonIdx,latIdx,levIdx,stepIdx) = &
                  log(presInLogOut(lonIdx,latIdx,levIdx,stepIdx))
           end do
@@ -989,10 +989,10 @@ contains
     integer :: latIdx, lonIdx, levIdx, stepIdx
 
     !$OMP PARALLEL DO PRIVATE(lonIdx,latIdx,levIdx,stepIdx)
-    do lonIdx = lbound(presInLogOut,1), ubound(presInLogOut,1)
-      do latIdx = lbound(presInLogOut,2), ubound(presInLogOut,2)
-        do levIdx = lbound(presInLogOut,3), ubound(presInLogOut,3)
-          do stepIdx = lbound(presInLogOut,4), ubound(presInLogOut,4)
+    do stepIdx = lbound(presInLogOut,4), ubound(presInLogOut,4)
+      do levIdx = lbound(presInLogOut,3), ubound(presInLogOut,3)
+        do latIdx = lbound(presInLogOut,2), ubound(presInLogOut,2)
+          do lonIdx = lbound(presInLogOut,1), ubound(presInLogOut,1)
             presInLogOut(lonIdx,latIdx,levIdx,stepIdx) = &
                  log(presInLogOut(lonIdx,latIdx,levIdx,stepIdx))
           end do
