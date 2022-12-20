@@ -64,6 +64,7 @@ LOGICAL          :: UA_FLAG_HIGH_PRECISION_TT_ES
 LOGICAL          :: READ_QI_GA_MT_SW
 logical          :: addBtClearToBurp
 integer          :: clwFgElementId
+integer          :: siFgElementId
 integer          :: btClearElementId
 
 CONTAINS
@@ -334,7 +335,7 @@ CONTAINS
             call utl_abort('brpr_updateBurp: btClearElement element should be in namelist.')
         end if
 
-        NELE_INFO=23
+        NELE_INFO=24
         WINDS=.FALSE.
         ADDSIZE=600000
       CASE('CH')
@@ -1912,7 +1913,7 @@ CONTAINS
     REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
-    integer                :: LISTE_INFO(29),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    integer                :: LISTE_INFO(30),LISTE_ELE(20),LISTE_ELE_SFC(20)
     
     integer                :: NBELE,NVALE,NTE
     integer                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1941,9 +1942,10 @@ CONTAINS
     integer                :: ILEMZBCOR, ILEMTBCOR, ILEMHBCOR
     
     
-    LISTE_INFO(1:29) = (/ 1007,002019,007024,007025 ,005021, 005022, 008012, &
-        013039,020010,2048,2022,33060,33062,33039,10035,10036,08046,5043, &
-        013209,clwFgElementId,1033,2011,4197,5040,33078,33079,33080,020029,25174 /)
+    LISTE_INFO(1:30) = (/ &
+        1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048, &
+        2022,33060,33062,33039,10035,10036,08046,5043, 013209,clwFgElementId, &
+        1033,2011,4197,siFgElementId,5040,33078,33079,33080,020029,25174 /)
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -2072,7 +2074,7 @@ CONTAINS
         call BRPACMA_NML('namburp_tovs')
         NELE=NELEMS
 
-        NELE_INFO=29
+        NELE_INFO=30
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
@@ -3771,6 +3773,7 @@ CONTAINS
     REAL(pre_obsReal) ::   RTANGENT_RADIUS,RGEOID,RSOLAR_AZIMUTH,RCLOUD_COVER,RSOLAR_ZENITH,RZENITH,RAZIMUTH
     real        ::   RFOV
     REAL(pre_obsReal) ::   cloudLiquidWaterObs, cloudLiquidWaterFG
+    REAL(pre_obsReal) ::   scatteringIndexObs, scatteringIndexFG
 
     NOBS=obs_numHeader(obsdat)
     CODTYP=obs_headElem_i(obsdat,OBS_ITY,NOBS)
@@ -3808,6 +3811,8 @@ CONTAINS
     RAZIMUTH = 0.
     cloudLiquidWaterObs = real(MPC_missingValue_R8,pre_obsReal)
     cloudLiquidWaterFG = real(MPC_missingValue_R8,pre_obsReal)
+    scatteringIndexObs = real(MPC_missingValue_R8,pre_obsReal)
+    scatteringIndexFG = real(MPC_missingValue_R8,pre_obsReal)
 
     do il=1,NELE_INFO
       INFOV=rinfo(il)
@@ -3952,6 +3957,8 @@ CONTAINS
                 CONSTITUENT_TYPE=NINT(RCONSTITUENT)
              END IF
           END IF
+        CASE(13208)
+          scatteringIndexObs = INFOV
         CASE(13209)
           cloudLiquidWaterObs = INFOV
         CASE(2011)
@@ -3960,6 +3967,7 @@ CONTAINS
           launchTime = nint(infov)
       END SELECT
       if (liste_info(il) == clwFgElementId ) cloudLiquidWaterFG = INFOV
+      if (liste_info(il) == siFgElementId ) scatteringIndexFG = INFOV
     end do
 
     !-------------------SPECIAL CASES--------------
@@ -4020,6 +4028,8 @@ CONTAINS
     end if
     if ( obs_columnActive_RH(obsdat,OBS_CLWO) ) call obs_headSet_r(obsdat,OBS_CLWO,nobs,cloudLiquidWaterObs)
     if ( obs_columnActive_RH(obsdat,OBS_CLWB) ) call obs_headSet_r(obsdat,OBS_CLWB,nobs,cloudLiquidWaterFG)
+    if ( obs_columnActive_RH(obsdat,OBS_SIO) ) call obs_headSet_r(obsdat,OBS_SIO,nobs,scatteringIndexObs)
+    if ( obs_columnActive_RH(obsdat,OBS_SIB) ) call obs_headSet_r(obsdat,OBS_SIB,nobs,scatteringIndexFG)
 
   END SUBROUTINE  writeInfo
 
@@ -4061,6 +4071,8 @@ CONTAINS
     if ( obs_columnActive_RH(obsdat,OBS_GEOI) ) call obs_headSet_r(obsdat,OBS_GEOI,nobs,obs_missingValue_r)
     if ( obs_columnActive_RH(obsdat,OBS_CLWO) ) call obs_headSet_r(obsdat,OBS_CLWO,nobs,obs_missingValue_r)
     if ( obs_columnActive_RH(obsdat,OBS_CLWB) ) call obs_headSet_r(obsdat,OBS_CLWB,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_SIO) ) call obs_headSet_r(obsdat,OBS_SIO,nobs,obs_missingValue_r)
+    if ( obs_columnActive_RH(obsdat,OBS_SIB) ) call obs_headSet_r(obsdat,OBS_SIB,nobs,obs_missingValue_r)
 
   end subroutine  setInfoToMissing
 
@@ -4112,7 +4124,7 @@ CONTAINS
     integer                :: ind008012,ind012163,ind055200,indEmis,indchan,ichn,ichnb
     integer                :: ind5021, ind7024, ind13039
     integer                :: ind14213, ind14214, ind14215, ind14216, ind14217, ind14218
-    integer                :: ind14219, ind14220, ind14221, ind13214, ind59182
+    integer                :: ind14219, ind14220, ind14221, ind13214, ind59182, indSiFG
     integer                :: ind13209, indClwFG, ind13208, ind13095, ind25174, indtmp
     integer                :: idata2,idata3,idata,idatend
     integer                :: flag_passage1,flag_passage2,flag_passage3
@@ -4589,6 +4601,7 @@ CONTAINS
             if ( btyp10 == btyp10inf ) then
               flag_passage2 = 1
               indtmp = nbele
+
               ! CLW
               ind13209 = BURP_Find_Element(inputBlock, ELEMENT=013209)
               if (ind13209 < 0) then
@@ -4599,6 +4612,7 @@ CONTAINS
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 13209 #1")
                 indtmp = indtmp + 1
               end if
+
               ! clwFG
               if ( tvs_mwAllskyAssim .and. &
                    tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
@@ -4612,7 +4626,8 @@ CONTAINS
                   indtmp = indtmp + 1
                 end if
               end if
-              ! SCATERING INDEX
+
+              ! SCATTERING INDEX
               ind13208 = BURP_Find_Element(inputBlock, ELEMENT=013208)
               if (ind13208 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4621,6 +4636,20 @@ CONTAINS
                 call BURP_Set_Element(inputBlock, NELE_IND=ind13208, ELEMENT=013208, iostat=error)
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 013208")
                 indtmp = indtmp + 1
+              end if
+
+              ! siFG
+              if ( tvs_mwAllskyAssim .and. &
+                   tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
+                if (indSiFG < 0) then
+                  call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #5")
+                  indSiFG = indtmp + 1
+                  call BURP_Set_Element(inputBlock, NELE_IND=indSiFG, ELEMENT=siFgElementId, iostat=error)
+                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element siFG #1")
+                  indtmp = indtmp + 1
+                end if
               end if
 
               ind008012 = BURP_Find_Element(inputBlock, ELEMENT  = 008012)
@@ -4642,6 +4671,10 @@ CONTAINS
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),indClwFG,1,tIndex)
                   end if
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
+                  if ( tvs_mwAllskyAssim .and. &
+                       tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                    call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIB,idata2)),indSiFG,1,tIndex)
+                  end if               
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   idata2 = idata2 + 1
 
@@ -4652,6 +4685,10 @@ CONTAINS
                     call Insert_into_burp_r4(-1.0,indClwFG,1,tIndex)
                   end if
                   call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
+                  if ( tvs_mwAllskyAssim .and. &
+                       tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                    call Insert_into_burp_r4(-1.0,indSiFG,1,tIndex)
+                  end if
                   call Insert_into_burp_i(-1,ind008012,1,tIndex)
 
                 end if
@@ -4674,7 +4711,7 @@ CONTAINS
               ind008012 = BURP_Find_Element(inputBlock, ELEMENT  = 008012)
               if (ind008012 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #5")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #6")
                 ind008012 = indtmp + 1
                 call BURP_Set_Element(inputBlock, NELE_IND=ind008012, ELEMENT=008012, iostat=error)
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 8012 ssmis")
@@ -4685,7 +4722,7 @@ CONTAINS
               ind13039 = BURP_Find_Element(inputBlock, ELEMENT  = 13039)
               if (ind13039 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #6")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #7")
                 ind13039 = indtmp + 1
                 call BURP_Set_Element(inputBlock, NELE_IND=ind13039, ELEMENT=13039, iostat=error)
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 13039")
@@ -4696,7 +4733,7 @@ CONTAINS
               ind7024 = BURP_Find_Element(inputBlock, ELEMENT  = 7024)
               if (ind7024 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #7")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #8")
                 ind7024 = indtmp + 1
                 call BURP_Set_Element(inputBlock, NELE_IND=ind7024, ELEMENT=7024, iostat=error)
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 7024")
@@ -4707,7 +4744,7 @@ CONTAINS
               ind5021 = BURP_Find_Element(inputBlock, ELEMENT  = 5021)
               if (ind5021 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #8")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #9")
                 ind5021 = indtmp + 1
                 call BURP_Set_Element(inputBlock, NELE_IND=ind5021, ELEMENT=5021, iostat=error)
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 5021")
@@ -4718,47 +4755,63 @@ CONTAINS
               ind13209 = BURP_Find_Element(inputBlock, ELEMENT=013209)
               if (ind13209 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #9")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #10")
                 ind13209 = indtmp + 1
                 call BURP_Set_Element(inputBlock, NELE_IND=ind13209, ELEMENT=013209, iostat=error)
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 13209 #2")
                 indtmp = indtmp + 1
               end if
+
               ! clwFG
               if ( tvs_mwAllskyAssim .and. &
                    tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
                 indClwFG = BURP_Find_Element(inputBlock, ELEMENT=clwFgElementId)
                 if (indClwFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #10")
+                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #11")
                   indClwFG = indtmp + 1
                   call BURP_Set_Element(inputBlock, NELE_IND=indClwFG, ELEMENT=clwFgElementId, iostat=error)
                   call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element clwFG #2")
                   indtmp = indtmp + 1
                 end if
               end if
+
               ! SSMIS INTEGRATED WATER VAPOR 
               ind13095 = BURP_Find_Element(inputBlock, ELEMENT=013095)
               if (ind13095 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #11")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #12")
                 ind13095 = indtmp + 1
                 call BURP_Set_Element(inputBlock, NELE_IND=ind13095, ELEMENT=013095, iostat=error)
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 13095")
                 indtmp = indtmp + 1
               end if
+
               ! SCATERING INDEX
               ind13208 = BURP_Find_Element(inputBlock, ELEMENT=013208)
               if (ind13208 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #12")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #13")
                 ind13208 = indtmp + 1
                 call BURP_Set_Element(inputBlock, NELE_IND=ind13208, ELEMENT=013208, iostat=error)
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 13208")
                 indtmp = indtmp + 1
               end if
 
-              
+              ! siFG
+              if ( tvs_mwAllskyAssim .and. &
+                   tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
+                if (indSiFG < 0) then
+                  call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #14")
+                  indSiFG = indtmp + 1
+                  call BURP_Set_Element(inputBlock, NELE_IND=indSiFG, ELEMENT=siFgElementId, iostat=error)
+                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element siFG #2")
+                  indtmp = indtmp + 1
+                end if
+              end if              
+
               do tIndex = 1, nte
 
                 if ( goodprof(tIndex) == 1 ) then
@@ -4775,6 +4828,10 @@ CONTAINS
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),indClwFG,1,tIndex)
                   end if
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
+                  if ( tvs_mwAllskyAssim .and. &
+                       tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                    call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIB,idata2)),indSiFG,1,tIndex)
+                  end if
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_IWV,idata2)),ind13095,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_TTYP,idata2),ind13039,1,tIndex)
@@ -4788,6 +4845,10 @@ CONTAINS
                     call Insert_into_burp_r4(-1.0,indClwFG,1,tIndex)
                   end if
                   call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
+                  if ( tvs_mwAllskyAssim .and. &
+                       tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                    call Insert_into_burp_r4(-1.0,indSiFG,1,tIndex)
+                  end if
                   !call Insert_into_burp_r4(-1.0,ind13095,1,tIndex)
                   call Insert_into_burp_i(-1,ind008012,1,tIndex)
                   call Insert_into_burp_i(-1,ind13039,1,tIndex)
@@ -4812,7 +4873,7 @@ CONTAINS
               ind008012 = BURP_Find_Element(inputBlock, ELEMENT  = 008012)
               if (ind008012 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #5")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #15")
                 ind008012 = indtmp + 1
                 call BURP_Set_Element(inputBlock, NELE_IND=ind008012, ELEMENT=008012, iostat=error)
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 8012 ssmis")
@@ -4823,7 +4884,7 @@ CONTAINS
               ind13039 = BURP_Find_Element(inputBlock, ELEMENT  = 13039)
               if (ind13039 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #6")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #16")
                 ind13039 = indtmp + 1
                 call BURP_Set_Element(inputBlock, NELE_IND=ind13039, ELEMENT=13039, iostat=error)
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 13039")
@@ -4834,7 +4895,7 @@ CONTAINS
               ind25174 = BURP_Find_Element(inputBlock, ELEMENT=025174)
               if (ind25174 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #13")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #17")
                 ind25174 = indtmp + 1
                 call BURP_Set_Element(inputBlock, NELE_IND=ind25174, ELEMENT=025174, iostat=error)
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 25174")
@@ -4845,10 +4906,10 @@ CONTAINS
               ind13209 = BURP_Find_Element(inputBlock, ELEMENT=013209)
               if (ind13209 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #9")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #18")
                 ind13209 = indtmp + 1
                 call BURP_Set_Element(inputBlock, NELE_IND=ind13209, ELEMENT=013209, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 13209 #2")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 13209 #3")
                 indtmp = indtmp + 1
               end if
 
@@ -4858,10 +4919,10 @@ CONTAINS
                 indClwFG = BURP_Find_Element(inputBlock, ELEMENT=clwFgElementId)
                 if (indClwFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #10")
+                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #19")
                   indClwFG = indtmp + 1
                   call BURP_Set_Element(inputBlock, NELE_IND=indClwFG, ELEMENT=clwFgElementId, iostat=error)
-                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element clwFG #2")
+                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element clwFG #3")
                   indtmp = indtmp + 1
                 end if
               end if
@@ -4870,11 +4931,25 @@ CONTAINS
               ind13208 = BURP_Find_Element(inputBlock, ELEMENT=013208)
               if (ind13208 < 0) then
                 call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
-                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #12")
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #20")
                 ind13208 = indtmp + 1
                 call BURP_Set_Element(inputBlock, NELE_IND=ind13208, ELEMENT=013208, iostat=error)
                 call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 13208")
                 indtmp = indtmp + 1
+              end if
+
+              ! siFG
+              if ( tvs_mwAllskyAssim .and. &
+                   tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
+                if (indSiFG < 0) then
+                  call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #21")
+                  indSiFG = indtmp + 1
+                  call BURP_Set_Element(inputBlock, NELE_IND=indSiFG, ELEMENT=siFgElementId, iostat=error)
+                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element siFG #3")
+                  indtmp = indtmp + 1
+                end if
               end if
 
               do tIndex = 1, nte
@@ -4893,6 +4968,10 @@ CONTAINS
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),indClwFG,1,tIndex)
                   end if
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
+                  if ( tvs_mwAllskyAssim .and. &
+                       tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                    call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIB,idata2)),indSiFG,1,tIndex)
+                  end if
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_TTYP,idata2),ind13039,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_INFG,idata2),ind25174,1,tIndex)
@@ -4904,6 +4983,10 @@ CONTAINS
                     call Insert_into_burp_r4(-1.0,indClwFG,1,tIndex)
                   end if
                   call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
+                  if ( tvs_mwAllskyAssim .and. &
+                       tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                    call Insert_into_burp_r4(-1.0,indSiFG,1,tIndex)
+                  end if
                   call Insert_into_burp_i(-1,ind008012,1,tIndex)
                   call Insert_into_burp_i(-1,ind13039,1,tIndex)
                   call Insert_into_burp_i(-1,ind25174,1,tIndex)
@@ -5373,11 +5456,12 @@ CONTAINS
     integer                     :: btClearMrqElementID
     real, parameter             :: val_option = -9999.0
     integer, external           :: mrfmxl
-    logical                     :: isDerialt, isInstrumUsingCLW
+    logical                     :: isDerialt
+    logical                     :: isInstrumUsingCLW, isInstrumUsingHydrometeors 
     logical                     :: beSilent
     integer                     :: nElem, elemIndex, burpIndex
 
-    namelist /NAMADDTOBURP/ addBtClearToBurp, clwFgElementId, btClearElementId
+    namelist /NAMADDTOBURP/ addBtClearToBurp, clwFgElementId, siFgElementId, btClearElementId
 
     write(*,*) '-----------------------------------------------'
     write(*,*) '- begin brpr_addElementsToBurp -'
@@ -5412,6 +5496,7 @@ CONTAINS
     
     addBtClearToBurp = .false.
     clwFgElementId = -1 
+    siFgElementId = -1 
     btClearElementId = -1
     btClearMrqElementID = -200001
     
@@ -5508,16 +5593,19 @@ CONTAINS
           if ( count == 1 ) then
             write(*,*) 'brpr_addElementsToBurp: tvs_mwAllskyAssim =', tvs_mwAllskyAssim
             write(*,*) 'brpr_addElementsToBurp: clwFgElementId =', clwFgElementId 
+            write(*,*) 'brpr_addElementsToBurp: siFgElementId =', siFgElementId 
           end if
 
           instrumName = codtyp_get_name(idatyp)
           instrumID = tvs_getInstrumentId(instrumName)
           isInstrumUsingCLW = tvs_isInstrumUsingCLW(tvs_getInstrumentId(instrumName))
+          isInstrumUsingHydrometeors = tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(instrumName))
           if (instrumID /= previousInstrumID) then
             write(*,*) 'brpr_addElementsToBurp: for report count =', count, &
               ', instrumentName=', instrumName, &
               ', instrumentId =', instrumID, &
               ', isInstrumUsingCLW =', isInstrumUsingCLW
+              ', isInstrumUsingHydrometeors =', isInstrumUsingHydrometeors
             previousInstrumID = instrumID
           end if
         end if
@@ -5526,6 +5614,12 @@ CONTAINS
         if ( tvs_mwAllskyAssim .and. clwFgElementId < 0 .and. &
           tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
           call utl_abort('brpr_addElementsToBurp: clwFgElementId missing in the namelist')
+        end if
+
+        ! check siFG element is in the namelist in all-sky mode.
+        if ( tvs_mwAllskyAssim .and. siFgElementId < 0 .and. &
+          tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+          call utl_abort('brpr_addElementsToBurp: siFgElementId missing in the namelist')
         end if
       end if
       
@@ -5604,7 +5698,8 @@ CONTAINS
         
             ! Adding clear-sky radiance to data block for instrument in all-sky mode.
             if ( tvs_mwAllskyAssim .and. addBtClearToBurp .and. &
-                 tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                 (tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                  tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp)))) ) then
               
               indele = burp_find_element(inputBlock, element=btClearElementId)
 
@@ -5656,7 +5751,8 @@ CONTAINS
         
             ! Adding clear-sky radiance to MRQ block for instrument in all-sky mode.
             if ( tvs_mwAllskyAssim .and. addBtClearToBurp .and. &
-                 tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                 (tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                  tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp)))) ) then
 
               indele = burp_find_element(inputBlock, element=btClearMrqElementID)
               if ( indele <= 0 ) then
