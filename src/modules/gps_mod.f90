@@ -44,11 +44,13 @@ module gps_mod
   public :: gps_setupro, gps_iprofile_from_index
   public :: gps_setupgb, gps_iztd_from_index
   public :: gps_struct1sw, gps_struct1sw_v2, gps_bndopv1, gps_refopv, gps_structztd_v2, gps_ztdopv, gps_pw
+  public :: gps_geopotential
 
   ! public constants
   integer, parameter, public :: gps_Level_RO_Bnd       = 1
   integer, parameter, public :: gps_Level_RO_Ref       = 2
   integer, parameter, public :: gps_Level_RO_BndandRef = 3
+  public :: gps_p_md, gps_p_mw, gps_p_wa, gps_p_wb
 
 !modgps00base
   
@@ -78,15 +80,15 @@ module gps_mod
   ! Boltzmann constant:
   real(dp), parameter           :: p_Boltz = 1.3806488e-23_dp        ! From CODATA
 
-  ! Air properties:
-  real(dp), parameter           :: p_md    = 28.965516_dp            ! From Aparicio(2011)
-  real(dp), parameter           :: p_mw    = 18.015254_dp            ! From Aparicio(2011)
-  real(dp), parameter           :: p_wa    = p_md/p_mw
-  real(dp), parameter           :: p_wb    = (p_md-p_mw)/p_mw
+  ! Air properties (public):
+  real(dp), parameter           :: gps_p_md    = 28.965516_dp            ! From Aparicio(2011)
+  real(dp), parameter           :: gps_p_mw    = 18.015254_dp            ! From Aparicio(2011)
+  real(dp), parameter           :: gps_p_wa    = gps_p_md/gps_p_mw
+  real(dp), parameter           :: gps_p_wb    = (gps_p_md-gps_p_mw)/gps_p_mw
 
   ! Gas constants:
   real(dp), parameter           :: p_R     = p_Avog*p_Boltz          ! per mol
-  real(dp), parameter           :: p_Rd    = p_Avog*p_Boltz/(1.e-3_dp*p_md)   ! per air mass
+  real(dp), parameter           :: p_Rd    = p_Avog*p_Boltz/(1.e-3_dp*gps_p_md)   ! per air mass
 
 !modgps03diff
 
@@ -272,7 +274,7 @@ contains
          (1._dp + C1 * Altitude + C2 * Altitude**2)
   end function gps_gravityalt
 
-  pure function gpsgeopotential(Latitude, Altitude)
+  pure function gps_geopotential(Latitude, Altitude)
     !
     !:Purpose: Geopotential energy at a given point.
     !          Result is based on the WGS84 approximate expression for the
@@ -281,7 +283,7 @@ contains
     !
     implicit none
 
-    real(dp)              :: gpsgeopotential ! Geopotential (m2/s2)
+    real(dp)              :: gps_geopotential ! Geopotential (m2/s2)
 
     ! Arguments:
     real(dp), intent(in)  :: Latitude ! (rad)
@@ -308,14 +310,14 @@ contains
     hi(n) = Altitude
     gi(n) = gps_gravityalt(sLat, hi(n))
 
-    gpsgeopotential = 0._dp
+    gps_geopotential = 0._dp
     do i = 1, n
-       gpsgeopotential = gpsgeopotential + 0.5_dp * (gi(i)+gi(i-1)) * (hi(i)-hi(i-1))
+       gps_geopotential = gps_geopotential + 0.5_dp * (gi(i)+gi(i-1)) * (hi(i)-hi(i-1))
     end do
 
     deallocate(hi)
     deallocate(gi)
-  end function gpsgeopotential
+  end function gps_geopotential
 
   subroutine gpsRadii(Latitude, RadN, RadM)
     implicit none
@@ -872,12 +874,12 @@ contains
        p  = prf%pst(i)
        t  = prf%tst(i)
        q  = prf%qst(i)
-       x  = p_wa*q/(1._dp+p_wb*q)
+       x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
 
        ! Densities (molar, total, dry, water vapor):
        mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
-       dd = mold * (1._dp-x) * (p_md/1000._dp)
-       dw = mold * x         * (p_mw/1000._dp)
+       dd = mold * (1._dp-x) * (gps_p_md/1000._dp)
+       dw = mold * x         * (gps_p_mw/1000._dp)
        ! Aparicio (2011) expression
        tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
        nd1= ( 222.682_dp+   0.069_dp*tr) * dd
@@ -1037,12 +1039,12 @@ contains
        p  = prf%pst(i)
        t  = prf%tst(i)
        q  = prf%qst(i)
-       x  = p_wa*q/(1._dp+p_wb*q)
+       x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
 
        ! Densities (molar, total, dry, water vapor):
        mold  = p/t * (100._dp/(p_R*cmp(i)))               ! note that p is in hPa
-       dd = mold * (1._dp-x) * (p_md/1000._dp)
-       dw = mold * x         * (p_mw/1000._dp)
+       dd = mold * (1._dp-x) * (gps_p_md/1000._dp)
+       dw = mold * x         * (gps_p_mw/1000._dp)
        ! Aparicio (2011) expression
        tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
        nd1= ( 222.682_dp+   0.069_dp*tr) * dd
@@ -1075,7 +1077,7 @@ contains
 
     type(gps_diff)         :: x,tc,pt,tc2,x2
 
-    x  = p_wa*q/(1._dp+p_wb*q)
+    x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
     ! Estimate, from CIPM, Picard (2008)
     tc = t-MPC_K_C_DEGREE_OFFSET_R8
     pt = 1.e2_dp*p/t
@@ -1169,10 +1171,10 @@ contains
 !    real(dp), parameter :: Rg = 9.80616_dp           --> p_g_GEM
     
 !    real(dp), parameter :: R  = 8.314472_dp          --> p_R
-!    real(dp), parameter :: md = 28.965516_dp         --> p_md
-!    real(dp), parameter :: mw = 18.015254_dp         --> p_mw
-!    real(dp), parameter :: wa = md/mw                --> p_wa
-!    real(dp), parameter :: wb = (md-mw)/mw           --> p_wb
+!    real(dp), parameter :: md = 28.965516_dp         --> gps_p_md
+!    real(dp), parameter :: mw = 18.015254_dp         --> gps_p_mw
+!    real(dp), parameter :: wa = md/mw                --> gps_p_wa
+!    real(dp), parameter :: wb = (md-mw)/mw           --> gps_p_wb
 
 !!       ******** VARIABLES *************
 
@@ -1240,7 +1242,7 @@ contains
         p  = prf%pst(i)
         t  = prf%tst(i)
         q  = prf%qst(i)
-        x  = p_wa*q/(1._dp+p_wb*q)
+        x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
         ! Estimate, from CIPM, Piccard (2008)
         tc = t-MPC_K_C_DEGREE_OFFSET_R8
         pt = p/t
@@ -1254,12 +1256,12 @@ contains
         p  = prf%pst(i)
         t  = prf%tst(i)
         q  = prf%qst(i)
-        x  = p_wa*q/(1._dp+p_wb*q)
+        x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
 
         ! Densities (molar, total, dry, water vapor):
         mold  = p/(p_R*t*cmp(i))
-        dd = mold * (1._dp-x) * (p_md/1000._dp)
-        dw = mold * x         * (p_mw/1000._dp)
+        dd = mold * (1._dp-x) * (gps_p_md/1000._dp)
+        dw = mold * x         * (gps_p_mw/1000._dp)
         ! Aparicio (2011) expression
         tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
         nd1= ( 222.682_dp+   0.069_dp*tr) * dd
@@ -1392,10 +1394,10 @@ contains
 !    real(dp), parameter :: Rg = 9.80616_dp           --> p_g_GEM
     
 !    real(dp), parameter :: R  = 8.314472_dp          --> p_R
-!    real(dp), parameter :: md = 28.965516_dp         --> p_md
-!    real(dp), parameter :: mw = 18.015254_dp         --> p_mw
-!    real(dp), parameter :: wa = md/mw                --> p_wa
-!    real(dp), parameter :: wb = (md-mw)/mw           --> p_wb
+!    real(dp), parameter :: md = 28.965516_dp         --> gps_p_md
+!    real(dp), parameter :: mw = 18.015254_dp         --> gps_p_mw
+!    real(dp), parameter :: wa = md/mw                --> gps_p_wa
+!    real(dp), parameter :: wb = (md-mw)/mw           --> gps_p_wb
 
 !!       ******** VARIABLES *************
 
@@ -1472,7 +1474,7 @@ contains
         p  = prf%pst(i)
         t  = prf%tst(i)
         q  = prf%qst(i)
-        x  = p_wa*q/(1._dp+p_wb*q)
+        x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
         ! Estimate, from CIPM, Piccard (2008)
         tc = t-MPC_K_C_DEGREE_OFFSET_R8
         pt = p/t
@@ -1486,12 +1488,12 @@ contains
         p  = prf%pst(i)
         t  = prf%tst(i)
         q  = prf%qst(i)
-        x  = p_wa*q/(1._dp+p_wb*q)
+        x  = gps_p_wa*q/(1._dp+gps_p_wb*q)
 
         ! Densities (molar, total, dry, water vapor):
         mold  = p/(p_R*t*cmp(i))
-        dd = mold * (1._dp-x) * (p_md/1000._dp)
-        dw = mold * x         * (p_mw/1000._dp)
+        dd = mold * (1._dp-x) * (gps_p_md/1000._dp)
+        dw = mold * x         * (gps_p_mw/1000._dp)
         ! Aparicio (2011) expression
         tr = MPC_K_C_DEGREE_OFFSET_R8/t-1._dp
         nd1= ( 222.682_dp+   0.069_dp*tr) * dd

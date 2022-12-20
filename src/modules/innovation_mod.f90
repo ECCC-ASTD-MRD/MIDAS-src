@@ -34,6 +34,7 @@ module innovation_mod
   use verticalCoord_mod
   use gridStateVector_mod
   use utilities_mod
+  use message_mod
   use obsFilter_mod  
   use gps_mod
   use tovs_nl_mod
@@ -310,8 +311,7 @@ contains
     integer :: jvar, jlev, columnIndex
     real(8), pointer :: columnTrlOnAnlIncLev_ptr(:), columnTrlOnTrlLev_ptr(:)
 
-    write(*,*)
-    write(*,*) 'inn_setupColumnsOnAnlIncLev: START'
+    call msg('inn_setupColumnsOnAnlIncLev','START',verb_opt=2)
 
     !
     !- Data copying from columnh to columnTrlOnAnlIncLev
@@ -335,36 +335,14 @@ contains
     end do
 
     !
-    !- Calculate pressure profiles on analysis increment levels
-    !
-    if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
-      call cvt_transform(columnTrlOnAnlIncLev, 'ZandP_nl')
-
-      ! Print pressure on thermo levels for the first original and destination column
-      if ( mmpi_myid == 0 ) then
-        write(*,*) 'inn_setupColumnsOnAnlIncLev, before vintprof, columnTrlOnTrlLev(1):'
-        write(*,*) 'P_T:'
-        columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'P_T')
-        write(*,*) columnTrlOnTrlLev_ptr (:)
-
-        write(*,*) 'inn_setupColumnsOnAnlIncLev, before vintprof, columnTrlOnAnlIncLev(1):'
-        write(*,*) 'P_T:'
-        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
-        write(*,*) columnTrlOnAnlIncLev_ptr (:)
-        write(*,*)
-      end if
-      
-    end if
-
-    !
     !- Vertical interpolation of 3D variables from trials levels to analysis increment levels
     !
     do jvar = 1, vnl_numvarmax3D
 
       if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList3D(jvar)) ) cycle
       
-      call int_vInterp_col( columnTrlOnTrlLev, columnTrlOnAnlIncLev, vnl_varNameList3D(jvar), &
-                            useColumnPressure_opt=.false.)
+      call int_vInterp_col( columnTrlOnTrlLev, columnTrlOnAnlIncLev, &
+                            vnl_varNameList3D(jvar), useColumnPressure_opt=.false.)
 
       if ( vnl_varNameList3D(jvar) == 'HU  ') then
         ! Imposing a minimum value for HU
@@ -402,13 +380,9 @@ contains
 
     ! Print pressure on thermo levels for the first column
     if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
-      if ( mmpi_myid == 0 ) then
-        write(*,*) 'inn_setupColumnsOnAnlIncLev, after vintprof, columnTrlOnAnlIncLev(1):'
-        write(*,*) 'P_T:'
-        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
-        write(*,*) columnTrlOnAnlIncLev_ptr (:)
-        write(*,*)
-      end if
+      columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
+      call msg('inn_setupColumnsOnAnlIncLev', ' after vintprof:'&
+           //new_line('')//'P_T (columnTrlOnAnlIncLev(1)) = '//str(columnTrlOnAnlIncLev_ptr(:)), mpiAll_opt=.false.)
     end if
 
     !
@@ -436,31 +410,27 @@ contains
 
     ! Print height info of the first original and interpolated columns
     if (col_getNumCol(columnTrlOnAnlIncLev) > 0) then
-      write(*,*)
-      write(*,*) 'inn_setupColumnsOnAnlIncLev, vIntProf output:'
 
       if ( col_getNumLev(columnTrlOnAnlIncLev,'TH') > 0 .and. col_varExist(columnTrlOnAnlIncLev,'Z_T') ) then
-        write(*,*) 'Z_T (columnTrlOnTrlLev):'
-        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'Z_T')
-        write(*,*) columnTrlOnAnlIncLev_ptr(:)
-        write(*,*) 'Z_T (columnTrlOnAnlIncLev):'
+        columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'Z_T')
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'Z_T')
-        write(*,*) columnTrlOnAnlIncLev_ptr(:)
+        call msg('inn_setupColumnsOnAnlIncLev','vIntProf output:' &
+             //new_line('')//'Z_T (columnTrlOnTrlLev) = '//str(columnTrlOnTrlLev_ptr(:)) &
+             //new_line('')//'Z_T (columnTrlOnAnlIncLev) = '//str(columnTrlOnAnlIncLev_ptr(:)))
       end if
       
       if ( col_getNumLev(columnTrlOnAnlIncLev,'MM') > 0 .and. col_varExist(columnTrlOnAnlIncLev,'Z_M') ) then
-        write(*,*) 'Z_M(columnTrlOnTrlLev):'
-        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'Z_M')
-        write(*,*) columnTrlOnAnlIncLev_ptr(:)
-        write(*,*) 'Z_M(columnTrlOnAnlIncLev):'
+        columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'Z_M')
         columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'Z_M')
-        write(*,*) columnTrlOnAnlIncLev_ptr(:)
+        call msg('inn_setupColumnsOnAnlIncLev','vIntProf output:'&
+             //new_line('')//'Z_M (columnTrlOnTrlLev) = '//str(columnTrlOnTrlLev_ptr(:)) &
+             //new_line('')//'Z_M (columnTrlOnAnlIncLev) = '//str(columnTrlOnAnlIncLev_ptr(:)))
       end if
  
-      write(*,*) 'HeightSfc:', columnTrlOnAnlIncLev%heightSfc(1)
+      call msg('inn_setupColumnsOnAnlIncLev','HeightSfc:'//str(columnTrlOnAnlIncLev%heightSfc(1)))
     end if
 
-    write(*,*) 'inn_setupColumnsOnAnlIncLev: END'
+    call msg('inn_setupColumnsOnAnlIncLev','END',verb_opt=2)
 
   end subroutine inn_setupColumnsOnAnlIncLev
 

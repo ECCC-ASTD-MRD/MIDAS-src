@@ -625,11 +625,13 @@ CONTAINS
       end if
 
       ! First, degrade the time steps
+      nullify(varNames)
+      call gsv_varNamesList(varNames, stateVectorRefHeight)
       call gsv_allocate(stateVectorLowResTime, tim_nstepobsinc, hco_trl, &
                         vco_trl, dateStamp_opt=tim_getDateStamp(), &
                         mpi_local_opt=.true., allocHeightSfc_opt=.true., &
                         hInterpolateDegree_opt='LINEAR', &
-                        varNames_opt=(/'TT','HU','P0'/) )
+                        varNames_opt=varNames ) 
       call gsv_copy(stateVectorOnTrlGrid, stateVectorLowResTime, &
                     allowTimeMismatch_opt=.true., allowVarMismatch_opt=.true.)
 

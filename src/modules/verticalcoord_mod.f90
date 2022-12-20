@@ -294,8 +294,8 @@ contains
     if ( stat /= VGD_OK ) then
       call utl_abort('vco_setupAtmFromFile: problem with vgd_get: key= ig_1 - vertical coord code')
     end if
-    if (Vcode /= 5002 .and. Vcode /= 5005) then
-      call utl_abort('vco_setupAtmFromFile: Invalid Vcode. Currently only 5002 and 5005 supported.')
+    if (Vcode /= 5002 .and. Vcode /= 5005 .and. Vcode /= 21001) then
+      call utl_abort('vco_setupAtmFromFile: Invalid Vcode. Currently only 5002, 5005 and 21001 supported.')
     end if
     vco%Vcode = Vcode
 
@@ -427,7 +427,11 @@ contains
     end if
 
     ! determine IP1 of sfc (hyb=1.0)
-    call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.) 
+    if (Vcode == 5002 .or. Vcode == 5005) then
+      call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.)
+    else if (Vcode == 21001) then
+      call convip(ip1_sfc, 0.0, 21, 2, blk_s, .false.)
+    end if
     ip1_found = .false.
     do jlev = 1, vgd_nlev_T
       if (ip1_sfc == vgd_ip1_T(jlev)) then

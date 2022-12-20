@@ -1129,7 +1129,7 @@ contains
              zuu(jl) = col_getElem(columnTrlOnTrlLev,jl  ,headerIndex,'UU')
              zvv(jl) = col_getElem(columnTrlOnTrlLev,jl  ,headerIndex,'VV')
           end do
-       elseif (Vcode == 5005) then
+       elseif (Vcode == 5005 .or. Vcode == 21001) then
           ! case without top thermo above top momentum level or unstaggered (Vcode=5001/4/5)
           do jl = 1, nwndlev-1
              zuu(jl) = col_getElem(columnTrlOnTrlLev,jl+1,headerIndex,'UU')

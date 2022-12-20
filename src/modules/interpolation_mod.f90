@@ -22,11 +22,13 @@ module interpolation_mod
   use midasMpi_mod
   use gridstatevector_mod
   use columnData_mod
+  use calcHeightAndPressure_mod
   use varNameList_mod
   use verticalCoord_mod
   use horizontalCoord_mod
   use mathPhysConstants_mod
   use utilities_mod
+  use message_mod
   use kdtree2_mod
   implicit none
   save
@@ -35,7 +37,7 @@ module interpolation_mod
   ! public subroutines and functions
   public :: int_interp_gsv
   public :: int_hInterp_gsv
-  public :: int_vInterp_gsv, int_vInterp_gsv_r4
+  public :: int_vInterp_gsv
   public :: int_tInterp_gsv
   public :: int_vInterp_col
   public :: int_hInterpScalar, int_ezgdef, int_cxgaig
@@ -92,6 +94,7 @@ contains
     else
       alreadyRead = .true.
     end if
+    call msg('int_readNml', 'START', verb_opt=2)
 
     ! default values
     vInterpCopyLowestLevel = .false.
@@ -99,10 +102,8 @@ contains
     maxBoxSize = 1
 
     if ( .not. utl_isNamelistPresent('NAMINT','./flnml') ) then
-      if (mmpi_myid == 0) then
-        write(*,*) 'int_readNml: namint is missing in the namelist.'
-        write(*,*) '             The default values will be taken.'
-      end if
+      call msg('int_readNml', 'namint is missing in the namelist.'&
+           //'The default values will be taken.', mpiAll_opt=.false.)
     else
       ! Read namelist NAMINT
       nulnam = 0
@@ -113,32 +114,33 @@ contains
       ierr = fclos(nulnam)
     end if
 
+    call msg('int_readNml', 'END', verb_opt=2)
   end subroutine int_readNml
 
   !--------------------------------------------------------------------------
   ! int_interp_gsv
   !--------------------------------------------------------------------------
-  subroutine int_interp_gsv(statevector_in,statevector_out,          &
-                             PsfcReference_opt, PsfcReference_r4_opt, &
-                             checkModelTop_opt)
+  subroutine int_interp_gsv(statevector_in, statevector_out, statevectorRef_opt, &
+                            checkModelTop_opt)
     !
     ! :Purpose: high-level interpolation subroutine that proceed with
     !           horizontal and vertical interpolation
     !
     implicit none
 
-    ! Arguments:
-    type(struct_gsv),  intent(in)    :: statevector_in               ! statevector that will contain the interpolated fields
-    type(struct_gsv),  intent(inout) :: statevector_out              ! Reference statevector providing the horizontal and vertical structure
-    real(8), optional, intent(in)    :: PsfcReference_opt(:,:,:)     ! Provides a surface pressure field to be used instead of the first P0 level
-    real(4), optional, intent(in)    :: PsfcReference_r4_opt(:,:,:)  ! Provides a surface pressure field to be used instead of the first P0 level    
-    logical, optional, intent(in)    :: checkModelTop_opt            ! If true, model top consistency will be checked in vertical interpolation
+    ! Arguments
+    type(struct_gsv),           intent(in)    :: statevector_in     ! Statevector input
+    type(struct_gsv),           intent(inout) :: statevector_out    ! Statevector providing the target horizontal and vertical structure and will contain the interpolated fields
+    type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing fields P0, TT and HU
+    logical,          optional, intent(in)    :: checkModelTop_opt  ! If true, model top consistency will be checked in vertical interpolation
     
     ! Locals:
     logical :: checkModelTop
     character(len=4), pointer :: varNamesToInterpolate(:)
     type(struct_gsv) :: statevector_in_varsLevs, statevector_in_varsLevs_hInterp
     type(struct_gsv) :: statevector_in_hInterp
+
+    call msg('int_interp_gsv', 'START', verb_opt=2)
 
     !
     !- Error traps
@@ -160,7 +162,7 @@ contains
     call gsv_allocate(statevector_in_VarsLevs, statevector_in%numstep, &
                       statevector_in%hco, statevector_in%vco,          &
                       mpi_local_opt=statevector_in%mpi_local, mpi_distribution_opt='VarsLevs',  &
-                      dataKind_opt=statevector_in%dataKind,                                     &
+                      dataKind_opt=gsv_getDataKind(statevector_in), &
                       allocHeightSfc_opt=statevector_in%heightSfcPresent, &
                       varNames_opt=varNamesToInterpolate, &
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
@@ -171,7 +173,7 @@ contains
     call gsv_allocate(statevector_in_VarsLevs_hInterp, statevector_in%numstep, &
                       statevector_out%hco, statevector_in%vco,  &
                       mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='VarsLevs', &
-                      dataKind_opt=statevector_out%dataKind,                                    &
+                      dataKind_opt=gsv_getDataKind(statevector_out), &
                       allocHeightSfc_opt=statevector_out%heightSfcPresent, &
                       varNames_opt=varNamesToInterpolate, &
                       hInterpolateDegree_opt=statevector_out%hInterpolateDegree, &
@@ -183,7 +185,7 @@ contains
     call gsv_allocate(statevector_in_hInterp, statevector_in%numstep, &
                       statevector_out%hco, statevector_in%vco,      &
                       mpi_local_opt=statevector_out%mpi_local, mpi_distribution_opt='Tiles', &
-                      dataKind_opt=statevector_out%dataKind,                                 &
+                      dataKind_opt=gsv_getDataKind(statevector_out), &
                       allocHeightSfc_opt=statevector_out%heightSfcPresent, &
                       varNames_opt=varNamesToInterpolate )
 
@@ -199,17 +201,14 @@ contains
       checkModelTop = .true.
     end if
     
-    if (statevector_in_VarsLevs%dataKind == 4) then
-      call int_vInterp_gsv_r4(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_r4_opt, &
-                               checkModelTop_opt=checkModelTop)
-    else 
-      call int_vInterp_gsv(statevector_in_hInterp,statevector_out,PsfcReference_opt=PsfcReference_opt, &
-                            checkModelTop_opt=checkModelTop)
-    end if
+    call int_vInterp_gsv(statevector_in_hInterp,statevector_out,&
+                         statevectorRef_opt=statevectorRef_opt, &
+                         checkModelTop_opt=checkModelTop)
 
     call gsv_deallocate(statevector_in_hInterp)
     nullify(varNamesToInterpolate)
 
+    call msg('int_interp_gsv', 'END', verb_opt=2)
   end subroutine int_interp_gsv
 
   !--------------------------------------------------------------------------
@@ -222,16 +221,18 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),       intent(inout) :: statevector_in   ! statevector that will contain the horizontally interpolated fields
-    type(struct_gsv),       intent(inout) :: statevector_out  ! Reference statevector providing the horizontal structure
+    type(struct_gsv),       intent(inout) :: statevector_in   ! Statevector input
+    type(struct_gsv),       intent(inout) :: statevector_out  ! Statevector providing the target horizontal and vertical structure and will contain the interpolated fields
 
     ! Locals:
     integer :: varIndex, levIndex, nlev, stepIndex, ierr, kIndex
     character(len=4) :: varName
     character(len=12):: interpolationDegree, extrapolationDegree
 
+    call msg('int_hInterp_gsv', 'START', verb_opt=2)
+
     if ( hco_equal(statevector_in%hco,statevector_out%hco) ) then
-      write(*,*) 'int_hInterp_gsv: The input and output statevectors are already on same horizontal grids'
+      call msg('int_hInterp_gsv', 'The input and output statevectors are already on same horizontal grids')
       call gsv_copy(statevector_in, statevector_out)
       return
     end if
@@ -246,7 +247,7 @@ contains
 
     if ( .not.statevector_in%mpi_local .and. .not.statevector_out%mpi_local ) then
 
-      write(*,*) 'int_hInterp_gsv: before interpolation (no mpi)'
+      call msg('int_hInterp_gsv', 'before interpolation (no mpi)')
 
       step_loop: do stepIndex = 1, statevector_out%numStep
         ! copy over some time related parameters
@@ -287,7 +288,7 @@ contains
 
     else
 
-      write(*,*) 'int_hInterp_gsv: before interpolation (with mpi)'
+      call msg('int_hInterp_gsv', 'before interpolation (with mpi)')
 
       if ( statevector_in%mpi_distribution /= 'VarsLevs' .or.   &
           statevector_out%mpi_distribution /= 'VarsLevs' ) then
@@ -324,63 +325,127 @@ contains
     end if
 
     if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
-      write(*,*) 'int_hInterp_gsv: interpolating surface height'
+      call msg('int_hInterp_gsv','interpolating surface height')
       ierr = int_hInterpScalar( statevector_out, statevector_in, 'ZSFC', 1, 1, &
                                 interpDegree=trim(interpolationDegree), &
                                 extrapDegree_opt=trim(extrapolationDegree) )
     end if
 
+    call msg('int_hInterp_gsv', 'END', verb_opt=2)
   end subroutine int_hInterp_gsv
 
   !--------------------------------------------------------------------------
   ! int_vInterp_gsv
   !--------------------------------------------------------------------------
-  subroutine int_vInterp_gsv(statevector_in,statevector_out,Ps_in_hPa_opt, &
-                              PsfcReference_opt,checkModelTop_opt)
+  subroutine int_vInterp_gsv( statevector_in,statevector_out,statevectorRef_opt, &
+                              Ps_in_hPa_opt,checkModelTop_opt)
     !
-    ! :Purpose: Vertical interpolation
+    ! :Purpose: Vertical interpolation.
+    !           Interpolation coordinates are either height or log(P)
+    !           based on target vertical descriptor vcode.
+    !           * When target vertical coordinates are pressure (interpolating
+    !             to GEM-P), log(P) is used;
+    !           * When they are height (interpolating to GEM-H), height is used.
+    !           Call to ``calcHeightAndPressure_mod`` will return required
+    !           interpolation coordinates (log is then applied when required).
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)     :: statevector_in           ! statevector that will contain the vertically interpolated fields
-    type(struct_gsv),  intent(inout)  :: statevector_out          ! Reference statevector providing the vertical structure
-    logical, optional, intent(in)     :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done
-    real(8), optional, intent(in)     :: PsfcReference_opt(:,:,:) ! Provides a surface pressure field to be used instead of the first P0 level
-    logical, optional, intent(in)     :: checkModelTop_opt        ! Model top consistency will be checked prior to interpolation if true
+    type(struct_gsv),           target, intent(in)     :: statevector_in             ! Statevector input
+    type(struct_gsv),                   intent(inout)  :: statevector_out            ! Statevector providing the target horizontal and vertical structure and will contain the interpolated fields
+    type(struct_gsv), optional, target, intent(in)     :: statevectorRef_opt         ! Reference statevector providing fields P0, TT and HU
+    logical,          optional,         intent(in)     :: Ps_in_hPa_opt              ! If true, conversion from hPa to mbar will be done for surface pressure
+    logical,          optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
+
+    call msg('int_vInterp_gsv', 'START', verb_opt=2)
+
+    ! read the namelist
+    call int_readNml()
+
+    if ( gsv_getDataKind(statevector_in) == 8 & 
+         .and. gsv_getDataKind(statevector_out) == 8 ) then 
+      call vInterp_gsv_r8(statevector_in,statevector_out,statevectorRef_opt, &
+                              Ps_in_hPa_opt,checkModelTop_opt)
+    else if ( gsv_getDataKind(statevector_in) == 4 &
+         .and. gsv_getDataKind(statevector_out) == 4 ) then 
+      call vInterp_gsv_r4(statevector_in,statevector_out,statevectorRef_opt, &
+                              Ps_in_hPa_opt,checkModelTop_opt)
+    else
+      call utl_abort('int_vInterp_gsv: input and output statevectors must be of same dataKind')
+    end if
+
+    call msg('int_vInterp_gsv', 'END', verb_opt=2)
+
+  end subroutine int_vInterp_gsv
+
+  !--------------------------------------------------------------------------
+  ! vInterp_gsv_r8
+  !--------------------------------------------------------------------------
+  subroutine vInterp_gsv_r8(statevector_in,statevector_out,statevectorRef_opt, &
+                            Ps_in_hPa_opt,checkModelTop_opt)
+    !
+    ! :Purpose: Vertical interpolation, ``real(8)`` version.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv),           target, intent(in)     :: statevector_in             ! Statevector input
+    type(struct_gsv),                   intent(inout)  :: statevector_out            ! Statevector providing the target horizontal and vertical structure and will contain the interpolated fields
+    type(struct_gsv), optional, target, intent(in)     :: statevectorRef_opt         ! Reference statevector providing fields P0, TT and HU
+    logical,          optional,         intent(in)     :: Ps_in_hPa_opt              ! If true, conversion from hPa to mbar will be done for surface pressure
+    logical,          optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
-    logical :: checkModelTop
+    logical :: checkModelTop, hLikeCalc
 
-    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
-    integer :: latIndex2, lonIndex2, varIndex, stepIndex
-    integer :: status
-    real(8) :: zwb, zwt
+    integer :: vcode_in, vcode_out
+    integer :: nlev_out, nlev_in
+    integer :: varIndex, stepIndex
 
-    real(8)           :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                                 statevector_in%myLatBeg:statevector_in%myLatEnd)
-    real(8), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
+    type(struct_gsv), pointer   :: statevectorRef
+    type(struct_gsv)            :: statevectorRef_out
+    real(8), pointer  :: hLikeT_in(:,:,:,:), hLikeM_in(:,:,:,:)   ! abstract height dimensioned coordinate
+    real(8), pointer  :: hLikeT_out(:,:,:,:), hLikeM_out(:,:,:,:) ! abstract height dimensioned coordinate
+    real(8), pointer  :: field_in(:,:,:,:), field_out(:,:,:,:)
     real(8), pointer  :: heightSfcIn(:,:), heightSfcOut(:,:)
+    real(8), pointer  :: tmpCoord_T(:,:,:,:), tmpCoord_M(:,:,:,:)
 
     character(len=4) :: varName
 
     type(struct_vco), pointer :: vco_in, vco_out
 
-    ! read the namelist
-    call int_readNml()
+    call msg('vInterp_gsv_r8', 'START', verb_opt=4)
+
+    vco_in  => gsv_getVco(statevector_in)
+    vco_out => gsv_getVco(statevector_out)
+    vcode_in  = vco_in%vcode
+    vcode_out = vco_out%vcode
+    nullify(hLikeT_in,hLikeM_in,hLikeT_out,hLikeM_out)
+
+    hLikeCalc = .true.
+
+    if (present(statevectorRef_opt)) then
+      if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector_in))) then
+        call utl_abort('vInterp_gsv_r8: reference must have input vertical structure')
+      end if
+      statevectorRef => statevectorRef_opt
+    else
+      statevectorRef => statevector_in
+    end if
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      write(*,*) 'int_vInterp_gsv: The input and output statevectors are already on same vertical levels'
+      call msg('vInterp_gsv_r8', 'The input and output statevectors are already on same vertical levels')
       call gsv_copy(statevector_in, statevector_out)
       return
     end if
 
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('int_vInterp_gsv: The input and output statevectors are not on the same horizontal grid.')
+      call utl_abort('vInterp_gsv_r8: The input and output statevectors are not on the same horizontal grid.')
     end if
 
-    if ( statevector_in%dataKind /= 8 .or. statevector_out%dataKind /= 8 ) then
-      call utl_abort('int_vInterp_gsv: Incorrect value for dataKind. Only compatible with dataKind=8')
+    if ( gsv_getDataKind(statevector_in) /= 8 .or. gsv_getDataKind(statevector_out) /= 8 ) then
+      call utl_abort('vInterp_gsv_r8: Incorrect value for dataKind. Only compatible with dataKind=8')
     end if
 
     if (gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
@@ -389,9 +454,6 @@ contains
       heightSfcOut(:,:) = heightSfcIn(:,:)
     end if
 
-    vco_in => gsv_getVco(statevector_in)
-    vco_out => gsv_getVco(statevector_out)
-
     ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
     if ( present(checkModelTop_opt) ) then
       checkModelTop = checkModelTop_opt
@@ -399,91 +461,191 @@ contains
       checkModelTop = .true.
     end if
     if (checkModelTop) then
-      call vco_ensureCompatibleTops(vco_in, vco_out)
+      call msg('vInterp_gsv_r8', ' Checking that that the top of the destination grid is not higher than the top of the source grid.')
+      if ( vcode_in == 21001 .or. vcode_out == 21001 ) then
+        call msg('vInterp_gsv_r8', 'bypassing top check, '&
+             //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
+        ! Development notes (@mad001)
+        !   we should consider having a new criterion that works for GEM-H as well
+      else
+        call vco_ensureCompatibleTops(vco_in, vco_out)
+      end if
     end if
 
-    step_loop: do stepIndex = 1, statevector_out%numStep
+    ! create reference state on output vco with reference surface fields
+    call gsv_allocate(statevectorRef_out, statevectorRef%numstep, &
+                      statevectorRef%hco, statevector_out%vco,      &
+                      mpi_local_opt=statevectorRef%mpi_local, mpi_distribution_opt='Tiles', &
+                      dataKind_opt=gsv_getDataKind(statevectorRef), &
+                      allocHeightSfc_opt=statevectorRef%heightSfcPresent, &
+                      varNames_opt=(/'P0'/) )
+    call gsv_copy(stateVectorRef, stateVectorRef_out, allowVcoMismatch_opt=.true., &
+                  allowVarMismatch_opt=.true.)
 
-      ! copy over some time related and other parameters
-      statevector_out%deet                      = statevector_in%deet
-      statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
-      statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
-      statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
-      statevector_out%etiket                    = statevector_in%etiket
-      statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
-      statevector_out%hco_physics              => statevector_in%hco_physics
+    var_loop: do varIndex = 1, vnl_numvarmax
+      varName = vnl_varNameList(varIndex)
+      if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
 
-      if ( present(PsfcReference_opt) ) then
-        psfc_in(:,:) = PsfcReference_opt(:,:,stepIndex)
-      else
-        call gsv_getField(statevector_in,field_in,'P0')
-        psfc_in(:,:) = field_in(:,:,1,stepIndex)
+      nlev_in  = statevector_in%varNumLev(varIndex)
+      nlev_out = statevector_out%varNumLev(varIndex)
+
+      call gsv_getField(statevector_in ,field_in,varName)
+      call gsv_getField(statevector_out,field_out,varName)
+
+      ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
+      if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
+           (vnl_varLevelFromVarname(varName) == 'OT') ) then
+        field_out(:,:,:,:) = field_in(:,:,:,:)
+        cycle var_loop
       end if
-      if ( present(Ps_in_hPa_opt) ) then
-        if ( Ps_in_hPa_opt ) psfc_in = psfc_in * mpc_pa_per_mbar_r8
-      end if
 
-      var_loop: do varIndex = 1, vnl_numvarmax
-        varName = vnl_varNameList(varIndex)
-        if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
+      hLikeCalcIf: if (hLikeCalc) then
+        hLikeCalc = .false.
 
-        nlev_in  = statevector_in%varNumLev(varIndex)
-        nlev_out = statevector_out%varNumLev(varIndex)
+        ! allocating for temporary pressure references
+        allocate(hLikeT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+        allocate(hLikeM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
+        allocate(hLikeT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                            gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
+        allocate(hLikeM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                            gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
+        allocate(tmpCoord_T(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+        allocate(tmpCoord_M(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
 
-        call gsv_getField(statevector_in ,field_in,varName)
-        call gsv_getField(statevector_out,field_out,varName)
+        ! output grid GEM-P interpolation in log-pressure
+        if ( vcode_out==5002 .or. vcode_out==5005 ) then
+          call czp_calcReturnPressure_gsv_nl( statevectorRef_out, &
+                                              PTout_r8_opt=hLikeT_out, &
+                                              PMout_r8_opt=hLikeM_out, &
+                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
 
-        ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
-        if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
-             (vnl_varLevelFromVarname(varName) == 'OT') ) then
-          field_out(:,:,:,stepIndex) = field_in(:,:,:,stepIndex)
-          cycle var_loop
+          if ( vcode_in==5002 .or. vcode_in==5005 ) then
+            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
+                                                PTout_r8_opt=hLikeT_in, &
+                                                PMout_r8_opt=hLikeM_in, &
+                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+          else if ( vcode_in==21001 ) then
+            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
+                                              ZTout_r8_opt=tmpCoord_T, &
+                                              ZMout_r8_opt=tmpCoord_M)
+            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
+                                                ZTin_r8_opt=tmpCoord_T, &
+                                                ZMin_r8_opt=tmpCoord_M, &
+                                                PTout_r8_opt=hLikeT_in, &
+                                                PMout_r8_opt=hLikeM_in, &
+                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+          end if
+
+          call msg('vInterp_gsv_r8','converting pressure coordinates to height-like, '&
+                   //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
+          call logP_r8(hLikeM_out)
+          call logP_r8(hLikeT_out)
+          call logP_r8(hLikeM_in)
+          call logP_r8(hLikeT_in)
+
+          ! output grid GEM-H interpolation in height
+        else if ( vcode_out==21001 ) then
+          call czp_calcReturnHeight_gsv_nl( statevectorRef_out, &
+                                            ZTout_r8_opt=hLikeT_out, &
+                                            ZMout_r8_opt=hLikeM_out)
+          if ( vcode_in==21001 ) then
+            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
+                                              ZTout_r8_opt=hLikeT_in, &
+                                              ZMout_r8_opt=hLikeM_in)
+          else if ( vcode_in==5002 .or. vcode_in==5005 ) then
+            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
+                                                PTout_r8_opt=tmpCoord_T, &
+                                                PMout_r8_opt=tmpCoord_M, &
+                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
+                                              PTin_r8_opt=tmpCoord_T, &
+                                              PMin_r8_opt=tmpCoord_M, &
+                                              ZTout_r8_opt=hLikeT_in, &
+                                              ZMout_r8_opt=hLikeM_in)
+          end if
         end if
+        deallocate(tmpCoord_T)
+        deallocate(tmpCoord_M)
 
-        nullify(pres_out,pres_in)
+      end if hLikeCalcIf
 
-        ! define pressures on input and output levels
-        if (vnl_varLevelFromVarname(varName) == 'TH') then
-          status=vgd_levels(vco_in%vgrid,           &
-                            ip1_list=vco_in%ip1_T,  &
-                            levels=pres_in,         &
-                            sfc_field=psfc_in,      &
-                            in_log=.false.)
-          status=vgd_levels(vco_out%vgrid,           &
-                            ip1_list=vco_out%ip1_T,  &
-                            levels=pres_out,         &
-                            sfc_field=psfc_in,       &
-                            in_log=.false.)
-        else
-          status=vgd_levels(vco_in%vgrid,           &
-                            ip1_list=vco_in%ip1_M,  &
-                            levels=pres_in,         &
-                            sfc_field=psfc_in,      &
-                            in_log=.false.)
-          status=vgd_levels(vco_out%vgrid,           &
-                            ip1_list=vco_out%ip1_M,  &
-                            levels=pres_out,         &
-                            sfc_field=psfc_in,       &
-                            in_log=.false.)
-        end if
-
+      step_loop: do stepIndex = 1, statevector_out%numStep
+  
+        ! copy over some time related and other parameters
+        statevector_out%deet                      = statevector_in%deet
+        statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
+        statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
+        statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
+        statevector_out%etiket                    = statevector_in%etiket
+        statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
+        statevector_out%hco_physics              => statevector_in%hco_physics
+  
         ! do the vertical interpolation
         field_out(:,:,:,stepIndex) = 0.0d0
-        !$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2,levIndex_in,levIndex_out,zwb,zwt)
+        if (vnl_varLevelFromVarname(varName) == 'TH') then
+          call hLike_interpolation_r8(hLikeT_in, hLikeT_out)
+        else
+          call hLike_interpolation_r8(hLikeM_in, hLikeM_out)
+        end if
+
+        ! overwrite values at the lowest levels to avoid extrapolation
+        if (vInterpCopyLowestLevel) then
+          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
+        end if
+
+      end do step_loop
+
+    end do var_loop
+
+    if (associated(hLikeT_in)) then
+      deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
+    end if
+    call gsv_deallocate(statevectorRef_out)
+
+    call msg('vInterp_gsv_r8', 'END', verb_opt=4)
+
+    contains
+
+      subroutine hLike_interpolation_r8(hLike_in, hLike_out)
+        !
+        ! :Purpose: Proceed to actual interpolation in H-logP representation
+        !
+        implicit none
+
+        ! Arguments:
+        real(8), pointer, intent(in)  :: hLike_in(:,:,:,:)  ! abstract height dimensioned input coordinate
+        real(8), pointer, intent(in)  :: hLike_out(:,:,:,:) ! abstract height dimensioned target coordinate
+
+        ! Locals:
+        integer :: latIndex, lonIndex, levIndex_out, levIndex_in
+        real(8) :: zwb, zwt
+
+        !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex_in,levIndex_out,zwb,zwt)
         do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
-          latIndex2 = latIndex - statevector_out%myLatBeg + 1
           do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
-            lonIndex2 = lonIndex - statevector_out%myLonBeg + 1
             levIndex_in = 1
             do levIndex_out = 1, nlev_out
               levIndex_in = levIndex_in + 1
-              do while(pres_out(lonIndex2,latIndex2,levIndex_out).gt.pres_in(lonIndex2,latIndex2,levIndex_in)  &
+              do while(hLike_out(lonIndex,latIndex,levIndex_out,stepIndex) &
+                        .gt.hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)  &
                        .and.levIndex_in.lt.nlev_in)
                 levIndex_in = levIndex_in + 1
               end do
               levIndex_in = levIndex_in - 1
-              zwb = log(pres_out(lonIndex2,latIndex2,levIndex_out)/pres_in(lonIndex2,latIndex2,levIndex_in))  &
-                   /log(pres_in(lonIndex2,latIndex2,levIndex_in+1)/pres_in(lonIndex2,latIndex2,levIndex_in))
+              zwb = (hLike_out(lonIndex,latIndex,levIndex_out,stepIndex) &
+                      - hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)) &
+                   /(hLike_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
+                      - hLike_in(lonIndex,latIndex,levIndex_in,stepIndex))
               zwt = 1.d0 - zwb
               field_out(lonIndex,latIndex,levIndex_out,stepIndex) =   &
                                  zwb*field_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
@@ -493,81 +655,118 @@ contains
         end do
         !$OMP END PARALLEL DO
 
-        ! overwrite values at the lowest levels to avoid extrapolation
-        if (vInterpCopyLowestLevel) then
-          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
-        end if
+      end subroutine hLike_interpolation_r8
 
-        deallocate(pres_out)
-        deallocate(pres_in)
-
-      end do var_loop
-
-    end do step_loop
-
-  end subroutine int_vInterp_gsv
+  end subroutine vInterp_gsv_r8
 
   !--------------------------------------------------------------------------
-  ! int_vInterp_gsv_r4
+  ! logP_r8
   !--------------------------------------------------------------------------
-  subroutine int_vInterp_gsv_r4(statevector_in,statevector_out,Ps_in_hPa_opt, &
-                                 PsfcReference_opt,checkModelTop_opt)
+  subroutine logP_r8(presInLogOut)
     !
-    ! :Purpose: Vertical interpolation of pressure defined fields
+    ! :Purpose: compute log of pressurce field, real(8) version
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(inout) :: presInLogOut(:,:,:,:)
+
+    ! Locals:
+    integer :: latIdx, lonIdx, levIdx, stepIdx
+
+    !$OMP PARALLEL DO PRIVATE(lonIdx,latIdx,levIdx,stepIdx)
+    do stepIdx = lbound(presInLogOut,4), ubound(presInLogOut,4)
+      do levIdx = lbound(presInLogOut,3), ubound(presInLogOut,3)
+        do latIdx = lbound(presInLogOut,2), ubound(presInLogOut,2)
+          do lonIdx = lbound(presInLogOut,1), ubound(presInLogOut,1)
+            presInLogOut(lonIdx,latIdx,levIdx,stepIdx) = &
+                 log(presInLogOut(lonIdx,latIdx,levIdx,stepIdx))
+          end do
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+  end subroutine logP_r8
+
+  !--------------------------------------------------------------------------
+  ! vInterp_gsv_r4
+  !--------------------------------------------------------------------------
+  subroutine vInterp_gsv_r4(statevector_in,statevector_out,statevectorRef_opt, &
+                            Ps_in_hPa_opt,checkModelTop_opt)
+    !
+    ! :Purpose: Vertical interpolation, ``real(4)`` version.
     !
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)     :: statevector_in           ! Reference statevector providing the vertical structure
-    type(struct_gsv),  intent(inout)  :: statevector_out          ! statevector that will contain the vertically interpolated fields
-    logical, optional, intent(in)     :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done
-    real(4), optional, intent(in)     :: PsfcReference_opt(:,:,:) ! Provides a surface pressure field to be used instead of the first P0 level
-    logical, optional, intent(in)     :: checkModelTop_opt        ! Model top consistency will be checked prior to interpolation if true
+    type(struct_gsv),           target, intent(in)     :: statevector_in             ! Statevector input
+    type(struct_gsv),                   intent(inout)  :: statevector_out            ! Statevector providing the target horizontal and vertical structure and will contain the interpolated fields
+    type(struct_gsv), optional, target, intent(in)     :: statevectorRef_opt         ! Reference statevector providing fields P0, TT and HU
+    logical,          optional,         intent(in)     :: Ps_in_hPa_opt              ! If true, conversion from hPa to mbar will be done for surface pressure
+    logical,          optional,         intent(in)     :: checkModelTop_opt          ! Model top consistency will be checked prior to interpolation if true
 
     ! Locals:
-    logical :: checkModelTop
+    logical :: checkModelTop, hLikeCalc
 
-    integer :: nlev_out, nlev_in, levIndex_out, levIndex_in, latIndex, lonIndex
-    integer :: latIndex2, lonIndex2, varIndex, stepIndex
-    integer :: status
-    real(4) :: zwb, zwt
+    integer :: vcode_in, vcode_out
+    integer :: nlev_out, nlev_in
+    integer :: varIndex, stepIndex
 
-    real(4)           :: psfc_in(statevector_in%myLonBeg:statevector_in%myLonEnd, &
-                                 statevector_in%myLatBeg:statevector_in%myLatEnd)
-    real(4), pointer  :: pres_out(:,:,:), pres_in(:,:,:), field_out(:,:,:,:), field_in(:,:,:,:)
+    type(struct_gsv), pointer   :: statevectorRef
+    type(struct_gsv)            :: statevectorRef_out
+    real(4), pointer  :: hLikeT_in(:,:,:,:), hLikeM_in(:,:,:,:)   ! abstract height dimensioned coordinate
+    real(4), pointer  :: hLikeT_out(:,:,:,:), hLikeM_out(:,:,:,:) ! abstract height dimensioned coordinate
+    real(4), pointer  :: field_in(:,:,:,:), field_out(:,:,:,:)
     real(8), pointer  :: heightSfcIn(:,:), heightSfcOut(:,:)
+    real(4), pointer  :: tmpCoord_T(:,:,:,:), tmpCoord_M(:,:,:,:)
 
     character(len=4) :: varName
 
     type(struct_vco), pointer :: vco_in, vco_out
 
-    ! read the namelist
-    call int_readNml()
+    call msg('vInterp_gsv_r4', 'START', verb_opt=4)
+
+    vco_in  => gsv_getVco(statevector_in)
+    vco_out => gsv_getVco(statevector_out)
+    vcode_in  = vco_in%vcode
+    vcode_out = vco_out%vcode
+    nullify(hLikeT_in,hLikeM_in,hLikeT_out,hLikeM_out)
+
+    hLikeCalc = .true.
+
+    if (present(statevectorRef_opt)) then
+      if ( .not. vco_equal(gsv_getVco(statevectorRef_opt), gsv_getVco(statevector_in))) then
+        call utl_abort('vInterp_gsv_r4: reference must have input vertical structure')
+      end if
+      statevectorRef => statevectorRef_opt
+    else
+      statevectorRef => statevector_in
+    end if
 
     if ( vco_equal(statevector_in%vco, statevector_out%vco) ) then
-      write(*,*) 'int_vInterp_gsv_r4: The input and output statevectors are already on same vertical levels'
+      call msg('vInterp_gsv_r4', 'The input and output statevectors are already on same vertical levels')
       call gsv_copy(statevector_in, statevector_out)
       return
     end if
 
     if ( .not. hco_equal(statevector_in%hco, statevector_out%hco) ) then
-      call utl_abort('int_vInterp_gsv_r4: The input and output statevectors are not on the same horizontal grid.')
+      call utl_abort('vInterp_gsv_r4: The input and output statevectors are not on the same horizontal grid.')
     end if
 
-    if ( statevector_in%dataKind /= 4 .or. statevector_out%dataKind /= 4 ) then
-      call utl_abort('int_vInterp_gsv_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
+    ! DBGmad remove?
+    if ( gsv_getDataKind(statevector_in) /= 4 .or. gsv_getDataKind(statevector_out) /= 4 ) then
+      call utl_abort('vInterp_gsv_r4: Incorrect value for dataKind. Only compatible with dataKind=4')
     end if
 
-    if ( gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
+    if (gsv_isAssocHeightSfc(statevector_in) .and. gsv_isAssocHeightSfc(statevector_out) ) then
       heightSfcIn => gsv_getHeightSfc(statevector_in)
       heightSfcOut => gsv_getHeightSfc(statevector_out)
-      HeightSfcOut(:,:) = HeightSfcIn(:,:)
+      heightSfcOut(:,:) = heightSfcIn(:,:)
     end if
 
-    vco_in => gsv_getVco(statevector_in)
-    vco_out => gsv_getVco(statevector_out)
-
+    ! DBGmad move to int_vInterp_gsv?
     ! the default is to ensure that the top of the output grid is ~equal or lower than the top of the input grid 
     if ( present(checkModelTop_opt) ) then
       checkModelTop = checkModelTop_opt
@@ -575,93 +774,193 @@ contains
       checkModelTop = .true.
     end if
     if (checkModelTop) then
-      write(*,*) 'int_vInterp_gsv_r4: Checking that that the top of the destination grid is not higher than the top of the source grid.'
-      call vco_ensureCompatibleTops(vco_in, vco_out)
+      call msg('vInterp_gsv_r4', ' Checking that that the top of the destination grid is not higher than the top of the source grid.')
+      if ( vcode_in == 21001 .or. vcode_out == 21001 ) then
+        call msg('vInterp_gsv_r4', 'bypassing top check, '&
+             //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
+        ! Development notes (@mad001)
+        !   we should consider having a new criterion that works for GEM-H as well
+      else
+        call vco_ensureCompatibleTops(vco_in, vco_out)
+      end if
     end if
 
-    step_loop: do stepIndex = 1, statevector_out%numStep
+    ! create reference state on output vco with reference surface fields
+    call gsv_allocate(statevectorRef_out, statevectorRef%numstep, &
+                      statevectorRef%hco, statevector_out%vco,      &
+                      mpi_local_opt=statevectorRef%mpi_local,  &
+                      mpi_distribution_opt=statevectorRef%mpi_distribution, &
+                      dataKind_opt=gsv_getDataKind(statevectorRef), &
+                      allocHeightSfc_opt=statevectorRef%heightSfcPresent, &
+                      varNames_opt=(/'P0'/) )
+    call gsv_copy(stateVectorRef, stateVectorRef_out, allowVcoMismatch_opt=.true., &
+                  allowVarMismatch_opt=.true.)
 
-      ! copy over some time related and other parameters
-      statevector_out%deet                      = statevector_in%deet
-      statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
-      statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
-      statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
-      statevector_out%etiket                    = statevector_in%etiket
-      statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
-      statevector_out%hco_physics              => statevector_in%hco_physics
+    var_loop: do varIndex = 1, vnl_numvarmax
+      varName = vnl_varNameList(varIndex)
+      if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
 
-      if ( present(PsfcReference_opt) ) then
-        psfc_in(:,:) = PsfcReference_opt(:,:,stepIndex)
-      else
-        call gsv_getField(statevector_in,field_in,'P0')
-        psfc_in(:,:) = field_in(:,:,1,stepIndex)
+      nlev_in  = statevector_in%varNumLev(varIndex)
+      nlev_out = statevector_out%varNumLev(varIndex)
+
+      call gsv_getField(statevector_in ,field_in,varName)
+      call gsv_getField(statevector_out,field_out,varName)
+
+      ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
+      if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
+           (vnl_varLevelFromVarname(varName) == 'OT') ) then
+        field_out(:,:,:,:) = field_in(:,:,:,:)
+        cycle var_loop
       end if
-      if ( present(Ps_in_hPa_opt) ) then
-        if ( Ps_in_hPa_opt ) psfc_in = psfc_in * mpc_pa_per_mbar_r4
-      end if
 
-      var_loop: do varIndex = 1, vnl_numvarmax
-        varName = vnl_varNameList(varIndex)
-        if ( .not. gsv_varExist(statevector_in,varName) ) cycle var_loop
+      hLikeCalcIf: if (hLikeCalc) then
+        hLikeCalc = .false.
 
-        nlev_in  = statevector_in%varNumLev(varIndex)
-        nlev_out = statevector_out%varNumLev(varIndex)
+        ! allocating for temporary pressure references
+        allocate(hLikeT_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+        allocate(hLikeM_in( statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
+        allocate(hLikeT_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                            gsv_getNumLev(statevector_out,'TH'), statevector_out%numStep))
+        allocate(hLikeM_out(statevector_out%myLonBeg:statevector_out%myLonEnd, &
+                            statevector_out%myLatBeg:statevector_out%myLatEnd, &
+                            gsv_getNumLev(statevector_out,'MM'), statevector_out%numStep))
+        allocate(tmpCoord_T(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                            gsv_getNumLev(statevector_in,'TH'), statevector_in%numStep))
+        allocate(tmpCoord_M(statevector_in%myLonBeg:statevector_in%myLonEnd, &
+                            statevector_in%myLatBeg:statevector_in%myLatEnd, &
+                          gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
 
-        call gsv_getField(statevector_in ,field_in,varName)
-        call gsv_getField(statevector_out,field_out,varName)
+        ! output grid GEM-P interpolation in log-pressure
+        if ( vcode_out==5002 .or. vcode_out==5005 ) then
+          call czp_calcReturnPressure_gsv_nl( statevectorRef_out, &
+                                              PTout_r4_opt=hLikeT_out, &
+                                              PMout_r4_opt=hLikeM_out, &
+                                              Ps_in_hPa_opt=Ps_in_hPa_opt)
 
-        ! for 2D fields and variables on "other" levels, just copy and cycle to next variable
-        if ( (nlev_in == 1 .and. nlev_out == 1) .or. &
-             (vnl_varLevelFromVarname(varName) == 'OT') ) then
-          field_out(:,:,:,stepIndex) = field_in(:,:,:,stepIndex)
-          cycle var_loop
+          if ( vcode_in==5002 .or. vcode_in==5005 ) then
+            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
+                                                PTout_r4_opt=hLikeT_in, &
+                                                PMout_r4_opt=hLikeM_in, &
+                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+          else if ( vcode_in==21001 ) then
+            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
+                                              ZTout_r4_opt=tmpCoord_T, &
+                                              ZMout_r4_opt=tmpCoord_M)
+            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
+                                                ZTin_r4_opt=tmpCoord_T, &
+                                                ZMin_r4_opt=tmpCoord_M, &
+                                                PTout_r4_opt=hLikeT_in, &
+                                                PMout_r4_opt=hLikeM_in, &
+                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+          end if
+
+          call msg('vInterp_gsv_r4','converting pressure coordinates to height-like, '&
+                   //'vcode_in='//str(vcode_in)//', vcode_out='//str(vcode_out))
+          call logP_r4(hLikeM_out)
+          call logP_r4(hLikeT_out)
+          call logP_r4(hLikeM_in)
+          call logP_r4(hLikeT_in)
+
+          ! output grid GEM-H interpolation in height
+        else if ( vcode_out==21001 ) then
+          call czp_calcReturnHeight_gsv_nl( statevectorRef_out, &
+                                            ZTout_r4_opt=hLikeT_out, &
+                                            ZMout_r4_opt=hLikeM_out)
+          if ( vcode_in==21001 ) then
+            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
+                                              ZTout_r4_opt=hLikeT_in, &
+                                              ZMout_r4_opt=hLikeM_in)
+          else if ( vcode_in==5002 .or. vcode_in==5005 ) then
+            call czp_calcReturnPressure_gsv_nl( statevectorRef, &
+                                                PTout_r4_opt=tmpCoord_T, &
+                                                PMout_r4_opt=tmpCoord_M, &
+                                                Ps_in_hPa_opt=Ps_in_hPa_opt)
+            call czp_calcReturnHeight_gsv_nl( statevectorRef, &
+                                              PTin_r4_opt=tmpCoord_T, &
+                                              PMin_r4_opt=tmpCoord_M, &
+                                              ZTout_r4_opt=hLikeT_in, &
+                                              ZMout_r4_opt=hLikeM_in)
+          end if
         end if
+        deallocate(tmpCoord_T)
+        deallocate(tmpCoord_M)
 
-        nullify(pres_out,pres_in)
+      end if hLikeCalcIf
 
-        ! define pressures on input and output levels
-        if (vnl_varLevelFromVarname(varName) == 'TH') then
-          status=vgd_levels(vco_in%vgrid,           &
-                            ip1_list=vco_in%ip1_T,  &
-                            levels=pres_in,         &
-                            sfc_field=psfc_in,      &
-                            in_log=.false.)
-          status=vgd_levels(vco_out%vgrid,           &
-                            ip1_list=vco_out%ip1_T,  &
-                            levels=pres_out,         &
-                            sfc_field=psfc_in,       &
-                            in_log=.false.)
-        else
-          status=vgd_levels(vco_in%vgrid,           &
-                            ip1_list=vco_in%ip1_M,  &
-                            levels=pres_in,         &
-                            sfc_field=psfc_in,      &
-                            in_log=.false.)
-          status=vgd_levels(vco_out%vgrid,           &
-                            ip1_list=vco_out%ip1_M,  &
-                            levels=pres_out,         &
-                            sfc_field=psfc_in,       &
-                            in_log=.false.)
-        end if
-
+      step_loop: do stepIndex = 1, statevector_out%numStep
+  
+        ! copy over some time related and other parameters
+        statevector_out%deet                      = statevector_in%deet
+        statevector_out%dateOriginList(stepIndex) = statevector_in%dateOriginList(stepIndex)
+        statevector_out%npasList(stepIndex)       = statevector_in%npasList(stepIndex)
+        statevector_out%ip2List(stepIndex)        = statevector_in%ip2List(stepIndex)
+        statevector_out%etiket                    = statevector_in%etiket
+        statevector_out%onPhysicsGrid(:)          = statevector_in%onPhysicsGrid(:)
+        statevector_out%hco_physics              => statevector_in%hco_physics
+  
         ! do the vertical interpolation
-        field_out(:,:,:,stepIndex) = 0.0
-        !$OMP PARALLEL DO PRIVATE(latIndex,latIndex2,lonIndex,lonIndex2,levIndex_in,levIndex_out,zwb,zwt)
+        field_out(:,:,:,stepIndex) = 0.0d0
+        if (vnl_varLevelFromVarname(varName) == 'TH') then
+          call hLike_interpolation_r4(hLikeT_in, hLikeT_out)
+        else
+          call hLike_interpolation_r4(hLikeM_in, hLikeM_out)
+        end if
+
+        ! overwrite values at the lowest levels to avoid extrapolation
+        if (vInterpCopyLowestLevel) then
+          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
+        end if
+
+      end do step_loop
+
+    end do var_loop
+
+    if (associated(hLikeT_in)) then
+      deallocate(hLikeT_in, hLikeM_in, hLikeT_out, hLikeM_out)
+    end if
+    call gsv_deallocate(statevectorRef_out)
+
+    call msg('vInterp_gsv_r4', 'END', verb_opt=4)
+
+    contains
+
+      subroutine hLike_interpolation_r4(hLike_in, hLike_out)
+        !
+        ! :Purpose: Proceed to actual interpolation in H-logP representation
+        !
+        implicit none
+
+        ! Arguments:
+        real(4), pointer, intent(in)  :: hLike_in(:,:,:,:)  ! abstract height dimensioned input coordinate
+        real(4), pointer, intent(in)  :: hLike_out(:,:,:,:) ! abstract height dimensioned target coordinate
+
+        ! Locals:
+        integer :: latIndex, lonIndex, levIndex_out, levIndex_in
+        real(4) :: zwb, zwt
+
+        !$OMP PARALLEL DO PRIVATE(latIndex,lonIndex,levIndex_in,levIndex_out,zwb,zwt)
         do latIndex = statevector_out%myLatBeg, statevector_out%myLatEnd
-          latIndex2 = latIndex - statevector_out%myLatBeg + 1
           do lonIndex = statevector_out%myLonBeg, statevector_out%myLonEnd
-            lonIndex2 = lonIndex - statevector_out%myLonBeg + 1
             levIndex_in = 1
             do levIndex_out = 1, nlev_out
               levIndex_in = levIndex_in + 1
-              do while(pres_out(lonIndex2,latIndex2,levIndex_out).gt.pres_in(lonIndex2,latIndex2,levIndex_in)  &
+              do while(hLike_out(lonIndex,latIndex,levIndex_out,stepIndex) &
+                        .gt.hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)  &
                        .and.levIndex_in.lt.nlev_in)
                 levIndex_in = levIndex_in + 1
               end do
               levIndex_in = levIndex_in - 1
-              zwb = log(pres_out(lonIndex2,latIndex2,levIndex_out)/pres_in(lonIndex2,latIndex2,levIndex_in))  &
-                   /log(pres_in(lonIndex2,latIndex2,levIndex_in+1)/pres_in(lonIndex2,latIndex2,levIndex_in))
-              zwt = 1.0 - zwb
+              zwb = (hLike_out(lonIndex,latIndex,levIndex_out,stepIndex) &
+                      - hLike_in(lonIndex,latIndex,levIndex_in,stepIndex)) &
+                   /(hLike_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
+                      - hLike_in(lonIndex,latIndex,levIndex_in,stepIndex))
+              zwt = 1.d0 - zwb
               field_out(lonIndex,latIndex,levIndex_out,stepIndex) =   &
                                  zwb*field_in(lonIndex,latIndex,levIndex_in+1,stepIndex) &
                                + zwt*field_in(lonIndex,latIndex,levIndex_in,stepIndex)
@@ -670,19 +969,39 @@ contains
         end do
         !$OMP END PARALLEL DO
 
-        ! overwrite values at the lowest levels to avoid extrapolation
-        if (vInterpCopyLowestLevel) then
-          field_out(:,:,nlev_out,stepIndex) = field_in(:,:,nlev_in,stepIndex)
-        end if
+      end subroutine hLike_interpolation_r4
 
-        deallocate(pres_out)
-        deallocate(pres_in)
+  end subroutine vInterp_gsv_r4
 
-      end do var_loop
+  !--------------------------------------------------------------------------
+  ! logP_r4
+  !--------------------------------------------------------------------------
+  subroutine logP_r4(presInLogOut)
+    !
+    ! :Purpose: compute log of pressurce field
+    !
+    implicit none
 
-    end do step_loop
+    ! Arguments:
+    real(4), intent(inout) :: presInLogOut(:,:,:,:)
 
-  end subroutine int_vInterp_gsv_r4
+    ! Locals:
+    integer :: latIdx, lonIdx, levIdx, stepIdx
+
+    !$OMP PARALLEL DO PRIVATE(lonIdx,latIdx,levIdx,stepIdx)
+    do stepIdx = lbound(presInLogOut,4), ubound(presInLogOut,4)
+      do levIdx = lbound(presInLogOut,3), ubound(presInLogOut,3)
+        do latIdx = lbound(presInLogOut,2), ubound(presInLogOut,2)
+          do lonIdx = lbound(presInLogOut,1), ubound(presInLogOut,1)
+            presInLogOut(lonIdx,latIdx,levIdx,stepIdx) = &
+                 log(presInLogOut(lonIdx,latIdx,levIdx,stepIdx))
+          end do
+        end do
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+  end subroutine logP_r4
 
   !--------------------------------------------------------------------------
   ! int_tInterp_gsv
@@ -695,8 +1014,8 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_gsv),  intent(in)     :: statevector_in           ! statevector that will contain the temporal interpolated fields
-    type(struct_gsv),  intent(inout)  :: statevector_out          ! Reference statevector providing the temporal structure
+    type(struct_gsv),  intent(in)     :: statevector_in           ! Statevector input
+    type(struct_gsv),  intent(inout)  :: statevector_out          ! Statevector providing the target temporal structure and will contain the interpolated fields
 
     ! Locals:
     integer :: kIndex, latIndex, lonIndex
@@ -709,7 +1028,7 @@ contains
     real(4), pointer  :: gdIn_r4(:,:,:,:), gdOut_r4(:,:,:,:)
     real(8), pointer  :: gdIn_r8(:,:,:,:), gdOut_r8(:,:,:,:)
 
-    write(*,*) 'int_tInterp_gsv: STARTING'
+    call msg('int_tInterp_gsv', 'START', verb_opt=2)
 
     ! read the namelist
     call int_readNml()
@@ -723,11 +1042,11 @@ contains
     end if
 
     if ( statevector_in%numStep > statevector_out%numStep ) then
-      write(*,*) 'int_tInterp_gsv: numStep_out is less than numStep_in, calling gsv_copy.'
+      call msg('int_tInterp_gsv', 'numStep_out is less than numStep_in, calling gsv_copy.')
       call gsv_copy(statevector_in, statevector_out, allowTimeMismatch_opt=.true.)
       return
     else if ( statevector_in%numStep == statevector_out%numStep ) then
-      write(*,*) 'int_tInterp_gsv: numStep_out is equal to numStep_in, calling gsv_copy.'
+      call msg('int_tInterp_gsv', 'numStep_out is equal to numStep_in, calling gsv_copy.')
       call gsv_copy(statevector_in, statevector_out, allowVarMismatch_opt=.true.)
       return
     end if
@@ -741,9 +1060,8 @@ contains
 
     numStepIn = statevector_in%numStep
     numStepOut = statevector_out%numStep
-    if ( mmpi_myid == 0 ) then
-      write(*,*) 'int_tInterp_gsv: numStepIn=', numStepIn, ',numStepOut=',numStepOut
-    end if
+    call msg('int_tInterp_gsv', 'numStepIn='//str(numStepIn)&
+         //', numStepOut='//str(numStepOut), mpiAll_opt=.false.)
 
     ! compute positive deltaHour between two first stepIndex of statevector_in (input temporal grid). 
     ! If numStepIn == 1, no time interpolation needed (weights are set to zero).
@@ -760,6 +1078,7 @@ contains
         stepIndexIn2 = 1
         weight1 = 1.0d0 
         weight2 = 0.0d0 
+        deltaHourInOut = 0.0d0
       else
         ! find staevector_in%dateStamp on the left and right
         if ( statevector_in%dateStampList(numStepIn) == statevector_out%dateStampList(stepIndexOut) ) then
@@ -787,14 +1106,13 @@ contains
         weight2 = deltaHourInOut / deltaHour
       end if
 
-      if ( mmpi_myid == 0 ) then
-        write(*,*) 'int_tInterp_gsv: for stepIndexOut=', stepIndexOut, &
-                   ',stepIndexIn1=', stepIndexIn1, ',stepIndexIn2=', stepIndexIn2, &
-                   ',weight1=', weight1, ',weight2=', weight2, &
-                   ',deltaHourInOut/deltaHour=', deltaHourInOut,'/',deltaHour
-      end if
+      call msg('int_tInterp_gsv', 'for stepIndexOut='//str(stepIndexOut) &
+           //', stepIndexIn1='//str(stepIndexIn1)//', stepIndexIn2='//str(stepIndexIn2) &
+           //', weight1='//str(weight1)//', weight2='//str(weight2) &
+           //', deltaHourInOut/deltaHour='//str(deltaHourInOut)//'/'//str(deltaHour), &
+           mpiAll_opt=.false.)
 
-      if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 4 ) then
+      if ( gsv_getDataKind(statevector_in) == 4 .and. gsv_getDataKind(statevector_out) == 4 ) then
         call gsv_getField(statevector_in, gdIn_r4)
         call gsv_getField(statevector_out, gdOut_r4)
         !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
@@ -808,7 +1126,7 @@ contains
           end do
         end do
         !$OMP END PARALLEL DO
-      else if ( statevector_in%dataKind == 4 .and. statevector_out%dataKind == 8 ) then
+      else if ( gsv_getDataKind(statevector_in) == 4 .and. gsv_getDataKind(statevector_out) == 8 ) then
         call gsv_getField(statevector_in, gdIn_r4)
         call gsv_getField(statevector_out, gdOut_r8)
         !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
@@ -822,7 +1140,7 @@ contains
           end do
         end do
         !$OMP END PARALLEL DO
-      else if ( statevector_in%dataKind == 8 .and. statevector_out%dataKind == 4 ) then
+      else if ( gsv_getDataKind(statevector_in) == 8 .and. gsv_getDataKind(statevector_out) == 4 ) then
         call gsv_getField(statevector_in, gdIn_r8)
         call gsv_getField(statevector_out, gdOut_r4)
         !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
@@ -836,7 +1154,7 @@ contains
           end do
         end do
         !$OMP END PARALLEL DO
-      else if ( statevector_in%dataKind == 8 .and. statevector_out%dataKind == 8 ) then
+      else if ( gsv_getDataKind(statevector_in) == 8 .and. gsv_getDataKind(statevector_out) == 8 ) then
         call gsv_getField(statevector_in, gdIn_r8)
         call gsv_getField(statevector_out, gdOut_r8)
         !$OMP PARALLEL DO PRIVATE (latIndex,kIndex,lonIndex)
@@ -854,7 +1172,7 @@ contains
 
     end do
 
-    write(*,*) 'int_tInterp_gsv: END'
+    call msg('int_tInterp_gsv', 'END', verb_opt=2)
 
   end subroutine int_tInterp_gsv
 
@@ -868,24 +1186,27 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData),  intent(in)    :: column_in              ! Reference columnData providing the vertical structure
-    type(struct_columnData),  intent(inout) :: column_out             ! columnData that will contain the vertically interpolated column
+    type(struct_columnData),  intent(in)    :: column_in              ! ColumnData input
+    type(struct_columnData),  intent(inout) :: column_out             ! columnData providing the vertical structure and that will contain the interpolated column
     character(len=*),         intent(in)    :: varName
     logical, optional,        intent(in)    :: useColumnPressure_opt  ! if .true. use P_* instead of the pressure provided by vgd_levels 
 
     ! Locals:
-    real(8), pointer :: pres_in(:), pres_out(:)
-    real(8), pointer :: pres1D_in(:)  , pres1D_out(:)
-    real(8), pointer :: pres3D_in(:,:,:), pres3D_out(:,:,:)
+    real(8), pointer :: varInterp_in(:), varInterp_out(:)
+    real(8), pointer :: coordRef_in(:)  , coordRef_out(:)
+    real(8), pointer :: ZT_in(:,:), ZM_in(:,:), PT_in(:,:), PM_in(:,:)
+    real(8), pointer :: PT_out(:,:), PM_out(:,:)
     character(len=4) :: varLevel
     real(8)          :: zwb, zwt
-    integer          :: levIndex_out, levIndex_in, columnIndex, status
+    integer          :: levIndex_out, levIndex_in, columnIndex
+    integer          :: vcode_in, vcode_out
+    integer          :: nLevIn_T, nLevIn_M, nLevOut_T, nLevOut_M
     logical          :: vInterp, useColumnPressure
 
     integer, allocatable, target :: THlevelWanted(:), MMlevelWanted(:)
     integer, pointer :: levelWanted(:)
-    real(8), allocatable :: psfc_in(:,:)
 
+    call msg('int_vInterp_col', 'START', verb_opt=2)
     varLevel = vnl_varLevelFromVarname(varName)
 
     if ( present(useColumnPressure_opt) ) then
@@ -894,132 +1215,111 @@ contains
       useColumnPressure = .true.
     end if
 
-    nullify(pres3D_in)
-    nullify(pres3D_out)
+    call msg('int_vInterp_col', varName//' ('//varLevel &
+         //'), useColumnPressure='//str(useColumnPressure), verb_opt=3)
 
     vInterp = .true.
     if ( .not. col_varExist(column_in,'P0' ) ) then
-      write(*,*)
-      write(*,*) 'int_vInterp_col: P0 is missing. Vertical interpolation WILL NOT BE PERFORMED'
+      call msg('int_vInterp_col', 'P0 is missing. Vertical interpolation WILL NOT BE PERFORMED')
       vInterp = .false.
     else if ( col_getNumLev(column_in ,'TH') <= 1 .or. &
               col_getNumLev(column_in ,'MM') <= 1 ) then
       vInterp = .false.
-      write(*,*)
-      write(*,*) 'int_vInterp_col: The input backgrounds are 2D. Vertical interpolation WILL NOT BE PERFORMED'
+      call msg('int_vInterp_col', 'The input backgrounds are 2D. Vertical interpolation WILL NOT BE PERFORMED')
     end if
+
+    vcode_in  = column_in%vco%vcode
+    vcode_out = column_out%vco%vcode
+    nLevIn_T  = col_getNumLev(column_in,  'TH')
+    nLevIn_M  = col_getNumLev(column_in,  'MM')
+    nLevOut_T = col_getNumLev(column_out, 'TH')
+    nLevOut_M = col_getNumLev(column_out, 'MM')
 
     if_vInterp: if (vInterp) then
       if ( .not. useColumnPressure ) then
 
-        ! read psfc_in to use in vgd_levels
-        allocate(psfc_in(1,col_getNumCol(column_in)))
-        do columnIndex = 1,col_getNumCol(column_in)
-          psfc_in(1,columnIndex) = col_getElem(column_out,1,columnIndex,'P0')
-        end do
+        call msg('int_vInterp_col', 'vcode_in='//str(vcode_in)//', '&
+             //'vcode_out='//str(vcode_out), verb_opt=3)
 
-        ! Compute pressure
-        if ( varLevel == 'TH' ) then
-          ! pres3D_in
-          status = vgd_levels(column_in%vco%vgrid,ip1_list=column_in%vco%ip1_T,  &
-                              levels=pres3D_in,sfc_field=psfc_in,in_log=.false.)
-          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+        ! Compute interpolation variables (pressures and or heights)
+        allocate(PT_in( col_getNumCol(column_in),  nLevIn_T))
+        allocate(PM_in( col_getNumCol(column_in),  nLevIn_M))
+        allocate(ZT_in( col_getNumCol(column_in),  nLevIn_T))
+        allocate(ZM_in( col_getNumCol(column_in),  nLevIn_M))
+        allocate(PT_out(col_getNumCol(column_out), nLevOut_T))
+        allocate(PM_out(col_getNumCol(column_out), nLevOut_M))
 
-          ! pres3D_out
-          status = vgd_levels(column_out%vco%vgrid,ip1_list=column_out%vco%ip1_T,  &
-                              levels=pres3D_out,sfc_field=psfc_in,in_log=.false.)
-          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
+        call czp_calcReturnPressure_col_nl(column_in, PT_in, PM_in)
+        call czp_calcReturnHeight_col_nl(column_in, ZT_in, ZM_in)
+        call czp_calcReturnPressure_col_nl(column_out, PT_out, PM_out)
 
-        else if ( varLevel == 'MM' ) then
-          ! pres3D_in
-          status = vgd_levels(column_in%vco%vgrid,ip1_list=column_in%vco%ip1_M,  &
-                              levels=pres3D_in,sfc_field=psfc_in,in_log=.false.)
-          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
-
-          ! pres3D_out
-          status = vgd_levels(column_out%vco%vgrid,ip1_list=column_out%vco%ip1_M,  &
-                              levels=pres3D_out,sfc_field=psfc_in,in_log=.false.)
-          if( status .ne. VGD_OK ) call utl_abort('ERROR with vgd_levels')
-
-        else
-          call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
-        end if  ! varLevel
       end if    ! useColumnPressure
 
       do columnIndex = 1, col_getNumCol(column_out)
 
-        ! pres1D_in
-        if ( .not. useColumnPressure ) then
-          pres1D_in => pres3D_in(1,columnIndex,:)
-        else
-          if ( varLevel == 'TH' ) then
-            pres1D_in => col_getColumn(column_in,columnIndex,'P_T')
-          else if ( varLevel == 'MM' ) then
-            pres1D_in => col_getColumn(column_in,columnIndex,'P_M')
+        ! coordRef_{in,out}
+        if ( varLevel == 'TH' ) then
+          if ( .not. useColumnPressure ) then
+            coordRef_in  => PT_in(columnIndex,:)
+            coordRef_out => PT_out(columnIndex,:)
           else
-            call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
+            coordRef_in  => col_getColumn(column_in,columnIndex,'P_T')
+            coordRef_out => col_getColumn(column_out,columnIndex,'P_T')
           end if
-        end if
-
-        ! pres1D_out
-        if ( .not. useColumnPressure ) then
-          pres1D_out => pres3D_out(1,columnIndex,:)
-        else
-          if ( varLevel == 'TH' ) then
-            pres1D_out => col_getColumn(column_out,columnIndex,'P_T')
-          else if ( varLevel == 'MM' ) then
-            pres1D_out => col_getColumn(column_out,columnIndex,'P_M')
+        else if ( varLevel == 'MM' ) then
+          if ( .not. useColumnPressure ) then
+            coordRef_in  => PM_in(columnIndex,:)
+            coordRef_out => PM_out(columnIndex,:)
           else
-            call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
+            coordRef_in  => col_getColumn(column_in,columnIndex,'P_M')
+            coordRef_out => col_getColumn(column_out,columnIndex,'P_M')
           end if
+        else
+          call utl_abort('int_vInterp_col: only varLevel TH/MM is allowed')
         end if
 
-        pres_in  => col_getColumn(column_in ,columnIndex,varName)
-        pres_out => col_getColumn(column_out,columnIndex,varName)
+        varInterp_in  => col_getColumn(column_in ,columnIndex,varName)
+        varInterp_out => col_getColumn(column_out,columnIndex,varName)
 
-        if ( mmpi_myid == 0 .and. columnIndex == 1 .and. &
-             (trim(varName) == 'P_T' ) ) then
-
-          write(*,*) 'useColumnPressure=', useColumnPressure
-
-          write(*,*) 'int_vInterp_col, COLUMN_IN(1):'
-          write(*,*) trim(varName),':'
-          write(*,*) pres_in(:)
-
-          write(*,*) 'int_vInterp_col, COLUMN_OUT(1):'
-          write(*,*) trim(varName),':'
-          write(*,*) pres_out(:)
-          write(*,*)
+        if ( columnIndex == 1 .and. (trim(varName) == 'P_T' ) ) then
+          call msg('int_vInterp_col', 'useColumnPressure='//str(useColumnPressure) &
+               //', '//trim(varName)//':' &
+               //new_line('')//'COLUMN_IN(1):'//str(varInterp_in(:))&
+               //new_line('')//'COLUMN_OUT(1):'//str(varInterp_out(:)), &
+               mpiAll_opt=.false.)
         end if
 
+        ! actual interpolation
+        !   Development notes (@mad001)
+        !     Potential issue with GEM-H height based interpolation
+        !     we should consider to convert to pure logP interpolation
+        !     as we did for int_vInterp_gsv
+        !     see also #466 https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/issues/466#note_497052
         levIndex_in = 1
         do levIndex_out = 1, col_getNumLev(column_out,varLevel)
           levIndex_in = levIndex_in + 1
-          do while( pres1D_out(levIndex_out) .gt. pres1D_in(levIndex_in) .and. &
+          do while( coordRef_out(levIndex_out) .gt. coordRef_in(levIndex_in) .and. &
                levIndex_in .lt. col_getNumLev(column_in,varLevel) )
             levIndex_in = levIndex_in + 1
           end do
           levIndex_in = levIndex_in - 1
-          zwb = log(pres1D_out(levIndex_out)/pres1D_in(levIndex_in))/  &
-               log(pres1D_in(levIndex_in+1)/pres1D_in(levIndex_in))
+          zwb = log(coordRef_out(levIndex_out)/coordRef_in(levIndex_in))/  &
+               log(coordRef_in(levIndex_in+1)/coordRef_in(levIndex_in))
           zwt = 1. - zwb
           if (  useColumnPressure .and. &
               (trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) ) then
             ! do nothing, i.e. use the pressures from column_in
           else if ( .not. useColumnPressure .and. &
               (trim(varName) == 'P_T' .or. trim(varName) == 'P_M' ) ) then
-            pres_out(levIndex_out) = exp(zwb*log(pres_in(levIndex_in+1)) + zwt*log(pres_in(levIndex_in)))
+            varInterp_out(levIndex_out) = exp(zwb*log(varInterp_in(levIndex_in+1)) + zwt*log(varInterp_in(levIndex_in)))
           else
-            pres_out(levIndex_out) = zwb*pres_in(levIndex_in+1) + zwt*pres_in(levIndex_in)
+            varInterp_out(levIndex_out) = zwb*varInterp_in(levIndex_in+1) + zwt*varInterp_in(levIndex_in)
           end if
         end do
       end do
 
-      if ( .not. useColumnPressure ) then
-        deallocate(pres3D_in)
-        deallocate(pres3D_out)
-        deallocate(psfc_in)
-      end if
+      call msg('int_vInterp_col', trim(varName)//' (in): '//str(varInterp_in)&
+           //new_line('')//trim(varName)//' (out): '//str(varInterp_out), verb_opt=3)
 
     else if_vInterp
 
@@ -1038,15 +1338,15 @@ contains
 
         ! Transfer the corresponding data
         do columnIndex = 1, col_getNumCol(column_out)
-          pres_in  => col_getColumn(column_in ,columnIndex,varName)
-          pres_out => col_getColumn(column_out,columnIndex,varName)
+          varInterp_in  => col_getColumn(column_in ,columnIndex,varName)
+          varInterp_out => col_getColumn(column_out,columnIndex,varName)
           if (vnl_varLevelFromVarname(varName) == 'TH') then
             levelWanted => THlevelWanted
           else
             levelWanted => MMlevelWanted
           end if
           do levIndex_out = 1, col_getNumLev(column_out,varLevel)
-            pres_out(levIndex_out) = pres_in(levelWanted(levIndex_out))
+            varInterp_out(levIndex_out) = varInterp_in(levelWanted(levIndex_out))
           end do
         end do
 
@@ -1054,16 +1354,16 @@ contains
         deallocate(MMlevelWanted)
 
       else if (column_out%vco%nlev_depth > 0) then
-        write(*,*) 'vco_levelMatchingList: no MM and TH levels, but depth levels exist'
+        call msg('int_vInterp_col', 'vco_levelMatchingList: no MM and TH levels, but depth levels exist')
         if (any(column_out%vco%depths(:) /= column_in%vco%depths(:))) then
           call utl_abort('int_vInterp_col: some depth levels not equal')
         else
           ! copy over depth levels
           do columnIndex = 1, col_getNumCol(column_out)
-            pres_in  => col_getColumn(column_in ,columnIndex,varName)
-            pres_out => col_getColumn(column_out,columnIndex,varName)
+            varInterp_in  => col_getColumn(column_in ,columnIndex,varName)
+            varInterp_out => col_getColumn(column_out,columnIndex,varName)
             do levIndex_out = 1, col_getNumLev(column_out,varLevel)
-              pres_out(levIndex_out) = pres_in(levIndex_out)
+              varInterp_out(levIndex_out) = varInterp_in(levIndex_out)
             end do
           end do
         end if
@@ -1072,6 +1372,7 @@ contains
 
     end if if_vInterp
 
+    call msg('int_vInterp_col', 'END', verb_opt=2)
   end subroutine int_vInterp_col
 
   !--------------------------------------------------------------------------
@@ -1091,11 +1392,12 @@ contains
     character(len=12) :: extrapDegree
     integer           :: ierr, ezsetopt, ezsetval
 
+    call msg('int_setezopt', 'START', verb_opt=4)
     if ( trim(interpDegree) /= 'LINEAR' .and. &
          trim(interpDegree) /= 'CUBIC' .and. &
          trim(interpDegree) /= 'NEAREST' ) then
-      write(*,*) 'int_setezopt: interpDegree = ', trim(interpDegree)
-      call utl_abort('int_setezopt: invalid interpolation degree')
+
+      call utl_abort('int_setezopt: invalid interpolation degree = '//trim(interpDegree))
     end if
 
     if ( present(extrapDegree_opt) ) then
@@ -1110,6 +1412,7 @@ contains
     end if
     ierr = ezsetopt('EXTRAP_DEGREE', extrapDegree)
 
+    call msg('int_setezopt', 'END', verb_opt=4)
   end subroutine int_setezopt
 
   !--------------------------------------------------------------------------
@@ -1139,6 +1442,7 @@ contains
     real(8), pointer :: heightSfcOut(:,:), heightSfcIn(:,:)
     integer :: ezsint, ezdefset
 
+    call msg('int_hInterpScalar_gsv', 'START', verb_opt=4)
     ! read the namelist
     call int_readNml()
 
@@ -1146,7 +1450,7 @@ contains
     if (stateVectorIn%hco%initialized .and. stateVectorOut%hco%initialized) then
       if (stateVectorIn%hco%grtyp == 'Y') then
         ! for now, only comptable for real(4)
-        if(stateVectorOut%dataKind /= 4 .or. stateVectorIn%dataKind /= 4) then
+        if( gsv_getDataKind(stateVectorOut) /= 4 .or. gsv_getDataKind(stateVectorIn) /= 4) then
           call utl_abort('int_hInterpScalar_gsv: cloudToGrid only implemented for real(4)')
         end if
         ierr = int_sintCloudToGrid_gsv(stateVectorOut, stateVectorIn, varName, levIndex, stepIndex)
@@ -1172,7 +1476,7 @@ contains
       heightSfcOut(:,:) = fieldOut_r4(:,:,1,1)
       deallocate(fieldIn_r4,fieldOut_r4)
 
-    else if (stateVectorOut%dataKind == 4 .and. stateVectorIn%dataKind == 4) then
+    else if ( gsv_getDataKind(stateVectorOut) == 4 .and. gsv_getDataKind(stateVectorIn) == 4) then
 
       if (trim(varName) == 'ALL') then
         call gsv_getField(stateVectorOut, fieldOut_r4)
@@ -1184,7 +1488,7 @@ contains
 
       ierr = ezsint(fieldOut_r4(:,:,levIndex,stepIndex),fieldIn_r4(:,:,levIndex,stepIndex))
 
-    else if (stateVectorOut%dataKind == 8 .and. stateVectorIn%dataKind == 8) then
+    else if ( gsv_getDataKind(stateVectorOut) == 8 .and. gsv_getDataKind(stateVectorIn) == 8) then
 
       if (trim(varName) == 'ALL') then
         call gsv_getField(stateVectorOut, fieldOut_r8)
@@ -1208,6 +1512,7 @@ contains
 
     end if
 
+    call msg('int_hInterpScalar_gsv', 'END', verb_opt=4)
   end function int_hInterpScalar_gsv
 
   !--------------------------------------------------------------------------
@@ -1230,6 +1535,7 @@ contains
     ! Locals:
     integer :: ezsint
 
+    call msg('int_hInterpScalar_r4_2d', 'START', verb_opt=4)
     ! read the namelist
     call int_readNml()
 
@@ -1237,6 +1543,7 @@ contains
     call int_setezopt(interpDegree, extrapDegree_opt)   
     ierr = ezsint(fieldOut_r4,fieldIn_r4)
 
+    call msg('int_hInterpScalar_r4_2d', 'END', verb_opt=4)
   end function int_hInterpScalar_r4_2d
 
   !--------------------------------------------------------------------------
@@ -1281,6 +1588,7 @@ contains
     real(kdkind)              :: refPosition(3)
 
     call utl_tmg_start(176, 'low-level--int_sintCloudToGrid_gsv')
+    call msg('int_sintCloudToGrid_gsv', 'START', verb_opt=2)
 
     niCloud = stateVectorCloud%hco%ni
     njCloud = stateVectorCloud%hco%nj
@@ -1521,8 +1829,10 @@ contains
           else if (maskGrid(lonIndexGrid,latIndexGrid) == 0) then
             nextrap0 = nextrap0 + 1
           else
-            write(*,*) 'Expecting 0 or 1 for the mask field at grid point: ', &
-                       lonIndexGrid,latIndexGrid,maskGrid(lonIndexGrid,latIndexGrid)
+            call msg('int_sintCloudToGrid_gsv', &
+                 'Expecting 0 or 1 for the mask field at grid point: ' &
+                 //str(lonIndexGrid)//', '//str(latIndexGrid)//', ' &
+                 //str(maskGrid(lonIndexGrid,latIndexGrid)))
             call utl_abort('int_sintCloudToGrid_gsv')
           end if
 
@@ -1531,11 +1841,12 @@ contains
     end if
 
     if ( checkCloudToGridUnassigned ) then
-      write(*,*) 'Total number of grid points:                                   ', niGrid*njGrid
-      write(*,*) 'Number of grid points not covered by the cloud of points:      ', sum(nhole(:))
-      write(*,*) 'Number of grid points filled by neighbours:                    ', sum(nfill(:))
-      write(*,*) 'Number of grid points with extrapolated value in masked area:  ', nextrap0
-      write(*,*) 'Number of grid points with extrapolated value in visible area: ', nextrap1
+      call msg('int_sintCloudToGrid_gsv', & 
+             new_line('')//'Total number of grid points:                                   '//str(niGrid*njGrid) &
+           //new_line('')//'Number of grid points not covered by the cloud of points:      '//str(sum(nhole(:))) &
+           //new_line('')//'Number of grid points filled by neighbours:                    '//str(sum(nfill(:))) &
+           //new_line('')//'Number of grid points with extrapolated value in masked area:  '//str(nextrap0) &
+           //new_line('')//'Number of grid points with extrapolated value in visible area: '//str(nextrap1))
 
       if ( nextrap1 > 0 ) then
         call utl_abort('int_sintCloudToGrid_gsv: Values at some unmasked grid points were not assigned')
@@ -1552,6 +1863,7 @@ contains
 
     ierr = 0
 
+    call msg('int_sintCloudToGrid_gsv', 'END', verb_opt=2)
     call utl_tmg_stop(176)
 
   end function int_sintCloudToGrid_gsv
@@ -1579,6 +1891,7 @@ contains
     real(4), allocatable :: bufferi4(:,:), buffero4(:,:)
     integer :: ezsint
 
+    call msg('int_hInterpScalar_r8_2d', 'START', verb_opt=4)
     ! read the namelist
     call int_readNml()
 
@@ -1612,6 +1925,7 @@ contains
     deallocate(bufferi4)
     deallocate(buffero4)
 
+    call msg('int_hInterpScalar_r8_2d', 'END', verb_opt=4)
   end function int_hInterpScalar_r8_2d
 
   !--------------------------------------------------------------------------
@@ -1642,7 +1956,7 @@ contains
     real(8), pointer :: UVout8(:,:,:), UVin8(:,:,:)
     integer :: ezuvint, ezdefset
 
-    write(*,*) 'int_hInterpUV_gsv: starting'
+    call msg('int_hInterpUV_gsv', 'START', verb_opt=4)
 
     ! read the namelist
     call int_readNml()
@@ -1659,7 +1973,7 @@ contains
     ierr = ezdefset(stateVectorOut%hco%EZscintID, stateVectorIn%hco%EZscintID)
     call int_setezopt(interpDegree, extrapDegree_opt)   
 
-    if (stateVectorOut%dataKind == 4 .and. stateVectorIn%dataKind == 4) then
+    if ( gsv_getDataKind(stateVectorOut) == 4 .and. gsv_getDataKind(stateVectorIn) == 4) then
 
       if (trim(varName) == 'BOTH') then
         call gsv_getField(stateVectorOut, UUout4, 'UU')
@@ -1683,11 +1997,10 @@ contains
         ierr = ezuvint(UVout4(:,:,stepIndex),VVout4(:,:,levIndex,stepIndex), &
                        UVin4(:,:,stepIndex), VVin4(:,:,levIndex,stepIndex))
       else
-        write(*,*) 'varName = ', trim(varName)
-        call utl_abort('int_hInterpUV_gsv: unexpected varName')
+        call utl_abort('int_hInterpUV_gsv: unexpected varName: '//trim(varName))
       end if
 
-    else if (stateVectorOut%dataKind == 8 .and. stateVectorIn%dataKind == 8) then
+    else if ( gsv_getDataKind(stateVectorOut) == 8 .and. gsv_getDataKind(stateVectorIn) == 8) then
 
       ! allocate real(4) buffers for copying to/from for interpolation
       allocate(UUin4(stateVectorIn%hco%ni,stateVectorIn%hco%nj,1,1))
@@ -1726,8 +2039,7 @@ contains
         UVout8(:,:,stepIndex)          = UUout4(:,:,1,1)
         VVout8(:,:,levIndex,stepIndex) = VVout4(:,:,1,1)
       else
-        write(*,*) 'varName = ', trim(varName)
-        call utl_abort('int_hInterpUV_gsv: unexpected varName')
+        call utl_abort('int_hInterpUV_gsv: unexpected varName: '//trim(varName))
       end if
 
       deallocate(UUin4,VVin4,UUout4,VVout4)
@@ -1738,6 +2050,7 @@ contains
 
     end if
 
+    call msg('int_hInterpUV_gsv', 'END', verb_opt=4)
   end function int_hInterpUV_gsv
 
   !--------------------------------------------------------------------------
@@ -1762,6 +2075,7 @@ contains
     ! Locals:
     integer :: ezuvint
 
+    call msg('int_hInterpUV_r4_2d', 'START', verb_opt=4)
     ! read the namelist
     call int_readNml()
 
@@ -1769,6 +2083,7 @@ contains
     call int_setezopt(interpDegree, extrapDegree_opt)   
     ierr = ezuvint(uuout, vvout, uuin, vvin)
 
+    call msg('int_hInterpUV_r4_2d', 'END', verb_opt=4)
   end function int_hInterpUV_r4_2d
 
   !--------------------------------------------------------------------------
@@ -1797,6 +2112,7 @@ contains
     real, allocatable :: bufuuin4(:,:), bufvvin4(:,:)
     integer :: ezuvint
 
+    call msg('int_hInterpUV_r8_2d', 'START', verb_opt=4)
     ! read the namelist
     call int_readNml()
 
@@ -1836,6 +2152,7 @@ contains
     deallocate(bufuuout4)
     deallocate(bufvvout4)
 
+    call msg('int_hInterpUV_r8_2d', 'END', verb_opt=4)
   end function int_hInterpUV_r8_2d
 
   !--------------------------------------------------------------------------
