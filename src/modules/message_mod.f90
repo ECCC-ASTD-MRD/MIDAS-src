@@ -257,7 +257,7 @@ module message_mod
           msgLine = message(posIdx+1:len(message))
         else
           ! neither first nor last
-          readLine = message(posIdx+1:posIdx+oneLineMsgLen+1)
+          readLine = message(posIdx+1:min(posIdx+oneLineMsgLen+1,len(message)))
           msgLine = msg_breakOnSpace(readLine)
         end if
         adjustedLine = adjustl(trim(msgLine))
