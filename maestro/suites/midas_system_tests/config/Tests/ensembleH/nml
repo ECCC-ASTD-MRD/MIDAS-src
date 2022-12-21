@@ -2,7 +2,7 @@
    NENS = 4
    vLocalize = 2.0D0
    numRetainedEigen = 2
-   writeEnsObsToFileType = 'BOTH'
+   writeLocalEnsObsToFile = .true.
    fileMemberIndex1 = 6
    readEnsMeanFromFile = .true.
    numFullEns = 9
