@@ -414,6 +414,9 @@ program midas_letkf
   if ( readEnsObsFromFile ) then
     call eob_readFromFiles(ensObs, nEns, inputFilenamePrefix='eob_HX', readObsInfo=.true.)
     if ( useModulatedEns ) then
+      call enkf_setupModulationFactor(stateVectorMeanTrl4D%vco, numRetainedEigen, nEns, vLocalize, &
+                                      beSilent=.true.)
+
       ! refresh assimilation flag before reading the files
       call eob_setAssFlag(ensObsGain)
       call eob_readFromFiles(ensObsGain, nEnsGain, inputFilenamePrefix='eobGain_HX', readObsInfo=.false.)
