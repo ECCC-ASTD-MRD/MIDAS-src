@@ -413,8 +413,11 @@ program midas_letkf
   !- 3.1 Loop over all members and compute HX for each
   if ( readEnsObsFromFile ) then
     call eob_readFromFiles(ensObs, nEns, inputFilenamePrefix='eob_HX', readObsInfo=.true.)
-    if ( useModulatedEns ) call eob_readFromFiles(ensObsGain, nEnsGain, &
-                                                  inputFilenamePrefix='eobGain_HX', readObsInfo=.false.)
+    if ( useModulatedEns ) then
+      ! refresh assimilation flag before reading the files
+      call eob_setAssFlag(ensObsGain)
+      call eob_readFromFiles(ensObsGain, nEnsGain, inputFilenamePrefix='eobGain_HX', readObsInfo=.false.)
+    end if
   else
     do memberIndex = 1, nEns
   
