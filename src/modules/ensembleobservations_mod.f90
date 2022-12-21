@@ -650,9 +650,6 @@ CONTAINS
       unitNum = 0
       ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
       read(unitNum) numMembersFromFile
-      if (ensObs%numObs /= numMembersFromFile) then
-        call utl_abort('eob_readFromFiles: ensObs%numObs does not match with that of file')
-      end if 
       allocate(memberIndexFromFile(numMembersFromFile))  
       read(unitNum) (memberIndexFromFile(memberIndex), memberIndex = 1, numMembersFromFile)
       do memberIndex = 1, numMembersFromFile
