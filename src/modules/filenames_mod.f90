@@ -82,11 +82,15 @@ contains
 
     ! Do this step only once in the program since this should not change during the program is running.
     if (firstTime) then
-      if ( present(fileMemberIndex1_opt) ) fileMemberIndex1 = fileMemberIndex1_opt
-      write(fileMemberIndex1Str,'(i4.4)') fileMemberIndex1
+      if (present(fileMemberIndex1_opt)) fileMemberIndex1 = fileMemberIndex1_opt
+      if (fileMemberIndex1 > 999) then
+        write(fileMemberIndex1Str,'(i4.4)') fileMemberIndex1
+      else
+        write(fileMemberIndex1Str,'(i3.3)') fileMemberIndex1
+      end if
 
-      write(*,*) 'fln_ensFileName: looking for ./' // trim(enspathname) // '/' // '*_*' // fileMemberIndex1Str
-      fileNamePattern = './' // trim(enspathname) // '/' // '*_*' // fileMemberIndex1Str
+      write(*,*) 'fln_ensFileName: looking for ./' // trim(enspathname) // '/' // '*_*' // trim(fileMemberIndex1Str)
+      fileNamePattern = './' // trim(enspathname) // '/' // '*_*' // trim(fileMemberIndex1Str)
       returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
       if (returnCode /= 1) then
         call utl_abort('fln_ensFileName: reached maximum number of files or no file is available')
