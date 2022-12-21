@@ -5604,7 +5604,7 @@ CONTAINS
             write(*,*) 'brpr_addElementsToBurp: for report count =', count, &
               ', instrumentName=', instrumName, &
               ', instrumentId =', instrumID, &
-              ', isInstrumUsingCLW =', isInstrumUsingCLW
+              ', isInstrumUsingCLW =', isInstrumUsingCLW, &
               ', isInstrumUsingHydrometeors =', isInstrumUsingHydrometeors
             previousInstrumID = instrumID
           end if
