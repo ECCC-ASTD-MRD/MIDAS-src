@@ -526,7 +526,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_readFromFiles
   !--------------------------------------------------------------------------
-  subroutine eob_readFromFiles(ensObs, numMembersToRead, inputFilenamePrefix)
+  subroutine eob_readFromFiles(ensObs, numMembersToRead, inputFilenamePrefix, &
+                               readObsInfo)
     !
     ! :Purpose: Read mpi local ensObs%Yb object from file. Several files in separate subdirectories 
     !           can be read. Some examples of path+filename are:
@@ -539,6 +540,7 @@ CONTAINS
     type(struct_eob), intent(inout) :: ensObs
     integer         ,    intent(in) :: numMembersToRead
     character(len=*),    intent(in) :: inputFilenamePrefix
+    logical,             intent(in) :: readObsInfo
     
     ! locals
     real(8) :: latFromFile(ensObs%numObs), lonFromFile(ensObs%numObs)
@@ -568,67 +570,69 @@ CONTAINS
     write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
     fileNameExtention = trim(myidxStr) // '_' // trim(myidyStr)
 
-    ! loop on all file from different directories, read obsInfo and check they match ensObs
-    fileBaseName = 'eob_obsInfo_' // trim(fileNameExtention)
+    if (readObsInfo) then
+      ! loop on all file from different directories, read obsInfo and check they match ensObs
+      fileBaseName = 'eob_obsInfo_' // trim(fileNameExtention)
 
-    fileIndex = 0
-    numMembersAlreadyRead = 0
-    do while (numMembersAlreadyRead < numMembersToRead)
-      fileIndex = fileIndex + 1
-      write(fileIndexStr,'(i3.3)') fileIndex
-      fileName = './ensObs_' // fileIndexStr // '/' // fileBaseName
+      fileIndex = 0
+      numMembersAlreadyRead = 0
+      do while (numMembersAlreadyRead < numMembersToRead)
+        fileIndex = fileIndex + 1
+        write(fileIndexStr,'(i3.3)') fileIndex
+        fileName = './ensObs_' // fileIndexStr // '/' // fileBaseName
 
-      write(*,*) 'eob_readFromFiles: reading ',trim(fileName)
-      inquire(file=trim(fileName),exist=fileExists)
-      if (.not. fileExists) then
-        write(*,*) 'fileName=', fileName
-        call utl_abort('eob_readFromFiles: file does not exist')
-      end if
+        write(*,*) 'eob_readFromFiles: reading ',trim(fileName)
+        inquire(file=trim(fileName),exist=fileExists)
+        if (.not. fileExists) then
+          write(*,*) 'fileName=', fileName
+          call utl_abort('eob_readFromFiles: file does not exist')
+        end if
 
-      unitNum = 0
-      ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
-      read(unitNum) numMembersFromFile, numObsFromFile
-      if (ensObs%numObs /= numObsFromFile) then
-        call utl_abort('eob_readFromFiles: ensObs%numObs does not match with that of file')
-      end if
+        unitNum = 0
+        ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
+        read(unitNum) numMembersFromFile, numObsFromFile
+        if (ensObs%numObs /= numObsFromFile) then
+          call utl_abort('eob_readFromFiles: ensObs%numObs does not match with that of file')
+        end if
 
-      read(unitNum) (latFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
-      read(unitNum) (lonFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
-      read(unitNum) (obsVcoCodeFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
-      read(unitNum) (obsValueFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
-    
-      if (.not. all(latFromFile(:) == ensObs%lat(:)) .or. &
-          .not. all(lonFromFile(:) == ensObs%lon(:)) .or. &
-          .not. all(obsValueFromFile(:) == ensObs%obsValue(:)) .or. &
-          .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:))) then
-        call utl_abort('eob_readFromFiles: onsInfo file do not match ensObs')
-      end if
-    
-      ! Read assimilation flag for of all files and apply a "logical or" to get the value 
-      !   to put in obsSpaceData. Reda obs flag only on the first file.
-      read(unitNum) (assFlagFrom1File(obsIndex), obsIndex = 1, ensObs%numObs)
-      if (numMembersAlreadyRead==0) then
-        read(unitNum) (obsFlag(obsIndex), obsIndex = 1, ensObs%numObs)
-      end if
+        read(unitNum) (latFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+        read(unitNum) (lonFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+        read(unitNum) (obsVcoCodeFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+        read(unitNum) (obsValueFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
       
-      where (assFlagFromAllFiles(:) == obs_assimilated .or. &
-             assFlagFrom1File(:) == obs_assimilated) 
-        assFlagFromAllFiles(:) = obs_assimilated
-      end where
+        if (.not. all(latFromFile(:) == ensObs%lat(:)) .or. &
+            .not. all(lonFromFile(:) == ensObs%lon(:)) .or. &
+            .not. all(obsValueFromFile(:) == ensObs%obsValue(:)) .or. &
+            .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:))) then
+          call utl_abort('eob_readFromFiles: onsInfo file do not match ensObs')
+        end if
+      
+        ! Read assimilation flag for of all files and apply a "logical or" to get the value 
+        !   to put in obsSpaceData. Reda obs flag only on the first file.
+        read(unitNum) (assFlagFrom1File(obsIndex), obsIndex = 1, ensObs%numObs)
+        if (numMembersAlreadyRead==0) then
+          read(unitNum) (obsFlag(obsIndex), obsIndex = 1, ensObs%numObs)
+        end if
+        
+        where (assFlagFromAllFiles(:) == obs_assimilated .or. &
+              assFlagFrom1File(:) == obs_assimilated) 
+          assFlagFromAllFiles(:) = obs_assimilated
+        end where
 
-      ierr = fclos(unitNum)
+        ierr = fclos(unitNum)
 
-      numMembersAlreadyRead = numMembersAlreadyRead + numMembersFromFile
-    end do
+        numMembersAlreadyRead = numMembersAlreadyRead + numMembersFromFile
+      end do
 
-    ! update assimilation flag in obsSpaceData
-    do obsIndex = 1, ensObs%numObs
-      ! skip this obs it is already set to be assimilated
-      if (assFlagFromAllFiles(obsIndex) == obs_assimilated) cycle
+      ! update assimilation flag in obsSpaceData
+      do obsIndex = 1, ensObs%numObs
+        ! skip this obs it is already set to be assimilated
+        if (assFlagFromAllFiles(obsIndex) == obs_assimilated) cycle
 
-      call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, obsIndex, obs_notAssimilated)
-      call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, obsIndex, obsFlag(obsIndex))
-    end do
+        call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, obsIndex, obs_notAssimilated)
+        call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, obsIndex, obsFlag(obsIndex))
+      end do
+    end if
 
     ! loop on all files from different directories to read ensObs%Yb for all members
     fileBaseName = trim(inputFilenamePrefix) // '_' // trim(fileNameExtention)
@@ -656,6 +660,8 @@ CONTAINS
         read(unitNum) (ensObs%Yb_r4(memberIndexFromFile(memberIndex),obsIndex), obsIndex = 1, ensObs%numObs)
       end do
       ierr = fclos(unitNum)
+
+      deallocate(memberIndexFromFile)
 
       numMembersAlreadyRead = numMembersAlreadyRead + numMembersFromFile
     end do
