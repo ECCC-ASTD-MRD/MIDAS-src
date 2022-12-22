@@ -564,7 +564,6 @@ CONTAINS
     end if
 
     call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
-    assFlagFromAllFiles(:) = obs_notAssimilated
 
     write(myidxStr,'(I4.4)') (mmpi_myidx + 1)
     write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
@@ -608,15 +607,15 @@ CONTAINS
         end if
       
         ! Read assimilation flag for of all files and apply a "logical or" to get the value 
-        !   to put in obsSpaceData. Reda obs flag only on the first file.
+        !   to put in obsSpaceData. Read obs flag only on the first file.
         read(unitNum) (assFlagFrom1File(obsIndex), obsIndex = 1, ensObs%numObs)
-        if (numMembersAlreadyRead==0) then
+        if (numMembersAlreadyRead == 0) then
           read(unitNum) (obsFlag(obsIndex), obsIndex = 1, ensObs%numObs)
         end if
-        
-        where (assFlagFromAllFiles(:) == obs_assimilated .or. &
-              assFlagFrom1File(:) == obs_assimilated) 
-          assFlagFromAllFiles(:) = obs_assimilated
+
+        if (numMembersAlreadyRead == 0) assFlagFromAllFiles(:) = assFlagFrom1File(:)
+        where (assFlagFrom1File(:) == obs_notAssimilated .and. numMembersAlreadyRead > 0)
+          assFlagFromAllFiles(:) = obs_notAssimilated
         end where
 
         ierr = fclos(unitNum)
