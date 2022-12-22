@@ -45,11 +45,10 @@ MODULE ensembleObservations_mod
   ! public procedures
   public :: eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
   public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setMeanOMP
-  public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_copy, eob_zero
+  public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_setAssFlag, eob_copy, eob_zero
   public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
-  public :: eob_removeObsNearLand
-  public :: eob_writeToFiles, eob_readFromFiles
+  public :: eob_removeObsNearLand, eob_readFromFiles, eob_writeToFiles
 
   integer, parameter :: maxNumLocalObsSearch = 500000
   integer,external   :: get_max_rss
@@ -58,6 +57,7 @@ MODULE ensembleObservations_mod
     logical                       :: allocated = .false.
     integer                       :: numMembers       ! number of ensemble members
     integer                       :: numObs           ! number of observations
+    integer                       :: fileMemberIndex1 = 1 ! first member number in ensemble set
     character(len=20)             :: typeVertCoord = 'undefined' ! 'logPressure' or 'depth'
     type(struct_obs), pointer     :: obsSpaceData     ! pointer to obsSpaceData object
     real(8), allocatable          :: lat(:), lon(:)   ! lat/lon of observation
@@ -79,7 +79,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_allocate
   !--------------------------------------------------------------------------
-  subroutine eob_allocate(ensObs, numMembers, numObs, obsSpaceData)
+  subroutine eob_allocate(ensObs, numMembers, numObs, obsSpaceData, &
+                          fileMemberIndex1_opt)
     !
     ! :Purpose: Allocate an ensObs object
     !
@@ -90,11 +91,14 @@ CONTAINS
     integer                 , intent(in)    :: numMembers
     integer                 , intent(in)    :: numObs
     type(struct_obs), target, intent(in)    :: obsSpaceData
+    integer, optional       , intent(in)    :: fileMemberIndex1_opt
 
     if ( ensObs%allocated ) then
       write(*,*) 'eob_allocate: this object is already allocated, deallocating first.'
       call eob_deallocate( ensObs )
     end if
+
+    if ( present(fileMemberIndex1_opt) ) ensObs%fileMemberIndex1 = fileMemberIndex1_opt
 
     ensObs%obsSpaceData  => obsSpaceData
     ensObs%numMembers    = numMembers
@@ -325,7 +329,8 @@ CONTAINS
     if (ensObs_mpiglobal%allocated) then
       call utl_abort('eob_allGather: output ensObs object must not be already allocated')
     end if
-    call eob_allocate(ensObs_mpiglobal, ensObsClean%numMembers, numObs_mpiglobal, ensObsClean%obsSpaceData)
+    call eob_allocate(ensObs_mpiglobal, ensObsClean%numMembers, numObs_mpiglobal, ensObsClean%obsSpaceData, &
+                      fileMemberIndex1_opt=ensObs%fileMemberIndex1)
     if ( allocated(ensObsClean%Ya_r4) ) then
       allocate(ensObs_mpiglobal%Ya_r4(ensObsClean%numMembers,numObs_mpiglobal))
     end if
@@ -427,69 +432,238 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_writeToFiles
   !--------------------------------------------------------------------------
-  subroutine eob_writeToFiles(ensObs, outputFilenamePrefix, writeObsInfo)
+  subroutine eob_writeToFiles(ensObs, outputFilenamePrefix, writeObsInfo, &
+                              numGroupsToDivideMembers_opt, &
+                              maxNumMembersPerGroup_opt)
     !
-    ! :Purpose: Write the contents of an ensObs object to files
+    ! :Purpose: Write the contents of an ensObs mpi local object to files
     !
     implicit none
 
     ! arguments
-    type(struct_eob), intent(in) :: ensObs
-    character(len=*), intent(in) :: outputFilenamePrefix
-    logical,          intent(in) :: writeObsInfo
+    type(struct_eob),  intent(in) :: ensObs
+    character(len=*),  intent(in) :: outputFilenamePrefix
+    logical,           intent(in) :: writeObsInfo
+    integer, optional, intent(in) :: numGroupsToDivideMembers_opt
+    integer, optional, intent(in) :: maxNumMembersPerGroup_opt
 
     ! locals
     integer :: unitNum, ierr, obsIndex, memberIndex
+    integer :: obsVcoCode(ensObs%numObs), obsAssFlag(ensObs%numObs)
+    integer :: obsFlag(ensObs%numObs)
+    integer, allocatable :: memberIndexArray(:)
     character(len=40) :: fileName
-    character(len=4)  :: memberIndexStr
+    character(len=4)  :: myidxStr, myidyStr
+    character(len=30) :: fileNameExtention
     integer :: fnom, fclos
+    logical :: fileExists
 
-    ! only the first mpi task does writing, assuming mpi gather already done
-    if (mmpi_myid /= 0) return
-
-    if (.not.ensObs%allocated) then
+    if (.not. ensObs%allocated) then
       call utl_abort('eob_writeToFiles: this object is not allocated')
     end if
 
-    ! write the lat, lon and obs values to a file
+    call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
+    call obs_extractObsIntBodyColumn(obsAssFlag, ensObs%obsSpaceData, OBS_ASS)
+    call obs_extractObsIntBodyColumn(obsFlag, ensObs%obsSpaceData, OBS_FLG)
+
+    write(myidxStr,'(I4.4)') (mmpi_myidx + 1)
+    write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
+    fileNameExtention = trim(myidxStr) // '_' // trim(myidyStr)
+    
+    ! write observation info to a file
     if (writeObsInfo) then
-      fileName = 'eob_Lat_Lon_ObsValue'
+      fileName = 'eob_obsInfo_' // trim(fileNameExtention)
       write(*,*) 'eob_writeToFiles: writing ',trim(filename)
+      inquire(file=trim(fileName),exist=fileExists)
+      if ( fileExists ) then
+        call utl_abort('eob_writeToFiles: file should not exist')
+      end if
+      
       unitNum = 0
       ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
+      write(unitNum) ensObs%numMembers, ensObs%numObs
       write(unitNum) (ensObs%lat(obsIndex), obsIndex = 1, ensObs%numObs)
       write(unitNum) (ensObs%lon(obsIndex), obsIndex = 1, ensObs%numObs)
+      write(unitNum) (obsVcoCode(obsIndex), obsIndex = 1, ensObs%numObs)
       write(unitNum) (ensObs%obsValue(obsIndex), obsIndex = 1, ensObs%numObs)
+      write(unitNum) (obsAssFlag(obsIndex), obsIndex = 1, ensObs%numObs)
+      write(unitNum) (obsFlag(obsIndex), obsIndex = 1, ensObs%numObs)
       ierr = fclos(unitNum)
     end if
 
-    ! write the contents of Yb, 1 member per file
+    ! get memberIndex in the full ensemble set
+    allocate(memberIndexArray(ensObs%numMembers))
+    call getMemberIndexInFullEnsSet(ensObs, memberIndexArray, &
+                                    numGroupsToDivideMembers_opt=numGroupsToDivideMembers_opt, &
+                                    maxNumMembersPerGroup_opt=maxNumMembersPerGroup_opt)
+                                        
+    ! Open file and write ensObs%Yb for all the members to one file
+    fileName = trim(outputFilenamePrefix) // '_' // trim(fileNameExtention)
+    write(*,*) 'eob_writeToFiles: writing ',trim(filename)
+    inquire(file=trim(fileName),exist=fileExists)
+    if (fileExists) then
+      call utl_abort('eob_writeToFiles: file should not exist')
+    end if
+    
+    unitNum = 0
+    ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
+    write(unitNum) ensObs%numMembers
+    write(unitNum) (memberIndexArray(memberIndex), memberIndex = 1, ensObs%numMembers)
     do memberIndex = 1, ensObs%numMembers
-      write(memberIndexStr,'(I0.4)') memberIndex
-      fileName = trim(outputFilenamePrefix) // '_' // memberIndexStr
-      write(*,*) 'eob_writeToFiles: writing ',trim(filename)
-      unitNum = 0
-      ierr = fnom(unitNum, fileName, 'FTN+SEQ+UNF+R/W', 0)
+      if (mmpi_myid == 0) then
+        write(*,*) 'eob_writeToFiles: fileMemberIndex1=', ensObs%fileMemberIndex1, &
+                   ', memberIndex=', memberIndex, &
+                   ', memberIndex in full ensemble set=', memberIndexArray(memberIndex)
+      end if
       write(unitNum) (ensObs%Yb_r4(memberIndex,obsIndex), obsIndex = 1, ensObs%numObs)
-      ierr = fclos(unitNum)
     end do
+    ierr = fclos(unitNum)
+
+    deallocate(memberIndexArray)
 
   end subroutine eob_writeToFiles
 
   !--------------------------------------------------------------------------
   ! eob_readFromFiles
   !--------------------------------------------------------------------------
-  subroutine eob_readFromFiles(ensObs)
+  subroutine eob_readFromFiles(ensObs, numMembersToRead, inputFilenamePrefix, &
+                               readObsInfo)
     !
-    ! :Purpose: Read the contents of an ensObs object from files
+    ! :Purpose: Read mpi local ensObs%Yb object from file. Several files in separate subdirectories 
+    !           can be read. Some examples of path+filename are:
+    !           ensObs_0001/eob_HX_0001_0001
+    !           ensObs_0002/eob_HX_0001_0001
     !
     implicit none
 
     ! arguments
     type(struct_eob), intent(inout) :: ensObs
+    integer         ,    intent(in) :: numMembersToRead
+    character(len=*),    intent(in) :: inputFilenamePrefix
+    logical,             intent(in) :: readObsInfo
+    
+    ! locals
+    real(8) :: latFromFile(ensObs%numObs), lonFromFile(ensObs%numObs)
+    real(8) :: obsValueFromFile(ensObs%numObs)
+    integer :: obsVcoCode(ensObs%numObs), obsVcoCodeFromFile(ensObs%numObs)
+    integer :: obsFlag(ensObs%numObs), assFlagFrom1File(ensObs%numObs)
+    integer :: assFlagFromAllFiles(ensObs%numObs)
+    integer :: unitNum, ierr, memberIndex, obsIndex, numObsFromFile
+    integer :: numMembersFromFile, numMembersFromFile2, fnom, fclos
+    integer :: fileIndex, numMembersAlreadyRead
+    integer, allocatable :: memberIndexFromFile(:)
+    logical :: fileExists
+    character(len=256) :: fileName
+    character(len=100) :: fileBaseName
+    character(len=4)   :: myidxStr, myidyStr
+    character(len=3)   :: fileIndexStr
+    character(len=30)  :: fileNameExtention
 
-    call utl_abort('eob_readFromFiles: not yet implemented')
-    write(*,*) 'eob_readFromFiles: This structure contains ', ensObs%numMembers, ' members'
+    if ( .not. ensObs%allocated ) then
+      call utl_abort('eob_readFromFiles: this object is not allocated')
+    end if
+
+    call obs_extractObsIntBodyColumn(obsVcoCode, ensObs%obsSpaceData, OBS_VCO)
+
+    write(myidxStr,'(I4.4)') (mmpi_myidx + 1)
+    write(myidyStr,'(I4.4)') (mmpi_myidy + 1)
+    fileNameExtention = trim(myidxStr) // '_' // trim(myidyStr)
+
+    if (readObsInfo) then
+      ! loop on all file from different directories, read obsInfo and check they match ensObs
+      fileBaseName = 'eob_obsInfo_' // trim(fileNameExtention)
+
+      fileIndex = 0
+      numMembersAlreadyRead = 0
+      do while (numMembersAlreadyRead < numMembersToRead)
+        fileIndex = fileIndex + 1
+        write(fileIndexStr,'(i3.3)') fileIndex
+        fileName = './ensObs_' // fileIndexStr // '/' // fileBaseName
+
+        write(*,*) 'eob_readFromFiles: reading ',trim(fileName)
+        inquire(file=trim(fileName),exist=fileExists)
+        if (.not. fileExists) then
+          write(*,*) 'fileName=', fileName
+          call utl_abort('eob_readFromFiles: file does not exist')
+        end if
+
+        unitNum = 0
+        ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
+        read(unitNum) numMembersFromFile, numObsFromFile
+        if (ensObs%numObs /= numObsFromFile) then
+          call utl_abort('eob_readFromFiles: ensObs%numObs does not match with that of file')
+        end if
+
+        read(unitNum) (latFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+        read(unitNum) (lonFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+        read(unitNum) (obsVcoCodeFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+        read(unitNum) (obsValueFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
+      
+        if (.not. all(latFromFile(:) == ensObs%lat(:)) .or. &
+            .not. all(lonFromFile(:) == ensObs%lon(:)) .or. &
+            .not. all(obsValueFromFile(:) == ensObs%obsValue(:)) .or. &
+            .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:))) then
+          call utl_abort('eob_readFromFiles: onsInfo file do not match ensObs')
+        end if
+      
+        ! Read assimilation flag for of all files and apply a "logical or" to get the value 
+        !   to put in obsSpaceData. Read obs flag only on the first file.
+        read(unitNum) (assFlagFrom1File(obsIndex), obsIndex = 1, ensObs%numObs)
+        if (numMembersAlreadyRead == 0) then
+          read(unitNum) (obsFlag(obsIndex), obsIndex = 1, ensObs%numObs)
+        end if
+
+        if (numMembersAlreadyRead == 0) assFlagFromAllFiles(:) = assFlagFrom1File(:)
+        where (assFlagFrom1File(:) == obs_notAssimilated .and. numMembersAlreadyRead > 0)
+          assFlagFromAllFiles(:) = obs_notAssimilated
+        end where
+
+        ierr = fclos(unitNum)
+
+        numMembersAlreadyRead = numMembersAlreadyRead + numMembersFromFile
+      end do
+
+      ! update assimilation flag in obsSpaceData
+      do obsIndex = 1, ensObs%numObs
+        ! skip this obs it is already set to be assimilated
+        if (assFlagFromAllFiles(obsIndex) == obs_assimilated) cycle
+
+        call obs_bodySet_i(ensObs%obsSpaceData, OBS_ASS, obsIndex, obs_notAssimilated)
+        call obs_bodySet_i(ensObs%obsSpaceData, OBS_FLG, obsIndex, obsFlag(obsIndex))
+      end do
+    end if
+
+    ! loop on all files from different directories to read ensObs%Yb for all members
+    fileBaseName = trim(inputFilenamePrefix) // '_' // trim(fileNameExtention)
+
+    fileIndex = 0
+    numMembersAlreadyRead = 0
+    do while (numMembersAlreadyRead < numMembersToRead)
+      fileIndex = fileIndex + 1
+      write(fileIndexStr,'(i3.3)') fileIndex
+      fileName = './ensObs_' // fileIndexStr // '/' // fileBaseName
+
+      write(*,*) 'eob_readFromFiles: reading ',trim(fileName)
+      inquire(file=trim(fileName),exist=fileExists)
+      if (.not. fileExists) then
+        write(*,*) 'fileName=', fileName
+        call utl_abort('eob_readFromFiles: file does not exist')
+      end if
+      
+      unitNum = 0
+      ierr = fnom(unitNum,trim(fileName),'FTN+SEQ+UNF',0)
+      read(unitNum) numMembersFromFile
+      allocate(memberIndexFromFile(numMembersFromFile))  
+      read(unitNum) (memberIndexFromFile(memberIndex), memberIndex = 1, numMembersFromFile)
+      do memberIndex = 1, numMembersFromFile
+        read(unitNum) (ensObs%Yb_r4(memberIndexFromFile(memberIndex),obsIndex), obsIndex = 1, ensObs%numObs)
+      end do
+      ierr = fclos(unitNum)
+
+      deallocate(memberIndexFromFile)
+
+      numMembersAlreadyRead = numMembersAlreadyRead + numMembersFromFile
+    end do
 
   end subroutine eob_readFromFiles
 
@@ -1273,6 +1447,71 @@ CONTAINS
 
   end subroutine eob_rejectRadNearSfc
 
+  !--------------------------------------------------------------------------
+  ! getMemberIndexInFullEnsSet (private routine)
+  !--------------------------------------------------------------------------
+  subroutine getMemberIndexInFullEnsSet(ensObs, memberIndexArray, &
+                                        numGroupsToDivideMembers_opt, &
+                                        maxNumMembersPerGroup_opt)
+    !
+    ! :Purpose: get memberIndex array corresponding to the full ensemble set. This 
+    !           is useful when ensObs is a subset of full ensemble members. 
+    !           If first member in ensObs is member 6, to get the full ensemble set equivalent of ensObs members:
+    !           a) When members are not grouped (numGroupsToDivideMembers=1), all members are offset by 
+    !              memberIndexOffset (e.g. 6, 7, ..., 6+ensObs%numMermbers)
+    !           b) When members are grouped (numGroupsToDivideMembers/=1), members within each group 
+    !              are offset by memberIndexOffset but there is increment of maxNumMembersPerGroup_opt 
+    !              to jump to the next group (e.g. if maxNumMembersPerGroup_opt=10, for first group 6, 7, 8, 9, 
+    !              for second group 6+10, 7+10, 8+10, 9+10, and so on)
+    !
+    implicit none
+
+    ! arguments
+    type(struct_eob),  intent(in) :: ensObs
+    integer,        intent(inout) :: memberIndexArray(:)
+    integer, optional, intent(in) :: numGroupsToDivideMembers_opt
+    integer, optional, intent(in) :: maxNumMembersPerGroup_opt
+
+    ! locals
+    integer :: memberIndex, groupIndex, memberIndexOffset, memberIndexInGroup
+    integer :: numGroupsToDivideMembers, numMembersPerGroup
+
+    if (present(numGroupsToDivideMembers_opt)) then
+      numGroupsToDivideMembers = numGroupsToDivideMembers_opt
+    else
+      numGroupsToDivideMembers = 1
+    end if
+
+    memberIndexOffset = ensObs%fileMemberIndex1
+
+    if (numGroupsToDivideMembers == 1) then
+      do memberIndex = 1, ensObs%numMembers
+        memberIndexArray(memberIndex) = memberIndex + memberIndexOffset - 1
+      end do
+    else
+      if (.not. present(maxNumMembersPerGroup_opt)) then
+        call utl_abort('getMemberIndexInFullEnsSet: maxNumMembersPerGroup_opt input argument missing')
+      end if
+
+      ! divide members into groups
+      numMembersPerGroup = ensObs%numMembers / numGroupsToDivideMembers
+      if (numMembersPerGroup > maxNumMembersPerGroup_opt) then
+        call utl_abort('getMemberIndexInFullEnsSet: numMembersPerGroup > maxNumMembersPerGroup_opt')
+      end if
+
+      memberIndex = 0
+      do groupIndex = 1, numGroupsToDivideMembers 
+        do memberIndexInGroup = 1, numMembersPerGroup
+          memberIndex = memberIndex + 1
+          memberIndexArray(memberIndex) = (groupIndex - 1) * maxNumMembersPerGroup_opt + &
+                                          memberIndexInGroup + memberIndexOffset - 1
+        end do
+      end do
+
+    end if
+    
+  end subroutine getMemberIndexInFullEnsSet
+    
   !--------------------------------------------------------------------------
   ! max_transmission (private routine)
   !--------------------------------------------------------------------------

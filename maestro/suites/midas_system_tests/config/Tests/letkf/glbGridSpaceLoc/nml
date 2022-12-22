@@ -17,6 +17,7 @@
    randomShuffleSubEns      = .true. 
    numRetainedEigen         = 5
    debug                    = .false.
+   readEnsObsFromFile       = .true.
 /
  &namEnsPostProcModule
    alphaRTPP                = 0.00D0

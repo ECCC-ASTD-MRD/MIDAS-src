@@ -37,7 +37,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine fln_ensFileName(ensFileName, ensPathName, memberIndex_opt, ensFileNamePrefix_opt,  &
                              ensFileBaseName_opt, shouldExist_opt, ensembleFileExtLength_opt, &
-                             copyToRamDisk_opt, resetFileInfo_opt)
+                             copyToRamDisk_opt, resetFileInfo_opt, fileMemberIndex1_opt)
     ! :Purpose: Return the filename of an ensemble member. Will also call routine in 
     !           ramdisk_mod module that will copy the file (if shouldExist_opt is true)
     !           to the ram disk. If the memberIndex_opt is not specified, the filename
@@ -55,6 +55,7 @@ contains
     integer, optional :: ensembleFileExtLength_opt
     logical, optional :: copyToRamDisk_opt
     logical, optional :: resetFileInfo_opt
+    integer, optional :: fileMemberIndex1_opt
 
     ! Locals:
     integer          :: numFiles, returnCode, totalLength, ensembleBaseFileNameLength
@@ -64,6 +65,8 @@ contains
     character        :: ensembleFileExtLengthStr
     logical, save    :: firstTime = .true.
     integer, save    :: ensembleFileExtLength = 4
+    integer, save    :: fileMemberIndex1 = 1
+    character(len=4),   save :: fileMemberIndex1Str
     character(len=200), save :: ensFileBaseName
 
     if ( present(resetFileInfo_opt) ) then
@@ -79,8 +82,15 @@ contains
 
     ! Do this step only once in the program since this should not change during the program is running.
     if (firstTime) then
-      write(*,*) 'fln_ensFileName: looking for ./' // trim(enspathname) // '/' // '*_*001'
-      fileNamePattern = './' // trim(enspathname) // '/' // '*_*001'
+      if (present(fileMemberIndex1_opt)) fileMemberIndex1 = fileMemberIndex1_opt
+      if (fileMemberIndex1 > 999) then
+        write(fileMemberIndex1Str,'(i4.4)') fileMemberIndex1
+      else
+        write(fileMemberIndex1Str,'(i3.3)') fileMemberIndex1
+      end if
+
+      write(*,*) 'fln_ensFileName: looking for ./' // trim(enspathname) // '/' // '*_*' // trim(fileMemberIndex1Str)
+      fileNamePattern = './' // trim(enspathname) // '/' // '*_*' // trim(fileMemberIndex1Str)
       returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
       if (returnCode /= 1) then
         call utl_abort('fln_ensFileName: reached maximum number of files or no file is available')
@@ -128,7 +138,8 @@ contains
 
     if (present(memberIndex_opt)) then
       write(ensembleFileExtLengthStr,'(i1.1)') ensembleFileExtLength
-      write(ensNumber,'(i' // ensembleFileExtLengthStr // '.' // ensembleFileExtLengthStr // ')') memberIndex_opt
+      write(ensNumber,'(i' // ensembleFileExtLengthStr // '.' // ensembleFileExtLengthStr // ')') &
+          memberIndex_opt + fileMemberIndex1 - 1
     end if
 
     if (present(memberIndex_opt)) then

@@ -57,12 +57,13 @@ program midas_ensembleH
 
   integer :: get_max_rss, fclos, fnom, fstopc, ierr
   integer :: memberIndex, nulnam, dateStamp
-  integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
+  integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs, stepIndex
   integer, allocatable :: dateStampList(:)
 
-  logical  :: useModulatedEns
+  logical :: useModulatedEns, fileExists
 
   character(len=256)  :: ensFileName
+  character(len=256)  :: ensMeanFileName
   character(len=9)    :: obsColumnMode
   character(len=48)   :: obsMpiStrategy
   character(len=48)   :: midasMode
@@ -74,10 +75,15 @@ program midas_ensembleH
   integer  :: nEns
   integer  :: numRetainedEigen ! number of retained eigenValues/Vectors of vertical localization matrix
                                !   used only when generating modulated ensembles.
+  integer  :: fileMemberIndex1 ! first member number in ensemble set.
+  integer  :: numFullEns       ! number of full ensemble set (needed only when generating modulated ensembles)
   real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
                                !   used only when generating modulated ensembles.
+  logical  :: readEnsMeanFromFile
+  logical  :: writeLocalEnsObsToFile
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
-                         vLocalize
+                         vLocalize, writeLocalEnsObsToFile, fileMemberIndex1, &
+                         readEnsMeanFromFile, numFullEns
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -101,11 +107,15 @@ program midas_ensembleH
   call ram_setup
 
   ! Setting default namelist variable values
-  nEns                  = 10
-  ensPathName           = 'ensemble'
-  obsTimeInterpType     = 'LINEAR'
-  numRetainedEigen      = 0
-  vLocalize             = -1.0D0
+  nEns                   = 10
+  ensPathName            = 'ensemble'
+  obsTimeInterpType      = 'LINEAR'
+  numRetainedEigen       = 0
+  vLocalize              = -1.0D0
+  writeLocalEnsObsToFile = .true.
+  fileMemberIndex1       = 1
+  readEnsMeanFromFile    = .false.
+  numFullEns             = 0
 
   ! Read the namelist
   nulnam = 0
@@ -123,6 +133,11 @@ program midas_ensembleH
     call utl_abort('midas-ensembleH: vLocalize should be greater than zero for modulated ens')
   end if
 
+  if (useModulatedEns .and. numFullEns < nEns) then
+    call utl_abort('midas-ensembleH: For modulated ensembles the number of full ensembles is needed ' // &
+                      'with numFullEns >= nEns')
+  end if
+
   ! Read the observations
   call obsf_setup(dateStamp, midasMode, obsFileType_opt = obsFileType)
   if (obsFileType /= 'BURP' .and. obsFileType /= 'SQLITE') then
@@ -130,7 +145,8 @@ program midas_ensembleH
   end if
 
   ! Use the first ensemble member to initialize datestamp and grid
-  call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1)
+  call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1, &
+                       fileMemberIndex1_opt=fileMemberIndex1)
 
   ! Setup timeCoord module, get datestamp from ensemble member
   call tim_setup(fileNameForDate_opt = ensFileName)
@@ -165,12 +181,14 @@ program midas_ensembleH
   call oer_setObsErrors(obsSpaceData, midasMode) ! IN
 
   ! Allocate and initialize eob object for storing HX values
-  call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
+  call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData, &
+                    fileMemberIndex1_opt=fileMemberIndex1)
   call eob_zero(ensObs)
   if (useModulatedEns) then
     nEnsGain = nEns * numRetainedEigen
     allocate(ensObsGain)
-    call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData)
+    call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData, &
+                      fileMemberIndex1_opt=fileMemberIndex1)
     call eob_zero(ensObsGain)
   else
     ensObsGain => ensObs
@@ -220,14 +238,31 @@ program midas_ensembleH
 
   ! Allocate ensembles, read the Trl ensemble
   call utl_tmg_start(2,'--ReadEnsemble')
-  call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList)
+  call ens_allocate(ensembleTrl4D, nEns, tim_nstepobs, hco_ens, vco_ens, dateStampList, &
+                    fileMemberIndex1_opt=fileMemberIndex1)
   call ens_readEnsemble(ensembleTrl4D, ensPathName, biPeriodic=.false.)
   call utl_tmg_stop(2)
 
   ! Compute ensemble mean and copy to meanTrl stateVectors
-  call ens_computeMean(ensembleTrl4D)
-  call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
-
+  if (readEnsMeanFromFile) then
+    ! read the mean stateVector and copy to ensembleTrl4D object
+    call fln_ensTrlFileName(ensMeanFileName, '.', tim_getDateStamp())
+    ensMeanFileName = trim(ensMeanFileName) // '_trialmean'
+    inquire(file=trim(ensMeanFileName),exist=fileExists)
+    if (.not. fileExists) then
+      call utl_abort('midas-ensembleH: the ensemble mean file does not exist')
+    end if
+    do stepIndex = 1, tim_nstepobs
+      call gio_readFromFile(stateVectorMeanTrl4D, ensMeanFileName, ' ', ' ',  &
+                            containsFullField_opt=.true., readHeightSfc_opt=.true., &
+                            stepIndex_opt=stepIndex)
+    end do
+    call ens_copyToEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
+  else
+    call ens_computeMean(ensembleTrl4D)
+    call ens_copyEnsMean(ensembleTrl4D, stateVectorMeanTrl4D)
+  end if
+  
   do memberIndex = 1, nEns
 
     write(*,*) ''
@@ -286,13 +321,14 @@ program midas_ensembleH
   call gsv_deallocate(stateVectorMeanTrl4D)
   call gsv_deallocate(stateVectorHeightSfc)
 
-  ! Clean and globally communicate obs-related data, then write to files
-  call eob_allGather(ensObs,ensObs_mpiglobal)
-  call eob_writeToFiles(ensObs_mpiglobal, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
-  if (useModulatedEns) then
-    allocate(ensObsGain_mpiglobal)
-    call eob_allGather(ensObsGain, ensObsGain_mpiglobal)
-    call eob_writeToFiles(ensObsGain_mpiglobal, outputFilenamePrefix='eobGain_HX', writeObsInfo=.false.)
+  ! write local ensObs to file
+  if (writeLocalEnsObsToFile) then
+    call eob_writeToFiles(ensObs, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
+    if (useModulatedEns) then
+      call eob_writeToFiles(ensObsGain, outputFilenamePrefix='eobGain_HX', writeObsInfo=.false., &
+                            numGroupsToDivideMembers_opt=numRetainedEigen, &
+                            maxNumMembersPerGroup_opt=numFullEns)
+    end if
   end if
 
   !

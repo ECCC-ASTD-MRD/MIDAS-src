@@ -82,6 +82,7 @@ program midas_letkf
 
   logical :: nwpFields   ! indicates if fields are on momentum and thermo levels
   logical :: oceanFields ! indicates if fields are on depth levels
+  logical :: useModulatedEns ! using modulated ensembles is requested by setting numRetainedEigen.
 
   ! interpolation information for weights (in enkf_mod)
   type(struct_enkfInterpInfo) :: wInterpInfo
@@ -96,6 +97,7 @@ program midas_letkf
   character(len=256) :: ensPathName ! absolute or relative path to ensemble directory
   integer  :: nEns                 ! ensemble size
   logical  :: randomShuffleSubEns  ! choose to randomly shuffle members into subensembles 
+  logical  :: writeLocalEnsObsToFile ! Controls writing the ensObs to file.
   integer  :: maxNumLocalObs       ! maximum number of obs in each local volume to assimilate
   integer  :: weightLatLonStep     ! separation of lat-lon grid points for weight calculation
   integer  :: numRetainedEigen     ! number of retained eigenValues/Vectors of vertical localization matrix
@@ -107,8 +109,8 @@ program midas_letkf
   logical  :: ignoreEnsDate        ! when reading ensemble, ignore the date
   logical  :: outputOnlyEnsMean    ! when writing ensemble, can choose to only write member zero
   logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
-  logical  :: useModulatedEns      ! using modulated ensembles is requested by setting numRetainedEigen.
   logical  :: debug                ! debug option to print values to the listings.
+  logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
   real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
@@ -123,6 +125,7 @@ program midas_letkf
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                      obsTimeInterpType, mpiDistribution, etiket_anl, &
+                     readEnsObsFromFile, writeLocalEnsObsToFile, &
                      numRetainedEigen, debug
 
   ! Some high-level configuration settings
@@ -177,6 +180,8 @@ program midas_letkf
   obsTimeInterpType     = 'LINEAR'
   mpiDistribution       = 'ROUNDROBIN'
   etiket_anl            = 'ENS_ANL'
+  readEnsObsFromFile    = .false.
+  writeLocalEnsObsToFile = .false.
   numRetainedEigen      = 0
   debug                 = .false.
 
@@ -406,71 +411,93 @@ program midas_letkf
   !
 
   !- 3.1 Loop over all members and compute HX for each
-  do memberIndex = 1, nEns
+  if ( readEnsObsFromFile ) then
+    call eob_readFromFiles(ensObs, nEns, inputFilenamePrefix='eob_HX', readObsInfo=.true.)
+    if ( useModulatedEns ) then
+      call enkf_setupModulationFactor(stateVectorMeanTrl4D%vco, numRetainedEigen, nEns, vLocalize, &
+                                      beSilent=.true.)
 
-    write(*,*) ''
-    write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
-    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-
-    ! copy 1 member to a stateVector
-    call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
-    call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
-                  beSilent_opt=.true.)
-
-    ! copy the surface height field
-    if (nwpFields) then
-      call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+      ! refresh assimilation flag before reading the files
+      call eob_setAssFlag(ensObsGain)
+      call eob_readFromFiles(ensObsGain, nEnsGain, inputFilenamePrefix='eobGain_HX', readObsInfo=.false.)
     end if
+  else
+    do memberIndex = 1, nEns
+  
+      write(*,*) ''
+      write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
+      write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-    ! Compute and set Yb in ensObs
-    call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                 timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
-                 beSilent_opt=.true. )
-
-    ! Compute Y-H(X) in OBS_OMP
-    call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
-
-    ! Copy to ensObs: Y-HX for this member
-    call eob_setYb(ensObs, memberIndex)
-
-    ! Compute and set Yb in ensObsGain
-    do eigenVectorIndex = 1, numRetainedEigen
-      if ( mmpi_myid == 0 .and. debug ) then
-        write(*,*) 'midas-letkf: apply nonlinear H to modulated member ', &
-                   eigenVectorIndex, '/', numRetainedEigen
-      end if
-
-      ! modulate the member with eigenvectors of vertical localization matrix
-      call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
-                                   vLocalize, numRetainedEigen, nEns, &
-                                   eigenVectorIndex, stateVector4Dmod, &
-                                   beSilent=.true. )
-      if ( debug ) then
-        call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
-        write(*,*) 'midas-letkf: max(Psfc)=', maxval(field_Psfc), &
-                   ', min(Psfc)=', minval(field_Psfc)
-      end if
-
-      call gsv_copy(stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+      ! copy 1 member to a stateVector
+      call ens_copyMember(ensembleTrl4D, stateVector4D, memberIndex)
+      call gsv_copy(stateVector4D, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
                     beSilent_opt=.true.)
+
+      ! copy the surface height field
       if (nwpFields) then
         call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
       end if
+
+      ! Compute and set Yb in ensObs
       call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
-                   timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
-                   beSilent_opt=.true. )
+                  timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
+                  beSilent_opt=.true. )
 
       ! Compute Y-H(X) in OBS_OMP
-      call inn_computeInnovation( column, obsSpaceData, filterObsAndInitOer_opt=.false., &
-                                  beSilent_opt=.true. )
+      call inn_computeInnovation(column, obsSpaceData, beSilent_opt=.true.)
 
-      ! Copy to ensObsGain: Y-HX for this member
-      memberIndexInEnsObs = (eigenVectorIndex - 1) * nEns + memberIndex
-      call eob_setYb(ensObsGain, memberIndexInEnsObs)
-    end do ! eigenVectorIndex
+      ! Copy to ensObs: Y-HX for this member
+      call eob_setYb(ensObs, memberIndex)
 
-  end do ! memberIndex
+      ! Compute and set Yb in ensObsGain
+      do eigenVectorIndex = 1, numRetainedEigen
+        if ( mmpi_myid == 0 .and. debug ) then
+          write(*,*) 'midas-letkf: apply nonlinear H to modulated member ', &
+                    eigenVectorIndex, '/', numRetainedEigen
+        end if
+
+        ! modulate the member with eigenvectors of vertical localization matrix
+        call enkf_getModulatedState( stateVector4D, stateVectorMeanTrl4D, &
+                                    vLocalize, numRetainedEigen, nEns, &
+                                    eigenVectorIndex, stateVector4Dmod, &
+                                    beSilent=.true. )
+        if ( debug ) then
+          call gsv_getField(stateVector4Dmod,field_Psfc,'P0')
+          write(*,*) 'midas-letkf: max(Psfc)=', maxval(field_Psfc), &
+                    ', min(Psfc)=', minval(field_Psfc)
+        end if
+
+        call gsv_copy(stateVector4Dmod, stateVectorWithZandP4D, allowVarMismatch_opt=.true., &
+                      beSilent_opt=.true.)
+        if (nwpFields) then
+          call gsv_copyHeightSfc(stateVectorHeightSfc, stateVectorWithZandP4D)
+        end if
+        call s2c_nl( stateVectorWithZandP4D, obsSpaceData, column, hco_ens, &
+                    timeInterpType=obsTimeInterpType, dealloc_opt=.false., &
+                    beSilent_opt=.true. )
+
+        ! Compute Y-H(X) in OBS_OMP
+        call inn_computeInnovation( column, obsSpaceData, filterObsAndInitOer_opt=.false., &
+                                    beSilent_opt=.true. )
+
+        ! Copy to ensObsGain: Y-HX for this member
+        memberIndexInEnsObs = (eigenVectorIndex - 1) * nEns + memberIndex
+        call eob_setYb(ensObsGain, memberIndexInEnsObs)
+      end do ! eigenVectorIndex
+
+    end do ! memberIndex
+  end if
   if ( gsv_isAllocated(stateVector4Dmod) ) call gsv_deallocate(stateVector4Dmod)
+
+  ! write local ensObs to file
+  if (writeLocalEnsObsToFile) then
+    call eob_writeToFiles(ensObs, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
+    if (useModulatedEns) then
+      call eob_writeToFiles(ensObsGain, outputFilenamePrefix='eobGain_HX', writeObsInfo=.false., &
+                            numGroupsToDivideMembers_opt=numRetainedEigen, &
+                            maxNumMembersPerGroup_opt=nEns)
+    end if
+  end if
 
   !- 3.2 Set some additional information in ensObs/ensObsGain and additional quality
   !      control before finally communicating ensObs/ensObsGain globally

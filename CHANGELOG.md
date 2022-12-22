@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Using ensembleH to compute O-P for LETKF with grid-space localization (#733 and !670)
  * Added both high-level and `var` program documentation (#731 and !671)
  * Generate modulated ensembles and compute innovations in ensembleH (#737 and !669)
  * Use of hydrometeor fields LWCR, IWCR, RF and SF from GEM outputs instead of zero in RttovScatt mode (#712 and !655)

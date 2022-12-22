@@ -46,7 +46,7 @@ module enkf_mod
 
   ! public procedures
   public :: enkf_setupInterpInfo, enkf_LETKFanalyses, enkf_modifyAMSUBobsError
-  public :: enkf_rejectHighLatIR, enkf_getModulatedState
+  public :: enkf_rejectHighLatIR, enkf_getModulatedState, enkf_setupModulationFactor
 
   ! for weight interpolation
   type struct_enkfInterpInfo
@@ -2236,6 +2236,37 @@ contains
     call utl_tmg_stop(130)
 
   end subroutine enkf_getModulatedState
+
+  !--------------------------------------------------------------------------
+  ! enkf_setupModulationFactor
+  !--------------------------------------------------------------------------
+  subroutine enkf_setupModulationFactor(vco, numRetainedEigen, nEns, vLocalizeLengthScale, &
+                                        beSilent)
+    !
+    !:Purpose: setup modulationFactorArray by calling getModulationFactor for first time. 
+    !
+    implicit none
+
+    ! Aguments:
+    type(struct_vco), pointer, intent(in) :: vco
+    integer,                   intent(in) :: numRetainedEigen
+    integer,                   intent(in) :: nEns
+    real(8),                   intent(in) :: vLocalizeLengthScale
+    logical,                   intent(in) :: beSilent
+
+    ! Locals:
+    integer :: eigenVectorColumnIndex
+    integer :: eigenVectorLevelIndex
+    real(4) :: modulationFactor_r4
+
+    eigenVectorColumnIndex = 1
+    eigenVectorLevelIndex = 1
+    call getModulationFactor(vco, eigenVectorLevelIndex, &
+                             eigenVectorColumnIndex, numRetainedEigen, &
+                             nEns, vLocalizeLengthScale, &
+                             modulationFactor_r4, beSilent_opt=beSilent)
+     
+  end subroutine enkf_setupModulationFactor
 
   !--------------------------------------------------------------------------
   ! getModulationFactor

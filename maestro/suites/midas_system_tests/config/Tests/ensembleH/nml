@@ -1,5 +1,11 @@
  &NAMENSEMBLEH
-   NENS = 16
+   NENS = 4
+   vLocalize = 2.0D0
+   numRetainedEigen = 2
+   writeLocalEnsObsToFile = .true.
+   fileMemberIndex1 = 6
+   readEnsMeanFromFile = .true.
+   numFullEns = 9
 /
  &NAMTIME
    DSTEPOBS = 1.0d0
