@@ -2138,6 +2138,7 @@ contains
     real(8), allocatable :: ciw   (:,:)
     real(8), allocatable :: rainflux  (:,:)
     real(8), allocatable :: snowflux  (:,:)
+    real(8), allocatable :: cloudFraction(:,:)
     logical, allocatable :: surfTypeIsWater(:)
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
@@ -2153,11 +2154,12 @@ contains
       call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, ' // &
                      'the LWCR variable must be included as an analysis variable in NAMSTATE. ')
     end if
-    if ( tvs_numMWInstrumUsingHydrometeors > 0 .and. .not. (col_varExist(columnTrl,'LWCR') .and. &
-          col_varExist(columnTrl,'IWCR') .and. col_varExist(columnTrl,'RF') .and. &
-          col_varExist(columnTrl,'SF')) ) then
+    if (tvs_numMWInstrumUsingHydrometeors > 0 .and. &
+        .not. (col_varExist(columnTrl,'LWCR') .and. col_varExist(columnTrl,'IWCR') .and. &
+               col_varExist(columnTrl,'RF')   .and. col_varExist(columnTrl,'SF')   .and. &
+               col_varExist(columnTrl,'CLDR'))) then
       call utl_abort('tvs_fillProfiles: if number of instrument to use hydrometeors greater than zero, ' // &
-                     'the LWCR/IWCR/RF/SF variables must be included as an analysis variable in NAMSTATE. ')
+                     'the LWCR/IWCR/RF/SF/CLDR variables must be included as an analysis variable in NAMSTATE. ')
     end if
 
     if ( (tvs_numMWInstrumUsingCLW == 0 .and. tvs_numMWInstrumUsingHydrometeors == 0 .and. &
@@ -2251,7 +2253,8 @@ contains
                                tvs_isInstrumUsingCLW(tvs_instruments(sensorIndex)))
 
       runObsOperatorWithHydrometeors = (col_varExist(columnTrl,'LWCR') .and. col_varExist(columnTrl,'IWCR') .and. &
-                                        col_varExist(columnTrl,'RF') .and. col_varExist(columnTrl,'SF') .and. &
+                                        col_varExist(columnTrl,'RF')   .and. col_varExist(columnTrl,'SF')   .and. &
+                                        col_varExist(columnTrl,'CLDR')                                      .and. &
                                         tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)))
 
       if (runObsOperatorWithClw .and. runObsOperatorWithHydrometeors) then
@@ -2283,11 +2286,13 @@ contains
         allocate (ciw       (nlv_T,profileCount),stat= allocStatus(7))
         allocate (rainFlux  (nlv_T,profileCount),stat= allocStatus(8))
         allocate (snowFlux  (nlv_T,profileCount),stat= allocStatus(9))
+        allocate (cloudFraction(nlv_T,profileCount),stat= allocStatus(10))
         ciw(:,:) = 0.d0
         rainFlux(:,:) = 0.d0
         snowFlux(:,:) = 0.d0
+        cloudFraction(:,:) = 0.d0
       end if
-      allocate (surfTypeIsWater(profileCount),stat= allocStatus(10)) 
+      allocate (surfTypeIsWater(profileCount),stat= allocStatus(11)) 
       surfTypeIsWater(:) = .false.
 
       call utl_checkAllocationStatus(allocStatus, ' tvs_fillProfiles')
@@ -2370,6 +2375,7 @@ contains
             ciw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'IWCR')
             rainFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'RF')
             snowFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'SF')
+            cloudFraction(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'CLDR')
             if ( ciw(levelIndex,profileCount) < 0.d0 .or. &
                  ciw(levelIndex,profileCount) > 1.d0 ) then
               write(*,*) 'tvs_fillProfiles: ciw=' , ciw(:,profileCount) 
@@ -2384,6 +2390,11 @@ contains
                  snowFlux(levelIndex,profileCount) > 1.d0 ) then
               write(*,*) 'tvs_fillProfiles: snowFlux=' , snowFlux(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has snow flux outside RTTOV bounds')
+            end if
+            if ( cloudFraction(levelIndex,profileCount) < 0.d0 .or. &
+                 cloudFraction(levelIndex,profileCount) > 1.d0 ) then
+              write(*,*) 'tvs_fillProfiles: cloudFraction=' , cloudFraction(:,profileCount) 
+              call utl_abort('tvs_fillProfiles: columnTrl has cloud fraction outside RTTOV bounds')
             end if
             ciw(levelIndex,profileCount) = ciw(levelIndex,profileCount) * tvs_cloudScaleFactor
             rainFlux(levelIndex,profileCount) = rainFlux(levelIndex,profileCount) * tvs_cloudScaleFactor
@@ -2474,7 +2485,7 @@ contains
                  cld_profiles(tovsIndex) % hydro(:,2) > 0.d0 .or. &
                  cld_profiles(tovsIndex) % hydro(:,4) > 0.d0 .or. &
                  cld_profiles(tovsIndex) % hydro(:,5) > 0.d0 )
-                 cld_profiles(tovsIndex) % hydro_frac(:,1) = 1.d0
+                 cld_profiles(tovsIndex) % hydro_frac(:,1) = cloudFraction(:,profileIndex)
           elsewhere
             cld_profiles(tovsIndex) % hydro_frac(:,1) = 0.d0
           end where
@@ -2496,8 +2507,9 @@ contains
         deallocate (ciw,      stat= allocStatus(9))
         deallocate (rainFlux, stat= allocStatus(10))
         deallocate (snowFlux, stat= allocStatus(11))
+        deallocate (cloudFraction, stat= allocStatus(12))
       end if
-      deallocate (surfTypeIsWater,stat= allocStatus(12)) 
+      deallocate (surfTypeIsWater,stat= allocStatus(13))
 
       call utl_checkAllocationStatus(allocStatus, ' tvs_fillProfiles', .false.)
      
@@ -5139,6 +5151,7 @@ contains
     real(8), allocatable, save :: snowFluxProfileToStore(:,:)
     real(8), allocatable, save :: clwProfileToStore(:,:)
     real(8), allocatable, save :: ciwProfileToStore(:,:)
+    real(8), allocatable, save :: cloudFractionProfileToStore(:,:)
 
     if ( .not. beSilent ) write(*,*) 'updateCloudInTovsCloudProfile: Starting'
     if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -5150,20 +5163,24 @@ contains
       if (allocated(snowFluxProfileToStore)) deallocate(snowFluxProfileToStore)
       if (allocated(clwProfileToStore)) deallocate(clwProfileToStore)
       if (allocated(ciwProfileToStore)) deallocate(ciwProfileToStore)
+      if (allocated(cloudFractionProfileToStore)) deallocate(cloudFractionProfileToStore)
       allocate(rainFluxProfileToStore(nlv_T,profileCount))
       allocate(snowFluxProfileToStore(nlv_T,profileCount))
       allocate(clwProfileToStore(nlv_T,profileCount))
       allocate(ciwProfileToStore(nlv_T,profileCount))
+      allocate(cloudFractionProfileToStore(nlv_T,profileCount))
 
       do profileIndex = 1, profileCount
         rainFluxProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,1)
         snowFluxProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,2)
         clwProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,4)
         ciwProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,5)
+        cloudFractionProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1)
         tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,1) = 0.0d0
         tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,2) = 0.0d0
         tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,4) = 0.0d0
         tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,5) = 0.0d0
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1) = 0.0d0
       end do
 
     else if ( trim(mode) == 'restore' ) then 
@@ -5172,12 +5189,14 @@ contains
         tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,2) = snowFluxProfileToStore(:,profileIndex)
         tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,4) = clwProfileToStore(:,profileIndex)
         tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,5) = ciwProfileToStore(:,profileIndex)
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1) = cloudFractionProfileToStore(:,profileIndex)
       end do
 
       deallocate(rainFluxProfileToStore)
       deallocate(snowFluxProfileToStore)
       deallocate(clwProfileToStore)
       deallocate(ciwProfileToStore)
+      deallocate(cloudFractionProfileToStore)
 
     else
       call utl_abort('updateCloudInTovsCloudProfile: mode should be either "save" or "restore"')
