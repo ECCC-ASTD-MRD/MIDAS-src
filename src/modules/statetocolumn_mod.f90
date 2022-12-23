@@ -1947,8 +1947,8 @@ contains
       if( col_varExist(column,'LWCR') ) then
         do headerIndex = headerIndexBeg, headerIndexEnd
           column_ptr => col_getColumn(column,headerIndex,'LWCR')
-          column_ptr(:) = max(column_ptr(:),qlim_readMinClwValue())
-          column_ptr(:) = min(column_ptr(:),qlim_readMaxClwValue())
+          column_ptr(:) = max(column_ptr(:),qlim_readMinValueCloud('LWCR'))
+          column_ptr(:) = min(column_ptr(:),qlim_readMaxValueCloud('LWCR'))
         end do
       end if
 

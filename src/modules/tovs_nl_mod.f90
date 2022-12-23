@@ -2280,7 +2280,7 @@ contains
       allocate (pressure(nlv_T,profileCount),                        stat = allocStatus(5) )
       if (runObsOperatorWithClw .or. runObsOperatorWithHydrometeors) then
         allocate (clw       (nlv_T,profileCount),stat= allocStatus(6))
-        clw(:,:) = qlim_readMinClwValue()
+        clw(:,:) = qlim_readMinValueCloud('LWCR')
       end if
       if (runObsOperatorWithHydrometeors) then
         allocate (ciw       (nlv_T,profileCount),stat= allocStatus(7))
@@ -2364,8 +2364,8 @@ contains
           if ((runObsOperatorWithClw .and. surfTypeIsWater(profileCount)) .or. &
               (runObsOperatorWithHydrometeors .and. surfTypeIsWater(profileCount))) then
             clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
-            if ( clw(levelIndex,profileCount) < qlim_readMinClwValue() .or. &
-                 clw(levelIndex,profileCount) > qlim_readMaxClwValue() ) then
+            if ( clw(levelIndex,profileCount) < qlim_readMinValueCloud('LWCR') .or. &
+                 clw(levelIndex,profileCount) > qlim_readMaxValueCloud('LWCR') ) then
               write(*,*) 'tvs_fillProfiles: clw=' , clw(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has clw outside RTTOV bounds')
             end if
@@ -5115,7 +5115,7 @@ contains
 
       do profileIndex = 1, profileCount
         cloudProfileToStore(:,profileIndex) = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:)
-        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = qlim_readMinClwValue() 
+        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = qlim_readMinValueCloud('LWCR') 
       end do
 
     else if ( trim(mode) == 'restore' ) then 

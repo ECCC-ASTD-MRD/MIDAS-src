@@ -32,11 +32,11 @@ module humidityLimits_mod
 
   ! public procedures
   public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin
-  public :: qlim_readMinClwValue, qlim_readMaxClwValue
+  public :: qlim_readMinValueCloud, qlim_readMaxValueCloud
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
-  real(8) :: qlim_minClwValue
-  real(8) :: qlim_maxClwValue
+  real(8) :: qlim_minValueLWCR, qlim_minValueIWCR, qlim_minValueRF, qlim_minValueSF
+  real(8) :: qlim_maxValueLWCR, qlim_maxValueIWCR, qlim_maxValueRF, qlim_maxValueSF
 
   ! interface for qlim_saturationLimit
   interface qlim_saturationLimit
@@ -72,18 +72,34 @@ contains
     logical, save :: nmlAlreadyRead = .false.
 
     ! Namelist variables:
-    real(8) :: minClwValue ! minimum CLW value
-    real(8) :: maxClwValue ! maximum CLW value
+    real(8) :: minValueLWCR ! minimum LWCR value
+    real(8) :: maxValueLWCR ! maximum LWCR value
+    real(8) :: minValueIWCR ! minimum IWCR value
+    real(8) :: maxValueIWCR ! maximum IWCR value
+    real(8) :: minValueRF   ! minimum   RF value
+    real(8) :: maxValueRF   ! maximum   RF value
+    real(8) :: minValueSF   ! minimum   SF value
+    real(8) :: maxValueSF   ! maximum   SF value
 
-    NAMELIST /NAMQLIM/ minClwValue, maxClwValue
+    NAMELIST /NAMQLIM/ minValueLWCR, maxValueLWCR, minValueIWCR, maxValueIWCR, &
+                       minValueRF, maxValueRF, minValueSF, maxValueSF
 
     if ( nmlAlreadyRead ) return
 
     nmlAlreadyRead = .true.
 
     !- Setting default values
-    minClwValue = 1.0d-9
-    maxClwValue = 1.0d0
+    minValueLWCR = 1.0d-9
+    maxValueLWCR = 1.0d0
+
+    minValueIWCR = 1.0d-9
+    maxValueIWCR = 1.0d0
+    
+    minValueRF = 0.0d0
+    maxValueRF = 1.0d0
+    
+    minValueSF = 0.0d0
+    maxValueSF = 1.0d0
 
     if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
       if ( mmpi_myid == 0 ) then
@@ -102,8 +118,17 @@ contains
     if ( mmpi_myid == 0 ) write(*,nml=namqlim)
 
     ! Transfer namelist variables to module variables.
-    qlim_minClwValue = minClwValue
-    qlim_maxClwValue = maxClwValue
+    qlim_minValueLWCR = minValueLWCR
+    qlim_maxValueLWCR = maxValueLWCR
+
+    qlim_minValueIWCR = minValueIWCR
+    qlim_maxValueIWCR = maxValueIWCR
+    
+    qlim_minValueRF   = minValueRF
+    qlim_maxValueRF   = maxValueRF
+    
+    qlim_minValueSF   = minValueSF
+    qlim_maxValueSF   = maxValueSF
 
   end subroutine readNameList
 
@@ -324,7 +349,7 @@ contains
     real(8), pointer     :: pressure(:,:,:)
     real(8)              :: hu, hu_modified
     real(8)              :: clw, clw_modified
-    real(8)              :: minClwValue, maxClwValue
+    real(8)              :: minValueLWCR, maxValueLWCR
     integer              :: lon1, lon2, lat1, lat2, lev1, lev2
     integer              :: lonIndex, latIndex, levIndex, stepIndex
     integer              :: ni, nj, numLev, numLev_rttov
@@ -468,8 +493,8 @@ contains
         call gsv_getField(statevector,clw_ptr_r4,'LWCR')
       end if
 
-      minClwValue = qlim_readMinClwValue()
-      maxClwValue = qlim_readMaxClwValue()
+      minValueLWCR = qlim_readMinValueCloud('LWCR')
+      maxValueLWCR = qlim_readMaxValueCloud('LWCR')
 
       lon1 = statevector%myLonBeg
       lon2 = statevector%myLonEnd
@@ -490,8 +515,8 @@ contains
                 clw = real(clw_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),8)
               end if
 
-              clw_modified = max(clw,minClwValue)
-              clw_modified = min(clw_modified,maxClwValue)
+              clw_modified = max(clw,minValueLWCR)
+              clw_modified = min(clw_modified,maxValueLWCR)
               if (statevector%dataKind == 8) then
                 clw_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = clw_modified
               else
@@ -531,7 +556,7 @@ contains
     real(8), pointer     :: pressure(:,:,:)
     real(8)              :: hu, hu_modified
     real(8)              :: clw, clw_modified
-    real(8)              :: minClwValue, maxClwValue
+    real(8)              :: minValueLWCR, maxValueLWCR
     integer              :: lon1, lon2, lat1, lat2
     integer              :: lonIndex, latIndex, levIndex, stepIndex, varLevIndex, memberIndex
     integer              :: numMember, numStep, numLev, numLev_rttov
@@ -663,8 +688,8 @@ contains
       numStep = ens_getNumStep(ensemble)
       call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
 
-      minClwValue = qlim_readMinClwValue()
-      maxClwValue = qlim_readMaxClwValue()
+      minValueLWCR = qlim_readMinValueCloud('LWCR')
+      maxValueLWCR = qlim_readMaxValueCloud('LWCR')
 
       do latIndex = lat1, lat2
         do lonIndex = lon1, lon2
@@ -680,8 +705,8 @@ contains
 
                   clw = real(clw_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
 
-                  clw_modified = max(clw,minClwValue)
-                  clw_modified = min(clw_modified,maxClwValue)
+                  clw_modified = max(clw,minValueLWCR)
+                  clw_modified = min(clw_modified,maxValueLWCR)
                   clw_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(clw_modified,4)
 
                 end do ! memberIndex
@@ -842,41 +867,91 @@ contains
   end subroutine qlim_setMin_ens
   
   !-----------------------------------------------------------------------
-  ! qlim_readMinClwValue
+  ! qlim_readMinValueCloud
   !----------------------------------------------------------------------
-  function qlim_readMinClwValue() result(minClwValue)
+  function qlim_readMinValueCloud(varName) result(minValue)
     !
-    ! :Purpose: Return the minClwValue.
+    ! :Purpose: Return the minValue for the hydrometeor.
     !
     implicit none
 
     ! Arguments:
-    real(8) :: minClwValue
+    character(len=*), intent(in) :: varName
+    real(8)                      :: minValue
 
     ! readNameList runs one time during program execution
     call readNameList
 
-    minClwValue = qlim_minClwValue
+    select case (trim(varName))
+    case ('LWCR')
+      minValue = qlim_minValueLWCR
+    case ('IWCR')
+      minValue = qlim_minValueIWCR
+    case ('RF')
+      minValue = qlim_minValueRF
+    case ('SF')
+      minValue = qlim_minValueSF
+    case default
+      write(*,*)
+      write(*,*) 'ERROR unknown varName: ', trim(varName)
+      call utl_abort('qlim_readMinValueCloud')
+   end select
 
-  end function qlim_readMinClwValue
+  end function qlim_readMinValueCloud
 
   !-----------------------------------------------------------------------
-  ! qlim_readMaxClwValue
+  ! qlim_readMaxValueCloud
   !----------------------------------------------------------------------
-  function qlim_readMaxClwValue() result(maxClwValue)
+  function qlim_readMaxValueCloud(varName) result(maxValue)
     !
-    ! :Purpose: Return the maxClwValue.
+    ! :Purpose: Return the maxValue for the hydrometeor.
     !
     implicit none
 
     ! Arguments:
-    real(8) :: maxClwValue
+    character(len=*), intent(in) :: varName
+    real(8)                      :: maxValue
 
     ! readNameList runs one time during program execution
     call readNameList
 
-    maxClwValue = qlim_maxClwValue
+    select case (trim(varName))
+    case ('LWCR')
+      maxValue = qlim_maxValueLWCR
+    case ('IWCR')
+      maxValue = qlim_maxValueIWCR
+    case ('RF')
+      maxValue = qlim_maxValueRF
+    case ('SF')
+      maxValue = qlim_maxValueSF
+    case default
+      write(*,*)
+      write(*,*) 'ERROR unknown varName: ', trim(varName)
+      call utl_abort('qlim_readMaxValueCloud')
+   end select
 
-  end function qlim_readMaxClwValue
-  
+  end function qlim_readMaxValueCloud
+
+  !-----------------------------------------------------------------------
+  ! varnameIsCloud
+  !----------------------------------------------------------------------
+  function varnameIsCloud(varName) result(isCloud)
+    !
+    ! :Purpose: determine if varName is cloud variable.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in) :: varName
+    logical                      :: isCloud
+
+    if (trim(varName) == 'LWCR' .or. trim(varName) == 'IWCR' .or. &
+        trim(varName) == '  RF' .or. trim(varName) ==   'SF') then
+      isCloud = .true.
+    else
+      isCloud = .false.
+    end if
+
+  end function varnameIsCloud
+
 end module humidityLimits_mod

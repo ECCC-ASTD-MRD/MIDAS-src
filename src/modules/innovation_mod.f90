@@ -358,8 +358,8 @@ contains
         do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
           columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'LWCR')
           do jlev = 1, col_getNumLev(columnTrlOnAnlIncLev,'TH')
-            columnTrlOnAnlIncLev_ptr(jlev) = max(columnTrlOnAnlIncLev_ptr(jlev),qlim_readMinClwValue())
-            columnTrlOnAnlIncLev_ptr(jlev) = min(columnTrlOnAnlIncLev_ptr(jlev),qlim_readMaxClwValue())
+            columnTrlOnAnlIncLev_ptr(jlev) = max(columnTrlOnAnlIncLev_ptr(jlev),qlim_readMinValueCloud('LWCR'))
+            columnTrlOnAnlIncLev_ptr(jlev) = min(columnTrlOnAnlIncLev_ptr(jlev),qlim_readMaxValueCloud('LWCR'))
           end do
         end do
 
