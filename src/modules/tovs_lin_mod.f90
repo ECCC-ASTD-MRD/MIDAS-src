@@ -269,16 +269,16 @@ contains
         if (runObsOperatorWithHydrometeors_tl) then 
           if (surfTypeIsWater(profileIndex)) then
             delRF => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'RF')
-            cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,1) = delRF(:)
+            cld_profiles_tl(profileIndex) % hydro(1:nlv_T,1) = delRF(:)
             delSF => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'SF')
-            cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,2)  = delSF(:)
-            cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,3)  = 0.d0 ! no information for graupel
+            cld_profiles_tl(profileIndex) % hydro(1:nlv_T,2)  = delSF(:)
+            cld_profiles_tl(profileIndex) % hydro(1:nlv_T,3)  = 0.d0 ! no information for graupel
             delCLW => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'LWCR')
-            cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,4) = delCLW(:)
+            cld_profiles_tl(profileIndex) % hydro(1:nlv_T,4) = delCLW(:)
             delCIW => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'IWCR')
-            cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,5)  = delCIW(:)
+            cld_profiles_tl(profileIndex) % hydro(1:nlv_T,5)  = delCIW(:)
           else
-            cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,1:5)  = 0.d0
+            cld_profiles_tl(profileIndex) % hydro(1:nlv_T,1:5)  = 0.d0
           end if
           cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,1) = 0.d0   ! no perturbation on cloud fraction as it is a binary variable (or or 1.0) in this implementation
         end if
@@ -865,25 +865,26 @@ contains
       end if
 
       if (runObsOperatorWithHydrometeors_ad) then
-        surfTypeIsWater(profileIndex) = (tvs_ChangedStypValue(obsSpaceData,sensorHeaderIndexes(profileIndex)) == surftype_sea)
-        if (surfTypeIsWater(profileIndex)) then
-          rf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'RF')
-          sf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'SF')
-          clw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'LWCR')
-          ciw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'LICR')
-          do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
-            rf_column(levelIndex) = rf_column(levelIndex) +   &
-                rf_ad(levelIndex,profileIndex)
-            sf_column(levelIndex) = sf_column(levelIndex) +   &
-                sf_ad(levelIndex,profileIndex)
-            clw_column(levelIndex) = clw_column(levelIndex) + &
-                clw_ad(levelIndex,profileIndex)
-            ciw_column(levelIndex) = ciw_column(levelIndex) + &
-                ciw_ad(levelIndex,profileIndex)
-          end do
-        end if
+        do  profileIndex = 1 , profileCount 
+          surfTypeIsWater(profileIndex) = (tvs_ChangedStypValue(obsSpaceData,sensorHeaderIndexes(profileIndex)) == surftype_sea)
+          if (surfTypeIsWater(profileIndex)) then
+            rf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'RF')
+            sf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'SF')
+            clw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'LWCR')
+            ciw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'IWCR')
+            do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
+              rf_column(levelIndex) = rf_column(levelIndex) +   &
+                                      rf_ad(levelIndex,profileIndex)
+              sf_column(levelIndex) = sf_column(levelIndex) +   &
+                                      sf_ad(levelIndex,profileIndex)
+              clw_column(levelIndex) = clw_column(levelIndex) + &
+                                       clw_ad(levelIndex,profileIndex)
+              ciw_column(levelIndex) = ciw_column(levelIndex) + &
+                                       ciw_ad(levelIndex,profileIndex)
+            end do
+          end if
+        end do
       end if
-      
 
       deallocate (sensorHeaderIndexes, stat= allocStatus(1) )
       deallocate (tt_ad,               stat= allocStatus(2) )
