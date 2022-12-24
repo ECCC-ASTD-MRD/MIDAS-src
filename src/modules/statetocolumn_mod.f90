@@ -1682,7 +1682,7 @@ contains
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
     integer :: headerIndexBeg, headerIndexEnd, obsBatchIndex, numObsBatches
     integer :: procIndex, nsize, ierr, headerUsedIndex, allHeaderIndexBeg(mmpi_nprocs)
-    integer :: kIndexHeightSfc
+    integer :: kIndexHeightSfc, varNameIndex
     real(8) :: weight
     character(len=4)     :: varName
     real(8), pointer     :: column_ptr(:), ptr2d_r8(:,:), allCols_ptr(:,:)
@@ -1943,14 +1943,16 @@ contains
         end do
       end if
 
-      ! impose a lower/upper limits on LWCR
-      if( col_varExist(column,'LWCR') ) then
-        do headerIndex = headerIndexBeg, headerIndexEnd
-          column_ptr => col_getColumn(column,headerIndex,'LWCR')
-          column_ptr(:) = max(column_ptr(:),qlim_readMinValueCloud('LWCR'))
-          column_ptr(:) = min(column_ptr(:),qlim_readMaxValueCloud('LWCR'))
-        end do
-      end if
+      ! impose a lower/upper limits on ALL cloud variables
+      do varNameIndex = 1, vnl_numvarmaxCloud
+        if(col_varExist(column, vnl_varNameListCloud(varNameIndex))) then
+          do headerIndex = headerIndexBeg, headerIndexEnd
+            column_ptr => col_getColumn(column,headerIndex, vnl_varNameListCloud(varNameIndex))
+            column_ptr(:) = max(column_ptr(:), qlim_readMinValueCloud(vnl_varNameListCloud(varNameIndex)))
+            column_ptr(:) = min(column_ptr(:), qlim_readMaxValueCloud(vnl_varNameListCloud(varNameIndex)))
+          end do
+        end if
+      end do
 
       ! Interpolate surface height separately, only exists on mpi task 0
       HeightSfcPresent: if ( stateVector_VarsLevs%HeightSfcPresent ) then
