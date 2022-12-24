@@ -48,7 +48,7 @@ module varNameList_mod
   integer, parameter          :: VNLnumvarmax3D    = 52
   integer, parameter          :: VNLnumvarmax2D    = 36
   integer, parameter          :: VNLnumvarmaxOther =  6
-  integer, parameter          :: VNLnumvarmaxCloud =  4
+  integer, parameter          :: VNLnumvarmaxCloud =  5
 
   integer, parameter          :: vnl_numvarmax3D    = VNLnumvarmax3D
   integer, parameter          :: vnl_numvarmax2D    = VNLnumvarmax2D
@@ -113,7 +113,7 @@ module varNameList_mod
                                  'LD',  'LD',  'LD',  'LD',  'LD',  'LD'  /) ! LD = Land
 
   character(len=4), parameter :: vnl_varNameListCloud(vnl_numvarmaxCloud) = (/ &
-                                 'LWCR', 'IWCR', 'RF  ', 'SF  ' /)                                 
+                                 'LWCR', 'IWCR', 'RF  ', 'SF  ', 'CLDR' /)                                 
 
   integer, parameter          :: vnl_numvarmax = VNLnumvarmax3D + VNLnumvarmax2D + VNLnumvarmaxOther
 

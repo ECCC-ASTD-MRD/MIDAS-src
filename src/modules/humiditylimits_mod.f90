@@ -36,8 +36,8 @@ module humidityLimits_mod
   public :: qlim_readMinValueCloud, qlim_readMaxValueCloud
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
-  real(8) :: qlim_minValueLWCR, qlim_minValueIWCR, qlim_minValueRF, qlim_minValueSF
-  real(8) :: qlim_maxValueLWCR, qlim_maxValueIWCR, qlim_maxValueRF, qlim_maxValueSF
+  real(8) :: qlim_minValueLWCR, qlim_minValueIWCR, qlim_minValueRF, qlim_minValueSF, qlim_minValueCLDR
+  real(8) :: qlim_maxValueLWCR, qlim_maxValueIWCR, qlim_maxValueRF, qlim_maxValueSF, qlim_maxValueCLDR
 
   ! interface for qlim_saturationLimit
   interface qlim_saturationLimit
@@ -81,9 +81,11 @@ contains
     real(8) :: maxValueRF   ! maximum   RF value
     real(8) :: minValueSF   ! minimum   SF value
     real(8) :: maxValueSF   ! maximum   SF value
+    real(8) :: minValueCLDR ! minimum CLDR value
+    real(8) :: maxValueCLDR ! maximum CLDR value
 
     NAMELIST /NAMQLIM/ minValueLWCR, maxValueLWCR, minValueIWCR, maxValueIWCR, &
-                       minValueRF, maxValueRF, minValueSF, maxValueSF
+                       minValueRF, maxValueRF, minValueSF, maxValueSF, minValueCLDR, maxValueCLDR
 
     if ( nmlAlreadyRead ) return
 
@@ -101,6 +103,9 @@ contains
     
     minValueSF = 0.0d0
     maxValueSF = 1.0d0
+
+    minValueCLDR = 0.0d0
+    maxValueCLDR = 1.0d0
 
     if ( .not. utl_isNamelistPresent('NAMQLIM','./flnml') ) then
       if ( mmpi_myid == 0 ) then
@@ -130,6 +135,9 @@ contains
     
     qlim_minValueSF   = minValueSF
     qlim_maxValueSF   = maxValueSF
+
+    qlim_minValueCLDR = minValueCLDR
+    qlim_maxValueCLDR = maxValueCLDR
 
   end subroutine readNameList
 
@@ -931,6 +939,8 @@ contains
       minValue = qlim_minValueRF
     case ('SF')
       minValue = qlim_minValueSF
+    case ('CLDR')
+      minValue = qlim_minValueCLDR      
     case default
       write(*,*)
       write(*,*) 'ERROR unknown varName: ', trim(varName)
@@ -964,6 +974,8 @@ contains
       maxValue = qlim_maxValueRF
     case ('SF')
       maxValue = qlim_maxValueSF
+    case ('CLDR')
+      maxValue = qlim_maxValueCLDR      
     case default
       write(*,*)
       write(*,*) 'ERROR unknown varName: ', trim(varName)
