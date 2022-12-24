@@ -330,15 +330,16 @@ contains
   !--------------------------------------------------------------------------
   ! qlim_rttovLimit_gsv
   !--------------------------------------------------------------------------
-  subroutine qlim_rttovLimit_gsv(statevector, varName_opt)
+  subroutine qlim_rttovLimit_gsv(statevector, varName_opt, applyLimitToCloud_opt)
     !
-    !:Purpose: To impose RTTOV limits on humidity/LWCR
+    !:Purpose: To impose RTTOV limits on humidity/cloud
     !
     implicit none
 
     ! Arguments:
-    type(struct_gsv), intent(inout)        :: statevector
+    type(struct_gsv),        intent(inout) :: statevector
     character(len=*), optional, intent(in) :: varName_opt
+    logical,          optional, intent(in) :: applyLimitToCloud_opt
 
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
@@ -346,14 +347,14 @@ contains
     real(8), allocatable :: psfc(:,:)
     real(8), allocatable :: qmin3D_rttov(:,:,:), qmax3D_rttov(:,:,:)
     real(8), pointer     :: hu_ptr_r8(:,:,:,:), psfc_ptr_r8(:,:,:,:)
-    real(8), pointer     :: clw_ptr_r8(:,:,:,:)
+    real(8), pointer     :: cld_ptr_r8(:,:,:,:)
     real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
-    real(4), pointer     :: clw_ptr_r4(:,:,:,:)
+    real(4), pointer     :: cld_ptr_r4(:,:,:,:)
     real(8), pointer     :: pressure(:,:,:)
     real(8)              :: hu, hu_modified
-    real(8)              :: clw, clw_modified
-    real(8)              :: minValueLWCR, maxValueLWCR
-    integer              :: lon1, lon2, lat1, lat2, lev1, lev2
+    real(8)              :: cld, cld_modified
+    real(8)              :: minValueCld, maxValueCld
+    integer              :: lon1, lon2, lat1, lat2, lev1, lev2, varNameIndex
     integer              :: lonIndex, latIndex, levIndex, stepIndex
     integer              :: ni, nj, numLev, numLev_rttov
     integer              :: fnom, fclos, ierr, nulfile
@@ -361,10 +362,11 @@ contains
     character(len=4)     :: varName
     logical, save        :: firstTime=.true.
     logical              :: applyLimitToAllVarname
+    logical              :: applyLimitToCloud
 
     if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: STARTING'
 
-    if ( present(varName_opt) ) then
+    if (present(varName_opt)) then
       applyLimitToAllVarname = .false.
       varName = varName_opt
     else
@@ -372,8 +374,20 @@ contains
       varName = 'XXXX'  
     end if
 
-    if ( (applyLimitToAllVarname .or. trim(varName) == 'HU') .and. &
-          gsv_varExist(statevector,'HU') ) then
+    ! for cloud, limits are applied to ALL cloud variables.
+    if (present(applyLimitToCloud_opt)) then
+      applyLimitToCloud = applyLimitToCloud_opt
+    else
+      if (varNameIsCloud(varName)) then
+        if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: limits are applied to ALL cloud variables'
+        applyLimitToCloud = .true.
+      else
+        applyLimitToCloud = .false.
+      end if
+    end if
+
+    if ((applyLimitToAllVarname .or. trim(varName) == 'HU') .and. &
+         gsv_varExist(statevector,'HU')) then
 
       if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: applying limits to HU.'
 
@@ -485,53 +499,59 @@ contains
 
     end if
 
-    if ( (applyLimitToAllVarname .or. trim(varName) == 'LWCR') .and. &
-          gsv_varExist(statevector,'LWCR') ) then
+    ! apply limits to ALL available cloud variables
+    if ((applyLimitToAllVarname .or. applyLimitToCloud) .and. cloudExistInStateVector(statevector)) then
 
-      if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: applying limits to LWCR.'
+      do varNameIndex = 1, qlim_numVarnameCloud
+        if (.not. gsv_varExist(statevector, qlim_varNameListCloud(varNameIndex))) cycle
 
-      if (statevector%dataKind == 8) then
-        call gsv_getField(statevector,clw_ptr_r8,'LWCR')
-      else
-        call gsv_getField(statevector,clw_ptr_r4,'LWCR')
-      end if
+        if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: applying limits to ', &
+                                        qlim_varNameListCloud(varNameIndex)
 
-      minValueLWCR = qlim_readMinValueCloud('LWCR')
-      maxValueLWCR = qlim_readMaxValueCloud('LWCR')
+        if (statevector%dataKind == 8) then
+          call gsv_getField(statevector, cld_ptr_r8, qlim_varNameListCloud(varNameIndex))
+        else
+          call gsv_getField(statevector, cld_ptr_r4, qlim_varNameListCloud(varNameIndex))
+        end if
 
-      lon1 = statevector%myLonBeg
-      lon2 = statevector%myLonEnd
-      lat1 = statevector%myLatBeg
-      lat2 = statevector%myLatEnd
-      lev1 = 1
-      lev2 = gsv_getNumLev(statevector,'TH')
+        minValueCld = qlim_readMinValueCloud(qlim_varNameListCloud(varNameIndex))
+        maxValueCld = qlim_readMaxValueCloud(qlim_varNameListCloud(varNameIndex))
 
-      do stepIndex = 1, statevector%numStep
+        lon1 = statevector%myLonBeg
+        lon2 = statevector%myLonEnd
+        lat1 = statevector%myLatBeg
+        lat2 = statevector%myLatEnd
+        lev1 = 1
+        lev2 = gsv_getNumLev(statevector,'TH')
 
-        !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, clw, clw_modified)
-        do levIndex = lev1, lev2
-          do latIndex = lat1, lat2
-            do lonIndex = lon1, lon2
-              if (statevector%dataKind == 8) then
-                clw = clw_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)
-              else
-                clw = real(clw_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),8)
-              end if
+        do stepIndex = 1, statevector%numStep
 
-              clw_modified = max(clw,minValueLWCR)
-              clw_modified = min(clw_modified,maxValueLWCR)
-              if (statevector%dataKind == 8) then
-                clw_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = clw_modified
-              else
-                clw_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = real(clw_modified,4)
-              end if
+          !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, cld, cld_modified)
+          do levIndex = lev1, lev2
+            do latIndex = lat1, lat2
+              do lonIndex = lon1, lon2
+                if (statevector%dataKind == 8) then
+                  cld = cld_ptr_r8(lonIndex,latIndex,levIndex,stepIndex)
+                else
+                  cld = real(cld_ptr_r4(lonIndex,latIndex,levIndex,stepIndex),8)
+                end if
 
-            end do ! lonIndex
-          end do ! latIndex
-        end do ! levIndex
-        !$OMP END PARALLEL DO
+                cld_modified = max(cld,minValueCld)
+                cld_modified = min(cld_modified,maxValueCld)
+                if (statevector%dataKind == 8) then
+                  cld_ptr_r8(lonIndex,latIndex,levIndex,stepIndex) = cld_modified
+                else
+                  cld_ptr_r4(lonIndex,latIndex,levIndex,stepIndex) = real(cld_modified,4)
+                end if
 
-      end do ! stepIndex
+              end do ! lonIndex
+            end do ! latIndex
+          end do ! levIndex
+          !$OMP END PARALLEL DO
+
+        end do ! stepIndex
+      end do ! varNameIndex
+
     end if
 
   end subroutine qlim_rttovLimit_gsv
@@ -712,32 +732,32 @@ contains
         minValueCld = qlim_readMinValueCloud(qlim_varNameListCloud(varNameIndex))
         maxValueCld = qlim_readMaxValueCloud(qlim_varNameListCloud(varNameIndex))
 
-      do latIndex = lat1, lat2
-        do lonIndex = lon1, lon2
+        do latIndex = lat1, lat2
+          do lonIndex = lon1, lon2
 
-          do levIndex = 1, numLev
+            do levIndex = 1, numLev
 
-                varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, qlim_varNameListCloud(varNameIndex))
-                cld_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
+                  varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, qlim_varNameListCloud(varNameIndex))
+                  cld_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
 
-                !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, cld, cld_modified)
-              do stepIndex = 1, numStep
-                do memberIndex = 1, numMember
+                  !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, cld, cld_modified)
+                do stepIndex = 1, numStep
+                  do memberIndex = 1, numMember
 
-                    cld = real(cld_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
+                      cld = real(cld_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
 
-                    cld_modified = max(cld,minValueCld)
-                    cld_modified = min(cld_modified,maxValueCld)
-                    cld_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(cld_modified,4)
+                      cld_modified = max(cld,minValueCld)
+                      cld_modified = min(cld_modified,maxValueCld)
+                      cld_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(cld_modified,4)
 
-                end do ! memberIndex
-              end do ! stepIndex
-              !$OMP END PARALLEL DO
+                  end do ! memberIndex
+                end do ! stepIndex
+                !$OMP END PARALLEL DO
 
-          end do ! levIndex
+            end do ! levIndex
 
-        end do ! lonIndex
-      end do ! latIndex
+          end do ! lonIndex
+        end do ! latIndex
       end do ! varNameIndex
 
     end if
@@ -1005,5 +1025,31 @@ contains
     end do
 
   end function cloudExistInEnsemble
+
+  !-----------------------------------------------------------------------
+  ! cloudExistInStateVector
+  !----------------------------------------------------------------------
+  function cloudExistInStateVector(stateVector) result(cloudExist)
+    !
+    ! :Purpose: determine if any cloud variable exists in the stateVector.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(in) :: stateVector
+    logical                      :: cloudExist
+    
+    ! Locals:
+    integer :: varNameIndex
+
+    cloudExist = .false.
+    do varNameIndex = 1, qlim_numVarnameCloud
+      if (gsv_varExist(stateVector, qlim_varNameListCloud(varNameIndex))) then
+        cloudExist = .true.
+        return
+      end if
+    end do
+
+  end function cloudExistInStateVector
 
 end module humidityLimits_mod
