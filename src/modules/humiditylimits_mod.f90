@@ -35,6 +35,9 @@ module humidityLimits_mod
   public :: qlim_readMinValueCloud, qlim_readMaxValueCloud
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
+  integer, parameter :: qlim_numVarnameCloud = 4
+  character(len=4), parameter :: qlim_varNameListCloud(qlim_numVarnameCloud) = (/ &
+                                 'LWCR', 'IWCR', 'RF  ', 'SF  ' /)
   real(8) :: qlim_minValueLWCR, qlim_minValueIWCR, qlim_minValueRF, qlim_minValueSF
   real(8) :: qlim_maxValueLWCR, qlim_maxValueIWCR, qlim_maxValueRF, qlim_maxValueSF
 
@@ -536,15 +539,16 @@ contains
   !--------------------------------------------------------------------------
   ! qlim_rttovLimit_ens
   !--------------------------------------------------------------------------
-  subroutine qlim_rttovLimit_ens(ensemble, varName_opt)
+  subroutine qlim_rttovLimit_ens(ensemble, varName_opt, applyLimitToCloud_opt)
     !
-    !:Purpose: To impose RTTOV limits on humidity/LWCR
+    !:Purpose: To impose RTTOV limits on humidity/cloud
     !
     implicit none
 
     ! Arguments:
-    type(struct_ens), intent(inout)        :: ensemble
+    type(struct_ens),        intent(inout) :: ensemble
     character(len=*), optional, intent(in) :: varName_opt
+    logical,          optional, intent(in) :: applyLimitToCloud_opt
 
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
@@ -552,12 +556,12 @@ contains
     real(8), allocatable :: psfc(:,:)
     real(8), allocatable :: qmin3D_rttov(:,:,:), qmax3D_rttov(:,:,:)
     real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
-    real(4), pointer     :: clw_ptr_r4(:,:,:,:)
+    real(4), pointer     :: cld_ptr_r4(:,:,:,:)
     real(8), pointer     :: pressure(:,:,:)
     real(8)              :: hu, hu_modified
-    real(8)              :: clw, clw_modified
-    real(8)              :: minValueLWCR, maxValueLWCR
-    integer              :: lon1, lon2, lat1, lat2
+    real(8)              :: cld, cld_modified
+    real(8)              :: minValueCld, maxValueCld
+    integer              :: lon1, lon2, lat1, lat2, varNameIndex
     integer              :: lonIndex, latIndex, levIndex, stepIndex, varLevIndex, memberIndex
     integer              :: numMember, numStep, numLev, numLev_rttov
     integer              :: fnom, fclos, ierr, nulfile
@@ -565,10 +569,11 @@ contains
     character(len=4)     :: varName
     logical, save        :: firstTime=.true.
     logical              :: applyLimitToAllVarname
+    logical              :: applyLimitToCloud
 
     if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens: STARTING'
 
-    if ( present(varName_opt) ) then
+    if (present(varName_opt)) then
       applyLimitToAllVarname = .false.
       varName = varName_opt
     else
@@ -576,8 +581,20 @@ contains
       varName = 'XXXX'    
     end if
 
-    if ( (applyLimitToAllVarname .or. trim(varName) == 'HU') .and. &
-          ens_varExist(ensemble,'HU') ) then
+    ! for cloud, limits are applied to ALL cloud variables.
+    if (present(applyLimitToCloud_opt)) then
+      applyLimitToCloud = applyLimitToCloud_opt
+    else
+      if (varNameIsCloud(varName)) then
+        if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens: limits are applied to ALL cloud variables'
+        applyLimitToCloud = .true.
+      else
+        applyLimitToCloud = .false.
+      end if
+    end if
+
+    if ((applyLimitToAllVarname .or. trim(varName) == 'HU') .and. &
+         ens_varExist(ensemble,'HU')) then
 
       if ( mmpi_myid == 0 ) write(*,*) 'qlim_rttovLimit_ens:  applying limits to HU.'
 
@@ -677,10 +694,8 @@ contains
       deallocate(press_rttov)
     end if
 
-    if ( (applyLimitToAllVarname .or. trim(varName) == 'LWCR') .and. &
-          ens_varExist(ensemble,'LWCR') ) then
-
-      if ( mmpi_myid == 0 ) write(*,*) 'qlim_rttovLimit_ens:  applying limits to LWCR.'
+    ! apply limits to ALL available cloud variables
+    if ((applyLimitToAllVarname .or. applyLimitToCloud) .and. cloudExistInEnsemble(ensemble)) then
 
       vco_ptr => ens_getVco(ensemble)
       numLev = ens_getNumLev(ensemble,'TH')
@@ -688,26 +703,32 @@ contains
       numStep = ens_getNumStep(ensemble)
       call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
 
-      minValueLWCR = qlim_readMinValueCloud('LWCR')
-      maxValueLWCR = qlim_readMaxValueCloud('LWCR')
+      do varNameIndex = 1, qlim_numVarnameCloud
+        if (.not. ens_varExist(ensemble, qlim_varNameListCloud(varNameIndex))) cycle
+
+        if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens:  applying limits to ', &
+                                        qlim_varNameListCloud(varNameIndex)
+
+        minValueCld = qlim_readMinValueCloud(qlim_varNameListCloud(varNameIndex))
+        maxValueCld = qlim_readMaxValueCloud(qlim_varNameListCloud(varNameIndex))
 
       do latIndex = lat1, lat2
         do lonIndex = lon1, lon2
 
           do levIndex = 1, numLev
 
-              varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'LWCR')
-              clw_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
+                varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, qlim_varNameListCloud(varNameIndex))
+                cld_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
 
-              !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, clw, clw_modified)
+                !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, cld, cld_modified)
               do stepIndex = 1, numStep
                 do memberIndex = 1, numMember
 
-                  clw = real(clw_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
+                    cld = real(cld_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex),8)
 
-                  clw_modified = max(clw,minValueLWCR)
-                  clw_modified = min(clw_modified,maxValueLWCR)
-                  clw_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(clw_modified,4)
+                    cld_modified = max(cld,minValueCld)
+                    cld_modified = min(cld_modified,maxValueCld)
+                    cld_ptr_r4(memberIndex,stepIndex,lonIndex,latIndex) = real(cld_modified,4)
 
                 end do ! memberIndex
               end do ! stepIndex
@@ -717,6 +738,7 @@ contains
 
         end do ! lonIndex
       end do ! latIndex
+      end do ! varNameIndex
 
     end if
 
@@ -933,9 +955,9 @@ contains
   end function qlim_readMaxValueCloud
 
   !-----------------------------------------------------------------------
-  ! varnameIsCloud
+  ! varNameIsCloud
   !----------------------------------------------------------------------
-  function varnameIsCloud(varName) result(isCloud)
+  function varNameIsCloud(varName) result(isCloud)
     !
     ! :Purpose: determine if varName is cloud variable.
     !
@@ -945,13 +967,43 @@ contains
     character(len=*), intent(in) :: varName
     logical                      :: isCloud
 
-    if (trim(varName) == 'LWCR' .or. trim(varName) == 'IWCR' .or. &
-        trim(varName) == '  RF' .or. trim(varName) ==   'SF') then
-      isCloud = .true.
-    else
-      isCloud = .false.
-    end if
+    ! Locals:
+    integer :: varNameIndex
 
-  end function varnameIsCloud
+    isCloud = .false.
+    do varNameIndex = 1, qlim_numVarnameCloud
+      if (trim(varName) == trim(qlim_varNameListCloud(varNameIndex))) then
+        isCloud = .true.
+        return
+      end if
+    end do
+
+  end function varNameIsCloud
+
+  !-----------------------------------------------------------------------
+  ! cloudExistInEnsemble
+  !----------------------------------------------------------------------
+  function cloudExistInEnsemble(ensemble) result(cloudExist)
+    !
+    ! :Purpose: determine if any cloud variable exists in the ensemble.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens), intent(in) :: ensemble
+    logical                      :: cloudExist
+    
+    ! Locals:
+    integer :: varNameIndex
+
+    cloudExist = .false.
+    do varNameIndex = 1, qlim_numVarnameCloud
+      if (ens_varExist(ensemble, qlim_varNameListCloud(varNameIndex))) then
+        cloudExist = .true.
+        return
+      end if
+    end do
+
+  end function cloudExistInEnsemble
 
 end module humidityLimits_mod

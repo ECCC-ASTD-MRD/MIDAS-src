@@ -459,8 +459,8 @@ program midas_var
   outer_loop: do outerLoopIndex = 1, numOuterLoopIterations
     call msg('var','start of outer-loop index='//str(outerLoopIndex))
 
-    ! Impose limits on LWCR
-    call qlim_rttovLimit( stateVectorUpdateHighRes,'LWCR' )
+    ! Impose limits on ALL cloud variables
+    call qlim_rttovLimit(stateVectorUpdateHighRes, applyLimitToCloud_opt=.true.)
 
     ! Initialize stateVectorRefHeight for transforming TT/HU/P0 increments to
     ! height/pressure increments.
