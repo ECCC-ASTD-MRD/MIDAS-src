@@ -22,6 +22,7 @@ module humidityLimits_mod
   use midasMpi_mod
   use utilities_mod
   use mathPhysConstants_mod
+  use varNameList_mod
   use physicsFunctions_mod
   use verticalCoord_mod
   use gridStateVector_mod
@@ -35,9 +36,6 @@ module humidityLimits_mod
   public :: qlim_readMinValueCloud, qlim_readMaxValueCloud
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
-  integer, parameter :: qlim_numVarnameCloud = 4
-  character(len=4), parameter :: qlim_varNameListCloud(qlim_numVarnameCloud) = (/ &
-                                 'LWCR', 'IWCR', 'RF  ', 'SF  ' /)
   real(8) :: qlim_minValueLWCR, qlim_minValueIWCR, qlim_minValueRF, qlim_minValueSF
   real(8) :: qlim_maxValueLWCR, qlim_maxValueIWCR, qlim_maxValueRF, qlim_maxValueSF
 
@@ -378,7 +376,7 @@ contains
     if (present(applyLimitToCloud_opt)) then
       applyLimitToCloud = applyLimitToCloud_opt
     else
-      if (varNameIsCloud(varName)) then
+      if (vnl_isCloudVar(varName)) then
         if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: limits are applied to ALL cloud variables'
         applyLimitToCloud = .true.
       else
@@ -502,20 +500,20 @@ contains
     ! apply limits to ALL available cloud variables
     if ((applyLimitToAllVarname .or. applyLimitToCloud) .and. cloudExistInStateVector(statevector)) then
 
-      do varNameIndex = 1, qlim_numVarnameCloud
-        if (.not. gsv_varExist(statevector, qlim_varNameListCloud(varNameIndex))) cycle
+      do varNameIndex = 1, vnl_numvarmaxCloud
+        if (.not. gsv_varExist(statevector, vnl_varNameListCloud(varNameIndex))) cycle
 
         if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: applying limits to ', &
-                                        qlim_varNameListCloud(varNameIndex)
+                                        vnl_varNameListCloud(varNameIndex)
 
         if (statevector%dataKind == 8) then
-          call gsv_getField(statevector, cld_ptr_r8, qlim_varNameListCloud(varNameIndex))
+          call gsv_getField(statevector, cld_ptr_r8, vnl_varNameListCloud(varNameIndex))
         else
-          call gsv_getField(statevector, cld_ptr_r4, qlim_varNameListCloud(varNameIndex))
+          call gsv_getField(statevector, cld_ptr_r4, vnl_varNameListCloud(varNameIndex))
         end if
 
-        minValueCld = qlim_readMinValueCloud(qlim_varNameListCloud(varNameIndex))
-        maxValueCld = qlim_readMaxValueCloud(qlim_varNameListCloud(varNameIndex))
+        minValueCld = qlim_readMinValueCloud(vnl_varNameListCloud(varNameIndex))
+        maxValueCld = qlim_readMaxValueCloud(vnl_varNameListCloud(varNameIndex))
 
         lon1 = statevector%myLonBeg
         lon2 = statevector%myLonEnd
@@ -605,7 +603,7 @@ contains
     if (present(applyLimitToCloud_opt)) then
       applyLimitToCloud = applyLimitToCloud_opt
     else
-      if (varNameIsCloud(varName)) then
+      if (vnl_isCloudVar(varName)) then
         if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens: limits are applied to ALL cloud variables'
         applyLimitToCloud = .true.
       else
@@ -723,21 +721,21 @@ contains
       numStep = ens_getNumStep(ensemble)
       call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
 
-      do varNameIndex = 1, qlim_numVarnameCloud
-        if (.not. ens_varExist(ensemble, qlim_varNameListCloud(varNameIndex))) cycle
+      do varNameIndex = 1, vnl_numvarmaxCloud
+        if (.not. ens_varExist(ensemble, vnl_varNameListCloud(varNameIndex))) cycle
 
         if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens:  applying limits to ', &
-                                        qlim_varNameListCloud(varNameIndex)
+                                        vnl_varNameListCloud(varNameIndex)
 
-        minValueCld = qlim_readMinValueCloud(qlim_varNameListCloud(varNameIndex))
-        maxValueCld = qlim_readMaxValueCloud(qlim_varNameListCloud(varNameIndex))
+        minValueCld = qlim_readMinValueCloud(vnl_varNameListCloud(varNameIndex))
+        maxValueCld = qlim_readMaxValueCloud(vnl_varNameListCloud(varNameIndex))
 
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
 
             do levIndex = 1, numLev
 
-                  varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, qlim_varNameListCloud(varNameIndex))
+                  varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, vnl_varNameListCloud(varNameIndex))
                   cld_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
 
                   !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, cld, cld_modified)
@@ -975,32 +973,6 @@ contains
   end function qlim_readMaxValueCloud
 
   !-----------------------------------------------------------------------
-  ! varNameIsCloud
-  !----------------------------------------------------------------------
-  function varNameIsCloud(varName) result(isCloud)
-    !
-    ! :Purpose: determine if varName is cloud variable.
-    !
-    implicit none
-
-    ! Arguments:
-    character(len=*), intent(in) :: varName
-    logical                      :: isCloud
-
-    ! Locals:
-    integer :: varNameIndex
-
-    isCloud = .false.
-    do varNameIndex = 1, qlim_numVarnameCloud
-      if (trim(varName) == trim(qlim_varNameListCloud(varNameIndex))) then
-        isCloud = .true.
-        return
-      end if
-    end do
-
-  end function varNameIsCloud
-
-  !-----------------------------------------------------------------------
   ! cloudExistInEnsemble
   !----------------------------------------------------------------------
   function cloudExistInEnsemble(ensemble) result(cloudExist)
@@ -1017,8 +989,8 @@ contains
     integer :: varNameIndex
 
     cloudExist = .false.
-    do varNameIndex = 1, qlim_numVarnameCloud
-      if (ens_varExist(ensemble, qlim_varNameListCloud(varNameIndex))) then
+    do varNameIndex = 1, vnl_numvarmaxCloud
+      if (ens_varExist(ensemble, vnl_varNameListCloud(varNameIndex))) then
         cloudExist = .true.
         return
       end if
@@ -1043,8 +1015,8 @@ contains
     integer :: varNameIndex
 
     cloudExist = .false.
-    do varNameIndex = 1, qlim_numVarnameCloud
-      if (gsv_varExist(stateVector, qlim_varNameListCloud(varNameIndex))) then
+    do varNameIndex = 1, vnl_numvarmaxCloud
+      if (gsv_varExist(stateVector, vnl_varNameListCloud(varNameIndex))) then
         cloudExist = .true.
         return
       end if
