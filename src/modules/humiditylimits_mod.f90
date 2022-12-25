@@ -383,6 +383,7 @@ contains
     ! for cloud, limits are applied to ALL cloud variables.
     if (present(applyLimitToCloud_opt)) then
       applyLimitToCloud = applyLimitToCloud_opt
+      if (.not. applyLimitToCloud) call utl_abort('qlim_rttovLimit_gsv: remove applyLimitToCloud_opt argument')
     else
       if (vnl_isCloudVar(varName)) then
         if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_gsv: limits are applied to ALL cloud variables'
@@ -391,6 +392,8 @@ contains
         applyLimitToCloud = .false.
       end if
     end if
+
+    if (applyLimitToCloud) applyLimitToAllVarname = .false.
 
     if ((applyLimitToAllVarname .or. trim(varName) == 'HU') .and. &
          gsv_varExist(statevector,'HU')) then
@@ -610,6 +613,7 @@ contains
     ! for cloud, limits are applied to ALL cloud variables.
     if (present(applyLimitToCloud_opt)) then
       applyLimitToCloud = applyLimitToCloud_opt
+      if (.not. applyLimitToCloud) call utl_abort('qlim_rttovLimit_ens: remove applyLimitToCloud_opt argument')
     else
       if (vnl_isCloudVar(varName)) then
         if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens: limits are applied to ALL cloud variables'
@@ -618,6 +622,8 @@ contains
         applyLimitToCloud = .false.
       end if
     end if
+
+    if (applyLimitToCloud) applyLimitToAllVarname = .false.
 
     if ((applyLimitToAllVarname .or. trim(varName) == 'HU') .and. &
          ens_varExist(ensemble,'HU')) then
