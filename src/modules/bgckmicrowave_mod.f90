@@ -253,8 +253,9 @@ contains
   !--------------------------------------------------------------------------
   ! extractParamForBennartzRun
   !--------------------------------------------------------------------------  
-  subroutine extractParamForBennartzRun(KCANO, ptbo, ptbcor, KNT, KNO, &
-                                        tb89, tb150, tb1831, tb1832, tb1833)
+  subroutine extractParamForBennartzRun(KCANO, ptbo, ptbomp, ptbcor, KNT, KNO, &
+                                        tb89, tb150, tb1831, tb1832, tb1833, &
+                                        tb89FG, tb150FG)
 
     !:Purpose: Extract Parameters required to run bennaertz for required channels:
     !          extract required channels:        
@@ -265,6 +266,7 @@ contains
     ! Arguments
     integer,     intent(in)               :: KCANO(KNO,KNT)         ! observations channels
     real,        intent(in)               :: ptbo(KNO,KNT)          ! radiances
+    real,        intent(in)               :: ptbomp(KNO,KNT)        ! radiances o-p
     real,        intent(in)               :: ptbcor(KNO,KNT)        ! correction aux radiances
     integer,     intent(in)               :: KNO                    ! nombre de canaux des observations 
     integer,     intent(in)               :: KNT                    ! nombre de tovs
@@ -273,6 +275,8 @@ contains
     real,        intent(out)              :: tb1831(KNT)            ! radiance frequence ? Ghz  
     real,        intent(out)              :: tb1832(KNT)            ! radiance frequence ? Ghz  
     real,        intent(out)              :: tb1833(KNT)            ! radiance frequence ? Ghz  
+    real,        intent(out)              :: tb89FG(KNT)            ! radiance frequence 89 Ghz  
+    real,        intent(out)              :: tb150FG(KNT)           ! radiance frequence 150 Ghz  
 
     ! Locals
     integer                               :: nDataIndex
@@ -302,12 +306,20 @@ contains
             if ( channelval .eq. 47 ) tb1833(nDataIndex) = ptbo(nChannelIndex,nDataIndex)
           end if
 
+          if ( channelval .eq. 43 ) tb89FG(nDataIndex)  = ptbo(nChannelIndex,nDataIndex) - &
+                                                          ptbomp(nChannelIndex,nDataIndex)
+          if ( channelval .eq. 44 ) tb150FG(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
+                                                          ptbomp(nChannelIndex,nDataIndex)
+          
         else
           if ( channelval .eq. 43 ) tb89(nDataIndex) = 0.
           if ( channelval .eq. 44 ) tb150(nDataIndex) = 0.
           if ( channelval .eq. 45 ) tb1831(nDataIndex) = 0.
           if ( channelval .eq. 46 ) tb1832(nDataIndex) = 0.
           if ( channelval .eq. 47 ) tb1833(nDataIndex) = 0.
+
+          if ( channelval .eq. 43 ) tb89FG(nDataIndex) = 0.
+          if ( channelval .eq. 44 ) tb150FG(nDataIndex) = 0.
         end if
       end do
     end do
@@ -1910,7 +1922,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsub(TOVERRST, IUTILST,  KTERMER, ICANO, ZO, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
-                                globMarq, IMARQ, ident, clwOBS, clwFG, scatw, STNID, RESETQC)
+                                globMarq, IMARQ, ident, clwOBS, clwFG, scatwObs, scatwFG, STNID, RESETQC)
 
   
     !:Purpose:          Effectuer le controle de qualite des radiances tovs.
@@ -1963,8 +1975,8 @@ contains
     !                                                              >0, rejet,
     real, allocatable, intent(out)         :: clwObs(:)          ! retrieved cloud liquid water from observation 
     real, allocatable, intent(out)         :: clwFG(:)           ! retrieved cloud liquid water from background 
-    !                                                              from observation and background
-    real, allocatable, intent(out)         :: scatw(:)           ! scattering index over water
+    real, allocatable, intent(out)         :: scatwObs(:)        ! scattering index over water from observation
+    real, allocatable, intent(out)         :: scatwFG(:)         ! scattering index over water from background
 
     integer, allocatable, intent(out)       :: ident(:)          !ATMS Information flag (ident) values (new BURP element 025174 in header)
     !                                                               FOR AMSUA just fill with zeros
@@ -2004,6 +2016,8 @@ contains
     real                                   :: tb1831 (KNT)
     real                                   :: tb1832 (KNT)
     real                                   :: tb1833 (KNT)
+    real                                   :: tb89FG (KNT)
+    real                                   :: tb150FG(KNT)
     real                                   :: scatl(KNT)
     integer                                :: err (KNT)
     integer                                :: channelForTopoFilter(3)
@@ -2045,9 +2059,10 @@ contains
     altitudeForTopoFilter(:) = (/ 2500., 2000., 1000./)
 
     ! Allocation
-    call utl_reAllocate(scatw,   KNT)
+    call utl_reAllocate(scatwObs, KNT)
+    call utl_reAllocate(scatwFG,  KNT)
     call utl_reAllocate(clwObs,   KNT)
-    call utl_reAllocate(clwFG,   KNT)
+    call utl_reAllocate(clwFG,    KNT)
 
     call utl_reAllocate(kchkprf, KNT)
     call utl_reAllocate(ident, KNT)
@@ -2071,11 +2086,13 @@ contains
     if ( RESETQC ) KMARQ(:,:) = 0
 
     !     Bennartz parameters are   extract required channels:
-    call extractParamForBennartzRun (KCANO, ptbo, ptbcor, KNT, KNO, &
-                                     tb89, tb150, tb1831, tb1832, tb1833)
+    call extractParamForBennartzRun (KCANO, ptbo, ptbomp, ptbcor, KNT, KNO, &
+                                     tb89, tb150, tb1831, tb1832, tb1833, &
+                                     tb89FG, tb150FG)
     
     !  Run Bennartz AMSU-B algorithms.
-    call bennartz (err, knt, tb89, tb150, satzen, ktermer, scatl, scatw, clwObs, clwFG)   
+    call bennartz (err, knt, tb89, tb150, tb89FG, tb150FG, satzen, ktermer, &
+                   scatl, scatwObs, scatwFG, clwObs, clwFG)   
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
@@ -2147,7 +2164,7 @@ contains
                                        ktermer, glintrp, KMARQ, ICHECK)
     ! 13) test 13: Bennartz scattering index check (full)
 
-    call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatw, scatl, &
+    call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatl, &
                                                   KTERMER, GLINTRP, KMARQ, ICHECK)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
@@ -2799,7 +2816,8 @@ contains
   !------------------------------------------------------------------------------------
   ! bennartz
   !------------------------------------------------------------------------------------
-  subroutine bennartz (ier, knt, tb89, tb150, pangl, ktermer, scatl, scatw, clwObs, clwFG)
+  subroutine bennartz (ier, knt, tb89, tb150, tb89FG, tb150FG, pangl, ktermer, &
+                       scatl, scatwObs, scatwFG, clwObs, clwFG)
 
     !:Purpose: Compute the following parameters using 2 AMSU-B channels:
     !          - scattering index (over land and ocean).*
@@ -2814,10 +2832,13 @@ contains
     integer, intent(in)  :: knt              ! number of points to process
     real,    intent(in)  :: tb89(:)          ! 89Ghz AMSU-B brightness temperature (K)
     real,    intent(in)  :: tb150(:)         ! 150Ghz AMSU-B brightness temperature (K)
+    real,    intent(in)  :: tb89FG(:)        ! 89Ghz AMSU-B brightness temperature from background (K)
+    real,    intent(in)  :: tb150FG(:)       ! 150Ghz AMSU-B brightness temperature from background (K)
     real,    intent(in)  :: pangl(:)         !  satellite zenith angle (deg.)
     integer, intent(in)  :: ktermer(:)       ! land/sea indicator (0=land;1=ocean)
     real,    intent(out) :: scatl(:)         ! scattering index over land
-    real,    intent(out) :: scatw(:)         ! scattering index over water
+    real,    intent(out) :: scatwObs(:)      ! scattering index over water from observation
+    real,    intent(out) :: scatwFG(:)       ! scattering index over water from background
     real,    intent(out) :: clwObs(:)        ! obs cloud liquid water content (not computed for NOW)
     real,    intent(out) :: clwFG(:)         ! first guess cloud liquid water content (not computed for NOW)
 
@@ -2827,47 +2848,46 @@ contains
     real, parameter :: zmisg = -99.
     integer :: i 
 
-    ! ____1) Initialise output parameters:**    -------------------------------*
-
+    ! 1) Initialise output parameters
     do i = 1, knt 
       scatl(i) = zmisg
-      scatw(i) = zmisg
+      scatwObs(i) = zmisg
+      scatwFG(i) = zmisg
       clwObs(i) = zmisg
       clwFG(i) = zmisg
     end do
 
-    !____2) Validate input parameters:**    -----------------------------*
+    ! 2) Validate input parameters
     do i = 1, knt
-      if ( tb89(i)      < 120.  .or.     &
-            tb89(i)     > 350.  .or.     &
-            tb150(i)    < 120.  .or.     &
-            tb150(i)    > 350.  .or.     & 
-            pangl(i)    < -90.  .or.     &
-            pangl(i)    >  90.  .or.     & 
-            ktermer(i)  <   0   .or.     &
-            ktermer(i)  >   1        ) then
+      if (tb89(i)      < 120.  .or.     &
+          tb89(i)     > 350.  .or.     &
+          tb150(i)    < 120.  .or.     &
+          tb150(i)    > 350.  .or.     & 
+          pangl(i)    < -90.  .or.     &
+          pangl(i)    >  90.  .or.     & 
+          ktermer(i)  <   0   .or.     &
+          ktermer(i)  >   1) then
           ier(i) = 1        
       else
           ier(i) = 0      
       end if 
     enddo
 
-    !____3) Compute parameters:**    ----------------------*
+    ! 3) Compute parameters
     do i = 1, knt 
-      if ( ier(i) == 0 ) then
-        if (ktermer(i) == 1 ) then
-          scatw(i) = (tb89(i)-tb150(i)) -      &
-                     (-39.2010+0.1104*pangl(i))
+      if (ier(i) == 0) then
+        if (ktermer(i) == 1) then
+          scatwObs(i) = (tb89(i) - tb150(i)) - (-39.2010 + 0.1104 * pangl(i))
+          scatwFG(i) = (tb89FG(i) - tb150FG(i)) - (-39.2010 + 0.1104 * pangl(i))
         else
-          scatl(i) = (tb89(i)-tb150(i)) -     &
-                     (0.158+0.0163*pangl(i))
+          scatl(i) = (tb89(i) - tb150(i)) - (0.158 + 0.0163 * pangl(i))
         endif
-      else if ( (ier(i) /= 0  ) .and. (i <= 100 ) ) then 
-        print *, ' Input Parameters are not all valid: '
-        print *, ' i,tb89(i),tb150(i),pangl(i),ktermer(i) = ',     &
-                   i,tb89(i),tb150(i),pangl(i),ktermer(i)
-        print *, ' ier(i),scatl(i),scatw(i)=',     &
-                   ier(i),scatl(i),scatw(i)
+      else if ((ier(i) /= 0) .and. (i <= 100 )) then 
+        print *, 'bennartz: input Parameters are not all valid: '
+        print *, 'bennartz: i, tb89(i), tb150(i), pangl(i), ktermer(i) = ', &
+                            i, tb89(i), tb150(i), pangl(i), ktermer(i)
+        print *, 'bennartz: ier(i), scatl(i), scatwObs(i), scatwFG(i)=', &
+                            ier(i), scatl(i), scatwObs(i), scatwFG(i)
       endif
     end do 
 
@@ -6698,7 +6718,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, obsTb, obsFlags, &
                                         cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                        atmScatteringIndex, obsGlobalMarker, &
+                                        atmScatteringIndexObs, obsGlobalMarker, &
                                         newInformationFlag)
 
     !:Purpose:      Update obspacedata variables (obstTB and obs flags) after QC
@@ -6712,7 +6732,7 @@ contains
     real,                 intent(in)        :: obsTb(:)               ! obs Tb
     real,                 intent(in)        :: cloudLiquidWaterPathObs(:)   ! obs CLW
     real,                 intent(in)        :: cloudLiquidWaterPathFG(:)    ! trial CLW
-    real,                 intent(in)        :: atmScatteringIndex(:)     ! atmospheric scatering index
+    real,                 intent(in)        :: atmScatteringIndexObs(:)  ! atmospheric scatering index from observation
     integer,              intent(in)        :: newInformationFlag(:)     ! information flag used with satplot
     integer,              intent(in)        :: obsGlobalMarker(:)        ! information flag used with satplot
     ! Locals
@@ -6729,7 +6749,7 @@ contains
         tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
       call obs_headSet_r(obsSpaceData, OBS_CLWB,  headerIndex, cloudLiquidWaterPathFG(1))
     end if
-    call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, atmScatteringIndex(1))
+    call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, atmScatteringIndexObs(1))
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag(1))
     call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalMarker(1))
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
@@ -6943,7 +6963,8 @@ contains
     !
     real,    allocatable          :: cloudLiquidWaterPathObs(:)    ! cloud liquid water path from observation.
     real,    allocatable          :: cloudLiquidWaterPathFG(:)     ! cloud liquid water path from background.
-    real,    allocatable          :: atmScatteringIndex(:)         ! scattering index
+    real,    allocatable          :: atmScatteringIndexObs(:)      ! scattering index from observation.
+    real,    allocatable          :: atmScatteringIndexFG(:)       ! scattering index from background.
     integer, external             :: exdb, exfin, fnom, fclos
     logical                       :: mwDataPresent
     logical                       :: lastHeader                    ! active while reading last report
@@ -7030,7 +7051,7 @@ contains
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, obsFlags, newInformationFlag, &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,      &
-                                atmScatteringIndex, burpFileSatId, RESETQC, obsLatitude)
+                                atmScatteringIndexObs, burpFileSatId, RESETQC, obsLatitude)
       else if (instName == 'AMSUB') then
         call mwbg_tovCheckAmsub(oer_toverrst, oer_tovutil, landQualifierIndice,&
                                 obsChannels, obsTb, obsTbBiasCorr, ompTb,      & 
@@ -7039,7 +7060,7 @@ contains
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, obsFlags, newInformationFlag,        & 
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,       &
-                                atmScatteringIndex, burpFileSatId, RESETQC)
+                                atmScatteringIndexObs, atmScatteringIndexFG, burpFileSatId, RESETQC)
       else if (instName == 'ATMS') then
         call mwbg_tovCheckAtms(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
                                oer_tovutil, obsLatitude, obsLongitude,&
@@ -7050,7 +7071,7 @@ contains
                                newInformationFlag, satScanPosition,   &
                                modelInterpTerrain, obsGlobalMarker, obsFlags,            &
                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                               atmScatteringIndex, burpFileSatId, RESETQC)
+                               atmScatteringIndexObs, burpFileSatId, RESETQC)
       else if (instName == 'MWHS2') then
         call mwbg_tovCheckMwhs2(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
                                 oer_tovutil, obsLatitude, obsLongitude, &
@@ -7060,7 +7081,7 @@ contains
                                 newInformationFlag, satScanPosition,   &
                                 modelInterpTerrain, obsGlobalMarker, obsFlags,            &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                atmScatteringIndex, burpFileSatId, RESETQC, modLSQ, lastHeader)
+                                atmScatteringIndexObs, burpFileSatId, RESETQC, modLSQ, lastHeader)
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
         call utl_abort('midas-bgckMW: unknown instName')
@@ -7077,7 +7098,7 @@ contains
       !###############################################################################
       call mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, obsTb, obsFlags, &
                                         cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                        atmScatteringIndex, obsGlobalMarker, &
+                                        atmScatteringIndexObs, obsGlobalMarker, &
                                         newInformationFlag)
 
     end do HEADER
