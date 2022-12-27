@@ -6718,8 +6718,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, obsTb, obsFlags, &
                                         cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                        atmScatteringIndexObs, obsGlobalMarker, &
-                                        newInformationFlag)
+                                        atmScatteringIndexObs, atmScatteringIndexFG, &
+                                        obsGlobalMarker, newInformationFlag)
 
     !:Purpose:      Update obspacedata variables (obstTB and obs flags) after QC
     implicit None
@@ -6733,6 +6733,7 @@ contains
     real,                 intent(in)        :: cloudLiquidWaterPathObs(:)   ! obs CLW
     real,                 intent(in)        :: cloudLiquidWaterPathFG(:)    ! trial CLW
     real,                 intent(in)        :: atmScatteringIndexObs(:)  ! atmospheric scatering index from observation
+    real,                 intent(in)        :: atmScatteringIndexFG(:)   ! atmospheric scatering index from background
     integer,              intent(in)        :: newInformationFlag(:)     ! information flag used with satplot
     integer,              intent(in)        :: obsGlobalMarker(:)        ! information flag used with satplot
     ! Locals
@@ -6750,6 +6751,9 @@ contains
       call obs_headSet_r(obsSpaceData, OBS_CLWB,  headerIndex, cloudLiquidWaterPathFG(1))
     end if
     call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, atmScatteringIndexObs(1))
+    if ( tvs_mwAllskyAssim ) then
+      call obs_headSet_r(obsSpaceData, OBS_SIB, headerIndex, atmScatteringIndexFG(1))
+    end if
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag(1))
     call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalMarker(1))
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
@@ -7098,8 +7102,8 @@ contains
       !###############################################################################
       call mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, obsTb, obsFlags, &
                                         cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                        atmScatteringIndexObs, obsGlobalMarker, &
-                                        newInformationFlag)
+                                        atmScatteringIndexObs, atmScatteringIndexFG, &
+                                        obsGlobalMarker, newInformationFlag)
 
     end do HEADER
     !###############################################################################
