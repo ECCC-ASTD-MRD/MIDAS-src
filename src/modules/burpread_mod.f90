@@ -4593,7 +4593,9 @@ CONTAINS
           end if ! hyper Spectral
 
           if ( (tvs_isIdBurpInst(idatyp,'atms' )) .or. &
-               (tvs_isIdBurpInst(idatyp,'amsua')) ) then 
+               (tvs_isIdBurpInst(idatyp,'amsua')) .or. &
+               (tvs_isIdBurpInst(idatyp,'amsub')) .or. &
+               (tvs_isIdBurpInst(idatyp,'mhs'))) then 
             ! info block (btyp = 0001 100000X XXXX) 
             ! 0001 100000X XXXX = 3072
             btyp10    = ishft(btyp,-5)
