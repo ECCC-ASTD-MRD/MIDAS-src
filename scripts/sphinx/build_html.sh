@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# SSM package to add latex math:
+. ssmuse-sh -p /fs/ssm/eccc/cmd/cmds/env/python/py39_2022.05.24_rhel-8-icelake-64
 
 # ARGUMENTS SPECIFY DIRECTORIES OF MIDAS SOURCE CODE AND DESTINATION
 
@@ -10,8 +12,8 @@ toplevel=$(git rev-parse --show-toplevel)
 
 # CHOOSE WHETHER OR NOT TO GENERATE DEPENDENCY GRAPHS (COSTLY) AND NAMELIST INFORMATION
 
-do_graphs=yes
-do_namelists=yes
+do_graphs=no
+do_namelists=no
 
 # PREPARE THE MODULE DEPENDENCY ARRAYS
 

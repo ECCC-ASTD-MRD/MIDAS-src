@@ -16,7 +16,112 @@
 
 program midas_pseudoSSTobs
   !
-  ! :Purpose: Main program to compute SST bias estimate
+  !:Purpose: Main program to produce pseudo SST observations 
+  !          in ice-covered areas.
+  !
+  !          ---
+  !
+  !:Algorithm: Pseudo SST observations are put into the ice-covered 
+  !            water points.
+  !            First, a global global sea-ice analysis is read.
+  !            The sea-ice analysis file contains a mandatory sea-water
+  !            fraction field.
+  !            The grid and land-ocean mask are read 
+  !            from the ``analysisgrid`` file.
+  !
+  !            --
+  !
+  !            Second, the number of ice-covered water points, including 
+  !            concerned inland water points, are computed.
+  !            If the number of ice-covered water points is zero,
+  !            an empty observation SQLite file is created.
+  !            If not, the computation of pseudo observations starts.
+  !
+  !            --
+  !              
+  !            First, the index array of ice-covered water points are 
+  !            randomly shuffled to prevent the insertion of pseudo 
+  !            observations at the same locations
+  !            that would lead to temporal correlation of observations.
+  !            Second, the pseudo observations of sea surface temperature :math:`T`
+  !            are inserted at every ice-covered inland water point :math:`k`, 
+  !            where the value of observations is computed as follows:
+  !            :math:`T(k)=(1 - w(k)) * T_{fw} + w(k) * T_{s}`,
+  !            where :math:`w(k)` is the sea-water fraction at the point :math:`k`,
+  !            :math:`T_{fw}` is the temperature of fresh water below the ice,
+  !            :math:`T_{s}` is a temperature of the sea water below the ice.
+  !            The pseudo observations are inserted into every :math:`N`-th point 
+  !            of sea water ice-covered points, 
+  !            where the value of observation is defined as
+  !            :math:`T_{s}`, temperature of the sea water below the ice.
+  !             
+  !            --
+  !  
+  !            The computed observations values along with the corresponding 
+  !            coordinates are put into ``obsSpaceData``. 
+  !            Finally, output SQLite files are created.
+  !       
+  !            --
+  !
+  !=========================================================== ======================================================
+  ! Input and Output Files                                     Description of file
+  !=========================================================== ======================================================
+  ! ``analysisgrid``                                           In - File defining sea-ice global grid
+  ! ``seaice_analysis``                                        In - File containing ``LG`` and ``VF`` fields
+  ! ``obsfiles_sst_pseudo.updated/obssst_pseudo_$NNNN_$NNNN``  Out - Pseudo obs file for each MPI task
+  !=========================================================== ======================================================
+  !
+  !           --
+  !
+  !:Synopsis: Below is a summary of the ``pseudoSSTobs`` program calling sequence:
+  !
+  !           - **Initial setups:**
+  !
+  !             - Setup horizontal and vertical grid objects for "analysis
+  !               grid" from ``analysisgrid``.
+  !
+  !             - Setup ``obsSpaceData`` object.
+  !
+  !             - Setup ``gridStateVector`` module.
+  !
+  !           - **Computation**
+  !
+  !             - ``utl_randomOrderInt`` random shuffle the ice-covered point indices
+  !
+  !             - ``oobs_computeObsData`` compute pseudo observation locations and values
+  !                                       and save them in SQLite files.
+  !
+  !           --
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#pseudoSSTobs>`_
+  !          that can affect the ``pseudoSSTobs`` program.
+  !
+  !          * The use of ``pseudoSSTobs`` program is controlled by the namelist block
+  !            ``&pseudoSSTobs`` read by the ``pseudoSSTobs`` program.
+  !
+  !          * ``iceFractionThreshold``: the sea-ice fraction threshold to define 
+  !                                      the presence of ice at each particular point
+  !
+  !          * ``outputSST``: the value of :math:`T_{s}` in K; 
+  !
+  !          * ``outputFreshWaterST``: the value of :math:`T_{fw}` in K;
+  !
+  !          * ``seaiceThinning``: pseudo observations are inserted into each :math:`N`-th point,
+  !                                this parameter controls the observation thinning
+  !
+  !          * ``outputFileName``: controls the output file names
+  !
+  !          * ``etiket``: etiket to put into the table "resume" of output SQLite file
+  ! 
+  !          *  ``seaWaterThreshold``: a threshold to distinguish sea and fresh water
+  !
+  !           --
+  !
+  !========================== ================ ==============================================================
+  ! Module                    Namelist         Description of what is controlled
+  !========================== ================ ==============================================================
+  ! ``oceanObservations_mod`` ``pseudoSSTobs`` parameters of pseudo SST observations
+  !========================== ================ ==============================================================
   !
   use version_mod
   use ramDisk_mod

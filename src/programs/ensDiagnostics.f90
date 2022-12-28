@@ -15,7 +15,69 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 program midas_ensDiagnostics
-  ! :Purpose: Compute diagnostics related to imbalance and spin-up in a data assimilation cycle     
+  !
+  !:Purpose: Compute diagnostics related to imbalance and spin-up in a data assimilation cycle.     
+  !
+  !          ---
+  !
+  !:Algorithm: The ``ensDiagnostics`` program estimates the second derivative of P0 from the trials,
+  !            :math:`d^{2}\textrm{P0}/dt^{2}\approx
+  !            (\textrm{P0}(t-1)-2\textrm{P0}(t)+\textrm{P0}(t+1))/\Delta t^2`,
+  !            and computes the instant rain rates,
+  !            :math:`\textrm{PR}(t+1)-\textrm{PR}(t)`, at each time step.
+  !
+  !            --
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files                         Description of file
+  !============================================== ==============================================================
+  ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Background ensemble member files
+  ! ``imbalance.dat``                              Out - Second derivative of P0
+  ! ``rainrate.dat``                               Out - Instant rain rates
+  !============================================== ==============================================================
+  !
+  !            --
+  !
+  !:Synopsis: Below is a summary of the ``ensDiagnostics`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Read the namelist of ``namEnsDiagnostics``.
+  !
+  !               - Set up time steps, horizontal grid and vertical grid.
+  !
+  !               - Read input trials.
+  !
+  !             - **Diagnostic computations:**
+  !
+  !               - Compute second derivative at each grid points at each time step.
+  !
+  !               - Compute mean square average over the globe.
+  !
+  !               - Compute root mean average over the members.
+  !
+  !               - Compute mean instant rain rate over the globe.
+  !
+  !               - Compute mean over the members.
+  !
+  !             - **Final steps:**
+  !
+  !               - At the end of each computation of the second derivative of P0 and
+  !                 the instant rain rates, it write the results to the files.
+  !
+  !            --
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#ensdiagnostics>`_
+  !          that can affect the ``ensDiagnostics`` program.
+  !
+  !            --
+  !   
+  !========================== ====================== ===========================================
+  ! Program/Module             Namelist               Description of what is controlled
+  !========================== ====================== ===========================================
+  ! ``midas_ensDiagnostics``  ``NAMENSDIAGNOSTICS``   parameters for input ensemble trials
+  !========================== ====================== ===========================================
+  !
   use version_mod
   use midasMpi_mod
   use mathPhysConstants_mod
@@ -224,4 +286,3 @@ program midas_ensDiagnostics
   call rpn_comm_finalize(ierr)
 
 end program midas_ensDiagnostics      
-

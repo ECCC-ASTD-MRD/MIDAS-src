@@ -18,7 +18,7 @@ module SSTbias_mod
 
   ! MODULE SSTbias (prefix='sstb' category='1. High-level functionality')
   !
-  ! :Purpose: Compute SST bias estimation and correction
+  !:Purpose: Compute SST satellite data bias estimation and correction
   !
   use obsSpaceData_mod  
   use horizontalCoord_mod
@@ -475,7 +475,7 @@ module SSTbias_mod
     call gsv_allocate(stateVector_previous, 1, hco, vco, dataKind_opt = 4, &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVector_previous, './trlm_01', 'B_'//trim(sensor)//'_'//trim(extension), &
-                          'R', unitConversion_opt=.false., containsFullField_opt=.true.)
+                          ' ', unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_previous, griddedBias_r4_previous_ptr) 
        
     ! resulting bias estimation state vector
@@ -738,7 +738,7 @@ module SSTbias_mod
         end if
 	
         call gio_readFromFile(stateVector, biasFileName, 'B_'//trim(sensorList(sensorIndex))//'_'//trim(extension), &
-                              'R', unitConversion_opt=.false., containsFullField_opt=.true.)
+                              ' ', unitConversion_opt = .false., containsFullField_opt = .true.)
         call sstb_getBiasCorrection(stateVector, column, obsData, hco, trim(sensorList(sensorIndex)), &
                                     trim(listProducts(productIndex)))
       end do
@@ -788,7 +788,7 @@ module SSTbias_mod
     call gsv_allocate(stateVector_previous, 1, hco, vco, dataKind_opt = 4, &
                        datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVector_previous, './trlm_01', 'B_'//trim(sensor)//'_'//trim(extension), &
-                          'R', unitConversion_opt=.false., containsFullField_opt=.true.)
+                          ' ', unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_previous, griddedBias_r4_previous_ptr) 
 
     ! resulting bias estimation state vector

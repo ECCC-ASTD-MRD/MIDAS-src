@@ -16,8 +16,47 @@
 
 program midas_var1D
   !
-  ! :Purpose: Main program for one dimensional variational minimization
+  !:Purpose: Main program for one dimensional variational minimization
   !
+  !          ---
+  !
+  !:Algorithm:
+  !
+  !            --
+  !
+  !:File I/O: The required input files and produced output files are listed as follows.
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files (NWP application)        Description of file
+  !============================================== ==============================================================
+  
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``flnml_static``                               In - The "static" namelist that should not be modified
+  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
+  ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
+  ! ``Bmatrix_sea.bin``                            In - 1DVar Bmatrix file over sea (output from extractBmatrixFor1DVar) 
+  ! ``Bmatrix_land.bin``                           In - 1DVar Bmatrix file over land (output from extractBmatrixFor1DVar)
+  ! ``rttov_h2o_limits.dat``                       In - minimum and maximum humidity profile to clip analysis
+  ! ``pm1q``                                       In/Out - Preconditioning file (Hessian of the cost function)
+  ! Remainder are files related to radiance obs:
+  ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
+  ! ``stats_tovs``                                 In - Observation error file for radiances
+  ! ``stats_tovs_symmetricObsErr``                 In - user-defined symmetric TOVS errors for all sky
+  ! ``rtcoef_$PLATFORM_$SENSOR.H5``                In - RTTOV coefficient file HDF-5 format 
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient file ASCII format 
+  ! ``ozoneclim98``                                In - ozone climatology standard file (Fortuin and Kelder)
+  !============================================== ==============================================================
+  !
+  !           --
+  !
+  !:Synopsis:
+  !
+  !
+  !           --
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#var1D>`_
+  !          that can affect the ``var1D`` program.
+  !
+  
   use version_mod
   use codePrecision_mod
   use ramDisk_mod

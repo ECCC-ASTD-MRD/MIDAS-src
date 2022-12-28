@@ -16,14 +16,102 @@
 
 program midas_analysisErrorOI
   !
-  ! :Purpose: Calculate analysis-error standard deviation given
-  !           new assimilated observations. It only works for sea ice variables and
-  !           uses a simple OI approach.
+  !:Purpose: Calculate analysis-error standard deviation given
+  !          new assimilated observations. It only works for sea ice variables and
+  !          uses a simple OI approach.
+  !
+  !          ---
+  !
+  !:Algorithm: The Optimal Interpolation (OI) is a data assimilation approach
+  !            where both the state and its estimated error are computed using
+  !            observations while taking into account the specified 
+  !            uncertainties for both the observations and the background
+  !            state (i.e. the R and B covariance matrices, respectively).
+  !            The computations are done independently at each analysis grid
+  !            point with only local observations, those that have a 
+  !            significant influence on the analysis at the grid point
+  !            location. Here the code only implements the calculation to
+  !            update the diagonal of the B covariance matrix.
+  !
+  !            --
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files                         Description of file
+  !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``trlm_01``                                    In - Background-error standard deviation
+  ! ``analysisgrid``                               In - File defining grid for computing the analysis error
+  ! ``sea_ice_obs-err``                            In - Observation error statistics
+  ! ``bgstddev``                                   In - Static background-error statistics
+  ! ``bgSeaIceConc``                               In - Background sea ice concentration
+  ! ``obsfiles_$FAM/obs$FAM_0001_0001``            In - Observation file for each "family" (only 1 MPI task)
+  ! ``anlm_000m``                                  Out - Analysis-error on the analysis grid
+  ! ``obsfiles_$FAM.updated/obs$FAM_0001_0001``    Out - Updated obs file for each "family" (only 1 MPI task)
+  !============================================== ==============================================================
+  !
+  !           --
+  !
+  !:Synopsis: Below is a summary of the ``analysisErrorOI`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Setup horizontal and vertical grid objects for "analysis
+  !                 grid" from ``trlm_01`` file.
+  !
+  !               - Setup ``obsSpaceData`` object and read observations from
+  !                 files: ``inn_setupObs``.
+  !
+  !               - Setup ``columnData`` and ``gridStateVector`` modules (read
+  !                 list of analysis variables from namelist) and allocate column
+  !                 object for storing trial on analysis levels.
+  !
+  !               - Setup the observation error statistics in ``obsSpaceData``
+  !                 object: ``oer_setObsErrors``.
+  !
+  !               - Filter out observations from satellites
+  !                 not specified in the name list: ``filt_iceConcentration``.
+  !
+  !               - Filter scatterometer backscatter anisotropy observations
+  !                 where wind speed is too small: ``filt_backScatAnisIce``.
+  !
+  !               - Setup observation-error for scatterometer backscatter
+  !                 anisotropy observations: ``oer_setErrBackScatAnisIce``.
+  !
+  !               - Compute the analysis-error: ``aer_analysisError``.
+  !
+  !               - Update the Days Since Last Obs: ``aer_daysSinceLastObs``.
+  !
+  !               - Update the observation files: ``obsf_writeFiles``.
+  !
+  !           --
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#analysisErrorOI>`_
+  !          that can affect the ``analysisErrorOI`` program.
+  !
+  !          * The relevant namelist blocks used to configure the
+  !            analysis-error calculation are listed in the following table:
+  ! 
+  !======================== ================== ==============================================================
+  ! Module                   Namelist           Description of what is controlled
+  !======================== ================== ==============================================================
+  ! ``timeCoord_mod``       ``NAMTIME``         assimilation time window length, temporal resolution of
+  !                                             the background state
+  ! ``columndata_mod``      ``NAMSTATE``        name of the analysis variable (RPN nomvar, 4-character long)
+  ! ``gridstatevector_mod``       "                                   "
+  ! ``obsspacedata_mod``    ``NAMDIMO``         specify the maximum number of header and body elements
+  ! ``obsfilter_mod``       ``NAMFILT``         list of varno to use and bit flags (13-bit#) for filtering
+  ! ``obsfilter_mod``       ``namPlatformIce``  list of observation platforms to assimilate
+  ! ``sqliteread_mod``      ``NAMSQLgl``        list of varno to read from SQLite files for sea ice
+  ! ``sqliteread_mod``      ``namSQLUpdate``    list of elements to update in SQLite files
+  ! ``sqliteread_mod``      ``namSQLInsert``    place holder, could be empty
+  ! ``analysisErrorOI_mod`` ``NAMAER``          set the maximum analysis-error std dev. allowed
+  !======================== ================== ==============================================================
   !
   use version_mod
   use ramDisk_mod
   use utilities_mod
   use midasMpi_mod
+  use message_mod
   use mathPhysConstants_mod
   use horizontalCoord_mod
   use verticalCoord_mod
@@ -59,7 +147,7 @@ program midas_analysisErrorOI
   call mmpi_initialize
 
   if( mmpi_nprocs > 1 ) then
-    write(*,*) 'mmpi_nprocs = ',mmpi_nprocs
+    call msg(myName,'mmpi_nprocs = '//str(mmpi_nprocs))
     call utl_abort(myName//': this version of the code should only be used with one mpi task.')
   end if
 
@@ -104,15 +192,14 @@ program midas_analysisErrorOI
   !- Initialize list of analyzed variables.
   !
   call gsv_setup
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage(myName)
 
   trlmFileName = './trlm_01'
 
   !
   !- Initialize the Analysis grid
   !
-  if (mmpi_myid == 0) write(*,*)
-  if (mmpi_myid == 0) write(*,*) 'var_setup: Set hco parameters for analysis grid'
+  call msg(myName,'Set hco parameters for analysis grid', mpiAll_opt=.false.)
   call hco_SetupFromFile(hco_anl, trlmFileName, aer_backgroundEtiket) ! IN
 
   !
@@ -122,19 +209,19 @@ program midas_analysisErrorOI
                           './analysisgrid') ! IN
 
   call col_setVco(trlColumnOnAnlLev,vco_anl)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage(myName)
 
   !
   !- Setup and read observations
   !
   call inn_setupObs(obsSpaceData, hco_anl, 'VAR', obsMpiStrategy, varMode) ! IN
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage(myName)
 
   !
   !- Basic setup of columnData module
   !
   call col_setup
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage(myName)
 
   !
   !- Memory allocation for background column data
@@ -145,12 +232,12 @@ program midas_analysisErrorOI
   !- Initialize the observation error covariances
   !
   call oer_setObsErrors(obsSpaceData, varMode) ! IN
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  call msg_memUsage(myName)
 
   ! Sea ice concentration
   call filt_iceConcentration(obsSpaceData, beSilent=.false.)
   call filt_backScatAnisIce(obsSpaceData, beSilent=.false.)
-  call oer_setErrBackScatAnisIce( obsSpaceData, beSilent=.false. )
+  call oer_setErrBackScatAnisIce(obsSpaceData, beSilent=.false.)
 
   ! Compute the analysis-error
   call aer_analysisError(obsSpaceData, hco_anl, vco_anl, trlmFileName)
@@ -160,7 +247,7 @@ program midas_analysisErrorOI
 
   ! Now write out the observation data files
   if ( .not. obsf_filesSplit() ) then 
-    write(*,*) 'We read/write global observation files'
+    call msg(myName,'reading/writing global observation files')
     call obs_expandToMpiGlobal(obsSpaceData)
     if (mmpi_myid == 0) call obsf_writeFiles(obsSpaceData)
   else

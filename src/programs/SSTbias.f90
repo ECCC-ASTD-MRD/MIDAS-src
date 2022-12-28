@@ -16,7 +16,111 @@
 
 program midas_sstBias
   !
-  ! :Purpose: Main program to compute SST bias estimate
+  !:Purpose: Main program to compute Sea Surface Temperature (SST) 
+  !          satellite data bias estimate.
+  !          
+  !          ---
+  !
+  !:Algorithm: The bias estimation of SST satellite data is computed
+  !            with respect to insitu data that are considered unbiased.
+  !            The bias estimation is produced for each sensor separately
+  !            for day and night time.
+  !  
+  !            --
+  !
+  !            First, each dataset is put on a regular grid using a small 
+  !            search radius (of ~25 km).
+  !            Second, colocated differences between satellite and insitu data
+  !            are computed using much larger search radius (of ~1500km).
+  !            
+  !            --
+  !
+  !            The resulting bias estimation :math:`B_{a}(k)` at point :math:`k`
+  !            is computed as follows:
+  !            :math:`B_{a}(k) = (1 - w(k)) * B_{b}(k) + w(k) * B_{a}(k)`,
+  !            where :math:`B_{b}(k)` is a background state of the bias estimation
+  !            computed on the previous day
+  !            and :math:`w(k)` is a weight which is defined as:
+  !            :math:`w(k) = N_{a}(k) / (N_{a}(k) + N_{b})`,
+  !            where :math:`N_{a}(k)` is the number of data involved in the
+  !            computation of the current bias estimate :math:`B_{a}(k)` at point :math:`k`
+  !            and :math:`N_{b}` is a parameter for corresponding number
+  !            of data used to compute the background state :math:`B_{b}(k)`.
+  !
+  !=========================================================== ======================================================
+  ! Input and Output Files                                     Description of file
+  !=========================================================== ======================================================
+  ! ``analysisgrid``                                           In - File defining sea-ice global grid
+  ! ``seaice_analysis``                                        In - File containing ``LG`` and ``VF`` fields
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``                      In - Observation file for each "family" and MPI task
+  ! ``searchRadius``                                           In - 'Large' search radius field to compute biases
+  ! ``trlm_01``                                                In - Background state of the bias estimation
+  ! ``satellite_bias.fst``                                     Out - Bias estimations
+  ! ``auxOutput.fst``                                          Out - Auxiliary output (optional): 
+  !                                                                  number of observations and weight fields
+  !=========================================================== ======================================================
+  !
+  !           --
+  !
+  !:Synopsis: Below is a summary of the ``SSTbias`` program calling sequence:
+  !
+  !           - **Initial setups:**
+  !
+  !             - Setup horizontal and vertical grid objects for "analysis
+  !               grid" from ``analysisgrid``.
+  !
+  !             - Setup ``obsSpaceData`` object and read observations from
+  !               files: ``inn_setupObs``.
+  !
+  !             - Setup ``columnData`` and ``gridStateVector`` modules.
+  !
+  !           - **Computation**
+  !
+  !             - ``ocm_readMaskFromFile``: get the land-ocean mask
+  !
+  !             - ``oobs_computeObsData`` compute pseudo observation values and their coordinates
+  !                                       and save them in SQLite files.
+  !
+  !             - ``sstb_getGriddedObs``: get all datasets on a regular grid
+  !
+  !             - ``sstb_getGriddedBias``: compute bias estimation for each sensor,
+  !                for day time or night time on a regular grid,
+  !                and save the results into an output standard file.  
+  !           --
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#SSTbias>`_
+  !          that can affect the ``SSTbias`` program.
+  !
+  !          * The use of ``SSTbias`` program is controlled by the namelist block
+  !            ``&namSSTbiasEstimate`` read by the ``SSTbias`` program.
+  !
+  !          * ``iceFractionThreshold``: the sea-ice fraction threshold to define 
+  !                                      the presence of ice
+  !
+  !          * ``searchRadius``: horizontal search radius for observation gridding 
+  !
+  !          * ``maxBias``: max allowed insitu-satellite difference in degrees
+  !
+  !          * ``numberPointsBG``: :math:`N_{b}`, number of points to compute the background bias estimation
+  !
+  !          * ``numberSensors``: number of sensors to treat
+  !
+  !          * ``sensorList``: name of sensor 
+  ! 
+  !          *  ``weightMin``: minimum value of weight
+  !
+  !          *  ``weightMax``: maximum value of weight
+  !
+  !          *  ``saveAuxFields``: to store or not auxiliary fields: nobs and weight
+  !
+  !           --
+  !   
+  !================= ====================== ====================================
+  ! Module           Namelist               Description of what is controlled
+  !================= ====================== ====================================
+  ! ``SSTbias_mod``  ``namSSTbiasEstimate`` parameters of bias estimation
+  !================= ====================== ====================================
+  !
   !
   use version_mod
   use ramDisk_mod

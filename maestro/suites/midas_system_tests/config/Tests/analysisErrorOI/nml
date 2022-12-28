@@ -31,27 +31,6 @@
   listPlatformIce(3) = 'CIS_REGIONAL'
   listPlatformIce(4) = 'iceclake'
 /
- &NAMBDIFF
-  corr_len = 200*10.0
-  stab     = 200*0.2
-  nsamp    = 200*10000
-  SCALEFACTOR = 200*1.0
-  stddevMode = 'HOMO'
-  homogeneous_std = 200*0.093
-/
- &NAMBHI
-   NTRUNC  = 180
-   SCALEFACTOR = 200*0.0D0
-/
- &NAMBLB
-   NTRUNC  = 180
-   SCALEFACTOR = 200*0.0D0
-   stddevMode = 'GD3D'
-   filterStddev = 5
-/
- &NAMBEN
-   SCALEFACTOR = 200*0.0D0
-/
  &NAMSQLgl
   listElem="20222,20237,21169,21199"
   sqlNull=" and obsvalue is not null "
@@ -63,12 +42,6 @@
  itemUpdateList(4)='FGE'
 /
  &namSQLInsert
-/
- &NAMINC
-   hInterpolationDegree = 'LINEAR'
-   etiket_rebm ='XXXXXX'
-/
- &NAMCODTYP
 /
  &NAMAER
    maxAnalysisErrorStdDev = 1.0

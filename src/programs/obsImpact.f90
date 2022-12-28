@@ -16,7 +16,169 @@
 
 program midas_obsimpact
   !
-  ! :Purpose: Main program for Observation Impact computation (FSOI)
+  !:Purpose: Main program for Observation Impact computation (FSOI)
+  !
+  !           ---
+  !
+  !:Algorithm: FSOI is to partition, with respect to arbitrary subsets 
+  !            of observations, the forecast error reduction, defined as:
+  !
+  !             :math:`(e_{t}^{fa})^{T}*C*(e_{t}^{fa})-(e_{t}^{fb})^{T}*C*(e_{t}^{fb})`
+  !
+  !            (within the current system) from assimilating these observations.
+  !             
+  !            --
+  !
+  !            The hybrid FSOI approach (HFSO) is developed to suit 4D-EnVar 
+  !            without requiring an adjoint of the forecast model. It is 
+  !            similar to the standard adjoint approach as it uses an iterative
+  !            approach to represent the adjoint of the data assimilation
+  !            procedure, but relies on an ensemble of forecasts to propagate 
+  !            the impact between forecast and analysis times. In this way, the
+  !            impact of assimilated observations on 24h forecasts quality is
+  !            estimated by combining the impact of observations on the 
+  !            analysis increment (e.g. via the 4D-EnVar) and the impact of
+  !            analysis increments on reducing forecast errors.
+  !
+  !            --
+  !
+  !            More details on HFSO can be found in the paper: `HFSO approach <https://doi.org/10.1175/MWR-D-17-0252.1>`_
+  !
+  !            --
+  !
+  !            Ensemble Forecast Sensitivity to Observation (EFSO) is an approach
+  !            for estimating the observation impacts in the ensemble-based data 
+  !            assimilation systeman. This approach is convenient and no need of 
+  !            adjoint of the forecast model. 
+  !            
+  !            --
+  ! 
+  !            More details on EFSO can be found in the paper:`EFSO approach <http://doi.org/10.3402/tellusa.v65i0.20038>`_
+  !
+  !            --
+  !
+  !:File I/O: The required input files and produced output files are listed as follows.
+  !
+  !           --
+  !
+  !============================================== ====================================================================
+  ! Input and Output Files                         Description of file
+  !============================================== ====================================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
+  ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
+  ! ``bgcov``                                      In - Static (i.e. NMC) B matrix file for NWP fields
+  ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Ensemble member files defining ensemble B matrix
+  ! ``ensemble/$YYYYMMDDHH_foradv``                In - advection files
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
+  ! ``obserr``                                     In - Observation error statistics
+  ! ``forecasts/forecast_*``                       In - Global deterministic forecast from backgroud and analysis
+  ! ``forecasts/analysis``                         In - Verifying analysis
+  ! ``diafiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task in SQLite 
+  ! Remainder are files related to radiance obs:
+  ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of difference sensors
+  ! ``stats_tovs``                                 In - Satellite radiance observation errors 
+  ! ``rtcoef_$PLATFORM_$SENSOR.**``                In - RTTOV coefficient files 
+  ! ``stats_tovs_symmetricObsErr``                 In - user-defined symmetric TOVS errors for all sky
+  ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
+  !============================================== ====================================================================
+  !
+  !           --
+  !
+  !:Synopsis: Below is a summary of the ``obsImpact`` program calling sequence:
+  !
+  !           - **Initial setups:**
+  !
+  !             - Initialize FSOI module, read the namelist from ``fso_setup``
+  !
+  !             - Setup horizontal and vertical grid objects for "analysis
+  !               grid" from ``analysisgrid`` file and for "trial grid" from
+  !               first trial file: ``trlm_01``.
+  !
+  !             - Setup ``obsSpaceData`` object and read observations from
+  !               files: ``inn_setupObs``.
+  !
+  !             - Setup ``columnData`` and ``gridStateVector`` modules (read
+  !               list of analysis variables from namelist) and allocate column
+  !               object for storing trial on analysis levels.
+  ! 
+  !             - Setup the observation error statistics in ``obsSpaceData``
+  !               object: ``oer_setObsErrors``.
+  !
+  !             - Allocate a stateVector object on the trial grid and then
+  !               read the trials: ``gio_readTrials``.
+  !
+  !             - Setup the B matrices: ``bmat_setup``.
+  !
+  !             - Setup the ``gridVariableTransforms``. 
+  !
+  !           - **Computation:** 
+  !
+  !             - ``incdatr``: Setup dateStamp(one extra timestamp: leadTime) for FSOI.
+  !
+  !             - ``inn_computeInnovation``: Compute innovation 
+  !
+  !             - ``calcFcstError``: Read the forcasts from background and analysis, and 
+  !                                  the verifying analysis as well, calculate the forecast
+  !                                  error norm defined as: 
+  !                                  :math:`(C*(e_{t}^{fa}+e_{t}^{fb}))`.
+  !
+  !             - ``bmat_sqrtBT``: Compute the variable vhat for minimization in HFSO mode.             
+  !                                       :math:`vhat=B_{t}^{T/2}*C*(e_{t}^{fa}+e_{t}^{fb})` 
+  !
+  !             - ``minimize``: Do the minimization of vhat for HFSO mode.
+  !
+  !             - ``bmat_sqrt``: Compute :math:`B^{1/2}*ahat` .
+  !
+  !             - ``s2c_tl``, ``oop_Htl``: Put in columndata and get :math:`H*B^{1/2}*ahat` .
+  !
+  !             - ``rmat_RsqrtInverseAllObs``: Apply observation error variances and get
+  !                                                    :math:`R^{-1}*H*B^{1/2}*ahat` 
+  !
+  !             - ``sumFSO``: Print out the FSOI value, including total and the one from each obs family.
+  !
+  !           - **Final steps:** 
+  !
+  !             - ``obsf_writeFiles``: Write the final FSOI value in SQLite file.
+  !
+  !           --
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#obsImpact>`_
+  !          that can affect the ``obsImpact`` program.
+  !
+  !          * The use of ``obsImpact`` program is controlled mainly by the namelist block
+  !            ``&NAMFSO`` read by the ``fso_mod`` module. Here are more details about the variables in ``&NAMFSO`` 
+  !
+  !          * ``LEADTIME``: the forecast leading time 
+  !
+  !          * ``NVAMAJ``, ``NITERMAX``, ``NSIMMAX``, ``REPSG``: variables for minimization 
+  !
+  !          * ``latMinNorm``, ``latMaxNorm``, ``lonMinNorm``, ``lonMaxNorm`` : define the domain of forecast errors
+  !
+  !          * ``FORCECASTPATH``: the path contains the forecasts from background and analysis and verifying analysis
+  !
+  !          * ``FSOMODE``:  use HFSO (hybrid FSOI) or EFSO (ensemble FSOI), default is HFSO
+  ! 
+  !          * ``includeHUnorm``: use wet norm or not, default value is dry norm 
+  ! 
+  !          * Some of the other relevant namelist blocks used to configure FSOI
+  !            are listed in the following table:
+  !
+  !   
+  !========================= ====================== =============================================================
+  ! Module                   Namelist               Description of what is controlled
+  !========================= ====================== =============================================================
+  ! ``timeCoord_mod``        ``NAMTIME``            assimilation time window length, temporal resolution of
+  !                                                 the background state and increment
+  !                                                 the background state and increment
+  ! ``bMatrixEnsemble_mod``  ``NAMBEN``             weight and other parameters for ensemble-based B matrix
+  !                                                 component
+  ! ``bMatrixHI_mod``        ``NAMBHI``             weight and other parameters for the climatological B matrix
+  !                                                 component based on homogeneous-isotropic covariances
+  !                                                 represented in spectral space
+  ! ``obsFiles_mod``         ``NAMWRITEDIAG``       write out in SQLite file
+  !========================= ====================== =============================================================
+  !
   !
   use version_mod
   use codePrecision_mod
