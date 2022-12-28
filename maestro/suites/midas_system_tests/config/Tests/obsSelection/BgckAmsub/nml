@@ -35,6 +35,11 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+   ANLVAR(7)   ='LWCR'
+   ANLVAR(8)   ='IWCR'
+   ANLVAR(9)   ='RF'
+   ANLVAR(10)  ='SF'
+   ANLVAR(11)  ='CLDR'
 /
  &NAMTOV
    CSATID(1)        = 'NOAA15',
@@ -51,6 +56,9 @@
    CINSTRUMENTID(6)= 'MHS',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
+   mwAllskyAssim = .true.,
+   instrumentNamesUsingHydrometeors(1) = 'amsub'
+   instrumentNamesUsingHydrometeors(2) = 'mhs'
    regLimitExtrap=.false.
 /
  &NAMCODTYP
@@ -58,6 +66,11 @@
  &NAMGPSRO
 /
  &NAMGPSGB
+/
+ &NAMADDTOBURP
+  addBtClearToBurp=.false.,
+  btClearElementId=12164,
+  siFgElementId=13091,
 /
  &NAMBURP_FILTER_SFC
   BLISTELEMENTS_SF=10004,12004,10051,12203,11011,11012,13220
