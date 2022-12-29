@@ -4616,8 +4616,8 @@ CONTAINS
               end if
 
               ! clwFG
-              if ( tvs_mwAllskyAssim .and. &
-                   tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+              if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                  tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indClwFG = BURP_Find_Element(inputBlock, ELEMENT=clwFgElementId)
                 if (indClwFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4641,8 +4641,7 @@ CONTAINS
               end if
 
               ! siFG
-              if ( tvs_mwAllskyAssim .and. &
-                   tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
                 if (indSiFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4667,28 +4666,34 @@ CONTAINS
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                   end if
+
+                  ! clwObs
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWO,idata2)),ind13209,1,tIndex)
-                  if ( tvs_mwAllskyAssim .and. &
-                       tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                  ! clwFG
+                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),indClwFG,1,tIndex)
                   end if
+
+                  ! siObs
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
-                  if ( tvs_mwAllskyAssim .and. &
-                       tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                  ! siFG
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIB,idata2)),indSiFG,1,tIndex)
                   end if               
+
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   idata2 = idata2 + 1
 
                 else
                   call Insert_into_burp_r4(-1.0,ind13209,1,tIndex)
-                  if ( tvs_mwAllskyAssim .and. &
-                       tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(-1.0,indClwFG,1,tIndex)
                   end if
+
                   call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
-                  if ( tvs_mwAllskyAssim .and. &
-                       tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(-1.0,indSiFG,1,tIndex)
                   end if
                   call Insert_into_burp_i(-1,ind008012,1,tIndex)
@@ -4765,8 +4770,8 @@ CONTAINS
               end if
 
               ! clwFG
-              if ( tvs_mwAllskyAssim .and. &
-                   tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+              if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                  tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indClwFG = BURP_Find_Element(inputBlock, ELEMENT=clwFgElementId)
                 if (indClwFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4801,8 +4806,7 @@ CONTAINS
               end if
 
               ! siFG
-              if ( tvs_mwAllskyAssim .and. &
-                   tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
                 if (indSiFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4824,16 +4828,22 @@ CONTAINS
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                   end if
+
+                  ! clwObs
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWO,idata2)),ind13209,1,tIndex)
-                  if ( tvs_mwAllskyAssim .and. &
-                       tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                  ! clwFG
+                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),indClwFG,1,tIndex)
                   end if
+
+                  ! siObs
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
-                  if ( tvs_mwAllskyAssim .and. &
-                       tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                  ! siFG
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIB,idata2)),indSiFG,1,tIndex)
                   end if
+                  
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_IWV,idata2)),ind13095,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_TTYP,idata2),ind13039,1,tIndex)
@@ -4842,15 +4852,16 @@ CONTAINS
                   idata2 = idata2 + 1
                 else
                   call Insert_into_burp_r4(-1.0,ind13209,1,tIndex)
-                  if ( tvs_mwAllskyAssim .and. &
-                       tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(-1.0,indClwFG,1,tIndex)
                   end if
+
                   call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
-                  if ( tvs_mwAllskyAssim .and. &
-                       tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(-1.0,indSiFG,1,tIndex)
                   end if
+
                   !call Insert_into_burp_r4(-1.0,ind13095,1,tIndex)
                   call Insert_into_burp_i(-1,ind008012,1,tIndex)
                   call Insert_into_burp_i(-1,ind13039,1,tIndex)
@@ -4916,8 +4927,8 @@ CONTAINS
               end if
 
               ! clwFG
-              if ( tvs_mwAllskyAssim .and. &
-                   tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+              if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                  tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indClwFG = BURP_Find_Element(inputBlock, ELEMENT=clwFgElementId)
                 if (indClwFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4941,8 +4952,7 @@ CONTAINS
               end if
 
               ! siFG
-              if ( tvs_mwAllskyAssim .and. &
-                   tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
                 if (indSiFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4964,31 +4974,38 @@ CONTAINS
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
                   end if
+
+                  ! clwObs
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWO,idata2)),ind13209,1,tIndex)
-                  if ( tvs_mwAllskyAssim .and. &
-                       tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                  ! clwFG
+                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_CLWB,idata2)),indClwFG,1,tIndex)
                   end if
+
+                  ! siObs
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
-                  if ( tvs_mwAllskyAssim .and. &
-                       tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                  ! siFG
+                  if ( tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIB,idata2)),indSiFG,1,tIndex)
                   end if
+
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_TTYP,idata2),ind13039,1,tIndex)
                   call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_INFG,idata2),ind25174,1,tIndex)
                   idata2 = idata2 + 1
                 else
                   call Insert_into_burp_r4(-1.0,ind13209,1,tIndex)
-                  if ( tvs_mwAllskyAssim .and. &
-                       tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(-1.0,indClwFG,1,tIndex)
                   end if
+
                   call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
-                  if ( tvs_mwAllskyAssim .and. &
-                       tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(-1.0,indSiFG,1,tIndex)
                   end if
+
                   call Insert_into_burp_i(-1,ind008012,1,tIndex)
                   call Insert_into_burp_i(-1,ind13039,1,tIndex)
                   call Insert_into_burp_i(-1,ind25174,1,tIndex)
@@ -5613,14 +5630,15 @@ CONTAINS
         end if
 
         ! check clwFG element is in the namelist in all-sky mode.
-        if ( tvs_mwAllskyAssim .and. clwFgElementId < 0 .and. &
-          tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+        if ((tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+             tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) .and. &
+            clwFgElementId < 0) then
           call utl_abort('brpr_addElementsToBurp: clwFgElementId missing in the namelist')
         end if
 
         ! check siFG element is in the namelist in all-sky mode.
-        if ( tvs_mwAllskyAssim .and. siFgElementId < 0 .and. &
-          tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp))) ) then
+        if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .and. &
+            siFgElementId < 0) then
           call utl_abort('brpr_addElementsToBurp: siFgElementId missing in the namelist')
         end if
       end if
@@ -5699,9 +5717,10 @@ CONTAINS
             end do
         
             ! Adding clear-sky radiance to data block for instrument in all-sky mode.
-            if ( tvs_mwAllskyAssim .and. addBtClearToBurp .and. &
-                 (tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                  tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp)))) ) then
+            if (addBtClearToBurp .and. &
+                (tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                   tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                   tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))))) then
               
               indele = burp_find_element(inputBlock, element=btClearElementId)
 
@@ -5752,9 +5771,10 @@ CONTAINS
             end do
         
             ! Adding clear-sky radiance to MRQ block for instrument in all-sky mode.
-            if ( tvs_mwAllskyAssim .and. addBtClearToBurp .and. &
-                 (tvs_isInstrumUsingCLW(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                  tvs_isInstrumUsingHydrometeors(tvs_getInstrumentId(codtyp_get_name(idatyp)))) ) then
+            if (addBtClearToBurp .and. &
+                (tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                   tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                   tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))))) then
 
               indele = burp_find_element(inputBlock, element=btClearMrqElementID)
               if ( indele <= 0 ) then
