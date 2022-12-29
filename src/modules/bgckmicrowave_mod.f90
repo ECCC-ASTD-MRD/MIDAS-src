@@ -25,6 +25,7 @@ module bgckmicrowave_mod
   use obsSpaceData_mod
   use tovs_nl_mod
   use obsErrors_mod
+  use codtyp_mod
 
   implicit none
   save

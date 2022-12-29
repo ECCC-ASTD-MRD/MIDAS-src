@@ -819,8 +819,10 @@ contains
 
     ! check instrument is either using CLW or hydrometeors for non-ATMS instruments
     do instrumentIndex = 1, numMWInstrumToUseHydrometeors
-      if (numMWInstrumToUseCLW == 0 .or. 
-          instrumentIdsUsingHydrometeors(instrumentIndex) == tvs_getInstrumentId('atms')) exit
+      if (numMWInstrumToUseCLW == 0 .or. &
+          instrumentIdsUsingHydrometeors(instrumentIndex) == tvs_getInstrumentId('atms')) then
+        exit
+      end if
 
       if (any(instrumentIdsUsingCLW(1:numMWInstrumToUseCLW) == &
               instrumentIdsUsingHydrometeors(instrumentIndex))) then
