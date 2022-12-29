@@ -123,6 +123,7 @@ module tovs_nl_mod
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuth
   public :: tvs_isInstrumUsingCLW, tvs_isInstrumUsingHydrometeors, tvs_getChannelNumIndexFromPPP
+  public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_isInstrumAllskyTtHuAssim
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -816,9 +817,10 @@ contains
       end if
     end do
 
-    ! check instrument is either using CLW or hydrometeors
+    ! check instrument is either using CLW or hydrometeors for non-ATMS instruments
     do instrumentIndex = 1, numMWInstrumToUseHydrometeors
-      if (numMWInstrumToUseCLW == 0) exit
+      if (numMWInstrumToUseCLW == 0 .or. 
+          instrumentIdsUsingHydrometeors(instrumentIndex) == tvs_getInstrumentId('atms')) exit
 
       if (any(instrumentIdsUsingCLW(1:numMWInstrumToUseCLW) == &
               instrumentIdsUsingHydrometeors(instrumentIndex))) then
@@ -1622,6 +1624,60 @@ contains
     end do
 
   end function tvs_isInstrumUsingHydrometeors
+
+  !--------------------------------------------------------------------------
+  !  tvs_isInstrumAllskyTtAssim
+  !--------------------------------------------------------------------------
+  function tvs_isInstrumAllskyTtAssim(instrumId) result(allskyTtAssim)
+    !
+    ! :Purpose: determine if all-sky temperature-channel assimilation is asked for the instrument.
+    !
+    implicit none
+
+    ! Argument:
+    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    logical             :: allskyTtAssim
+
+    allskyTtAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingCLW(instrumId) .and. &
+                     .not. tvs_isInstrumUsingHydrometeors(instrumId))
+
+  end function tvs_isInstrumAllskyTtAssim
+
+  !--------------------------------------------------------------------------
+  !  tvs_isInstrumAllskyHuAssim
+  !--------------------------------------------------------------------------
+  function tvs_isInstrumAllskyHuAssim(instrumId) result(allskyHuAssim)
+    !
+    ! :Purpose: determine if all-sky humidity-channel assimilation is asked for the instrument.
+    !
+    implicit none
+
+    ! Argument:
+    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    logical             :: allskyHuAssim
+
+    allskyHuAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingHydrometeors(instrumId) .and. &
+                     .not. tvs_isInstrumUsingCLW(instrumId))
+
+  end function tvs_isInstrumAllskyHuAssim
+
+  !--------------------------------------------------------------------------
+  !  tvs_isInstrumAllskyTtHuAssim
+  !--------------------------------------------------------------------------
+  function tvs_isInstrumAllskyTtHuAssim(instrumId) result(AllskyTtHuAssim)
+    !
+    ! :Purpose: determine if all-sky temperature- AND humidity-channel assimilation is asked for the instrument.
+    !
+    implicit none
+
+    ! Argument:
+    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    logical             :: AllskyTtHuAssim
+
+    AllskyTtHuAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingCLW(instrumId) .and. &
+                       tvs_isInstrumUsingHydrometeors(instrumId))
+
+  end function tvs_isInstrumAllskyTtHuAssim
 
   !--------------------------------------------------------------------------
   !  tvs_mapInstrum
