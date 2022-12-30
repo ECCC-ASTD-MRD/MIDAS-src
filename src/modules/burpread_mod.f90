@@ -4132,6 +4132,7 @@ CONTAINS
     integer                :: idatyp
     real                   :: val_option_r4
     character(len=9)       :: station_id
+    logical                :: firstReportWithDataFound
     
     write(*,*) '----------------------------------------------------------'
     write(*,*) '------- Begin brpr_addCloudParametersandEmissivity -------'
@@ -4206,6 +4207,7 @@ CONTAINS
 
       ! Loop on reports
 
+      firstReportWithDataFound = .false.
       REPORTS: do reportIndex = 1, count
 
         call BURP_Get_Report(inputFile,        &
@@ -4213,9 +4215,12 @@ CONTAINS
              REF       = address(reportIndex), &
              iostat    = error)
         call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Get_Report")
-        if (reportIndex == 1) then
+
+        if (.not. firstReportWithDataFound) then
           call BURP_Get_Property(inputReport, IDTYP=idatyp)
-          write(*,*) "brpr_addCloudParametersandEmissivity idatyp ", idatyp
+          write(*,*) "brpr_addCloudParametersandEmissivity idatyp=", idatyp, ",fileIndex=", fileIndex
+
+          ! find headerIndex in ObsSpaceData
           idata2 = -1
           call obs_set_current_header_list(obsSpaceData, 'TO')
           HEADER: do
@@ -4227,12 +4232,19 @@ CONTAINS
               exit HEADER
             end if
           end do HEADER
-          if (idata2 == -1) then
-            write(*,*) "datyp ",idatyp," not found in input file !"
-            write(*,*) "Nothing to do here ! Exiting ..."
-            call  cleanup()
-            return
+
+          ! If headerIndex not found, cycle to the next report 
+          if (idata2 == -1) then 
+            if (reportIndex < count) then
+              cycle REPORTS
+            else
+              write(*,*) "datyp ",idatyp," not found in input file !"
+              write(*,*) "Nothing to do here ! Exiting ..."
+              call  cleanup()
+              return
+            end if
           end if
+          firstReportWithDataFound = .true.
           idata3 = idata2
         end if
 
@@ -4267,7 +4279,6 @@ CONTAINS
           btyp10obs = 291
            
           if ( btyp10 == btyp10obs .and. bfam == 0 ) then
-
             allocate(goodprof(nte), btobs(nvale,nte))
 
             goodprof(:) = 0
@@ -4298,7 +4309,6 @@ CONTAINS
         ! Second loop on blocks
 
         ! add new informations
-
         ref_blk = 0
         
         BLOCKS2: do
@@ -4334,7 +4344,6 @@ CONTAINS
           btyp10des = 160
 
           if ( btyp10 == btyp10des ) then
-
             flag_passage1 = 1
 
             allocate(glbflag(nte))
@@ -4603,7 +4612,6 @@ CONTAINS
             if ( btyp10 == btyp10inf ) then
               flag_passage2 = 1
               indtmp = nbele
-
               ! CLW
               ind13209 = BURP_Find_Element(inputBlock, ELEMENT=013209)
               if (ind13209 < 0) then
