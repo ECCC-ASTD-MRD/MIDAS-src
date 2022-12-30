@@ -4601,10 +4601,7 @@ CONTAINS
 
           end if ! hyper Spectral
 
-          if ( (tvs_isIdBurpInst(idatyp,'atms' )) .or. &
-               (tvs_isIdBurpInst(idatyp,'amsua')) .or. &
-               (tvs_isIdBurpInst(idatyp,'amsub')) .or. &
-               (tvs_isIdBurpInst(idatyp,'mhs'))) then 
+          if (tvs_isIdBurpInst(idatyp,'atms' ) .or. tvs_isIdBurpInst(idatyp,'amsua')) then 
             ! info block (btyp = 0001 100000X XXXX) 
             ! 0001 100000X XXXX = 3072
             btyp10    = ishft(btyp,-5)
@@ -4649,7 +4646,8 @@ CONTAINS
               end if
 
               ! siFG
-              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                  tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
                 if (indSiFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4686,7 +4684,8 @@ CONTAINS
                   ! siObs
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
                   ! siFG
-                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIB,idata2)),indSiFG,1,tIndex)
                   end if               
 
@@ -4701,7 +4700,8 @@ CONTAINS
                   end if
 
                   call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
-                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(-1.0,indSiFG,1,tIndex)
                   end if
                   call Insert_into_burp_i(-1,ind008012,1,tIndex)
@@ -4712,6 +4712,77 @@ CONTAINS
  
             end if
           end if ! tvs_isIdBurpInst(idatyp,'atms')) .or. (tvs_isIdBurpInst(idatyp,'amsua')
+
+          if (tvs_isIdBurpInst(idatyp,'amsub') .or. tvs_isIdBurpInst(idatyp,'mhs')) then 
+            ! info block (btyp = 0001 100000X XXXX) 
+            ! 0001 100000X XXXX = 3072
+            btyp10    = ishft(btyp,-5)
+            btyp10inf = 96
+            if ( btyp10 == btyp10inf ) then
+              flag_passage2 = 1
+              indtmp = nbele
+
+              ! SCATTERING INDEX
+              ind13208 = BURP_Find_Element(inputBlock, ELEMENT=013208)
+              if (ind13208 < 0) then
+                call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #4")
+                ind13208 = indtmp + 1
+                call BURP_Set_Element(inputBlock, NELE_IND=ind13208, ELEMENT=013208, iostat=error)
+                call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element 013208")
+                indtmp = indtmp + 1
+              end if
+
+              ! siFG
+              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
+                if (indSiFG < 0) then
+                  call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
+                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Resize_Block info #5")
+                  indSiFG = indtmp + 1
+                  call BURP_Set_Element(inputBlock, NELE_IND=indSiFG, ELEMENT=siFgElementId, iostat=error)
+                  call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Element siFG #1")
+                  indtmp = indtmp + 1
+                end if
+              end if
+
+              ind008012 = BURP_Find_Element(inputBlock, ELEMENT  = 008012)
+              if (ind008012 == -1) call handle_error(ind008012, "brpr_addCloudParametersandEmissivity: cannot find element 8012 in inputBlock #2")
+
+              do tIndex = 1, nte
+
+                if ( goodprof(tIndex) == 1 ) then
+
+                  if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
+                    headElem_i = obs_headElem_i(obsSpaceData,OBS_OTP,idata2)
+                    write(*,*) "File Inconsistency ", headElem_i, fileIndex
+                    write(*,*) "Should not happen..."
+                    call utl_abort('brpr_addCloudParametersandEmissivity')
+                  end if
+
+                  ! siObs
+                  call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
+                  ! siFG
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                    call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIB,idata2)),indSiFG,1,tIndex)
+                  end if               
+
+                  call Insert_into_burp_i(obs_headElem_i(obsSpaceData,OBS_STYP,idata2),ind008012,1,tIndex)
+                  idata2 = idata2 + 1
+
+                else
+                  call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                    call Insert_into_burp_r4(-1.0,indSiFG,1,tIndex)
+                  end if
+                  call Insert_into_burp_i(-1,ind008012,1,tIndex)
+
+                end if
+
+              end do
+
+            end if
+          end if ! tvs_isIdBurpInst(idatyp,'amsub') .or. tvs_isIdBurpInst(idatyp,'mhs')
 
           if (tvs_isIdBurpInst(idatyp,'ssmis' )) then
             ! info block (btyp = 0001 100000X XXXX) 
@@ -4814,7 +4885,8 @@ CONTAINS
               end if
 
               ! siFG
-              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                  tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
                 if (indSiFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4848,7 +4920,8 @@ CONTAINS
                   ! siObs
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
                   ! siFG
-                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIB,idata2)),indSiFG,1,tIndex)
                   end if
                   
@@ -4866,7 +4939,8 @@ CONTAINS
                   end if
 
                   call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
-                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(-1.0,indSiFG,1,tIndex)
                   end if
 
@@ -4960,7 +5034,8 @@ CONTAINS
               end if
 
               ! siFG
-              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                  tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
                 if (indSiFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4994,7 +5069,8 @@ CONTAINS
                   ! siObs
                   call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIO,idata2)),ind13208,1,tIndex)
                   ! siFG
-                  if ( tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(sngl(obs_headElem_r(obsSpaceData,OBS_SIB,idata2)),indSiFG,1,tIndex)
                   end if
 
@@ -5010,7 +5086,8 @@ CONTAINS
                   end if
 
                   call Insert_into_burp_r4(-1.0,ind13208,1,tIndex)
-                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(-1.0,indSiFG,1,tIndex)
                   end if
 
