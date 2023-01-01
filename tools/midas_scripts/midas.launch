@@ -73,6 +73,7 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -tripotenml  "midas.tripotenml" "midas.tripotenml"  "[path to 'midas.tripotenml' (default: the one in the PATH)]" \
   -remote_copy "scp" "scp"  "[path to remote copy tool (default: 'scp')]" \
   -fasttmp "no" "yes" "[Using the FASTTMP technology]" \
+  -checkEnsStartMemberNumber "1" "1" "[starting member number to check for missing members (default: '1')]" \
   -aux_input  "" "" "[directory (or filename) of additional input file(s) to obtain before launch]" \
   ++ $arguments`
 
