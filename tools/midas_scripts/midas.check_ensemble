@@ -40,21 +40,22 @@ if [ "${checkEnsStartMemberNumber}" -gt 1 ]; then
     ${nodelogger} -n ${SEQ_NODE} -s info -m "starting member number to check for missing members is ${checkEnsStartMemberNumber}"
 fi
 
-number=${checkEnsStartMemberNumber}
+memberNumberToSearch=${checkEnsStartMemberNumber}
+lastMemberNumberToSearch=$((memberNumberToSearch+NUMBER_OF_MEMBERS-1))
 MEMBER_MISSING=0
 missing_members=
-while [ "${number}" -le "${NUMBER_OF_MEMBERS}" ]; do
-    numstr=$(print_number ${number})
+while [ "${memberNumberToSearch}" -le "${lastMemberNumberToSearch}" ]; do
+    numstr=$(print_number ${memberNumberToSearch})
     if [ ! -f ${ensemble}/${date}_${ext}_${numstr} ]; then
         let MEMBER_MISSING=MEMBER_MISSING+1
         touch MEMBER_MISSING.${numstr}
         if [ -n "${missing_members}" ]; then
-            missing_members="${missing_members} ${number}"
+            missing_members="${missing_members} ${memberNumberToSearch}"
         else
-            missing_members=${number}
+            missing_members=${memberNumberToSearch}
         fi
     fi
-    let number=number+1
+    let memberNumberToSearch=memberNumberToSearch+1
 done
 
 if [ -n "${missing_members}" ]; then
