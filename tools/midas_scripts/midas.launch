@@ -319,7 +319,9 @@ for enskey in ensemble ensemble_trial ensemble_anal; do
             -nodelogger          ${nodelogger}                        \
             -date                ${date_file}                         \
             -ext                 ${ext}                               \
-            -fallback_mode       ${fallback_mode}
+            -fallback_mode       ${fallback_mode}                     \
+            -checkEnsStartMemberNumber     ${checkEnsStartMemberNumber}
+            
     fi
 done
 

@@ -19,6 +19,7 @@ eval `cclargs_lite -D "" $0 \
   -number_of_members "" "" "[number of ensemble members]" \
   -enstrials_extension_length      "4" "4" "[Ensemble trials extension length (default: 4)]" \
   -minimum_proportion_of_members   "0.5" "0.5" "[minimum proportion of members]" \
+  -checkEnsStartMemberNumber "1" "1" "[starting member number to check for missing members (default: '1')]" \
   -nodelogger   "nodelogger" "nodelogger" "[path to 'nodelogger' tool]" \
   ++ $arguments`
 
@@ -35,7 +36,11 @@ function print_number {
     unset __print_number__
 }
 
-number=1
+if [ "${checkEnsStartMemberNumber}" -gt 1 ]; then
+    ${nodelogger} -n ${SEQ_NODE} -s info -m "starting member number to check for missing members is ${checkEnsStartMemberNumber}"
+fi
+
+number=${checkEnsStartMemberNumber}
 MEMBER_MISSING=0
 missing_members=
 while [ "${number}" -le "${NUMBER_OF_MEMBERS}" ]; do
