@@ -413,6 +413,7 @@ if [ -n "${observations}" ]; then
         ## fam = 'airs' ou '2019072506_airs'
         fam=$(echo ${fam} | sed 's/^[0-9][0-9]*_//')
         ## fam = 'airs'
+        if [ "${copyObsFilesToOutput}" = yes ]; then
         [ ! -d obsfiles_${fam}.updated ] && mkdir obsfiles_${fam}.updated
         if [ "${doCreateDiagnostics}" -ne 0 ]; then
             if [ "${fam}" = uas -o "${fam}" = uan ]; then
@@ -427,6 +428,7 @@ if [ -n "${observations}" ]; then
         if [ "${doThinning}" -ne 0 ]; then
             mkdir obsfiles_${fam}.beforeThinning
         fi
+        fi ## copyObsFilesToOutput = yes
         if [ "${OAVAR_SAVE_SPLITOBS}" = yes -a ! -d obsfiles_${fam} ]; then
             mkdir obsfiles_${fam}
         fi
