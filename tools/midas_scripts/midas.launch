@@ -74,6 +74,7 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -remote_copy "scp" "scp"  "[path to remote copy tool (default: 'scp')]" \
   -fasttmp "no" "yes" "[Using the FASTTMP technology]" \
   -checkEnsStartMemberNumber "1" "1" "[starting member number to check for missing members (default: '1')]" \
+  -copyObsFilesToOutput "yes" "yes" "[logic for copying obsFiles to output directory (default: 'yes')]" \
   -aux_input  "" "" "[directory (or filename) of additional input file(s) to obtain before launch]" \
   ++ $arguments`
 
@@ -497,6 +498,7 @@ ${midas_mpirun} "${midas_mpi}" "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksi
         =-splitobs_fstin    ${TASK_INPUT}/split_grid                     \
         =-splitobs_nomvar   ${splitobs_nomvar}                           \
         =-splitobs_mpchild2getObservations ${mpchild2getObservations[@]} \
+        =-copyObsFilesToOutput ${copyObsFilesToOutput}                   \
         =-number_of_members ${NUMBER_OF_MEMBERS}                         \
         =-enstrials_extension_length ${enstrials_extension_length}       \
         =-npex              ${npex}                                      \

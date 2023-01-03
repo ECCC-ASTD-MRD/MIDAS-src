@@ -21,6 +21,7 @@ eval `${CCLARGS}  -D "" $0 \
   -splitobs_fstin    ""   ""  "[value of '-fstin'  argument of 'splitobs.Abs']" \
   -splitobs_nomvar   ""   ""  "[value of '-nomvar' argument of 'splitobs.Abs']" \
   -splitobs_mpchild2getObservations   ""   ""  "[list of number which indicates for each mpi tile where it should take its observation file for splitting]" \
+  -copyObsFilesToOutput "yes" "yes" "[logic for copying obsFiles to output directory (default: 'yes')]" \
   -enstrials_extension_length "4" "4" "[Ensemble trials extension length (default: 4)]" \
   -number_of_members ""   ""      "[number of ensemble trials]" \
   -npex              "1"  "1"     "[number of MPI tiles in the x direction (default to 1]" \
