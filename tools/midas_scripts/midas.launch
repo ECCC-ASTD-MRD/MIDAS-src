@@ -75,6 +75,7 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -fasttmp "no" "yes" "[Using the FASTTMP technology]" \
   -checkEnsStartMemberNumber "1" "1" "[starting member number to check for missing members (default: '1')]" \
   -updatedObsFilesNeeded "yes" "yes" "[Control if updated obsFiles should be produced (default: 'yes')]" \
+  -ensObsDirectory "" "" "[ensObs directories (default: '')]" \
   -aux_input  "" "" "[directory (or filename) of additional input file(s) to obtain before launch]" \
   ++ $arguments`
 
@@ -281,6 +282,14 @@ if [ -n "${sfc4hyperir}" ]; then
 fi
 if [ -n "${sfc4hyperir_newalb}" ]; then
     copyOrLink ${sfc4hyperir_newalb} sfc4airs_newalb
+fi
+
+if [ -d ${ensObsDirectory} ]; then
+    ${nodelogger} -n $SEQ_NODE -s infox -m "Input ensObs main path=${ensObsDirectory}"
+
+    for folder in ${ensObsDirectory}/*; do
+        ln -svi ${folder} .
+    done
 fi
 
 ## traitement des ensembles
