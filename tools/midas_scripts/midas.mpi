@@ -332,7 +332,7 @@ ELAPSED_TIME=${SECONDS}
 ${echo_cmd} ending ${abs} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 ${echo_cmd} ${abs} took ${SECONDS}
 
-if [ -n "${observations}" ]; then
+if [ -n "${observations}" -a "${copyObsFilesToOutput}" = yes ]; then
     SECONDS=0
     if [ "${splitobs_mode}" = no ]; then
         if [ "${MP_CHILD}" -eq 0 ]; then
