@@ -414,20 +414,20 @@ if [ -n "${observations}" ]; then
         fam=$(echo ${fam} | sed 's/^[0-9][0-9]*_//')
         ## fam = 'airs'
         if [ "${copyObsFilesToOutput}" = yes ]; then
-        [ ! -d obsfiles_${fam}.updated ] && mkdir obsfiles_${fam}.updated
-        if [ "${doCreateDiagnostics}" -ne 0 ]; then
-            if [ "${fam}" = uas -o "${fam}" = uan ]; then
-                [ ! -d diafiles_ua.updated ] && mkdir diafiles_ua.updated
-            else
-                mkdir diafiles_${fam}.updated
+            [ ! -d obsfiles_${fam}.updated ] && mkdir obsfiles_${fam}.updated
+            if [ "${doCreateDiagnostics}" -ne 0 ]; then
+                if [ "${fam}" = uas -o "${fam}" = uan ]; then
+                    [ ! -d diafiles_ua.updated ] && mkdir diafiles_ua.updated
+                else
+                    mkdir diafiles_${fam}.updated
+                fi
             fi
-        fi
-        if [ "${dumpToSqliteAfterThinning}" -ne 0 ]; then
-            mkdir bcrfiles_${fam}.updated
-        fi
-        if [ "${doThinning}" -ne 0 ]; then
-            mkdir obsfiles_${fam}.beforeThinning
-        fi
+            if [ "${dumpToSqliteAfterThinning}" -ne 0 ]; then
+                mkdir bcrfiles_${fam}.updated
+            fi
+            if [ "${doThinning}" -ne 0 ]; then
+                mkdir obsfiles_${fam}.beforeThinning
+            fi
         fi ## copyObsFilesToOutput = yes
         if [ "${OAVAR_SAVE_SPLITOBS}" = yes -a ! -d obsfiles_${fam} ]; then
             mkdir obsfiles_${fam}
@@ -526,6 +526,11 @@ ${midas_mpirun} "${midas_mpi}" "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksi
         =-printf_cmd        $(which printf)                              \
         =-sleep_cmd         $(which sleep)                               \
         =-hostname_cmd      $(which hostname)
+
+if [ "${midas_reunir_obs}" != no -a "${copyObsFilesToOutput}" != yes ]; then
+    ${nodelogger} -n ${SEQ_NODE} -s info -m "If reunir_obs, copyObsFilesToOutput should be 'yes'"
+    exit 1
+fi
 
 if [ -n "${observations}" -a "${midas_reunir_obs}" != no ]; then
     if [ "${splitobs_mode}" = no ]; then
