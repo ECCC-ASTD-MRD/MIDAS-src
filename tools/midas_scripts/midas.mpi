@@ -332,6 +332,10 @@ ELAPSED_TIME=${SECONDS}
 ${echo_cmd} ending ${abs} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 ${echo_cmd} ${abs} took ${SECONDS}
 
+if [ "${updatedObsFilesNeeded}" != yes ]; then
+    ${echo_cmd} "WARNING: there will not be any updated obsFiles in working directory"
+fi
+
 if [ -n "${observations}" -a "${updatedObsFilesNeeded}" = yes ]; then
     SECONDS=0
     if [ "${splitobs_mode}" = no ]; then
