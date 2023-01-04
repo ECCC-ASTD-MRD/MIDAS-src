@@ -284,12 +284,14 @@ if [ -n "${sfc4hyperir_newalb}" ]; then
     copyOrLink ${sfc4hyperir_newalb} sfc4airs_newalb
 fi
 
-if [ -d ${ensObsDirectory} ]; then
-    ${nodelogger} -n $SEQ_NODE -s infox -m "Input ensObs main path=${ensObsDirectory}"
+if [ -n "${ensObsDirectory}" ]; then
+    if [ -d "${ensObsDirectory}" ]; then
+        ${nodelogger} -n $SEQ_NODE -s infox -m "Input ensObs main path=${ensObsDirectory}"
 
-    for folder in ${ensObsDirectory}/*; do
-        ln -svi ${folder} .
-    done
+        for folder in ${ensObsDirectory}/*; do
+            ln -svi ${folder} .
+        done
+    fi
 fi
 
 ## traitement des ensembles
