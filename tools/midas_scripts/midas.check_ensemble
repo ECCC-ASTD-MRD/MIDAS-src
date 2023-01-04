@@ -19,6 +19,7 @@ eval `cclargs_lite -D "" $0 \
   -number_of_members "" "" "[number of ensemble members]" \
   -enstrials_extension_length      "4" "4" "[Ensemble trials extension length (default: 4)]" \
   -minimum_proportion_of_members   "0.5" "0.5" "[minimum proportion of members]" \
+  -checkEnsStartMemberNumber "1" "1" "[starting member number to check for missing members (default: '1')]" \
   -nodelogger   "nodelogger" "nodelogger" "[path to 'nodelogger' tool]" \
   ++ $arguments`
 
@@ -35,21 +36,26 @@ function print_number {
     unset __print_number__
 }
 
-number=1
+if [ "${checkEnsStartMemberNumber}" -gt 1 ]; then
+    ${nodelogger} -n ${SEQ_NODE} -s info -m "starting member number to check for missing members is ${checkEnsStartMemberNumber}"
+fi
+
+memberNumberToSearch=${checkEnsStartMemberNumber}
+lastMemberNumberToSearch=$((memberNumberToSearch+NUMBER_OF_MEMBERS-1))
 MEMBER_MISSING=0
 missing_members=
-while [ "${number}" -le "${NUMBER_OF_MEMBERS}" ]; do
-    numstr=$(print_number ${number})
+while [ "${memberNumberToSearch}" -le "${lastMemberNumberToSearch}" ]; do
+    numstr=$(print_number ${memberNumberToSearch})
     if [ ! -f ${ensemble}/${date}_${ext}_${numstr} ]; then
         let MEMBER_MISSING=MEMBER_MISSING+1
         touch MEMBER_MISSING.${numstr}
         if [ -n "${missing_members}" ]; then
-            missing_members="${missing_members} ${number}"
+            missing_members="${missing_members} ${memberNumberToSearch}"
         else
-            missing_members=${number}
+            missing_members=${memberNumberToSearch}
         fi
     fi
-    let number=number+1
+    let memberNumberToSearch=memberNumberToSearch+1
 done
 
 if [ -n "${missing_members}" ]; then
