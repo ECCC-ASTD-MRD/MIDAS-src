@@ -1,0 +1,217 @@
+ &NAMMSG
+   verbosity = 4
+/
+ &NAMBHI
+   NTRUNC  = 270,
+   SCALEFACTOR = 100*1.0D0
+/
+ &NAMBEN
+/
+ &NAMS2C
+  SLANTPATH_TO_NL   = .FALSE.,
+  SLANTPATH_TO_TLAD = .FALSE.,
+  SLANTPATH_RO_NL   = .FALSE.,
+  calcHeightPressIncrOnColumn = .FALSE.
+/
+ &NAMSLP
+  TOLERANCEHEIGHTDIFF= 10.0,
+  MAXNUMITERATION = 1,
+/
+ &NAMCFN
+   sensorNameList(1) = 'amsua'
+   channelNumberList(:,1) = 4,6,8,9,10,12,11
+   sensorNameList(2) = 'AMSUA  ' ! sensor/channel pairs can be prescribed on multiple lines with extra spacing in sensor name
+   channelNumberList(:,2) = 7,13,14,5
+/
+ &NAMMIN
+   NVAMAJ = 25,
+   NITERMAX = 10,
+   NSIMMAX  = 100,
+   REPSG    = 1.0D-5,
+   LGRTEST  = .FALSE.,
+   LWRTHESS = .FALSE.,
+   LVARQC=.TRUE.,
+   NWOQCV=5
+/
+ &NAMINC
+   etiket_rebm ='XXXXXX'
+/
+ &NAMDIMO
+   NMXOBS=100000,
+   NDATAMX=8000000,
+/
+ &NAMTIME
+  DSTEPOBS = 1.0d0
+  DSTEPOBSINC = 6.0d0
+/
+ &NAMFILT
+  NELEMS = 16,
+  NLIST(1)=10004,
+  NLIST(2)=10051,
+  NLIST(3)=12004,
+  NLIST(4)=11215,
+  NLIST(5)=11216,
+  NLIST(6)=12203,
+  NLIST(7)=12001,
+  NLIST(8)=12192,
+  NLIST(9)=11003,
+  NLIST(10)=11004,
+  NLIST(11)=10194,
+  NLIST(12)=12062,
+  NLIST(13)=12063,
+  NLIST(14)=12163,
+  NLIST(15)=15036,
+  NLIST(16)=15031,
+  NFLAGS=3,
+  NLISTFLG(1)=2,
+  NLISTFLG(2)=4,
+  NLISTFLG(3)=5,
+  NLISTFLG(4)=-5,
+  NLISTFLG(5)=-8,
+  list_topoFilt(1) = 'SF'
+  list_topoFilt(2) = 'UA'	
+  list_topoFilt(3) = 'AI'
+  list_topoFilt(4) = 'SW'
+  list_topoFilt(5) = 'PR'
+  list_topoFilt(6) = 'TO'
+  RLIMLVHU=70.D0,
+/
+ &NAMRMAT
+   rmat_lnonDiagR=.true.
+/
+ &NAMSTATE
+   addHeightSfcOffset = .false.
+   RHUMIN  = 1.0D-07
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
+   ANLVAR(6)   ='TG'
+/
+ &NAMTOV   
+   NSENSORS =  30,
+   CSATID(1)        = 'AQUA',
+   CINSTRUMENTID(1) = 'AIRS',
+   CSATID(2)        = 'METOP-2',
+   CINSTRUMENTID(2) = 'IASI',
+   CSATID(3)        = 'NOAA15',
+   CINSTRUMENTID(3) = 'AMSUA',
+   CSATID(4)        = 'NOAA16',
+   CINSTRUMENTID(4) = 'AMSUA',
+   CSATID(5)        = 'AQUA',
+   CINSTRUMENTID(5) = 'AMSUA',
+   CSATID(6)        = 'NOAA18',
+   CINSTRUMENTID(6) = 'AMSUA',
+   CSATID(7)        = 'NOAA15',
+   CINSTRUMENTID(7) = 'AMSUB',
+   CSATID(8)        = 'NOAA16',
+   CINSTRUMENTID(8) = 'AMSUB',
+   CSATID(9)        = 'NOAA17',
+   CINSTRUMENTID(9) = 'AMSUB',
+   CSATID(10)        = 'NOAA18',
+   CINSTRUMENTID(10) = 'MHS',
+   CSATID(11)        = 'DMSP16',
+   CINSTRUMENTID(11) = 'SSMIS',
+   CSATID(12)        = 'GOES13',
+   CINSTRUMENTID(12) = 'GOESIMAGER',
+   CSATID(13)        = 'MSG2',
+   CINSTRUMENTID(13) = 'SEVIRI',
+   CSATID(14)        = 'METEOSAT7',
+   CINSTRUMENTID(14) = 'MVIRI',
+   CSATID(15)        = 'METOP-2',
+   CINSTRUMENTID(15) = 'AMSUA',
+   CSATID(16)        = 'METOP-2',
+   CINSTRUMENTID(16) = 'MHS',
+   CSATID(17)        = 'NOAA19',
+   CINSTRUMENTID(17) = 'AMSUA',
+   CSATID(18)        = 'NOAA19',
+   CINSTRUMENTID(18) = 'MHS',
+   CSATID(19)        = 'METOP-1',
+   CINSTRUMENTID(19) = 'IASI',
+   CSATID(20)        = 'DMSP17',
+   CINSTRUMENTID(20) = 'SSMIS',
+   CSATID(21)        = 'DMSP18',
+   CINSTRUMENTID(21) = 'SSMIS',
+   CSATID(22)        = 'GOES15',
+   CINSTRUMENTID(22) = 'GOESIMAGER',
+   CSATID(23)        = 'MSG3',
+   CINSTRUMENTID(23) = 'SEVIRI',
+   CSATID(24)        = 'MTSAT1',
+   CINSTRUMENTID(24) = 'GMSMTSAT',
+   CSATID(25)        = 'MTSAT2',
+   CINSTRUMENTID(25) = 'GMSMTSAT',
+   CSATID(26)        = 'METOP-1',
+   CINSTRUMENTID(26) = 'AMSUA',
+   CSATID(27)        = 'METOP-1',
+   CINSTRUMENTID(27) = 'MHS',
+   CSATID(28)        = 'NPP',
+   CINSTRUMENTID(28) = 'ATMS',
+   CSATID(29)        = 'NPP',
+   CINSTRUMENTID(29) = 'CRIS',
+   CSATID(30)        = 'HMWARI-8',
+   CINSTRUMENTID(30) = 'AHI',
+   LDBGTOV    = .FALSE.,
+   CRTMODL    = 'RTTOV',
+   regLimitExtrap=.false.
+/
+ &NAMCODTYP
+/
+ &NAMGPSRO
+  LEVELGPSRO=2,
+  SURFMIN  = 1000.D0,
+  HSFMIN   = 1000.D0,
+  HTPMAX   = 40000.D0,
+  BGCKBAND = 0.05D0,
+/
+ &NAMGPSGB
+   DZMIN       = 2.0D0,
+   DZMAX       = 1000.0D0,
+   YZTDERR     = 0.0D0,
+   LASSMET     = .TRUE.,
+   LLBLMET     = .TRUE.,
+   YSFERRWGT   = 1.00D0,
+   YZDERRWGT   = 1.00D0,
+   LBEVIS      = .TRUE.,
+   IREFOPT     = 1,
+   L1OBS       = .FALSE.,
+   LTESTOP     = .FALSE.,
+   IZTDOP      = 1,
+/
+ &NAMBURP_FILTER_SFC
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  NELEMS_SFC=10,
+  BLISTELEMENTS_SFC=10004,12004,10051,12203,11011,11012,13220,15031,15032,15035
+/
+ &NAMBURP_FILTER_CONV
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  BBITOFF(5)=-8,
+  NELEMS=10,
+  BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220
+/
+ &NAMBURP_FILTER_TOVS
+  BNBITSOFF=0,
+  BBITOFF(1)=2,
+  BBITOFF(2)=4,
+  BBITOFF(3)=5,
+  BBITOFF(4)=-5,
+  BBITOFF(5)=-8,
+  NELEMS=1
+  BLISTELEMENTS=12163
+/
+ &NAMBURP_UPDATE
+  BN_ITEMS=3,
+  BITEMLIST(1)='OMA',
+  BITEMLIST(2)='OMP',
+  BITEMLIST(3)='OER',
+  BITEMLIST(4)='FGE',
+  TYPE_RESUME='POSTALT'
+/
