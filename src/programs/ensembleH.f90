@@ -263,7 +263,7 @@ program midas_ensembleH
   do memberIndex = 1, nEns
 
     write(*,*) ''
-    write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
+    write(*,*) 'midas-ensembleH: apply nonlinear H to ensemble member ', memberIndex
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     ! copy 1 member to a stateVector

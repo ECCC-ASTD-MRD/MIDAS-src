@@ -76,6 +76,7 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -checkEnsStartMemberNumber "1" "1" "[starting member number to check for missing members (default: '1')]" \
   -updatedObsFilesNeeded "yes" "yes" "[Control if updated obsFiles should be produced (default: 'yes')]" \
   -ensObsDirectory "" "" "[ensObs directories (default: '')]" \
+  -trialMeanFile   "" "" "[trial mean file (default: '')]" \
   -aux_input  "" "" "[directory (or filename) of additional input file(s) to obtain before launch]" \
   ++ $arguments`
 
@@ -291,6 +292,12 @@ if [ -n "${ensObsDirectory}" ]; then
         for folder in ${ensObsDirectory}/*; do
             ln -svi ${folder} .
         done
+    fi
+fi
+
+if [ -n "${trialMeanFile}" ]; then
+    if [ -h "${trialMeanFile}" ]; then
+        copyOrLink ${trialMeanFile} ${date_trial}_006_trialmean
     fi
 fi
 
