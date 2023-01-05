@@ -546,7 +546,7 @@ CONTAINS
     logical :: allocHeightSfc
     character(len=4), pointer :: varNames(:)
 
-    if ( mmpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: START'
+    if ( mmpi_myid == 0 ) write(*,*) 'gvt_setupRefFromStateVector: START ', trim(varName)
 
     if ( .not. associated(hco_trl) ) hco_trl => gsv_getHco(stateVectorOnTrlGrid)
     if ( .not. associated(vco_trl) ) vco_trl => gsv_getVco(stateVectorOnTrlGrid)
@@ -619,7 +619,7 @@ CONTAINS
                            mpi_local_opt=.true., allocHeightSfc_opt=.true., &
                            hInterpolateDegree_opt='LINEAR', &
                            varNames_opt=&
-                              (/'Z_T','Z_M','P_T','P_M','TT','HU','P0'/) )
+                              (/'Z_T','Z_M','P_T','P_M','TT','HU','P0','P0LS'/) )
       else
         call gsv_zero( stateVectorRefHeight )
       end if
