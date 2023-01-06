@@ -33,7 +33,7 @@ module humidityLimits_mod
 
   ! public procedures
   public :: qlim_saturationLimit, qlim_rttovLimit, qlim_setMin
-  public :: qlim_readMinValueCloud, qlim_readMaxValueCloud
+  public :: qlim_getMinValueCloud, qlim_getMaxValueCloud
 
   real(8), parameter :: mixratio_to_ppmv = 1.60771704d+6
   real(8) :: qlim_minValueLWCR, qlim_minValueIWCR, qlim_minValueRF, qlim_minValueSF, qlim_minValueCLDR
@@ -523,8 +523,8 @@ contains
           call gsv_getField(statevector, cld_ptr_r4, vnl_varNameListCloud(varNameIndex))
         end if
 
-        minValueCld = qlim_readMinValueCloud(vnl_varNameListCloud(varNameIndex))
-        maxValueCld = qlim_readMaxValueCloud(vnl_varNameListCloud(varNameIndex))
+        minValueCld = qlim_getMinValueCloud(vnl_varNameListCloud(varNameIndex))
+        maxValueCld = qlim_getMaxValueCloud(vnl_varNameListCloud(varNameIndex))
 
         lon1 = statevector%myLonBeg
         lon2 = statevector%myLonEnd
@@ -741,8 +741,8 @@ contains
         if (mmpi_myid == 0) write(*,*) 'qlim_rttovLimit_ens:  applying limits to ', &
                                         vnl_varNameListCloud(varNameIndex)
 
-        minValueCld = qlim_readMinValueCloud(vnl_varNameListCloud(varNameIndex))
-        maxValueCld = qlim_readMaxValueCloud(vnl_varNameListCloud(varNameIndex))
+        minValueCld = qlim_getMinValueCloud(vnl_varNameListCloud(varNameIndex))
+        maxValueCld = qlim_getMaxValueCloud(vnl_varNameListCloud(varNameIndex))
 
         do latIndex = lat1, lat2
           do lonIndex = lon1, lon2
@@ -920,9 +920,9 @@ contains
   end subroutine qlim_setMin_ens
   
   !-----------------------------------------------------------------------
-  ! qlim_readMinValueCloud
+  ! qlim_getMinValueCloud
   !----------------------------------------------------------------------
-  function qlim_readMinValueCloud(varName) result(minValue)
+  function qlim_getMinValueCloud(varName) result(minValue)
     !
     ! :Purpose: Return the minValue for the hydrometeor.
     !
@@ -949,15 +949,15 @@ contains
     case default
       write(*,*)
       write(*,*) 'ERROR unknown varName: ', trim(varName)
-      call utl_abort('qlim_readMinValueCloud')
+      call utl_abort('qlim_getMinValueCloud')
    end select
 
-  end function qlim_readMinValueCloud
+  end function qlim_getMinValueCloud
 
   !-----------------------------------------------------------------------
-  ! qlim_readMaxValueCloud
+  ! qlim_getMaxValueCloud
   !----------------------------------------------------------------------
-  function qlim_readMaxValueCloud(varName) result(maxValue)
+  function qlim_getMaxValueCloud(varName) result(maxValue)
     !
     ! :Purpose: Return the maxValue for the hydrometeor.
     !
@@ -984,10 +984,10 @@ contains
     case default
       write(*,*)
       write(*,*) 'ERROR unknown varName: ', trim(varName)
-      call utl_abort('qlim_readMaxValueCloud')
+      call utl_abort('qlim_getMaxValueCloud')
    end select
 
-  end function qlim_readMaxValueCloud
+  end function qlim_getMaxValueCloud
 
   !-----------------------------------------------------------------------
   ! cloudExistInEnsemble

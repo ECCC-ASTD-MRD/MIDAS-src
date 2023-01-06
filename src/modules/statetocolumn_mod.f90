@@ -1948,8 +1948,8 @@ contains
         if(col_varExist(column, vnl_varNameListCloud(varNameIndex))) then
           do headerIndex = headerIndexBeg, headerIndexEnd
             column_ptr => col_getColumn(column,headerIndex, vnl_varNameListCloud(varNameIndex))
-            column_ptr(:) = max(column_ptr(:), qlim_readMinValueCloud(vnl_varNameListCloud(varNameIndex)))
-            column_ptr(:) = min(column_ptr(:), qlim_readMaxValueCloud(vnl_varNameListCloud(varNameIndex)))
+            column_ptr(:) = max(column_ptr(:), qlim_getMinValueCloud(vnl_varNameListCloud(varNameIndex)))
+            column_ptr(:) = min(column_ptr(:), qlim_getMaxValueCloud(vnl_varNameListCloud(varNameIndex)))
           end do
         end if
       end do

@@ -359,9 +359,9 @@ contains
           columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,vnl_varNameList3D(jvar))
           do jlev = 1, col_getNumLev(columnTrlOnAnlIncLev,'TH')
             columnTrlOnAnlIncLev_ptr(jlev) = max(columnTrlOnAnlIncLev_ptr(jlev), &
-                                                 qlim_readMinValueCloud(vnl_varNameList3D(jvar)))
+                                                 qlim_getMinValueCloud(vnl_varNameList3D(jvar)))
             columnTrlOnAnlIncLev_ptr(jlev) = min(columnTrlOnAnlIncLev_ptr(jlev), &
-                                                 qlim_readMaxValueCloud(vnl_varNameList3D(jvar)))
+                                                 qlim_getMaxValueCloud(vnl_varNameList3D(jvar)))
           end do
         end do
 

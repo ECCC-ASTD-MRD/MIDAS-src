@@ -2338,17 +2338,17 @@ contains
       allocate (pressure(nlv_T,profileCount),                        stat = allocStatus(5) )
       if (runObsOperatorWithClw .or. runObsOperatorWithHydrometeors) then
         allocate (clw       (nlv_T,profileCount),stat= allocStatus(6))
-        clw(:,:) = qlim_readMinValueCloud('LWCR')
+        clw(:,:) = qlim_getMinValueCloud('LWCR')
       end if
       if (runObsOperatorWithHydrometeors) then
         allocate (ciw       (nlv_T,profileCount),stat= allocStatus(7))
         allocate (rainFlux  (nlv_T,profileCount),stat= allocStatus(8))
         allocate (snowFlux  (nlv_T,profileCount),stat= allocStatus(9))
         allocate (cloudFraction(nlv_T,profileCount),stat= allocStatus(10))
-        ciw(:,:) = qlim_readMinValueCloud('IWCR')
-        rainFlux(:,:) = qlim_readMinValueCloud('RF')
-        snowFlux(:,:) = qlim_readMinValueCloud('SF')
-        cloudFraction(:,:) = qlim_readMinValueCloud('CLDR')
+        ciw(:,:) = qlim_getMinValueCloud('IWCR')
+        rainFlux(:,:) = qlim_getMinValueCloud('RF')
+        snowFlux(:,:) = qlim_getMinValueCloud('SF')
+        cloudFraction(:,:) = qlim_getMinValueCloud('CLDR')
       end if
       allocate (surfTypeIsWater(profileCount),stat= allocStatus(11)) 
       surfTypeIsWater(:) = .false.
@@ -2423,8 +2423,8 @@ contains
               (runObsOperatorWithHydrometeors .and. surfTypeIsWater(profileCount))) then
             clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
 
-            if (clw(levelIndex,profileCount) < qlim_readMinValueCloud('LWCR') .or. &
-                clw(levelIndex,profileCount) > qlim_readMaxValueCloud('LWCR')) then
+            if (clw(levelIndex,profileCount) < qlim_getMinValueCloud('LWCR') .or. &
+                clw(levelIndex,profileCount) > qlim_getMaxValueCloud('LWCR')) then
               write(*,*) 'tvs_fillProfiles: clw=' , clw(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has clw outside RTTOV bounds')
             end if
@@ -2437,26 +2437,26 @@ contains
             snowFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'SF')
             cloudFraction(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'CLDR')
 
-            if (ciw(levelIndex,profileCount) < qlim_readMinValueCloud('IWCR') .or. &
-                ciw(levelIndex,profileCount) > qlim_readMaxValueCloud('IWCR')) then
+            if (ciw(levelIndex,profileCount) < qlim_getMinValueCloud('IWCR') .or. &
+                ciw(levelIndex,profileCount) > qlim_getMaxValueCloud('IWCR')) then
               write(*,*) 'tvs_fillProfiles: ciw=' , ciw(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has ciw outside RTTOV bounds')
             end if
 
-            if (rainFlux(levelIndex,profileCount) < qlim_readMinValueCloud('RF') .or. &
-                rainFlux(levelIndex,profileCount) > qlim_readMaxValueCloud('RF')) then
+            if (rainFlux(levelIndex,profileCount) < qlim_getMinValueCloud('RF') .or. &
+                rainFlux(levelIndex,profileCount) > qlim_getMaxValueCloud('RF')) then
               write(*,*) 'tvs_fillProfiles: rainFlux=' , rainFlux(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has rain flux outside RTTOV bounds')
             end if
 
-            if (snowFlux(levelIndex,profileCount) < qlim_readMinValueCloud('SF') .or. &
-                snowFlux(levelIndex,profileCount) > qlim_readMaxValueCloud('SF')) then
+            if (snowFlux(levelIndex,profileCount) < qlim_getMinValueCloud('SF') .or. &
+                snowFlux(levelIndex,profileCount) > qlim_getMaxValueCloud('SF')) then
               write(*,*) 'tvs_fillProfiles: snowFlux=' , snowFlux(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has snow flux outside RTTOV bounds')
             end if
 
-            if (cloudFraction(levelIndex,profileCount) < qlim_readMinValueCloud('CLDR') .or. &
-                cloudFraction(levelIndex,profileCount) > qlim_readMaxValueCloud('CLDR')) then
+            if (cloudFraction(levelIndex,profileCount) < qlim_getMinValueCloud('CLDR') .or. &
+                cloudFraction(levelIndex,profileCount) > qlim_getMaxValueCloud('CLDR')) then
               write(*,*) 'tvs_fillProfiles: cloudFraction=' , cloudFraction(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has cloud fraction outside RTTOV bounds')
             end if
@@ -2546,13 +2546,13 @@ contains
           cld_profiles(tovsIndex) % hydro(:,4) = clw(:,profileIndex)
           cld_profiles(tovsIndex) % hydro(:,5) = ciw(:,profileIndex)
           
-          where (cld_profiles(tovsIndex) % hydro(:,1) > qlim_readMinValueCloud('RF') .or. &
-                 cld_profiles(tovsIndex) % hydro(:,2) > qlim_readMinValueCloud('SF') .or. &
-                 cld_profiles(tovsIndex) % hydro(:,4) > qlim_readMinValueCloud('LWCR') .or. &
-                 cld_profiles(tovsIndex) % hydro(:,5) > qlim_readMinValueCloud('IWCR'))
+          where (cld_profiles(tovsIndex) % hydro(:,1) > qlim_getMinValueCloud('RF') .or. &
+                 cld_profiles(tovsIndex) % hydro(:,2) > qlim_getMinValueCloud('SF') .or. &
+                 cld_profiles(tovsIndex) % hydro(:,4) > qlim_getMinValueCloud('LWCR') .or. &
+                 cld_profiles(tovsIndex) % hydro(:,5) > qlim_getMinValueCloud('IWCR'))
                  cld_profiles(tovsIndex) % hydro_frac(:,1) = cloudFraction(:,profileIndex)
           elsewhere
-            cld_profiles(tovsIndex) % hydro_frac(:,1) = qlim_readMinValueCloud('CLDR')
+            cld_profiles(tovsIndex) % hydro_frac(:,1) = qlim_getMinValueCloud('CLDR')
           end where
         end if     
       end do
@@ -5180,7 +5180,7 @@ contains
 
       do profileIndex = 1, profileCount
         cloudProfileToStore(:,profileIndex) = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:)
-        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = qlim_readMinValueCloud('LWCR') 
+        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = qlim_getMinValueCloud('LWCR') 
       end do
 
     else if ( trim(mode) == 'restore' ) then 
@@ -5241,11 +5241,11 @@ contains
         clwProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,4)
         ciwProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,5)
         cloudFractionProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1)
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,1) = qlim_readMinValueCloud('RF')
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,2) = qlim_readMinValueCloud('SF')
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,4) = qlim_readMinValueCloud('LWCR')
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,5) = qlim_readMinValueCloud('IWCR')
-        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1) = qlim_readMinValueCloud('CLDR')
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,1) = qlim_getMinValueCloud('RF')
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,2) = qlim_getMinValueCloud('SF')
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,4) = qlim_getMinValueCloud('LWCR')
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,5) = qlim_getMinValueCloud('IWCR')
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1) = qlim_getMinValueCloud('CLDR')
       end do
 
     else if ( trim(mode) == 'restore' ) then 
