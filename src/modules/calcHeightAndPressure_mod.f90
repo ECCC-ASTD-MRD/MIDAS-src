@@ -206,6 +206,8 @@ contains
     vco => gsv_getVco(statevector)
     Vcode = vco%vcode
 
+    if (Vcode == 0) return
+
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if P_T, P_M not allocated : do nothing
       if (gsv_varExist(statevector, 'P_*')) then
@@ -271,6 +273,8 @@ contains
 
     vco => gsv_getVco(statevector)
     Vcode = vco%vcode
+
+    if (Vcode == 0) return
 
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if Z_T, Z_M not allocated : do nothing

@@ -141,7 +141,7 @@ CONTAINS
     integer              :: stepIndex, numStep_inc, numStep_trl
     integer, allocatable :: dateStampList(:)
 
-    character(len=4), allocatable :: varNamesRef(:)
+    character(len=4), allocatable :: varNamesRef(:), varNamesPsfc(:)
     logical  :: allocHeightSfc, refStateNeeded
 
     call msg('inc_computeHighResAnalysis', 'START', verb_opt=2)
@@ -194,9 +194,13 @@ CONTAINS
       if (vco_trl%Vcode == 5100) then
         allocate(varNamesRef(4))
         varNamesRef = (/'P0', 'P0LS', 'TT', 'HU'/)
+        allocate(varNamesPsfc(2))
+        varNamesPsfc = (/'P0','P0LS'/)
       else
         allocate(varNamesRef(3))
         varNamesRef = (/'P0', 'TT', 'HU'/)
+        allocate(varNamesPsfc(1))
+        varNamesPsfc = (/'P0'/)
       end if
       call gsv_allocate( statevectorRef, numStep_inc, hco_trl, vco_inc, &
                          dataKind_opt=pre_incrReal, &
@@ -272,7 +276,7 @@ CONTAINS
       call gsv_allocate(statevectorRefPsfc, numStep_inc, hco_trl, vco_trl, &
                         dataKind_opt=pre_incrReal, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                        varNames_opt=(/'P0','P0LS'/), allocHeightSfc_opt=allocHeightSfc, &
+                        varNames_opt=varNamesPsfc, allocHeightSfc_opt=allocHeightSfc, &
                         hInterpolateDegree_opt=hInterpolationDegree )
       call gsv_copy(statevectorRef, statevectorRefPsfc, allowVarMismatch_opt=.true., &
                     allowVcoMismatch_opt=.true.)
@@ -280,7 +284,7 @@ CONTAINS
       call gsv_allocate(stateVectorPsfcHighRes, numStep_trl, hco_trl, vco_trl, &
                         dataKind_opt=pre_incrReal, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                        varNames_opt=(/'P0','P0LS'/), allocHeightSfc_opt=allocHeightSfc, &
+                        varNames_opt=varNamesPsfc, allocHeightSfc_opt=allocHeightSfc, &
                         hInterpolateDegree_opt=hInterpolationDegree)
       call int_tInterp_gsv(statevectorRefPsfc, stateVectorPsfcHighRes)
     else ref_building
@@ -356,6 +360,7 @@ CONTAINS
     ! Locals:
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_hco), pointer :: hco_trl => null()
+    character(len=4), allocatable :: varNamesPsfc(:)
 
     real(pre_incrReal), pointer :: oceanIce_ptr(:,:,:,:)
 
@@ -387,12 +392,20 @@ CONTAINS
       allocHeightSfc = stateVectorTrial%heightSfcPresent
     end if
 
+    if (vco_trl%Vcode == 5100) then
+      allocate(varNamesPsfc(2))
+      varNamesPsfc = (/'P0','P0LS'/)
+    else
+      allocate(varNamesPsfc(1))
+      varNamesPsfc = (/'P0'/)
+    end if
+
     ! Degrade timesteps stateVector high-res Psfc, and high-res analysis
     if (gsv_varExist(varName='P0')) then
       call gsv_allocate(stateVectorPsfc, tim_nstepobsinc, hco_trl, vco_trl, &
                         dataKind_opt = pre_incrReal, &
                         dateStamp_opt = tim_getDateStamp(), mpi_local_opt = .true.,  &
-                        varNames_opt = (/'P0','P0LS'/), allocHeightSfc_opt = allocHeightSfc, &
+                        varNames_opt = varNamesPsfc, allocHeightSfc_opt = allocHeightSfc, &
                         hInterpolateDegree_opt = hInterpolationDegree)
       call gsv_copy(stateVectorPsfcHighRes, stateVectorPsfc, &
                     allowTimeMismatch_opt = .true., allowVarMismatch_opt=.true.)
@@ -479,6 +492,7 @@ CONTAINS
     ! Locals:
     type(struct_gsv) :: stateVectorIncHighRes
     type(struct_gsv) :: stateVector_1step_r4, stateVectorPsfc_1step_r4
+    character(len=4), allocatable :: varNamesPsfc(:)
 
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_hco), pointer :: hco_trl => null()
@@ -515,6 +529,14 @@ CONTAINS
       allocHeightSfc = stateVectorTrial%heightSfcPresent
     end if
     writeHeightSfc = allocHeightSfc
+
+    if (vco_trl%Vcode == 5100) then
+      allocate(varNamesPsfc(2))
+      varNamesPsfc = (/'P0','P0LS'/)
+    else
+      allocate(varNamesPsfc(1))
+      varNamesPsfc = (/'P0'/)
+    end if
 
     ! Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR) for original trial
     call gvt_transform(stateVectorTrial,   'AllTransformedToModel',allowOverWrite_opt=.true.)
@@ -582,7 +604,8 @@ CONTAINS
                            varNames_opt=varNames )
         call gsv_allocate( stateVectorPsfc_1step_r4, 1, stateVectorAnal%hco, stateVectorAnal%vco, &
                            dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
-                           varNames_opt=(/'P0','P0LS'/), allocHeightSfc_opt=allocHeightSfc )
+                           varNames_opt=varNamesPsfc, allocHeightSfc_opt=allocHeightSfc )
+        call gsv_zero(stateVectorPsfc_1step_r4)
       end if
 
       ! transpose ANALYSIS data from Tiles to Steps
