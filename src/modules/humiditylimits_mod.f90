@@ -748,11 +748,10 @@ contains
           do lonIndex = lon1, lon2
 
             do levIndex = 1, numLev
+                varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, vnl_varNameListCloud(varNameIndex))
+                cld_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
 
-                  varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, vnl_varNameListCloud(varNameIndex))
-                  cld_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
-
-                  !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, cld, cld_modified)
+                !$OMP PARALLEL DO PRIVATE (stepIndex, memberIndex, cld, cld_modified)
                 do stepIndex = 1, numStep
                   do memberIndex = 1, numMember
 
