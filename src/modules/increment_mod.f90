@@ -208,18 +208,22 @@ CONTAINS
                          varNames_opt=varNamesRef, allocHeightSfc_opt=allocHeightSfc, &
                          hInterpolateDegree_opt=hInterpolationDegree )
 
-      ! - Restriction of increment to reference variables
+      ! - Restriction of increment to only reference state variables
       call gsv_allocate( statevectorIncRefLowRes, numStep_inc, hco_inc, vco_inc,  &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                          dataKind_opt=pre_incrReal, varNames_opt=varNamesRef, &
                          allocHeightSfc_opt=allocHeightSfc)
       call gsv_copy(statevectorIncLowRes, statevectorIncRefLowRes, &
                     allowVarMismatch_opt=.true.)
+      ! if trial grid contain P0LS, copy P0 increment to P0LS
+      if (vco_trl%Vcode == 5100) then
+        call gsv_copyVarToVar(statevectorIncRefLowRes,'P0','P0LS')
+      end if
 
-      ! - Spatial interpolation of reference analysis increment
+      ! - Horizontal *only* interpolation of analysis increment (ref state variables)
+      !   using int_interp_gsv since it also does needed mpi transpositions
       call msg('inc_computeHighResAnalysis', &
-           'horizontal interpolation of the Psfc increment', mpiAll_opt=.false.)
-
+               'horizontal interpolation of the Psfc increment', mpiAll_opt=.false.)
       call int_interp_gsv(statevectorIncRefLowRes,statevectorRef)
       call gsv_deallocate(statevectorIncRefLowRes)
       !- Apply mask to increment in LAM
@@ -230,14 +234,22 @@ CONTAINS
         do stepIndex = 1, statevectorRef%numStep
           PsfcIncMasked(:,:,1,stepIndex) = PsfcIncPrior(:,:,1,stepIndex) * analIncMask(:,:,1)
         end do
+        if (gsv_varExist(statevectorRef,'P0LS')) then
+          call gsv_getField(statevectorRef,PsfcIncPrior,'P0LS')
+          call gsv_getField(statevectorRef,PsfcIncMasked,'P0LS')
+          do stepIndex = 1, statevectorRef%numStep
+            PsfcIncMasked(:,:,1,stepIndex) = PsfcIncPrior(:,:,1,stepIndex) * analIncMask(:,:,1)
+          end do
+        end if
       end if
 
-      ! - Compute analysis of reference variables to use for vertical interpolation
-      ! of increment
+      ! - Compute analysis of reference state variables to use for vertical interpolation
+      !   of increment
       call msg('inc_computeHighResAnalysis', &
            'Computing reference variables analysis to use for interpolation of increment', &
            mpiAll_opt=.false.)
-      !   - build a restriction to reference variable of trial
+
+      !   - build a restriction to reference state variables of trial
       call gsv_allocate(statevectorTrlRefVars, numStep_trl, &
                         hco_trl, vco_trl, dateStamp_opt=tim_getDateStamp(), &
                         mpi_local_opt=.true., dataKind_opt=pre_incrReal, &
@@ -261,7 +273,7 @@ CONTAINS
       call int_vInterp_gsv(statevectorTrlLowResTime, statevectorTrlLowResVert)
       call gsv_deallocate(statevectorTrlLowResTime)
       call gsv_deallocate(statevectorTrlRefVars)
-      !   - build the analysis reference for the increment vertical interpolation.
+      !   - build the analysis reference state for the increment vertical interpolation.
       !     At that stage, statevectorRef contains the increment on the trial
       !     horizontal grid, but analysis vertical structure; consistent for addition.
       call gsv_add(statevectorTrlLowResVert, statevectorRef)
@@ -269,8 +281,8 @@ CONTAINS
 
       ! - Time interpolation to get high-res Psfc analysis increment to output
       call msg('inc_computeHighResAnalysis', &
-           'Time interpolation to get high-res Psfc analysis increment', &
-           mpiAll_opt=.false.)
+               'Time interpolation to get high-res Psfc analysis increment', &
+               mpiAll_opt=.false.)
 
       !   - Restriction to P0 only + vco set on vco_trl for later consistency
       call gsv_allocate(statevectorRefPsfc, numStep_inc, hco_trl, vco_trl, &

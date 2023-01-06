@@ -130,9 +130,9 @@ contains
 
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector_in     ! Statevector input
-    type(struct_gsv),           intent(inout) :: statevector_out    ! Statevector providing the target horizontal and vertical structure and will contain the interpolated fields
+    type(struct_gsv),           intent(inout) :: statevector_out    ! Statevector output (with target grids)
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing fields P0, TT and HU
-    logical,          optional, intent(in)    :: checkModelTop_opt  ! If true, model top consistency will be checked in vertical interpolation
+    logical,          optional, intent(in)    :: checkModelTop_opt  ! If true, model top consistency checked in vertical interpolation
     
     ! Locals:
     logical :: checkModelTop
