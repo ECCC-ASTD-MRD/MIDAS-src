@@ -478,7 +478,7 @@ contains
                       mpi_local_opt=statevectorRef%mpi_local, mpi_distribution_opt='Tiles', &
                       dataKind_opt=gsv_getDataKind(statevectorRef), &
                       allocHeightSfc_opt=statevectorRef%heightSfcPresent, &
-                      varNames_opt=(/'P0'/) )
+                      varNames_opt=(/'P0','P0LS'/) )
     call gsv_copy(stateVectorRef, stateVectorRef_out, allowVcoMismatch_opt=.true., &
                   allowVarMismatch_opt=.true.)
 
@@ -792,7 +792,7 @@ contains
                       mpi_distribution_opt=statevectorRef%mpi_distribution, &
                       dataKind_opt=gsv_getDataKind(statevectorRef), &
                       allocHeightSfc_opt=statevectorRef%heightSfcPresent, &
-                      varNames_opt=(/'P0'/) )
+                      varNames_opt=(/'P0','P0LS'/) )
     call gsv_copy(stateVectorRef, stateVectorRef_out, allowVcoMismatch_opt=.true., &
                   allowVarMismatch_opt=.true.)
 

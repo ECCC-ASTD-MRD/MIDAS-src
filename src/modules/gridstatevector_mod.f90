@@ -764,7 +764,8 @@ module gridStateVector_mod
 
     if (statevector%vco%vcode == 5100 .and. &
         .not.statevector%varExistList(vnl_varListIndex('P0LS'))) then
-      call utl_abort('gsv_allocate: P0LS must be included in varNames_opt when vcode=5100')
+      write(*,*) 'gsv_allocate: WARNING: P0LS should usually be included in varNames_opt when vcode=5100'
+      write(*,*) 'gsv_allocate: varNames_opt = ', varNames_opt
     end if
 
     if (present(horizSubSample_opt)) then

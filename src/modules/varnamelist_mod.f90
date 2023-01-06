@@ -42,6 +42,7 @@ module varNameList_mod
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
   public :: vnl_varNamesFromExistList, vnl_varMassFromVarNum, vnl_varMassFromVarName
   public :: vnl_isPhysicsVar, vnl_isCloudVar
+  public :: vnl_addToVarNames
 
   ! These private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
@@ -782,5 +783,30 @@ module varNameList_mod
       end do
   
     end function vnl_isCloudVar
+
+    !--------------------------------------------------------------------------
+    ! vnl_addToVarNames
+    !--------------------------------------------------------------------------
+    function vnl_addToVarNames(varNamesIn,varNameToAdd) result(varNamesOut)
+      !
+      ! :Purpose: Add an additional varName to an existing list of varNames
+      !
+      implicit none
+
+      ! Arguments:
+      character(len=*),  intent(in) :: varNamesIn(:)
+      character(len=*),  intent(in) :: varNameToAdd
+      character(len=4), pointer     :: varNamesOut(:)
+
+      ! Locals:
+      integer :: lenVarNames
+
+      lenVarNames = size(varNamesIn)
+      allocate(varNamesOut(lenVarNames+1))
+
+      varNamesOut(1:lenVarNames) = varNamesIn(:)
+      varNamesOut(lenVarNames+1) = varNameToAdd
+
+    end function vnl_addToVarNames
 
 end module varNameList_mod

@@ -156,12 +156,12 @@ contains
 
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
-    real(4), pointer :: hu_ptr_r4(:,:,:,:), tt_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
-    real(8), pointer :: hu_ptr_r8(:,:,:,:), tt_ptr_r8(:,:,:,:), psfc_ptr_r8(:,:,:,:)
+    real(4), pointer :: hu_ptr_r4(:,:,:,:), tt_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
+    real(8), pointer :: hu_ptr_r8(:,:,:,:), tt_ptr_r8(:,:,:,:), psfc_ptr_r8(:,:,:,:), psfcLS_ptr_r8(:,:,:,:)
     real(8), pointer :: pressure(:,:,:)
     real(8)          :: hu, husat, hu_modified, tt
-    real(8), allocatable :: psfc(:,:)
     integer          :: lon1, lon2, lat1, lat2, lev1, lev2
+    real(8), allocatable :: psfc(:,:), psfcLS(:,:)
     integer          :: lonIndex, latIndex, levIndex, stepIndex
 
     if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_gsv: STARTING'
@@ -189,15 +189,28 @@ contains
     lev2 = gsv_getNumLev(statevector,'TH')
 
     allocate(psfc(lon2-lon1+1,lat2-lat1+1))
+    if (vco_ptr%vcode == 5100) allocate(psfcLS(lon2-lon1+1,lat2-lat1+1))
     do stepIndex = 1, statevector%numStep
       if (stateVector%dataKind == 8) then
         call gsv_getField(statevector,psfc_ptr_r8,'P0')
         psfc(:,:) = psfc_ptr_r8(:,:,1,stepIndex)
+        if (vco_ptr%vcode == 5100) then
+          call gsv_getField(statevector,psfcLS_ptr_r8,'P0LS')
+          psfcLS(:,:) = psfcLS_ptr_r8(:,:,1,stepIndex)
+        end if
       else
         call gsv_getField(statevector,psfc_ptr_r4,'P0')
         psfc(:,:) = psfc_ptr_r4(:,:,1,stepIndex)
+        if (vco_ptr%vcode == 5100) then
+          call gsv_getField(statevector,psfcLS_ptr_r4,'P0LS')
+          psfcLS(:,:) = psfcLS_ptr_r4(:,:,1,stepIndex)
+        end if
       end if
-      call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
+      if (vco_ptr%vcode == 5100) then
+        call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure)
+      else
+        call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
+      end if
       if (stateVector%dataKind == 8) then
         !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
         do levIndex = lev1, lev2
@@ -243,6 +256,7 @@ contains
     end do ! stepIndex
 
     deallocate(psfc)
+    if (allocated(psfcLS)) deallocate(psfcLS)
 
   end subroutine qlim_saturationLimit_gsv
 
@@ -260,11 +274,11 @@ contains
 
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
-    real(4), pointer :: hu_ptr_r4(:,:,:,:), tt_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
+    real(4), pointer :: hu_ptr_r4(:,:,:,:), tt_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
     real(8), pointer :: pressure(:,:,:)
     real(8)          :: hu, husat, hu_modified, tt
-    real(8), allocatable :: psfc(:,:)
     integer          :: lon1, lon2, lat1, lat2, numLev
+    real(8), allocatable :: psfc(:,:),psfcLS(:,:)
     integer          :: lonIndex, latIndex, levIndex, stepIndex, memberIndex, varLevIndex
 
     if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_ens: STARTING'
@@ -283,6 +297,7 @@ contains
     numLev = ens_getNumLev(ensemble,'TH')
     call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
     allocate(psfc(ens_getNumMembers(ensemble),ens_getNumStep(ensemble)))
+    if (vco_ptr%vcode == 5100) allocate(psfcLS(ens_getNumMembers(ensemble),ens_getNumStep(ensemble)))
 
     do latIndex = lat1, lat2
       do lonIndex = lon1, lon2
@@ -291,7 +306,14 @@ contains
         varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
         psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
         psfc(:,:) = psfc_ptr_r4(:,:,lonIndex,latIndex)
-        call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
+        if (vco_ptr%vcode == 5100) then
+          varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0LS')
+          psfcLS_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
+          psfcLS(:,:) = psfcLS_ptr_r4(:,:,lonIndex,latIndex)
+          call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure)
+        else
+          call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
+        end if
 
         do levIndex = 1, numLev
           varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'HU')
@@ -323,6 +345,7 @@ contains
     end do ! latIndex
 
     deallocate(psfc)
+    if (allocated(psfcLS)) deallocate(psfcLS)
 
   end subroutine qlim_saturationLimit_ens
 
@@ -343,11 +366,11 @@ contains
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
     real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
-    real(8), allocatable :: psfc(:,:)
+    real(8), allocatable :: psfc(:,:),psfcLS(:,:)
     real(8), allocatable :: qmin3D_rttov(:,:,:), qmax3D_rttov(:,:,:)
-    real(8), pointer     :: hu_ptr_r8(:,:,:,:), psfc_ptr_r8(:,:,:,:)
+    real(8), pointer     :: hu_ptr_r8(:,:,:,:), psfc_ptr_r8(:,:,:,:), psfcLS_ptr_r8(:,:,:,:)
     real(8), pointer     :: cld_ptr_r8(:,:,:,:)
-    real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
+    real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
     real(4), pointer     :: cld_ptr_r4(:,:,:,:)
     real(8), pointer     :: pressure(:,:,:)
     real(8)              :: hu, hu_modified
@@ -444,16 +467,29 @@ contains
       allocate( qmin3D_rttov(ni,nj,numLev) )
       allocate( qmax3D_rttov(ni,nj,numLev) )
       allocate( psfc(lon2-lon1+1,lat2-lat1+1) )
+      if (vco_ptr%vcode == 5100) allocate( psfcLS(lon2-lon1+1,lat2-lat1+1) )
 
       do stepIndex = 1, statevector%numStep
         if (statevector%dataKind == 8) then
           call gsv_getField(statevector,psfc_ptr_r8,'P0')
           psfc(:,:) = psfc_ptr_r8(:,:,1,stepIndex)
+          if (vco_ptr%vcode == 5100) then
+            call gsv_getField(statevector,psfcLS_ptr_r8,'P0')
+            psfcLS(:,:) = psfcLS_ptr_r8(:,:,1,stepIndex)
+          end if
         else
           call gsv_getField(statevector,psfc_ptr_r4,'P0')
           psfc(:,:) = real(psfc_ptr_r4(:,:,1,stepIndex),8)
+          if (vco_ptr%vcode == 5100) then
+            call gsv_getField(statevector,psfcLS_ptr_r4,'P0')
+            psfcLS(:,:) = psfcLS_ptr_r4(:,:,1,stepIndex)
+          end if
         end if
-        call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
+        if (vco_ptr%vcode == 5100) then
+          call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure)
+        else
+          call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
+        end if
 
         ! Interpolate RTTOV limits onto model levels
         call qlim_lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
@@ -487,6 +523,7 @@ contains
       end do ! stepIndex
 
       deallocate( psfc )
+      if (allocated(psfcLS)) deallocate( psfcLS )
       deallocate( qmin3D_rttov )
       deallocate( qmax3D_rttov )
 
@@ -570,9 +607,9 @@ contains
     ! Locals:
     type(struct_vco), pointer :: vco_ptr
     real(8), allocatable :: press_rttov(:), qmin_rttov(:), qmax_rttov(:)
-    real(8), allocatable :: psfc(:,:)
+    real(8), allocatable :: psfc(:,:),psfcLS(:,:)
     real(8), allocatable :: qmin3D_rttov(:,:,:), qmax3D_rttov(:,:,:)
-    real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:)
+    real(4), pointer     :: hu_ptr_r4(:,:,:,:), psfc_ptr_r4(:,:,:,:), psfcLS_ptr_r4(:,:,:,:)
     real(4), pointer     :: cld_ptr_r4(:,:,:,:)
     real(8), pointer     :: pressure(:,:,:)
     real(8)              :: hu, hu_modified
@@ -660,6 +697,7 @@ contains
       call ens_getLatLonBounds(ensemble, lon1, lon2, lat1, lat2)
 
       allocate( psfc(numMember,numStep) )
+      if (vco_ptr%vcode == 5100) allocate( psfcLS(numMember,numStep) )
       allocate( qmin3D_rttov(numMember,numStep,numLev) )
       allocate( qmax3D_rttov(numMember,numStep,numLev) )
 
@@ -669,7 +707,14 @@ contains
           varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
           psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
           psfc(:,:) = real(psfc_ptr_r4(:,:,lonIndex,latIndex),8)
-          call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
+          if (vco_ptr%vcode == 5100) then
+            varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0LS')
+            psfcLS_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
+            psfcLS(:,:) = real(psfcLS_ptr_r4(:,:,lonIndex,latIndex),8)
+            call czp_fetch3DLevels(vco_ptr, psfc, sfcFldLS_opt=psfcLS, fldT_opt=pressure)
+          else
+            call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
+          end if
 
           ! Interpolate RTTOV limits onto model levels
           call qlim_lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
@@ -703,6 +748,7 @@ contains
       end do ! latIndex
 
       deallocate( psfc )
+      if (allocated(psfcLS)) deallocate( psfcLS )
       deallocate( qmin3D_rttov )
       deallocate( qmax3D_rttov )
 
