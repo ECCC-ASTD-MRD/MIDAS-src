@@ -4115,7 +4115,7 @@ CONTAINS
     integer                :: btyp10, btyp, bfam, error
     integer                :: btyp10des, btyp10inf, btyp10obs, btyp10flg, btyp10omp
     integer                :: nb_rpts, ref_rpt, ref_blk, count
-    integer, allocatable   :: address(:), goodprof(:)
+    integer, allocatable   :: address(:), goodprof(:), reportsToUpdate(:)
     real(8), allocatable   :: btobs(:,:)
     real(8)                :: emisfc
     integer                :: nbele,nvale,nte
@@ -4132,7 +4132,6 @@ CONTAINS
     integer                :: idatyp
     real                   :: val_option_r4
     character(len=9)       :: station_id
-    logical                :: firstReportWithDataFound
     
     write(*,*) '----------------------------------------------------------'
     write(*,*) '------- Begin brpr_addCloudParametersandEmissivity -------'
@@ -4205,9 +4204,44 @@ CONTAINS
       call BURP_New(copyReport, ALLOC_SPACE=20000000, iostat=error)
       call handle_error(error, "brpr_addCloudParametersandEmissivity: problem allocating copyReport")
 
+      ! first identify reports that have observations in obsSpaceData
+      allocate(reportsToUpdate(count))
+      reportsToUpdate(:) = .false.
+      idata2 = -1
+      REPORTS0: do reportIndex = 1, count
+        call BURP_Get_Report(inputFile,        &
+             report    = inputReport,          &
+             REF       = address(reportIndex), &
+             iostat    = error)
+        call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Get_Report")
+        
+        call BURP_Get_Property(inputReport, IDTYP=idatyp)
+        call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Get_Property REPORTS0")
+
+        call obs_set_current_header_list(obsSpaceData, 'TO')
+        HEADER0: do
+          headerIndex = obs_getHeaderIndex(obsSpaceData)
+          if (headerIndex < 0) exit HEADER0
+
+          if  (obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == idatyp .and.  &
+               obs_headElem_i(obsSpaceData,OBS_OTP,headerIndex) == fileIndex) then
+            reportsToUpdate(reportIndex) = .true.
+            if (idata2 == -1) idata2 = headerIndex
+            cycle REPORTS0
+          end if
+        end do HEADER0
+      end do REPORTS0
+
+      if (idata2 == -1) then
+        write(*,*) 'brpr_addCloudParametersandEmissivity: for datyp=', idatyp,        &
+                    ' there is no report found in input file for update! Exiting ...'
+        call  cleanup()
+        return
+      end if
+      idata3 = idata2
+
       ! Loop on reports
 
-      firstReportWithDataFound = .false.
       REPORTS: do reportIndex = 1, count
 
         call BURP_Get_Report(inputFile,        &
@@ -4215,38 +4249,11 @@ CONTAINS
              REF       = address(reportIndex), &
              iostat    = error)
         call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Get_Report")
+        
+        if (.not. reportsToUpdate(reportIndex)) cycle REPORTS
 
-        if (.not. firstReportWithDataFound) then
-          call BURP_Get_Property(inputReport, IDTYP=idatyp)
-          write(*,*) "brpr_addCloudParametersandEmissivity idatyp=", idatyp, ",fileIndex=", fileIndex
-
-          ! find headerIndex in ObsSpaceData
-          idata2 = -1
-          call obs_set_current_header_list(obsSpaceData, 'TO')
-          HEADER: do
-            headerIndex = obs_getHeaderIndex(obsSpaceData)
-            if (headerIndex < 0) exit HEADER  
-            if  ( obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == idatyp .and.  &
-                  obs_headElem_i(obsSpaceData,OBS_OTP,headerIndex) == fileIndex) then
-              idata2 = headerIndex
-              exit HEADER
-            end if
-          end do HEADER
-
-          ! If headerIndex not found, cycle to the next report 
-          if (idata2 == -1) then 
-            if (reportIndex < count) then
-              cycle REPORTS
-            else
-              write(*,*) "datyp ",idatyp," not found in input file !"
-              write(*,*) "Nothing to do here ! Exiting ..."
-              call  cleanup()
-              return
-            end if
-          end if
-          firstReportWithDataFound = .true.
-          idata3 = idata2
-        end if
+        call BURP_Get_Property(inputReport, IDTYP=idatyp)
+        call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Get_Property REPORTS")
 
         ! First loop on blocks
 
@@ -5124,6 +5131,9 @@ CONTAINS
         call BURP_Write_Report(inputFile, copyReport, iostat=error)
         call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Write_Report")
       end do REPORTS
+      
+      deallocate(reportsToUpdate)
+
       if ( tvs_isIdBurpHyperSpectral(idatyp) ) then
         if ( flag_passage1 == 0 ) then
           write(*,*)
