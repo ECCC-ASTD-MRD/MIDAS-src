@@ -4215,7 +4215,7 @@ CONTAINS
              iostat    = error)
         call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Get_Report")
         
-        call BURP_Get_Property(inputReport, IDTYP=idatyp)
+        call BURP_Get_Property(inputReport, IDTYP=idatyp, iostat = error)
         call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Get_Property REPORTS0")
 
         call obs_set_current_header_list(obsSpaceData, 'TO')
@@ -4252,7 +4252,7 @@ CONTAINS
         
         if (.not. reportsToUpdate(reportIndex)) cycle REPORTS
 
-        call BURP_Get_Property(inputReport, IDTYP=idatyp)
+        call BURP_Get_Property(inputReport, IDTYP=idatyp, iostat = error)
         call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Get_Property REPORTS")
 
         ! First loop on blocks
