@@ -353,13 +353,15 @@ contains
           end do
         end do
 
-      ! Imposing minimum/maximum value for LWCR at all levels
-      else if ( vnl_varNameList3D(jvar) == 'LWCR') then
+      ! Imposing minimum/maximum value for ALL cloud variables at all levels
+      else if (vnl_isCloudVar(vnl_varNameList3D(jvar))) then
         do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
-          columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,'LWCR')
+          columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,columnIndex,vnl_varNameList3D(jvar))
           do jlev = 1, col_getNumLev(columnTrlOnAnlIncLev,'TH')
-            columnTrlOnAnlIncLev_ptr(jlev) = max(columnTrlOnAnlIncLev_ptr(jlev),qlim_readMinClwValue())
-            columnTrlOnAnlIncLev_ptr(jlev) = min(columnTrlOnAnlIncLev_ptr(jlev),qlim_readMaxClwValue())
+            columnTrlOnAnlIncLev_ptr(jlev) = max(columnTrlOnAnlIncLev_ptr(jlev), &
+                                                 qlim_getMinValueCloud(vnl_varNameList3D(jvar)))
+            columnTrlOnAnlIncLev_ptr(jlev) = min(columnTrlOnAnlIncLev_ptr(jlev), &
+                                                 qlim_getMaxValueCloud(vnl_varNameList3D(jvar)))
           end do
         end do
 

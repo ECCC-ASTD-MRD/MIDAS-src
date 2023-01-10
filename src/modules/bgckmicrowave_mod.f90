@@ -25,6 +25,7 @@ module bgckmicrowave_mod
   use obsSpaceData_mod
   use tovs_nl_mod
   use obsErrors_mod
+  use codtyp_mod
 
   implicit none
   save
@@ -6517,14 +6518,17 @@ contains
     integer                                 :: bodyIndex
     integer                                 :: obsNumCurrentLoc
     integer                                 :: bodyIndexbeg
-    integer                                 :: currentChannelNumber 
-    
+    integer                                 :: currentChannelNumber
+    integer                                 :: codtyp
+
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     call obs_headSet_r(obsSpaceData, OBS_CLWO,  headerIndex, cloudLiquidWaterPathObs(1))
 
-    if ( tvs_mwAllskyAssim ) then
+    if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .or. &
+        tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
       call obs_headSet_r(obsSpaceData, OBS_CLWB,  headerIndex, cloudLiquidWaterPathFG(1))
     end if
-    call obs_headSet_r(obsSpaceData, OBS_SCAT, headerIndex, atmScatteringIndex(1))
+    call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, atmScatteringIndex(1))
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag(1))
     call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalMarker(1))
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
@@ -6590,6 +6594,7 @@ contains
     integer                              :: instrum
     integer                              :: isat, iplatf
     integer                              :: instr
+    integer                              :: codtyp
     logical                              :: sensorIndexFound
 
    ! find tvs_sensor index corresponding to current obs
@@ -6642,41 +6647,45 @@ contains
     obsTbBiasCorr(:) = mwbg_realMissing
 
         
-    burpFileSatId                      = obs_elem_c    ( obsSpaceData, 'STID' , headerIndex ) 
-    satIdentifier(headerCompt)         = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex ) 
-    satZenithAngle(headerCompt)        = obs_headElem_r( obsSpaceData, OBS_SZA, headerIndex ) 
-    landQualifierIndice(headerCompt)   = obs_headElem_i( obsSpaceData, OBS_STYP, headerIndex) 
-    terrainTypeIndice(headerCompt)     = obs_headElem_i( obsSpaceData, OBS_TTYP, headerIndex) 
+    burpFileSatId                      = obs_elem_c    (obsSpaceData, 'STID' , headerIndex) 
+    satIdentifier(headerCompt)         = obs_headElem_i(obsSpaceData, OBS_SAT, headerIndex) 
+    satZenithAngle(headerCompt)        = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex) 
+    landQualifierIndice(headerCompt)   = obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex) 
+    terrainTypeIndice(headerCompt)     = obs_headElem_i(obsSpaceData, OBS_TTYP, headerIndex) 
     ! If terrain type is missing, set it to -1 for the QC programs
     if (terrainTypeIndice(headerCompt) ==  99) terrainTypeIndice(headerCompt) = -1
-    obsLatitude (headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LAT, headerIndex ) 
-    obsLongitude(headerCompt)          = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex ) 
+    obsLatitude (headerCompt)          = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) 
+    obsLongitude(headerCompt)          = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) 
     ! Convert lat/lon to degrees
     obsLongitude(headerCompt) = obsLongitude(headerCompt)*MPC_DEGREES_PER_RADIAN_R8
-    if( obsLongitude(headerCompt) > 180. ) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
+    if (obsLongitude(headerCompt) > 180.) obsLongitude(headerCompt) = obsLongitude(headerCompt) - 360.
     obsLatitude(headerCompt)  = obsLatitude(headerCompt) *MPC_DEGREES_PER_RADIAN_R8
-    satScanPosition(headerCompt)       = obs_headElem_i( obsSpaceData, OBS_FOV , headerIndex) 
-    obsGlobalMarker(headerCompt)       = obs_headElem_i( obsSpaceData, OBS_ST1, headerIndex ) 
-    satOrbit(headerCompt)              = obs_headElem_i( obsSpaceData, OBS_ORBI, headerIndex) 
+    satScanPosition(headerCompt)       = obs_headElem_i(obsSpaceData, OBS_FOV , headerIndex) 
+    obsGlobalMarker(headerCompt)       = obs_headElem_i(obsSpaceData, OBS_ST1, headerIndex) 
+    satOrbit(headerCompt)              = obs_headElem_i(obsSpaceData, OBS_ORBI, headerIndex) 
     if (instName == 'ATMS') then  
-      obsQcFlag1(headerCompt,1)        = obs_headElem_i( obsSpaceData, OBS_AQF1, headerIndex) 
-      obsQcFlag1(headerCompt,2)        = obs_headElem_i( obsSpaceData, OBS_AQF2, headerIndex) 
-      obsQcFlag1(headerCompt,3)        = obs_headElem_i( obsSpaceData, OBS_AQF3, headerIndex) 
+      obsQcFlag1(headerCompt,1)        = obs_headElem_i(obsSpaceData, OBS_AQF1, headerIndex) 
+      obsQcFlag1(headerCompt,2)        = obs_headElem_i(obsSpaceData, OBS_AQF2, headerIndex) 
+      obsQcFlag1(headerCompt,3)        = obs_headElem_i(obsSpaceData, OBS_AQF3, headerIndex) 
     end if
 
-    bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
+    bodyIndexbeg        = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+    obsNumCurrentLoc    = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex)
+    codtyp              = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
 
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
-      currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
-      obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
-      if ( tvs_mwAllskyAssim ) then
-        btClear(currentChannelNumber)      = obs_bodyElem_r( obsSpaceData,  OBS_BTCL, bodyIndex )
+      currentChannelNumber = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)) - &
+                             tvs_channelOffset(sensorIndex)
+      obsTb(currentChannelNumber) = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
+      if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .or. &
+          tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .or. &
+          tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+        btClear(currentChannelNumber) = obs_bodyElem_r(obsSpaceData,  OBS_BTCL, bodyIndex)
       end if
-      ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
-      obsTbBiasCorr(currentChannelNumber)  = obs_bodyElem_r( obsSpaceData,  OBS_BCOR,bodyIndex)
-      obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
-      obsQcFlag2(currentChannelNumber)     = obs_bodyElem_i( obsSpaceData,  OBS_QCF2, bodyIndex)
+      ompTb(currentChannelNumber)          = obs_bodyElem_r(obsSpaceData, OBS_OMP, bodyIndex)
+      obsTbBiasCorr(currentChannelNumber)  = obs_bodyElem_r(obsSpaceData, OBS_BCOR,bodyIndex)
+      obsFlags(currentChannelNumber)       = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
+      obsQcFlag2(currentChannelNumber)     = obs_bodyElem_i(obsSpaceData, OBS_QCF2, bodyIndex)
       
     end do BODY
     do channelIndex=1, actualNumChannel

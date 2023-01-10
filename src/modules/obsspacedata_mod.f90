@@ -535,8 +535,9 @@ module ObsColumnNames_mod
    integer, parameter, public :: OBS_CLWO  = OBS_SAZ  +1 ! cloud liquid water retrieved from observation
    integer, parameter, public :: OBS_CLWB  = OBS_CLWO +1 ! cloud liquid water retrieved from background
    integer, parameter, public :: OBS_MWS   = OBS_CLWB +1 ! model wind speed (in ASCAT data)
-   integer, parameter, public :: OBS_SCAT  = OBS_MWS  +1 ! atmospheric scatering index
-   integer, parameter, public :: OBS_IWV   = OBS_SCAT +1 ! atmospheric integrated water vapor for ssmis
+   integer, parameter, public :: OBS_SIO   = OBS_MWS  +1 ! scatering index retrieved from observation
+   integer, parameter, public :: OBS_SIB   = OBS_SIO  +1 ! scatering index retrieved from background
+   integer, parameter, public :: OBS_IWV   = OBS_SIB  +1 ! atmospheric integrated water vapor for ssmis
    integer, parameter, public :: OBS_RZAM  = OBS_IWV  +1 ! Azimuth of the Radar beam   (radians)
    integer, parameter, public :: OBS_RELE  = OBS_RZAM +1 ! Elevation of the Radar beam (radians)
    integer, parameter, public :: OBS_RANS  = OBS_RELE +1 ! Initial range of the Radar beam 
@@ -569,8 +570,8 @@ module ObsColumnNames_mod
         'CF7 ','ETOP','VTOP','ECF ','VCF ','HE  ', &
         'ZTSR','ZTM ','ZTGM','ZLQM','ZPS ','TRAD', &
         'GEOI','CLF ','SUN ','SZA ','AZA ','SAZ ', &
-        'CLW1','CLW2','MWS ','SCAT','IWV','RZAM',   &
-        'RELE','RANS','RANE'/)
+        'CLW1','CLW2','MWS ','SIO ','SIB ','IWV ', &
+        'RZAM','RELE','RANS','RANE'/)
    !
    ! INTEGER-BODY COLUMN NUMBERS
    !
@@ -1496,7 +1497,7 @@ module ObsSpaceData_mod
    public :: OBS_ETOP, OBS_VTOP, OBS_ECF,  OBS_VCF , OBS_HE  , OBS_ZTSR
    public :: OBS_ZTM , OBS_ZTGM, OBS_ZLQM, OBS_ZPS , OBS_TRAD, OBS_GEOI
    public :: OBS_CLF , OBS_SUN,  OBS_SZA,  OBS_AZA , OBS_SAZ , OBS_CLWO, OBS_CLWB, OBS_MWS
-   public :: OBS_SCAT, OBS_IWV,  OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE
+   public :: OBS_SIO , OBS_SIB,  OBS_IWV,  OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE
    !    integer-body column numbers
    public :: OBS_VNM, OBS_FLG, OBS_KFA, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR
    public :: OBS_XTR, OBS_QCF2, OBS_CLA

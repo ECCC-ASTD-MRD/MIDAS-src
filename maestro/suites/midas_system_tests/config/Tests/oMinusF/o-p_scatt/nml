@@ -39,57 +39,48 @@
    ANLVAR(8)   ='IWCR'
    ANLVAR(9)   ='RF'
    ANLVAR(10)  ='SF'
+   ANLVAR(11)  ='CLDR'
 /
  &NAMTOV
    NSENSORS         =  15,
    CSATID(1)        = 'NOAA15',
    CINSTRUMENTID(1) = 'AMSUA',
-   useRttovScatt(1) = .TRUE.,
    CSATID(2)        = 'NOAA16',
    CINSTRUMENTID(2) = 'AMSUA',
-   useRttovScatt(2) = .TRUE.,
    CSATID(3)        = 'NOAA15',
    CINSTRUMENTID(3) = 'AMSUB',
-   useRttovScatt(3) = .TRUE.,
    CSATID(4)        = 'NOAA16',
    CINSTRUMENTID(4) = 'AMSUB',
-   useRttovScatt(4) = .TRUE.,
    CSATID(5)        = 'AQUA',
    CINSTRUMENTID(5) = 'AMSUA',
-   useRttovScatt(5) = .TRUE.,
    CSATID(6)        = 'NOAA18',
    CINSTRUMENTID(6) = 'AMSUA',
-   useRttovScatt(6) = .TRUE.,
    CSATID(7)        = 'NOAA18',
    CINSTRUMENTID(7) = 'MHS',
-   useRttovScatt(7) = .TRUE.,
    CSATID(8)        = 'METOP-2',
    CINSTRUMENTID(8) = 'AMSUA',
-   useRttovScatt(8) = .TRUE.,
    CSATID(9)        = 'METOP-1',
    CINSTRUMENTID(9) = 'AMSUA',
-   useRttovScatt(9) = .TRUE.,
    CSATID(10)       = 'METOP-2',
    CINSTRUMENTID(10)= 'MHS',
-   useRttovScatt(10) = .TRUE.,
    CSATID(11)       = 'METOP-1',
    CINSTRUMENTID(11)= 'MHS',
-   useRttovScatt(11) = .TRUE.,
    CSATID(12)       = 'NOAA19',
    CINSTRUMENTID(12)= 'AMSUA',
-   useRttovScatt(12) = .TRUE.,
    CSATID(13)       = 'NOAA19',
    CINSTRUMENTID(13)= 'MHS',
-   useRttovScatt(13) = .TRUE.,
    CSATID(14)       = 'NPP',
    CINSTRUMENTID(14)= 'ATMS',
-   useRttovScatt(14) = .TRUE.,
    CSATID(15)       = 'NOAA20',
    CINSTRUMENTID(15)= 'ATMS',
-   useRttovScatt(15) = .TRUE.,
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
    regLimitExtrap=.false.
+   instrumentNamesUsingHydrometeors(1) = 'amsua'
+   instrumentNamesUsingHydrometeors(2) = 'amsub'
+   instrumentNamesUsingHydrometeors(3) = 'mhs'
+   instrumentNamesUsingHydrometeors(4) = 'atms'
+   mwAllskyAssim = .true.
 /
  &NAMCODTYP
 /
@@ -115,6 +106,9 @@
   BBITOFF(5)=-8,
   NELEMS=10,
   BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220
+/
+ &NAMADDTOBURP
+  siFgElementId = 13091
 /
  &NAMBURP_FILTER_TOVS
   BNBITSOFF=0,

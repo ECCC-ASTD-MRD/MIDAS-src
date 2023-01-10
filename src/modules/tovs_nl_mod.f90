@@ -106,7 +106,9 @@ module tovs_nl_mod
   public :: tvs_coefs, tvs_opts, tvs_transmission,tvs_emissivity
   public :: tvs_coef_scatt, tvs_opts_scatt
   public :: tvs_radiance, tvs_surfaceParameters
-  public :: tvs_numMWInstrumUsingCLW, tvs_mwInstrumUsingCLW_tl, tvs_mwAllskyAssim
+  public :: tvs_numMWInstrumUsingCLW, tvs_numMWInstrumUsingHydrometeors
+  public :: tvs_mwInstrumUsingCLW_tl, tvs_mwInstrumUsingHydrometeors_tl
+  public :: tvs_mwAllskyAssim
   ! public procedures
   public :: tvs_fillProfiles, tvs_rttov, tvs_printDetailledOmfStatistics, tvs_allocTransmission, tvs_cleanup
   public :: tvs_deallocateProfilesNlTlAd
@@ -120,8 +122,8 @@ module tovs_nl_mod
   public :: tvs_getLocalChannelIndexFromChannelNumber
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuth
-  public :: tvs_isInstrumUsingCLW, tvs_getChannelNumIndexFromPPP
-  public :: tvs_useRttovScatt
+  public :: tvs_isInstrumUsingCLW, tvs_isInstrumUsingHydrometeors, tvs_getChannelNumIndexFromPPP
+  public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_isInstrumAllskyTtHuAssim
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -156,8 +158,11 @@ module tovs_nl_mod
   integer tvs_instruments(tvs_maxNumberOfSensors)  ! RTTOVinstrument ID's (e.g., 3=AMSU-A; 4=AMSU-B; 6=SSMI; ...)
   integer tvs_channelOffset(tvs_maxNumberOfSensors)! BURP to RTTOV channel mapping offset
   integer instrumentIdsUsingCLW(tvs_maxNumberOfSensors)
+  integer instrumentIdsUsingHydrometeors(tvs_maxNumberOfSensors)
   integer tvs_numMWInstrumUsingCLW 
+  integer tvs_numMWInstrumUsingHydrometeors
   logical tvs_mwInstrumUsingCLW_tl
+  logical tvs_mwInstrumUsingHydrometeors_tl
   logical tvs_mwAllskyAssim
   logical :: tvs_mpiTask0ReadCoeffs 
   real(8) :: tvs_cloudScaleFactor 
@@ -167,7 +172,6 @@ module tovs_nl_mod
   logical tvs_regLimitExtrap                       ! use RTTOV reg_limit_extrap option
   logical tvs_doAzimuthCorrection(tvs_maxNumberOfSensors)
   logical tvs_isAzimuthValid(tvs_maxNumberOfSensors)
-  logical tvs_useRttovScatt(tvs_maxNumberOfSensors)
   logical tvs_userDefinedDoAzimuthCorrection
   logical tvs_userDefinedIsAzimuthValid
 
@@ -221,6 +225,8 @@ contains
     integer :: channelNumber, nosensor, channelIndex
     integer :: errorStatus(1)
     integer :: headerIndex, bodyIndex, taskIndex
+    logical :: runObsOperatorWithClw
+    logical :: runObsOperatorWithHydrometeors
     logical, allocatable :: logicalBuffer(:)
     character(len=32) :: hydroTableFilename
 
@@ -420,7 +426,7 @@ contains
       allocate (tvs_coefs(tvs_nsensors)          ,stat= allocStatus(1))
       allocate (tvs_listSensors (3,tvs_nsensors) ,stat= allocStatus(2))
       allocate (tvs_opts (tvs_nsensors)          ,stat= allocStatus(3))
-      if (any(tvs_useRttovScatt)) then
+      if (tvs_numMWInstrumUsingHydrometeors  > 0) then
         allocate (tvs_opts_scatt (tvs_nsensors) ,stat= allocStatus(4))
         allocate (tvs_coef_scatt (tvs_nsensors) ,stat= allocStatus(5))
       end if
@@ -430,6 +436,11 @@ contains
         tvs_listSensors(1,sensorIndex) = tvs_platforms  (sensorIndex)
         tvs_listSensors(2,sensorIndex) = tvs_satellites (sensorIndex)
         tvs_listSensors(3,sensorIndex) = tvs_instruments(sensorIndex)
+
+        runObsOperatorWithClw = (tvs_numMWInstrumUsingCLW /= 0 .and. &
+                                 tvs_isInstrumUsingCLW(tvs_instruments(sensorIndex)))
+        runObsOperatorWithHydrometeors = (tvs_numMWInstrumUsingHydrometeors /= 0 .and. &
+                                          tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)))
 
         !< General configuration options
         tvs_opts(sensorIndex) % config % apply_reg_limits = .true. ! if true application of profiles limits
@@ -466,7 +477,7 @@ contains
         tvs_opts(sensorIndex) % rt_all % co_data  = .false.
         tvs_opts(sensorIndex) % rt_all % ch4_data = .false.
 
-        if ( tvs_useRttovScatt(sensorIndex) ) then
+        if (runObsOperatorWithHydrometeors) then
           tvs_opts_scatt(sensorIndex) % interp_mode =  tvs_opts(sensorIndex) % interpolation % interp_mode ! Set interpolation method
           tvs_opts_scatt(sensorIndex) % reg_limit_extrap = tvs_regLimitExtrap 
           tvs_opts_scatt(sensorIndex) % fastem_version = tvs_opts(sensorIndex) % rt_mw % fastem_version  
@@ -510,7 +521,7 @@ contains
           call utl_abort('tvs_setupAlloc')
         end if
        
-        if (tvs_useRttovScatt(sensorIndex)) then
+        if (runObsOperatorWithHydrometeors) then
           hydrotableFilename = 'hydrotable_' // trim(platform_name(tvs_platforms(sensorIndex))) // '_' // &
                trim(inst_name(tvs_instruments(sensorIndex))) // '.dat'
           call rttov_read_scattcoeffs(errorstatus(1), tvs_opts_scatt(sensorIndex), tvs_coefs(sensorIndex), &
@@ -632,7 +643,7 @@ contains
     ! Locals:
     integer  sensorIndex, ierr, nulnam
     integer, external :: fclos, fnom
-    integer :: instrumentIndex, numMWInstrumToUseCLW
+    integer :: instrumentIndex, numMWInstrumToUseCLW, numMWInstrumToUseHydrometeors
 
     ! Namelist variables: (local)
     character(len=8)  :: crtmodl
@@ -648,19 +659,21 @@ contains
     logical :: userDefinedIsAzimuthValid
     logical :: mpiTask0ReadCoeffs
     logical :: mwInstrumUsingCLW_tl
+    logical :: mwInstrumUsingHydrometeors_tl
     real(8) :: cloudScaleFactor 
     character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors)
+    character(len=15) :: instrumentNamesUsingHydrometeors(tvs_maxNumberOfSensors)
     logical :: mwAllskyAssim
-    logical :: useRttovScatt(tvs_maxNumberOfSensors)
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
     namelist /NAMTOV/ useUofWIREmiss, crtmodl
     namelist /NAMTOV/ useMWEmissivityAtlas, mWAtlasId
     namelist /NAMTOV/ mwInstrumUsingCLW_tl, instrumentNamesUsingCLW
+    namelist /NAMTOV/ mwInstrumUsingHydrometeors_tl, instrumentNamesUsingHydrometeors
     namelist /NAMTOV/ regLimitExtrap, doAzimuthCorrection, userDefinedDoAzimuthCorrection
     namelist /NAMTOV/ isAzimuthValid, userDefinedIsAzimuthValid, cloudScaleFactor 
-    namelist /NAMTOV/ mwAllskyAssim, mpiTask0ReadCoeffs, useRttovScatt
+    namelist /NAMTOV/ mwAllskyAssim, mpiTask0ReadCoeffs
 
     ! return if the NAMTOV does not exist
     if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') ) then
@@ -688,12 +701,13 @@ contains
     useMWEmissivityAtlas = .false.
     mWAtlasId = 1 !Default to TELSEM-2
     mwInstrumUsingCLW_tl = .false.
+    mwInstrumUsingHydrometeors_tl = .false.
     instrumentNamesUsingCLW(:) = '***UNDEFINED***'
+    instrumentNamesUsingHydrometeors(:) = '***UNDEFINED***'
     regLimitExtrap = .true.
     cloudScaleFactor = 0.5D0
     mwAllskyAssim = .false.
     mpiTask0ReadCoeffs = .true.
-    useRttovScatt(:) = .false.
 
     !   1.2 Read the NAMELIST NAMTOV to modify them
  
@@ -722,7 +736,6 @@ contains
     tvs_cloudScaleFactor = cloudScaleFactor 
     tvs_mwAllskyAssim = mwAllskyAssim
     tvs_mpiTask0ReadCoeffs = mpiTask0ReadCoeffs
-    tvs_useRttovScatt(:) = useRttovScatt(:)
 
     !  1.4 Validate namelist values
     
@@ -788,11 +801,47 @@ contains
       end if
     end do
 
+    ! Get the name and number of instruments to use hydrometeors
+    instrumentIdsUsingHydrometeors(:) = -1
+    do instrumentIndex = 1, tvs_nsensors
+      instrumentIdsUsingHydrometeors(instrumentIndex) = &
+                  tvs_getInstrumentId(instrumentNamesUsingHydrometeors(instrumentIndex))
+      if ( instrumentNamesUsingHydrometeors(instrumentIndex) /= '***UNDEFINED***' ) then
+        if ( instrumentIdsUsingHydrometeors(instrumentIndex) == -1 ) then
+          write(*,*) instrumentIndex, instrumentNamesUsingHydrometeors(instrumentIndex)
+          call utl_abort('tvs_setup: Unknown instrument name to use hydrometeors')
+        end if
+      else
+        numMWInstrumToUseHydrometeors = instrumentIndex - 1
+        exit
+      end if
+    end do
+
+    ! check instrument is either using CLW or hydrometeors for non-ATMS instruments
+    do instrumentIndex = 1, numMWInstrumToUseHydrometeors
+      if (numMWInstrumToUseCLW == 0 .or. &
+          instrumentIdsUsingHydrometeors(instrumentIndex) == tvs_getInstrumentId('atms')) then
+        exit
+      end if
+
+      if (any(instrumentIdsUsingCLW(1:numMWInstrumToUseCLW) == &
+              instrumentIdsUsingHydrometeors(instrumentIndex))) then
+        write(*,*) instrumentIndex, instrumentNamesUsingHydrometeors(instrumentIndex)
+        call utl_abort('tvs_setup: this instrument is mentioned in instrumentIdsUsingCLW namelist')
+      end if
+    end do
+
     tvs_numMWInstrumUsingCLW = numMWInstrumToUseCLW
+    tvs_numMWInstrumUsingHydrometeors = numMWInstrumToUsehydrometeors
 
     if ( mmpi_myid == 0 ) then
       write(*,*) 'tvs_setup: Instrument IDs to use CLW: ', instrumentIdsUsingCLW(1:numMWInstrumToUseCLW)
       write(*,*) 'tvs_setup: Number of instruments to use CLW: ', numMWInstrumToUseCLW
+
+      write(*,*) 'tvs_setup: Instrument IDs to use hydrometeors: ', &
+                             instrumentIdsUsingHydrometeors(1:numMWInstrumToUseHydrometeors)
+      write(*,*) 'tvs_setup: Number of instruments to use hydrometeors: ', &
+                             numMWInstrumToUseHydrometeors
     end if
 
   end subroutine tvs_setup
@@ -1553,6 +1602,86 @@ contains
   end function tvs_isInstrumUsingCLW
 
   !--------------------------------------------------------------------------
+  !  tvs_isInstrumUsingHydrometeors
+  !--------------------------------------------------------------------------
+  function tvs_isInstrumUsingHydrometeors(instrumId) result(idExist)
+    !
+    ! :Purpose: given an RTTOV instrument code return if it is in the list to use Hydrometeors
+    !
+    implicit none
+
+    ! Argument:
+    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    logical             :: idExist
+
+    ! Locals:
+    integer :: instrumentIndex 
+
+    idExist = .false.
+    do instrumentIndex = 1, tvs_numMWInstrumUsingHydrometeors
+      if ( instrumId == instrumentIdsUsingHydrometeors(instrumentIndex) ) then
+        idExist = .true.
+        exit
+      end if
+    end do
+
+  end function tvs_isInstrumUsingHydrometeors
+
+  !--------------------------------------------------------------------------
+  !  tvs_isInstrumAllskyTtAssim
+  !--------------------------------------------------------------------------
+  function tvs_isInstrumAllskyTtAssim(instrumId) result(allskyTtAssim)
+    !
+    ! :Purpose: determine if all-sky temperature-channel assimilation is asked for the instrument.
+    !
+    implicit none
+
+    ! Argument:
+    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    logical             :: allskyTtAssim
+
+    allskyTtAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingCLW(instrumId) .and. &
+                     .not. tvs_isInstrumUsingHydrometeors(instrumId))
+
+  end function tvs_isInstrumAllskyTtAssim
+
+  !--------------------------------------------------------------------------
+  !  tvs_isInstrumAllskyHuAssim
+  !--------------------------------------------------------------------------
+  function tvs_isInstrumAllskyHuAssim(instrumId) result(allskyHuAssim)
+    !
+    ! :Purpose: determine if all-sky humidity-channel assimilation is asked for the instrument.
+    !
+    implicit none
+
+    ! Argument:
+    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    logical             :: allskyHuAssim
+
+    allskyHuAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingHydrometeors(instrumId) .and. &
+                     .not. tvs_isInstrumUsingCLW(instrumId))
+
+  end function tvs_isInstrumAllskyHuAssim
+
+  !--------------------------------------------------------------------------
+  !  tvs_isInstrumAllskyTtHuAssim
+  !--------------------------------------------------------------------------
+  function tvs_isInstrumAllskyTtHuAssim(instrumId) result(AllskyTtHuAssim)
+    !
+    ! :Purpose: determine if all-sky temperature- AND humidity-channel assimilation is asked for the instrument.
+    !
+    implicit none
+
+    ! Argument:
+    integer, intent(in) :: instrumId     ! input Rttov instrument code
+    logical             :: AllskyTtHuAssim
+
+    AllskyTtHuAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingCLW(instrumId) .and. &
+                       tvs_isInstrumUsingHydrometeors(instrumId))
+
+  end function tvs_isInstrumAllskyTtHuAssim
+
+  !--------------------------------------------------------------------------
   !  tvs_mapInstrum
   !--------------------------------------------------------------------------
   subroutine tvs_mapInstrum(instrumburp,instrum)
@@ -2067,8 +2196,10 @@ contains
     real(8), allocatable :: ciw   (:,:)
     real(8), allocatable :: rainflux  (:,:)
     real(8), allocatable :: snowflux  (:,:)
+    real(8), allocatable :: cloudFraction(:,:)
     logical, allocatable :: surfTypeIsWater(:)
     logical :: runObsOperatorWithClw
+    logical :: runObsOperatorWithHydrometeors
     type(rttov_profile), pointer :: profiles(:)
     type(rttov_profile_cloud), pointer :: cld_profiles(:)
     real(8), pointer :: column_ptr(:)
@@ -2078,16 +2209,31 @@ contains
     if (tvs_nobtov == 0) return    ! exit if there are no tovs data
 
     if ( tvs_numMWInstrumUsingCLW > 0 .and. .not. col_varExist(columnTrl,'LWCR') ) then
-      call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, the LWCR variable must be included as an analysis variable in NAMSTATE. ')
+      call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, ' // &
+                     'the LWCR variable must be included as an analysis variable in NAMSTATE. ')
+    end if
+    if (tvs_numMWInstrumUsingHydrometeors > 0 .and. &
+        .not. (col_varExist(columnTrl,'LWCR') .and. col_varExist(columnTrl,'IWCR') .and. &
+               col_varExist(columnTrl,'RF')   .and. col_varExist(columnTrl,'SF')   .and. &
+               col_varExist(columnTrl,'CLDR'))) then
+      call utl_abort('tvs_fillProfiles: if number of instrument to use hydrometeors greater than zero, ' // &
+                     'the LWCR/IWCR/RF/SF/CLDR variables must be included as an analysis variable in NAMSTATE. ')
     end if
 
-    if ( (tvs_numMWInstrumUsingCLW == 0 .and.       tvs_mwAllskyAssim) .or. &
-         (tvs_numMWInstrumUsingCLW  > 0 .and. .not. tvs_mwAllskyAssim) ) then
-      call utl_abort('tvs_fillProfiles: number of instrument to use CLW do not match all-sky namelist variable. ')
+    if ( (tvs_numMWInstrumUsingCLW == 0 .and. tvs_numMWInstrumUsingHydrometeors == 0 .and. &
+            tvs_mwAllskyAssim) .or. &
+         (tvs_numMWInstrumUsingCLW  > 0 .and. tvs_numMWInstrumUsingHydrometeors == 0 .and. &
+            .not. tvs_mwAllskyAssim) .or. &
+         (tvs_numMWInstrumUsingCLW == 0 .and. tvs_numMWInstrumUsingHydrometeors  > 0 .and. &
+            .not. tvs_mwAllskyAssim) ) then
+      call utl_abort('tvs_fillProfiles: number of instrument to use CLW/hydrometeors do not match ' // &
+                     'all-sky namelist variable.')
     end if
 
-    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnTrl,'TO3') .and. .not. col_varExist(columnTrl,'O3L') ) then
-      call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .false. the ozone variable must be included as an analysis variable in NAMSTATE. ')
+    if (.not. tvs_useO3Climatology .and. .not. col_varExist(columnTrl,'TO3') .and. &
+        .not. col_varExist(columnTrl,'O3L') ) then
+      call utl_abort('tvs_fillProfiles: if tvs_useO3Climatology is set to .false. the ozone variable ' // &
+                     'must be included as an analysis variable in NAMSTATE. ')
     else if (.not.tvs_useO3Climatology) then 
       if (col_varExist(columnTrl,'TO3') ) then
         ozoneVarName = 'TO3'
@@ -2101,13 +2247,17 @@ contains
     if ( profileType == 'nl' ) then
       if ( .not. allocated( tvs_profiles_nl) ) then
         allocate(tvs_profiles_nl(tvs_nobtov) , stat=allocStatus(1) )
-        if (any(tvs_useRttovScatt)) allocate(tvs_cld_profiles_nl(tvs_nobtov) , stat=allocStatus(2) )
+        if (tvs_numMWInstrumUsingHydrometeors  > 0) then
+          allocate(tvs_cld_profiles_nl(tvs_nobtov) , stat=allocStatus(2))
+        end if
         call utl_checkAllocationStatus(allocStatus(1:2), ' tvs_fillProfiles tvs_profiles_nl')
       end if
     else if ( profileType == 'tlad' ) then
       if ( .not. allocated( tvs_profiles_tlad) ) then
         allocate(tvs_profiles_tlad(tvs_nobtov) , stat=allocStatus(1) )
-        if (any(tvs_useRttovScatt)) allocate(tvs_cld_profiles_tlad(tvs_nobtov) , stat=allocStatus(2) )
+        if (tvs_numMWInstrumUsingHydrometeors  > 0) then
+          allocate(tvs_cld_profiles_tlad(tvs_nobtov) , stat=allocStatus(2))
+        end if
         call utl_checkAllocationStatus(allocStatus(1:1), ' tvs_fillProfiles tvs_profiles_tlad')
       else
         return
@@ -2157,8 +2307,17 @@ contains
     ! loop over all instruments
     sensor_loop: do sensorIndex=1, tvs_nsensors
 
-      runObsOperatorWithClw = ( col_varExist(columnTrl,'LWCR') .and. tvs_numMWInstrumUsingCLW /= 0 .and. & 
-           tvs_opts(sensorIndex) % rt_mw % clw_data )
+      runObsOperatorWithClw = (col_varExist(columnTrl,'LWCR') .and. tvs_numMWInstrumUsingCLW /= 0 .and. & 
+                               tvs_isInstrumUsingCLW(tvs_instruments(sensorIndex)))
+
+      runObsOperatorWithHydrometeors = (col_varExist(columnTrl,'LWCR') .and. col_varExist(columnTrl,'IWCR') .and. &
+                                        col_varExist(columnTrl,'RF')   .and. col_varExist(columnTrl,'SF')   .and. &
+                                        col_varExist(columnTrl,'CLDR')                                      .and. &
+                                        tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)))
+
+      if (runObsOperatorWithClw .and. runObsOperatorWithHydrometeors) then
+        call utl_abort('tvs_fillProfiles: this instrument is mentioned in using CLW and hydrometeors.')
+      end if
 
       ! first loop over all obs.
       profileCount = 0
@@ -2177,19 +2336,21 @@ contains
       allocate (latitudes(profileCount),                             stat = allocStatus(3) )
       allocate (ozone(nlv_T,profileCount),                           stat = allocStatus(4) ) 
       allocate (pressure(nlv_T,profileCount),                        stat = allocStatus(5) )
-      if ( runObsOperatorWithClw .or. tvs_useRttovScatt(sensorIndex)) then
+      if (runObsOperatorWithClw .or. runObsOperatorWithHydrometeors) then
         allocate (clw       (nlv_T,profileCount),stat= allocStatus(6))
-        clw(:,:) = qlim_readMinClwValue()
+        clw(:,:) = qlim_getMinValueCloud('LWCR')
       end if
-      if ( tvs_useRttovScatt(sensorIndex) ) then
+      if (runObsOperatorWithHydrometeors) then
         allocate (ciw       (nlv_T,profileCount),stat= allocStatus(7))
         allocate (rainFlux  (nlv_T,profileCount),stat= allocStatus(8))
         allocate (snowFlux  (nlv_T,profileCount),stat= allocStatus(9))
-        ciw(:,:) = 0.d0
-        rainFlux(:,:) = 0.d0
-        snowFlux(:,:) = 0.d0
+        allocate (cloudFraction(nlv_T,profileCount),stat= allocStatus(10))
+        ciw(:,:) = qlim_getMinValueCloud('IWCR')
+        rainFlux(:,:) = qlim_getMinValueCloud('RF')
+        snowFlux(:,:) = qlim_getMinValueCloud('SF')
+        cloudFraction(:,:) = qlim_getMinValueCloud('CLDR')
       end if
-      allocate (surfTypeIsWater(profileCount),stat= allocStatus(10)) 
+      allocate (surfTypeIsWater(profileCount),stat= allocStatus(11)) 
       surfTypeIsWater(:) = .false.
 
       call utl_checkAllocationStatus(allocStatus, ' tvs_fillProfiles')
@@ -2213,7 +2374,7 @@ contains
              asw=1,                            & ! asw =1 allocation
              coefs=tvs_coefs(sensorIndex),     &
              init=.true. )                       
-        if (tvs_useRttovScatt(sensorIndex)) then
+        if (runObsOperatorWithHydrometeors) then
           call rttov_alloc_scatt_prof(            &   
                allocstatus(2),                    &
                1,                                 &
@@ -2258,34 +2419,48 @@ contains
 
         do levelIndex = 1, nlv_T
           pressure(levelIndex,profileCount) = col_getPressure(columnTrl,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
-          if ( (runObsOperatorWithClw .and. surfTypeIsWater(profileCount)) .or. tvs_useRttovScatt(sensorIndex)) then
+          if ((runObsOperatorWithClw .and. surfTypeIsWater(profileCount)) .or. &
+              (runObsOperatorWithHydrometeors .and. surfTypeIsWater(profileCount))) then
             clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
-            if ( clw(levelIndex,profileCount) < qlim_readMinClwValue() .or. &
-                 clw(levelIndex,profileCount) > qlim_readMaxClwValue() ) then
+
+            if (clw(levelIndex,profileCount) < qlim_getMinValueCloud('LWCR') .or. &
+                clw(levelIndex,profileCount) > qlim_getMaxValueCloud('LWCR')) then
               write(*,*) 'tvs_fillProfiles: clw=' , clw(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has clw outside RTTOV bounds')
             end if
+
             clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor
           end if
-          if ( tvs_useRttovScatt(sensorIndex) ) then
+          if (runObsOperatorWithHydrometeors .and. surfTypeIsWater(profileCount)) then
             ciw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'IWCR')
             rainFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'RF')
             snowFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'SF')
-            if ( ciw(levelIndex,profileCount) < 0.d0 .or. &
-                 ciw(levelIndex,profileCount) > 1.d0 ) then
+            cloudFraction(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'CLDR')
+
+            if (ciw(levelIndex,profileCount) < qlim_getMinValueCloud('IWCR') .or. &
+                ciw(levelIndex,profileCount) > qlim_getMaxValueCloud('IWCR')) then
               write(*,*) 'tvs_fillProfiles: ciw=' , ciw(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has ciw outside RTTOV bounds')
             end if
-            if ( rainFlux(levelIndex,profileCount) < 0.d0 .or. &
-                 rainFlux(levelIndex,profileCount) > 1.d0 ) then
+
+            if (rainFlux(levelIndex,profileCount) < qlim_getMinValueCloud('RF') .or. &
+                rainFlux(levelIndex,profileCount) > qlim_getMaxValueCloud('RF')) then
               write(*,*) 'tvs_fillProfiles: rainFlux=' , rainFlux(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has rain flux outside RTTOV bounds')
             end if
-            if ( snowFlux(levelIndex,profileCount) < 0.d0 .or. &
-                 snowFlux(levelIndex,profileCount) > 1.d0 ) then
+
+            if (snowFlux(levelIndex,profileCount) < qlim_getMinValueCloud('SF') .or. &
+                snowFlux(levelIndex,profileCount) > qlim_getMaxValueCloud('SF')) then
               write(*,*) 'tvs_fillProfiles: snowFlux=' , snowFlux(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has snow flux outside RTTOV bounds')
             end if
+
+            if (cloudFraction(levelIndex,profileCount) < qlim_getMinValueCloud('CLDR') .or. &
+                cloudFraction(levelIndex,profileCount) > qlim_getMaxValueCloud('CLDR')) then
+              write(*,*) 'tvs_fillProfiles: cloudFraction=' , cloudFraction(:,profileCount) 
+              call utl_abort('tvs_fillProfiles: columnTrl has cloud fraction outside RTTOV bounds')
+            end if
+
             ciw(levelIndex,profileCount) = ciw(levelIndex,profileCount) * tvs_cloudScaleFactor
             rainFlux(levelIndex,profileCount) = rainFlux(levelIndex,profileCount) * tvs_cloudScaleFactor
             snowFlux(levelIndex,profileCount) = snowFlux(levelIndex,profileCount) * tvs_cloudScaleFactor
@@ -2339,11 +2514,12 @@ contains
         profiles(tovsIndex) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
         profiles(tovsIndex) % p(:)            = pressure(:,profileIndex)
         !RTTOV scatt needs half pressure levels (see figure 5 of RTTOV 12 User's Guide)
-        if (tvs_useRttovScatt(sensorIndex)) then
+        if (runObsOperatorWithHydrometeors) then
           cld_profiles(tovsIndex) % ph (1) = 0.d0
           cld_profiles(tovsIndex) % cfrac = 0.d0
           do levelIndex = 1, nlv_T - 1
-            cld_profiles(tovsIndex) % ph (levelIndex+1) = 0.5d0 * (profiles(tovsIndex) % p(levelIndex) + profiles(tovsIndex) % p(levelIndex+1) )
+            cld_profiles(tovsIndex) % ph (levelIndex+1) = 0.5d0 * (profiles(tovsIndex) % p(levelIndex) + &
+                                                                   profiles(tovsIndex) % p(levelIndex+1))
           end do
           cld_profiles(tovsIndex) % ph (nlv_T+1) = profiles(tovsIndex) % s2m % p
         end if
@@ -2362,21 +2538,21 @@ contains
 
         profiles(tovsIndex) % ctp = 1013.25d0
         profiles(tovsIndex) % cfraction = 0.d0
-        if ( runObsOperatorWithClw ) then
+        if (runObsOperatorWithClw) then
           profiles(tovsIndex) % clw(:) = clw(:,profileIndex)
-        else if (tvs_useRttovScatt(sensorIndex)) then
+        else if (runObsOperatorWithHydrometeors) then
           cld_profiles(tovsIndex) % hydro(:,1) = rainFlux(:,profileIndex)
           cld_profiles(tovsIndex) % hydro(:,2) = snowFlux(:,profileIndex)
           cld_profiles(tovsIndex) % hydro(:,4) = clw(:,profileIndex)
           cld_profiles(tovsIndex) % hydro(:,5) = ciw(:,profileIndex)
           
-          where (cld_profiles(tovsIndex) % hydro(:,1) > 0.d0 .or. &
-                 cld_profiles(tovsIndex) % hydro(:,2) > 0.d0 .or. &
-                 cld_profiles(tovsIndex) % hydro(:,4) > 0.d0 .or. &
-                 cld_profiles(tovsIndex) % hydro(:,5) > 0.d0 )
-                 cld_profiles(tovsIndex) % hydro_frac(:,1) = 1.d0
+          where (cld_profiles(tovsIndex) % hydro(:,1) > qlim_getMinValueCloud('RF') .or. &
+                 cld_profiles(tovsIndex) % hydro(:,2) > qlim_getMinValueCloud('SF') .or. &
+                 cld_profiles(tovsIndex) % hydro(:,4) > qlim_getMinValueCloud('LWCR') .or. &
+                 cld_profiles(tovsIndex) % hydro(:,5) > qlim_getMinValueCloud('IWCR'))
+                 cld_profiles(tovsIndex) % hydro_frac(:,1) = cloudFraction(:,profileIndex)
           elsewhere
-            cld_profiles(tovsIndex) % hydro_frac(:,1) = 0.d0
+            cld_profiles(tovsIndex) % hydro_frac(:,1) = qlim_getMinValueCloud('CLDR')
           end where
         end if     
       end do
@@ -2396,8 +2572,9 @@ contains
         deallocate (ciw,      stat= allocStatus(9))
         deallocate (rainFlux, stat= allocStatus(10))
         deallocate (snowFlux, stat= allocStatus(11))
+        deallocate (cloudFraction, stat= allocStatus(12))
       end if
-      deallocate (surfTypeIsWater,stat= allocStatus(12)) 
+      deallocate (surfTypeIsWater,stat= allocStatus(13))
 
       call utl_checkAllocationStatus(allocStatus, ' tvs_fillProfiles', .false.)
      
@@ -2486,6 +2663,8 @@ contains
     integer :: istart, iend, bodyIndex, headerIndex
     real(8) :: clearMwRadiance
     logical :: ifBodyIndexFound
+    logical :: runObsOperatorWithClw
+    logical :: runObsOperatorWithHydrometeors
 
     if ( .not. beSilent ) write(*,*) 'tvs_rttov: Starting'
     if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
@@ -2511,6 +2690,15 @@ contains
    
       sensorType = tvs_coefs(sensorId) % coef % id_sensor
       instrum = tvs_coefs(sensorId) % coef % id_inst
+
+      runObsOperatorWithClw = (tvs_numMWInstrumUsingCLW /= 0 .and. &
+                               tvs_isInstrumUsingCLW(tvs_instruments(sensorId)))
+      runObsOperatorWithHydrometeors = (tvs_numMWInstrumUsingHydrometeors /= 0 .and. &
+                                        tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorId)))
+                                        
+      if (runObsOperatorWithClw .and. runObsOperatorWithHydrometeors) then
+        call utl_abort('tvs_rttov: this instrument is mentioned in using CLW and hydrometeors.')
+      end if
     
       !  loop over all obs.
       profileCount = 0
@@ -2561,7 +2749,7 @@ contains
               emissivity=emissivity_local,&
               init=.true.)
 
-      if (tvs_useRttovScatt(sensorId)) then
+      if (runObsOperatorWithHydrometeors) then
         allocate ( frequencies(btCount), stat=allocStatus(3))
       end if
 
@@ -2569,7 +2757,6 @@ contains
         allocate ( uOfWLandWSurfaceEmissivity(btCount), stat=allocStatus(4) )
       end if
       call utl_checkAllocationStatus(allocStatus, ' tvs_rttov')
-      
       
       !     get Hyperspectral IR emissivities
       if ( tvs_isInstrumHyperSpectral(instrum) ) then
@@ -2611,7 +2798,7 @@ contains
       else
         allocate( lchannel_subset(profileCount,tvs_nchan(sensorId)) )
         call tvs_getChanprof(sensorTovsIndexes(1:profileCount), obsSpaceData, chanprof, lchannel_subset_opt = lchannel_subset, iptobs_cma_opt = tvs_bodyIndexFromBtIndex)
-        if (tvs_useRttovScatt(sensorId)) then
+        if (runObsOperatorWithHydrometeors) then
           call rttov_scatt_setupindex (  &
                rttov_err_stat,           &
                profileCount,             &  ! number of profiles
@@ -2759,19 +2946,16 @@ contains
       else
 
         ! run clear-sky RTTOV, save the radiances in OBS_BTCL of obsSpaceData 
-        if ( tvs_numMWInstrumUsingCLW /= 0        .and. &
-            tvs_opts(sensorId) % rt_mw % clw_data .and. &
-            obs_columnActive_RB(obsSpaceData, OBS_BTCL) ) then
+        if ((runObsOperatorWithClw .or. runObsOperatorWithHydrometeors) .and. &
+            obs_columnActive_RB(obsSpaceData, OBS_BTCL)) then
 
-          ! set the cloud profile in tvs_profiles_nl to zero
-          call updateCloudInTovsProfile(                            &
-                sensorTovsIndexes(1:profileCount),                  &
-                nlv_T,                                              &
-                mode='save',                                        &
-                beSilent=.true.)
-
-          ! run clear-sky RTTOV
-          if (tvs_useRttovScatt(sensorId)) then
+          ! run rttovScatt
+          if (runObsOperatorWithHydrometeors) then
+            ! set the cloud profile in tvs_cld_profiles_nl to zero
+            call updateCloudInTovsCloudProfile(sensorTovsIndexes(1:profileCount), &
+                                          nlv_T,                      &
+                                          mode='save',                &
+                                          beSilent=.true.)
             call rttov_scatt(                                         &
                  rttov_err_stat,                                      &! out
                  tvs_opts_scatt(sensorId),                            &! in
@@ -2786,6 +2970,11 @@ contains
                  emissivity_local,                                    &! inout
                  radiancedata_d) 
           else
+            ! set the cloud profile in tvs_profiles_nl to zero
+            call updateCloudInTovsProfile(sensorTovsIndexes(1:profileCount), &
+                                          nlv_T,                      &
+                                          mode='save',                &
+                                          beSilent=.true.)
             call rttov_parallel_direct(                               &
                  rttov_err_stat,                                      & ! out
                  chanprof,                                            & ! in
@@ -2797,7 +2986,8 @@ contains
                  calcemis=calcemis,                                   & ! in
                  emissivity=emissivity_local,                         & ! inout
                  nthreads=nthreads      )   
-          end if
+          end if ! run rttovScatt
+
           ! save in obsSpaceData
           loopClearSky1: do btIndex = 1, btCount
             profileIndex = chanprof(btIndex)%prof
@@ -2828,16 +3018,23 @@ contains
             end if
           end do loopClearSky1
 
-          ! restore the cloud profiles in tvs_profiles_nl
-          call updateCloudInTovsProfile(                          &
-                sensorTovsIndexes(1:profileCount),                &
-                nlv_T,                                            &
-                mode='restore',                                   &
-                beSilent=.true.)
+          ! restore the cloud profiles in ...
+          if (runObsOperatorWithHydrometeors) then
+            ! tvs_cld_profiles_nl
+            call updateCloudInTovsCloudProfile(sensorTovsIndexes(1:profileCount), &
+                                          nlv_T,                             &
+                                          mode='restore',                    &
+                                          beSilent=.true.)
+          else
+            ! tvs_profiles_nl
+            call updateCloudInTovsProfile(sensorTovsIndexes(1:profileCount), &
+                                          nlv_T,                             &
+                                          mode='restore',                    &
+                                          beSilent=.true.)
+          end if
+        end if ! run clear-sky RTTOV
 
-        end if
-
-        if (tvs_useRttovScatt(sensorId)) then
+        if (runObsOperatorWithHydrometeors) then
           if (.not. beSilent) write(*,*) 'before rttov_scatt...', sensorID, profileCount
           call rttov_scatt(                                         &
                rttov_err_stat,                                      &! out
@@ -2871,7 +3068,7 @@ contains
           
         end if
 
-      end if
+      end if ! if (bgckMode .and. tvs_isInstrumHyperSpectral(instrum))
 
       if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'     
 
@@ -4958,7 +5155,7 @@ contains
 
   subroutine updateCloudInTovsProfile(sensorTovsIndexes, nlv_T, mode, beSilent)
     !
-    ! :Purpose: Modify the cloud in tovs_profile structure.
+    ! :Purpose: Modify the cloud in tvs_profiles_nl structure of rttov.
     !
     implicit none
     
@@ -4978,12 +5175,12 @@ contains
     profileCount = size(sensorTovsIndexes)
 
     if ( trim(mode) == 'save' ) then 
-      if ( allocated(cloudProfileToStore)) deallocate(cloudProfileToStore)
+      if (allocated(cloudProfileToStore)) deallocate(cloudProfileToStore)
       allocate(cloudProfileToStore(nlv_T,profileCount))
 
       do profileIndex = 1, profileCount
         cloudProfileToStore(:,profileIndex) = tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:)
-        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = qlim_readMinClwValue() 
+        tvs_profiles_nl(sensorTovsIndexes(profileIndex)) % clw(:) = qlim_getMinValueCloud('LWCR') 
       end do
 
     else if ( trim(mode) == 'restore' ) then 
@@ -5000,6 +5197,78 @@ contains
 
   end subroutine updateCloudInTovsProfile
 
+
+  subroutine updateCloudInTovsCloudProfile(sensorTovsIndexes, nlv_T, mode, beSilent)
+    !
+    ! :Purpose: Modify the cloud in tvs_cld_profiles_nl structure of rttovScatt.
+    !
+    implicit none
+    
+    ! Arguments:
+    integer,      intent(in) :: sensorTovsIndexes(:)
+    integer,      intent(in) :: nlv_T
+    character(*), intent(in) :: mode         ! save or restore
+    logical,      intent(in) :: beSilent     ! flag to control verbosity
+
+    ! Locals:
+    integer :: profileIndex, profileCount
+    real(8), allocatable, save :: rainFluxProfileToStore(:,:)
+    real(8), allocatable, save :: snowFluxProfileToStore(:,:)
+    real(8), allocatable, save :: clwProfileToStore(:,:)
+    real(8), allocatable, save :: ciwProfileToStore(:,:)
+    real(8), allocatable, save :: cloudFractionProfileToStore(:,:)
+
+    if ( .not. beSilent ) write(*,*) 'updateCloudInTovsCloudProfile: Starting'
+    if ( .not. beSilent ) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+    profileCount = size(sensorTovsIndexes)
+
+    if ( trim(mode) == 'save' ) then 
+      if (allocated(rainFluxProfileToStore)) deallocate(rainFluxProfileToStore)
+      if (allocated(snowFluxProfileToStore)) deallocate(snowFluxProfileToStore)
+      if (allocated(clwProfileToStore)) deallocate(clwProfileToStore)
+      if (allocated(ciwProfileToStore)) deallocate(ciwProfileToStore)
+      if (allocated(cloudFractionProfileToStore)) deallocate(cloudFractionProfileToStore)
+      allocate(rainFluxProfileToStore(nlv_T,profileCount))
+      allocate(snowFluxProfileToStore(nlv_T,profileCount))
+      allocate(clwProfileToStore(nlv_T,profileCount))
+      allocate(ciwProfileToStore(nlv_T,profileCount))
+      allocate(cloudFractionProfileToStore(nlv_T,profileCount))
+
+      do profileIndex = 1, profileCount
+        rainFluxProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,1)
+        snowFluxProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,2)
+        clwProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,4)
+        ciwProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,5)
+        cloudFractionProfileToStore(:,profileIndex) = tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1)
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,1) = qlim_getMinValueCloud('RF')
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,2) = qlim_getMinValueCloud('SF')
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,4) = qlim_getMinValueCloud('LWCR')
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,5) = qlim_getMinValueCloud('IWCR')
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1) = qlim_getMinValueCloud('CLDR')
+      end do
+
+    else if ( trim(mode) == 'restore' ) then 
+      do profileIndex = 1, profileCount
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,1) = rainFluxProfileToStore(:,profileIndex)
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,2) = snowFluxProfileToStore(:,profileIndex)
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,4) = clwProfileToStore(:,profileIndex)
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro(:,5) = ciwProfileToStore(:,profileIndex)
+        tvs_cld_profiles_nl(sensorTovsIndexes(profileIndex)) % hydro_frac(:,1) = cloudFractionProfileToStore(:,profileIndex)
+      end do
+
+      deallocate(rainFluxProfileToStore)
+      deallocate(snowFluxProfileToStore)
+      deallocate(clwProfileToStore)
+      deallocate(ciwProfileToStore)
+      deallocate(cloudFractionProfileToStore)
+
+    else
+      call utl_abort('updateCloudInTovsCloudProfile: mode should be either "save" or "restore"')
+
+    end if
+
+  end subroutine updateCloudInTovsCloudProfile
 
   !--------------------------------------------------------------------------
   !  tvs_getChannelNumIndexFromPPP

@@ -33,6 +33,7 @@ module varNameList_mod
   ! public variables (parameters)
   public :: vnl_numvarmax3D, vnl_numvarmax2D, vnl_numvarmaxOther, vnl_numvarmax
   public :: vnl_varNameList3D, vnl_varNameList2D, vnl_varNameListOther, vnl_varNameList
+  public :: vnl_numvarmaxCloud, vnl_varNameListCloud
 
   ! public procedures
   public :: vnl_varListIndex3d, vnl_varListIndex2d, vnl_varListIndexOther
@@ -40,17 +41,19 @@ module varNameList_mod
   public :: vnl_varLevelFromVarname, vnl_varLevelFromVarnum
   public :: vnl_varKindFromVarname, vnl_varnumFromVarname
   public :: vnl_varNamesFromExistList, vnl_varMassFromVarNum, vnl_varMassFromVarName
-  public :: vnl_isPhysicsVar
+  public :: vnl_isPhysicsVar, vnl_isCloudVar
 
   ! These private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
-  integer, parameter          :: VNLnumvarmax3D    = 51
+  integer, parameter          :: VNLnumvarmax3D    = 52
   integer, parameter          :: VNLnumvarmax2D    = 36
   integer, parameter          :: VNLnumvarmaxOther =  6
+  integer, parameter          :: VNLnumvarmaxCloud =  5
 
   integer, parameter          :: vnl_numvarmax3D    = VNLnumvarmax3D
   integer, parameter          :: vnl_numvarmax2D    = VNLnumvarmax2D
   integer, parameter          :: vnl_numvarmaxOther = VNLnumvarmaxOther
+  integer, parameter          :: vnl_numvarmaxCloud = VNLnumvarmaxCloud
 
   character(len=4), parameter :: vnl_varNameList3D(vnl_numvarmax3D) = (/                         &
                                  'UU  ','VV  ','Z_T ','Z_M ','P_T ','P_M ',                      &
@@ -59,7 +62,8 @@ module varNameList_mod
                                  'TO3 ','O3L ','TCH4','TCO2','TCO ','TNO2','TN2O','THCH',        &
                                  'TSO2','TNH3','AF  ','AC  ','TNO ','ALFA','VIS ','LVIS',        &
                                  'HR  ','TD  ','ALFT','UV  ','LWCR','IWCR','QC  ','CH4L',        &
-                                 'N2OL','UUW ','VVW ','TM  ','SALW','ALFO','RF  ', 'SF  '/)
+                                 'N2OL','UUW ','VVW ','TM  ','SALW','ALFO','RF  ','SF  ',        &
+                                 'CLDR' /)
 
   character(len=4), parameter :: varLevelList3D(vnl_numvarmax3D)     = (/                        &
                                  'MM',  'MM',  'TH',  'MM',  'TH',  'MM',                        &
@@ -68,7 +72,8 @@ module varNameList_mod
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'TH',  'TH',  'MM',  'TH',  'TH',          &
                                  'TH',  'TH',  'TH',  'MM',  'TH',  'TH',  'TH',  'TH',          &
-                                 'TH',  'DP',  'DP',  'DP',  'DP',  'DP', 'TH  ', 'TH  '/)
+                                 'TH',  'DP',  'DP',  'DP',  'DP',  'DP',  'TH',  'TH',          &
+                                 'TH' /)
 
   character(len=2), parameter :: varKindList3D(vnl_numvarmax3D)     = (/                         &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',                        &
@@ -77,7 +82,8 @@ module varNameList_mod
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',  'CH',          &
                                  'CH',  'CH',  'CH',  'CH',  'CH',  'MT',  'MT',  'MT',          &
                                  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'MT',  'CH',          &
-                                 'CH',  'OC',  'OC',  'OC',  'OC',  'OC', 'MT', 'MT'/)
+                                 'CH',  'OC',  'OC',  'OC',  'OC',  'OC',  'MT',  'MT',          &
+                                 'MT' /)
 
   character(len=4), parameter :: vnl_varNameList2D(vnl_numvarmax2D) = (/ &
                                  'P0  ','TG  ','UP  ','PB  ','ECO ','ENO2','EHCH','ESO2','ENH3', &
@@ -105,6 +111,9 @@ module varNameList_mod
 
   character(len=2), parameter :: varKindListOther(vnl_numvarmaxOther) = (/     &
                                  'LD',  'LD',  'LD',  'LD',  'LD',  'LD'  /) ! LD = Land
+
+  character(len=4), parameter :: vnl_varNameListCloud(vnl_numvarmaxCloud) = (/ &
+                                 'LWCR', 'IWCR', 'RF  ', 'SF  ', 'CLDR' /)                                 
 
   integer, parameter          :: vnl_numvarmax = VNLnumvarmax3D + VNLnumvarmax2D + VNLnumvarmaxOther
 
@@ -744,5 +753,31 @@ module varNameList_mod
       end select
 
     end function vnl_isPhysicsVar
+
+    !-----------------------------------------------------------------------
+    ! vnl_isCloudVar
+    !----------------------------------------------------------------------
+    function vnl_isCloudVar(varName) result(isCloud)
+      !
+      ! :Purpose: determine if varName is cloud variable.
+      !
+      implicit none
+  
+      ! Arguments:
+      character(len=*), intent(in) :: varName
+      logical                      :: isCloud
+  
+      ! Locals:
+      integer :: varNameIndex
+  
+      isCloud = .false.
+      do varNameIndex = 1, vnl_numvarmaxCloud
+        if (trim(varName) == trim(vnl_varNameListCloud(varNameIndex))) then
+          isCloud = .true.
+          return
+        end if
+      end do
+  
+    end function vnl_isCloudVar
 
 end module varNameList_mod
