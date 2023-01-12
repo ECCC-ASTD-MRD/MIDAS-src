@@ -296,7 +296,7 @@ if [ -n "${ensObsDirectory}" ]; then
 fi
 
 if [ -n "${trialMeanFile}" ]; then
-    if [ -h "${trialMeanFile}" ]; then
+    if [ -f "${trialMeanFile}" ]; then
         copyOrLink ${trialMeanFile} ${date_trial}_006_trialmean
     fi
 fi
