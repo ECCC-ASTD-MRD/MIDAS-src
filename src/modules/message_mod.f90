@@ -36,11 +36,12 @@ module message_mod
   end interface
 
   ! private module variables
-  integer, parameter    :: msg_maxIndent = 10
   integer, parameter    :: msg_lineLen = 70
   integer, parameter    :: msg_num2strBufferLen = 200
+  integer, parameter    :: msg_indent = 2
 
   integer :: verbosityThreshold
+  logical :: arrayVertical
 
   contains
   
@@ -176,7 +177,7 @@ module message_mod
     ! Locals:
     logical, save :: alreadyRead = .false.
     integer :: verbosity, nulnam, ierr, fnom, fclos
-    namelist /NAMMSG/verbosity
+    namelist /NAMMSG/verbosity, arrayVertical
   
     if (alreadyRead) then
       return
@@ -186,6 +187,7 @@ module message_mod
   
     ! default namelist value
     verbosity = msg_DEFAULT
+    arrayVertical = .false.
   
     if ( .not. utl_isNamelistPresent('NAMMSG','./flnml') ) then
       call msg( 'msg_readNml', 'NAMMSG is missing in the namelist. The default values will be taken.', &
@@ -217,7 +219,7 @@ module message_mod
     character(len=*), intent(in) :: message    ! message to be printed
   
     ! Locals:
-    integer :: originLen, oneLineMsgLen, indentLen, posIdx
+    integer :: originLen, oneLineMsgLen, posIdx
     character(len=15) :: firstLineFormat, otherLineFormat
     character(len=msg_lineLen)  :: msgLine
     character(len=msg_lineLen)  :: readLine
@@ -230,10 +232,6 @@ module message_mod
     end if
     originLen = len(originTrunc)
 
-    indentLen = originLen
-    if (originLen > msg_maxIndent) then
-      indentLen = msg_maxIndent
-    end if
     oneLineMsgLen = msg_lineLen - originLen - 2
   
     if (len(message) > oneLineMsgLen) then
@@ -248,7 +246,7 @@ module message_mod
       write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A', &
                                               len(trim(msgLine)),')'
       write(*,firstLineFormat) originTrunc, ': ', message(1:oneLineMsgLen)
-      oneLineMsgLen = msg_lineLen - indentLen - 2
+      oneLineMsgLen = msg_lineLen - msg_indent - 2
       do
         if ( posIdx >= len(message) ) then
           ! message printed
@@ -263,9 +261,9 @@ module message_mod
         end if
         adjustedLine = adjustl(trim(msgLine))
         posIdx = posIdx + len(adjustedLine) +1
-        write(otherLineFormat,'(A,I2,A,I2,A)') '(A',indentLen+2,',A', &
+        write(otherLineFormat,'(A,I2,A,I2,A)') '(A',msg_indent+2,',A', &
                                                 len(adjustedLine),')'
-        write(*,otherLineFormat) repeat(' ',indentLen+2),adjustedLine
+        write(*,otherLineFormat) repeat(' ',msg_indent+2),adjustedLine
       end do
     else
       ! Single lines message
@@ -284,17 +282,22 @@ module message_mod
         implicit none
     
         ! Arguments:
-        character(len=*),           intent(in)  :: line
-        character(len=msg_lineLen)              :: shorterLine
-        integer :: idx
+        character(len=*),           intent(inout)  :: line
+        character(len=msg_lineLen)                 :: shorterLine
+        integer :: idx, idxNewLine
     
-        idx = index(trim(line),' ',back=.true.)
-        if (idx == 0 .or. idx == len(trim(line)) ) then
-          shorterLine = trim(line)
-          return
-        else
-          shorterLine = line(1:idx-1)
-          return
+        idxNewLine = scan(line, new_line(''))
+        if ( idxNewLine == 0) then ! no new line
+          idx = scan(trim(line),' ',back=.true.)
+          if (idx == 0 .or. idx == len(trim(line)) ) then
+            shorterLine = trim(line)
+            return
+          else
+            shorterLine = line(1:idx-1)
+            return
+          end if
+        else ! presence of a new line
+          shorterLine = trim(line(1:idxNewLine-1))
         end if
     
       end function msg_breakOnSpace
@@ -453,7 +456,7 @@ module message_mod
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = .false.
+      vertical = arrayVertical
     end if
 
     if (vertical) then
@@ -494,7 +497,7 @@ module message_mod
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = .false.
+      vertical = arrayVertical
     end if
 
     if (vertical) then
@@ -535,7 +538,7 @@ module message_mod
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = .false.
+      vertical = arrayVertical
     end if
 
     if (vertical) then
@@ -577,7 +580,7 @@ module message_mod
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = .false.
+      vertical = arrayVertical
     end if
 
     if (vertical) then
@@ -619,7 +622,7 @@ module message_mod
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = .false.
+      vertical = arrayVertical
     end if
 
     if (vertical) then
