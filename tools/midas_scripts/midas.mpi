@@ -21,6 +21,7 @@ eval `${CCLARGS}  -D "" $0 \
   -splitobs_fstin    ""   ""  "[value of '-fstin'  argument of 'splitobs.Abs']" \
   -splitobs_nomvar   ""   ""  "[value of '-nomvar' argument of 'splitobs.Abs']" \
   -splitobs_mpchild2getObservations   ""   ""  "[list of number which indicates for each mpi tile where it should take its observation file for splitting]" \
+  -updatedObsFilesNeeded "yes" "yes" "[Control if updated obsFiles should be produced (default: 'yes')]" \
   -enstrials_extension_length "4" "4" "[Ensemble trials extension length (default: 4)]" \
   -number_of_members ""   ""      "[number of ensemble trials]" \
   -npex              "1"  "1"     "[number of MPI tiles in the x direction (default to 1]" \
@@ -331,7 +332,11 @@ ELAPSED_TIME=${SECONDS}
 ${echo_cmd} ending ${abs} at $(${date_cmd} +%Y%m%d:%H:%M:%S.%N)
 ${echo_cmd} ${abs} took ${SECONDS}
 
-if [ -n "${observations}" ]; then
+if [ "${updatedObsFilesNeeded}" != yes ]; then
+    ${echo_cmd} "WARNING: there will not be any updated obsFiles in working directory"
+fi
+
+if [ -n "${observations}" -a "${updatedObsFilesNeeded}" = yes ]; then
     SECONDS=0
     if [ "${splitobs_mode}" = no ]; then
         if [ "${MP_CHILD}" -eq 0 ]; then

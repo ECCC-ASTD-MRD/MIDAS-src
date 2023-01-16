@@ -74,6 +74,9 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -remote_copy "scp" "scp"  "[path to remote copy tool (default: 'scp')]" \
   -fasttmp "no" "yes" "[Using the FASTTMP technology]" \
   -checkEnsStartMemberNumber "1" "1" "[starting member number to check for missing members (default: '1')]" \
+  -updatedObsFilesNeeded "yes" "yes" "[Control if updated obsFiles should be produced (default: 'yes')]" \
+  -ensObsDirectory "" "" "[ensObs directories (default: '')]" \
+  -trialMeanFile   "" "" "[trial mean file (default: '')]" \
   -aux_input  "" "" "[directory (or filename) of additional input file(s) to obtain before launch]" \
   ++ $arguments`
 
@@ -282,6 +285,28 @@ if [ -n "${sfc4hyperir_newalb}" ]; then
     copyOrLink ${sfc4hyperir_newalb} sfc4airs_newalb
 fi
 
+if [ -n "${ensObsDirectory}" ]; then
+    if [ -d "${ensObsDirectory}" ]; then
+        ${nodelogger} -n $SEQ_NODE -s infox -m "Input ensObs main path=${ensObsDirectory}"
+
+        for folder in ${ensObsDirectory}/*; do
+            ln -svi ${folder} .
+        done
+    else
+        ${nodelogger} -n $SEQ_NODE -s info -m "The directory ${ensObsDirectory} does not exist"
+        exit 1
+    fi
+fi
+
+if [ -n "${trialMeanFile}" ]; then
+    if [ -f "${trialMeanFile}" ]; then
+        copyOrLink ${trialMeanFile} ${date_trial}_006_trialmean
+    else
+        ${nodelogger} -n $SEQ_NODE -s info -m "The file ${trialMeanFile} does not exist"
+        exit 1
+    fi
+fi
+
 ## traitement des ensembles
 for enskey in ensemble ensemble_trial ensemble_anal; do
     eval ensfiles="\${${enskey}}"
@@ -412,20 +437,22 @@ if [ -n "${observations}" ]; then
         ## fam = 'airs' ou '2019072506_airs'
         fam=$(echo ${fam} | sed 's/^[0-9][0-9]*_//')
         ## fam = 'airs'
-        [ ! -d obsfiles_${fam}.updated ] && mkdir obsfiles_${fam}.updated
-        if [ "${doCreateDiagnostics}" -ne 0 ]; then
-            if [ "${fam}" = uas -o "${fam}" = uan ]; then
-                [ ! -d diafiles_ua.updated ] && mkdir diafiles_ua.updated
-            else
-                mkdir diafiles_${fam}.updated
+        if [ "${updatedObsFilesNeeded}" = yes ]; then
+            [ ! -d obsfiles_${fam}.updated ] && mkdir obsfiles_${fam}.updated
+            if [ "${doCreateDiagnostics}" -ne 0 ]; then
+                if [ "${fam}" = uas -o "${fam}" = uan ]; then
+                    [ ! -d diafiles_ua.updated ] && mkdir diafiles_ua.updated
+                else
+                    mkdir diafiles_${fam}.updated
+                fi
             fi
-        fi
-        if [ "${dumpToSqliteAfterThinning}" -ne 0 ]; then
-            mkdir bcrfiles_${fam}.updated
-        fi
-        if [ "${doThinning}" -ne 0 ]; then
-            mkdir obsfiles_${fam}.beforeThinning
-        fi
+            if [ "${dumpToSqliteAfterThinning}" -ne 0 ]; then
+                mkdir bcrfiles_${fam}.updated
+            fi
+            if [ "${doThinning}" -ne 0 ]; then
+                mkdir obsfiles_${fam}.beforeThinning
+            fi
+        fi ## updatedObsFilesNeeded = yes
         if [ "${OAVAR_SAVE_SPLITOBS}" = yes -a ! -d obsfiles_${fam} ]; then
             mkdir obsfiles_${fam}
         fi
@@ -497,6 +524,7 @@ ${midas_mpirun} "${midas_mpi}" "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksi
         =-splitobs_fstin    ${TASK_INPUT}/split_grid                     \
         =-splitobs_nomvar   ${splitobs_nomvar}                           \
         =-splitobs_mpchild2getObservations ${mpchild2getObservations[@]} \
+        =-updatedObsFilesNeeded ${updatedObsFilesNeeded}                 \
         =-number_of_members ${NUMBER_OF_MEMBERS}                         \
         =-enstrials_extension_length ${enstrials_extension_length}       \
         =-npex              ${npex}                                      \
@@ -522,6 +550,11 @@ ${midas_mpirun} "${midas_mpi}" "$(true_path ${abs})" "${mpi_ssm}" "${omp_stacksi
         =-printf_cmd        $(which printf)                              \
         =-sleep_cmd         $(which sleep)                               \
         =-hostname_cmd      $(which hostname)
+
+if [ "${midas_reunir_obs}" != no -a "${updatedObsFilesNeeded}" != yes ]; then
+    ${nodelogger} -n ${SEQ_NODE} -s info -m "If reunir_obs, updatedObsFilesNeeded should be 'yes'"
+    exit 1
+fi
 
 if [ -n "${observations}" -a "${midas_reunir_obs}" != no ]; then
     if [ "${splitobs_mode}" = no ]; then

@@ -80,10 +80,8 @@ program midas_ensembleH
   real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
                                !   used only when generating modulated ensembles.
   logical  :: readEnsMeanFromFile
-  logical  :: writeLocalEnsObsToFile
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
-                         vLocalize, writeLocalEnsObsToFile, fileMemberIndex1, &
-                         readEnsMeanFromFile, numFullEns
+                         vLocalize, fileMemberIndex1, readEnsMeanFromFile, numFullEns
 
   midasMode = 'analysis'
   obsColumnMode = 'ENKFMIDAS'
@@ -112,7 +110,6 @@ program midas_ensembleH
   obsTimeInterpType      = 'LINEAR'
   numRetainedEigen       = 0
   vLocalize              = -1.0D0
-  writeLocalEnsObsToFile = .true.
   fileMemberIndex1       = 1
   readEnsMeanFromFile    = .false.
   numFullEns             = 0
@@ -266,7 +263,7 @@ program midas_ensembleH
   do memberIndex = 1, nEns
 
     write(*,*) ''
-    write(*,*) 'midas-letkf: apply nonlinear H to ensemble member ', memberIndex
+    write(*,*) 'midas-ensembleH: apply nonlinear H to ensemble member ', memberIndex
     write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     ! copy 1 member to a stateVector
@@ -322,13 +319,11 @@ program midas_ensembleH
   call gsv_deallocate(stateVectorHeightSfc)
 
   ! write local ensObs to file
-  if (writeLocalEnsObsToFile) then
-    call eob_writeToFiles(ensObs, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
-    if (useModulatedEns) then
-      call eob_writeToFiles(ensObsGain, outputFilenamePrefix='eobGain_HX', writeObsInfo=.false., &
-                            numGroupsToDivideMembers_opt=numRetainedEigen, &
-                            maxNumMembersPerGroup_opt=numFullEns)
-    end if
+  call eob_writeToFiles(ensObs, outputFilenamePrefix='eob_HX', writeObsInfo=.true.)
+  if (useModulatedEns) then
+    call eob_writeToFiles(ensObsGain, outputFilenamePrefix='eobGain_HX', writeObsInfo=.false., &
+                          numGroupsToDivideMembers_opt=numRetainedEigen, &
+                          maxNumMembersPerGroup_opt=numFullEns)
   end if
 
   !
