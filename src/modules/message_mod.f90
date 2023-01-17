@@ -468,7 +468,7 @@ module message_mod
     end if
 
     do arrIndex = 1, size(array)
-      string = string//array(arrIndex)
+      string = string//trim(array(arrIndex))
       if (arrIndex /= size(array)) string = string//sep
     end do
     string = string//' /)'
