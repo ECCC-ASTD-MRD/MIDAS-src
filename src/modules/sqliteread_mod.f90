@@ -1428,12 +1428,13 @@ module sqliteRead_mod
     character(len=*)       :: fileName
     integer                :: fileNumber
     ! locals
-    integer                :: itemInsertList(15), numberInsertItems
+    integer, parameter     :: maxNumberInsertItems = 15
+    integer                :: itemInsertList(maxNumberInsertItems), numberInsertItems
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
     integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP
-    integer                :: numberInsert, headerIndex, bodyIndex, numHeader
+    integer                :: numberInsert, headerIndex, bodyIndex, numHeader, itemIndex
     integer                :: obsNlv, obsRln, obsIdf, insertItem
     integer(8)             :: bodyPrimaryKey, headPrimaryKey
     character(len = 256)   :: query
@@ -1446,8 +1447,8 @@ module sqliteRead_mod
     write(*,*) ' fileName -> ', trim(fileName)
 
     ! set default values of namelist variables
-    numberInsertItems = 0
-    itemInsertList(:) = 0
+    numberInsertItems = MPC_missingValue_INT
+    itemInsertList(:) = MPC_missingValue_INT
 
     nulnam = 0
     ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
@@ -1455,7 +1456,15 @@ module sqliteRead_mod
     if (ierr /= 0) call utl_abort('sqlr_insertSqlite: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSQLInsert)
     ierr=fclos(nulnam)
-
+    if (numberInsertItems /= MPC_missingValue_INT) then
+      call utl_abort('sqlr_insertSqlite: check namSQLInsert namelist section, you need to remove numberInsertItems')
+    end if
+    numberInsertItems = 0
+    do itemIndex = 1, maxNumberInsertItems
+      if ( itemInsertList(itemIndex) == MPC_missingValue_INT) exit
+      numberInsertItems = numberInsertItems + 1
+    end do
+    
     write(*,*) ' INSERT INTO SQLITE FILE ELEMENTS :--> ',(itemInsertList(insertItem), insertItem = 1, numberInsertItems)
 
     select case(trim(familyType))

@@ -135,7 +135,6 @@
   BITEMLIST(3)='FGE',
   TYPE_RESUME='DERIALT'
  &namSQLInsert
-  numberInsertItems=4
   itemInsertList(1)=11215
   itemInsertList(2)=11216
   itemInsertList(3)=11003

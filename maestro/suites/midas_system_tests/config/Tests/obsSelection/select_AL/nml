@@ -125,7 +125,6 @@
  itemUpdateList(2)='OMA'
 /
  &namSQLInsert
-  numberInsertItems=0
 /
  &NAMALADIN_OBS
   do_adjust_aladin=.false.

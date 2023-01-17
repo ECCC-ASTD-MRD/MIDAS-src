@@ -82,7 +82,6 @@
   TYPE_RESUME='BGCKALT'
 /
  &namSQLInsert
-  numberInsertItems=4
   itemInsertList(1)=11215
   itemInsertList(2)=11216
   itemInsertList(3)=11003
