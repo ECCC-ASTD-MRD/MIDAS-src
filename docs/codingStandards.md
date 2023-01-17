@@ -85,8 +85,8 @@ mind is provided [here](codingStd_top10.md).
   call msg('int_tInterp_gsv', 'START', verb_opt=2)
   ! prints a short message on all MPI tiles when verbosity threshold >= 2
   ...
-  call msg('int_tInterp_gsv', 'numStepIn='//msg_str(numStepIn)&
-       //',numStepOut='//msg_str(numStepOut), mpiAll_opt=.false.)
+  call msg('int_tInterp_gsv', 'numStepIn='//str(numStepIn)&
+       //',numStepOut='//str(numStepOut), mpiAll_opt=.false.)
   ! prints a short message with some numerical values on MPI tile 0 only
   ```
   Optionally, a _verbosity level_ that specifies how important is the message
