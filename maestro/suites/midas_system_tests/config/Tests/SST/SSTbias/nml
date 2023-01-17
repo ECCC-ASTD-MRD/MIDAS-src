@@ -27,7 +27,6 @@
    numberPointsBG = 250
    timeInterpType_nl = 'NEAREST'
    numObsBatches = 20
-   numberSensors = 3
    sensorList(1)='AMSR2'
    sensorList(2)='METO-B'
    sensorList(3)='METO-C'

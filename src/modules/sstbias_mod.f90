@@ -635,8 +635,9 @@ module SSTbias_mod
     character(len=20)           :: timeInterpType_nl        ! 'NEAREST' or 'LINEAR'
     integer                     :: numObsBatches            ! number of batches for calling interp setup
     integer                     :: numberSensors            ! number of sensors to treat
-    character(len=10)           :: sensorList(10)           ! list of sensors
-    integer         , parameter :: numberProducts = 2       ! day and night
+    integer, parameter          :: maxNumberSensors = 10
+    character(len=10)           :: sensorList(maxNumberSensors)  ! list of sensors
+    integer         , parameter :: numberProducts = 2            ! day and night
     character(len=*), parameter :: listProducts(numberProducts)= (/'day', 'night'/) ! day and night biases
     integer                     :: sensorIndex, productIndex, ierr,  nulnam
     character(len=1)            :: extension
@@ -648,7 +649,7 @@ module SSTbias_mod
     searchRadius = 10.            
     maxBias = 1.                  
     iceFractionThreshold   = 0.05 
-    numberSensors = 0             
+    numberSensors = MPC_missingValue_INT
     numberPointsBG = 0            
     timeInterpType_nl = 'NEAREST'
     numObsBatches = 20
@@ -661,8 +662,16 @@ module SSTbias_mod
     if (ierr /= 0) call utl_abort('sstb_applySatelliteSSTBiasCorrection: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSSTbiasEstimate )
     ierr = fclos( nulnam )
-
-    if (numberSensors == 0) call utl_abort('sstb_applySatelliteSSTBiasCorrection: Number of sensors to treat is not defined!!!')
+  
+    if (numberSensors /= MPC_missingValue_INT) then
+      call utl_abort('sstb_applySatelliteSSTBiasCorrection: check namSSTbiasEstimate namelist section: numberSensors should be removed')
+    end if
+    numberSensors = 0
+    do sensorIndex = 1, maxNumberSensors
+      if (trim(sensorList(sensorIndex))=='') exit
+      numberSensors = numberSensors + 1
+    end do
+    if (numberSensors == 0) call utl_abort('sstb_applySatelliteSSTBiasCorrection: check namSSTbiasEstimate namelist section: empty sensorList')
     write(*,*)''
     write(*,*) 'sstb_applySatelliteSSTBiasCorrection: sensors to treat: '
     do sensorIndex = 1, numberSensors

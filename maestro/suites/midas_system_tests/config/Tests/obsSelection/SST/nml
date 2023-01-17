@@ -45,7 +45,6 @@
    sqlExtraHeader = ' id_stn in ("METO-A","METO-B","METO-C","NOAA19","N20","NPP","AMSR2") '
 /
  &namSSTbiasEstimate
-   numberSensors = 7
    sensorList(1) = 'AMSR2'
    sensorList(2) = 'METO-B'
    sensorList(3) = 'METO-A'
