@@ -1131,7 +1131,7 @@ module sqliteRead_mod
     if (numberUpdateItems /= MPC_missingValue_INT) then
       call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateItems should be removed')
     end if
-    if (numberUpdateItems /= MPC_missingValue_INT) then
+    if (numberUpdateItemsRadar /= MPC_missingValue_INT) then
       call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateItemsRadar should be removed')
     end if
     numberUpdateItems = 0
