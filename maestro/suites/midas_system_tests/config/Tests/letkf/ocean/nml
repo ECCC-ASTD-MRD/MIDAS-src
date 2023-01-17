@@ -53,7 +53,6 @@
    sqlNull=" and obsvalue is not null "  
 / 
  &namSSTObsErrors
-   numberSSTDatasets = 11
    !#                     dataType ,    instrument ,   sensor ,  sensorType , codetype , dayError , nightError
    SSTdataParams(1)  =    'insitu' ,     'drifter' ,       '' ,          '' ,       18 ,     0.36 ,       0.36
    SSTdataParams(2)  =    'insitu' ,        'ship' ,       '' ,          '' ,       13 ,     0.64 ,       0.64
