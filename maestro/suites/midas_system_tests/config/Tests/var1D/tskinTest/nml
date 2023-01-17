@@ -106,7 +106,6 @@
  &NAMGPSGB
 /
  &NAMSQLUPDATE
- numberUpdateItems=3,
  itemUpdateList(1)='OMA',
  itemUpdateList(2)='OMP',
  itemUpdateList(3)='OER',

@@ -228,7 +228,6 @@
   sqlNull=' and obsvalue is not null '
 /
   &NAMSQLUPDATE
-  numberUpdateItems=4
   itemUpdateList(4)='OMP'
   itemUpdateList(2)='COR'
   itemUpdateList(1)='VAR'

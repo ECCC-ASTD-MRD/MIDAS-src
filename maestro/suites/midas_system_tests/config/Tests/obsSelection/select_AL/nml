@@ -121,7 +121,6 @@
   sqlNull=" and obsvalue is not null "
 /
  &namSQLUpdate
- numberUpdateItems=2
  itemUpdateList(1)='OMP'
  itemUpdateList(2)='OMA'
 /

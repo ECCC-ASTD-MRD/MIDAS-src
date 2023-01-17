@@ -73,7 +73,6 @@
    smoothLenghtScale=50000.
 /
  &namSQLUpdate
-  numberUpdateItems=3
   itemUpdateList(1)='OMP'
   itemUpdateList(2)='OER'
   itemUpdateList(3)='FGE'

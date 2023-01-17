@@ -67,7 +67,6 @@
    SSTdataParams(11) =    'pseudo' ,       'Bogus' ,       '' ,          '' ,      150 ,     1.00 ,       1.00
 /
  &NAMSQLUpdate
-  numberUpdateItems=2
   itemUpdateList(1)='OMP'
   itemUpdateList(2)='OMA'
 /

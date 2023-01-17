@@ -1103,11 +1103,12 @@ module sqliteRead_mod
     logical                     :: back, nonEmptyColumn, nonEmptyColumn_mpiglobal
     real(4)                     :: romp, obsValue, scaleFactor, columnValue
 
+    integer, parameter :: maxNumberUpdate = 15
     ! namelist variables:
     integer          :: numberUpdateItems
     integer          :: numberUpdateItemsRadar
-    character(len=3) :: itemUpdateList(15)
-    character(len=3) :: itemUpdateListRadar(15)
+    character(len=3) :: itemUpdateList(maxNumberUpdate)
+    character(len=3) :: itemUpdateListRadar(maxNumberUpdate)
 
     namelist/namSQLUpdate/ numberUpdateItems,      itemUpdateList,     &
                            numberUpdateItemsRadar, itemUpdateListRadar
@@ -1117,8 +1118,8 @@ module sqliteRead_mod
     ! set default values of namelist variables
     itemUpdateList(:) = ''
     itemUpdateListRadar(:) = ''
-    numberUpdateItems = 0
-    numberUpdateItemsRadar = 0
+    numberUpdateItems = MPC_missingValue_INT
+    numberUpdateItemsRadar = MPC_missingValue_INT
 
     ! Read the namelist for directives
     nulnam = 0
@@ -1127,7 +1128,23 @@ module sqliteRead_mod
     if (ierr /= 0) call utl_abort('sqlr_updateSqlite: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSQLUpdate)
     ierr = fclos(nulnam)
-
+    if (numberUpdateItems /= MPC_missingValue_INT) then
+      call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateItems should be removed')
+    end if
+    if (numberUpdateItems /= MPC_missingValue_INT) then
+      call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateItemsRadar should be removed')
+    end if
+    numberUpdateItems = 0
+    do itemIndex = 1, maxNumberUpdate
+      if (trim(itemUpdateList(itemIndex)) == '') exit
+      numberUpdateItems = numberUpdateItems + 1
+    end do
+    numberUpdateItemsRadar = 0
+    do itemIndex = 1, maxNumberUpdate
+      if (trim(itemUpdateListRadar(itemIndex)) == '') exit
+      numberUpdateItemsRadar = numberUpdateItemsRadar + 1
+    end do
+    
     ! Append extra sqlite columns to update to itemUpdateList
     if (trim(familyType) == 'RA') then
       do itemIndex = 1, numberUpdateItemsRadar

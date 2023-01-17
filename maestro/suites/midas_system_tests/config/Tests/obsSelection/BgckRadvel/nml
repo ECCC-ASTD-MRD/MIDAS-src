@@ -89,7 +89,6 @@
   itemInsertList(4)=11004
 /
  &namSQLUpdate
- numberUpdateItems=3
  itemUpdateList(1)='OMP'
  itemUpdateList(2)='OMA'
  itemUpdateList(3)='ALT'

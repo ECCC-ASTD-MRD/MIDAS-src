@@ -42,7 +42,6 @@
   sqlNull=" and obsvalue is not null "
 /
  &namSQLUpdate
-  numberUpdateItems=0
 /
  &namSQLInsert
   numberInsertItems=0

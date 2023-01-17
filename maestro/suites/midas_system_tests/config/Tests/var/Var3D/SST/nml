@@ -58,7 +58,6 @@
    sqlExtraHeader=' id_stn in ("METO-A","METO-B","NOAA19","N20","NPP","AMSR2") '
 /
  &namSQLUpdate
-  numberUpdateItems=4
   itemUpdateList(1)='OMP'
   itemUpdateList(2)='OMA'
   itemUpdateList(3)='OER'

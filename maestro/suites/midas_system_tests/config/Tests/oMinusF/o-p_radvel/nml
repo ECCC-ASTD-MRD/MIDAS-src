@@ -143,10 +143,8 @@
 
 /
  &namSQLUpdate
- numberUpdateItems=2
  itemUpdateList(1)='OMP'
  itemUpdateList(2)='OMA'
- numberUpdateItemsRadar=1
  itemUpdateListRadar(1)='ALT'
 /
  &NAMSQLamsua

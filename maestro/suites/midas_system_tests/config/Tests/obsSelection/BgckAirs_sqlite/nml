@@ -226,7 +226,6 @@
   sqlExtraHeader="     "
 /
   &NAMSQLUPDATE
-  numberUpdateItems=4
   itemUpdateList(1)='OMP'
   itemUpdateList(2)='COR'
   itemUpdateList(3)='VAR'
