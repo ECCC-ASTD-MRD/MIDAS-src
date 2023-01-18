@@ -116,7 +116,6 @@
   keepNthVertical=0
 /
  &NAMSQLAL
-  numberElem=12,
   listElem="5021,40030,10004,12001,40029,40030,40031,40032,40033,40034,40036,40037",
   sqlNull=" and obsvalue is not null "
 /

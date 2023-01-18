@@ -202,7 +202,6 @@
   TYPE_RESUME='POSTALT'
 /
  &NAMSQLradar
-  numberElem=1
   listElem="21036"
   sqlNull=" and obsvalue is not null "  
 /

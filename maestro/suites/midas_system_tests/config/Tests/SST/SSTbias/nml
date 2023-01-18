@@ -35,12 +35,10 @@
    saveAuxFields = .True.
 /
  &NAMSQLsfc
-   numberElem=1
    listElem='22042'
    sqlNull=' and obsvalue is not null '  
 /
 &namReadSSTSat
-   numberElem=1
    listElem='22042'
    sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","METO-C","NOAA19","NPP","AMSR2")) '
    sqlNull=' and obsvalue is not null '

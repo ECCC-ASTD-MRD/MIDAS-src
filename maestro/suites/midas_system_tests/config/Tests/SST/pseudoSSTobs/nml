@@ -30,7 +30,6 @@
    seaWaterThreshold = 0.1
 /      
  &NAMSQLsfc
-   numberElem=1
    listElem="22042"
    sqlNull=" and obsvalue is not null "  
 /

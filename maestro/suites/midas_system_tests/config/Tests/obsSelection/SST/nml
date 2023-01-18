@@ -20,7 +20,6 @@
   NLISTFLG(6)=12
 /
  &NAMSQLsfc
-   numberElem = 1
    listElem = '22042'
    sqlNull = ' and obsvalue is not null '  
 /
@@ -38,7 +37,6 @@
    SSTdataParams(10) = 'satellite' ,       'AMSR2' ,  'AMSR2' , 'microwave' ,       88 ,     0.80 ,       0.80
 /
  &namReadSSTSat
-   numberElem = 1
    listElem = '22042'
    sqlExtraDat = ' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","METO-C","NOAA19","N20","NPP","AMSR2")) '
    sqlNull = ' and obsvalue is not null '

@@ -367,7 +367,8 @@ module sqliteRead_mod
     character(len=256), allocatable :: listElemArray(:)
     integer, allocatable            :: listElemArrayInteger(:)
     integer                  :: numberRows, numberColumns
-
+    integer, parameter       :: maxNumberBits = 15
+    
     ! Namelist variables:
     integer :: numberElem
     character(len=256)       :: listElem
@@ -377,8 +378,8 @@ module sqliteRead_mod
     character(len=256)       :: sqlLimit 
     integer                  :: numberBitsOff
     integer                  :: numberBitsOn 
-    integer                  :: bitsOff(15)
-    integer                  :: bitsOn(15)
+    integer                  :: bitsOff(maxNumberBits)
+    integer                  :: bitsOn(maxNumberBits)
 
     namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
@@ -419,19 +420,12 @@ module sqliteRead_mod
     sqlLimit       = ''
     sqlNull        = ''
     listElem       = ''
-    numberElem = 0
-    numberBitsOff = 0
-    bitsOff =  0
-    numberBitsOn = 0
-    bitsOn = 0
+    numberElem = MPC_missingValue_INT
+    numberBitsOff = MPC_missingValue_INT
+    bitsOff(:) = MPC_missingValue_INT
+    numberBitsOn = MPC_missingValue_INT
+    bitsOn(:) = MPC_missingValue_INT
     
-    if (trim(familyType) == 'TO') then
-      write(listElem,*) bufr_nbt3
-      numberElem = 1
-    else
-      write(listElem,'(i5.5,",",i5.5)') bufr_nedd, bufr_neff
-    end if
-
     vertCoordfact  = 1
     columnsData = " vcoord, varno, obsvalue, flag "
     if (trim(familyType) == 'TO') then      
@@ -589,7 +583,31 @@ module sqliteRead_mod
         call utl_abort('sqlr_readSqlite: Unsupported  SCHEMA in SQLITE file!'//trim(rdbSchema))
     end select
     ierr=fclos(nulnam)
+    
+    if (numberBitsOff /=  MPC_missingValue_R4) then
+      call utl_abort('sqlr_readSqlite: check namelist, numberBitsOff  should be removed')
+    end if
+    numberBitsOff = 0
+    do bitIndex = 1, numberBitsOff
+      if (bitsOff(bitIndex)==MPC_missingValue_R4) exit
+      numberBitsOff = numberBitsOff + 1
+    end do
+    
+    if (numberBitsOn /=  MPC_missingValue_R4) then
+      call utl_abort('sqlr_readSqlite: check namelist, numberBitsOn  should be removed')
+    end if
+    numberBitsOn = 0
+    do bitIndex = 1, numberBitsOn
+      if (bitsOn(bitIndex)==MPC_missingValue_R4) exit
+      numberBitsOn = numberBitsOn + 1
+    end do
 
+    if (numberElem /= MPC_missingValue_R4) then
+      call utl_abort('sqlr_readSqlite: check namelist, numberElem should be removed')
+    end if
+    numberElem = count(transfer(listElem, 'a', len(listElem)) == ',') + 1
+    
+    
     ! Set the observation variable transforms
     if (numberElem > 0) then
       call utl_splitString(listElem,',', & ! IN

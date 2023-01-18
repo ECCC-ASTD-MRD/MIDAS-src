@@ -25,7 +25,6 @@
    maxRangeInterp = 15000.0D0,
 /
  &NAMSQLradvel
-  numberElem=1
   listElem="21014"
   sqlNull=" and obsvalue is not null "
 / 
@@ -149,7 +148,6 @@
   TYPE_RESUME='BGCKALT'
 /
  &NAMSQLsfc
-  numberElem=11
   listElem="11011,11012,12004,12203,10051,10004,15031,15032,15035"
   sqlNull=" and obsvalue is not null "
 /

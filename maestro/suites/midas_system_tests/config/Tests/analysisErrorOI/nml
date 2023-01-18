@@ -54,7 +54,6 @@
    SCALEFACTOR = 200*0.0D0
 /
  &NAMSQLgl
-  numberElem=4
   listElem="20222,20237,21169,21199"
   sqlNull=" and obsvalue is not null "
 /

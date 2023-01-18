@@ -49,7 +49,6 @@
  &NAMGPSGB
 /
  &NAMSQLsfc
-   numberElem=1
    listElem="23040"
    sqlNull=" and obsvalue is not null "  
 /

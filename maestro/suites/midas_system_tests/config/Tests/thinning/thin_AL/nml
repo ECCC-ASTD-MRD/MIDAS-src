@@ -37,7 +37,6 @@
  &NAMCODTYP
 /
  &NAMSQLAL
-  numberElem=2,
   listElem="40030,5021",
   sqlNull=" and obsvalue is not null "
 /

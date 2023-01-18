@@ -32,7 +32,6 @@
  &NAMBEN
 /
  &NAMSQLsfc
-   numberElem=1
    listElem='22042'
    sqlNull=" and obsvalue is not null "
 / 
@@ -51,7 +50,6 @@
    SSTdataParams(11) =    'pseudo' ,       'Bogus' ,       '' ,          '' ,      150 ,     1.00 ,       1.00
 /
 &namReadSSTSat
-   numberElem=1
    listElem='22042'
    sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","NOAA19","N20","NPP","AMSR2")) '
    sqlNull=' and obsvalue is not null '

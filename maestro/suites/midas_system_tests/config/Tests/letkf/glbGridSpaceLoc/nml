@@ -169,7 +169,6 @@
    IZTDOP      = 1,
 /
  &NAMSQLradar
-  numberElem=1
   listElem="21036"
   sqlNull=" and obsvalue is not null "  
 /
