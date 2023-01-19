@@ -6751,7 +6751,8 @@ contains
       call obs_headSet_r(obsSpaceData, OBS_CLWB,  headerIndex, cloudLiquidWaterPathFG(1))
     end if
     call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, atmScatteringIndexObs(1))
-    if ( tvs_mwAllskyAssim ) then
+    if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .or. &
+        tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
       call obs_headSet_r(obsSpaceData, OBS_SIB, headerIndex, atmScatteringIndexFG(1))
     end if
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag(1))
