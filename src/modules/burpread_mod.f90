@@ -44,19 +44,23 @@ private
 public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume, brpr_addCloudParametersandEmissivity
 public :: brpr_addElementsToBurp, brpr_updateMissingObsFlags, brpr_burpClean
 
+
+integer, parameter :: maxItems = 20
+integer, parameter :: maxBits = 15
+integer, parameter :: maxElements = 20
 ! Namelist variables
 INTEGER          :: NELEMS
 INTEGER          :: NELEMS_SFC
 INTEGER          :: BNBITSOFF
 INTEGER          :: BNBITSON
-INTEGER          :: BBITOFF(15)
-INTEGER          :: BBITON(15)
+INTEGER          :: BBITOFF(maxBits)
+INTEGER          :: BBITON(maxBits)
 INTEGER          :: NELEMS_GPS
-INTEGER          :: LISTE_ELE_GPS(20)
-INTEGER          :: BLISTELEMENTS(20)
-INTEGER          :: BLISTELEMENTS_SFC(20)
+INTEGER          :: LISTE_ELE_GPS(maxElements)
+INTEGER          :: BLISTELEMENTS(maxElements)
+INTEGER          :: BLISTELEMENTS_SFC(maxElements)
 INTEGER          :: BN_ITEMS
-CHARACTER(len=3) :: BITEMLIST(20)
+CHARACTER(len=3) :: BITEMLIST(maxItems)
 CHARACTER(len=7) :: TYPE_RESUME = 'UNKNOWN'
 LOGICAL          :: ENFORCE_CLASSIC_SONDES
 LOGICAL          :: UA_HIGH_PRECISION_TT_ES
@@ -154,7 +158,7 @@ CONTAINS
     integer                :: new_bktyp,post_bit,STATUS_HIRES,BIT_STATUS,FILEN
     LOGICAL                :: REGRUP,WINDS,OMA_SFC_EXIST,OMA_ALT_EXIST
 
-    integer                :: LISTE_ELE(20),LISTE_ELE_SFC(20),is_in_list
+    integer                :: LISTE_ELE(maxElements),LISTE_ELE_SFC(maxElements),is_in_list
     
     LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
     TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
@@ -318,8 +322,6 @@ CONTAINS
     if(BNBITSOFF > 0 .or. BNBITSON > 0)write(*,*)  ' BNBITSON BNBITSOFF SIZE OF CP_RPT   =',BNBITSON,BNBITSOFF,LNMX*8
 
     TYPE_RESUME='POSTALT'
-    BN_ITEMS=1
-    BITEMLIST(1)='OMA'
     call BRPACMA_NML('namburp_update')
     write(*,*) ' BN_ITEMS   =',BN_ITEMS
     write(*,*) ' ITEMS TO ADD IN BURP FILE REPORTS =', BITEMLIST(1:BN_ITEMS)
@@ -1744,6 +1746,7 @@ CONTAINS
     INTEGER            :: NULNAM,IER,FNOM,FCLOS
     CHARACTER *256     :: NAMFILE
     CHARACTER(len = *) :: NML_SECTION
+    integer            :: itemIndex
 
     NAMELIST /NAMBURP_FILTER_CONV/NELEMS,    BLISTELEMENTS,    BNBITSOFF,BBITOFF,BNBITSON,BBITON, &
          ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,UA_FLAG_HIGH_PRECISION_TT_ES,READ_QI_GA_MT_SW
@@ -1814,11 +1817,19 @@ CONTAINS
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM')
         end if
       CASE( 'namburp_update')
-        bn_items = 0
-        BITEMLIST(:) = ''
+        BN_ITEMS = MPC_missingValue_INT
+        BITEMLIST(:) = '***'
         READ(NULNAM,NML=NAMBURP_UPDATE)
+        if (BN_ITEMS /= MPC_missingValue_INT) then
+          call utl_abort('brpacma_nml: check namburp_update namelist section, you should remove BN_ITEMS')
+        end if
+        BN_ITEMS = 0
+        do itemIndex = 1, maxItems 
+          if (bItemList(itemIndex) == '***') exit
+          BN_ITEMS = BN_ITEMS + 1
+        end do
         if (.not.beSilent) write(*,nml=NAMBURP_UPDATE)
-        if (all(bItemList(:) == '')) then
+        if (bn_items == 0) then
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_UPDATE')
         end if
     END SELECT
@@ -1900,7 +1911,7 @@ CONTAINS
     REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
-    integer                :: LISTE_INFO(30),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    integer                :: LISTE_INFO(30),LISTE_ELE(maxElements),LISTE_ELE_SFC(maxElements)
     
     integer                :: NBELE,NVALE,NTE
     integer                :: J,JJ,K,KK,KL,IL,ERROR,OBSN

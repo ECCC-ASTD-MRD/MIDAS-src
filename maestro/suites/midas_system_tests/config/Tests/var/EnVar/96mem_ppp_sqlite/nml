@@ -188,11 +188,9 @@
   BLISTELEMENTS=12163
 /
  &NAMBURP_UPDATE
-  BN_ITEMS=3,
   BITEMLIST(1)='OMA',
   BITEMLIST(2)='OMP',
   BITEMLIST(3)='OER',
-  BITEMLIST(4)='FGE',
   TYPE_RESUME='POSTALT'
 /
  &namSQLInsert
@@ -200,7 +198,6 @@
   itemInsertList(2)=11216
   itemInsertList(3)=11003
   itemInsertList(4)=11004
-
 /
  &namSQLUpdate
  itemUpdateList(1)='OMP'
