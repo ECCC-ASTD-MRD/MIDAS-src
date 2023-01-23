@@ -4521,17 +4521,17 @@ CONTAINS
                 else
 
                   val_r4 = -1.0
-                  call Insert_into_burp_r4(val_r4, ind14213, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  call Insert_into_burp_r4(val_r4, ind14214, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  call Insert_into_burp_r4(val_r4, ind14215, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  call Insert_into_burp_r4(val_r4, ind14216, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  call Insert_into_burp_r4(val_r4, ind14217, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  call Insert_into_burp_r4(val_r4, ind14218, 1, tIndex, valueIsMissing=(val_r4<0.0))
+                  call Insert_into_burp_r4(val_r4, ind14213, 1, tIndex, valueIsMissing=.true.)
+                  call Insert_into_burp_r4(val_r4, ind14214, 1, tIndex, valueIsMissing=.true.)
+                  call Insert_into_burp_r4(val_r4, ind14215, 1, tIndex, valueIsMissing=.true.)
+                  call Insert_into_burp_r4(val_r4, ind14216, 1, tIndex, valueIsMissing=.true.)
+                  call Insert_into_burp_r4(val_r4, ind14217, 1, tIndex, valueIsMissing=.true.)
+                  call Insert_into_burp_r4(val_r4, ind14218, 1, tIndex, valueIsMissing=.true.)
                   call Insert_into_burp_i(-1, ind14219, 1, tIndex)
-                  call Insert_into_burp_r4(val_r4, ind14220, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  call Insert_into_burp_r4(val_r4, ind14221, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  call Insert_into_burp_r4(val_r4, ind13214, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  call Insert_into_burp_r4(val_r4, ind59182, 1, tIndex, valueIsMissing=(val_r4<0.0))
+                  call Insert_into_burp_r4(val_r4, ind14220, 1, tIndex, valueIsMissing=.true.)
+                  call Insert_into_burp_r4(val_r4, ind14221, 1, tIndex, valueIsMissing=.true.)
+                  call Insert_into_burp_r4(val_r4, ind13214, 1, tIndex, valueIsMissing=.true.)
+                  call Insert_into_burp_r4(val_r4, ind59182, 1, tIndex, valueIsMissing=.true.)
                   call Insert_into_burp_i(-1, ind008012, 1, tIndex)
 
                 end if
@@ -4760,19 +4760,16 @@ CONTAINS
 
                 else
                   val_r4 = -1.0
-                  call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=(val_r4<0.0))
+                  call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=.true.)
                   if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
                       tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=(val_r4<0.0))
+                    call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=.true.)
                   end if
 
-                  val_r4 = mpc_missingValue_r4
-                  call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
-                                           valueIsMissing=(val_r4==mpc_missingValue_r4))
+                  call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, valueIsMissing=.true.)
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
                       tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
-                                             valueIsMissing=(val_r4==mpc_missingValue_r4))
+                    call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, valueIsMissing=.true.)
                   end if
                   
                   call Insert_into_burp_i(-1, ind008012, 1, tIndex)
@@ -4848,11 +4845,9 @@ CONTAINS
 
                 else
                   val_r4 = mpc_missingValue_r4
-                  call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
-                                           valueIsMissing=(val_r4==mpc_missingValue_r4))
+                  call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, valueIsMissing=.true.)
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
-                                             valueIsMissing=(val_r4==mpc_missingValue_r4))
+                    call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, valueIsMissing=.true.)
                   end if
                   
                   call Insert_into_burp_i(-1, ind008012, 1, tIndex)
@@ -5024,27 +5019,23 @@ CONTAINS
                   idata2 = idata2 + 1
                 else
                   val_r4 = -1.0
-                  call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=(val_r4<0.0))
+                  call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=.true.)
                   if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
                       tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=(val_r4<0.0))
+                    call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=.true.)
                   end if
 
-                  val_r4 = mpc_missingValue_r4
-                  call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
-                                           valueIsMissing=(val_r4==mpc_missingValue_r4))
+                  call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, valueIsMissing=.true.)
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
                       tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
-                                             valueIsMissing=(val_r4==mpc_missingValue_r4))
+                    call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, valueIsMissing=.true.)
                   end if
 
                   !call Insert_into_burp_r4(-1.0,ind13095,1,tIndex)
                   call Insert_into_burp_i(-1, ind008012, 1, tIndex)
                   call Insert_into_burp_i(-1, ind13039, 1, tIndex)
-                  val_r4 = -1.0
-                  call Insert_into_burp_r4(val_r4, ind7024, 1, tIndex, valueIsMissing=(val_r4<0.0))
-                  call Insert_into_burp_r4(val_r4, ind5021, 1, tIndex, valueIsMissing=(val_r4<0.0))
+                  call Insert_into_burp_r4(val_r4, ind7024, 1, tIndex, valueIsMissing=.true.)
+                  call Insert_into_burp_r4(val_r4, ind5021, 1, tIndex, valueIsMissing=.true.)
                 end if
               end do
  
@@ -5185,19 +5176,16 @@ CONTAINS
                   idata2 = idata2 + 1
                 else
                   val_r4 = -1.0
-                  call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=(val_r4<0.0))
+                  call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=.true.)
                   if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
                       tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=(val_r4<0.0))
+                    call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=.true.)
                   end if
 
-                  val_r4 = mpc_missingValue_r4
-                  call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
-                                           valueIsMissing=(val_r4==mpc_missingValue_r4))
+                  call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, valueIsMissing=.true.)
                   if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
                       tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
-                    call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
-                                             valueIsMissing=(val_r4==mpc_missingValue_r4))
+                    call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, valueIsMissing=.true.)
                   end if
 
                   call Insert_into_burp_i(-1, ind008012, 1, tIndex)
