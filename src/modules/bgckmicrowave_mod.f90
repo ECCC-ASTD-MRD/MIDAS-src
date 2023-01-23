@@ -6740,17 +6740,28 @@ contains
     integer                                 :: codtyp
 
     codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-    call obs_headSet_r(obsSpaceData, OBS_CLWO,  headerIndex, cloudLiquidWaterPathObs(1))
+    call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, cloudLiquidWaterPathObs(1))
 
     if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .or. &
         tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
-      call obs_headSet_r(obsSpaceData, OBS_CLWB,  headerIndex, cloudLiquidWaterPathFG(1))
+      call obs_headSet_r(obsSpaceData, OBS_CLWB, headerIndex, cloudLiquidWaterPathFG(1))
     end if
+
+    if (atmScatteringIndexObs(1) /= mwbg_realMissing) then
     call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, atmScatteringIndexObs(1))
+    else
+      call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, MPC_missingValue_R4)
+    end if
+
     if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .or. &
         tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+      if (atmScatteringIndexFG(1) /= mwbg_realMissing) then
       call obs_headSet_r(obsSpaceData, OBS_SIB, headerIndex, atmScatteringIndexFG(1))
+      else
+        call obs_headSet_r(obsSpaceData, OBS_SIB, headerIndex, MPC_missingValue_R4)
     end if
+    end if
+    
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag(1))
     call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalMarker(1))
     bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
