@@ -62,7 +62,7 @@ module bgckOcean_mod
   real(4)           :: maxLatNH = 40.                ! max lat of Northern hemisphere latutude band where TS is detected
   real(4)           :: maxLatExceptionNH = 45.       ! max lat of Northern hemisphere latutude band
                                                      ! allows for TS to penetrate further North in some months 
-  integer           :: nmonthsExceptionNH  = 0.      ! number of months where TS penetrates exceptionnally North
+  integer           :: nmonthsExceptionNH = 0        ! number of months where TS penetrates exceptionnally North
   character(len=3)  :: monthExceptionNH(12) = '   '  ! exceptional months where TS allowed to penetrated further North 
   real(4)           :: minLatSH = -35.               ! min lat of Southern hemisphere latutude band where TS is detected
   real(4)           :: maxLatSH = -10.               ! max lat of Southern hemisphere latutude band where TS is detected
@@ -135,6 +135,13 @@ module bgckOcean_mod
       read(nulnam, nml = namOceanBGcheck, iostat = ierr)
       if (ierr /= 0) call utl_abort('ocebg_bgCheckSST: Error reading namelist')
       ierr = fclos(nulnam)
+      if (nmonthsExceptionNH /=0) then
+        call utl_abort('ocebg_bgCheckSST: check namelist section')
+      end if
+      do monthIndex = 1, 12
+        if (monthExceptionNH(monthIndex) == '   ') exit
+        nmonthsExceptionNH = nmonthsExceptionNH + 1
+      end do
     end if
     call msg('ocebg_bgCheckSST', 'interpolation type: '//timeInterpType_nl)
     call msg('ocebg_bgCheckSST', 'number obs batches: '//str(numObsBatches))

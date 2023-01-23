@@ -63,7 +63,6 @@
    minLatNH=10.
    maxLatNH=40.
    maxLatExceptionNH=45.
-   nmonthsExceptionNH=2
    monthExceptionNH(1)='Aug'
    monthExceptionNH(2)='Sep'
    minLatSH=-35.
