@@ -112,7 +112,6 @@
   uaRejUnBcor=.true.
 /
  &NAMSONDETYPES
-  nlNbSondes=13,
   nlSondeTypes(1) = 'RS41',
   nlSondeCodes(1,1:5) = 23,24,25,41,42
   nlSondeTypes(2) = 'RS92',
