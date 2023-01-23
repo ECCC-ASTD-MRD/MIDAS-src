@@ -1117,8 +1117,6 @@ contains
     real                                   :: ZSEUILSCATICE
     real                                   :: ZSEUILSCATL
     real                                   :: ZSEUILSCATW
-    real                                   :: MISBENNARTZ                       ! Missing value
-
     logical                                :: FULLREJCT
 
     testIndex = 13
@@ -1126,26 +1124,25 @@ contains
     ZSEUILSCATICE = 40.0
     ZSEUILSCATW   = 15.0
     ZSEUILSCATL   =  0.0
-    MISBENNARTZ   = -99.
     do nDataIndex=1,KNT
       FULLREJCT = .FALSE.
       if (  KTERMER (nDataIndex) == 1  ) then
         if ( GLINTRP (nDataIndex) > 0.01 ) then
           !     sea ice 
-          if (  SCATW(nDataIndex) /= MISBENNARTZ    .and. &
+          if (  SCATW(nDataIndex) /= mwbg_realMissing    .and. &
                 SCATW(nDataIndex) > ZSEUILSCATICE       ) then
             FULLREJCT = .TRUE.
           end if
           !       sea 
         else
-          if (  SCATW(nDataIndex) /= MISBENNARTZ    .and. &
+          if (  SCATW(nDataIndex) /= mwbg_realMissing    .and. &
                 SCATW(nDataIndex) > ZSEUILSCATW          ) then
             FULLREJCT = .TRUE.
           end if
         end if
       else
         !    land   
-        if (  SCATL(nDataIndex) /= MISBENNARTZ    .and. &
+        if (  SCATL(nDataIndex) /= mwbg_realMissing    .and. &
               SCATL(nDataIndex) > ZSEUILSCATL          ) then
           FULLREJCT = .TRUE.
         end if
@@ -2845,16 +2842,15 @@ contains
     !     Notes: In the case where an output parameter cannot be calculated, the
     !     value of this parameter is to to the missing value, i.e. -99.
     ! Locals: 
-    real, parameter :: zmisg = -99.
     integer :: i 
 
     ! 1) Initialise output parameters
     do i = 1, knt 
-      scatl(i) = zmisg
-      scatwObs(i) = zmisg
-      scatwFG(i) = zmisg
-      clwObs(i) = zmisg
-      clwFG(i) = zmisg
+      scatl(i) = mwbg_realMissing
+      scatwObs(i) = mwbg_realMissing
+      scatwFG(i) = mwbg_realMissing
+      clwObs(i) = mwbg_realMissing
+      clwFG(i) = mwbg_realMissing
     end do
 
     ! 2) Validate input parameters
