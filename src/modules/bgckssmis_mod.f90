@@ -2109,7 +2109,11 @@ contains
     !-------------------------------------------------------------------------------
     call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, landSeaQualifier(1))
     call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, terrainType(1))
-    call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, scatW(1))
+    if (scatW(1) /= ssbg_realMissing) then
+      call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, scatW(1))
+    else
+      call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, MPC_missingValue_R4)
+    end if
     call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, rclw(1))
     call obs_headSet_r(obsSpaceData, OBS_IWV,  headerIndex, riwv(1))
 
