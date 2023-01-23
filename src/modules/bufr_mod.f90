@@ -40,7 +40,7 @@ module bufr_mod
  !
  ! Use the program codbuf to find out the meaning of these IDs.
  !
-
+ integer, parameter :: bufr_TOVSqual    = 08194 !TOVS/ATOVS product qualifier
  integer, parameter :: BUFR_NETT        = 12001
  integer, parameter :: BUFR_NEUU        = 11003
  integer, parameter :: BUFR_NEVV        = 11004
@@ -58,6 +58,7 @@ module bufr_mod
  integer, parameter :: BUFR_NEPP        = 07004
  integer, parameter :: BUFR_NEPS        = 10004
  integer, parameter :: BUFR_NEPN        = 10051
+ integer, parameter :: bufr_dewPoint2m  = 12006 ! Dewpoint temperature at 2m
  integer, parameter :: BUFR_NBT1        = 12062
  integer, parameter :: BUFR_NBT2        = 12063
  integer, parameter :: BUFR_NBT3        = 12163
@@ -76,7 +77,7 @@ module bufr_mod
  integer, parameter :: BUFR_NEDW        = 11200 ! Doppler wind
  integer, parameter :: BUFR_radarPrecip = 21036 ! radar precipitation
  integer, parameter :: BUFR_logRadarPrecip = 51036 ! radar precipitation
- integer, parameter :: bufr_sst         = 22042
+ integer, parameter :: bufr_sst         = 22042 ! sea/water temperature
  integer, parameter :: bufr_soz         = 07025
  integer, parameter :: BUFR_ICEC        = 20237 ! concentration (%) from ice charts
  integer, parameter :: BUFR_ICEP        = 20222 ! concentration (%) from passive microwave retrievals

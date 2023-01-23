@@ -102,7 +102,12 @@ contains
     if (.not. doThinning) return
 
     call utl_tmg_start(114,'--ObsThinning')
+   
     call thn_surfaceInTime(obsdat, obsFamily, step, deltmax, useBlackList, considerSHIPstnID)
+    !if (obsFamily == 'TM') then
+    !  ! perform spatial thinning of satellite SST data
+    !  call thn_surfaceSpatial(obsdat)
+    !end if
     call utl_tmg_stop(114)
 
   end subroutine thn_thinSurface
@@ -671,28 +676,33 @@ contains
     logical, parameter :: removeBadDrifters = .true.
     ! Minimum required number elements (1 is consistent with bextrep in ops)
     integer, parameter :: numEleMinBadDrifter = 1
-    ! List of required elements for codtyp 18 (see ops derivate program)
-    integer, parameter :: listEleBadDrifter(5) = (/10051, 11011, 11012, 12004, 22042/)
+    ! List of required elements for codtyp 'drifter' (see ops derivate program)
+    integer, parameter :: listEleBadDrifter(5) = (/bufr_nepn, bufr_neds, bufr_nefs, bufr_nets, bufr_sst/)
 
     ! Selection parameters:
-    integer, parameter :: numListCodtyp = 8 ! number of elements in listCodtyp
+    integer, parameter :: numListCodtyp = 9 ! number of elements in listCodtyp
     ! List of codtyps to keep (what about SYNOP mobil? SA+SYNOP?)
-    integer, parameter :: listCodtyp(numListCodtyp) = (/12, 146, 13, 147, 18, 143, 144, 15/)
     character(len=13), parameter :: listCodtypName(numListCodtyp) = &
-         (/'SYNOP', 'ASYNOP', 'SHIP', 'ASHIP', 'DRIFTER', 'SWOB_regular', 'ASWOB_regular', 'METAR'/)
+                                    (/'synopnonauto', 'asynopauto', 'shipnonauto', 'ashipauto', &
+                                      'drifter', 'saswobnonauto', 'saswobauto', 'metar', 'satob'/)
     ! Codtyps to which list_ele_select will be applied
-    integer, parameter :: listCodtypSelect(3) = (/ 15, 143, 144 /)
+    integer, parameter :: numListCodtypSelect = 3
+    character(len=13), parameter :: listCodtypNameSelect(numListCodtypSelect) = &
+                                    (/'metar', 'saswobnonauto', 'saswobauto'/)
     ! Elements to select (flags for all other elements will have bit 11 set)
-    integer, parameter :: listEleSelect(14) = &    ! P, T, Td, U, V, VIS, log(VIS), GUST
-         (/8194, 10004, 10051, 11011, 11012, 11215, 11216, 12004, 12006, 12203, 20001, 50001, 11041, 22042/) 
-
+    integer, parameter :: listEleSelect(14) = (/bufr_TOVSqual, bufr_neps, bufr_nepn, bufr_neds, &
+                                                bufr_nefs, bufr_neus, bufr_nevs, bufr_nets, &
+                                                bufr_dewPoint2m, bufr_ness, bufr_vis, &
+                                                bufr_logVis, bufr_gust, bufr_sst/) 
     ! BlackList parameters:
     character(len=*), parameter :: blackListFileName = 'blacklist_sf'
     character(len=6), parameter :: blacklistMode = 'normal' 
     integer, parameter :: numColBlacklist = 5  ! number of columns in blacklist file
     integer, parameter :: numEleBlacklist = 11 ! number of elements in listEleBlacklist
-    integer, parameter :: listEleBlacklist(numEleBlacklist) = &
-         (/ 10004, 10004, 10051, 10051, 11011, 11012, 11215, 11216, 12004, 12006, 12203 /)
+    integer, parameter :: listEleBlacklist(numEleBlacklist) = (/bufr_neps, bufr_neps, bufr_nepn, &
+                                                                bufr_nepn, bufr_neds, bufr_nefs, &
+                                                                bufr_neus, bufr_nevs, bufr_nets, &
+                                                                bufr_dewPoint2m, bufr_ness/)
     integer, parameter :: listColBlackList(numEleBlacklist) = &
          (/     1,     2,     1,     2,     5,     5,     5,     5,     3,     4,     4 /)
 
@@ -721,7 +731,7 @@ contains
     real(8) :: obsStepIndex_r8, deltaHours
     logical, allocatable :: valid(:), validMpi(:)
     character(len=9), allocatable :: obsStnid(:), obsStnidMpi(:), stnidBlacklist(:)
-
+    integer :: listCodtypSelect(numListCodtypSelect)
     integer, external :: newdate
 
     ! Check if any observations to be treated
@@ -751,8 +761,9 @@ contains
  
     ! Print some values to the listing
     write(*,*) 'Codtyps to which selection will be applied:'
-    do listIndex = 1, size(listCodtypSelect)
-      write(*,*) listCodtypSelect(listIndex)
+    do listIndex = 1, numListCodtypSelect
+      listCodtypSelect(listIndex) = codtyp_get_codtyp(listCodtypNameSelect(listIndex))
+      write(*,*) listCodtypNameSelect(listIndex),': ', listCodtypSelect(listIndex)
     end do
     write(*,*) 'Elements to select from above codtyps:'
     do listIndex = 1, size(listEleSelect)
@@ -773,15 +784,15 @@ contains
     allocate(obsStnid(countObsIn))
 
     ! Initialize dynamic arrays
-    valid(:) =    .true.    ! array which keeps track of which reports to keep
-    obsCodtypIndex(:) = 999 ! codtyp index array (999 means non-existent)
-    obsLon(:)           = 0 ! longitude corresponding to each report
-    obsLat(:)           = 0 ! latitude corresponding to each report
-    obsDate(:)          = 0 ! DATE yyyymmdd corresponding to each report
-    obsTime(:)          = 0 ! time hhmm corresponding to each report
-    obsDelT(:)       = 9999 ! delta t array (departure from nearest bin time)
-    obsStepIndex(:)     = 0 ! temporal bin corresponding to each report
-    obsStnid(:)        = '' ! stnid corresponding to each report
+    valid(:) =    .true.                     ! array which keeps track of which reports to keep
+    obsCodtypIndex(:) = MPC_missingValue_INT ! codtyp index array (MPC_missingValue_INT means non-existent)
+    obsLon(:)         = 0                    ! longitude corresponding to each report
+    obsLat(:)         = 0                    ! latitude corresponding to each report
+    obsDate(:)        = 0                    ! DATE yyyymmdd corresponding to each report
+    obsTime(:)        = 0                    ! time hhmm corresponding to each report
+    obsDelT(:)        = MPC_missingValue_INT ! delta t array (departure from nearest bin time)
+    obsStepIndex(:)   = 0                    ! temporal bin corresponding to each report
+    obsStnid(:)       = ''                   ! stnid corresponding to each report
 
     ! Initialize counters and counter arrays
     numEleIn                 = 0 ! number of elements in input file
@@ -822,13 +833,13 @@ contains
 
       ! Get index in codtyp list
       do listIndex = 1, numListCodtyp
-        if (codtyp == listCodtyp(listIndex)) then
+        if (codtyp == codtyp_get_codtyp(listCodtypName(listIndex))) then
           obsCodtypIndex(obsIndex) = listIndex
         end if
       end do
 
       ! Remove observation if not in codtyp list
-      if (obsCodtypIndex(obsIndex) == 999) then
+      if (obsCodtypIndex(obsIndex) == MPC_missingValue_INT) then
         valid(obsIndex) = .false.
         numRemovedCodtyp = numRemovedCodtyp + 1
         cycle HEADER1
@@ -841,7 +852,7 @@ contains
         BODY1: do 
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY1
-          obsVarNo = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
+          obsVarNo = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
           if (any(listEleBadDrifter(:) == obsVarNo)) numElements = numElements + 1
         enddo BODY1
         if (numElements < numEleMinBadDrifter) then
@@ -858,12 +869,12 @@ contains
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY2
 
-        obsVarNo = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
+        obsVarNo = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
         if (obsVarNo == -1) cycle BODY2
 
         numElements = numElements + 1
 
-        obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+        obsFlag = obs_bodyElem_i(obsdat, obs_flg, bodyIndex)
 
         ! Count input flags with bit 8 set
         if (btest(obsFlag, 8)) then
@@ -891,12 +902,12 @@ contains
       obsStnid(obsIndex) = obs_elem_c(obsdat, 'STID', headerIndex)
 
       obsLon(obsIndex) = nint(100.0 * MPC_DEGREES_PER_RADIAN_R8 * &
-                              obs_headElem_r(obsdat, OBS_LON, headerIndex))
+                              obs_headElem_r(obsdat, obs_lon, headerIndex))
       obsLat(obsIndex) = nint(100.0 * MPC_DEGREES_PER_RADIAN_R8 * &
-                              obs_headElem_r(obsdat, OBS_LAT, headerIndex)) + 9000
+                              obs_headElem_r(obsdat, obs_lat, headerIndex)) + 9000
 
-      obsDate(obsIndex) = obs_headElem_i(obsdat, OBS_DAT, headerIndex)
-      obsTime(obsIndex) = obs_headElem_i(obsdat, OBS_ETM, headerIndex)
+      obsDate(obsIndex) = obs_headElem_i(obsdat, obs_dat, headerIndex)
+      obsTime(obsIndex) = obs_headElem_i(obsdat, obs_etm, headerIndex)
 
       call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), &
                                obsDate(obsIndex), obsTime(obsIndex), numStep)
@@ -1066,8 +1077,8 @@ contains
         BODY3: do
           bodyIndex = obs_getBodyIndex(obsdat)
           if (bodyIndex < 0) exit BODY3
-          obsFlag  = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-          call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+          obsFlag  = obs_bodyElem_i(obsdat, obs_flg, bodyIndex)
+          call obs_bodySet_i(obsdat, obs_flg, bodyIndex, ibset(obsFlag,11))
         end do BODY3
         cycle HEADER2
       end if
@@ -1079,7 +1090,7 @@ contains
         bodyIndex = obs_getBodyIndex(obsdat)
         if (bodyIndex < 0) exit BODY4
 
-        obsVarNo = obs_bodyElem_i(obsdat, OBS_VNM, bodyIndex)
+        obsVarNo = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
         if (obsVarNo == -1) cycle BODY4
 
         numElements = numElements + 1
@@ -1095,8 +1106,8 @@ contains
                 ! If element is to be blacklisted, set bit 8
                 if (obsVarNo == listEleBlacklist(elemIndex) .and. &
                     dataBlacklist(rowIndex,elemIndex) == 1) then
-                  obsFlag  = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
-                  call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,8))
+                  obsFlag  = obs_bodyElem_i(obsdat, obs_flg, bodyIndex)
+                  call obs_bodySet_i(obsdat, obs_flg, bodyIndex, ibset(obsFlag,8))
                 end if
               end do ! elemIndex
             end if ! stnid
@@ -1107,13 +1118,13 @@ contains
         if (any(listCodtypSelect(:) == codtyp)) then
           ! If current element not in select list, set bit 11
           if (.not. any(listEleSelect(:) == obsVarNo)) then
-            obsFlag  = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+            obsFlag  = obs_bodyElem_i(obsdat, obs_flg, bodyIndex)
             write(*,*) 'Setting bit 11 for codtyp, elem = ', codtyp, obsVarNo
-            call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
+            call obs_bodySet_i(obsdat, obs_flg, bodyIndex, ibset(obsFlag,11))
           end if
         end if
 
-        obsFlag  = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
+        obsFlag  = obs_bodyElem_i(obsdat, obs_flg, bodyIndex)
 
         ! Count output flags with bit 8 set
         if (btest(obsFlag, 8)) then
@@ -1147,7 +1158,7 @@ contains
     write(*,'(a)') ' Number of reports in input file'
     do listIndex = 1, numListCodtyp
       call utl_allReduce(countObsInPerCodtyp(listIndex))
-      write(*,'(i4,3a,i7)') listCodtyp(listIndex), ' (', &
+      write(*,'(i4,3a,i7)') codtyp_get_codtyp(listCodtypName(listIndex)), ' (', &
            listCodtypName(listIndex), '): ', countObsInPerCodtyp(listIndex)
     end do
 
@@ -1157,7 +1168,7 @@ contains
       call utl_allReduce(numEleInPerCodtyp(listIndex))
       call utl_allReduce(numBit8InPerCodtyp(listIndex))
       call utl_allReduce(numBit11InPerCodtyp(listIndex))
-      write(*,'(i4,3a,i7,a,i7,a,i7,a)') listCodtyp(listIndex), ' (', &
+      write(*,'(i4,3a,i7,a,i7,a,i7,a)') codtyp_get_codtyp(listCodtypName(listIndex)), ' (', &
            listCodtypName(listIndex), '): ', numEleInPerCodtyp(listIndex), ' (', &
            numBit8InPerCodtyp(listIndex), ' bit 8, ', &
            numBit11InPerCodtyp(listIndex), ' bit 11)'
@@ -1167,7 +1178,7 @@ contains
     write(*,'(a)') ' Number of reports in output file'
     do listIndex = 1, numListCodtyp
       call utl_allReduce(countObsOutPerCodtyp(listIndex))
-      write(*,'(i4,3a,i7)') listCodtyp(listIndex), ' (', &
+      write(*,'(i4,3a,i7)') codtyp_get_codtyp(listCodtypName(listIndex)), ' (', &
            listCodtypName(listIndex), '): ', countObsOutPerCodtyp(listIndex)
     end do
 
@@ -1177,7 +1188,7 @@ contains
       call utl_allReduce(numEleOutPerCodtyp(listIndex))
       call utl_allReduce(numBit8OutPerCodtyp(listIndex))
       call utl_allReduce(numBit11OutPerCodtyp(listIndex))
-      write(*,'(i4,3a,i7,a,i7,a,i7,a)') listCodtyp(listIndex), ' (', &
+      write(*,'(i4,3a,i7,a,i7,a,i7,a)') codtyp_get_codtyp(listCodtypName(listIndex)), ' (', &
            listCodtypName(listIndex), '): ', numEleOutPerCodtyp(listIndex), ' (', &
            numBit8OutPerCodtyp(listIndex), ' bit 8, ', &
            numBit11OutPerCodtyp(listIndex), ' bit 11)'
@@ -7084,7 +7095,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_separation
   !--------------------------------------------------------------------------
-  function thn_separation(xlon1,xlat1,xlon2,xlat2)
+  function thn_separation(xlon1, xlat1, xlon2, xlat2)
     ! :Purpose: Compute the separation distance for some thinning algorithms.
 
     implicit none
@@ -7096,11 +7107,11 @@ contains
     ! Locals:
     real(4) :: cosval, degrad, raddeg
 
-    raddeg = 180.0/3.14159265358979
-    degrad = 1.0/raddeg
-    cosval = sin(xlat1*degrad) * sin(xlat2*degrad) + &
-             cos(xlat1*degrad) * cos(xlat2*degrad) * &
-             cos((xlon1-xlon2) * degrad)
+    raddeg = 180.0 / 3.14159265358979
+    degrad = 1.0 / raddeg
+    cosval = sin(xlat1 * degrad) * sin(xlat2 * degrad) + &
+             cos(xlat1 * degrad) * cos(xlat2 * degrad) * &
+             cos((xlon1 - xlon2) * degrad)
 
     if (cosval < -1.0d0) then
       cosval = -1.0d0
@@ -7110,5 +7121,229 @@ contains
     thn_separation = acos(cosval) * raddeg
 
   end function thn_separation
+
+  !--------------------------------------------------------------------------
+  ! thn_surfaceSpatial
+  !--------------------------------------------------------------------------
+  subroutine thn_surfaceSpatial(obsdat)
+
+    ! :Purpose: Main thinning subroutine for satellite SST data.
+
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat
+
+    ! Locals:
+    integer :: nulnam
+    integer :: fnom, fclos, ierr
+
+    ! Namelist variables
+    integer :: boxDimension ! thinning (dimension of box sides) (in km)
+    integer :: temporalThin ! temporal thinning resolution (in minutes)
+
+    namelist /thin_satelliteSST/ boxDimension, temporalThin
+
+    ! Default namelist values
+    boxDimension = 100
+    temporalThin = 90
+
+    ! Read the namelist for satellite SST observations (if it exists)
+    if (utl_isNamelistPresent('thn_surfaceSpatial', './flnml')) then
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      if (ierr /= 0) call utl_abort('thn_surfaceSpatial: Error opening file flnml')
+      read(nulnam, nml = thin_satelliteSST, iostat = ierr)
+      if (ierr /= 0) call utl_abort('thn_surfaceSpatial: Error reading thin_satelliteSST namelist')
+      if (mmpi_myid == 0) write(*, nml = thin_satelliteSST)
+      ierr = fclos(nulnam)
+    else
+      write(*,*)
+      write(*,*) 'thn_surfaceSpatial: namelist block thin_satelliteSST is missing in the namelist.'
+      write(*,*) '                    The default value will be taken.'
+      if (mmpi_myid == 0) write(*, nml = thin_satelliteSST)
+    end if
+
+    write(*,*) 'Memory Used: ', get_max_rss()/1024,'Mb'
+    call utl_tmg_start(114,'--ObsThinning')
+    call thn_satelliteSSTByLatLonBoxes(obsdat, boxDimension, temporalThin)
+    call utl_tmg_stop(114)
+    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+
+  end subroutine thn_surfaceSpatial
+
+  !--------------------------------------------------------------------------
+  ! thn_satelliteSSTByLatLonBoxes
+  !--------------------------------------------------------------------------
+  subroutine thn_satelliteSSTByLatLonBoxes(obsdat, boxDimension, temporalThin)
+    ! :Purpose: Only keep the observation closest to the center of each
+    !           lat-lon box for satellite SST observations.
+    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
+
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsdat       ! obsSpaceData
+    integer         , intent(in)    :: boxDimension ! thinning (dimension of box sides) (in km)
+    integer         , intent(in)    :: temporalThin ! temporal thinning resolution (in minutes)
+
+    ! Locals parameters:
+    integer, parameter :: latLength = 10000     ! distance from Poles to the Equator (in km)
+    integer, parameter :: lonLength = 40000     ! distance around Earth at the Equator (in km)
+    integer, parameter :: numberSensorsMax = 10 ! maximum number of sensors in obsSpaceData
+
+    ! Locals:
+    integer :: headerIndex, bodyIndex, sensorIndex
+    integer :: numHeaderMax, numHeaderMaxMpi
+
+    integer :: nsize, lengthSensors
+    integer :: timeRejectCount, flagRejectCount, timeRejectCountMpi, flagRejectCountMpi
+    integer :: obsFlag, obsVarno, numStnId, stnIdIndexFound
+    integer :: numLat, numLon, latIndex, lonIndex, stepIndex, ierr
+    integer :: headerIndexBeg, headerIndexEnd
+    integer :: countObs, countObsInMpi, countObsOutMpi
+    integer :: obsLonBurpFile, obsLatBurpFile, obsDate, obsTime
+    integer :: numObsStnIdOut(numberSensorsMax)
+    integer :: numObsStnIdInMpi(numberSensorsMax), numObsStnIdOutMpi(numberSensorsMax)
+    real(4) :: latInRadians, distance, obsLat, obsLon
+    real(8) :: obsLatInDegrees, obsLonInDegrees, obsStepIndex_r8
+    logical :: change
+    real(4), allocatable :: gridLats(:), gridLatsMid(:), gridLonsMid(:,:)
+    integer, allocatable :: headerIndexGrid(:,:,:), delMinutesGrid(:,:,:)
+    real(4), allocatable :: distanceGrid(:,:,:)
+    integer, allocatable :: obsLatIndex(:), obsLonIndex(:), obsStepIndex(:), numGridLons(:)
+    real(4), allocatable :: obsDistance(:)
+    integer, allocatable :: obsLatIndexMpi(:), obsLonIndexMpi(:), obsStepIndexMpi(:)
+    integer, allocatable :: obsDelMinutes(:), obsDelMinutesMpi(:)
+    integer, allocatable :: sensorInt(:,:), sensorIntMpi(:,:)
+    real(4), allocatable :: obsDistanceMpi(:)
+    logical, allocatable :: valid(:), validMpi(:)
+    character(len=5)     :: stnIdTrim
+    character(len=12)    :: sensor, sensorList(numberSensorsMax)
+    character(len=12), allocatable :: sensorGrid(:,:,:)
+
+    write(*,*)
+    write(*,*) 'thn_satelliteSSTByLatLonBoxes: Starting'
+    write(*,*)
+
+    numHeaderMax = obs_numHeader(obsdat)
+    call rpn_comm_allReduce(numHeaderMax, numHeaderMaxMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
+    write(*,*) 'thn_satelliteSSTByLatLonBoxes: numHeaderMax   : ', numHeaderMax
+    write(*,*) 'thn_satelliteSSTByLatLonBoxes: numHeaderMaxMpi: ', numHeaderMaxMpi
+
+    ! Check if we have any observations to process
+    allocate(valid(numHeaderMaxMpi))
+    valid(:) = .false.
+    
+    do headerIndex = 1, numHeaderMax
+      if (obs_headElem_i(obsdat, obs_ity, headerIndex) == codtyp_get_codtyp('satob')) then
+        ! put the valid element to .true. for satellite SST observations
+        valid(headerIndex) = .true.
+      end if
+    end do
+    countObs = count(valid(:))
+
+    call rpn_comm_allReduce(countObs, countObsInMpi, 1, 'mpi_integer', 'mpi_sum', 'grid', ierr)
+    write(*,*) 'thn_satelliteSSTByLatLonBoxes: countObs     : ', countObs
+    write(*,*) 'thn_satelliteSSTByLatLonBoxes: countObsInMpi: ', countObsInMpi
+    if (countObsInMpi == 0) then
+      write(*,*) 'thn_satelliteSSTByLatLonBoxes: no satellite SST observations'
+      deallocate(valid)
+      return
+    end if
+
+    numLat = nint(2. * real(latLength) / real(boxDimension))
+    numLon = nint(     real(lonLength) / real(boxDimension))
+
+    write(*,*)
+    write(*,*) 'Number of horizontal boxes : ', numLon
+    write(*,*) 'Number of vertical boxes   : ', numLat
+    write(*,*)
+
+    write(*,*) 'thn_satelliteSSTByLatLonBoxes: countObs initial: ', countObs, countObsInMpi
+
+    ! Allocate arrays
+    allocate(gridLats(numLat))
+    allocate(gridLatsMid(numLat))
+    allocate(gridLonsMid(numLat, numLon))
+    allocate(numGridLons(numLat))
+    allocate(sensorGrid(numLat, numLon, tim_nstepobs))
+    allocate(distanceGrid(numLat, numLon, tim_nstepobs))
+    allocate(headerIndexGrid(numLat, numLon, tim_nstepobs))
+    allocate(delMinutesGrid(numLat, numLon, tim_nstepobs))
+
+    allocate(obsLatIndex(numHeaderMaxMpi))
+    allocate(obsLonIndex(numHeaderMaxMpi))
+    allocate(obsStepIndex(numHeaderMaxMpi))
+    allocate(obsDistance(numHeaderMaxMpi))
+    allocate(obsDelMinutes(numHeaderMaxMpi))
+
+    ! Allocation for MPI gather
+    allocate(validMpi(numHeaderMaxMpi * mmpi_nprocs))
+    allocate(obsLatIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
+    allocate(obsLonIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
+    allocate(obsStepIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
+    allocate(obsDistanceMpi(numHeaderMaxMpi * mmpi_nprocs))
+    allocate(obsDelMinutesMpi(numHeaderMaxMpi * mmpi_nprocs))
+
+    gridLats(:)            = 0.
+    gridLatsMid(:)         = 0.
+    gridLonsMid(:,:)       = 0.
+    numGridLons(:)         = 0
+    distanceGrid(:,:,:)    = -1.0
+    headerIndexGrid(:,:,:) = -1
+
+    timeRejectCount = 0
+    flagRejectCount = 0
+
+    ! set spatial boxes properties
+    do latIndex = 1, numLat
+      gridLats(latIndex) = (latIndex * 180. / numLat) - 90.
+      gridLatsMid(latIndex) = gridLats(latIndex) - (90. / numLat)
+      if (gridLats(latIndex) <= 0.0) then
+        latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
+      else
+        latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
+      end if
+      distance = lonLength * cos(latInRadians)
+      numGridLons(latIndex) = nint(distance / boxDimension)
+      do lonIndex = 1, numGridLons(latIndex)
+        gridLonsMid(latIndex, lonIndex) =  &
+             (lonIndex * 36000 /  numGridLons(latIndex)) -  &
+             (18000 / numGridLons(latIndex))
+        gridLonsMid(latIndex,lonIndex) = 0.01 * gridLonsMid(latIndex, lonIndex)
+      end do
+    end do
+
+
+    ! Deallocations:
+    deallocate(valid)
+    deallocate(gridLats)
+    deallocate(gridLatsMid)
+    deallocate(gridLonsMid)
+    deallocate(numGridLons)
+    deallocate(sensorGrid)
+    deallocate(distanceGrid)
+    deallocate(headerIndexGrid)
+    deallocate(delMinutesGrid)
+
+    deallocate(obsLatIndex)
+    deallocate(obsLonIndex)
+    deallocate(obsStepIndex)
+    deallocate(obsDistance)
+    deallocate(obsDelMinutes)
+
+    deallocate(validMpi)
+    deallocate(obsLatIndexMpi)
+    deallocate(obsLonIndexMpi)
+    deallocate(obsStepIndexMpi)
+    deallocate(obsDistanceMpi)
+    deallocate(obsDelMinutesMpi)
+
+    write(*,*)
+    write(*,*) 'thn_satelliteSSTByLatLonBoxes: Finished'
+    write(*,*)
+
+  end subroutine thn_satelliteSSTByLatLonBoxes
 
 end module thinning_mod
