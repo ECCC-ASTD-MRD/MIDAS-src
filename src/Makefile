@@ -275,7 +275,7 @@ VPATH = $(SRC_ROOT) $(DIR_MOD) $(DIR_PGM)
 ##
 MPILIB := rpn_comm
 LIBSYS := hpcoperf sqlite3
-LIBRMN := rmnMP
+LIBRMN := rmn-ompi
 
 
 ##-----------------------------------------------

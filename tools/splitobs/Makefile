@@ -27,11 +27,11 @@ OPT_LEVEL = 2
 install : # defining default target
 
 splitobs_rhel-8-icelake-64: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2; \
+	. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.1/SCIENCE/inteloneapi-2022.1.2; \
 	make splitobs_libs_20220204
 
 splitobs_libs_20220204: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/libs/20220216;                 \
+	. r.load.dot  eccc/mrd/rpn/libs/20230112-alpha6;  \
 	. ssmuse-sh -d eccc/cmd/cmda/libs/20220216/${COMP_ARCH}; \
 	make splitobs
 
@@ -42,7 +42,7 @@ splitobs_sles-15-skylake-64-xc50: version.h $(SRC)
 	. r.env.dot --comp 19.0.5; make splitobs_libs_19
 
 splitobs: version.h $(SRC)
-	s.compile -o $(PROGRAM)_$(ORDENV_PLAT) -src $(SRC) -librmn rmn -libappl sqlite3 burp_c $(DEBUG_OPTIONS) -O $(OPT_LEVEL); rm version.h
+	s.compile -o $(PROGRAM)_$(ORDENV_PLAT) -src $(SRC) -librmn rmn-ompi -libappl sqlite3 burp_c $(DEBUG_OPTIONS) -O $(OPT_LEVEL); rm version.h
 
 splitobs_libs_19: version.h $(SRC)
 	. r.load.dot eccc/mrd/rpn/libs/19.6.0; . r.load.dot eccc/cmd/cmda/libs/19.6.0-2/${COMP_ARCH}; make splitobs

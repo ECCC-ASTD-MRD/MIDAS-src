@@ -27,6 +27,6 @@ public
 
 integer, parameter :: CLIB_OK = 1
 
-#include "clib_interface.cdk"
+#include "rmn/clib_interface.cdk"
 
 end module clib_interfaces_mod
