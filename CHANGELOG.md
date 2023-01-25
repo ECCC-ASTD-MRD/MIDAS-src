@@ -71,6 +71,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed `str` vertical array representation + now configurable in namelist (#704 and !677)
  * Fixed uninitialized variable that impacts the surface emissivity written in SQLite files (#721 and !660)
   * minor impact on results for SQLite outputs on surface emissivity
  * Fixed bug in horizontal interpolation of stddev in `bmatrixchem_mod` (#696 and !643)

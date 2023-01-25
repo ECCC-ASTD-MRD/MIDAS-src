@@ -38,7 +38,7 @@ module message_mod
   ! private module variables
   integer, parameter    :: msg_lineLen = 70
   integer, parameter    :: msg_num2strBufferLen = 200
-  integer, parameter    :: msg_indent = 2
+  integer, parameter    :: msg_indent = 4
 
   integer :: verbosityThreshold
   logical :: arrayVertical
@@ -261,9 +261,9 @@ module message_mod
         end if
         adjustedLine = adjustl(trim(msgLine))
         posIdx = posIdx + len(adjustedLine) +1
-        write(otherLineFormat,'(A,I2,A,I2,A)') '(A',msg_indent+2,',A', &
+        write(otherLineFormat,'(A,I2,A,I2,A)') '(A',msg_indent,',A', &
                                                 len(adjustedLine),')'
-        write(*,otherLineFormat) repeat(' ',msg_indent+2),adjustedLine
+        write(*,otherLineFormat) repeat(' ',msg_indent),adjustedLine
       end do
     else
       ! Single lines message
@@ -451,7 +451,7 @@ module message_mod
     ! Locals:
     integer           :: arrIndex
     logical           :: vertical
-    character(len=2)  :: sep
+    character(len=:), allocatable  :: sep
 
     if (present(vertical_opt)) then
       vertical = vertical_opt
@@ -460,7 +460,7 @@ module message_mod
     end if
 
     if (vertical) then
-      sep = new_line('a')
+      sep = new_line('')//repeat(' ', msg_indent)
       string = '(/'//sep
     else
       sep = ', '
@@ -472,7 +472,7 @@ module message_mod
       if (arrIndex /= size(array)) string = string//sep
     end do
     string = string//' /)'
-    
+
   end function msg_charArray2str
 
   !--------------------------------------------------------------------------
@@ -492,7 +492,7 @@ module message_mod
     ! Locals:
     integer           :: arrIndex
     logical           :: vertical
-    character(len=2)  :: sep
+    character(len=:), allocatable  :: sep
 
     if (present(vertical_opt)) then
       vertical = vertical_opt
@@ -501,7 +501,7 @@ module message_mod
     end if
 
     if (vertical) then
-      sep = new_line('a')
+      sep = new_line('')//repeat(' ', msg_indent)
       string = '(/'//sep
     else
       sep = ', '
@@ -533,7 +533,7 @@ module message_mod
     ! Locals:
     integer           :: arrIndex
     logical           :: vertical
-    character(len=2)  :: sep
+    character(len=:), allocatable  :: sep
 
     if (present(vertical_opt)) then
       vertical = vertical_opt
@@ -542,7 +542,7 @@ module message_mod
     end if
 
     if (vertical) then
-      sep = new_line('a')
+      sep = new_line('')//repeat(' ', msg_indent)
       string = '(/'//sep
     else
       sep = ', '
@@ -575,7 +575,7 @@ module message_mod
     ! Locals:
     integer           :: arrIndex
     logical           :: vertical
-    character(len=2)  :: sep
+    character(len=:), allocatable  :: sep
 
     if (present(vertical_opt)) then
       vertical = vertical_opt
@@ -584,7 +584,7 @@ module message_mod
     end if
 
     if (vertical) then
-      sep = new_line('')
+      sep = new_line('')//repeat(' ', msg_indent)
       string = '(/'//sep
     else
       sep = ', '
@@ -617,7 +617,7 @@ module message_mod
     ! Locals:
     integer           :: arrIndex
     logical           :: vertical
-    character(len=2)  :: sep
+    character(len=:), allocatable  :: sep
 
     if (present(vertical_opt)) then
       vertical = vertical_opt
@@ -626,7 +626,7 @@ module message_mod
     end if
 
     if (vertical) then
-      sep = new_line('')
+      sep = new_line('')//repeat(' ', msg_indent)
       string = '(/'//sep
     else
       sep = ', '
