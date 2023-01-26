@@ -111,6 +111,7 @@ program midas_letkf
   logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
   logical  :: debug                ! debug option to print values to the listings.
   logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
+  logical  :: oseImpact            ! perform observation simulation experiment (if true, also set oseObsFamily)
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
   real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
@@ -118,6 +119,7 @@ program midas_letkf
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   character(len=12) :: etiket_anl        ! etiket for output files
+  character(len=12) :: oseObsFamily      ! observation family to simulate ('UA', 'AI', 'AIRS' etc.)
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName, randomShuffleSubEns,  &
                      hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
@@ -125,8 +127,8 @@ program midas_letkf
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                      obsTimeInterpType, mpiDistribution, etiket_anl, &
-                     readEnsObsFromFile, writeLocalEnsObsToFile, &
-                     numRetainedEigen, debug
+                     readEnsObsFromFile, oseImpact, writeLocalEnsObsToFile, &
+                     numRetainedEigen, debug, oseObsFamily
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -181,6 +183,8 @@ program midas_letkf
   mpiDistribution       = 'ROUNDROBIN'
   etiket_anl            = 'ENS_ANL'
   readEnsObsFromFile    = .false.
+  oseImpact             = .false.
+  oseObsFamily          = ' '
   writeLocalEnsObsToFile = .false.
   numRetainedEigen      = 0
   debug                 = .false.
@@ -237,6 +241,12 @@ program midas_letkf
   if ( .not. all(hLocalize(2:4) == hLocalize(1)) .and. useModulatedEns ) then
     call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
     'letkf with modulated ensembles')
+  end if
+
+  ! make sure that oseObsFamily is defined if oseImpact is .true.
+  if ( ( oseImpact ) .and. trim(oseObsFamily) == ' ' ) then
+    call utl_abort('midas-letkf: oseObsFamily is empty character, but should be ' // &
+         'one of e.g. UA, AI, AIRS etc., since oseImpact is set to .true.')
   end if
 
   !
@@ -532,6 +542,11 @@ program midas_letkf
   ! Put y-mean(H(X)) in OBS_OMP for writing to obs files (overwrites y-H(mean(X)))
   call eob_setMeanOMP(ensObs)
   if ( useModulatedEns ) call eob_setMeanOMP(ensObsGain)
+
+  ! If doing observation simulation experiment, set y for family of interest to mean(H(x))
+  if ( oseImpact ) then
+    call eob_setSimulatedObs(ensObs, oseObsFamily)
+  end if
 
   ! Set vertical location for all obs for vertical localization (based on ensemble mean pressure and height)
   if (vLocalize > 0.0d0) then

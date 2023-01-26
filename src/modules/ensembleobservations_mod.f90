@@ -46,7 +46,7 @@ MODULE ensembleObservations_mod
   public :: eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
   public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setMeanOMP
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_setAssFlag, eob_copy, eob_zero
-  public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord
+  public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord, eob_setSimulatedObs
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
   public :: eob_removeObsNearLand, eob_readFromFiles, eob_writeToFiles
 
@@ -1019,7 +1019,31 @@ CONTAINS
     ! now compute HX = Y - (Y-HX)
     ensObs%Ya_r4(memberIndex,:) = ensObs%obsValue(:) - ensObs%Ya_r4(memberIndex,:)
 
-  end subroutine eob_setYa  
+  end subroutine eob_setYa
+
+  !--------------------------------------------------------------------------
+  ! eob_setSimulatedObs
+  !--------------------------------------------------------------------------
+  subroutine eob_setSimulatedObs(ensObs, oseObsFamily)
+    implicit none
+
+    ! Arguments:
+    type(struct_eob) , intent(inout)  :: ensObs
+    character(len=12), intent(in)     :: oseObsFamily
+
+    ! Locals:
+    integer :: obsIndex
+    integer :: headerIndex
+
+    ! Loop through observations and set y to mean(H(x)) if y is in obs family of interest
+    do obsIndex = 1, ensObs%numObs
+      headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
+      if ( obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex) == oseObsFamily ) then
+        ensObs%obsvalue(obsIndex) = ensObs%meanYb(ObsIndex)
+      end if
+    end do
+
+  end subroutine eob_setSimulatedObs
   
   !--------------------------------------------------------------------------
   ! eob_setDeterYb
