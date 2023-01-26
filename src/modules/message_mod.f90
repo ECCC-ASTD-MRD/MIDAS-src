@@ -41,7 +41,7 @@ module message_mod
   integer, parameter    :: msg_indent = 4
 
   integer :: verbosityThreshold
-  logical :: arrayVertical
+  logical :: msg_arrayVertical
 
   contains
   
@@ -176,7 +176,11 @@ module message_mod
 
     ! Locals:
     logical, save :: alreadyRead = .false.
-    integer :: verbosity, nulnam, ierr, fnom, fclos
+    integer :: nulnam, ierr, fnom, fclos
+
+    ! Namelist variables
+    logical :: arrayVertical  ! Array vertical representation by default when .true.
+    integer :: verbosity      ! Verbosity level
     namelist /NAMMSG/verbosity, arrayVertical
   
     if (alreadyRead) then
@@ -187,7 +191,7 @@ module message_mod
   
     ! default namelist value
     verbosity = msg_DEFAULT
-    arrayVertical = .false.
+    msg_arrayVertical = .false.
   
     if ( .not. utl_isNamelistPresent('NAMMSG','./flnml') ) then
       call msg( 'msg_readNml', 'NAMMSG is missing in the namelist. The default values will be taken.', &
@@ -202,6 +206,7 @@ module message_mod
     end if
     msg_NML = verbosity
     call msg_setVerbThreshold(msg_NML, beSilent_opt=.true.)
+    msg_arrayVertical = arrayVertical
 
   end subroutine msg_readNml
 
@@ -456,7 +461,7 @@ module message_mod
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = arrayVertical
+      vertical = msg_arrayVertical
     end if
 
     if (vertical) then
@@ -497,7 +502,7 @@ module message_mod
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = arrayVertical
+      vertical = msg_arrayVertical
     end if
 
     if (vertical) then
@@ -538,7 +543,7 @@ module message_mod
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = arrayVertical
+      vertical = msg_arrayVertical
     end if
 
     if (vertical) then
@@ -580,7 +585,7 @@ module message_mod
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = arrayVertical
+      vertical = msg_arrayVertical
     end if
 
     if (vertical) then
@@ -622,7 +627,7 @@ module message_mod
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = arrayVertical
+      vertical = msg_arrayVertical
     end if
 
     if (vertical) then
