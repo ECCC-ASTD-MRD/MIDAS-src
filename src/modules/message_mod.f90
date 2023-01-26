@@ -284,6 +284,8 @@ module message_mod
         ! Arguments:
         character(len=*),           intent(inout)  :: line
         character(len=msg_lineLen)                 :: shorterLine
+
+        ! Locals:
         integer :: idx, idxNewLine
     
         idxNewLine = scan(line, new_line(''))
@@ -291,10 +293,8 @@ module message_mod
           idx = scan(trim(line),' ',back=.true.)
           if (idx == 0 .or. idx == len(trim(line)) ) then
             shorterLine = trim(line)
-            return
           else
             shorterLine = line(1:idx-1)
-            return
           end if
         else ! presence of a new line
           shorterLine = trim(line(1:idxNewLine-1))
