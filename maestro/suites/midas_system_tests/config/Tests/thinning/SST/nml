@@ -1,9 +1,15 @@
  &thin_surface
-   doThinning   = .true.
-   step         = 6.0d0
-   deltmax      = 180
-   useBlackList = .false.
+   doThinning    = .true.
+   step          = 6.0d0
+   deltmax       = 180
+   useBlackList  = .false.
 /
+ &thin_satSST
+   doThinning    = .true.
+   numTimesteps  = 4
+   deltmax       = 90
+   dataSetSST(1) = 'N20'
+/ 
  &NAMSTATE
   ANLVAR(1) = 'TM'
 /

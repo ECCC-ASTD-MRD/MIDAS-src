@@ -43,7 +43,7 @@ module thinning_mod
   public :: thn_thinHyper, thn_thinTovs, thn_thinCSR
   public :: thn_thinRaobs, thn_thinAircraft, thn_thinScat, thn_thinSatWinds
   public :: thn_thinSurface, thn_thinGbGps, thn_thinGpsRo, thn_thinAladin
-
+  public :: thn_thinSatSST
   integer, external :: get_max_rss
 
 contains
@@ -97,17 +97,12 @@ contains
       write(*,*) 'thn_thinSurface: Namelist block thin_surface is missing in the namelist.'
       write(*,*) '                 The default value will be taken.'
       if (mmpi_myid == 0) write(*, nml = thin_surface)
-    end if
+    end if    
 
     if (.not. doThinning) return
 
     call utl_tmg_start(114,'--ObsThinning')
-   
     call thn_surfaceInTime(obsdat, obsFamily, step, deltmax, useBlackList, considerSHIPstnID)
-    !if (obsFamily == 'TM') then
-    !  ! perform spatial thinning of satellite SST data
-    !  call thn_surfaceSpatial(obsdat)
-    !end if
     call utl_tmg_stop(114)
 
   end subroutine thn_thinSurface
@@ -656,7 +651,8 @@ contains
   !--------------------------------------------------------------------------
   ! thn_surfaceInTime
   !--------------------------------------------------------------------------
-  subroutine thn_surfaceInTime(obsdat, obsFamily, step, deltmax, useBlackList, considerSHIPstnID)
+  subroutine thn_surfaceInTime(obsdat, obsFamily, step, deltmax, &
+                               useBlackList, considerSHIPstnID)
     !
     ! :Purpose: Original method for thinning surface data in time.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
@@ -664,12 +660,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
-    character(len=*), intent(in)    :: obsFamily
-    real(8),          intent(in)    :: step
-    integer,          intent(in)    :: deltmax
-    logical,          intent(in)    :: useBlackList
-    logical,          intent(in)    :: considerSHIPstnID
+    type(struct_obs), intent(inout)        :: obsdat
+    character(len=*), intent(in)           :: obsFamily
+    real(8),          intent(in)           :: step
+    integer,          intent(in)           :: deltmax
+    logical,          intent(in)           :: useBlackList
+    logical,          intent(in)           :: considerSHIPstnID
 
     ! Drifter removal parameters:
     ! Remove incomplete DRIFTER reports (using listEleBadDrifter)?
@@ -690,7 +686,7 @@ contains
     character(len=13), parameter :: listCodtypNameSelect(numListCodtypSelect) = &
                                     (/'metar', 'saswobnonauto', 'saswobauto'/)
     ! Elements to select (flags for all other elements will have bit 11 set)
-    integer, parameter :: listEleSelect(14) = (/bufr_TOVSqual, bufr_neps, bufr_nepn, bufr_neds, &
+    integer, parameter :: listEleSelect(14) = (/bufr_suWindSpeed, bufr_neps, bufr_nepn, bufr_neds, &
                                                 bufr_nefs, bufr_neus, bufr_nevs, bufr_nets, &
                                                 bufr_dewPoint2m, bufr_ness, bufr_vis, &
                                                 bufr_logVis, bufr_gust, bufr_sst/) 
@@ -7123,227 +7119,398 @@ contains
   end function thn_separation
 
   !--------------------------------------------------------------------------
-  ! thn_surfaceSpatial
+  ! thn_thinSatSST
   !--------------------------------------------------------------------------
-  subroutine thn_surfaceSpatial(obsdat)
-
-    ! :Purpose: Main thinning subroutine for satellite SST data.
+  subroutine thn_thinSatSST(obsData)
+    !:Purpose: Main subroutine for thinning of satellite SST obs.
 
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat
+    type(struct_obs), intent(inout) :: obsData
 
     ! Locals:
     integer :: nulnam
     integer :: fnom, fclos, ierr
+    integer, parameter :: maxNumDataSetSST = 10 ! maximum number of SST datasets 
+                                                ! considered in surface thinning
+    integer :: dataSetSSTIndex, numberDataSetSST
 
     ! Namelist variables
-    integer :: boxDimension ! thinning (dimension of box sides) (in km)
-    integer :: temporalThin ! temporal thinning resolution (in minutes)
+    logical :: doThinning                             ! if false, we return immediately
+    integer :: numTimesteps                           ! thinning number of timesteps
+    integer :: deltmax                                ! maximum time difference (in minutes)
+    character(len=10) :: dataSetSST(maxNumDataSetSST) ! array of SST dataset names
+                                                      ! considered in thinning
 
-    namelist /thin_satelliteSST/ boxDimension, temporalThin
+    namelist /thin_satSST/doThinning, numTimesteps, deltmax, dataSetSST
+    
+    ! set default values for namelist variables
+    doThinning        = .false. 
+    deltmax           = 90      
+    dataSetSST(:)     = ''
+    
+    ! return if no SST obs
+    if (.not. obs_famExist(obsData, 'TM')) return
 
-    ! Default namelist values
-    boxDimension = 100
-    temporalThin = 90
-
-    ! Read the namelist for satellite SST observations (if it exists)
-    if (utl_isNamelistPresent('thn_surfaceSpatial', './flnml')) then
+    ! Read the namelist for Surface observations (if it exists)
+    if (utl_isNamelistPresent('thin_satSST', './flnml')) then
       nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      if (ierr /= 0) call utl_abort('thn_surfaceSpatial: Error opening file flnml')
-      read(nulnam, nml = thin_satelliteSST, iostat = ierr)
-      if (ierr /= 0) call utl_abort('thn_surfaceSpatial: Error reading thin_satelliteSST namelist')
-      if (mmpi_myid == 0) write(*, nml = thin_satelliteSST)
+      ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
+      if (ierr /= 0) call utl_abort('thn_thinSatSST: Error opening file flnml')
+      read(nulnam,nml = thin_satSST, iostat = ierr)
+      if (ierr /= 0) call utl_abort('thn_thinSatSST: Error reading namelist')
+      if (mmpi_myid == 0) write(*, nml = thin_satSST)
       ierr = fclos(nulnam)
     else
       write(*,*)
-      write(*,*) 'thn_surfaceSpatial: namelist block thin_satelliteSST is missing in the namelist.'
-      write(*,*) '                    The default value will be taken.'
-      if (mmpi_myid == 0) write(*, nml = thin_satelliteSST)
+      write(*,*) 'thn_thinSatSST: Namelist block thin_satSST is missing in the namelist.'
+      write(*,*) '                The default value will be taken.'
+      if (mmpi_myid == 0) write(*, nml = thin_satSST)
+    end if    
+
+    numberDataSetSST = 0
+    do dataSetSSTIndex = 1, maxNumDataSetSST
+      if (trim(dataSetSST(dataSetSSTIndex)) == '') exit
+      numberDataSetSST = numberDataSetSST + 1
+    end do
+
+    write(*,*)''
+    if (numberDataSetSST > 0) then
+      write(*,*) 'thn_thinSurface: satellite SST datasets considered in thinning: '
+      do dataSetSSTIndex = 1, numberDataSetSST
+        write(*,'(i5,a)') dataSetSSTIndex, trim(dataSetSST(dataSetSSTIndex))
+      end do
     end if
 
-    write(*,*) 'Memory Used: ', get_max_rss()/1024,'Mb'
+    if (.not. doThinning) return
+
     call utl_tmg_start(114,'--ObsThinning')
-    call thn_satelliteSSTByLatLonBoxes(obsdat, boxDimension, temporalThin)
+    do dataSetSSTIndex = 1, numberDataSetSST
+      call thn_satelliteSSTByGridCell(obsData, dataSetSST(dataSetSSTIndex), numTimesteps, deltmax)
+    end do
     call utl_tmg_stop(114)
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-  end subroutine thn_surfaceSpatial
+  end subroutine thn_thinSatSST
 
   !--------------------------------------------------------------------------
-  ! thn_satelliteSSTByLatLonBoxes
+  ! thn_satelliteSSTByGridCell
   !--------------------------------------------------------------------------
-  subroutine thn_satelliteSSTByLatLonBoxes(obsdat, boxDimension, temporalThin)
-    ! :Purpose: Only keep the observation closest to the center of each
-    !           lat-lon box for satellite SST observations.
-    !           Set bit 11 of OBS_FLG on observations that are to be rejected.
-
+  subroutine thn_satelliteSSTByGridCell(obsData, dataSet, numTimesteps, deltmax)
+    !
+    !:Purpose: thinning satellite SST data by grid cells.
+    !          Set bit 11 of obs_flg on observations that are to be rejected.
+    !          The algorithm consists in keeping median satellite SST data
+    !          within one grid cell provided in the file analysisgrid_thinning_satSST.
+    !
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsdat       ! obsSpaceData
-    integer         , intent(in)    :: boxDimension ! thinning (dimension of box sides) (in km)
-    integer         , intent(in)    :: temporalThin ! temporal thinning resolution (in minutes)
-
-    ! Locals parameters:
-    integer, parameter :: latLength = 10000     ! distance from Poles to the Equator (in km)
-    integer, parameter :: lonLength = 40000     ! distance around Earth at the Equator (in km)
-    integer, parameter :: numberSensorsMax = 10 ! maximum number of sensors in obsSpaceData
+    type(struct_obs), intent(inout) :: obsData      ! obsSpace data object
+    character(len=*), intent(in)    :: dataSet      ! station ID (id_stn variable in SQLite obs.files)
+    integer,          intent(in)    :: numTimesteps ! thinning number of timesteps
+    integer,          intent(in)    :: deltmax      ! maximum time difference (in minutes)
 
     ! Locals:
-    integer :: headerIndex, bodyIndex, sensorIndex
-    integer :: numHeaderMax, numHeaderMaxMpi
-
-    integer :: nsize, lengthSensors
-    integer :: timeRejectCount, flagRejectCount, timeRejectCountMpi, flagRejectCountMpi
-    integer :: obsFlag, obsVarno, numStnId, stnIdIndexFound
-    integer :: numLat, numLon, latIndex, lonIndex, stepIndex, ierr
-    integer :: headerIndexBeg, headerIndexEnd
-    integer :: countObs, countObsInMpi, countObsOutMpi
-    integer :: obsLonBurpFile, obsLatBurpFile, obsDate, obsTime
-    integer :: numObsStnIdOut(numberSensorsMax)
-    integer :: numObsStnIdInMpi(numberSensorsMax), numObsStnIdOutMpi(numberSensorsMax)
-    real(4) :: latInRadians, distance, obsLat, obsLon
-    real(8) :: obsLatInDegrees, obsLonInDegrees, obsStepIndex_r8
-    logical :: change
-    real(4), allocatable :: gridLats(:), gridLatsMid(:), gridLonsMid(:,:)
-    integer, allocatable :: headerIndexGrid(:,:,:), delMinutesGrid(:,:,:)
-    real(4), allocatable :: distanceGrid(:,:,:)
-    integer, allocatable :: obsLatIndex(:), obsLonIndex(:), obsStepIndex(:), numGridLons(:)
-    real(4), allocatable :: obsDistance(:)
-    integer, allocatable :: obsLatIndexMpi(:), obsLonIndexMpi(:), obsStepIndexMpi(:)
-    integer, allocatable :: obsDelMinutes(:), obsDelMinutesMpi(:)
-    integer, allocatable :: sensorInt(:,:), sensorIntMpi(:,:)
-    real(4), allocatable :: obsDistanceMpi(:)
+    type(struct_hco), pointer :: hco_thinning
+    integer :: nsize, headerIndexBeg, headerIndexEnd
+    integer :: ierr, lonIndex, latIndex, stepIndex, codeType
+    integer :: obsLonIndex, obsLatIndex, obsStepIndex
+    integer :: numHeader, numHeaderMaxMpi, headerIndex, bodyIndex
+    integer :: satSSTCount, satSSTCountMpi
+    integer :: obsFlag, obsVarno, obsDate, obsTime, countObs, countObsMpi
+    real(8) :: delMinutes, obsStepIndex_r8
+    real(8) :: obsLon, obsLat
+    real(8) :: deltaLon, deltaLat, deltaLatCell, deltaLonCell
+    real(4), allocatable :: lonGrid(:), latGrid(:)
+    integer, allocatable :: rejectCount(:), rejectCountMpi(:)
     logical, allocatable :: valid(:), validMpi(:)
-    character(len=5)     :: stnIdTrim
-    character(len=12)    :: sensor, sensorList(numberSensorsMax)
-    character(len=12), allocatable :: sensorGrid(:,:,:)
+    integer, allocatable :: obsLatIndexVec(:), obsLonIndexVec(:)
+    integer, allocatable :: obsTimeIndexVec(:), obsTimeIndexMpi(:)
+    integer, allocatable :: obsLatIndexMpi(:), obsLonIndexMpi(:)
+    real(4), allocatable :: obsDistance(:), obsDistanceMpi(:)
+    real(4), allocatable :: obsSST(:), obsSSTMpi(:)
+    real(4), allocatable :: sizeGridCell(:), sizeGridCellMpi(:)
+    integer, allocatable :: numObsGrid(:,:)          ! number of obs per grid cell
+    real(4)              :: median
+    integer              :: indexMedian
+    real(4), allocatable :: vectorDataIn1gridCell(:) ! vector of data in one grid cell
+                                                     ! where a median is computed
+    integer, allocatable :: headerIndexesInCell(:)   ! header indexes in a given grid cell 
+    logical              :: llok, foundMedian
 
     write(*,*)
-    write(*,*) 'thn_satelliteSSTByLatLonBoxes: Starting'
+    write(*,*) 'thn_satelliteSSTByGridCell: Starting satellite SST thinning for sensor: ', dataSet
     write(*,*)
 
-    numHeaderMax = obs_numHeader(obsdat)
-    call rpn_comm_allReduce(numHeaderMax, numHeaderMaxMpi, 1, 'mpi_integer', 'mpi_max', 'grid', ierr)
-    write(*,*) 'thn_satelliteSSTByLatLonBoxes: numHeaderMax   : ', numHeaderMax
-    write(*,*) 'thn_satelliteSSTByLatLonBoxes: numHeaderMaxMpi: ', numHeaderMaxMpi
+    numHeader = obs_numHeader(obsData)
+    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
+                            'mpi_max','grid',ierr)
 
-    ! Check if we have any observations to process
     allocate(valid(numHeaderMaxMpi))
     valid(:) = .false.
-    
-    do headerIndex = 1, numHeaderMax
-      if (obs_headElem_i(obsdat, obs_ity, headerIndex) == codtyp_get_codtyp('satob')) then
-        ! put the valid element to .true. for satellite SST observations
+
+    ! count satellite SST data of the current sensor (id_stn)
+    satSSTCount = 0
+    do headerIndex = 1, numHeader      
+      bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
+      llok = (obs_bodyElem_i(obsData, obs_ass, bodyIndex) == obs_assimilated)
+      if (.not. llok) cycle
+      obsVarno  = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
+      if (obsVarno /= bufr_sst) cycle
+      codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
+      if (codeType /= codtyp_get_codtyp('satob')) cycle
+
+      if (obs_elem_c(obsData, 'STID' , headerIndex) == dataSet) then
+        satSSTCount = satSSTCount + 1
         valid(headerIndex) = .true.
       end if
-    end do
-    countObs = count(valid(:))
 
-    call rpn_comm_allReduce(countObs, countObsInMpi, 1, 'mpi_integer', 'mpi_sum', 'grid', ierr)
-    write(*,*) 'thn_satelliteSSTByLatLonBoxes: countObs     : ', countObs
-    write(*,*) 'thn_satelliteSSTByLatLonBoxes: countObsInMpi: ', countObsInMpi
-    if (countObsInMpi == 0) then
-      write(*,*) 'thn_satelliteSSTByLatLonBoxes: no satellite SST observations'
-      deallocate(valid)
+    end do
+
+    ! Return if no satellite SST obs to thin
+    allocate(validMpi(numHeaderMaxMpi * mmpi_nprocs))
+    nsize = numHeaderMaxMpi
+    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
+                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
+    if (count(validMpi(:)) == 0) then
+      write(*,*) 'thn_satelliteSSTByGridCell: no satellite SST dataSet ', dataSet,' observations present'
       return
     end if
 
-    numLat = nint(2. * real(latLength) / real(boxDimension))
-    numLon = nint(     real(lonLength) / real(boxDimension))
+    write(*,*) 'thn_satelliteSSTByGridCell: ', dataSet, ': numHeader, numHeaderMaxMpi: ', &
+               numHeader, numHeaderMaxMpi
 
-    write(*,*)
-    write(*,*) 'Number of horizontal boxes : ', numLon
-    write(*,*) 'Number of vertical boxes   : ', numLat
-    write(*,*)
+    countObs = count(valid(:))
+    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', 'mpi_sum','grid', ierr)
+    write(*,*) 'thn_satelliteSSTByGridCell: ', dataSet,': number of obs initial: ', countObs, countObsMpi
+    call rpn_comm_allReduce(satSSTCount, satSSTCountMpi, 4, 'mpi_integer', &
+                            'mpi_sum','grid', ierr)
+    write(*,*) 'thn_satelliteSSTByGridCell: ', dataSet,': satSSTCount: ', satSSTCount, satSSTCountMpi
+    write(*,*) 'thn_satelliteSSTByGridCell: number of thinning timesteps: ', numTimesteps
 
-    write(*,*) 'thn_satelliteSSTByLatLonBoxes: countObs initial: ', countObs, countObsInMpi
+    ! Setup horizontal thinning grid
+    nullify(hco_thinning)
+    call hco_SetupFromFile(hco_thinning, './analysisgrid_thinning_satSST', 'ANALYSIS', 'Analysis')
 
-    ! Allocate arrays
-    allocate(gridLats(numLat))
-    allocate(gridLatsMid(numLat))
-    allocate(gridLonsMid(numLat, numLon))
-    allocate(numGridLons(numLat))
-    allocate(sensorGrid(numLat, numLon, tim_nstepobs))
-    allocate(distanceGrid(numLat, numLon, tim_nstepobs))
-    allocate(headerIndexGrid(numLat, numLon, tim_nstepobs))
-    allocate(delMinutesGrid(numLat, numLon, tim_nstepobs))
+    ! Setup thinning grid parameters
+    allocate(lonGrid(hco_thinning%ni))
+    allocate(latGrid(hco_thinning%nj))
+    lonGrid(:) = hco_thinning%lon(:) * MPC_DEGREES_PER_RADIAN_R8
+    latGrid(:) = hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8
 
-    allocate(obsLatIndex(numHeaderMaxMpi))
-    allocate(obsLonIndex(numHeaderMaxMpi))
-    allocate(obsStepIndex(numHeaderMaxMpi))
+    ! Allocate vectors
+    allocate(rejectCount(tim_nstepObs))
+    allocate(obsLatIndexVec(numHeaderMaxMpi))
+    allocate(obsLonIndexVec(numHeaderMaxMpi))
+    allocate(obsTimeIndexVec(numHeaderMaxMpi))
     allocate(obsDistance(numHeaderMaxMpi))
-    allocate(obsDelMinutes(numHeaderMaxMpi))
+    allocate(sizeGridCell(numHeaderMaxMpi))
+    allocate(obsSST(numHeaderMaxMpi))
+    allocate(vectorDataIn1gridCell(numHeaderMaxMpi))
 
-    ! Allocation for MPI gather
-    allocate(validMpi(numHeaderMaxMpi * mmpi_nprocs))
+    ! Allocate mpi global vectors
+    allocate(rejectCountMpi(tim_nstepObs))
     allocate(obsLatIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
     allocate(obsLonIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
-    allocate(obsStepIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
+    allocate(obsTimeIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
     allocate(obsDistanceMpi(numHeaderMaxMpi * mmpi_nprocs))
-    allocate(obsDelMinutesMpi(numHeaderMaxMpi * mmpi_nprocs))
+    allocate(sizeGridCellMpi(numHeaderMaxMpi * mmpi_nprocs))
+    allocate(obsSSTMpi(numHeaderMaxMpi * mmpi_nprocs))
+    allocate(headerIndexesInCell(numHeaderMaxMpi * mmpi_nprocs))
 
-    gridLats(:)            = 0.
-    gridLatsMid(:)         = 0.
-    gridLonsMid(:,:)       = 0.
-    numGridLons(:)         = 0
-    distanceGrid(:,:,:)    = -1.0
-    headerIndexGrid(:,:,:) = -1
+    ! Initialize vectors
+    rejectCount(:) = 0
+    obsLatIndexVec(:) = 0
+    obsLonIndexVec(:) = 0
+    obsTimeIndexVec(:) = 0
+    obsDistance(:) = 0.
+    sizeGridCell(:) = 0.
+    obsSST(:) = 0.
 
-    timeRejectCount = 0
-    flagRejectCount = 0
+    HEADER: do headerIndex = 1, numHeader      
+      bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
+      llok = (obs_bodyElem_i(obsData, obs_ass, bodyIndex) == obs_assimilated)
+      if (.not. llok) cycle
+      obsVarno  = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
+      if (obsVarno /= bufr_sst) cycle
+      codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
+      if (codeType /= codtyp_get_codtyp('satob')) cycle
 
-    ! set spatial boxes properties
-    do latIndex = 1, numLat
-      gridLats(latIndex) = (latIndex * 180. / numLat) - 90.
-      gridLatsMid(latIndex) = gridLats(latIndex) - (90. / numLat)
-      if (gridLats(latIndex) <= 0.0) then
-        latInRadians = gridLats(latIndex) * MPC_PI_R8 / 180.
-      else
-        latInRadians = gridLats(latIndex-1) * MPC_PI_R8 / 180.
+      if (obs_elem_c(obsData, 'STID' , headerIndex) == dataSet) then
+
+        ! find time difference
+        obsDate = obs_headElem_i(obsData, obs_dat, headerIndex)
+        obsTime = obs_headElem_i(obsData, obs_etm, headerIndex)
+        call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), obsDate, obsTime, numTimesteps)
+        obsStepIndex = nint(obsStepIndex_r8)
+        delMinutes = abs(nint(60.0 * 24.0 / numTimesteps  * abs(real(obsStepIndex) - obsStepIndex_r8)))
+
+        ! check time window
+        if (delMinutes > deltmax) then
+          valid(headerIndex) = .false.
+          rejectCount(obsStepIndex) = rejectCount(obsStepIndex) + 1
+        end if
+
+        obsFlag  = obs_bodyElem_i(obsData, obs_flg, bodyIndex)
+        obsVarno = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
+
+        if (.not. btest(obsFlag, 9)) then
+
+          obsSST(headerIndex) = obs_bodyElem_r(obsData, obs_var, bodyIndex)
+
+          ! obs lat and lon in degrees
+          obsLon = obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+          obsLat = obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+          ! latitude index
+          deltaLat = abs(latGrid(1) - obsLat)
+          obsLatIndex = 1
+          do latIndex = 2, hco_thinning%nj
+            if (abs(latGrid(latIndex) - obsLat) < deltaLat) then
+              deltaLat     = abs(latGrid(latIndex) - obsLat)
+              deltaLatCell = abs(latGrid(latIndex) - latGrid(latIndex - 1))
+              obsLatIndex = latIndex
+            end if
+          end do
+
+          ! longitude index
+          deltaLon = abs(lonGrid(1) - obsLon)
+          obsLonIndex = 1
+          do lonIndex = 2, hco_thinning%ni
+            if (abs(lonGrid(lonIndex) - obsLon) < deltaLon) then
+              deltaLon     = abs(lonGrid(lonIndex) - obsLon)
+              deltaLonCell = abs(lonGrid(lonIndex) - lonGrid(lonIndex - 1))
+              obsLonIndex = lonIndex
+            end if
+          end do
+
+          obsLatIndexVec(headerIndex) = obsLatIndex
+          obsLonIndexVec(headerIndex) = obsLonIndex
+          obsTimeIndexVec(headerIndex) = obsStepIndex
+          obsDistance(headerIndex)  = sqrt(deltaLon**2 + deltaLat**2)
+          sizeGridCell(headerIndex) = sqrt(deltaLonCell**2 + deltaLatCell**2)
+
+        end if
       end if
-      distance = lonLength * cos(latInRadians)
-      numGridLons(latIndex) = nint(distance / boxDimension)
-      do lonIndex = 1, numGridLons(latIndex)
-        gridLonsMid(latIndex, lonIndex) =  &
-             (lonIndex * 36000 /  numGridLons(latIndex)) -  &
-             (18000 / numGridLons(latIndex))
-        gridLonsMid(latIndex,lonIndex) = 0.01 * gridLonsMid(latIndex, lonIndex)
+    end do HEADER
+
+    call rpn_comm_allReduce(rejectCount, rejectCountMpi, numTimesteps, 'mpi_integer', &
+                            'mpi_sum','grid', ierr)
+
+    write(*,*)
+    write(*,'(a50,i10)') ' Total number of obs = ', satSSTCountMpi
+    write(*,*)
+    do stepIndex = 1, numTimesteps
+      write(*,'(a50,3i10)')' Number of rejects for bin = ', stepIndex, rejectCount(stepIndex), rejectCountMpi(stepIndex)
+    end do
+    write(*,'(a50,i10)')' Total number of rejects = ', sum(rejectCountMpi)
+    write(*,*)
+
+    allocate(numObsGrid(hco_thinning%nj, hco_thinning%ni))
+
+    ! Make all inputs to the following tests mpiglobal
+    nsize = numHeaderMaxMpi
+    call rpn_comm_allgather(valid          , nsize, 'mpi_logical',  &
+                            validMpi       , nsize, 'mpi_logical', 'grid', ierr)
+    call rpn_comm_allgather(obsLatIndexVec , nsize, 'mpi_integer',  &
+                            obsLatIndexMpi , nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsLonIndexVec , nsize, 'mpi_integer',  &
+                            obsLonIndexMpi , nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsTimeIndexVec, nsize, 'mpi_integer',  &
+                            obsTimeIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsDistance    , nsize, 'mpi_real4'  ,  &
+                            obsDistanceMpi , nsize, 'mpi_real4'  , 'grid', ierr)
+    call rpn_comm_allgather(obsSST         , nsize, 'mpi_real4'  ,  &
+                            obsSSTMpi      , nsize, 'mpi_real4'  , 'grid', ierr)
+    call rpn_comm_allgather(sizeGridCell   , nsize, 'mpi_real4'  ,  &
+                            sizeGridCellMpi, nsize, 'mpi_real4'  , 'grid', ierr)
+
+    STEP: do stepIndex = 1, numTimesteps 
+      numObsGrid(:,:) = 0 
+      vectorDataIn1gridCell(:) = 0.
+      headerIndexesInCell(:) = 0      
+
+      ! Computation of min and max distances from the centre of grid cell 
+      do headerIndex = 1, numHeaderMaxMpi * mmpi_nprocs
+
+        if (.not. validMpi(headerIndex)) cycle
+        if (obsTimeIndexMpi(headerIndex) /= stepIndex) cycle
+        latIndex = obsLatIndexMpi(headerIndex)
+        lonIndex = obsLonIndexMpi(headerIndex)
+        if (obsDistanceMpi(headerIndex) < sizeGridCellMpi(headerIndex)) then
+          numObsGrid(latIndex, lonIndex) = numObsGrid(latIndex, lonIndex) + 1
+          vectorDataIn1gridCell(numObsGrid(latIndex, lonIndex)) = obsSSTMpi(headerIndex)
+          headerIndexesInCell(numObsGrid(latIndex, lonIndex)) = headerIndex
+        end if
+        median = utl_median(vectorDataIn1gridCell(1:numObsGrid(latIndex, lonIndex)), foundMedian)
+  
+        if (foundMedian) then
+
+          indexMedian = numObsGrid(latIndex, lonIndex) / 2 + 1 ! we suppose this even for 
+                                                               ! vector lenght of even number
+          validMpi(headerIndexesInCell(1:numObsGrid(latIndex, lonIndex))) = .false.
+          validMpi(headerIndexesInCell(indexMedian)) = .true.
+          if (mod(numObsGrid(latIndex, lonIndex), 2) == 0) then      
+            bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndexesInCell(indexMedian))
+            call obs_bodySet_r(obsData, obs_var , bodyIndex, median)
+          end if
+
+        end if
       end do
+
+    end do  STEP
+
+    ! Update local copy of valid from global mpi version
+    headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
+    headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
+    valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
+
+    deallocate(numObsGrid)
+
+    write(*,*)
+    write(*,'(a50,i10)') ' Number of obs in  = ', satSSTCountMpi
+    write(*,'(a50,i10)') ' Number of obs out = ', count(validMpi(:))
+    write(*,'(a50,i10)') ' Number of obs not out = ', satSSTCountMpi - count(validMpi(:))
+    write(*,*)
+
+    ! Modify the flags for rejected observations
+    do headerIndex = 1, numHeader
+      ! skip observation if we're not supposed to consider it
+      bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
+      llok = (obs_bodyElem_i(obsData, obs_ass, bodyIndex) == obs_assimilated)
+      if (.not. llok) cycle
+      obsVarno  = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
+      if (obsVarno /= bufr_sst) cycle
+      codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
+      if (codeType /= codtyp_get_codtyp('satob')) cycle
+      if (obs_elem_c(obsData, 'STID' , headerIndex) /= dataSet) cycle
+
+      if (.not. valid(headerIndex)) then
+        obsFlag = obs_bodyElem_i(obsData, obs_flg, bodyIndex)
+        call obs_bodySet_i(obsData, obs_flg, bodyIndex, ibset(obsFlag, 11))
+      end if
     end do
 
-
-    ! Deallocations:
+    ! Deallocation
     deallocate(valid)
-    deallocate(gridLats)
-    deallocate(gridLatsMid)
-    deallocate(gridLonsMid)
-    deallocate(numGridLons)
-    deallocate(sensorGrid)
-    deallocate(distanceGrid)
-    deallocate(headerIndexGrid)
-    deallocate(delMinutesGrid)
-
-    deallocate(obsLatIndex)
-    deallocate(obsLonIndex)
-    deallocate(obsStepIndex)
-    deallocate(obsDistance)
-    deallocate(obsDelMinutes)
-
     deallocate(validMpi)
+    deallocate(latGrid)
+    deallocate(lonGrid)
+    deallocate(rejectCount)
+    deallocate(obsTimeIndexVec)
+    deallocate(obsDistance)
+    deallocate(obsSST)
+    deallocate(rejectCountMpi)
     deallocate(obsLatIndexMpi)
     deallocate(obsLonIndexMpi)
-    deallocate(obsStepIndexMpi)
+    deallocate(obsTimeIndexMpi)
     deallocate(obsDistanceMpi)
-    deallocate(obsDelMinutesMpi)
+    deallocate(obsSSTMpi)
 
     write(*,*)
-    write(*,*) 'thn_satelliteSSTByLatLonBoxes: Finished'
+    write(*,*) 'thn_satelliteSSTByGridCell: Finished'
     write(*,*)
 
-  end subroutine thn_satelliteSSTByLatLonBoxes
+  end subroutine thn_satelliteSSTByGridCell
 
 end module thinning_mod

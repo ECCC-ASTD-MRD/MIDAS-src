@@ -40,7 +40,7 @@ module bufr_mod
  !
  ! Use the program codbuf to find out the meaning of these IDs.
  !
- integer, parameter :: bufr_TOVSqual    = 08194 !TOVS/ATOVS product qualifier
+ integer, parameter :: bufr_suWindSpeed = 08194 ! source and units of wind speed IW, code 1855, code table
  integer, parameter :: BUFR_NETT        = 12001
  integer, parameter :: BUFR_NEUU        = 11003
  integer, parameter :: BUFR_NEVV        = 11004
