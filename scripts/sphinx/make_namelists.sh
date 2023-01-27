@@ -86,7 +86,14 @@ for filename in $directory/*.f* ; do
       echo '<table style="width:100%">' >> $docdir/namelists_html
       for namelistvar in $namelistvars2 ; do
         echo "greping for type definition of variable $namelistvar in $filename"
-        greppedline=`grep -wi $namelistvar $filename | grep -i -E -w 'integer|real|logical|character|^ *type' |grep -v '^ *!' |head -1`
+        numMatchesWithDescrip=`grep -iEw "$namelistvar" "$filename" | grep -iE "^ *(integer|real|logical|character|type).*${namelistvar}.*!" |wc -l`
+	if (( "$numMatchesWithDescrip" > 0 )); then
+	    echo "matches with description found"
+	    greppedline=`grep -iEw "$namelistvar" "$filename" | grep -iE "^ *(integer|real|logical|character|type).*${namelistvar}.*!" | head -1`
+	else
+	    echo "no matches with description found"
+	    greppedline=`grep -iEw "$namelistvar" "$filename" | grep -iE "^ *(integer|real|logical|character|type).*${namelistvar}.*" | head -1`
+	fi
         greppedline="$(echo -e "${greppedline}" | sed -e 's/^[[:space:]]*//')"
         echo "<tr>" >> $docdir/namelists_html
         echo "<td>$namelistvar</td>" >> $docdir/namelists_html
