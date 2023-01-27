@@ -7430,7 +7430,7 @@ contains
       vectorDataIn1gridCell(:) = 0.
       headerIndexesInCell(:) = 0      
 
-      ! Computation of min and max distances from the centre of grid cell 
+      ! Computation of thinning inside each grid cell 
       do headerIndex = 1, numHeaderMaxMpi * mmpi_nprocs
 
         if (.not. validMpi(headerIndex)) cycle
