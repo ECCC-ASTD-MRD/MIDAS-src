@@ -4,7 +4,7 @@
    readAnlEnsemble       = .true.
 /
  &namEnsPostProcModule
-   weightRecenter           = 1.0D0
+   weightRecenter           = 100*1.0D0
    alphaRTPS                = 0.00D0
    alphaRandomPert          = 0.66D0
    writeSubSample           = .false.
