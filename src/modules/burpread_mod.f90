@@ -197,56 +197,38 @@ CONTAINS
       CASE('UA')
         BURP_TYP='multi'
         vcord_type(1)=7004
-        
-        nelems_sfc = 0
         blistelements_sfc(:) = MPC_missingValue_INT
-        nelems_gps = 0
         liste_ele_gps(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_sfc')
         FAMILYTYPE2= 'UA'
         ENFORCE_CLASSIC_SONDES=.false.
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_conv')
         WINDS=.TRUE.
       CASE('AI')
         BURP_TYP='uni'
         vcord_type(1)=7004
-
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_conv')
         WINDS=.TRUE.
       CASE('AL')
         BURP_TYP='uni'
         vcord_type(1)=7071
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_conv')
         WINDS=.TRUE.
       CASE('SW')
         BURP_TYP='uni'
         vcord_type(1)=7004
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
-        !LISTE_ELE(1:2) = (/11001,11002/)
-        !NELE=2
         call BRPACMA_NML('namburp_filter_conv')
         WINDS=.TRUE.
         vcord_type(2)=-1
@@ -255,11 +237,8 @@ CONTAINS
         vcord_type(1)=0
         nelems_sfc = 0
         blistelements_sfc(:) = MPC_missingValue_INT
-        nelems_gps = 0
         liste_ele_gps(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_sfc') ! read NELEMS_SFC, BLISTELEMENTS_SFC(1:NELEMS_SFC)
         FAMILYTYPE2= 'SFC'
@@ -270,24 +249,17 @@ CONTAINS
       CASE('GP')
         BURP_TYP='uni'
         vcord_type(1)=0
-        nelems_sfc = 0
         blistelements_sfc(:) = MPC_missingValue_INT
-        nelems_gps = 0
         liste_ele_gps(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_gp') ! read NELEMS_GPS, LISTE_ELE_GPS(1:NELEMS_GPS)
         FAMILYTYPE2= 'SFC'
         WINDS=.FALSE.
       CASE('SC')
         BURP_TYP='uni'
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_conv')
         FAMILYTYPE2='SCAT'
@@ -298,11 +270,8 @@ CONTAINS
         BURP_TYP='multi'
         vcord_type(1)=7006
         ELEVFACT=1.
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_conv')
         WINDS=.TRUE.
@@ -310,11 +279,8 @@ CONTAINS
         BURP_TYP='multi'
         vcord_type(1)=7007
         vcord_type(2)=7040
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_conv')
         WINDS=.FALSE.
@@ -327,11 +293,8 @@ CONTAINS
         BURP_TYP='multi'
         vcord_type(1)=5042
         vcord_type(2)=2150
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         CALL BRPACMA_NML('namburp_filter_tovs')
         if ( addBtClearToBurp ) then
@@ -356,16 +319,12 @@ CONTAINS
                            ! coordinate element in addition to having only one level.
         vcord_type(1:8) = (/7004,7204,7006,7007,5042,2150,2071,0/)  ! 0 must be at end.
 
-        nelems_sfc = 0
         blistelements_sfc(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_chm_sfc')
         WINDS=.FALSE.
         FAMILYTYPE2='CH'
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_chm')
       CASE default
@@ -1852,6 +1811,7 @@ CONTAINS
         end if
       CASE( 'namburp_filter_sfc')
         nElems_sfc = 0
+        nElems_gps = 0
         bListElements_sfc(:) = mpc_missingValue_int
         BNBITSOFF = MPC_missingValue_INT
         BBITOFF(:) = MPC_missingValue_INT
@@ -1947,7 +1907,7 @@ CONTAINS
   contains
     subroutine getListAndSize(numberElements, list, variable)
       implicit none
-      integer, intent(out) :: numberElements
+      integer, intent(inout) :: numberElements
       integer, intent(in) :: list(:)
       character(len=*), intent(in) :: variable
       integer :: listIndex
@@ -2098,86 +2058,79 @@ CONTAINS
       CASE('UA')
         BURP_TYP='multi'
         vcord_type(1)=7004
-        nelems_sfc = 0
         blistelements_sfc(:) = MPC_missingValue_INT
-        nelems_gps = 0
         liste_ele_gps(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_sfc')
         FAMILYTYPE2= 'UA'
         ENFORCE_CLASSIC_SONDES=.false.
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_conv')
         NELE_INFO=23
       CASE('AI')
         BURP_TYP='uni'
         vcord_type(1)=7004
+<<<<<<< HEAD
          nelems = 0
+=======
+>>>>>>> 38d22496e... Issue #709: some modifications suggested by Mark
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_conv')
       CASE('AL')
         BURP_TYP='uni'
         vcord_type(1)=7071
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_conv')
       CASE('SW')
         BURP_TYP='uni'
         vcord_type(1)=7004
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_conv')
       CASE('SF')
         BURP_TYP='uni'
         vcord_type(1)=0
-        nelems_sfc = 0
         blistelements_sfc(:) = MPC_missingValue_INT
-        nelems_gps = 0
         liste_ele_gps(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_sfc') ! read NELEMS_SFC, BLISTELEMENTS_SFC(1:NELEMS_SFC)
         FAMILYTYPE2= 'SFC'
       CASE('GP')
         BURP_TYP='uni'
         vcord_type(1)=0
-        nelems_sfc = 0
         blistelements_sfc(:) = MPC_missingValue_INT
-        nelems_gps = 0
         liste_ele_gps(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
+<<<<<<< HEAD
         call BRPACMA_NML('namburp_gp') ! read NELEMS_GPS, LISTE_ELE_GPS(1:NELEMS_GPS)
+=======
+        call BRPACMA_NML('namburp_filter_sfc') ! read NELEMS_GPS, LISTE_ELE_GPS(1:NELEMS_GPS)
+        NELE_SFC=NELEMS_GPS             !   -- ignore NELEMS_SFC, BLISTELEMENTS_SFC(1:NELEMS_SFC)
+        BLISTELEMENTS_SFC(1:NELEMS_GPS) = LISTE_ELE_GPS(1:NELEMS_GPS)
+>>>>>>> 38d22496e... Issue #709: some modifications suggested by Mark
         FAMILYTYPE2= 'SFC'
         UNI_FAMILYTYPE = 'GP'
       CASE('SC')
         vcord_type(1)=0
         BURP_TYP='uni'
+<<<<<<< HEAD
         nelems_sfc = 0
         blistelements_sfc(:) = MPC_missingValue_INT
         BNBITSOFF = 0
+=======
+        LISTE_ELE_SFC(1:2) = (/11012,11011/)
+        NELE=2
+        blistelements(:) = MPC_missingValue_INT
+>>>>>>> 38d22496e... Issue #709: some modifications suggested by Mark
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_sfc')
         ! The following 2 lines are necessary because when this routine reads scatterometer
@@ -2190,22 +2143,16 @@ CONTAINS
       CASE('PR')
         BURP_TYP='multi'
         vcord_type(1)=7006
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_conv')
       CASE('RO')
         BURP_TYP='multi'
         vcord_type(1)=7007
         vcord_type(2)=7040
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_conv')
         !================GPS-RO CANNOT BE FILTERED=======
@@ -2217,11 +2164,8 @@ CONTAINS
         BURP_TYP='multi'
         vcord_type(1)=5042
         vcord_type(2)=2150
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_tovs')
         NELE_INFO=30
@@ -2233,15 +2177,11 @@ CONTAINS
         NELE_INFO=18
 
         UNI_FAMILYTYPE = 'CH'
-        nelems_sfc = 0
         blistelements_sfc(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_chm_sfc')
         FAMILYTYPE2='CH'
-        nelems = 0
         blistelements(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_chm') 
       CASE default
@@ -6789,23 +6729,18 @@ CONTAINS
 
     select case(trim(familyType))
     case('UA','AI','AL','SW','PR','RO')
-      nelems = 0
       blistelements(:) = MPC_missingValue_INT
       call brpacma_nml('namburp_filter_conv', beSilent_opt=.true.)
       allocate(elementIds(nelems))
       elementIds(:) = blistelements(1:nelems)
     case('SF','SC')
-      nelems_sfc = 0
       blistelements_sfc(:) = MPC_missingValue_INT
-      nelems_gps = 0
       liste_ele_gps(:) = MPC_missingValue_INT
       call brpacma_nml('namburp_filter_sfc', beSilent_opt=.true.)
       allocate(elementIds(nelems_sfc))
       elementIds(:) = blistelements_sfc(1:nelems_sfc)
     case('GP')
-      nelems_sfc = 0
       blistelements_sfc(:) = MPC_missingValue_INT
-      nelems_gps = 0
       liste_ele_gps(:) = MPC_missingValue_INT
       call brpacma_nml('namburp_gp', beSilent_opt=.true.)
       ! do not include "formal error", since it was removed from obsSpaceData
@@ -6823,7 +6758,6 @@ CONTAINS
         elementIds(:) = liste_ele_gps(1:neles_gps)
       end if
     case('TO')
-      nelems = 0
       blistelements(:) = MPC_missingValue_INT
       call brpacma_nml('namburp_filter_tovs', beSilent_opt=.true.)
       allocate(elementIds(nelems))
