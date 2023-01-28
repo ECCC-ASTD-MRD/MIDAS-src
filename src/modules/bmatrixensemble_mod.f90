@@ -122,8 +122,8 @@ module BmatrixEnsemble_mod
     ! Optimization
     logical             :: useSaveAmp
 
-    ! Namelist variables
-    integer             :: nEns ! number of ensemble members
+    ! Copy of namelist variables
+    integer             :: nEns
     real(8)             :: scaleFactor(vco_maxNumLevels)
     real(8)             :: scaleFactorHumidity(vco_maxNumLevels)
     real(8)             :: advectFactorFSOFcst(vco_maxNumLevels)
@@ -175,8 +175,6 @@ module BmatrixEnsemble_mod
 
   integer, external    :: get_max_rss, omp_get_thread_num
 
-  character(len=20)   :: transformVarKindCH                                   
-
 CONTAINS
 
   !--------------------------------------------------------------------------
@@ -204,37 +202,38 @@ CONTAINS
     integer        :: nulnam = 0
 
     ! Namelist variables
-    integer             :: nEns
-    real(8)             :: scaleFactor(vco_maxNumLevels)
-    real(8)             :: scaleFactorHumidity(vco_maxNumLevels)
-    real(8)             :: advectFactorFSOFcst(vco_maxNumLevels)
-    real(8)             :: advectFactorAssimWindow(vco_maxNumLevels)
-    integer             :: ntrunc
-    character(len=256)  :: enspathname
-    real(8)             :: hLocalize(maxNumLocalLength)
-    real(8)             :: vLocalize(maxNumLocalLength)
-    character(len=256)  :: localizationType
-    integer             :: waveBandPeaks(maxNumLocalLength)
-    integer             :: waveBandIndexSelected
-    logical             :: ensDiagnostic
-    logical             :: advDiagnostic
-    character(len=2)    :: ctrlVarHumidity
-    character(len=32)   :: advectTypeAssimWindow
-    character(len=32)   :: advectStartTimeIndexAssimWindow
-    logical             :: advectAmplitudeFSOFcst     = .false.
-    logical             :: advectAmplitudeAssimWindow = .false.
-    logical             :: advectEnsPertAnlInc        = .false.
-    logical             :: removeSubEnsMeans
-    logical             :: keepAmplitude
-    character(len=4)    :: includeAnlVar(vnl_numvarmax)
-    logical             :: ensContainsFullField
-    character(len=24)   :: varianceSmoothing
-    real(8)             :: footprintRadius
-    real(8)             :: footprintTopoThreshold
-    logical             :: useCmatrixOnly
-    integer             :: ensDateOfValidity
-    real(8)             :: huMinValue
-    character(len=12)   :: hInterpolationDegree ! select degree of horizontal interpolation (if needed)
+    integer             :: nEns                                   ! number of ensemble members
+    real(8)             :: scaleFactor(vco_maxNumLevels)             ! level-dependent scaling of variances for all variables 
+    real(8)             :: scaleFactorHumidity(vco_maxNumLevels)     ! level-dependent scaling of variances for humidity
+    real(8)             :: advectFactorFSOFcst(vco_maxNumLevels)     ! level-dependent scaling of winds used to advect localization
+    real(8)             :: advectFactorAssimWindow(vco_maxNumLevels) ! level-dependent scaling of winds used to advect localization
+    integer             :: ntrunc                                 ! spectral truncation used for horizontal localization function
+    character(len=256)  :: enspathname                            ! path where ensemble members are located (usually ./ensemble)
+    real(8)             :: hLocalize(maxNumLocalLength)           ! horiz. localization length scale for each waveband (in km)
+    real(8)             :: vLocalize(maxNumLocalLength)           ! vert. localization length scale for each waveband (in scale heights)
+    character(len=256)  :: localizationType                       ! "LevelDependent", "ScaleDependent" or "ScaleDependentWithSpectralLoc"
+    integer             :: waveBandPeaks(maxNumLocalLength)       ! total wavenumber corresponding to peak of each waveband for SDL
+    integer             :: waveBandIndexSelected                  ! for multiple NAMBEN blocks, waveband index of this block
+    logical             :: ensDiagnostic                          ! when `.true.` write diagnostic info related to ens. to files
+    logical             :: advDiagnostic                          ! when `.true.` write diagnostic info related to advection to files 
+    character(len=2)    :: ctrlVarHumidity                        ! name of humidity variable used for ensemble perturbations (LQ or HU)
+    character(len=32)   :: advectTypeAssimWindow                  ! what is advected in assim. window: "amplitude" or "ensPertAnlInc"
+    character(len=32)   :: advectStartTimeIndexAssimWindow        ! time index where advection originates from "first" or "middle"
+    logical             :: advectAmplitudeFSOFcst     = .false.   ! activate advection of ens. member amplitudes for FSOI calculation
+    logical             :: advectAmplitudeAssimWindow = .false.   ! activate advection of ens. member amplitudes for 4D-EnVar
+    logical             :: advectEnsPertAnlInc        = .false.   ! activate advection of ens. pert. and anl. incr. for 4D-EnVar
+    logical             :: removeSubEnsMeans                      ! remove mean of each subsensemble defined by "subEnsembleIndex.txt"
+    logical             :: keepAmplitude                          ! activate storage of ens. amplitudes in instance of struct_ens
+    character(len=4)    :: includeAnlVar(vnl_numvarmax)           ! list of state variables for this ensemble B matrix; use all if blank
+    logical             :: ensContainsFullField                   ! indicates full fields and not perturbations are in the ens. files
+    character(len=24)   :: varianceSmoothing                      ! "none", "horizMean", "footprint" or "footprintLandSeaTopo"
+    real(8)             :: footprintRadius                        ! parameter for variance smoothing (in meters)
+    real(8)             :: footprintTopoThreshold                 ! parameter for variance smoothing (in meters)
+    logical             :: useCmatrixOnly                         ! activate normalization of ens. perturbations by ens. stddev
+    integer             :: ensDateOfValidity                      ! when set to -1, date in ens. files is ignored (only for 3D ens.)
+    real(8)             :: huMinValue                             ! minimum humidity value imposed on ensemble members 
+    character(len=12)   :: hInterpolationDegree                   ! select degree of horizontal interpolation (if needed)
+    character(len=20)   :: transformVarKindCH                     ! name of transform performed on chemistry-related variables in ens.
 
     ! Namelist
     NAMELIST /NAMBEN/nEns, scaleFactor, scaleFactorHumidity, ntrunc, enspathname,             &

@@ -89,7 +89,8 @@ for filename in $directory/*.f* ; do
         numMatchesWithDescrip=`grep -iEw "$namelistvar" "$filename" | grep -iE "^ *(integer|real|logical|character|type).*${namelistvar}.*!" |wc -l`
 	if (( "$numMatchesWithDescrip" > 0 )); then
 	    echo "matches with description found"
-	    greppedline=`grep -iEw "$namelistvar" "$filename" | grep -iE "^ *(integer|real|logical|character|type).*${namelistvar}.*!" | head -1`
+	    greppedline=`grep -iEw "$namelistvar" "$filename" | grep -iE "^ *(integer|real|logical|character|type).*${namelistvar}.*!" | head -1 | sed -e 's/!/<b>!/'`
+	    greppedline="${greppedline}</b>"
 	else
 	    echo "no matches with description found"
 	    greppedline=`grep -iEw "$namelistvar" "$filename" | grep -iE "^ *(integer|real|logical|character|type).*${namelistvar}.*" | head -1`
