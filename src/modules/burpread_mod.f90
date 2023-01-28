@@ -247,8 +247,8 @@ CONTAINS
         BURP_TYP='uni'
         vcord_type(1)=0
 
-        call BRPACMA_NML('namburp_sfc') ! read NELEMS_GPS, LISTE_ELE_GPS(1:NELEMS_GPS)
-        NELE_SFC=NELEMS_GPS             !   -- ignore NELEMS_SFC, BLISTELEMENTS_SFC(1:NELEMS_SFC)
+        call BRPACMA_NML('namburp_gp') ! read NELEMS_GPS, LISTE_ELE_GPS(1:NELEMS_GPS)
+        NELE_SFC=NELEMS_GPS            !   -- ignore NELEMS_SFC, BLISTELEMENTS_SFC(1:NELEMS_SFC)
         BLISTELEMENTS_SFC(1:NELEMS_GPS) = LISTE_ELE_GPS(1:NELEMS_GPS)
 
         FAMILYTYPE2= 'SFC'
@@ -1784,31 +1784,62 @@ CONTAINS
     write(*,*) ' READ NML_SECTION =',trim(NML_SECTION)
 
     SELECT CASE(trim(NML_SECTION))
-      CASE( 'namburp_sfc')
-        nelems_sfc = 0
-        nelems_gps = 0
+      CASE( 'namburp_gp')
+        nElems_gps = 0
+        LISTE_ELE_GPS(:) = mpc_missingValue_int
         READ(NULNAM,NML=NAMBURP_FILTER_SFC)
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
+        if (all(LISTE_ELE_GPS(:) == mpc_missingValue_int)) then
+          call utl_abort('brpacma_nml (burpread_mod): no GPS elements specified in NAMBURP_FILTER_SFC')
+        end if
+      CASE( 'namburp_sfc')
+        nElems_sfc = 0
+        bListElements_sfc(:) = mpc_missingValue_int
+        READ(NULNAM,NML=NAMBURP_FILTER_SFC)
+        if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
+        if (all(bListElements_sfc(:) == mpc_missingValue_int)) then
+          call utl_abort('brpacma_nml (burpread_mod): no SFC elements specified in NAMBURP_FILTER_SFC')
+        end if
       CASE( 'namburp_conv')
-        nelems = 0
+        nElems = 0
+        bListElements(:) = mpc_missingValue_int
         READ(NULNAM,NML=NAMBURP_FILTER_CONV)
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CONV)
+        if (all(bListElements(:) == mpc_missingValue_int)) then
+          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CONV')
+        end if
       CASE( 'namburp_tovs')
-        nelems = 0
+        nElems = 0
+        bListElements(:) = mpc_missingValue_int
         READ(NULNAM,NML=NAMBURP_FILTER_TOVS)
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS)
+        if (all(bListElements(:) == mpc_missingValue_int)) then
+          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_TOVS')
+        end if
       CASE( 'namburp_chm_sfc')
-        nelems_sfc = 0
+        nElems_sfc = 0
+        bListElements_sfc(:) = mpc_missingValue_int
         READ(NULNAM,NML=NAMBURP_FILTER_CHM_SFC)
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM_SFC)
+        if (all(bListElements_sfc(:) == mpc_missingValue_int)) then
+          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM_SFC')
+        end if
       CASE( 'namburp_chm')
-        nelems = 0
+        nElems = 0
+        bListElements(:) = mpc_missingValue_int
         READ(NULNAM,NML=NAMBURP_FILTER_CHM)
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM)
+        if (all(bListElements(:) == mpc_missingValue_int)) then
+          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM')
+        end if
       CASE( 'namburp_update')
         bn_items = 0
+        BITEMLIST(:) = ''
         READ(NULNAM,NML=NAMBURP_UPDATE)
         if (.not.beSilent) write(*,nml=NAMBURP_UPDATE)
+        if (all(bItemList(:) == '')) then
+          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_UPDATE')
+        end if
     END SELECT
 
     ier=FCLOS(NULNAM)
@@ -1985,7 +2016,7 @@ CONTAINS
         BURP_TYP='uni'
         vcord_type(1)=0
 
-        call BRPACMA_NML('namburp_sfc') ! read NELEMS_GPS, LISTE_ELE_GPS(1:NELEMS_GPS)
+        call BRPACMA_NML('namburp_gp')  ! read NELEMS_GPS, LISTE_ELE_GPS(1:NELEMS_GPS)
         NELE_SFC=NELEMS_GPS             !   -- ignore NELEMS_SFC, BLISTELEMENTS_SFC(1:NELEMS_SFC)
         BLISTELEMENTS_SFC(1:NELEMS_GPS) = LISTE_ELE_GPS(1:NELEMS_GPS)
 
@@ -6592,7 +6623,7 @@ CONTAINS
       elementIds(:) = blistelements_sfc(1:nelems_sfc)
 
     case('GP')
-      call brpacma_nml('namburp_sfc', beSilent_opt=.true.)
+      call brpacma_nml('namburp_gp', beSilent_opt=.true.)
       ! do not include "formal error", since it was removed from obsSpaceData
       if (any(liste_ele_gps(1:nelems_gps) == bufr_nefe)) then
         allocate(elementIds(nelems_gps-1))
