@@ -6,8 +6,8 @@
 /
  &thin_satSST
    doThinning    = .true.
-   numTimesteps  = 4
-   deltmax       = 90
+   numTimesteps  = 5
+   deltmax       = 720
    dataSetSST(1) = 'N20'
 / 
  &NAMSTATE

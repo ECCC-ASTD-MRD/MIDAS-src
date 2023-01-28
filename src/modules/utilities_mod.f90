@@ -40,7 +40,7 @@ module utilities_mod
   public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt
-  public :: utl_tmg_start, utl_tmg_stop, utl_median
+  public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
 
   ! module interfaces
   ! -----------------
@@ -2340,44 +2340,45 @@ contains
   !--------------------------------------------------------------------------
   ! utl_median
   !--------------------------------------------------------------------------
-  function utl_median(inputVector, found) result(median)
+  function utl_medianIndex(inputVector) result(medianIndex)
     ! 
-    !:Purpose: to find the median value of an input vector
+    !:Purpose: to find the median index of an input vector
     !
     implicit none
     
     ! Arguments:
-    real(4), intent(in)            :: inputVector(:)
-    logical, intent(out), optional :: found ! the optional found argument can be used to check
-                                            ! if the function returned a valid value; we need this
-                                            ! just if we suspect our "vector" can be "empty"
-    real(4) :: median
+    real(4), intent(in) :: inputVector(:)
+    integer             :: medianIndex
 
     ! Locals:
     integer :: indexVector, vectorDim
     logical :: maskVector(size(inputVector))
     real(4) :: sortedArray(size(inputVector))
+    real(4) :: median
+
 
     vectorDim = size(inputVector)
 
-    if (vectorDim < 1) then
-      if (present(found)) found = .false.
-    else
-      ! sorting array:
-      maskVector(:) = .true.
-      do indexVector = 1, vectorDim 
-        sortedArray(indexVector) = minval(inputVector, maskVector)
-        maskVector(minloc(inputVector, maskVector)) = .false.
-      end do
+    ! sorting array:
+    maskVector(:) = .true.
+    do indexVector = 1, vectorDim 
+      sortedArray(indexVector) = minval(inputVector, maskVector)
+      maskVector(minloc(inputVector, maskVector)) = .false.
+    end do
   
-      if (mod(size(inputVector), 2) == 0) then
-        median = (sortedArray(vectorDim / 2 + 1) + sortedArray(vectorDim / 2)) / 2.0
-      else
-        median = sortedArray(vectorDim / 2 + 1)
-      end if
-      if (present(found)) found = .true.
+    if (mod(size(inputVector), 2) == 0) then
+      median = sortedArray(vectorDim / 2)
+    else
+      median = sortedArray((vectorDim + 1) / 2)
     end if
 
-  end function utl_median
+    do indexVector = 1, vectorDim
+      if (inputVector(indexVector) == median) then
+        medianIndex = indexVector
+        exit
+      end if
+    end do
+
+  end function utl_medianIndex
 
 end module utilities_mod

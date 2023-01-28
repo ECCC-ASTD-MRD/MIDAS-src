@@ -7231,13 +7231,18 @@ contains
     real(4), allocatable :: obsDistance(:), obsDistanceMpi(:)
     real(4), allocatable :: obsSST(:), obsSSTMpi(:)
     real(4), allocatable :: sizeGridCell(:), sizeGridCellMpi(:)
-    integer, allocatable :: numObsGrid(:,:)          ! number of obs per grid cell
     real(4)              :: median
-    integer              :: indexMedian
+    integer              :: medianIndex
     real(4), allocatable :: vectorDataIn1gridCell(:) ! vector of data in one grid cell
                                                      ! where a median is computed
     integer, allocatable :: headerIndexesInCell(:)   ! header indexes in a given grid cell 
-    logical              :: llok, foundMedian
+    logical              :: llok
+    type countSatSSTdataType
+      integer              :: numObs         ! number of data inside each grid cell
+      real(4), allocatable :: dataVec(:)     ! vector of data inside each grid cell
+      integer, allocatable :: headerIndex(:) ! header indexes inside each grid cell
+    end type countSatSSTdataType
+    type(countSatSSTdataType), allocatable :: dataGrid(:,:) ! for each lon/lat of the grid
 
     write(*,*)
     write(*,*) 'thn_satelliteSSTByGridCell: Starting satellite SST thinning for sensor: ', dataSet
@@ -7344,7 +7349,12 @@ contains
         obsTime = obs_headElem_i(obsData, obs_etm, headerIndex)
         call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), obsDate, obsTime, numTimesteps)
         obsStepIndex = nint(obsStepIndex_r8)
-        delMinutes = abs(nint(60.0 * 24.0 / numTimesteps  * abs(real(obsStepIndex) - obsStepIndex_r8)))
+
+        if (numTimesteps == 1) then
+          delMinutes = abs(nint(60.0 * tim_windowsize * abs(real(obsStepIndex) - obsStepIndex_r8)))
+        else
+          delMinutes = abs(nint(60.0 * tim_windowsize / (numTimesteps - 1) * abs(real(obsStepIndex) - obsStepIndex_r8)))
+        end if
 
         ! check time window
         if (delMinutes > deltmax) then
@@ -7403,10 +7413,8 @@ contains
     do stepIndex = 1, numTimesteps
       write(*,'(a50,3i10)')' Number of rejects for bin = ', stepIndex, rejectCount(stepIndex), rejectCountMpi(stepIndex)
     end do
-    write(*,'(a50,i10)')' Total number of rejects = ', sum(rejectCountMpi)
+    write(*,'(a50,i10)')' Total number of rejects = ', sum(rejectCountMpi(:))
     write(*,*)
-
-    allocate(numObsGrid(hco_thinning%nj, hco_thinning%ni))
 
     ! Make all inputs to the following tests mpiglobal
     nsize = numHeaderMaxMpi
@@ -7425,37 +7433,67 @@ contains
     call rpn_comm_allgather(sizeGridCell   , nsize, 'mpi_real4'  ,  &
                             sizeGridCellMpi, nsize, 'mpi_real4'  , 'grid', ierr)
 
+    allocate(dataGrid(hco_thinning%nj, hco_thinning%ni))
+
     STEP: do stepIndex = 1, numTimesteps 
-      numObsGrid(:,:) = 0 
-      vectorDataIn1gridCell(:) = 0.
-      headerIndexesInCell(:) = 0      
 
-      ! Computation of thinning inside each grid cell 
+      dataGrid(:,:)%numObs = 0
+
+      ! Computation of number of data inside each grid cell 
       do headerIndex = 1, numHeaderMaxMpi * mmpi_nprocs
-
         if (.not. validMpi(headerIndex)) cycle
         if (obsTimeIndexMpi(headerIndex) /= stepIndex) cycle
         latIndex = obsLatIndexMpi(headerIndex)
         lonIndex = obsLonIndexMpi(headerIndex)
         if (obsDistanceMpi(headerIndex) < sizeGridCellMpi(headerIndex)) then
-          numObsGrid(latIndex, lonIndex) = numObsGrid(latIndex, lonIndex) + 1
-          vectorDataIn1gridCell(numObsGrid(latIndex, lonIndex)) = obsSSTMpi(headerIndex)
-          headerIndexesInCell(numObsGrid(latIndex, lonIndex)) = headerIndex
+          dataGrid(latIndex, lonIndex)%numObs = dataGrid(latIndex, lonIndex)%numObs + 1
         end if
-        median = utl_median(vectorDataIn1gridCell(1:numObsGrid(latIndex, lonIndex)), foundMedian)
-  
-        if (foundMedian) then
+      end do
+     
+      ! Allocation of vector data inside each grid cell
+      do lonIndex = 1, hco_thinning%ni
+        do latIndex = 1, hco_thinning%nj
+          allocate(dataGrid(latIndex, lonIndex)%dataVec(dataGrid(latIndex, lonIndex)%numObs))
+          allocate(dataGrid(latIndex, lonIndex)%headerIndex(dataGrid(latIndex, lonIndex)%numObs))
+        end do
+      end do
 
-          indexMedian = numObsGrid(latIndex, lonIndex) / 2 + 1 ! we suppose this even for 
-                                                               ! vector lenght of even number
-          validMpi(headerIndexesInCell(1:numObsGrid(latIndex, lonIndex))) = .false.
-          validMpi(headerIndexesInCell(indexMedian)) = .true.
-          if (mod(numObsGrid(latIndex, lonIndex), 2) == 0) then      
-            bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndexesInCell(indexMedian))
-            call obs_bodySet_r(obsData, obs_var , bodyIndex, median)
-          end if
-
+      ! Fill out vectors of data and header indexes inside each grid cell
+      dataGrid(:,:)%numObs = 0 ! to reuse it as a counter that should be differentiated 
+                               ! for each lat-lon cell
+      do headerIndex = 1, numHeaderMaxMpi * mmpi_nprocs
+        if (.not. validMpi(headerIndex)) cycle
+        if (obsTimeIndexMpi(headerIndex) /= stepIndex) cycle
+        latIndex = obsLatIndexMpi(headerIndex)
+        lonIndex = obsLonIndexMpi(headerIndex)
+        if (obsDistanceMpi(headerIndex) < sizeGridCellMpi(headerIndex)) then
+          dataGrid(latIndex, lonIndex)%numObs = dataGrid(latIndex, lonIndex)%numObs + 1
+          dataGrid(latIndex, lonIndex)%dataVec(dataGrid(latIndex, lonIndex)%numObs) = obsSSTMpi(headerIndex)
+          dataGrid(latIndex, lonIndex)%headerIndex(dataGrid(latIndex, lonIndex)%numObs) = headerIndex       
+        else
+          ! reject due to being too far in time from middle of time step
+          validMpi(headerIndex) = .false.
         end if
+      end do
+
+      ! Compute median inside each grid cell 
+      do lonIndex = 1, hco_thinning%ni
+        do latIndex = 1, hco_thinning%nj
+
+          if(dataGrid(latIndex, lonIndex)%numObs <= 1) cycle
+          medianIndex = utl_medianIndex(dataGrid(latIndex, lonIndex)%dataVec(:))
+          validMpi(dataGrid(latIndex, lonIndex)%headerIndex(:)) = .false.
+          validMpi(dataGrid(latIndex, lonIndex)%headerIndex(medianIndex)) = .true.
+
+        end do       
+      end do
+     
+      ! Deallocation of vector data inside each grid cell      
+      do lonIndex = 1, hco_thinning%ni
+        do latIndex = 1, hco_thinning%nj
+          deallocate(dataGrid(latIndex, lonIndex)%dataVec)
+          deallocate(dataGrid(latIndex, lonIndex)%headerIndex)
+        end do
       end do
 
     end do  STEP
@@ -7465,7 +7503,7 @@ contains
     headerIndexEnd = headerIndexBeg + numHeaderMaxMpi - 1
     valid(:) = validMpi(headerIndexBeg:headerIndexEnd)
 
-    deallocate(numObsGrid)
+    deallocate(dataGrid)
 
     write(*,*)
     write(*,'(a50,i10)') ' Number of obs in  = ', satSSTCountMpi
