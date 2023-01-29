@@ -155,7 +155,6 @@ CONTAINS
     LOGICAL                :: REGRUP,WINDS,OMA_SFC_EXIST,OMA_ALT_EXIST
 
     integer                :: LISTE_ELE(20),LISTE_ELE_SFC(20),is_in_list
-    integer                :: ADDSIZE
     
     LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
     TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
@@ -172,6 +171,9 @@ CONTAINS
     NELE_INFO=1
     NELE_SFC=0
     NELE=0
+    NELEMS=0
+    NELEMS_SFC=0
+    NELEMS_GPS=0
     ILEMU=11003
     ILEMV=11004
     ILEMD=11001
@@ -184,7 +186,6 @@ CONTAINS
     ENFORCE_CLASSIC_SONDES=.false.
     UA_HIGH_PRECISION_TT_ES=.false.
     UA_FLAG_HIGH_PRECISION_TT_ES=.false.
-    ADDSIZE=100000
     LNMX=100000
     LISTE_ELE_SFC(:)=-1
     LISTE_ELE(:)=-1
@@ -194,93 +195,70 @@ CONTAINS
         vcord_type(1)=7004
 
         call BRPACMA_NML('namburp_sfc')
-        NELE_SFC=NELEMS_SFC
 
         FAMILYTYPE2= 'UA'
         ENFORCE_CLASSIC_SONDES=.false.
         call BRPACMA_NML('namburp_conv')
-        NELE=NELEMS
         WINDS=.TRUE.
-        ADDSIZE=10000
       CASE('AI')
         BURP_TYP='uni'
         vcord_type(1)=7004
 
         call BRPACMA_NML('namburp_conv')
-        NELE=NELEMS
         WINDS=.TRUE.
-        ADDSIZE=5000
       CASE('AL')
         BURP_TYP='uni'
         vcord_type(1)=7071
 
         call BRPACMA_NML('namburp_conv')
-        NELE=NELEMS
         WINDS=.TRUE.
-        ADDSIZE=5000
       CASE('SW')
         BURP_TYP='uni'
         vcord_type(1)=7004
 
         call BRPACMA_NML('namburp_conv')
-        NELE=NELEMS
         WINDS=.TRUE.
         vcord_type(2)=-1
-!       ADDSIZE=5000
-!       ' AMVS-> ADDSIZE 600000 oct 2014 pik'
-        ADDSIZE=600000
       CASE('SF')
         BURP_TYP='uni'
         vcord_type(1)=0
 
-        call BRPACMA_NML('namburp_sfc') ! read NELEMS_SFC, BLISTELEMENTS_SFC(1:NELEMS_SFC)
-        NELE_SFC=NELEMS_SFC
+        call BRPACMA_NML('namburp_sfc')
 
         FAMILYTYPE2= 'SFC'
         WINDS=.TRUE.
         IF (trim(FAMILYTYPE) == 'GP') WINDS=.FALSE.
         ILEMU=11215
         ILEMV=11216
-        ILEMD=11011
-        ADDSIZE=5000
       CASE('GP')
         BURP_TYP='uni'
         vcord_type(1)=0
 
-        call BRPACMA_NML('namburp_gp') ! read NELEMS_GPS, LISTE_ELE_GPS(1:NELEMS_GPS)
-        NELE_SFC=NELEMS_GPS            !   -- ignore NELEMS_SFC, BLISTELEMENTS_SFC(1:NELEMS_SFC)
-        BLISTELEMENTS_SFC(1:NELEMS_GPS) = LISTE_ELE_GPS(1:NELEMS_GPS)
+        call BRPACMA_NML('namburp_gp')
 
         FAMILYTYPE2= 'SFC'
         WINDS=.FALSE.
-        ADDSIZE=5000      
       CASE('SC')
         BURP_TYP='uni'
         call BRPACMA_NML('namburp_sfc')
-        NELE_SFC=NELEMS_SFC
 
         FAMILYTYPE2='SCAT'
         WINDS=.TRUE.
         ILEMU=11215
         ILEMV=11216
-        ILEMD=11011
-        ADDSIZE=5000
       CASE('PR')
         BURP_TYP='multi'
         vcord_type(1)=7006
         ELEVFACT=1.
 
         call BRPACMA_NML('namburp_conv')
-        NELE=NELEMS
         WINDS=.TRUE.
-        ADDSIZE=10000
       CASE('RO')
         BURP_TYP='multi'
         vcord_type(1)=7007
         vcord_type(2)=7040
 
         call BRPACMA_NML('namburp_conv')
-        NELE=NELEMS
         WINDS=.FALSE.
         !================GPS-RO CANNOT BE FILTERED=======
         BNBITSOFF=0
@@ -293,12 +271,11 @@ CONTAINS
         vcord_type(2)=2150
         
         CALL BRPACMA_NML('namburp_tovs')
-        NELE=NELEMS
 
         if ( addBtClearToBurp ) then
           btClearElementFound = .false.
 
-          elementLoop: do iele = 1, NELE
+          elementLoop: do iele = 1, NELEMS
             if ( BLISTELEMENTS(iele) == btClearElementId ) then
               btClearElementFound = .true.
               exit elementLoop
@@ -311,7 +288,6 @@ CONTAINS
 
         NELE_INFO=24
         WINDS=.FALSE.
-        ADDSIZE=600000
       CASE('CH')
         BURP_TYP='multi'   ! Both 'multi' and 'uni' are possible for this family.
                            ! 'uni' level data are assumed not to have any accompanynig vertical 
@@ -319,22 +295,27 @@ CONTAINS
         vcord_type(1:8) = (/7004,7204,7006,7007,5042,2150,2071,0/)  ! 0 must be at end.
 
         call BRPACMA_NML('namburp_chm_sfc')
-        NELE_SFC=NELEMS_SFC
         WINDS=.FALSE.
-        ADDSIZE=10000
 
         FAMILYTYPE2='CH'
         call BRPACMA_NML('namburp_chm')
-        NELE=NELEMS
-      CASE('GO','MI')
+      CASE default
         call utl_abort('brpr_updateBurp: unknown familyType : ' // trim(familyType))
     END SELECT
-    LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
-    LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
+
+    NELE=NELEMS
+    LISTE_ELE(1:NELE)=BLISTELEMENTS(1:NELE)
+    if (trim(FAMILYTYPE) == 'GP') then
+      ! for GP ignore BLISTELEMENTS_SFC, and use instead LISTE_ELE_GPS
+      NELE_SFC = NELEMS_GPS
+      LISTE_ELE_SFC(1:NELE_SFC)=LISTE_ELE_GPS(1:NELE_SFC)
+    else
+      NELE_SFC = NELEMS_SFC
+      LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
+    end if
     if(NELE     > 0)write(*,*)  ' LISTE_ELE =',LISTE_ELE
     if(NELE_SFC > 0)write(*,*)  ' LISTE_ELE_SFC =',LISTE_ELE_SFC
     if(BNBITSOFF > 0 .or. BNBITSON > 0)write(*,*)  ' BNBITSON BNBITSOFF SIZE OF CP_RPT   =',BNBITSON,BNBITSOFF,LNMX*8
-
 
     TYPE_RESUME='POSTALT'
     BN_ITEMS=1
@@ -1960,6 +1941,9 @@ CONTAINS
     NELE_INFO=1
     NELE_SFC=0
     NELE=0
+    NELEMS=0
+    NELEMS_SFC=0
+    NELEMS_GPS=0
     BNBITSOFF=0
     BNBITSON=0
     ILEMZBCOR=15234 ! bcor element for GP  ZTD observations
@@ -1978,47 +1962,39 @@ CONTAINS
         vcord_type(1)=7004
 
         call BRPACMA_NML('namburp_sfc')
-        NELE_SFC=NELEMS_SFC
 
         FAMILYTYPE2= 'UA'
         LISTE_ELE(1:5) = (/12001,11001,11002,12192,10194/)
         ENFORCE_CLASSIC_SONDES=.false.
         call BRPACMA_NML('namburp_conv')
-        NELE=NELEMS
         NELE_INFO=23
       CASE('AI')
         BURP_TYP='uni'
         vcord_type(1)=7004
 
         call BRPACMA_NML('namburp_conv')
-        NELE=NELEMS
       CASE('AL')
         BURP_TYP='uni'
         vcord_type(1)=7071
 
         call BRPACMA_NML('namburp_conv')
-        NELE=NELEMS
       CASE('SW')
         BURP_TYP='uni'
         vcord_type(1)=7004
 
         call BRPACMA_NML('namburp_conv')
-        NELE=NELEMS
       CASE('SF')
         BURP_TYP='uni'
         vcord_type(1)=0
 
-        call BRPACMA_NML('namburp_sfc') ! read NELEMS_SFC, BLISTELEMENTS_SFC(1:NELEMS_SFC)
-        NELE_SFC=NELEMS_SFC
+        call BRPACMA_NML('namburp_sfc')
 
         FAMILYTYPE2= 'SFC'
       CASE('GP')
         BURP_TYP='uni'
         vcord_type(1)=0
 
-        call BRPACMA_NML('namburp_gp')  ! read NELEMS_GPS, LISTE_ELE_GPS(1:NELEMS_GPS)
-        NELE_SFC=NELEMS_GPS             !   -- ignore NELEMS_SFC, BLISTELEMENTS_SFC(1:NELEMS_SFC)
-        BLISTELEMENTS_SFC(1:NELEMS_GPS) = LISTE_ELE_GPS(1:NELEMS_GPS)
+        call BRPACMA_NML('namburp_gp')
 
         FAMILYTYPE2= 'SFC'
         UNI_FAMILYTYPE = 'GP'
@@ -2030,8 +2006,9 @@ CONTAINS
         ! The following 2 lines are necessary because when this routine reads scatterometer
         ! burp files they are considered (possibly incorrectly) as non-surface observations
         ! but during update they are considered as surface observations
-        NELE=NELEMS_SFC
-        BLISTELEMENTS(1:NELEMS_SFC) = BLISTELEMENTS_SFC(1:NELEMS_SFC)
+        NELEMS=NELEMS_SFC
+        BLISTELEMENTS(1:NELEMS) = BLISTELEMENTS_SFC(1:NELEMS)
+        NELEMS_SFC=0
 
         FAMILYTYPE2= 'UASFC2'
       CASE('PR')
@@ -2039,14 +2016,12 @@ CONTAINS
         vcord_type(1)=7006
 
         call BRPACMA_NML('namburp_conv')
-        NELE=NELEMS
       CASE('RO')
         BURP_TYP='multi'
         vcord_type(1)=7007
         vcord_type(2)=7040
 
         call BRPACMA_NML('namburp_conv')
-        NELE=NELEMS
         !================GPS-RO CANNOT BE FILTERED=======
         BNBITSOFF=0
         BNBITSON=0
@@ -2058,7 +2033,6 @@ CONTAINS
         vcord_type(2)=2150
 
         call BRPACMA_NML('namburp_tovs')
-        NELE=NELEMS
 
         NELE_INFO=30
      CASE('CH')
@@ -2071,17 +2045,24 @@ CONTAINS
 
         UNI_FAMILYTYPE = 'CH'
         call BRPACMA_NML('namburp_chm_sfc')
-        NELE_SFC=NELEMS_SFC
 
         FAMILYTYPE2='CH'
         call BRPACMA_NML('namburp_chm')
-        NELE=NELEMS 
-      CASE('GO','MI')
+      CASE default
         call utl_abort('brpr_readBurp: unknown familyType : ' // trim(familyType))
     END SELECT
 
-    LISTE_ELE    (1:NELE    )=BLISTELEMENTS(1:NELE)
-    LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
+    NELE=NELEMS
+    LISTE_ELE(1:NELE)=BLISTELEMENTS(1:NELE)
+    if (trim(FAMILYTYPE) == 'GP') then
+      ! for GP ignore BLISTELEMENTS_SFC, and use instead LISTE_ELE_GPS
+      NELE_SFC = NELEMS_GPS
+      LISTE_ELE_SFC(1:NELE_SFC)=LISTE_ELE_GPS(1:NELE_SFC)
+    else
+      NELE_SFC = NELEMS_SFC
+      LISTE_ELE_SFC(1:NELE_SFC)=BLISTELEMENTS_SFC(1:NELE_SFC)
+    end if
+
     if (NELE     > 0) then
       write(*,*)  ' LISTE_ELE =',LISTE_ELE
       call ovt_setup(LISTE_ELE(1:NELE))
