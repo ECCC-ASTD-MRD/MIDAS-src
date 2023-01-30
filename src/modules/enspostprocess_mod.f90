@@ -107,7 +107,7 @@ contains
     logical  :: huLimitsBeforeRecenter   ! Choose to apply humidity limits before recentering
     logical  :: imposeSaturationLimit  ! switch for choosing to impose saturation limit of humidity
     logical  :: imposeRttovHuLimits    ! switch for choosing to impose the RTTOV limits on humidity
-    real(8)  :: weightRecenter(maxNumLevels)  ! weight applied to recentering increment
+    real(8)  :: weightRecenter(maxNumLevels)  ! weight applied to recentering increment (between 0 and 1; 0 means no recentering)
     real(8)  :: weightRecenterLand     ! weight applied to recentering increment for land variables
     integer  :: numMembersToRecenter   ! number of members that get recentered on supplied analysis
     logical  :: useOptionTableRecenter ! use values in the optiontable file
@@ -167,7 +167,7 @@ contains
     huLimitsBeforeRecenter = .true.
     imposeSaturationLimit = .false.
     imposeRttovHuLimits   = .false.
-    weightRecenter(:)     =  0.0D0 ! means no recentering applied
+    weightRecenter(:)     = -1.0D0 ! means no specified values
     weightRecenterLand    = -1.0D0 ! means same recentering for land as other variables
     numMembersToRecenter  = -1     ! means all members recentered by default
     useOptionTableRecenter = .false.
@@ -319,7 +319,7 @@ contains
       end if
 
       !- Recenter analysis ensemble on supplied analysis
-      if (sum(weightRecenter(:)) /= 0.0d0 .or. useOptionTableRecenter) then
+      if (any(weightRecenter(:) >= 0.0d0) .or. useOptionTableRecenter) then
         write(*,*) 'epp_postProcess: Recenter analyses on supplied analysis'
         call epp_hybridRecentering(ensembleAnl, weightRecenter, weightRecenterLand, &
                                    useOptionTableRecenter, numMembersToRecenter)
@@ -1385,6 +1385,8 @@ contains
       call utl_abort('epp_hybridRecentering: The recentering analysis file does not exist')
     end if
 
+    hco_ens => ens_getHco(ensembleAnl)
+    vco_ens => ens_getVco(ensembleAnl)
     numMembers = ens_getNumMembers(ensembleAnl)
 
     allocate( weightArray(maxNumLevels,0:numMembers) )
@@ -1412,6 +1414,13 @@ contains
       end do
       status = fclos(nulFile)
     else
+      if (any(weightRecenter(1:vco_getNumLev(vco_ens,'MM')) == -1.d0)) then
+        write(*,*) ''
+        write(*,*) 'Number of weightRecenter coefficients needed = ', vco_getNumLev(vco_ens,'MM')
+        write(*,*) 'Provided values : '
+        write(*,*) weightRecenter(1:vco_getNumLev(vco_ens,'MM'))
+        call utl_abort('epp_hybridRecentering: A valid weightRecenter coefficient was not provided for all the vertical levels')
+      end if
       do memberIndex = 0, numMembers
         weightArray(:,memberIndex) = weightRecenter(:)
       end do
@@ -1422,8 +1431,6 @@ contains
     end do
     
     ! allocate and read in recentering analysis state
-    hco_ens => ens_getHco(ensembleAnl)
-    vco_ens => ens_getVco(ensembleAnl)
     call gsv_allocate( stateVectorRecenterAnl, tim_nstepobsinc, hco_ens, vco_ens, dateStamp_opt=tim_getDateStamp(),  &
                        mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                        dataKind_opt=4, allocHeightSfc_opt=.false., &
