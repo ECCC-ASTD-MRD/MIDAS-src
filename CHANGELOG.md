@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
-
+ * The recentering coefficient in `ensPostProcess` can now vary in the vertical (#749 and !678)
  * New `-updatedObsFilesNeeded`, `-ensObsDirectory`, and `-trialMeanFile` keys are added to `midas.mpi` script (#742 and !674)
  * First step for background check and assimilation of humidity-channel radiances in all-sky mode (#739 and !672)
  * `midas.check_ensemble` can start search missing members from a member number greater than one (#741 and !673)

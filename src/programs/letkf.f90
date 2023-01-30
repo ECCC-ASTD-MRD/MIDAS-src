@@ -393,7 +393,7 @@ program midas_letkf
                              stepIndex_opt=stepIndex, containsFullField_opt=.true., &
                              readHeightSfc_opt=.false. )
     end do
-    call ens_recenter( ensembleTrl4D, stateVectorRecenter, recenteringCoeff_opt=1.0d0 )
+    call ens_recenter( ensembleTrl4D, stateVectorRecenter, recenteringCoeffScalar_opt=1.0d0 )
     call gsv_deallocate( stateVectorRecenter )
   end if
   

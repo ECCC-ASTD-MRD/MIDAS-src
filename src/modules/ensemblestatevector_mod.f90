@@ -2056,8 +2056,7 @@ CONTAINS
   ! ens_recenter
   !--------------------------------------------------------------------------
   subroutine ens_recenter(ens, recenteringMean, recenteringCoeff_opt,  &
-                          recenteringCoeffLand_opt,  &
-                          recenteringCoeffArray_opt, &
+                          recenteringCoeffLand_opt, recenteringCoeffScalar_opt, &
                           alternativeEnsembleMean_opt, &
                           ensembleControlMember_opt, scaleFactor_opt, &
                           numMembersToRecenter_opt)
@@ -2077,9 +2076,9 @@ CONTAINS
     type(struct_gsv),           intent(in)    :: recenteringMean
     type(struct_gsv), optional, intent(in)    :: alternativeEnsembleMean_opt
     type(struct_gsv), optional, intent(in)    :: ensembleControlMember_opt
-    real(8), optional,          intent(in)    :: recenteringCoeff_opt
-    real(8), optional,          intent(in)    :: recenteringCoeffLand_opt
-    real(8), optional,          intent(in)    :: recenteringCoeffArray_opt(:)
+    real(8), optional,          intent(in)    :: recenteringCoeff_opt(:,:)
+    real(8), optional,          intent(in)    :: recenteringCoeffLand_opt(:)
+    real(8), optional,          intent(in)    :: recenteringCoeffScalar_opt
     real(8), optional,          intent(in)    :: scaleFactor_opt(:)
     integer, optional,          intent(in)    :: numMembersToRecenter_opt
 
@@ -2088,7 +2087,7 @@ CONTAINS
     real(8), pointer :: ptr4d_r8(:,:,:,:), alternativeEnsembleMean_r8(:,:,:,:)
     real(8), pointer :: ptr4d_ensembleControlmember_r8(:,:,:,:)
     real(8) :: increment, scaleFactor(maxNumLevels), thisScaleFactor
-    real(8) :: recenteringCoeffArray(ens%numMembers)
+    real(8) :: recenteringCoeffArray(maxNumLevels,ens%numMembers)
     real(8) :: recenteringCoeffArrayLand(ens%numMembers)
     real(8) :: recenteringCoeffArrayUsed(ens%numMembers)
     real(4), pointer :: ptr4d_r4(:,:,:,:)
@@ -2106,16 +2105,16 @@ CONTAINS
     end if
 
     if ( present(recenteringCoeff_opt) ) then
-      recenteringCoeffArray(:) = recenteringCoeff_opt
-    else if ( present(recenteringCoeffArray_opt) ) then
-      recenteringCoeffArray(:) = recenteringCoeffArray_opt(1:ens%numMembers)
+      recenteringCoeffArray(:,:) = recenteringCoeff_opt(:,:)
+    else if ( present(recenteringCoeffScalar_opt) ) then
+      recenteringCoeffArray(:,:) = recenteringCoeffScalar_opt
     else
-      call utl_abort('ens_recenter: Must specify recenteringCoeff_opt or recenteringCoeffArray_opt')
+      call utl_abort('ens_recenter: Must specify recenteringCoeff_opt or recenteringCoeffScalar_opt')
     end if
 
     if ( present(scaleFactor_opt) ) then
       ! scaleFactor cannot be used at the same time as a recenteringCoeff different from 1.0
-      if ( any (abs(recenteringCoeffArray(:)  - 1.0D0) > 1.0D-5) ) then
+      if ( any (abs(recenteringCoeffArray(:,:)  - 1.0D0) > 1.0D-5) ) then
         call utl_abort('ens_recenter: recenteringCoeff must be equal to 1.0 when using scaleFactor')
       end if
       scaleFactor = scaleFactor_opt
@@ -2124,18 +2123,18 @@ CONTAINS
     end if
 
     if ( present(recenteringCoeffLand_opt) ) then
-      if (recenteringCoeffLand_opt < 0.0D0) then
+      if (any(recenteringCoeffLand_opt < 0.0D0)) then
         ! negative coeff specified for land, apply same coeff as other variables
-        recenteringCoeffArrayLand(:) = recenteringCoeffArray(:)
+        recenteringCoeffArrayLand(:) = recenteringCoeffArray(ens_getNumLev(ens,'MM'),:)
       else
         ! specified coeff for land variables used for all members
         write(*,*) 'ens_recenter: different recentering applied to land variables:', &
-                   recenteringCoeffLand_opt
-        recenteringCoeffArrayLand(:) = recenteringCoeffLand_opt
+                   recenteringCoeffLand_opt(:)
+        recenteringCoeffArrayLand(:) = recenteringCoeffLand_opt(:)
       end if
     else
       ! coeff for land not specified, apply same coeff as other variables
-      recenteringCoeffArrayLand(:) = recenteringCoeffArray(:)
+      recenteringCoeffArrayLand(:) = recenteringCoeffArray(ens_getNumLev(ens,'MM'),:)
     end if
 
     if (present(numMembersToRecenter_opt)) then
@@ -2191,7 +2190,7 @@ CONTAINS
       if ( varKind == 'LD' ) then
         recenteringCoeffArrayUsed(:) = recenteringCoeffArrayLand(:)
       else
-        recenteringCoeffArrayUsed(:) = recenteringCoeffArray(:)
+        recenteringCoeffArrayUsed(:) = recenteringCoeffArray(levIndex,:)
       end if
 
       do latIndex = lat1, lat2
