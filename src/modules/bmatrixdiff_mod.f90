@@ -44,18 +44,16 @@ MODULE BmatrixDiff_mod
 
   integer, allocatable :: diffID(:)
 
-  ! Bacgkround-error covariance matrix elements.
+  ! Background-error covariance matrix elements.
   real(8), allocatable :: stddev(:,:,:)
 
-  ! read in from the namelist:
   integer, parameter  :: maxNumVars = 200
-  real(8)             :: scaleFactor(maxNumVars)
   real(8)             :: scaleFactor_sigma(maxNumVars)
 
-  character(len=4)    :: stddevMode
-
-  ! Homogeneous background-error standard deviation (when stddevMode == 'HOMO')
-  real(8) :: homogeneous_std(maxNumVars)
+  ! read in from the namelist:
+  real(8)          :: scaleFactor(maxNumVars)     ! scale factor applied to variances
+  character(len=4) :: stddevMode                  ! can be 'GD2D' or 'HOMO'
+  real(8)          :: homogeneous_std(maxNumVars) ! homogeneous standard deviation (when stddevMode is 'HOMO')
 
   ! Number of incremental variables/fields
   integer             :: numvar2d
@@ -96,14 +94,14 @@ CONTAINS
     integer                   :: variableIndex, latIndex, latIndexIgnore
     real(8)                   :: maxDistance
     real(8), allocatable      :: distance(:)
+    character(len=*), parameter :: myName = 'bdiff_setup'
+
     ! namelist variables
     real    :: corr_len( maxNumVars )  ! Horizontal correlation length scale (km)
     real    :: stab( maxNumVars )      ! Stability criteria (definitely < 0.5)
-    integer :: nsamp(maxNumVars)       ! Number of samples in the estimation of the normalization factors by randomization.
+    integer :: nsamp(maxNumVars)       ! Number of samples in the estimation of the normalization factors by randomization
     real(8) :: latIgnoreFraction       ! Relative zonal grid spacing limit where lats near each numerical pole are ignored
-    logical :: useImplicit(maxNumVars) ! Indicate to use the implicit formulation of the diffusion operator (.true.) or
-                                       ! the explicit version (.false.).
-    character(len=*), parameter :: myName = 'bdiff_setup'
+    logical :: useImplicit(maxNumVars) ! choose to use implicit formulation of diffusion operator (.true.) or explicit version (.false.)
     
     NAMELIST /NAMBDIFF/ corr_len, stab, nsamp, useImplicit, scaleFactor, stddevMode, homogeneous_std, latIgnoreFraction
 

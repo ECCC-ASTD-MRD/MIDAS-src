@@ -65,9 +65,9 @@ module columnData_mod
   real(8) :: col_minValVarKindCH(vnl_numVarMax)
 
   ! Namelist variables
-  real(8) :: rhumin
-  logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
-  real(8) :: minValVarKindCH(vnl_numVarMax)
+  real(8) :: rhumin                         ! minimum humidity value imposed after interpolation to columns
+  logical :: addHeightSfcOffset             ! choose to add non-zero height offset to diagnostic (sfc) levels
+  real(8) :: minValVarKindCH(vnl_numVarMax) ! variable-dependent minimum value applied to chemistry variables
 
 contains
 
@@ -81,10 +81,10 @@ contains
     integer :: numVar3D, numVar2D, numVarOther
 
     ! Namelist variables (local)
-    character(len=4) :: anlvar(vnl_numvarmax)
-    character(len=8) :: anltime_bin
-    logical          :: conversionVarKindCHtoMicrograms
-    logical          :: abortOnMpiImbalance
+    character(len=4) :: anlvar(vnl_numvarmax)           ! list of state variable names
+    character(len=8) :: anltime_bin                     ! can be 'MIDDLE', 'FIRST' or 'LAST'
+    logical          :: conversionVarKindCHtoMicrograms ! not used in this module
+    logical          :: abortOnMpiImbalance             ! not used in this module
 
     namelist /namstate/anlvar,rhumin,anltime_bin,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
                        minValVarKindCH, abortOnMpiImbalance

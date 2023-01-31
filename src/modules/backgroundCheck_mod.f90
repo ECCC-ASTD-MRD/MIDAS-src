@@ -63,8 +63,12 @@ module backgroundCheck_mod
     ! Locals:
     integer                     :: familyIndex
     integer                     :: nulNam, ier, fnom, fclos
-    logical                     :: new_bgck_sw, noObsToProcess
+    logical                     :: noObsToProcess
     character(len=*), parameter :: myName = 'bgck_bgcheck_conv'
+
+    ! namelist variables
+    logical                     :: new_bgck_sw ! choose to use the 'new' background check for SW obs
+    namelist /NAMBGCKCONV/ new_bgck_sw
 
     write(*,*) myName//' begin conventional data background check'
 
@@ -84,7 +88,6 @@ module backgroundCheck_mod
 
     new_bgck_sw = .false.
 
-    namelist /NAMBGCKCONV/ new_bgck_sw
     nulNam=0
     ier = fnom( nulNam, 'flnml', 'r/o', 0 )
     read( nulNam, nml = NAMBGCKCONV, IOSTAT = ier )

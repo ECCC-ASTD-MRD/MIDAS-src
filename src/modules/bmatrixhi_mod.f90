@@ -46,9 +46,8 @@ MODULE BmatrixHI_mod
   integer             :: nj_l,ni_l
   integer             :: AnalGridID ! EZscintID
   integer             :: nlev_M,nlev_T,nlev_T_even,nkgdim,nkgdim2,nkgdimSqrt
-  integer             :: ntrunc,nla_mpiglobal,nla_mpilocal
+  integer             :: nla_mpiglobal,nla_mpilocal
   integer             :: cvDim_mpilocal,cvDim_mpiglobal
-  logical             :: squareSqrt
   integer             :: gstID, gstID2
   integer             :: nlev_bdl
   type(struct_vco),pointer :: vco_anl
@@ -64,16 +63,22 @@ MODULE BmatrixHI_mod
   real(8),allocatable :: corns(:,:,:)
   real(8),allocatable :: rstddev(:,:)
 
-  ! originally from common blocks and possibly from the namelist:
-  real(8)             :: scaleFactor(vco_maxNumLevels)
-  real(8)             :: scaleFactorLQ(vco_maxNumLevels)
-  real(8)             :: scaleFactorCC(vco_maxNumLevels)
-  logical             :: scaleTG
+  ! namelist variables:
+  integer             :: ntrunc                          ! spectral trunction
+  real(8)             :: scaleFactor(vco_maxNumLevels)   ! scale factor applied to variances (all variables)
+  real(8)             :: scaleFactorLQ(vco_maxNumLevels) ! scale factor applied to humidity
+  real(8)             :: scaleFactorCC(vco_maxNumLevels) ! scale factor applied to velocity potential
+  logical             :: scaleTG                         ! scale factor applied to skin temperature
+  logical             :: TweakTG                         ! adjust skin temp variance based on land-sea mask and sea ice
+  logical             :: ReadWrite_sqrt                  ! choose to read or write the sqrt of correlations
+  logical             :: squareSqrt                      ! choose to use the 'square' formulation of corr matrix (not used)
+  character(len=4)    :: stddevMode                      ! can be 'GD2D' or 'SP2D'
+  integer             :: numModeZero                     ! number of eigenmodes to set to zero
+
+  ! constants
   real(8)             :: rcscltg(1)=100000.d0
   real(8)             :: rlimsuptg=3.0d0
   logical             :: llimtg=.true.
-  logical             :: TweakTG
-  logical             :: ReadWrite_sqrt
   integer             :: nulbgst=0
   integer             :: nLevPtoT
   real(8)             :: rvlocbalt   = 6.0d0
@@ -83,8 +88,6 @@ MODULE BmatrixHI_mod
   real(8)             :: rvlocunbalt = 4.0d0
   real(8)             :: rvloclq     = 4.0d0
   real(8)             :: rlimlv_bdl  = 85000.0d0
-  integer             :: numModeZero  ! number of eigenmodes to set to zero
-  character(len=4)    :: stddevMode
 
   ! this should come from state vector object
   integer             :: numvar3d

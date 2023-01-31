@@ -1447,8 +1447,6 @@ module sqliteRead_mod
     character(len=*)       :: fileName
     integer                :: fileNumber
     ! locals
-    integer, parameter     :: maxNumberInsertItems = 15
-    integer                :: itemInsertList(maxNumberInsertItems), numberInsertItems
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
     integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr 
@@ -1458,6 +1456,12 @@ module sqliteRead_mod
     integer(8)             :: bodyPrimaryKey, headPrimaryKey
     character(len = 256)   :: query
     logical                :: llok    
+    integer, parameter     :: maxNumberInsertItems = 15
+
+    ! namelist variables
+    integer :: itemInsertList(maxNumberInsertItems)
+    integer :: numberInsertItems
+
     namelist/namSQLInsert/ numberInsertItems, itemInsertList
 
     write(*,*)  'sqlr_insertSqlite: --- Starting ---   '

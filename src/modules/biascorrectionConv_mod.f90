@@ -55,16 +55,15 @@ MODULE biasCorrectionConv_mod
   real(8), parameter :: gpMissingValue = -999.00d0
   real(8), parameter :: uaMissingValue = -99.0d0
   
-  integer               :: nbAircrafts, nbGpStations, nlNbSondes
+  integer               :: nbAircrafts, nbGpStations
   real(8), allocatable  :: AIttCorrections(:,:,:)
   real(8), allocatable  :: ztdCorrections(:)
   real(8), allocatable  :: ttCorrections(:,:,:,:),    tdCorrections(:,:,:,:)
   real(8), allocatable  :: ttCorrectionsStn(:,:,:,:), tdCorrectionsStn(:,:,:,:)
   
   character(len=9), allocatable     :: aircraftIds(:), gpsStations(:), uaStations(:)
-  character(len=8)                  :: sondeTypes(nSondesMax), nlSondeTypes(nSondesMax)
-  integer                           :: nlSondeCodes(nSondesMax,20)
-  
+  character(len=8) :: sondeTypes(nSondesMax)
+
   real(8) :: mandLevs(nMandLevs), tolPress(nMandLevs)
   
   logical :: bcc_aiBiasActive, bcc_gpBiasActive, bcc_uaBiasActive
@@ -77,20 +76,20 @@ MODULE biasCorrectionConv_mod
   integer, external    :: fnom, fclos, newdate
   
   ! Namelist variables
-  logical :: aiBiasActive  ! Control if bias correction is applied to aircraft data
-  logical :: gpBiasActive  ! Control if bias correction is applied to ground-based GPS data
-  logical :: uaBiasActive  ! Control if bias correction is applied to radiosonde data
-  logical :: aiRevOnly     ! Don't apply new correction but simply reverse any old corrections for AI
-  logical :: gpRevOnly     ! Don't apply new correction but simply reverse any old corrections for GP
-  logical :: uaRevOnly     ! Don't apply new correction but simply reverse any old corrections for UA
-  logical :: uaRejUnBcor   ! Set DATA QC flag bit 11 on to exclude uncorrected UA observations from assimilation 
-  integer :: uaNbiasCat    ! Number of bias profile categories in UA bcor files, e.g. 1, or 2 for "asc" and "desc" phase categoroes
-  integer :: uaNlatBands   ! Number of latitude bands in ua_bcors_stype bcor file (= 5 or 1). Set to 1 if there are no latitude bands in file.
-  
-  ! Min number of bias profiles (sample size) required for a given station/stype/time-of-day to use 
-  ! the biases in file "ua_bcors_stn" as corrections.
-  integer :: uaNprofsMin 
-  
+  logical :: aiBiasActive ! Control if bias correction is applied to aircraft data
+  logical :: gpBiasActive ! Control if bias correction is applied to ground-based GPS data
+  logical :: uaBiasActive ! Control if bias correction is applied to radiosonde data
+  logical :: aiRevOnly    ! Don't apply new correction but simply reverse any old corrections for AI
+  logical :: gpRevOnly    ! Don't apply new correction but simply reverse any old corrections for GP
+  logical :: uaRevOnly    ! Don't apply new correction but simply reverse any old corrections for UA
+  logical :: uaRejUnBcor  ! Set DATA QC flag bit 11 on to exclude uncorrected UA observations from assimilation 
+  integer :: uaNbiasCat   ! Number of bias profile categories in UA bcor files, e.g. 1, or 2 for "asc" and "desc" phase categories
+  integer :: uaNlatBands  ! Number of latitude bands in ua_bcors_stype bcor file (= 5 or 1). Set to 1 if there are no latitude bands in file
+  integer :: uaNprofsMin  ! Min number of bias profiles required for a station/stype/time-of-day to use biases 'ua_bcors_stn' as corrections
+  character(len=8) :: nlSondeTypes(nSondesMax)    ! List of radiosonde type names
+  integer          :: nlSondeCodes(nSondesMax,20) ! List of radiosonde type codes
+  integer          :: nlNbSondes                  ! Number of radiosonde types in lists
+
   ! Structure to hold dictionary containing the BUFR sonde type codes associated with each sonde type
   type sondeType
     character(len=8)  :: name

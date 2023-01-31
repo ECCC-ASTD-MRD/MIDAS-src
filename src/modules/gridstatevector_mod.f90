@@ -37,8 +37,7 @@ module gridStateVector_mod
   private
 
   ! public structure definition
-  public :: gsv_rhumin, struct_gsv
-  public :: gsv_minValVarKindCH
+  public :: struct_gsv
 
   ! public subroutines and functions
   public :: gsv_setup, gsv_allocate, gsv_deallocate, gsv_zero, gsv_3dto4d, gsv_3dto4dAdj
@@ -63,7 +62,8 @@ module gridStateVector_mod
   public :: gsv_transposesteptovarslevs
 
   ! public module variables
-  public :: gsv_conversionVarKindCHtoMicrograms
+  public :: gsv_conversionVarKindCHtoMicrograms, gsv_rhumin 
+  public :: gsv_minValVarKindCH
 
   interface gsv_getField
     module procedure gsv_getFieldWrapper_r4
@@ -133,18 +133,17 @@ module gridStateVector_mod
   end type struct_gsv
 
   logical :: varExistList(vnl_numVarMax)
-  character(len=8) :: ANLTIME_BIN
-  integer, external :: get_max_rss
-  real(8) :: rhumin, gsv_rhumin
-  logical :: addHeightSfcOffset ! controls adding non-zero height offset to diag levels
-  logical :: abortOnMpiImbalance
 
-  ! Min values imposed for input trial and output analysis (and related increment)
-  ! for variables of CH kind of the AnlVar list.
-  real(8) :: minValVarKindCH(vnl_numVarMax), gsv_minValVarKindCH(vnl_numVarMax)
-  ! Logical to turn on unit conversion for variables of CH kind of the AnlVar list
-  ! when unitConversion=.true.
-  logical :: gsv_conversionVarKindCHtoMicrograms
+  ! public variables
+  real(8) :: gsv_rhumin
+  real(8) :: gsv_minValVarKindCH(vnl_numVarMax)
+
+  ! namelist variables:
+  character(len=8) :: ANLTIME_BIN                ! can be 'MIDDLE', 'FIRST' or 'LAST'
+  logical :: addHeightSfcOffset                  ! choose to add non-zero height offset to diagnostic (sfc) levels
+  logical :: abortOnMpiImbalance                 ! choose to abort program when MPI imbalance is too large
+  real(8) :: minValVarKindCH(vnl_numVarMax)      ! variable-dependent minimum value applied to chemistry variables
+  logical :: gsv_conversionVarKindCHtoMicrograms ! activate unit conversion for CH variables
      
   ! arrays used for transpose VarsLevs <-> Tiles
   real(4), allocatable :: gd_send_varsLevs_r4(:,:,:,:), gd_recv_varsLevs_r4(:,:,:,:)
@@ -462,34 +461,15 @@ module gridStateVector_mod
     !
     ! :Purpose: Initialises the gridstatevector module global structure.
     !
-    ! :Namelist parameters:
-    !         :anlvar:          Analysis variable (chemistry analysis only)
-    !
-    !         :rhumin:          Minimum relative humidity value
-    !
-    !         :anlTime_bin:     Analysis time reference ('MIDDLE', 'FIRST' or 'LAST')
-    !
-    !         :addHeightSfcOffset:
-    !                           Global statevector height offset  
-    !
-    !         :conversionVarKindCHtoMicrograms:
-    !                           If .true. will apply some unit conversion when
-    !                           writing to file (chemistry analysis only)
-    !
-    !         :minValVarKindCH: Minimal values imposed for input trial and 
-    !                           output analysis and related increment for 
-    !                           variables of CH kind (chemistry analysis only)
-    !                           
-    !         :abortOnMpiImbalance:
-    !                           If .true., will abort when MPI topology is 
-    !                           inappropriate
-    !
     implicit none
 
     ! Locals:
-    logical           :: conversionVarKindCHtoMicrograms
     integer           :: varIndex, fnom, fclos, nulnam, ierr, loopIndex
-    character(len=4)  :: anlvar(vnl_numVarMax)
+
+    ! namelist variables:
+    character(len=4)  :: anlvar(vnl_numVarMax)           ! list of state variable names
+    logical           :: conversionVarKindCHtoMicrograms ! apply chemistry unit conversions when writing to file
+    real(8)           :: rhumin                          ! minimum value imposed on humidity
 
     NAMELIST /NAMSTATE/anlvar, rhumin, anlTime_bin, addHeightSfcOffset, &
                        conversionVarKindCHtoMicrograms, minValVarKindCH, &

@@ -92,7 +92,7 @@ module BCovarSetupChem_mod
   integer, external   :: get_max_rss
   integer             :: nulbgst=0
 
-  ! Bacgkround error covariance matrix elements.
+  ! Background error covariance matrix elements.
   ! One could add an additional dimension to corns  
   ! for separate block-univariate correlation matrices.
   ! This would also permit merging of bmatrixhi_mod and bmatrixchem_mod
@@ -102,29 +102,19 @@ module BCovarSetupChem_mod
   real(8),allocatable :: rstddev(:,:)
 
   ! Parameters of the NAMBCHM namelist
-
-  integer             :: ntrunc
-  real(8)             :: rpor(vnl_numvarmax)
-  real(8)             :: rvloc(vnl_numvarmax)
-  real(8)             :: scaleFactor(vnl_numvarmax,vco_maxNumLevels)
-  integer             :: numModeZero  ! number of eigenmodes to set to zero
-  logical             :: ReadWrite_sqrt
-
-  ! Indicate of physical spaces covariances (stddev, corverti and corverti) are
-  ! to be calculated/saved
-  logical             :: getPhysSpaceStats
-
-  ! Indicate if physical space correlation lengths are calculated from spectral
-  ! space covariances. Needed for some CH family obs operator settings.
-  logical             :: getPhysSpaceHCorrel
-
-  ! Indicates if physial space stats are output in file 'bCovarSetupChem_out.fst'.
-  ! Provided as extra utility - not used my MIDAS main programs.
-  logical             :: WritePhysSpaceStats
-  character(len=4)    :: stddevMode
-  character(len=4)    :: IncludeAnlVarKindCH(vnl_numvarmax)
-  character(len=4)    :: CrossCornsVarKindCH(vnl_numvarmax)
-  character(len=20)   :: TransformVarKindCH
+  integer             :: ntrunc               ! spectral truncation
+  real(8)             :: rpor(vnl_numvarmax)  ! horizontal localization distance (Gaussian)
+  real(8)             :: rvloc(vnl_numvarmax) ! vertical localization distance (GC)
+  real(8)             :: scaleFactor(vnl_numvarmax,vco_maxNumLevels) ! variable and level dependent scale factor applied to variances
+  integer             :: numModeZero          ! number of eigenmodes to set to zero
+  logical             :: ReadWrite_sqrt       ! choose to read and/or write sqrt of correlations
+  logical             :: getPhysSpaceStats    ! choose to calculate/save physical space cov (stddev, corverti)
+  logical             :: getPhysSpaceHCorrel  ! calculate correlation lengths from spectral cov (needed for some CH obs operator settings)
+  logical             :: WritePhysSpaceStats  ! choose to output physical space stats in 'bCovarSetupChem_out.fst'
+  character(len=4)    :: stddevMode           ! can be 'GD2D', 'GD3D' or 'SP2D'
+  character(len=4)    :: IncludeAnlVarKindCH(vnl_numvarmax) ! list of CH variable names to consider
+  character(len=4)    :: CrossCornsVarKindCH(vnl_numvarmax) ! not sure what this is for...
+  character(len=20)   :: TransformVarKindCH                 ! name of variable transform to apply to chemistry variables
 
   ! Square root of scaleFactor   
   real(8) :: scaleFactor_stddev(vnl_numvarmax,vco_maxNumLevels) 
@@ -149,7 +139,7 @@ module BCovarSetupChem_mod
      integer              :: nlev       ! number of vertical levels
      
      ! Total number of elements over all verticallevels and 
-     ! variables (varNAmeList)
+     ! variables (varNameList)
      integer              :: nkgdim
      
      integer              :: ntrunc     ! spectral dimension
