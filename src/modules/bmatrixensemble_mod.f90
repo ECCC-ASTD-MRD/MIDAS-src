@@ -720,12 +720,12 @@ CONTAINS
             call utl_abort('ben_setupOneInstance: The truncation is not compatible with the your scale-dependent localization')
           end if
 
-        else
+        else ! ScaleDependentWithSpectralLoc
           ! Do we have a valid selected waveBand index?
-          if (bEns(instanceIndex)%waveBandIndexSelected < 1                              .and. &
-              bEns(instanceIndex)%waveBandIndexSelected > bEns(instanceIndex)%nWaveBand ) then
+          if (bEns(instanceIndex)%waveBandIndexSelected < 1                              .or. &
+              bEns(instanceIndex)%waveBandIndexSelected > count(bEns(instanceIndex)%waveBandPeaks >= 0)) then
             write(*,*) 'ben_setupOneInstance: waveBandIndexSelected = ', bEns(instanceIndex)%waveBandIndexSelected
-            write(*,*) 'ben_setupOneInstance: nWaveBand             = ', bEns(instanceIndex)%nWaveBand
+            write(*,*) 'ben_setupOneInstance: number of waveBands   = ', count(bEns(instanceIndex)%waveBandPeaks >= 0)
             call utl_abort('ben_setupOneInstance: The selected waveBand index is not valid')
           end if
 
