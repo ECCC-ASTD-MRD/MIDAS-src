@@ -44,7 +44,7 @@ program midas_sstTrial
   ! namelist variables
   character(len=10) :: etiketAnalysis    ! etiket in the analysis file for grid setup
   integer           :: datestampClim(12) ! datestamps of input climatology fields 
-  real(4)           :: alphaClim         ! scalling factor to relax towards climatology
+  real(4)           :: alphaClim         ! scaling factor to relax towards climatology
   
   istamp = exdb('SSTTRIAL','DEBUT','NON')
 

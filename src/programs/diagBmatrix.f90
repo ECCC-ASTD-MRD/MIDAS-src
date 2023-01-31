@@ -66,6 +66,7 @@ program midas_diagBmatrix
   integer :: nlevs, nlevs2, varIndex, ip3
   integer :: locIndex, stepIndexInc, nEns, numBensInstance, instanceIndex
   integer :: amp3dStepIndex, nLonLatPos, lonLatPosIndex
+  integer :: oneobs_timeStepIndex
 
   integer, parameter :: lonPosIndex = 1
   integer, parameter :: latPosIndex = 2
@@ -76,7 +77,6 @@ program midas_diagBmatrix
   integer, allocatable :: dateStampList(:)
 
   character(len=128) :: filename, filenameInc, filenameIncNorm, filenameEnsAmp
-  character(len=128) :: oneobs_timeStep
   character(len=10)  :: datestr
   character(len=4)   :: varName
   character(len=1)   :: locIndexString
@@ -87,15 +87,16 @@ program midas_diagBmatrix
   character(len=4)             :: varNameALFA(1)
 
   ! namelist variables
-  integer :: numperturbations
-  integer :: nrandseed
-  integer :: oneobs_levs(100)
-  integer :: oneobs_lonlat(100,2)
-  integer :: oneobs_timeStepIndex
-  character(len=4) :: oneobs_varName
-  logical :: writeEnsAmplitude
-  logical :: writeTextStddev
-  logical :: writePsiChiStddev
+  integer :: numperturbations        ! number of perturbations for randomization estimate of stddev
+  integer :: nrandseed               ! initial random seed value
+  integer :: diagdate                ! date to be used for center of time window
+  integer :: oneobs_levs(100)        ! list of level indexes where B matrix columns are computed 
+  integer :: oneobs_lonlat(100,2)    ! list of lon,lat index pairs where B matrix columns are computed
+  character(len=128) :: oneobs_timeStep ! can be 'first', 'last' or 'middle'
+  character(len=4) :: oneobs_varName ! can be 'all' or a specific variable name (default='all')
+  logical :: writeEnsAmplitude       ! choose to write ensemble amplitude fields (for ensemble B)
+  logical :: writeTextStddev         ! choose to write stddev to text file in addition to standard file
+  logical :: writePsiChiStddev       ! choose to also write stddev of Psi/Chi in addition to UU/VV
 
   namelist /namdiag/numperturbations, nrandseed, oneobs_levs, oneobs_lonlat, &
                     oneobs_varName, oneobs_timeStep, writeEnsAmplitude, writeTextStddev, writePsiChiStddev

@@ -46,16 +46,16 @@ program midas_advector
   real(8), allocatable :: advectFactor_M(:)
 
   ! Namelist variables
-  character(len=256)  :: steeringFlowFile
-  character(len=256)  :: fileToAdvec
-  character(len=256)  :: direction
-  integer             :: nEns
-  integer             :: dateStart
-  integer             :: advectedFieldNumStep
-  integer             :: steeringFlowNumStep
-  real(8)             :: advectedFieldDelThour
-  real(8)             :: steeringFlowDelThour
-  real(8)             :: advectFactor(vco_maxNumLevels)
+  character(len=256)  :: steeringFlowFile               ! name of file with winds to use for advection 
+  character(len=256)  :: fileToAdvec                    ! name of file with fields to be advected
+  character(len=256)  :: direction                      ! direction of advection: forward, backward, or both
+  integer             :: nEns                           ! ensemble size
+  integer             :: dateStart                      ! earliest date for time series of advected states
+  integer             :: advectedFieldNumStep           ! number of time steps for writing advected field
+  integer             :: steeringFlowNumStep            ! number of time steps of the steering flow
+  real(8)             :: advectedFieldDelThour          ! time step length for computing advection (in hours)
+  real(8)             :: steeringFlowDelThour           ! time step length for steering flow winds
+  real(8)             :: advectFactor(vco_maxNumLevels) ! level-dependent factor applied to steering flow
 
   namelist /namadvector/ fileToAdvec, steeringFlowFile, nEns, &
                          advectedFieldNumStep, advectedFieldDelThour, &

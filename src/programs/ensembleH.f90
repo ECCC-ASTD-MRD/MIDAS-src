@@ -69,16 +69,14 @@ program midas_ensembleH
   character(len=48)   :: midasMode
 
   ! namelist variables
-  character(len=256) :: ensPathName
+  character(len=256) :: ensPathName       ! path of ensemble member files
   character(len=20)  :: obsTimeInterpType ! type of time interpolation to obs time
-  integer  :: nEns
-  integer  :: numRetainedEigen ! number of retained eigenValues/Vectors of vertical localization matrix
-                               !   used only when generating modulated ensembles.
-  integer  :: fileMemberIndex1 ! first member number in ensemble set.
-  integer  :: numFullEns       ! number of full ensemble set (needed only when generating modulated ensembles)
-  real(8)  :: vLocalize        ! vertical localization radius (units: ln(Pressure in Pa) or meters)
-                               !   used only when generating modulated ensembles.
-  logical  :: readEnsMeanFromFile
+  integer  :: nEns             ! ensemble size
+  integer  :: numRetainedEigen ! number of retained eigen modes used for modulated ensemble
+  integer  :: fileMemberIndex1 ! first member index in ensemble set to be read
+  integer  :: numFullEns       ! number of full ensemble set (needed only for modulated ensemble)
+  real(8)  :: vLocalize        ! vertical localization lengthscale (needed only for modulated ensemble)
+  logical  :: readEnsMeanFromFile ! choose to read ens mean from file (when reading subset of members)
   NAMELIST /NAMENSEMBLEH/nEns, ensPathName, obsTimeInterpType, numRetainedEigen, &
                          vLocalize, fileMemberIndex1, readEnsMeanFromFile, numFullEns
 

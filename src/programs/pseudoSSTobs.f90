@@ -36,17 +36,20 @@ program midas_pseudoSSTobs
 
   type(struct_hco), pointer   :: hco_anl => null()
   type(struct_vco), pointer   :: vco_anl => null()
-  character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
-                                 varMode        = 'analysis'
+  character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES'
+  character(len=48),parameter :: varMode        = 'analysis'
+
+  ! namelist variables
   real(4)                     :: iceFractionThreshold    ! consider no ice condition below this threshold
   real(4)                     :: outputSST               ! output SST value for pseudo observations
   real(4)                     :: outputFreshWaterST      ! output fresh water surface temperature for pseudo obs.  
   integer                     :: seaiceThinning          ! generate pseudo obs in every 'seaiceThinning' points 
-  character(len=20)           :: outputFileName
-  character(len=20)           :: etiket
-  real(4)                     :: seaWaterThreshold       ! to distinguish inland water from sea water  
+  character(len=100)          :: outputFileName          ! name of the file containing the generated observations
+  character(len=20)           :: etiket                  ! name to write in 'run' column of 'resume' table
+  real(4)                     :: seaWaterThreshold       ! to distinguish inland water from sea water
 
-  namelist /pseudoSSTobs/ iceFractionThreshold, outputSST, outputFreshWaterST, seaiceThinning, outputFileName, etiket, seaWaterThreshold
+  namelist /pseudoSSTobs/ iceFractionThreshold, outputSST, outputFreshWaterST, seaiceThinning, &
+                          outputFileName, etiket, seaWaterThreshold
   
   istamp = exdb('pseudoSSTobs','DEBUT','NON')
 

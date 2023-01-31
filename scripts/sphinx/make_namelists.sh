@@ -19,18 +19,8 @@ cat <<EOF > $docdir/namelists_html
 EOF
 
 cd $codedir
-directories=""
-for filename in ./* ; do 
-  if [[ -d $filename ]]; then
-    directories="$directories $filename"
-  fi
-done
-for filename in ./*/* ; do 
-  if [[ -d $filename ]]; then
-    directories="$directories $filename"
-  fi
-done
-echo "Directories found: $directories"
+directories="./programs ./modules"
+echo "Directories used to generate namelist documentation: $directories"
 
 namelistnames=''
 for directory in $directories ; do

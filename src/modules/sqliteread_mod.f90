@@ -2304,7 +2304,7 @@ module sqliteRead_mod
     type(struct_obs) , intent(inout) :: obsData
     character(len=*) , intent(in)    :: obsFamily
     character(len=*) , intent(in)    :: instrumentFileName
-    character(len=20), intent(in)    :: etiket    ! etiket to put into the table "resume" of output SQLite file 
+    character(len=*) , intent(in)    :: etiket    ! etiket to put into the table "resume" of output SQLite file 
     integer          , intent(in)    :: datePrint ! date to put into the table "resume" of output SQLite file 
     integer          , intent(in)    :: timePrint ! hour to put into the table "resume" of output SQLite file
             
@@ -2513,7 +2513,7 @@ module sqliteRead_mod
     type(struct_obs) , intent(inout) :: obsData   
     character(len=*) , intent(in)    :: obsFamily
     character(len=*) , intent(in)    :: instrumentFileName
-    character(len=20), intent(in)    :: etiket    ! etiket to put into the table "resume" of output SQLite file 
+    character(len=*) , intent(in)    :: etiket    ! etiket to put into the table "resume" of output SQLite file 
     integer          , intent(in)    :: datePrint ! date to put into the table "resume" of output SQLite file 
     integer          , intent(in)    :: timePrint ! hour to put into the table "resume" of output SQLite file
             

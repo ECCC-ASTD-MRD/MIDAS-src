@@ -301,13 +301,13 @@ program midas_var
   logical :: filterObsAndInitOer
   logical :: deallocInterpInfoNL
 
-  integer, parameter :: maxNumberOfOuterLoopIterations = 15
+  integer, parameter :: maxNumOuterLoopIter = 15
 
   ! namelist variables
-  integer :: numOuterLoopIterations
-  integer :: numIterMaxInnerLoop(maxNumberOfOuterLoopIterations)
-  logical :: limitHuInOuterLoop
-  logical :: computeFinalNlJo
+  integer :: numOuterLoopIterations                    ! number of outer loop iterations (default=1)
+  integer :: numIterMaxInnerLoop(maxNumOuterLoopIter)  ! number of each inner loop iterations
+  logical :: limitHuInOuterLoop                        ! impose humidity limits on each outer loop iteration
+  logical :: computeFinalNlJo                          ! compute final cost function using non-linear H()
   NAMELIST /NAMVAR/ numOuterLoopIterations, numIterMaxInnerLoop, limitHuInOuterLoop
   NAMELIST /NAMVAR/ computeFinalNlJo
 
@@ -355,7 +355,7 @@ program midas_var
   end if
   if ( mmpi_myid == 0 ) write(*,nml=namvar)
 
-  if ( numOuterLoopIterations > maxNumberOfOuterLoopIterations ) then
+  if ( numOuterLoopIterations > maxNumOuterLoopIter ) then
     call utl_abort('midas-var: numOuterLoopIterations is greater than max value')
   end if
 

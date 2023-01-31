@@ -39,12 +39,13 @@ program midas_calcstats
 
   integer           :: fstopc
   integer           :: nulnam, ierr, fnom, fclos
+  character(len=256) :: ensFileName
+  character(len=4), pointer :: anlVar(:)
 
+  ! namelist variables
+  character(len=60) :: mode   ! can be 'BHI', 'TOOLBOX', 'STDDEV or 'POWERSPEC'
   integer           :: nens   ! Ensemble size
   integer           :: ip2    ! Ensemble lead time (hour) selected within the file
-  character(len=256) :: ensFileName
-  character(len=60) :: mode
-  character(len=4), pointer :: anlVar(:)
 
   NAMELIST /NAMCONF/mode
   NAMELIST /NAMENS/nens,ip2
