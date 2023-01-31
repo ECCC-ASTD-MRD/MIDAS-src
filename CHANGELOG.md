@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added optional functionality for simulating an observation family (#750 and !679)
  * The recentering coefficient in `ensPostProcess` can now vary in the vertical (#749 and !678)
  * New `-updatedObsFilesNeeded`, `-ensObsDirectory`, and `-trialMeanFile` keys are added to `midas.mpi` script (#742 and !674)
  * First step for background check and assimilation of humidity-channel radiances in all-sky mode (#739 and !672)
