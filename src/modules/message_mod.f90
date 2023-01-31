@@ -23,6 +23,7 @@ module message_mod
   ! intrinsic type string representations
   public :: str
   interface str
+    module procedure msg_str2str
     module procedure msg_log2str
     module procedure msg_int2str
     module procedure msg_real42str
@@ -35,11 +36,12 @@ module message_mod
   end interface
 
   ! private module variables
-  integer, parameter    :: msg_maxIndent = 10
   integer, parameter    :: msg_lineLen = 70
   integer, parameter    :: msg_num2strBufferLen = 200
+  integer, parameter    :: msg_indent = 4
 
   integer :: verbosityThreshold
+  logical :: msg_arrayVertical
 
   contains
   
@@ -174,8 +176,12 @@ module message_mod
 
     ! Locals:
     logical, save :: alreadyRead = .false.
-    integer :: verbosity, nulnam, ierr, fnom, fclos
-    namelist /NAMMSG/verbosity
+    integer :: nulnam, ierr, fnom, fclos
+
+    ! Namelist variables
+    logical :: arrayVertical  ! Array vertical representation by default when .true.
+    integer :: verbosity      ! Verbosity level
+    namelist /NAMMSG/verbosity, arrayVertical
   
     if (alreadyRead) then
       return
@@ -185,6 +191,7 @@ module message_mod
   
     ! default namelist value
     verbosity = msg_DEFAULT
+    msg_arrayVertical = .false.
   
     if ( .not. utl_isNamelistPresent('NAMMSG','./flnml') ) then
       call msg( 'msg_readNml', 'NAMMSG is missing in the namelist. The default values will be taken.', &
@@ -199,6 +206,7 @@ module message_mod
     end if
     msg_NML = verbosity
     call msg_setVerbThreshold(msg_NML, beSilent_opt=.true.)
+    msg_arrayVertical = arrayVertical
 
   end subroutine msg_readNml
 
@@ -216,7 +224,7 @@ module message_mod
     character(len=*), intent(in) :: message    ! message to be printed
   
     ! Locals:
-    integer :: originLen, oneLineMsgLen, indentLen, posIdx
+    integer :: originLen, oneLineMsgLen, posIdx
     character(len=15) :: firstLineFormat, otherLineFormat
     character(len=msg_lineLen)  :: msgLine
     character(len=msg_lineLen)  :: readLine
@@ -229,10 +237,6 @@ module message_mod
     end if
     originLen = len(originTrunc)
 
-    indentLen = originLen
-    if (originLen > msg_maxIndent) then
-      indentLen = msg_maxIndent
-    end if
     oneLineMsgLen = msg_lineLen - originLen - 2
   
     if (len(message) > oneLineMsgLen) then
@@ -247,7 +251,7 @@ module message_mod
       write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A', &
                                               len(trim(msgLine)),')'
       write(*,firstLineFormat) originTrunc, ': ', message(1:oneLineMsgLen)
-      oneLineMsgLen = msg_lineLen - indentLen - 2
+      oneLineMsgLen = msg_lineLen - msg_indent - 2
       do
         if ( posIdx >= len(message) ) then
           ! message printed
@@ -262,9 +266,9 @@ module message_mod
         end if
         adjustedLine = adjustl(trim(msgLine))
         posIdx = posIdx + len(adjustedLine) +1
-        write(otherLineFormat,'(A,I2,A,I2,A)') '(A',indentLen+2,',A', &
+        write(otherLineFormat,'(A,I2,A,I2,A)') '(A',msg_indent,',A', &
                                                 len(adjustedLine),')'
-        write(*,otherLineFormat) repeat(' ',indentLen+2),adjustedLine
+        write(*,otherLineFormat) repeat(' ',msg_indent),adjustedLine
       end do
     else
       ! Single lines message
@@ -283,21 +287,57 @@ module message_mod
         implicit none
     
         ! Arguments:
-        character(len=*),           intent(in)  :: line
-        character(len=msg_lineLen)              :: shorterLine
-        integer :: idx
+        character(len=*),           intent(inout)  :: line
+        character(len=msg_lineLen)                 :: shorterLine
+
+        ! Locals:
+        integer :: idx, idxNewLine
     
-        idx = index(trim(line),' ',back=.true.)
-        if (idx == 0 .or. idx == len(trim(line)) ) then
-          shorterLine = trim(line)
-          return
-        else
-          shorterLine = line(1:idx-1)
-          return
+        idxNewLine = scan(line, new_line(''))
+        if ( idxNewLine == 0) then ! no new line
+          idx = scan(trim(line),' ',back=.true.)
+          if (idx == 0 .or. idx == len(trim(line)) ) then
+            shorterLine = trim(line)
+          else
+            shorterLine = line(1:idx-1)
+          end if
+        else ! presence of a new line
+          shorterLine = trim(line(1:idxNewLine-1))
         end if
     
       end function msg_breakOnSpace
   end subroutine msg_write
+
+  !--------------------------------------------------------------------------
+  ! msg_str2str (private)
+  !--------------------------------------------------------------------------
+  function msg_str2str(stringIn, trim_opt) result(string)
+    !
+    ! :Purpose: Trivial overloading (for uniformity of concatenation)
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(in)  :: stringIn
+    character(len=:), allocatable :: string
+    logical, optional             :: trim_opt
+
+    ! Locals:
+    logical :: doTrim
+
+    if ( present(trim_opt) ) then
+      doTrim = trim_opt
+    else
+      doTrim = .true.
+    end if
+
+    if (doTrim) then
+      string = "'"//trim(stringIn)//"'"
+    else
+      string = "'"//stringIn//"'"
+    end if
+
+  end function msg_str2str
 
   !--------------------------------------------------------------------------
   ! msg_log2str (private)
@@ -416,16 +456,16 @@ module message_mod
     ! Locals:
     integer           :: arrIndex
     logical           :: vertical
-    character(len=2)  :: sep
+    character(len=:), allocatable  :: sep
 
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = .false.
+      vertical = msg_arrayVertical
     end if
 
     if (vertical) then
-      sep = new_line('a')
+      sep = new_line('')//repeat(' ', msg_indent)
       string = '(/'//sep
     else
       sep = ', '
@@ -433,11 +473,11 @@ module message_mod
     end if
 
     do arrIndex = 1, size(array)
-      string = string//array(arrIndex)
+      string = string//trim(array(arrIndex))
       if (arrIndex /= size(array)) string = string//sep
     end do
     string = string//' /)'
-    
+
   end function msg_charArray2str
 
   !--------------------------------------------------------------------------
@@ -457,16 +497,16 @@ module message_mod
     ! Locals:
     integer           :: arrIndex
     logical           :: vertical
-    character(len=2)  :: sep
+    character(len=:), allocatable  :: sep
 
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = .false.
+      vertical = msg_arrayVertical
     end if
 
     if (vertical) then
-      sep = new_line('a')
+      sep = new_line('')//repeat(' ', msg_indent)
       string = '(/'//sep
     else
       sep = ', '
@@ -498,16 +538,16 @@ module message_mod
     ! Locals:
     integer           :: arrIndex
     logical           :: vertical
-    character(len=2)  :: sep
+    character(len=:), allocatable  :: sep
 
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = .false.
+      vertical = msg_arrayVertical
     end if
 
     if (vertical) then
-      sep = new_line('a')
+      sep = new_line('')//repeat(' ', msg_indent)
       string = '(/'//sep
     else
       sep = ', '
@@ -540,16 +580,16 @@ module message_mod
     ! Locals:
     integer           :: arrIndex
     logical           :: vertical
-    character(len=2)  :: sep
+    character(len=:), allocatable  :: sep
 
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = .false.
+      vertical = msg_arrayVertical
     end if
 
     if (vertical) then
-      sep = new_line('')
+      sep = new_line('')//repeat(' ', msg_indent)
       string = '(/'//sep
     else
       sep = ', '
@@ -582,16 +622,16 @@ module message_mod
     ! Locals:
     integer           :: arrIndex
     logical           :: vertical
-    character(len=2)  :: sep
+    character(len=:), allocatable  :: sep
 
     if (present(vertical_opt)) then
       vertical = vertical_opt
     else
-      vertical = .false.
+      vertical = msg_arrayVertical
     end if
 
     if (vertical) then
-      sep = new_line('')
+      sep = new_line('')//repeat(' ', msg_indent)
       string = '(/'//sep
     else
       sep = ', '
