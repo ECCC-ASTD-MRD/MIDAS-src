@@ -53,7 +53,9 @@ program midas_adjointTest
   real(8), allocatable ::  controlVector1(:)
   real(8), allocatable ::  controlVector2(:)
 
-  integer :: get_max_rss, ierr, cvDim
+  integer :: get_max_rss, ierr, cvDim, nulnam, fnom, fclos
+  character(len=12) ::  test ! adjoint test type ('Bhi','Bens','advEns','advGSV','loc')
+  NAMELIST /NAMADT/test
 
   call ver_printNameAndVersion('adjointTest','Various tests of adjoint codes')
 
@@ -108,39 +110,50 @@ program midas_adjointTest
   !- 1.11 Variable transforms
   call gvt_Setup(hco_anl, hco_core, vco_anl)
 
+  !- 1.12 Test selection
+  test = 'Bhi' ! default test 
+
+  if ( .not. utl_isNamelistPresent('NAMADT','./flnml') ) then
+    if (mmpi_myid == 0) then
+      write(*,*) 'midas-adjointTest: namadt is missing in the namelist. '&
+                 //'The default values will be taken.'
+    end if
+  else
+    nulnam=0
+    ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    read(nulnam, nml=namadt, iostat=ierr)
+    if(ierr.ne.0) call utl_abort('midas-adjointTest: Error reading namelist')
+    if( mmpi_myid == 0 ) write(*,nml=namadt)
+    ierr=fclos(nulnam)
+  end if
+
   !
   !- 2.  The tests
   !
  
-  !- 2.1 Bhi
-  !write(*,*)
-  !write(*,*) '> midas-adjointTest: Bhi'
-  !call check_bhi
-
-  !- 2.2 Bens
   write(*,*)
-  write(*,*) '> midas-adjointTest: Bens'
-  call check_bens
-
-  !- 2.3 AdvectionENS
-  !write(*,*)
-  !write(*,*) '> midas-adjointTest: AdvectionENS'
-  !call check_advectionENS
-
-  !- 2.4 AdvectionGSV
-  !write(*,*)
-  !write(*,*) '> midas-adjointTest: AdvectionGSV'
-  !call check_advectionGSV
-
-  !- 2.5 Localization
-  !write(*,*)
-  !write(*,*) '> midas-adjointTest: Localization'
-  !call check_loc
-
-  !- 2.6 Localization
-  !write(*,*)
-  !write(*,*) '> midas-adjointTest: Addmem'
-  !call check_addmem
+  write(*,*) '> midas-adjointTest: '//test
+  if ( test == 'Bhi') then
+    !- 2.1 Bhi
+    call check_bhi
+  else if ( test == 'Bens') then  
+    !- 2.2 Bens
+    call check_bens
+  else if ( test == 'advEns') then
+    !- 2.3 AdvectionENS
+    call check_advectionENS
+  else if ( test == 'advGSV') then 
+    !- 2.4 AdvectionGSV
+    call check_advectionGSV
+  else if ( test == 'loc') then
+    !- 2.5 Localization
+    call check_loc 
+  !else if ( test == 'addMem') then
+  !  !- 2.6 Localization
+  !  call check_addmem
+  else
+    call utl_abort('midas-adjointTest: inexistant test label ('//test//')')
+  end if
 
   !
   !- 3.  Ending
