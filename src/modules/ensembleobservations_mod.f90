@@ -1025,11 +1025,15 @@ CONTAINS
   ! eob_setSimulatedObs
   !--------------------------------------------------------------------------
   subroutine eob_setSimulatedObs(ensObs, oseObsFamily)
+    !
+    ! :Purpose: Set the observed value for the observation family
+    !           provided to the background ensemble mean in observation space.
+    !
     implicit none
 
     ! Arguments:
     type(struct_eob) , intent(inout)  :: ensObs
-    character(len=12), intent(in)     :: oseObsFamily
+    character(len=*), intent(in)     :: oseObsFamily
 
     ! Locals:
     integer :: obsIndex

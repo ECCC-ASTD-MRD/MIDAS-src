@@ -119,7 +119,7 @@ program midas_letkf
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   character(len=12) :: etiket_anl        ! etiket for output files
-  character(len=12) :: oseObsFamily      ! observation family to simulate ('UA', 'AI', 'AIRS' etc.)
+  character(len=2)  :: oseObsFamily      ! observation family to simulate ('UA', 'AI', etc.)
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName, randomShuffleSubEns,  &
                      hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
@@ -184,7 +184,7 @@ program midas_letkf
   etiket_anl            = 'ENS_ANL'
   readEnsObsFromFile    = .false.
   oseImpact             = .false.
-  oseObsFamily          = ' '
+  oseObsFamily          = 'XX'
   writeLocalEnsObsToFile = .false.
   numRetainedEigen      = 0
   debug                 = .false.
@@ -244,9 +244,9 @@ program midas_letkf
   end if
 
   ! make sure that oseObsFamily is defined if oseImpact is .true.
-  if ( ( oseImpact ) .and. trim(oseObsFamily) == ' ' ) then
-    call utl_abort('midas-letkf: oseObsFamily is empty character, but should be ' // &
-         'one of e.g. UA, AI, AIRS etc., since oseImpact is set to .true.')
+  if ( ( oseImpact ) .and. trim(oseObsFamily) == 'XX' ) then
+    call utl_abort('midas-letkf: oseObsFamily is XX, but should be ' // &
+         'one of e.g. UA, AI etc., since oseImpact is set to .true.')
   end if
 
   !
