@@ -176,6 +176,7 @@ contains
     integer :: seed, kIndex, stepIndex, latIndex, lonIndex, cvIndex
     real(8), pointer :: field4d_r8(:,:,:,:), field3d_Ly_r8(:,:,:), field3d_x_r8(:,:,:)
 
+    call gvt_setupRefFromTrialFiles('HU')
     if (hco_anl%global) then
       call bhi_Setup( hco_anl, vco_anl, & ! IN
                       cvdim )             ! OUT
@@ -287,6 +288,7 @@ contains
     integer, allocatable :: cvDimPerInstance(:)
     real(8), pointer :: field4d_Ly_r8(:,:,:,:), field4d_x_r8(:,:,:,:)
 
+    call gvt_setupRefFromTrialFiles('HU')
     call ben_Setup( hco_anl, hco_core, vco_anl, & ! IN
                     cvdimPerInstance )  ! OUT
 
