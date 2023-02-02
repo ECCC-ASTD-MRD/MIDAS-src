@@ -1102,7 +1102,7 @@ contains
   !--------------------------------------------------------------------------
   ! amsubTest13BennartzScatteringIndexCheck
   !--------------------------------------------------------------------------
-  subroutine amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatw, scatl, &
+  subroutine amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
                                                      KTERMER, GLINTRP, KMARQ, ICHECK)
 
     !:Purpose:                  13) test 13: Bennartz scattering index check (full)
@@ -1118,8 +1118,9 @@ contains
     integer,     intent(in)                :: KNT                            ! nombre de tovs
     integer,     intent(in)                :: KNO                            ! nombre canaux de tovs
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
-    real,        intent(in)                :: scatw(KNT)                     ! scattering index 
-    real,        intent(in)                :: scatl(KNT)                     ! scattering index 
+    real,        intent(in)                :: scatwObs(KNT)                  ! scattering index over water from observation
+    real,        intent(in)                :: scatwFG(KNT)                   ! scattering index over water from background
+    real,        intent(in)                :: scatl(KNT)                     ! scattering index over land
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
     real,        intent(in)                :: GLINTRP(KNT)                   ! glace de mer
     integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
@@ -1129,6 +1130,8 @@ contains
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
     integer                                :: testIndex
+    real                                   :: siObsFGaveraged
+    real                                   :: siUsedForQC
     logical                                :: FULLREJCT
 
     testIndex = 13
@@ -1138,14 +1141,21 @@ contains
       if (  KTERMER (nDataIndex) == 1  ) then
         if ( GLINTRP (nDataIndex) > 0.01 ) then
           !     sea ice 
-          if (  SCATW(nDataIndex) /= mwbg_realMissing    .and. &
-                SCATW(nDataIndex) > mwbg_siQcOverIceThreshold  ) then
+          if (  scatwObs(nDataIndex) /= mwbg_realMissing    .and. &
+                scatwObs(nDataIndex) > mwbg_siQcOverIceThreshold  ) then
             FULLREJCT = .TRUE.
           end if
           !       sea 
         else
-          if (  SCATW(nDataIndex) /= mwbg_realMissing    .and. &
-                SCATW(nDataIndex) > mwbg_siQcOverWaterThreshold  ) then
+          if ( tvs_mwAllskyAssim ) then
+            siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
+            siUsedForQC = siObsFGaveraged
+          else
+            siUsedForQC = scatwObs(nDataIndex)
+          end if
+
+          if (  siUsedForQC /= mwbg_realMissing    .and. &
+                siUsedForQC > mwbg_siQcOverWaterThreshold  ) then
             FULLREJCT = .TRUE.
           end if
         end if
@@ -1165,9 +1175,9 @@ contains
           rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) + 1
         end do
         if (DEBUG) then
-          write(6,*)STNID(2:9),'BENNARTZ scattering index check', &
-                  ' REJECT. SCATW= ',SCATW(nDataIndex),         &
-                 ' SCATL= ',SCATL(nDataIndex)
+          write(*,*) 'BENNARTZ scattering index check REJECT. stnid=', STNID(2:9), &
+                     ', scatwObs=', scatwObs(nDataIndex), ', scatwFG=', scatwFG(nDataIndex), &
+                     ', SCATL= ',SCATL(nDataIndex)
         end if
       end if
     end do
@@ -2170,7 +2180,7 @@ contains
                                        ktermer, glintrp, KMARQ, ICHECK)
     ! 13) test 13: Bennartz scattering index check (full)
 
-    call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatl, &
+    call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
                                                   KTERMER, GLINTRP, KMARQ, ICHECK)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
