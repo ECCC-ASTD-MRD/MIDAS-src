@@ -46,6 +46,9 @@ module gridStateVectorFileIO_mod
 
   integer, external :: get_max_rss
 
+  ! Namelist variables
+  logical :: interpToPhysicsGrid  ! for LAM grid, choose to keep physics variables on their original grid
+
   contains
   !--------------------------------------------------------------------------
   ! gio_readFromFile
@@ -555,7 +558,7 @@ module gridStateVectorFileIO_mod
     integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file, kIndex, stepIndex
     integer :: ikey, levIndex
     integer :: stepIndexBeg, stepIndexEnd, ni_var, nj_var, nk_var
-    integer :: fnom, fstouv, fclos, nulnam, fstfrm, fstlir, fstinf
+    integer :: fnom, fstouv, fclos, fstfrm, fstlir, fstinf
     integer :: fstprm, EZscintID_var, ezdefset, ezqkdef
 
     integer :: dateo_var, deet_var, npas_var, nbits_var, datyp_var
@@ -582,28 +585,10 @@ module gridStateVectorFileIO_mod
 
     logical :: foundVarNameInFile, ignoreDate
 
-    ! Namelist variables
-    logical :: interpToPhysicsGrid
-
-    NAMELIST /NAMSTIO/interpToPhysicsGrid
-
     write(*,*) 'gio_readFile: starting'
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
-    interpToPhysicsGrid = .false.
-    if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
-      if ( mmpi_myid == 0 ) then
-        write(*,*) 'gio_readFile: namstio is missing in the namelist. The default values will be taken.'
-      end if
-    else
-      ! Read namelist NAMSTIO
-      nulnam=0
-      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namstio,iostat=ierr)
-      if (ierr.ne.0) call utl_abort('gio_readfile: Error reading namelist')
-      if (mmpi_myid.eq.0) write(*,nml=namstio)
-      ierr=fclos(nulnam)
-    end if
+    call readNml()
 
     vco_file => gsv_getVco(statevector)
 
@@ -1230,7 +1215,7 @@ module gridStateVectorFileIO_mod
     ! locals
     logical :: iDoWriting, unitConversion, containsFullField
 
-    integer :: fclos, fnom, fstouv, fstfrm, nulnam
+    integer :: fclos, fnom, fstouv, fstfrm
     integer :: nulfile, stepIndex
     integer :: ierr, fstecr, ezdefset
     integer :: ni, nj, nk
@@ -1256,27 +1241,11 @@ module gridStateVectorFileIO_mod
     type(struct_gsv), pointer :: statevector
     type(struct_gsv), target  :: statevector_tiles
 
-    logical :: interpToPhysicsGrid
-    NAMELIST /NAMSTIO/interpToPhysicsGrid
-
     write(*,*) 'gio_writeToFile: START'
 
     call utl_tmg_start(161,'low-level--gsv_writeToFile')
 
-    interpToPhysicsGrid = .false.
-    if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
-      if ( mmpi_myid == 0 ) then
-        write(*,*) 'gio_writeToFile: namstio is missing in the namelist. The default values will be taken.'
-      end if
-    else
-      ! Read namelist NAMSTIO
-      nulnam=0
-      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namstio,iostat=ierr)
-      if (ierr.ne.0) call utl_abort('gio_writeToFile: Error reading namelist')
-      if (mmpi_myid.eq.0) write(*,nml=namstio)
-      ierr=fclos(nulnam)
-    end if
+    call readNml()
 
     !
     !- 1.  Since this routine can only work with 'Tiles' distribution when mpi_local = .true., 
@@ -1931,5 +1900,46 @@ module gridStateVectorFileIO_mod
     end do step_loop
 
   end subroutine gio_fileUnitsToStateUnits
+
+  !--------------------------------------------------------------------------
+  ! readNml (private)
+  !--------------------------------------------------------------------------
+  subroutine readNml()
+    !
+    !:Purpose: Read the namelist NAMSTIO
+    !
+    implicit none
+
+    ! locals:
+    integer       :: nulnam, ierr, fnom, fclos
+    logical, save :: firstCall = .true.
+
+    NAMELIST /NAMSTIO/interpToPhysicsGrid
+
+    if (firstCall) then
+      
+      ! set the default values
+      interpToPhysicsGrid = .false.
+
+      ! read the namelist block if it exists
+      if ( .not. utl_isNamelistPresent('NAMSTIO','./flnml') ) then
+        if ( mmpi_myid == 0 ) then
+          write(*,*) 'readNml (gio): namstio is missing in the namelist. The default values will be taken.'
+        end if
+      else
+        ! Read namelist NAMSTIO
+        nulnam = 0
+        ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+        read(nulnam,nml=namstio,iostat=ierr)
+        if (ierr /= 0) call utl_abort('readNml (gio): Error reading namelist')
+        if (mmpi_myid == 0) write(*,nml=namstio)
+        ierr = fclos(nulnam)
+      end if
+
+      firstCall = .false.
+
+    end if
+
+  end subroutine readNml
 
 end module gridStateVectorFileIO_mod

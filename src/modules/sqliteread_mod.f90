@@ -1719,7 +1719,7 @@ module sqliteRead_mod
     type(struct_obs)                :: obsdat         ! obsSpaceData object
     character(len=*)                :: sfFileName     ! fileName acronym used for surface obs file
     logical                         :: onlyAssimObs   ! only write assimilated obs
-    logical                         :: addFSOdiag     ! only write FSO
+    logical                         :: addFSOdiag     ! include FSO column in body table
     type(struct_eob), optional      :: ensObs_opt     ! ensObs object
     
     ! locals:

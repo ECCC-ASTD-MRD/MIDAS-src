@@ -78,11 +78,11 @@ contains
     logical, save :: firstCall = .true.
 
     ! namelist variables:
-    real(8) :: dstepobs
-    real(8) :: dstepobsinc
-    real(8) :: dwindowsize
-    character(len=6) :: referencetime
-    logical :: fullyUseExtremeTimeBins
+    real(8) :: dstepobs      ! time step length for background state (in hours)
+    real(8) :: dstepobsinc   ! time step length for increment and/or B matrix (in hours)
+    real(8) :: dwindowsize   ! length of assimilation window (in hours)
+    character(len=6) :: referencetime  ! location of 'date' within the window: 'middle' or 'start'
+    logical :: fullyUseExtremeTimeBins ! choose to use full-size bins at both ends of window (usually only half size)
 
     NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, referencetime, fullyUseExtremeTimeBins
 

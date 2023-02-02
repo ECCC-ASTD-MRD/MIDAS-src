@@ -418,7 +418,7 @@ contains
     logical :: list_is_empty
 
     ! namelist variables
-    logical :: do_adjust_aladin
+    logical :: do_adjust_aladin ! choose to adjust obs value as if it was retrieved using our temp and pressure 
 
     namelist /NAMALADIN_OBS/do_adjust_aladin
 
@@ -528,7 +528,7 @@ contains
         ppbg  = zwb*ppLyr1 + zwt*ppLyr
 
         ! Adjust zvar, the HLOS wind observation, if all attributes are available
-        if ((do_adjust_aladin .eqv. .true.) .and. (popcnt(found) == 5)) then
+        if (do_adjust_aladin .and. (popcnt(found) == 5)) then
           ! Adjust in situ the HLOS wind data from obsSpaceData to account for
           ! the differences between our T, P forecast fields and those of the NWP
           ! site that calculated the HLOS wind values.  The goal is to produce an
@@ -594,7 +594,7 @@ contains
     character(len=4) :: varLevel
 
     ! namelist variables
-    logical :: adjustTemperature
+    logical :: adjustTemperature ! choose to adjust near-sfc temperature using lapse rate and height difference
 
     namelist /namSurfaceObs/adjustTemperature
 

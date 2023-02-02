@@ -196,9 +196,9 @@ contains
     character(len=*), parameter :: myWarning = myName //' WARNING: '
 
     ! namelist variables
-    logical :: lwritediagsql
-    logical :: onlyAssimObs
-    logical :: addFSOdiag
+    logical :: lwritediagsql ! choose to write 'diag' sqlite observation files
+    logical :: onlyAssimObs  ! choose to not include unassimilated obs in 'diag' sqlite files
+    logical :: addFSOdiag    ! choose to include FSO column in body table
 
     namelist /namwritediag/lwritediagsql,onlyAssimObs,addFSOdiag
 
