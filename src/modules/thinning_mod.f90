@@ -7268,6 +7268,7 @@ contains
 
     ! Return if no satellite SST obs to thin
     allocate(validMpi(numHeaderMaxMpi * mmpi_nprocs))
+    validMpi(:) = .false.
     call rpn_comm_allgather(valid,    numHeaderMaxMpi, 'mpi_logical',  &
                             validMpi, numHeaderMaxMpi, 'mpi_logical', 'grid', ierr)
     if (count(validMpi(:)) == 0) then
@@ -7433,9 +7434,9 @@ contains
           dataGrid(latIndex, lonIndex)%numObs = dataGrid(latIndex, lonIndex)%numObs + 1
           dataGrid(latIndex, lonIndex)%dataVec(dataGrid(latIndex, lonIndex)%numObs) = obsSSTMpi(headerIndex)
           dataGrid(latIndex, lonIndex)%headerIndex(dataGrid(latIndex, lonIndex)%numObs) = headerIndex       
-        else
-          ! reject due to being outside the current grid cell
-          validMpi(headerIndex) = .false.
+        !else
+        !  ! reject due to being outside the current grid cell
+        !  validMpi(headerIndex) = .false.
         end if
       end do
 
