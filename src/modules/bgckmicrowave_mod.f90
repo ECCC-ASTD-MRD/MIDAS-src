@@ -37,6 +37,9 @@ module bgckmicrowave_mod
 
   real    :: mwbg_clwQcThreshold
   real    :: mwbg_cloudyClwThresholdBcorr
+  real    :: mwbg_siQcOverIceThreshold
+  real    :: mwbg_siQcOverWaterThreshold
+  real    :: mwbg_siQcOverLandThreshold
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
 
@@ -87,7 +90,10 @@ module bgckmicrowave_mod
   ! namelist variables
   character(len=9)              :: instName                      ! instrument name
   real                          :: clwQcThreshold                ! 
-  real                          :: cloudyClwThresholdBcorr       ! 
+  real                          :: cloudyClwThresholdBcorr       !
+  real                          :: siQcOverIceThreshold          ! scattering index over ice
+  real                          :: siQcOverWaterThreshold        ! scattering index over water
+  real                          :: siQcOverLandThreshold         ! scattering index over land
   logical                       :: useUnbiasedObsForClw          !
   logical                       :: RESETQC                       ! reset Qc flags option
   logical                       :: modLSQ                        !
@@ -96,7 +102,10 @@ module bgckmicrowave_mod
 
   namelist /nambgck/instName, clwQcThreshold, &
                     useUnbiasedObsForClw, debug, RESETQC,  &
-                    cloudyClwThresholdBcorr, modLSQ
+                    cloudyClwThresholdBcorr, modLSQ, &
+                    siQcOverIceThreshold, siQcOverWaterThreshold, &
+                    siQcOverLandThreshold
+                    
 
 contains
 
@@ -111,12 +120,15 @@ contains
     integer, external :: fnom, fclos
 
     ! Default values for namelist variables
-    debug = .false.
-    clwQcThreshold  = 0.3 
-    useUnbiasedObsForClw = .false.
+    debug                   = .false.
+    clwQcThreshold          = 0.3 
+    useUnbiasedObsForClw    = .false.
     cloudyClwThresholdBcorr = 0.05
-    RESETQC = .false.
-    modLSQ = .false.
+    siQcOverIceThreshold    = 40.0
+    siQcOverWaterThreshold  = 15.0
+    siQcOverLandThreshold   = 0.0
+    RESETQC                 = .false.
+    modLSQ                  = .false.
 
     nulnam = 0
     ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
@@ -129,6 +141,9 @@ contains
     mwbg_clwQcThreshold = clwQcThreshold
     mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
     mwbg_cloudyClwThresholdBcorr = cloudyClwThresholdBcorr
+    mwbg_siQcOverIceThreshold = siQcOverIceThreshold
+    mwbg_siQcOverWaterThreshold = siQcOverWaterThreshold
+    mwbg_siQcOverLandThreshold = siQcOverLandThreshold
 
   end subroutine mwbg_init 
 
@@ -1114,36 +1129,30 @@ contains
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
     integer                                :: testIndex
-    real                                   :: ZSEUILSCATICE
-    real                                   :: ZSEUILSCATL
-    real                                   :: ZSEUILSCATW
     logical                                :: FULLREJCT
 
     testIndex = 13
 
-    ZSEUILSCATICE = 40.0
-    ZSEUILSCATW   = 15.0
-    ZSEUILSCATL   =  0.0
     do nDataIndex=1,KNT
       FULLREJCT = .FALSE.
       if (  KTERMER (nDataIndex) == 1  ) then
         if ( GLINTRP (nDataIndex) > 0.01 ) then
           !     sea ice 
           if (  SCATW(nDataIndex) /= mwbg_realMissing    .and. &
-                SCATW(nDataIndex) > ZSEUILSCATICE       ) then
+                SCATW(nDataIndex) > mwbg_siQcOverIceThreshold  ) then
             FULLREJCT = .TRUE.
           end if
           !       sea 
         else
           if (  SCATW(nDataIndex) /= mwbg_realMissing    .and. &
-                SCATW(nDataIndex) > ZSEUILSCATW          ) then
+                SCATW(nDataIndex) > mwbg_siQcOverWaterThreshold  ) then
             FULLREJCT = .TRUE.
           end if
         end if
       else
         !    land   
         if (  SCATL(nDataIndex) /= mwbg_realMissing    .and. &
-              SCATL(nDataIndex) > ZSEUILSCATL          ) then
+              SCATL(nDataIndex) > mwbg_siQcOverLandThreshold  ) then
           FULLREJCT = .TRUE.
         end if
       end if
@@ -6748,7 +6757,7 @@ contains
     end if
 
     if (atmScatteringIndexObs(1) /= mwbg_realMissing) then
-    call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, atmScatteringIndexObs(1))
+      call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, atmScatteringIndexObs(1))
     else
       call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, MPC_missingValue_R4)
     end if
@@ -6756,10 +6765,10 @@ contains
     if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .or. &
         tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
       if (atmScatteringIndexFG(1) /= mwbg_realMissing) then
-      call obs_headSet_r(obsSpaceData, OBS_SIB, headerIndex, atmScatteringIndexFG(1))
+        call obs_headSet_r(obsSpaceData, OBS_SIB, headerIndex, atmScatteringIndexFG(1))
       else
         call obs_headSet_r(obsSpaceData, OBS_SIB, headerIndex, MPC_missingValue_R4)
-    end if
+      end if
     end if
     
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag(1))
