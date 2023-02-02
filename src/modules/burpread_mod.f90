@@ -2071,10 +2071,6 @@ CONTAINS
       CASE('AI')
         BURP_TYP='uni'
         vcord_type(1)=7004
-<<<<<<< HEAD
-         nelems = 0
-=======
->>>>>>> 38d22496e... Issue #709: some modifications suggested by Mark
         blistelements(:) = MPC_missingValue_INT
         BBITOFF(:) = MPC_missingValue_INT
         BBITON(:) = MPC_missingValue_INT
@@ -2109,27 +2105,14 @@ CONTAINS
         liste_ele_gps(:) = MPC_missingValue_INT
         BBITOFF(:) = MPC_missingValue_INT
         BBITON(:) = MPC_missingValue_INT
-<<<<<<< HEAD
         call BRPACMA_NML('namburp_gp') ! read NELEMS_GPS, LISTE_ELE_GPS(1:NELEMS_GPS)
-=======
-        call BRPACMA_NML('namburp_filter_sfc') ! read NELEMS_GPS, LISTE_ELE_GPS(1:NELEMS_GPS)
-        NELE_SFC=NELEMS_GPS             !   -- ignore NELEMS_SFC, BLISTELEMENTS_SFC(1:NELEMS_SFC)
-        BLISTELEMENTS_SFC(1:NELEMS_GPS) = LISTE_ELE_GPS(1:NELEMS_GPS)
->>>>>>> 38d22496e... Issue #709: some modifications suggested by Mark
         FAMILYTYPE2= 'SFC'
         UNI_FAMILYTYPE = 'GP'
       CASE('SC')
         vcord_type(1)=0
         BURP_TYP='uni'
-<<<<<<< HEAD
         nelems_sfc = 0
         blistelements_sfc(:) = MPC_missingValue_INT
-        BNBITSOFF = 0
-=======
-        LISTE_ELE_SFC(1:2) = (/11012,11011/)
-        NELE=2
-        blistelements(:) = MPC_missingValue_INT
->>>>>>> 38d22496e... Issue #709: some modifications suggested by Mark
         BBITOFF(:) = MPC_missingValue_INT
         BBITON(:) = MPC_missingValue_INT
         call BRPACMA_NML('namburp_filter_sfc')
@@ -6755,7 +6738,7 @@ CONTAINS
         end do
       else
         allocate(elementIds(nelems_gps))
-        elementIds(:) = liste_ele_gps(1:neles_gps)
+        elementIds(:) = liste_ele_gps(1:nelems_gps)
       end if
     case('TO')
       blistelements(:) = MPC_missingValue_INT
