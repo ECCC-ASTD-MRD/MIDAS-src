@@ -1107,7 +1107,7 @@ contains
   ! amsubTest13BennartzScatteringIndexCheck
   !--------------------------------------------------------------------------
   subroutine amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
-                                                     KTERMER, GLINTRP, KMARQ, ICHECK)
+                                                     useStateDepSigmaObs, KTERMER, GLINTRP, KMARQ, ICHECK)
 
     !:Purpose:                  13) test 13: Bennartz scattering index check (full)
     !                               For Scattering Index > 40 sea ice
@@ -1125,6 +1125,7 @@ contains
     real,        intent(in)                :: scatwObs(KNT)                  ! scattering index over water from observation
     real,        intent(in)                :: scatwFG(KNT)                   ! scattering index over water from background
     real,        intent(in)                :: scatl(KNT)                     ! scattering index over land
+    logical,     intent(in)                :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
     real,        intent(in)                :: GLINTRP(KNT)                   ! glace de mer
     integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
@@ -1201,7 +1202,7 @@ contains
             siObsFGaveraged == mwbg_realMissing) then
           do nChannelIndex = 1,KNO
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**23)
-    end do
+          end do
           if ( mwbg_debug ) then
             write(*,*) STNID(2:9),' BENNARTZ scattering index check', &
                       ' cloud-affected obs. siObsFGaveraged= ', siObsFGaveraged, ', threshold= ', &
@@ -1209,7 +1210,28 @@ contains
           end if
         end if
       end if
+      
+      if (tvs_mwAllskyAssim .and. surfTypeIsSea) then
+        siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
 
+        ! In all-sky mode, reject observations over sea if siObsFGaveraged can not be computed.
+        ! siObsFGaveraged is needed to define obs error.
+        if (siObsFGaveraged == mwbg_realMissing) then
+
+          loopChannel3: do nChannelIndex = 1, KNO
+            channelval = KCANO(nChannelIndex,nDataIndex)
+            if (useStateDepSigmaObs(channelval,knosat)) then
+              ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
+              KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
+              KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**7)
+              rejectionCodArray(testIndex,channelval,KNOSAT) = &
+                      rejectionCodArray(testIndex,channelval,KNOSAT)+ 1
+            end if
+          end do loopChannel3
+        end if ! if (siObsFGaveraged == mwbg_realMissing)
+
+      end if ! if (tvs_mwAllskyAssim .and. surfTypeIsSea)
+      
     end do !do nDataIndex=1,KNT
 
   end subroutine amsubTest13BennartzScatteringIndexCheck
@@ -1966,7 +1988,8 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsub
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsub(TOVERRST, IUTILST,  KTERMER, ICANO, ZO, ZCOR, &
+  subroutine mwbg_tovCheckAmsub(TOVERRST, useStateDepSigmaObs, &
+                                IUTILST,  KTERMER, ICANO, ZO, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
                                 globMarq, IMARQ, ident, clwOBS, clwFG, scatwObs, scatwFG, STNID, RESETQC)
 
@@ -1998,6 +2021,7 @@ contains
     !                                                               1 (assmilate)
     !                                                               2 (assimilate over open water only)
     real(8), intent(in)                    :: TOVERRST(:,:)      ! l'erreur totale des TOVS
+    logical, intent(in)                    :: useStateDepSigmaObs(:,:) ! if using state dependent obs error
     integer, allocatable, intent(inout)    :: globMarq(:)        !Marqueurs globaux  
     integer, intent(in)                    :: KTERMER(:)         ! indicateur terre/mer
     integer, intent(in)                    :: ISCNPOS(:)         ! position sur le "scan"
@@ -2211,7 +2235,7 @@ contains
     ! 13) test 13: Bennartz scattering index check (full)
 
     call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
-                                                  KTERMER, GLINTRP, KMARQ, ICHECK)
+                                                 useStateDepSigmaObs, KTERMER, GLINTRP, KMARQ, ICHECK)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
@@ -7108,7 +7132,8 @@ contains
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,      &
                                 atmScatteringIndexObs, burpFileSatId, RESETQC, obsLatitude)
       else if (instName == 'AMSUB') then
-        call mwbg_tovCheckAmsub(oer_toverrst, oer_tovutil, landQualifierIndice,&
+        call mwbg_tovCheckAmsub(oer_toverrst, oer_useStateDepSigmaObs, &
+                                oer_tovutil, landQualifierIndice,&
                                 obsChannels, obsTb, obsTbBiasCorr, ompTb,      & 
                                 qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
                                 satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
