@@ -13,7 +13,6 @@
   useVacuum = .true.
 /
  &NAMobsDB
-   obsDbActive = .true.
    numElemIdList = 1
    elemIdList(1) = 12163
 /

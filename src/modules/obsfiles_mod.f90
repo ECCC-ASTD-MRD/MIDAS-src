@@ -31,6 +31,7 @@ module obsFiles_mod
   use obsSpaceData_mod
   use burpFiles_mod
   use sqliteFiles_mod
+  use sqliteUtilities_mod
   use obsdbFiles_mod
   use bufr_mod
   use obsSubSpaceData_mod
@@ -89,7 +90,8 @@ contains
     !
     ! Determine if obsFiles are split
     !
-    if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE') then
+    if ( obsFileType == 'OBSDB' .or. obsFileType == 'BURP' .or.  &
+         obsFileType == 'SQLITE') then
       obsFilesSplit = .true.
     else
       call utl_abort('obsf_setup: invalid observation file type: ' // trim(obsFileType))
@@ -100,6 +102,8 @@ contains
     !
     if ( obsFileType == 'BURP' ) then
       call brpf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+    else if ( obsFileType == 'OBSDB' ) then
+      call sqlf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
     else if ( obsFileType == 'SQLITE' ) then
       if (odbf_isActive()) then
         call odbf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
@@ -159,11 +163,10 @@ contains
         call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
       end if
       if ( obsFileType == 'SQLITE' ) then
-        if (odbf_isActive()) then
-          call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
-        else
-          call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
-        end if
+        call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+      end if
+      if ( obsFileType == 'OBSDB' ) then
+        call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
       end if
     end do
 
@@ -221,7 +224,8 @@ contains
     end if
     ierr=fclos(nulnam)
 
-    if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' ) then
+    if ( obsFileType == 'BURP' .or. obsFileType == 'OBSDB' .or. &
+         obsFileType == 'SQLITE' ) then
 
       if (trim(obsFileMode) == 'analysis') call ovt_transformResiduals(obsSpaceData, obs_oma)
       if (trim(obsFileMode) /= 'prepcma' .and. trim(obsFileMode) /= 'thinning') then
@@ -240,14 +244,12 @@ contains
         if ( obsFileType == 'BURP'   ) then
           call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
                                 fileIndex )
+        else if ( obsFileType == 'OBSDB' ) then
+          call odbf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
+                                obsf_cfamtyp(fileIndex), fileIndex )
         else if ( obsFileType == 'SQLITE' ) then
-          if (odbf_isActive()) then
-            call odbf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
-                                  obsf_cfamtyp(fileIndex), fileIndex )
-          else
-            call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
-                                  obsf_cfamtyp(fileIndex), fileIndex )
-          end if
+          call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
+                                obsf_cfamtyp(fileIndex), fileIndex )
         end if
       end do
 
@@ -269,8 +271,9 @@ contains
 
     if ( present(asciDumpObs_opt) ) then
       if ( asciDumpObs_opt ) then
-        if ( obsFileType == 'BURP' .or. obsFileType == 'SQLITE' .or. mmpi_myid == 0   ) then
-          ! all processors write to files only for BURP and SQLITE    
+        if ( obsFileType == 'BURP' .or. obsFileType == 'OBSDB' .or.  &
+             obsFileType == 'SQLITE' .or. mmpi_myid == 0   ) then
+          ! all processors write to files only for BURP, OBSDB and SQLITE    
           call obsf_writeAsciDump(obsSpaceData)
         end if
       end if
@@ -292,9 +295,10 @@ contains
    
     call obsf_determineFileType(obsFileType)
 
-    if ( obsFileType /= 'BURP' .and. obsFileType /= 'SQLITE' ) then
+    if ( obsFileType /= 'BURP' .and. obsFileType /= 'OBSDB' .and.  &
+         obsFileType /= 'SQLITE' ) then
       write(*,*) 'obsf_cleanObsFiles: obsFileType=', obsFileType, &
-                ' is not BURP nor SQLITE. Return.' 
+                ' is not BURP, OBSDB nor SQLITE. Return.' 
       return
     end if
     
@@ -305,12 +309,10 @@ contains
 
       if ( obsFileType == 'BURP' ) then
         call brpr_burpClean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+      else if ( obsFileType == 'OBSDB' ) then
+        call obdf_clean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
       else if ( obsFileType == 'SQLITE' ) then
-        if ( odbf_isActive() ) then
-          call obdf_clean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
-        else
-          call sqlf_cleanFile( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
-        end if
+        call sqlf_cleanFile( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
       end if
     end do
 
@@ -706,6 +708,7 @@ contains
     integer           :: ierr, unitFile
     integer           :: fnom, fclos, wkoffit
     character(len=20) :: fileStart
+    character(len=*), parameter :: obsDbTableName = 'Report'
 
     write(*,*) 'obsf_determineSplitFileType: read obs file: ', trim(fileName)
    
@@ -721,7 +724,11 @@ contains
       ierr = fclos(unitFile)
 
       if ( index( fileStart, 'SQLite format 3' ) > 0 ) then
-        obsFileType = 'SQLITE'
+        if (sqlu_sqlTableExists(fileName, obsDbTableName)) then
+          obsFileType = 'OBSDB'
+        else
+          obsFileType = 'SQLITE'
+        end if
       else
         call utl_abort('obsf_determineSplitFileType: unknown obs file type')
       end if
@@ -931,7 +938,7 @@ contains
     ! Locals:
     integer           :: fileIndex
     character(len=10) :: obsFileType
-    
+
     ! If obs files not split and I am not task 0, then return
     if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
 
@@ -939,17 +946,16 @@ contains
 
       call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
       if ( trim(obsFileType) == 'SQLITE' )  then
-        if ( .not. odbf_isActive() ) then
-          ! The sqlf_addCloudParametersandEmissivity subrountine only adds cloud and emissivity obsSpacedata variables into 
-          ! SQLite files. These variables and other ObsSpaceData header level variables are added/updated in ObsDb files using a
-          ! seperate subroutine called odbf_updateMidasHeaderTable.
-          call sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
-        end if
+        call sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
       else if ( trim(obsFileType) == 'BURP' ) then 
         call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
+      else if ( trim(obsFileType) == 'OBSDB' ) then
+        ! The variables updated here for other file types are added/updated in ObsDb files using a
+        ! seperate subroutine called odbf_updateMidasHeaderTable which is called when writing everything else.
+        write(*,*) 'obsf_addCloudParametersAndEmissivity: obsDB files handled separately'
       else  
         write(*,*) ' UNKNOWN FileType=',obsFileType
-        call utl_abort("obsf_addCloudParametersAndEmissivity: Only BURP or SQLITE observational files supported.")
+        call utl_abort("obsf_addCloudParametersAndEmissivity: Only BURP, OBSDB and SQLITE observational files supported.")
       end if
     end do
 
