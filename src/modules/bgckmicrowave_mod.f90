@@ -40,6 +40,7 @@ module bgckmicrowave_mod
   real    :: mwbg_siQcOverIceThreshold
   real    :: mwbg_siQcOverWaterThreshold
   real    :: mwbg_siQcOverLandThreshold
+  real    :: mwbg_cloudySiThresholdBcorr
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
 
@@ -94,6 +95,7 @@ module bgckmicrowave_mod
   real                          :: siQcOverIceThreshold          ! scattering index over ice
   real                          :: siQcOverWaterThreshold        ! scattering index over water
   real                          :: siQcOverLandThreshold         ! scattering index over land
+  real                          :: cloudySiThresholdBcorr        !
   logical                       :: useUnbiasedObsForClw          !
   logical                       :: RESETQC                       ! reset Qc flags option
   logical                       :: modLSQ                        !
@@ -104,7 +106,7 @@ module bgckmicrowave_mod
                     useUnbiasedObsForClw, debug, RESETQC,  &
                     cloudyClwThresholdBcorr, modLSQ, &
                     siQcOverIceThreshold, siQcOverWaterThreshold, &
-                    siQcOverLandThreshold
+                    siQcOverLandThreshold, cloudySiThresholdBcorr
                     
 
 contains
@@ -127,6 +129,7 @@ contains
     siQcOverIceThreshold    = 40.0
     siQcOverWaterThreshold  = 15.0
     siQcOverLandThreshold   = 0.0
+    cloudySiThresholdBcorr  = 5
     RESETQC                 = .false.
     modLSQ                  = .false.
 
@@ -144,6 +147,7 @@ contains
     mwbg_siQcOverIceThreshold = siQcOverIceThreshold
     mwbg_siQcOverWaterThreshold = siQcOverWaterThreshold
     mwbg_siQcOverLandThreshold = siQcOverLandThreshold
+    mwbg_cloudySiThresholdBcorr = cloudySiThresholdBcorr
 
   end subroutine mwbg_init 
 
@@ -1130,21 +1134,28 @@ contains
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
     integer                                :: testIndex
+    integer                                :: channelval
     real                                   :: siObsFGaveraged
     real                                   :: siUsedForQC
     logical                                :: FULLREJCT
+    logical                                :: surfTypeIsSea 
 
     testIndex = 13
 
     do nDataIndex=1,KNT
       FULLREJCT = .FALSE.
+      surfTypeIsSea = .false.
+
       if (  KTERMER (nDataIndex) == 1  ) then
         if ( GLINTRP (nDataIndex) > 0.01 ) then ! sea ice 
           if (  scatwObs(nDataIndex) /= mwbg_realMissing    .and. &
                 scatwObs(nDataIndex) > mwbg_siQcOverIceThreshold  ) then
             FULLREJCT = .TRUE.
           end if
+
         else                                    ! sea 
+          surfTypeIsSea = .true.
+
           if ( tvs_mwAllskyAssim ) then
             siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
             siUsedForQC = siObsFGaveraged
@@ -1157,6 +1168,7 @@ contains
             FULLREJCT = .TRUE.
           end if
         end if
+
       else                                      ! land
         if (  SCATL(nDataIndex) /= mwbg_realMissing    .and. &
               SCATL(nDataIndex) > mwbg_siQcOverLandThreshold  ) then
@@ -1172,12 +1184,33 @@ contains
           rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) + 1
         end do
         if (mwbg_debug) then
-          write(*,*) 'BENNARTZ scattering index check REJECT. stnid=', STNID(2:9), &
-                     ', scatwObs=', scatwObs(nDataIndex), ', scatwFG=', scatwFG(nDataIndex), &
+          write(*,*)  STNID(2:9), ' BENNARTZ scattering index check REJECT, scatwObs=', &
+                      scatwObs(nDataIndex), ', scatwFG=', scatwFG(nDataIndex), &
                      ', SCATL= ',SCATL(nDataIndex)
         end if
       end if
+
+
+      if (tvs_mwAllskyAssim .and. surfTypeIsSea) then
+        siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
+
+        ! In all-sky mode, turn on bit=23 for cloud-affected radiances over sea
+        ! when there is mismatch between scatwObs and scatwFG
+        ! (to be used in gen_bias_corr)
+        if (siObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. &
+            siObsFGaveraged == mwbg_realMissing) then
+          do nChannelIndex = 1,KNO
+            KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**23)
     end do
+          if ( mwbg_debug ) then
+            write(*,*) STNID(2:9),' BENNARTZ scattering index check', &
+                      ' cloud-affected obs. siObsFGaveraged= ', siObsFGaveraged, ', threshold= ', &
+                      mwbg_cloudySiThresholdBcorr
+          end if
+        end if
+      end if
+
+    end do !do nDataIndex=1,KNT
 
   end subroutine amsubTest13BennartzScatteringIndexCheck
 
