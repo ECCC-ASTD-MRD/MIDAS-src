@@ -2351,7 +2351,7 @@ contains
     integer             :: medianIndex
 
     ! Locals:
-    integer :: indexVector, vectorDim
+    integer :: vectorIndex, vectorDim
     logical :: maskVector(size(inputVector))
     real(4) :: sortedArray(size(inputVector))
     real(4) :: median
@@ -2360,8 +2360,8 @@ contains
 
     ! sorting array:
     maskVector(:) = .true.
-    do indexVector = 1, vectorDim 
-      sortedArray(indexVector) = minval(inputVector, maskVector)
+    do vectorIndex = 1, vectorDim 
+      sortedArray(vectorIndex) = minval(inputVector, maskVector)
       maskVector(minloc(inputVector, maskVector)) = .false.
     end do
   
@@ -2371,9 +2371,9 @@ contains
       median = sortedArray((vectorDim + 1) / 2)
     end if
 
-    do indexVector = 1, vectorDim
-      if (inputVector(indexVector) == median) then
-        medianIndex = indexVector
+    do vectorIndex = 1, vectorDim
+      if (inputVector(vectorIndex) == median) then
+        medianIndex = vectorIndex
         exit
       end if
     end do
