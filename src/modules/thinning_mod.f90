@@ -7132,21 +7132,20 @@ contains
     ! Locals:
     integer :: nulnam
     integer :: fnom, fclos, ierr
-    integer, parameter :: maxNumDataSetSST = 10 ! maximum number of SST datasets 
-                                                ! considered in surface thinning
+    integer, parameter :: maxNumDataSetSST = 10 ! maximum number of SST datasets considered in surface thinning 
     integer :: dataSetSSTIndex, numberDataSetSST
 
     ! Namelist variables
     logical :: doThinning                             ! if false, we return immediately
     integer :: numTimesteps                           ! thinning number of timesteps
     integer :: deltmax                                ! maximum time difference (in minutes)
-    character(len=10) :: dataSetSST(maxNumDataSetSST) ! array of SST dataset names
-                                                      ! considered in thinning
+    character(len=10) :: dataSetSST(maxNumDataSetSST) ! array of SST dataset names considered in thinning
 
     namelist /thin_satSST/doThinning, numTimesteps, deltmax, dataSetSST
     
     ! set default values for namelist variables
     doThinning        = .false. 
+    numTimesteps      = 5
     deltmax           = 90      
     dataSetSST(:)     = ''
     
@@ -7261,7 +7260,7 @@ contains
       codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
       if (codeType /= codtyp_get_codtyp('satob')) cycle
 
-	if (obs_elem_c(obsData, 'STID' , headerIndex) == trim(dataSet)) then
+      if (trim(obs_elem_c(obsData, 'STID' , headerIndex)) == trim(dataSet)) then
         satSSTCount = satSSTCount + 1
         valid(headerIndex) = .true.
       end if
@@ -7327,7 +7326,7 @@ contains
       codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
       if (codeType /= codtyp_get_codtyp('satob')) cycle
 
-      if (obs_elem_c(obsData, 'STID' , headerIndex) == trim(dataSet)) then
+      if (trim(obs_elem_c(obsData, 'STID' , headerIndex)) == trim(dataSet)) then
 
         ! find time difference
         obsDate = obs_headElem_i(obsData, obs_dat, headerIndex)
@@ -7429,8 +7428,7 @@ contains
       end do
 
       ! Fill out vectors of data and header indexes inside each grid cell
-      dataGrid(:,:)%numObs = 0 ! to reuse it as a counter that should be differentiated 
-                               ! for each lat-lon cell
+      dataGrid(:,:)%numObs = 0 ! to reuse it as a counter that should be differentiated for each lat-lon cell
       do headerIndex = 1, numHeaderMaxMpi * mmpi_nprocs
         if (.not. validMpi(headerIndex)) cycle
         if (obsTimeIndexMpi(headerIndex) /= stepIndex) cycle
@@ -7490,7 +7488,7 @@ contains
       if (obsVarno /= bufr_sst) cycle
       codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
       if (codeType /= codtyp_get_codtyp('satob')) cycle
-      if (obs_elem_c(obsData, 'STID' , headerIndex) /= trim(dataSet)) cycle
+      if (trim(obs_elem_c(obsData, 'STID' , headerIndex)) /= trim(dataSet)) cycle
 
       if (.not. valid(headerIndex)) then
         obsFlag = obs_bodyElem_i(obsData, obs_flg, bodyIndex)
