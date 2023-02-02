@@ -7201,7 +7201,8 @@ contains
     !:Purpose: thinning satellite SST data by grid cells.
     !          Set bit 11 of obs_flg on observations that are to be rejected.
     !          The algorithm consists in keeping median satellite SST data
-    !          within one grid cell provided in the file analysisgrid_thinning_satSST.
+    !          within one grid cell.
+    !          The grid is provided in the input file analysisgrid_thinning_satSST.
     !
     implicit none
 
@@ -7213,29 +7214,24 @@ contains
 
     ! Locals:
     type(struct_hco), pointer :: hco_thinning
-    integer :: nsize, headerIndexBeg, headerIndexEnd
+    integer :: headerIndexBeg, headerIndexEnd
     integer :: ierr, lonIndex, latIndex, stepIndex, codeType
     integer :: obsLonIndex, obsLatIndex, obsStepIndex
     integer :: numHeader, numHeaderMaxMpi, headerIndex, bodyIndex
     integer :: satSSTCount, satSSTCountMpi
-    integer :: obsFlag, obsVarno, obsDate, obsTime, countObs, countObsMpi
+    integer :: obsFlag, obsVarno, obsDate, obsTime
     real(8) :: delMinutes, obsStepIndex_r8
     real(8) :: obsLon, obsLat
     real(8) :: deltaLon, deltaLat, deltaLatCell, deltaLonCell
     real(4), allocatable :: lonGrid(:), latGrid(:)
-    integer, allocatable :: rejectCount(:), rejectCountMpi(:)
     logical, allocatable :: valid(:), validMpi(:)
-    integer, allocatable :: obsLatIndexVec(:), obsLonIndexVec(:)
+    integer, allocatable :: obsLonIndexVec(:), obsLonIndexMpi(:)
+    integer, allocatable :: obsLatIndexVec(:), obsLatIndexMpi(:) 
     integer, allocatable :: obsTimeIndexVec(:), obsTimeIndexMpi(:)
-    integer, allocatable :: obsLatIndexMpi(:), obsLonIndexMpi(:)
     real(4), allocatable :: obsDistance(:), obsDistanceMpi(:)
     real(4), allocatable :: obsSST(:), obsSSTMpi(:)
     real(4), allocatable :: sizeGridCell(:), sizeGridCellMpi(:)
-    real(4)              :: median
     integer              :: medianIndex
-    real(4), allocatable :: vectorDataIn1gridCell(:) ! vector of data in one grid cell
-                                                     ! where a median is computed
-    integer, allocatable :: headerIndexesInCell(:)   ! header indexes in a given grid cell 
     logical              :: llok
     type countSatSSTdataType
       integer              :: numObs         ! number of data inside each grid cell
@@ -7245,12 +7241,11 @@ contains
     type(countSatSSTdataType), allocatable :: dataGrid(:,:) ! for each lon/lat of the grid
 
     write(*,*)
-    write(*,*) 'thn_satelliteSSTByGridCell: Starting satellite SST thinning for sensor: ', dataSet
+    write(*,*) 'thn_satelliteSSTByGridCell: Starting satellite SST data thinning for sensor: ', trim(dataSet)
     write(*,*)
 
     numHeader = obs_numHeader(obsData)
-    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', &
-                            'mpi_max','grid',ierr)
+    call rpn_comm_allReduce(numHeader, numHeaderMaxMpi, 1, 'mpi_integer', 'mpi_max','grid',ierr)
 
     allocate(valid(numHeaderMaxMpi))
     valid(:) = .false.
@@ -7266,7 +7261,7 @@ contains
       codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
       if (codeType /= codtyp_get_codtyp('satob')) cycle
 
-      if (obs_elem_c(obsData, 'STID' , headerIndex) == dataSet) then
+	if (obs_elem_c(obsData, 'STID' , headerIndex) == trim(dataSet)) then
         satSSTCount = satSSTCount + 1
         valid(headerIndex) = .true.
       end if
@@ -7275,24 +7270,19 @@ contains
 
     ! Return if no satellite SST obs to thin
     allocate(validMpi(numHeaderMaxMpi * mmpi_nprocs))
-    nsize = numHeaderMaxMpi
-    call rpn_comm_allgather(valid,    nsize, 'mpi_logical',  &
-                            validMpi, nsize, 'mpi_logical', 'grid', ierr)
+    call rpn_comm_allgather(valid,    numHeaderMaxMpi, 'mpi_logical',  &
+                            validMpi, numHeaderMaxMpi, 'mpi_logical', 'grid', ierr)
     if (count(validMpi(:)) == 0) then
-      write(*,*) 'thn_satelliteSSTByGridCell: no satellite SST dataSet ', dataSet,' observations present'
+      write(*,*) 'thn_satelliteSSTByGridCell: no ', trim(dataSet), ' SST data present'
       return
     end if
 
-    write(*,*) 'thn_satelliteSSTByGridCell: ', dataSet, ': numHeader, numHeaderMaxMpi: ', &
+    write(*,*) 'thn_satelliteSSTByGridCell: ', trim(dataSet), ': numHeader, numHeaderMaxMpi: ', &
                numHeader, numHeaderMaxMpi
 
-    countObs = count(valid(:))
-    call rpn_comm_allReduce(countObs, countObsMpi, 1, 'mpi_integer', 'mpi_sum','grid', ierr)
-    write(*,*) 'thn_satelliteSSTByGridCell: ', dataSet,': number of obs initial: ', countObs, countObsMpi
-    call rpn_comm_allReduce(satSSTCount, satSSTCountMpi, 4, 'mpi_integer', &
-                            'mpi_sum','grid', ierr)
-    write(*,*) 'thn_satelliteSSTByGridCell: ', dataSet,': satSSTCount: ', satSSTCount, satSSTCountMpi
-    write(*,*) 'thn_satelliteSSTByGridCell: number of thinning timesteps: ', numTimesteps
+    call rpn_comm_allReduce(satSSTCount, satSSTCountMpi, 4, 'mpi_integer', 'mpi_sum','grid', ierr)
+    write(*,*) 'thn_satelliteSSTByGridCell: ', trim(dataSet),' data: total number of initial data: ', satSSTCountMpi
+    write(*,*) 'thn_satelliteSSTByGridCell: ', trim(dataSet),' data: number of thinning timesteps: ', numTimesteps
 
     ! Setup horizontal thinning grid
     nullify(hco_thinning)
@@ -7305,27 +7295,22 @@ contains
     latGrid(:) = hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8
 
     ! Allocate vectors
-    allocate(rejectCount(tim_nstepObs))
     allocate(obsLatIndexVec(numHeaderMaxMpi))
     allocate(obsLonIndexVec(numHeaderMaxMpi))
     allocate(obsTimeIndexVec(numHeaderMaxMpi))
     allocate(obsDistance(numHeaderMaxMpi))
     allocate(sizeGridCell(numHeaderMaxMpi))
     allocate(obsSST(numHeaderMaxMpi))
-    allocate(vectorDataIn1gridCell(numHeaderMaxMpi))
 
     ! Allocate mpi global vectors
-    allocate(rejectCountMpi(tim_nstepObs))
     allocate(obsLatIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
     allocate(obsLonIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
     allocate(obsTimeIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
     allocate(obsDistanceMpi(numHeaderMaxMpi * mmpi_nprocs))
     allocate(sizeGridCellMpi(numHeaderMaxMpi * mmpi_nprocs))
     allocate(obsSSTMpi(numHeaderMaxMpi * mmpi_nprocs))
-    allocate(headerIndexesInCell(numHeaderMaxMpi * mmpi_nprocs))
 
     ! Initialize vectors
-    rejectCount(:) = 0
     obsLatIndexVec(:) = 0
     obsLonIndexVec(:) = 0
     obsTimeIndexVec(:) = 0
@@ -7342,7 +7327,7 @@ contains
       codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
       if (codeType /= codtyp_get_codtyp('satob')) cycle
 
-      if (obs_elem_c(obsData, 'STID' , headerIndex) == dataSet) then
+      if (obs_elem_c(obsData, 'STID' , headerIndex) == trim(dataSet)) then
 
         ! find time difference
         obsDate = obs_headElem_i(obsData, obs_dat, headerIndex)
@@ -7359,7 +7344,6 @@ contains
         ! check time window
         if (delMinutes > deltmax) then
           valid(headerIndex) = .false.
-          rejectCount(obsStepIndex) = rejectCount(obsStepIndex) + 1
         end if
 
         obsFlag  = obs_bodyElem_i(obsData, obs_flg, bodyIndex)
@@ -7404,41 +7388,27 @@ contains
       end if
     end do HEADER
 
-    call rpn_comm_allReduce(rejectCount, rejectCountMpi, numTimesteps, 'mpi_integer', &
-                            'mpi_sum','grid', ierr)
-
-    write(*,*)
-    write(*,'(a50,i10)') ' Total number of obs = ', satSSTCountMpi
-    write(*,*)
-    do stepIndex = 1, numTimesteps
-      write(*,'(a50,3i10)')' Number of rejects for bin = ', stepIndex, rejectCount(stepIndex), rejectCountMpi(stepIndex)
-    end do
-    write(*,'(a50,i10)')' Total number of rejects = ', sum(rejectCountMpi(:))
-    write(*,*)
-
     ! Make all inputs to the following tests mpiglobal
-    nsize = numHeaderMaxMpi
-    call rpn_comm_allgather(valid          , nsize, 'mpi_logical',  &
-                            validMpi       , nsize, 'mpi_logical', 'grid', ierr)
-    call rpn_comm_allgather(obsLatIndexVec , nsize, 'mpi_integer',  &
-                            obsLatIndexMpi , nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(obsLonIndexVec , nsize, 'mpi_integer',  &
-                            obsLonIndexMpi , nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(obsTimeIndexVec, nsize, 'mpi_integer',  &
-                            obsTimeIndexMpi, nsize, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(obsDistance    , nsize, 'mpi_real4'  ,  &
-                            obsDistanceMpi , nsize, 'mpi_real4'  , 'grid', ierr)
-    call rpn_comm_allgather(obsSST         , nsize, 'mpi_real4'  ,  &
-                            obsSSTMpi      , nsize, 'mpi_real4'  , 'grid', ierr)
-    call rpn_comm_allgather(sizeGridCell   , nsize, 'mpi_real4'  ,  &
-                            sizeGridCellMpi, nsize, 'mpi_real4'  , 'grid', ierr)
+    call rpn_comm_allgather(valid          , numHeaderMaxMpi, 'mpi_logical',  &
+                            validMpi       , numHeaderMaxMpi, 'mpi_logical', 'grid', ierr)
+    call rpn_comm_allgather(obsLatIndexVec , numHeaderMaxMpi, 'mpi_integer',  &
+                            obsLatIndexMpi , numHeaderMaxMpi, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsLonIndexVec , numHeaderMaxMpi, 'mpi_integer',  &
+                            obsLonIndexMpi , numHeaderMaxMpi, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsTimeIndexVec, numHeaderMaxMpi, 'mpi_integer',  &
+                            obsTimeIndexMpi, numHeaderMaxMpi, 'mpi_integer', 'grid', ierr)
+    call rpn_comm_allgather(obsDistance    , numHeaderMaxMpi, 'mpi_real4'  ,  &
+                            obsDistanceMpi , numHeaderMaxMpi, 'mpi_real4'  , 'grid', ierr)
+    call rpn_comm_allgather(obsSST         , numHeaderMaxMpi, 'mpi_real4'  ,  &
+                            obsSSTMpi      , numHeaderMaxMpi, 'mpi_real4'  , 'grid', ierr)
+    call rpn_comm_allgather(sizeGridCell   , numHeaderMaxMpi, 'mpi_real4'  ,  &
+                            sizeGridCellMpi, numHeaderMaxMpi, 'mpi_real4'  , 'grid', ierr)
 
     allocate(dataGrid(hco_thinning%nj, hco_thinning%ni))
 
-    STEP: do stepIndex = 1, numTimesteps 
+    TIMESTEP: do stepIndex = 1, numTimesteps 
 
       dataGrid(:,:)%numObs = 0
-
       ! Computation of number of data inside each grid cell 
       do headerIndex = 1, numHeaderMaxMpi * mmpi_nprocs
         if (.not. validMpi(headerIndex)) cycle
@@ -7471,7 +7441,7 @@ contains
           dataGrid(latIndex, lonIndex)%dataVec(dataGrid(latIndex, lonIndex)%numObs) = obsSSTMpi(headerIndex)
           dataGrid(latIndex, lonIndex)%headerIndex(dataGrid(latIndex, lonIndex)%numObs) = headerIndex       
         else
-          ! reject due to being too far in time from middle of time step
+          ! reject due to being outside the current grid cell
           validMpi(headerIndex) = .false.
         end if
       end do
@@ -7479,12 +7449,10 @@ contains
       ! Compute median inside each grid cell 
       do lonIndex = 1, hco_thinning%ni
         do latIndex = 1, hco_thinning%nj
-
           if(dataGrid(latIndex, lonIndex)%numObs <= 1) cycle
           medianIndex = utl_medianIndex(dataGrid(latIndex, lonIndex)%dataVec(:))
           validMpi(dataGrid(latIndex, lonIndex)%headerIndex(:)) = .false.
           validMpi(dataGrid(latIndex, lonIndex)%headerIndex(medianIndex)) = .true.
-
         end do       
       end do
      
@@ -7496,7 +7464,7 @@ contains
         end do
       end do
 
-    end do  STEP
+    end do TIMESTEP
 
     ! Update local copy of valid from global mpi version
     headerIndexBeg = 1 + mmpi_myid * numHeaderMaxMpi
@@ -7506,9 +7474,10 @@ contains
     deallocate(dataGrid)
 
     write(*,*)
-    write(*,'(a50,i10)') ' Number of obs in  = ', satSSTCountMpi
-    write(*,'(a50,i10)') ' Number of obs out = ', count(validMpi(:))
-    write(*,'(a50,i10)') ' Number of obs not out = ', satSSTCountMpi - count(validMpi(:))
+    write(*,*) 'thn_satelliteSSTByGridCell: results for ', trim(dataSet), ' data ****************'
+    write(*,'(a30,i10)') ' Number of obs initially: ', satSSTCountMpi
+    write(*,'(a30,i10)') ' Number of obs kept     : ', count(validMpi(:))
+    write(*,'(a30,i10)') ' Number of obs rejected : ', satSSTCountMpi - count(validMpi(:))
     write(*,*)
 
     ! Modify the flags for rejected observations
@@ -7521,7 +7490,7 @@ contains
       if (obsVarno /= bufr_sst) cycle
       codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
       if (codeType /= codtyp_get_codtyp('satob')) cycle
-      if (obs_elem_c(obsData, 'STID' , headerIndex) /= dataSet) cycle
+      if (obs_elem_c(obsData, 'STID' , headerIndex) /= trim(dataSet)) cycle
 
       if (.not. valid(headerIndex)) then
         obsFlag = obs_bodyElem_i(obsData, obs_flg, bodyIndex)
@@ -7534,19 +7503,21 @@ contains
     deallocate(validMpi)
     deallocate(latGrid)
     deallocate(lonGrid)
-    deallocate(rejectCount)
     deallocate(obsTimeIndexVec)
-    deallocate(obsDistance)
-    deallocate(obsSST)
-    deallocate(rejectCountMpi)
-    deallocate(obsLatIndexMpi)
-    deallocate(obsLonIndexMpi)
     deallocate(obsTimeIndexMpi)
+    deallocate(obsDistance)
     deallocate(obsDistanceMpi)
+    deallocate(obsLatIndexVec)
+    deallocate(obsLatIndexMpi)
+    deallocate(obsLonIndexVec)
+    deallocate(obsLonIndexMpi)
+    deallocate(obsSST)
     deallocate(obsSSTMpi)
+    deallocate(sizeGridCell)
+    deallocate(sizeGridCellMpi)
 
     write(*,*)
-    write(*,*) 'thn_satelliteSSTByGridCell: Finished'
+    write(*,*) 'thn_satelliteSSTByGridCell: thinning for ', trim(dataSet) ,' data completed.'
     write(*,*)
 
   end subroutine thn_satelliteSSTByGridCell

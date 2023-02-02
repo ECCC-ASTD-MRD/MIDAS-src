@@ -2356,7 +2356,6 @@ contains
     real(4) :: sortedArray(size(inputVector))
     real(4) :: median
 
-
     vectorDim = size(inputVector)
 
     ! sorting array:
