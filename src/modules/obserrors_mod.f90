@@ -55,17 +55,17 @@ module obsErrors_mod
   public :: oer_ascatAnisOpenWater, oer_ascatAnisIce
   
  ! Temporary arrays for QC purpose
-  public :: oer_toverrst, oer_clwThreshArr, oer_tovutil
+  public :: oer_toverrst, oer_cloudPredictorThreshArr, oer_tovutil
   public :: oer_sigmaObsErr, oer_useStateDepSigmaObs 
   ! TOVS OBS ERRORS
   real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  real(8) :: clwThreshArr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  real(8) :: cloudPredictorThreshArr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   integer :: tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   logical :: useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   ! Temporary arrays for QC purpose
   real(8) :: oer_toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  real(8) :: oer_clwThreshArr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  real(8) :: oer_cloudPredictorThreshArr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: oer_sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: clearClwThresholdSigmaObsInflation(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: stateDepSigmaObsInflationCoeff(tvs_maxNumberOfSensors)
@@ -352,7 +352,7 @@ contains
     integer :: ICHNIN2(tvs_maxChannelNumber)
 
     real(8) :: TOVERRIN(tvs_maxChannelNumber,2,tvs_maxNumberOfSensors)
-    real(8) :: clwThreshArrInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+    real(8) :: cloudPredictorThreshArrInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
     real(8) :: sigmaObsErrInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
     real(8) :: tovsObsInflation(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(8) :: clearClwThresholdSigmaObsInflationInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
@@ -370,8 +370,8 @@ contains
     !
     TOVERRST(:,:) = 0.0D0
     TOVERRIN(:,:,:) = 0.0D0
-    clwThreshArr(:,:,:) = 0.0d0
-    clwThreshArrInput(:,:,:) = 0.0d0
+    cloudPredictorThreshArr(:,:,:) = 0.0d0
+    cloudPredictorThreshArrInput(:,:,:) = 0.0d0
     sigmaObsErr(:,:,:) = 0.0d0
     sigmaObsErrInput(:,:,:) = 0.0d0
     tovsObsInflation(:,:) = 0.0d0
@@ -503,7 +503,7 @@ contains
           ! If reading the old style stats_tovs_symmetricObsErr, then the all-sky parameters are available only for AMSUA.
           if (readOldSymmetricObsErrFile) then
             read(ILUTOV2,*) ICHNIN2(JI), &
-                  clwThreshArrInput(ICHNIN2(JI),JL,1), clwThreshArrInput(ICHNIN2(JI),JL,2), &
+                  cloudPredictorThreshArrInput(ICHNIN2(JI),JL,1), cloudPredictorThreshArrInput(ICHNIN2(JI),JL,2), &
                   sigmaObsErrInput(ICHNIN2(JI),JL,1), sigmaObsErrInput(ICHNIN2(JI),JL,2), &
                   useStateDepSigmaObsInput(ICHNIN2(JI),JL)
             if (CINSTR == "AMSUA") then
@@ -516,7 +516,7 @@ contains
             end if
           else
             read(ILUTOV2,*) ICHNIN2(JI), &
-                  clwThreshArrInput(ICHNIN2(JI),JL,1), clwThreshArrInput(ICHNIN2(JI),JL,2), &
+                  cloudPredictorThreshArrInput(ICHNIN2(JI),JL,1), cloudPredictorThreshArrInput(ICHNIN2(JI),JL,2), &
                   sigmaObsErrInput(ICHNIN2(JI),JL,1), sigmaObsErrInput(ICHNIN2(JI),JL,2), &
                   clearClwThresholdSigmaObsInflationInput(ICHNIN2(JI),JL), &
                   useStateDepSigmaObsInput(ICHNIN2(JI),JL)
@@ -559,7 +559,7 @@ contains
               ICHN(JI,JL) = ICHNIN(JI,JM)
 
               if (tvs_mwAllskyAssim) then
-                clwThreshArr(JI,JL,:) = clwThreshArrInput(JI,JM,:)
+                cloudPredictorThreshArr(JI,JL,:) = cloudPredictorThreshArrInput(JI,JM,:)
                 sigmaObsErr(JI,JL,:) = sigmaObsErrInput(JI,JM,:)
                 clearClwThresholdSigmaObsInflation(JI,JL) = &
                         clearClwThresholdSigmaObsInflationInput(JI,JM)
@@ -618,7 +618,7 @@ contains
           write(*,'(A,4(2X,A8),(1X,A9),(2X,A3))') 'Channel','clw1','clw2','sigmaO1','sigmaO2','anlErrInf','use'
           do JI = 1, NUMCHN(JL)
             write(*,'(I7,5(2X,F8.4),(2X,L3))') ICHN(JI,JL), &
-              clwThreshArr(ICHN(JI,JL),JL,1), clwThreshArr(ICHN(JI,JL),JL,2), &
+              cloudPredictorThreshArr(ICHN(JI,JL),JL,1), cloudPredictorThreshArr(ICHN(JI,JL),JL,2), &
               sigmaObsErr(ICHN(JI,JL),JL,1), sigmaObsErr(ICHN(JI,JL),JL,2), &
               clearClwThresholdSigmaObsInflation(ICHN(JI,JL),JL), &
               useStateDepSigmaObs(ICHN(JI,JL),JL)
@@ -646,7 +646,7 @@ contains
     !       --------------
     oer_toverrst(:,:) = toverrst(:,:)
     oer_tovutil (:,:) = tovutil(:,:)
-    oer_clwThreshArr(:,:,:) = clwThreshArr(:,:,:)
+    oer_cloudPredictorThreshArr(:,:,:) = cloudPredictorThreshArr(:,:,:)
     oer_sigmaObsErr(:,:,:) = sigmaObsErr(:,:,:)
     oer_useStateDepSigmaObs(:,:) = useStateDepSigmaObs(:,:)
 
@@ -1145,8 +1145,8 @@ contains
                     if (trim(obserrorMode) == 'bgck') then
                       sigmaObsErrUsed = 1.0d0
                     else
-                      clwThresh1 = clwThreshArr(channelNumber,sensorIndex,1)
-                      clwThresh2 = clwThreshArr(channelNumber,sensorIndex,2)
+                      clwThresh1 = cloudPredictorThreshArr(channelNumber,sensorIndex,1)
+                      clwThresh2 = cloudPredictorThreshArr(channelNumber,sensorIndex,2)
                       sigmaThresh1 = sigmaObsErr(channelNumber,sensorIndex,1)
                       sigmaThresh2 = sigmaObsErr(channelNumber,sensorIndex,2)
                       clwObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)

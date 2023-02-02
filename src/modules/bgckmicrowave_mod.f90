@@ -7122,7 +7122,7 @@ contains
       !###############################################################################
 
       if (instName == 'AMSUA') then
-        call mwbg_tovCheckAmsua(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+        call mwbg_tovCheckAmsua(oer_toverrst, oer_cloudPredictorThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
                                 oer_tovutil, landQualifierIndice,&
                                 obsChannels, obsTb, btClear, obsTbBiasCorr, &
                                 ompTb, qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
@@ -7142,7 +7142,7 @@ contains
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,       &
                                 atmScatteringIndexObs, atmScatteringIndexFG, burpFileSatId, RESETQC)
       else if (instName == 'ATMS') then
-        call mwbg_tovCheckAtms(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+        call mwbg_tovCheckAtms(oer_toverrst, oer_cloudPredictorThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
                                oer_tovutil, obsLatitude, obsLongitude,&
                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
                                obsQcFlag2, obsQcFlag1, &
