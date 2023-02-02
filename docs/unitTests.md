@@ -1,5 +1,134 @@
 # Advanced Unit Testing Topics
 
+## Test Driven Development in MIDAS
+Test-driven development (TDD) is a development process relying on the use of test
+cases being developped at the start of a development cycle (or at least before
+its end).
+This has many advantages.  First it allows to clearly define a priori the
+objectives of a given development, but maybe more importantly it implies that we
+develop and maintain a suite of tests that reduce the risk of braking something
+while adding or modifying an existing feature.
+
+It also allows for verification after each incremental modifications or refactoring
+steps allowing for easier flushing out of error before it gets entangled in
+important modifications in many parts of the code.
+
+The [MIDAS test suite](maestro/suites/midas_system_tests/config/Tests) is based on
+this development paradigm.
+
+### MIDAS Test Suite
+The MIDAS test suite is based on maestro module environment.  It instantiate the
+[`UnitTest` module](maestro/suites/midas_system_tests/modules/UnitTest) for each
+test case through a sequence of 4 tasks:
+  1. `get` : fetch the inputs from the reference path provided in the test
+     configuration 
+  2. `run` : submit the program to be tested with the provided configuration
+  3. `check` : fetch the expected results from the reference path and compare
+     them with the program outputs
+  4. `clean` : remove the work directories 
+If a task abort, the following one won't launch allowing the user to inspect the
+test state.
+
+## Building a Test
+### Appending to the Flow
+
+Edit [`maestro/suites/midas_system_tests/modules/Tests/flow.xml`](maestro/suites/midas_system_tests/modules/Tests/flow.xml)
+and add a `SUBMIT` for the new test
+```xml
+  <SUBMITS sub_name="${yourNewTest}"/>
+```
+Then add below the `FAMILLY` description.
+If there is only a single test, the description will contain only a single `UnitTest`
+instance `SUBMIT` elements
+```xml
+  <FAMILY  name="${yourNewTest}">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+```
+If you are creating more than one test (or adding a new one), then there will be
+many sub-`FAMILLY` element:
+```xml
+  <FAMILY  name="${yourNewTest}">
+    <FAMILLY name="testA">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <FAMILLY name="testB">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+  </FAMILY>
+```
+
+### Test Case Configuration
+In `maestro/suites/midas_system_tests/config/Tests/`, create a directory for your
+test configuration.
+If it is a single test, edit the test configuration at that same level, for instance
+```
+yourNewTest/
+yourNewTest.cfg
+```
+Then edit this configuration file and provide the basic `UnitTest` variable definitions
+(all the variables and default values can be consulted in the [`UnitTest` module definition](maestro/suites/midas_system_tests/modules/UnitTest/container.cfg))
+```sh
+UnitTest_run_namelist=${SEQ_EXP_HOME}/config/Tests/${yourNewTest}/nml
+UnitTest_run_exe=${ABS_DIR}/midas-${yourTestProgram}_${ORDENV_PLAT}-${MIDAS_version}.Abs
+
+UnitTest_mpiscript=var.sh 
+# most probably unless a test specific launch script is provided
+
+UnitTest_reference=${pathToReference}
+#    * by convention the leaf directory should be version number represented as
+#      four figures padded with 0 (such as `0001`)
+#    * when your TTD contribution will be merged back, this directory will be moved
+#      to a protected account (such as `~sanl000`).
+UnitTest_reference_update=${pathForUpdate}
+# the path where the _updated_ inputs and expected 
+# results would be placed if the task `update` was launched.
+
+UnitTest_maximum_execution_time=${expectedTime}
+```
+
+### Preparing Inputs
+The `get` task will fetch all `inputs*.ca` (`cmcarc` archives) from the directory
+pointed by `${UnitTest_reference}`.
+When creating a test (or modifying its inputs), assemble all the required 
+inputs and group them in different archives, for instance separating observations
+from trials or constants and so forth.
+To archive a group of files, the `cmcarc` program:
+```sh
+cmcarc -f ${UnitTest_reference}/inputs_group.ca -a file1 file2 ...
+```
+
+### Allocating Resources
+Maestro resources has also to be provided for each task in the test.
+Theses files are in `maestro/suites/midas_system_tests/resources/Tests/${yourNewTest}`
+and you should create (or copy from another test and adapt them):
+```
+${yourNewTest}/
+├── container.xml
+└── UnitTest
+    ├── check.xml
+    ├── clean.xml
+    ├── container.xml
+    ├── download.xml
+    ├── get.xml
+    ├── run.xml
+    └── update.xml
+```
+If there are multiple tests in the group, then each one of them will need that
+file tree of resource description.
+
+
+### Providing Expected Results
+Similar to inputs, results provided at the same path (`${UnitTest_reference}`) as
+archives named `results*.ca`.  They will be used by the task `check` to compare
+the outputs produced by the program tested and the ones expected by the test.
+
+
+---
+
 ## Interactive debugging
 
 You can debug interactively a MIDAS program by launching a job and
