@@ -54,7 +54,7 @@ program midas_adjointTest
   real(8), allocatable ::  controlVector2(:)
 
   integer :: get_max_rss, ierr, cvDim, nulnam, fnom, fclos
-  character(len=12) ::  test ! adjoint test type ('Bhi','Bens','advEns','advGSV','loc')
+  character(len=20) ::  test ! adjoint test type ('Bhi','Bens','advEns','advGSV','loc')
   NAMELIST /NAMADT/test
 
   call ver_printNameAndVersion('adjointTest','Various tests of adjoint codes')
@@ -267,7 +267,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd ('Bhi')
+    call checkAndOutputInnerProd
     
     deallocate(controlVector2)
     deallocate(controlVector1)
@@ -351,7 +351,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 
     ! Results
-    call checkInnerProd ('Bens')
+    call checkAndOutputInnerProd
     
     deallocate(controlVector2)
     deallocate(controlVector1)
@@ -487,7 +487,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd ('Loc')
+    call checkAndOutputInnerProd
     
     deallocate(controlVector2)
     deallocate(controlVector1)
@@ -629,7 +629,7 @@ contains
 !!$    write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 !!$    
 !!$    ! Results
-!!$    call checkInnerProd ('addMem')
+!!$    call checkAndOutputInnerProd
 !!$    
 !!$    call gsv_deallocate(statevector_LTx)
 !!$    call gsv_deallocate(statevector_y)
@@ -778,7 +778,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd ('advection')
+    call checkAndOutputInnerProd
 
     call gsv_deallocate(statevector_x)
     call gsv_deallocate(statevector_Ly)
@@ -910,7 +910,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd ('advection')
+    call checkAndOutputInnerProd
 
     call gsv_deallocate(statevector_x)
     call gsv_deallocate(statevector_Ly)
@@ -945,21 +945,32 @@ contains
   !--------------------------------------------------------------------------
   !- Inner product comparison
   !--------------------------------------------------------------------------
-  subroutine checkInnerProd (testName)
+  subroutine checkAndOutputInnerProd()
     implicit none
-    character(len=*) :: testName
+
+    integer :: fun
 
     if ( mmpi_myid == 0 ) then
+      open(newunit=fun, file="innerProd.txt", status="new", action="write")
+      write(fun,'(A20)') test
+      write(fun, '(G23.16)') innerProduct1_global
+      write(fun, '(G23.16)') innerProduct2_global
+      write(fun, '(G23.16)') innerProduct2_global-innerProduct1_global
       write(*,*)
       if ( innerProduct2_global + innerProduct1_global /= 0.d0 ) then
-        write(*,'(A20,1X,A,1X,G23.16)') testName, ": InnerProd Difference(%) = ", &
+        write(fun, '(G23.16,A1)') 100.d0 * (abs(innerProduct2_global-innerProduct1_global) &
+                                          /(0.5d0*(innerProduct2_global+innerProduct1_global)) ), &
+                                  '%'
+        write(*,'(A20,1X,A,1X,G23.16)') test, ": InnerProd Difference(%) = ", &
              100.d0 * (abs(innerProduct2_global-innerProduct1_global) / &
              (0.5d0*(innerProduct2_global+innerProduct1_global)) )
       else
+        write(fun, '(A23)') 'InnerProduct = 0 ERROR'
         write(*,*) 'InnerProduct = 0 !!! Obviously, something went wrong...'
       end if
+      close(fun)
     end if
 
-  end subroutine checkInnerProd
+  end subroutine checkAndOutputInnerProd
 
 end program midas_adjointTest
