@@ -1004,7 +1004,7 @@ contains
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**7)
             rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
             rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
-            if (DEBUG) then
+            if (mwbg_debug) then
               WRITE(6,*)STNID(2:9),' DRYNESS INDEX REJECT.',        &
                        'CHANNEL=', KCANO(nChannelIndex,nDataIndex), &
                        'INDEX= ',drynessIndex
@@ -1016,7 +1016,7 @@ contains
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**7)
             rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) =  &
             rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
-            if (DEBUG) then
+            if (mwbg_debug) then
               WRITE(6,*)STNID(2:9),' DRYNESS INDEX REJECT.',       &
                       'CHANNEL=', KCANO(nChannelIndex,nDataIndex),&
                       'INDEX= ',drynessIndex
@@ -1028,7 +1028,7 @@ contains
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**7)
             rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
             rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT)+ 1
-            if (DEBUG) then
+            if (mwbg_debug) then
               WRITE(6,*)STNID(2:9),' DRYNESS INDEX REJECT.',       &
                        'CHANNEL=', KCANO(nChannelIndex,nDataIndex),&
                        'INDEX= ',drynessIndex
@@ -1139,14 +1139,12 @@ contains
     do nDataIndex=1,KNT
       FULLREJCT = .FALSE.
       if (  KTERMER (nDataIndex) == 1  ) then
-        if ( GLINTRP (nDataIndex) > 0.01 ) then
-          !     sea ice 
+        if ( GLINTRP (nDataIndex) > 0.01 ) then ! sea ice 
           if (  scatwObs(nDataIndex) /= mwbg_realMissing    .and. &
                 scatwObs(nDataIndex) > mwbg_siQcOverIceThreshold  ) then
             FULLREJCT = .TRUE.
           end if
-          !       sea 
-        else
+        else                                    ! sea 
           if ( tvs_mwAllskyAssim ) then
             siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
             siUsedForQC = siObsFGaveraged
@@ -1159,8 +1157,7 @@ contains
             FULLREJCT = .TRUE.
           end if
         end if
-      else
-        !    land   
+      else                                      ! land
         if (  SCATL(nDataIndex) /= mwbg_realMissing    .and. &
               SCATL(nDataIndex) > mwbg_siQcOverLandThreshold  ) then
           FULLREJCT = .TRUE.
@@ -1174,7 +1171,7 @@ contains
           rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) = &
           rejectionCodArray(testIndex,KCANO(nChannelIndex,nDataIndex),KNOSAT) + 1
         end do
-        if (DEBUG) then
+        if (mwbg_debug) then
           write(*,*) 'BENNARTZ scattering index check REJECT. stnid=', STNID(2:9), &
                      ', scatwObs=', scatwObs(nDataIndex), ', scatwFG=', scatwFG(nDataIndex), &
                      ', SCATL= ',SCATL(nDataIndex)
@@ -2444,9 +2441,7 @@ contains
     
     integer                              :: dataNum 
     integer                              :: dataIndex
-    logical                              :: debug
 
-    debug = mwbg_debug
     dataNum = size(globMarq)
     do dataIndex = 1, dataNum
       if (RESETQC) then
@@ -2456,7 +2451,7 @@ contains
         globMarq(dataIndex) = OR (globMarq(dataIndex),2**6)
       end if
     end do
-    if (debug) then
+    if (mwbg_debug) then
       write(*,*) ' KCHKPRF   = ', (KCHKPRF(dataIndex),dataIndex=1,dataNum)
       write(*,*) ' NEW FLAGS = ', (globMarq(dataIndex),dataIndex=1,dataNum)
     end if
@@ -2482,9 +2477,7 @@ contains
     
     integer                              :: dataNum 
     integer                              :: dataIndex
-    logical                              :: debug
 
-    debug = mwbg_debug
     dataNum = size(ITERRAIN)
 
     if ( mwbg_debug ) then
@@ -4135,7 +4128,6 @@ contains
     integer                  ::  gdllsval
     integer                  :: IUNGEO
     logical                  :: readGlaceMask
-    logical                  :: debug
     integer                  :: ier, irec
     integer                  :: ezqkdef, ezsetopt
     integer                  :: FSTINF,FSTPRM,FCLOS
@@ -4183,7 +4175,6 @@ contains
     end if
 
     ! STEP 1: READ MT, GL and MG from the FST FILE
-    debug = mwbg_debug
     readGlaceMask = .True.
     if (instName == 'ATMS') readGlaceMask = .False.
     if(ifFirstCall) then
@@ -4325,7 +4316,7 @@ contains
     if(allocated(GLINTRP)) deallocate(GLINTRP)
     allocate (GLINTRP(dataNum) , STAT=ier)
     do dataIndex = 1, dataNum
-      if (DEBUG) then
+      if (mwbg_debug) then
         print *, ' ------------------  '
         print *, ' dataIndex = ', dataIndex
         print *, '   '
@@ -4352,7 +4343,7 @@ contains
           GLINTRP(dataIndex) = MAX(GLINTRP(dataIndex),GLINTBOX(boxPointIndex,dataIndex))
         end if
       end do
-      if (DEBUG) then
+      if (mwbg_debug) then
         print *, ' MGINTRP = ', MGINTRP(dataIndex)
         print *, ' MTINTRP = ', MTINTRP(dataIndex)
         print *, ' GLINTRP = ', GLINTRP(dataIndex)
