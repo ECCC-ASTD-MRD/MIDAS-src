@@ -7166,7 +7166,9 @@ contains
       write(*,*) 'thn_thinSatSST: Namelist block thin_satSST is missing in the namelist.'
       write(*,*) '                The default value will be taken.'
       if (mmpi_myid == 0) write(*, nml = thin_satSST)
-    end if    
+    end if 
+       
+    if (.not. doThinning) return
 
     numberDataSetSST = 0
     do dataSetSSTIndex = 1, maxNumDataSetSST
@@ -7181,8 +7183,6 @@ contains
         write(*,'(i5,a)') dataSetSSTIndex, trim(dataSetSST(dataSetSSTIndex))
       end do
     end if
-
-    if (.not. doThinning) return
 
     call utl_tmg_start(114,'--ObsThinning')
     do dataSetSSTIndex = 1, numberDataSetSST
@@ -7264,7 +7264,6 @@ contains
         satSSTCount = satSSTCount + 1
         valid(headerIndex) = .true.
       end if
-
     end do
 
     ! Return if no satellite SST obs to thin
@@ -7325,66 +7324,62 @@ contains
       if (obsVarno /= bufr_sst) cycle
       codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
       if (codeType /= codtyp_get_codtyp('satob')) cycle
+      if (trim(obs_elem_c(obsData, 'STID' , headerIndex)) /= trim(dataSet)) cycle
 
-      if (trim(obs_elem_c(obsData, 'STID' , headerIndex)) == trim(dataSet)) then
+      ! find time difference
+      obsDate = obs_headElem_i(obsData, obs_dat, headerIndex)
+      obsTime = obs_headElem_i(obsData, obs_etm, headerIndex)
+      call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), obsDate, obsTime, numTimesteps)
+      obsStepIndex = nint(obsStepIndex_r8)
 
-        ! find time difference
-        obsDate = obs_headElem_i(obsData, obs_dat, headerIndex)
-        obsTime = obs_headElem_i(obsData, obs_etm, headerIndex)
-        call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), obsDate, obsTime, numTimesteps)
-        obsStepIndex = nint(obsStepIndex_r8)
-
-        if (numTimesteps == 1) then
-          delMinutes = abs(nint(60.0 * tim_windowsize * abs(real(obsStepIndex) - obsStepIndex_r8)))
-        else
-          delMinutes = abs(nint(60.0 * tim_windowsize / (numTimesteps - 1) * abs(real(obsStepIndex) - obsStepIndex_r8)))
-        end if
-
-        ! check time window
-        if (delMinutes > deltmax) then
-          valid(headerIndex) = .false.
-        end if
-
-        obsFlag  = obs_bodyElem_i(obsData, obs_flg, bodyIndex)
-        obsVarno = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
-
-        if (.not. btest(obsFlag, 9)) then
-
-          obsSST(headerIndex) = obs_bodyElem_r(obsData, obs_var, bodyIndex)
-
-          ! obs lat and lon in degrees
-          obsLon = obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-          obsLat = obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-          ! latitude index
-          deltaLat = abs(latGrid(1) - obsLat)
-          obsLatIndex = 1
-          do latIndex = 2, hco_thinning%nj
-            if (abs(latGrid(latIndex) - obsLat) < deltaLat) then
-              deltaLat     = abs(latGrid(latIndex) - obsLat)
-              deltaLatCell = abs(latGrid(latIndex) - latGrid(latIndex - 1))
-              obsLatIndex = latIndex
-            end if
-          end do
-
-          ! longitude index
-          deltaLon = abs(lonGrid(1) - obsLon)
-          obsLonIndex = 1
-          do lonIndex = 2, hco_thinning%ni
-            if (abs(lonGrid(lonIndex) - obsLon) < deltaLon) then
-              deltaLon     = abs(lonGrid(lonIndex) - obsLon)
-              deltaLonCell = abs(lonGrid(lonIndex) - lonGrid(lonIndex - 1))
-              obsLonIndex = lonIndex
-            end if
-          end do
-
-          obsLatIndexVec(headerIndex) = obsLatIndex
-          obsLonIndexVec(headerIndex) = obsLonIndex
-          obsTimeIndexVec(headerIndex) = obsStepIndex
-          obsDistance(headerIndex)  = sqrt(deltaLon**2 + deltaLat**2)
-          sizeGridCell(headerIndex) = sqrt(deltaLonCell**2 + deltaLatCell**2)
-
-        end if
+      if (numTimesteps == 1) then
+        delMinutes = abs(nint(60.0 * tim_windowsize * abs(real(obsStepIndex) - obsStepIndex_r8)))
+      else
+        delMinutes = abs(nint(60.0 * tim_windowsize / (numTimesteps - 1) * &
+	                                              abs(real(obsStepIndex) - obsStepIndex_r8)))
       end if
+
+      ! check time window
+      if (delMinutes > deltmax) valid(headerIndex) = .false.
+
+      obsFlag  = obs_bodyElem_i(obsData, obs_flg, bodyIndex)
+      obsVarno = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
+
+      if (btest(obsFlag, 9)) cycle
+
+      obsSST(headerIndex) = obs_bodyElem_r(obsData, obs_var, bodyIndex)
+
+      ! obs lat and lon in degrees
+      obsLon = obs_headElem_r(obsData, obs_lon, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+      obsLat = obs_headElem_r(obsData, obs_lat, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+      ! latitude index
+      deltaLat = abs(latGrid(1) - obsLat)
+      obsLatIndex = 1
+      do latIndex = 2, hco_thinning%nj
+        if (abs(latGrid(latIndex) - obsLat) < deltaLat) then
+          deltaLat     = abs(latGrid(latIndex) - obsLat)
+          deltaLatCell = abs(latGrid(latIndex) - latGrid(latIndex - 1))
+          obsLatIndex = latIndex
+        end if
+      end do
+
+      ! longitude index
+      deltaLon = abs(lonGrid(1) - obsLon)
+      obsLonIndex = 1
+      do lonIndex = 2, hco_thinning%ni
+        if (abs(lonGrid(lonIndex) - obsLon) < deltaLon) then
+          deltaLon     = abs(lonGrid(lonIndex) - obsLon)
+          deltaLonCell = abs(lonGrid(lonIndex) - lonGrid(lonIndex - 1))
+          obsLonIndex = lonIndex
+        end if
+      end do
+
+      obsLatIndexVec(headerIndex) = obsLatIndex
+      obsLonIndexVec(headerIndex) = obsLonIndex
+      obsTimeIndexVec(headerIndex) = obsStepIndex
+      obsDistance(headerIndex)  = sqrt(deltaLon**2 + deltaLat**2)
+      sizeGridCell(headerIndex) = sqrt(deltaLonCell**2 + deltaLatCell**2)
+
     end do HEADER
 
     ! Make all inputs to the following tests mpiglobal
@@ -7444,7 +7439,7 @@ contains
         end if
       end do
 
-      ! Compute median inside each grid cell 
+      ! Compute median inside each grid cell and keep only this observation, rejecting all the others 
       do lonIndex = 1, hco_thinning%ni
         do latIndex = 1, hco_thinning%nj
           if(dataGrid(latIndex, lonIndex)%numObs <= 1) cycle
