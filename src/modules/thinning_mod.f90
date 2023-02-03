@@ -7139,14 +7139,16 @@ contains
     logical :: doThinning                             ! if false, we return immediately
     integer :: numTimesteps                           ! thinning number of timesteps
     integer :: deltmax                                ! maximum time difference (in minutes)
+    real(4) :: fractionGridCell                       ! keep data only inside a fraction of the grid cell size
     character(len=10) :: dataSetSST(maxNumDataSetSST) ! array of SST dataset names considered in thinning
 
-    namelist /thin_satSST/doThinning, numTimesteps, deltmax, dataSetSST
+    namelist /thin_satSST/doThinning, numTimesteps, deltmax, fractionGridCell, dataSetSST
     
     ! set default values for namelist variables
     doThinning        = .false. 
     numTimesteps      = 5
     deltmax           = 90      
+    fractionGridCell  = 1.0
     dataSetSST(:)     = ''
     
     ! return if no SST obs
@@ -7186,7 +7188,8 @@ contains
 
     call utl_tmg_start(114,'--ObsThinning')
     do dataSetSSTIndex = 1, numberDataSetSST
-      call thn_satelliteSSTByGridCell(obsData, dataSetSST(dataSetSSTIndex), numTimesteps, deltmax)
+      call thn_satelliteSSTByGridCell(obsData, dataSetSST(dataSetSSTIndex), &
+                                      numTimesteps, deltmax, fractionGridCell)
     end do
     call utl_tmg_stop(114)
 
@@ -7195,7 +7198,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_satelliteSSTByGridCell
   !--------------------------------------------------------------------------
-  subroutine thn_satelliteSSTByGridCell(obsData, dataSet, numTimesteps, deltmax)
+  subroutine thn_satelliteSSTByGridCell(obsData, dataSet, numTimesteps, deltmax, fractionGridCell)
     !
     !:Purpose: thinning satellite SST data by grid cells.
     !          Set bit 11 of obs_flg on observations that are to be rejected.
@@ -7206,11 +7209,12 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_obs), intent(inout) :: obsData      ! obsSpace data object
-    character(len=*), intent(in)    :: dataSet      ! station ID (id_stn variable in SQLite obs.files)
-    integer,          intent(in)    :: numTimesteps ! thinning number of timesteps
-    integer,          intent(in)    :: deltmax      ! maximum time difference (in minutes)
-
+    type(struct_obs), intent(inout) :: obsData          ! obsSpace data object
+    character(len=*), intent(in)    :: dataSet          ! station ID (id_stn variable in SQLite obs.files)
+    integer         , intent(in)    :: numTimesteps     ! thinning number of timesteps
+    integer         , intent(in)    :: deltmax          ! maximum time difference (in minutes)
+    real(4)         , intent(in)    :: fractionGridCell ! between 0. and 1., keep data only inside a fraction of the grid cell size
+    
     ! Locals:
     type(struct_hco), pointer :: hco_thinning
     integer :: headerIndexBeg, headerIndexEnd
@@ -7222,16 +7226,15 @@ contains
     real(8) :: delMinutes, obsStepIndex_r8
     real(8) :: obsLon, obsLat
     real(8) :: deltaLon, deltaLat, deltaLatCell, deltaLonCell
+    real(4) :: obsDistance, sizeGridCell
+    integer :: medianIndex
+    logical :: llok
     real(4), allocatable :: lonGrid(:), latGrid(:)
     logical, allocatable :: valid(:), validMpi(:)
     integer, allocatable :: obsLonIndexVec(:), obsLonIndexMpi(:)
     integer, allocatable :: obsLatIndexVec(:), obsLatIndexMpi(:) 
     integer, allocatable :: obsTimeIndexVec(:), obsTimeIndexMpi(:)
-    real(4), allocatable :: obsDistance(:), obsDistanceMpi(:)
     real(4), allocatable :: obsSST(:), obsSSTMpi(:)
-    real(4), allocatable :: sizeGridCell(:), sizeGridCellMpi(:)
-    integer              :: medianIndex
-    logical              :: llok
     type countSatSSTdataType
       integer              :: numObs         ! number of data inside each grid cell
       real(4), allocatable :: dataVec(:)     ! vector of data inside each grid cell
@@ -7292,29 +7295,24 @@ contains
     allocate(latGrid(hco_thinning%nj))
     lonGrid(:) = hco_thinning%lon(:) * MPC_DEGREES_PER_RADIAN_R8
     latGrid(:) = hco_thinning%lat(:) * MPC_DEGREES_PER_RADIAN_R8
+    allocate(dataGrid(hco_thinning%nj, hco_thinning%ni))
 
     ! Allocate vectors
     allocate(obsLatIndexVec(numHeaderMaxMpi))
     allocate(obsLonIndexVec(numHeaderMaxMpi))
     allocate(obsTimeIndexVec(numHeaderMaxMpi))
-    allocate(obsDistance(numHeaderMaxMpi))
-    allocate(sizeGridCell(numHeaderMaxMpi))
     allocate(obsSST(numHeaderMaxMpi))
 
     ! Allocate mpi global vectors
     allocate(obsLatIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
     allocate(obsLonIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
     allocate(obsTimeIndexMpi(numHeaderMaxMpi * mmpi_nprocs))
-    allocate(obsDistanceMpi(numHeaderMaxMpi * mmpi_nprocs))
-    allocate(sizeGridCellMpi(numHeaderMaxMpi * mmpi_nprocs))
     allocate(obsSSTMpi(numHeaderMaxMpi * mmpi_nprocs))
 
     ! Initialize vectors
     obsLatIndexVec(:) = 0
     obsLonIndexVec(:) = 0
     obsTimeIndexVec(:) = 0
-    obsDistance(:) = 0.
-    sizeGridCell(:) = 0.
     obsSST(:) = 0.
 
     HEADER: do headerIndex = 1, numHeader      
@@ -7378,8 +7376,11 @@ contains
       obsLatIndexVec(headerIndex) = obsLatIndex
       obsLonIndexVec(headerIndex) = obsLonIndex
       obsTimeIndexVec(headerIndex) = obsStepIndex
-      obsDistance(headerIndex)  = sqrt(deltaLon**2 + deltaLat**2)
-      sizeGridCell(headerIndex) = sqrt(deltaLonCell**2 + deltaLatCell**2)
+      obsDistance  = sqrt(deltaLon**2 + deltaLat**2)
+      sizeGridCell = sqrt(deltaLonCell**2 + deltaLatCell**2)
+      
+      ! reject data that are farther than the given fraction of the size of grid cell
+      if (obsDistance > sizeGridCell * fractionGridCell) valid(headerIndex) = .false.
 
     end do HEADER
 
@@ -7392,14 +7393,8 @@ contains
                             obsLonIndexMpi , numHeaderMaxMpi, 'mpi_integer', 'grid', ierr)
     call rpn_comm_allgather(obsTimeIndexVec, numHeaderMaxMpi, 'mpi_integer',  &
                             obsTimeIndexMpi, numHeaderMaxMpi, 'mpi_integer', 'grid', ierr)
-    call rpn_comm_allgather(obsDistance    , numHeaderMaxMpi, 'mpi_real4'  ,  &
-                            obsDistanceMpi , numHeaderMaxMpi, 'mpi_real4'  , 'grid', ierr)
     call rpn_comm_allgather(obsSST         , numHeaderMaxMpi, 'mpi_real4'  ,  &
                             obsSSTMpi      , numHeaderMaxMpi, 'mpi_real4'  , 'grid', ierr)
-    call rpn_comm_allgather(sizeGridCell   , numHeaderMaxMpi, 'mpi_real4'  ,  &
-                            sizeGridCellMpi, numHeaderMaxMpi, 'mpi_real4'  , 'grid', ierr)
-
-    allocate(dataGrid(hco_thinning%nj, hco_thinning%ni))
 
     TIMESTEP: do stepIndex = 1, numTimesteps 
 
@@ -7410,9 +7405,7 @@ contains
         if (obsTimeIndexMpi(headerIndex) /= stepIndex) cycle
         latIndex = obsLatIndexMpi(headerIndex)
         lonIndex = obsLonIndexMpi(headerIndex)
-        if (obsDistanceMpi(headerIndex) < sizeGridCellMpi(headerIndex)) then
-          dataGrid(latIndex, lonIndex)%numObs = dataGrid(latIndex, lonIndex)%numObs + 1
-        end if
+        dataGrid(latIndex, lonIndex)%numObs = dataGrid(latIndex, lonIndex)%numObs + 1
       end do
      
       ! Allocation of vector data inside each grid cell
@@ -7430,11 +7423,9 @@ contains
         if (obsTimeIndexMpi(headerIndex) /= stepIndex) cycle
         latIndex = obsLatIndexMpi(headerIndex)
         lonIndex = obsLonIndexMpi(headerIndex)
-        if (obsDistanceMpi(headerIndex) < sizeGridCellMpi(headerIndex)) then
-          dataGrid(latIndex, lonIndex)%numObs = dataGrid(latIndex, lonIndex)%numObs + 1
-          dataGrid(latIndex, lonIndex)%dataVec(dataGrid(latIndex, lonIndex)%numObs) = obsSSTMpi(headerIndex)
-          dataGrid(latIndex, lonIndex)%headerIndex(dataGrid(latIndex, lonIndex)%numObs) = headerIndex       
-        end if
+        dataGrid(latIndex, lonIndex)%numObs = dataGrid(latIndex, lonIndex)%numObs + 1
+        dataGrid(latIndex, lonIndex)%dataVec(dataGrid(latIndex, lonIndex)%numObs) = obsSSTMpi(headerIndex)
+        dataGrid(latIndex, lonIndex)%headerIndex(dataGrid(latIndex, lonIndex)%numObs) = headerIndex       
       end do
 
       ! Compute median inside each grid cell and keep only this observation, rejecting all the others 
@@ -7496,16 +7487,12 @@ contains
     deallocate(lonGrid)
     deallocate(obsTimeIndexVec)
     deallocate(obsTimeIndexMpi)
-    deallocate(obsDistance)
-    deallocate(obsDistanceMpi)
     deallocate(obsLatIndexVec)
     deallocate(obsLatIndexMpi)
     deallocate(obsLonIndexVec)
     deallocate(obsLonIndexMpi)
     deallocate(obsSST)
     deallocate(obsSSTMpi)
-    deallocate(sizeGridCell)
-    deallocate(sizeGridCellMpi)
 
     write(*,*)
     write(*,*) 'thn_satelliteSSTByGridCell: thinning for ', trim(dataSet) ,' data completed.'

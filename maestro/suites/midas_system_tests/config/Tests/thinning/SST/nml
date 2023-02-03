@@ -5,10 +5,11 @@
    useBlackList  = .false.
 /
  &thin_satSST
-   doThinning    = .true.
-   numTimesteps  = 5
-   deltmax       = 720
-   dataSetSST(1) = 'N20'
+   doThinning       = .true.
+   numTimesteps     = 5
+   deltmax          = 720
+   fractionGridCell = 1.0
+   dataSetSST(1)    = 'N20'
 / 
  &NAMSTATE
   ANLVAR(1) = 'TM'
