@@ -42,15 +42,15 @@ program midas_thinning
   integer :: ierr, dateStamp
   integer :: get_max_rss
 
-  istamp = exdb('THINNING','DEBUT','NON')
+  istamp = exdb('THINNING', 'DEBUT', 'NON')
 
-  call ver_printNameAndVersion('thinning','Observation thinning')
+  call ver_printNameAndVersion('thinning', 'Observation thinning')
 
   ! MPI initilization
   call mmpi_initialize
 
   call tmg_init(mmpi_myid, 'TMG_INFO')
-  call utl_tmg_start(0,'Main')
+  call utl_tmg_start(0, 'Main')
 
   ! 1. Top level setup
 
@@ -61,27 +61,27 @@ program midas_thinning
   call utl_tmg_start(10,'--Observations')
 
   !- Initialize observation file names
-  call obsf_setup( dateStamp, 'thinning' )
+  call obsf_setup(dateStamp, 'thinning')
 
   !- Allocate obsSpaceData
   call obs_class_initialize('ALL')
-  call obs_initialize( obsSpaceData, mpi_local=.true. )
+  call obs_initialize(obsSpaceData, mpi_local = .true.)
 
   !- Setup obsFilter_mod
   call filt_setup('bgck')
 
   !- Read observations
   call utl_tmg_start(11,'----ReadObsFiles')
-  call obsf_readFiles( obsSpaceData )
+  call obsf_readFiles(obsSpaceData)
   call utl_tmg_stop(11)
 
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  write(*,*) 'Memory Used: ', get_max_rss() / 1024,'Mb'
 
   !- Initialize TOVS processing
-  if (obs_famExist( obsSpaceData, 'TO' )) call tvs_setup
+  if (obs_famExist(obsSpaceData, 'TO')) call tvs_setup
 
   !- Select the elements to "assimilate" and apply rejection flags
-  call filt_suprep( obsSpaceData )
+  call filt_suprep(obsSpaceData)
 
   call utl_tmg_stop(10)
 
@@ -98,12 +98,15 @@ program midas_thinning
   call thn_thinScat(obsSpaceData)
   call thn_thinSatWinds(obsSpaceData)
   call thn_thinAircraft(obsSpaceData)
-  call thn_thinSurface(obsSpaceData, 'SF') ! surface data thinning
-  call thn_thinSurface(obsSpaceData, 'TM') ! insitu SST thinning
+  call thn_thinSurface(obsSpaceData, 'SF') ! surface data thinning    
+  if (obs_famExist(obsSpaceData, 'TM')) then
+    call thn_thinSurface(obsSpaceData, 'TM') ! insitu SST thinning
+    call thn_thinSatSST(obsSpaceData)        ! satellite SST thinning
+  end if
   call thn_thinGbGps(obsSpaceData)
   call thn_thinGpsRo(obsSpaceData)
   call thn_thinAladin(obsSpaceData)
-  write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+  write(*,*) 'Memory Used: ',get_max_rss() / 1024,'Mb'
 
   if (obs_famExist( obsSpaceData, 'UA' )) then
     write(*,*) 'midas-thinning: WARNING: radiosonde observations found in obsSpaceData!'
@@ -120,7 +123,7 @@ program midas_thinning
 
   ! 4. Job termination
 
-  istamp = exfin('THINNING','FIN','NON')
+  istamp = exfin('THINNING', 'FIN', 'NON')
 
   !- deallocate obsSpaceData
   call obs_finalize(obsSpaceData)

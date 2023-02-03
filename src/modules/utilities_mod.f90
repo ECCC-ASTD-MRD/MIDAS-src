@@ -40,7 +40,7 @@ module utilities_mod
   public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt
-  public :: utl_tmg_start, utl_tmg_stop
+  public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
 
   ! module interfaces
   ! -----------------
@@ -2335,6 +2335,49 @@ contains
 
     call tmg_stop(blockIndex)
 
-  end subroutine utl_tmg_stop
+  end subroutine utl_tmg_stop  
+  
+  !--------------------------------------------------------------------------
+  ! utl_median
+  !--------------------------------------------------------------------------
+  function utl_medianIndex(inputVector) result(medianIndex)
+    ! 
+    !:Purpose: to find the median index of an input vector
+    !
+    implicit none
+    
+    ! Arguments:
+    real(4), intent(in) :: inputVector(:)
+    integer             :: medianIndex
+
+    ! Locals:
+    integer :: vectorIndex, vectorDim
+    logical :: maskVector(size(inputVector))
+    real(4) :: sortedArray(size(inputVector))
+    real(4) :: median
+
+    vectorDim = size(inputVector)
+
+    ! sorting array:
+    maskVector(:) = .true.
+    do vectorIndex = 1, vectorDim 
+      sortedArray(vectorIndex) = minval(inputVector, maskVector)
+      maskVector(minloc(inputVector, maskVector)) = .false.
+    end do
+  
+    if (mod(size(inputVector), 2) == 0) then
+      median = sortedArray(vectorDim / 2)
+    else
+      median = sortedArray((vectorDim + 1) / 2)
+    end if
+
+    do vectorIndex = 1, vectorDim
+      if (inputVector(vectorIndex) == median) then
+        medianIndex = vectorIndex
+        exit
+      end if
+    end do
+
+  end function utl_medianIndex
 
 end module utilities_mod
