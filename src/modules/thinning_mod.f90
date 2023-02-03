@@ -7318,12 +7318,12 @@ contains
     HEADER: do headerIndex = 1, numHeader      
       bodyIndex = obs_headElem_i(obsData, obs_rln, headerIndex)
       llok = (obs_bodyElem_i(obsData, obs_ass, bodyIndex) == obs_assimilated)
-      if (.not. llok) cycle
+      if (.not. llok) cycle HEADER
       obsVarno  = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
-      if (obsVarno /= bufr_sst) cycle
+      if (obsVarno /= bufr_sst) cycle HEADER
       codeType = obs_headElem_i(obsData, obs_ity, headerIndex)
-      if (codeType /= codtyp_get_codtyp('satob')) cycle
-      if (trim(obs_elem_c(obsData, 'STID' , headerIndex)) /= trim(dataSet)) cycle
+      if (codeType /= codtyp_get_codtyp('satob')) cycle HEADER
+      if (trim(obs_elem_c(obsData, 'STID' , headerIndex)) /= trim(dataSet)) cycle HEADER
 
       ! find time difference
       obsDate = obs_headElem_i(obsData, obs_dat, headerIndex)
@@ -7334,7 +7334,7 @@ contains
       ! reject observations that are outside the assimilation window
       if (obsStepIndex < 1 .or. obsStepIndex > numTimesteps) then
         valid(headerIndex) = .false.
-	cycle
+	cycle HEADER
       end if	
 
       if (numTimesteps == 1) then
@@ -7345,12 +7345,15 @@ contains
       end if
 
       ! check time window
-      if (delMinutes > deltmax) valid(headerIndex) = .false.
+      if (delMinutes > deltmax) then
+        valid(headerIndex) = .false.
+	cycle HEADER
+      end if	
 
       obsFlag  = obs_bodyElem_i(obsData, obs_flg, bodyIndex)
       obsVarno = obs_bodyElem_i(obsData, obs_vnm, bodyIndex)
 
-      if (btest(obsFlag, 9)) cycle
+      if (btest(obsFlag, 9)) cycle HEADER
 
       obsSST(headerIndex) = obs_bodyElem_r(obsData, obs_var, bodyIndex)
 
