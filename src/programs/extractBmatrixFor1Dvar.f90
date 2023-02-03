@@ -16,7 +16,37 @@
 
 program midas_extractBmatrixFor1Dvar
   !
-  ! :Purpose: Main program to extract B matrix for 1Dvar applications
+  !:Purpose: Main program to extract B matrix for 1Dvar applications
+  !
+  !
+  !          ---
+  !
+  !:Algorithm:
+  !
+  !            --
+  !
+  !:File I/O: The required input files and produced output files are listed as follows.
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files                          Description of file
+  !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``flnml_static``                               In - The "static" namelist that should not be modified
+  !============================================== ==============================================================
+  !
+  !           --
+  !
+  !:Synopsis: Below is a summary of the ``extractBmatrixFor1Dvar`` program calling sequence:
+  !    
+  !             - **Initial setups:**
+  !
+  !               - Read parameters from NAMEXTRACT namelist section
+  !
+  !               - setup temporal grid
+  !
+  !           --
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#extractBmatrixFor1Dvar>`_
+  !          that can affect the ``extractBmatrixFor1Dvar`` program.
   !
   use version_mod
   use midasMpi_mod

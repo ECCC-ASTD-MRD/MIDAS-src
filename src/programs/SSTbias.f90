@@ -30,8 +30,10 @@ program midas_sstBias
   !
   !            First, each dataset is put on a regular grid using a small 
   !            search radius (of ~25 km).
-  !            Second, colocated differences between satellite and insitu data
-  !            are computed using much larger search radius (of ~1500km).
+  !            Second, the bias estimation at every gridpoint is computed as
+  !            an average difference between satellite and insitu data
+  !            between all valid satellite and insitu data
+  !            within a larger search radius (of ~1500km).
   !            
   !            --
   !

@@ -16,8 +16,95 @@
 
 program midas_diagBmatrix
   !
-  ! :Purpose: Main program for computing diagnostics of the B and L matrices
+  !:Purpose: Program for computing diagnostics of the backgroud-error covariances (B) and
+  !          localization (L) matrices
   !
+  !          ---
+  !
+  !:Algorithm: The ``diagBmatrix`` program performs two different types of diagnostics
+  !            based on the namelist options.
+  !
+  !              - **Columns of B and L**: Allow to extract columns of B (the background-error covariances matrix)
+  !                                        which is a useful way to simulate single-observation experiments without
+  !                                        using real observations.
+  !                                        See e.g. Figs 5 and 6 in <https://doi.org/10.1175/MWR-D-18-0248.1>.
+  !                                        If localization is used, the corresponding columns of the localization
+  !                                        matrix (L) will be outputed.
+  !              - **Implied variances**:  Compute the variances resulting from an ensemble of random perturbations
+  !                                        generated from the provided B matrix, including hybrid covariances.
+  !                                        This allow to evaluate the impact of various choices in the design of B
+  !                                        on the modification to the variances of the ensemble of background-error
+  !                                        estimates used to derivate B, i.e. the "measured" variances.
+  !
+  !          ---
+  !
+  !============================================= ==============================================================
+  ! Input and Output Files                        Description of file
+  !============================================= ==============================================================
+  ! ``flnml``                                     In - Main namelist file with parameters user may modify
+  ! ``ensemble/$YYYYMMDDHH_$HHH_$NNNN``           In - Background ensemble member files
+  ! ``bgcov``                                     In - Bnmc matrix for the random perturbations
+  ! ``analysis_grid``                             In - Horizontal grid file on which the random perturbations
+  !                                                    are generated
+  ! ``columnB_$VAR_$YYYYMMDDHH.fst``              Out - Column of B
+  ! ``columnBnorm_$VAR_$YYYYMMDDHH.fst``          Out - Column of B normalize by the value at the pseudo-obs location
+  ! ``columnL_$YYYYMMDDHH.fst``                   Out - Column of L (only when ensemble-derived B is use) 
+  ! ``stddev_$YYYYMMDDHH.fst``                    Out - Implied variances
+  !============================================= ==============================================================
+  !
+  !            --
+  !
+  !:Synopsis: Below is a summary of the ``diagBmatrix`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Read the NAMDIAG namelist and check/modify some values.
+  !
+  !               - Setup horizontal and vertical grid objects from the provided template file (./analysisgrid)
+  !
+  !               - Various modules are setup: ``gridStateVector_mod``, ``timeCoord_mod`` and ``bmatrix_mod``
+  !
+  !             - **Columns of B and L:**
+  !
+  !               - Attribute time bin of the pseudo-obs based on the namelist option
+  !
+  !               - For each variables and prescribed pseudo-obs positions:
+  !                       1) create a Dirac delta distribution (zero everywhere except at obs location)
+  !                       2) apply B^(1/2)^T B^1/2 and output the results into a file
+  !                       3) normalize the results by the value at the pseudo-obs position
+  !                          and output to a file
+  !
+  !               - If bMatrixEnsemble_mod is activated, for each prescribed pseudo-obs positions:
+  !                       1) create a Dirac delta distribution
+  !                       2) apply L^(1/2)^T L^1/2 and output the results into a file
+  !
+  !             - **Implied variances:**
+  !
+  !               - For each member of the chosen random ensemble size:
+  !                       1) create a random control vector
+  !                       2) apply B^1/2
+  !                       3) store the resulting 3D state in randomEns
+  !
+  !               - Compute and remove the ensemble mean
+  !
+  !               - Compute the ensemble standard deviations at each grid point and output to a file
+  !
+  !               - Compute the zonal and domain mean standard deviations and output to the same file
+  !
+  !======================== ============ ==============================================================
+  ! Module                   Namelist     Description of what is controlled
+  !======================== ============ ==============================================================
+  ! ``timeCoord_mod``        ``NAMTIME``  assimilation time window length, temporal resolution of
+  !                                       the background state and increment
+  ! ``bMatrixEnsemble_mod``  ``NAMBEN``   weight and other parameters for ensemble-based B matrix
+  !                                       component
+  ! ``bMatrixHI_mod``        ``NAMBHI``   weight and other parameters for the climatological B matrix
+  !                                       component based on homogeneous-isotropic covariances
+  !                                       represented in spectral space
+  ! Other B matrix modules   various      weight and other parameters for each type of B matrix
+  !======================== ============ ==============================================================
+  !
+ 
   use version_mod
   use midasMpi_mod
   use controlVector_mod

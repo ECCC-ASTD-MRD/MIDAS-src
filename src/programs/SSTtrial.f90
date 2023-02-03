@@ -16,7 +16,7 @@
 
 program midas_sstTrial
   !
-  ! :Purpose: Main program to compute SST background state.
+  !:Purpose: Main program to compute SST background state.
   !
   !          ---
   !
@@ -41,11 +41,11 @@ program midas_sstTrial
   ! ``trial``                                                  Out - SST background (trial) field
   !=========================================================== ======================================================
   !
-  !           --
+  !            --
   !
   !:Synopsis: Below is a summary of the ``SSTtrial`` program calling sequence:
   !
-  !           - **Initial setups:**
+  !            - **Initial setups:**
   !
   !             - Setup horizontal and vertical grid objects for "analysis
   !               grid" from ``analysis``.
@@ -56,7 +56,7 @@ program midas_sstTrial
   !
   !             - Initialize datastamps from climatology file
   !
-  !           - **Computation**
+  !            - **Computation**
   !
   !             - ``obgd_getClimatology``: to read SST climatological fields from a standard file,
   !               to interpolate the field in time fot the current day :math:`t` in current month :math:`m` as follows   
@@ -65,21 +65,21 @@ program midas_sstTrial
   !
   !             - ``obgd_computeSSTrial``: to compute the background field and save it into a standard file
   !
-  !           --
+  !            --
   !
   !:Options: `List of namelist blocks <../namelists_in_each_program.html#SSTtrial>`_
   !          that can affect the ``SSTtrial`` program.
   !
-  !          * The use of ``SSTtrial`` program is controlled by the namelist block
-  !            ``&NAMSSTTRIAL`` read by the ``SSTtrial`` program.
-  !          * ``etiketAnalysis``: etiket to put into output standard file
+  !            * The use of ``SSTtrial`` program is controlled by the namelist block
+  !              ``&NAMSSTTRIAL`` read by the ``SSTtrial`` program.
+  !            * ``etiketAnalysis``: etiket to put into output standard file
   !
-  !          * ``datestampClim``: list of twelve datestamps of climatological fields
-  !            in the ``climatology`` file
+  !            * ``datestampClim``: list of twelve datestamps of climatological fields
+  !              in the ``climatology`` file
   !
-  !          * ``alphaClim``: a parameter defining the relaxation towards climatology.
+  !            * ``alphaClim``: a parameter defining the relaxation towards climatology.
   !
-  !           --
+  !            --
   !   
   !========================= ====================== ====================================
   ! Module                   Namelist               Description of what is controlled

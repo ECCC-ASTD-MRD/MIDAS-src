@@ -29,19 +29,24 @@ program midas_var1D
   !============================================== ==============================================================
   ! Input and Output Files (NWP application)        Description of file
   !============================================== ==============================================================
-  
   ! ``flnml``                                      In - Main namelist file with parameters user may modify
   ! ``flnml_static``                               In - The "static" namelist that should not be modified
   ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
   ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
   ! ``Bmatrix_sea.bin``                            In - 1DVar Bmatrix file over sea (output from extractBmatrixFor1DVar) 
   ! ``Bmatrix_land.bin``                           In - 1DVar Bmatrix file over land (output from extractBmatrixFor1DVar)
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
+  ! ``obscov``                                     In - Observation error statistics
+  ! ``obserr``                                     In - Observation error statistics
   ! ``rttov_h2o_limits.dat``                       In - minimum and maximum humidity profile to clip analysis
   ! ``pm1q``                                       In/Out - Preconditioning file (Hessian of the cost function)
+  ! ``rebm_$MMMm`` (e.g. ``rebm_180m``)            Out - Analysis increment on the (low-res) analysis grid
+  ! ``anlm_$MMMm``                                 Out - Analysis on Y grid on Y grid
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task 
   ! Remainder are files related to radiance obs:
-  ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
   ! ``stats_tovs``                                 In - Observation error file for radiances
   ! ``stats_tovs_symmetricObsErr``                 In - user-defined symmetric TOVS errors for all sky
+  ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
   ! ``rtcoef_$PLATFORM_$SENSOR.H5``                In - RTTOV coefficient file HDF-5 format 
   ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient file ASCII format 
   ! ``ozoneclim98``                                In - ozone climatology standard file (Fortuin and Kelder)
@@ -49,7 +54,85 @@ program midas_var1D
   !
   !           --
   !
-  !:Synopsis:
+  !:Synopsis: Below is a summary of the ``var1D`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Setup temporal grid
+  !
+  !               - Setup horizontal and vertical grid objects for "analysis
+  !                 grid" from ``analysisgrid`` file and for "trial grid" from
+  !                 first trial file: ``trlm_01``.
+  !
+  !               - Setup ``obsSpaceData`` object and read observations from
+  !                 files: ``inn_setupObs``.
+  !
+  !               - Setup ``columnData`` and ``gridStateVector`` modules (read
+  !                 list of analysis variables from namelist) and allocate column
+  !                 object for storing trial on analysis levels.
+  !
+  !               - Setup the observation error statistics in ``obsSpaceData``
+  !                 object: ``oer_setObsErrors``.
+  !
+  !               - Allocate a stateVector object on the trial grid and then
+  !                 read the trials: ``gio_readTrials``.
+  !
+  !               - Setup the 1DVar B matrix: ``bmat1D_bsetup``.
+  !
+  !               - Setup the ``gridVariableTransforms`` and ``minimization``
+  !                 modules.
+  !
+  !             - **Minimization:**
+  !
+  !               - Impose RTTOV humidity limits on  (initially the
+  !                 trial) on trial grid: ``qlim_rttovLimit``.
+  !
+  !               - Use the  on trial grid to setup the reference
+  !                 state used by ``gridVariableTransforms`` module for height
+  !                 calculations.
+  !
+  !               - Compute ``columnTrlOnTrlLev`` and ``columnTrlOnAnlIncLev`` from
+  !                 : ``inn_setupColumnsOnTrlLev``,
+  !                 ``inn_setupColumnsOnAnlIncLev``
+  !
+  !               - Compute innovation from :
+  !                 ``inn_computeInnovation``.
+  !
+  !               - Use the  on trial grid to setup the reference
+  !                 state used by ``gridVariableTransforms`` module for ``LQ``
+  !                 to ``HU`` calculations.
+  !
+  !               - Do the minimization for this outer loop iteration:
+  !                 ``min_minimize`` to obtain ``controlVectorIncr``.
+  !
+  !               - Update sum of all computed increment control vectors:
+  !                 ``controlVectorIncrSum(:)`` which is needed in the
+  !                 background cost function for outer loop.
+  !
+  !               - Compute ``stateVectorIncr`` (on analysis grid) from
+  !                 ``controlVectorIncr``: ``inc_getIncrement``.
+  !
+  !               - Interpolate and add ``stateVectorIncr`` to the updated
+  !                 state: ``inc_computeHighResAnalysis``.
+  !
+  !               - If requested, impose saturation and RTTOV humidity limits
+  !
+  !               - Write increment (or sum of increments when outer loop used)
+  !                 to file: ``inc_writeIncrement``.
+  !
+  !             - **Final steps:**
+  !
+  !               - If requested, compute final cost function value using
+  !                 non-linear observation operators.
+  !
+  !               - Write the final analysis and recomputed complete increment on
+  !                 the trial grid: ``inc_writeincAndAnalHighRes``.
+  !
+  !               - Various final steps, including: write the Hessian to binary
+  !                 file (``min_writeHessian``), update the observation files
+  !                 (``obsf_writeFiles``).
+  !
+  !           --
   !
   !
   !           --

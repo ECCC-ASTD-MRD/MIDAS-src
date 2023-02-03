@@ -20,39 +20,27 @@ program midas_obsimpact
   !
   !           ---
   !
-  !:Algorithm: FSOI is to partition, with respect to arbitrary subsets 
-  !            of observations, the forecast error reduction, defined as:
+  !:Algorithm: FSOI is to partition the forecast error reduction within the current system  
+  !            from assimilating the observations, defined as:
   !
   !             :math:`(e_{t}^{fa})^{T}*C*(e_{t}^{fa})-(e_{t}^{fb})^{T}*C*(e_{t}^{fb})`
   !
-  !            (within the current system) from assimilating these observations.
+  !             where :math:`e_{t}^{fa}=M(x_{0}^{a})-x_{t}^{a}`
+  !
+  !             :math:`e_{t}^{fb}=M(x_{0}^{b})-x_{t}^{a}`
+  !
+  !            and C is the energy norm. 
   !             
   !            --
   !
-  !            The hybrid FSOI approach (HFSO) is developed to suit 4D-EnVar 
-  !            without requiring an adjoint of the forecast model. It is 
-  !            similar to the standard adjoint approach as it uses an iterative
-  !            approach to represent the adjoint of the data assimilation
-  !            procedure, but relies on an ensemble of forecasts to propagate 
-  !            the impact between forecast and analysis times. In this way, the
-  !            impact of assimilated observations on 24h forecasts quality is
-  !            estimated by combining the impact of observations on the 
-  !            analysis increment (e.g. via the 4D-EnVar) and the impact of
-  !            analysis increments on reducing forecast errors.
-  !
-  !            --
+  !            In this program, there are the hybrid FSOI approach (HFSO) approach and
+  !            Ensemble Forecast Sensitivity to Observation (EFSO) approach developped 
+  !            for FSOI calculation.
   !
   !            More details on HFSO can be found in the paper: `HFSO approach <https://doi.org/10.1175/MWR-D-17-0252.1>`_
   !
   !            --
   !
-  !            Ensemble Forecast Sensitivity to Observation (EFSO) is an approach
-  !            for estimating the observation impacts in the ensemble-based data 
-  !            assimilation systeman. This approach is convenient and no need of 
-  !            adjoint of the forecast model. 
-  !            
-  !            --
-  ! 
   !            More details on EFSO can be found in the paper:`EFSO approach <http://doi.org/10.3402/tellusa.v65i0.20038>`_
   !
   !            --
@@ -79,6 +67,7 @@ program midas_obsimpact
   ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of difference sensors
   ! ``stats_tovs``                                 In - Satellite radiance observation errors 
   ! ``rtcoef_$PLATFORM_$SENSOR.**``                In - RTTOV coefficient files 
+  ! ``rttov_h2o_limits.dat``                       In - Min/Max humidity limits 
   ! ``stats_tovs_symmetricObsErr``                 In - user-defined symmetric TOVS errors for all sky
   ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
   !============================================== ====================================================================
@@ -143,23 +132,11 @@ program midas_obsimpact
   !
   !           --
   !
-  !:Options: `List of namelist blocks <../namelists_in_each_program.html#obsImpact>`_
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#obsimpact>`_
   !          that can affect the ``obsImpact`` program.
   !
   !          * The use of ``obsImpact`` program is controlled mainly by the namelist block
-  !            ``&NAMFSO`` read by the ``fso_mod`` module. Here are more details about the variables in ``&NAMFSO`` 
-  !
-  !          * ``LEADTIME``: the forecast leading time 
-  !
-  !          * ``NVAMAJ``, ``NITERMAX``, ``NSIMMAX``, ``REPSG``: variables for minimization 
-  !
-  !          * ``latMinNorm``, ``latMaxNorm``, ``lonMinNorm``, ``lonMaxNorm`` : define the domain of forecast errors
-  !
-  !          * ``FORCECASTPATH``: the path contains the forecasts from background and analysis and verifying analysis
-  !
-  !          * ``FSOMODE``:  use HFSO (hybrid FSOI) or EFSO (ensemble FSOI), default is HFSO
-  ! 
-  !          * ``includeHUnorm``: use wet norm or not, default value is dry norm 
+  !            ``&NAMFSO`` read by the ``fso_mod`` module. 
   ! 
   !          * Some of the other relevant namelist blocks used to configure FSOI
   !            are listed in the following table:
@@ -176,7 +153,6 @@ program midas_obsimpact
   ! ``bMatrixHI_mod``        ``NAMBHI``             weight and other parameters for the climatological B matrix
   !                                                 component based on homogeneous-isotropic covariances
   !                                                 represented in spectral space
-  ! ``obsFiles_mod``         ``NAMWRITEDIAG``       write out in SQLite file
   !========================= ====================== =============================================================
   !
   !

@@ -16,8 +16,93 @@
 
 program midas_gencoeff
   !
-  ! :Purpose: Main program to compute radiance bias correction coefficients by linear regression.
+  !:Purpose: Main program to compute radiance bias correction coefficients by linear regression.
   !
+  !          ---
+  !
+  !:Algorithm:    O-A are computed from input analysis fields resulting from a stand alone
+  !               3DVar analysis assimilating only anchoring observations (considered as "trials")
+  !               and bgckalt files. 
+  !         
+  !            --
+  !
+  !:File I/O: The required input files and produced output files are listed as follows.
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files (NWP application)        Description of file
+  !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``flnml_static``                               In - The "static" namelist that should not be modified
+  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
+  ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
+  ! Remainder are files related to radiance obs:
+  ! ``stats_tovs``                                 In - Observation error file for radiances
+  ! ``stats_tovs_symmetricObsErr``                 In - user-defined symmetric TOVS errors for all sky
+  ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
+  ! ``rtcoef_$PLATFORM_$SENSOR.H5``                In - RTTOV coefficient file HDF-5 format 
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient file ASCII format 
+  ! ``ozoneclim98``                                In - ozone climatology standard file (Fortuin and Kelder)
+  !============================================== ==============================================================
+  !
+  !           --
+  !
+  !:Synopsis: Below is a summary of the ``genCoeff`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Setup time grid using initial time from trlm_01
+  !
+  !               - Setup horizontal and vertical grid objects for "analysis
+  !                 grid" from ``analysisgrid`` file.
+  !
+  !               - Setup ``obsSpaceData`` object and read observations from
+  !                 files: ``inn_setupObs``.
+  !
+  !               - Setup ``columnData`` and ``gridStateVector`` modules (read
+  !                 list of analysis variables from namelist) and allocate column
+  !                 object for storing trial on analysis levels.
+  !
+  !               - Setup the observation error statistics in ``obsSpaceData``
+  !                 object: ``oer_setObsErrors``.
+  !
+  !               - Allocate a stateVector object on the trial grid and then
+  !                 read the trials: ``gio_readTrials``.
+  !
+  !             - **Coefficients computation**
+  !
+  !               - Horizontally Interpolate "trial" fields to trial columns
+  !
+  !               - if needed substract bias correction from ObsSpaceData to get raw O-F and obs.
+  !
+  !               - Remove outliers
+  !
+  !               - Compute innovation from "trial" fields
+  !
+  !               - Refresh Bias Correction (probably useless)
+  !
+  !               - Perform linear regression
+  !
+  !               - write coefficients to output file.
+  !
+  !               - if requested compute and output to file raw (.i.e without bias correction) O-F statistics
+  !
+  !               - compute and apply bias coorection to obsSpace Data
+  !
+  !               - if requested compute and output to file bias corrected O-F statistics
+  !
+  !             - **Final step**
+  !
+  !               - deallocate memory (radiance bias correction module and obsSpaceData)
+  !
+  !           --
+  !
+  !
+  !           --
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#genCoeff>`_
+  !          that can affect the ``genCoeff`` program.
+  !
+  
   use version_mod
   use codePrecision_mod
   use ramDisk_mod
@@ -117,7 +202,7 @@ program midas_gencoeff
   ! Write coefficients to file
   call bcs_writebias()
 
-  ! output O-F statistics befor bias coorection
+  ! output O-F statistics befor bias correction
   call bcs_computeResidualsStatistics(obsSpaceData,"_raw")
 
   ! fill OBS_BCOR with computed bias correction
@@ -195,7 +280,6 @@ contains
     !
     call gsv_setup
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
     !
     !- Initialize the Analysis grid
     !

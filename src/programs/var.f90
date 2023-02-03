@@ -91,8 +91,10 @@ program midas_var
   ! ``obserr``                                     In - Observation error statistics
   ! ``obsinfo_chm``                                In - Something needed for chemistry assimilation?
   ! ``preconin``                                   In - Preconditioning file (Hessian of the cost function)
-  ! ``rebm_$MMMm`` (e.g. ``rebm_180m``)            Out - Analysis increment on Y grid analysis grid
-  ! ``anlm_$MMMm``                                 Out - Analysis on Y grid
+  ! ``rebm_$MMMm`` (e.g. ``rebm_180m``)            Out - Analysis increment on the (low-res) analysis grid
+  ! ``rehm_$MMMm``                                 Out - Analysis increment on the (high-res) trial grid
+  ! ``anlm_$MMMm``                                 Out - Analysis on the trial grid
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
   ! Remainder are files related to radiance obs:
   ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of difference sensors
   ! ``stats_tovs``                                 In - Satellite radiance observation errors

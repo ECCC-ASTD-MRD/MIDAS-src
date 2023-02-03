@@ -31,6 +31,7 @@ program midas_ensDiagnostics
   !============================================== ==============================================================
   ! Input and Output Files                         Description of file
   !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
   ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Background ensemble member files
   ! ``imbalance.dat``                              Out - Second derivative of P0
   ! ``rainrate.dat``                               Out - Instant rain rates
