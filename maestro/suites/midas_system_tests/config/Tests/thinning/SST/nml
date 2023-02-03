@@ -8,7 +8,7 @@
    doThinning       = .true.
    numTimesteps     = 5
    deltmax          = 720
-   fractionGridCell = 1.0
+   fractionGridCell = 0.25
    dataSetSST(1)    = 'N20'
 / 
  &NAMSTATE
