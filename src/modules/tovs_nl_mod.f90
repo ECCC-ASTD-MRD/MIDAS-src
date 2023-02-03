@@ -641,12 +641,13 @@ contains
 
     implicit none
     ! Locals:
-    integer  sensorIndex, nsensors, ierr, nulnam
+    integer  sensorIndex, ierr, nulnam
     integer, external :: fclos, fnom
     integer :: instrumentIndex, numMWInstrumToUseCLW, numMWInstrumToUseHydrometeors
 
     ! Namelist variables: (local)
     character(len=8)  :: crtmodl
+    integer :: nsensors
     character(len=15) :: csatid(tvs_maxNumberOfSensors)
     character(len=15) :: cinstrumentid(tvs_maxNumberOfSensors)
     logical :: ldbgtov
