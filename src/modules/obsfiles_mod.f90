@@ -104,7 +104,11 @@ contains
     if ( obsFileType == 'BURP' ) then
       call brpf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
     else if ( obsFileType == 'SQLITE' ) then
-      call sqlf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+      if (odbf_isActive()) then
+        call odbf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+      else
+        call sqlf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+      end if
     else
       dateStamp_out = -1
     end if

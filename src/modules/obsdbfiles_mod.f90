@@ -37,7 +37,7 @@ module obsdbFiles_mod
   private
 
   ! Public subroutines and functions:
-  public :: odbf_isActive, odbf_readFile, odbf_updateFile, obdf_clean
+  public :: odbf_isActive, odbf_getDateStamp, odbf_readFile, odbf_updateFile, obdf_clean
 
   ! Arrays used to match obsDB column names with obsSpaceData column names
 
@@ -92,11 +92,57 @@ module obsdbFiles_mod
 contains
 
   !--------------------------------------------------------------------------
+  ! readNml
+  !--------------------------------------------------------------------------
+  subroutine readNml()
+    !
+    ! :Purpose: Read the namelist for obsDB files
+    !
+    implicit none
+
+    ! locals
+    integer            :: nulfile, ierr
+    integer, external  :: fnom, fclos
+    logical, save      :: alreadyRead = .false.
+
+    namelist /namobsdb/ obsDbActive, numElemIdList, elemIdList
+
+    if ( alreadyRead ) return
+
+    alreadyRead = .true.
+
+    ! default values
+    obsDbActive = .false.
+    numElemIdList = 0
+    elemIdList(:) = 0
+
+    if ( .not. utl_isNamelistPresent('NAMOBSDB','./flnml') ) then
+      if ( mmpi_myid == 0 ) then
+        write(*,*) 'readNml (odbf): namObsDB is missing in the namelist.'
+        write(*,*) '                The default values will be taken.'
+      end if
+    else
+      ! reading namelist variables
+      nulfile = 0
+      ierr = fnom(nulfile,'./flnml','FTN+SEQ+R/O',0)
+      read(nulfile, nml=namobsdb, iostat=ierr)
+      if ( ierr /= 0 ) call utl_abort('readNml (odbf): Error reading namelist')
+      ierr = fclos(nulfile)
+    end if
+    if ( mmpi_myid == 0 ) write(*, nml=namObsDb)
+
+    if (obsDbActive .and. numElemIdList==0) then
+      call utl_abort('readNml (odbf): element list is empty')
+    end if
+
+  end subroutine readNml
+
+  !--------------------------------------------------------------------------
   ! odbf_setup
   !--------------------------------------------------------------------------
   subroutine odbf_setup()
     !
-    ! :Purpose: Read the namelist for obsDB files and  read the obsDB column table
+    ! :Purpose: Read the namelist for obsDB files and read the obsDB column table
     !
     implicit none
 
@@ -119,35 +165,11 @@ contains
     integer            :: stringFoundIndex
     logical            :: obsColumnIsValid
                                                                        
-    namelist /namobsdb/ obsDbActive, numElemIdList, elemIdList
+    if ( alreadyRead ) return
 
-    if ( AlreadyRead ) return
+    alreadyRead = .true.
 
-    AlreadyRead = .true.
-
-    ! default values
-    obsDbActive = .false.
-    numElemIdList = 0
-    elemIdList(:) = 0
-
-    if ( .not. utl_isNamelistPresent('NAMOBSDB','./flnml') ) then
-      if ( mmpi_myid == 0 ) then
-        write(*,*) 'odbf_setup: namObsDB is missing in the namelist.'
-        write(*,*) '            The default values will be taken.'
-      end if
-    else
-      ! reading namelist variables
-      nulfile = 0
-      ierr = fnom(nulfile,'./flnml','FTN+SEQ+R/O',0)
-      read(nulfile, nml=namobsdb, iostat=ierr)
-      if ( ierr /= 0 ) call utl_abort('odbf_setup: Error reading namelist')
-      ierr = fclos(nulfile)
-    end if
-    if ( mmpi_myid == 0 ) write(*, nml=namObsDb)
-
-    if (obsDbActive .and. numElemIdList==0) then
-      call utl_abort('odbf_setup: element list is empty')
-    end if
+    call readNml()
 
     ! initialize obsDb columns names to be consistent with MIDAS obsSpaceData Report column names
     if (.not. obsDbActive) return
@@ -338,7 +360,7 @@ contains
         numBodyMidasTableRequired = 0
         countMatchRow = 0
         do countRow = 1, midasBodyTableRow
-          !Read all body table rows
+          ! Read all body table rows
           read(nulfile,*,iostat = ierr) readDBColumn, readObsSpaceColumn, readBufrColumn      
           select case (trim(readObsSpaceColumn))
             ! Assign read values to appropriate variable
@@ -355,7 +377,7 @@ contains
               midasBodyNamesList(1,countMatchRow) = trim(readDBColumn)              
               midasBodyNamesList(2,countMatchRow) = trim(readObsSpaceColumn)
              
-              !Check if the ObsSpaceData column name is mandatory 
+              ! Check if the ObsSpaceData column name is mandatory 
               stringFoundIndex = index(midasBodyNamesList(2,countMatchRow),'*')
               if (stringFoundIndex > 0) then
                 midasBodyNamesList(2,countMatchRow) = trim(midasBodyNamesList(2,countMatchRow)(1:stringFoundIndex-1))
@@ -416,11 +438,68 @@ contains
     ! return value
     logical :: isActive
 
-    call odbf_setup()
+    call readNml()
 
     isActive = obsDbActive
 
   end function odbf_isActive
+
+  !--------------------------------------------------------------------------
+  ! odbf_getDateStamp
+  !--------------------------------------------------------------------------
+  subroutine odbf_getDateStamp(dateStamp, sqliteFileName)
+    !
+    ! Purpose: get dateStamp from an obsDB file
+    !
+  
+    implicit none
+    
+    ! arguments
+    integer         , intent(out) :: dateStamp
+    character(len=*), intent(in)  :: sqliteFileName
+    
+    ! locals
+    logical             :: fileExists 
+    integer             :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
+    integer             :: newdate
+    character(len=128)  :: querySqlite
+    character(len=256)  :: datetimeSqliteCharacter 
+    type(fSQL_DATABASE) :: db         ! type for SQLIte  file handle
+    type(FSQL_STATUS)   :: statusSqlite
+
+    validDate = MPC_missingValue_INT 
+    validTime = MPC_missingValue_INT 
+    
+    inquire(file = trim(sqliteFileName), exist = fileExists)
+
+    if (fileExists) then
+      write(*,*)'odbf_getDateStamp: Open File : ', trim(sqliteFileName)
+      call fSQL_open(db, trim(sqliteFileName), statusSqlite)
+      querySqlite = 'select date from resume;'
+      datetimeSqliteCharacter = sqlu_query(db, trim(querySqlite))
+      read(datetimeSqliteCharacter(1:8),*)  validDate
+      querySqlite = 'select time from resume;'
+      datetimeSqliteCharacter = sqlu_query(db, trim(querySqlite))
+      read(datetimeSqliteCharacter, *) validTime 
+      call fSQL_close(db, statusSqlite)
+    end if
+
+    ! Make sure all mpi tasks have a valid date (important for split sqlite files)
+    call rpn_comm_allreduce(validDate, validDateRecv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
+    call rpn_comm_allreduce(validTime, validTimeRecv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
+    
+    if (validDateRecv == MPC_missingValue_INT .or. validTimeRecv == MPC_missingValue_INT) then
+      call utl_abort('odbf_getDateStamp: Error in getting valid date and time!')
+    end if
+    
+    ! printable to stamp, validTime must be multiplied with 1e6 to make newdate work
+    imode = 3
+    ier = newdate(dateStamp, validDateRecv, validTimeRecv * 1000000, imode)
+    write(*,*)'odbf_getDateStamp: obsDB files valid date (YYYYMMDD): ', validDateRecv
+    write(*,*)'odbf_getDateStamp: obsDB files valid time       (HH): ', validTimeRecv
+    write(*,*)'odbf_getDateStamp: obsDB files dateStamp            : ', datestamp
+
+  end subroutine odbf_getDateStamp
 
   !--------------------------------------------------------------------------
   ! odbf_readFile
@@ -2585,7 +2664,7 @@ contains
 
     if ( .not. utl_isNamelistPresent('namObsDbClean','./flnml') ) then
       if ( mmpi_myid == 0 ) then
-        write(*,*) 'odbf_setup: namObsDbClean is missing in the namelist.'
+        write(*,*) 'odbf_clean: namObsDbClean is missing in the namelist.'
         write(*,*) '            The default values will be taken.'
       end if
     else

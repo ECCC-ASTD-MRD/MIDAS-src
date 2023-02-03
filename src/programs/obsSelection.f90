@@ -237,7 +237,7 @@ program midas_obsSelection
   end if
 
   ! Do the ocean data background check
-  if (obs_famExist(obsSpaceData, 'TM')) call ocebg_bgCheckSST(obsSpaceData, dateStamp, &
+  if (obs_famExist(obsSpaceData, 'TM')) call ocebg_bgCheckSST(obsSpaceData, tim_getGateStamp(), &
                                                               columnTrlOnTrlLev, hco_trl)
 
   ! Do the sea ice data gross background check
