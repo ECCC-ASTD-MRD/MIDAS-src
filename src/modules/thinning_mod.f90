@@ -7330,6 +7330,12 @@ contains
       obsTime = obs_headElem_i(obsData, obs_etm, headerIndex)
       call tim_getStepObsIndex(obsStepIndex_r8, tim_getDatestamp(), obsDate, obsTime, numTimesteps)
       obsStepIndex = nint(obsStepIndex_r8)
+      
+      ! reject observations that are outside the assimilation window
+      if (obsStepIndex < 1 .or. obsStepIndex > numTimesteps) then
+        valid(headerIndex) = .false.
+	cycle
+      end if	
 
       if (numTimesteps == 1) then
         delMinutes = abs(nint(60.0 * tim_windowsize * abs(real(obsStepIndex) - obsStepIndex_r8)))
