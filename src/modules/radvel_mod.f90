@@ -91,7 +91,7 @@ contains
     real(pre_obsReal)               :: a, b, c, Re
 
     if ( radarAltitude > beamHeight ) then 
-      !beamHeight is below radar antenna wich may cause the equation below to return garbage
+      !beamHeight is below radar antenna which may cause the equation below to return garbage
       !this happens in a few edge cases where its okay to return zero
       beamRange = 0.0
     else

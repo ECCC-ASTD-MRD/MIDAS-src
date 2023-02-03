@@ -179,7 +179,7 @@ module message_mod
     integer :: nulnam, ierr, fnom, fclos
 
     ! Namelist variables
-    logical :: arrayVertical  !aArray vertical representation by default when .true.
+    logical :: arrayVertical  ! array vertical representation by default when .true.
     integer :: verbosity      ! specify the maximum verbosity level to include in listing
     namelist /NAMMSG/verbosity, arrayVertical
   

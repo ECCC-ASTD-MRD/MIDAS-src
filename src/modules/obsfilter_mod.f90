@@ -1305,7 +1305,7 @@ end subroutine filt_topoAISW
     real(8) :: levelRangeNear, levelRangeFar
     
     ! namelist variables:
-    real(8) :: maxRangeInterp
+    real(8) :: maxRangeInterp ! max allowable horizontal distance between levels (in m) for radar winds
 
     namelist /namradvel/ maxRangeInterp
 
@@ -1664,9 +1664,10 @@ end subroutine filt_topoAISW
     logical           :: inPlatformList
 
     ! List of satellites (id_stn in SQLite files) used for sea ice concentration
-    integer            :: nPlatformIce
     integer, parameter :: maxPlatformIce = 50
-    character(len=12)  :: listPlatformIce(maxPlatformIce)
+    ! namelist variables
+    integer            :: nPlatformIce                    ! number of 'platforms' in 'listPlatformice'
+    character(len=12)  :: listPlatformIce(maxPlatformIce) ! list of ice obs 'platforms' (station IDs) to assimilate 
 
     namelist /namPlatformIce/ nPlatformIce, listPlatformIce
 

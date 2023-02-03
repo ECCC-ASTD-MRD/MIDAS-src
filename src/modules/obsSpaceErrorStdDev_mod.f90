@@ -127,9 +127,8 @@ module obsSpaceErrorStdDev_mod
     integer :: index_body
     integer :: fnom, fclos, ierr, nulnam
 
-    character(len=12) :: hybrid_mode
-
-    !namelist
+    ! namelist variables
+    character(len=12) :: hybrid_mode ! can be 'WEIGHTED_SUM' or 'MAX_VALUE'
     NAMELIST /NAMHBHT/hybrid_mode
 
     ! set the module variable hco_anl

@@ -2626,7 +2626,7 @@ contains
     character(len = lenSqlName) :: flgSqlName
     
     ! namelist variables
-    logical, save               :: useVacuum ! choose to 'vacumm' the file after cleaning to reduce file size
+    logical, save               :: useVacuum ! choose to 'vacuum' the file after cleaning to reduce file size
 
     namelist/namObsDbClean/ useVacuum
 

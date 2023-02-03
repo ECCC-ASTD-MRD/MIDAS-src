@@ -73,8 +73,6 @@ module obsErrors_mod
   logical :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
   ! SST data 
-  integer, parameter :: maxNumberSSTDatasets = 15
-  integer :: numberSSTDatasets = MPC_missingValue_INT ! number of SST datasets in namelist
   type SSTdataParamsType
     character(len=20) :: dataType   = '' ! type of data: insitu, satellite, pseudo
     character(len=20) :: instrument = '' ! instrument: drifts, bouys, ships, AVHRR, VIIRS, AMSR2
@@ -84,7 +82,11 @@ module obsErrors_mod
     real(8)           :: dayError   = MPC_missingValue_R8  ! data error for daytime 
     real(8)           :: nightError = MPC_missingValue_R8  ! data error for nighttime
   end type SSTdataParamsType
-  type(SSTdataParamsType) :: SSTdataParams(maxNumberSSTDatasets)
+  integer, parameter :: maxNumberSSTDatasets = 15
+
+  ! SST namelist variables
+  integer :: numberSSTDatasets = MPC_missingValue_INT            ! number of SST datasets in namelist
+  type(SSTdataParamsType) :: SSTdataParams(maxNumberSSTDatasets) ! list of SSTdataParamsType defining SST obs errors
 
   ! CONVENTIONAL OBS ERRORS
   real(8) :: xstd_ua_ai_sw(20,11)

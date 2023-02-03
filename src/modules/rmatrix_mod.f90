@@ -45,7 +45,7 @@ module rMatrix_mod
   type(rmat_matrix),target,allocatable  :: R_tovs(:) ! non diagonal R matrices used for the assimilation of all radiances
 
   ! namelist variable
-  logical :: rmat_lnondiagr ! choose to use non-diagnoal R matrix (i.e. non-zero correlations)
+  logical :: rmat_lnondiagr ! choose to use non-diagonal R matrix (i.e. non-zero correlations)
 
   contains
 

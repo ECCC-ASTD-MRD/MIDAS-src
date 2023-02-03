@@ -39,7 +39,9 @@ module physicsFunctions_mod
   public :: phf_height2geopotential, phf_gravityalt, phf_gravitysrf
 
   LOGICAL :: initialized = .false.
-  LOGICAL :: NEW_TETENS_COEFS
+
+  ! namelist variable
+  LOGICAL :: NEW_TETENS_COEFS  ! choose to use 'new' coefficients for computing humidity saturation point
 
   contains
 
@@ -51,8 +53,10 @@ module physicsFunctions_mod
       INTEGER*4      :: NULNAM,IER,FNOM,FCLOS
       CHARACTER *256 :: NAMFILE
 
-      NEW_TETENS_COEFS = .false.
       NAMELIST /NAMPHY/NEW_TETENS_COEFS
+
+      ! read the namelist
+      NEW_TETENS_COEFS = .false.  
       NAMFILE=trim("flnml")
       nulnam=0
       IER=FNOM(NULNAM,NAMFILE,'R/O',0)
@@ -62,7 +66,7 @@ module physicsFunctions_mod
         write(*,*) 'No valid namelist NAMPHY found'
       endif
 
-      iER=FCLOS(NULNAM)
+      IER=FCLOS(NULNAM)
 
       write(*,*) 'new_tetens_coefs = ',new_tetens_coefs
       initialized = .true.
