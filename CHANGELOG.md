@@ -53,6 +53,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
  * Simplify namelists by removing number of items in namelist arrays (#709 and !675)
+   * many namelist files will need modification to remove variables, otherwise programs abort
  * Cleanup and new check for handling namelists in `burpread_mod` (#756 and !680)
    * many namelist files will need modification due to removal of default bufr element IDs
  * Refactored `czp`, `int` and `inc` in preparation of GEM-H support (#466 and !668)
