@@ -685,13 +685,11 @@ contains
  
     !   1.1 Default values for namelist variables
 
-    nsensors = 0
+    nsensors = MPC_missingValue_INT
     csatid(:) = '***UNDEFINED***'
     cinstrumentid(:) = '***UNDEFINED***'
     doAzimuthCorrection(:) = .false.
     isAzimuthValid(:) = .false.
-    csatid(1) = 'NOAA16'
-    cinstrumentid(1) = 'AMSUA'
     ldbgtov = .false.
     useO3Climatology = .true.
     userDefinedDoAzimuthCorrection = .false.
@@ -720,8 +718,21 @@ contains
     ierr = fclos(nulnam)
 
     !  1.3 Transfer namelist variables to module variables
- 
-    tvs_nsensors = nsensors
+    if (nsensors /= MPC_missingValue_INT) then
+      call utl_abort('tvs_setup: check namelist section NAMTOV; nsensors should be removed as it is' // &
+          ' now computed by Midas from cinstrumentid and csatid arrays')
+    end if
+    
+    tvs_nsensors = 0
+    sensor_loop:do sensorIndex = 1, tvs_maxNumberOfSensors
+      if (cinstrumentid(sensorIndex) /= "***UNDEFINED***" .and. &
+          csatid(sensorIndex) /= "***UNDEFINED***" ) then
+        tvs_nsensors = tvs_nsensors + 1
+      else
+        exit sensor_loop
+      end if
+    end do sensor_loop
+    
     tvs_debug = ldbgtov
     radiativeTransferCode = crtmodl
     tvs_useO3Climatology = useO3Climatology

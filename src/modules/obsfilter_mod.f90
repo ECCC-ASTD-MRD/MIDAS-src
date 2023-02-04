@@ -43,10 +43,11 @@ module obsFilter_mod
   public :: filt_setup, filt_topo, filt_suprep
   public :: filt_surfaceWind, filt_gpsro,  filt_backScatAnisIce, filt_iceConcentration, filt_radvel
   public :: filt_bufrCodeAssimilated, filt_getBufrCodeAssimilated, filt_nBufrCodeAssimilated
-
+  integer, parameter :: nelemsMax = 30
+  integer, parameter :: nflagsMax = 15
   integer :: filt_nelems, filt_nflags
-  integer, target :: filt_nlist(30)
-  integer :: filt_nlistflg(15)
+  integer, target :: filt_nlist(nelemsMax)
+  integer :: filt_nlistflg(nflagsMax)
 
   real(8) :: filt_rlimlvhu
 
@@ -131,11 +132,12 @@ contains
 
     ! Namelist variables: (local)
     integer :: nelems
-    integer :: nlist(30)
+    integer :: nlist(nelemsMax)
     integer :: nflags
-    integer :: nlistflg(15)
+    integer :: nlistflg(nFLagsMax)
     integer :: nelems_altDiffMax
     integer :: list_altDiffMax(numElem)
+    integer :: flagIndex, elementIndex
     character(len=2) :: list_topoFilt(nTopoFiltFam)
     real(8) :: value_altDiffMax(numElem)
     real(8) :: rlimlvhu
@@ -147,27 +149,13 @@ contains
     filterMode = filterMode_in
 
     ! set default values for namelist variables
-    nlist(:) = 0
-    nelems = 6
-    nlist(1)=11003
-    nlist(2)=11004
-    nlist(3)=10194
-    nlist(4)=12192
-    nlist(5)=12062
-    nlist(6)=12063
-
-    nlistflg(:) = 0
-    nflags=6
-    nlistflg(1)=2
-    nlistflg(2)=4
-    nlistflg(3)=5
-    nlistflg(4)=9
-    nlistflg(5)=11
-    nlistflg(6)=12
-
-    list_altDiffMax (:) = 0
-    value_altDiffMax(:) = -1.d0
-    nelems_altDiffMax = 0
+    nlist(:) =  MPC_missingValue_INT
+    nelems = MPC_missingValue_INT
+    nlistflg(:) = MPC_missingValue_INT
+    nflags = MPC_missingValue_INT
+    list_altDiffMax (:) = MPC_missingValue_INT
+    value_altDiffMax(:) = MPC_missingValue_R8
+    nelems_altDiffMax = MPC_missingValue_INT
 
     list_topoFilt(:) = '**'
 
@@ -187,10 +175,28 @@ contains
     ierr=fclos(nulnam)
 
     filt_rlimlvhu    = rlimlvhu
-    filt_nelems      = nelems
-    filt_nlist(:)    = nlist(:)
-    filt_nflags      = nflags
-    filt_nlistflg(:) = nlistflg(:)
+    
+    if (nelems /= MPC_missingValue_INT) then
+      call utl_abort('filt_setup: check NAMFILT namelist section; NELEMS should be removed')
+    end if
+    filt_nelems = 0
+    do elementIndex = 1, nelemsMax
+      if (nlist(elementIndex) /= MPC_missingValue_INT) then
+        filt_nlist(elementIndex) = nlist(elementIndex)
+        filt_nelems = filt_nelems + 1
+      end if
+    end do
+    
+    if (nflags /= MPC_missingValue_INT) then
+      call utl_abort('filt_setup: check NAMFILT namelist section; NFLAGS should be removed')
+    end if
+    filt_nflags = 0
+    do flagIndex = 1, nflagsMax
+      if (nlistflg(flagIndex) /= MPC_missingValue_INT) then
+        filt_nlistflg(flagIndex) = nlistflg(flagIndex)
+        filt_nflags = filt_nflags + 1
+      end if
+    end do
 
     if(mmpi_myid == 0) then
       write(*,'(1X,"***********************************")')
@@ -212,11 +218,11 @@ contains
     !
     !- Set values for altDiffMax
     !
-    if ( nelems_altDiffMax > 0 ) then
-      if ( nelems_altDiffMax > numElem ) then
-        call utl_abort('filt_setup: You have specified too many altDiffMax elements')
-      end if
-      do elem = 1, nelems_altDiffMax
+    if (nelems_altDiffMax /= MPC_missingValue_INT) then
+      call utl_abort('filt_setup: check namelist section NAMFILT: nelems_altDiffMax should be removed')
+    end if
+    do elem = 1, numElem
+      if (list_altDiffMax(elem) /= MPC_missingValue_INT .and. value_altDiffMax(elem) /= MPC_missingValue_R8) then
         elemIndex = findElemIndex(list_altDiffMax(elem))
         if ( elemIndex >= 1 .and. elemIndex <= numElem ) then
           altDiffMax(elemIndex) = value_altDiffMax(elem)
@@ -224,8 +230,8 @@ contains
         else
           call utl_abort('filt_setup: Error in value setting for altDiffMax')
         end if
-      end do
-    end if
+      end if
+    end do
 
     !
     !- Set the topographic rejection list 

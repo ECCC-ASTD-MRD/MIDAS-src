@@ -44,19 +44,23 @@ private
 public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume, brpr_addCloudParametersandEmissivity
 public :: brpr_addElementsToBurp, brpr_updateMissingObsFlags, brpr_burpClean
 
+
+integer, parameter :: maxItems = 20
+integer, parameter :: maxBits = 15
+integer, parameter :: maxElements = 20
 ! Namelist variables
 INTEGER          :: NELEMS
 INTEGER          :: NELEMS_SFC
 INTEGER          :: BNBITSOFF
 INTEGER          :: BNBITSON
-INTEGER          :: BBITOFF(15)
-INTEGER          :: BBITON(15)
+INTEGER          :: BBITOFF(maxBits)
+INTEGER          :: BBITON(maxBits)
 INTEGER          :: NELEMS_GPS
-INTEGER          :: LISTE_ELE_GPS(20)
-INTEGER          :: BLISTELEMENTS(20)
-INTEGER          :: BLISTELEMENTS_SFC(20)
+INTEGER          :: LISTE_ELE_GPS(maxElements)
+INTEGER          :: BLISTELEMENTS(maxElements)
+INTEGER          :: BLISTELEMENTS_SFC(maxElements)
 INTEGER          :: BN_ITEMS
-CHARACTER(len=3) :: BITEMLIST(20)
+CHARACTER(len=3) :: BITEMLIST(maxItems)
 CHARACTER(len=7) :: TYPE_RESUME = 'UNKNOWN'
 LOGICAL          :: ENFORCE_CLASSIC_SONDES
 LOGICAL          :: UA_HIGH_PRECISION_TT_ES
@@ -154,7 +158,7 @@ CONTAINS
     integer                :: new_bktyp,post_bit,STATUS_HIRES,BIT_STATUS,FILEN
     LOGICAL                :: REGRUP,WINDS,OMA_SFC_EXIST,OMA_ALT_EXIST
 
-    integer                :: LISTE_ELE(20),LISTE_ELE_SFC(20),is_in_list
+    integer                :: LISTE_ELE(maxElements),LISTE_ELE_SFC(maxElements),is_in_list
     
     LOGICAL                :: LBLOCK_OER_CP, LBLOCK_FGE_CP
     TYPE(BURP_BLOCK)       :: BLOCK_OER_CP, BLOCK_FGE_CP
@@ -194,36 +198,36 @@ CONTAINS
         BURP_TYP='multi'
         vcord_type(1)=7004
 
-        call BRPACMA_NML('namburp_sfc')
+        call BRPACMA_NML('namburp_filter_sfc')
 
         FAMILYTYPE2= 'UA'
         ENFORCE_CLASSIC_SONDES=.false.
-        call BRPACMA_NML('namburp_conv')
+        call BRPACMA_NML('namburp_filter_conv')
         WINDS=.TRUE.
       CASE('AI')
         BURP_TYP='uni'
         vcord_type(1)=7004
 
-        call BRPACMA_NML('namburp_conv')
+        call BRPACMA_NML('namburp_filter_conv')
         WINDS=.TRUE.
       CASE('AL')
         BURP_TYP='uni'
         vcord_type(1)=7071
 
-        call BRPACMA_NML('namburp_conv')
+        call BRPACMA_NML('namburp_filter_conv')
         WINDS=.TRUE.
       CASE('SW')
         BURP_TYP='uni'
         vcord_type(1)=7004
 
-        call BRPACMA_NML('namburp_conv')
+        call BRPACMA_NML('namburp_filter_conv')
         WINDS=.TRUE.
         vcord_type(2)=-1
       CASE('SF')
         BURP_TYP='uni'
         vcord_type(1)=0
 
-        call BRPACMA_NML('namburp_sfc')
+        call BRPACMA_NML('namburp_filter_sfc')
 
         FAMILYTYPE2= 'SFC'
         WINDS=.TRUE.
@@ -234,13 +238,13 @@ CONTAINS
         BURP_TYP='uni'
         vcord_type(1)=0
 
-        call BRPACMA_NML('namburp_gp')
+        call BRPACMA_NML('namburp_filter_gp')
 
         FAMILYTYPE2= 'SFC'
         WINDS=.FALSE.
       CASE('SC')
         BURP_TYP='uni'
-        call BRPACMA_NML('namburp_sfc')
+        call BRPACMA_NML('namburp_filter_sfc')
 
         FAMILYTYPE2='SCAT'
         WINDS=.TRUE.
@@ -251,14 +255,14 @@ CONTAINS
         vcord_type(1)=7006
         ELEVFACT=1.
 
-        call BRPACMA_NML('namburp_conv')
+        call BRPACMA_NML('namburp_filter_conv')
         WINDS=.TRUE.
       CASE('RO')
         BURP_TYP='multi'
         vcord_type(1)=7007
         vcord_type(2)=7040
 
-        call BRPACMA_NML('namburp_conv')
+        call BRPACMA_NML('namburp_filter_conv')
         WINDS=.FALSE.
         !================GPS-RO CANNOT BE FILTERED=======
         BNBITSOFF=0
@@ -270,7 +274,7 @@ CONTAINS
         vcord_type(1)=5042
         vcord_type(2)=2150
         
-        CALL BRPACMA_NML('namburp_tovs')
+        CALL BRPACMA_NML('namburp_filter_tovs')
 
         if ( addBtClearToBurp ) then
           btClearElementFound = .false.
@@ -294,11 +298,11 @@ CONTAINS
                            ! coordinate element in addition to having only one level.
         vcord_type(1:8) = (/7004,7204,7006,7007,5042,2150,2071,0/)  ! 0 must be at end.
 
-        call BRPACMA_NML('namburp_chm_sfc')
+        call BRPACMA_NML('namburp_filter_chm_sfc')
         WINDS=.FALSE.
 
         FAMILYTYPE2='CH'
-        call BRPACMA_NML('namburp_chm')
+        call BRPACMA_NML('namburp_filter_chm')
       CASE default
         call utl_abort('brpr_updateBurp: unknown familyType : ' // trim(familyType))
     END SELECT
@@ -318,8 +322,6 @@ CONTAINS
     if(BNBITSOFF > 0 .or. BNBITSON > 0)write(*,*)  ' BNBITSON BNBITSOFF SIZE OF CP_RPT   =',BNBITSON,BNBITSOFF,LNMX*8
 
     TYPE_RESUME='POSTALT'
-    BN_ITEMS=1
-    BITEMLIST(1)='OMA'
     call BRPACMA_NML('namburp_update')
     write(*,*) ' BN_ITEMS   =',BN_ITEMS
     write(*,*) ' ITEMS TO ADD IN BURP FILE REPORTS =', BITEMLIST(1:BN_ITEMS)
@@ -881,8 +883,10 @@ CONTAINS
                  if (OBSVA == MPC_missingValue_R4 .and. iele /= ILEMU  .and. iele /= ILEMV ) cycle
                  if(iand(IFLAG,BITSflagoff) /= 0) cycle
 
-                 if (OBSN > obs_numHeader(obsdat) ) write(*,*)  ' debordement  surface OBS_START=',OBS_START
-                 if (OBSN > obs_numHeader(obsdat))  cycle
+                 if (OBSN > obs_numHeader(obsdat) ) then
+                   write(*,*)  ' debordement  surface OBS_START=',OBS_START
+                   cycle
+                 end if
 
                  IRLN=obs_headElem_i(obsdat,OBS_RLN,OBSN )
                  INLV=obs_headElem_i(obsdat,OBS_NLV,OBSN )
@@ -1744,6 +1748,7 @@ CONTAINS
     INTEGER            :: NULNAM,IER,FNOM,FCLOS
     CHARACTER *256     :: NAMFILE
     CHARACTER(len = *) :: NML_SECTION
+    integer            :: itemIndex
 
     NAMELIST /NAMBURP_FILTER_CONV/NELEMS,    BLISTELEMENTS,    BNBITSOFF,BBITOFF,BNBITSON,BBITON, &
          ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,UA_FLAG_HIGH_PRECISION_TT_ES,READ_QI_GA_MT_SW
@@ -1765,65 +1770,131 @@ CONTAINS
     write(*,*) ' READ NML_SECTION =',trim(NML_SECTION)
 
     SELECT CASE(trim(NML_SECTION))
-      CASE( 'namburp_gp')
+      CASE( 'namburp_filter_gp')
         nElems_gps = 0
         LISTE_ELE_GPS(:) = mpc_missingValue_int
+        BNBITSOFF = 0
+        BBITOFF(:) = MPC_missingValue_INT
+        BNBITSON = 0
+        BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_SFC)
+        call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
+        call getListAndSize(bnbitson, bbiton, "bnbitson")
+        call getListAndSize(nElems_gps, LISTE_ELE_GPS, "nElems_gps")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
-        if (all(LISTE_ELE_GPS(:) == mpc_missingValue_int)) then
+        if (nElems_gps == 0) then
           call utl_abort('brpacma_nml (burpread_mod): no GPS elements specified in NAMBURP_FILTER_SFC')
         end if
-      CASE( 'namburp_sfc')
+      CASE( 'namburp_filter_sfc')
         nElems_sfc = 0
         bListElements_sfc(:) = mpc_missingValue_int
+        BNBITSOFF = 0
+        BBITOFF(:) = MPC_missingValue_INT
+        BNBITSON = 0
+        BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_SFC)
+        call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
+        call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
+        call getListAndSize(bnbitson, bbiton, "bnbitson")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
-        if (all(bListElements_sfc(:) == mpc_missingValue_int)) then
+        if (nElems_sfc == 0) then
           call utl_abort('brpacma_nml (burpread_mod): no SFC elements specified in NAMBURP_FILTER_SFC')
         end if
-      CASE( 'namburp_conv')
+      CASE( 'namburp_filter_conv')
         nElems = 0
         bListElements(:) = mpc_missingValue_int
+        BNBITSOFF = 0
+        BBITOFF(:) = MPC_missingValue_INT
+        BNBITSON = 0
+        BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_CONV)
+        call getListAndSize(nelems, blistelements, "nelems")
+        call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
+        call getListAndSize(bnbitson, bbiton, "bnbitson")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CONV)
-        if (all(bListElements(:) == mpc_missingValue_int)) then
+        if (nElems == 0) then
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CONV')
         end if
-      CASE( 'namburp_tovs')
+      CASE( 'namburp_filter_tovs')
         nElems = 0
         bListElements(:) = mpc_missingValue_int
+        BNBITSOFF = 0
+        BBITOFF(:) = MPC_missingValue_INT
+        BNBITSON = 0
+        BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_TOVS)
+        call getListAndSize(nelems, blistelements, "nelems")
+        call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
+        call getListAndSize(bnbitson, bbiton, "bnbitson")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS)
-        if (all(bListElements(:) == mpc_missingValue_int)) then
+        if (nElems == 0) then
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_TOVS')
         end if
-      CASE( 'namburp_chm_sfc')
+      CASE( 'namburp_filter_chm_sfc')
         nElems_sfc = 0
         bListElements_sfc(:) = mpc_missingValue_int
+        BNBITSOFF = 0
+        BBITOFF(:) = MPC_missingValue_INT
+        BNBITSON = 0
+        BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_CHM_SFC)
+        call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
+        call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
+        call getListAndSize(bnbitson, bbiton, "bnbitson")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM_SFC)
-        if (all(bListElements_sfc(:) == mpc_missingValue_int)) then
+        if (nElems_sfc == 0) then
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM_SFC')
         end if
-      CASE( 'namburp_chm')
+      CASE( 'namburp_filter_chm')
         nElems = 0
         bListElements(:) = mpc_missingValue_int
+        BNBITSOFF = 0
+        BBITOFF(:) = MPC_missingValue_INT
+        BNBITSON = 0
+        BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_CHM)
+        call getListAndSize(nelems, blistelements, "nelems")
+        call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
+        call getListAndSize(bnbitson, bbiton, "bnbitson")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM)
-        if (all(bListElements(:) == mpc_missingValue_int)) then
+        if (nElems == 0) then
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM')
         end if
       CASE( 'namburp_update')
-        bn_items = 0
-        BITEMLIST(:) = ''
+        BN_ITEMS = 0
+        bItemList(:) = '***' 
         READ(NULNAM,NML=NAMBURP_UPDATE)
-        if (.not.beSilent) write(*,nml=NAMBURP_UPDATE)
-        if (all(bItemList(:) == '')) then
-          call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_UPDATE')
+        if (BN_ITEMS /= 0) then
+          call utl_abort('brpacma_nml: check namburp_update namelist section, you should remove BN_ITEMS')
         end if
-    END SELECT
+        do itemIndex = 1, maxItems 
+          if (bItemList(itemIndex) == '***') exit
+          BN_ITEMS = BN_ITEMS + 1
+        end do
+        if (.not.beSilent) write(*,nml=NAMBURP_UPDATE)
+      CASE default
+        call utl_abort('brpacma_nml: unknown namelist section ' // trim(NML_SECTION))
+      END SELECT
 
     ier=FCLOS(NULNAM)
+  contains
+    subroutine getListAndSize(numberElements, list, variable)
+      implicit none
+      integer, intent(inout) :: numberElements
+      integer, intent(in) :: list(:)
+      character(len=*), intent(in) :: variable
+      integer :: listIndex
+      
+      if (numberElements /= 0) then
+        call utl_abort('brpacma_nml: check '//trim(nml_section)//' namelist section, you should remove '//trim(variable))
+      end if
+      do listIndex = 1, size(list)
+        if (list(listIndex) == MPC_missingValue_INT) exit
+        numberElements = numberElements + 1
+      end do
+
+    end subroutine getListAndSize
+    
   END SUBROUTINE BRPACMA_NML
 
 
@@ -1900,7 +1971,7 @@ CONTAINS
     REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
-    integer                :: LISTE_INFO(30),LISTE_ELE(20),LISTE_ELE_SFC(20)
+    integer                :: LISTE_INFO(30),LISTE_ELE(maxElements),LISTE_ELE_SFC(maxElements)
     
     integer                :: NBELE,NVALE,NTE
     integer                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -1961,40 +2032,40 @@ CONTAINS
         BURP_TYP='multi'
         vcord_type(1)=7004
 
-        call BRPACMA_NML('namburp_sfc')
+        call BRPACMA_NML('namburp_filter_sfc')
 
         FAMILYTYPE2= 'UA'
-        LISTE_ELE(1:5) = (/12001,11001,11002,12192,10194/)
         ENFORCE_CLASSIC_SONDES=.false.
-        call BRPACMA_NML('namburp_conv')
+
+        call BRPACMA_NML('namburp_filter_conv')
         NELE_INFO=23
       CASE('AI')
         BURP_TYP='uni'
         vcord_type(1)=7004
 
-        call BRPACMA_NML('namburp_conv')
+        call BRPACMA_NML('namburp_filter_conv')
       CASE('AL')
         BURP_TYP='uni'
         vcord_type(1)=7071
 
-        call BRPACMA_NML('namburp_conv')
+        call BRPACMA_NML('namburp_filter_conv')
       CASE('SW')
         BURP_TYP='uni'
         vcord_type(1)=7004
 
-        call BRPACMA_NML('namburp_conv')
+        call BRPACMA_NML('namburp_filter_conv')
       CASE('SF')
         BURP_TYP='uni'
         vcord_type(1)=0
 
-        call BRPACMA_NML('namburp_sfc')
+        call BRPACMA_NML('namburp_filter_sfc')
 
         FAMILYTYPE2= 'SFC'
       CASE('GP')
         BURP_TYP='uni'
         vcord_type(1)=0
 
-        call BRPACMA_NML('namburp_gp')
+        call BRPACMA_NML('namburp_filter_gp')
 
         FAMILYTYPE2= 'SFC'
         UNI_FAMILYTYPE = 'GP'
@@ -2002,7 +2073,7 @@ CONTAINS
         vcord_type(1)=0
         BURP_TYP='uni'
 
-        call BRPACMA_NML('namburp_sfc')
+        call BRPACMA_NML('namburp_filter_sfc')
         ! The following 2 lines are necessary because when this routine reads scatterometer
         ! burp files they are considered (possibly incorrectly) as non-surface observations
         ! but during update they are considered as surface observations
@@ -2015,13 +2086,13 @@ CONTAINS
         BURP_TYP='multi'
         vcord_type(1)=7006
 
-        call BRPACMA_NML('namburp_conv')
+        call BRPACMA_NML('namburp_filter_conv')
       CASE('RO')
         BURP_TYP='multi'
         vcord_type(1)=7007
         vcord_type(2)=7040
 
-        call BRPACMA_NML('namburp_conv')
+        call BRPACMA_NML('namburp_filter_conv')
         !================GPS-RO CANNOT BE FILTERED=======
         BNBITSOFF=0
         BNBITSON=0
@@ -2032,7 +2103,7 @@ CONTAINS
         vcord_type(1)=5042
         vcord_type(2)=2150
 
-        call BRPACMA_NML('namburp_tovs')
+        call BRPACMA_NML('namburp_filter_tovs')
 
         NELE_INFO=30
      CASE('CH')
@@ -2044,10 +2115,10 @@ CONTAINS
         NELE_INFO=18
 
         UNI_FAMILYTYPE = 'CH'
-        call BRPACMA_NML('namburp_chm_sfc')
+        call BRPACMA_NML('namburp_filter_chm_sfc')
 
         FAMILYTYPE2='CH'
-        call BRPACMA_NML('namburp_chm')
+        call BRPACMA_NML('namburp_filter_chm') 
       CASE default
         call utl_abort('brpr_readBurp: unknown familyType : ' // trim(familyType))
     END SELECT
@@ -6594,17 +6665,17 @@ CONTAINS
     select case(trim(familyType))
 
     case('UA','AI','AL','SW','PR','RO')
-      call brpacma_nml('namburp_conv', beSilent_opt=.true.)
+      call brpacma_nml('namburp_filter_conv', beSilent_opt=.true.)
       allocate(elementIds(nelems))
       elementIds(:) = blistelements(1:nelems)
 
     case('SF','SC')
-      call brpacma_nml('namburp_sfc', beSilent_opt=.true.)
+      call brpacma_nml('namburp_filter_sfc', beSilent_opt=.true.)
       allocate(elementIds(nelems_sfc))
       elementIds(:) = blistelements_sfc(1:nelems_sfc)
 
     case('GP')
-      call brpacma_nml('namburp_gp', beSilent_opt=.true.)
+      call brpacma_nml('namburp_filter_gp', beSilent_opt=.true.)
       ! do not include "formal error", since it was removed from obsSpaceData
       if (any(liste_ele_gps(1:nelems_gps) == bufr_nefe)) then
         allocate(elementIds(nelems_gps-1))
@@ -6621,7 +6692,7 @@ CONTAINS
       end if
       
     case('TO')
-      call brpacma_nml('namburp_tovs', beSilent_opt=.true.)
+      call brpacma_nml('namburp_filter_tovs', beSilent_opt=.true.)
       allocate(elementIds(nelems))
       elementIds(:) = blistelements(1:nelems)
 

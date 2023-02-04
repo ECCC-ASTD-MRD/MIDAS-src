@@ -74,7 +74,7 @@ module obsErrors_mod
 
   ! SST data 
   integer, parameter :: maxNumberSSTDatasets = 15
-  integer :: numberSSTDatasets = 0 ! number of SST datasets in namelist
+  integer :: numberSSTDatasets = MPC_missingValue_INT ! number of SST datasets in namelist
   type SSTdataParamsType
     character(len=20) :: dataType   = '' ! type of data: insitu, satellite, pseudo
     character(len=20) :: instrument = '' ! instrument: drifts, bouys, ships, AVHRR, VIIRS, AMSR2
@@ -981,7 +981,7 @@ contains
     !
     implicit none
 
-    integer :: fnom, fclos, nulnam, ierr
+    integer :: fnom, fclos, nulnam, ierr, indexDataset
     namelist /namSSTObsErrors/ numberSSTDatasets, SSTdataParams
     
     if (utl_isNamelistPresent('namSSTObsErrors','./flnml')) then
@@ -991,6 +991,20 @@ contains
       if (ierr /= 0) call utl_abort('oer_readObsErrorsSST: Error reading namelist')
       if (mmpi_myid == 0) write(*,nml=namSSTObsErrors)
       ierr = fclos(nulnam)
+      if (numberSSTDatasets /= MPC_missingValue_INT) then
+        call utl_abort('oer_readObsErrorsSST: check namSSTObsErrors namelist section: numberSSTDatasets should be removed')
+      end if
+      numberSSTDatasets = 0
+      do indexDataset = 1, maxNumberSSTDatasets
+        if (trim(SSTdataParams(indexDataset)%dataType)   == ""                   .and. &
+            trim(SSTdataParams(indexDataset)%instrument) == ""                   .and. &
+            trim(SSTdataParams(indexDataset)%sensor)     == ""                   .and. &
+            trim(SSTdataParams(indexDataset)%sensorType) == ""                   .and. &
+                 SSTdataParams(indexDataset)%codeType    == MPC_missingValue_INT .and. &
+                 SSTdataParams(indexDataset)%dayError    == MPC_missingValue_R8  .and. &
+                 SSTdataParams(indexDataset)%nightError  == MPC_missingValue_R8 ) exit
+        numberSSTDatasets = numberSSTDatasets + 1
+      end do
     else
        call utl_abort('oer_readObsErrorsSST: namSSTObsErrors is missing in the namelist.')
     end if

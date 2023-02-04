@@ -10,15 +10,7 @@
   DSTEPOBS = 1.0D0
 /
  &NAMFILT
-  NELEMS = 1,
   NLIST(1)=22042,
-  NFLAGS=0,
-  NLISTFLG(1)=4,
-  NLISTFLG(2)=5,
-  NLISTFLG(3)=9,
-  NLISTFLG(4)=11,
-  NLISTFLG(5)=12,
-  NLISTFLG(6)=2,
   RLIMLVHU   = 70.D0
 /
  &NAMSTATE
@@ -27,7 +19,6 @@
    ANLVAR(6)   ='TG'
 /
  &namSQLInsert
-  numberInsertItems=4
   itemInsertList(1)=11215
   itemInsertList(2)=11216
   itemInsertList(3)=11003
@@ -35,17 +26,14 @@
 
 /
  &namSQLUpdate
- numberUpdateItems=2
  itemUpdateList(1)='OMP'
  itemUpdateList(2)='OMA'
 /
  &NAMSQLsfc
-   numberElem=1
    listElem='22042'
    sqlNull=' and obsvalue is not null '
 / 
  &namSSTObsErrors
-   numberSSTDatasets = 11
    !#                     dataType ,    instrument ,   sensor ,  sensorType , codetype , dayError , nightError
    SSTdataParams(1)  =    'insitu' ,     'drifter' ,       '' ,          '' ,       18 ,     0.36 ,       0.36
    SSTdataParams(2)  =    'insitu' ,        'ship' ,       '' ,          '' ,       13 ,     0.64 ,       0.64
@@ -61,7 +49,6 @@
    SSTdataParams(12) =    'pseudo' ,       'Bogus' ,       '' ,          '' ,      150 ,     1.00 ,       1.00
 /
 &namReadSSTSat
-   numberElem=1
    listElem='22042'
    sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","METO-C","NOAA19","N20","NPP","AMSR2")) '
    sqlNull=' and obsvalue is not null '

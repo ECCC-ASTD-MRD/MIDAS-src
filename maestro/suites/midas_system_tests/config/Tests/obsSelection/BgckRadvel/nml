@@ -25,7 +25,6 @@
    maxRangeInterp = 15000.0D0,
 /
  &NAMSQLradvel
-  numberElem=1
   listElem="21014"
   sqlNull=" and obsvalue is not null "
 / 
@@ -43,7 +42,6 @@
   DSTEPOBS = 0.25D0
 /
  &NAMFILT
-   NELEMS    = 17,
    NLIST(1)=11003,
    NLIST(2)=11004,
    NLIST(3)=12192,
@@ -61,8 +59,6 @@
    NLIST(15)=15031,
    NLIST(16)=11012,
    NLIST(17)=21014,
-
-   NFLAGS=8,
    NLISTFLG(1)=0,
    NLISTFLG(2)=-1,
    NLISTFLG(3)=-2,
@@ -78,21 +74,18 @@
    NDATAMX=2000000,
 /
  &NAMBURP_UPDATE
-  BN_ITEMS=3,
   BITEMLIST(1)='OMP',
   BITEMLIST(2)='OER',
   BITEMLIST(3)='ALT',
   TYPE_RESUME='BGCKALT'
 /
  &namSQLInsert
-  numberInsertItems=4
   itemInsertList(1)=11215
   itemInsertList(2)=11216
   itemInsertList(3)=11003
   itemInsertList(4)=11004
 /
  &namSQLUpdate
- numberUpdateItems=3
  itemUpdateList(1)='OMP'
  itemUpdateList(2)='OMA'
  itemUpdateList(3)='ALT'

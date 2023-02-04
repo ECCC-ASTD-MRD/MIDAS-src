@@ -20,9 +20,7 @@
   DWINDOWSIZE = 48.0d0
 /
  &NAMFILT
-  NELEMS = 1,
   NLIST(1)=22042,
-  NFLAGS=6,
   NLISTFLG(1)=2
   NLISTFLG(2)=3
   NLISTFLG(3)=4
@@ -35,12 +33,10 @@
    NDATAMX=1500000
 /
  &NAMSQLsfc
-   numberElem=1
    listElem='22042'
    sqlNull=' and obsvalue is not null '  
 /
  &namSSTObsErrors
-   numberSSTDatasets = 10
    !#                     dataType ,    instrument ,   sensor ,  sensorType , codetype , dayError , nightError
    SSTdataParams(1)  =    'insitu' ,     'drifter' ,       '' ,          '' ,       18 ,     0.36 ,       0.36
    SSTdataParams(2)  =    'insitu' ,        'ship' ,       '' ,          '' ,       13 ,     0.64 ,       0.64
@@ -54,7 +50,6 @@
    SSTdataParams(10) = 'satellite' ,       'AMSR2' ,  'AMSR2' , 'microwave' ,       88 ,     0.80 ,       0.80
 /
  &namReadSSTSat
-   numberElem=1
    listElem='22042'
    sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","METO-C","NOAA19","N20","NPP","AMSR2")) '
    sqlNull=' and obsvalue is not null '
@@ -68,7 +63,6 @@
    minLatNH=10.
    maxLatNH=40.
    maxLatExceptionNH=45.
-   nmonthsExceptionNH=2
    monthExceptionNH(1)='Aug'
    monthExceptionNH(2)='Sep'
    minLatSH=-35.
@@ -76,7 +70,6 @@
    smoothLenghtScale=50000.
 /
  &namSQLUpdate
-  numberUpdateItems=3
   itemUpdateList(1)='OMP'
   itemUpdateList(2)='OER'
   itemUpdateList(3)='FGE'

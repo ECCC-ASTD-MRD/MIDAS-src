@@ -12,9 +12,7 @@
    NDATAMX=3500000
 /
  &NAMFILT
-  NELEMS = 1,
   NLIST(1)=22042,
-  NFLAGS=6,
   NLISTFLG(1)=2
   NLISTFLG(2)=3
   NLISTFLG(3)=4
@@ -29,7 +27,6 @@
    numberPointsBG = 250
    timeInterpType_nl = 'NEAREST'
    numObsBatches = 20
-   numberSensors = 3
    sensorList(1)='AMSR2'
    sensorList(2)='METO-B'
    sensorList(3)='METO-C'
@@ -38,12 +35,10 @@
    saveAuxFields = .True.
 /
  &NAMSQLsfc
-   numberElem=1
    listElem='22042'
    sqlNull=' and obsvalue is not null '  
 /
 &namReadSSTSat
-   numberElem=1
    listElem='22042'
    sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","METO-C","NOAA19","NPP","AMSR2")) '
    sqlNull=' and obsvalue is not null '

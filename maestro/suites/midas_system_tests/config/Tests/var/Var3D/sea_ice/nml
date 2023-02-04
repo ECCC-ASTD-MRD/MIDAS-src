@@ -10,12 +10,10 @@
    NDATAMX = 600000
 /
  &NAMFILT
-  NELEMS = 4
   NLIST(1) = 20222
   NLIST(2) = 20237
   NLIST(3) = 21169
   NLIST(4) = 21199
-  NFLAGS = 10
   NLISTFLG(1) = -4
   NLISTFLG(2) = -2
   NLISTFLG(3) = -1
@@ -60,12 +58,10 @@
    SCALEFACTOR = 200*0.0D0
 /
  &NAMSQLgl
-  numberElem=4
   listElem="20222,20237,21169,21199"
   sqlNull=" and obsvalue is not null "
 /
  &namSQLUpdate
- numberUpdateItems=4
  itemUpdateList(1)='OMP'
  itemUpdateList(2)='OMA'
  itemUpdateList(3)='OER'

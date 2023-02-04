@@ -157,13 +157,21 @@ CONTAINS
     ! read in the namelist NAMSONDETYPES
     if ( uaBiasActive .and. .not.uaRevOnly ) then
       if ( utl_isNamelistPresent('namsondetypes','./flnml') ) then
-        nlNbSondes = 0
+        nlNbSondes = MPC_missingValue_INT
         nlSondeTypes(:)   = 'empty'
-        nlSondeCodes(:,:) = -9
+        nlSondeCodes(:,:) = MPC_missingValue_INT
         nulnam = 0
         ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
         read(nulnam,nml=namsondetypes,iostat=ierr)
         if ( ierr /= 0 )  call utl_abort('bcc_readConfig: Error reading namelist section NAMSONDETYPES')
+        if (nlNbSondes /= MPC_missingValue_INT) then
+          call utl_abort('bcc_readConfig: check namsondetypes namelist section, you should remove nlNbSondes')
+        end if
+        nlNbSondes = 0
+        do sondeIndex = 1, nSondesMax
+          if (trim(nlSondeTypes(sondeIndex)) == 'empty') exit
+          nlNbSondes = nlNbSondes + 1
+        end do
         if ( mmpi_myid == 0 ) write(*,nml=namsondetypes)
         ierr = fclos(nulnam)
       else 

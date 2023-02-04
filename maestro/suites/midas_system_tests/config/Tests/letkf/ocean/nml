@@ -39,9 +39,7 @@
    NDATAMX = 1000000
 /
  &NAMFILT
-  NELEMS = 1,
   NLIST(1)=22042
-  NFLAGS=6
   NLISTFLG(1)=2
   NLISTFLG(2)=3
   NLISTFLG(3)=4
@@ -50,12 +48,10 @@
   NLISTFLG(6)=12
 /
  &NAMSQLsfc
-   numberElem=1
    listElem="22042, 7025"
    sqlNull=" and obsvalue is not null "  
 / 
  &namSSTObsErrors
-   numberSSTDatasets = 11
    !#                     dataType ,    instrument ,   sensor ,  sensorType , codetype , dayError , nightError
    SSTdataParams(1)  =    'insitu' ,     'drifter' ,       '' ,          '' ,       18 ,     0.36 ,       0.36
    SSTdataParams(2)  =    'insitu' ,        'ship' ,       '' ,          '' ,       13 ,     0.64 ,       0.64
@@ -70,7 +66,6 @@
    SSTdataParams(11) =    'pseudo' ,       'Bogus' ,       '' ,          '' ,      150 ,     1.00 ,       1.00
 /
  &NAMSQLUpdate
-  numberUpdateItems=2
   itemUpdateList(1)='OMP'
   itemUpdateList(2)='OMA'
 /

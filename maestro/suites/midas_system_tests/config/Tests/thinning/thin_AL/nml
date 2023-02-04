@@ -4,7 +4,6 @@
  &NAMTIME
 /
  &NAMFILT
-   NELEMS    = 16,
    NLIST(1)=11003,
    NLIST(2)=11004,
    NLIST(3)=12192,
@@ -21,7 +20,6 @@
    NLIST(14)=15036,
    NLIST(15)=15031,
    NLIST(16)=40030,
-   NFLAGS=8,
    NLISTFLG(1)=0,
    NLISTFLG(2)=-1,
    NLISTFLG(3)=-2,
@@ -39,13 +37,10 @@
  &NAMCODTYP
 /
  &NAMSQLAL
-  numberElem=2,
   listElem="40030,5021",
   sqlNull=" and obsvalue is not null "
 /
  &namSQLUpdate
-  numberUpdateItems=0
 /
  &namSQLInsert
-  numberInsertItems=0
 /

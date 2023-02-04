@@ -47,17 +47,9 @@
   DSTEPOBS = 3.0D0
 /
  &NAMFILT
-  NELEMS = 3,
   NLIST(1)=12062,
   NLIST(2)=12063,
   NLIST(3)=12163,
-  NFLAGS=0,
-  NLISTFLG(1)=4,
-  NLISTFLG(2)=5,
-  NLISTFLG(3)=9,
-  NLISTFLG(4)=11,
-  NLISTFLG(5)=12,
-  NLISTFLG(6)=2,
   RLIMLVHU   = 70.D0
 /
  &NAMRMAT
@@ -74,7 +66,6 @@
    ANLVAR(6)   ='TG'
 /
  &NAMTOV
-   NSENSORS         =  2,
    CSATID(1)        = 'NPP',
    CINSTRUMENTID(1) = 'ATMS',
    CSATID(2)        = 'NOAA20',

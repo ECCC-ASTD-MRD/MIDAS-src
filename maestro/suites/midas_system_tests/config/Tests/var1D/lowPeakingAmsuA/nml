@@ -1,11 +1,8 @@
  &NAMSQLamsua
-  numberElem=1 ,
   listElem='12163' ,
   sqlExtraHeader='' ,
   sqlNull='' ,
   sqlLimit='' ,
-  numberBitsOff=0 ,
-  numberBitsOn=0 ,
 /
  &NAMBMAT1D
   scalefactorHI=200*1.0
@@ -49,7 +46,6 @@
   DSTEPOBSINC = 6.00d0
 /
  &NAMFILT
-  NELEMS = 16,
   NLIST(1)=10004,
   NLIST(2)=10051,
   NLIST(3)=12004,
@@ -66,12 +62,9 @@
   NLIST(14)=12163,
   NLIST(15)=15036,
   NLIST(16)=15031,
-  NFLAGS=3,
   NLISTFLG(1)=2,
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
-  NLISTFLG(4)=-5,
-  NLISTFLG(5)=-8,
   list_topoFilt(1) = 'SF'
   list_topoFilt(2) = 'UA'	
   list_topoFilt(3) = 'AI'
@@ -95,7 +88,6 @@
    abortonMpiImbalance=.false.
 /
  &NAMTOV   
-   NSENSORS         =  7,
    CSATID(1)        = 'NOAA15',
    CINSTRUMENTID(1) = 'AMSUA',
    CSATID(2)        = 'NOAA16',
@@ -124,24 +116,13 @@
  &NAMGPSGB
 /
  &NAMBURP_FILTER_TOVS
-  BNBITSOFF=0,
-  BBITOFF(1)=2,
-  BBITOFF(2)=4,
-  BBITOFF(3)=5,
-  BBITOFF(4)=-5,
-  BBITOFF(5)=-8,
-  NELEMS=2
   BLISTELEMENTS=12163,12164
 /
  &NAMBURP_UPDATE
-  BN_ITEMS=1,
   BITEMLIST(1)='OMP',
-  BITEMLIST(2)='OMA',
-  BITEMLIST(3)='FGE',
   TYPE_RESUME='BGCKALT'
 /
  &NAMSQLUpdate
- numberUpdateItems=5,
  itemUpdateList(1)='OMA',
  itemUpdateList(2)='OMP',
  itemUpdateList(3)='OER',
@@ -150,6 +131,5 @@
 
 /
  &NAMSQLINSERT
- numberInsertItems=1,
  itemInsertList(1)=12163
 /

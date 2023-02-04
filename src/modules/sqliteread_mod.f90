@@ -367,7 +367,8 @@ module sqliteRead_mod
     character(len=256), allocatable :: listElemArray(:)
     integer, allocatable            :: listElemArrayInteger(:)
     integer                  :: numberRows, numberColumns
-
+    integer, parameter       :: maxNumberBits = 15
+    
     ! Namelist variables:
     integer :: numberElem
     character(len=256)       :: listElem
@@ -377,8 +378,8 @@ module sqliteRead_mod
     character(len=256)       :: sqlLimit 
     integer                  :: numberBitsOff
     integer                  :: numberBitsOn 
-    integer                  :: bitsOff(15)
-    integer                  :: bitsOn(15)
+    integer                  :: bitsOff(maxNumberBits)
+    integer                  :: bitsOn(maxNumberBits)
 
     namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
@@ -419,19 +420,12 @@ module sqliteRead_mod
     sqlLimit       = ''
     sqlNull        = ''
     listElem       = ''
-    numberElem = 0
-    numberBitsOff = 0
-    bitsOff =  0
-    numberBitsOn = 0
-    bitsOn = 0
+    numberElem = MPC_missingValue_INT
+    numberBitsOff = MPC_missingValue_INT
+    bitsOff(:) = MPC_missingValue_INT
+    numberBitsOn = MPC_missingValue_INT
+    bitsOn(:) = MPC_missingValue_INT
     
-    if (trim(familyType) == 'TO') then
-      write(listElem,*) bufr_nbt3
-      numberElem = 1
-    else
-      write(listElem,'(i5.5,",",i5.5)') bufr_nedd, bufr_neff
-    end if
-
     vertCoordfact  = 1
     columnsData = " vcoord, varno, obsvalue, flag "
     if (trim(familyType) == 'TO') then      
@@ -589,7 +583,31 @@ module sqliteRead_mod
         call utl_abort('sqlr_readSqlite: Unsupported  SCHEMA in SQLITE file!'//trim(rdbSchema))
     end select
     ierr=fclos(nulnam)
+    
+    if (numberBitsOff /=  MPC_missingValue_R4) then
+      call utl_abort('sqlr_readSqlite: check namelist, numberBitsOff  should be removed')
+    end if
+    numberBitsOff = 0
+    do bitIndex = 1, numberBitsOff
+      if (bitsOff(bitIndex)==MPC_missingValue_R4) exit
+      numberBitsOff = numberBitsOff + 1
+    end do
+    
+    if (numberBitsOn /=  MPC_missingValue_R4) then
+      call utl_abort('sqlr_readSqlite: check namelist, numberBitsOn  should be removed')
+    end if
+    numberBitsOn = 0
+    do bitIndex = 1, numberBitsOn
+      if (bitsOn(bitIndex)==MPC_missingValue_R4) exit
+      numberBitsOn = numberBitsOn + 1
+    end do
 
+    if (numberElem /= MPC_missingValue_R4) then
+      call utl_abort('sqlr_readSqlite: check namelist, numberElem should be removed')
+    end if
+    numberElem = count(transfer(listElem, 'a', len(listElem)) == ',') + 1
+    
+    
     ! Set the observation variable transforms
     if (numberElem > 0) then
       call utl_splitString(listElem,',', & ! IN
@@ -1103,11 +1121,12 @@ module sqliteRead_mod
     logical                     :: back, nonEmptyColumn, nonEmptyColumn_mpiglobal
     real(4)                     :: romp, obsValue, scaleFactor, columnValue
 
+    integer, parameter :: maxNumberUpdate = 15
     ! namelist variables:
     integer          :: numberUpdateItems
     integer          :: numberUpdateItemsRadar
-    character(len=3) :: itemUpdateList(15)
-    character(len=3) :: itemUpdateListRadar(15)
+    character(len=3) :: itemUpdateList(maxNumberUpdate)
+    character(len=3) :: itemUpdateListRadar(maxNumberUpdate)
 
     namelist/namSQLUpdate/ numberUpdateItems,      itemUpdateList,     &
                            numberUpdateItemsRadar, itemUpdateListRadar
@@ -1117,8 +1136,8 @@ module sqliteRead_mod
     ! set default values of namelist variables
     itemUpdateList(:) = ''
     itemUpdateListRadar(:) = ''
-    numberUpdateItems = 0
-    numberUpdateItemsRadar = 0
+    numberUpdateItems = MPC_missingValue_INT
+    numberUpdateItemsRadar = MPC_missingValue_INT
 
     ! Read the namelist for directives
     nulnam = 0
@@ -1127,7 +1146,23 @@ module sqliteRead_mod
     if (ierr /= 0) call utl_abort('sqlr_updateSqlite: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSQLUpdate)
     ierr = fclos(nulnam)
-
+    if (numberUpdateItems /= MPC_missingValue_INT) then
+      call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateItems should be removed')
+    end if
+    if (numberUpdateItemsRadar /= MPC_missingValue_INT) then
+      call utl_abort('sqlr_updateSqlite: check namelist section namSQLUpdate, numberUpdateItemsRadar should be removed')
+    end if
+    numberUpdateItems = 0
+    do itemIndex = 1, maxNumberUpdate
+      if (trim(itemUpdateList(itemIndex)) == '') exit
+      numberUpdateItems = numberUpdateItems + 1
+    end do
+    numberUpdateItemsRadar = 0
+    do itemIndex = 1, maxNumberUpdate
+      if (trim(itemUpdateListRadar(itemIndex)) == '') exit
+      numberUpdateItemsRadar = numberUpdateItemsRadar + 1
+    end do
+    
     ! Append extra sqlite columns to update to itemUpdateList
     if (trim(familyType) == 'RA') then
       do itemIndex = 1, numberUpdateItemsRadar
@@ -1411,12 +1446,13 @@ module sqliteRead_mod
     character(len=*)       :: fileName
     integer                :: fileNumber
     ! locals
-    integer                :: itemInsertList(15), numberInsertItems
+    integer, parameter     :: maxNumberInsertItems = 15
+    integer                :: itemInsertList(maxNumberInsertItems), numberInsertItems
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
     integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP
-    integer                :: numberInsert, headerIndex, bodyIndex, numHeader
+    integer                :: numberInsert, headerIndex, bodyIndex, numHeader, itemIndex
     integer                :: obsNlv, obsRln, obsIdf, insertItem
     integer(8)             :: bodyPrimaryKey, headPrimaryKey
     character(len = 256)   :: query
@@ -1429,8 +1465,8 @@ module sqliteRead_mod
     write(*,*) ' fileName -> ', trim(fileName)
 
     ! set default values of namelist variables
-    numberInsertItems = 0
-    itemInsertList(:) = 0
+    numberInsertItems = MPC_missingValue_INT
+    itemInsertList(:) = MPC_missingValue_INT
 
     nulnam = 0
     ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
@@ -1438,7 +1474,15 @@ module sqliteRead_mod
     if (ierr /= 0) call utl_abort('sqlr_insertSqlite: Error reading namelist')
     if (mmpi_myid == 0) write(*, nml = namSQLInsert)
     ierr=fclos(nulnam)
-
+    if (numberInsertItems /= MPC_missingValue_INT) then
+      call utl_abort('sqlr_insertSqlite: check namSQLInsert namelist section, you need to remove numberInsertItems')
+    end if
+    numberInsertItems = 0
+    do itemIndex = 1, maxNumberInsertItems
+      if ( itemInsertList(itemIndex) == MPC_missingValue_INT) exit
+      numberInsertItems = numberInsertItems + 1
+    end do
+    
     write(*,*) ' INSERT INTO SQLITE FILE ELEMENTS :--> ',(itemInsertList(insertItem), insertItem = 1, numberInsertItems)
 
     select case(trim(familyType))

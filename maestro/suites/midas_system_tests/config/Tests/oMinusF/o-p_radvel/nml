@@ -24,15 +24,7 @@
   DWINDOWSIZE = 6.0D0
 /
  &NAMFILT
-  NELEMS = 1,
   NLIST(1)=21014,
-  NFLAGS=0,
-  NLISTFLG(1)=4,
-  NLISTFLG(2)=5,
-  NLISTFLG(3)=9,
-  NLISTFLG(4)=11,
-  NLISTFLG(5)=12,
-  NLISTFLG(6)=2,
   RLIMLVHU   = 70.D0
 /
  &NAMRMAT
@@ -48,7 +40,6 @@
    ANLVAR(6)   ='TG'
 /
  &NAMTOV
-   NSENSORS         =  24,
    CSATID(1)        = 'NOAA15',
    CINSTRUMENTID(1) = 'AMSUA',
    CSATID(2)        = 'NOAA16',
@@ -109,42 +100,18 @@
  &NAMGPSGB
 /
  &NAMBURP_FILTER_SFC
-  BNBITSOFF=0,
-  BBITOFF(1)=2,
-  BBITOFF(2)=4,
-  BBITOFF(3)=5,
-  BBITOFF(4)=-5,
-  NELEMS_SFC=10,
   BLISTELEMENTS_SFC=10004,12004,10051,12203,11011,11012,13220,15031,15032,15035
 /
  &NAMBURP_FILTER_CONV
-  BNBITSOFF=0,
-  BBITOFF(1)=2,
-  BBITOFF(2)=4,
-  BBITOFF(3)=5,
-  BBITOFF(4)=-5,
-  BBITOFF(5)=-8,
-  NELEMS=10,
   BLISTELEMENTS=12001,11001,11002,12192,10194,15036,11011,11012,13210,13220
 /
  &NAMBURP_FILTER_TOVS
-  BNBITSOFF=0,
-  BBITOFF(1)=2,
-  BBITOFF(2)=4,
-  BBITOFF(3)=5,
-  BBITOFF(4)=-5,
-  BBITOFF(5)=-8,
-  NELEMS=1
   BLISTELEMENTS=12163
 /
  &NAMBURP_UPDATE
-  BN_ITEMS=1,
   BITEMLIST(1)='OMP',
-  BITEMLIST(2)='OMA',
-  BITEMLIST(3)='FGE',
   TYPE_RESUME='DERIALT'
  &namSQLInsert
-  numberInsertItems=4
   itemInsertList(1)=11215
   itemInsertList(2)=11216
   itemInsertList(3)=11003
@@ -152,10 +119,8 @@
 
 /
  &namSQLUpdate
- numberUpdateItems=2
  itemUpdateList(1)='OMP'
  itemUpdateList(2)='OMA'
- numberUpdateItemsRadar=1
  itemUpdateListRadar(1)='ALT'
 /
  &NAMSQLamsua
@@ -171,7 +136,6 @@
  &NAMSQLairs
 /
  &NAMSQLai
-  numberElem=4
   listElem="12001,11001,11002,12192"
   sqlNull=" and obsvalue is not null and vcoord is not null "
 /
@@ -182,37 +146,30 @@
  &NAMSQLiasi
 /
  &NAMSQLro
-  numberElem=2
   listElem="15036,15037"
   sqlNull=" and obsvalue is not null and vcoord is not null "
 /
  &NAMSQLsc
-   numberElem=2
    listElem="11011,11012"
    sqlNull = " and obsvalue is not null "
 /
  &NAMSQLsfc
-   numberElem=1
    listElem="22042"
    sqlNull=" and obsvalue is not null "  
 /
  &NAMSQLsw
-  numberElem=2
   listElem="11001,11002"
   sqlNull=" and obsvalue is not null and vcoord is not null "
 /
  &NAMSQLua
-  numberElem=11   
   listElem="12004,12203,10051,10004,11011,11012,12001,11001,11002,12192,10194"
   sqlNull=" and obsvalue is not null " 
 /
  &NAMSQLpr
-  numberElem=2
   listElem="11001,11002"
   sqlNull=" and obsvalue is not null and vcoord is not null "
 /
  &NAMSQLradvel
-  numberElem=1
   listElem="21014"
   sqlNull=" and obsvalue is not null "
 /

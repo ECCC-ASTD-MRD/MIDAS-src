@@ -1585,8 +1585,8 @@ contains
     end do HEADER1
 
     ! Default namelist values
-    numlev = 80
-    vlev(:) = -1
+    numlev = MPC_missingValue_INT
+    vlev(:) = MPC_missingValue_R4
     rprefinc = 0.0d0
     rptopinc = 0.0d0
     rcoefinc = 0.0d0
@@ -1597,6 +1597,14 @@ contains
       if (ierr /= 0) call utl_abort('thn_radiosonde: Error opening file flnml')
       read(nulnam,nml=namgem,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_radiosonde: Error reading namgem namelist')
+      if (numlev /= MPC_missingValue_INT) then
+        call utl_abort('thn_radiosonde: check NAMGEM namelist section, you should remove numlev')
+      end if
+      numlev = 0
+      do levIndex = 1, maxNumLev
+        if (vlev(levIndex) == MPC_missingValue_R4) exit
+        numlev = numlev + 1
+      end do
       if (mmpi_myid == 0) write(*,nml=namgem)
       ierr = fclos(nulnam)
     else

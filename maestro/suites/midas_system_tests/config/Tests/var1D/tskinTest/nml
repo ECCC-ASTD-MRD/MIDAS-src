@@ -1,11 +1,8 @@
  &NAMSQLcsr
-  numberElem=1 ,
   listElem='12163' ,
   sqlExtraHeader='' ,
   sqlNull='' ,
   sqlLimit='' ,
-  numberBitsOff=0 ,
-  numberBitsOn=0 ,
 /
  &NAMBMAT1D
   scalefactorHI=200*1.0,
@@ -43,7 +40,6 @@
   DSTEPOBSINC = 2.00d0
 /
  &NAMFILT
-  NELEMS = 16,
   NLIST(1)=10004,
   NLIST(2)=10051,
   NLIST(3)=12004,
@@ -60,12 +56,9 @@
   NLIST(14)=12163,
   NLIST(15)=15036,
   NLIST(16)=15031,
-  NFLAGS=3,
   NLISTFLG(1)=2,
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
-  NLISTFLG(4)=-5,
-  NLISTFLG(5)=-8,
   list_topoFilt(1) = 'SF'
   list_topoFilt(2) = 'UA'	
   list_topoFilt(3) = 'AI'
@@ -89,7 +82,6 @@
    abortonMpiImbalance=.false.
 /
  &NAMTOV   
-   NSENSORS =  5,
    CSATID(1)        = 'GOES13',
    CINSTRUMENTID(1) = 'GOESIMAGER',
    CSATID(2)        = 'GOES15',
@@ -111,7 +103,6 @@
  &NAMGPSGB
 /
  &NAMSQLUPDATE
- numberUpdateItems=3,
  itemUpdateList(1)='OMA',
  itemUpdateList(2)='OMP',
  itemUpdateList(3)='OER',
