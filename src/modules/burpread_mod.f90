@@ -2036,7 +2036,7 @@ CONTAINS
 
         FAMILYTYPE2= 'UA'
         ENFORCE_CLASSIC_SONDES=.false.
-        blistelements(:) = MPC_missingValue_INT
+
         call BRPACMA_NML('namburp_filter_conv')
         NELE_INFO=23
       CASE('AI')
