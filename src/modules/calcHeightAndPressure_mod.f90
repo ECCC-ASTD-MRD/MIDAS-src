@@ -469,7 +469,7 @@ contains
     integer ::  numStep, stepIndex
     real(kind=8), pointer       :: Hsfc(:,:)
     real(kind=4), allocatable   :: Hsfc4(:,:)
-    real(kind=4), pointer       :: GZHeight_out(:,:,:)
+    real(kind=4), pointer       :: GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
 
     call msg('calcHeight_gsv_nl_vcode2100x_r4 (czp)', 'START', verb_opt=4)
 
@@ -486,16 +486,11 @@ contains
 
     do stepIndex = 1, numStep
 
-      ! Z_M
-      call czp_fetch3DField_r4(statevector%vco, Hsfc4, fldM_opt=GZHeight_out)
-      Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
-      deallocate(GZHeight_out)
-      ! DBGmad : TODO combine both!
-
-      ! Z_T
-      call czp_fetch3DField_r4(statevector%vco, Hsfc4, fldT_opt=GZHeight_out)
-      Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
-      deallocate(GZHeight_out)
+      call czp_fetch3DField_r4( statevector%vco, Hsfc4, &
+                                fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
+      Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightM_out)
+      Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightT_out)
+      deallocate(GZHeightM_out, GZHeightT_out)
 
     end do
     deallocate(Hsfc4)
@@ -573,7 +568,8 @@ contains
 
     ! Locals
     integer ::  numStep, stepIndex
-    real(kind=8), pointer   :: Hsfc(:,:), GZHeight_out(:,:,:)
+    real(kind=8), pointer   :: Hsfc(:,:), GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
+
 
     call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=4)
 
@@ -582,16 +578,11 @@ contains
 
     do stepIndex = 1, numStep
 
-      ! Z_M
-      call czp_fetch3DField_r8(statevector%vco, Hsfc, fldM_opt=GZHeight_out)
-      Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
-      deallocate(GZHeight_out)
-      ! DBGmad : TODO combine both!
-
-      ! Z_T
-      call czp_fetch3DField_r8(statevector%vco, Hsfc, fldM_opt=GZHeight_out)
-      Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
-      deallocate(GZHeight_out)
+      call czp_fetch3DField_r8( statevector%vco, Hsfc, &
+                                fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
+      Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightM_out)
+      Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightT_out)
+      deallocate(GZHeightM_out, GZHeightT_out)
     end do
 
     call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'END', verb_opt=4)
@@ -2048,7 +2039,7 @@ contains
 
     ! Locals
     real(kind=8), allocatable   :: Psfc(:,:)
-    real(kind=8), pointer       :: Pressure_out(:,:,:)
+    real(kind=8), pointer       :: PressureM_out(:,:,:), PressureT_out(:,:,:)
     real(kind=8), pointer       :: field_Psfc(:,:,:,:)
     integer                     :: stepIndex, numStep
 
@@ -2066,16 +2057,11 @@ contains
         if ( Ps_in_hPa_opt ) Psfc = Psfc * mpc_pa_per_mbar_r8
       end if
 
-      ! P_M
-      call czp_fetch3DField_r8(statevector%vco, Psfc, fldM_opt=Pressure_out)
-      P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
-      deallocate(Pressure_out)
-      ! DBGmad : TODO combine!
-
-      ! P_T
-      call czp_fetch3DField_r8(statevector%vco, Psfc, fldT_opt=Pressure_out)
-      P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
-      deallocate(Pressure_out)
+      call czp_fetch3DField_r8( statevector%vco, Psfc, &
+                                fldM_opt=PressureM_out, fldT_opt=PressureT_out)
+      P_M(:,:,:,stepIndex) = PressureM_out(:,:,:)
+      P_T(:,:,:,stepIndex) = PressureT_out(:,:,:)
+      deallocate(PressureM_out, PressureT_out)
 
     end do
 
@@ -2102,7 +2088,7 @@ contains
 
     ! Locals
     real(kind=4), allocatable   :: Psfc(:,:)
-    real(kind=4), pointer       :: Pressure_out(:,:,:)
+    real(kind=4), pointer       :: PressureM_out(:,:,:), PressureT_out(:,:,:)
     real(kind=4), pointer       :: field_Psfc(:,:,:,:)
     integer                     :: stepIndex, numStep
 
@@ -2120,16 +2106,11 @@ contains
         if ( Ps_in_hPa_opt ) Psfc = Psfc * mpc_pa_per_mbar_r4
       end if
 
-      ! P_M
-      call czp_fetch3DField_r4(statevector%vco, Psfc, fldM_opt=Pressure_out)
-      P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
-      deallocate(Pressure_out)
-      ! DBGmad : TODO combine!
-
-      ! P_T
-      call czp_fetch3DField_r4(statevector%vco, Psfc, fldT_opt=Pressure_out)
-      P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
-      deallocate(Pressure_out)
+      call czp_fetch3DField_r4( statevector%vco, Psfc, &
+                                fldM_opt=PressureM_out, fldT_opt=PressureT_out)
+      P_M(:,:,:,stepIndex) = PressureM_out(:,:,:)
+      P_T(:,:,:,stepIndex) = PressureT_out(:,:,:)
+      deallocate(PressureM_out, PressureT_out)
 
     end do
 
@@ -2708,7 +2689,7 @@ contains
 
     ! Locals
     real(8), allocatable  :: hSfc(:,:)
-    real(8), pointer      :: hPtr(:,:,:)
+    real(8), pointer      :: hPtrM(:,:,:), hPtrT(:,:,:)
     integer :: numCol, colIndex
 
     call msg('calcHeight_col_nl_vcode2100x (czp)', 'START', verb_opt=4)
@@ -2724,16 +2705,11 @@ contains
       hSfc(1,colIndex) = col_getHeight(column,1,colIndex, 'SF')
     end do
 
-    ! momentum levels
-    call czp_fetch3DField_r8(column%vco, hSfc, fldM_opt=hPtr)
-    Z_M(:,:) = hPtr(1,:,:)
-    if (associated(hPtr)) deallocate(hPtr)
-      ! DBGmad : TODO combine!
-
-    ! thermo levels
-    call czp_fetch3DField_r8(column%vco, hSfc, fldT_opt=hPtr)
-    Z_T(:,:) = hPtr(1,:,:)
-    if (associated(hPtr)) deallocate(hPtr)
+    call czp_fetch3DField_r8( column%vco, hSfc, &
+                              fldM_opt=hPtrM, fldT_opt=hPtrT)
+    Z_M(:,:) = hPtrM(1,:,:)
+    Z_T(:,:) = hPtrT(1,:,:)
+    deallocate(hPtrM, hPtrT)
 
     deallocate(hSfc)
     call msg('calcHeight_col_nl_vcode2100x (czp)', 'END', verb_opt=4)
@@ -3449,7 +3425,7 @@ contains
 
     ! Locals
     real(kind=8), allocatable :: Psfc(:,:)
-    real(kind=8), pointer     :: zppobs(:,:,:)
+    real(kind=8), pointer     :: zppobsM(:,:,:), zppobsT(:,:,:)
     integer :: headerIndex
 
     call msg('calcPressure_col_nl_vcode500x (czp)', 'START', verb_opt=4)
@@ -3468,14 +3444,11 @@ contains
       Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
     end do
 
-    call czp_fetch3DField_r8(column%vco, Psfc, fldM_opt=zppobs)
-    P_M(:,:) = zppobs(1,:,:)
-    if (associated(zppobs))  deallocate(zppobs)
-    ! DBGmad : TODO combine!
-
-    call czp_fetch3DField_r8(column%vco, Psfc, fldT_opt=zppobs)
-    P_T(:,:) = zppobs(1,:,:)
-    if (associated(zppobs)) deallocate(zppobs)
+    call czp_fetch3DField_r8( column%vco, Psfc, &
+                              fldM_opt=zppobsM, fldT_opt=zppobsT)
+    P_M(:,:) = zppobsM(1,:,:)
+    P_T(:,:) = zppobsT(1,:,:)
+    deallocate(zppobsM, zppobsT)
 
     deallocate(Psfc)
 
