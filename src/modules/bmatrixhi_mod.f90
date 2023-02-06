@@ -32,6 +32,7 @@ MODULE BmatrixHI_mod
   use utilities_mod
   use gridVariableTransforms_mod
   use interpolation_mod
+  use calcHeightAndPressure_mod
   implicit none
   save
   private
@@ -122,7 +123,7 @@ CONTAINS
     character(len=15) :: bhi_mode
 
     integer :: jlev, nulnam, ierr, fnom, fclos, fstouv, fstfrm
-    integer :: jm, jn, status, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl
+    integer :: jm, jn, latPerPE, lonPerPE, latPerPEmax, lonPerPEmax, Vcode_anl
     logical :: llfound, lExists
     real(8) :: zps
     type(struct_vco),pointer :: vco_file => null()
@@ -314,10 +315,8 @@ CONTAINS
     if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     zps = 101000.D0
-    status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_M, levels=pressureProfile_M, &
-                         sfc_field=zps, in_log=.false.)
-    status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_T, levels=pressureProfile_T, &
-                         sfc_field=zps, in_log=.false.)
+    call czp_fetchProfile( vco_anl, zps, &
+                          profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
 
     llfound = .false.
     nlev_bdl = 0

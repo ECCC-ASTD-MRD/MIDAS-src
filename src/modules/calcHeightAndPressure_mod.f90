@@ -53,6 +53,7 @@ module calcHeightAndPressure_mod
   public :: czp_calcPressure_nl, czp_calcPressure_tl, czp_calcPressure_ad
   public :: czp_calcReturnHeight_gsv_nl, czp_calcReturnPressure_gsv_nl
   public :: czp_calcReturnHeight_col_nl, czp_calcReturnPressure_col_nl
+  public :: czp_fetchProfile
 
   interface czp_calcZandP_nl
     module procedure calcZandP_gsv_nl
@@ -3789,6 +3790,56 @@ contains
       end subroutine calcPressure_col_ad_vcode500x
 
   end subroutine calcPressure_col_ad
+
+  !---------------------------------------------------------------------
+  ! subroutines wrapping vgd_levels for 3D fields queries
+  !---------------------------------------------------------------------
+  
+  !---------------------------------------------------------
+  ! czp_fetch3DField
+  !---------------------------------------------------------
+
+  !---------------------------------------------------------------------
+  ! subroutines wrapping vgd_levels for profile queries
+  !---------------------------------------------------------------------
+
+  !---------------------------------------------------------
+  ! czp_fetchProfile
+  !---------------------------------------------------------
+  subroutine czp_fetchProfile(vco, sfcValue, profM_opt, profT_opt)
+    !
+    ! :Purpose: Return pressure profile for both momentum and thermodynamic levels
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_vco),   intent(in)            :: vco          ! Vertical descriptor
+    real(8),           intent(in)             :: sfcValue     ! Surface field reference for coordinate
+    real(8), optional, intent(inout), pointer :: profM_opt(:) ! Momemtum levels profile
+    real(8), optional, intent(inout), pointer :: profT_opt(:) ! Thermodynamic levels profile
+
+    ! Locals
+    integer :: status
+
+    if (present(profM_opt)) then
+      nullify(profM_opt)
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
+                          levels=profM_opt, sfc_field=sfcValue, in_log=.false.)
+      if ( status .ne. VGD_OK ) then
+        call utl_abort('calcPressure_prof (czp):  ERROR with vgd_levels (momentum levels)')
+      end if
+    end if
+
+    if (present(profT_opt)) then
+      nullify(profT_opt)
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
+                          levels=profT_opt, sfc_field=sfcValue, in_log=.false.)
+      if ( status .ne. VGD_OK ) then
+        call utl_abort('calcPressure_prof (czp):  ERROR with vgd_levels (thermodynamic levels)')
+      end if
+    end if
+  end subroutine czp_fetchProfile
+
 
   !---------------------------------------------------------------------
   ! helper private functions and subroutines

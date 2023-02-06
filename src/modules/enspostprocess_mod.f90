@@ -38,6 +38,7 @@ module ensPostProcess_mod
   use varNameList_mod
   use fileNames_mod
   use clib_interfaces_mod
+  use calcHeightAndPressure_mod
   implicit none
   save
   private

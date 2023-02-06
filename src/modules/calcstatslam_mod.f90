@@ -38,6 +38,7 @@ module calcStatsLam_mod
   use gridBinning_mod
   use timeCoord_mod
   use midasMpi_mod
+  use calcHeightAndPressure_mod
   implicit none
   save
   private
@@ -118,7 +119,6 @@ contains
     !
     ! :Purpose: To initialize this module
     !
-    use vGrid_Descriptors , only: vgrid_descriptor, vgd_levels, VGD_OK  
     implicit none
 
     ! arguments
@@ -400,38 +400,20 @@ contains
     !
     if (vco_bhi%vgridPresent) then
       SurfacePressure = 101000.D0
+      call czp_fetchProfile( vco_bhi, SurfacePressure, &
+                            profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
 
-      status = vgd_levels(vco_bhi%vgrid, ip1_list=vco_bhi%ip1_M,     & ! IN
-                          levels=pressureProfile_M,                  & ! OUT
-                          sfc_field=SurfacePressure, in_log=.false.)   ! IN
-
-      if ( status /= VGD_OK ) then
-        write(*,*)
-        write(*,*) 'csl_setup: ERROR with vgd_levels for MOMENTUM levels '
-        call utl_abort('csl_setup')
-      else
-        write(*,*)
-        write(*,*) 'Pressure profile...'
-        do k = 1, vco_bhi%nlev_M
-          write(*,*) k, pressureProfile_M(k) / 100.d0, ' hPa'
-        end do
-      end if
+      write(*,*)
+      write(*,*) 'Pressure profile...'
+      do k = 1, vco_bhi%nlev_M
+        write(*,*) k, pressureProfile_M(k) / 100.d0, ' hPa'
+      end do
       
-      status = vgd_levels(vco_bhi%vgrid, ip1_list=vco_bhi%ip1_T,     & ! IN
-                          levels=pressureProfile_T,                  & ! OUT
-                          sfc_field=SurfacePressure, in_log=.false.)   ! IN
-      
-      if ( status /= VGD_OK ) then
-        write(*,*)
-        write(*,*) 'csl_setup: ERROR with vgd_levels for THERMO levels '
-        call utl_abort('csl_setup')
-      else
-        write(*,*)
-        write(*,*) 'Pressure profile...'
-        do k = 1, vco_bhi%nlev_T
-          write(*,*) k, pressureProfile_T(k) / 100.d0, ' hPa'
-        end do
-      end if
+      write(*,*)
+      write(*,*) 'Pressure profile...'
+      do k = 1, vco_bhi%nlev_T
+        write(*,*) k, pressureProfile_T(k) / 100.d0, ' hPa'
+      end do
 
     end if
 
