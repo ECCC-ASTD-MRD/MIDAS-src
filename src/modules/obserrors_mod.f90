@@ -1158,6 +1158,8 @@ contains
                           clw_avg > maxRetrievableClwValue) then
                         write(*,*) 'This observation should have been rejected ', &
                                   'in all-sky mode at background check!' 
+                        write(*,*) 'oer_fillObsErrors: iplatform=', iplatform, &
++                                   ', isat=', isat, ', instrum=', instrum
                         write(*,*) 'oer_fillObsErrors: clwObs=', clwObs, &
                                   ', clwFG=', clwFG
                         call utl_abort('oer_fillObsErrors: CLW is not usable to define obs error')
