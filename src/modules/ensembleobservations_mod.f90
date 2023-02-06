@@ -54,7 +54,8 @@ MODULE ensembleObservations_mod
   integer,external   :: get_max_rss
 
   type struct_eob
-    logical                       :: allocated = .false.
+    logical                       :: allocated      = .false.
+    logical                       :: meanRemoved = .false.
     integer                       :: numMembers       ! number of ensemble members
     integer                       :: numObs           ! number of observations
     integer                       :: fileMemberIndex1 = 1 ! first member number in ensemble set
@@ -1082,6 +1083,8 @@ CONTAINS
       ensObs%Yb_r4(:,obsIndex) = ensObs%Yb_r4(:,obsIndex) - ensObs%meanYb(obsIndex)
     end do
 
+    ensObs%meanRemoved = .true.
+    
   end subroutine eob_calcAndRemoveMeanYb
 
   !--------------------------------------------------------------------------

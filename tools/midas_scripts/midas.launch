@@ -30,6 +30,7 @@ eval `${CCLARGS:-cclargs} -D "" $0 \
   -ensemble          "" "" "[directory to find the ensemble trials]" \
   -ensemble_trial    "" "" "[directory to find the ensemble trials]" \
   -ensemble_anal     "" "" "[directory to find the ensemble analysis]" \
+  -ensemble_trial_extension "006" "006" "[leadtime of the ensemble trials]" \
   -bgcov             "" "" "[background error statistics]" \
   -obscov            "" "" "[conventional observation error statistics]" \
   -coefsat           "" "" "[RTTOV coefficients (mandatory)]" \
@@ -331,7 +332,7 @@ for enskey in ensemble ensemble_trial ensemble_anal; do
                 exit 1
             fi
             date_file=${date_trial}
-            ext=006
+            ext=${ensemble_trial_extension}
         fi
         ${nodelogger} -n $SEQ_NODE -s infox -m "Get ensemble ${ensname}"
 

@@ -49,8 +49,8 @@ program midas_ensembleH
   type(struct_gsv)          :: stateVectorHeightSfc
   type(struct_columnData)   :: column
 
-  type(struct_eob), target  :: ensObs, ensObs_mpiglobal
-  type(struct_eob), pointer :: ensObsGain, ensObsGain_mpiglobal
+  type(struct_eob), target  :: ensObs
+  type(struct_eob), pointer :: ensObsGain
 
   type(struct_vco), pointer :: vco_ens => null()
   type(struct_hco), pointer :: hco_ens => null()

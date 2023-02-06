@@ -2203,19 +2203,25 @@ module sqliteRead_mod
         numberInsertions = numberInsertions + 1
 
         if ( present( ensObs_opt ) ) then
-          if ( .not. allocated(ensObs_opt%Ya_r4) ) then
-            call utl_abort('sqlr_writeSqlDiagFile: ensObs%Ya_r4 must be allocated and it is not')
+          if ( .not. allocated(ensObs_opt%Yb_r4) ) then
+            call utl_abort('sqlr_writeSqlDiagFile: ensObs%Yb_r4 must be allocated and it is not')
           end if
-
           ! Loop over members. insert order: id_data, id_obs, id_member, obstrl, obsanl
           do memberIndex = 1, ensObs_opt%numMembers
-            ENSOBSTRL = ensObs_opt%Yb_r4(memberIndex,bodyIndex) + ensObs_opt%meanYb(bodyIndex) ! Yb_r4 has mean removed, so add back
-            ENSOBSANL = ensObs_opt%Ya_r4(memberIndex,bodyIndex)
+            ENSOBSTRL = ensObs_opt%Yb_r4(memberIndex,bodyIndex)
+            if (ensObs_opt%meanRemoved) then
+              ENSOBSTRL = ENSOBSTRL + ensObs_opt%meanYb(bodyIndex) ! Yb_r4 has mean removed, so add back
+            end if
             call fSQL_bind_param(stmtEnsObs, param_index = 1, int_var  = idData)
             call fSQL_bind_param(stmtEnsObs, param_index = 2, int_var  = idObs)
             call fSQL_bind_param(stmtEnsObs, param_index = 3, int_var  = memberIndex)
-            call fSQL_bind_param(stmtEnsObs, param_index = 4, real_var = ENSOBSTRL)    
-            call fSQL_bind_param(stmtEnsObs, param_index = 5, real_var = ENSOBSANL)
+            call fSQL_bind_param(stmtEnsObs, param_index = 4, real_var = ENSOBSTRL)
+            if ( allocated(ensObs_opt%Ya_r4) ) then
+              ENSOBSANL = ensObs_opt%Ya_r4(memberIndex,bodyIndex)
+              call fSQL_bind_param(stmtEnsObs, param_index = 5, real_var = ENSOBSANL)
+            else
+              call fSQL_bind_param(stmtEnsObs, param_index = 5)
+            end if
             call fSQL_exec_stmt (stmtEnsObs)
           end do
         end if  
