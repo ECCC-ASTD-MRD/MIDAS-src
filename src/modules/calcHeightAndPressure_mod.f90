@@ -466,7 +466,7 @@ contains
     real(4), pointer,  intent(inout) :: Z_M(:,:,:,:)
 
     ! Locals
-    integer ::  numStep, stepIndex, status
+    integer ::  numStep, stepIndex
     real(kind=8), pointer       :: Hsfc(:,:)
     real(kind=4), allocatable   :: Hsfc4(:,:)
     real(kind=4), pointer       :: GZHeight_out(:,:,:)
@@ -487,28 +487,13 @@ contains
     do stepIndex = 1, numStep
 
       ! Z_M
-      nullify(GZHeight_out)
-      status = vgd_levels(statevector%vco%vgrid, &
-                          ip1_list=statevector%vco%ip1_M, &
-                          levels=GZHeight_out, &
-                          sfc_field=Hsfc4, &
-                          in_log=.false.)
-      if( status .ne. VGD_OK ) then
-          call utl_abort('calcHeight_gsv_nl_vcode2100x_r4 (czp): ERROR with vgd_levels')
-      end if
+      call czp_fetch3DField_r4(statevector%vco, Hsfc4, fldM_opt=GZHeight_out)
       Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
       deallocate(GZHeight_out)
+      ! DBGmad : TODO combine both!
 
       ! Z_T
-      nullify(GZHeight_out)
-      status = vgd_levels(statevector%vco%vgrid, &
-                          ip1_list=statevector%vco%ip1_T, &
-                          levels=GZHeight_out, &
-                          sfc_field=Hsfc4, &
-                          in_log=.false.)
-      if( status .ne. VGD_OK ) then
-          call utl_abort('calcHeight_gsv_nl_vcode2100x_r4 (czp): ERROR with vgd_levels')
-      end if
+      call czp_fetch3DField_r4(statevector%vco, Hsfc4, fldT_opt=GZHeight_out)
       Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeight_out)
       deallocate(GZHeight_out)
 
@@ -587,7 +572,7 @@ contains
     real(8), pointer,  intent(inout) :: Z_M(:,:,:,:)
 
     ! Locals
-    integer ::  numStep, stepIndex, status
+    integer ::  numStep, stepIndex
     real(kind=8), pointer   :: Hsfc(:,:), GZHeight_out(:,:,:)
 
     call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=4)
@@ -598,28 +583,13 @@ contains
     do stepIndex = 1, numStep
 
       ! Z_M
-      nullify(GZHeight_out)
-      status = vgd_levels(statevector%vco%vgrid, &
-                          ip1_list=statevector%vco%ip1_M, &
-                          levels=GZHeight_out, &
-                          sfc_field=Hsfc, &
-                          in_log=.false.)
-      if( status .ne. VGD_OK ) then
-          call utl_abort('calcHeight_gsv_nl_vcode2100x_r8 (czp): ERROR with vgd_levels')
-      end if
+      call czp_fetch3DField_r8(statevector%vco, Hsfc, fldM_opt=GZHeight_out)
       Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
       deallocate(GZHeight_out)
+      ! DBGmad : TODO combine both!
 
       ! Z_T
-      nullify(GZHeight_out)
-      status = vgd_levels(statevector%vco%vgrid, &
-                          ip1_list=statevector%vco%ip1_T, &
-                          levels=GZHeight_out, &
-                          sfc_field=Hsfc, &
-                          in_log=.false.)
-      if( status .ne. VGD_OK ) then
-          call utl_abort('calcHeight_gsv_nl_vcode2100x_r8 (czp): ERROR with vgd_levels')
-      end if
+      call czp_fetch3DField_r8(statevector%vco, Hsfc, fldM_opt=GZHeight_out)
       Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeight_out)
       deallocate(GZHeight_out)
     end do
@@ -2080,7 +2050,7 @@ contains
     real(kind=8), allocatable   :: Psfc(:,:)
     real(kind=8), pointer       :: Pressure_out(:,:,:)
     real(kind=8), pointer       :: field_Psfc(:,:,:,:)
-    integer                     :: status, stepIndex, numStep
+    integer                     :: stepIndex, numStep
 
     call msg('calcPressure_gsv_nl_vcode500x_r8 (czp)', 'START', verb_opt=4)
 
@@ -2097,28 +2067,13 @@ contains
       end if
 
       ! P_M
-      nullify(Pressure_out)
-      status = vgd_levels(statevector%vco%vgrid, &
-                          ip1_list=statevector%vco%ip1_M, &
-                          levels=Pressure_out, &
-                          sfc_field=Psfc, &
-                          in_log=.false.)
-      if( status .ne. VGD_OK ) then
-        call utl_abort('calcPressure_gsv_nl_vcode500x_r8 (czp): ERROR with vgd_levels')
-      end if
+      call czp_fetch3DField_r8(statevector%vco, Psfc, fldM_opt=Pressure_out)
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
+      ! DBGmad : TODO combine!
 
       ! P_T
-      nullify(Pressure_out)
-      status = vgd_levels(statevector%vco%vgrid, &
-                          ip1_list=statevector%vco%ip1_T, &
-                          levels=Pressure_out, &
-                          sfc_field=Psfc, &
-                          in_log=.false.)
-      if( status .ne. VGD_OK ) then
-        call utl_abort('calcPressure_gsv_nl_vcode500x_r8 (czp): ERROR with vgd_levels')
-      end if
+      call czp_fetch3DField_r8(statevector%vco, Psfc, fldT_opt=Pressure_out)
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
 
@@ -2149,7 +2104,7 @@ contains
     real(kind=4), allocatable   :: Psfc(:,:)
     real(kind=4), pointer       :: Pressure_out(:,:,:)
     real(kind=4), pointer       :: field_Psfc(:,:,:,:)
-    integer                     :: status, stepIndex, numStep
+    integer                     :: stepIndex, numStep
 
     call msg('calcPressure_gsv_nl_vcode500x_r4 (czp)', 'START', verb_opt=4)
 
@@ -2166,28 +2121,13 @@ contains
       end if
 
       ! P_M
-      nullify(Pressure_out)
-      status = vgd_levels(statevector%vco%vgrid, &
-                          ip1_list=statevector%vco%ip1_M, &
-                          levels=Pressure_out, &
-                          sfc_field=Psfc, &
-                          in_log=.false.)
-      if( status .ne. VGD_OK ) then
-        call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): ERROR with vgd_levels')
-      end if
+      call czp_fetch3DField_r4(statevector%vco, Psfc, fldM_opt=Pressure_out)
       P_M(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
+      ! DBGmad : TODO combine!
 
       ! P_T
-      nullify(Pressure_out)
-      status = vgd_levels(statevector%vco%vgrid, &
-                          ip1_list=statevector%vco%ip1_T, &
-                          levels=Pressure_out, &
-                          sfc_field=Psfc, &
-                          in_log=.false.)
-      if( status .ne. VGD_OK ) then
-        call utl_abort('calcPressure_gsv_nl_vcode500x_r4 (czp): ERROR with vgd_levels')
-      end if
+      call czp_fetch3DField_r4(statevector%vco, Psfc, fldT_opt=Pressure_out)
       P_T(:,:,:,stepIndex) = Pressure_out(:,:,:)
       deallocate(Pressure_out)
 
@@ -2769,7 +2709,7 @@ contains
     ! Locals
     real(8), allocatable  :: hSfc(:,:)
     real(8), pointer      :: hPtr(:,:,:)
-    integer :: numCol, colIndex, stat
+    integer :: numCol, colIndex
 
     call msg('calcHeight_col_nl_vcode2100x (czp)', 'START', verb_opt=4)
     if ( col_getNumCol(column) <= 0 ) then
@@ -2785,20 +2725,13 @@ contains
     end do
 
     ! momentum levels
-    stat=vgd_levels(column%vco%vgrid, ip1_list=column%vco%ip1_M, &
-                    levels=hPtr, sfc_field=hSfc, in_log=.false.)
-    if ( stat .ne. VGD_OK ) then
-      call utl_abort('calcHeight_col_nl_vcode2100x (czp): ERROR with vgd_levels')
-    end if
+    call czp_fetch3DField_r8(column%vco, hSfc, fldM_opt=hPtr)
     Z_M(:,:) = hPtr(1,:,:)
     if (associated(hPtr)) deallocate(hPtr)
+      ! DBGmad : TODO combine!
 
     ! thermo levels
-    stat=vgd_levels(column%vco%vgrid, ip1_list=column%vco%ip1_T, &
-                    levels=hPtr, sfc_field=hSfc, in_log=.false.)
-    if ( stat .ne. VGD_OK ) then
-      call utl_abort('calcHeight_col_nl_vcode2100x (czp): ERROR with vgd_levels')
-    end if
+    call czp_fetch3DField_r8(column%vco, hSfc, fldT_opt=hPtr)
     Z_T(:,:) = hPtr(1,:,:)
     if (associated(hPtr)) deallocate(hPtr)
 
@@ -3517,7 +3450,7 @@ contains
     ! Locals
     real(kind=8), allocatable :: Psfc(:,:)
     real(kind=8), pointer     :: zppobs(:,:,:)
-    integer :: headerIndex, status
+    integer :: headerIndex
 
     call msg('calcPressure_col_nl_vcode500x (czp)', 'START', verb_opt=4)
     if ( col_getNumCol(column) <= 0 ) then
@@ -3535,15 +3468,12 @@ contains
       Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
     end do
 
-    status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_M,  &
-                      levels=zppobs,sfc_field=Psfc,in_log=.false.)
-    if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
+    call czp_fetch3DField_r8(column%vco, Psfc, fldM_opt=zppobs)
     P_M(:,:) = zppobs(1,:,:)
     if (associated(zppobs))  deallocate(zppobs)
+    ! DBGmad : TODO combine!
 
-    status=vgd_levels(column%vco%vgrid,ip1_list=column%vco%ip1_T,  &
-                      levels=zppobs,sfc_field=Psfc,in_log=.false.)
-    if(status.ne.VGD_OK) call utl_abort('ERROR with vgd_levels')
+    call czp_fetch3DField_r8(column%vco, Psfc, fldT_opt=zppobs)
     P_T(:,:) = zppobs(1,:,:)
     if (associated(zppobs)) deallocate(zppobs)
 
@@ -3796,8 +3726,79 @@ contains
   !---------------------------------------------------------------------
   
   !---------------------------------------------------------
-  ! czp_fetch3DField
+  ! czp_fetch3DField_r8
   !---------------------------------------------------------
+  subroutine czp_fetch3DField_r8(vco, sfcFld, fldM_opt, fldT_opt)
+    !
+    ! :Purpose: Return pressure fields for both momentum and thermodynamic levels
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_vco),  intent(in)             :: vco              ! Vertical descriptor
+    real(8),           intent(in)             :: sfcFld(:,:)      ! Surface field reference for coordinate
+    real(8), optional, intent(inout), pointer :: fldM_opt(:,:,:)  ! Momemtum levels field
+    real(8), optional, intent(inout), pointer :: fldT_opt(:,:,:)  ! Thermodynamic levels field
+
+    ! Locals
+    integer :: status
+
+    if (present(fldM_opt)) then
+      nullify(fldM_opt)
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
+                          levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
+      if ( status .ne. VGD_OK ) then
+        call utl_abort('czp_fetch3DField_r8:  ERROR with vgd_levels (momentum levels)')
+      end if
+    end if
+
+    if (present(fldT_opt)) then
+      nullify(fldT_opt)
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
+                          levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
+      if ( status .ne. VGD_OK ) then
+        call utl_abort('czp_fetch3DField_r8:  ERROR with vgd_levels (thermodynamic levels)')
+      end if
+    end if
+  end subroutine czp_fetch3DField_r8
+
+  !---------------------------------------------------------
+  ! czp_fetch3DField_r4
+  !---------------------------------------------------------
+  subroutine czp_fetch3DField_r4(vco, sfcFld, fldM_opt, fldT_opt)
+    !
+    ! :Purpose: Main vgd_levels wrapper. Return vertical coordinate fields for
+    !           both momentum and thermodynamic levels
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_vco),  intent(in)             :: vco              ! Vertical descriptor
+    real(4),           intent(in)             :: sfcFld(:,:)      ! Surface field reference for coordinate
+    real(4), optional, intent(inout), pointer :: fldM_opt(:,:,:)  ! Momemtum levels field
+    real(4), optional, intent(inout), pointer :: fldT_opt(:,:,:)  ! Thermodynamic levels field
+
+    ! Locals
+    integer :: status
+
+    if (present(fldM_opt)) then
+      nullify(fldM_opt)
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
+                          levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
+      if ( status .ne. VGD_OK ) then
+        call utl_abort('czp_fetch3DField_r4:  ERROR with vgd_levels (momentum levels)')
+      end if
+    end if
+
+    if (present(fldT_opt)) then
+      nullify(fldT_opt)
+      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
+                          levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
+      if ( status .ne. VGD_OK ) then
+        call utl_abort('czp_fetch3DField_r4:  ERROR with vgd_levels (thermodynamic levels)')
+      end if
+    end if
+  end subroutine czp_fetch3DField_r4
 
   !---------------------------------------------------------------------
   ! subroutines wrapping vgd_levels for profile queries
@@ -3813,7 +3814,7 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_vco),   intent(in)            :: vco          ! Vertical descriptor
+    type(struct_vco),  intent(in)             :: vco          ! Vertical descriptor
     real(8),           intent(in)             :: sfcValue     ! Surface field reference for coordinate
     real(8), optional, intent(inout), pointer :: profM_opt(:) ! Momemtum levels profile
     real(8), optional, intent(inout), pointer :: profT_opt(:) ! Thermodynamic levels profile
@@ -3826,7 +3827,7 @@ contains
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
                           levels=profM_opt, sfc_field=sfcValue, in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('calcPressure_prof (czp):  ERROR with vgd_levels (momentum levels)')
+        call utl_abort('czp_fetchProfile:  ERROR with vgd_levels (momentum levels)')
       end if
     end if
 
@@ -3835,7 +3836,7 @@ contains
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
                           levels=profT_opt, sfc_field=sfcValue, in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('calcPressure_prof (czp):  ERROR with vgd_levels (thermodynamic levels)')
+        call utl_abort('czp_fetchProfile:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
   end subroutine czp_fetchProfile
