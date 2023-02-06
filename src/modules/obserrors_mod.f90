@@ -85,7 +85,7 @@ module obsErrors_mod
   integer, parameter :: maxNumberSSTDatasets = 15
 
   ! SST namelist variables
-  integer :: numberSSTDatasets = MPC_missingValue_INT            ! number of SST datasets in namelist
+  integer :: numberSSTDatasets = MPC_missingValue_INT            ! MUST NOT BE INCLUDED IN NAMELIST!
   type(SSTdataParamsType) :: SSTdataParams(maxNumberSSTDatasets) ! list of SSTdataParamsType defining SST obs errors
 
   ! CONVENTIONAL OBS ERRORS

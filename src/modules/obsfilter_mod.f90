@@ -132,11 +132,11 @@ contains
          'ELEMENT MODIFIED OR GEN BY  ADE   '/
 
     ! Namelist variables: (local)
-    integer :: nelems                    ! number of bufr element IDs in 'nlist'
+    integer :: nelems                    ! MUST NOT BE INCLUDED IN NAMELIST!
     integer :: nlist(nelemsMax)          ! list of bufr element IDs to consider for assimilation
-    integer :: nflags                    ! number of flags in 'nlistflg'
+    integer :: nflags                    ! MUST NOT BE INCLUDED IN NAMELIST!
     integer :: nlistflg(nFLagsMax)       ! list of flag 'reference numbers' to use for rejecting obs
-    integer :: nelems_altDiffMax         ! number of values in 'list_altDiffMax'
+    integer :: nelems_altDiffMax         ! MUST NOT BE INCLUDED IN NAMELIST!
     integer :: list_altDiffMax(numElem)  ! list of bufr element IDs to apply maximum altitude difference
     character(len=2) :: list_topoFilt(nTopoFiltFam) ! list of obs family names for applying max altitude
     real(8) :: value_altDiffMax(numElem) ! value of maximum difference between model sfc and obs altitude

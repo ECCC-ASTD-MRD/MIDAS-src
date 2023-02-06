@@ -371,14 +371,14 @@ module sqliteRead_mod
     integer, parameter       :: maxNumberBits = 15
     
     ! Namelist variables:
-    integer :: numberElem
+    integer                  :: numberElem    ! MUST NOT BE INCLUDE IN NAMELIST!
     character(len=256)       :: listElem
     character(len=256)       :: sqlExtraDat
     character(len=256)       :: sqlExtraHeader
     character(len=256)       :: sqlNull
     character(len=256)       :: sqlLimit 
-    integer                  :: numberBitsOff
-    integer                  :: numberBitsOn 
+    integer                  :: numberBitsOff ! MUST NOT BE INCLUDE IN NAMELIST!
+    integer                  :: numberBitsOn  ! MUST NOT BE INCLUDE IN NAMELIST!
     integer                  :: bitsOff(maxNumberBits)
     integer                  :: bitsOn(maxNumberBits)
 
@@ -1124,8 +1124,8 @@ module sqliteRead_mod
 
     integer, parameter :: maxNumberUpdate = 15
     ! namelist variables:
-    integer          :: numberUpdateItems
-    integer          :: numberUpdateItemsRadar
+    integer          :: numberUpdateItems                    ! MUST NOT BE INCLUDED IN NAMELIST!
+    integer          :: numberUpdateItemsRadar               ! MUST NOT BE INCLUDED IN NAMELIST!
     character(len=3) :: itemUpdateList(maxNumberUpdate)
     character(len=3) :: itemUpdateListRadar(maxNumberUpdate)
 

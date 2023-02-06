@@ -37,30 +37,16 @@ program midas_sstBias
   implicit none
 
   integer, external :: exdb, exfin, fnom, fclos, get_max_rss
-  integer :: ierr, istamp, nulnam
+  integer :: ierr, istamp
 
   type(struct_obs), target    :: obsSpaceData
   type(struct_hco), pointer   :: hco_anl => null()
   type(struct_vco), pointer   :: vco_anl => null()
-  real(8)                     :: searchRadius            ! horizontal search radius, in km, for obs gridding
   character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
                                  varMode        = 'analysis'
   type(struct_columnData)     :: column                  ! column data
   integer                     :: dateStampFromObs
   
-  ! namelist parameters 
-  real(4)                     :: iceFractionThreshold    ! consider no ice condition below this threshold
-  real(4)                     :: maxBias                 ! max acceptable difference (insitu - satellite)
-  integer, parameter          :: maxNumberSensors = 10
-  integer                     :: numberSensors           ! number of sensors to treat
-  integer                     :: numberPointsBG          ! parameter, number of matchups of the background bias estimation
-  character(len=10)           :: sensorList(maxNumberSensors)          ! list of sensors
-  character(len=20)           :: timeInterpType_nl       ! 'NEAREST' or 'LINEAR'
-  integer                     :: numObsBatches           ! number of batches for calling interp setup
-  logical                     :: saveAuxFields           ! to store or not auxiliary fields: nobs and weight        
-  real(4)                     :: weightMin               ! minimum value of weight for the current day bias
-  real(4)                     :: weightMax               ! maximum value of weight for the current day bias
-   
   istamp = exdb('SSTBIASESTIMATION','DEBUT','NON')
 
   call ver_printNameAndVersion('SSTbias','SST Bias Estimation')
@@ -79,9 +65,7 @@ program midas_sstBias
   ! Do initial set up
   call SSTbias_setup('VAR') ! obsColumnMode
   
-  call sstb_computeBias(obsSpaceData, hco_anl, vco_anl, iceFractionThreshold, searchRadius, &
-                        numberSensors, sensorList, maxBias, numberPointsBG, &
-                        weightMin, weightMax, saveAuxFields)
+  call sstb_computeBias(obsSpaceData, hco_anl, vco_anl)
 			 
   ! Deallocate copied obsSpaceData
   call obs_finalize(obsSpaceData)
@@ -105,16 +89,12 @@ program midas_sstBias
     !
 
     implicit none
-    !Arguments:
+    ! Arguments:
     character(len=*), intent(in)  :: obsColumnMode
     
-    !Locals:	
+    ! Locals:	
     type(struct_hco), pointer   :: hco_core => null()
     character(len=*), parameter :: gridFile = './analysisgrid'
-    integer                     :: sensorIndex
-    namelist /namSSTbiasEstimate/ searchRadius, maxBias, iceFractionThreshold, numberPointsBG, &
-                                  timeInterpType_nl, numObsBatches, numberSensors, sensorList, &
-                                  weightMin, weightMax, saveAuxFields
     
     write(*,*) ''
     write(*,*) '-------------------------------------------------'
@@ -139,43 +119,6 @@ program midas_sstBias
       end if
     end if
 
-    ! Setting default namelist variable values
-    searchRadius = 10.            
-    maxBias = 1.                  
-    iceFractionThreshold   = 0.05 
-    numberSensors = MPC_missingValue_INT    
-    numberPointsBG = 0            
-    timeInterpType_nl = 'NEAREST'
-    numObsBatches = 20
-    sensorList(:) = ''
-    weightMin = 0.0
-    weightMax = 1.0
-    saveAuxFields = .False.
-    
-    ! Read the namelist
-    nulnam = 0
-    ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    read(nulnam, nml = namSSTbiasEstimate, iostat = ierr )
-    if (ierr /= 0) call utl_abort('SSTbias_setup: Error reading namelist')
-    if (mmpi_myid == 0) write(*, nml = namSSTbiasEstimate)
-    ierr = fclos( nulnam )
-    
-    if (numberSensors /= MPC_missingValue_INT) then
-      call utl_abort('SSTbias: check namSSTbiasEstimate namelist section: numberSensors should be removed')
-    end if
-    numberSensors = 0
-    do sensorIndex = 1, maxNumberSensors
-      if (trim(sensorList(sensorIndex))=='') exit
-      numberSensors = numberSensors + 1
-    end do
-    if (numberSensors == 0) call utl_abort('SSTbias_setup: Number of sensors to treat is not defined!')
-    write(*,*)''
-    write(*,*) 'SSTbias_setup: sensors to treat: '
-    do sensorIndex = 1, numberSensors
-      write(*,*) 'SSTbias_setup: sensor index: ', sensorIndex, ', sensor: ', sensorList( sensorIndex )
-    end do
-    write(*,*) 'SSTbias_setup: weight limits for current bias estimate: ', weightMin, weightMax
-       
     !
     !- Initialize constants
     !
