@@ -37,9 +37,6 @@ module bgckmicrowave_mod
 
   real    :: mwbg_clwQcThreshold
   real    :: mwbg_cloudyClwThresholdBcorr
-  real    :: mwbg_siQcOverIceThreshold
-  real    :: mwbg_siQcOverWaterThreshold
-  real    :: mwbg_siQcOverLandThreshold
   real    :: mwbg_cloudySiThresholdBcorr
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
@@ -67,6 +64,10 @@ module bgckmicrowave_mod
   real,   parameter :: scatbg_mwhs2_cmc_ICErej=40.0
   real,   parameter :: scatbg_mwhs2_cmc_SEA=15.0
   real,   parameter :: mean_Tb_183Ghz_min=240.0      ! min. value for Mean(Tb) chans. 18-22 
+  ! for AMSUB/MHS
+  real,   parameter :: siQcOverIceThreshold = 40.0    ! scattering index over ice
+  real,   parameter :: siQcOverWaterThreshold = 15.0  ! scattering index over water
+  real,   parameter :: siQcOverLandThreshold = 0.0    ! scattering index over land
 
   integer, parameter :: mwbg_maxNumSat  = 13
   integer, parameter :: mwbg_maxNumChan = 100
@@ -92,9 +93,6 @@ module bgckmicrowave_mod
   character(len=9)              :: instName                      ! instrument name
   real                          :: clwQcThreshold                ! 
   real                          :: cloudyClwThresholdBcorr       !
-  real                          :: siQcOverIceThreshold          ! scattering index over ice
-  real                          :: siQcOverWaterThreshold        ! scattering index over water
-  real                          :: siQcOverLandThreshold         ! scattering index over land
   real                          :: cloudySiThresholdBcorr        !
   logical                       :: useUnbiasedObsForClw          !
   logical                       :: RESETQC                       ! reset Qc flags option
@@ -105,8 +103,7 @@ module bgckmicrowave_mod
   namelist /nambgck/instName, clwQcThreshold, &
                     useUnbiasedObsForClw, debug, RESETQC,  &
                     cloudyClwThresholdBcorr, modLSQ, &
-                    siQcOverIceThreshold, siQcOverWaterThreshold, &
-                    siQcOverLandThreshold, cloudySiThresholdBcorr
+                    cloudySiThresholdBcorr
                     
 
 contains
@@ -126,9 +123,6 @@ contains
     clwQcThreshold          = 0.3 
     useUnbiasedObsForClw    = .false.
     cloudyClwThresholdBcorr = 0.05
-    siQcOverIceThreshold    = 40.0
-    siQcOverWaterThreshold  = 15.0
-    siQcOverLandThreshold   = 0.0
     cloudySiThresholdBcorr  = 5
     RESETQC                 = .false.
     modLSQ                  = .false.
@@ -144,9 +138,6 @@ contains
     mwbg_clwQcThreshold = clwQcThreshold
     mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
     mwbg_cloudyClwThresholdBcorr = cloudyClwThresholdBcorr
-    mwbg_siQcOverIceThreshold = siQcOverIceThreshold
-    mwbg_siQcOverWaterThreshold = siQcOverWaterThreshold
-    mwbg_siQcOverLandThreshold = siQcOverLandThreshold
     mwbg_cloudySiThresholdBcorr = cloudySiThresholdBcorr
 
   end subroutine mwbg_init 
@@ -1150,7 +1141,7 @@ contains
       if (  KTERMER (nDataIndex) == 1  ) then
         if ( GLINTRP (nDataIndex) > 0.01 ) then ! sea ice 
           if (  scatwObs(nDataIndex) /= mwbg_realMissing    .and. &
-                scatwObs(nDataIndex) > mwbg_siQcOverIceThreshold  ) then
+                scatwObs(nDataIndex) > siQcOverIceThreshold  ) then
             FULLREJCT = .TRUE.
           end if
 
@@ -1165,14 +1156,14 @@ contains
           end if
 
           if (  siUsedForQC /= mwbg_realMissing    .and. &
-                siUsedForQC > mwbg_siQcOverWaterThreshold  ) then
+                siUsedForQC > siQcOverWaterThreshold  ) then
             FULLREJCT = .TRUE.
           end if
         end if
 
       else                                      ! land
         if (  SCATL(nDataIndex) /= mwbg_realMissing    .and. &
-              SCATL(nDataIndex) > mwbg_siQcOverLandThreshold  ) then
+              SCATL(nDataIndex) > siQcOverLandThreshold  ) then
           FULLREJCT = .TRUE.
         end if
       end if
