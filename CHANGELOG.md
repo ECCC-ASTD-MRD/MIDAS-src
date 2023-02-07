@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
-
+ * Added the capability to compute O-P for ensemble in OminusF (#740 and !684) 
  * Added satellite SST data thinning (#748 and !681)
  * Added optional functionality for simulating an observation family (#750 and !679)
  * The recentering coefficient in `ensPostProcess` can now vary in the vertical (#749 and !678)
