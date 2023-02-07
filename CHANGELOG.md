@@ -54,6 +54,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Moved and centralised all `vgd` calls in `czp` (#745 and !683)
  * Simplify namelists by removing number of items in namelist arrays (#709 and !675)
    * many namelist files will need modification to remove variables, otherwise programs abort
  * Cleanup and new check for handling namelists in `burpread_mod` (#756 and !680)

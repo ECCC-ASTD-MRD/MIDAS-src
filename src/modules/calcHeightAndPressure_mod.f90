@@ -3723,7 +3723,11 @@ contains
     integer :: status
 
     if ( minval(sfcFld) <=0 ) then
-        call utl_abort('fetch3DField_r8: negative surface reference')
+      if ( vco%vcode == 21001 ) then
+          call msg('fetch3DField_r8','WARNING negative surface height reference')
+      else
+          call utl_abort('fetch3DField_r8: negative surface reference')
+      end if
     end if
 
     if (present(fldM_opt)) then
@@ -3765,7 +3769,11 @@ contains
     integer :: status
 
     if ( minval(sfcFld) <=0 ) then
-        call utl_abort('fetch3DField_r4: negative surface reference')
+      if ( vco%vcode == 21001 ) then
+          call msg('fetch3DField_r4','WARNING negative surface height reference')
+      else
+          call utl_abort('fetch3DField_r4: negative surface reference')
+      end if
     end if
 
     if (present(fldM_opt)) then
@@ -3807,7 +3815,11 @@ contains
     integer :: status
 
     if ( sfcValue <=0 ) then
+      if ( vco%vcode == 21001 ) then
+          call msg('fetchProfile_r8','WARNING negative surface height reference')
+      else
         call utl_abort('fetchProfile_r8: negative surface reference')
+      end if
     end if
 
     if (present(profM_opt)) then
