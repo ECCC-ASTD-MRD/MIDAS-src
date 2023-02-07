@@ -1348,7 +1348,7 @@ module ObsSpaceData_mod
   !           This has evolved from the CMA structure, originated in work by
   !           D. Vasiljevic at ECMWF.
   !
-  !           --
+  !           |
   !
   !           Very generally, obsSpaceData can be thought as two tables linked to one another. 
   !           
@@ -1392,7 +1392,7 @@ module ObsSpaceData_mod
   !           | n_data          |                         |             |      |
   !           +-----------------+-------------------------+-------------+------+
   !
-  !           --
+  !           |
   !
   !           * For satellite observations
   !               * One header contains information on lat/lon, azimuth, zenith angle and time. 
@@ -1401,7 +1401,7 @@ module ObsSpaceData_mod
   !             .. image:: /_static/satellite.png
   !                 :align: center
   !
-  !           --
+  !           |
   !
   !           * For radar observations
   !               * One header for each radar "ray". Contains information on lat/lon of radar, elevation, azimuth, etc. 
@@ -1410,7 +1410,7 @@ module ObsSpaceData_mod
   !             .. image:: /_static/radar.png
   !                 :align: center
   !
-  !           --
+  !           |
   !
   !           * For gps radio occultation (GPS-RO)
   !               * One header for each profile. Contains information on lat/lon time, etc. 
@@ -1419,7 +1419,7 @@ module ObsSpaceData_mod
   !             .. image:: /_static/gps_ro.png
   !                 :align: center
   !
-  !           --
+  !           |
   !
   !           * For other observations types such as radiosondes and aircrafts, there is one data entry per header rentry. 
   !               * headers contain information on lat/lon, time, etc. 
