@@ -6760,23 +6760,29 @@ contains
 
   end subroutine mwbg_reviewAllCritforFinalFlagsMwhs2
 
-  function calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg) result(sigmaObsErrUsed)
+  function calcStateDepObsErr_r4(cloudPredictorThresh1, cloudPredictorThresh2, &
+                                 sigmaThresh1, sigmaThresh2, cloudPredictorUsed) result(sigmaObsErrUsed)
+    !
+    ! :Purpose: Calculate single-precision state-dependent observation error.
+    !                                 
     implicit none
-    real :: clwThresh1
-    real :: clwThresh2
-    real :: sigmaThresh1
-    real :: sigmaThresh2
-    real :: clw_avg
+
+    ! Arguments:
+    real, intent(in) :: cloudPredictorThresh1
+    real, intent(in) :: cloudPredictorThresh2
+    real, intent(in) :: sigmaThresh1
+    real, intent(in) :: sigmaThresh2
+    real, intent(in) :: cloudPredictorUsed
     real :: sigmaObsErrUsed
 
-    if ( clw_avg <= clwThresh1 ) then
+    if (cloudPredictorUsed <= cloudPredictorThresh1) then
       sigmaObsErrUsed = sigmaThresh1
-    else if ( clw_avg >  clwThresh1 .and. & 
-                  clw_avg <= clwThresh2 ) then
+    else if (cloudPredictorUsed >  cloudPredictorThresh1 .and. & 
+             cloudPredictorUsed <= cloudPredictorThresh2) then
       sigmaObsErrUsed = sigmaThresh1 + &
-                      (sigmaThresh2 - sigmaThresh1) / &
-                      (clwThresh2 - clwThresh1) * &
-                      (clw_avg - clwThresh1) 
+                        (sigmaThresh2 - sigmaThresh1) / &
+                        (cloudPredictorThresh2 - cloudPredictorThresh1) * &
+                        (cloudPredictorUsed - cloudPredictorThresh1) 
     else
       sigmaObsErrUsed = sigmaThresh2
     end if
