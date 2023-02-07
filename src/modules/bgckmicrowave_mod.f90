@@ -1359,8 +1359,9 @@ contains
   !--------------------------------------------------------------------------
   ! amsubTest14RogueCheck
   !--------------------------------------------------------------------------
-  subroutine amsubTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, iterrain, ktermer, PTBOMP, &
-                                   ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK)
+  subroutine amsubTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
+                                   siThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+                                   iterrain, ktermer, PTBOMP, ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single)
@@ -1374,8 +1375,11 @@ contains
     integer,     intent(in)                :: KNO                            ! nombre de canaux des observations 
     integer,     intent(in)                :: KNT                            ! nombre de tovs
     character *9,intent(in)                :: STNID                          ! identificateur du satellite
-    real,        intent(in)                :: ROGUEFAC(:)      ! rogue factor 
-    real(8),     intent(in)                :: TOVERRST(:,:)                  !  erreur totale TOVs
+    real,        intent(in)                :: ROGUEFAC(:)                    ! rogue factor 
+    real(8),     intent(in)                :: TOVERRST(:,:)                  ! erreur totale TOVs
+    real(8),     intent(in)                :: siThreshArr(:,:,:)             ! SI threshold array
+    real(8),     intent(in)                :: sigmaObsErr(:,:,:)             ! sigma obs error    
+    logical,     intent(in)                :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
     integer,     intent(in)                :: ktermer(KNT)                   !
     integer,     intent(in)                :: iterrain(KNT)                  !
     real,        intent(in)                :: PTBOMP(KNO,KNT)                ! radiance o-p 
@@ -2243,8 +2247,9 @@ contains
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
 
-    call amsubTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, iterrain, ktermer, PTBOMP, &
-                                    ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK)
+    call amsubTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
+                               siThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+                               iterrain, ktermer, PTBOMP, ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK)
 
     ! 15) test 15: Channel Selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
