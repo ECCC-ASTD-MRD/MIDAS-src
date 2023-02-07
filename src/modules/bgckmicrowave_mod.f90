@@ -1988,7 +1988,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsub
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsub(TOVERRST, useStateDepSigmaObs, &
+  subroutine mwbg_tovCheckAmsub(TOVERRST, siThreshArr, sigmaObsErr, useStateDepSigmaObs, &
                                 IUTILST,  KTERMER, ICANO, ZO, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
                                 globMarq, IMARQ, ident, clwOBS, clwFG, scatwObs, scatwFG, STNID, RESETQC)
@@ -2021,6 +2021,8 @@ contains
     !                                                               1 (assmilate)
     !                                                               2 (assimilate over open water only)
     real(8), intent(in)                    :: TOVERRST(:,:)      ! l'erreur totale des TOVS
+    real(8), intent(in)                    :: siThreshArr(:,:,:)  ! SI thresholds for state-dep obs err
+    real(8), intent(in)                    :: sigmaObsErr(:,:,:)  ! sigmaObs limits for state-dep obs err    
     logical, intent(in)                    :: useStateDepSigmaObs(:,:) ! if using state dependent obs error
     integer, allocatable, intent(inout)    :: globMarq(:)        !Marqueurs globaux  
     integer, intent(in)                    :: KTERMER(:)         ! indicateur terre/mer
@@ -7132,7 +7134,7 @@ contains
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,      &
                                 atmScatteringIndexObs, burpFileSatId, RESETQC, obsLatitude)
       else if (instName == 'AMSUB') then
-        call mwbg_tovCheckAmsub(oer_toverrst, oer_useStateDepSigmaObs, &
+        call mwbg_tovCheckAmsub(oer_toverrst, oer_cloudPredictorThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
                                 oer_tovutil, landQualifierIndice,&
                                 obsChannels, obsTb, obsTbBiasCorr, ompTb,      & 
                                 qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
