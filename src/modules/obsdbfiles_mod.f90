@@ -1764,8 +1764,9 @@ contains
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
     integer(8)           :: obsIdo
     integer              :: midasKey, obsIdf, updateItemIndex, updateValue_i
-    integer              :: headIndex
+    integer              :: headIndex, maxHeaderRow
     integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
+    integer, allocatable :: maxHeaderRowAllMpi(:)
     real(8)              :: updateValue_r
     character(len=3000)  :: query
     character(len=lenSqlName) :: sqlColumnName
@@ -1813,15 +1814,35 @@ contains
       ! create midasTable by copying rearranging contents of observation table
       call odbf_createMidasHeaderTable(fileName)
     
-    ! open the obsDB file
+      ! open the obsDB file
       call fSQL_open( db, trim(fileName), stat )
       if ( fSQL_error(stat) /= FSQL_OK ) then
         write(*,*) 'odbf_updateMidasHeaderTable: fSQL_open: ', fSQL_errmsg(stat)
         call utl_abort( 'odbf_updateMidasHeaderTable: fSQL_open' )
       end if
 
+      ! Obtain the max number of header rows per mpi task
+      maxHeaderRow = 0
+      HEADER1: do headIndex = 1, obs_numHeader(obsdat)
+        obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
+        if ( obsIdf /= fileIndex ) cycle HEADER1
+        maxHeaderRow = maxHeaderRow + 1
+      end do HEADER1
+
+      allocate(maxHeaderRowAllMpi(mmpi_nprocs))
+      call rpn_comm_allGather(maxHeaderRow,       1, 'mpi_integer',  &
+                              maxHeaderRowAllMpi, 1, 'mpi_integer', &
+                            'GRID', ierr )
+
+      ! Set the midasKey to start counting based on the latest value from the previous 
+      ! mpi task
+      if( mmpi_myid == 0 ) then
+        midasKey = 0
+      else
+        midasKey = sum(maxHeaderRowAllMpi(1:mmpi_myid))
+      end if
+
       ! set the primary key, keys to main obsDB tables and other basic info
-      midasKey = 0
       query = 'insert into ' // trim(midasHeadTableName) // '(' // &
                trim(midasHeadKeySqlName) // ',' //trim(obsHeadKeySqlName) // &
               ') values(?, ?);'
@@ -1974,8 +1995,9 @@ contains
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
     integer(8)           :: obsIdo, obsIdd
     integer              :: obsIdf, obsVarNo, midasKey, updateItemIndex, updateValue_i
-    integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd
+    integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd, maxBodyRow
     integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
+    integer, allocatable :: maxBodyRowAllMpi (:)
     real(8)              :: updateValue_r, obsValue, obsPPP, obsVAR
     character(len=4)     :: obsSpaceColumnName
     character(len=lenSqlName) :: sqlColumnName, vnmSqlName, pppSqlName, varSqlName
@@ -2040,8 +2062,37 @@ contains
         call utl_abort( 'odbf_updateMidasBodyTable: fSQL_open' )
       end if
 
+      ! Obtain the max number of body rows per mpi task
+      maxBodyRow = 0
+      HEADER1: do headIndex = 1, obs_numHeader(obsdat)
+        obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
+        if ( obsIdf /= fileIndex ) cycle HEADER1
+
+        bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
+        bodyIndexEnd = bodyIndexBegin + &
+                       obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
+        
+        BODY1: do bodyIndex = bodyIndexBegin, bodyIndexEnd
+          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+          if ( obsValue == obs_missingValue_R ) cycle BODY1
+          maxBodyRow = maxBodyRow + 1
+        end do BODY1
+      end do HEADER1
+
+      allocate(maxBodyRowAllMpi(mmpi_nprocs))
+      call rpn_comm_allGather(maxBodyRow,       1, 'mpi_integer',  &
+                              maxBodyRowAllMpi, 1, 'mpi_integer', &
+                            'GRID', ierr )
+
+      ! Set the midasKey to start counting based on the latest value from the previous 
+      ! mpi task
+      if( mmpi_myid == 0 ) then
+        midasKey = 0
+      else
+        midasKey = sum(maxBodyRowAllMpi(1:mmpi_myid))
+      end if
+                      
       ! set the primary key, keys to main obsDB tables and other basic info
-      midasKey = 0
       query = 'insert into ' // trim(midasBodyTableName) // '(' // &
               trim(midasBodyKeySqlName) // ',' // trim(obsHeadKeySqlName) // ',' // &
               trim(obsBodyKeySqlName)  // ',' // trim(vnmSqlname)     // ',' // &
