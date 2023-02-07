@@ -1722,7 +1722,7 @@ contains
     ! Locals:
     integer :: channelNumber_withOffset
     integer :: channelNumber, channelIndex
-    integer :: tovsIndex, sensorIndex
+    integer :: tovsIndex, sensorIndex, instrumId
     logical :: surfTypeIsWater 
     real(8) :: clwObs
     real(8) :: clwFG
@@ -1741,6 +1741,7 @@ contains
 
     tovsIndex = tvs_tovsIndex(headerIndex)
     sensorIndex = tvs_lsensor(tovsIndex)
+    instrumId = tvs_instruments(sensorIndex)
 
     call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                         channelNumber, channelIndex)
@@ -1749,9 +1750,10 @@ contains
     surfTypeIsWater = (obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex) == surftype_sea)
 
     if (.not. tvs_mwAllskyAssim .or. &
-         .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .or. &
-         .not. surfTypeIsWater .or. &
-         (.not. mwAllskyInflateByOmp .and. .not. mwAllskyInflateByClwDiff)) return
+        .not. tvs_isInstrumAllskyTtAssim(instrumId) .or. &
+        .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .or. &
+        .not. surfTypeIsWater .or. &
+        (.not. mwAllskyInflateByOmp .and. .not. mwAllskyInflateByClwDiff)) return
 
     if (.not. beSilent) then
       write(*,*) 'oer_computeInflatedStateDepSigmaObs: headerIndex=', headerIndex, &
