@@ -81,7 +81,8 @@ program midas_ominusf
 
   !- 1.4 Set mode
   inquire(file=trim(trlFileName),exist=trlFileExists)
-  call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1)
+  call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1, &
+                       shouldExist_opt=.false.)
   inquire(file=trim(ensFileName),exist=ensFileExists)
 
   if      (trlFileExists) then
