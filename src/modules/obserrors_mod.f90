@@ -615,7 +615,7 @@ contains
         write(*,'(A,I2,4(A))') 'SENSOR #', JL, ', Platform: ', tvs_satelliteName(JL), &
                                 ', Instrument: ',tvs_instrumentName(JL)
         if (tvs_mwAllskyAssim .and. any(useStateDepSigmaObs(ICHN(1:NUMCHN(JL),JL),JL))) then
-          write(*,'(A,4(2X,A8),(1X,A9),(2X,A3))') 'Channel','clw1','clw2','sigmaO1','sigmaO2','anlErrInf','use'
+          write(*,'(A,4(2X,A8),(1X,A9),(2X,A3))') 'Channel','cld1','cld2','sigmaO1','sigmaO2','anlErrInf','use'
           do JI = 1, NUMCHN(JL)
             write(*,'(I7,5(2X,F8.4),(2X,L3))') ICHN(JI,JL), &
               cloudPredictorThreshArr(ICHN(JI,JL),JL,1), cloudPredictorThreshArr(ICHN(JI,JL),JL,2), &
