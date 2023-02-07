@@ -202,7 +202,7 @@ module BCovarSetupChem_mod
     character(len=*), intent(in) :: mode ! 'Analysis' or 'BackgroundCheck'
 
     !Locals
-    integer :: nulnam, ierr, fnom, fclos, status
+    integer :: nulnam, ierr, fnom, fclos
     integer :: varIndex,nChmVars,varIndex2
     character(len=4) :: BchmVars(vnl_numvarmax)
     real(8), pointer    :: pressureProfile_T(:)

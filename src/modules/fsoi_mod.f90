@@ -39,6 +39,7 @@ module fsoi_mod
   use tovs_nl_mod
   use timeCoord_mod
   use utilities_mod
+  use calcHeightAndPressure_mod
   use rttov_const, only: inst_name, platform_name
   implicit none
   save
@@ -778,7 +779,7 @@ module fsoi_mod
     logical,          intent(in)     :: uvNorm, ttNorm, p0Norm, huNorm, tgNorm
 
     ! Locals:
-    integer              :: stepIndex, lonIndex, levIndex, latIndex, lonIndex2, latIndex2, status, nLev_M, nLev_T
+    integer              :: stepIndex, lonIndex, levIndex, latIndex, lonIndex2, latIndex2, nLev_M, nLev_T
     real(8)              :: scaleFactor, scaleFactorConst, scaleFactorLat, scaleFactorLon, scaleFactorLev
     real(8)              :: pfac, tfac, qfac
     real(8)              :: sumScale , sumeu, sumev, sumep, sumet, sumeq
@@ -812,16 +813,8 @@ module fsoi_mod
     Psfc_ref(:,:) =  &
                   Psfc_ptr(statevector_inout%myLonBeg:statevector_inout%myLonEnd,  &
                   statevector_inout%myLatBeg:statevector_inout%myLatEnd, 1)
-    status = vgd_levels(statevector_inout%vco%vgrid, &
-                        ip1_list=statevector_inout%vco%ip1_T,  &
-                        levels=Press_T,   &
-                        sfc_field=Psfc_ref,      &
-                        in_log=.false.)
-    status = vgd_levels(statevector_inout%vco%vgrid, &
-                        ip1_list=statevector_inout%vco%ip1_M,  &
-                        levels=Press_M,   &
-                        sfc_field=Psfc_ref,      &
-                        in_log=.false.)
+    call czp_fetch3DField(statevector_inout%vco, Psfc_ref, &
+                          fldM_opt=Press_M, fldT_opt=Press_T)
     ! dlat * dlon
     scaleFactorConst = statevector_inout%hco%dlat*statevector_inout%hco%dlon
 

@@ -1189,7 +1189,7 @@ contains
     type(struct_columnData),  intent(in)    :: column_in              ! ColumnData input
     type(struct_columnData),  intent(inout) :: column_out             ! columnData providing the vertical structure and that will contain the interpolated column
     character(len=*),         intent(in)    :: varName
-    logical, optional,        intent(in)    :: useColumnPressure_opt  ! if .true. use P_* instead of the pressure provided by vgd_levels 
+    logical, optional,        intent(in)    :: useColumnPressure_opt  ! if .true. use P_* instead of the pressure provided by calcHeightAndPressure_mod
 
     ! Locals:
     real(8), pointer :: varInterp_in(:), varInterp_out(:)

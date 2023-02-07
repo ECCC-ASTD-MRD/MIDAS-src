@@ -53,8 +53,15 @@ module calcHeightAndPressure_mod
   public :: czp_calcPressure_nl, czp_calcPressure_tl, czp_calcPressure_ad
   public :: czp_calcReturnHeight_gsv_nl, czp_calcReturnPressure_gsv_nl
   public :: czp_calcReturnHeight_col_nl, czp_calcReturnPressure_col_nl
-  public :: czp_fetchProfile
+  public :: czp_fetch3DField, czp_fetchProfile
 
+  interface czp_fetch3DField
+    module procedure fetch3DField_r8
+    module procedure fetch3DField_r4
+  end interface czp_fetch3DField
+  interface czp_fetchProfile
+    module procedure fetchProfile_r8
+  end interface czp_fetchProfile
   interface czp_calcZandP_nl
     module procedure calcZandP_gsv_nl
     module procedure calcZandP_col_nl
@@ -486,7 +493,7 @@ contains
 
     do stepIndex = 1, numStep
 
-      call czp_fetch3DField_r4( statevector%vco, Hsfc4, &
+      call fetch3DField_r4( statevector%vco, Hsfc4, &
                                 fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightM_out)
       Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightT_out)
@@ -578,8 +585,8 @@ contains
 
     do stepIndex = 1, numStep
 
-      call czp_fetch3DField_r8( statevector%vco, Hsfc, &
-                                fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
+      call fetch3DField_r8( statevector%vco, Hsfc, &
+                            fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightM_out)
       Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightT_out)
       deallocate(GZHeightM_out, GZHeightT_out)
@@ -2057,8 +2064,8 @@ contains
         if ( Ps_in_hPa_opt ) Psfc = Psfc * mpc_pa_per_mbar_r8
       end if
 
-      call czp_fetch3DField_r8( statevector%vco, Psfc, &
-                                fldM_opt=PressureM_out, fldT_opt=PressureT_out)
+      call fetch3DField_r8( statevector%vco, Psfc, &
+                            fldM_opt=PressureM_out, fldT_opt=PressureT_out)
       P_M(:,:,:,stepIndex) = PressureM_out(:,:,:)
       P_T(:,:,:,stepIndex) = PressureT_out(:,:,:)
       deallocate(PressureM_out, PressureT_out)
@@ -2106,7 +2113,7 @@ contains
         if ( Ps_in_hPa_opt ) Psfc = Psfc * mpc_pa_per_mbar_r4
       end if
 
-      call czp_fetch3DField_r4( statevector%vco, Psfc, &
+      call fetch3DField_r4( statevector%vco, Psfc, &
                                 fldM_opt=PressureM_out, fldT_opt=PressureT_out)
       P_M(:,:,:,stepIndex) = PressureM_out(:,:,:)
       P_T(:,:,:,stepIndex) = PressureT_out(:,:,:)
@@ -2705,8 +2712,7 @@ contains
       hSfc(1,colIndex) = col_getHeight(column,1,colIndex, 'SF')
     end do
 
-    call czp_fetch3DField_r8( column%vco, hSfc, &
-                              fldM_opt=hPtrM, fldT_opt=hPtrT)
+    call fetch3DField_r8( column%vco, hSfc, fldM_opt=hPtrM, fldT_opt=hPtrT)
     Z_M(:,:) = hPtrM(1,:,:)
     Z_T(:,:) = hPtrT(1,:,:)
     deallocate(hPtrM, hPtrT)
@@ -3444,8 +3450,7 @@ contains
       Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
     end do
 
-    call czp_fetch3DField_r8( column%vco, Psfc, &
-                              fldM_opt=zppobsM, fldT_opt=zppobsT)
+    call fetch3DField_r8( column%vco, Psfc ,fldM_opt=zppobsM, fldT_opt=zppobsT)
     P_M(:,:) = zppobsM(1,:,:)
     P_T(:,:) = zppobsT(1,:,:)
     deallocate(zppobsM, zppobsT)
@@ -3695,15 +3700,16 @@ contains
   end subroutine calcPressure_col_ad
 
   !---------------------------------------------------------------------
-  ! subroutines wrapping vgd_levels for 3D fields queries
+  ! subroutines wrapping vgd_levels queries
   !---------------------------------------------------------------------
   
   !---------------------------------------------------------
-  ! czp_fetch3DField_r8
+  ! fetch3DField_r8
   !---------------------------------------------------------
-  subroutine czp_fetch3DField_r8(vco, sfcFld, fldM_opt, fldT_opt)
+  subroutine fetch3DField_r8(vco, sfcFld, fldM_opt, fldT_opt)
     !
-    ! :Purpose: Return pressure fields for both momentum and thermodynamic levels
+    ! :Purpose: Main vgd_levels wrapper for field query. Return vertical coordinate
+    !           fields for both momentum and thermodynamic levels; real(8) flavor.
     !
     implicit none
 
@@ -3716,12 +3722,16 @@ contains
     ! Locals
     integer :: status
 
+    if ( minval(sfcFld) <=0 ) then
+        call utl_abort('fetch3DField_r8: negative surface reference')
+    end if
+
     if (present(fldM_opt)) then
       nullify(fldM_opt)
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
                           levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('czp_fetch3DField_r8:  ERROR with vgd_levels (momentum levels)')
+        call utl_abort('fetch3DField_r8:  ERROR with vgd_levels (momentum levels)')
       end if
     end if
 
@@ -3730,18 +3740,18 @@ contains
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
                           levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('czp_fetch3DField_r8:  ERROR with vgd_levels (thermodynamic levels)')
+        call utl_abort('fetch3DField_r8:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
-  end subroutine czp_fetch3DField_r8
+  end subroutine fetch3DField_r8
 
   !---------------------------------------------------------
-  ! czp_fetch3DField_r4
+  ! fetch3DField_r4
   !---------------------------------------------------------
-  subroutine czp_fetch3DField_r4(vco, sfcFld, fldM_opt, fldT_opt)
+  subroutine fetch3DField_r4(vco, sfcFld, fldM_opt, fldT_opt)
     !
-    ! :Purpose: Main vgd_levels wrapper. Return vertical coordinate fields for
-    !           both momentum and thermodynamic levels
+    ! :Purpose: Main vgd_levels wrapper for field query. Return vertical coordinate
+    !           fields for both momentum and thermodynamic levels; real(4) flavor.
     !
     implicit none
 
@@ -3754,12 +3764,16 @@ contains
     ! Locals
     integer :: status
 
+    if ( minval(sfcFld) <=0 ) then
+        call utl_abort('fetch3DField_r4: negative surface reference')
+    end if
+
     if (present(fldM_opt)) then
       nullify(fldM_opt)
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
                           levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('czp_fetch3DField_r4:  ERROR with vgd_levels (momentum levels)')
+        call utl_abort('fetch3DField_r4:  ERROR with vgd_levels (momentum levels)')
       end if
     end if
 
@@ -3768,21 +3782,18 @@ contains
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
                           levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('czp_fetch3DField_r4:  ERROR with vgd_levels (thermodynamic levels)')
+        call utl_abort('fetch3DField_r4:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
-  end subroutine czp_fetch3DField_r4
-
-  !---------------------------------------------------------------------
-  ! subroutines wrapping vgd_levels for profile queries
-  !---------------------------------------------------------------------
+  end subroutine fetch3DField_r4
 
   !---------------------------------------------------------
-  ! czp_fetchProfile
+  ! fetchProfile_r8
   !---------------------------------------------------------
-  subroutine czp_fetchProfile(vco, sfcValue, profM_opt, profT_opt)
+  subroutine fetchProfile_r8(vco, sfcValue, profM_opt, profT_opt)
     !
-    ! :Purpose: Return pressure profile for both momentum and thermodynamic levels
+    ! :Purpose: Main vgd_levels wrapper for profile query. Return vertical coordinate
+    !           profile for both momentum and thermodynamic levels; real(8) flavor.
     !
     implicit none
 
@@ -3794,6 +3805,10 @@ contains
 
     ! Locals
     integer :: status
+
+    if ( sfcValue <=0 ) then
+        call utl_abort('fetchProfile_r8: negative surface reference')
+    end if
 
     if (present(profM_opt)) then
       nullify(profM_opt)
@@ -3812,8 +3827,7 @@ contains
         call utl_abort('czp_fetchProfile:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
-  end subroutine czp_fetchProfile
-
+  end subroutine fetchProfile_r8
 
   !---------------------------------------------------------------------
   ! helper private functions and subroutines
