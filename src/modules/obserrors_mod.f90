@@ -1074,7 +1074,7 @@ contains
 
     real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
     real(8) :: obsValue, obsStdDevError, obsPPP, obsOER
-    real(8) :: clwThresh1, clwThresh2, clw_avg, clwObs, clwFG
+    real(8) :: cloudPredictorThresh1, cloudPredictorThresh2, clw_avg, clwObs, clwFG
     real(8) :: sigmaThresh1, sigmaThresh2, sigmaObsErrUsed
     real(8), parameter :: minRetrievableClwValue = 0.0D0
     real(8), parameter :: maxRetrievableClwValue = 3.0D0
@@ -1145,8 +1145,8 @@ contains
                     if (trim(obserrorMode) == 'bgck') then
                       sigmaObsErrUsed = 1.0d0
                     else
-                      clwThresh1 = cloudPredictorThreshArr(channelNumber,sensorIndex,1)
-                      clwThresh2 = cloudPredictorThreshArr(channelNumber,sensorIndex,2)
+                      cloudPredictorThresh1 = cloudPredictorThreshArr(channelNumber,sensorIndex,1)
+                      cloudPredictorThresh2 = cloudPredictorThreshArr(channelNumber,sensorIndex,2)
                       sigmaThresh1 = sigmaObsErr(channelNumber,sensorIndex,1)
                       sigmaThresh2 = sigmaObsErr(channelNumber,sensorIndex,2)
                       clwObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
@@ -1165,7 +1165,7 @@ contains
                         call utl_abort('oer_fillObsErrors: CLW is not usable to define obs error')
                       end if
 
-                      sigmaObsErrUsed = calcStateDepObsErr(clwThresh1, clwThresh2, &
+                      sigmaObsErrUsed = calcStateDepObsErr(cloudPredictorThresh1, cloudPredictorThresh2, &
                                 sigmaThresh1,sigmaThresh2,clw_avg)
                     end if
                   else
@@ -1621,23 +1621,24 @@ contains
 
   contains
 
-    function calcStateDepObsErr(clwThresh1,clwThresh2,sigmaThresh1,sigmaThresh2,clw_avg) result(sigmaObsErrUsed)
+    function calcStateDepObsErr(cloudPredictorThresh1, cloudPredictorThresh2, &
+                                sigmaThresh1, sigmaThresh2, cloudPredictorUsed) result(sigmaObsErrUsed)
       implicit none
-      real(8) :: clwThresh1
-      real(8) :: clwThresh2
+      real(8) :: cloudPredictorThresh1
+      real(8) :: cloudPredictorThresh2
       real(8) :: sigmaThresh1
       real(8) :: sigmaThresh2
-      real(8) :: clw_avg
+      real(8) :: cloudPredictorUsed
       real(8) :: sigmaObsErrUsed
 
-      if (clw_avg <= clwThresh1) then
+      if (cloudPredictorUsed <= cloudPredictorThresh1) then
         sigmaObsErrUsed = sigmaThresh1
-      else if (clw_avg >  clwThresh1 .and. & 
-                    clw_avg <= clwThresh2) then
+      else if (cloudPredictorUsed > cloudPredictorThresh1 .and. & 
+               cloudPredictorUsed <= cloudPredictorThresh2) then
         sigmaObsErrUsed = sigmaThresh1 + &
                         (sigmaThresh2 - sigmaThresh1) / &
-                        (clwThresh2 - clwThresh1) * &
-                        (clw_avg - clwThresh1) 
+                        (cloudPredictorThresh2 - cloudPredictorThresh1) * &
+                        (cloudPredictorUsed - cloudPredictorThresh1) 
       else
         sigmaObsErrUsed = sigmaThresh2
       end if
