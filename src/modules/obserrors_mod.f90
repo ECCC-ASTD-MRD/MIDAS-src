@@ -1074,7 +1074,7 @@ contains
 
     real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
     real(8) :: obsValue, obsStdDevError, obsPPP, obsOER
-    real(8) :: cloudPredictorThresh1, cloudPredictorThresh2, clw_avg, clwObs, clwFG
+    real(8) :: cloudPredictorThresh1, cloudPredictorThresh2, cloudPredictorUsed
     real(8) :: sigmaThresh1, sigmaThresh2, sigmaObsErrUsed
     real(8), parameter :: minRetrievableClwValue = 0.0D0
     real(8), parameter :: maxRetrievableClwValue = 3.0D0
@@ -1149,24 +1149,13 @@ contains
                       cloudPredictorThresh2 = cloudPredictorThreshArr(channelNumber,sensorIndex,2)
                       sigmaThresh1 = sigmaObsErr(channelNumber,sensorIndex,1)
                       sigmaThresh2 = sigmaObsErr(channelNumber,sensorIndex,2)
-                      clwObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
-                      clwFG  = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
-                      clw_avg = 0.5D0 * (clwObs + clwFG)
 
-                      ! check to ensure CLW is retrieved and properly set
-                      if (clw_avg < minRetrievableClwValue .or. &
-                          clw_avg > maxRetrievableClwValue) then
-                        write(*,*) 'This observation should have been rejected ', &
-                                  'in all-sky mode at background check!' 
-                        write(*,*) 'oer_fillObsErrors: iplatform=', iplatform, &
-                                   ', isat=', isat, ', instrum=', instrum
-                        write(*,*) 'oer_fillObsErrors: clwObs=', clwObs, &
-                                  ', clwFG=', clwFG
-                        call utl_abort('oer_fillObsErrors: CLW is not usable to define obs error')
-                      end if
+                      ! Compute cloudPredictor to use
+                      cloudPredictorUsed = computeCloudPredictor(sensorIndex, headerIndex)
 
+                      ! Use cloud predictor to compute state-dependent obs error
                       sigmaObsErrUsed = calcStateDepObsErr(cloudPredictorThresh1, cloudPredictorThresh2, &
-                                sigmaThresh1,sigmaThresh2,clw_avg)
+                                                           sigmaThresh1, sigmaThresh2, cloudPredictorUsed)
                     end if
                   else
                     sigmaObsErrUsed = TOVERRST(channelNumber, sensorIndex)
@@ -1623,27 +1612,94 @@ contains
 
     function calcStateDepObsErr(cloudPredictorThresh1, cloudPredictorThresh2, &
                                 sigmaThresh1, sigmaThresh2, cloudPredictorUsed) result(sigmaObsErrUsed)
+      !
+      ! :Purpose: Calculate state-dependent observation error.
+      !
       implicit none
-      real(8) :: cloudPredictorThresh1
-      real(8) :: cloudPredictorThresh2
-      real(8) :: sigmaThresh1
-      real(8) :: sigmaThresh2
-      real(8) :: cloudPredictorUsed
+
+      ! Arguments:
+      real(8), intent(in) :: cloudPredictorThresh1
+      real(8), intent(in) :: cloudPredictorThresh2
+      real(8), intent(in) :: sigmaThresh1
+      real(8), intent(in) :: sigmaThresh2
+      real(8), intent(in) :: cloudPredictorUsed
       real(8) :: sigmaObsErrUsed
 
       if (cloudPredictorUsed <= cloudPredictorThresh1) then
         sigmaObsErrUsed = sigmaThresh1
-      else if (cloudPredictorUsed > cloudPredictorThresh1 .and. & 
+      else if (cloudPredictorUsed >  cloudPredictorThresh1 .and. & 
                cloudPredictorUsed <= cloudPredictorThresh2) then
         sigmaObsErrUsed = sigmaThresh1 + &
-                        (sigmaThresh2 - sigmaThresh1) / &
-                        (cloudPredictorThresh2 - cloudPredictorThresh1) * &
-                        (cloudPredictorUsed - cloudPredictorThresh1) 
+                          (sigmaThresh2 - sigmaThresh1) / &
+                          (cloudPredictorThresh2 - cloudPredictorThresh1) * &
+                          (cloudPredictorUsed - cloudPredictorThresh1) 
       else
         sigmaObsErrUsed = sigmaThresh2
       end if
 
     end function calcStateDepObsErr
+
+    function computeCloudPredictor(sensorIndex, headerIndex) result(cloudPredictorUsed)
+      !
+      ! :Purpose: Compute cloud predictor to use for state-dependent observation error.
+      !
+      implicit none
+
+      ! Arguments:
+      integer, intent(in) :: sensorIndex
+      integer, intent(in) :: headerIndex
+      real(8) :: cloudPredictorUsed
+
+      ! Locals:
+      integer :: platformId
+      integer :: satelliteId
+      integer :: instrumId
+      real(8) :: clwObs, clwFG
+      real(8) :: siObs, siFG
+
+      platformId = tvs_platforms(sensorIndex)
+      satelliteId = tvs_satellites(sensorIndex)
+      instrumId = tvs_instruments(sensorIndex)
+
+      if (tvs_isInstrumAllskyTtAssim(instrumId)) then
+        clwObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
+        clwFG  = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
+        cloudPredictorUsed = 0.5D0 * (clwObs + clwFG)
+
+        ! check to ensure CLW is retrieved and properly set
+        if (cloudPredictorUsed < minRetrievableClwValue .or. &
+            cloudPredictorUsed > maxRetrievableClwValue) then
+          write(*,*) 'This observation should have been rejected ', &
+                     'for all-sky temperature in background check!' 
+          write(*,*) 'computeCloudPredictor: platformId=', platformId, &
+                     ', satelliteId=', satelliteId, ', instrumId=', instrumId
+          write(*,*) 'computeCloudPredictor: clwObs=', clwObs, &
+                    ', clwFG=', clwFG
+          call utl_abort('computeCloudPredictor: CLW is not usable to define obs error')
+        end if
+
+      else if (tvs_isInstrumAllskyHuAssim(instrumId)) then
+        siObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
+        siFG  = obs_headElem_r(obsSpaceData, OBS_SIB, headerIndex)
+        cloudPredictorUsed = 0.5D0 * (siObs + siFG)
+
+        ! check to ensure SI is retrieved and properly set
+        if (cloudPredictorUsed < minRetrievableSiValue .or. &
+            cloudPredictorUsed > maxRetrievableSiValue) then
+          write(*,*) 'This observation should have been rejected ', &
+                     'for all-sky humidity in background check!' 
+          write(*,*) 'computeCloudPredictor: platformId=', platformId, &
+                     ', satelliteId=', satelliteId, ', instrumId=', instrumId
+          write(*,*) 'computeCloudPredictor: siObs=', siObs, &
+                    ', siFG=', siFG
+          call utl_abort('computeCloudPredictor: SI is not usable to define obs error')
+        end if        
+
+      else
+        call utl_abort('computeCloudPredictor: instrum is not TT or HU allSky assimilation.')
+      end if
+
+    end function computeCloudPredictor
 
   end subroutine oer_fillObsErrors
 
