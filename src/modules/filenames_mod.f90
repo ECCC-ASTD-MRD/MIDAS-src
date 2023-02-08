@@ -93,7 +93,13 @@ contains
       fileNamePattern = './' // trim(enspathname) // '/' // '*_*' // trim(fileMemberIndex1Str)
       returnCode = clib_glob(fileList,numFiles,trim(fileNamePattern),10)
       if (returnCode /= 1) then
-        call utl_abort('fln_ensFileName: reached maximum number of files or no file is available')
+        if (shouldExist) then
+          call utl_abort('fln_ensFileName: reached maximum number of files or no file is available')
+        else
+          write(*,*) 'fln_ensFileName: reached maximum number of files or no file is available'
+          ensFileName='missing'
+          return
+        end if
       end if
 
       ensFileName = trim(fileList(1))
