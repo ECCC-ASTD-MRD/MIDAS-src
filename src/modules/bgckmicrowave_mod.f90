@@ -1098,7 +1098,8 @@ contains
   ! amsubTest13BennartzScatteringIndexCheck
   !--------------------------------------------------------------------------
   subroutine amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
-                                                     useStateDepSigmaObs, KTERMER, GLINTRP, KMARQ, ICHECK)
+                                                     useStateDepSigmaObs, iterrain, KTERMER, GLINTRP, &
+                                                     KMARQ, ICHECK)
 
     !:Purpose:                  13) test 13: Bennartz scattering index check (full)
     !                               For Scattering Index > 40 sea ice
@@ -1117,6 +1118,7 @@ contains
     real,        intent(in)                :: scatwFG(KNT)                   ! scattering index over water from background
     real,        intent(in)                :: scatl(KNT)                     ! scattering index over land
     logical,     intent(in)                :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
+    integer,     intent(in)                :: iterrain(KNT)                  ! terrain type
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
     real,        intent(in)                :: GLINTRP(KNT)                   ! glace de mer
     integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
@@ -2283,7 +2285,8 @@ contains
     ! 13) test 13: Bennartz scattering index check (full)
 
     call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
-                                                 useStateDepSigmaObs, KTERMER, GLINTRP, KMARQ, ICHECK)
+                                                 useStateDepSigmaObs, iterrain, KTERMER, GLINTRP, &
+                                                 KMARQ, ICHECK)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
