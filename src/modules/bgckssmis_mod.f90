@@ -548,7 +548,7 @@ contains
     real :: ALG1, ALG2, ALG3
     real :: seaIce
     real :: Ta19v, Ta19h, Ta22v, Ta37v, Ta37h, Ta85v, Ta85h
-    real :: Tb19v, Tb22v, Tb37v
+    real :: Tb19v, Tb19h, Tb22v, Tb37v, Tb37h, Tb85v, Tb85h
     real :: TPW
 
     CLW = ssbg_rmisg
@@ -561,6 +561,14 @@ contains
     Ta37h = Ta(15)
     Ta85v = Ta(17)
     Ta85h = Ta(18)
+
+    Tb19v = Tb(13)
+    Tb19h = Tb(12)
+    Tb22v = Tb(14)
+    Tb37v = Tb(16)
+    Tb37h = Tb(15)
+    Tb85v = Tb(17)
+    Tb85h = Tb(18)
 
     ! Call determ_sea_ice to find the seaIce
     !  -- seaIce = 100.0  when sea ice >= 70%
@@ -578,41 +586,41 @@ contains
         IWV = 232.89 - 0.1486*Tb19v - 0.3695*Tb37v - (1.8291 - 0.006193*Tb22v)*Tb22v
         if ( IWV < 0.0 ) IWV = 0.0
       end if
-    if ( trim(algOption) == 'nsun') then
-      call determ_tpw(Tb,sType,seaIce,TPW)
-      IWV = TPW
-    end if
+      if ( trim(algOption) == 'nsun') then
+        call determ_tpw(Tb,sType,seaIce,TPW)
+        IWV = TPW
+      end if
 
-    if ( (Ta19v < RT) .and. (Ta22v < RT) ) then
-      ALG1 = -3.20 * ( ALOG(290.0-Ta19v) - 2.80 - 0.42*ALOG(290.0-Ta22v) )          !TA
-      ! ALG1 = -3.20 * ( ALOG(290.0-Tb19v) - 2.84 - 0.40*ALOG(290.0-Tb22v) )      !TB
-    end if
+      if ( (Ta19v < RT) .and. (Ta22v < RT) ) then
+        ALG1 = -3.20 * ( ALOG(290.0-Ta19v) - 2.80 - 0.42*ALOG(290.0-Ta22v) )          !TA
+        ! ALG1 = -3.20 * ( ALOG(290.0-Tb19v) - 2.84 - 0.40*ALOG(290.0-Tb22v) )      !TB
+      end if
 
-    if ( (Ta37v < RT) .and. (Ta22v < RT) ) then
-      ALG2 = -1.66 * ( ALOG(290.0-Ta37v) - 2.90 - 0.349*ALOG(290.0-Ta22v) )   !TA
-      ! ALG2 = -1.66 * ( ALOG(290.0-Tb37v) - 2.99 - 0.32*ALOG(290.0-Tb22v) )    !TB
-    end if
+      if ( (Ta37v < RT) .and. (Ta22v < RT) ) then
+        ALG2 = -1.66 * ( ALOG(290.0-Ta37v) - 2.90 - 0.349*ALOG(290.0-Ta22v) )   !TA
+        ! ALG2 = -1.66 * ( ALOG(290.0-Tb37v) - 2.99 - 0.32*ALOG(290.0-Tb22v) )    !TB
+      end if
 
-    if ( (Ta85h < RT) .and. (Ta22v < RT) ) then
-      ALG3 = -0.44 * ( ALOG(290.0-Ta85h) + 1.60 - 1.354*ALOG(290.0-Ta22v) )     !TA
-      ! ALG3 = -0.44 * ( ALOG(290.0-Tb85h) + 1.11 - 1.26*ALOG(290.0-Tb22v) )      !TB
-    end if
+      if ( (Ta85h < RT) .and. (Ta22v < RT) ) then
+        ALG3 = -0.44 * ( ALOG(290.0-Ta85h) + 1.60 - 1.354*ALOG(290.0-Ta22v) )     !TA
+        ! ALG3 = -0.44 * ( ALOG(290.0-Tb85h) + 1.11 - 1.26*ALOG(290.0-Tb22v) )      !TB
+      end if
 
-    if ( ALG1 > 0.70 ) then
-      CLW = ALG1
-    else if ( ALG2 > 0.28 ) then
-      CLW = ALG2
-    else if ( IWV < 30.0 ) then
-      CLW = ALG3
-    else
-      CLW = ALG2
-    end if
+      if ( ALG1 > 0.70 ) then
+        CLW = ALG1
+      else if ( ALG2 > 0.28 ) then
+        CLW = ALG2
+      else if ( IWV < 30.0 ) then
+        CLW = ALG3
+      else
+        CLW = ALG2
+      end if
 
-    ! Verify CLW is within acceptable upper limit.
-    if ( CLW > clwLimit ) CLW = ssbg_rmisg
+      ! Verify CLW is within acceptable upper limit.
+      if ( CLW > clwLimit ) CLW = ssbg_rmisg
 
-    ! Force negative CLW values to zero.
-    if ( CLW < 0.0 .and. CLW /= ssbg_rmisg ) CLW = 0.0
+      ! Force negative CLW values to zero.
+      if ( CLW < 0.0 .and. CLW /= ssbg_rmisg ) CLW = 0.0
 
     else
       ! Sea Ice (>70%) detected from s/r determ_sea_ice but sType was 0 = waterobs (on call)
@@ -1745,6 +1753,8 @@ contains
     integer,              save :: numDryIndexObs
     integer,              save :: numSeaIceObs
     integer,              save :: numScatPrecipObs
+    integer,              save :: numCloudsinObs
+    integer,              save :: numWaterObs
     integer,              save :: numObsF16
     integer,              save :: numObsF17
     integer,              save :: numObsF18
@@ -1889,6 +1899,8 @@ contains
       numSeaScatObs = 0
       numTotFilteredObs = 0
       numUkBadObs = 0
+      numCloudsinObs = 0
+      numWaterObs = 0
     end if 
     waterObs(:) = .false.
 
@@ -1975,6 +1987,7 @@ contains
     ! -- SSMIS channel 18 (91.655 GHz) is used for AMSU-B like channel 1 (89 GHz)
     ! -- SSMIS channel  8 is used for AMSU-B like channel 2 (both at 150 GHz)
     !---------------------------------------------------------------------------------
+
     call bennartz(ier, numObsToProcess, ztb91, ztb150, satZenithAngle, landSeaQualifier, & 
                  scatL, scatW)
 
@@ -2088,6 +2101,8 @@ contains
       if ( .not. waterObs(obsIndex) ) numLandObs  = numLandObs  + 1
       if ( rainDetectionUKMethod(obsIndex) )  numUkBadObs = numUkBadObs + 1
       if ( grossRej(obsIndex) )  numGrossObs = numGrossObs + 1
+      if ( cloudObs(obsIndex) )  numCloudsinObs = numCloudsinObs + 1
+      if ( waterObs(obsIndex) )  numWaterObs = numWaterObs + 1
       if ( cloudObs(obsIndex)  .and. waterObs(obsIndex) ) numCloudyObs  = numCloudyObs  + 1
       if ( iwvReject(obsIndex) .and. waterObs(obsIndex) .and.   &
       &         (.not. cloudObs(obsIndex)) ) numBadIWVObs  = numBadIWVObs  + 1
@@ -2110,15 +2125,26 @@ contains
       write(*,*) '******************* SATQC PROGRAM STATS****************************'
       write(*,*) '*******************************************************************'
       write(*,*)
-      write(*,*) 'Number of cloudy obs =    ', numCloudyObs
-      write(*,*) 'Number of precip obs =    ', numPrecipObs
-      write(*,*) 'Number of gross rej obs = ',  numGrossObs
-      write(*,*) 'Number of land  obs =     ',numLandObs
-      write(*,*) 'Number of dry obs =       ', numDryIndexObs
-      write(*,*) 'Number of Sea Ice obs =   ',numSeaIceObs
-      write(*,*) 'Number of F16 obs =       ', numObsF16
-      write(*,*) 'Number of F17 obs =       ', numObsF17
-      write(*,*) 'Number of F18 obs =       ', numObsF18
+      write(*,*) 'F16 obs =            ', numObsF16
+      write(*,*) 'F17 obs =            ', numObsF17
+      write(*,*) 'F18 obs =            ', numObsF18
+      write(*,*)
+      write(*,*) 'Land obs =           ', numLandObs
+      write(*,*) 'UKMO bad obs =       ', numUkBadObs
+      write(*,*) 'Gross rej obs =      ', numGrossObs
+      write(*,*) 'Cloudy obs =         ', numCloudyObs
+      write(*,*) 'Bad IWV obs =        ', numBadIWVObs
+      write(*,*) 'Precip obs =         ', numPrecipObs
+      write(*,*) 'Clouds in obs =      ', numCloudsinObs
+      write(*,*) 'Obs with water =     ', numWaterObs
+      write(*,*) '-------------------------------------------------------------------'
+      write(*,*) 'Total filtered obs = ', numTotFilteredObs
+      write(*,*) '-------------------------------------------------------------------'
+      write(*,*) '             AMSU-B-Like Channel Filtering Report'
+      write(*,*) 'Land/ice points with data flagged for Bennartz SI = ', numLandScatObs
+      write(*,*) 'Water    points with data flagged for Bennartz SI = ', numSeaScatObs
+      write(*,*) 'Dry obs =            ', numDryIndexObs
+      write(*,*) 'Sea Ice obs =        ', numSeaIceObs
       write(*,*) '*******************************************************************'
     end if
 
