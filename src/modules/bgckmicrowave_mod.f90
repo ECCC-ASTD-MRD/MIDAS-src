@@ -1370,7 +1370,8 @@ contains
     !                                  
 
     implicit none
-    ! Arguments
+
+    ! Arguments:
     integer,     intent(in)                :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)                :: KNOSAT                         ! numero de satellite (i.e. indice) 
     integer,     intent(in)                :: KNO                            ! nombre de canaux des observations 
@@ -1390,32 +1391,67 @@ contains
     integer,     intent(in)                :: ICH2OMPREJ(MXCH2OMPREJ)                 !
     integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    ! Locals
+
+    ! Locals:
     integer                                :: channelval
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
     integer                                :: testIndex
     integer                                :: INDXCAN 
     real                                   :: XCHECKVAL
-    logical                                :: SFCREJCT
+    real                                   :: siThresh1 
+    real                                   :: siThresh2
+    real                                   :: sigmaThresh1 
+    real                                   :: sigmaThresh2
+    real                                   :: sigmaObsErrUsed
+    real                                   :: siObsFGaveraged 
     logical                                :: CH2OMPREJCT
+    logical                                :: ch2OmpRejectInAllsky
+    logical                                :: channelIsAllsky
+    logical                                :: surfTypeIsWater
 
     testIndex = 14
     do nDataIndex=1,KNT
+      surfTypeIsWater = (ktermer(nDataIndex) == 1 .and. iterrain(nDataIndex) /= 0)
+      ch2OmpRejectInAllsky = .false.
       CH2OMPREJCT = .FALSE.
-      SFCREJCT = .FALSE.
       do nChannelIndex=1,KNO
         channelval = KCANO(nChannelIndex,nDataIndex)
         if ( channelval /= 20 ) then
-          XCHECKVAL = ROGUEFAC(channelval) * TOVERRST(channelval,KNOSAT) 
-          if ( PTBOMP(nChannelIndex,nDataIndex)     /=  mwbg_realMissing    .and. &
-              ABS(PTBOMP(nChannelIndex,nDataIndex)) >=  XCHECKVAL     ) then
+          channelIsAllsky = (tvs_mwAllskyAssim .and. &
+                             useStateDepSigmaObs(channelval,KNOSAT) .and. &
+                             surfTypeIsWater)
+          ! using state-dependent obs error only over water.
+          if (channelIsAllsky) then
+            siThresh1 = siThreshArr(channelval,KNOSAT,1)
+            siThresh2 = siThreshArr(channelval,KNOSAT,2)
+            sigmaThresh1 = sigmaObsErr(channelval,KNOSAT,1)
+            sigmaThresh2 = sigmaObsErr(channelval,KNOSAT,2)
+            siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
+            if (siObsFGaveraged == mwbg_realMissing) then
+              sigmaObsErrUsed = MPC_missingValue_R4
+            else
+              sigmaObsErrUsed = calcStateDepObsErr_r4(siThresh1,siThresh2,sigmaThresh1, &
+                                                      sigmaThresh2,siObsFGaveraged)
+            end if
+          else
+            sigmaObsErrUsed = TOVERRST(channelval,KNOSAT)
+          end if
+          ! For sigmaObsErrUsed=MPC_missingValue_R4 (siObsFGaveraged=mwbg_realMissing
+          ! in all-sky mode), the observation is already rejected in test 13.
+          XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
+          if (PTBOMP(nChannelIndex,nDataIndex) /= mwbg_realMissing .and. &
+              abs(PTBOMP(nChannelIndex,nDataIndex)) >= XCHECKVAL .and. &
+              sigmaObsErrUsed /= MPC_missingValue_R4) then
             ICHECK(nChannelIndex,nDataIndex) = MAX(ICHECK(nChannelIndex,nDataIndex),testIndex)
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**9)
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**16)
             rejectionCodArray(testIndex,channelval,KNOSAT) = &
-                rejectionCodArray(testIndex,channelval,KNOSAT) + 1 
-            if ( mwbg_debug ) then
+                rejectionCodArray(testIndex,channelval,KNOSAT) + 1
+
+            ch2OmpRejectInAllSky = (channelIsAllsky .and. channelval == 44)
+
+            if (mwbg_debug) then
               write(*,*)STNID(2:9),'ROGUE CHECK REJECT.NO.', &
                       ' OBS = ',nDataIndex, &
                       ' CHANNEL= ',channelval, &
@@ -1423,15 +1459,18 @@ contains
                       ' TBOMP= ',PTBOMP(nChannelIndex,nDataIndex)
             end if
           end if
-          if ( channelval == 44                                      .and. &
-               PTBOMP(nChannelIndex,nDataIndex)  /= mwbg_realMissing .and. &
-               ABS(PTBOMP(nChannelIndex,nDataIndex)) >= 5.0     ) then
-            CH2OMPREJCT = .TRUE.
+          if (channelval == 44 .and. &
+              PTBOMP(nChannelIndex,nDataIndex) /= mwbg_realMissing) then
+            if (channelIsAllsky) then
+              if (ch2OmpRejectInAllSky) CH2OMPREJCT = .true.
+            else
+              if (abs(PTBOMP(nChannelIndex,nDataIndex)) >= 5.0) CH2OMPREJCT = .true.
+            end if
           end if
         end if
       end do
 
-      if ( (CH2OMPREJCT) .and. (ktermer(nDataIndex) == 1) .and. (iterrain(nDataIndex) /= 0) ) then
+      if (CH2OMPREJCT .and. ktermer(nDataIndex) == 1 .and. iterrain(nDataIndex) /= 0) then
         do nChannelIndex=1,KNO
           INDXCAN = ISRCHEQI (ICH2OMPREJ,MXCH2OMPREJ,KCANO(nChannelIndex,nDataIndex))
           if ( INDXCAN /= 0 )  then
