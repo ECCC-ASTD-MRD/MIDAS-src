@@ -42,6 +42,7 @@ module obsSpaceErrorStdDev_mod
   use varNameList_mod
   use obsOperatorsChem_mod
   use obsFamilyList_mod
+  use calcHeightAndPressure_mod
 
   implicit none
   private
@@ -1365,7 +1366,6 @@ module obsSpaceErrorStdDev_mod
       REAL*8, allocatable :: zHT(:)
       REAL*8, allocatable :: zUU(:)
       REAL*8, allocatable :: zVV(:)
-      INTEGER status
       INTEGER JL
       REAL*8 ZP0, ZMT
       REAL*8 ZFGE, ZERR
@@ -1470,10 +1470,9 @@ module obsSpaceErrorStdDev_mod
 
                   ! approximation for dPdPs               
                   if (associated(dPdPs)) then
-                    deallocate(dPdPs,stat=status)
-                    nullify(dPdPs)
+                    deallocate(dPdPs)
                   end if
-                  status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dPdPs,zP0)
+                  call czp_fetchDPDPProfile(vco_anl, zP0, profT_opt=dPdPs)
                   zDP(1:NGPSLEV) = dPdPs(1:NGPSLEV)
 
                   DO JL = 1, NGPSLEV
@@ -1656,7 +1655,7 @@ module obsSpaceErrorStdDev_mod
       INTEGER IDATYP, ITYP
       INTEGER IDATA, IDATEND, INDEX_BODY
       INTEGER JL, NFLEV_T, ILYR, IOBS
-      INTEGER INOBS_OPT, INOBS_JAC, icount, status, iversion
+      INTEGER INOBS_OPT, INOBS_JAC, icount, iversion
 
       LOGICAL  ASSIM, OK, LSTAG
       CHARACTER*9  STN_JAC
@@ -1851,9 +1850,8 @@ module obsSpaceErrorStdDev_mod
          ! approximation for dPdPs               
          if (associated(dPdPs)) then
            deallocate(dPdPs)
-           nullify(dPdPs)
          end if
-         status = vgd_dpidpis(vco_anl%vgrid,vco_anl%ip1_T,dPdPs,ZP0B)
+         call czp_fetchDPDPProfile(vco_anl, ZP0B, profT_opt=dPdPs)
          zDP(1:NFLEV_T) = dPdPs(1:NFLEV_T)
 
          DO JL = 1, NFLEV_T
