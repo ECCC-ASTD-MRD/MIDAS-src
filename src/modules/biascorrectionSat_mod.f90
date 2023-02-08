@@ -2343,8 +2343,9 @@ contains
         ! determine if instrument/channel function in all-sky mode
         channelNumber = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
         channelIsAllsky = .false.
-        if (tvs_isInstrumUsingCLW(tvs_instruments(idsat)) .and. &
-             oer_useStateDepSigmaObs(channelNumber, idsat)) then
+        if ((tvs_isInstrumUsingCLW(tvs_instruments(idsat)) .or. &
+             tvs_isInstrumUsingHydrometeors(tvs_instruments(idsat))) .and. &
+            oer_useStateDepSigmaObs(channelNumber, idsat)) then
           channelIsAllsky = .true.
         end if
 
