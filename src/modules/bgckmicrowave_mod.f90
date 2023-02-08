@@ -1158,6 +1158,10 @@ contains
           surfTypeIsSea = .true.
 
           if ( tvs_mwAllskyAssim ) then
+            if (iterrain(nDataIndex) == 0) then
+              call utl_abort ('amsubTest13BennartzScatteringIndexCheck: terrian type does not match ' // &
+                              'interpolated ice concentration')
+            end if
             siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
             siUsedForQC = siObsFGaveraged
             siUsedForQcThreshold = mwbg_siQcOverWaterThreshold
