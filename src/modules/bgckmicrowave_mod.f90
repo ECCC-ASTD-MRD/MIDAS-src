@@ -2126,7 +2126,6 @@ contains
     integer                                :: JI
     integer                                :: JJ
     integer                                :: INDX
-    integer                                :: ICLWREJ (MXCLWREJ)
     integer                                :: ISFCREJ (MXSFCREJ)
     integer                                :: ICH2OMPREJ(MXCH2OMPREJ)
     integer                                :: ISFCREJ2(MXSFCREJ2)
@@ -2158,7 +2157,6 @@ contains
                     3.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
                     4.0, 2.0, 2.0, 2.0, 4.0, 4.0, 4.0/)
 
-    ICLWREJ(:) = (/ 28, 29, 30, 31, 32, 42 /)
     ISFCREJ(:) = (/ 43, 44 /)
     ISFCREJ2(:) = (/ 43 /)
     ICH2OMPREJ(:) = (/ 44, 45, 46, 47 /)
