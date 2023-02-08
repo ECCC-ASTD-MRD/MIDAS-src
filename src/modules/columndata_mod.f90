@@ -40,7 +40,7 @@ module columnData_mod
   public :: col_setup, col_allocate, col_deallocate
   public :: col_varExist, col_getOffsetFromVarno
   public :: col_getNumLev, col_getNumCol, col_getVarNameFromK
-  public :: col_getPressure, col_getPressureDeriv, col_getHeight, col_setHeightSfc
+  public :: col_getPressure, col_getHeight, col_setHeightSfc
   public :: col_zero, col_getAllColumns, col_getColumn, col_getElem, col_getVco, col_setVco
   public :: col_getLevIndexFromVarLevIndex
 
@@ -492,32 +492,6 @@ contains
 
   end function col_getPressure
  
-
-  function col_getPressureDeriv(column,ilev,headerIndex,varLevel) result(dP_dPsfc)
-    implicit none
-    type(struct_columnData), intent(in) :: column
-    integer, intent(in)                 :: ilev,headerIndex
-    character(len=*), intent(in)        :: varLevel
-    real(8)                             :: dP_dPsfc, Psfc
-    real(8), pointer                    :: dP_dPsfc_col(:) => null()
-    integer :: status
-
-    Psfc = col_getElem(column,1,headerIndex,'P0')
-
-    if (varLevel == 'TH') then
-      status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_T,dP_dPsfc_col,Psfc)
-    elseif (varLevel == 'MM' ) then
-      status = vgd_dpidpis(column%vco%vgrid,column%vco%ip1_M,dP_dPsfc_col,Psfc)
-    else
-      call utl_abort('col_getPressureDeriv: Unknown variable type: ' // varLevel)
-    end if
-
-    dP_dPsfc = dP_dPsfc_col(ilev)
-
-    deallocate(dP_dPsfc_col)
-
-  end function col_getPressureDeriv
-
   !--------------------------------------------------------------------------
   ! col_getHeight
   !--------------------------------------------------------------------------
