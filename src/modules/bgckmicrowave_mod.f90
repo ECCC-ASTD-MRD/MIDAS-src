@@ -1361,7 +1361,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsubTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
                                    siThreshArr, sigmaObsErr, useStateDepSigmaObs, &
-                                   iterrain, ktermer, PTBOMP, ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK)
+                                   iterrain, ktermer, PTBOMP, scatwObs, scatwFG, &
+                                   ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single)
@@ -1383,6 +1384,8 @@ contains
     integer,     intent(in)                :: ktermer(KNT)                   !
     integer,     intent(in)                :: iterrain(KNT)                  !
     real,        intent(in)                :: PTBOMP(KNO,KNT)                ! radiance o-p 
+    real,        intent(in)                :: scatwObs(KNT) ! retrieved scattering-index over water from observation
+    real,        intent(in)                :: scatwFG(KNT)  ! retrieved scattering-index over water from background
     integer,     intent(in)                :: MXCH2OMPREJ                !
     integer,     intent(in)                :: ICH2OMPREJ(MXCH2OMPREJ)                 !
     integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
@@ -2249,7 +2252,8 @@ contains
 
     call amsubTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
                                siThreshArr, sigmaObsErr, useStateDepSigmaObs, &
-                               iterrain, ktermer, PTBOMP, ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK)
+                               iterrain, ktermer, PTBOMP, scatwObs, scatwFG, &
+                               ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK)
 
     ! 15) test 15: Channel Selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
