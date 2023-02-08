@@ -468,7 +468,7 @@ contains
         ! Development notes (@mad001)
         !   we should consider having a new criterion that works for GEM-H as well
       else
-        call vco_ensureCompatibleTops(vco_in, vco_out)
+        call czp_ensureCompatibleTops(vco_in, vco_out)
       end if
     end if
 
@@ -781,7 +781,7 @@ contains
         ! Development notes (@mad001)
         !   we should consider having a new criterion that works for GEM-H as well
       else
-        call vco_ensureCompatibleTops(vco_in, vco_out)
+        call czp_ensureCompatibleTops(vco_in, vco_out)
       end if
     end if
 
