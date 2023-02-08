@@ -96,12 +96,14 @@ module bgckmicrowave_mod
   logical                       :: RESETQC                       ! reset Qc flags option
   logical                       :: modLSQ                        !
   logical                       :: debug                         ! debug mode
+  logical                       :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
 
   namelist /nambgck/instName, clwQcThreshold, &
                     useUnbiasedObsForClw, debug, RESETQC,  &
                     cloudyClwThresholdBcorr, modLSQ, &
-                    siQcOverWaterThreshold, cloudySiThresholdBcorr
+                    siQcOverWaterThreshold, cloudySiThresholdBcorr, &
+                    skipTestArr
                     
 
 contains
@@ -125,6 +127,7 @@ contains
     cloudySiThresholdBcorr  = 5
     RESETQC                 = .false.
     modLSQ                  = .false.
+    skipTestArr(:)          = .false.
 
     nulnam = 0
     ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
@@ -959,7 +962,7 @@ contains
   ! amsubTest12DrynessIndexCheck
   !-------------------------------------------------------------------------
   subroutine amsubTest12DrynessIndexCheck(KCANO, KNOSAT, KNO, KNT, STNID, tb1831, tb1833, &
-                                          ktermer, glintrp, KMARQ, ICHECK)
+                                          ktermer, glintrp, KMARQ, ICHECK, skipTestArr_opt)
 
     !:Purpose:  12) test 12: Dryness index check
     !           The difference between channels AMSUB-3 and AMSUB-5 is used as an indicator
@@ -968,7 +971,8 @@ contains
     !           Therefore, various thresholds are used to reject channels AMSUB-3 4 and 5 over land and ice
 
     implicit none
-    ! Arguments
+
+    ! Arguments:
     integer,     intent(in)               :: KCANO(KNO,KNT)                 ! observations channels
     integer,     intent(in)               :: KNOSAT                         ! numero de satellite (i.e. indice) 
     integer,     intent(in)               :: KNO                            ! nombre de canaux des observations 
@@ -980,13 +984,22 @@ contains
     real,        intent(in)               :: glintrp(:)                     ! topo interpolated to obs point
     integer,     intent(inout)            :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)            :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    ! Locals
+    logical,     intent(in), optional     :: skipTestArr_opt(:)             ! array to set to skip the test
+
+    ! Locals:
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
     integer                               :: testIndex
     real                                  :: drynessIndex
 
     testIndex = 12
+    if (present(skipTestArr_opt)) then
+      if (skipTestArr_opt(testIndex)) then
+        write(*,*) 'amsubTest12DrynessIndexCheck: skipping this test'
+        return
+      end if
+    end if
+
     do nDataIndex = 1, KNT
       drynessIndex = tb1831(nDataIndex) - tb1833(nDataIndex)
       do nChannelIndex = 1, KNO
@@ -1099,7 +1112,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
                                                      useStateDepSigmaObs, iterrain, KTERMER, GLINTRP, &
-                                                     KMARQ, ICHECK)
+                                                     KMARQ, ICHECK, skipTestArr_opt)
 
     !:Purpose:                  13) test 13: Bennartz scattering index check (full)
     !                               For Scattering Index > 40 sea ice
@@ -1123,6 +1136,8 @@ contains
     real,        intent(in)                :: GLINTRP(KNT)                   ! glace de mer
     integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    logical,     intent(in), optional      :: skipTestArr_opt(:)             ! array to set to skip the test
+
 
     ! Locals
     integer                                :: nDataIndex
@@ -1139,6 +1154,12 @@ contains
     logical                                :: surfTypeIsSea 
 
     testIndex = 13
+    if (present(skipTestArr_opt)) then
+      if (skipTestArr_opt(testIndex)) then
+        write(*,*) 'amsubTest13BennartzScatteringIndexCheck: skipping this test'
+        return
+      end if
+    end if
 
     ZSEUILSCATICE = 40.0
     ZSEUILSCATW   = 15.0
@@ -1368,7 +1389,8 @@ contains
   subroutine amsubTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
                                    siThreshArr, sigmaObsErr, useStateDepSigmaObs, &
                                    iterrain, ktermer, PTBOMP, scatwObs, scatwFG, &
-                                   ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK)
+                                   ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK, &
+                                   skipTestArr_opt)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single)
@@ -1397,6 +1419,7 @@ contains
     integer,     intent(in)                :: ICH2OMPREJ(MXCH2OMPREJ)                 !
     integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    logical,     intent(in), optional      :: skipTestArr_opt(:)             ! array to set to skip the test
 
     ! Locals:
     integer                                :: channelval
@@ -1417,6 +1440,13 @@ contains
     logical                                :: surfTypeIsWater
 
     testIndex = 14
+    if (present(skipTestArr_opt)) then
+      if (skipTestArr_opt(testIndex)) then
+        write(*,*) 'amsubTest14RogueCheck: skipping this test'
+        return
+      end if
+    end if
+
     do nDataIndex=1,KNT
       surfTypeIsWater = (ktermer(nDataIndex) == 1 .and. iterrain(nDataIndex) /= 0)
       ch2OmpRejectInAllsky = .false.
@@ -2230,8 +2260,8 @@ contains
  
     ! 2) test 2: "Land/sea qualifier" code check (full)
     ! allowed values are: 0, land,
-    !                       1, sea,
-    !                       2, coast.
+    !                     1, sea,
+    !                     2, coast.
     call amsuABTest2LandSeaQualifierCheck (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, KMARQ, ICHECK)
 
     ! 3) test 3: "Terrain type" code check (full)
@@ -2283,12 +2313,12 @@ contains
     ! Therefore, various thresholds are used to reject channels AMSUB-3 4 and 5
     !  over land and ice
     call amsubTest12DrynessIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, tb1831, tb1833, &
-                                       ktermer, glintrp, KMARQ, ICHECK)
-    ! 13) test 13: Bennartz scattering index check (full)
+                                       ktermer, glintrp, KMARQ, ICHECK, skipTestArr_opt=skipTestArr(:))
 
+    ! 13) test 13: Bennartz scattering index check (full)
     call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
                                                  useStateDepSigmaObs, iterrain, KTERMER, GLINTRP, &
-                                                 KMARQ, ICHECK)
+                                                 KMARQ, ICHECK, skipTestArr_opt=skipTestArr(:))
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
@@ -2297,7 +2327,8 @@ contains
     call amsubTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
                                siThreshArr, sigmaObsErr, useStateDepSigmaObs, &
                                iterrain, ktermer, PTBOMP, scatwObs, scatwFG, &
-                               ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK)
+                               ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK, &
+                               skipTestArr_opt=skipTestArr(:))
 
     ! 15) test 15: Channel Selection using array IUTILST(chan,sat)
     !  IUTILST = 0 (blacklisted)
