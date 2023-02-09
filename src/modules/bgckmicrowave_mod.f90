@@ -995,7 +995,7 @@ contains
     testIndex = 12
     if (present(skipTestArr_opt)) then
       if (skipTestArr_opt(testIndex)) then
-        write(*,*) 'amsubTest12DrynessIndexCheck: skipping this test'
+        if (mmpi_myid == 0) write(*,*) 'amsubTest12DrynessIndexCheck: skipping this test'
         return
       end if
     end if
@@ -1159,7 +1159,7 @@ contains
     testIndex = 13
     if (present(skipTestArr_opt)) then
       if (skipTestArr_opt(testIndex)) then
-        write(*,*) 'amsubTest13BennartzScatteringIndexCheck: skipping this test'
+        if (mmpi_myid == 0) write(*,*) 'amsubTest13BennartzScatteringIndexCheck: skipping this test'
         return
       end if
     end if
@@ -1449,7 +1449,7 @@ contains
     testIndex = 14
     if (present(skipTestArr_opt)) then
       if (skipTestArr_opt(testIndex)) then
-        write(*,*) 'amsubTest14RogueCheck: skipping this test'
+        if (mmpi_myid == 0) write(*,*) 'amsubTest14RogueCheck: skipping this test'
         return
       end if
     end if
