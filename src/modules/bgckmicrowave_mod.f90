@@ -991,11 +991,15 @@ contains
     integer                               :: nChannelIndex
     integer                               :: testIndex
     real                                  :: drynessIndex
+    logical, save                         :: firstCall = .true.
 
     testIndex = 12
     if (present(skipTestArr_opt)) then
       if (skipTestArr_opt(testIndex)) then
-        if (mmpi_myid == 0) write(*,*) 'amsubTest12DrynessIndexCheck: skipping this test'
+        if (firstCall) then
+          firstCall = .false.
+          write(*,*) 'amsubTest12DrynessIndexCheck: skipping this test'
+        end if
         return
       end if
     end if
@@ -1155,11 +1159,16 @@ contains
     real                                   :: siUsedForQC
     logical                                :: FULLREJCT
     logical                                :: surfTypeIsSea 
+    logical, save                          :: firstCall = .true.
+
 
     testIndex = 13
     if (present(skipTestArr_opt)) then
       if (skipTestArr_opt(testIndex)) then
-        if (mmpi_myid == 0) write(*,*) 'amsubTest13BennartzScatteringIndexCheck: skipping this test'
+        if (firstCall) then
+          firstCall = .false.
+          write(*,*) 'amsubTest13BennartzScatteringIndexCheck: skipping this test'
+        end if
         return
       end if
     end if
@@ -1441,11 +1450,15 @@ contains
     logical                                :: ch2OmpRejectInAllsky
     logical                                :: channelIsAllsky
     logical                                :: surfTypeIsWater
+    logical, save                          :: firstCall = .true.
 
     testIndex = 14
     if (present(skipTestArr_opt)) then
       if (skipTestArr_opt(testIndex)) then
-        if (mmpi_myid == 0) write(*,*) 'amsubTest14RogueCheck: skipping this test'
+        if (firstCall) then
+          firstCall = .false.
+          write(*,*) 'amsubTest14RogueCheck: skipping this test'
+        end if
         return
       end if
     end if
