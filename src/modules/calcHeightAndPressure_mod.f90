@@ -498,7 +498,7 @@ contains
     do stepIndex = 1, numStep
 
       call fetch3DField_r4( statevector%vco, Hsfc4, &
-                                fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
+                            fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightM_out)
       Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightT_out)
       deallocate(GZHeightM_out, GZHeightT_out)
@@ -580,7 +580,6 @@ contains
     ! Locals
     integer ::  numStep, stepIndex
     real(kind=8), pointer   :: Hsfc(:,:), GZHeightM_out(:,:,:), GZHeightT_out(:,:,:)
-
 
     call msg('calcHeight_gsv_nl_vcode2100x_r8 (czp)', 'START', verb_opt=4)
 
@@ -2118,7 +2117,7 @@ contains
       end if
 
       call fetch3DField_r4( statevector%vco, Psfc, &
-                                fldM_opt=PressureM_out, fldT_opt=PressureT_out)
+                            fldM_opt=PressureM_out, fldT_opt=PressureT_out)
       P_M(:,:,:,stepIndex) = PressureM_out(:,:,:)
       P_T(:,:,:,stepIndex) = PressureT_out(:,:,:)
       deallocate(PressureM_out, PressureT_out)
@@ -3706,13 +3705,13 @@ contains
   !---------------------------------------------------------------------
   ! subroutines wrapping vgd_levels and vgd_dpidpis queries
   !---------------------------------------------------------------------
-  
+
   !---------------------------------------------------------
   ! fetch3DField_r8
   !---------------------------------------------------------
   subroutine fetch3DField_r8(vco, sfcFld, fldM_opt, fldT_opt)
     !
-    ! :Purpose: Main vgd_levels wrapper for field query. Return vertical coordinate
+    ! :Purpose: Main vgd_levels wrapper for field queries. Return vertical coordinate
     !           fields for both momentum and thermodynamic levels; real(8) flavor.
     !
     implicit none
@@ -3850,8 +3849,9 @@ contains
   !---------------------------------------------------------
   subroutine fetchDPDPProf_r8(vco, sfcValue, profM_opt, profT_opt)
     !
-    ! :Purpose: Main vgd_levels wrapper for profile query. Return vertical coordinate
-    !           profile for both momentum and thermodynamic levels; real(8) flavor.
+    ! :Purpose: Main vgd_levels wrapper for iderivative profile query. Return vertical
+    !           coordinate profile for both momentum and thermodynamic levels; 
+    !           real(8) flavor.
     !
     implicit none
 
