@@ -1112,7 +1112,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
                                                      useStateDepSigmaObs, iterrain, KTERMER, GLINTRP, &
-                                                     KMARQ, ICHECK, skipTestArr_opt)
+                                                     KMARQ, ICHECK, chanFlaggedForAllskyGenCoeff, &
+                                                     skipTestArr_opt)
 
     !:Purpose:                  13) test 13: Bennartz scattering index check (full)
     !                               For Scattering Index > 40 sea ice
@@ -1136,6 +1137,7 @@ contains
     real,        intent(in)                :: GLINTRP(KNT)                   ! glace de mer
     integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
+    integer,     intent(in)                :: chanFlaggedForAllskyGenCoeff(:)! channels to exclude from genCoeff
     logical,     intent(in), optional      :: skipTestArr_opt(:)             ! array to set to skip the test
 
 
@@ -1143,11 +1145,12 @@ contains
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
     integer                                :: testIndex
+    integer                                :: channelval
+    integer                                :: chanIndex
     real                                   :: ZSEUILSCATICE
     real                                   :: ZSEUILSCATL
     real                                   :: ZSEUILSCATW
     real                                   :: siUsedForQcThreshold
-    integer                                :: channelval
     real                                   :: siObsFGaveraged
     real                                   :: siUsedForQC
     logical                                :: FULLREJCT
@@ -1228,6 +1231,10 @@ contains
         if (siObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. &
             siObsFGaveraged == mwbg_realMissing) then
           do nChannelIndex = 1,KNO
+            channelval = KCANO(nChannelIndex,nDataIndex)
+            chanIndex = ISRCHEQI(chanFlaggedForAllskyGenCoeff(:),size(chanFlaggedForAllskyGenCoeff(:)), &
+                                 channelval)
+            if (chanIndex == 0) cycle
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**23)
           end do
           if ( mwbg_debug ) then
@@ -1827,7 +1834,6 @@ contains
     integer, parameter                     :: MXSFCREJ2 =  4 
     integer, parameter                     :: MXSCATREJ =  7 
     integer, parameter                     :: MXCANPRED =  9 
-    integer, parameter                     :: JPMXSFC = 2
     real, parameter                        :: cloudyClwThreshold = 0.3
     real, parameter                        :: ZANGL = 117.6/maxScanAngleAMSU
     
@@ -2138,13 +2144,9 @@ contains
     !locals
     integer, parameter                     :: mwbg_maxScanAngleHIRS= 56 
     integer, parameter                     :: maxScanAngleAMSU= 90 
-    integer, parameter                     :: MXCLWREJ  =  6 
     integer, parameter                     :: MXSFCREJ  =  2 
     integer, parameter                     :: MXSFCREJ2 =  1 
-    integer, parameter                     :: MXCANPRED =  9 
     integer, parameter                     :: MXCH2OMPREJ= 4
-    integer, parameter                     :: JPMXSFC = 2
-    real, parameter                        :: cloudyClwThreshold = 0.3
     real, parameter                        :: ZANGL =  117.6/maxScanAngleAMSU
     
     integer                                :: KMARQ   (KNO,KNT)
@@ -2159,6 +2161,7 @@ contains
     integer                                :: ISFCREJ (MXSFCREJ)
     integer                                :: ICH2OMPREJ(MXCH2OMPREJ)
     integer                                :: ISFCREJ2(MXSFCREJ2)
+    integer                                :: chanFlaggedForAllskyGenCoeff(5)
     real                                   :: EPSILON
     real                                   :: MISGRODY
     real, allocatable                      :: GROSSMIN(:)
@@ -2209,6 +2212,9 @@ contains
 
     channelForTopoFilter(:) = (/ 45, 46, 47 /)
     altitudeForTopoFilter(:) = (/ 2500., 2000., 1000./)
+
+    ! Channels excluded from genCoeff in all-sky mode
+    chanFlaggedForAllskyGenCoeff(:) = (/43, 44, 45, 46, 47/)
 
     ! Allocation
     call utl_reAllocate(scatwObs, KNT)
@@ -2318,7 +2324,8 @@ contains
     ! 13) test 13: Bennartz scattering index check (full)
     call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
                                                  useStateDepSigmaObs, iterrain, KTERMER, GLINTRP, &
-                                                 KMARQ, ICHECK, skipTestArr_opt=skipTestArr(:))
+                                                 KMARQ, ICHECK, chanFlaggedForAllskyGenCoeff, &
+                                                 skipTestArr_opt=skipTestArr(:))
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
