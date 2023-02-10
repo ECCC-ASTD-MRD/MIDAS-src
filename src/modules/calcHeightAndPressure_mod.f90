@@ -55,7 +55,7 @@ module calcHeightAndPressure_mod
   public :: czp_calcReturnHeight_gsv_nl, czp_calcReturnPressure_gsv_nl
   public :: czp_calcReturnHeight_col_nl, czp_calcReturnPressure_col_nl
   public :: czp_ensureCompatibleTops
-  public :: czp_fetch3DLevels, czp_fetch1DLevels, czp_fetchDPDPProfile
+  public :: czp_fetch3DLevels, czp_fetch1DLevels, czp_fetch1DdPdPs
 
   interface czp_fetch3DLevels
     module procedure fetch3DLevels_r8
@@ -64,9 +64,9 @@ module calcHeightAndPressure_mod
   interface czp_fetch1DLevels
     module procedure fetch1DLevels_r8
   end interface czp_fetch1DLevels
-  interface czp_fetchDPDPProfile
-    module procedure fetchDPDPProf_r8
-  end interface czp_fetchDPDPProfile
+  interface czp_fetch1DdPdPs
+    module procedure fetch1DdPdPs_r8
+  end interface czp_fetch1DdPdPs
   interface czp_calcZandP_nl
     module procedure calcZandP_gsv_nl
     module procedure calcZandP_col_nl
@@ -3846,9 +3846,9 @@ contains
   end subroutine fetch1DLevels_r8
 
   !---------------------------------------------------------
-  ! fetchDPDP_r8
+  ! fetch1DdPdPs_r8
   !---------------------------------------------------------
-  subroutine fetchDPDPProf_r8(vco, sfcValue, profM_opt, profT_opt)
+  subroutine fetch1DdPdPs_r8(vco, sfcValue, profM_opt, profT_opt)
     !
     ! :Purpose: Main vgd_levels wrapper for iderivative profile query. Return vertical
     !           coordinate profile for both momentum and thermodynamic levels; 
@@ -3867,9 +3867,9 @@ contains
 
     if ( sfcValue <=0 ) then
       if ( vco%vcode == 21001 ) then
-          call msg('fetchDPDPProf_r8','WARNING negative surface height reference')
+          call msg('fetch1DdPdPs_r8','WARNING negative surface height reference')
       else
-        call utl_abort('fetchDPDPProf_r8: negative surface reference')
+        call utl_abort('fetch1DdPdPs_r8: negative surface reference')
       end if
     end if
 
@@ -3877,7 +3877,7 @@ contains
       nullify(profM_opt)
       status = vgd_dpidpis(vco%vgrid, vco%ip1_M, profM_opt, sfcValue)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetchDPDPProf_r8:  ERROR with vgd_dpidpis (momentum levels)')
+        call utl_abort('fetch1DdPdPs_r8:  ERROR with vgd_dpidpis (momentum levels)')
       end if
     end if
 
@@ -3885,10 +3885,10 @@ contains
       nullify(profT_opt)
       status = vgd_dpidpis(vco%vgrid, vco%ip1_T, profT_opt, sfcValue)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetchDPDPProf_r8:  ERROR with vgd_dpidpis (thermodynamic levels)')
+        call utl_abort('fetch1DdPdPs_r8:  ERROR with vgd_dpidpis (thermodynamic levels)')
       end if
     end if
-  end subroutine fetchDPDPProf_r8
+  end subroutine fetch1DdPdPs_r8
 
   !---------------------------------------------------------------------
   ! other vertical coordinate related functions and subroutines

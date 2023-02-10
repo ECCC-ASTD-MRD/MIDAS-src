@@ -1472,7 +1472,7 @@ module obsSpaceErrorStdDev_mod
                   if (associated(dPdPs)) then
                     deallocate(dPdPs)
                   end if
-                  call czp_fetchDPDPProfile(vco_anl, zP0, profT_opt=dPdPs)
+                  call czp_fetch1DdPdPs(vco_anl, zP0, profT_opt=dPdPs)
                   zDP(1:NGPSLEV) = dPdPs(1:NGPSLEV)
 
                   DO JL = 1, NGPSLEV
@@ -1851,7 +1851,7 @@ module obsSpaceErrorStdDev_mod
          if (associated(dPdPs)) then
            deallocate(dPdPs)
          end if
-         call czp_fetchDPDPProfile(vco_anl, ZP0B, profT_opt=dPdPs)
+         call czp_fetch1DdPdPs(vco_anl, ZP0B, profT_opt=dPdPs)
          zDP(1:NFLEV_T) = dPdPs(1:NFLEV_T)
 
          DO JL = 1, NFLEV_T
