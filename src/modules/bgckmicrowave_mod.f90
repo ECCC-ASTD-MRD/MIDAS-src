@@ -266,9 +266,9 @@ contains
   !--------------------------------------------------------------------------
   ! extractParamForBennartzRun
   !--------------------------------------------------------------------------  
-  subroutine extractParamForBennartzRun(KCANO, ptbo, ptbomp, ptbcor, KNT, KNO, &
+  subroutine extractParamForBennartzRun(KCANO, ptbo, btClear2D, ptbomp, ptbcor, KNT, KNO, &
                                         tb89, tb150, tb1831, tb1832, tb1833, &
-                                        tb89FG, tb150FG)
+                                        tb89FG, tb150FG, tb89FgClear, tb150FgClear)
 
     !:Purpose: Extract Parameters required to run bennaertz for required channels:
     !          extract required channels:        
@@ -279,18 +279,20 @@ contains
     ! Arguments
     integer,     intent(in)               :: KCANO(KNO,KNT)         ! observations channels
     real,        intent(in)               :: ptbo(KNO,KNT)          ! radiances
+    real,        intent(in)               :: btClear2D(KNO,KNT)     ! clear-sky radiances from background
     real,        intent(in)               :: ptbomp(KNO,KNT)        ! radiances o-p
     real,        intent(in)               :: ptbcor(KNO,KNT)        ! correction aux radiances
     integer,     intent(in)               :: KNO                    ! nombre de canaux des observations 
     integer,     intent(in)               :: KNT                    ! nombre de tovs
-    real,        intent(out)              :: tb89(KNT)              ! radiance frequence 89 Ghz  
-    real,        intent(out)              :: tb150(KNT)             ! radiance frequence 150 Ghz  
-    real,        intent(out)              :: tb1831(KNT)            ! radiance frequence ? Ghz  
-    real,        intent(out)              :: tb1832(KNT)            ! radiance frequence ? Ghz  
-    real,        intent(out)              :: tb1833(KNT)            ! radiance frequence ? Ghz  
-    real,        intent(out)              :: tb89FG(KNT)            ! radiance frequence 89 Ghz  
-    real,        intent(out)              :: tb150FG(KNT)           ! radiance frequence 150 Ghz  
-
+    real,        intent(out)              :: tb89(KNT)              ! 89GHz radiance from observation
+    real,        intent(out)              :: tb150(KNT)             ! 150GHz radiance from observation
+    real,        intent(out)              :: tb1831(KNT)            ! 183GHz radiance from observation
+    real,        intent(out)              :: tb1832(KNT)            ! 183GHz radiance from observation
+    real,        intent(out)              :: tb1833(KNT)            ! 183GHz radiance from observation
+    real,        intent(out)              :: tb89FG(KNT)            ! 89GHz radiance from background
+    real,        intent(out)              :: tb150FG(KNT)           ! 150GHz radiance from background
+    real,        intent(out)              :: tb89FgClear(KNT)       ! 89GHz clear-sky radiance from background
+    real,        intent(out)              :: tb150FgClear(KNT)      ! 150GHz clear-sky radiance from background
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -299,41 +301,50 @@ contains
     do nDataIndex=1,KNT
       do nChannelIndex=1,KNO
         channelval = KCANO(nChannelIndex,nDataIndex)
-        if ( ptbo(nChannelIndex,nDataIndex) .ne. mwbg_realMissing ) then
+        if ( ptbo(nChannelIndex,nDataIndex) /= mwbg_realMissing ) then
           if ( ptbcor(nChannelIndex,nDataIndex) .ne. mwbg_realMissing ) then
-            if ( channelval .eq. 43 ) tb89(nDataIndex) = ptbo(nChannelIndex,nDataIndex) &
+            if ( channelval == 43 ) tb89(nDataIndex) = ptbo(nChannelIndex,nDataIndex) &
                  - ptbcor(nChannelIndex,nDataIndex)
-            if ( channelval .eq. 44 ) tb150(nDataIndex) = ptbo(nChannelIndex,nDataIndex) &
+            if ( channelval == 44 ) tb150(nDataIndex) = ptbo(nChannelIndex,nDataIndex) &
                  - ptbcor(nChannelIndex,nDataIndex)
-            if ( channelval .eq. 45 ) tb1831(nDataIndex) = ptbo(nChannelIndex,nDataIndex) &
+            if ( channelval == 45 ) tb1831(nDataIndex) = ptbo(nChannelIndex,nDataIndex) &
                  - ptbcor(nChannelIndex,nDataIndex)
-            if ( channelval .eq. 46 ) tb1832(nDataIndex) = ptbo(nChannelIndex,nDataIndex) &
+            if ( channelval == 46 ) tb1832(nDataIndex) = ptbo(nChannelIndex,nDataIndex) &
                  - ptbcor(nChannelIndex,nDataIndex)
-            if ( channelval .eq. 47 ) tb1833(nDataIndex) = ptbo(nChannelIndex,nDataIndex) &
+            if ( channelval == 47 ) tb1833(nDataIndex) = ptbo(nChannelIndex,nDataIndex) &
                  - ptbcor(nChannelIndex,nDataIndex)
           else
-            if ( channelval .eq. 43 ) tb89(nDataIndex) = ptbo(nChannelIndex,nDataIndex)
-            if ( channelval .eq. 44 ) tb150(nDataIndex) = ptbo(nChannelIndex,nDataIndex)
-            if ( channelval .eq. 45 ) tb1831(nDataIndex) = ptbo(nChannelIndex,nDataIndex)
-            if ( channelval .eq. 46 ) tb1832(nDataIndex) = ptbo(nChannelIndex,nDataIndex)
-            if ( channelval .eq. 47 ) tb1833(nDataIndex) = ptbo(nChannelIndex,nDataIndex)
+            if ( channelval == 43 ) tb89(nDataIndex) = ptbo(nChannelIndex,nDataIndex)
+            if ( channelval == 44 ) tb150(nDataIndex) = ptbo(nChannelIndex,nDataIndex)
+            if ( channelval == 45 ) tb1831(nDataIndex) = ptbo(nChannelIndex,nDataIndex)
+            if ( channelval == 46 ) tb1832(nDataIndex) = ptbo(nChannelIndex,nDataIndex)
+            if ( channelval == 47 ) tb1833(nDataIndex) = ptbo(nChannelIndex,nDataIndex)
           end if
 
-          if ( channelval .eq. 43 ) tb89FG(nDataIndex)  = ptbo(nChannelIndex,nDataIndex) - &
+          if ( channelval == 43 ) tb89FG(nDataIndex)  = ptbo(nChannelIndex,nDataIndex) - &
                                                           ptbomp(nChannelIndex,nDataIndex)
-          if ( channelval .eq. 44 ) tb150FG(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
+          if ( channelval == 44 ) tb150FG(nDataIndex) = ptbo(nChannelIndex,nDataIndex) - &
                                                           ptbomp(nChannelIndex,nDataIndex)
           
         else
-          if ( channelval .eq. 43 ) tb89(nDataIndex) = 0.
-          if ( channelval .eq. 44 ) tb150(nDataIndex) = 0.
-          if ( channelval .eq. 45 ) tb1831(nDataIndex) = 0.
-          if ( channelval .eq. 46 ) tb1832(nDataIndex) = 0.
-          if ( channelval .eq. 47 ) tb1833(nDataIndex) = 0.
+          if ( channelval == 43 ) tb89(nDataIndex) = 0.
+          if ( channelval == 44 ) tb150(nDataIndex) = 0.
+          if ( channelval == 45 ) tb1831(nDataIndex) = 0.
+          if ( channelval == 46 ) tb1832(nDataIndex) = 0.
+          if ( channelval == 47 ) tb1833(nDataIndex) = 0.
 
-          if ( channelval .eq. 43 ) tb89FG(nDataIndex) = 0.
-          if ( channelval .eq. 44 ) tb150FG(nDataIndex) = 0.
+          if ( channelval == 43 ) tb89FG(nDataIndex) = 0.
+          if ( channelval == 44 ) tb150FG(nDataIndex) = 0.
         end if
+
+        if (btClear2D(nChannelIndex,nDataIndex) /= mwbg_realMissing) then
+          if (channelval == 43) tb89FgClear(nDataIndex) = btClear2D(nChannelIndex,nDataIndex)
+          if (channelval == 44) tb150FgClear(nDataIndex) = btClear2D(nChannelIndex,nDataIndex)
+        else
+          if (channelval == 43) tb89FgClear(nDataIndex) = 0.0
+          if (channelval == 44) tb150FgClear(nDataIndex) = 0.0       
+        end if
+
       end do
     end do
 
@@ -2258,9 +2269,9 @@ contains
     if ( RESETQC ) KMARQ(:,:) = 0
 
     !     Bennartz parameters are   extract required channels:
-    call extractParamForBennartzRun (KCANO, ptbo, ptbomp, ptbcor, KNT, KNO, &
+    call extractParamForBennartzRun (KCANO, ptbo, btClear2D, ptbomp, ptbcor, KNT, KNO, &
                                      tb89, tb150, tb1831, tb1832, tb1833, &
-                                     tb89FG, tb150FG)
+                                     tb89FG, tb150FG, tb89FgClear, tb150FgClear)
     
     !  Run Bennartz AMSU-B algorithms.
     call bennartz (err, knt, tb89, tb150, tb89FG, tb150FG, satzen, ktermer, &
