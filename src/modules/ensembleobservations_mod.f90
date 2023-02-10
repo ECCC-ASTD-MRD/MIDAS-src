@@ -550,7 +550,7 @@ CONTAINS
     integer :: obsFlag(ensObs%numObs), assFlagFrom1File(ensObs%numObs)
     integer :: assFlagFromAllFiles(ensObs%numObs)
     integer :: unitNum, ierr, memberIndex, obsIndex, numObsFromFile
-    integer :: numMembersFromFile, numMembersFromFile2, fnom, fclos
+    integer :: numMembersFromFile, fnom, fclos
     integer :: fileIndex, numMembersAlreadyRead
     integer, allocatable :: memberIndexFromFile(:)
     logical :: fileExists

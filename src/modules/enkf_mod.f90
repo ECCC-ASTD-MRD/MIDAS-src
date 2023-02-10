@@ -2294,7 +2294,7 @@ contains
     logical, intent(in), optional :: beSilent_opt
 
     ! Locals:
-    integer             :: levIndex1, levIndex2, eigenIndex, status
+    integer             :: levIndex1, levIndex2, eigenIndex
     integer             :: nLev, nLev_M, nLev_depth, matrixRank
     real(8)             :: zr, zcorr, pSurfRef
     real(8)             :: tolerance

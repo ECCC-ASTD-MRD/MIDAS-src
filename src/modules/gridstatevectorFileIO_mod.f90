@@ -32,6 +32,7 @@ module gridStateVectorFileIO_mod
   use timeCoord_mod
   use mathPhysConstants_mod
   use codePrecision_mod
+  use Vgrid_Descriptors
   implicit none
   save
   private

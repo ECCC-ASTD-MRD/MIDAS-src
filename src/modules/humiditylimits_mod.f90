@@ -161,7 +161,7 @@ contains
     real(8), pointer :: pressure(:,:,:)
     real(8)          :: hu, husat, hu_modified, tt
     real(8), allocatable :: psfc(:,:)
-    integer          :: lon1, lon2, lat1, lat2, lev1, lev2, ierr
+    integer          :: lon1, lon2, lat1, lat2, lev1, lev2
     integer          :: lonIndex, latIndex, levIndex, stepIndex
 
     if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_gsv: STARTING'
@@ -264,7 +264,7 @@ contains
     real(8), pointer :: pressure(:,:,:)
     real(8)          :: hu, husat, hu_modified, tt
     real(8), allocatable :: psfc(:,:)
-    integer          :: lon1, lon2, lat1, lat2, numLev, ierr
+    integer          :: lon1, lon2, lat1, lat2, numLev
     integer          :: lonIndex, latIndex, levIndex, stepIndex, memberIndex, varLevIndex
 
     if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_ens: STARTING'

@@ -233,8 +233,6 @@ module oMinusF_mod
       type(struct_vco), pointer :: vco_ens  => null()
       type(struct_hco), pointer :: hco_core => null()
 
-      logical           :: allocHeightSfc
-
       character(len=256) :: ensFileName
       character(len=48)  :: obsMpiStrategy
       character(len=3)   :: obsColumnMode

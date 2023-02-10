@@ -43,6 +43,7 @@ module calcHeightAndPressure_mod
   use varnamelist_mod
   use gps_mod
   use HorizontalCoord_mod
+  use Vgrid_Descriptors
   implicit none
   save
   private

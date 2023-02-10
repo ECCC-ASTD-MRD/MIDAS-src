@@ -128,7 +128,7 @@ contains
     integer,                   intent(in)   :: ip2_in
 
     ! locals
-    integer :: nulnam, ier, status
+    integer :: nulnam, ier
     integer :: fclos, fnom
     integer :: varIndex, levIndex, k
     integer :: numStep
