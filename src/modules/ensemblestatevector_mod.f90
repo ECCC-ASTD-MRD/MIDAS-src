@@ -2083,13 +2083,14 @@ CONTAINS
     integer, optional,          intent(in)    :: numMembersToRecenter_opt
 
     ! Locals:
-    integer, parameter :: maxNumLevels=200
-    real(8), pointer :: ptr4d_r8(:,:,:,:), alternativeEnsembleMean_r8(:,:,:,:)
+    real(8), pointer :: ptr4d_r8(:,:,:,:)
+    real(8), pointer :: alternativeEnsembleMean_r8(:,:,:,:)
     real(8), pointer :: ptr4d_ensembleControlmember_r8(:,:,:,:)
-    real(8) :: increment, scaleFactor(maxNumLevels), thisScaleFactor
-    real(8) :: recenteringCoeffArray(maxNumLevels,ens%numMembers)
+    real(8) :: scaleFactor(vco_maxNumLevels)
+    real(8) :: recenteringCoeffArray(vco_maxNumLevels,ens%numMembers)
     real(8) :: recenteringCoeffArrayLand(ens%numMembers)
     real(8) :: recenteringCoeffArrayUsed(ens%numMembers)
+    real(8) :: increment, thisScaleFactor
     real(4), pointer :: ptr4d_r4(:,:,:,:)
     integer :: lon1, lon2, lat1, lat2, k1, k2, numStep, numMembersToRecenter
     integer :: varLevIndex, latIndex, lonIndex, stepIndex, memberIndex, levIndex

@@ -53,7 +53,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added cleaning for ObsDb files after observation thinning (#631 and !604)
 
 ### Changed
-
+ * Moved the definition of maxNumLevels to verticalcoord_mod (#758 and !688)	
  * Centralised and wrapped all `vgd_{levels,dpidpis}` calls in `czp` (#745 and !687)
  * Simplify namelists by removing number of items in namelist arrays (#709 and !675)
    * many namelist files will need modification to remove variables, otherwise programs abort

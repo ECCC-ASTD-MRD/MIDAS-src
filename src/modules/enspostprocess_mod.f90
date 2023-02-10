@@ -45,8 +45,6 @@ module ensPostProcess_mod
 
   ! public procedures
   public :: epp_postProcess
-
-  integer, parameter        :: maxNumLevels = 200
   
 contains
 
@@ -108,7 +106,7 @@ contains
     logical  :: huLimitsBeforeRecenter   ! Choose to apply humidity limits before recentering
     logical  :: imposeSaturationLimit  ! switch for choosing to impose saturation limit of humidity
     logical  :: imposeRttovHuLimits    ! switch for choosing to impose the RTTOV limits on humidity
-    real(8)  :: weightRecenter(maxNumLevels)  ! weight applied to recentering increment (between 0 and 1; 0 means no recentering)
+    real(8)  :: weightRecenter(vco_maxNumLevels)  ! weight applied to recentering increment (between 0 and 1; 0 means no recentering)
     real(8)  :: weightRecenterLand     ! weight applied to recentering increment for land variables
     integer  :: numMembersToRecenter   ! number of members that get recentered on supplied analysis
     logical  :: useOptionTableRecenter ! use values in the optiontable file
@@ -1390,7 +1388,7 @@ contains
     vco_ens => ens_getVco(ensembleAnl)
     numMembers = ens_getNumMembers(ensembleAnl)
 
-    allocate( weightArray(maxNumLevels,0:numMembers) )
+    allocate( weightArray(vco_maxNumLevels,0:numMembers) )
     allocate( weightArrayLand(0:numMembers) )
 
     ! read the optiontable file, if requested    

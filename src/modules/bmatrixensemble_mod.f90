@@ -53,7 +53,6 @@ module BmatrixEnsemble_mod
   public :: ben_setFsoLeadTime, ben_getNumStepAmplitudeAssimWindow, ben_getAmplitudeAssimWindow
   public :: ben_getAmp3dStepIndexAssimWindow, ben_getNumLoc, ben_getLoc, ben_getNumInstance
 
-  integer, parameter   :: maxNumLevels      = 200
   integer, parameter   :: maxNumLocalLength =  20
   integer, parameter   :: nInstanceMax      =  10
 
@@ -125,10 +124,10 @@ module BmatrixEnsemble_mod
 
     ! Namelist variables
     integer             :: nEns ! number of ensemble members
-    real(8)             :: scaleFactor(maxNumLevels)
-    real(8)             :: scaleFactorHumidity(maxNumLevels)
-    real(8)             :: advectFactorFSOFcst(maxNumLevels)
-    real(8)             :: advectFactorAssimWindow(maxNumLevels)
+    real(8)             :: scaleFactor(vco_maxNumLevels)
+    real(8)             :: scaleFactorHumidity(vco_maxNumLevels)
+    real(8)             :: advectFactorFSOFcst(vco_maxNumLevels)
+    real(8)             :: advectFactorAssimWindow(vco_maxNumLevels)
     integer             :: ntrunc
     character(len=256)  :: enspathname
     real(8)             :: hLocalize(maxNumLocalLength)
@@ -206,10 +205,10 @@ CONTAINS
 
     ! Namelist variables
     integer             :: nEns
-    real(8)             :: scaleFactor(maxNumLevels)
-    real(8)             :: scaleFactorHumidity(maxNumLevels)
-    real(8)             :: advectFactorFSOFcst(maxNumLevels)
-    real(8)             :: advectFactorAssimWindow(maxNumLevels)
+    real(8)             :: scaleFactor(vco_maxNumLevels)
+    real(8)             :: scaleFactorHumidity(vco_maxNumLevels)
+    real(8)             :: advectFactorFSOFcst(vco_maxNumLevels)
+    real(8)             :: advectFactorAssimWindow(vco_maxNumLevels)
     integer             :: ntrunc
     character(len=256)  :: enspathname
     real(8)             :: hLocalize(maxNumLocalLength)

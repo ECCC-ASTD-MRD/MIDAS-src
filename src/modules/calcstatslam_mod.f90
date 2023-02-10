@@ -56,7 +56,6 @@ module calcStatsLam_mod
   integer, parameter :: cv_model = 1
   integer, parameter :: cv_bhi   = 2
   integer, parameter :: nMaxControlVar = 10
-  integer, parameter :: maxNumLevels   = 200
   
   type  :: struct_cv
     character(len=4)     :: NomVar(2)
@@ -139,7 +138,7 @@ contains
     character(len=4), pointer :: controlVarNames(:)
 
     ! Namelist variables (local)
-    real(8) :: scaleFactor(maxNumLevels)
+    real(8) :: scaleFactor(vco_maxNumLevels)
     integer :: grd_ext_x
     integer :: grd_ext_y
 
