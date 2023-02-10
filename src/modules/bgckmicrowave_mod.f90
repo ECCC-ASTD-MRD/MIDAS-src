@@ -1201,7 +1201,7 @@ contains
         else                                    ! sea 
           surfTypeIsSea = .true.
 
-          if ( tvs_mwAllskyAssim ) then
+          if (tvs_mwAllskyAssim) then
             siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
             siUsedForQC = siObsFGaveraged
             siUsedForQcThreshold = mwbg_siQcOverWaterThreshold
@@ -2274,8 +2274,8 @@ contains
                                      tb89FG, tb150FG, tb89FgClear, tb150FgClear)
     
     !  Run Bennartz AMSU-B algorithms.
-    call bennartz (err, knt, tb89, tb150, tb89FG, tb150FG, satzen, ktermer, &
-                   scatl, scatwObs, scatwFG, clwObs, clwFG)   
+    call bennartz (err, knt, tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
+                   satzen, ktermer, scatl, scatwObs, scatwFG, clwObs, clwFG)   
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
@@ -3000,8 +3000,8 @@ contains
   !------------------------------------------------------------------------------------
   ! bennartz
   !------------------------------------------------------------------------------------
-  subroutine bennartz (ier, knt, tb89, tb150, tb89FG, tb150FG, pangl, ktermer, &
-                       scatl, scatwObs, scatwFG, clwObs, clwFG)
+  subroutine bennartz (ier, knt, tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
+                       pangl, ktermer, scatl, scatwObs, scatwFG, clwObs, clwFG)
 
     !:Purpose: Compute the following parameters using 2 AMSU-B channels:
     !          - scattering index (over land and ocean).*
@@ -3018,6 +3018,8 @@ contains
     real,    intent(in)  :: tb150(:)         ! 150Ghz AMSU-B brightness temperature (K)
     real,    intent(in)  :: tb89FG(:)        ! 89Ghz AMSU-B brightness temperature from background (K)
     real,    intent(in)  :: tb150FG(:)       ! 150Ghz AMSU-B brightness temperature from background (K)
+    real,    intent(in)  :: tb89FgClear(:)   ! 89Ghz clear-sky brightness temperature from background (K)
+    real,    intent(in)  :: tb150FgClear(:)  ! 150Ghz clear-sky brightness temperature from background (K)    real,    intent(in)  :: pangl(:)         !  satellite zenith angle (deg.)
     real,    intent(in)  :: pangl(:)         !  satellite zenith angle (deg.)
     integer, intent(in)  :: ktermer(:)       ! land/sea indicator (0=land;1=ocean)
     real,    intent(out) :: scatl(:)         ! scattering index over land
@@ -3060,18 +3062,25 @@ contains
     do i = 1, knt 
       if (ier(i) == 0) then
         if (ktermer(i) == 1) then
-          scatwObs(i) = (tb89(i) - tb150(i)) - (-39.2010 + 0.1104 * pangl(i))
-          scatwFG(i) = (tb89FG(i) - tb150FG(i)) - (-39.2010 + 0.1104 * pangl(i))
+          if (tvs_mwAllskyAssim) then
+            scatwObs(i) = (tb89(i) - tb150(i)) - (-39.2010 + 0.1104 * pangl(i)) - &
+                          (tb89FgClear(i) - tb150FgClear(i))
+            scatwFG(i) = (tb89FG(i) - tb150FG(i)) - (-39.2010 + 0.1104 * pangl(i)) - &
+                         (tb89FgClear(i) - tb150FgClear(i))
+          else
+            scatwObs(i) = (tb89(i) - tb150(i)) - (-39.2010 + 0.1104 * pangl(i))
+            scatwFG(i) = (tb89FG(i) - tb150FG(i)) - (-39.2010 + 0.1104 * pangl(i))
+          end if
         else
           scatl(i) = (tb89(i) - tb150(i)) - (0.158 + 0.0163 * pangl(i))
-        endif
+        endif ! if (ktermer(i) == 1)
       else if ((ier(i) /= 0) .and. (i <= 100 )) then 
         print *, 'bennartz: input Parameters are not all valid: '
         print *, 'bennartz: i, tb89(i), tb150(i), pangl(i), ktermer(i) = ', &
                             i, tb89(i), tb150(i), pangl(i), ktermer(i)
         print *, 'bennartz: ier(i), scatl(i), scatwObs(i), scatwFG(i)=', &
                             ier(i), scatl(i), scatwObs(i), scatwFG(i)
-      endif
+      endif ! if (ier(i) == 0)
     end do 
 
   end subroutine bennartz
