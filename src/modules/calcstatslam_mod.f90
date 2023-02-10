@@ -400,8 +400,8 @@ contains
     !
     if (vco_bhi%vgridPresent) then
       SurfacePressure = 101000.D0
-      call czp_fetchProfile( vco_bhi, SurfacePressure, &
-                            profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
+      call czp_fetch1DLevels(vco_bhi, SurfacePressure, &
+                             profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
 
       write(*,*)
       write(*,*) 'Pressure profile...'

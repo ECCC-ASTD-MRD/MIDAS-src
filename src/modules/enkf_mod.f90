@@ -2333,7 +2333,7 @@ contains
       verticalLocalizationMatLowRank(:,:) = 0.0d0
 
       pSurfRef = 101000.D0
-      call czp_fetchProfile(vco, pSurfRef, profM_opt=pressureProfile)
+      call czp_fetch1DLevels(vco, pSurfRef, profM_opt=pressureProfile)
 
       call lfn_Setup(LocFunctionWanted='FifthOrder')
 

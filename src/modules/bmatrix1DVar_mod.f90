@@ -515,8 +515,8 @@ contains
       write(*,*) 'bmat1D_setupBEns: all the vertical levels will be read in the ensemble '
       if ( vco_in%nLev_M > 0 .and. vco_in%vgridPresent ) then
         pSurfRef = 101000.D0
-        call czp_fetchProfile( vco_in, pSurfRef, profM_opt=pressureProfileInc_M)
-        call czp_fetchProfile( vco_in, pSurfRef, profM_opt=pressureProfileFile_M)
+        call czp_fetch1DLevels(vco_in, pSurfRef, profM_opt=pressureProfileInc_M)
+        call czp_fetch1DLevels(vco_in, pSurfRef, profM_opt=pressureProfileFile_M)
       
         EnsTopMatchesAnlTop = abs( log(pressureProfileFile_M(1)) - log(pressureProfileInc_M(1)) ) < 0.1d0
         write(*,*) 'bmat1D_setupBEns: EnsTopMatchesAnlTop, presEns, presInc = ', &
@@ -632,7 +632,7 @@ contains
     !- 1.7 Setup the localization
     if ( vco_in%Vcode == 5002 .or. vco_in%Vcode == 5005 ) then
       pSurfRef = 101000.D0
-      call czp_fetchProfile( vco_in, pSurfRef, profM_opt=pressureProfileInc_M)
+      call czp_fetch1DLevels(vco_in, pSurfRef, profM_opt=pressureProfileInc_M)
       deallocate(pressureProfileInc_M)
     end if
   

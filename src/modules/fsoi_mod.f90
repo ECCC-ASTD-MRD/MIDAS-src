@@ -813,8 +813,8 @@ module fsoi_mod
     Psfc_ref(:,:) =  &
                   Psfc_ptr(statevector_inout%myLonBeg:statevector_inout%myLonEnd,  &
                   statevector_inout%myLatBeg:statevector_inout%myLatEnd, 1)
-    call czp_fetch3DField(statevector_inout%vco, Psfc_ref, &
-                          fldM_opt=Press_M, fldT_opt=Press_T)
+    call czp_fetch3DLevels(statevector_inout%vco, Psfc_ref, &
+                           fldM_opt=Press_M, fldT_opt=Press_T)
     ! dlat * dlon
     scaleFactorConst = statevector_inout%hco%dlat*statevector_inout%hco%dlon
 

@@ -178,8 +178,8 @@ module calcStatsGlb_mod
 
     !- Estimate the pressure profile for each vertical grid    
     zps = 101000.D0
-    call czp_fetchProfile( vco_in, zps, &
-                          profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
+    call czp_fetch1DLevels(vco_in, zps, &
+                           profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
 
     !
     !- Setup variable names

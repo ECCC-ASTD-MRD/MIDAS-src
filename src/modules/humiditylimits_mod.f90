@@ -197,7 +197,7 @@ contains
         call gsv_getField(statevector,psfc_ptr_r4,'P0')
         psfc(:,:) = psfc_ptr_r4(:,:,1,stepIndex)
       end if
-      call czp_fetch3DField(vco_ptr, psfc, fldT_opt=pressure)
+      call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
       if (stateVector%dataKind == 8) then
         !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
         do levIndex = lev1, lev2
@@ -291,7 +291,7 @@ contains
         varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
         psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
         psfc(:,:) = psfc_ptr_r4(:,:,lonIndex,latIndex)
-        call czp_fetch3DField(vco_ptr, psfc, fldT_opt=pressure)
+        call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
 
         do levIndex = 1, numLev
           varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'HU')
@@ -453,7 +453,7 @@ contains
           call gsv_getField(statevector,psfc_ptr_r4,'P0')
           psfc(:,:) = real(psfc_ptr_r4(:,:,1,stepIndex),8)
         end if
-        call czp_fetch3DField(vco_ptr, psfc, fldT_opt=pressure)
+        call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
 
         ! Interpolate RTTOV limits onto model levels
         call qlim_lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
@@ -669,7 +669,7 @@ contains
           varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
           psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
           psfc(:,:) = real(psfc_ptr_r4(:,:,lonIndex,latIndex),8)
-          call czp_fetch3DField(vco_ptr, psfc, fldT_opt=pressure)
+          call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
 
           ! Interpolate RTTOV limits onto model levels
           call qlim_lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &

@@ -1521,7 +1521,7 @@ contains
       ! compute pressure for a column where Psfc=1000hPa
       pSfc(1,1) = 1000.0D2 !1000 hPa
       ! pressure levels
-      call czp_fetch3DField(vco, pSfc, fldM_opt=pressures_M, fldT_opt=pressures_T)
+      call czp_fetch3DLevels(vco, pSfc, fldM_opt=pressures_M, fldT_opt=pressures_T)
 
       ! set the variable name and pressure for each element of column
       do kIndex = 1, numK

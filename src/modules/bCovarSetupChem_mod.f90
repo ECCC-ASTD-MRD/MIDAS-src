@@ -449,7 +449,7 @@ module BCovarSetupChem_mod
     ! Get vertical levels
     
     if (bgStats%nlev > 1) then
-      call czp_fetchProfile(vco_anl, zps, profT_opt=pressureProfile_T)
+      call czp_fetch1DLevels(vco_anl, zps, profT_opt=pressureProfile_T)
       bgStats%vlev(1:bgStats%nlev) = pressureProfile_T(1:bgStats%nlev) 
     else if (bgStats%nlev == 1) then
       bgStats%vlev(1)=zps     

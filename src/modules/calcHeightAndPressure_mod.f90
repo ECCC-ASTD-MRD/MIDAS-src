@@ -55,15 +55,15 @@ module calcHeightAndPressure_mod
   public :: czp_calcReturnHeight_gsv_nl, czp_calcReturnPressure_gsv_nl
   public :: czp_calcReturnHeight_col_nl, czp_calcReturnPressure_col_nl
   public :: czp_ensureCompatibleTops
-  public :: czp_fetch3DField, czp_fetchProfile, czp_fetchDPDPProfile
+  public :: czp_fetch3DLevels, czp_fetch1DLevels, czp_fetchDPDPProfile
 
-  interface czp_fetch3DField
-    module procedure fetch3DField_r8
-    module procedure fetch3DField_r4
-  end interface czp_fetch3DField
-  interface czp_fetchProfile
-    module procedure fetchProfile_r8
-  end interface czp_fetchProfile
+  interface czp_fetch3DLevels
+    module procedure fetch3DLevels_r8
+    module procedure fetch3DLevels_r4
+  end interface czp_fetch3DLevels
+  interface czp_fetch1DLevels
+    module procedure fetch1DLevels_r8
+  end interface czp_fetch1DLevels
   interface czp_fetchDPDPProfile
     module procedure fetchDPDPProf_r8
   end interface czp_fetchDPDPProfile
@@ -498,7 +498,7 @@ contains
 
     do stepIndex = 1, numStep
 
-      call fetch3DField_r4( statevector%vco, Hsfc4, &
+      call fetch3DLevels_r4(statevector%vco, Hsfc4, &
                             fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       Z_M(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightM_out)
       Z_T(:,:,:,stepIndex) = gz2alt_r4(statevector, GZHeightT_out)
@@ -589,7 +589,7 @@ contains
 
     do stepIndex = 1, numStep
 
-      call fetch3DField_r8( statevector%vco, Hsfc, &
+      call fetch3DLevels_r8(statevector%vco, Hsfc, &
                             fldM_opt=GZHeightM_out, fldT_opt=GZHeightT_out)
       Z_M(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightM_out)
       Z_T(:,:,:,stepIndex) = gz2alt_r8(statevector, GZHeightT_out)
@@ -2068,7 +2068,7 @@ contains
         if ( Ps_in_hPa_opt ) Psfc = Psfc * mpc_pa_per_mbar_r8
       end if
 
-      call fetch3DField_r8( statevector%vco, Psfc, &
+      call fetch3DLevels_r8(statevector%vco, Psfc, &
                             fldM_opt=PressureM_out, fldT_opt=PressureT_out)
       P_M(:,:,:,stepIndex) = PressureM_out(:,:,:)
       P_T(:,:,:,stepIndex) = PressureT_out(:,:,:)
@@ -2117,7 +2117,7 @@ contains
         if ( Ps_in_hPa_opt ) Psfc = Psfc * mpc_pa_per_mbar_r4
       end if
 
-      call fetch3DField_r4( statevector%vco, Psfc, &
+      call fetch3DLevels_r4(statevector%vco, Psfc, &
                             fldM_opt=PressureM_out, fldT_opt=PressureT_out)
       P_M(:,:,:,stepIndex) = PressureM_out(:,:,:)
       P_T(:,:,:,stepIndex) = PressureT_out(:,:,:)
@@ -2716,7 +2716,7 @@ contains
       hSfc(1,colIndex) = col_getHeight(column,1,colIndex, 'SF')
     end do
 
-    call fetch3DField_r8( column%vco, hSfc, fldM_opt=hPtrM, fldT_opt=hPtrT)
+    call fetch3DLevels_r8(column%vco, hSfc, fldM_opt=hPtrM, fldT_opt=hPtrT)
     Z_M(:,:) = hPtrM(1,:,:)
     Z_T(:,:) = hPtrT(1,:,:)
     deallocate(hPtrM, hPtrT)
@@ -3454,7 +3454,7 @@ contains
       Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
     end do
 
-    call fetch3DField_r8( column%vco, Psfc ,fldM_opt=zppobsM, fldT_opt=zppobsT)
+    call fetch3DLevels_r8(column%vco, Psfc ,fldM_opt=zppobsM, fldT_opt=zppobsT)
     P_M(:,:) = zppobsM(1,:,:)
     P_T(:,:) = zppobsT(1,:,:)
     deallocate(zppobsM, zppobsT)
@@ -3708,9 +3708,9 @@ contains
   !---------------------------------------------------------------------
 
   !---------------------------------------------------------
-  ! fetch3DField_r8
+  ! fetch3DLevels_r8
   !---------------------------------------------------------
-  subroutine fetch3DField_r8(vco, sfcFld, fldM_opt, fldT_opt)
+  subroutine fetch3DLevels_r8(vco, sfcFld, fldM_opt, fldT_opt)
     !
     ! :Purpose: Main vgd_levels wrapper for field queries. Return vertical coordinate
     !           fields for both momentum and thermodynamic levels; real(8) flavor.
@@ -3728,9 +3728,9 @@ contains
 
     if ( minval(sfcFld) <=0 ) then
       if ( vco%vcode == 21001 ) then
-          call msg('fetch3DField_r8','WARNING negative surface height reference')
+          call msg('fetch3DLevels_r8','WARNING negative surface height reference')
       else
-          call utl_abort('fetch3DField_r8: negative surface reference')
+          call utl_abort('fetch3DLevels_r8: negative surface reference')
       end if
     end if
 
@@ -3739,7 +3739,7 @@ contains
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
                           levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetch3DField_r8:  ERROR with vgd_levels (momentum levels)')
+        call utl_abort('fetch3DLevels_r8:  ERROR with vgd_levels (momentum levels)')
       end if
     end if
 
@@ -3748,15 +3748,15 @@ contains
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
                           levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetch3DField_r8:  ERROR with vgd_levels (thermodynamic levels)')
+        call utl_abort('fetch3DLevels_r8:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
-  end subroutine fetch3DField_r8
+  end subroutine fetch3DLevels_r8
 
   !---------------------------------------------------------
-  ! fetch3DField_r4
+  ! fetch3DLevels_r4
   !---------------------------------------------------------
-  subroutine fetch3DField_r4(vco, sfcFld, fldM_opt, fldT_opt)
+  subroutine fetch3DLevels_r4(vco, sfcFld, fldM_opt, fldT_opt)
     !
     ! :Purpose: Main vgd_levels wrapper for field query. Return vertical coordinate
     !           fields for both momentum and thermodynamic levels; real(4) flavor.
@@ -3774,9 +3774,9 @@ contains
 
     if ( minval(sfcFld) <=0 ) then
       if ( vco%vcode == 21001 ) then
-          call msg('fetch3DField_r4','WARNING negative surface height reference')
+          call msg('fetch3DLevels_r4','WARNING negative surface height reference')
       else
-          call utl_abort('fetch3DField_r4: negative surface reference')
+          call utl_abort('fetch3DLevels_r4: negative surface reference')
       end if
     end if
 
@@ -3785,7 +3785,7 @@ contains
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
                           levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetch3DField_r4:  ERROR with vgd_levels (momentum levels)')
+        call utl_abort('fetch3DLevels_r4:  ERROR with vgd_levels (momentum levels)')
       end if
     end if
 
@@ -3794,15 +3794,15 @@ contains
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
                           levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetch3DField_r4:  ERROR with vgd_levels (thermodynamic levels)')
+        call utl_abort('fetch3DLevels_r4:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
-  end subroutine fetch3DField_r4
+  end subroutine fetch3DLevels_r4
 
   !---------------------------------------------------------
-  ! fetchProfile_r8
+  ! fetch1DLevels_r8
   !---------------------------------------------------------
-  subroutine fetchProfile_r8(vco, sfcValue, profM_opt, profT_opt)
+  subroutine fetch1DLevels_r8(vco, sfcValue, profM_opt, profT_opt)
     !
     ! :Purpose: Main vgd_levels wrapper for profile query. Return vertical coordinate
     !           profile for both momentum and thermodynamic levels; real(8) flavor.
@@ -3820,9 +3820,9 @@ contains
 
     if ( sfcValue <=0 ) then
       if ( vco%vcode == 21001 ) then
-          call msg('fetchProfile_r8','WARNING negative surface height reference')
+          call msg('fetch1DLevels_r8','WARNING negative surface height reference')
       else
-        call utl_abort('fetchProfile_r8: negative surface reference')
+        call utl_abort('fetch1DLevels_r8: negative surface reference')
       end if
     end if
 
@@ -3831,7 +3831,7 @@ contains
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
                           levels=profM_opt, sfc_field=sfcValue, in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetchProfile_r8:  ERROR with vgd_levels (momentum levels)')
+        call utl_abort('fetch1DLevels_r8:  ERROR with vgd_levels (momentum levels)')
       end if
     end if
 
@@ -3840,10 +3840,10 @@ contains
       status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
                           levels=profT_opt, sfc_field=sfcValue, in_log=.false.)
       if ( status .ne. VGD_OK ) then
-        call utl_abort('fetchProfile_r8:  ERROR with vgd_levels (thermodynamic levels)')
+        call utl_abort('fetch1DLevels_r8:  ERROR with vgd_levels (thermodynamic levels)')
       end if
     end if
-  end subroutine fetchProfile_r8
+  end subroutine fetch1DLevels_r8
 
   !---------------------------------------------------------
   ! fetchDPDP_r8
@@ -3926,22 +3926,22 @@ contains
       return
     end if
 
-    !dummy pressure value
+    ! dummy pressure value
     pSfc(1,1) = 100.0D3 !100 kPa
 
-    !pressure on momentum levels of source grid
-    call fetch3DField_r8(vco_sourceGrid, pSfc, fldM_opt=sourcePressureLevels)
-    !pressure on momentum levels of destination grid
-    call fetch3DField_r8(vco_destGrid, pSfc, fldM_opt=destPressureLevels)
+    ! pressure on momentum levels of source grid
+    call fetch3DLevels_r8(vco_sourceGrid, pSfc, fldM_opt=sourcePressureLevels)
+    ! pressure on momentum levels of destination grid
+    call fetch3DLevels_r8(vco_destGrid, pSfc, fldM_opt=destPressureLevels)
 
-    !count number of levels where output grid is higher than input grid
+    ! count number of levels where output grid is higher than input grid
     sourceModelTop = sourcePressureLevels(1,1,1)
     nAbove=0
     do while (sourceModelTop > destPressureLevels(1,1,nAbove+1))
       nAbove = nAbove + 1
     end do
 
-    !Destination grid has "nAbove" levels above source grid;  tolerate one
+    ! Destination grid has "nAbove" levels above source grid;  tolerate one
     if ( nAbove > 1 ) then
       write(*,*) 'czp_ensureCompatibleTops: numLevSource/Dest    = ', numLevSource, numLevDest
       write(*,*) 'czp_ensureCompatibleTops: sourcePressureLevels = ', sourcePressureLevels(1,1,:)

@@ -315,8 +315,8 @@ CONTAINS
     if(mmpi_myid == 0) write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
     zps = 101000.D0
-    call czp_fetchProfile( vco_anl, zps, &
-                          profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
+    call czp_fetch1DLevels(vco_anl, zps, &
+                           profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
 
     llfound = .false.
     nlev_bdl = 0

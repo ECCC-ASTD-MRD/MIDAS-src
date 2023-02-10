@@ -518,10 +518,10 @@ CONTAINS
       write(*,*) 'ben_setupOneInstance: all the vertical levels will be read in the ensemble '
       if ( bEns(instanceIndex)%vco_anl%nLev_M > 0 .and. bEns(instanceIndex)%vco_anl%vgridPresent ) then
         pSurfRef = 101000.D0
-        call czp_fetchProfile( bEns(instanceIndex)%vco_anl, pSurfRef, &
-                              profM_opt=vertLocationInc)
-        call czp_fetchProfile( bEns(instanceIndex)%vco_file, pSurfRef, &
-                              profM_opt=vertLocationFile)
+        call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, pSurfRef, &
+                               profM_opt=vertLocationInc)
+        call czp_fetch1DLevels(bEns(instanceIndex)%vco_file, pSurfRef, &
+                               profM_opt=vertLocationFile)
       
         do levIndex = 1, bEns(instanceIndex)%vco_anl%nLev_M
           vertLocationInc(levIndex) = log(vertLocationInc(levIndex))
@@ -744,8 +744,8 @@ CONTAINS
       ! Setup the localization
       if ( bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005 ) then
         pSurfRef = 101000.D0
-        call czp_fetchProfile( bEns(instanceIndex)%vco_anl, pSurfRef, &
-                              profM_opt=vertLocationInc)
+        call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, pSurfRef, &
+                               profM_opt=vertLocationInc)
         allocate(vertLocationEns(bEns(instanceIndex)%nLevEns_M))
         do levIndex = 1, bEns(instanceIndex)%nLevEns_M
           vertLocationEns(levIndex) = log(vertLocationInc(levIndex+bEns(instanceIndex)%topLevIndex_M-1))
