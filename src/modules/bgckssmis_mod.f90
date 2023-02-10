@@ -1878,7 +1878,11 @@ contains
 
     BODY: do bodyIndex = bodyIndexbeg, bodyIndexEnd
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData, OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
-      obsTb(currentChannelNumber) = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
+      if (obs_bodyElem_r( obsSpaceData,  OBS_BCOR, bodyIndex ) /= ssbg_rmisg) then
+        obsTb(currentChannelNumber) = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex ) - obs_bodyElem_r( obsSpaceData,  OBS_BCOR, bodyIndex )
+      else
+        obsTb(currentChannelNumber) = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
+      end if
     end do BODY
 
     ! initialization
@@ -2994,9 +2998,13 @@ contains
     ! STEP 6) displaying statistics of inovQc flags                                !
     !###############################################################################
 
-    do indexFlags = 1,9
-      percentInovQcFlags(indexFlags) = float(statsInovQcFlags(indexFlags))/float(statsInovQcFlags(10)-statsInovQcFlags(2))*100
-    end do
+    if ( statsInovQcFlags(10) == statsInovQcFlags(2) ) then
+      percentInovQcFlags(:) = 0.0
+    else
+      do indexFlags = 1,9
+        percentInovQcFlags(indexFlags) = float(statsInovQcFlags(indexFlags))/float(statsInovQcFlags(10)-statsInovQcFlags(2))*100
+      end do
+    end if
 
     write(*,*)   '------------------- Innovation Rejection Statistics -----------------------'
     write(*,*)   '     Flag description                                   Nm. Obs.  Prct (%) '
