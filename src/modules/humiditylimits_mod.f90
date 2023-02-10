@@ -27,6 +27,7 @@ module humidityLimits_mod
   use verticalCoord_mod
   use gridStateVector_mod
   use ensembleStateVector_mod
+  use calcHeightAndPressure_mod
   implicit none
   save
   private
@@ -160,7 +161,7 @@ contains
     real(8), pointer :: pressure(:,:,:)
     real(8)          :: hu, husat, hu_modified, tt
     real(8), allocatable :: psfc(:,:)
-    integer          :: lon1, lon2, lat1, lat2, lev1, lev2, ierr
+    integer          :: lon1, lon2, lat1, lat2, lev1, lev2
     integer          :: lonIndex, latIndex, levIndex, stepIndex
 
     if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_gsv: STARTING'
@@ -196,12 +197,7 @@ contains
         call gsv_getField(statevector,psfc_ptr_r4,'P0')
         psfc(:,:) = psfc_ptr_r4(:,:,1,stepIndex)
       end if
-      nullify(pressure)
-      ierr = vgd_levels(vco_ptr%vgrid,           &
-           ip1_list=vco_ptr%ip1_T,  &
-           levels=pressure,         &
-           sfc_field=psfc, &
-           in_log=.false.)
+      call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
       if (stateVector%dataKind == 8) then
         !$OMP PARALLEL DO PRIVATE (levIndex, latIndex, lonIndex, hu, tt, husat, hu_modified)
         do levIndex = lev1, lev2
@@ -268,7 +264,7 @@ contains
     real(8), pointer :: pressure(:,:,:)
     real(8)          :: hu, husat, hu_modified, tt
     real(8), allocatable :: psfc(:,:)
-    integer          :: lon1, lon2, lat1, lat2, numLev, ierr
+    integer          :: lon1, lon2, lat1, lat2, numLev
     integer          :: lonIndex, latIndex, levIndex, stepIndex, memberIndex, varLevIndex
 
     if (mmpi_myid == 0) write(*,*) 'qlim_saturationLimit_ens: STARTING'
@@ -295,10 +291,7 @@ contains
         varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
         psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
         psfc(:,:) = psfc_ptr_r4(:,:,lonIndex,latIndex)
-        nullify(pressure)
-        ierr = vgd_levels(vco_ptr%vgrid, ip1_list=vco_ptr%ip1_T,  &
-                          levels=pressure, sfc_field=psfc, &
-                          in_log=.false.)
+        call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
 
         do levIndex = 1, numLev
           varLevIndex = ens_getKFromLevVarName(ensemble, levIndex, 'HU')
@@ -460,12 +453,7 @@ contains
           call gsv_getField(statevector,psfc_ptr_r4,'P0')
           psfc(:,:) = real(psfc_ptr_r4(:,:,1,stepIndex),8)
         end if
-        nullify(pressure)
-        ierr = vgd_levels(vco_ptr%vgrid,           &
-            ip1_list=vco_ptr%ip1_T,  &
-            levels=pressure,         &
-            sfc_field=psfc, &
-            in_log=.false.)
+        call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
 
         ! Interpolate RTTOV limits onto model levels
         call qlim_lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &
@@ -681,10 +669,7 @@ contains
           varLevIndex = ens_getKFromLevVarName(ensemble, 1, 'P0')
           psfc_ptr_r4 => ens_getOneLev_r4(ensemble,varLevIndex)
           psfc(:,:) = real(psfc_ptr_r4(:,:,lonIndex,latIndex),8)
-          nullify(pressure)
-          ierr = vgd_levels(vco_ptr%vgrid, ip1_list=vco_ptr%ip1_T,  &
-                            levels=pressure, sfc_field=psfc, &
-                            in_log=.false.)
+          call czp_fetch3DLevels(vco_ptr, psfc, fldT_opt=pressure)
 
           ! Interpolate RTTOV limits onto model levels
           call qlim_lintv_minmax(press_rttov, qmin_rttov, qmax_rttov, numLev_rttov, &

@@ -37,6 +37,7 @@ module bmatrix1DVar_mod
   use varNameList_mod
   use ensembleStateVector_mod
   use stateToColumn_mod
+  use calcHeightAndPressure_mod
   implicit none
   save
   private
@@ -435,7 +436,7 @@ contains
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
     integer :: levIndex1
     integer :: varLevIndex, varLevIndex1, varLevIndex2 
-    integer :: status, numStep, levIndexColumn
+    integer :: numStep, levIndexColumn
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
     real(8) :: scaleFactor_SF, ZR
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
@@ -514,14 +515,8 @@ contains
       write(*,*) 'bmat1D_setupBEns: all the vertical levels will be read in the ensemble '
       if ( vco_in%nLev_M > 0 .and. vco_in%vgridPresent ) then
         pSurfRef = 101000.D0
-        nullify(pressureProfileInc_M)
-        status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_M, levels=pressureProfileInc_M, &
-             sfc_field=pSurfRef, in_log=.false.)
-        if (status /= VGD_OK) call utl_abort('bmat1D_setupBEns: ERROR from vgd_levels')
-        nullify(pressureProfileFile_M)
-        status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_M, levels=pressureProfileFile_M, &
-             sfc_field=pSurfRef, in_log=.false.)
-        if (status /= VGD_OK) call utl_abort('bmat1D_setupBEns: ERROR from vgd_levels')
+        call czp_fetch1DLevels(vco_in, pSurfRef, profM_opt=pressureProfileInc_M)
+        call czp_fetch1DLevels(vco_in, pSurfRef, profM_opt=pressureProfileFile_M)
       
         EnsTopMatchesAnlTop = abs( log(pressureProfileFile_M(1)) - log(pressureProfileInc_M(1)) ) < 0.1d0
         write(*,*) 'bmat1D_setupBEns: EnsTopMatchesAnlTop, presEns, presInc = ', &
@@ -637,12 +632,7 @@ contains
     !- 1.7 Setup the localization
     if ( vco_in%Vcode == 5002 .or. vco_in%Vcode == 5005 ) then
       pSurfRef = 101000.D0
-      nullify(pressureProfileInc_M)
-      status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_M, levels=pressureProfileInc_M, &
-           sfc_field=pSurfRef, in_log=.false.)
-      if (status /= VGD_OK)then
-        call utl_abort('bmat1D_setubBEns: ERROR from vgd_levels')
-      end if
+      call czp_fetch1DLevels(vco_in, pSurfRef, profM_opt=pressureProfileInc_M)
       deallocate(pressureProfileInc_M)
     end if
   

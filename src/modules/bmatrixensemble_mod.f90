@@ -41,6 +41,7 @@ module BmatrixEnsemble_mod
   use gridBinning_mod
   use humidityLimits_mod
   use analysisGrid_mod
+  use calcHeightAndPressure_mod
   implicit none
   save
   private
@@ -432,7 +433,7 @@ CONTAINS
 
     integer        :: lonPerPE, latPerPE, lonPerPEmax, latPerPEmax
     integer        :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
-    integer        :: levIndex, jvar, status, ierr
+    integer        :: levIndex, jvar, ierr
     integer        :: waveBandIndex, stepIndex
     character(len=256) :: ensFileName
     integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime, newdate
@@ -517,18 +518,10 @@ CONTAINS
       write(*,*) 'ben_setupOneInstance: all the vertical levels will be read in the ensemble '
       if ( bEns(instanceIndex)%vco_anl%nLev_M > 0 .and. bEns(instanceIndex)%vco_anl%vgridPresent ) then
         pSurfRef = 101000.D0
-        nullify(vertLocationInc)
-        status = vgd_levels( bEns(instanceIndex)%vco_anl%vgrid, &
-                             ip1_list=bEns(instanceIndex)%vco_anl%ip1_M, &
-                             levels=vertLocationInc, &
-                             sfc_field=pSurfRef, in_log=.false. )
-        if (status /= VGD_OK) call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
-        nullify(vertLocationFile)
-        status = vgd_levels( bEns(instanceIndex)%vco_file%vgrid, &
-                             ip1_list=bEns(instanceIndex)%vco_file%ip1_M, &
-                             levels=vertLocationFile, &
-                             sfc_field=pSurfRef, in_log=.false.)
-        if (status /= VGD_OK) call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
+        call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, pSurfRef, &
+                               profM_opt=vertLocationInc)
+        call czp_fetch1DLevels(bEns(instanceIndex)%vco_file, pSurfRef, &
+                               profM_opt=vertLocationFile)
       
         do levIndex = 1, bEns(instanceIndex)%vco_anl%nLev_M
           vertLocationInc(levIndex) = log(vertLocationInc(levIndex))
@@ -751,15 +744,8 @@ CONTAINS
       ! Setup the localization
       if ( bEns(instanceIndex)%vco_anl%Vcode == 5002 .or. bEns(instanceIndex)%vco_anl%Vcode == 5005 ) then
         pSurfRef = 101000.D0
-        nullify(vertLocationInc)
-        status = vgd_levels( bEns(instanceIndex)%vco_anl%vgrid, &
-                             ip1_list=bEns(instanceIndex)%vco_anl%ip1_M, &
-                             levels=vertLocationInc, &
-                             sfc_field=pSurfRef, in_log=.false.)
-        if (status /= VGD_OK)then
-          call utl_abort('ben_setupOneInstance: ERROR from vgd_levels')
-        end if
-
+        call czp_fetch1DLevels(bEns(instanceIndex)%vco_anl, pSurfRef, &
+                               profM_opt=vertLocationInc)
         allocate(vertLocationEns(bEns(instanceIndex)%nLevEns_M))
         do levIndex = 1, bEns(instanceIndex)%nLevEns_M
           vertLocationEns(levIndex) = log(vertLocationInc(levIndex+bEns(instanceIndex)%topLevIndex_M-1))

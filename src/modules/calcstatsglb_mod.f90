@@ -31,6 +31,7 @@ module calcStatsGlb_mod
   use horizontalCoord_mod
   use verticalCoord_mod
   use varNameList_mod
+  use calcHeightAndPressure_mod
   use earthConstants_mod
   use utilities_mod
   use spectralFilter_mod
@@ -95,7 +96,7 @@ module calcStatsGlb_mod
     type(struct_vco), pointer, intent(in)   :: vco_in
     type(struct_hco), pointer, intent(in)   :: hco_in
     ! locals:
-    integer :: nulnam, ierr, status, waveBandIndex, memberIndex
+    integer :: nulnam, ierr, waveBandIndex, memberIndex
     integer :: fclos, fnom
     real(8) :: zps
 
@@ -177,12 +178,8 @@ module calcStatsGlb_mod
 
     !- Estimate the pressure profile for each vertical grid    
     zps = 101000.D0
-    nullify(pressureProfile_M, pressureProfile_T)
-    status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_M, levels=pressureProfile_M, &
-                         sfc_field=zps, in_log=.false.)
-
-    status = vgd_levels( vco_in%vgrid, ip1_list=vco_in%ip1_T, levels=pressureProfile_T, &
-                         sfc_field=zps, in_log=.false.)
+    call czp_fetch1DLevels(vco_in, zps, &
+                           profM_opt=pressureProfile_M, profT_opt=pressureProfile_T)
 
     !
     !- Setup variable names

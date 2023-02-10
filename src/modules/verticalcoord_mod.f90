@@ -36,11 +36,7 @@ module verticalCoord_mod
   public :: vco_ip1_other
   ! public procedures
   public :: vco_setupFromFile, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
-  public :: vco_ensureCompatibleTops
   public :: vco_subsetOrNot, vco_levelMatchingList
-
-  ! public entities accessed through inheritance (from module vgrid_descriptors)
-  public :: vgd_get,vgd_levels,vgd_ok,vgd_dpidpis,vgd_write
 
   integer, parameter :: maxNumOtherLevels = 20
   integer :: vco_ip1_other(maxNumOtherLevels)
@@ -777,74 +773,6 @@ contains
     write(*,*) 'vco_mpiBcast: done'
 
   end subroutine vco_mpiBcast
-
-  !--------------------------------------------------------------------------
-  ! vco_ensureCompatibleTops
-  !--------------------------------------------------------------------------
-  subroutine vco_ensureCompatibleTops(vco_sourceGrid,vco_destGrid) 
-    !
-    ! :Purpose: This function checks if the top of a destination grid
-    !           is ~equal or lower than the top of the source grid
-    !           the code aborts if this is not the case
-    !
-    implicit none
-
-    ! arguments:
-    type(struct_vco), pointer, intent(in) :: vco_sourceGrid ! vertical coordinate source grid
-    type(struct_vco), pointer, intent(in) :: vco_destGrid   ! vertical coordinate destination grid
-
-    ! locals:
-    integer :: status, nAbove, numLevSource, numLevDest
-    real(8) :: sourceModelTop
-    real(8)           :: pSfc(1,1)
-    real(8), pointer  :: sourcePressureLevels(:,:,:)
-    real(8), pointer  :: destPressureLevels(:,:,:)
-
-    nullify(sourcePressureLevels)
-    nullify(destPressureLevels)
-
-    numLevSource = vco_getNumLev(vco_sourceGrid,'MM')
-    numLevDest   = vco_getNumLev(vco_destGrid,'MM')
-    if (numLevSource == 1 .and. numLevDest == 1) then
-      write(*,*) 'vco_ensureCompatibleTops: both grids only have 1 level, skip the test'
-      return
-    end if
-
-    !dummy pressure value
-    pSfc(1,1) = 100.0D3 !100 kPa
-
-    !pressure on momentum levels of source grid
-    status=vgd_levels(vco_sourceGrid%vgrid,          &
-                      ip1_list=vco_sourceGrid%ip1_M, &
-                      levels=sourcePressureLevels,   &
-                      sfc_field=pSfc,                &
-                      in_log=.false.)
-    if ( status /= VGD_OK ) call utl_abort('vco_ensureCompatibleTops: ERROR with vgd_levels')
-
-    !pressure on momentum levels of destination grid
-    status=vgd_levels(vco_destGrid%vgrid,            &
-                      ip1_list=vco_destGrid%ip1_M,   &
-                      levels=destPressureLevels,     &
-                      sfc_field=pSfc,                &
-                      in_log=.false.)
-    if ( status /= VGD_OK ) call utl_abort('vco_ensureCompatibleTops: ERROR with vgd_levels')
-
-    !count number of levels where output grid is higher than input grid
-    sourceModelTop = sourcePressureLevels(1,1,1)
-    nAbove=0
-    do while (sourceModelTop > destPressureLevels(1,1,nAbove+1))
-      nAbove = nAbove + 1
-    end do
-
-    !Destination grid has "nAbove" levels above source grid;  tolerate one
-    if ( nAbove > 1 ) then
-      write(*,*) 'vco_ensureCompatibleTops: numLevSource/Dest    = ', numLevSource, numLevDest
-      write(*,*) 'vco_ensureCompatibleTops: sourcePressureLevels = ', sourcePressureLevels(1,1,:)
-      write(*,*) 'vco_ensureCompatibleTops: destPressureLevels   = ', destPressureLevels(1,1,:)
-      call utl_abort('vco_ensureCompatibleTops: top of destination grid more than one level higher than top of source grid')
-    end if
-
-  end subroutine vco_ensureCompatibleTops
 
   !--------------------------------------------------------------------------
   ! vco_equal

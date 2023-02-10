@@ -37,6 +37,7 @@ module enkf_mod
   use varNameList_mod
   use codePrecision_mod
   use codTyp_mod
+  use calcHeightAndPressure_mod
   implicit none
   save
   private
@@ -2293,7 +2294,7 @@ contains
     logical, intent(in), optional :: beSilent_opt
 
     ! Locals:
-    integer             :: levIndex1, levIndex2, eigenIndex, status
+    integer             :: levIndex1, levIndex2, eigenIndex
     integer             :: nLev, nLev_M, nLev_depth, matrixRank
     real(8)             :: zr, zcorr, pSurfRef
     real(8)             :: tolerance
@@ -2332,15 +2333,7 @@ contains
       verticalLocalizationMatLowRank(:,:) = 0.0d0
 
       pSurfRef = 101000.D0
-      nullify(pressureProfile)
-      status = vgd_levels( vco%vgrid, &
-                           ip1_list=vco%ip1_M, &
-                           levels=pressureProfile, &
-                           sfc_field=pSurfRef, &
-                           in_log=.false. )
-      if ( status /= VGD_OK ) then
-        call utl_abort('getModulationFactor: ERROR from vgd_levels')
-      end if
+      call czp_fetch1DLevels(vco, pSurfRef, profM_opt=pressureProfile)
 
       call lfn_Setup(LocFunctionWanted='FifthOrder')
 

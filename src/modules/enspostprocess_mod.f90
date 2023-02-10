@@ -38,6 +38,7 @@ module ensPostProcess_mod
   use varNameList_mod
   use fileNames_mod
   use clib_interfaces_mod
+  use calcHeightAndPressure_mod
   implicit none
   save
   private
@@ -1519,22 +1520,8 @@ contains
     if (vco%vgridPresent) then
       ! compute pressure for a column where Psfc=1000hPa
       pSfc(1,1) = 1000.0D2 !1000 hPa
-      ! pressure on momentum levels
-      nullify(pressures_M)
-      ierr = vgd_levels(vco%vgrid,           &
-                        ip1_list=vco%ip1_M,  &
-                        levels=pressures_M,  &
-                        sfc_field=pSfc,      &
-                        in_log=.false.)
-      if ( ierr /= VGD_OK ) call utl_abort('epp_printRmsStats: ERROR with vgd_levels')
-      ! pressure on thermodynamic levels
-      nullify(pressures_T)
-      ierr = vgd_levels(vco%vgrid,           &
-                        ip1_list=vco%ip1_T,  &
-                        levels=pressures_T,  &
-                        sfc_field=pSfc,      &
-                        in_log=.false.)
-      if ( ierr /= VGD_OK ) call utl_abort('epp_printRmsStats: ERROR with vgd_levels')
+      ! pressure levels
+      call czp_fetch3DLevels(vco, pSfc, fldM_opt=pressures_M, fldT_opt=pressures_T)
 
       ! set the variable name and pressure for each element of column
       do kIndex = 1, numK

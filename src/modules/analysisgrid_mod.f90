@@ -27,6 +27,7 @@ module analysisGrid_mod
   use verticalCoord_mod
   use midasMpi_mod
   use utilities_mod
+  use Vgrid_Descriptors
   implicit none
   save
   private

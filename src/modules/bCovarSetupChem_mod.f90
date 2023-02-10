@@ -59,6 +59,7 @@ module BCovarSetupChem_mod
   use verticalCoord_mod
   use varNameList_mod
   use utilities_mod
+  use calcHeightAndPressure_mod
 
   implicit none
   save
@@ -201,7 +202,7 @@ module BCovarSetupChem_mod
     character(len=*), intent(in) :: mode ! 'Analysis' or 'BackgroundCheck'
 
     !Locals
-    integer :: nulnam, ierr, fnom, fclos, status
+    integer :: nulnam, ierr, fnom, fclos
     integer :: varIndex,nChmVars,varIndex2
     character(len=4) :: BchmVars(vnl_numvarmax)
     real(8), pointer    :: pressureProfile_T(:)
@@ -448,8 +449,7 @@ module BCovarSetupChem_mod
     ! Get vertical levels
     
     if (bgStats%nlev > 1) then
-      status = vgd_levels( vco_anl%vgrid, ip1_list=vco_anl%ip1_T, &
-                           levels=pressureProfile_T, sfc_field=zps, in_log=.false. )
+      call czp_fetch1DLevels(vco_anl, zps, profT_opt=pressureProfile_T)
       bgStats%vlev(1:bgStats%nlev) = pressureProfile_T(1:bgStats%nlev) 
     else if (bgStats%nlev == 1) then
       bgStats%vlev(1)=zps     
