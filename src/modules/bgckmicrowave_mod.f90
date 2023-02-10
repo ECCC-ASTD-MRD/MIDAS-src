@@ -2086,7 +2086,7 @@ contains
   ! mwbg_tovCheckAmsub
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsub(TOVERRST, siThreshArr, sigmaObsErr, useStateDepSigmaObs, &
-                                IUTILST,  KTERMER, ICANO, ZO, ZCOR, &
+                                IUTILST,  KTERMER, ICANO, ZO, btClear, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
                                 globMarq, IMARQ, ident, clwOBS, clwFG, scatwObs, scatwFG, STNID, RESETQC)
 
@@ -2130,7 +2130,8 @@ contains
     integer, intent(in)                    :: KNT                ! nombre de tovs
     integer, intent(in)                    :: KNOSAT             ! numero de satellite (i.e. indice)
     integer, intent(inout)                 :: IMARQ(:)           ! marqueurs des radiances
-    real, intent(in)                       :: ZO(:)              ! radiances
+    real, intent(in)                       :: ZO(:)              ! radiances from observation
+    real, intent(in)                       :: btClear(:)         ! clear-sky radiances from background
     real, intent(in)                       :: ZCOR(:)            ! correction aux radiances
     real, intent(in)                       :: ZOMP(:)            ! residus (o-p)
     real, intent(in)                       :: MGINTRP(:)         ! masque terre/mer du modele
@@ -2161,6 +2162,7 @@ contains
     integer                                :: KMARQ   (KNO,KNT)
     integer                                :: KCANO   (KNO,KNT)
     real                                   :: PTBO    (KNO,KNT)
+    real                                   :: btClear2D(KNO,KNT)
     real                                   :: PTBCOR  (KNO,KNT)
     real                                   :: PTBOMP  (KNO,KNT)
     integer, allocatable                   :: KCHKPRF(:)          
@@ -2183,6 +2185,8 @@ contains
     real                                   :: tb1833 (KNT)
     real                                   :: tb89FG (KNT)
     real                                   :: tb150FG(KNT)
+    real                                   :: tb89FgClear(KNT)
+    real                                   :: tb150FgClear(KNT)    
     real                                   :: scatl(KNT)
     integer                                :: err (KNT)
     integer                                :: channelForTopoFilter(3)
@@ -2240,6 +2244,7 @@ contains
     call copy1Dimto2DimIntegerArray(IMARQ, KNO, KNT, KMARQ)
     call copy1Dimto2DimRealArray(ZCOR, KNO, KNT, PTBCOR)
     call copy1Dimto2DimRealArray(ZO, KNO, KNT, PTBO)
+    call copy1Dimto2DimRealArray(btClear, KNO, KNT, btClear2D)
     call copy1Dimto2DimRealArray(ZOMP, KNO, KNT, PTBOMP)
 
     ! Initialisation, la premiere fois seulement!
@@ -7242,7 +7247,7 @@ contains
       else if (instName == 'AMSUB') then
         call mwbg_tovCheckAmsub(oer_toverrst, oer_cloudPredictorThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
                                 oer_tovutil, landQualifierIndice,&
-                                obsChannels, obsTb, obsTbBiasCorr, ompTb,      & 
+                                obsChannels, obsTb, btClear, obsTbBiasCorr, ompTb,      & 
                                 qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
                                 satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
