@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * grid-space localization in letkf (#609 and !656)
  * Add a [code coverage tool](docs/unitTests.md#activating-the-code-coverage-report) (#680 and !626)
  * Add grid consistency checks in `gsv_copy` and `gsv_copyHeightSfc` (#717 and !658)
- * Introduction of new namelist file flnml_static for dictionary-like namelist sections (#686 and !654) 
+ * Introduction of new namelist file flnml_static for dictionary-like namelist sections (#686 and !654)
  * Included and adapted bgck.satqc_mwhs2 program (#702 and !653)
  * Gross error check for sea ice observations (#677 and !652)
  * Separate selection criteria for insitu/satellite SST data for sea/inland waters (#710 and !651)
@@ -53,7 +53,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Added cleaning for ObsDb files after observation thinning (#631 and !604)
 
 ### Changed
- * Moved the definition of maxNumLevels to verticalcoord_mod (#758 and !688)	
+
+ * Primary keys in MIDAS_HEADER/BODY_OUTPUT tables now unique across split ObsDB files (#765 and !685)
+ * Moved the definition of maxNumLevels to verticalcoord_mod (#758 and !688)
  * Centralised and wrapped all `vgd_{levels,dpidpis}` calls in `czp` (#745 and !687)
  * Simplify namelists by removing number of items in namelist arrays (#709 and !675)
    * many namelist files will need modification to remove variables, otherwise programs abort
@@ -65,9 +67,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Remove variable GLE (#718 and !664)
  * Improve parallelization of reading ensemble (#705 and !650)
  * Split Jacobian cache for GPSRO operators, to avoid potential interference between a) TL, AD operators and b) FGE (#644 and !644)
- * Changed machine and processor topology to speed system test /Tests/extractBmatrixFor1Dvar/globalBnmcLand. (#699 and !645) 
+ * Changed machine and processor topology to speed system test /Tests/extractBmatrixFor1Dvar/globalBnmcLand. (#699 and !645)
  * Removed some observations in the analysisErrorOI test (#698 and !646)
- * Major re-organization of constituents assimilation code, including namelist changes. Minor impact on results. (#18 and !636) 
+ * Major re-organization of constituents assimilation code, including namelist changes. Minor impact on results. (#18 and !636)
  * Merge contents of `mpi_mod` and `mpivar_mod` into `midasMpi_mod` (#690 and !635)
  * Reorganized development information in `README`, `CONTRIBUTING` and `docs/` (#647 and !632)
  * Improve LETKF efficiency and add global high-res letkf system test (#653 and !631)
