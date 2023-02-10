@@ -1,5 +1,147 @@
 # Advanced Unit Testing Topics
 
+## Test Driven Development in MIDAS
+
+Test-driven development (TDD) is a development process relying on the use of test
+cases being developed at the start of a development cycle (or at least before
+its end).
+
+This has many advantages.  First it allows to clearly define a priori the
+objectives of a given development, but maybe more importantly it implies that we
+develop and maintain a suite of tests that reduce the risk of breaking something
+while adding a new feature or modifying an existing feature.
+
+It also allows for verification after each incremental modification or refactoring
+step allowing for easier correction of errors before they become entangled in
+important modifications in many parts of the code.
+
+The [MIDAS test suite](maestro/suites/midas_system_tests/config/Tests) is based on
+this development paradigm.
+
+### MIDAS Test Suite
+
+The MIDAS test suite is based on maestro module environment.  It instantiates the
+[`UnitTest` module](maestro/suites/midas_system_tests/modules/UnitTest) for each
+test case through a sequence of 4 tasks:
+  1. `get`: fetch the inputs from the reference path provided in the test
+     configuration
+  2. `run`: submit the program to be tested with the provided configuration
+  3. `check`: fetch the expected results from the reference path and compare
+     them with the program outputs (aborting if there is a difference)
+  4. `clean`: remove the work directories 
+If a task aborts, the following one won't launch allowing the user to inspect the
+test state.
+
+## Building a Test
+
+### Appending to the Flow
+
+Edit [`maestro/suites/midas_system_tests/modules/Tests/flow.xml`](maestro/suites/midas_system_tests/modules/Tests/flow.xml)
+and add a `SUBMIT` for the new test
+```xml
+  <SUBMITS sub_name="${yourNewTest}"/>
+```
+Then add below the `FAMILY` description.
+If there is only a single test, the description will contain only a single `UnitTest`
+instance `SUBMITS` element
+```xml
+  <FAMILY  name="${yourNewTest}">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+```
+If you are creating more than one test (or adding a new one), then there will be
+many sub-`FAMILY` element:
+```xml
+  <FAMILY  name="${yourNewTest}">
+    <FAMILY name="testA">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+    <FAMILY name="testB">
+      <SUBMITS sub_name="UnitTest"/>
+      <MODULE  name="UnitTest"/>
+    </FAMILY>
+  </FAMILY>
+```
+
+### Test Case Configuration
+
+In `maestro/suites/midas_system_tests/config/Tests/`, create a directory for your
+test configuration.
+If it is a single test, create the test configuration at that same level, for instance
+```
+yourNewTest/
+yourNewTest.cfg
+```
+Then edit this configuration file and provide the basic `UnitTest` variable definitions
+(all the variables and default values can be consulted in the [`UnitTest` module definition](maestro/suites/midas_system_tests/modules/UnitTest/container.cfg))
+```sh
+UnitTest_run_namelist=${SEQ_EXP_HOME}/config/Tests/${yourNewTest}/nml
+UnitTest_run_exe=${ABS_DIR}/midas-${yourTestProgram}_${ORDENV_PLAT}-${MIDAS_version}.Abs
+
+UnitTest_mpiscript=var.sh 
+# most probably unless a test specific launch script is provided
+
+UnitTest_reference=${pathToReference}
+#    * by convention the leaf directory should be version number represented as
+#      four digits padded with 0 (such as `0001`)
+#    * when your TTD contribution will be merged back, this directory will be moved
+#      to a protected account (such as `~sanl000`).
+UnitTest_reference_update=${pathForUpdate}
+# the path where the _updated_ inputs and expected 
+# results would be placed if the task `update` was launched.
+
+UnitTest_maximum_execution_time=${expectedTime}
+```
+
+### Preparing Inputs
+
+The `get` task will fetch the contents of all `inputs*.ca` (`cmcarc` archives) 
+from the directory pointed by `${UnitTest_reference}`.
+When creating a test (or modifying its inputs), assemble all the required 
+inputs and group them in different archives, for instance separating observations
+from trials or constants and so forth.
+To archive a group of files, the `cmcarc` program:
+```sh
+cmcarc -f ${UnitTest_reference}/inputs_group.ca -a file1 file2 ...
+```
+Note that some files (such as ensemble members and observation files) are expected
+to be within subdirectories in the working directory and therefore must also be
+stored in the same subdirectories within the archive. For example:
+```sh
+cmcarc -f ${UnitTest_reference}/inputs_ensemble.ca -a ensemble/${Date}_*
+```
+
+### Allocating Resources
+
+Maestro resources must also be provided for each task in the test.
+Theses files are in `maestro/suites/midas_system_tests/resources/Tests/${yourNewTest}`
+and you should create (or copy from another test and adapt them):
+```
+${yourNewTest}/
+├── container.xml
+└── UnitTest
+    ├── check.xml
+    ├── clean.xml
+    ├── container.xml
+    ├── get.xml
+    ├── run.xml
+    └── update.xml
+```
+If there are multiple tests in the group, then each one of them will need that
+file tree of resource description.
+
+
+### Providing Expected Results
+
+Similar to inputs, results provided at the same path (`${UnitTest_reference}`) as
+archives named `results*.ca`.  They will be used by the task `check` to compare
+the outputs produced by the program tested and the ones expected by the test.
+
+
+---
+
 ## Interactive debugging
 
 You can debug interactively a MIDAS program by launching a job and
@@ -7,10 +149,8 @@ login into it.  For that, you can set
 ```bash
 UnitTest_stop_for_interactive_work=yes
 ```
-in `maestro/suites/midas_system_tests/experiment.cfg`.
-
-to prepare the working directory for interactive debugging.  The first
-one is the suggested method.
+in `maestro/suites/midas_system_tests/experiment.cfg`
+to prepare the working directory for interactive debugging.
 
 After setting this, launch the `/${pathToTest}/UnitTest/run` task
 itself and look at the log messages.  You will see something like
@@ -31,7 +171,7 @@ You can use:
 to launch an interactive job.
 ```
 
-The script `launch_interactive.sh` is launching an interactive job and
+The script `launch_interactive.sh` launches an interactive job and
 it will give you the instructions on how to login to the job and start
 working.
 
@@ -45,7 +185,7 @@ again the program you are debugging.  This is the script
 ```
 
 Sometimes, it is very helpful to use some debugging tools.  So the
-script `launch_program.sh` is supporting two tools for debugging:
+script `launch_program.sh` supports two tools for debugging:
  * [`gdb`](https://www.gnu.org/software/gdb) and
  * [`DDT`](https://portal.science.gc.ca/confluence/display/SCIDOCS/DDT)
 
@@ -112,26 +252,28 @@ look](http://goc-dx.science.gc.ca/~erv000/midas/codecoverage-v_3.8.1-516-g746c07
 ## Updating Test Results
 
 The results can be updated by running the task `UnitTest/update` for
-the wanted test.  You have to specify a path to store the new results
+the wanted test.  The new results will be stored in the directory specified
 with the variable `UnitTest_reference_update` in the test
-configuration file.
+configuration file (the task will abort if the directory already exists).
 
 The listings will be collected at the same time.
 
 Once the new results have been collected, you can update the variable
-`UnitTest_reference` with the path to the new results.
+`UnitTest_reference` with the path to the new results. However, it is 
+recommended to replace `${USER}` with your actual username to allow other
+users to run the test using your updated results.
 
 You can then commit the changes to the configuration.
 
 When you will ask a merge-request, the new results will be copied in a
 safe directory with all other reference results by one of the
-maintainer.
-
+git repository maintainers.
 
 ## Splitting an observation file to prepare a unit test input
 
-In the case, a user wants to split an observation file to prepare a
-unit test input, this program can be called like this:
+In the case a user wants to split an observation file to prepare a
+unit test input, this program can be called like this (after loading an 
+appropriate MIDAS ssm package):
 ```bash
 midas.splitobs.Abs -obsin ${OBS_FILE_IN} -obsout ${OBS_FILE_OUTPUT_PREFIX} -round-robin -npex ${NPEX} -npey ${NPEY}
 ```
@@ -165,11 +307,11 @@ obs_split_0002_0003
 To gain access to the program `midas.splitobs.Abs`, one can load one
 of the MIDAS SSM domain with:
 ```bash
-. ssmuse-sh -d eccc/mrd/rpn/anl/midas/3.6.8
+. ssmuse-sh -d eccc/mrd/rpn/anl/midas/3.8.1
 ```
 or point directly to the program in the SSM domain:
 ```
-/fs/ssm/eccc/mrd/rpn/anl/midas/3.6.8/${ORDENV_PLAT}/bin/midas.splitobs.Abs
+/fs/ssm/eccc/mrd/rpn/anl/midas/3.8.1/${ORDENV_PLAT}/bin/midas.splitobs.Abs
 ```
 
 An English help message is printed to screen by calling
