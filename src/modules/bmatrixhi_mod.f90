@@ -65,10 +65,9 @@ MODULE BmatrixHI_mod
   real(8),allocatable :: rstddev(:,:)
 
   ! originally from common blocks and possibly from the namelist:
-  integer,parameter   :: maxNumLevels=200
-  real(8)             :: scaleFactor(maxNumLevels)
-  real(8)             :: scaleFactorLQ(maxNumLevels)
-  real(8)             :: scaleFactorCC(maxNumLevels)
+  real(8)             :: scaleFactor(vco_maxNumLevels)
+  real(8)             :: scaleFactorLQ(vco_maxNumLevels)
+  real(8)             :: scaleFactorCC(vco_maxNumLevels)
   logical             :: scaleTG
   real(8)             :: rcscltg(1)=100000.d0
   real(8)             :: rlimsuptg=3.0d0
@@ -169,15 +168,15 @@ CONTAINS
     if ( mmpi_myid == 0 ) write( *, nml = nambhi )
     ierr = fclos( nulnam )
 
-    do jlev = 1, maxNumLevels
-      if( scaleFactor( jlev ) > 0.0d0 ) then 
-        scaleFactor( jlev ) = sqrt( scaleFactor( jlev ))
+    do jlev = 1, vco_maxNumLevels
+      if( scaleFactor(jlev) > 0.0d0 ) then 
+        scaleFactor(jlev) = sqrt(scaleFactor(jlev))
       else
-        scaleFactor( jlev ) = 0.0d0
+        scaleFactor(jlev) = 0.0d0
       endif
     enddo
 
-    if ( sum( scaleFactor( 1 : maxNumLevels ) ) == 0.0d0 ) then
+    if ( sum(scaleFactor(1:vco_maxNumLevels)) == 0.0d0 ) then
       if ( mmpi_myid == 0 ) write(*,*) 'bmatrixHI: scaleFactor=0, skipping rest of setup'
       cvdim_out = 0
       return

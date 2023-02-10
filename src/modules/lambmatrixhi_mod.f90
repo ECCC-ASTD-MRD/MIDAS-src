@@ -83,8 +83,7 @@ module lamBMatrixHI_mod
   integer              :: LatPerPE, LatPerPEmax, myLatBeg, myLatEnd
   integer              :: LonPerPE, LonPerPEmax, myLonBeg, myLonEnd
 
-  integer,parameter    :: maxNumLevels=200
-  real(8)              :: scaleFactor(maxNumLevels)
+  real(8)              :: scaleFactor(vco_maxNumLevels)
 
   character(len=8), parameter     :: BStatsFilename = './bgcov'
 

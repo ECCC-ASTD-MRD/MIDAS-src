@@ -43,8 +43,6 @@ program midas_advector
 
   integer,allocatable :: dateStampListAdvectedFields(:)
 
-  integer,parameter   :: maxNumLevels=200
-
   real(8), allocatable :: advectFactor_M(:)
 
   ! Namelist variables
@@ -57,7 +55,7 @@ program midas_advector
   integer             :: steeringFlowNumStep
   real(8)             :: advectedFieldDelThour
   real(8)             :: steeringFlowDelThour
-  real(8)             :: advectFactor(maxNumLevels)
+  real(8)             :: advectFactor(vco_maxNumLevels)
 
   namelist /namadvector/ fileToAdvec, steeringFlowFile, nEns, &
                          advectedFieldNumStep, advectedFieldDelThour, &

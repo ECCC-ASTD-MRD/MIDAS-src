@@ -106,8 +106,7 @@ module BCovarSetupChem_mod
   integer             :: ntrunc
   real(8)             :: rpor(vnl_numvarmax)
   real(8)             :: rvloc(vnl_numvarmax)
-  integer,parameter   :: maxNumLevels=200
-  real(8)             :: scaleFactor(vnl_numvarmax,maxNumLevels)
+  real(8)             :: scaleFactor(vnl_numvarmax,vco_maxNumLevels)
   integer             :: numModeZero  ! number of eigenmodes to set to zero
   logical             :: ReadWrite_sqrt
 
@@ -128,7 +127,7 @@ module BCovarSetupChem_mod
   character(len=20)   :: TransformVarKindCH
 
   ! Square root of scaleFactor   
-  real(8) :: scaleFactor_stddev(vnl_numvarmax,maxNumLevels) 
+  real(8) :: scaleFactor_stddev(vnl_numvarmax,vco_maxNumLevels) 
       
   real(8), parameter :: zps = 101000.D0 ! Reference surface pressure
 

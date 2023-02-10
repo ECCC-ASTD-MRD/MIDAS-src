@@ -33,7 +33,7 @@ module verticalCoord_mod
   ! public derived type
   public :: struct_vco
   ! public variables
-  public :: vco_ip1_other
+  public :: vco_ip1_other, vco_maxNumLevels
   ! public procedures
   public :: vco_setupFromFile, vco_getNumLev, vco_equal, vco_deallocate, vco_mpiBcast
   public :: vco_subsetOrNot, vco_levelMatchingList
@@ -41,6 +41,8 @@ module verticalCoord_mod
   integer, parameter :: maxNumOtherLevels = 20
   integer :: vco_ip1_other(maxNumOtherLevels)
 
+  integer, parameter :: vco_maxNumLevels = 200
+  
   type struct_vco
      logical :: initialized=.false.
      integer :: Vcode = -1
@@ -322,6 +324,11 @@ contains
     if (vco%nlev_T == 0 .and. .not. beSilent) then
       write(*,*) 
       write(*,*) 'vco_setupAtmFromFile: Could not find a valid thermodynamic variable in the template file!'
+    else if (vco%nlev_T > vco_maxNumLevels) then
+      write(*,*)
+      write(*,*) 'nlev_T           = ',vco%nlev_T
+      write(*,*) 'vco_maxNumLevels = ',vco_maxNumLevels
+      call utl_abort('vco_setupAtmFromFile: nlev_T is greater than vco_maxNumLevels!')
     end if
 
     vco%nlev_M = 0
@@ -353,6 +360,11 @@ contains
     if (vco%nlev_M == 0 .and. .not. beSilent) then
       write(*,*) 
       write(*,*) 'vco_setupAtmFromFile: Could not find a valid momentum variable in the template file!'
+    else if (vco%nlev_M > vco_maxNumLevels) then
+      write(*,*)
+      write(*,*) 'nlev_M           = ',vco%nlev_M
+      write(*,*) 'vco_maxNumLevels = ',vco_maxNumLevels
+      call utl_abort('vco_setupAtmFromFile: nlev_M is greater than vco_maxNumLevels!')
     end if
 
     do jlev = 1, maxNumOtherLevels

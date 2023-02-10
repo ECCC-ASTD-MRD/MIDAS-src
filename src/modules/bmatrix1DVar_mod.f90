@@ -57,7 +57,6 @@ module bmatrix1DVar_mod
   logical             :: initialized = .false.
   integer             :: nkgdim
   integer             :: cvDim_mpilocal
-  integer, parameter   :: maxNumLevels=200
  
   real(8), allocatable :: bSqrtLand(:,:,:), bSqrtSea(:,:,:)
   real(8), allocatable :: bSqrtEns(:,:,:)
@@ -82,10 +81,10 @@ module bmatrix1DVar_mod
   !Namelist variables
   character(len=4)    :: includeAnlVar(vnl_numvarmax)
   integer :: numIncludeAnlVar
-  real(8) :: scaleFactorHI(maxNumLevels)          ! scaling factors for HI variances
-  real(8) :: scaleFactorHIHumidity(maxNumLevels)  ! scaling factors for HI humidity variances
-  real(8) :: scaleFactorEns(maxNumLevels)         ! scaling factors for Ens variances
-  real(8) :: scaleFactorEnsHumidity(maxNumLevels) ! scaling factors for Ens humidity variances
+  real(8) :: scaleFactorHI(vco_maxNumLevels)          ! scaling factors for HI variances
+  real(8) :: scaleFactorHIHumidity(vco_maxNumLevels)  ! scaling factors for HI humidity variances
+  real(8) :: scaleFactorEns(vco_maxNumLevels)         ! scaling factors for Ens variances
+  real(8) :: scaleFactorEnsHumidity(vco_maxNumLevels) ! scaling factors for Ens humidity variances
   NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorENs, scaleFactorEnsHumidity, nEns, &
        vLocalize, includeAnlVar, numIncludeAnlVar
 
@@ -252,15 +251,15 @@ contains
     if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Starting'
     if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-    do levelIndex = 1, maxNumLevels
-      if( scaleFactorHI( levelIndex ) > 0.0d0 ) then 
-        scaleFactorHI( levelIndex ) = sqrt( scaleFactorHI( levelIndex ))
+    do levelIndex = 1, vco_maxNumLevels
+      if( scaleFactorHI(levelIndex) > 0.0d0 ) then 
+        scaleFactorHI(levelIndex) = sqrt( scaleFactorHI(levelIndex))
       else
-        scaleFactorHI( levelIndex ) = 0.0d0
+        scaleFactorHI(levelIndex) = 0.0d0
       end if
     end do
    
-    do levelIndex = 1, maxNumLevels
+    do levelIndex = 1, vco_maxNumLevels
       if(scaleFactorHIHumidity(levelIndex) > 0.0d0) then 
         scaleFactorHIHumidity(levelIndex) = sqrt(scaleFactorHIHumidity(levelIndex))
       else
@@ -268,7 +267,7 @@ contains
       end if
     end do
 
-    if ( sum( scaleFactorHI( 1 : maxNumLevels ) ) == 0.0d0 ) then
+    if ( sum(scaleFactorHI(1:vco_maxNumLevels)) == 0.0d0 ) then
       if ( mmpi_myid == 0 ) write(*,*) 'bmat1D_setupBHi: scaleFactorHI=0, skipping rest of setup'
       cvDim_out = 0
       return
