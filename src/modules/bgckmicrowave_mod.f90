@@ -3068,7 +3068,6 @@ contains
                          (tb89FgClear(i) - tb150FgClear(i))
           else
             scatwObs(i) = (tb89(i) - tb150(i)) - (-39.2010 + 0.1104 * pangl(i))
-            scatwFG(i) = (tb89FG(i) - tb150FG(i)) - (-39.2010 + 0.1104 * pangl(i))
           end if
         else
           scatl(i) = (tb89(i) - tb150(i)) - (0.158 + 0.0163 * pangl(i))
