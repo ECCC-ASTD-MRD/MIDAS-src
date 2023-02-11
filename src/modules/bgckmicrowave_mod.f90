@@ -2274,7 +2274,8 @@ contains
     
     !  Run Bennartz AMSU-B algorithms.
     call bennartz (err, knt, tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
-                   satzen, ktermer, scatl, scatwObs, scatwFG, clwObs, clwFG)   
+                   satzen, ktermer, iterrain, glintrp, scatl, &
+                   scatwObs, scatwFG, clwObs, clwFG)
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
@@ -3000,7 +3001,8 @@ contains
   ! bennartz
   !------------------------------------------------------------------------------------
   subroutine bennartz (ier, knt, tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
-                       pangl, ktermer, scatl, scatwObs, scatwFG, clwObs, clwFG)
+                       pangl, ktermer, iterrain, glintrp, scatl, &
+                       scatwObs, scatwFG, clwObs, clwFG)
 
     !:Purpose: Compute the following parameters using 2 AMSU-B channels:
     !          - scattering index (over land and ocean).*
@@ -3021,6 +3023,8 @@ contains
     real,    intent(in)  :: tb150FgClear(:)  ! 150Ghz clear-sky brightness temperature from background (K)    real,    intent(in)  :: pangl(:)         !  satellite zenith angle (deg.)
     real,    intent(in)  :: pangl(:)         !  satellite zenith angle (deg.)
     integer, intent(in)  :: ktermer(:)       ! land/sea indicator (0=land;1=ocean)
+    integer, intent(in)  :: iterrain(:)      ! terrain type
+    real,    intent(in)  :: glintrp(:)       ! model interpolated ice    
     real,    intent(out) :: scatl(:)         ! scattering index over land
     real,    intent(out) :: scatwObs(:)      ! scattering index over water from observation
     real,    intent(out) :: scatwFG(:)       ! scattering index over water from background
@@ -3030,7 +3034,8 @@ contains
     !     Notes: In the case where an output parameter cannot be calculated, the
     !     value of this parameter is to to the missing value, i.e. -99.
     ! Locals: 
-    integer :: i 
+    integer :: i
+    logical :: surfTypeIsWater
 
     ! 1) Initialise output parameters
     do i = 1, knt 
@@ -3060,12 +3065,16 @@ contains
     ! 3) Compute parameters
     do i = 1, knt 
       if (ier(i) == 0) then
+        surfTypeIsWater = (ktermer(i) == 1 .and. iterrain(i) /= 0 .and. glintrp(i) < 0.01)
+
         if (ktermer(i) == 1) then
           if (tvs_mwAllskyAssim) then
-            scatwObs(i) = (tb89(i) - tb150(i)) - (-39.2010 + 0.1104 * pangl(i)) - &
+            if (surfTypeIsWater) then
+              scatwObs(i) = (tb89(i) - tb150(i)) - (-39.2010 + 0.1104 * pangl(i)) - &
+                            (tb89FgClear(i) - tb150FgClear(i))
+              scatwFG(i) = (tb89FG(i) - tb150FG(i)) - (-39.2010 + 0.1104 * pangl(i)) - &
                           (tb89FgClear(i) - tb150FgClear(i))
-            scatwFG(i) = (tb89FG(i) - tb150FG(i)) - (-39.2010 + 0.1104 * pangl(i)) - &
-                         (tb89FgClear(i) - tb150FgClear(i))
+            end if
           else
             scatwObs(i) = (tb89(i) - tb150(i)) - (-39.2010 + 0.1104 * pangl(i))
           end if
