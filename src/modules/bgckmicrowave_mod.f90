@@ -1126,7 +1126,7 @@ contains
   ! amsubTest13BennartzScatteringIndexCheck
   !--------------------------------------------------------------------------
   subroutine amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
-                                                     useStateDepSigmaObs, iterrain, KTERMER, GLINTRP, &
+                                                     useStateDepSigmaObs, KTERMER, GLINTRP, &
                                                      KMARQ, ICHECK, chanFlaggedForAllskyGenCoeff, &
                                                      skipTestArr_opt)
 
@@ -1147,7 +1147,6 @@ contains
     real,        intent(in)                :: scatwFG(KNT)                   ! scattering index over water from background
     real,        intent(in)                :: scatl(KNT)                     ! scattering index over land
     logical,     intent(in)                :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
-    integer,     intent(in)                :: iterrain(KNT)                  ! terrain type
     integer,     intent(in)                :: KTERMER(KNT)                   ! land sea qualifyer 
     real,        intent(in)                :: GLINTRP(KNT)                   ! glace de mer
     integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
@@ -2348,7 +2347,7 @@ contains
 
     ! 13) test 13: Bennartz scattering index check (full)
     call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
-                                                 useStateDepSigmaObs, iterrain, KTERMER, GLINTRP, &
+                                                 useStateDepSigmaObs, KTERMER, GLINTRP, &
                                                  KMARQ, ICHECK, chanFlaggedForAllskyGenCoeff, &
                                                  skipTestArr_opt=skipTestArr(:))
 
