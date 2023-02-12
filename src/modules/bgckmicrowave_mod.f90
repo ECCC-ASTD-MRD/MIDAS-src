@@ -3070,10 +3070,8 @@ contains
         if (ktermer(i) == 1) then
           if (tvs_mwAllskyAssim) then
             if (surfTypeIsWater) then
-              scatwObs(i) = (tb89(i) - tb150(i)) - (-39.2010 + 0.1104 * pangl(i)) - &
-                            (tb89FgClear(i) - tb150FgClear(i))
-              scatwFG(i) = (tb89FG(i) - tb150FG(i)) - (-39.2010 + 0.1104 * pangl(i)) - &
-                          (tb89FgClear(i) - tb150FgClear(i))
+              scatwObs(i) = (tb89(i) - tb150(i)) - (-39.2010 + 0.1104 * pangl(i))
+              scatwFG(i) = (tb89FG(i) - tb150FG(i)) - (-39.2010 + 0.1104 * pangl(i))
             end if
           else
             scatwObs(i) = (tb89(i) - tb150(i)) - (-39.2010 + 0.1104 * pangl(i))
