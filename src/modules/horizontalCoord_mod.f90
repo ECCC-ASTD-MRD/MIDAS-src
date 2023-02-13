@@ -169,7 +169,7 @@ contains
       call utl_abort('hco_SetupFromFile')
     end if
 
-    if (trim(utl_fileType(TemplateFile)) == 'NetCDF') then
+    if (trim(utl_fileType(trim(TemplateFile))) == 'NetCDF') then
 
       ! For now, assume NetCDF files are only used for NEMO (Ocean) applications
       ! which use the ORCA unstructure grid, like a 'Y' grid in standard file format
@@ -191,7 +191,7 @@ contains
         if (trim(dimName) == 'y') nj = dimLength(dimIndex)
       enddo
       if (ni < 0 .or. nj < 0) then
-        call utl_abort('hco-setupFromFile: not able to find x or y dimension in NetCDF file')
+        call utl_abort('hco_setupFromFile: not able to find x or y dimension in NetCDF file')
       end if
 
       allocate(lat_8(1:nj))
@@ -217,6 +217,9 @@ contains
       ! define the EZscintID from the lat-lon values
 
       ! STILL TO BE DONE!
+      EZscintID  = 0
+      numSubGrid = 1
+      EZscintIDsubGrids(:) = MPC_missingValue_INT
 
       grtypTicTac = 'X'
 

@@ -1527,7 +1527,7 @@ contains
       typvar = ' '
     end if
 
-    if (trim(utl_fileType(fileName)) == 'NetCDF') then
+    if (trim(utl_fileType(fileName_opt)) == 'NetCDF') then
 
       if (openFile) then
         ierr = nf90_open(fileName, NF90_NOWRITE, unit)
@@ -1566,13 +1566,10 @@ contains
 
     end if
 
-    write(*,*) 'utl_varNamePresentInFile: fileName = ', trim(fileName), &
-               ', varName = ', trim(varName), ', found = ', found
-
   end function utl_varNamePresentInFile
 
 
-  function utl_fileType(fileName) result(fileType)
+  function utl_fileType(fileName_opt) result(fileType)
     !
     !:Purpose: Return a string that identifies the file type, relying mostly
     !          on the `rmnlib` function `wkoffit`.
@@ -1580,14 +1577,21 @@ contains
     implicit none
 
     ! arguments
-    character(len=*)  :: fileName
+    character(len=*), optional, intent(in) :: fileName_opt
     ! output
     character(len=20) :: fileType
 
     ! locals
-    integer :: wkoffit
+    integer :: wkoffit, typeCode
 
-    select case(wkoffit(trim(fileName)))
+    ! Temporary fix for testing purposes
+    if (.not. present(fileName_opt)) then
+      fileType = 'FST'
+      return
+    end if
+
+    typeCode = wkoffit(trim(fileName_opt))
+    select case(typeCode)
     case (1,2,3,33,34)
       fileType = 'FST'
     case (6)
@@ -1595,6 +1599,8 @@ contains
     case (35)
       fileType = 'NetCDF'
     case default
+      write(*,*) 'utl_fileType: fileName     = ', trim(fileName_opt)
+      write(*,*) 'utl_fileType: wkoffit code = ', typeCode
       call utl_abort('utl_fileType: unknown file type')
     end select
 
