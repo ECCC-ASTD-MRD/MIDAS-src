@@ -2423,7 +2423,11 @@ contains
         instrum = tvs_coefs(sensorIndex) % coef % id_inst
         
         profiles(tovsIndex) % sunzenangle = obs_headElem_r(obsSpaceData,OBS_SUN,headerIndex)
-        latitudes(profileCount) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
+        latitudes(profileCount) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+        !1d-5 was chosen as a thereshold because it is the high presion for latitudes in BUFR/BURP files
+        if (latitudes(profileCount) > 90.d0 .and. (latitudes(profileCount)-90.d0) < 1.d-5) latitudes(profileCount) = 90.d0
+        if (latitudes(profileCount) < -90.d0 .and. (-latitudes(profileCount)-90.d0) < 1.d-5) latitudes(profileCount) = -90.d0
+        
         profiles(tovsIndex) % longitude =  obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
 
         surfTypeIsWater(profileCount) = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
