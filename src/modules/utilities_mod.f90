@@ -6,6 +6,7 @@ module utilities_mod
   !
   use clibInterfaces_mod
   use randomNumber_mod
+  use netcdf
 
   implicit none
   save
@@ -28,6 +29,7 @@ module utilities_mod
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt
   public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
+  public :: utl_fileType
 
   ! module interfaces
   ! -----------------
@@ -1484,6 +1486,10 @@ contains
 
 
   function utl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt, typvar_opt) result(found)
+    !
+    !:Purpose: Determine if a given variable name is present within a file.
+    !          This function supports both "standard" files and NetCDF files.
+    !
     implicit none
 
     ! Arguments:
@@ -1497,7 +1503,7 @@ contains
     ! Locals:
     integer :: fnom, fstouv, fstfrm, fclos, fstinf
     integer :: ni, nj, nk, key, ierr
-    integer :: unit
+    integer :: unit, varID
     character(len=128) :: fileName
     character(len=2)   :: typvar
     logical :: openFile
@@ -1521,25 +1527,78 @@ contains
       typvar = ' '
     end if
 
-    if (openFile) then
-      ierr = fnom(unit,fileName,'RND+OLD+R/O',0)
-      ierr = fstouv(unit,'RND+OLD')
-    end if
+    if (trim(utl_fileType(fileName)) == 'NetCDF') then
 
-    key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
+      if (openFile) then
+        ierr = nf90_open(fileName, NF90_NOWRITE, unit)
+      end if
+
+      ierr = nf90_inq_varid(unit, trim(varName), varID)
+      if (ierr == nf90_NoErr) then
+        found = .true.
+      else
+        found = .false.
+      end if
+
+      if (openFile) then
+        ierr = nf90_close(unit)
+      end if
+
+    else ! assume standard file
+
+      if (openFile) then
+        ierr = fnom(unit,fileName,'RND+OLD+R/O',0)
+        ierr = fstouv(unit,'RND+OLD')
+      end if
+
+      key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
     
-    if ( key > 0 )  then
-      found = .true.
-    else
-      found = .false.
+      if ( key > 0 )  then
+        found = .true.
+      else
+        found = .false.
+      end if
+
+      if (openFile) then
+        ierr =  fstfrm(unit)
+        ierr =  fclos (unit)
+      end if
+
     end if
 
-    if (openFile) then
-      ierr =  fstfrm(unit)
-      ierr =  fclos (unit)
-    end if
+    write(*,*) 'utl_varNamePresentInFile: fileName = ', trim(fileName), &
+               ', varName = ', trim(varName), ', found = ', found
 
   end function utl_varNamePresentInFile
+
+
+  function utl_fileType(fileName) result(fileType)
+    !
+    !:Purpose: Return a string that identifies the file type, relying mostly
+    !          on the `rmnlib` function `wkoffit`.
+    !
+    implicit none
+
+    ! arguments
+    character(len=*)  :: fileName
+    ! output
+    character(len=20) :: fileType
+
+    ! locals
+    integer :: wkoffit
+
+    select case(wkoffit(trim(fileName)))
+    case (1,2,3,33,34)
+      fileType = 'FST'
+    case (6)
+      fileType = 'BURP'
+    case (35)
+      fileType = 'NetCDF'
+    case default
+      call utl_abort('utl_fileType: unknown file type')
+    end select
+
+  end function utl_fileType
 
 
   subroutine utl_reAllocate_char_1d(array,dim1)
