@@ -3740,7 +3740,7 @@ contains
                                 IUTILST, zlat, zlon, ilq, itt, zenith, &
                                 ICANO, ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
                                 ISCNPOS, MTINTRP, globMarq, IMARQ, clwObs, clwFG, riwv, &
-                                STNID, RESETQC, modLSQ)
+                                STNID, RESETQC, modLSQ, lastHeader)
 
 
     !:Purpose:                   Effectuer le controle de qualite des radiances tovs.
@@ -3767,6 +3767,7 @@ contains
     logical, intent(in)              :: RESETQC                ! reset du controle de qualite?
     logical, intent(in)              :: modLSQ                 ! If active, recalculate values for land/sea
                                                                ! qualifier and terrain type based on LG/MG
+    logical, intent(in)              :: lastHeader             ! active if last header
     integer,allocatable, intent(out) :: ICHECK(:,:)            ! indicateur controle de qualite tovs par canal
     !                                                            =0, ok,
     !                                                            >0, rejet,
@@ -4011,7 +4012,7 @@ contains
     ! reset global marker flag (55200) and mark it if observtions are rejected
     call resetQcCases(RESETQC, KCHKPRF, globMarq)
 
-    if(mwbg_debug) then
+    if (lastHeader) then
       write(*,*) ' --------------------------------------------------------------- '
       write(*,*) ' Number of BURP file reports where Tb set to mwbg_realMissing  = ', numReportWithMissingTb
       write(*,*) ' --------------------------------------------------------------- '
@@ -5546,6 +5547,9 @@ contains
     call utl_reAllocate(si_ecmwf,ni)
     call utl_reAllocate(si_bg,ni)
     call utl_reAllocate(SeaIce,ni)
+
+    iNumSeaIce = 0
+
     ! extract required channels:
     !  23 Ghz = AMSU-A 1 = ATMS channel 1
     !  31 Ghz = AMSU-A 2 = ATMS channel 2
@@ -5798,6 +5802,8 @@ contains
     call utl_reAllocate(si_ecmwf,ni)
     call utl_reAllocate(si_bg,ni)
     call utl_reAllocate(SeaIce,ni)
+
+    iNumSeaIce = 0
 
     !! extract required channels:  ATMS ch.   MWHS-2 ch.
     !!   23 Ghz = AMSU-A 1 =        1          n/a
@@ -6896,6 +6902,7 @@ contains
     real,    allocatable          :: atmScatteringIndex(:)         ! scattering index
     integer, external             :: exdb, exfin, fnom, fclos
     logical                       :: mwDataPresent
+    logical                       :: lastHeader                    ! active while reading last report
 
 
     call utl_tmg_start(118,'--BgckMicrowave')
@@ -6927,11 +6934,13 @@ contains
     !
     ! loop over all header indices of the specified family with surface obs
     numObsToProcess = 1
+    lastHeader = .false.
 
     call obs_set_current_header_list(obsSpaceData,'TO')
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
       if (headerIndex < 0) exit HEADER
+      if (headerIndex == obs_numHeader(obsSpaceData)) lastHeader = .true.
       codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
       if (instName== 'AMSUB') then
         if ( .not. tvs_isIdBurpInst(codtyp,'amsub') .and. &
@@ -7006,7 +7015,7 @@ contains
                                 newInformationFlag, satScanPosition,   &
                                 obsGlobalMarker, obsFlags,            &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                atmScatteringIndex, burpFileSatId, RESETQC, modLSQ)
+                                atmScatteringIndex, burpFileSatId, RESETQC, modLSQ, lastHeader)
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
         call utl_abort('midas-bgckMW: unknown instName')
