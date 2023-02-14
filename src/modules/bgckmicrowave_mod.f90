@@ -123,8 +123,8 @@ contains
     clwQcThreshold          = 0.3 
     useUnbiasedObsForClw    = .false.
     cloudyClwThresholdBcorr = 0.05
-    siQcOverWaterThreshold  = 15.0
-    cloudySiThresholdBcorr  = 5
+    siQcOverWaterThreshold  = 30.0
+    cloudySiThresholdBcorr  = 5.0
     RESETQC                 = .false.
     modLSQ                  = .false.
     skipTestArr(:)          = .false.
