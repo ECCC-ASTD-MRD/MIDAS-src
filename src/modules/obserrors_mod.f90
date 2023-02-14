@@ -1079,7 +1079,7 @@ contains
     real(8), parameter :: minRetrievableClwValue = 0.0D0
     real(8), parameter :: maxRetrievableClwValue = 3.0D0
     real(8), parameter :: minRetrievableSiValue = -10.0D0
-    real(8), parameter :: maxRetrievableSiValue = 40.0D0
+    real(8), parameter :: maxRetrievableSiValue = 30.0D0
 
     logical :: ifirst, surfTypeIsWater, unsupportedCodeType, unsupportedSensor
 
