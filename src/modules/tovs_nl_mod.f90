@@ -208,6 +208,30 @@ module tovs_nl_mod
 contains
 
   !--------------------------------------------------------------------------
+  ! blackList
+  !--------------------------------------------------------------------------
+  subroutine blackList(obsSpaceData, headerIndex)
+    !
+    ! :Purpose: blackList all data corresponding to headerIndex
+    !
+    implicit none
+
+    !Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
+    integer, intent(in) :: headerIndex
+
+    !Locals:
+    integer :: bodyIndex
+    
+    call obs_set_current_body_list(obsSpaceData, headerIndex)
+    BODY:do 
+      bodyIndex = obs_getBodyIndex(obsSpaceData)
+      if (bodyIndex < 0) exit BODY
+      call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
+    end do BODY
+  end subroutine blackList
+  
+  !--------------------------------------------------------------------------
   ! tvs_setupAlloc
   !--------------------------------------------------------------------------
   subroutine tvs_setupAlloc(obsSpaceData)
@@ -272,12 +296,7 @@ contains
 
       if ( .not. tvs_isIdBurpTovs(idatyp) ) then
         write(*,*) 'tvs_setupAlloc: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
-        call obs_set_current_body_list(obsSpaceData, headerIndex)
-        BODY2:do 
-          bodyIndex = obs_getBodyIndex(obsSpaceData)
-          if (bodyIndex < 0) exit BODY2
-          call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
-        end do BODY2
+        call blackList(obsSpaceData, headerIndex)
         cycle HEADER   ! Proceed to the next headerIndex
       end if
       tvs_nobtov = tvs_nobtov + 1
@@ -2175,11 +2194,11 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_columnData), intent(in) :: columnTrl    ! Column structure
-    type(struct_obs),        intent(in) :: obsSpaceData ! obsSpaceData structure
-    integer,                 intent(in) :: datestamp    ! CMC date stamp
-    character (len=*), intent(in) :: profileType
-    logical,                 intent(in) :: beSilent     ! To control verbosity
+    type(struct_columnData), intent(in)    :: columnTrl    ! Column structure
+    type(struct_obs),        intent(inout) :: obsSpaceData ! obsSpaceData structure
+    integer,                 intent(in)    :: datestamp    ! CMC date stamp
+    character (len=*), intent(in)          :: profileType
+    logical,                 intent(in)    :: beSilent     ! To control verbosity
 
     ! Locals:
     integer :: instrum, iplatform
@@ -2423,6 +2442,7 @@ contains
           write(*,*) 'angle, profile number, sensor', profiles(tovsIndex) % zenangle, tovsIndex, sensorIndex
           write(*,*) 'replaced by 0.0 !!!'
           profiles(tovsIndex) % zenangle = 0.d0
+          call blackList(obsSpaceData, headerIndex)
         end if
  
         profiles(tovsIndex) % azangle = tvs_getCorrectedSatelliteAzimuth(obsSpaceData, headerIndex)
@@ -2442,7 +2462,7 @@ contains
           write(*,*) 'INVALID LATITUDE'
           write(*,*) 'latitude, profile number, sensor', latitudes(profileCount), tovsIndex, sensorIndex
           write(*,*) 'replaced by ', latitudes(profileCount),' !!!'
-          !Add code to blacklist ?
+          call blackList(obsSpaceData, headerIndex)
         end if
         
         profiles(tovsIndex) % longitude = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
