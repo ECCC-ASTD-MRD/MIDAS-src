@@ -2435,6 +2435,15 @@ contains
         !1d-5 was chosen as a threshold because it is the high precision for latitudes in BUFR/BURP files
         if (latitudes(profileCount) > 90.d0 .and. (latitudes(profileCount)-90.d0) < 1.d-5) latitudes(profileCount) = 90.d0
         if (latitudes(profileCount) < -90.d0 .and. (-latitudes(profileCount)-90.d0) < 1.d-5) latitudes(profileCount) = -90.d0
+        if (latitudes(profileCount) < -90._jprb .or. &
+            latitudes(profileCount)> 90._jprb) then
+          latitudes(profileCount) = max(-90._jprb,min(latitudes(profileCount),90._jprb))
+          write(*,*) '!!! WARNING !!!'
+          write(*,*) 'INVALID LATITUDE'
+          write(*,*) 'latitude, profile number, sensor', latitudes(profileCount), tovsIndex, sensorIndex
+          write(*,*) 'replaced by ', latitudes(profileCount),' !!!'
+        !  !Add code to blacklist ?
+        end if
         
         profiles(tovsIndex) % longitude = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
 
