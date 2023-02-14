@@ -65,7 +65,8 @@ module bgckmicrowave_mod
   real,   parameter :: scatbg_mwhs2_cmc_ICErej=40.0
   real,   parameter :: scatbg_mwhs2_cmc_SEA=15.0
   real,   parameter :: mean_Tb_183Ghz_min=240.0      ! min. value for Mean(Tb) chans. 18-22 
-
+  real,   parameter :: minRetrievableSiValue = -10.0 ! for AMSUB/MHS 
+  
   integer, parameter :: mwbg_maxNumSat  = 13
   integer, parameter :: mwbg_maxNumChan = 100
   integer, parameter :: mwbg_maxNumTest = 16
@@ -1263,9 +1264,11 @@ contains
       if (tvs_mwAllskyAssim .and. surfTypeIsSea) then
         siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
 
-        ! In all-sky mode, reject observations over sea if siObsFGaveraged can not be computed.
+        ! In all-sky mode, reject observations over sea if: 
+        !   - siObsFGaveraged can not be computed.
+        !   - siObsFGaveraged smaller than a minimum value
         ! siObsFGaveraged is needed to define obs error.
-        if (siObsFGaveraged == mwbg_realMissing) then
+        if (siObsFGaveraged == mwbg_realMissing .or. siObsFGaveraged < minRetrievableSiValue) then
 
           loopChannel3: do nChannelIndex = 1, KNO
             channelval = KCANO(nChannelIndex,nDataIndex)
