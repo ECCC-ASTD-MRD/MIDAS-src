@@ -1261,7 +1261,7 @@ contains
         end if
       end if
       
-      if (tvs_mwAllskyAssim .and. surfTypeIsSea) then
+      if (tvs_mwAllskyAssim .and. ktermer(nDataIndex) == 1) then
         siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
 
         ! In all-sky mode, reject observations over sea if: 
