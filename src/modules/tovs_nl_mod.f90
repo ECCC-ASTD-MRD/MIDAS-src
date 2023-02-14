@@ -59,7 +59,8 @@ module tovs_nl_mod
        gas_id_mixed        ,&
        gas_unit_specconc   ,&
        interp_rochon_loglinear_wfn, &
-       zenmax
+       zenmax,              &
+       zenmaxv9
 
   use parkind1, only : jpim, jplm
 
@@ -2214,6 +2215,7 @@ contains
     type(rttov_profile), pointer :: profiles(:)
     type(rttov_profile_cloud), pointer :: cld_profiles(:)
     real(8), pointer :: column_ptr(:)
+    real(8) :: zmax
 
     if ( .not. beSilent ) write(*,*) 'tvs_fillProfiles: Starting'
   
@@ -2341,6 +2343,12 @@ contains
 
       if (profileCount == 0) cycle sensor_loop
 
+      if (tvs_coefs(sensorIndex)%coef%fmv_model_ver >= 9) then
+        zmax = zenmaxv9
+      else
+        zmax = zenmax
+      end if
+      
       allocStatus(:) = 0
       allocate (sensorTovsIndexes(profileCount),                     stat = allocStatus(1) )
       allocate (sensorHeaderIndexes(profileCount),                   stat = allocStatus(2) )
@@ -2409,7 +2417,7 @@ contains
 
         !pour ne pas faire planter RTTOV dans le cas (rare) ou l'angle zenithal n'est pas defini ou invalide         
         if (profiles(tovsIndex) % zenangle < 0.0d0 .or. &
-             profiles(tovsIndex) % zenangle > zenmax ) then
+            profiles(tovsIndex) % zenangle > zmax ) then
           write(*,*) '!!! WARNING !!!'
           write(*,*) 'INVALID ZENITH ANGLE'
           write(*,*) 'angle, profile number, sensor', profiles(tovsIndex) % zenangle, tovsIndex, sensorIndex
@@ -2424,11 +2432,11 @@ contains
         
         profiles(tovsIndex) % sunzenangle = obs_headElem_r(obsSpaceData,OBS_SUN,headerIndex)
         latitudes(profileCount) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
-        !1d-5 was chosen as a thereshold because it is the high presion for latitudes in BUFR/BURP files
+        !1d-5 was chosen as a threshold because it is the high precision for latitudes in BUFR/BURP files
         if (latitudes(profileCount) > 90.d0 .and. (latitudes(profileCount)-90.d0) < 1.d-5) latitudes(profileCount) = 90.d0
         if (latitudes(profileCount) < -90.d0 .and. (-latitudes(profileCount)-90.d0) < 1.d-5) latitudes(profileCount) = -90.d0
         
-        profiles(tovsIndex) % longitude =  obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) *MPC_DEGREES_PER_RADIAN_R8
+        profiles(tovsIndex) % longitude = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
 
         surfTypeIsWater(profileCount) = ( tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea )
 
