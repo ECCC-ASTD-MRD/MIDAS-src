@@ -1976,7 +1976,7 @@ CONTAINS
     REAL(pre_obsReal), ALLOCATABLE :: RADMOY(:,:,:)
     REAL(pre_obsReal), ALLOCATABLE :: radstd(:,:,:)
 
-    integer                :: LISTE_INFO(30),LISTE_ELE(maxElements),LISTE_ELE_SFC(maxElements)
+    integer                :: LISTE_INFO(31),LISTE_ELE(maxElements),LISTE_ELE_SFC(maxElements)
     
     integer                :: NBELE,NVALE,NTE
     integer                :: J,JJ,K,KK,KL,IL,ERROR,OBSN
@@ -2005,10 +2005,11 @@ CONTAINS
     integer                :: ILEMZBCOR, ILEMTBCOR, ILEMHBCOR
     
     
-    LISTE_INFO(1:30) = (/ &
+    LISTE_INFO(1:31) = (/ &
         1007,002019,007024,007025 ,005021, 005022, 008012, 013039,020010,2048, &
         2022,33060,33062,33039,10035,10036,08046,5043, 013209,clwFgElementId, &
-        1033,2011,4197,siFgElementId,5040,33078,33079,33080,020029,25174 /)
+        1033,2011,4197,siFgElementId,13208,5040,33078,33079,33080,020029, &
+        25174 /)
 
     RELEV2=0.0
     FAMILYTYPE2= 'SCRAP'
@@ -2110,7 +2111,7 @@ CONTAINS
 
         call BRPACMA_NML('namburp_filter_tovs')
 
-        NELE_INFO=30
+        NELE_INFO=31
      CASE('CH')
 
         BURP_TYP='multi'  ! Both 'multi' and 'uni' are possible for this family.
