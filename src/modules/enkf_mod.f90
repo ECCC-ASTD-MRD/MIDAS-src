@@ -75,7 +75,7 @@ contains
                                 stateVectorMeanAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
                                 hLocalize, hLocalizePressure, vLocalize,  &
-                                mpiDistribution, numRetainedEigen)
+                                mpiDistribution, numRetainedEigen, edaObsImpact)
     ! :Purpose: Local subroutine containing the code for computing
     !           the LETKF analyses for all ensemble members, ensemble
     !           mean.
@@ -97,6 +97,7 @@ contains
     real(8)                     :: vLocalize
     character(len=*)            :: mpiDistribution
     integer                     :: numRetainedEigen
+    logical                     :: edaObsImpact
 
     ! Locals
     integer :: nEns, nEnsPerSubEns, nEnsPerSubEns_mod, nEnsIndependentPerSubEns
@@ -130,11 +131,13 @@ contains
     integer, allocatable :: randomMemberIndexArray(:), latLonTagMpiGlobal(:,:)
 
     real(8), allocatable :: distances(:)
-    real(8), allocatable :: PaInv(:,:), PaSqrt(:,:), Pa(:,:), YbTinvR(:,:), YbTinvRYb(:,:)
-    real(8), allocatable :: YbTinvRCopy(:,:)
+    real(8), allocatable :: PaInv(:,:), PaInv_eda(:,:), PaSqrt(:,:), Pa(:,:), Pa_eda(:,:)
+    real(8), allocatable :: YbTinvR(:,:), YbTinvR_eda(:,:), YbTinvRYb(:,:), YbTinvRYb_eda(:,:)
+    real(8), allocatable :: YbTinvRCopy(:,:), YbTinvRCopy_eda(:,:)
     real(8), allocatable :: YbTinvRYb_CV(:,:), YbTinvRYb_mod(:,:)
     real(8), allocatable :: eigenValues(:), eigenVectors(:,:)
     real(8), allocatable :: eigenValues_CV(:), eigenVectors_CV(:,:)
+    real(8), allocatable :: eigenValues_eda(:), eigenVectors_eda(:,:)   
     real(8), allocatable :: weightsTemp(:), weightsTemp2(:)
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
@@ -200,9 +203,12 @@ contains
     allocate(localBodyIndices(maxNumLocalObs))
     allocate(distances(maxNumLocalObs))
     allocate(YbTinvR(nEnsGain,maxNumLocalObs))
+    if ( edaObsImpact ) allocate(YbTinvR_eda(nEnsGain,maxNumLocalObs))
     allocate(YbTinvRCopy(maxNumLocalObs,nEnsGain))
+    if ( edaObsImpact ) allocate(YbTinvRCopy_eda(maxNumLocalObs,nEnsGain))
     allocate(YbGainCopy_r4(maxNumLocalObs,nEnsGain))
     allocate(YbTinvRYb(nEnsGain,nEnsGain))
+    if ( edaObsImpact ) allocate(YbTinvRYb_eda(nEnsGain,nEnsGain))
     if ( trim(algorithm) == 'CVLETKF-ME' .or. &
          trim(algorithm) == 'LETKF-Gain-ME' ) then
       allocate(YbTinvRYb_mod(nEnsGain,nEns))
@@ -210,9 +216,17 @@ contains
     end if
     allocate(eigenValues(nEnsGain))
     allocate(eigenVectors(nEnsGain,nEnsGain))
+    if ( edaObsImpact ) then
+      allocate(eigenValues_eda(nEnsGain))
+      allocate(eigenVectors_eda(nEnsGain,nEnsGain))
+    end if
     allocate(PaInv(nEnsGain,nEnsGain))
     allocate(PaSqrt(nEnsGain,nEnsGain))
     allocate(Pa(nEnsGain,nEnsGain))
+    if ( edaObsImpact ) then
+      allocate(PaInv_eda(nEnsGain,nEnsGain))
+      allocate(Pa_eda(nEnsGain,nEnsGain))
+    end if
     allocate(memberAnlPert(nEns))
     allocate(weightsTemp(nEnsGain))
     allocate(weightsTemp2(nEnsGain))
@@ -461,6 +475,14 @@ contains
             YbTinvR(memberIndex,localObsIndex) =  &
                  ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
                  localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
+            if ( edaObsImpact ) then
+              ! for observation simulation experiments, need to calculate
+              ! a similar YbTinvR using a different obs error inverse
+              YbTinvR_eda(memberIndex,localObsIndex) =  &
+                   ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
+                   localization * ensObsGain_mpiglobal%obsErrInv_eda(bodyIndex)
+            end if
+              
           end do
         end do ! localObsIndex
 
@@ -469,16 +491,19 @@ contains
         call utl_tmg_start(137,'--------YbArraysCopy')
         YbGainCopy_r4(:,:) = 0.0
         YbTinvRCopy(:,:) = 0.0d0
+        if ( edaObsImpact ) YbTinvRCopy_eda(:,:) = 0.0d0
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
           do memberIndex2 = 1, nEnsGain
             YbGainCopy_r4(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
             YbTinvRCopy(localObsIndex,memberIndex2) = YbTinvR(memberIndex2,localObsIndex)
+            if ( edaObsImpact ) YbTinvRCopy_eda(localObsIndex,memberIndex2) = YbTinvR_eda(memberIndex2,localObsIndex)              
           end do
         end do
         call utl_tmg_stop(137)
 
         YbTinvRYb(:,:) = 0.0D0
+        if ( edaObsImpact ) YbTinvRYb_eda(:,:) = 0.0D0
         call utl_tmg_start(138,'--------YbTinvRYb1')
         !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
         do memberIndex2 = 1, nEnsGain
@@ -486,6 +511,11 @@ contains
             YbTinvRYb(memberIndex1,memberIndex2) =  &
                 YbTinvRYb(memberIndex1,memberIndex2) +  &
                 sum(YbTinvRCopy(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))
+            if ( edaObsImpact ) then
+              YbTinvRYb_eda(memberIndex1,memberIndex2) =  &
+                  YbTinvRYb_eda(memberIndex1,memberIndex2) +  &
+                  sum(YbTinvRCopy_eda(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))
+            end if
           end do
         end do
         !$OMP END PARALLEL DO
@@ -517,7 +547,7 @@ contains
           end do
           !$OMP END PARALLEL DO
           call utl_tmg_stop(139)
-        end if
+        end if ! end of CVLETKF-ME or LETKF-GAIN-ME if
         call utl_tmg_stop(136)
 
         ! Rest of the computation of local weights for this grid point
@@ -533,11 +563,20 @@ contains
             do memberIndex = 1, nEns
               PaInv(memberIndex,memberIndex) = PaInv(memberIndex,memberIndex) + real(nEns - 1,8)
             end do
+            ! Repeat for PaInv for observation simulation experiments
+            if ( edaObsImpact ) then
+              PaInv_eda(:,:) = YbTinvRYb_eda(:,:)
+              do memberIndex = 1, nEns
+                PaInv_eda(memberIndex,memberIndex) = PaInv_eda(memberIndex,memberIndex) + real(nEns - 1,8)
+              end do
+            end if
 
             ! Compute Pa and sqrt(Pa) matrices from PaInv
             Pa(:,:) = PaInv(:,:)
+            if ( edaObsImpact ) Pa_eda(:,:) = PaInv_eda(:,:)
             call utl_tmg_start(135,'------EigenDecomp')
             call utl_matInverse(Pa, nEns, inverseSqrt_opt=PaSqrt)
+            if ( edaObsImpact ) call utl_matInverse(Pa_eda, nEns)
             call utl_tmg_stop(135)
 
             ! Compute ensemble mean local weights as Pa * YbTinvR * (obs - meanYb)
@@ -545,19 +584,32 @@ contains
             do localObsIndex = 1, numLocalObs
               bodyIndex = localBodyIndices(localObsIndex)
               do memberIndex = 1, nEns
-                weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                           YbTinvR(memberIndex,localObsIndex) *  &
-                                           ( ensObs_mpiglobal%obsValue(bodyIndex) - &
-                                             ensObs_mpiglobal%meanYb(bodyIndex) )
+                if ( edaObsImpact ) then
+                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                             YbTinvR_eda(memberIndex,localObsIndex) *  &
+                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                               ensObs_mpiglobal%meanYb(bodyIndex) )
+                else
+                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                             YbTinvR(memberIndex,localObsIndex) *  &
+                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                               ensObs_mpiglobal%meanYb(bodyIndex) )
+                end if
               end do
             end do
 
             weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
             do memberIndex2 = 1, nEns
               do memberIndex1 = 1, nEns
-                weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
-                     weightsMeanLatLon(memberIndex1,1,latLonIndex) +  &
-                     Pa(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
+                if ( edaObsImpact ) then
+                  weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                       weightsMeanLatLon(memberIndex1,1,latLonIndex) +  &
+                       Pa_eda(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
+                else
+                  weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                       weightsMeanLatLon(memberIndex1,1,latLonIndex) +  &
+                       Pa(memberIndex1,memberIndex2)*weightsTemp(memberIndex2)
+                end if
               end do
             end do
 
@@ -573,6 +625,9 @@ contains
             call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
+            if ( edaObsImpact ) then
+              call utl_eigenDecomp(YbTinvRYb_eda, eigenValues_eda, eigenVectors_eda, tolerance, matrixRank)
+            end if
             call utl_tmg_stop(135)
 
             ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
@@ -580,31 +635,56 @@ contains
             do localObsIndex = 1, numLocalObs
               bodyIndex = localBodyIndices(localObsIndex)
               do memberIndex = 1, nEns
-                weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                           YbTinvR(memberIndex,localObsIndex) *  &
-                                           ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                if ( edaObsImpact ) then
+                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                             YbTinvR_eda(memberIndex,localObsIndex) *  &
+                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                               ensObs_mpiglobal%meanYb(bodyIndex) )
+                else
+                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                             YbTinvR(memberIndex,localObsIndex) *  &
+                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
                                              ensObs_mpiglobal%meanYb(bodyIndex) )
+                end if
               end do
             end do
             weightsTemp2(:) = 0.0d0
             do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEns
-                weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                             eigenVectors(memberIndex1,memberIndex2) *  &
-                                             weightsTemp(memberIndex1)
+                if ( edaObsImpact ) then
+                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                               eigenVectors_eda(memberIndex1,memberIndex2) *  &
+                                               weightsTemp(memberIndex1)
+                else
+                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                               eigenVectors(memberIndex1,memberIndex2) *  &
+                                               weightsTemp(memberIndex1)
+                end if
               end do
             end do
             do memberIndex = 1, matrixRank
-              weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                          1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
+              if ( edaObsImpact ) then
+                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                     1.0D0/(eigenValues_eda(memberIndex) + real(nEns - 1,8))
+              else
+                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                     1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
+              end if
             end do
             weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
             do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEns
-                weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
-                     weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
-                     eigenVectors(memberIndex1,memberIndex2) *  &
-                     weightsTemp2(memberIndex2)
+                if ( edaObsImpact ) then
+                  weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                       weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                       eigenVectors_eda(memberIndex1,memberIndex2) *  &
+                       weightsTemp2(memberIndex2)
+                else
+                  weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                       weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                       eigenVectors(memberIndex1,memberIndex2) *  &
+                       weightsTemp2(memberIndex2)
+                end if
               end do
             end do
 
@@ -674,6 +754,9 @@ contains
             call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
+            if ( edaObsImpact ) then
+              call utl_eigenDecomp(YbTinvRYb_eda, eigenValues_eda, eigenVectors_eda, tolerance, matrixRank)
+            end if
             call utl_tmg_stop(135)
 
             ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
@@ -681,31 +764,56 @@ contains
             do localObsIndex = 1, numLocalObs
               bodyIndex = localBodyIndices(localObsIndex)
               do memberIndex = 1, nEnsGain
-                weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                           YbTinvR(memberIndex,localObsIndex) *  &
-                                           ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                if ( edaObsImpact ) then
+                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                             YbTinvR_eda(memberIndex,localObsIndex) *  &
+                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
                                              ensObs_mpiglobal%meanYb(bodyIndex) )
+                else
+                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                             YbTinvR(memberIndex,localObsIndex) *  &
+                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                             ensObs_mpiglobal%meanYb(bodyIndex) )
+                end if
               end do
             end do
             weightsTemp2(:) = 0.0d0
             do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEnsGain
-                weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                             eigenVectors(memberIndex1,memberIndex2) *  &
-                                             weightsTemp(memberIndex1)
+                if ( edaObsImpact ) then
+                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                               eigenVectors_eda(memberIndex1,memberIndex2) *  &
+                                               weightsTemp(memberIndex1)
+                else
+                   weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                               eigenVectors(memberIndex1,memberIndex2) *  &
+                                               weightsTemp(memberIndex1)
+                end if
               end do
             end do
             do memberIndex = 1, matrixRank
-              weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                          1.0D0/(eigenValues(memberIndex) + real(nEnsGain - 1,8))
+              if ( edaObsImpact ) then
+                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                     1.0D0/(eigenValues_eda(memberIndex) + real(nEnsGain - 1,8))
+              else
+                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                     1.0D0/(eigenValues(memberIndex) + real(nEnsGain - 1,8))
+              end if
             end do
             weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
             do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEnsGain
-                weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
-                     weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
-                     eigenVectors(memberIndex1,memberIndex2) *  &
-                     weightsTemp2(memberIndex2)
+                if ( edaObsImpact ) then
+                  weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                       weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                       eigenVectors_eda(memberIndex1,memberIndex2) *  &
+                       weightsTemp2(memberIndex2)
+                else
+                  weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                       weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                       eigenVectors(memberIndex1,memberIndex2) *  &
+                       weightsTemp2(memberIndex2)
+                end if
               end do
             end do
 
@@ -771,41 +879,66 @@ contains
             call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
+            if ( edaObsImpact ) then
+              call utl_eigenDecomp(YbTinvRYb_eda, eigenValues_eda, eigenVectors_eda, tolerance, matrixRank)
+            end if
             call utl_tmg_stop(135)
-            !if (matrixRank < (nEns-1)) then
-            !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
-            !end if
 
             ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
             weightsTemp(:) = 0.0d0
             do localObsIndex = 1, numLocalObs
               bodyIndex = localBodyIndices(localObsIndex)
               do memberIndex = 1, nEns
-                weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                           YbTinvR(memberIndex,localObsIndex) *  &
-                                           ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                if ( edaObsImpact ) then
+                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                             YbTinvR_eda(memberIndex,localObsIndex) *  &
+                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
                                              ensObs_mpiglobal%meanYb(bodyIndex) )
+                else
+                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                             YbTinvR(memberIndex,localObsIndex) *  &
+                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                             ensObs_mpiglobal%meanYb(bodyIndex) )
+                end if
               end do
             end do
             weightsTemp2(:) = 0.0d0
             do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEns
-                weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                             eigenVectors(memberIndex1,memberIndex2) *  &
-                                             weightsTemp(memberIndex1)
+                if ( edaObsImpact ) then
+                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                               eigenVectors_eda(memberIndex1,memberIndex2) *  &
+                                               weightsTemp(memberIndex1)
+                else
+                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                               eigenVectors(memberIndex1,memberIndex2) *  &
+                                               weightsTemp(memberIndex1)
+                end if
               end do
             end do
             do memberIndex = 1, matrixRank
-              weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                          1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
+              if ( edaObsImpact ) then
+                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                                            1.0D0/(eigenValues_eda(memberIndex) + real(nEns - 1,8))
+              else
+                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                                            1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
+              end if
             end do
             weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
             do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEns
-                weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
-                     weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
-                     eigenVectors(memberIndex1,memberIndex2) *  &
-                     weightsTemp2(memberIndex2)
+                if ( edaObsImpact ) then
+                  weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                       weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                       eigenVectors_eda(memberIndex1,memberIndex2) *  &
+                       weightsTemp2(memberIndex2)
+                else
+                   weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                       weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                       eigenVectors(memberIndex1,memberIndex2) *  &
+                       weightsTemp2(memberIndex2)
+                end if
               end do
             end do
 
@@ -897,6 +1030,9 @@ contains
             call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
+            if ( edaObsImpact ) then
+              call utl_eigenDecomp(YbTinvRYb_eda, eigenValues_eda, eigenVectors_eda, tolerance, matrixRank)
+            end if
             call utl_tmg_stop(135)
             !if (matrixRank < (nEns-1)) then
             !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
@@ -907,31 +1043,56 @@ contains
             do localObsIndex = 1, numLocalObs
               bodyIndex = localBodyIndices(localObsIndex)
               do memberIndex = 1, nEnsGain
-                weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                           YbTinvR(memberIndex,localObsIndex) *  &
-                                           ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                if ( edaObsImpact ) then
+                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                             YbTinvR_eda(memberIndex,localObsIndex) *  &
+                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
                                              ensObs_mpiglobal%meanYb(bodyIndex) )
+                else
+                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                             YbTinvR(memberIndex,localObsIndex) *  &
+                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                             ensObs_mpiglobal%meanYb(bodyIndex) )
+                end if
               end do
             end do
             weightsTemp2(:) = 0.0d0
             do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEnsGain
-                weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                             eigenVectors(memberIndex1,memberIndex2) *  &
-                                             weightsTemp(memberIndex1)
+                if ( edaObsImpact ) then
+                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                               eigenVectors_eda(memberIndex1,memberIndex2) *  &
+                                               weightsTemp(memberIndex1)
+                else
+                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                               eigenVectors(memberIndex1,memberIndex2) *  &
+                                               weightsTemp(memberIndex1)
+                end if
               end do
             end do
             do memberIndex = 1, matrixRank
-              weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                          1.0D0/(eigenValues(memberIndex) + real(nEnsGain - 1,8))
+              if ( edaObsImpact ) then
+                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                     1.0D0/(eigenValues_eda(memberIndex) + real(nEnsGain - 1,8))
+              else
+                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                     1.0D0/(eigenValues(memberIndex) + real(nEnsGain - 1,8))
+              end if
             end do
             weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
             do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEnsGain
-                weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
-                     weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
-                     eigenVectors(memberIndex1,memberIndex2) *  &
-                     weightsTemp2(memberIndex2)
+                if ( edaObsImpact ) then
+                  weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                       weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                       eigenVectors_eda(memberIndex1,memberIndex2) *  &
+                       weightsTemp2(memberIndex2)
+                else
+                  weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                       weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                       eigenVectors(memberIndex1,memberIndex2) *  &
+                       weightsTemp2(memberIndex2)
+                end if
               end do
             end do
 
@@ -1019,41 +1180,66 @@ contains
             call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb, eigenValues, eigenVectors, tolerance, matrixRank)
+            if ( edaObsImpact ) then
+              call utl_eigenDecomp(YbTinvRYb_eda, eigenValues_eda, eigenVectors_eda, tolerance, matrixRank)
+            end if
             call utl_tmg_stop(135)
-            !if (matrixRank < (nEns-1)) then
-            !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
-            !end if
 
             ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
             weightsTemp(:) = 0.0d0
             do localObsIndex = 1, numLocalObs
               bodyIndex = localBodyIndices(localObsIndex)
               do memberIndex = 1, nEns
-                weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
-                                           YbTinvR(memberIndex,localObsIndex) *  &
-                                           ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                if ( edaObsImpact ) then
+                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                             YbTinvR_eda(memberIndex,localObsIndex) *  &
+                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
                                              ensObs_mpiglobal%meanYb(bodyIndex) )
+                else
+                  weightsTemp(memberIndex) = weightsTemp(memberIndex) +   &
+                                             YbTinvR(memberIndex,localObsIndex) *  &
+                                             ( ensObs_mpiglobal%obsValue(bodyIndex) - &
+                                             ensObs_mpiglobal%meanYb(bodyIndex) )
+                end if
               end do
             end do
             weightsTemp2(:) = 0.0d0
             do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEns
-                weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                             eigenVectors(memberIndex1,memberIndex2) *  &
-                                             weightsTemp(memberIndex1)
+                if ( edaObsImpact ) then
+                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                               eigenVectors_eda(memberIndex1,memberIndex2) *  &
+                                               weightsTemp(memberIndex1)
+                else
+                  weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
+                                               eigenVectors(memberIndex1,memberIndex2) *  &
+                                               weightsTemp(memberIndex1)
+                end if
               end do
             end do
             do memberIndex = 1, matrixRank
-              weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
-                                          1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
+              if ( edaObsImpact ) then
+                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                     1.0D0/(eigenValues_eda(memberIndex) + real(nEns - 1,8))
+              else
+                weightsTemp2(memberIndex) = weightsTemp2(memberIndex) *  &
+                     1.0D0/(eigenValues(memberIndex) + real(nEns - 1,8))
+              end if
             end do
             weightsMeanLatLon(:,1,latLonIndex) = 0.0d0
             do memberIndex2 = 1, matrixRank
               do memberIndex1 = 1, nEns
-                weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
-                     weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
-                     eigenVectors(memberIndex1,memberIndex2) *  &
-                     weightsTemp2(memberIndex2)
+                if (edaObsImpact) then
+                  weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                       weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                       eigenVectors_eda(memberIndex1,memberIndex2) *  &
+                       weightsTemp2(memberIndex2)
+                else
+                  weightsMeanLatLon(memberIndex1,1,latLonIndex) =  &
+                       weightsMeanLatLon(memberIndex1,1,latLonIndex) +   &
+                       eigenVectors(memberIndex1,memberIndex2) *  &
+                       weightsTemp2(memberIndex2)
+                end if
               end do
             end do
 
