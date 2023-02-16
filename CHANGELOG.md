@@ -78,7 +78,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * SST observation errors are now read from namelist namSSTObsErrors (#676 and !623)
 
 ### Fixed
- 
+
+ * Fixed SSMIS satqc procedure by using biased observations, like in operations (#769 and !690)
  * Fixed `SSTbias` program when some mpi processors don't have data (#772 and !689)
  * Fixed `str` vertical array representation + now configurable in namelist (#704 and !677)
  * Fixed uninitialized variable that impacts the surface emissivity written in SQLite files (#721 and !660)
