@@ -451,22 +451,22 @@ module SSTbias_mod
 
     ! get search radius field
     call gsv_allocate(stateVector_searchRadius, 1, hco, vco, dataKind_opt = 4, &
-		      datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
+                      datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))
     call gio_readFromFile(stateVector_searchRadius, './searchRadius', 'RADIUS','A', &
-			  unitConversion_opt=.false., containsFullField_opt=.true.)
+                          unitConversion_opt=.false., containsFullField_opt=.true.)
     call gsv_getField(stateVector_searchRadius, searchRadius_ptr)
 
     if (saveAuxFields) then
       ! output nobs state vector
       call gsv_allocate(stateVectorNobs, 1, hco, vco, dataKind_opt = 4, &
-			datestamp_opt = dateStamp, mpi_local_opt = .true., &
-			varNames_opt = (/'TM'/))
+                        datestamp_opt = dateStamp, mpi_local_opt = .true., &
+                        varNames_opt = (/'TM'/))
       ! pointer for nobs stateVector
       call gsv_getField(stateVectorNobs, nobsField_r4_ptr)
       ! output weight state vector
       call gsv_allocate(stateVectorWeight, 1, hco, vco, dataKind_opt = 4, &
-			datestamp_opt = dateStamp, mpi_local_opt = .true., &
-			varNames_opt = (/'TM'/))
+                        datestamp_opt = dateStamp, mpi_local_opt = .true., &
+                        varNames_opt = (/'TM'/))
       ! pointer for weight stateVector
       call gsv_getField(stateVectorWeight, weightField_r4_ptr)
     end if
