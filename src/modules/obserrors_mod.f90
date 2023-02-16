@@ -1076,10 +1076,10 @@ contains
     real(8) :: obsValue, obsStdDevError, obsPPP, obsOER
     real(8) :: cloudPredictorThresh1, cloudPredictorThresh2, cloudPredictorUsed
     real(8) :: sigmaThresh1, sigmaThresh2, sigmaObsErrUsed
-    real(8), parameter :: minRetrievableClwValue = 0.0D0
-    real(8), parameter :: maxRetrievableClwValue = 3.0D0
-    real(8), parameter :: minRetrievableSiValue = -10.0D0
-    real(8), parameter :: maxRetrievableSiValue = 30.0D0
+    real(4), parameter :: minRetrievableClwValue_r4 = 0.0
+    real(4), parameter :: maxRetrievableClwValue_r4 = 3.0
+    real(4), parameter :: minRetrievableSiValue_r4 = -10.0
+    real(4), parameter :: maxRetrievableSiValue_r4 = 30.0
 
     logical :: ifirst, surfTypeIsWater, unsupportedCodeType, unsupportedSensor
 
@@ -1658,6 +1658,7 @@ contains
       integer :: instrumId
       real(8) :: clwObs, clwFG
       real(8) :: siObs, siFG
+      real(4) :: cloudPredictorUsed_r4
 
       platformId = tvs_platforms(sensorIndex)
       satelliteId = tvs_satellites(sensorIndex)
@@ -1667,34 +1668,36 @@ contains
         clwObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
         clwFG  = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
         cloudPredictorUsed = 0.5D0 * (clwObs + clwFG)
+        cloudPredictorUsed_r4 = real(cloudPredictorUsed)
 
         ! check to ensure CLW is retrieved and properly set
-        if (cloudPredictorUsed < minRetrievableClwValue .or. &
-            cloudPredictorUsed > maxRetrievableClwValue) then
+        if (cloudPredictorUsed_r4 < minRetrievableClwValue_r4 .or. &
+            cloudPredictorUsed_r4 > maxRetrievableClwValue_r4) then
           write(*,*) 'This observation should have been rejected ', &
                      'for all-sky temperature in background check!' 
           write(*,*) 'computeCloudPredictor: platformId=', platformId, &
                      ', satelliteId=', satelliteId, ', instrumId=', instrumId
           write(*,*) 'computeCloudPredictor: clwObs=', clwObs, &
                     ', clwFG=', clwFG
-          call utl_abort('computeCloudPredictor: CLW is not usable to define obs error')
+          call utl_abort('computeCloudPredictor: not usable to define obs error with CLW')
         end if
 
       else if (tvs_isInstrumAllskyHuAssim(instrumId)) then
         siObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
         siFG  = obs_headElem_r(obsSpaceData, OBS_SIB, headerIndex)
         cloudPredictorUsed = 0.5D0 * (siObs + siFG)
+        cloudPredictorUsed_r4 = real(cloudPredictorUsed)
 
         ! check to ensure SI is retrieved and properly set
-        if (cloudPredictorUsed < minRetrievableSiValue .or. &
-            cloudPredictorUsed > maxRetrievableSiValue) then
+        if (cloudPredictorUsed_r4 < minRetrievableSiValue_r4 .or. &
+            cloudPredictorUsed_r4 > maxRetrievableSiValue_r4) then
           write(*,*) 'This observation should have been rejected ', &
                      'for all-sky humidity in background check!' 
           write(*,*) 'computeCloudPredictor: platformId=', platformId, &
                      ', satelliteId=', satelliteId, ', instrumId=', instrumId
           write(*,*) 'computeCloudPredictor: siObs=', siObs, &
                     ', siFG=', siFG
-          call utl_abort('computeCloudPredictor: SI is not usable to define obs error')
+          call utl_abort('computeCloudPredictor: not usable to define obs error with SI')
         end if        
 
       else
