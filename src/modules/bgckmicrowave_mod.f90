@@ -1266,9 +1266,11 @@ contains
 
         ! In all-sky mode, reject observations over sea if: 
         !   - siObsFGaveraged can not be computed.
-        !   - siObsFGaveraged smaller than a minimum value
+        !   - siObsFGaveraged smaller than the minimum value
+        !   - siObsFGaveraged greater than the maximum value
         ! siObsFGaveraged is needed to define obs error.
-        if (siObsFGaveraged == mwbg_realMissing .or. siObsFGaveraged < minRetrievableSiValue) then
+        if (siObsFGaveraged == mwbg_realMissing .or. siObsFGaveraged < minRetrievableSiValue .or. &
+            siObsFGaveraged > mwbg_siQcOverWaterThreshold) then
 
           loopChannel3: do nChannelIndex = 1, KNO
             channelval = KCANO(nChannelIndex,nDataIndex)
