@@ -469,6 +469,8 @@ module SSTbias_mod
                         varNames_opt = (/'TM'/))
       ! pointer for weight stateVector
       call gsv_getField(stateVectorWeight, weightField_r4_ptr)
+      nobsField_r4_ptr(:,:,1) = 0.0d0
+      weightField_r4_ptr(:,:,1) = 0.0d0
     end if
     
     ! previous bias estimation
@@ -485,10 +487,6 @@ module SSTbias_mod
     call gsv_getField(stateVector, griddedBias_r4_ptr)
     
     griddedBias_r4_ptr(:,:,1) = 0.0d0
-    if (nobsLoc > 0 .and. saveAuxFields) then
-      nobsField_r4_ptr(:,:,1) = 0.0d0
-      weightField_r4_ptr(:,:,1) = 0.0d0
-    end if
 
     if (nobsLoc > 0) then
       write(*,*) 'sstb_getGriddedBias: do the search for '//trim(sensor)//' '//trim(dayOrNight)//'...'
@@ -564,20 +562,19 @@ module SSTbias_mod
     call gio_writeToFile(stateVector, outputFileName, 'B_'//trim(sensor)//'_'//trim(extension))
 
     if (nobsLoc > 0) then
-      if (saveAuxFields) then
-        call gio_writeToFile(stateVectorNobs, outputAuxFileName, 'N_'//trim(sensor)//'_'//trim(extension))
-        call gio_writeToFile(stateVectorWeight, outputAuxFileName, 'W_'//trim(sensor)//'_'//trim(extension))
-        call gsv_deallocate(stateVectorNobs)
-        call gsv_deallocate(stateVectorWeight)
-      end if
-    
       deallocate(gridPointIndexes)
       deallocate(positionArray)
-      call gsv_deallocate(stateVector_searchRadius)
     end if
 
+    call gsv_deallocate(stateVector_searchRadius)
     call gsv_deallocate(stateVector_previous)
     call gsv_deallocate(stateVector)
+    if (saveAuxFields) then
+      call gio_writeToFile(stateVectorNobs, outputAuxFileName, 'N_'//trim(sensor)//'_'//trim(extension))
+      call gio_writeToFile(stateVectorWeight, outputAuxFileName, 'W_'//trim(sensor)//'_'//trim(extension))
+      call gsv_deallocate(stateVectorNobs)
+      call gsv_deallocate(stateVectorWeight)
+    end if
     
     write(*,*) 'sstb_getGriddedBias: completed for: '//trim(sensor)//' '//trim(dayOrNight)
 
