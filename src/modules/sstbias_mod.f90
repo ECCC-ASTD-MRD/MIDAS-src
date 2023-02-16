@@ -302,7 +302,7 @@ module SSTbias_mod
         do lonIndex = 1, hco%ni 
 
           ! compute gridded obs for every open water point
-          OPENWATERPTS: if (openWater(lonIndex, latIndex) == .true.) then 
+          OPENWATERPTS: if (openWater(lonIndex, latIndex)) then 
         
             lon_grd = real(hco % lon2d_4 (lonIndex, latIndex), 8)
             lat_grd = real(hco % lat2d_4 (lonIndex, latIndex), 8)
