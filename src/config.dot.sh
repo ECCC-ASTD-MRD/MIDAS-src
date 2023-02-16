@@ -134,7 +134,7 @@ echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022
 . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2
 
 ## for hdf5
-HDF5_LIBS="netcdff hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
+HDF5_LIBS="netcdff netcdf hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z curl"
 
 ## for rmn, vgrid, rpncomm
 VGRID_LIBNAME="vgrid"

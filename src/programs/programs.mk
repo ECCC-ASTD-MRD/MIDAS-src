@@ -4,15 +4,20 @@ adjointTest.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
 		$(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
+
+advector.Abs: LIBAPPL = $(HDF5_LIBS) $(VGRID_LIBNAME) irc $(MPILIB) random
+
+#--------------------------------------
+
 analysisErrorOI.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
                 rttov_parallel rttov_emis_atlas rttov_other rttov_mw_scatt rttov_main\
                 $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
-calcStats.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB) random
+calcStats.Abs: LIBAPPL = $(HDF5_LIBS) $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
-diagBmatrix.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB) random
+diagBmatrix.Abs: LIBAPPL = $(HDF5_LIBS) $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
 diagHBHt.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
@@ -31,8 +36,8 @@ ensPostProcess.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
 
 #--------------------------------------
 extractBmatrixFor1Dvar.Abs: LIBAPPL = rttov_coef_io rttov_hdf rttov_parallel\
-								rttov_main rttov_emis_atlas rttov_other $(HDF5_LIBS) burp_module\
-	 							$(VGRID_LIBNAME) irc $(MPILIB) f90sqlite udfsqlite random
+                            rttov_main rttov_emis_atlas rttov_other $(HDF5_LIBS) burp_module\
+                            $(VGRID_LIBNAME) irc $(MPILIB) f90sqlite udfsqlite random
 
 #--------------------------------------
 genCoeff.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io\
@@ -71,7 +76,7 @@ pseudoSSTobs.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\
                 $(HDF5_LIBS) burp_module $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
-randomPert.Abs: LIBAPPL = $(VGRID_LIBNAME) irc $(MPILIB) random
+randomPert.Abs: LIBAPPL = $(HDF5_LIBS) $(VGRID_LIBNAME) irc $(MPILIB) random
 
 #--------------------------------------
 sstBias.Abs: LIBAPPL = f90sqlite udfsqlite rttov_coef_io rttov_hdf\

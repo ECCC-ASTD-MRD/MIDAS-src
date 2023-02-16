@@ -141,7 +141,7 @@ contains
     netCdfFormat = (trim(utl_fileType(trim(templateFile))) == 'NetCDF')
 
     ! First priority, check if vgrid descriptor record present - if so, atmospheric fields
-    atmFieldFound = utl_varNamePresentInFile('!!',fileName_opt=trim(templatefile))
+    atmFieldFound = vnl_varNamePresentInFile('!!',fileName_opt=trim(templatefile))
 
     ! If not atmospheric field and not NetCDF file, examine data records in template file
     if (.not. atmFieldFound .and. .not. netCdfFormat) then
@@ -580,12 +580,13 @@ contains
 
     ! locals:
     integer :: nultemplate, ierr
-    integer :: levIndex, varID, xtype, nDims, dimIndex, nAtts
+    integer :: levIndex, varID, xtype, nDims, dimIndex, nAtts, ip1Value
     integer :: dimids(NF90_MAX_VAR_DIMS), dimLength(NF90_MAX_VAR_DIMS)
     character(len=NF90_MAX_NAME) :: dimName
-    character(len=20)  :: nomvar
+    character(len=20) :: nomvar
+    character(len=10) :: blk_S
 
-    if (.not. beSilent) write(*,*) 'vco_setupOceanFromNetCdfFile: found ocean fields'
+    if (.not. beSilent) write(*,*) 'vco_setupOceanFromNetCdfFile: found NetCDF (ocean) file'
 
     ! initialize some components of vco
     vco%vgridPresent = .false.
@@ -594,20 +595,20 @@ contains
     vco%Vcode  = 0
     vco%initialized = .true.
 
-    ! open the template file
+    ! Open the template file
     ierr = nf90_open(templateFile, NF90_NOWRITE, nultemplate)
 
-    ! get numLev from variable 'nav_lev'
+    ! Get numLev from variable 'nav_lev'
     ierr = nf90_inq_varid(nultemplate, 'nav_lev', varID)
     if (ierr /= nf90_NoErr) then
       call utl_abort('vco_setupOceanFromNetCdfFile: could not find "nav_lev" variable in template file')
     end if
 
+    ! Get the number of levels, i.e. length of 'z' dimension
     ierr = nf90_inquire_variable(nultemplate, varID, nomvar, xtype, nDims, dimids, nAtts)
     vco%nLev_depth = -1
     do dimIndex = 1, nDims
       ierr = nf90_inquire_dimension(nultemplate, dimids(dimIndex), dimName, dimLength(dimIndex))
-      write(*,*) 'Length of ',trim(dimName),' is ',dimLength(dimIndex)
       if (trim(dimName) == 'z') vco%nLev_depth = dimLength(dimIndex)
     enddo
     if (vco%nLev_depth < 0) then
@@ -616,16 +617,26 @@ contains
 
     allocate(vco%depths(vco%nLev_depth))
     allocate(vco%ip1_depth(vco%nLev_depth))
-    vco%ip1_depth(:) = -1
 
-    ! read 1D vector of depth values (in meters)
+    ! Read 1D vector of depth values (in meters)
     ierr = nf90_inq_varid(nultemplate, 'nav_lev', varID)
+    if (ierr /= nf90_NoErr) then
+      call utl_abort('vco_setupOceanFromNetCdfFile: Could not find depths in "nav_lev"')
+    end if
     ierr = nf90_get_var(nultemplate, varID, vco%depths)
 
+    ! Set ip1 values from depths
     do levIndex = 1, vco%nLev_depth
-      write(*,*) 'vco_setupOceanFromNetCdfFile: depth level = ',  &
-                 levIndex, vco%depths(levIndex)
+      call convip(ip1Value, real(vco%depths(levIndex),4), 0, 2, blk_s, .false.) 
+      vco%ip1_depth(levIndex) = ip1Value
     end do
+
+    if (.not. beSilent) then
+      do levIndex = 1, vco%nLev_depth
+        write(*,*) 'vco_setupOceanFromNetCdfFile: depth level, ip1 value = ',  &
+                   levIndex, vco%depths(levIndex), vco%ip1_depth(levIndex)
+      end do
+    end if
 
     ! Close the file
     ierr = nf90_close(nultemplate)

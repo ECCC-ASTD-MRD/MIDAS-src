@@ -10,6 +10,7 @@ module varNameList_mod
   use midasMpi_mod
   use utilities_mod
   use MathPhysConstants_mod
+  use netcdf
 
   implicit none
   save
@@ -28,6 +29,7 @@ module varNameList_mod
   public :: vnl_varNamesFromExistList, vnl_varMassFromVarNum, vnl_varMassFromVarName
   public :: vnl_isPhysicsVar, vnl_isCloudVar
   public :: vnl_addToVarNames
+  public :: vnl_varNamePresentInFile, vnl_varNameNetCDF
 
   ! These private parameters permit side-stepping a conflict with the Sphinx documenter,
   ! and an infinite loop
@@ -800,5 +802,121 @@ module varNameList_mod
       varNamesOut(lenVarNames+1) = varNameToAdd
 
     end function vnl_addToVarNames
+
+    !-----------------------------------------------------------------------
+    ! vnl_varNamePresentInFile
+    !----------------------------------------------------------------------
+    function vnl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt, typvar_opt) result(found)
+      !
+      !:Purpose: Determine if a given variable name is present within a file.
+      !          This function supports both "standard" files and NetCDF files.
+      !
+      implicit none
+
+      ! arguments:
+      character(len=*), intent(in) :: varName
+      character(len=*), optional, intent(in) :: fileName_opt
+      integer, optional, intent(in) :: fileUnit_opt
+      character(len=*), optional, intent(in) :: typvar_opt
+      logical :: found
+
+      ! locals:
+      integer :: fnom, fstouv, fstfrm, fclos, fstinf
+      integer :: ni, nj, nk, key, ierr
+      integer :: unit, varID
+      character(len=128) :: fileName
+      character(len=2)   :: typvar
+      logical :: openFile
+
+      if ( present(fileUnit_opt) ) then
+        unit = fileUnit_opt
+        openFile = .false.
+      else
+        unit = 0
+        openFile = .true.
+        if ( present(fileName_opt) ) then
+          fileName = fileName_opt
+        else
+          call utl_abort('vnl_varNamePresentInFile: please provide and file name or unit')
+        end if
+      end if
+
+      if ( present(typvar_opt) ) then
+        typvar = trim(typvar_opt)
+      else
+        typvar = ' '
+      end if
+
+      if (trim(utl_fileType(fileName_opt)) == 'NetCDF') then
+
+        if (openFile) then
+          ierr = nf90_open(fileName, NF90_NOWRITE, unit)
+        end if
+
+        ierr = nf90_inq_varid(unit, trim(vnl_varNameNetCDF(varName)), varID)
+        if (ierr == nf90_NoErr) then
+          found = .true.
+        else
+          found = .false.
+        end if
+
+        if (openFile) then
+          ierr = nf90_close(unit)
+        end if
+
+      else ! assume standard file
+
+        if (openFile) then
+          ierr = fnom(unit,fileName,'RND+OLD+R/O',0)
+          ierr = fstouv(unit,'RND+OLD')
+        end if
+
+        key = fstinf(unit, ni, nj, nk, -1 ,' ', -1, -1, -1, typvar, trim(varName))
+    
+        if ( key > 0 )  then
+          found = .true.
+        else
+          found = .false.
+        end if
+
+        if (openFile) then
+          ierr =  fstfrm(unit)
+          ierr =  fclos (unit)
+        end if
+
+      end if
+
+    end function vnl_varNamePresentInFile
+
+    !-----------------------------------------------------------------------
+    ! vnl_varNameNetCDF
+    !----------------------------------------------------------------------
+    function vnl_varNameNetCDF(varName) result(varNameNetCDF)
+      !
+      ! :Purpose: Return the equivalent variable name used for NetCDF files.
+      !
+      implicit none
+  
+      ! Arguments:
+      character(len=*), intent(in) :: varName
+      character(len=20)            :: varNameNetCDF
+
+      select case(trim(varName))
+      case('TM')
+        varNameNetCDF = 'tn'
+      case('SALW')
+        varNameNetCDF = 'sn'
+      case('UUW')
+        varNameNetCDF = 'un'
+      case('VVW')
+        varNameNetCDF = 'vn'
+      case('SSH')
+        varNameNetCDF = 'sshn'
+      case default
+        varNameNetCDF = trim(varName)
+        write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent name for NetCDF files for varName = ', trim(varName)
+      end select
+  
+    end function vnl_varNameNetCDF
 
 end module varNameList_mod

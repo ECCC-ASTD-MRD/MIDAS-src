@@ -129,12 +129,12 @@ contains
       ! First try to use P0
       nomvar = 'P0'
 
-      if (.not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile))) then
+      if (.not. vnl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile))) then
 
         ! P0 not present, try 'nav_lat' for ocean files
         nomvar = 'nav_lat'
 
-        if (.not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile))) then
+        if (.not. vnl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile))) then
 
           ! Also not present, look for another suitable variable in the file
 
@@ -143,7 +143,7 @@ contains
             nomvar = vnl_varNameList(varIndex)
 
             ! check if variable is in the file
-            if (.not. utl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile))) cycle
+            if (.not. vnl_varNamePresentInFile(nomvar,fileName_opt=trim(TemplateFile))) cycle
 
             foundVarNameInFile = .true.
             exit
@@ -179,8 +179,8 @@ contains
       ! Open the NetCDF file
       ier = nf90_open(TemplateFile, NF90_NOWRITE, iu_template)
 
-      ! get ni,nj from 'nav_lat'
-      ier = nf90_inq_varid(iu_template, nomvar, varID)
+      ! get ni,nj from 'nav_lat' or other variable
+      ier = nf90_inq_varid(iu_template, vnl_varNameNetCDF(nomvar), varID)
       ier = nf90_inquire_variable(iu_template, varID, nomvar, xtype, nDims, dimids, nAtts)
       ni = -1
       nj = -1
@@ -221,7 +221,11 @@ contains
       numSubGrid = 1
       EZscintIDsubGrids(:) = MPC_missingValue_INT
 
-      grtypTicTac = 'X'
+      grtypTicTac = 'L'
+      ig1 = 100
+      ig2 = 100
+      ig3 = 9000
+      ig4 = 0
 
       write(*,*) 'hco_setupFromFile: grtyp, ni, nj, EZscintID = ', grtyp, ni, nj, EZscintID
 

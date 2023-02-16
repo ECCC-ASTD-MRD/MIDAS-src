@@ -6,7 +6,6 @@ module utilities_mod
   !
   use clibInterfaces_mod
   use randomNumber_mod
-  use netcdf
 
   implicit none
   save
@@ -21,7 +20,6 @@ module utilities_mod
   public :: utl_open_asciifile, utl_stnid_equal, utl_resize, utl_str
   public :: utl_get_stringId, utl_get_Id, utl_isNamelistPresent
   public :: utl_readFstField
-  public :: utl_varNamePresentInFile
   public :: utl_reAllocate
   public :: utl_heapsort2d
   public :: utl_combineString, utl_splitString, utl_removeEmptyStrings
@@ -1485,6 +1483,7 @@ contains
   end subroutine utl_checkAllocationStatus
 
 
+<<<<<<< HEAD
   function utl_varNamePresentInFile(varName, fileName_opt, fileUnit_opt, typvar_opt) result(found)
     !
     !:Purpose: Determine if a given variable name is present within a file.
