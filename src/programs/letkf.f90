@@ -602,8 +602,8 @@ program midas_letkf
   call rpn_comm_barrier('GRID',ierr)
   call utl_tmg_stop(141)
 
-  ! For observation simulation experiments, create a copy of the inverse obs error
-  ! variance, except with error values amplified for the obs family being simulated
+  ! For EDA-based observation simulation experiments, calculate an inverse of obs error
+  ! variance with variance values inflated for the simulated observations
   if ( edaObsImpact ) then
     call eob_setSimObsErrInv(ensObs, edaObsFamily)
     if ( useModulatedEns ) call eob_setSimObsErrInv(ensObsGain, edaObsFamily)
