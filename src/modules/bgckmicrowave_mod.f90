@@ -3599,27 +3599,17 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckMwhs2(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
-                                IUTILST, zlat, zlon, ilq, itt, zenith, qcflag2, qcflag1, &
+  subroutine mwbg_tovCheckMwhs2(zlat, zlon, ilq, itt, zenith, &
                                 ICANO, ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
-                                ISCNPOS, MTINTRP, globMarq, IMARQ, clwObs, clwFG, riwv, &
-                                STNID, RESETQC, modLSQ, obsSpaceData, headerIndex)
+                                ISCNPOS, globMarq, IMARQ, clwObs, clwFG, riwv, &
+                                RESETQC, modLSQ)
 
 
     !:Purpose:                   Effectuer le controle de qualite des radiances tovs.
     !
 
     implicit none
-    !Arguments
-    integer, intent(in)              :: IUTILST(:,:)           ! channel Selection using array IUTILST(chan,sat)
-    !                                                            IUTILST = 0 (blacklisted)
-    !                                                            1 (assmilate)
-    !                                                            2 (assimilate over open water only)
 
-    real(8), intent(in)              :: TOVERRST(:,:)          ! l'erreur totale des TOVS
-    real(8), intent(in)              :: clwThreshArr(:,:,:)
-    real(8), intent(in)              :: sigmaObsErr(:,:,:)
-    logical, intent(in)              :: useStateDepSigmaObs(:,:) ! if using state dependent obs error
     integer, intent(in)              :: KNO                    ! nombre de canaux des observations
     integer, intent(in)              :: KNT                    ! nombre de tovs
     real,    intent(in)              :: zlat(:)
@@ -3627,8 +3617,6 @@ contains
     integer, intent(in)              :: ilq(:)
     integer, intent(in)              :: itt(:)
     real,    intent(inout)           :: zenith(:)
-    integer, intent(in)              :: qcflag2(:)
-    integer, intent(in)              :: qcflag1(:,:)
     integer, intent(inout)           :: globMarq(:)
     integer, intent(in)              :: ISCNPOS(KNT)           ! position sur le "scan"
     integer, intent(in)              :: ICANO(:)               ! canaux des observations
@@ -3636,10 +3624,8 @@ contains
     real, intent(inout)              :: ztb(:)                 ! radiances
     real, intent(in)                 :: biasCorr(:)            ! correction aux radiances
     real, intent(in)                 :: zomp(:)                ! residus (o-p)
-    real, intent(in)                 :: MTINTRP(KNT)           ! topographie du modele
     integer, allocatable, intent(out):: IDENT(:)               ! flag to identify all obs pts in report
     !                                                            as being over land/ice, cloudy, bad IWV
-    character *9, intent(in)         :: STNID                  ! identificateur du satellite
     logical, intent(in)              :: RESETQC                ! reset du controle de qualite?
     logical, intent(in)              :: modLSQ                 ! If active, recalculate values for land/sea
                                                                ! qualifier and terrain type based on LG/MG
@@ -3652,9 +3638,6 @@ contains
     real, allocatable, intent(out)   :: clwObs(:)
     real, allocatable, intent(out)   :: clwFG(:)
     real, allocatable, intent(out)   :: riwv(:)
-
-    type(struct_obs), intent(inout)  :: obsSpaceData           ! obspaceData Object
-    integer, intent(in)              :: headerIndex            ! header Index
 
     !locals
     real                             :: PTBOMP(KNO,KNT)
@@ -3688,12 +3671,9 @@ contains
     integer                          :: JJ
     integer                          :: kk
     integer                          :: INDX
-    integer                          :: ISFCREJ(MXSFCREJ)
     integer                          :: ICH2OMPREJ(MXCH2OMPREJ)
     real, allocatable                :: ROGUEFAC(:)
     real                             :: ZCRIT(MXTOPO)
-    real                             :: scatBgRej
-    integer                          :: ITEST(mwbg_maxNumTest)
     integer                          :: chanFlaggedForAllskyGenCoeff(MXCLWREJ)
     integer                          :: ICHTOPO(MXTOPO)
     logical, save                    :: LLFIRST = .true.
@@ -3765,8 +3745,8 @@ contains
     !###############################################################################
 
     call mwbg_firstQcCheckMwhs2(zenith, ilq, itt, zlat, zlon, ztb, ISCNPOS, &
-                                KNO, KNT, lqc, grossrej, lsq, trn, qcflag1, &
-                                qcflag2, ICANO, reportHasMissingTb, modLSQ)
+                                KNO, KNT, lqc, lsq, trn, &
+                                ICANO, reportHasMissingTb, modLSQ)
 
     if ( reportHasMissingTb ) numReportWithMissingTb = numReportWithMissingTb + 1
     !  Exclude problem points from further calculations
@@ -3781,7 +3761,7 @@ contains
     !          >=0.55. Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
 
-    call mwbg_nrlFilterMwhs2(KNT, KNO, ztb, zomp, biasCorr, zenith, zlat, lsq, trn, waterobs, &
+    call mwbg_nrlFilterMwhs2(KNT, KNO, ztb, biasCorr, zenith, zlat, lsq, trn, waterobs, &
                              grossrej, clwObs, clwFG, scatec, scatbg, iNumSeaIce, iRej, SeaIce)
     seaIcePointNum = seaIcePointNum + iNumSeaIce
     clwMissingPointNum = clwMissingPointNum + iRej
@@ -3792,7 +3772,7 @@ contains
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
 
-    call mwbg_flagDataUsingNrlCritMwhs2(KNT, KNO, ztb, biasCorr, clwObs, scatec, scatbg, &
+    call mwbg_flagDataUsingNrlCritMwhs2(KNT, KNO, ztb, biasCorr, clwObs, scatec, &
                                         SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
                                         iwvreject, cloudobs, precipobs, cldcnt , ident, riwv, zdi)
 
@@ -5067,7 +5047,7 @@ contains
   ! mwbg_firstQcCheckMwhs2
   !--------------------------------------------------------------------------
   subroutine mwbg_firstQcCheckMwhs2(zenith, ilq, itt, zlat, zlon, ztb, scanpos, &
-                                    nval, nt, lqc, grossrej, lsq, trn, qcflag1, qcflag2, &
+                                    nval, nt, lqc, lsq, trn, &
                                     ican, reportHasMissingTb, modLSQ)
     !  This routine performs basic quality control checks on the data. It sets array
     !  lqc(nt,nval) elements to .true. to flag data with failed checks. Check 1
@@ -5096,13 +5076,10 @@ contains
     integer,              intent(in)                :: itt(:)
     integer,              intent(in)                :: scanpos(:)
     integer,              intent(in)                :: ican(:)
-    integer,              intent(in)                :: qcflag2(:)
-    integer,              intent(in)                :: qcflag1(:,:)
     integer,              intent(in)                :: nt
     integer,              intent(in)                :: nval
     integer,              intent(in)                :: lsq(:)
     integer,              intent(in)                :: trn(:)
-    logical,              intent(in)                :: grossrej(:)     ! dim(nt), true if 1 or more Tb fail gross error check
     real,                 intent(in)                :: zlat(:)
     real,                 intent(in)                :: zlon(:)
     real,                 intent(inout)             :: ztb(:)
@@ -5113,7 +5090,7 @@ contains
 
     ! Locals
     integer :: ii, jj, indx1, icount
-    logical :: fail, fail1, fail2
+    logical :: fail
 
     reportHasMissingTb = .false.
     call utl_reAllocate(lqc, nt, nval)
@@ -5526,7 +5503,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_nrlFilterMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_nrlFilterMwhs2(ni, KNO, ztbcor, zomp, biasCorr, pangl, plat, ilansea, iglace, waterobs, &
+  subroutine mwbg_nrlFilterMwhs2(ni, KNO, ztbcor, biasCorr, pangl, plat, ilansea, iglace, waterobs, &
                                  grossrej, clwObs, clwFG, si_ecmwf, si_bg, iNumSeaIce, iRej,SeaIce)
     !OBJET          Compute the following parameters using 2 MWHS2 channels:
     !                  - sea ice,
@@ -5596,7 +5573,6 @@ contains
     logical, intent(inout)                ::  waterobs(:)
 
     real, intent(in)                      ::  ztbcor(:)
-    real, intent(in)                      ::  zomp(:)
     real, intent(in)                      ::  biasCorr(:)
     real, intent(in)                      ::  pangl(:)
     real, intent(in)                      ::  plat(:)
@@ -5938,7 +5914,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_flagDataUsingNrlCritMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_flagDataUsingNrlCritMwhs2(nt, nval, ztbcor, biasCorr, clwObs, scatec, scatbg, SeaIce, grossrej, waterobs, &
+  subroutine mwbg_flagDataUsingNrlCritMwhs2(nt, nval, ztbcor, biasCorr, clwObs, scatec, SeaIce, grossrej, waterobs, &
                                             useUnbiasedObsForClw, iwvreject, cloudobs, precipobs,  cldcnt, ident, riwv, zdi)
 
     !:Purpose:                       Set the  Information flag (ident) values (new BURP element 025174 in header)
@@ -5951,7 +5927,6 @@ contains
     !                                - 5     Mean 183 Ghz [ch. 18-22] Tb < 240K
     !                                - 6     CLW > clw_mwhs2_nrl_UTrej (0.200 kg/m2)
     !                                - 7     Dryness Index rejection (for ch. 22)
-    !                                - 8     scatbg > CMC amsu-b limit (land=0,sea=15,ice=40)
     !                                - 9     Dryness Index rejection (for ch. 21)
     !                               - 10     Sea ice > 0.55 detected
     !                               - 11     Gross error in Tb (any chan.)  (all channels rejected)
@@ -5963,7 +5938,6 @@ contains
     real, intent(in)                           :: biasCorr(:)
     real, intent(in)                           :: clwObs (:)
     real, intent(in)                           :: scatec(:)
-    real, intent(in)                           :: scatbg(:)
     real, intent(in)                           :: SeaIce (:)
 
     logical, intent(in)                        :: useUnbiasedObsForClw
@@ -6848,17 +6822,14 @@ contains
                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                atmScatteringIndex, burpFileSatId, RESETQC)
       else if (instName == 'MWHS2') then
-        call mwbg_tovCheckMwhs2(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
-                                oer_tovutil, obsLatitude, obsLongitude,&
+        call mwbg_tovCheckMwhs2(obsLatitude, obsLongitude,&
                                 landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
-                                obsQcFlag2, obsQcFlag1, &
                                 obsChannels, obsTb, obsTbBiasCorr, ompTb, qcIndicator,   &
                                 actualNumChannel, numObsToProcess, sensorIndex,          &
                                 newInformationFlag, satScanPosition,   &
-                                modelInterpTerrain, obsGlobalMarker, obsFlags,            &
+                                obsGlobalMarker, obsFlags,            &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                atmScatteringIndex, burpFileSatId, RESETQC, modLSQ, &
-                                obsSpaceData, headerIndex)
+                                atmScatteringIndex, RESETQC, modLSQ)
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
         call utl_abort('midas-bgckMW: unknown instName')
