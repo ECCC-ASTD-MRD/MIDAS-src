@@ -40,6 +40,7 @@ localFilesNotToErase="${localFilesNotToErase} load_env.sh"
 cat >> load_env.sh <<EOF
 
 export AFSISIO=/home/smco502
+export CMCCONST=/home/smco502/datafiles/constants
 export TMG_ON=YES
 export OMP_STACKSIZE=4G
 export OMP_NUM_THREADS=${OMP_NUM_THREADS}
@@ -65,8 +66,9 @@ elif [[ "${ORDENV_PLAT}" = ubuntu-18.04* ]]; then
     echo . ssmuse-sh -d hpco/exp/openmpi/openmpi-3.1.2--hpcx-2.2.0--ofed-4.4.2--intel-2019.0.045 >> load_env.sh
     echo . ssmuse-sh -d hpco/exp/openmpi-setup/openmpi-setup-0.2                                 >> load_env.sh
 elif [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    echo echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2 >> load_env.sh
-    echo . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2 >> load_env.sh
+    echo echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.1/SCIENCE/inteloneapi-2022.1.2 >> load_env.sh
+    echo . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.1/SCIENCE/inteloneapi-2022.1.2 >> load_env.sh
+    echo . r.load.dot eccc/mrd/rpn/libs/20230220-beta3 >> load_env.sh
 else
     echo "The plateform ORDENV_PLAT=${ORDENV_PLAT} is not supported"
     exit 1
