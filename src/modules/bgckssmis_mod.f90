@@ -443,26 +443,23 @@ contains
     integer, parameter :: ocean=0
 
     real :: SCT
-    real :: Tb19V, Tb19H, Tb22V, Tb37V, Tb37H, Tb85V, Tb85H
+    real :: Tb19v, Tb22v, Tb37v, Tb85v
 
-    ! Extract 7 IMG channels from Tb
+    ! Extract 4 IMG channels from Tb
     Tb19v = Tb(13)
-    Tb19h = Tb(12)
     Tb22v = Tb(14)
     Tb37v = Tb(16)
-    Tb37h = Tb(15)
     Tb85v = Tb(17)
-    Tb85h = Tb(18)
 
     TPW = ssbg_rmisg
 
     ! No TWP over land and sea ice
     if ( sType == ocean ) then
 
-      SCT = -182.7 + 0.75*Tb19V + 2.543*Tb22V - 0.00543*Tb22V*Tb22V - Tb85V
+      SCT = -182.7 + 0.75*Tb19v + 2.543*Tb22v - 0.00543*Tb22v*Tb22v - Tb85v
 
       if ( abs(seaIce) < 70.0 ) then
-        TPW = 232.89393 - 0.148596*Tb19V - 1.829125*Tb22V + 0.006193*Tb22V**2 - 0.36954*Tb37V
+        TPW = 232.89393 - 0.148596*Tb19v - 1.829125*Tb22v + 0.006193*Tb22v**2 - 0.36954*Tb37v
         TPW = -3.753 + 1.507*TPW - 0.01933*TPW**2 + 0.0002191*TPW**3
 
         if ( TPW < 0.0 ) TPW = 0.0
@@ -548,7 +545,7 @@ contains
     real :: ALG1, ALG2, ALG3
     real :: seaIce
     real :: Ta19v, Ta19h, Ta22v, Ta37v, Ta37h, Ta85v, Ta85h
-    real :: Tb19v, Tb19h, Tb22v, Tb37v, Tb37h, Tb85v, Tb85h
+    real :: Tb19v, Tb22v, Tb37v
     real :: TPW
 
     CLW = ssbg_rmisg
@@ -563,12 +560,8 @@ contains
     Ta85h = Ta(18)
 
     Tb19v = Tb(13)
-    Tb19h = Tb(12)
     Tb22v = Tb(14)
     Tb37v = Tb(16)
-    Tb37h = Tb(15)
-    Tb85v = Tb(17)
-    Tb85h = Tb(18)
 
     ! Call determ_sea_ice to find the seaIce
     !  -- seaIce = 100.0  when sea ice >= 70%
@@ -2998,6 +2991,7 @@ contains
     ! STEP 6) displaying statistics of inovQc flags                                !
     !###############################################################################
 
+    ! If data were not checked because all had the flag bit 7 ON, then set all percentage statistics to 0.
     if ( statsInovQcFlags(10) == statsInovQcFlags(2) ) then
       percentInovQcFlags(:) = 0.0
     else
