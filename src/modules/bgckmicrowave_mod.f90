@@ -37,7 +37,7 @@ module bgckmicrowave_mod
 
   real    :: mwbg_clwQcThreshold
   real    :: mwbg_cloudyClwThresholdBcorr
-  real    :: mwbg_siQcOverWaterThreshold  ! for AMSUB/MHS
+  real    :: mwbg_maxSiOverWaterThreshold ! for AMSUB/MHS
   real    :: mwbg_cloudySiThresholdBcorr  ! for AMSUB/MHS
   logical :: mwbg_debug
   logical :: mwbg_useUnbiasedObsForClw 
@@ -91,7 +91,7 @@ module bgckmicrowave_mod
   character(len=9)              :: instName                      ! instrument name
   real                          :: clwQcThreshold                ! 
   real                          :: cloudyClwThresholdBcorr       !
-  real                          :: siQcOverWaterThreshold        ! scattering index over water for AMSUB/MHS
+  real                          :: maxSiOverWaterThreshold       ! max scattering index over water for AMSUB/MHS
   real                          :: cloudySiThresholdBcorr        !
   logical                       :: useUnbiasedObsForClw          !
   logical                       :: RESETQC                       ! reset Qc flags option
@@ -103,7 +103,7 @@ module bgckmicrowave_mod
   namelist /nambgck/instName, clwQcThreshold, &
                     useUnbiasedObsForClw, debug, RESETQC,  &
                     cloudyClwThresholdBcorr, modLSQ, &
-                    siQcOverWaterThreshold, cloudySiThresholdBcorr, &
+                    maxSiOverWaterThreshold, cloudySiThresholdBcorr, &
                     skipTestArr
                     
 
@@ -124,7 +124,7 @@ contains
     clwQcThreshold          = 0.3 
     useUnbiasedObsForClw    = .false.
     cloudyClwThresholdBcorr = 0.05
-    siQcOverWaterThreshold  = 30.0
+    maxSiOverWaterThreshold = 30.0
     cloudySiThresholdBcorr  = 5.0
     RESETQC                 = .false.
     modLSQ                  = .false.
@@ -141,7 +141,7 @@ contains
     mwbg_clwQcThreshold = clwQcThreshold
     mwbg_useUnbiasedObsForClw = useUnbiasedObsForClw
     mwbg_cloudyClwThresholdBcorr = cloudyClwThresholdBcorr
-    mwbg_siQcOverWaterThreshold = siQcOverWaterThreshold
+    mwbg_maxSiOverWaterThreshold = maxSiOverWaterThreshold
     mwbg_cloudySiThresholdBcorr = cloudySiThresholdBcorr
 
   end subroutine mwbg_init 
@@ -1204,7 +1204,7 @@ contains
           if (tvs_mwAllskyAssim) then
             siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
             siUsedForQC = siObsFGaveraged
-            siUsedForQcThreshold = mwbg_siQcOverWaterThreshold
+            siUsedForQcThreshold = mwbg_maxSiOverWaterThreshold
           else
             siUsedForQC = scatwObs(nDataIndex)
             siUsedForQcThreshold = ZSEUILSCATW
@@ -1270,7 +1270,7 @@ contains
         !   - siObsFGaveraged greater than the maximum value
         ! siObsFGaveraged is needed to define obs error.
         if (siObsFGaveraged == mwbg_realMissing .or. siObsFGaveraged < minRetrievableSiValue .or. &
-            siObsFGaveraged > mwbg_siQcOverWaterThreshold) then
+            siObsFGaveraged > mwbg_maxSiOverWaterThreshold) then
 
           loopChannel3: do nChannelIndex = 1, KNO
             channelval = KCANO(nChannelIndex,nDataIndex)
