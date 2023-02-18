@@ -1462,7 +1462,6 @@ contains
     real                                   :: sigmaObsErrUsed
     real                                   :: siObsFGaveraged 
     logical                                :: CH2OMPREJCT
-    logical                                :: ch2OmpRejectInAllsky
     logical                                :: channelIsAllsky
     logical                                :: surfTypeIsWater
     logical, save                          :: firstCall = .true.
@@ -1480,7 +1479,6 @@ contains
 
     do nDataIndex=1,KNT
       surfTypeIsWater = (ktermer(nDataIndex) == 1 .and. iterrain(nDataIndex) /= 0)
-      ch2OmpRejectInAllsky = .false.
       CH2OMPREJCT = .FALSE.
       do nChannelIndex=1,KNO
         channelval = KCANO(nChannelIndex,nDataIndex)
@@ -1516,8 +1514,6 @@ contains
             rejectionCodArray(testIndex,channelval,KNOSAT) = &
                 rejectionCodArray(testIndex,channelval,KNOSAT) + 1
 
-            ch2OmpRejectInAllSky = (channelIsAllsky .and. channelval == 44)
-
             if (mwbg_debug) then
               write(*,*)STNID(2:9),'ROGUE CHECK REJECT.NO.', &
                       ' OBS = ',nDataIndex, &
@@ -1527,12 +1523,10 @@ contains
             end if
           end if
           if (channelval == 44 .and. &
-              PTBOMP(nChannelIndex,nDataIndex) /= mwbg_realMissing) then
-            if (channelIsAllsky) then
-              if (ch2OmpRejectInAllSky) CH2OMPREJCT = .true.
-            else
-              if (abs(PTBOMP(nChannelIndex,nDataIndex)) >= 5.0) CH2OMPREJCT = .true.
-            end if
+              PTBOMP(nChannelIndex,nDataIndex) /= mwbg_realMissing .and. &
+              abs(PTBOMP(nChannelIndex,nDataIndex)) >= 5.0 .and. &
+              .not. tvs_mwAllskyAssim) then
+            CH2OMPREJCT = .true.
           end if
         end if
       end do
