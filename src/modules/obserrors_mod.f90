@@ -47,6 +47,7 @@ module obsErrors_mod
   ! public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
   public :: oer_setInterchanCorr, oer_computeAllskyTtInflatedStateDepSigmaObs
+  public :: oer_computeAllskyHuInflatedStateDepSigmaObs
   
   ! public functions
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
@@ -172,8 +173,10 @@ module obsErrors_mod
   logical :: new_oer_sw                 ! use the 'new' method to compute errors for AMV observations
   logical :: obsfile_oer_sw             ! choose to read errors for AMV from the obs files
   logical :: visAndGustAdded            ! choose to read visibility and gust errors in addition to other conv variables
-  logical :: mwAllskyInflateByOmp       ! choose to inflate all sky radiance errors by an amount related to O-P
-  logical :: mwAllskyInflateByClwDiff   ! choose to inflate all sky radiance errors by an amount related to cloud O-P
+  logical :: mwAllskyTtInflateByOmp     ! choose to inflate all sky TT radiance errors by an amount related to O-P
+  logical :: mwAllskyTtInflateByClwDiff ! choose to inflate all sky TT radiance errors by an amount related to cloud O-P
+  logical :: mwAllskyHuInflateByOmp     ! choose to inflate all sky HU radiance errors by an amount related to O-P
+  logical :: mwAllskyHuInflateBySiDiff  ! choose to inflate all sky HU radiance errors by an amount related to cloud O-P
   real(8) :: amsuaClearClwThresholdSigmaObsInflation(5) ! cloud threshold for considering obs as clear sky
   real(8) :: amsuaStateDepSigmaObsInflationCoeff ! state dependent obs error inflation factor
   logical :: readOldSymmetricObsErrFile ! choose to read 'old style' obs error file, when only AMSU-A was all sky
@@ -219,7 +222,8 @@ contains
     logical, optional            :: useTovsUtil_opt
 
     namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded
-    namelist /namoer/ mwAllskyInflateByOmp, mwAllskyInflateByClwDiff
+    namelist /namoer/ mwAllskyTtInflateByOmp, mwAllskyTtInflateByClwDiff
+    namelist /namoer/ mwAllskyHuInflateByOmp, mwAllskyHuInflateBySiDiff
     namelist /namoer/ amsuaClearClwThresholdSigmaObsInflation
     namelist /namoer/ amsuaStateDepSigmaObsInflationCoeff
     namelist /namoer/ readOldSymmetricObsErrFile
@@ -241,8 +245,10 @@ contains
     new_oer_sw = .false.
     obsfile_oer_sw  = .false.
     visAndGustAdded = .false.
-    mwAllskyInflateByOmp = .false.
-    mwAllskyInflateByClwDiff = .false.
+    mwAllskyTtInflateByOmp = .false.
+    mwAllskyTtInflateByClwDiff = .false.
+    mwAllskyHuInflateByOmp = .false.
+    mwAllskyHuInflateBySiDiff = .false.
     amsuaClearClwThresholdSigmaObsInflation(:) = 0.03D0
     amsuaClearClwThresholdSigmaObsInflation(1) = 0.05D0
     amsuaClearClwThresholdSigmaObsInflation(4) = 0.02D0
@@ -1708,6 +1714,9 @@ contains
 
   end subroutine oer_fillObsErrors
 
+  !--------------------------------------------------------------------------
+  ! oer_computeAllskyTtInflatedStateDepSigmaObs
+  !--------------------------------------------------------------------------
   subroutine oer_computeAllskyTtInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
                                                          ompOmaObsColumn, beSilent_opt)
     !
@@ -1757,7 +1766,7 @@ contains
         .not. tvs_isInstrumAllskyTtAssim(instrumId) .or. &
         .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .or. &
         .not. surfTypeIsWater .or. &
-        (.not. mwAllskyInflateByOmp .and. .not. mwAllskyInflateByClwDiff)) return
+        (.not. mwAllskyTtInflateByOmp .and. .not. mwAllskyTtInflateByClwDiff)) return
 
     if (.not. beSilent) then
       write(*,*) 'oer_computeAllskyTtInflatedStateDepSigmaObs: headerIndex=', headerIndex, &
@@ -1774,18 +1783,18 @@ contains
 
     ! error inflation for cloud placement 
     deltaE1 = 0.0D0
-    if (mwAllskyInflateByOmp .and. &
-         ((clwObs - clearClwThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) * &
-          (clwFG  - clearClwThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) < 0) .and. &
-         abs(clwObs - clwFG) >= 0.005) then
+    if (mwAllskyTtInflateByOmp .and. &
+        ((clwObs - clearClwThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) * &
+         (clwFG  - clearClwThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) < 0) .and. &
+        abs(clwObs - clwFG) >= 0.005) then
       deltaE1 = abs(ompValue)
     end if
 
     ! error inflation due to cloud liquid water difference
     deltaE2 = 0.0D0
-    if (mwAllskyInflateByClwDiff) then
+    if (mwAllskyTtInflateByClwDiff) then
       deltaE2 = stateDepSigmaObsInflationCoeff(sensorIndex) * abs(clwObs - clwFG) * &
-                      sigmaObsBeforeInflation
+                sigmaObsBeforeInflation
     end if
     deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
 
@@ -1804,6 +1813,106 @@ contains
     call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation)
 
   end subroutine oer_computeAllskyTtInflatedStateDepSigmaObs
+
+  !--------------------------------------------------------------------------
+  ! oer_computeAllskyHuInflatedStateDepSigmaObs
+  !--------------------------------------------------------------------------
+  subroutine oer_computeAllskyHuInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
+                                                         ompOmaObsColumn, beSilent_opt)
+    !
+    ! :Purpose: Update OBS_OER with inflated state dependant observation error for all-sky
+    !           humidity assimilation.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData
+    integer,          intent(in)    :: headerIndex
+    integer,          intent(in)    :: bodyIndex
+    integer,          intent(in)    :: ompOmaObsColumn  ! obsSpaceData OBS_OMP or OBS_OMA column
+    logical, intent(in), optional   :: beSilent_opt
+
+    ! Locals:
+    integer :: channelNumber_withOffset
+    integer :: channelNumber, channelIndex
+    integer :: tovsIndex, sensorIndex, instrumId
+    logical :: surfTypeIsWater 
+    real(8) :: siObs
+    real(8) :: siFG
+    real(8) :: deltaE1
+    real(8) :: deltaE2
+    real(8) :: ompValue
+    real(8) :: sigmaObsBeforeInflation
+    real(8) :: sigmaObsAfterInflation
+    logical :: beSilent
+
+    if (present(beSilent_opt)) then
+      beSilent = beSilent_opt
+    else
+      beSilent = .true.
+    end if
+
+    tovsIndex = tvs_tovsIndex(headerIndex)
+    sensorIndex = tvs_lsensor(tovsIndex)
+    instrumId = tvs_instruments(sensorIndex)
+
+    call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                        channelNumber, channelIndex)
+    channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
+
+    surfTypeIsWater = (tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea)
+
+    if (.not. tvs_mwAllskyAssim .or. &
+        .not. tvs_isInstrumAllskyHuAssim(instrumId) .or. &
+        .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .or. &
+        .not. surfTypeIsWater .or. &
+        (.not. mwAllskyHuInflateByOmp .and. .not. mwAllskyHuInflateBySiDiff)) return
+
+    if (.not. beSilent) then
+      write(*,*) 'oer_computeAllskyHuInflatedStateDepSigmaObs: headerIndex=', headerIndex, &
+                        ', sensorIndex=', sensorIndex, &
+                        ', chan_noOff=', channelNumber_withOffset, &
+                        ', chan_no=', channelNumber
+    end if
+
+    siObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
+    siFG  = obs_headElem_r(obsSpaceData, OBS_SIB, headerIndex)
+
+    sigmaObsBeforeInflation = obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)
+    ompValue                = obs_bodyElem_r(obsSpaceData, ompOmaObsColumn, bodyIndex)
+
+    ! error inflation for cloud placement 
+    deltaE1 = 0.0D0
+    if (mwAllskyHuInflateByOmp .and. &
+        ((siObs - clearClwThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) * &
+         (siFG  - clearClwThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) < 0) .and. &
+        abs(siObs - siFG) >= 0.005) then
+      deltaE1 = abs(ompValue)
+    end if
+
+    ! error inflation due to scattering-index difference
+    deltaE2 = 0.0D0
+    if (mwAllskyHuInflateBySiDiff) then
+      deltaE2 = stateDepSigmaObsInflationCoeff(sensorIndex) * abs(siObs - siFG) * &
+                sigmaObsBeforeInflation
+    end if
+    deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
+
+    sigmaObsAfterInflation = sqrt(sigmaObsBeforeInflation ** 2 + &
+                              (deltaE1 + deltaE2) ** 2)
+
+    if (.not. beSilent) then
+      write(*,*) 'oer_computeAllskyHuInflatedStateDepSigmaObs: siObs=', siObs, &
+                        ', siFG=', siFG, ', OMP=', ompValue
+      write(*,*) 'oer_computeAllskyHuInflatedStateDepSigmaObs: deltaE1=', deltaE1, &
+                        ', deltaE2=', deltaE2
+      write(*,*) 'oer_computeAllskyHuInflatedStateDepSigmaObs: sigmaObs=', &
+          sigmaObsBeforeInflation, ', sigmaObsInflated=', sigmaObsAfterInflation
+    end if
+
+    call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation)
+
+  end subroutine oer_computeAllskyHuInflatedStateDepSigmaObs
 
   !--------------------------------------------------------------------------
   ! readOerFromObsFileForSW
