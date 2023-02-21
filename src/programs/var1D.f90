@@ -47,7 +47,7 @@ program midas_var1D
   implicit none
 
   integer :: istamp, exdb, exfin
-  integer :: ierr, dateStamp
+  integer :: ierr, dateStampFromObs
   integer :: get_max_rss
   character(len=48) :: obsMpiStrategy, varMode
   real(8), allocatable :: controlVectorIncr(:)
@@ -96,26 +96,26 @@ program midas_var1D
   call tim_setup
 
   ! Initialize observation file names and set datestamp
-  call obsf_setup( dateStamp, varMode )
-  if ( dateStamp > 0 ) then
-    call tim_setDatestamp(datestamp)     ! IN
+  call obsf_setup( dateStampFromObs, varMode )
+  if ( tim_getDateStamp() == 0 ) then
+    call tim_setDatestamp(dateStampFromObs)     ! IN
   else
-    call utl_abort('var1D: Problem getting dateStamp from observation file')
+    write(*,*) 'midas-var1D: WARNING: Problem getting dateStamp from observation file'
   end if
 
   ! Initialize constants
   if (mmpi_myid == 0) call mpc_printConstants(6)
 
   ! Initialize the Analysis grid
-  if (mmpi_myid == 0) write(*,*)''
-  if (mmpi_myid == 0) write(*,*)'var1D: Set hco parameters for analysis grid'
+  if (mmpi_myid == 0) write(*,*)
+  if (mmpi_myid == 0) write(*,*) 'midas-var1D: Set hco parameters for analysis grid'
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
     hco_core => hco_anl
   else
     !- Initialize the core (Non-Extended) analysis grid
-    if (mmpi_myid == 0) write(*,*)'var1D: Set hco parameters for core grid'
+    if (mmpi_myid == 0) write(*,*) 'midas-var1D: Set hco parameters for core grid'
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 
@@ -171,7 +171,7 @@ program midas_var1D
   call min_setup( cvm_nvadim, hco_anl, oneDVarMode_opt=.true. ) ! IN
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
-    write(*,*) 'var1D: Problem allocating memory for ''controlVectorIncr''',ierr
+    write(*,*) 'midas-var1D: Problem allocating memory for ''controlVectorIncr''',ierr
     call utl_abort('aborting in VAR1D')
   end if
   call utl_reallocate(controlVectorIncrSum,cvm_nvadim)

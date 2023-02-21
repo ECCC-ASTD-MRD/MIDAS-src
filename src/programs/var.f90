@@ -269,7 +269,7 @@ program midas_var
   implicit none
 
   integer :: istamp, exdb, exfin
-  integer :: ierr, dateStamp, nulnam
+  integer :: ierr, dateStampFromObs, nulnam
   integer :: fclos, fnom
   character(len=9)  :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
@@ -370,11 +370,11 @@ program midas_var
   call tim_setup
 
   ! Initialize observation file names and set datestamp
-  call obsf_setup( dateStamp, varMode )
-  if ( dateStamp > 0 ) then
-    call tim_setDatestamp(datestamp)     ! IN
+  call obsf_setup( dateStampFromObs, varMode )
+  if ( dateStampFromObs > 0 ) then
+    call tim_setDatestamp(datestampFromObs)     ! IN
   else
-    call utl_abort('var_setup: Problem getting dateStamp from observation file')
+    write(*,*) 'var_setup: WARNING: Problem getting dateStamp from observation file'
   end if
 
   ! Initialize constants

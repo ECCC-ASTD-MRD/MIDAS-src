@@ -49,7 +49,7 @@ program midas_obsSelection
    
   implicit none
 
-  integer :: datestamp, headerIndex, ierr, nulnam
+  integer :: dateStampFromObs, headerIndex, ierr, nulnam
   type(struct_columnData),target :: columnTrlOnAnlIncLev
   type(struct_columnData),target :: columnTrlOnTrlLev
   type(struct_obs),       target :: obsSpaceData
@@ -103,7 +103,7 @@ program midas_obsSelection
   !     
   !- Initialize observation file names, but don't use datestamp
   !
-  call obsf_setup(dateStamp, 'bgck')
+  call obsf_setup(dateStampFromObs, 'bgck')
 
   !
   !- Initialize the Temporal grid

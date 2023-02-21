@@ -40,7 +40,7 @@ program midas_obsimpact
 
   implicit none
 
-  integer :: istamp,exdb,exfin,ierr, dateStamp
+  integer :: istamp,exdb,exfin,ierr, dateStampFromObs
 
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: columnTrlOnAnlIncLev
@@ -88,9 +88,9 @@ program midas_obsimpact
   !     
   !- Initialize burp file names and set datestamp
   !
-  call obsf_setup( dateStamp, 'FSO' )
-  if ( dateStamp > 0 ) then
-    call tim_setDatestamp(datestamp)     ! IN
+  call obsf_setup( dateStampFromObs, 'FSO' )
+  if ( dateStampFromObs > 0 ) then
+    call tim_setDatestamp(dateStampFromObs)     ! IN
   else
     call utl_abort('obsImpact: Problem getting dateStamp from observation file')
   end if

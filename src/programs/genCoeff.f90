@@ -152,10 +152,12 @@ contains
     !
 
     implicit none
-    !Arguments:
+
+    ! Arguments:
     character(len=*), intent(in) :: obsColumnMode
-    !Locals:	
-    integer :: datestamp
+
+    ! Locals:	
+    integer :: dateStamp, dateStampFromObs
 
     write(*,*) ''
     write(*,*) '----------------------------------------'
@@ -170,14 +172,14 @@ contains
     !     
     !- Initialize observation file names and set datestamp
     !
-    call obsf_setup( dateStamp, varMode )
+    call obsf_setup( dateStampFromObs, varMode )
 
     dateStamp = tim_getDatestampFromFile("./trlm_01")
 
     if ( dateStamp > 0 ) then
       call tim_setDatestamp(datestamp)     ! IN
     else
-      call utl_abort('var_setup: Problem getting dateStamp from observation first trial field')
+      call utl_abort('var_setup: Problem getting dateStamp from first trial field')
     end if
 
     !

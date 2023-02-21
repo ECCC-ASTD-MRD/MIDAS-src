@@ -40,7 +40,7 @@ program midas_analysisErrorOI
   implicit none
 
   integer :: istamp, exdb, exfin
-  integer :: ierr, dateStamp
+  integer :: ierr, dateStampFromObs
   integer :: get_max_rss
   character(len=48) :: obsMpiStrategy, varMode
   character(len=20) :: trlmFileName
@@ -86,9 +86,9 @@ program midas_analysisErrorOI
   !
   !- Initialize observation file names and set datestamp
   !
-  call obsf_setup( dateStamp, varMode )
-  if ( dateStamp > 0 ) then
-    call tim_setDatestamp(datestamp)     ! IN
+  call obsf_setup( dateStampFromObs, varMode )
+  if ( dateStampFromObs > 0 ) then
+    call tim_setDatestamp(dateStampFromObs)     ! IN
   else
     call utl_abort(myName//': Problem getting dateStamp from observation file')
   end if

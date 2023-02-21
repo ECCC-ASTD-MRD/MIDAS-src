@@ -39,7 +39,7 @@ program midas_thinning
 
   type(struct_obs) :: obsSpaceData
   integer :: istamp,exdb,exfin
-  integer :: ierr, dateStamp
+  integer :: ierr, dateStampFromObs
   integer :: get_max_rss
 
   istamp = exdb('THINNING', 'DEBUT', 'NON')
@@ -61,7 +61,7 @@ program midas_thinning
   call utl_tmg_start(10,'--Observations')
 
   !- Initialize observation file names
-  call obsf_setup(dateStamp, 'thinning')
+  call obsf_setup(dateStampFromObs, 'thinning')
 
   !- Allocate obsSpaceData
   call obs_class_initialize('ALL')
@@ -87,7 +87,11 @@ program midas_thinning
 
   !- Setup timeCoord module
   call tim_setup()
-  call tim_setDateStamp(dateStamp)
+  if (dateStampFromObs > 0) then
+    call tim_setDateStamp(dateStampFromObs)
+  else
+    write(*,*) 'midas-thinning: WARNING: Problem getting dateStamp from observation file'
+  end if
 
   ! 3. Do the Thinning
 

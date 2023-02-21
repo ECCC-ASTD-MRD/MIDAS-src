@@ -149,7 +149,7 @@ contains
     implicit none
 
     character (len=*) :: obsColumnMode
-    integer :: datestamp
+    integer :: dateStampFromObs
     type(struct_vco),pointer :: vco_anl => null()
 
     integer :: get_max_rss
@@ -167,9 +167,9 @@ contains
     !     
     !- Initialize burp file names and set datestamp
     !
-    call obsf_setup( dateStamp, 'analysis' )
-    if ( dateStamp > 0 ) then
-      call tim_setDatestamp(datestamp)     ! IN
+    call obsf_setup( dateStampFromObs, 'analysis' )
+    if ( dateStampFromObs > 0 ) then
+      call tim_setDatestamp(dateStampFromObs)     ! IN
     else
       call utl_abort('var_setup: Problem getting dateStamp from observation file')
     end if
