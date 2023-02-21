@@ -48,6 +48,7 @@ module sqliteRead_mod
   public :: sqlr_insertSqlite, sqlr_updateSqlite, sqlr_readSqlite
   public :: sqlr_cleanSqlite, sqlr_writeAllSqlDiagFiles, sqlr_readSqlite_avhrr, sqlr_addCloudParametersandEmissivity
   public :: sqlr_writePseudoSSTobs, sqlr_writeEmptyPseudoSSTobsFile
+  public :: sqlr_getColumnValuesDate
 
   contains
   
@@ -2600,5 +2601,68 @@ module sqliteRead_mod
     call fSQL_close(db, stat)
 
   end subroutine sqlr_writeEmptyPseudoSSTobsFile
- 
+
+  !--------------------------------------------------------------------------
+  ! sqlr_getColumnValuesDate
+  !--------------------------------------------------------------------------
+  subroutine sqlr_getColumnValuesDate(columnDateValues, columnTimeValues, fileName)
+    !
+    ! :Purpose: Read the date and time column values from sqlite file.
+    !
+    implicit none
+
+    ! arguments:
+    integer, allocatable, intent(out) :: columnDateValues(:)
+    integer, allocatable, intent(out) :: columnTimeValues(:)
+    character(len=*),     intent(in)  :: fileName
+
+    ! locals:
+    integer              :: numRows, numColumns, rowIndex
+    character(len=20), allocatable :: columnValuesStr(:,:)
+    character(len=3000)  :: query
+    type(fSQL_STATUS)    :: stat ! sqlite error status
+    type(fSQL_DATABASE)  :: db   ! sqlite file handle
+    type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
+
+    ! open the sqlite file
+    call fSQL_open( db, trim(fileName), status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'sqlr_getColumnValuesDate: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'sqlr_getColumnValuesDate: fSQL_open' )
+    end if
+
+    ! Get the date and time
+
+    ! build the sqlite query
+    query = 'select date, time from header;'
+    write(*,*) 'sqlr_getColumnValuesDate: query ---> ', trim(query)
+
+    ! read the values from the file
+    call fSQL_prepare( db, trim(query), stmt, status=stat )
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
+                        mode=FSQL_CHAR, status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'sqlr_getColumnValuesDate: fSQL_get_many: ', fSQL_errmsg(stat)
+      call utl_abort('sqlr_getColumnValuesDate: problem with fSQL_get_many')
+    end if
+    write(*,*) 'sqlr_getColumnValuesDate: numRows = ', numRows, ', numColumns = ', numColumns
+    allocate( columnValuesStr(numRows,2) )
+    call fSQL_fill_matrix( stmt, columnValuesStr )
+    allocate( columnDateValues(numRows) )
+    allocate( columnTimeValues(numRows) )
+    do rowIndex = 1, numRows
+      read(columnValuesStr(rowIndex,1),*) columnDateValues(rowIndex)
+      read(columnValuesStr(rowIndex,2),*) columnTimeValues(rowIndex)
+      columnTimeValues(rowIndex) = columnTimeValues(rowIndex)/100
+    end do
+
+    deallocate(columnValuesStr)
+
+    ! close the sqlite file
+    call fSQL_free_mem( stmt )
+    call fSQL_finalize( stmt )
+    call fSQL_close( db, stat ) 
+
+  end subroutine sqlr_getColumnValuesDate
+
 end module sqliteRead_mod

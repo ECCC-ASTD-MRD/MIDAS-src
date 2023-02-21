@@ -29,13 +29,15 @@ module sqliteFiles_mod
   use codePrecision_mod
   use obsUtil_mod
   use obsVariableTransforms_mod
+  use timeCoord_mod
   use ensembleObservations_mod
   use sqliteUtilities_mod
 
   implicit none
   save
   private
-  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_cleanFile, sqlf_writeSqlDiagFiles, sqlf_addCloudParametersandEmissivity
+  public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_cleanFile
+  public :: sqlf_writeSqlDiagFiles, sqlf_addCloudParametersandEmissivity
   
   type(fSQL_DATABASE) :: db         ! type for SQLIte  file handle
   type(FSQL_STATUS)   :: statusSqlite
@@ -57,11 +59,10 @@ module sqliteFiles_mod
     character(len=*), intent(in)  :: sqliteFileName
     
     ! locals
-    logical             :: fileExists 
-    integer             :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
-    integer             :: newdate
-    character(len=128)  :: querySqlite
-    character(len=256)  :: datetimeSqliteCharacter 
+    logical              :: fileExists 
+    integer              :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
+    integer              :: newdate
+    integer, allocatable :: headDateValues(:), headTimeValues(:)
 
     validDate = MPC_missingValue_INT 
     validTime = MPC_missingValue_INT 
@@ -69,15 +70,8 @@ module sqliteFiles_mod
     inquire(file = trim(sqliteFileName), exist = fileExists)
 
     if (fileExists) then
-      write(*,*)'sqlf_getDateStamp: Open File : ', trim(sqliteFileName)
-      call fSQL_open(db, trim(sqliteFileName), statusSqlite)
-      querySqlite = 'select date from resume;'
-      datetimeSqliteCharacter = sqlu_query(db, trim(querySqlite))
-      read(datetimeSqliteCharacter(1:8),*)  validDate
-      querySqlite = 'select time from resume;'
-      datetimeSqliteCharacter = sqlu_query(db, trim(querySqlite))
-      read(datetimeSqliteCharacter, *) validTime 
-      call fSQL_close(db, statusSqlite)
+      call sqlr_getColumnValuesDate(headDateValues, headTimeValues, fileName=trim(sqliteFileName))
+      call tim_getValidDateTimeFromList(headDateValues, headTimeValues, validDate, validTime)
     end if
 
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
@@ -85,15 +79,16 @@ module sqliteFiles_mod
     call rpn_comm_allreduce(validTime, validTimeRecv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
     
     if (validDateRecv == MPC_missingValue_INT .or. validTimeRecv == MPC_missingValue_INT) then
-      call utl_abort('sqlf_getDateStamp: Error in getting valid date and time!')
+      write(*,*) 'sqlf_getDateStamp: WARNING: Error in getting valid date and time!'
+      dateStamp = 0
+    else    
+      ! printable to stamp, validTime must be multiplied with 1e6 to make newdate work
+      imode = 3
+      ier = newdate(dateStamp, validDateRecv, validTimeRecv * 1000000, imode)
+      write(*,*)'sqlf_getDateStamp: SQLite files valid date (YYYYMMDD): ', validDateRecv
+      write(*,*)'sqlf_getDateStamp: SQLite files valid time       (HH): ', validTimeRecv
+      write(*,*)'sqlf_getDateStamp: SQLite files dateStamp            : ', datestamp
     end if
-    
-    ! printable to stamp, validTime must be multiplied with 1e6 to make newdate work
-    imode = 3
-    ier = newdate(dateStamp, validDateRecv, validTimeRecv * 1000000, imode)
-    write(*,*)'sqlf_getDateStamp: SQLite files valid date (YYYYMMDD): ', validDateRecv
-    write(*,*)'sqlf_getDateStamp: SQLite files valid time       (HH): ', validTimeRecv
-    write(*,*)'sqlf_getDateStamp: SQLite files dateStamp            : ', datestamp
 
   end subroutine sqlf_getDateStamp
 
