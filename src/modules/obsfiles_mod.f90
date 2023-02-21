@@ -67,14 +67,13 @@ module obsFiles_mod
 
 contains
 
-  subroutine obsf_setup( dateStamp_out, obsFileMode_in, obsFileType_opt )
+  subroutine obsf_setup(dateStamp_out, obsFileMode_in)
 
     implicit none
 
     ! arguments
     integer         , intent(out)           :: dateStamp_out
     character(len=*), intent(in)            :: obsFileMode_in
-    character(len=*), intent(out), optional :: obsFileType_opt
 
     ! locals
     character(len=10)                       :: obsFileType
@@ -86,8 +85,6 @@ contains
     !
     call obsf_setupFileNames()
     call obsf_determineFileType(obsFileType)
-
-    if ( present(obsFileType_opt) ) obsFileType_opt = obsFileType
 
     !
     ! Determine if obsFiles are split
