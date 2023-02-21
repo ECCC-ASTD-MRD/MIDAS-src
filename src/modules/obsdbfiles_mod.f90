@@ -31,6 +31,7 @@ module obsdbFiles_mod
   use obsUtil_mod
   use obsVariableTransforms_mod
   use sqliteUtilities_mod
+  use timeCoord_mod
 
   implicit none
   save
@@ -447,42 +448,30 @@ contains
   !--------------------------------------------------------------------------
   ! odbf_getDateStamp
   !--------------------------------------------------------------------------
-  subroutine odbf_getDateStamp(dateStamp, sqliteFileName)
+  subroutine odbf_getDateStamp(dateStamp, fileName)
     !
     ! Purpose: get dateStamp from an obsDB file
     !
-  
     implicit none
     
     ! arguments
     integer         , intent(out) :: dateStamp
-    character(len=*), intent(in)  :: sqliteFileName
+    character(len=*), intent(in)  :: fileName
     
     ! locals
-    logical             :: fileExists 
-    integer             :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
-    integer             :: newdate
-    character(len=128)  :: querySqlite
-    character(len=256)  :: datetimeSqliteCharacter 
-    type(fSQL_DATABASE) :: db         ! type for SQLIte  file handle
-    type(FSQL_STATUS)   :: statusSqlite
+    integer,    allocatable :: headDateValues(:), headTimeValues(:)
+    integer                 :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
+    integer                 :: newdate
+
+    call odbf_setup()
+
+    call odbf_getColumnValuesDate(headDateValues, headTimeValues, fileName=trim(fileName), &
+                                  tableName=headTableName, sqlColumnName=headDateSqlName)
 
     validDate = MPC_missingValue_INT 
     validTime = MPC_missingValue_INT 
-    
-    inquire(file = trim(sqliteFileName), exist = fileExists)
 
-    if (fileExists) then
-      write(*,*)'odbf_getDateStamp: Open File : ', trim(sqliteFileName)
-      call fSQL_open(db, trim(sqliteFileName), statusSqlite)
-      querySqlite = 'select date from resume;'
-      datetimeSqliteCharacter = sqlu_query(db, trim(querySqlite))
-      read(datetimeSqliteCharacter(1:8),*)  validDate
-      querySqlite = 'select time from resume;'
-      datetimeSqliteCharacter = sqlu_query(db, trim(querySqlite))
-      read(datetimeSqliteCharacter, *) validTime 
-      call fSQL_close(db, statusSqlite)
-    end if
+    call tim_getValidDateTimeFromList(headDateValues, headTimeValues, validDate, validtime)
 
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
     call rpn_comm_allreduce(validDate, validDateRecv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
@@ -498,6 +487,9 @@ contains
     write(*,*)'odbf_getDateStamp: obsDB files valid date (YYYYMMDD): ', validDateRecv
     write(*,*)'odbf_getDateStamp: obsDB files valid time       (HH): ', validTimeRecv
     write(*,*)'odbf_getDateStamp: obsDB files dateStamp            : ', datestamp
+
+    deallocate(headDateValues)
+    deallocate(headTimeValues)
 
   end subroutine odbf_getDateStamp
 
