@@ -12,6 +12,8 @@
 /* Include pour les librairies RPN */
 #include "rmn.h"
 #include "rmn/rpnmacros.h"
+extern int c_mrfbfl();
+
 /* Include pour la librairie de manipulation de fichiers BURP*/
 #include <burp_api.h>
 
