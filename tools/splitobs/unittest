@@ -39,6 +39,7 @@ check_subdomains_tool=${PWD}/check_latlon_in_subdomain.py
 WORKDIR=${WORKDIR:-${PWD}/work}
 
 export AFSISIO=${AFSISIO:-/home/smco502}
+export CMCCONST=${CMCCONST:-/home/smco502/datafiles/constants}
 
 echo "Using SPLITOBS=${SPLITOBS}"
 
