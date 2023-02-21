@@ -106,7 +106,7 @@ program midas_obsSelection
   call obsf_setup(dateStampFromObs, 'bgck')
 
   !
-  !- Initialize the Temporal grid
+  !- Initialize the Temporal grid and dateStamp from trial file
   !
   call tim_setup(fileNameForDate_opt = './trlm_01')
 

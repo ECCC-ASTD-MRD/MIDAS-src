@@ -44,7 +44,7 @@ module timeCoord_mod
   integer   :: tim_nstepobs
   integer   :: tim_nstepobsinc
   logical   :: tim_fullyUseExtremeTimeBins
-  integer   :: datestamp = 0      ! window centre of analysis validity
+  integer   :: datestamp = 0  ! datestamp is usually the centre of time window
   logical   :: initialized = .false.
 
   integer, external :: get_max_rss
@@ -143,7 +143,7 @@ contains
 
   subroutine tim_getDateStampFromEnvVar(dateStamp)
     !
-    !:Purpose: Determine the date from the environment variable MIDAS_VALID_DATE.
+    !:Purpose: Determine the date from the environment variable MIDAS_DATE.
     !
     implicit none
 
@@ -157,19 +157,19 @@ contains
     integer    :: newdate
 
     status = 0
-    call get_environment_variable('MIDAS_VALID_DATE',validDateStr,lengthValidDateStr,status,.true.)
+    call get_environment_variable('MIDAS_DATE',validDateStr,lengthValidDateStr,status,.true.)
 
     if (status > 1) then
-      call utl_abort('tim_getDateStampFromEnvVar: Problem when getting the environment variable MIDAS_VALID_DATE')
+      call utl_abort('tim_getDateStampFromEnvVar: Problem when getting the environment variable MIDAS_DATE')
     end if
     if (status == 1) then
-      write(*,*) 'tim_getDateStampFromEnvVar: WARNING: The environment variable MIDAS_VALID_DATE has not been detected!'
-      !call utl_abort('tim_getDateStampFromEnvVar: The environment variable MIDAS_VALID_DATE has not been detected!')
+      write(*,*) 'tim_getDateStampFromEnvVar: WARNING: The environment variable MIDAS_DATE has not been detected!'
+      !call utl_abort('tim_getDateStampFromEnvVar: The environment variable MIDAS_DATE has not been detected!')
       return
     end if
 
     write(*,*)
-    write(*,*) 'tim_getDateStampFromEnvVar: The environment variable MIDAS_VALID_DATE has correctly been detected'
+    write(*,*) 'tim_getDateStampFromEnvVar: The environment variable MIDAS_DATE has correctly been detected'
 
     ! convert string to long integer
     read (validDateStr,*) dateTimePrint
@@ -188,8 +188,8 @@ contains
       datePrint = dateTimePrint/100000000
       timePrint = (dateTimePrint - datePrint*100000000)
     else
-      write(*,*) 'length of MIDAS_VALID_DATE = ', lengthValidDateStr
-      call utl_abort('tim_getDateStampFromEnvVar: Unexpected length of variable MIDAS_VALID_DATE')
+      write(*,*) 'length of MIDAS_DATE = ', lengthValidDateStr
+      call utl_abort('tim_getDateStampFromEnvVar: Unexpected length of variable MIDAS_DATE')
     end if
 
     ! convert to CMC dateStamp
@@ -222,14 +222,14 @@ contains
       return
     end if
 
-    ! First try to set dateStamp from MIDAS_VALID_DATE
+    ! First try to set dateStamp from MIDAS_DATE
     dateStampEnvVar = 0
     call tim_getDateStampFromEnvVar(dateStampEnvVar)
 
     ! Possibly set the datestamp (except when set later from burp files)
     if (dateStampEnvVar /= 0) then
       write(*,*) 'tim_setup: ====================================================='
-      write(*,*) 'tim_setup: DATESTAMP set by value in supplied MIDAS_VALID_DATE'
+      write(*,*) 'tim_setup: DATESTAMP set by value in supplied MIDAS_DATE'
       write(*,*) 'tim_setup: ====================================================='
       dateStamp = dateStampEnvVar
       imode = -3 ! stamp to printable
@@ -247,6 +247,10 @@ contains
       write(*,*) 'tim_setup: printdate = ',prntdate
       write(*,*) 'tim_setup: printtime = ',prnttime
       write(*,*) 'tim_setup: datestamp = ',datestamp
+    else
+      write(*,*) 'tim_setup: =========================================================='
+      write(*,*) 'tim_setup: DATESTAMP not set in this subroutine, use tim_setDateStamp'
+      write(*,*) 'tim_setup: =========================================================='      
     end if
 
     if (mmpi_myid == 0) write(*,*) 'tim_setup: dobs_windowsize=',tim_windowsize

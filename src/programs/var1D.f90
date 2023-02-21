@@ -92,15 +92,17 @@ program midas_var1D
 
   obsMpiStrategy = 'LIKESPLITFILES'
 
-  ! Initialize the Temporal grid
+  ! Initialize the Temporal grid and set dateStamp from env variable
   call tim_setup
 
-  ! Initialize observation file names and set datestamp
-  call obsf_setup( dateStampFromObs, varMode )
-  if ( tim_getDateStamp() == 0 ) then
-    call tim_setDatestamp(dateStampFromObs)     ! IN
-  else
-    write(*,*) 'midas-var1D: WARNING: Problem getting dateStamp from observation file'
+  ! Initialize observation file names and set datestamp if not already
+  call obsf_setup(dateStampFromObs, varMode)
+  if (tim_getDateStamp() == 0) then
+    if (dateStampFromObs > 0) then
+      call tim_setDatestamp(dateStampFromObs)
+    else
+      call utl_abort('midas-var1D: DateStamp was not set')
+    end if
   end if
 
   ! Initialize constants

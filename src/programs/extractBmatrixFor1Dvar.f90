@@ -110,7 +110,11 @@ program midas_extractBmatrixFor1Dvar
   call ram_setup
   !- Initialize the Temporal grid
   call tim_setup
-  call tim_setDatestamp(dateStamp)
+  if (tim_getDateStamp() == 0) then
+    call tim_setDatestamp(dateStamp)
+  else
+    call utl_abort('midas-extractBmatrix: Code changes needed to use dateStamp from env variable')
+  end if
   ! Initialize variables of the model states
   call gsv_setup
   ! Initialize the Analysis horizontal grid

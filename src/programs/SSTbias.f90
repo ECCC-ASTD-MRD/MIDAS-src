@@ -122,18 +122,21 @@ program midas_sstBias
     write(*,*) '-------------------------------------------------'
 
     !
-    !- Initialize the Temporal grid
+    !- Initialize the Temporal grid and set dateStamp from env variable
     !
-    call tim_setup
+    call tim_setup()
 
     !     
     !- Initialize observation file names and set dateStamp
     !
     call obsf_setup(dateStampFromObs, varMode)
-    if (dateStampFromObs > 0) then
-      call tim_setDateStamp(dateStampFromObs)
-    else
-      write(*,*) 'SSTbias_setup: WARNING: Problem getting dateStamp from observation file'
+    if (tim_getDateStamp() == 0) then
+      if (dateStampFromObs > 0) then
+        ! use dateStamp from obs if not set by env variable
+        call tim_setDateStamp(dateStampFromObs)
+      else
+        call utl_abort('SSTbias_setup: DateStamp was not set')
+      end if
     end if
 
     ! Setting default namelist variable values

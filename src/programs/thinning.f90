@@ -85,12 +85,15 @@ program midas_thinning
 
   call utl_tmg_stop(10)
 
-  !- Setup timeCoord module
+  !- Setup timeCoord module and set dateStamp from env variable
   call tim_setup()
-  if (dateStampFromObs > 0) then
-    call tim_setDateStamp(dateStampFromObs)
-  else
-    write(*,*) 'midas-thinning: WARNING: Problem getting dateStamp from observation file'
+  if (tim_getDateStamp() == 0) then
+    if (dateStampFromObs > 0) then
+      ! use dateStamp from obs if not set by env variable
+      call tim_setDateStamp(dateStampFromObs)
+    else
+      call utl_abort('midas-thinning: DateStamp was not set')
+    end if
   end if
 
   ! 3. Do the Thinning

@@ -60,9 +60,9 @@ program midas_diagBmatrix
   real(8) :: centralValue, centralValueLocal
 
   integer :: fclos, fnom, fstopc, newdate, get_max_rss
-  integer :: ierr, nsize, iseed
+  integer :: ierr, nsize, iseed, nulnam, nultxt
   integer :: ensIndex, index, kIndex, nkgdim, levIndex, lonIndex, latIndex
-  integer :: idate, itime, nulnam, nultxt, dateStamp, numLoc, numStepAmplitude
+  integer :: dateTime, datePrint, timePrint, dateStamp, numLoc, numStepAmplitude
   integer :: nlevs, nlevs2, varIndex, ip3
   integer :: locIndex, stepIndexInc, nEns, numBensInstance, instanceIndex
   integer :: amp3dStepIndex, nLonLatPos, lonLatPosIndex
@@ -89,7 +89,6 @@ program midas_diagBmatrix
   ! namelist variables
   integer :: numperturbations
   integer :: nrandseed
-  integer :: diagdate
   integer :: oneobs_levs(100)
   integer :: oneobs_lonlat(100,2)
   integer :: oneobs_timeStepIndex
@@ -98,7 +97,7 @@ program midas_diagBmatrix
   logical :: writeTextStddev
   logical :: writePsiChiStddev
 
-  namelist /namdiag/numperturbations, nrandseed, diagdate, oneobs_levs, oneobs_lonlat, &
+  namelist /namdiag/numperturbations, nrandseed, oneobs_levs, oneobs_lonlat, &
                     oneobs_varName, oneobs_timeStep, writeEnsAmplitude, writeTextStddev, writePsiChiStddev
 
   call ver_printNameAndVersion('diagBmatrix','Diagnositcs of the B matrix')
@@ -110,7 +109,6 @@ program midas_diagBmatrix
   ierr = fstopc('MSGLVL','ERRORS',0)
 
   ! Set default values for namelist NAMDIAG parameters
-  diagdate          =  2011020100
   numperturbations  = -1
   nrandseed         =  1
   oneobs_varName    = 'all'
@@ -138,21 +136,22 @@ program midas_diagBmatrix
     if (oneobs_lonlat(index,lonPosIndex) >= 1 .and. oneobs_lonlat(index,latPosIndex) >= 1) nLonLatPos=nLonLatPos+1  
   end do
 
-  ! Decompose diagdate(yyyymmddhh) into idate(YYYYMMDD) itime(HHMMSShh)
-  ! and calculate date-time stamp
-  idate = diagdate/100
-  itime = (diagdate-idate*100)*1000000
-  ierr = newdate(dateStamp,idate,itime,3)
-  write(datestr,'(i10.10)') diagdate
-  write(*,*)' idate= ',idate,' time= ',itime
-  write(*,*)' date= ',diagdate,' stamp= ',dateStamp
-
   ! Top Level Control setup
   call ram_setup
 
-  !- Initialize the Temporal grid
-  call tim_setup
-  call tim_setDatestamp(dateStamp)
+  !- Initialize the Temporal grid and set dateStamp from env variable
+  call tim_setup()
+  if (tim_getDateStamp() == 0) then
+    call utl_abort('midas-diagBmatrix: date must be set by env variable MIDAS_DATE')
+  end if
+
+  ! Build date-time string from dateStamp
+  dateStamp = tim_getDateStamp()
+  ierr = newdate(dateStamp,datePrint,timePrint,-3)
+  dateTime = datePrint*100 + timePrint/1000000
+  write(datestr,'(i10.10)') dateTime
+  write(*,*)' datePrint= ',datePrint,' timePrint= ',timePrint
+  write(*,*)' date= ',dateTime,' stamp= ',dateStamp
 
   ! Initialize variables of the model states
   call gsv_setup

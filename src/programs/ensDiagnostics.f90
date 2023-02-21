@@ -84,6 +84,9 @@ program midas_ensDiagnostics
  
   !- 1. Initialize date/time-related info
   call tim_setup
+  if (tim_getDateStamp()==0) then
+    call utl_abort('midas-ensDiagnostics: DateStamp was not set')
+  end if
   allocate(dateStampList(tim_nstepobsinc))
   call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
   write(*,*) 'dateStamp of first time of trajectory: ',dateStampList(1)

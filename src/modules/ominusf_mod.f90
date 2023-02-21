@@ -99,8 +99,8 @@ module oMinusF_mod
       !- 1.3 RAM disk usage
       call ram_setup
 
-      !- 1.4 Temporal grid
-      call tim_setup( fileNameForDate_opt=trim(trialFileName) )
+      !- 1.4 Temporal grid and dateStamp from trial file
+      call tim_setup(fileNameForDate_opt=trim(trialFileName))
 
       !- 1.5 Observation file names and get datestamp, but do not use it
       call obsf_setup(dateStampFromObs, trim(midasMode))

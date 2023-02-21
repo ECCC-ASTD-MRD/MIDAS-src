@@ -75,22 +75,24 @@ program midas_analysisErrorOI
   obsMpiStrategy = 'LIKESPLITFILES'
 
   !
-  !- Initialize the Temporal grid
+  !- Initialize the Temporal grid and set dateStamp from env variable
   !
-  call tim_setup
+  call tim_setup()
 
   if (tim_nstepobs > 1 .or. tim_nstepobsinc > 1) then
     call utl_abort(myName//': The program assumes only one time step.')
   end if
 
   !
-  !- Initialize observation file names and set datestamp
+  !- Initialize observation file names and set datestamp if not already
   !
-  call obsf_setup( dateStampFromObs, varMode )
-  if ( dateStampFromObs > 0 ) then
-    call tim_setDatestamp(dateStampFromObs)     ! IN
-  else
-    call utl_abort(myName//': Problem getting dateStamp from observation file')
+  call obsf_setup(dateStampFromObs, varMode)
+  if (tim_getDateStamp() == 0) then
+    if (dateStampFromObs > 0) then
+      call tim_setDateStamp(dateStampFromObs)
+    else
+      call utl_abort(myName//': DateStamp was not set')
+    end if
   end if
 
   !

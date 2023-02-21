@@ -82,17 +82,19 @@ program midas_obsimpact
   obsMpiStrategy = 'LIKESPLITFILES'
 
   !
-  !- Initialize the Temporal grid
+  !- Initialize the Temporal grid and set dateStamp from env variable
   !
-  call tim_setup
+  call tim_setup()
   !     
-  !- Initialize burp file names and set datestamp
+  !- Initialize burp file names and set datestamp if not already
   !
-  call obsf_setup( dateStampFromObs, 'FSO' )
-  if ( dateStampFromObs > 0 ) then
-    call tim_setDatestamp(dateStampFromObs)     ! IN
-  else
-    call utl_abort('obsImpact: Problem getting dateStamp from observation file')
+  call obsf_setup(dateStampFromObs, 'FSO')
+  if (tim_getDateStamp() == 0) then
+    if (dateStampFromObs > 0) then
+      call tim_setDatestamp(dateStampFromObs)
+    else
+      call utl_abort('obsImpact: DateStamp was not set')
+    end if
   end if
   !
   !- Initialize constants

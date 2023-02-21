@@ -73,8 +73,11 @@ program midas_adjointTest
   !- 1.3 RAM disk usage
   call ram_setup
 
-  !- 1.4 Temporal grid
+  !- 1.4 Temporal grid and set dateStamp from env variable
   call tim_setup()
+  if (tim_getDateStamp()==0) then
+    call utl_abort('midas-adjointTest: dateStamp was not set')
+  end if
 
   !- 1.6 Constants
   if ( mmpi_myid == 0 ) then
