@@ -46,7 +46,7 @@ module obsErrors_mod
 
   ! public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
-  public :: oer_setInterchanCorr, oer_computeInflatedStateDepSigmaObs
+  public :: oer_setInterchanCorr, oer_computeAllskyTtInflatedStateDepSigmaObs
   
   ! public functions
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
@@ -1708,10 +1708,11 @@ contains
 
   end subroutine oer_fillObsErrors
 
-  subroutine oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
-                                                 ompOmaObsColumn, beSilent_opt)
+  subroutine oer_computeAllskyTtInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
+                                                         ompOmaObsColumn, beSilent_opt)
     !
-    ! :Purpose: Update OBS_OER with inflated state dependant observation error
+    ! :Purpose: Update OBS_OER with inflated state dependant observation error for all-sky
+    !           temperature assimilation.
     !
     implicit none
 
@@ -1759,7 +1760,7 @@ contains
         (.not. mwAllskyInflateByOmp .and. .not. mwAllskyInflateByClwDiff)) return
 
     if (.not. beSilent) then
-      write(*,*) 'oer_computeInflatedStateDepSigmaObs: headerIndex=', headerIndex, &
+      write(*,*) 'oer_computeAllskyTtInflatedStateDepSigmaObs: headerIndex=', headerIndex, &
                         ', sensorIndex=', sensorIndex, &
                         ', chan_noOff=', channelNumber_withOffset, &
                         ', chan_no=', channelNumber
@@ -1792,17 +1793,17 @@ contains
                               (deltaE1 + deltaE2) ** 2)
 
     if (.not. beSilent) then
-      write(*,*) 'oer_computeInflatedStateDepSigmaObs: clwObs=', clwObs, &
+      write(*,*) 'oer_computeAllskyTtInflatedStateDepSigmaObs: clwObs=', clwObs, &
                         ', clwFG=', clwFG, ', OMP=', ompValue
-      write(*,*) 'oer_computeInflatedStateDepSigmaObs: deltaE1=', deltaE1, &
+      write(*,*) 'oer_computeAllskyTtInflatedStateDepSigmaObs: deltaE1=', deltaE1, &
                         ', deltaE2=', deltaE2
-      write(*,*) 'oer_computeInflatedStateDepSigmaObs: sigmaObs=', &
+      write(*,*) 'oer_computeAllskyTtInflatedStateDepSigmaObs: sigmaObs=', &
           sigmaObsBeforeInflation, ', sigmaObsInflated=', sigmaObsAfterInflation
     end if
 
     call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation)
 
-  end subroutine oer_computeInflatedStateDepSigmaObs
+  end subroutine oer_computeAllskyTtInflatedStateDepSigmaObs
 
   !--------------------------------------------------------------------------
   ! readOerFromObsFileForSW

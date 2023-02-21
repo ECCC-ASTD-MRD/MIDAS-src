@@ -1743,8 +1743,8 @@ contains
         end if
         call obs_bodySet_r(obsSpaceData,destObs,bodyIndex, zdtb)
 
-        call oer_computeInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
-                                                 destObs, beSilent_opt=.true.)
+        call oer_computeAllskyTtInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
+                                                         destObs, beSilent_opt=.true.)
 
       end do BODY
 
