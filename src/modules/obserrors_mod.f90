@@ -1886,7 +1886,7 @@ contains
     if (mwAllskyHuInflateByOmp .and. &
         ((siObs - clearCldPredThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) * &
          (siFG  - clearCldPredThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) < 0) .and. &
-        abs(siObs - siFG) >= 0.005) then
+        abs(siObs - siFG) >= 1.0) then
       deltaE1 = abs(ompValue)
     end if
 
