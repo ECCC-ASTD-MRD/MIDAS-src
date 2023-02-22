@@ -7,7 +7,6 @@
   <SUBMITS sub_name="oMinusF"/>
   <SUBMITS sub_name="randomPert"/>
   <SUBMITS sub_name="ensembleH"/>
-  <SUBMITS sub_name="ensDiagnostics"/>
   <SUBMITS sub_name="prepcma"/>
   <SUBMITS sub_name="obsImpact"/>
   <SUBMITS sub_name="diagHBHt"/>
@@ -460,14 +459,6 @@
     </FAMILY>
     <SUBMITS sub_name="ocean"/>
     <FAMILY  name="ocean">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-  </FAMILY>
-
-  <FAMILY  name="ensDiagnostics">
-    <SUBMITS sub_name="balance"/>
-    <FAMILY  name="balance">
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
