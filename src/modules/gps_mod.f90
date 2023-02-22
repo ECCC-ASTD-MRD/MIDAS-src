@@ -35,7 +35,7 @@ module gps_mod
   ! public variables
   public :: gps_numROProfiles, gps_vRO_IndexPrf
   public :: gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SURFMIN, gps_HSFMIN, gps_HTPMAX, gps_HTPMAXER, gps_BGCKBAND, gps_WGPS
-  public :: gps_roError, gps_roBNorm
+  public :: gps_roError, gps_roBNorm, gps_roNsigma
   public :: gps_gravitysrf, gps_gb_maxdata, gps_gb_dzmin
   public :: gps_gb_ltestop, gps_gb_llblmet, gps_gb_lbevis, gps_gb_irefopt, gps_gb_iztdop, gps_gb_lassmet, gps_gb_l1obs, gps_gb_yzderrwgt, gps_gb_numztd
   public :: gps_ZTD_Index, gps_ncvmx, gps_gb_dzmax, gps_gb_yztderr, gps_gb_ysferrwgt
@@ -210,6 +210,7 @@ module gps_mod
   ! Public versions of namelist variables
   INTEGER gps_Level_RO, gps_RO_MAXPRFSIZE
   REAL*8  gps_SurfMin, gps_HsfMin, gps_HtpMax, gps_BgckBand, gps_HtpMaxEr
+  REAL*8  gps_roNsigma
   REAL*4  gps_Wgps(0:1023,4)
   character(len=20) :: gps_roError
   LOGICAL :: gps_roBNorm, gps_gpsroEotvos
@@ -2894,10 +2895,10 @@ contains
     character(len=20) :: gpsroError ! key for using dynamic/static refractivity error estimation (default 'DYNAMIC')
     LOGICAL :: gpsroBNorm       ! Choose to normalize based on B=H(x) (default=.True.), or approximate exponential reference
     LOGICAL :: gpsroEotvos      ! Add an operator-only Eotvos correction to local gravity (shift of altitudes, default False)
+    REAL(8) :: gpsroNsigma      ! Factor applied to observation error for background departure check when gpsroBNorm is .true. (default 1.d6)
 
     NAMELIST /NAMGPSRO/ LEVELGPSRO, GPSRO_MAXPRFSIZE, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, &
-                        BGCKBAND, WGPS, gpsroError, gpsroBNorm, gpsroEotvos
-
+        BGCKBAND, WGPS, gpsroError, gpsroBNorm, gpsroEotvos, gproNsigma
 
 !
 !   Define default values:
@@ -2912,6 +2913,7 @@ contains
     gpsroError = 'DYNAMIC'
     gpsroBNorm = .True.
     gpsroEotvos= .False.
+    gpsroNsigma= 1000000.d0
 !
 !   Force a pre-NML default for the effective data weight of all
 !   GPSRO satellites. This array has rows 0-1023 (following BUFR element
@@ -2943,6 +2945,7 @@ contains
     gps_roBNorm       = gpsroBNorm
     gps_WGPS = WGPS
     gps_gpsroEotvos = gpsroEotvos
+    gps_roNsigma = gpsroNsigma
 
     if(mmpi_myid.eq.0) then
       write(*,*)'NAMGPSRO',gps_Level_RO, gps_RO_MAXPRFSIZE, gps_SurfMin, gps_HsfMin, &
