@@ -132,8 +132,8 @@ HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 
 ## for rmn, vgrid, rpncomm
 VGRID_LIBNAME="vgrid"
-echo "... loading eccc/mrd/rpn/libs/20230220-beta3"
-. r.load.dot eccc/mrd/rpn/libs/20230220-beta3
+echo "... loading eccc/mrd/rpn/libs/20230222-beta3"
+. r.load.dot eccc/mrd/rpn/libs/20230222-beta3
 echo "... loading hdf5"
 . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
 
@@ -145,10 +145,6 @@ echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 
 echo "... loading eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}"
 . r.load.dot eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}
-
-## for 'random_tools'
-echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2-cdt-1.5.5/${COMP_ARCH}"
-. ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2-cdt-1.5.5/${COMP_ARCH}
 
 ## loading makedep90
 echo "... loading makedepf90"
