@@ -471,7 +471,7 @@ contains
     validDate = MPC_missingValue_INT 
     validTime = MPC_missingValue_INT 
 
-    call tim_getValidDateTimeFromList(headDateValues, headTimeValues, validDate, validtime)
+    call tim_getValidDateTimeFromList(headDateValues, headTimeValues, validDate, validTime)
 
     ! Make sure all mpi tasks have a valid date (important for split sqlite files)
     call rpn_comm_allreduce(validDate, validDateRecv, 1, "MPI_INTEGER", "MPI_MAX", "GRID", ier)
