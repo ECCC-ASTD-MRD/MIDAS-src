@@ -14,7 +14,7 @@
 PGM ?= ./midas.splitobs_$(ORDENV_PLAT).Abs
 
 PROGRAM = splitobs
-SRC = splitobs.c fstdlib.c mainF.f
+SRC = splitobs.c fstdlib.c
 
 VERSION_SHA1 ?= $(shell git rev-parse HEAD)
 VERSION ?= $(shell git describe)

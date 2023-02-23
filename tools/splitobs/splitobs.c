@@ -226,7 +226,7 @@ int    VERBOSE = 0;
 /********************************/
 /*          main                */
 /********************************/
-int f77name(splitobs)(int argc, char** argv) {
+int main(int argc, char** argv) {
   int iun = UNIT_NUMBER, ier, status, EXIT_STATUS = 0, IS_INPUT_BURP_FILE;
   int filetype;
   char *ErrMsg, requete_sql[MAXSTR];
