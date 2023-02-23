@@ -136,7 +136,7 @@
 /
 /
  &NAMOER
-  mwAllskyInflateByOmp = .false.,
-  mwAllskyInflateByClwDiff = .false.,
+  mwAllskyTtInflateByOmp = .false.,
+  mwAllskyTtInflateByClwDiff = .false.,
   readOldSymmetricObsErrFile = .false.,
 /
