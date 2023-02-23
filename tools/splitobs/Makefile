@@ -36,7 +36,8 @@ splitobs_libs_20230222: version.h $(SRC)
 	make splitobs
 
 splitobs: version.h $(SRC)
-	s.compile -o $(PROGRAM)_$(ORDENV_PLAT) -src $(SRC) -librmn rmn-ompi -libappl sqlite3 burp_c $(DEBUG_OPTIONS) -O $(OPT_LEVEL); rm version.h
+	s.cc -o $(PROGRAM)_$(ORDENV_PLAT) -lburp_c -Bstatic -lrmn -lApp -Bdynamic -static-intel -lifcore -lifport -lsqlite3 $(DEBUG_OPTIONS) -O $(OPT_LEVEL) -Wl,-rpath=/fs/ssm/main/opt/intelcomp/inteloneapi-2022.1.2/intelcomp+mpi+mkl/all/lib/ $(SRC); rm version.h
+
 
 version.h:
 	echo "#define  VERSION   \"$(VERSION)\"" > version.h; echo "#define  VERSION_SHA1   \"$(VERSION_SHA1)\"" >> version.h

@@ -63,9 +63,6 @@ sqlite3=${sqlite3:-$(which sqlite3)}
 fstcomp=${fstcomp:-$(which fstcomp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which fstcomp))}
 editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
 
-## We need to load this to acquire the dynamic librairies.
-. ssmuse-sh -d ${RPN_LIBS_SSM_DOMAIN}
-
 unittest () {
     set -e
     [ -n "${SET_MX}" ] && ${SET_MX}
