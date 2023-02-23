@@ -51,7 +51,7 @@ module gridStateVector_mod
   public :: gsv_getHeightSfc, gsv_isAssocHeightSfc
   public :: gsv_getDateStamp, gsv_getNumLev, gsv_getNumLevFromVarName
   public :: gsv_add, gsv_power, gsv_scale, gsv_scaleVertical, gsv_copy, gsv_copy4Dto3D
-  public :: gsv_copyHeightSfc, gsv_copyMask, gsv_copyVarToVar
+  public :: gsv_copyHeightSfc, gsv_copyMask
   public :: gsv_getVco, gsv_getHco, gsv_getHco_physics, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
@@ -2159,82 +2159,6 @@ module gridStateVector_mod
     end if
 
   end subroutine gsv_copy4Dto3D
-
-  !--------------------------------------------------------------------------
-  ! gsv_copyVarToVar
-  !--------------------------------------------------------------------------
-  subroutine gsv_copyVarToVar(statevector_inout, varNameSrc, varNameDest)
-    !
-    ! :Purpose: Copies contents of one variable to another.
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_gsv), intent(inout)  :: statevector_inout
-    character(len=*), intent(in)     :: varNameSrc
-    character(len=*), intent(in)     :: varNameDest
-
-    ! Locals:
-    integer :: lonIndex, latIndex, levIndex, stepIndex
-    integer :: lon1, lon2, lat1, lat2
-    real(8), pointer :: fieldDest_r8(:,:,:,:), fieldSrc_r8(:,:,:,:)
-    real(4), pointer :: fieldDest_r4(:,:,:,:), fieldSrc_r4(:,:,:,:)
-
-    if (.not.statevector_inout%allocated) then
-      call utl_abort('gsv_copyVarToVar: gridStateVector_inout not yet allocated')
-    end if
-    if ( .not.gsv_varExist(statevector_inout,varNameSrc) .or. &
-         .not.gsv_varExist(statevector_inout,varNameDest) ) then
-      call utl_abort('gsv_copyVarToVar: one of the specified variables does not exist')
-    end if
-    if ( gsv_getNumLevFromVarName(statevector_inout,varNameSrc) /= &
-         gsv_getNumLevFromVarName(statevector_inout,varNameDest) ) then
-      call utl_abort('gsv_copyVarToVar: number of levels not the same for src and dest variables')
-    end if
-    if ( statevector_inout%mpi_distribution == 'VarsLevs') then
-      call utl_abort('gsv_copyVarToVar: cannot be applied with "VarsLevs" mpi distribution')
-    end if
-
-    lon1 = statevector_inout%myLonBeg
-    lon2 = statevector_inout%myLonEnd
-    lat1 = statevector_inout%myLatBeg
-    lat2 = statevector_inout%myLatEnd
-
-    if (statevector_inout%dataKind == 8) then
-
-      call gsv_getField(statevector_inout ,fieldSrc_r8, varNameSrc)
-      call gsv_getField(statevector_inout, fieldDest_r8, varNameDest)
-
-      do stepIndex = 1, statevector_inout%numStep
-        do levIndex = 1, gsv_getNumLevFromVarName(statevector_inout,varNameSrc)
-          do latIndex = lat1, lat2
-            do lonIndex = lon1, lon2
-              fieldDest_r8(lonIndex,latIndex,levIndex,stepIndex) =  &
-                fieldSrc_r8(lonIndex,latIndex,levIndex,stepIndex)
-            end do
-          end do
-        end do
-      end do
-
-    else if (statevector_inout%dataKind == 4) then
-
-      call gsv_getField(statevector_inout ,fieldSrc_r4, varNameSrc)
-      call gsv_getField(statevector_inout, fieldDest_r4, varNameDest)
-
-      do stepIndex = 1, statevector_inout%numStep
-        do levIndex = 1, gsv_getNumLevFromVarName(statevector_inout,varNameSrc)
-          do latIndex = lat1, lat2
-            do lonIndex = lon1, lon2
-              fieldDest_r4(lonIndex,latIndex,levIndex,stepIndex) =  &
-                fieldSrc_r4(lonIndex,latIndex,levIndex,stepIndex)
-            end do
-          end do
-        end do
-      end do
-
-    end if
-
-  end subroutine gsv_copyVarToVar
 
   !--------------------------------------------------------------------------
   ! gsv_copyHeightSfc

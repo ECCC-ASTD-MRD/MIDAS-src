@@ -215,10 +215,6 @@ CONTAINS
                          allocHeightSfc_opt=allocHeightSfc)
       call gsv_copy(statevectorIncLowRes, statevectorIncRefLowRes, &
                     allowVarMismatch_opt=.true.)
-      ! if trial grid contain P0LS, copy P0 increment to P0LS
-      if (vco_trl%Vcode == 5100) then
-        call gsv_copyVarToVar(statevectorIncRefLowRes,'P0','P0LS')
-      end if
 
       ! - Horizontal *only* interpolation of analysis increment (ref state variables)
       !   using int_interp_gsv since it also does needed mpi transpositions
