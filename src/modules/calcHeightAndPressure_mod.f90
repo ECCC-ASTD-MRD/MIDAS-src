@@ -4045,7 +4045,7 @@ contains
     ! locals:
     integer :: nAbove, numLevSource, numLevDest
     real(8) :: sourceModelTop
-    real(8)           :: pSfc(1,1)
+    real(8)           :: pSfc(1,1), pSfcLS(1,1)
     real(8), pointer  :: sourcePressureLevels(:,:,:)
     real(8), pointer  :: destPressureLevels(:,:,:)
 
@@ -4061,11 +4061,22 @@ contains
 
     ! dummy pressure value
     pSfc(1,1) = 100.0D3 !100 kPa
+    pSfcLS(1,1) = 100.0D3 !100 kPa
 
     ! pressure on momentum levels of source grid
-    call fetch3DLevels_r8(vco_sourceGrid, pSfc, fldM_opt=sourcePressureLevels)
+    if (vco_sourceGrid%vcode == 5100) then
+      call fetch3DLevels_r8(vco_sourceGrid, pSfc, sfcFldLS_opt=pSfcLS, &
+                            fldM_opt=sourcePressureLevels)
+    else
+      call fetch3DLevels_r8(vco_sourceGrid, pSfc, fldM_opt=sourcePressureLevels)
+    end if
     ! pressure on momentum levels of destination grid
-    call fetch3DLevels_r8(vco_destGrid, pSfc, fldM_opt=destPressureLevels)
+    if (vco_destGrid%vcode == 5100) then
+      call fetch3DLevels_r8(vco_destGrid, pSfc, sfcFldLS_opt=pSfcLS, &
+                            fldM_opt=destPressureLevels)
+    else
+      call fetch3DLevels_r8(vco_destGrid, pSfc, fldM_opt=destPressureLevels)
+    end if
 
     ! count number of levels where output grid is higher than input grid
     sourceModelTop = sourcePressureLevels(1,1,1)
