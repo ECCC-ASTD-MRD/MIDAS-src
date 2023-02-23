@@ -113,9 +113,15 @@ vercomp () {
 }
 
 check_ec_atomic_profile_version () {
-    if [ "$(vercomp 1.11.0 ${EC_ATOMIC_PROFILE_VERSION})" = '>' ]; then
-        echo "EC_ATOMIC_PROFILE_VERSION=${EC_ATOMIC_PROFILE_VERSION} but should be greater or equal to 1.11.0"
-        echo "Please use login profile greater of equal to /fs/ssm/eccc/mrd/ordenv/profile/1.11.0"
+    if [ "$(vercomp 1.28.0 ${EC_ATOMIC_PROFILE_VERSION})" = '>' ]; then
+	echo
+	echo
+        echo "+---| ERROR ERROR ERROR |----------------------------------------------------------------"
+        echo "  EC_ATOMIC_PROFILE_VERSION=${EC_ATOMIC_PROFILE_VERSION} but should be greater or equal to 1.28.0"
+        echo "  Please use login profile greater of equal to /fs/ssm/eccc/mrd/ordenv/profile/1.28.0"
+        echo "+---| ERROR ERROR ERROR |----------------------------------------------------------------"
+	echo
+	echo
         return 1
     fi
 }
@@ -219,3 +225,6 @@ export MIDAS_SSM_VERSION
 
 # config return status
 ${__status}
+
+# check version of profile
+check_ec_atomic_profile_version
