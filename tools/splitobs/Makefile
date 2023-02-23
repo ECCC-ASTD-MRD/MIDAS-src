@@ -35,17 +35,8 @@ splitobs_libs_20230222: version.h $(SRC)
 	. ssmuse-sh -d eccc/cmd/cmda/libs/20220216/${COMP_ARCH}; \
 	make splitobs
 
-splitobs_ubuntu-18.04-skylake-64: version.h $(SRC)
-	. ssmuse-sh -d hpco/exp/intelpsxe-cluster-19.0.3.199; . ssmuse-sh -d eccc/mrd/rpn/code-tools/1.5.0; make splitobs_libs_19
-
-splitobs_sles-15-skylake-64-xc50: version.h $(SRC)
-	. r.env.dot --comp 19.0.5; make splitobs_libs_19
-
 splitobs: version.h $(SRC)
 	s.compile -o $(PROGRAM)_$(ORDENV_PLAT) -src $(SRC) -librmn rmn-ompi -libappl sqlite3 burp_c $(DEBUG_OPTIONS) -O $(OPT_LEVEL); rm version.h
-
-splitobs_libs_19: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/libs/19.6.0; . r.load.dot eccc/cmd/cmda/libs/19.6.0-2/${COMP_ARCH}; make splitobs
 
 version.h:
 	echo "#define  VERSION   \"$(VERSION)\"" > version.h; echo "#define  VERSION_SHA1   \"$(VERSION_SHA1)\"" >> version.h
