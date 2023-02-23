@@ -707,6 +707,7 @@ module ObsDataColumn_mod
 
    ! methods
    public :: odc_allocate, odc_deallocate, odc_class_initialize
+   public :: odc_initAllColumnFlavours
    public :: odc_activateColumn, odc_numActiveColumn
    public :: odc_columnElem, odc_columnSet
    public :: odc_columnIndexFromActiveIndex, odc_activeIndexFromColumnIndex
@@ -965,6 +966,27 @@ contains
    end subroutine odc_initColumnFlavour
 
 
+   subroutine odc_initAllColumnFlavours()
+      !
+      ! :Purpose: Initialize the 4 flavours of odc
+      !
+      implicit none
+
+      ! locals
+      logical, save :: firstCall = .true.
+
+      if (firstCall) then
+        firstCall = .false.
+        ! Initialize the four column flavours:
+        call odc_initColumnFlavour(odc_flavour_IB, 'INT',  'BODY')
+        call odc_initColumnFlavour(odc_flavour_IH, 'INT',  'HEAD')
+        call odc_initColumnFlavour(odc_flavour_RB, 'REAL', 'BODY')
+        call odc_initColumnFlavour(odc_flavour_RH, 'REAL', 'HEAD')
+      end if
+
+   end subroutine odc_initAllColumnFlavours
+
+
    subroutine odc_class_initialize(obsColumnMode)
       !
       ! :Purpose: Set variables that use the same values for all instances of the class.
@@ -979,10 +1001,7 @@ contains
                   hdr_real_column_list, bdy_int_column_list, bdy_real_column_list
 
       ! Initialize the four column flavours:
-      call odc_initColumnFlavour(odc_flavour_IB, 'INT',  'BODY')
-      call odc_initColumnFlavour(odc_flavour_IH, 'INT',  'HEAD')
-      call odc_initColumnFlavour(odc_flavour_RB, 'REAL', 'BODY')
-      call odc_initColumnFlavour(odc_flavour_RH, 'REAL', 'HEAD')
+      call odc_initAllColumnFlavours()
 
       COLUMN_MODE:if(trim(obsColumnMode) == 'ALL') then
          do column_index=NHDR_INT_BEG,NHDR_INT_END
@@ -2256,6 +2275,8 @@ contains
 
     ! locals: 
     integer                       :: column_index
+
+    call odc_initAllColumnFlavours()
 
     isValid = .false.
 

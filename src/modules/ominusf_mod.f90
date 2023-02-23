@@ -79,7 +79,7 @@ module oMinusF_mod
       character(len=3)  :: obsColumnMode
       character(len=10) :: trialFileName
 
-      integer :: datestamp, get_max_rss
+      integer :: dateStampFromObs, get_max_rss
 
       write(*,*) " ---------------------------------------"
       write(*,*) " ---  START OF SUBROUTINE oMinusF    ---"
@@ -99,11 +99,11 @@ module oMinusF_mod
       !- 1.3 RAM disk usage
       call ram_setup
 
-      !- 1.4 Temporal grid
-      call tim_setup( fileNameForDate_opt=trim(trialFileName) )
+      !- 1.4 Temporal grid and dateStamp from trial file
+      call tim_setup(fileNameForDate_opt=trim(trialFileName))
 
       !- 1.5 Observation file names and get datestamp, but do not use it
-      call obsf_setup(dateStamp, trim(midasMode))
+      call obsf_setup(dateStampFromObs, trim(midasMode))
 
       !- 1.6 Constants
       if ( mmpi_myid == 0 ) then

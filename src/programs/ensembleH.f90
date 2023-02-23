@@ -56,7 +56,7 @@ program midas_ensembleH
   type(struct_hco), pointer :: hco_ens => null()
 
   integer :: get_max_rss, fclos, fnom, fstopc, ierr
-  integer :: memberIndex, nulnam, dateStamp
+  integer :: memberIndex, nulnam, dateStampFromObs
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs, stepIndex
   integer, allocatable :: dateStampList(:)
 
@@ -67,7 +67,6 @@ program midas_ensembleH
   character(len=9)    :: obsColumnMode
   character(len=48)   :: obsMpiStrategy
   character(len=48)   :: midasMode
-  character(len=10)   :: obsFileType
 
   ! namelist variables
   character(len=256) :: ensPathName
@@ -136,10 +135,7 @@ program midas_ensembleH
   end if
 
   ! Read the observations
-  call obsf_setup(dateStamp, midasMode, obsFileType_opt = obsFileType)
-  if (obsFileType /= 'BURP' .and. obsFileType /= 'SQLITE') then
-    call utl_abort('midas-ensembleH: only BURP and SQLITE are valid obs file formats')
-  end if
+  call obsf_setup(dateStampFromObs, midasMode)
 
   ! Use the first ensemble member to initialize datestamp and grid
   call fln_ensFileName(ensFileName, ensPathName, memberIndex_opt=1, &
@@ -150,7 +146,7 @@ program midas_ensembleH
   allocate(dateStampList(tim_nstepobs))
   call tim_getstamplist(dateStampList,tim_nstepobs,tim_getDatestamp())
   
-  write(*,*) 'midas-ensembleH: dateStamp = ',dateStamp
+  write(*,*) 'midas-ensembleH: dateStamp = ',tim_getDateStamp()
 
   !- Initialize variables of the model states
   call gsv_setup

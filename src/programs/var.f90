@@ -269,7 +269,7 @@ program midas_var
   implicit none
 
   integer :: istamp, exdb, exfin
-  integer :: ierr, dateStamp, nulnam
+  integer :: ierr, dateStampFromObs, nulnam
   integer :: fclos, fnom
   character(len=9)  :: clmsg
   character(len=48) :: obsMpiStrategy, varMode
@@ -366,15 +366,17 @@ program midas_var
 
   obsMpiStrategy = 'LIKESPLITFILES'
 
-  ! Initialize the Temporal grid
-  call tim_setup
+  ! Initialize the Temporal grid and set dateStamp from env variable
+  call tim_setup()
 
-  ! Initialize observation file names and set datestamp
-  call obsf_setup( dateStamp, varMode )
-  if ( dateStamp > 0 ) then
-    call tim_setDatestamp(datestamp)     ! IN
-  else
-    call utl_abort('var_setup: Problem getting dateStamp from observation file')
+  ! Initialize observation file names and set datestamp if not already
+  call obsf_setup(dateStampFromObs, varMode)
+  if (tim_getDateStamp() == 0) then
+    if (dateStampFromObs > 0) then
+      call tim_setDatestamp(datestampFromObs)
+    else
+      call utl_abort('var_setup: DateStamp was not set')
+    end if
   end if
 
   ! Initialize constants

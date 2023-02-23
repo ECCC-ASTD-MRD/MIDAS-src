@@ -38,7 +38,7 @@ program midas_prepcma
 
   implicit none
 
-  integer :: fnom, fclos, nulnam, ierr, dateStamp
+  integer :: fnom, fclos, nulnam, ierr, dateStampFromObs
   type(struct_obs), target  :: obsSpaceData
   type(struct_oti), pointer :: oti => null()
   real(kind=8) :: hx_dummy(1,1)
@@ -122,7 +122,7 @@ program midas_prepcma
   call filt_setup('prepcma')
 
   !- Observation file names and get datestamp
-  call obsf_setup(dateStamp, 'prepcma' )
+  call obsf_setup(dateStampFromObs, 'prepcma')
 
   !- Allocate obsSpaceData
   call obs_class_initialize('ENKFMIDAS')
@@ -165,9 +165,16 @@ program midas_prepcma
 
   call utl_tmg_stop(10)
 
-  !- Setup timeCoord module
+  !- Setup timeCoord module and set dateStamp from env variable
   call tim_setup()
-  call tim_setDateStamp(dateStamp)
+  if (tim_getDateStamp() == 0) then
+    if (dateStampFromObs > 0) then
+      ! use dateStamp from obs if not already set by env variable
+      call tim_setDateStamp(dateStampFromObs)
+    else
+      call utl_abort('midas-prepcma: DateStamp was not set')
+    end if
+  end if
 
   !- Reject any observation outside the data assimilation window
   if (rejectOutsideTimeWindow) then

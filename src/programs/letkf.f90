@@ -70,7 +70,7 @@ program midas_letkf
   type(struct_ocm)          :: oceanMask
 
   integer :: memberIndex, middleStepIndex, stepIndex, randomSeedObs
-  integer :: nulnam, dateStamp, ierr
+  integer :: nulnam, dateStampFromObs, ierr
   integer :: get_max_rss, fclos, fnom, fstopc
   integer :: nEnsGain, eigenVectorIndex, memberIndexInEnsObs
   integer, allocatable :: dateStampList(:), dateStampListInc(:)
@@ -253,24 +253,31 @@ program midas_letkf
   !- 2.  Initialization
   !
 
-  !- 2.1 Read the observations
-  call obsf_setup( dateStamp, midasMode )
+  !- 2.1 Setup the observation file names and get dateStamp from obs
+  call obsf_setup(dateStampFromObs, midasMode)
 
   !- 2.2 Initialize date/time-related info
 
-  ! Setup timeCoord module, set dateStamp with value from obs files
+  ! Setup timeCoord module, set dateStamp from env variable
   call tim_setup()
+  if (tim_getDateStamp() == 0) then
+    if (dateStampFromObs > 0) then
+      ! use dateStamp from obs if not already set by env variable
+      call tim_setDateStamp(dateStampFromObs)
+    else
+      call utl_abort('midas-letkf: DateStamp was not set')
+    end if
+  end if
   if (tim_nstepobsinc /= 1 .and. tim_nstepobsinc /= tim_nstepobs) then
     call utl_abort('midas-letkf: invalid value for namelist variable DSTEPOBSINC. ' // &
                    'Increments can be either 3D or have same number of time steps as trials')
   end if
-  call tim_setDateStamp(dateStamp)
   allocate(dateStampList(tim_nstepobs))
   call tim_getstamplist(dateStampList,tim_nstepobs,tim_getDatestamp())
   allocate(dateStampListInc(tim_nstepobsinc))
   call tim_getstamplist(dateStampListInc,tim_nstepobsinc,tim_getDatestamp())
 
-  write(*,*) 'midas-letkf: analysis dateStamp = ',dateStamp
+  write(*,*) 'midas-letkf: analysis dateStamp = ',tim_getDatestamp()
 
   !- 2.3 Initialize variables of the model states
   call gsv_setup

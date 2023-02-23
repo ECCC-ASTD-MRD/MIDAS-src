@@ -403,6 +403,7 @@ fi
 
 ## Rendu ici, on devrait avoir tout installe pour executer le 'midas.Abs'.
 export TMG_ON=YES
+export MIDAS_DATE=${date}
 
 ${nodelogger} -n $SEQ_NODE -s infox -m "Building namelist"
 

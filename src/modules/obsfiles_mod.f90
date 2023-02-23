@@ -67,14 +67,13 @@ module obsFiles_mod
 
 contains
 
-  subroutine obsf_setup( dateStamp_out, obsFileMode_in, obsFileType_opt )
+  subroutine obsf_setup(dateStamp_out, obsFileMode_in)
 
     implicit none
 
     ! arguments
     integer         , intent(out)           :: dateStamp_out
     character(len=*), intent(in)            :: obsFileMode_in
-    character(len=*), intent(out), optional :: obsFileType_opt
 
     ! locals
     character(len=10)                       :: obsFileType
@@ -86,8 +85,6 @@ contains
     !
     call obsf_setupFileNames()
     call obsf_determineFileType(obsFileType)
-
-    if ( present(obsFileType_opt) ) obsFileType_opt = obsFileType
 
     !
     ! Determine if obsFiles are split
@@ -104,7 +101,11 @@ contains
     if ( obsFileType == 'BURP' ) then
       call brpf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
     else if ( obsFileType == 'SQLITE' ) then
-      call sqlf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+      if (odbf_isActive()) then
+        call odbf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+      else
+        call sqlf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+      end if
     else
       dateStamp_out = -1
     end if

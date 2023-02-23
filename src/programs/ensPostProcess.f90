@@ -42,7 +42,7 @@ program midas_ensPostProcess
   character(len=256) :: ensPathNameTrl = 'ensemble_trial'
   character(len=256) :: ensFileName, gridFileName, ctrlFileName
   integer, allocatable :: dateStampList(:)
-  integer :: ierr, nulnam, stepIndex, dateStamp
+  integer :: ierr, nulnam, stepIndex
   logical :: targetGridFileExists
   integer, external :: get_max_rss, fstopc, fnom, fclos
 
@@ -112,8 +112,7 @@ program midas_ensPostProcess
   allocate(dateStampList(tim_nstepobsinc))
   call tim_getstamplist(dateStampList,tim_nstepobsinc,tim_getDatestamp())
 
-  dateStamp = tim_getDatestamp()
-  write(*,*) 'midas-ensPostProcess: analysis dateStamp = ', dateStamp
+  write(*,*) 'midas-ensPostProcess: analysis dateStamp = ', tim_getDatestamp()
 
   !- 2. Initialize variables and grids
 

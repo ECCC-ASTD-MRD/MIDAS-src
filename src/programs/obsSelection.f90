@@ -49,7 +49,7 @@ program midas_obsSelection
    
   implicit none
 
-  integer :: datestamp, headerIndex, ierr, nulnam
+  integer :: dateStampFromObs, headerIndex, ierr, nulnam
   type(struct_columnData),target :: columnTrlOnAnlIncLev
   type(struct_columnData),target :: columnTrlOnTrlLev
   type(struct_obs),       target :: obsSpaceData
@@ -103,10 +103,10 @@ program midas_obsSelection
   !     
   !- Initialize observation file names, but don't use datestamp
   !
-  call obsf_setup(dateStamp, 'bgck')
+  call obsf_setup(dateStampFromObs, 'bgck')
 
   !
-  !- Initialize the Temporal grid
+  !- Initialize the Temporal grid and dateStamp from trial file
   !
   call tim_setup(fileNameForDate_opt = './trlm_01')
 
@@ -237,7 +237,7 @@ program midas_obsSelection
   end if
 
   ! Do the ocean data background check
-  if (obs_famExist(obsSpaceData, 'TM')) call ocebg_bgCheckSST(obsSpaceData, dateStamp, &
+  if (obs_famExist(obsSpaceData, 'TM')) call ocebg_bgCheckSST(obsSpaceData, tim_getDateStamp(), &
                                                               columnTrlOnTrlLev, hco_trl)
 
   ! Do the sea ice data gross background check

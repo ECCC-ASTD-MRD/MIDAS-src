@@ -40,7 +40,7 @@ program midas_obsimpact
 
   implicit none
 
-  integer :: istamp,exdb,exfin,ierr, dateStamp
+  integer :: istamp,exdb,exfin,ierr, dateStampFromObs
 
   type(struct_obs),       target :: obsSpaceData
   type(struct_columnData),target :: columnTrlOnAnlIncLev
@@ -82,17 +82,19 @@ program midas_obsimpact
   obsMpiStrategy = 'LIKESPLITFILES'
 
   !
-  !- Initialize the Temporal grid
+  !- Initialize the Temporal grid and set dateStamp from env variable
   !
-  call tim_setup
+  call tim_setup()
   !     
-  !- Initialize burp file names and set datestamp
+  !- Initialize burp file names and set datestamp if not already
   !
-  call obsf_setup( dateStamp, 'FSO' )
-  if ( dateStamp > 0 ) then
-    call tim_setDatestamp(datestamp)     ! IN
-  else
-    call utl_abort('obsImpact: Problem getting dateStamp from observation file')
+  call obsf_setup(dateStampFromObs, 'FSO')
+  if (tim_getDateStamp() == 0) then
+    if (dateStampFromObs > 0) then
+      call tim_setDatestamp(dateStampFromObs)
+    else
+      call utl_abort('obsImpact: DateStamp was not set')
+    end if
   end if
   !
   !- Initialize constants

@@ -83,12 +83,11 @@ program midas_randomPert
   logical :: setPertZeroUnderIce
   integer :: nens
   integer :: seed
-  integer :: date
   integer :: numBits
   character(len=12) :: out_etiket
   real(4) :: iceFractionThreshold
   real(4) :: previousDateFraction
-  NAMELIST /NAMENKF/nens, seed, date, out_etiket, remove_mean,  &
+  NAMELIST /NAMENKF/nens, seed, out_etiket, remove_mean,  &
                     smoothVariances, mpiTopoIndependent, numBits, &
                     readEnsMean, setPertZeroUnderIce, iceFractionThreshold, &
                     previousDateFraction
@@ -113,7 +112,6 @@ program midas_randomPert
   !- 1.1 Setting default values
   nens  = 10
   seed  = -999        ! If -999, set random seed using the date
-  date  = -1          ! Try to set date from ensMeanState file
   remove_mean = .true.
   out_etiket='RANDOM_PERT' 
   smoothVariances = .false.
@@ -151,31 +149,28 @@ program midas_randomPert
   ! Setup the ramdisk directory (if supplied)
   call ram_setup
 
-  !- 2.1 Set the dateStamp, either from namelist or ensMeanState file
-  dateString = 'undefined'
-  if (date <= 0) then
-    dateStamp = date
-  else
-    datePrint   = date/100
-    timePrint   = (date-datePrint*100)*1000000
-    imode = 3 ! printable date (YYYYMMDD, HHMMSShh) to stamp
-    ierr    = newdate(dateStamp, datePrint, timePrint, imode)
-    write(dateString, '(I10)') date
+  !- 2.1 Set the dateStamp, either from env variable or ensMeanState file
+
+  !- Initialize the Temporal grid and the dateStamp from env variable
+  call tim_setup()
+
+  ! If dateStamp not set by env variable, use date from ensMeanState, if available
+  if (tim_getDateStamp() == 0) then
+    if (readEnsMean) then
+      dateStamp = tim_getDatestampFromFile(ensMeanFileName)
+      call tim_setDatestamp(dateStamp)
+    else
+      call utl_abort('midas-randomPert: DateStamp must be set through env variable')
+    end if
   end if
-  ! If dateStamp not set in namelist, use date from ensMeanState, if available
-  if ( (dateStamp <= 0) .and. readEnsMean ) then
-    dateStamp = tim_getDatestampFromFile(ensMeanFileName)
-    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-    ierr = newdate(dateStamp, datePrint, timePrint, imode)
-    write(dateString, '(I10)') datePrint*100 + timePrint/1000000
-  end if
+  dateStamp = tim_getDateStamp()
+  imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+  ierr = newdate(dateStamp, datePrint, timePrint, imode)
+  write(dateString, '(I10)') datePrint*100 + timePrint/1000000
   if( mmpi_myid == 0 ) then
     write(*,*) ' date= ', datePrint, ' time= ', timePrint, ' stamp= ', dateStamp
     write(*,*) ' dateString = ', dateString
   end if
-  !- Initialize the Temporal grid and the dateStamp
-  call tim_setup
-  call tim_setDatestamp(dateStamp)
 
   !- 2.2 Initialize variables of the model states
   call gsv_setup
@@ -498,16 +493,11 @@ program midas_randomPert
     end if
 
     ! determine dateStamp of previous date
-    if (dateString == 'undefined') then
-      dateStampPrevious = -1
-      datePrevious = -1
-    else
-      call incdatr(dateStampPrevious, dateStamp, -tim_windowsize)
-      imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
-      ierr    = newdate(dateStampPrevious, datePrint, timePrint, imode)
-      datePrevious =  datePrint*100 + timePrint/1000000
-      write(datePreviousString, '(I10)') datePrevious
-    end if
+    call incdatr(dateStampPrevious, dateStamp, -tim_windowsize)
+    imode = -3 ! stamp to printable date and time: YYYYMMDD, HHMMSShh
+    ierr    = newdate(dateStampPrevious, datePrint, timePrint, imode)
+    datePrevious =  datePrint*100 + timePrint/1000000
+    write(datePreviousString, '(I10)') datePrevious
     write(*,*) 'midas-randomPert: previous date, stamp = ', datePrevious, dateStampPrevious
 
     call gsv_allocate(stateVectorPert, 1, hco_target, vco_anl, &
@@ -525,14 +515,10 @@ program midas_randomPert
 
       ! Read previous date perturbations (or perturbed analyses)
       write(memberString, '(I4.4)') memberIndex
-      if (dateString /= 'undefined') then
-        if (readEnsMean) then
-          inFileName = './'//trim(datePreviousString)//'_000_'//trim(memberString)
-        else
-          inFileName = './pert_'//trim(datePreviousString)//'_'//trim(memberString)
-        end if
+      if (readEnsMean) then
+        inFileName = './'//trim(datePreviousString)//'_000_'//trim(memberString)
       else
-        inFileName = './pert_'//trim(memberString)
+        inFileName = './pert_'//trim(datePreviousString)//'_'//trim(memberString)
       end if
       if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: reading previous date file = ', inFileName
 
@@ -642,14 +628,10 @@ program midas_randomPert
 
     ! determine file name and write to file
     write(memberString, '(I4.4)') memberIndex
-    if (dateString /= 'undefined') then
-      if (readEnsMean) then
-        outFileName = './'//trim(dateString)//'_000_'//trim(memberString)
-      else
-        outFileName = './pert_'//trim(dateString)//'_'//trim(memberString)
-      end if
+    if (readEnsMean) then
+      outFileName = './'//trim(dateString)//'_000_'//trim(memberString)
     else
-      outFileName = './pert_'//trim(memberString)
+      outFileName = './pert_'//trim(dateString)//'_'//trim(memberString)
     end if
 
     if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: processing file = ', outFileName
@@ -668,11 +650,7 @@ program midas_randomPert
     ! determine file name and write to file
     memberIndex = 0
     write(memberString, '(I4.4)') memberIndex
-    if (dateString /= 'undefined') then
-      outFileName = './'//trim(dateString)//'_000_'//trim(memberString)
-    else
-      call utl_abort('midas-randomPert: dateString is not defined')
-    end if
+    outFileName = './'//trim(dateString)//'_000_'//trim(memberString)
 
     if( mmpi_myid == 0 ) write(*,*) 'midas-randomPert: processing file = ', outFileName
     stateVectorEnsMean%etiket = 'UNDEFINED'

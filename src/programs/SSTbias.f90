@@ -46,7 +46,7 @@ program midas_sstBias
   character(len=48),parameter :: obsMpiStrategy = 'LIKESPLITFILES', &
                                  varMode        = 'analysis'
   type(struct_columnData)     :: column                  ! column data
-  integer                     :: dateStamp               ! datestamp for output file
+  integer                     :: dateStampFromObs
   
   ! namelist parameters 
   real(4)                     :: iceFractionThreshold    ! consider no ice condition below this threshold
@@ -80,7 +80,7 @@ program midas_sstBias
   call SSTbias_setup('VAR') ! obsColumnMode
   
   call sstb_computeBias(obsSpaceData, hco_anl, vco_anl, iceFractionThreshold, searchRadius, &
-                        numberSensors, sensorList, maxBias, numberPointsBG, dateStamp, &
+                        numberSensors, sensorList, maxBias, numberPointsBG, &
                         weightMin, weightMax, saveAuxFields)
 			 
   ! Deallocate copied obsSpaceData
@@ -122,16 +122,21 @@ program midas_sstBias
     write(*,*) '-------------------------------------------------'
 
     !
-    !- Initialize the Temporal grid
+    !- Initialize the Temporal grid and set dateStamp from env variable
     !
-    call tim_setup
+    call tim_setup()
 
     !     
     !- Initialize observation file names and set dateStamp
     !
-    call obsf_setup(dateStamp, varMode)
-    if (dateStamp <= 0) then
-      call utl_abort('SSTbias_setup: Problem getting dateStamp from observation file')
+    call obsf_setup(dateStampFromObs, varMode)
+    if (tim_getDateStamp() == 0) then
+      if (dateStampFromObs > 0) then
+        ! use dateStamp from obs if not set by env variable
+        call tim_setDateStamp(dateStampFromObs)
+      else
+        call utl_abort('SSTbias_setup: DateStamp was not set')
+      end if
     end if
 
     ! Setting default namelist variable values

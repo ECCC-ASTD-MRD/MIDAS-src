@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Remove use of `resume` table in all obsDB/sqlite files; add `MIDAS_DATE` (#761 and !691)
+  * Removed date-related namelist variables in NAMTIME, NAMENKF and NAMDIAG
  * Primary keys in MIDAS_HEADER/BODY_OUTPUT tables now unique across split ObsDB files (#765 and !685)
  * Moved the definition of maxNumLevels to verticalcoord_mod (#758 and !688)
  * Centralised and wrapped all `vgd_{levels,dpidpis}` calls in `czp` (#745 and !687)

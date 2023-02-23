@@ -124,10 +124,10 @@ program midas_sstTrial
     end if  
 
     !
-    !- Initialize the Temporal grid
+    !- Initialize the Temporal grid and set dateStamp from gridFile
     !
-    call tim_setup(gridFile)
-    analysisDateStamp = tim_getDatestampFromFile(gridFile)
+    call tim_setup(fileNameForDate_opt = gridFile)
+    analysisDateStamp = tim_getDateStamp()
     write(*,*) 'SSTtrial_setup: analysis datestamp  = ', analysisDateStamp
     write(*,*) 'SSTtrial_setup:          windowsize = ', tim_windowsize
     

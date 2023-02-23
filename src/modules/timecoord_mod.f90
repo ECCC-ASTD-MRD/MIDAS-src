@@ -34,7 +34,7 @@ module timeCoord_mod
   ! public procedures
   public :: tim_setup, tim_initialized
   public :: tim_getDateStamp, tim_setDateStamp, tim_getStampList, tim_getStepObsIndex
-  public :: tim_getDateStampFromFile, tim_dateStampToYYYYMMDDHH
+  public :: tim_getDateStampFromFile, tim_dateStampToYYYYMMDDHH, tim_getValidDateTimeFromList
 
   character(len=4) :: varNameForDate
   character(len=6) :: tim_referencetime
@@ -44,17 +44,16 @@ module timeCoord_mod
   integer   :: tim_nstepobs
   integer   :: tim_nstepobsinc
   logical   :: tim_fullyUseExtremeTimeBins
-  integer   :: datestamp = 0      ! window centre of analysis validity
+  integer   :: datestamp = 0  ! datestamp is usually the centre of time window
   logical   :: initialized = .false.
 
   integer, external :: get_max_rss
 
 contains
 
-  subroutine tim_setup(fileNameForDate_opt)
+  subroutine tim_readNml()
     !
-    ! :Purpose: Setup of obs time window size and related trial field 
-    !           time step for OmP determination. 
+    ! :Purpose: Read the namelist block NAMTIME.
     !
     ! :Namelist parameters:
     !         :dstepobs:    time step (hrs) between successive trial fields 
@@ -74,32 +73,30 @@ contains
     !
     implicit none
 
-    ! arguments
-    character(len=*), optional :: fileNameForDate_opt
-
     ! locals
-    integer :: nulnam, ierr, fnom, fclos, newdate, imode, prntdate, prnttime
+    integer :: nulnam, ierr, fnom, fclos
+    logical, save :: firstCall = .true.
 
     ! namelist variables:
     real(8) :: dstepobs
     real(8) :: dstepobsinc
     real(8) :: dwindowsize
-    integer :: date
     character(len=6) :: referencetime
     logical :: fullyUseExtremeTimeBins
 
-    NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, date, referencetime, fullyUseExtremeTimeBins
+    NAMELIST /NAMTIME/dstepobs, dstepobsinc, dwindowsize, referencetime, fullyUseExtremeTimeBins
 
-    if (initialized) then
-      write(*,*) 'tim_setup: already initialized, just return'
+    if (.not.firstCall) then
+      write(*,*) 'tim_readNml: already initialized, just return'
       return
+    else
+      firstCall = .false.
     end if
 
     ! Set default values for namelist variables
     dstepobs       = 6.0d0
     dstepobsinc    = 6.0d0      
     dwindowsize    = 6.0d0     
-    date           = 0
     referenceTime = 'middle'
     fullyUseExtremeTimeBins = .false.
 
@@ -107,14 +104,14 @@ contains
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml=namtime, iostat=ierr)
-    if (ierr /= 0) call utl_abort('tim_setup: Error reading namelist')
+    if (ierr /= 0) call utl_abort('tim_readNml: Error reading namelist')
     if (mmpi_myid == 0) write(*,nml=namtime)
     ierr = fclos(nulnam)
 
     ! Set the module variables for timestep length, number of timesteps and window length
-    tim_dstepobs    = dstepobs
-    tim_dstepobsinc = dstepobsinc
-    tim_windowsize  = dwindowsize
+    tim_dstepobs      = dstepobs
+    tim_dstepobsinc   = dstepobsinc
+    tim_windowsize    = dwindowsize
     tim_referencetime = referenceTime
     tim_fullyUseExtremeTimeBins = fullyUseExtremeTimeBins
 
@@ -124,11 +121,11 @@ contains
     end if
 
     if (dstepobs > dwindowsize) then
-      if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobs>dwindowsize. Reset to dwindowsize value.'
+      if (mmpi_myid == 0) write(*,*) 'tim_readNml: dstepobs>dwindowsize. Reset to dwindowsize value.'
       tim_dstepobs = tim_windowsize 
     end if
     if (dstepobsinc > dwindowsize) then
-      if (mmpi_myid == 0) write(*,*) 'tim_setup: dstepobsinc>dwindowsize. Reset to dwindowsize value.'
+      if (mmpi_myid == 0) write(*,*) 'tim_readNml: dstepobsinc>dwindowsize. Reset to dwindowsize value.'
       tim_dstepobsinc = tim_windowsize 
     end if 
     if (tim_referencetime == "middle") then
@@ -141,9 +138,106 @@ contains
       tim_nstepobsinc = max(nint(tim_windowsize/tim_dstepobsinc), 1)
     end if
 
+  end subroutine tim_readNml
+
+
+  subroutine tim_getDateStampFromEnvVar(dateStamp)
+    !
+    !:Purpose: Determine the date from the environment variable MIDAS_DATE.
+    !
+    implicit none
+
+    ! arguments:
+    integer, intent(inout) :: dateStamp
+
+    ! locals:
+    integer    :: lengthValidDateStr, status, datePrint, timePrint, imode, ierr
+    integer(8) :: dateTimePrint
+    character(len=256) :: validDateStr
+    integer    :: newdate
+
+    status = 0
+    call get_environment_variable('MIDAS_DATE',validDateStr,lengthValidDateStr,status,.true.)
+
+    if (status > 1) then
+      call utl_abort('tim_getDateStampFromEnvVar: Problem when getting the environment variable MIDAS_DATE')
+    end if
+    if (status == 1) then
+      write(*,*) 'tim_getDateStampFromEnvVar: WARNING: The environment variable MIDAS_DATE has not been detected!'
+      !call utl_abort('tim_getDateStampFromEnvVar: The environment variable MIDAS_DATE has not been detected!')
+      return
+    end if
+
+    write(*,*)
+    write(*,*) 'tim_getDateStampFromEnvVar: The environment variable MIDAS_DATE has correctly been detected'
+
+    ! convert string to long integer
+    read (validDateStr,*) dateTimePrint
+
+    ! split dateTime long integer into separate date and time values
+    if (lengthValidDateStr == 10) then
+      datePrint = dateTimePrint/100
+      timePrint = (dateTimePrint - datePrint*100) * 1000000
+    else if (lengthValidDateStr == 12) then
+      datePrint = dateTimePrint/10000
+      timePrint = (dateTimePrint - datePrint*10000) * 10000
+    else if (lengthValidDateStr == 14) then
+      datePrint = dateTimePrint/1000000
+      timePrint = (dateTimePrint - datePrint*1000000) * 100
+    else if (lengthValidDateStr == 16) then
+      datePrint = dateTimePrint/100000000
+      timePrint = (dateTimePrint - datePrint*100000000)
+    else
+      write(*,*) 'length of MIDAS_DATE = ', lengthValidDateStr
+      call utl_abort('tim_getDateStampFromEnvVar: Unexpected length of variable MIDAS_DATE')
+    end if
+
+    ! convert to CMC dateStamp
+    imode = 3 ! printable to stamp
+    ierr = newdate(datestamp, datePrint, timePrint, imode)
+
+    write(*,*) 'tim_getDateStampFromEnvVar: envVar, validDate, dateStamp = ', trim(validDateStr), dateTimePrint, dateStamp
+
+  end subroutine tim_getDateStampFromEnvVar
+
+
+  subroutine tim_setup(fileNameForDate_opt)
+    !
+    ! :Purpose: Setup of obs time window size and related trial field 
+    !           time step for OmP determination. 
+    !
+    implicit none
+
+    ! arguments
+    character(len=*), optional :: fileNameForDate_opt
+
+    ! locals
+    integer :: ierr, newdate, imode, prntdate, prnttime
+    integer :: dateStampEnvVar
+
+    call tim_readNml()
+
+    if (initialized) then
+      write(*,*) 'tim_setup: already initialized, just return'
+      return
+    end if
+
+    ! First try to set dateStamp from MIDAS_DATE
+    dateStampEnvVar = 0
+    call tim_getDateStampFromEnvVar(dateStampEnvVar)
 
     ! Possibly set the datestamp (except when set later from burp files)
-    if (present(fileNameForDate_opt)) then
+    if (dateStampEnvVar /= 0) then
+      write(*,*) 'tim_setup: ====================================================='
+      write(*,*) 'tim_setup: DATESTAMP set by value in supplied MIDAS_DATE'
+      write(*,*) 'tim_setup: ====================================================='
+      dateStamp = dateStampEnvVar
+      imode = -3 ! stamp to printable
+      ierr = newdate(datestamp, prntdate, prnttime, imode)
+      write(*,*) 'tim_setup: printdate = ',prntdate
+      write(*,*) 'tim_setup: printtime = ',prnttime
+      write(*,*) 'tim_setup: datestamp = ',datestamp      
+    else if (present(fileNameForDate_opt)) then
       write(*,*) 'tim_setup: ====================================================='
       write(*,*) 'tim_setup: DATESTAMP set by value in supplied file'
       write(*,*) 'tim_setup: ====================================================='
@@ -153,17 +247,10 @@ contains
       write(*,*) 'tim_setup: printdate = ',prntdate
       write(*,*) 'tim_setup: printtime = ',prnttime
       write(*,*) 'tim_setup: datestamp = ',datestamp
-    else if (date /= 0) then
-      write(*,*) 'tim_setup: ====================================================='
-      write(*,*) 'tim_setup: DATESTAMP set by value in namelist'
-      write(*,*) 'tim_setup: ====================================================='
-      prntdate = date/100
-      prnttime = (date - prntdate*100) * 1000000
-      imode = 3 ! printable to stamp
-      ierr = newdate(datestamp, prntdate, prnttime, imode)
-      write(*,*) 'tim_setup: printdate = ',prntdate
-      write(*,*) 'tim_setup: printtime = ',prnttime
-      write(*,*) 'tim_setup: datestamp = ',datestamp
+    else
+      write(*,*) 'tim_setup: =========================================================='
+      write(*,*) 'tim_setup: DATESTAMP not set in this subroutine, use tim_setDateStamp'
+      write(*,*) 'tim_setup: =========================================================='      
     end if
 
     if (mmpi_myid == 0) write(*,*) 'tim_setup: dobs_windowsize=',tim_windowsize
@@ -520,5 +607,110 @@ contains
     end if     
   
   end subroutine tim_dateStampToYYYYMMDDHH
+
+  !----------------------------------------------------------------------------------------
+  ! tim_getValidDateTimeFromList
+  !----------------------------------------------------------------------------------------
+  subroutine tim_getValidDateTimeFromList(headDateValues, headTimeValues, validDate, validtime)
+    implicit none
+
+    ! arguments:
+    integer, intent(in)  :: headDateValues(:)
+    integer, intent(in)  :: headTimeValues(:)
+    integer, intent(out) :: validDate
+    integer, intent(out) :: validTime
+
+    ! locals:
+    integer                 :: numDates, numWindowsPerDay, windowIndex, timeMin, timeMax, dateMin, dateMax
+    integer                 :: windowBoundaryMin, windowBoundaryMax, validTimeMin, validTimeMax, validDateMin, validDateMax 
+    integer(8)              :: dateTimeMin, dateTimeMax
+    integer(8), allocatable :: dateTimeValues(:), windowBoundaries(:)
+    integer                 :: ier, imode
+    integer                 :: newdate, dateStampIn, dateStampOut
+
+    call tim_readNml()
+
+    numDates = size(headDateValues)
+    checkNumDates: if (numDates > 0) then
+      write(*,*) 'tim_getValidDateTimeFromList: check inputs: time min/max = ', minval(headTimeValues), maxval(headTimeValues)
+      write(*,*) 'tim_getValidDateTimeFromList: check inputs: date min/max = ', minval(headDateValues), maxval(headDateValues)
+      allocate(dateTimeValues(size(headDateValues)))
+      dateTimeValues(:) = headDateValues(:)
+      dateTimeValues(:) = 10000*dateTimeValues(:) + headTimeValues(:)
+
+      dateTimeMin = minval(dateTimeValues(:))
+      dateTimeMax = maxval(dateTimeValues(:))
+      deallocate(dateTimeValues)
+      dateMin = dateTimeMin/10000
+      dateMax = dateTimeMax/10000
+      timeMin = dateTimeMin - 10000*(dateTimeMin/10000)
+      timeMax = dateTimeMax - 10000*(dateTimeMax/10000)
+      ! convert from hhmm to just minutes: hhmm - 100*(hhmm/100) + 60*(hhmm/100)
+      timeMin = timeMin - 100*(timeMin/100) + 60*(timeMin/100)
+      timeMax = timeMax - 100*(timeMax/100) + 60*(timeMax/100)
+      write(*,*) 'tim_getValidDateTimeFromList: min/max DateTime             = ', dateTimeMin, dateTimeMax
+      write(*,*) 'tim_getValidDateTimeFromList: min/max time (in minutes)    = ', timeMin, timeMax
+      if (tim_windowSize < 24.0d0) then
+        numWindowsPerDay = nint(24.0/tim_windowSize)
+
+        ! define boundaries between assimilation windows in minutes relative to 0UTC
+        allocate(windowBoundaries(0:numWindowsPerDay))
+        do windowIndex = 0, numWindowsPerDay
+          ! example for windowSize=6h, boundaries = -3h,+3h,+9h,+15h,+21h
+          windowBoundaries(windowIndex) = nint(windowIndex*60.0*tim_windowSize - 60.0*tim_windowSize/2.0)
+        end do
+        write(*,*) 'tim_getValidDateTimeFromList: boundaries (in minutes) = ', windowBoundaries(:)
+
+        ! find left boundary of window where timeMin/Max are located
+        windowBoundaryMin = -1
+        windowBoundaryMax = -1
+        do windowIndex = 0, numWindowsPerDay
+          if (timeMin >= windowBoundaries(windowIndex)) then
+            windowBoundaryMin = windowIndex
+          end if
+          if (timeMax >= windowBoundaries(windowIndex)) then
+            windowBoundaryMax = windowIndex
+          end if
+        end do
+
+        ! find validTimeMin/Max from left boundary
+        validTimeMin = nint((windowBoundaries(windowBoundaryMin) + 60.0*tim_windowSize/2.0)/60.0)
+        if (validTimeMin >= 24) then
+          validTimeMin = 0
+          imode = 3
+          ier = newdate(dateStampIn, dateMin, validTimeMin, imode)
+          call incdat(dateStampOut, dateStampIn, 24) ! add 1 day to get validDate
+          imode = -3
+          ier = newdate(dateStampOut, validDateMin, validTimeMin, imode)
+          validTimeMin = 0
+        else
+          validDateMin = dateMin
+        end if
+        validTimeMax = nint((windowBoundaries(windowBoundaryMax) + 60.0*tim_windowSize/2.0)/60.0)
+        if (validTimeMax >= 24) then
+          validTimeMax = 0
+          imode = 3
+          ier = newdate(dateStampIn, dateMax, validTimeMax, imode)
+          call incdat(dateStampOut, dateStampIn, 24) ! add 1 day to get validDate
+          imode = -3
+          ier = newdate(dateStampOut, validDateMax, validTimeMax, imode)
+          validTimeMax = 0
+        else
+          validDateMax = dateMax
+        end if
+        write(*,*) 'tim_getValidDateTimeFromList: date from Min/Max = ', validDateMin, validDateMax
+        write(*,*) 'tim_getValidDateTimeFromList: hour from Min/Max = ', validTimeMin, validTimeMax
+        if (validTimeMin /= validTimeMax) call utl_abort('validTimeMin/Max not equal')
+        validTime = validTimeMin
+        validDate = validDateMin
+        deallocate(windowBoundaries)
+      else
+        write(*,*) 'tim_getValidDateTimeFromList: WARNING: window size equal or greater than 1 day, cannot get dateStamp'
+        validTime = 0
+        validDate = 0
+      end if
+    end if checkNumDates
+    
+  end subroutine tim_getValidDateTimeFromList
 
 end module timeCoord_mod

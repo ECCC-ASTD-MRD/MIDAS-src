@@ -138,40 +138,42 @@ program midas_diagHBHt
 contains
 
   !--------------------------------------------------------------------------
-  !! *Purpose*: Control of the preprocessing of the variational assimilation
-  !!
-  !! Revisions:
-  !!           Y.J. Rochon, Jan 2016
-  !!           - Addition of test on availability of input trial fields according
-  !!             to related observation families.
+  ! var_setup
   !--------------------------------------------------------------------------
   subroutine var_setup(obsColumnMode)
+    !
+    !:Purpose: Control of the preprocessing of the variational assimilation
+    !
     implicit none
 
+    ! arguments
     character (len=*) :: obsColumnMode
-    integer :: datestamp
-    type(struct_vco),pointer :: vco_anl => null()
 
+    ! locals
+    integer :: dateStampFromObs
+    type(struct_vco),pointer :: vco_anl => null()
     integer :: get_max_rss
 
-    write(*,*) ''
+    write(*,*)
     write(*,*) '-----------------------------------'
     write(*,*) '-- Starting subroutine var_setup --'
     write(*,*) '-----------------------------------'
 
     !
-    !- Initialize the Temporal grid
+    !- Initialize the Temporal grid and set dateStamp from env variable
     !
-    call tim_setup
+    call tim_setup()
 
     !     
-    !- Initialize burp file names and set datestamp
+    !- Initialize burp file names and set datestamp if not already
     !
-    call obsf_setup( dateStamp, 'analysis' )
-    if ( dateStamp > 0 ) then
-      call tim_setDatestamp(datestamp)     ! IN
-    else
-      call utl_abort('var_setup: Problem getting dateStamp from observation file')
+    call obsf_setup(dateStampFromObs, 'analysis')
+    if (tim_getDateStamp() == 0) then
+      if (dateStampFromObs > 0) then
+        call tim_setDatestamp(dateStampFromObs)
+      else
+        call utl_abort('var_setup: dateStamp was not set')
+      end if
     end if
 
     !

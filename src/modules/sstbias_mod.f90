@@ -23,6 +23,7 @@ module SSTbias_mod
   use obsSpaceData_mod  
   use horizontalCoord_mod
   use verticalCoord_mod
+  use timeCoord_mod
   use kdtree2_mod
   use codePrecision_mod
   use mathPhysConstants_mod
@@ -57,7 +58,7 @@ module SSTbias_mod
   ! sstb_computeBias
   !--------------------------------------------------------------------------
   subroutine sstb_computeBias(obsData, hco, vco, iceFractionThreshold, searchRadius, &
-                              numberSensors, sensorList, maxBias, numberPointsBG, dateStamp, &
+                              numberSensors, sensorList, maxBias, numberPointsBG, &
                               weightMin, weightMax, saveAuxFields)
     !
     !:Purpose: compute bias for SST satellite data with respect to insitu data 
@@ -74,7 +75,6 @@ module SSTbias_mod
     character(len=*), intent(in)             :: sensorList(:)        ! list of satellite names
     real(4)         , intent(in)             :: maxBias              ! max allowed insitu-satellite difference in degrees, defined in namelist  
     integer         , intent(in)             :: numberPointsBG       ! namelist parameter: number of points used to compute background state
-    integer         , intent(in)             :: dateStamp            ! dateStamp to put into fstd file with bias estimation
     logical         , intent(in)             :: saveAuxFields        ! to store or not auxiliary fields: nobs and weight        
     real(4)         , intent(in)             :: weightMin            ! minimum value of weight from namelist
     real(4)         , intent(in)             :: weightMax            ! maximum value of weight from namelist
@@ -147,20 +147,20 @@ module SSTbias_mod
             call sstb_getGriddedBias(satelliteGrid(:, :), insituGrid, nobsFoundSatGlob, &
                                      nobsFoundSatLoc, hco, vco, mask, openWater, maxBias, &
                                      sensorList(sensorIndex), numberOpenWaterPoints, &
-                                     numberPointsBG, listProducts(productIndex), dateStamp, &
+                                     numberPointsBG, listProducts(productIndex), &
                                      weightMin, weightMax, saveAuxFields)
           else
             write(*,*) 'sstb_computeBias: WARNING: missing ', trim(sensorList(sensorIndex)), ' ', &
                        trim(listProducts(productIndex)),' data.' 
             write(*,*) 'Bias estimate will be read from the previous state...'
-            call sstb_getBiasFromPreviousState(hco, vco, dateStamp, &
+            call sstb_getBiasFromPreviousState(hco, vco, &
                                                sensorList(sensorIndex), &
                                                listProducts(productIndex)) 
           end if
         else
           write(*,*) 'sstb_computeBias: WARNING: missing insitu data.'
           write(*,*) 'sstb_computeBias: bias estimates for all sensors will be read from the previous state...'
-          call sstb_getBiasFromPreviousState(hco, vco, dateStamp, &
+          call sstb_getBiasFromPreviousState(hco, vco, &
                                              sensorList(sensorIndex), &
                                              listProducts(productIndex)) 
         end if
@@ -360,7 +360,7 @@ module SSTbias_mod
   subroutine sstb_getGriddedBias(satelliteGrid, insituGrid, nobsGlob, nobsLoc, &
                                  hco, vco,  mask, openWater, maxBias, sensor, &
                                  numberOpenWaterPoints, numberPointsBG, dayOrNight, &
-                                 dateStamp, weightMin, weightMax, saveAuxFields)
+                                 weightMin, weightMax, saveAuxFields)
     !
     !:Purpose: compute the satellite SST data bias estimation field on a grid
     !           
@@ -380,7 +380,6 @@ module SSTbias_mod
     integer         , intent(in)             :: numberOpenWaterPoints! number of open water points to allocate kd-tree work arrays 
     integer         , intent(in)             :: numberPointsBG       ! namelist parameter: number of data used to compute the previous bias estimation
     character(len=*), intent(in)             :: dayOrNight           ! look for daytime or nighttime obs
-    integer         , intent(in)             :: dateStamp            ! dateStamp to put into fstd file with bias estimation
     logical         , intent(in)             :: saveAuxFields        ! to store or not auxiliary fields: nobs and weight        
     real(4)         , intent(in)             :: weightMin            ! namelist parameter: minimum value of weight
     real(4)         , intent(in)             :: weightMax            ! namelist parameter: maximum value of weight
@@ -459,13 +458,13 @@ module SSTbias_mod
     if (saveAuxFields) then
       ! output nobs state vector
       call gsv_allocate(stateVectorNobs, 1, hco, vco, dataKind_opt = 4, &
-                        datestamp_opt = dateStamp, mpi_local_opt = .true., &
+                        datestamp_opt = tim_getDateStamp(), mpi_local_opt = .true., &
                         varNames_opt = (/'TM'/))
       ! pointer for nobs stateVector
       call gsv_getField(stateVectorNobs, nobsField_r4_ptr)
       ! output weight state vector
       call gsv_allocate(stateVectorWeight, 1, hco, vco, dataKind_opt = 4, &
-                        datestamp_opt = dateStamp, mpi_local_opt = .true., &
+                        datestamp_opt = tim_getDateStamp(), mpi_local_opt = .true., &
                         varNames_opt = (/'TM'/))
       ! pointer for weight stateVector
       call gsv_getField(stateVectorWeight, weightField_r4_ptr)
@@ -482,7 +481,7 @@ module SSTbias_mod
        
     ! resulting bias estimation state vector
     call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
-                      datestamp_opt = dateStamp, mpi_local_opt = .true., varNames_opt = (/'TM'/))
+                      datestamp_opt = tim_getDateStamp(), mpi_local_opt = .true., varNames_opt = (/'TM'/))
     ! pointer for bias estimation stateVector
     call gsv_getField(stateVector, griddedBias_r4_ptr)
     
@@ -737,7 +736,7 @@ module SSTbias_mod
   !--------------------------------------------------------------------------
   ! sstb_getBiasFromPreviousState
   !--------------------------------------------------------------------------
-  subroutine sstb_getBiasFromPreviousState(hco, vco, dateStamp, sensor, dayOrNight)
+  subroutine sstb_getBiasFromPreviousState(hco, vco, sensor, dayOrNight)
     !
     !:Purpose: to get a satellite SST data bias estimate from the previous state if data is missing.
     !          or there are no insitu data for the current dateStamp,
@@ -748,7 +747,6 @@ module SSTbias_mod
     ! arguments
     type(struct_hco), intent(inout), pointer :: hco        ! horizontal grid structure
     type(struct_vco), intent(in)   , pointer :: vco        ! vertical grid structure
-    integer         , intent(in)             :: dateStamp  ! dateStamp to put into fstd file with bias estimation
     character(len=*), intent(in)             :: sensor     ! sensor name
     character(len=*), intent(in)             :: dayOrNight ! look for daytime or nighttime bias estimation
 
@@ -780,7 +778,7 @@ module SSTbias_mod
 
     ! resulting bias estimation state vector
     call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, &
-                      datestamp_opt = dateStamp, mpi_local_opt = .true., varNames_opt = (/'TM'/))
+                      datestamp_opt = tim_getDateStamp(), mpi_local_opt = .true., varNames_opt = (/'TM'/))
     ! pointer for bias estimation stateVector
     call gsv_getField(stateVector, griddedBias_r4_ptr)
         
