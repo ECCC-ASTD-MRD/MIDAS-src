@@ -10,7 +10,9 @@
 #include <sqlite3.h>
 
 /* Include pour les librairies RPN */
-#include "rpnmacros.h"
+#include "rmn.h"
+#include "rmn/rpnmacros.h"
+
 /* Include pour la librairie de manipulation de fichiers BURP*/
 #include <burp_api.h>
 
@@ -207,16 +209,8 @@ void   aide(void);
 void   help(void);
 
 /* rmnlib.a */
-extern void f77name(incdatr)();
 extern void f77name(exdb)();
-extern int c_gdrls(int);
-extern int c_fstinf();
-extern int c_fstluk();
-extern int c_gdllsval();
-extern int c_gdxyfll();
-extern int c_mrfbfl(int);
-extern int c_ezgprm();
-extern wordint c_wkoffit();
+extern int c_mrfbfl();
 
 /* Vecteur global qui contient les valeurs du champ GZ au niveau voulu
  * pour estimer la hauteur de la pression donnee
@@ -232,7 +226,7 @@ int    VERBOSE = 0;
 /********************************/
 /*          main                */
 /********************************/
-int f77name(splitobs)(int argc, char** argv) {
+int main(int argc, char** argv) {
   int iun = UNIT_NUMBER, ier, status, EXIT_STATUS = 0, IS_INPUT_BURP_FILE;
   int filetype;
   char *ErrMsg, requete_sql[MAXSTR];
@@ -244,11 +238,9 @@ int f77name(splitobs)(int argc, char** argv) {
   /* Impression de la boite indiquant le demarrage du programme */
   /**************************************************************/
 
-  F2Cl l_program_name, l_version, l_non;
-
-  l_program_name = (F2Cl) strlen(PROGRAM_NAME);
-  l_version      = (F2Cl) strlen(VERSION);
-  l_non          = (F2Cl) strlen("NON");
+  F2Cl l_program_name = strlen(PROGRAM_NAME);
+  F2Cl l_version      = strlen(VERSION);
+  F2Cl l_non          = strlen("NON");
 
   f77name(exdb)(PROGRAM_NAME,VERSION,"NON",l_program_name,l_version,l_non);
 
@@ -3365,7 +3357,7 @@ int find_subdomain(int gridid, int ni, int nj, float lat, float lon, rectangle r
 		   "rect.min_i=%f rect.max_i=%f rect.min_j=%f "
 		   "rect.max_j=%f\n",lat,lon,x,y,rect.min_i,rect.max_i,rect.min_j,rect.max_j);
 
-	  status = c_ezgprm(gridid, &input_grid.grtyp, &input_grid.ni, &input_grid.nj,
+	  status = c_ezgprm(gridid, input_grid.grtyp, &input_grid.ni, &input_grid.nj,
 			    &input_grid.ig1, &input_grid.ig2, &input_grid.ig3, &input_grid.ig4);
 	  if (status<0) {
 	    sprintf(errmsg, "Fonction find_subdomain: Erreur avec c_ezgprm qui retourne %d "

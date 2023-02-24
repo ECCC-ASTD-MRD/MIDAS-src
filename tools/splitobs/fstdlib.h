@@ -3,7 +3,7 @@
 #define __INCLUDE_FSTDLIB_H__
 
 /* Include pour les librairies RPN */
-#include "rpnmacros.h"
+#include "rmn/rpnmacros.h"
 
 /* define pour les differentes longeurs de chaine de caracteres utilisees dans le programme */
 #ifndef MAXSTR

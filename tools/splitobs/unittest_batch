@@ -40,6 +40,9 @@ export VERSION=$(git describe --dirty --always --tags || true)
 if [ -n "${AFSISIO}" ]; then
    export AFSISIO=${AFSISIO}
 fi
+if [ -n "${CMCCONST}" ]; then
+   export CMCCONST=${CMCCONST}
+fi
 
 if [ -n "${SPLITOBS}" ]; then
    export SPLITOBS=${SPLITOBS}

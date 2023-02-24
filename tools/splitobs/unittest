@@ -30,7 +30,8 @@ REFERENCE=${REFERENCE:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/res
 GRIDS=${GRIDS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/grids}
 
 CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20220216-1
-RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20220216
+RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20230222-beta3
+RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20230222-beta3
 
 DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}
 DIFF_METHOD_FOR_SQL_FILES=${DIFF_METHOD_FOR_SQL_FILES:-SQL}
@@ -39,6 +40,7 @@ check_subdomains_tool=${PWD}/check_latlon_in_subdomain.py
 WORKDIR=${WORKDIR:-${PWD}/work}
 
 export AFSISIO=${AFSISIO:-/home/smco502}
+export CMCCONST=${CMCCONST:-/home/smco502/datafiles/constants}
 
 echo "Using SPLITOBS=${SPLITOBS}"
 
@@ -60,9 +62,6 @@ sqlite=${sqlite:-$(which d.sqlite 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SS
 sqlite3=${sqlite3:-$(which sqlite3)}
 fstcomp=${fstcomp:-$(which fstcomp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which fstcomp))}
 editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
-
-#TMPDIR_OLD=${TMPDIR}
-#unset TMPDIR
 
 unittest () {
     set -e

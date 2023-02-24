@@ -61,6 +61,7 @@ __listing_config=${MIDAS_COMPILE_JOBNAME}.config-${__date}.out
 __listing_frontend=${MIDAS_COMPILE_JOBNAME}.${MIDAS_COMPILE_FRONTEND}-${__date}.out
 if [ "${__midas_source_config_status__}" -ne 0 ]; then
   mv .tmp.config.out ${__listing_config}
+  check_ec_atomic_profile_version # execute here to give error message directly in shell
   echo "An error occured in the build configuration, consult ${__listing_config}"
   exit 1
 fi

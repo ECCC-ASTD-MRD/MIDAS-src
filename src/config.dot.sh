@@ -113,9 +113,15 @@ vercomp () {
 }
 
 check_ec_atomic_profile_version () {
-    if [ "$(vercomp 1.11.0 ${EC_ATOMIC_PROFILE_VERSION})" = '>' ]; then
-        echo "EC_ATOMIC_PROFILE_VERSION=${EC_ATOMIC_PROFILE_VERSION} but should be greater or equal to 1.11.0"
-        echo "Please use login profile greater of equal to /fs/ssm/eccc/mrd/ordenv/profile/1.11.0"
+    if [ "$(vercomp 1.28.0 ${EC_ATOMIC_PROFILE_VERSION})" = '>' ]; then
+	echo
+	echo
+        echo "+---| ERROR ERROR ERROR |----------------------------------------------------------------"
+        echo "  EC_ATOMIC_PROFILE_VERSION=${EC_ATOMIC_PROFILE_VERSION} but should be greater or equal to 1.28.0"
+        echo "  Please use login profile greater of equal to /fs/ssm/eccc/mrd/ordenv/profile/1.28.0"
+        echo "+---| ERROR ERROR ERROR |----------------------------------------------------------------"
+	echo
+	echo
         return 1
     fi
 }
@@ -124,22 +130,18 @@ check_ec_atomic_profile_version () {
 #----------------------------------------------------------------
 #  Set up dependent librarys and tools. 
 #---------------------------------------------------------------
-echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2"
-. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2
+echo "... loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.1/SCIENCE/inteloneapi-2022.1.2"
+. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.1/SCIENCE/inteloneapi-2022.1.2
 
 ## for hdf5
 HDF5_LIBS="hdf5hl_fortran hdf5_hl hdf5_fortran hdf5 z"
 
-## for rmn, rpncomm
-echo "... loading eccc/mrd/rpn/libs/20220216"
-. r.load.dot eccc/mrd/rpn/libs/20220216
+## for rmn, vgrid, rpncomm
+VGRID_LIBNAME="vgrid"
+echo "... loading eccc/mrd/rpn/libs/20230222-beta3"
+. r.load.dot eccc/mrd/rpn/libs/20230222-beta3
 echo "... loading hdf5"
 . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
-
-## for 'vgrid'
-echo "... loading eccc/mrd/rpn/vgrid/20220216"
-. ssmuse-sh -d eccc/mrd/rpn/vgrid/20220216
-VGRID_LIBNAME="vgrid"
 
 echo "... loading eccc/cmd/cmda/libs/20220216/${COMP_ARCH}"
 . ssmuse-sh -d eccc/cmd/cmda/libs/20220216/${COMP_ARCH}
@@ -149,10 +151,6 @@ echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 
 echo "... loading eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}"
 . r.load.dot eccc/mrd/rpn/anl/rttov/13v1.3/${COMP_ARCH}
-
-## for 'random_tools'
-echo "... loading eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2-cdt-1.5.5/${COMP_ARCH}"
-. ssmuse-sh -d eccc/mrd/rpn/anl/random_tools/Release_1.0.0-HPCR-U2-cdt-1.5.5/${COMP_ARCH}
 
 ## loading makedep90
 echo "... loading makedepf90"
@@ -227,3 +225,6 @@ export MIDAS_SSM_VERSION
 
 # config return status
 ${__status}
+
+# check version of profile
+check_ec_atomic_profile_version

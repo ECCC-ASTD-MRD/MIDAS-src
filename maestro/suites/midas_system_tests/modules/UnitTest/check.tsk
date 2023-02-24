@@ -76,13 +76,13 @@ function check_result {
 
         if [ "${method}" = fstcomp ]; then
 	    ${TASK_BIN}/fstcomp ${fstcomp_options} -a live -b rfrn 2>&1 | tee fstcomp.list
-	    cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET           IP1            IP2       IP3   E-REL-MAX   E-REL-MOY   VAR-A        C-COR        MOY-A        BIAIS       E-MAX       E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | grep -v "PAS DE COMPARAISON" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+	    cat fstcomp.list | grep -vE '^\-' | grep -vE '^Start' | grep -vE '^Application' | grep -vE '^Libraries' | grep -vE '^Finish' | grep -vE '^Execution' | grep -vE '^Status' | grep -vE '^ *rmn' | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET           IP1            IP2       IP3   E-REL-MAX   E-REL-MOY   VAR-A        C-COR        MOY-A        BIAIS       E-MAX       E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | grep -v "PAS DE COMPARAISON" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	    if [ -s fstcomp.list.grep ]; then
 	        not_validating=yes
                 maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
 	    else
 	        ${TASK_BIN}/fstcomp ${fstcomp_options} -b live -a rfrn 2>&1 | tee fstcomp.list
-	        cat fstcomp.list | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET           IP1            IP2       IP3   E-REL-MAX   E-REL-MOY   VAR-A        C-COR        MOY-A        BIAIS       E-MAX       E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | grep -v "PAS DE COMPARAISON" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
+	        cat fstcomp.list | grep -vE '^\-' | grep -vE '^Start' | grep -vE '^Application' | grep -vE '^Libraries' | grep -vE '^Finish' | grep -vE '^Execution' | grep -vE '^Status' | grep -vE '^ *rmn' | grep -vE '^   \*|^1|^c_fstopl option REDUCTION32|^ Debug TG= T| SONT EGAUX$' | grep -v "^  NOM    ETIKET           IP1            IP2       IP3   E-REL-MAX   E-REL-MOY   VAR-A        C-COR        MOY-A        BIAIS       E-MAX       E-MOY" | grep -v "^  \*\*   SKIPPING RECORD \"!!\", CAN'T COMPARE  \*\*$" | grep -v "PAS DE COMPARAISON" | awk 'NF>0 && $(NF-1)!="0.0000E+00"' | tee fstcomp.list.grep
 	        if [ -s fstcomp.list.grep ]; then
 		    not_validating=yes
                     maxerror=$(awk '{if ($(NF-1)>maxerror)  maxerror=$(NF-1)} END{print maxerror}' fstcomp.list.grep)
