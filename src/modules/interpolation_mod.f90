@@ -130,9 +130,9 @@ contains
 
     ! Arguments
     type(struct_gsv),           intent(in)    :: statevector_in     ! Statevector input
-    type(struct_gsv),           intent(inout) :: statevector_out    ! Statevector providing the target horizontal and vertical structure and will contain the interpolated fields
+    type(struct_gsv),           intent(inout) :: statevector_out    ! Statevector output (with target grids)
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! Reference statevector providing fields P0, TT and HU
-    logical,          optional, intent(in)    :: checkModelTop_opt  ! If true, model top consistency will be checked in vertical interpolation
+    logical,          optional, intent(in)    :: checkModelTop_opt  ! If true, model top consistency checked in vertical interpolation
     
     ! Locals:
     logical :: checkModelTop
@@ -366,11 +366,11 @@ contains
     if ( gsv_getDataKind(statevector_in) == 8 & 
          .and. gsv_getDataKind(statevector_out) == 8 ) then 
       call vInterp_gsv_r8(statevector_in,statevector_out,statevectorRef_opt, &
-                              Ps_in_hPa_opt,checkModelTop_opt)
+                          Ps_in_hPa_opt,checkModelTop_opt)
     else if ( gsv_getDataKind(statevector_in) == 4 &
          .and. gsv_getDataKind(statevector_out) == 4 ) then 
       call vInterp_gsv_r4(statevector_in,statevector_out,statevectorRef_opt, &
-                              Ps_in_hPa_opt,checkModelTop_opt)
+                          Ps_in_hPa_opt,checkModelTop_opt)
     else
       call utl_abort('int_vInterp_gsv: input and output statevectors must be of same dataKind')
     end if
@@ -478,7 +478,7 @@ contains
                       mpi_local_opt=statevectorRef%mpi_local, mpi_distribution_opt='Tiles', &
                       dataKind_opt=gsv_getDataKind(statevectorRef), &
                       allocHeightSfc_opt=statevectorRef%heightSfcPresent, &
-                      varNames_opt=(/'P0'/) )
+                      varNames_opt=(/'P0','P0LS'/) )
     call gsv_copy(stateVectorRef, stateVectorRef_out, allowVcoMismatch_opt=.true., &
                   allowVarMismatch_opt=.true.)
 
@@ -523,13 +523,13 @@ contains
                             gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
 
         ! output grid GEM-P interpolation in log-pressure
-        if ( vcode_out==5002 .or. vcode_out==5005 ) then
+        if ( vcode_out==5002 .or. vcode_out==5005 .or. vcode_out==5100 ) then
           call czp_calcReturnPressure_gsv_nl( statevectorRef_out, &
                                               PTout_r8_opt=hLikeT_out, &
                                               PMout_r8_opt=hLikeM_out, &
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
 
-          if ( vcode_in==5002 .or. vcode_in==5005 ) then
+          if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
             call czp_calcReturnPressure_gsv_nl( statevectorRef, &
                                                 PTout_r8_opt=hLikeT_in, &
                                                 PMout_r8_opt=hLikeM_in, &
@@ -562,7 +562,7 @@ contains
             call czp_calcReturnHeight_gsv_nl( statevectorRef, &
                                               ZTout_r8_opt=hLikeT_in, &
                                               ZMout_r8_opt=hLikeM_in)
-          else if ( vcode_in==5002 .or. vcode_in==5005 ) then
+          else if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
             call czp_calcReturnPressure_gsv_nl( statevectorRef, &
                                                 PTout_r8_opt=tmpCoord_T, &
                                                 PMout_r8_opt=tmpCoord_M, &
@@ -792,7 +792,7 @@ contains
                       mpi_distribution_opt=statevectorRef%mpi_distribution, &
                       dataKind_opt=gsv_getDataKind(statevectorRef), &
                       allocHeightSfc_opt=statevectorRef%heightSfcPresent, &
-                      varNames_opt=(/'P0'/) )
+                      varNames_opt=(/'P0','P0LS'/) )
     call gsv_copy(stateVectorRef, stateVectorRef_out, allowVcoMismatch_opt=.true., &
                   allowVarMismatch_opt=.true.)
 
@@ -837,13 +837,13 @@ contains
                           gsv_getNumLev(statevector_in,'MM'), statevector_in%numStep))
 
         ! output grid GEM-P interpolation in log-pressure
-        if ( vcode_out==5002 .or. vcode_out==5005 ) then
+        if ( vcode_out==5002 .or. vcode_out==5005 .or. vcode_out==5100 ) then
           call czp_calcReturnPressure_gsv_nl( statevectorRef_out, &
                                               PTout_r4_opt=hLikeT_out, &
                                               PMout_r4_opt=hLikeM_out, &
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
 
-          if ( vcode_in==5002 .or. vcode_in==5005 ) then
+          if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
             call czp_calcReturnPressure_gsv_nl( statevectorRef, &
                                                 PTout_r4_opt=hLikeT_in, &
                                                 PMout_r4_opt=hLikeM_in, &
@@ -876,7 +876,7 @@ contains
             call czp_calcReturnHeight_gsv_nl( statevectorRef, &
                                               ZTout_r4_opt=hLikeT_in, &
                                               ZMout_r4_opt=hLikeM_in)
-          else if ( vcode_in==5002 .or. vcode_in==5005 ) then
+          else if ( vcode_in==5002 .or. vcode_in==5005 .or. vcode_in==5100 ) then
             call czp_calcReturnPressure_gsv_nl( statevectorRef, &
                                                 PTout_r4_opt=tmpCoord_T, &
                                                 PMout_r4_opt=tmpCoord_M, &

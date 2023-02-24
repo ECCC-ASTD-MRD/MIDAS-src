@@ -141,7 +141,7 @@ CONTAINS
     integer              :: stepIndex, numStep_inc, numStep_trl
     integer, allocatable :: dateStampList(:)
 
-    character(len=4), allocatable :: varNamesRef(:)
+    character(len=4), allocatable :: varNamesRef(:), varNamesPsfc(:)
     logical  :: allocHeightSfc, refStateNeeded
 
     call msg('inc_computeHighResAnalysis', 'START', verb_opt=2)
@@ -191,15 +191,24 @@ CONTAINS
       ! The reference needs to have the vertical structure of the input which is the
       ! increment, but since horizontal interpolation is done first, it needs the
       ! trial horizontal structure.
-      allocate(varNamesRef(3))
-      varNamesRef = (/'P0', 'TT', 'HU'/)
+      if (vco_trl%Vcode == 5100) then
+        allocate(varNamesRef(4))
+        varNamesRef = (/'P0', 'P0LS', 'TT', 'HU'/)
+        allocate(varNamesPsfc(2))
+        varNamesPsfc = (/'P0','P0LS'/)
+      else
+        allocate(varNamesRef(3))
+        varNamesRef = (/'P0', 'TT', 'HU'/)
+        allocate(varNamesPsfc(1))
+        varNamesPsfc = (/'P0'/)
+      end if
       call gsv_allocate( statevectorRef, numStep_inc, hco_trl, vco_inc, &
                          dataKind_opt=pre_incrReal, &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                          varNames_opt=varNamesRef, allocHeightSfc_opt=allocHeightSfc, &
                          hInterpolateDegree_opt=hInterpolationDegree )
 
-      ! - Restriction of increment to reference variables
+      ! - Restriction of increment to only reference state variables
       call gsv_allocate( statevectorIncRefLowRes, numStep_inc, hco_inc, vco_inc,  &
                          dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
                          dataKind_opt=pre_incrReal, varNames_opt=varNamesRef, &
@@ -207,10 +216,10 @@ CONTAINS
       call gsv_copy(statevectorIncLowRes, statevectorIncRefLowRes, &
                     allowVarMismatch_opt=.true.)
 
-      ! - Spatial interpolation of reference analysis increment
+      ! - Horizontal *only* interpolation of analysis increment (ref state variables)
+      !   using int_interp_gsv since it also does needed mpi transpositions
       call msg('inc_computeHighResAnalysis', &
-           'horizontal interpolation of the Psfc increment', mpiAll_opt=.false.)
-
+               'horizontal interpolation of the Psfc increment', mpiAll_opt=.false.)
       call int_interp_gsv(statevectorIncRefLowRes,statevectorRef)
       call gsv_deallocate(statevectorIncRefLowRes)
       !- Apply mask to increment in LAM
@@ -221,14 +230,22 @@ CONTAINS
         do stepIndex = 1, statevectorRef%numStep
           PsfcIncMasked(:,:,1,stepIndex) = PsfcIncPrior(:,:,1,stepIndex) * analIncMask(:,:,1)
         end do
+        if (gsv_varExist(statevectorRef,'P0LS')) then
+          call gsv_getField(statevectorRef,PsfcIncPrior,'P0LS')
+          call gsv_getField(statevectorRef,PsfcIncMasked,'P0LS')
+          do stepIndex = 1, statevectorRef%numStep
+            PsfcIncMasked(:,:,1,stepIndex) = PsfcIncPrior(:,:,1,stepIndex) * analIncMask(:,:,1)
+          end do
+        end if
       end if
 
-      ! - Compute analysis of reference variables to use for vertical interpolation
-      ! of increment
+      ! - Compute analysis of reference state variables to use for vertical interpolation
+      !   of increment
       call msg('inc_computeHighResAnalysis', &
            'Computing reference variables analysis to use for interpolation of increment', &
            mpiAll_opt=.false.)
-      !   - build a restriction to reference variable of trial
+
+      !   - build a restriction to reference state variables of trial
       call gsv_allocate(statevectorTrlRefVars, numStep_trl, &
                         hco_trl, vco_trl, dateStamp_opt=tim_getDateStamp(), &
                         mpi_local_opt=.true., dataKind_opt=pre_incrReal, &
@@ -252,7 +269,7 @@ CONTAINS
       call int_vInterp_gsv(statevectorTrlLowResTime, statevectorTrlLowResVert)
       call gsv_deallocate(statevectorTrlLowResTime)
       call gsv_deallocate(statevectorTrlRefVars)
-      !   - build the analysis reference for the increment vertical interpolation.
+      !   - build the analysis reference state for the increment vertical interpolation.
       !     At that stage, statevectorRef contains the increment on the trial
       !     horizontal grid, but analysis vertical structure; consistent for addition.
       call gsv_add(statevectorTrlLowResVert, statevectorRef)
@@ -260,14 +277,14 @@ CONTAINS
 
       ! - Time interpolation to get high-res Psfc analysis increment to output
       call msg('inc_computeHighResAnalysis', &
-           'Time interpolation to get high-res Psfc analysis increment', &
-           mpiAll_opt=.false.)
+               'Time interpolation to get high-res Psfc analysis increment', &
+               mpiAll_opt=.false.)
 
       !   - Restriction to P0 only + vco set on vco_trl for later consistency
       call gsv_allocate(statevectorRefPsfc, numStep_inc, hco_trl, vco_trl, &
                         dataKind_opt=pre_incrReal, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                        varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
+                        varNames_opt=varNamesPsfc, allocHeightSfc_opt=allocHeightSfc, &
                         hInterpolateDegree_opt=hInterpolationDegree )
       call gsv_copy(statevectorRef, statevectorRefPsfc, allowVarMismatch_opt=.true., &
                     allowVcoMismatch_opt=.true.)
@@ -275,7 +292,7 @@ CONTAINS
       call gsv_allocate(stateVectorPsfcHighRes, numStep_trl, hco_trl, vco_trl, &
                         dataKind_opt=pre_incrReal, &
                         dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,  &
-                        varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc, &
+                        varNames_opt=varNamesPsfc, allocHeightSfc_opt=allocHeightSfc, &
                         hInterpolateDegree_opt=hInterpolationDegree)
       call int_tInterp_gsv(statevectorRefPsfc, stateVectorPsfcHighRes)
     else ref_building
@@ -351,6 +368,7 @@ CONTAINS
     ! Locals:
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_hco), pointer :: hco_trl => null()
+    character(len=4), allocatable :: varNamesPsfc(:)
 
     real(pre_incrReal), pointer :: oceanIce_ptr(:,:,:,:)
 
@@ -382,12 +400,20 @@ CONTAINS
       allocHeightSfc = stateVectorTrial%heightSfcPresent
     end if
 
+    if (vco_trl%Vcode == 5100) then
+      allocate(varNamesPsfc(2))
+      varNamesPsfc = (/'P0','P0LS'/)
+    else
+      allocate(varNamesPsfc(1))
+      varNamesPsfc = (/'P0'/)
+    end if
+
     ! Degrade timesteps stateVector high-res Psfc, and high-res analysis
     if (gsv_varExist(varName='P0')) then
       call gsv_allocate(stateVectorPsfc, tim_nstepobsinc, hco_trl, vco_trl, &
                         dataKind_opt = pre_incrReal, &
                         dateStamp_opt = tim_getDateStamp(), mpi_local_opt = .true.,  &
-                        varNames_opt = (/'P0'/), allocHeightSfc_opt = allocHeightSfc, &
+                        varNames_opt = varNamesPsfc, allocHeightSfc_opt = allocHeightSfc, &
                         hInterpolateDegree_opt = hInterpolationDegree)
       call gsv_copy(stateVectorPsfcHighRes, stateVectorPsfc, &
                     allowTimeMismatch_opt = .true., allowVarMismatch_opt=.true.)
@@ -474,6 +500,7 @@ CONTAINS
     ! Locals:
     type(struct_gsv) :: stateVectorIncHighRes
     type(struct_gsv) :: stateVector_1step_r4, stateVectorPsfc_1step_r4
+    character(len=4), allocatable :: varNamesPsfc(:)
 
     type(struct_vco), pointer :: vco_trl => null()
     type(struct_hco), pointer :: hco_trl => null()
@@ -510,6 +537,14 @@ CONTAINS
       allocHeightSfc = stateVectorTrial%heightSfcPresent
     end if
     writeHeightSfc = allocHeightSfc
+
+    if (vco_trl%Vcode == 5100) then
+      allocate(varNamesPsfc(2))
+      varNamesPsfc = (/'P0','P0LS'/)
+    else
+      allocate(varNamesPsfc(1))
+      varNamesPsfc = (/'P0'/)
+    end if
 
     ! Convert all transformed variables into model variables (e.g. LVIS->VIS, LPR->PR) for original trial
     call gvt_transform(stateVectorTrial,   'AllTransformedToModel',allowOverWrite_opt=.true.)
@@ -577,7 +612,8 @@ CONTAINS
                            varNames_opt=varNames )
         call gsv_allocate( stateVectorPsfc_1step_r4, 1, stateVectorAnal%hco, stateVectorAnal%vco, &
                            dateStamp_opt=dateStamp, mpi_local_opt=.false., dataKind_opt=4,        &
-                           varNames_opt=(/'P0'/), allocHeightSfc_opt=allocHeightSfc )
+                           varNames_opt=varNamesPsfc, allocHeightSfc_opt=allocHeightSfc )
+        call gsv_zero(stateVectorPsfc_1step_r4)
       end if
 
       ! transpose ANALYSIS data from Tiles to Steps
@@ -802,17 +838,19 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    type(struct_gsv),           intent(in)    :: statevector_in
+    type(struct_gsv), target,   intent(in)    :: statevector_in
     type(struct_gsv),           intent(inout) :: statevector_inout
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt         ! Reference statevector providing optional fields (P0, TT, HU)
     type(struct_gsv), optional, intent(in)    :: statevectorMaskLAM_opt
     real(8),          optional, intent(in)    :: scaleFactor_opt
 
     ! Locals:
-    type(struct_gsv) :: statevector_in_hvInterp
-    type(struct_gsv) :: statevector_in_hvtInterp
+    type(struct_gsv)          :: statevector_in_hvInterp
+    type(struct_gsv)          :: statevector_in_hvtInterp
+    type(struct_gsv), target  :: statevector_in_withP0LS
+    type(struct_gsv), pointer :: statevector_in_ptr
 
-    character(len=4), pointer :: varNamesToInterpolate(:)
+    character(len=4), pointer :: varNamesToInterpolate(:), varNamesToInterpolate_withP0LS(:)
 
     call msg('inc_interpolateAndAdd', 'START', verb_opt=2)
 
@@ -832,6 +870,27 @@ CONTAINS
     nullify(varNamesToInterpolate)
     call vnl_varNamesFromExistList(varNamesToInterpolate, statevector_in%varExistlist(:))
 
+    ! Check if P0LS needs to be added to the increment
+    if (statevector_inout%vco%vcode == 5100 .and. &
+         .not.gsv_varExist(statevector_in, 'P0LS')) then
+      varNamesToInterpolate_withP0LS => vnl_addToVarNames(varNamesToInterpolate,'P0LS')
+      call gsv_allocate(statevector_in_withP0LS, statevector_in%numstep,                       &
+                        statevector_in%hco, statevector_in%vco,                                &
+                        dateStamp_opt=tim_getDateStamp(),                                      &
+                        mpi_local_opt=statevector_in%mpi_local, mpi_distribution_opt='Tiles',  &
+                        dataKind_opt=statevector_in%dataKind,                                  &
+                        allocHeightSfc_opt=statevector_in%heightSfcPresent,                    &
+                        varNames_opt=varNamesToInterpolate_withP0LS,                           &
+                        hInterpolateDegree_opt=statevector_in%hInterpolateDegree)
+      call gsv_zero(statevector_in_withP0LS)
+      call gsv_copy(statevector_in, statevector_in_withP0LS, &
+                    allowVarMismatch_opt=.true.)
+      statevector_in_ptr => statevector_in_withP0LS
+      deallocate(varNamesToInterpolate)
+      varNamesToInterpolate => varNamesToInterpolate_withP0LS
+    else
+      statevector_in_ptr => statevector_in
+    end if
     ! Do the spatial interpolation of statevector_in onto the grid of statevector_inout
     call gsv_allocate(statevector_in_hvInterp, statevector_in%numstep,                          &
                       statevector_inout%hco, statevector_inout%vco,                             &

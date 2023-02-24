@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add SLEVE processing capacity for GEM-P trials (#714 and !693)
  * Added guidelines to build a unit test (#588 and !686)
  * Added the capability to compute O-P for ensemble in OminusF (#740 and !684)
  * Added satellite SST data thinning (#748 and !681)

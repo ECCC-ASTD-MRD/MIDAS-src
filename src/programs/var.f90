@@ -386,14 +386,14 @@ program midas_var
   end if
 
   ! Initialize the Analysis grid
-  call msg('var_setup','Set hco parameters for analysis grid', mpiAll_opt=.false.)
+  call msg('midas-var','Set hco parameters for analysis grid', mpiAll_opt=.false.)
   call hco_SetupFromFile(hco_anl, './analysisgrid', 'ANALYSIS', 'Analysis' ) ! IN
 
   if ( hco_anl % global ) then
     hco_core => hco_anl
   else
     ! Initialize the core (Non-Extended) analysis grid
-    call msg('var_setup','Set hco parameters for core grid', mpiAll_opt=.false.)
+    call msg('midas-var','Set hco parameters for core grid', mpiAll_opt=.false.)
     call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 

@@ -1582,7 +1582,7 @@ module gridStateVectorFileIO_mod
               if ( trim(nomvar) == 'UU' .or. trim(nomvar) == 'VV') then
                 factor_r4 = mpc_knots_per_m_per_s_r4 ! m/s -> knots
               else if ( trim(nomvar) == 'P0' .or. trim(nomvar) == 'UP' .or.  &
-                        trim(nomvar) == 'PB' ) then
+                        trim(nomvar) == 'PB' .or. trim(nomvar) == 'P0LS' ) then
                 factor_r4 = 0.01 ! Pa -> hPa
               else if ( vnl_varKindFromVarname(trim(nomvar)) == 'CH' ) then 
                 if ( gsv_conversionVarKindCHtoMicrograms ) then
@@ -1863,7 +1863,7 @@ module gridStateVectorFileIO_mod
 
         if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
           multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
-        else if ( trim(varName) == 'P0' ) then
+        else if ( trim(varName) == 'P0' .or. trim(varName) == 'P0LS' ) then
           multFactor = mpc_pa_per_mbar_r8 ! hPa -> Pa
         else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' ) then 
           if ( gsv_conversionVarKindCHtoMicrograms ) then

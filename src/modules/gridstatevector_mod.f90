@@ -755,6 +755,18 @@ module gridStateVector_mod
         if (gsv_getNumLev(statevector,'TH') > 0) statevector%varExistList(vnl_varListIndex('P_T ')) = .true.
         if (gsv_getNumLev(statevector,'MM') > 0) statevector%varExistList(vnl_varListIndex('P_M ')) = .true.
       end if
+
+      ! add P0LS to the varExistList if vcode=5100
+      if (statevector%vco%vcode == 5100) then
+        statevector%varExistList(vnl_varListIndex('P0LS')) = .true.
+      end if
+    end if
+
+    if (statevector%vco%vcode == 5100 .and. &
+        statevector%varExistList(vnl_varListIndex('P0')) .and. &
+        .not.statevector%varExistList(vnl_varListIndex('P0LS'))) then
+      call msg('gsv_allocate', 'varNames_opt = '//str(varNames_opt))
+      call utl_abort('gsv_allocate: P0LS should be included in varNames_opt when vcode=5100')
     end if
 
     if (present(horizSubSample_opt)) then

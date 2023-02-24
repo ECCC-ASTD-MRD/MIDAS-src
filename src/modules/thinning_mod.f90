@@ -1396,6 +1396,7 @@ contains
     real(4), allocatable :: obsLatMpi(:), obsLonMpi(:)
     real(4), allocatable :: obsValuesMpi(:,:), oMinusBMpi(:,:)
     real(4), pointer     :: surfPressure(:,:,:,:)
+    character(len=4), allocatable :: varNamesPsfc(:)
     character(len=9), allocatable :: stnId(:), stnIdMpi(:)
     character(len=20) :: trlmFileName
     character(len=2)  :: fileNumber
@@ -1617,10 +1618,18 @@ contains
     trlmFileName = './trlm_01'
     call vco_setupFromFile(vco_sfc, trlmFileName)
     call hco_setupFromFile(hco_sfc, trlmFileName, ' ')
+    if (vco_sfc%Vcode == 5100) then
+      allocate(varNamesPsfc(2))
+      varNamesPsfc = (/'P0','P0LS'/)
+    else
+      allocate(varNamesPsfc(1))
+      varNamesPsfc = (/'P0'/)
+    end if
     call gsv_allocate( stateVectorPsfc, tim_nstepobs, hco_sfc, vco_sfc, &
                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
-                       dataKind_opt=4, varNames_opt=(/'P0'/), &
+                       dataKind_opt=4, varNames_opt=varNamesPsfc, &
                        hInterpolateDegree_opt='LINEAR' )
+    deallocate(varNamesPsfc)
     do stepIndex = 1, tim_nstepobs
       write(fileNumber,'(I2.2)') stepIndex
       trlmFileName = './trlm_' // trim(fileNumber)
@@ -4279,6 +4288,7 @@ contains
     integer,          intent(in)    :: deltmax
 
     ! Locals:
+    character(len=4), allocatable :: varNamesPsfc(:)
     character(len=20) :: trlmFileName
     character(len=2)  :: fileNumber
     type(struct_hco), pointer :: hco_thinning
@@ -4455,9 +4465,17 @@ contains
     nullify(vco_sfc)
     trlmFileName = './trlm_01'
     call vco_setupFromFile(vco_sfc, trlmFileName)
+    if (vco_sfc%Vcode == 5100) then
+      allocate(varNamesPsfc(2))
+      varNamesPsfc = (/'P0','P0LS'/)
+    else
+      allocate(varNamesPsfc(1))
+      varNamesPsfc = (/'P0'/)
+    end if
     call gsv_allocate( stateVectorPsfc, tim_nstepobs, hco_thinning, vco_sfc, &
                        datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
-                       varNames_opt=(/'P0'/), hInterpolateDegree_opt='LINEAR' )
+                       varNames_opt=varNamesPsfc, hInterpolateDegree_opt='LINEAR' )
+    deallocate(varNamesPsfc)
     do stepIndex = 1, tim_nstepobs
       write(fileNumber,'(I2.2)') stepIndex
       trlmFileName = './trlm_' // trim(fileNumber)

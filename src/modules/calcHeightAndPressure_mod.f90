@@ -137,7 +137,7 @@ contains
     ! :Purpose: Pressure and height computation on the grid in proper order
     !           depending on the vgrid kind.
     !           Depending on the vcode, the routine will check the existence of
-    !           P_* (vcode=500x) or Z_* (vcode=2100x) first and proceed with
+    !           P_* (vcode=5xxx) or Z_* (vcode=2100x) first and proceed with
     !           pressure (height) computation.  Then, if the other variables are
     !           also present, it will secondly compute height (pressure).
     !           Hence if only P_* (Z_*) is present, only these are computed.
@@ -155,7 +155,7 @@ contains
 
     Vcode = gsv_getVco(statevector)%vcode
 
-    if (Vcode == 5002 .or. Vcode == 5005) then
+    if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 5100) then
       ! if P_T, P_M not allocated : do nothing
       if (gsv_varExist(statevector, 'P_*')) then
         call calcPressure_gsv_nl(statevector)
@@ -184,7 +184,7 @@ contains
     ! :Purpose: Pressure and height increment computation on the grid in proper
     !           order depending on the vgrid kind.
     !           Depending on the vcode, the routine will check the existence of
-    !           P_* (vcode=500x) or Z_* (vcode=2100x) first and proceed with
+    !           P_* (vcode=5xxx) or Z_* (vcode=2100x) first and proceed with
     !           pressure (height) computation.  Then, if the other variables are
     !           also present, it will secondly compute height (pressure).
     !           Hence if only P_* (Z_*) is present, only these are computed.
@@ -205,6 +205,8 @@ contains
 
     vco => gsv_getVco(statevector)
     Vcode = vco%vcode
+
+    if (Vcode == 0) return
 
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if P_T, P_M not allocated : do nothing
@@ -234,6 +236,8 @@ contains
         end if
 
       end if
+    else
+      call utl_abort('calcZandP_gsv_tl (czp): not implemented')
     end if
 
     call msg('calcZandP_gsv_tl (czp)', 'END', verb_opt=2)
@@ -247,7 +251,7 @@ contains
     ! :Purpose: Pressure and height increment adjoint computation on the grid
     !           in proper order depending on the vgrid kind
     !           Depending on the vcode, the routine will check the existence of
-    !           Z_* (vcode=500x) or P_* (vcode=2100x) first and proceed with
+    !           Z_* (vcode=5xxx) or P_* (vcode=2100x) first and proceed with
     !           height (pressure) adjoint computation.  Then, if the other
     !           variables are also present, it will secondly proceed with
     !           adjoint computation of pressure (height).
@@ -269,6 +273,8 @@ contains
 
     vco => gsv_getVco(statevector)
     Vcode = vco%vcode
+
+    if (Vcode == 0) return
 
     if (Vcode == 5002 .or. Vcode == 5005) then
       ! if Z_T, Z_M not allocated : do nothing
@@ -298,6 +304,8 @@ contains
         end if
 
       end if
+    else
+      call utl_abort('calcZandP_gsv_ad (czp): not implemented')
     end if
 
     call msg('calcZandP_gsv_ad (czp)', 'END', verb_opt=2)
@@ -327,13 +335,13 @@ contains
     call msg('calcHeight_gsv_nl (czp)', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevector)%vcode
-    if (Vcode == 5005 .or. Vcode == 5002) then
+    if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_PT_r4, 'P_T')
         call gsv_getField(statevector, ptr_PM_r4, 'P_M')
         call gsv_getField(statevector, ptr_ZT_r4, 'Z_T')
         call gsv_getField(statevector, ptr_ZM_r4, 'Z_M')
-        call calcHeight_gsv_nl_vcode500x( statevector, &
+        call calcHeight_gsv_nl_vcode5xxx( statevector, &
                                           PTin_r4_opt=ptr_PT_r4, &
                                           PMin_r4_opt=ptr_PM_r4, &
                                           ZTout_r4_opt=ptr_ZT_r4, &
@@ -343,7 +351,7 @@ contains
         call gsv_getField(statevector, ptr_PM_r8, 'P_M')
         call gsv_getField(statevector, ptr_ZT_r8, 'Z_T')
         call gsv_getField(statevector, ptr_ZM_r8, 'Z_M')
-        call calcHeight_gsv_nl_vcode500x( statevector, &
+        call calcHeight_gsv_nl_vcode5xxx( statevector, &
                                           PTin_r8_opt=ptr_PT_r8, &
                                           PMin_r8_opt=ptr_PM_r8, &
                                           ZTout_r8_opt=ptr_ZT_r8, &
@@ -416,7 +424,7 @@ contains
     call msg('czp_calcReturnHeight_gsv_nl', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevector)%vcode
-    if (Vcode == 5005 .or. Vcode == 5002) then
+    if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         if ( .not. (present(PTin_r4_opt) .and. present(PMin_r4_opt))) then
           call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
@@ -424,7 +432,7 @@ contains
         if ( .not. (present(ZTout_r4_opt) .and. present(ZMout_r4_opt))) then
           call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=4: Z{T,M}out_r4_opt expected')
         end if
-        call calcHeight_gsv_nl_vcode500x( statevector, &
+        call calcHeight_gsv_nl_vcode5xxx( statevector, &
                                           PTin_r4_opt=PTin_r4_opt, & 
                                           PMin_r4_opt=PMin_r4_opt, & 
                                           ZTout_r4_opt=ZTout_r4_opt, &
@@ -436,7 +444,7 @@ contains
         if ( .not. (present(ZTout_r8_opt) .and. present(ZMout_r8_opt))) then
           call utl_abort('czp_calcReturnHeight_gsv_nl: dataKind=8: Z{T,M}out_r8_opt expected')
         end if
-        call calcHeight_gsv_nl_vcode500x( statevector, &
+        call calcHeight_gsv_nl_vcode5xxx( statevector, &
                                           PTin_r8_opt=PTin_r8_opt, &
                                           PMin_r8_opt=PMin_r8_opt, &
                                           ZTout_r8_opt=ZTout_r8_opt, &
@@ -652,9 +660,9 @@ contains
   end function gz2alt_r8
 
   !---------------------------------------------------------
-  ! calcHeight_gsv_nl_vcode500x
+  ! calcHeight_gsv_nl_vcode5xxx
   !---------------------------------------------------------
-  subroutine calcHeight_gsv_nl_vcode500x( statevector, &
+  subroutine calcHeight_gsv_nl_vcode5xxx( statevector, &
                                           PTin_r4_opt, PMin_r4_opt, &
                                           PTin_r8_opt, PMin_r8_opt, &
                                           ZTout_r4_opt, ZMout_r4_opt, &
@@ -708,7 +716,7 @@ contains
     real(8), pointer     :: hu_ptr_r8(:,:,:,:),tt_ptr_r8(:,:,:,:)
     real(8), pointer     :: HeightSfc_ptr_r8(:,:)
 
-    call msg('calcHeight_gsv_nl_vcode500x (czp)', 'START', verb_opt=4)
+    call msg('calcHeight_gsv_nl_vcode5xxx (czp)', 'START', verb_opt=4)
 
     nlev_T = gsv_getNumLev(statevector,'TH')
     nlev_M = gsv_getNumLev(statevector,'MM')
@@ -718,25 +726,25 @@ contains
     allocate(tv(nlev_T))
 
     if (Vcode == 5002 .and. nlev_T /= nlev_M+1) then
-      call utl_abort('calcHeight_gsv_nl_vcode500x (czp): nlev_T is not equal to nlev_M+1!')
+      call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M+1!')
     end if
-    if (Vcode == 5005 .and. nlev_T /= nlev_M) then
-      call utl_abort('calcHeight_gsv_nl_vcode500x (czp): nlev_T is not equal to nlev_M!')
+    if ((Vcode == 5005 .or. Vcode == 5100) .and. nlev_T /= nlev_M) then
+      call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): nlev_T is not equal to nlev_M!')
     end if
 
-    if (Vcode == 5005) then
+    if (Vcode == 5005 .or. Vcode == 5100) then
       status = vgd_get( statevector%vco%vgrid, &
                         key='DHM - height of the diagnostic level (m)', &
                         value=heightSfcOffset_M_r4)
       status = vgd_get( statevector%vco%vgrid, &
                         key='DHT - height of the diagnostic level (t)', &
                         value=heightSfcOffset_T_r4)
-      call msg('calcHeight_gsv_nl_vcode500x (czp)', &
+      call msg('calcHeight_gsv_nl_vcode5xxx (czp)', &
            'height offset for near-sfc momentum level is:'//str(heightSfcOffset_M_r4)//' meters'&
            //new_line('')//'height offset for near-sfc thermo level is:'//str(heightSfcOffset_T_r4)//' meters', &
            verb_opt=2, mpiAll_opt=.false.)
       if ( .not.statevector%addHeightSfcOffset ) then
-        call msg('calcHeight_gsv_nl_vcode500x (czp)', new_line('') &
+        call msg('calcHeight_gsv_nl_vcode5xxx (czp)', new_line('') &
              //'--------------------------------------------------------------------------'//new_line('')&
              //'BUT HEIGHT OFFSET REMOVED FOR DIAGNOSTIC LEVELS FOR BACKWARD COMPATIBILITY'//new_line('')&
              //'--------------------------------------------------------------------------', &
@@ -749,13 +757,13 @@ contains
 
     if ( statevector%dataKind == 4 ) then
       if ( .not. (present(PTin_r4_opt) .and. present(PMin_r4_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode500x (czp): dataKind=4: P{T,M}in_r4_opt expected')
+        call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=4: P{T,M}in_r4_opt expected')
       end if
       P_T_ptr_r4 => PTin_r4_opt
       P_M_ptr_r4 => PMin_r4_opt
 
       if ( .not. (present(ZTout_r4_opt) .and. present(ZMout_r4_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode500x (czp): dataKind=4: Z{T,M}out_r4_opt expected')
+        call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=4: Z{T,M}out_r4_opt expected')
       end if
       height_M_ptr_r4 => ZMout_r4_opt 
       height_T_ptr_r4 => ZTout_r4_opt
@@ -770,13 +778,13 @@ contains
 
     else ! datakind = 8
       if ( .not. (present(PTin_r8_opt) .and. present(PMin_r8_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode500x (czp): dataKind=8: P{T,M}in_r8_opt expected')
+        call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=8: P{T,M}in_r8_opt expected')
       end if
       P_T_ptr_r8 => PTin_r8_opt
       P_M_ptr_r8 => PMin_r8_opt
 
       if ( .not. (present(ZTout_r8_opt) .and. present(ZMout_r8_opt))) then
-        call utl_abort('calcHeight_gsv_nl_vcode500x (czp): dataKind=8: Z{T,M}out_r8_opt expected')
+        call utl_abort('calcHeight_gsv_nl_vcode5xxx (czp): dataKind=8: Z{T,M}out_r8_opt expected')
       end if
       height_M_ptr_r8 => ZMout_r8_opt 
       height_T_ptr_r8 => ZTout_r8_opt
@@ -826,7 +834,7 @@ contains
           ! compute altitude on bottom momentum level
           if (Vcode == 5002) then
             height_M(nlev_M) = rMT
-          else if (Vcode == 5005) then
+          else if (Vcode == 5005 .or. Vcode == 5100) then
             height_M(nlev_M) = rMT + heightSfcOffset_M_r4
           end if
 
@@ -866,7 +874,7 @@ contains
 
             if (Vcode == 5002) then
               lev_T = lev_M + 1
-            else if (Vcode == 5005) then
+            else if (Vcode == 5005 .or. Vcode == 5100) then
               lev_T = lev_M
             end if
 
@@ -926,7 +934,7 @@ contains
             delThick   = (-MPC_RGAS_DRY_AIR_R8 / Rgh) * tv(1) * ratioP
             height_T(1) = height_M(1) + delThick
 
-          else if (Vcode == 5005) then if_computeHeight_gsv_nl_vcodes
+          else if (Vcode == 5005 .or. Vcode == 5100) then if_computeHeight_gsv_nl_vcodes
             height_T(nlev_T) = rMT + heightSfcOffset_T_r4
 
             do lev_T = 1, nlev_T-2
@@ -1013,10 +1021,10 @@ contains
     deallocate(height_T)
     deallocate(tv)
 
-    call msg('calcHeight_gsv_nl_vcode500x (czp)', 'statevector%addHeightSfcOffset='&
+    call msg('calcHeight_gsv_nl_vcode5xxx (czp)', 'statevector%addHeightSfcOffset='&
          //str(statevector%addHeightSfcOffset), verb_opt=2)
-    call msg('calcHeight_gsv_nl_vcode500x (czp)', 'END', verb_opt=4)
-  end subroutine calcHeight_gsv_nl_vcode500x
+    call msg('calcHeight_gsv_nl_vcode5xxx (czp)', 'END', verb_opt=4)
+  end subroutine calcHeight_gsv_nl_vcode5xxx
 
   !---------------------------------------------------------
   ! calcHeight_gsv_tl
@@ -1040,25 +1048,27 @@ contains
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variables P_T and P_M must be allocated in gridstatevector')
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variables P_T and P_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'Z_*')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variables Z_T and Z_M must be allocated in gridstatevector')
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variables Z_T and Z_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable TT must be allocated in gridstatevector')
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable HU must be allocated in gridstatevector')
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variable HU must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcHeight_gsv_tl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
+        call utl_abort('calcHeight_gsv_tl (czp): for vcode 5xxx, variable P0 must be allocated in gridstatevector')
       end if
-      call calcHeight_gsv_tl_vcode500x
+      call calcHeight_gsv_tl_vcode5xxx
     else if (Vcode == 21001) then
       ! Development notes (@mad001)
       !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcHeight_gsv_tl_vcode2100x
+    else
+      call utl_abort('calcHeight_gsv_tl (czp): not implemented')
     end if
 
     call msg('calcHeight_gsv_tl (czp)', 'END', verb_opt=2)
@@ -1076,9 +1086,9 @@ contains
       end subroutine calcHeight_gsv_tl_vcode2100x
 
       !---------------------------------------------------------
-      ! calcHeight_gsv_tl_vcode500x
+      ! calcHeight_gsv_tl_vcode5xxx
       !---------------------------------------------------------
-      subroutine calcHeight_gsv_tl_vcode500x
+      subroutine calcHeight_gsv_tl_vcode5xxx
         implicit none
 
         ! Locals
@@ -1094,7 +1104,7 @@ contains
         real(pre_incrReal), pointer ::  delP0_r48(:,:,:,:)
         real(pre_incrReal), pointer ::  delP_T_r48(:,:,:,:), delP_M_r48(:,:,:,:)
 
-        call msg('calcHeight_gsv_tl_vcode500x (czp)', 'START', verb_opt=4)
+        call msg('calcHeight_gsv_tl_vcode5xxx (czp)', 'START', verb_opt=4)
         Vcode_anl = gsv_getVco(statevectorRef)%vcode
 
         nlev_T = gsv_getNumLev(statevectorRef,'TH')
@@ -1275,12 +1285,16 @@ contains
             end do
           end do
 
+        else
+
+          call utl_abort('calcHeight_gsv_tl_vcode5xxx (czp): not implemented')
+
         end if if_computeHeight_gsv_tl_vcodes
 
         deallocate(delThick)
 
-        call msg('calcHeight_gsv_tl_vcode500x (czp)', 'END', verb_opt=4)
-      end subroutine calcHeight_gsv_tl_vcode500x
+        call msg('calcHeight_gsv_tl_vcode5xxx (czp)', 'END', verb_opt=4)
+      end subroutine calcHeight_gsv_tl_vcode5xxx
 
   end subroutine calcHeight_gsv_tl
 
@@ -1306,28 +1320,30 @@ contains
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variables P_M and P_T must be allocated in gridstatevector')
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'Z_*')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variables Z_M and Z_T must be allocated in gridstatevector')
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variables Z_M and Z_T must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'TT')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable TT must be allocated in gridstatevector')
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variable TT must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'HU')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable HU must be allocated in gridstatevector')
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variable HU must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcHeight_gsv_ad (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
+        call utl_abort('calcHeight_gsv_ad (czp): for vcode 5xxx, variable P0 must be allocated in gridstatevector')
       end if
-      call calcHeight_gsv_ad_vcode500x
+      call calcHeight_gsv_ad_vcode5xxx
     else if (Vcode == 21001) then
       ! Development notes (@mad001)
       !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcHeight_gsv_ad_vcode2100x
+    else
+      call utl_abort('calcHeight_gsv_ad (czp): not implemented')
     end if
 
-    call msg('calcHeight_gsv_ad', 'END', verb_opt=2)
+    call msg('calcHeight_gsv_ad (czp)', 'END', verb_opt=2)
     call utl_tmg_stop(174)
 
     contains
@@ -1344,7 +1360,7 @@ contains
       !---------------------------------------------------------
       ! calcHeight_gsv_ad
       !---------------------------------------------------------
-      subroutine calcHeight_gsv_ad_vcode500x
+      subroutine calcHeight_gsv_ad_vcode5xxx
         implicit none
 
         ! Locals
@@ -1361,7 +1377,7 @@ contains
         real(pre_incrReal), pointer :: delP0_r48(:,:,:,:)
         real(pre_incrReal), pointer :: delP_M_r48(:,:,:,:),delP_T_r48(:,:,:,:)
 
-        call msg('calcHeight_gsv_ad_vcode500x (czp)', 'START', verb_opt=4)
+        call msg('calcHeight_gsv_ad_vcode5xxx (czp)', 'START', verb_opt=4)
 
         nlev_T = gsv_getNumLev(statevectorRef,'TH')
         nlev_M = gsv_getNumLev(statevectorRef,'MM')
@@ -1606,14 +1622,18 @@ contains
             end do
           end do
 
+        else
+
+          call utl_abort('calcHeight_gsv_ad_vcode5xxx (czp): not implemented')
+
         end if if_computeHeight_gsv_ad_vcodes
 
         deallocate(delThick)
         deallocate(delHeight_M)
         deallocate(delHeight_T)
 
-        call msg('calcHeight_gsv_ad_vcode500x (czp)', 'END', verb_opt=4)
-      end subroutine calcHeight_gsv_ad_vcode500x
+        call msg('calcHeight_gsv_ad_vcode5xxx (czp)', 'END', verb_opt=4)
+      end subroutine calcHeight_gsv_ad_vcode5xxx
 
   end subroutine calcHeight_gsv_ad
 
@@ -1628,7 +1648,7 @@ contains
 
     ! Arguments
     type(struct_gsv), intent(inout) :: statevector
-    logical, optional, intent(in)   :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
+    logical, optional, intent(in)   :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
     ! Locals
     integer :: Vcode
@@ -1642,17 +1662,17 @@ contains
     call msg('calcPressure_gsv_nl (czp)', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevector)%vcode
-    if (Vcode == 5005 .or. Vcode == 5002) then
+    if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         call gsv_getField(statevector, ptr_PT_r4, 'P_T')
         call gsv_getField(statevector, ptr_PM_r4, 'P_M')
-        call calcPressure_gsv_nl_vcode500x_r4(statevector, &
+        call calcPressure_gsv_nl_vcode5xxx_r4(statevector, &
                                               ptr_PT_r4, ptr_PM_r4, &
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
       else
         call gsv_getField(statevector, ptr_PT_r8, 'P_T')
         call gsv_getField(statevector, ptr_PM_r8, 'P_M')
-        call calcPressure_gsv_nl_vcode500x_r8(statevector, &
+        call calcPressure_gsv_nl_vcode5xxx_r8(statevector, &
                                               ptr_PT_r8, ptr_PM_r8, &
                                               Ps_in_hPa_opt=Ps_in_hPa_opt)
       end if
@@ -1727,7 +1747,7 @@ contains
     real(4), optional, pointer, intent(inout) :: PMout_r4_opt(:,:,:,:)
     real(8), optional, pointer, intent(inout) :: PTout_r8_opt(:,:,:,:)
     real(8), optional, pointer, intent(inout) :: PMout_r8_opt(:,:,:,:)
-    logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
+    logical, optional,          intent(in)    :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
     ! Locals
     integer :: Vcode
@@ -1736,18 +1756,18 @@ contains
     call msg('czp_calcReturnPressure_gsv_nl', 'START', verb_opt=2)
 
     Vcode = gsv_getVco(statevector)%vcode
-    if (Vcode == 5005 .or. Vcode == 5002) then
+    if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( gsv_getDataKind(statevector) == 4 ) then
         if ( .not. (present(PTout_r4_opt) .and. present(PMout_r4_opt))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=4: P{T,M}out_r4_opt expected')
         end if
-        call calcPressure_gsv_nl_vcode500x_r4(statevector, PTout_r4_opt, PMout_r4_opt, &
+        call calcPressure_gsv_nl_vcode5xxx_r4(statevector, PTout_r4_opt, PMout_r4_opt, &
                                               Ps_in_hPa_opt)
       else
         if ( .not. (present(PTout_r8_opt) .and. present(PMout_r8_opt))) then
           call utl_abort('czp_calcReturnPressure_gsv_nl: dataKind=8: P{T,M}out_r8_opt expected')
         end if
-        call calcPressure_gsv_nl_vcode500x_r8(statevector, PTout_r8_opt, PMout_r8_opt, &
+        call calcPressure_gsv_nl_vcode5xxx_r8(statevector, PTout_r8_opt, PMout_r8_opt, &
                                               Ps_in_hPa_opt)
       end if
     else if (Vcode == 21001) then
@@ -2033,9 +2053,9 @@ contains
   end subroutine calcPressure_gsv_nl_vcode2100x
 
   !---------------------------------------------------------
-  ! calcPressure_gsv_nl_vcode500x_r8
+  ! calcPressure_gsv_nl_vcode5xxx_r8
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl_vcode500x_r8(statevector, P_T, P_M, Ps_in_hPa_opt)
+  subroutine calcPressure_gsv_nl_vcode5xxx_r8(statevector, P_T, P_M, Ps_in_hPa_opt)
     !
     ! :Purpose: Pressure retrieval for GEM-P real(8) statevector, values
     !           values returned in pointers.
@@ -2046,20 +2066,28 @@ contains
     type(struct_gsv),           intent(in)    :: statevector
     real(8),           pointer, intent(inout) :: P_T(:,:,:,:)
     real(8),           pointer, intent(inout) :: P_M(:,:,:,:)
-    logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
+    logical, optional,          intent(in)    :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
     ! Locals
-    real(kind=8), allocatable   :: Psfc(:,:)
+    real(kind=8), allocatable   :: Psfc(:,:), PsfcLS(:,:)
     real(kind=8), pointer       :: PressureM_out(:,:,:), PressureT_out(:,:,:)
-    real(kind=8), pointer       :: field_Psfc(:,:,:,:)
-    integer                     :: stepIndex, numStep
+    real(kind=8), pointer       :: field_Psfc(:,:,:,:), field_PsfcLS(:,:,:,:)
+    integer                     :: stepIndex, numStep, Vcode
 
-    call msg('calcPressure_gsv_nl_vcode500x_r8 (czp)', 'START', verb_opt=4)
+    call msg('calcPressure_gsv_nl_vcode5xxx_r8 (czp)', 'START', verb_opt=4)
+
+    Vcode = gsv_getVco(statevector)%vcode
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
-
     call gsv_getField(statevector,field_Psfc,'P0')
+
+    if (Vcode == 5100) then
+      allocate(PsfcLS(statevector%myLonBeg:statevector%myLonEnd, &
+                      statevector%myLatBeg:statevector%myLatEnd))
+      call gsv_getField(statevector,field_PsfcLS,'P0LS')
+    end if
+
     numStep = statevector%numStep
 
     do stepIndex = 1, numStep
@@ -2068,8 +2096,17 @@ contains
         if ( Ps_in_hPa_opt ) Psfc = Psfc * mpc_pa_per_mbar_r8
       end if
 
-      call fetch3DLevels_r8(statevector%vco, Psfc, &
-                            fldM_opt=PressureM_out, fldT_opt=PressureT_out)
+      if (Vcode == 5100) then
+        PsfcLS(:,:) = field_PsfcLS(:,:,1,stepIndex)
+        if ( present(Ps_in_hPa_opt) ) then
+          if ( Ps_in_hPa_opt ) PsfcLS = PsfcLS * mpc_pa_per_mbar_r8
+        end if
+        call fetch3DLevels_r8(statevector%vco, Psfc, sfcFldLS_opt=PsfcLS, &
+                              fldM_opt=PressureM_out, fldT_opt=PressureT_out)
+      else
+        call fetch3DLevels_r8(statevector%vco, Psfc, &
+                              fldM_opt=PressureM_out, fldT_opt=PressureT_out)
+      end if
       P_M(:,:,:,stepIndex) = PressureM_out(:,:,:)
       P_T(:,:,:,stepIndex) = PressureT_out(:,:,:)
       deallocate(PressureM_out, PressureT_out)
@@ -2078,13 +2115,13 @@ contains
 
     deallocate(Psfc)
 
-    call msg('calcPressure_gsv_nl_vcode500x_r8 (czp)', 'END', verb_opt=4)
-  end subroutine calcPressure_gsv_nl_vcode500x_r8
+    call msg('calcPressure_gsv_nl_vcode5xxx_r8 (czp)', 'END', verb_opt=4)
+  end subroutine calcPressure_gsv_nl_vcode5xxx_r8
 
   !---------------------------------------------------------
-  ! calcPressure_gsv_nl_vcode500x_r4
+  ! calcPressure_gsv_nl_vcode5xxx_r4
   !---------------------------------------------------------
-  subroutine calcPressure_gsv_nl_vcode500x_r4(statevector, P_T, P_M, Ps_in_hPa_opt)
+  subroutine calcPressure_gsv_nl_vcode5xxx_r4(statevector, P_T, P_M, Ps_in_hPa_opt)
     !
     ! :Purpose: Pressure retrieval for GEM-P real(4) statevector, values
     !           values returned in pointers.
@@ -2095,20 +2132,28 @@ contains
     type(struct_gsv),           intent(in)    :: statevector
     real(4),           pointer, intent(inout) :: P_T(:,:,:,:)
     real(4),           pointer, intent(inout) :: P_M(:,:,:,:)
-    logical, optional,          intent(in)    :: Ps_in_hPa_opt            ! If true, conversion from hPa to mbar will be done for surface pressure
+    logical, optional,          intent(in)    :: Ps_in_hPa_opt  ! If true, conversion from hPa to mbar done for surface pressure
 
     ! Locals
-    real(kind=4), allocatable   :: Psfc(:,:)
+    real(kind=4), allocatable   :: Psfc(:,:), PsfcLS(:,:)
     real(kind=4), pointer       :: PressureM_out(:,:,:), PressureT_out(:,:,:)
-    real(kind=4), pointer       :: field_Psfc(:,:,:,:)
-    integer                     :: stepIndex, numStep
+    real(kind=4), pointer       :: field_Psfc(:,:,:,:), field_PsfcLS(:,:,:,:)
+    integer                     :: stepIndex, numStep, Vcode
 
-    call msg('calcPressure_gsv_nl_vcode500x_r4 (czp)', 'START', verb_opt=4)
+    call msg('calcPressure_gsv_nl_vcode5xxx_r4 (czp)', 'START', verb_opt=4)
+
+    Vcode = gsv_getVco(statevector)%vcode
 
     allocate(Psfc(statevector%myLonBeg:statevector%myLonEnd, &
                   statevector%myLatBeg:statevector%myLatEnd))
-
     call gsv_getField(statevector,field_Psfc,'P0')
+
+    if (Vcode == 5100) then
+      allocate(PsfcLS(statevector%myLonBeg:statevector%myLonEnd, &
+                      statevector%myLatBeg:statevector%myLatEnd))
+      call gsv_getField(statevector,field_PsfcLS,'P0LS')
+    end if
+
     numStep = statevector%numStep
 
     do stepIndex = 1, numStep
@@ -2117,8 +2162,18 @@ contains
         if ( Ps_in_hPa_opt ) Psfc = Psfc * mpc_pa_per_mbar_r4
       end if
 
-      call fetch3DLevels_r4(statevector%vco, Psfc, &
-                            fldM_opt=PressureM_out, fldT_opt=PressureT_out)
+      if (Vcode == 5100) then
+        PsfcLS(:,:) = field_PsfcLS(:,:,1,stepIndex)
+        if ( present(Ps_in_hPa_opt) ) then
+          if ( Ps_in_hPa_opt ) PsfcLS = PsfcLS * mpc_pa_per_mbar_r4
+        end if
+
+        call fetch3DLevels_r4(statevector%vco, Psfc, sfcFldLS_opt=PsfcLS, & 
+                              fldM_opt=PressureM_out, fldT_opt=PressureT_out)
+      else
+        call fetch3DLevels_r4(statevector%vco, Psfc, &
+                              fldM_opt=PressureM_out, fldT_opt=PressureT_out)
+      end if
       P_M(:,:,:,stepIndex) = PressureM_out(:,:,:)
       P_T(:,:,:,stepIndex) = PressureT_out(:,:,:)
       deallocate(PressureM_out, PressureT_out)
@@ -2126,9 +2181,10 @@ contains
     end do
 
     deallocate(Psfc)
+    if (Vcode == 5100) deallocate(PsfcLS)
 
-    call msg('calcPressure_gsv_nl_vcode500x_r4 (czp)', 'START', verb_opt=4)
-  end subroutine calcPressure_gsv_nl_vcode500x_r4
+    call msg('calcPressure_gsv_nl_vcode5xxx_r4 (czp)', 'START', verb_opt=4)
+  end subroutine calcPressure_gsv_nl_vcode5xxx_r4
 
   !---------------------------------------------------------
   ! calcPressure_gsv_tl
@@ -2152,16 +2208,18 @@ contains
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcPressure_gsv_tl (czp): for vcode 500x, variables P_T and P_M must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_tl (czp): for vcode 5xxx, variables P_T and P_M must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcPressure_gsv_tl (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_tl (czp): for vcode 5xxx, variable P0 must be allocated in gridstatevector')
       end if
-      call calcPressure_gsv_tl_vcode500x
+      call calcPressure_gsv_tl_vcode5xxx
     else if (Vcode == 21001) then
       ! Development notes (@mad001)
       !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcPressure_gsv_tl_vcode2100x
+    else
+      call utl_abort('calcPressure_gsv_tl (czp): not implemented')
     end if
 
     call msg('calcPressure_gsv_tl (czp)', 'END', verb_opt=2)
@@ -2180,9 +2238,9 @@ contains
       end subroutine calcPressure_gsv_tl_vcode2100x
 
       !---------------------------------------------------------
-      ! calcPressure_gsv_tl_vcode500x
+      ! calcPressure_gsv_tl_vcode5xxx
       !---------------------------------------------------------
-      subroutine calcPressure_gsv_tl_vcode500x
+      subroutine calcPressure_gsv_tl_vcode5xxx
         implicit none
 
         ! Locals
@@ -2199,7 +2257,7 @@ contains
         integer               :: status, stepIndex,lonIndex,latIndex
         integer               :: lev_M, lev_T, nlev_T, nlev_M, numStep
 
-        call msg('calcPressure_gsv_tl_vcode500x (czp)', 'START', verb_opt=4)
+        call msg('calcPressure_gsv_tl_vcode5xxx (czp)', 'START', verb_opt=4)
 
         nullify(dP_dPsfc_T)
         nullify(dP_dPsfc_M)
@@ -2305,8 +2363,8 @@ contains
 
         deallocate(Psfc)
 
-        call msg('calcPressure_gsv_tl_vcode500x (czp)', 'END', verb_opt=4)
-      end subroutine calcPressure_gsv_tl_vcode500x
+        call msg('calcPressure_gsv_tl_vcode5xxx (czp)', 'END', verb_opt=4)
+      end subroutine calcPressure_gsv_tl_vcode5xxx
 
   end subroutine calcPressure_gsv_tl
 
@@ -2332,16 +2390,18 @@ contains
     Vcode = gsv_getVco(statevectorRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. gsv_varExist(statevector,'P_*')  ) then
-        call utl_abort('calcPressure_gsv_ad (czp): for vcode 500x, variables P_M and P_T must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in gridstatevector')
       end if
       if ( .not. gsv_varExist(statevector,'P0')  ) then
-        call utl_abort('calcPressure_gsv_ad (czp): for vcode 500x, variable P0 must be allocated in gridstatevector')
+        call utl_abort('calcPressure_gsv_ad (czp): for vcode 5xxx, variable P0 must be allocated in gridstatevector')
       end if
-      call calcPressure_gsv_ad_vcode500x
+      call calcPressure_gsv_ad_vcode5xxx
     else if (Vcode == 21001) then
       ! Development notes (@mad001)
       !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcPressure_gsv_ad_vcode2100x
+    else
+      call utl_abort('calcPressure_gsv_ad (czp): not implemented')
     end if
 
     call msg('calcPressure_gsv_ad (czp)', 'END', verb_opt=2)
@@ -2360,9 +2420,9 @@ contains
       end subroutine calcPressure_gsv_ad_vcode2100x
 
       !---------------------------------------------------------
-      ! calcPressure_gsv_ad_vcode500x
+      ! calcPressure_gsv_ad_vcode5xxx
       !---------------------------------------------------------
-      subroutine calcPressure_gsv_ad_vcode500x
+      subroutine calcPressure_gsv_ad_vcode5xxx
         implicit none
 
         ! Locals
@@ -2379,7 +2439,7 @@ contains
         integer                  :: status, stepIndex,lonIndex,latIndex
         integer                  :: lev_M, lev_T, nlev_T, nlev_M, numStep
 
-        call msg('calcPressure_gsv_ad_vcode500x (czp)', 'START', verb_opt=4)
+        call msg('calcPressure_gsv_ad_vcode5xxx (czp)', 'START', verb_opt=4)
 
         nullify(delPsfc_r4, delPsfc_r8)
         nullify(field_Psfc)
@@ -2488,8 +2548,8 @@ contains
 
         deallocate(Psfc)
 
-        call msg('calcPressure_gsv_ad_vcode500x (czp)', 'END', verb_opt=4)
-      end subroutine calcPressure_gsv_ad_vcode500x
+        call msg('calcPressure_gsv_ad_vcode5xxx (czp)', 'END', verb_opt=4)
+      end subroutine calcPressure_gsv_ad_vcode5xxx
 
   end subroutine calcPressure_gsv_ad
 
@@ -2516,7 +2576,7 @@ contains
     call msg('calcZandP_col_nl (czp)', 'START', verb_opt=2)
 
     Vcode = column%vco%vcode
-    if (Vcode == 5002 .or. Vcode == 5005) then
+    if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 5100) then
       ! if P_T, P_M not allocated : do nothing
       if (col_varExist(column,'P_*')) then
         call calcPressure_col_nl(column)
@@ -2574,6 +2634,8 @@ contains
           call calcPressure_col_tl( columnInc, columnIncRef)
         end if
       end if
+    else
+      call utl_abort('calcZandP_col_tl (czp): not implemented')
     end if
 
     call msg('calcZandP_col_tl (czp)', 'END', verb_opt=2)
@@ -2616,6 +2678,8 @@ contains
           call calcHeight_col_ad(columnInc, columnIncRef)
         end if
       end if
+    else
+      call utl_abort('calcZandP_col_ad (czp): not implelmented')
     end if
 
     call msg('calcZandP_col_ad (czp)', 'END', verb_opt=2)
@@ -2670,12 +2734,12 @@ contains
     call msg('czp_calcReturnHeight_col_nl (czp)', 'START', verb_opt=2)
 
     Vcode = col_getVco(column)%vcode
-    if (Vcode == 5005 .or. Vcode == 5002) then
+    if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( .not. (col_varExist(column,'P0') .and. col_varExist(column,'TT') .and. &
                   col_varExist(column,'HU'))  ) then
-        call utl_abort('czp_calcReturnHeight_col_nl: for vcode 500x, variables P0, TT and HU must be allocated in column')
+        call utl_abort('czp_calcReturnHeight_col_nl: for vcode 5xxx, variables P0, TT and HU must be allocated in column')
       end if
-      call calcHeight_col_nl_vcode500x(column, Z_T, Z_M)
+      call calcHeight_col_nl_vcode5xxx(column, Z_T, Z_M)
     else if (Vcode == 21001) then
       call calcHeight_col_nl_vcode2100x(column, Z_T, Z_M)
 
@@ -2726,9 +2790,9 @@ contains
   end subroutine calcHeight_col_nl_vcode2100x
 
   !---------------------------------------------------------
-  ! calcHeight_col_nl_vcode500x
+  ! calcHeight_col_nl_vcode5xxx
   !---------------------------------------------------------
-  subroutine calcHeight_col_nl_vcode500x(column, Z_T, Z_M)
+  subroutine calcHeight_col_nl_vcode5xxx(column, Z_T, Z_M)
     !
     ! :Purpose: Compute heights for GEM-P columns, return height values 
     !           in pointer arguments.
@@ -2746,7 +2810,7 @@ contains
     !   dealing with GEM-P or GEM-H), but the results for heights are not used 
     !   at this time.
     !   We keep that stub however for future functionalities.
-    call msg('calcHeight_col_nl_vcode500x (czp)', 'END (nothing done)', verb_opt=4)
+    call msg('calcHeight_col_nl_vcode5xxx (czp)', 'END (nothing done)', verb_opt=4)
     return
 
     ! to prevent 'variable not used' remark
@@ -2756,8 +2820,7 @@ contains
       Z_M = 0.0
     end if
 
-  end subroutine calcHeight_col_nl_vcode500x
-
+  end subroutine calcHeight_col_nl_vcode5xxx
 
   !---------------------------------------------------------
   ! calcHeight_col_tl
@@ -2781,25 +2844,27 @@ contains
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variables P_M and P_T must be allocated in column')
+        call utl_abort('calcHeight_col_tl (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'Z_*')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variables Z_M and Z_T must be allocated in column')
+        call utl_abort('calcHeight_col_tl (czp): for vcode 5xxx, variables Z_M and Z_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'TT')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable TT must be allocated in column')
+        call utl_abort('calcHeight_col_tl (czp): for vcode 5xxx, variable TT must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'HU')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable HU must be allocated in column')
+        call utl_abort('calcHeight_col_tl (czp): for vcode 5xxx, variable HU must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('calcHeight_col_tl (czp): for vcode 500x, variable P0 must be allocated in column')
+        call utl_abort('calcHeight_col_tl (czp): for vcode 5xxx, variable P0 must be allocated in column')
       end if
-      call calcHeight_col_tl_vcode500x
+      call calcHeight_col_tl_vcode5xxx
     else if (Vcode == 21001) then
       ! Development notes (@mad001)
       !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcHeight_col_tl_vcode2100x
+    else
+      call utl_abort('calcHeight_col_tl (czp): not implemented')
     end if
 
     call msg('calcHeight_col_tl (czp)', 'END', verb_opt=2)
@@ -2817,9 +2882,9 @@ contains
       end subroutine calcHeight_col_tl_vcode2100x
 
       !---------------------------------------------------------
-      ! calcHeight_col_tl_vcode500x
+      ! calcHeight_col_tl_vcode5xxx
       !---------------------------------------------------------
-      subroutine calcHeight_col_tl_vcode500x
+      subroutine calcHeight_col_tl_vcode5xxx
         implicit none
 
         ! Locals
@@ -2832,7 +2897,7 @@ contains
         real(8), pointer  :: delTT(:,:),delHU(:,:),delP0(:,:)
         real(8), pointer  :: delP_T(:,:), delP_M(:,:)
 
-        call msg('calcHeight_col_tl_vcode500x (czp)', 'START', verb_opt=4)
+        call msg('calcHeight_col_tl_vcode5xxx (czp)', 'START', verb_opt=4)
 
         nlev_T = col_getNumLev(columnIncRef,'TH')
         nlev_M = col_getNumLev(columnIncRef,'MM')
@@ -2955,12 +3020,14 @@ contains
                    ScaleFactorTop * delHeight_M_ptr(lev_M-1,colIndex)
             end do
           end do
+        else
+          call utl_abort('calcHeight_col_tl_vcode5xxx (czp): not implemented')
         end if if_computeHeight_col_tl_vcodes
 
         deallocate(delThick)
 
-        call msg('calcHeight_col_tl_vcode500x (czp)', 'END', verb_opt=4)
-      end subroutine calcHeight_col_tl_vcode500x
+        call msg('calcHeight_col_tl_vcode5xxx (czp)', 'END', verb_opt=4)
+      end subroutine calcHeight_col_tl_vcode5xxx
 
   end subroutine calcHeight_col_tl
 
@@ -2987,25 +3054,27 @@ contains
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variables P_M and P_T must be allocated in column')
+        call utl_abort('calcHeight_col_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'Z_*')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variables Z_M and Z_T must be allocated in column')
+        call utl_abort('calcHeight_col_ad (czp): for vcode 5xxx, variables Z_M and Z_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'TT')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable TT must be allocated in column')
+        call utl_abort('calcHeight_col_ad (czp): for vcode 5xxx, variable TT must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'HU')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable HU must be allocated in column')
+        call utl_abort('calcHeight_col_ad (czp): for vcode 5xxx, variable HU must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('calcHeight_col_ad (czp): for vcode 500x, variable P0 must be allocated in column')
+        call utl_abort('calcHeight_col_ad (czp): for vcode 5xxx, variable P0 must be allocated in column')
       end if
-      call calcHeight_col_ad_vcode500x
+      call calcHeight_col_ad_vcode5xxx
     else if (Vcode == 21001) then
       ! Development notes (@mad001)
       !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcHeight_col_ad_vcode2100x
+    else
+      call utl_abort('calcHeight_col_ad (czp): not implemented')
     end if
 
     call msg('calcHeight_col_ad (czp)', 'END', verb_opt=2)
@@ -3023,9 +3092,9 @@ contains
       end subroutine calcHeight_col_ad_vcode2100x
 
       !---------------------------------------------------------
-      ! calcHeight_col_ad_vcode500x
+      ! calcHeight_col_ad_vcode5xxx
       !---------------------------------------------------------
-      subroutine calcHeight_col_ad_vcode500x
+      subroutine calcHeight_col_ad_vcode5xxx
         implicit none
 
         ! Locals
@@ -3039,7 +3108,7 @@ contains
         real(8), pointer     :: delTT(:,:),delHU(:,:),delP0(:,:)
         real(8), pointer     :: delP_M(:,:),delP_T(:,:)
 
-        call msg('calcHeight_col_ad_vcode500x (czp)', 'START', verb_opt=4)
+        call msg('calcHeight_col_ad_vcode5xxx (czp)', 'START', verb_opt=4)
 
         nlev_T = col_getNumLev(columnIncRef,'TH')
         nlev_M = col_getNumLev(columnIncRef,'MM')
@@ -3228,14 +3297,16 @@ contains
                   delThick(lev_T,colIndex)
             end do
           end do
+        else
+          call utl_abort('calcHeight_col_ad_vcode5xxx (czp): not implemented')
         end if if_computeHeight_col_ad_vcodes
 
         deallocate(delThick)
         deallocate(delHeight_M)
         deallocate(delHeight_T)
 
-        call msg('calcHeight_col_ad_vcode500x (czp)', 'END', verb_opt=4)
-      end subroutine calcHeight_col_ad_vcode500x
+        call msg('calcHeight_col_ad_vcode5xxx (czp)', 'END', verb_opt=4)
+      end subroutine calcHeight_col_ad_vcode5xxx
 
   end subroutine calcHeight_col_ad
 
@@ -3288,11 +3359,11 @@ contains
     call msg('czp_calcReturnPressure_col_nl (czp)', 'START', verb_opt=2)
 
     Vcode = col_getVco(column)%vcode
-    if (Vcode == 5005 .or. Vcode == 5002) then
+    if (Vcode == 5005 .or. Vcode == 5002 .or. Vcode == 5100) then
       if ( .not. col_varExist(column,'P0')  ) then
-        call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 500x, variable P0 must be allocated in column')
+        call utl_abort('czp_calcReturnPressure_col_nl (czp): for vcode 5xxx, variable P0 must be allocated in column')
       end if
-      call calcPressure_col_nl_vcode500x(column, P_T, P_M)
+      call calcPressure_col_nl_vcode5xxx(column, P_T, P_M)
     else if (Vcode == 21001) then
       if ( .not. (col_varExist(column,'P0') .and. col_varExist(column,'TT') .and. &
                   col_varExist(column,'HU'))  ) then
@@ -3423,9 +3494,9 @@ contains
   end subroutine calcPressure_col_nl_vcode2100x
 
   !---------------------------------------------------------
-  ! calcPressure_col_nl_vcode500x
+  ! calcPressure_col_nl_vcode5xxx
   !---------------------------------------------------------
-  subroutine calcPressure_col_nl_vcode500x(column, P_T, P_M)
+  subroutine calcPressure_col_nl_vcode5xxx(column, P_T, P_M)
     implicit none
 
     ! Arguments
@@ -3434,16 +3505,18 @@ contains
     real(8), pointer,         intent(inout) :: P_M(:,:) ! output pointer to computed column pressure values on momentum levels
 
     ! Locals
-    real(kind=8), allocatable :: Psfc(:,:)
+    real(kind=8), allocatable :: Psfc(:,:), PsfcLS(:,:)
     real(kind=8), pointer     :: zppobsM(:,:,:), zppobsT(:,:,:)
-    integer :: headerIndex
+    integer :: headerIndex, Vcode
 
-    call msg('calcPressure_col_nl_vcode500x (czp)', 'START', verb_opt=4)
+    call msg('calcPressure_col_nl_vcode5xxx (czp)', 'START', verb_opt=4)
     if ( col_getNumCol(column) <= 0 ) then
-      call msg('calcPressure_col_nl_vcode500x (czp)',&
+      call msg('calcPressure_col_nl_vcode5xxx (czp)',&
            'END (number of columns <= 0)', verb_opt=2)
       return
     end if
+
+    Vcode = col_getVco(column)%vcode
 
     if (.not.col_varExist(column,'P0')) then
       call utl_abort('calcPressure_col_nl (czp): P0 must be present as an analysis variable!')
@@ -3454,21 +3527,35 @@ contains
       Psfc(1,headerIndex) = col_getElem(column,1,headerIndex,'P0')
     end do
 
-    call fetch3DLevels_r8(column%vco, Psfc ,fldM_opt=zppobsM, fldT_opt=zppobsT)
+    if (Vcode == 5100) then
+      if (.not.col_varExist(column,'P0LS')) then
+        call utl_abort('calcPressure_col_nl (czp): P0LS must be present as an analysis variable!')
+      end if
+
+      allocate(PsfcLS(1,col_getNumCol(column)))
+      do headerIndex = 1,col_getNumCol(column)
+        PsfcLS(1,headerIndex) = col_getElem(column,1,headerIndex,'P0LS')
+      end do
+
+      call fetch3DLevels_r8(column%vco, Psfc ,sfcFldLS_opt=PsfcLS, &
+                            fldM_opt=zppobsM, fldT_opt=zppobsT)
+      deallocate(PsfcLS)
+    else
+      call fetch3DLevels_r8(column%vco, Psfc ,fldM_opt=zppobsM, fldT_opt=zppobsT)
+    end if
     P_M(:,:) = zppobsM(1,:,:)
     P_T(:,:) = zppobsT(1,:,:)
     deallocate(zppobsM, zppobsT)
-
     deallocate(Psfc)
 
-    call msg('calcPressure_col_nl_vcode500x (czp)', 'END', verb_opt=4)
-  end subroutine calcPressure_col_nl_vcode500x
+    call msg('calcPressure_col_nl_vcode5xxx (czp)', 'END', verb_opt=4)
+  end subroutine calcPressure_col_nl_vcode5xxx
 
 
   !---------------------------------------------------------
   ! calcPressure_col_tl
   !---------------------------------------------------------
-  subroutine calcPressure_col_tl( columnInc, columnIncRef)
+  subroutine calcPressure_col_tl(columnInc, columnIncRef)
     !
     !:Purpose: Tangent pressure computation on the column.
     !
@@ -3486,16 +3573,18 @@ contains
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
-        call utl_abort('calcPressure_col_tl (czp): for vcode 500x, variables P_M and P_T must be allocated in column')
+        call utl_abort('calcPressure_col_tl (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('calcPressure_col_tl (czp): for vcode 500x, variable P0 must be allocated in column')
+        call utl_abort('calcPressure_col_tl (czp): for vcode 5xxx, variable P0 must be allocated in column')
       end if
-      call calcPressure_col_tl_vcode500x
+      call calcPressure_col_tl_vcode5xxx
     else if (Vcode == 21001) then
       ! Development notes (@mad001)
       !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcPressure_col_tl_vcode2100x
+    else
+      call utl_abort('calcPressure_col_tl (czp): not implemented')
     end if
 
     call msg('calcPressure_col_tl (czp)', 'END', verb_opt=2)
@@ -3512,9 +3601,9 @@ contains
       end subroutine calcPressure_col_tl_vcode2100x
 
       !---------------------------------------------------------
-      ! calcPressure_col_tl_vcode500x
+      ! calcPressure_col_tl_vcode5xxx
       !---------------------------------------------------------
-      subroutine calcPressure_col_tl_vcode500x
+      subroutine calcPressure_col_tl_vcode5xxx
         implicit none
 
         ! Locals
@@ -3525,7 +3614,7 @@ contains
         integer          :: status, colIndex
         integer          :: lev_M, lev_T, nlev_T, nlev_M, numColumns
 
-        call msg('calcPressure_col_tl_vcode500x (czp)', 'START', verb_opt=4)
+        call msg('calcPressure_col_tl_vcode5xxx (czp)', 'START', verb_opt=4)
 
         nullify(dP_dPsfc_T)
         nullify(dP_dPsfc_M)
@@ -3578,8 +3667,8 @@ contains
 
         end do
 
-        call msg('calcPressure_col_tl_vcode500x (czp)', 'END', verb_opt=4)
-      end subroutine calcPressure_col_tl_vcode500x
+        call msg('calcPressure_col_tl_vcode5xxx (czp)', 'END', verb_opt=4)
+      end subroutine calcPressure_col_tl_vcode5xxx
 
   end subroutine calcPressure_col_tl
 
@@ -3604,16 +3693,18 @@ contains
     Vcode = col_getVco(columnIncRef)%vcode
     if (Vcode == 5005 .or. Vcode == 5002) then
       if ( .not. col_varExist(columnInc,'P_*')  ) then
-        call utl_abort('calcPressure_col_ad (czp): for vcode 500x, variables P_M and P_T must be allocated in column')
+        call utl_abort('calcPressure_col_ad (czp): for vcode 5xxx, variables P_M and P_T must be allocated in column')
       end if
       if ( .not. col_varExist(columnInc,'P0')  ) then
-        call utl_abort('calcPressure_col_ad (czp): for vcode 500x, variable P0 must be allocated in column')
+        call utl_abort('calcPressure_col_ad (czp): for vcode 5xxx, variable P0 must be allocated in column')
       end if
-      call calcPressure_col_ad_vcode500x
+      call calcPressure_col_ad_vcode5xxx
     else if (Vcode == 21001) then
       ! Development notes (@mad001)
       !   probably some some gsv_varExist(statevector,.) needed for GEM-H
       call calcPressure_col_ad_vcode2100x
+    else
+      call utl_abort('calcPressure_col_ad (czp): not implemented')
     end if
 
     call msg('calcPressure_col_ad (czp)', 'END', verb_opt=2)
@@ -3630,9 +3721,9 @@ contains
       end subroutine calcPressure_col_ad_vcode2100x
 
       !---------------------------------------------------------
-      ! calcPressure_col_ad_vcode500x
+      ! calcPressure_col_ad_vcode5xxx
       !---------------------------------------------------------
-      subroutine calcPressure_col_ad_vcode500x
+      subroutine calcPressure_col_ad_vcode5xxx
         implicit none
 
         ! Locals
@@ -3643,7 +3734,7 @@ contains
         integer          :: status, colIndex
         integer          :: lev_M, lev_T, nlev_T, nlev_M, numColumns
 
-        call msg('calcPressure_col_ad_vcode500x (czp)', 'START', verb_opt=4)
+        call msg('calcPressure_col_ad_vcode5xxx (czp)', 'START', verb_opt=4)
 
         nullify(delPsfc)
         nullify(PsfcRef)
@@ -3698,8 +3789,8 @@ contains
           deallocate(dP_dPsfc_T)
 
         end do
-        call msg('calcPressure_col_ad_vcode500x (czp)', 'END', verb_opt=4)
-      end subroutine calcPressure_col_ad_vcode500x
+        call msg('calcPressure_col_ad_vcode5xxx (czp)', 'END', verb_opt=4)
+      end subroutine calcPressure_col_ad_vcode5xxx
 
   end subroutine calcPressure_col_ad
 
@@ -3710,7 +3801,7 @@ contains
   !---------------------------------------------------------
   ! fetch3DLevels_r8
   !---------------------------------------------------------
-  subroutine fetch3DLevels_r8(vco, sfcFld, fldM_opt, fldT_opt)
+  subroutine fetch3DLevels_r8(vco, sfcFld, sfcFldLS_opt, fldM_opt, fldT_opt)
     !
     ! :Purpose: Main vgd_levels wrapper for field queries. Return vertical coordinate
     !           fields for both momentum and thermodynamic levels; real(8) flavor.
@@ -3720,6 +3811,7 @@ contains
     ! Arguments
     type(struct_vco),  intent(in)             :: vco              ! Vertical descriptor
     real(8),           intent(in)             :: sfcFld(:,:)      ! Surface field reference for coordinate
+    real(8), optional, intent(in)             :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
     real(8), optional, intent(inout), pointer :: fldM_opt(:,:,:)  ! Momemtum levels field
     real(8), optional, intent(inout), pointer :: fldT_opt(:,:,:)  ! Thermodynamic levels field
 
@@ -3736,8 +3828,18 @@ contains
 
     if (present(fldM_opt)) then
       nullify(fldM_opt)
-      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
-                          levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
+      if (vco%vcode == 5100) then
+        if (.not. present(sfcFldLS_opt) ) then
+          call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
+        end if
+        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
+                            levels=fldM_opt, &
+                            sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
+                            in_log=.false.)
+      else
+        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
+                            levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
+      end if
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch3DLevels_r8:  ERROR with vgd_levels (momentum levels)')
       end if
@@ -3745,8 +3847,18 @@ contains
 
     if (present(fldT_opt)) then
       nullify(fldT_opt)
-      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
-                          levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
+      if (vco%vcode == 5100) then
+        if (.not. present(sfcFldLS_opt) ) then
+          call utl_abort('fetch3DLevels_r8: require sfcFldLS_opt for SLEVE')
+        end if
+        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
+                            levels=fldT_opt, &
+                            sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
+                            in_log=.false.)
+      else
+        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
+                            levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
+      end if
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch3DLevels_r8:  ERROR with vgd_levels (thermodynamic levels)')
       end if
@@ -3756,7 +3868,7 @@ contains
   !---------------------------------------------------------
   ! fetch3DLevels_r4
   !---------------------------------------------------------
-  subroutine fetch3DLevels_r4(vco, sfcFld, fldM_opt, fldT_opt)
+  subroutine fetch3DLevels_r4(vco, sfcFld, sfcFldLS_opt, fldM_opt, fldT_opt)
     !
     ! :Purpose: Main vgd_levels wrapper for field query. Return vertical coordinate
     !           fields for both momentum and thermodynamic levels; real(4) flavor.
@@ -3766,6 +3878,7 @@ contains
     ! Arguments
     type(struct_vco),  intent(in)             :: vco              ! Vertical descriptor
     real(4),           intent(in)             :: sfcFld(:,:)      ! Surface field reference for coordinate
+    real(4), optional, intent(in)             :: sfcFldLS_opt(:,:)! Large scale surface field reference for coordinate (SLEVE)
     real(4), optional, intent(inout), pointer :: fldM_opt(:,:,:)  ! Momemtum levels field
     real(4), optional, intent(inout), pointer :: fldT_opt(:,:,:)  ! Thermodynamic levels field
 
@@ -3782,8 +3895,18 @@ contains
 
     if (present(fldM_opt)) then
       nullify(fldM_opt)
-      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
-                          levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
+      if (vco%vcode == 5100) then
+        if (.not. present(sfcFldLS_opt) ) then
+          call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
+        end if
+        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
+                            levels=fldM_opt, &
+                            sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
+                            in_log=.false.)
+      else
+        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_M, &
+                            levels=fldM_opt, sfc_field=sfcFld, in_log=.false.)
+      end if
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch3DLevels_r4:  ERROR with vgd_levels (momentum levels)')
       end if
@@ -3791,8 +3914,18 @@ contains
 
     if (present(fldT_opt)) then
       nullify(fldT_opt)
-      status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
-                          levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
+      if (vco%vcode == 5100) then
+        if (.not. present(sfcFldLS_opt) ) then
+          call utl_abort('fetch3DLevels_r4: require sfcFldLS_opt for SLEVE')
+        end if
+        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
+                            levels=fldT_opt, &
+                            sfc_field=sfcFld, sfc_field_ls=sfcFldLS_opt, &
+                            in_log=.false.)
+      else
+        status = vgd_levels(vco%vgrid, ip1_list=vco%ip1_T, &
+                            levels=fldT_opt, sfc_field=sfcFld, in_log=.false.)
+      end if
       if ( status .ne. VGD_OK ) then
         call utl_abort('fetch3DLevels_r4:  ERROR with vgd_levels (thermodynamic levels)')
       end if
@@ -3912,7 +4045,7 @@ contains
     ! locals:
     integer :: nAbove, numLevSource, numLevDest
     real(8) :: sourceModelTop
-    real(8)           :: pSfc(1,1)
+    real(8)           :: pSfc(1,1), pSfcLS(1,1)
     real(8), pointer  :: sourcePressureLevels(:,:,:)
     real(8), pointer  :: destPressureLevels(:,:,:)
 
@@ -3928,11 +4061,22 @@ contains
 
     ! dummy pressure value
     pSfc(1,1) = 100.0D3 !100 kPa
+    pSfcLS(1,1) = 100.0D3 !100 kPa
 
     ! pressure on momentum levels of source grid
-    call fetch3DLevels_r8(vco_sourceGrid, pSfc, fldM_opt=sourcePressureLevels)
+    if (vco_sourceGrid%vcode == 5100) then
+      call fetch3DLevels_r8(vco_sourceGrid, pSfc, sfcFldLS_opt=pSfcLS, &
+                            fldM_opt=sourcePressureLevels)
+    else
+      call fetch3DLevels_r8(vco_sourceGrid, pSfc, fldM_opt=sourcePressureLevels)
+    end if
     ! pressure on momentum levels of destination grid
-    call fetch3DLevels_r8(vco_destGrid, pSfc, fldM_opt=destPressureLevels)
+    if (vco_destGrid%vcode == 5100) then
+      call fetch3DLevels_r8(vco_destGrid, pSfc, sfcFldLS_opt=pSfcLS, &
+                            fldM_opt=destPressureLevels)
+    else
+      call fetch3DLevels_r8(vco_destGrid, pSfc, fldM_opt=destPressureLevels)
+    end if
 
     ! count number of levels where output grid is higher than input grid
     sourceModelTop = sourcePressureLevels(1,1,1)
@@ -4203,6 +4347,7 @@ contains
       end do
 
     else if_calcHeightCoeff_gsv_vcodes
+
       call utl_abort('calcHeightCoeff_gsv (czp): only vcode 5002 and 5005 implemented')
 
     end if if_calcHeightCoeff_gsv_vcodes
@@ -4405,6 +4550,10 @@ contains
               (MPC_RGAS_DRY_AIR_R8 / Rgh) * phf_fotvt8(tt,hu) * cmp_P0_2 * ratioP1
         end do
       end do
+
+    else
+
+      call utl_abort('calcHeightCoeff_col (czp): only vcode 5002 and 5005 implemented')
 
     end if if_calcHeightCoeff_col_vcodes
 

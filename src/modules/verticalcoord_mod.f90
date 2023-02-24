@@ -292,8 +292,8 @@ contains
     if ( stat /= VGD_OK ) then
       call utl_abort('vco_setupAtmFromFile: problem with vgd_get: key= ig_1 - vertical coord code')
     end if
-    if (Vcode /= 5002 .and. Vcode /= 5005 .and. Vcode /= 21001) then
-      call utl_abort('vco_setupAtmFromFile: Invalid Vcode. Currently only 5002, 5005 and 21001 supported.')
+    if (Vcode /= 5002 .and. Vcode /= 5005 .and. Vcode /= 5100 .and. Vcode /= 21001) then
+      call utl_abort('vco_setupAtmFromFile: Invalid Vcode. Currently only 5002, 5005, 5100 and 21001 supported.')
     end if
     vco%Vcode = Vcode
 
@@ -435,7 +435,7 @@ contains
     end if
 
     ! determine IP1 of sfc (hyb=1.0)
-    if (Vcode == 5002 .or. Vcode == 5005) then
+    if (Vcode == 5002 .or. Vcode == 5005 .or. Vcode == 5100) then
       call convip(ip1_sfc, 1.0, 5, 2, blk_s, .false.)
     else if (Vcode == 21001) then
       call convip(ip1_sfc, 0.0, 21, 2, blk_s, .false.)
@@ -844,7 +844,7 @@ contains
         write(*,*) 'vco_equal: ip1_sfc not equal'
         return
       end if
-      if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005) then
+      if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005 .or. vco1%Vcode == 5100) then
         equal = equal .and. hybridCoefEqualOrNot(vco1, vco2)
         if (.not. equal) then
           write(*,*) 'vco_equal: hybrid parameters are not equal'
@@ -963,7 +963,7 @@ contains
       end if
     end if
 
-    if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005) then
+    if (vco1%Vcode == 5002 .or. vco1%Vcode == 5005 .or. vco1%Vcode == 5100) then
 
       !- Pref
       stat = vgd_get(vco1%vgrid,key='PREF - reference pressure',value=ptop1)
@@ -1095,7 +1095,7 @@ contains
     if      (vco%Vcode == 5002) then
       vco%ip1_T_2m  = vco%ip1_sfc 
       vco%ip1_M_10m = vco%ip1_sfc
-    else if (vco%Vcode == 5005) then
+    else if (vco%Vcode == 5005 .or. vco%Vcode == 5100) then
       call convip(vco%ip1_T_2m ,  1.5, 4, 2, blk_s, .false.)
       call convip(vco%ip1_M_10m, 10.0, 4, 2, blk_s, .false.)
     else
