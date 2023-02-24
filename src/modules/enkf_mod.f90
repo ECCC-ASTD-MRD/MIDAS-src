@@ -130,13 +130,16 @@ contains
     integer, allocatable :: memberIndexSubEnsComp(:,:)
     integer, allocatable :: randomMemberIndexArray(:), latLonTagMpiGlobal(:,:)
 
-    real(8), allocatable :: distances(:)
-    real(8), allocatable :: PaInv_mean(:,:), PaInv_pert(:,:), PaSqrt_pert(:,:), Pa_mean(:,:), Pa_pert(:,:)
-    real(8), allocatable :: YbTinvR_mean(:,:), YbTinvR_pert(:,:), YbTinvRYb_mean(:,:), YbTinvRYb_pert(:,:)
-    real(8), allocatable :: YbTinvRCopy_mean(:,:), YbTinvRCopy_pert(:,:)
+    real(8), pointer :: PaInv_mean(:,:), Pa_mean(:,:)
+    real(8), pointer :: YbTinvR_mean(:,:), YbTinvRCopy_mean(:,:), YbTinvRYb_mean(:,:)
+    real(8), pointer :: eigenValues_mean(:), eigenVectors_mean(:,:)
+    
+    real(8), allocatable, target :: PaInv_pert(:,:), Pa_pert(:,:)
+    real(8), allocatable, target :: YbTinvR_pert(:,:),YbTinvRCopy_pert(:,:), YbTinvRYb_pert(:,:)
+    real(8), allocatable, target :: eigenValues_pert(:), eigenVectors_pert(:,:)
+    
+    real(8), allocatable :: distances(:), PaSqrt_pert(:,:)
     real(8), allocatable :: YbTinvRYb_CV_pert(:,:), YbTinvRYb_mod_pert(:,:)
-    real(8), allocatable :: eigenValues_mean(:), eigenVectors_mean(:,:)
-    real(8), allocatable :: eigenValues_pert(:), eigenVectors_pert(:,:)
     real(8), allocatable :: eigenValues_CV_pert(:), eigenVectors_CV_pert(:,:)
     real(8), allocatable :: weightsTemp(:), weightsTemp2(:)
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
@@ -202,30 +205,39 @@ contains
     !
     allocate(localBodyIndices(maxNumLocalObs))
     allocate(distances(maxNumLocalObs))
-
-    allocate(YbTinvR_mean(nEnsGain,maxNumLocalObs))
     allocate(YbTinvR_pert(nEnsGain,maxNumLocalObs))
-    allocate(YbTinvRCopy_mean(maxNumLocalObs,nEnsGain))
     allocate(YbTinvRCopy_pert(maxNumLocalObs,nEnsGain))
     allocate(YbGainCopy_r4(maxNumLocalObs,nEnsGain))
-    allocate(YbTinvRYb_mean(nEnsGain,nEnsGain))
     allocate(YbTinvRYb_pert(nEnsGain,nEnsGain))
     if ( trim(algorithm) == 'CVLETKF-ME' .or. &
          trim(algorithm) == 'LETKF-Gain-ME' ) then
       allocate(YbTinvRYb_mod_pert(nEnsGain,nEns))
       allocate(YbCopy_r4(maxNumLocalObs,nEns))
     end if
-    allocate(eigenValues_mean(nEnsGain))
-    allocate(eigenVectors_mean(nEnsGain,nEnsGain))
     allocate(eigenValues_pert(nEnsGain))
     allocate(eigenVectors_pert(nEnsGain,nEnsGain))
-
-    allocate(PaInv_mean(nEnsGain,nEnsGain))
     allocate(PaInv_pert(nEnsGain,nEnsGain))
     allocate(PaSqrt_pert(nEnsGain,nEnsGain))
-    allocate(Pa_mean(nEnsGain,nEnsGain))
     allocate(Pa_pert(nEnsGain,nEnsGain))
 
+    if ( edaObsImpact ) then
+      allocate(YbTinvR_mean(nEnsGain,maxNumLocalObs))
+      allocate(YbTinvRCopy_mean(maxNumLocalObs,nEnsGain))
+      allocate(YbTinvRYb_mean(nEnsGain,nEnsGain))
+      allocate(eigenValues_mean(nEnsGain))
+      allocate(eigenVectors_mean(nEnsGain,nEnsGain))
+      allocate(PaInv_mean(nEnsGain,nEnsGain))
+      allocate(Pa_mean(nEnsGain,nEnsGain))
+    else
+      YbTinvR_mean => YbTinvR_pert
+      YbTinvRCopy_mean => YbTinvRCopy_pert
+      YbTinvRYb_mean => YbTinvRYb_pert
+      eigenValues_mean => eigenValues_pert
+      eigenVectors_mean => eigenVectors_pert
+      PaInv_mean => PaInv_pert
+      Pa_mean => Pa_pert
+    end if
+    
     allocate(memberAnlPert(nEns))
     allocate(weightsTemp(nEnsGain))
     allocate(weightsTemp2(nEnsGain))
@@ -479,10 +491,7 @@ contains
               ! YbTinvR for the ensemble mean update for EDA observation simulation experiment
               YbTinvR_mean(memberIndex,localObsIndex) =  &
                    ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-                   localization * ensObsGain_mpiglobal%obsErrInv_eda(bodyIndex)
-            else
-              ! the same YbTinvR is used for ensemble mean and perturbation update
-              YbTinvR_mean(memberIndex,localObsIndex) = YbTinvR_pert(memberIndex,localObsIndex)              
+                   localization * ensObsGain_mpiglobal%obsErrInv_eda(bodyIndex)             
             end if              
           end do        
         end do ! localObsIndex
@@ -491,31 +500,34 @@ contains
         ! make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4
         call utl_tmg_start(137,'--------YbArraysCopy')
         YbGainCopy_r4(:,:) = 0.0
-        YbTinvRCopy_mean(:,:) = 0.0d0
+        if ( edaObsImpact ) YbTinvRCopy_mean(:,:) = 0.0d0
         YbTinvRCopy_pert(:,:) = 0.0d0
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
           do memberIndex2 = 1, nEnsGain
             YbGainCopy_r4(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
-            YbTinvRCopy_mean(localObsIndex,memberIndex2) = YbTinvR_mean(memberIndex2,localObsIndex)             
             YbTinvRCopy_pert(localObsIndex,memberIndex2) = YbTinvR_pert(memberIndex2,localObsIndex)
+            if ( edaObsImpact ) then
+              YbTinvRCopy_mean(localObsIndex,memberIndex2) = YbTinvR_mean(memberIndex2,localObsIndex)             
+            end if
           end do
         end do
         call utl_tmg_stop(137)
 
-        YbTinvRYb_mean(:,:) = 0.0D0
+        if ( edaObsImpact ) YbTinvRYb_mean(:,:) = 0.0D0
         YbTinvRYb_pert(:,:) = 0.0D0
         call utl_tmg_start(138,'--------YbTinvRYb1')
         !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
         do memberIndex2 = 1, nEnsGain
           do memberIndex1 = 1, nEnsGain
-            YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
-                YbTinvRYb_mean(memberIndex1,memberIndex2) +  &
-                sum(YbTinvRCopy_mean(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))
-            
             YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
                 YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
                 sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))
+            if ( edaObsImpact ) then
+              YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
+                  YbTinvRYb_mean(memberIndex1,memberIndex2) +  &
+                  sum(YbTinvRCopy_mean(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))              
+            end if
           end do
         end do
         !$OMP END PARALLEL DO
@@ -559,24 +571,19 @@ contains
             !
 
             ! Add second term of PaInv
-            PaInv_mean(:,:) = YbTinvRYb_mean(:,:)
             PaInv_pert(:,:) = YbTinvRYb_pert(:,:)
+            if ( edaObsImpact ) PaInv_mean(:,:) = YbTinvRYb_mean(:,:)            
             do memberIndex = 1, nEns
-              PaInv_mean(memberIndex,memberIndex) = PaInv_mean(memberIndex,memberIndex) + real(nEns - 1,8)
               PaInv_pert(memberIndex,memberIndex) = PaInv_pert(memberIndex,memberIndex) + real(nEns - 1,8)
+              if ( edaObsImpact ) PaInv_mean(memberIndex,memberIndex) = PaInv_mean(memberIndex,memberIndex) + real(nEns - 1,8)
             end do
 
             ! Compute Pa and sqrt(Pa) matrices from PaInv
-            Pa_mean(:,:) = PaInv_mean(:,:)
             Pa_pert(:,:) = PaInv_pert(:,:)
+            if ( edaObsImpact ) Pa_mean(:,:) = PaInv_mean(:,:)
             call utl_tmg_start(135,'------EigenDecomp')
             call utl_matInverse(Pa_pert, nEns, inverseSqrt_opt=PaSqrt_pert)
-            if ( edaObsImpact ) then
-              call utl_matInverse(Pa_mean, nEns)
-            else
-              Pa_mean(:,:) = Pa_pert(:,:)
-            end if
-            
+            if ( edaObsImpact ) call utl_matInverse(Pa_mean, nEns)         
             call utl_tmg_stop(135)
 
             ! Compute ensemble mean local weights as Pa * YbTinvR * (obs - meanYb)
@@ -614,9 +621,6 @@ contains
             call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
             if ( edaObsImpact ) then
               call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-            else
-              eigenValues_mean(:) = eigenValues_pert(:)
-              eigenVectors_mean(:,:) = eigenVectors_pert(:,:)
             end if
             call utl_tmg_stop(135)
 
@@ -721,9 +725,6 @@ contains
             call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
             if ( edaObsImpact ) then
               call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-            else
-              eigenValues_mean(:)= eigenValues_pert(:)
-              eigenVectors_mean(:,:) = eigenVectors_pert(:,:)
             end if
             call utl_tmg_stop(135)
 
@@ -824,9 +825,6 @@ contains
             call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
             if ( edaObsImpact ) then
               call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-            else
-              eigenValues_mean(:) = eigenValues_pert(:)
-              eigenVectors_mean(:,:) = eigenVectors_pert(:,:)
             end if
             call utl_tmg_stop(135)
 
@@ -953,9 +951,6 @@ contains
             call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
             if ( edaObsImpact ) then
               call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-            else
-              eigenValues_mean(:) = eigenValues_pert(:)
-              eigenVectors_mean(:,:) = eigenVectors_pert(:,:)
             end if
             call utl_tmg_stop(135)
             !if (matrixRank < (nEns-1)) then
@@ -1081,9 +1076,6 @@ contains
             call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
             if ( edaObsImpact ) then
               call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-            else
-              eigenValues_mean(:) = eigenValues_pert(:)
-              eigenVectors_mean(:,:) = eigenVectors_pert(:,:)
             end if
             call utl_tmg_stop(135)
 
