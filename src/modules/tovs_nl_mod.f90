@@ -35,32 +35,43 @@ module tovs_nl_mod
        rttov_chanprof      ,&
        rttov_emissivity
 
-  use rttov_const, only :   &
-       platform_name       ,&
-       nplatforms          ,&
-       inst_name           ,&
-       ninst               ,&
-       inst_id_goesim      ,&
-       inst_id_gmsim       ,&
-       inst_id_mtsatim     ,&
-       inst_id_amsua       ,&
-       inst_id_mhs         ,&
-       sensor_id_mw        ,&
-       sensor_id_po        ,&
-       platform_id_jpss    ,&
-       platform_id_himawari,&
-       platform_id_eos     ,&
-       errorstatus_success ,&
-       mair, mh2o, mo3     ,&
-       surftype_land       ,&
-       surftype_seaice     ,&
-       surftype_sea        ,&
-       ngases_max          ,&
-       gas_id_mixed        ,&
-       gas_unit_specconc   ,&
-       interp_rochon_loglinear_wfn, &
-       zenmax,              &
-       zenmaxv9
+  use rttov_const, only :           &
+       platform_name               ,&
+       nplatforms                  ,&
+       inst_name                   ,&
+       ninst                       ,&
+       inst_id_goesim              ,&
+       inst_id_gmsim               ,&
+       inst_id_mtsatim             ,&
+       inst_id_amsua               ,&
+       inst_id_mhs                 ,&
+       sensor_id_mw                ,&
+       sensor_id_po                ,&
+       platform_id_jpss            ,&
+       platform_id_himawari        ,&
+       platform_id_eos             ,&
+       errorstatus_success         ,&
+       mair, mh2o, mo3             ,&
+       surftype_land               ,&
+       surftype_seaice             ,&
+       surftype_sea                ,&
+       watertype_ocean_water       ,&
+       ngases_max                  ,&
+       gas_id_mixed                ,&
+       gas_unit_specconc           ,&
+       interp_rochon_loglinear_wfn ,&
+       zenmax                      ,&
+       zenmaxv9                    ,&
+       o3min                       ,&
+       o3max                       ,&
+       tmin                        ,&
+       tmax                        ,&
+       qmin                        ,&
+       qmax                        ,&
+       elevmax                     ,&
+       wmax                        ,&
+       pmin                        ,&
+       pmax
 
   use parkind1, only : jpim, jplm
 
@@ -207,6 +218,86 @@ module tovs_nl_mod
  
 contains
 
+  !--------------------------------------------------------------------------
+  !  validateRttovVariable
+  !--------------------------------------------------------------------------
+  subroutine validateRttovVariable(value, variableName, obsSpaceData, headerIndex, minimum_opt, maximum_opt) 
+    !
+    ! :Purpose:  check variable for validity for RTTOV-13, 
+    !            if invalid replace by acceptable value and blacklist
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(inout)          :: value
+    character(len=*),intent(in)     :: variableName
+    type(struct_obs), intent(inout) :: obsSpaceData
+    integer, intent(in)             :: headerIndex
+    real(8), intent(in), optional   :: minimum_opt
+    real(8), intent(in), optional   :: maximum_opt
+    ! Locals:
+    real(8)                         :: minimum, maximum
+
+    if (present(minimum_opt)) then
+      minimum = minimum_opt
+    else
+      minimum = - huge(0.d0)
+    end if
+    
+    if (present(maximum_opt)) then
+      maximum = maximum_opt
+    else
+      maximum = huge(0.d0)
+    end if
+    
+    if ( value < minimum .or. value > maximum ) then
+      write(*,*) '!!! WARNING !!!'
+      write(*,*) 'INVALID ' // trim(variableName)
+      write(*,*) 'value, headerIndex ', value, headerIndex, " !" 
+      value = max(minimum, min(value, maximum) )
+      write(*,*) 'replaced with ', value, ' !'
+      call blackList(obsSpaceData, headerIndex)
+    end if
+
+  end subroutine validateRttovVariable
+
+  !--------------------------------------------------------------------------
+  !  validateRttovProfile
+  !--------------------------------------------------------------------------
+  subroutine validateRttovProfile(profile, profileName, minimum, maximum, obsSpaceData, headerIndex) 
+    !
+    ! :Purpose:  check profile for validity for RTTOV-13, 
+    !            if invalid replace by acceptable value(s) and blacklist
+    !
+    implicit none
+
+    ! Arguments:
+    real(8), intent(inout)          :: profile(:)
+    character(len=*),intent(in)     :: profileName
+    real(8), intent(in)             :: minimum
+    real(8), intent(in)             :: maximum
+    type(struct_obs), intent(inout) :: obsSpaceData
+    integer, intent(in)             :: headerIndex
+    ! Locals:
+    logical                         :: ltest(size(profile))
+    integer                         :: levelIndex
+    
+    ltest(:) = (profile(:) > maximum .or. profile(:) < minimum)
+    
+    if ( any(ltest) ) then
+      write(*,*) '!!! WARNING !!!'
+      write(*,*) 'some INVALID ' // trim(profileName)
+      write(*,*) 'values, headerIndex ', pack(profile,mask=ltest), headerIndex, " !"
+      do levelIndex =1, size(profile)
+        if ( ltest(levelIndex) ) then
+          profile(levelIndex) = max(minimum, min(profile(levelIndex), maximum) )
+        end if
+      end do
+      call blackList(obsSpaceData, headerIndex)
+    end if
+    
+  end subroutine validateRttovProfile
+  
   !--------------------------------------------------------------------------
   ! blackList
   !--------------------------------------------------------------------------
@@ -2095,7 +2186,7 @@ contains
     landSea     = obs_headElem_i(obsSpaceData,OBS_STYP,headerIndex)
 
     if ( terrainType ==  0 ) then
-      tvs_ChangedStypValue = 2
+      tvs_ChangedStypValue = surftype_seaice
     else
       tvs_ChangedStypValue = landSea
     end if
@@ -2183,6 +2274,9 @@ contains
    
   end subroutine tvs_getOtherEmissivities
 
+
+  
+  
   !--------------------------------------------------------------------------
   !  tvs_fillProfiles
   !--------------------------------------------------------------------------
@@ -2234,7 +2328,7 @@ contains
     type(rttov_profile), pointer :: profiles(:)
     type(rttov_profile_cloud), pointer :: cld_profiles(:)
     real(8), pointer :: column_ptr(:)
-    real(8) :: zmax
+    real(8) :: zmax, wind
 
     if ( .not. beSilent ) write(*,*) 'tvs_fillProfiles: Starting'
   
@@ -2434,36 +2528,23 @@ contains
         !    sun zenith angle, cloud fraction, latitude and longitude
         profiles(tovsIndex) % zenangle   = obs_headElem_r(obsSpaceData,OBS_SZA,headerIndex)
 
-        !pour ne pas faire planter RTTOV dans le cas (rare) ou l'angle zenithal n'est pas defini ou invalide         
-        if (profiles(tovsIndex) % zenangle < 0.0d0 .or. &
-            profiles(tovsIndex) % zenangle > zmax ) then
-          write(*,*) '!!! WARNING !!!'
-          write(*,*) 'INVALID ZENITH ANGLE'
-          write(*,*) 'angle, profile number, sensor', profiles(tovsIndex) % zenangle, tovsIndex, sensorIndex
-          write(*,*) 'replaced by 0.0 !!!'
-          profiles(tovsIndex) % zenangle = 0.d0
-          call blackList(obsSpaceData, headerIndex)
-        end if
+        call validateRttovVariable(profiles(tovsIndex) % zenangle, "satellite zenith angle", &
+            obsSpaceData, headerIndex, 0.d0, zmax)
  
         profiles(tovsIndex) % azangle = tvs_getCorrectedSatelliteAzimuth(obsSpaceData, headerIndex)
         profiles(tovsIndex) % sunazangle  = obs_headElem_r(obsSpaceData,OBS_SAZ,headerIndex) ! necessaire pour radiation solaire
         iplatform = tvs_coefs(sensorIndex) % coef % id_platform
         instrum = tvs_coefs(sensorIndex) % coef % id_inst
-        
         profiles(tovsIndex) % sunzenangle = obs_headElem_r(obsSpaceData,OBS_SUN,headerIndex)
+        if (tvs_opts(sensorIndex)%rt_ir%addsolar) then
+          call validateRttovVariable(profiles(tovsIndex) % sunzenangle, "sun zenith angle", &
+              obsSpaceData, headerIndex, 0.d0)
+        end if
         latitudes(profileCount) = obs_headElem_r(obsSpaceData,OBS_LAT,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
         !1d-5 was chosen as a threshold because it is the high precision for latitudes in BUFR/BURP files
         if (latitudes(profileCount) > 90.d0 .and. (latitudes(profileCount)-90.d0) < 1.d-5) latitudes(profileCount) = 90.d0
         if (latitudes(profileCount) < -90.d0 .and. (-latitudes(profileCount)-90.d0) < 1.d-5) latitudes(profileCount) = -90.d0
-        if (latitudes(profileCount) < -90.d0 .or. &
-            latitudes(profileCount)> 90.d0) then
-          latitudes(profileCount) = max(-90.d0,min(latitudes(profileCount),90.d0))
-          write(*,*) '!!! WARNING !!!'
-          write(*,*) 'INVALID LATITUDE'
-          write(*,*) 'latitude, profile number, sensor', latitudes(profileCount), tovsIndex, sensorIndex
-          write(*,*) 'replaced by ', latitudes(profileCount),' !!!'
-          call blackList(obsSpaceData, headerIndex)
-        end if
+        call validateRttovVariable(latitudes(profileCount), 'latitude', obsSpaceData, headerIndex, -90.d0, 90.d0) 
         
         profiles(tovsIndex) % longitude = obs_headElem_r(obsSpaceData,OBS_LON,headerIndex) * MPC_DEGREES_PER_RADIAN_R8
 
@@ -2548,23 +2629,41 @@ contains
         profiles(tovsIndex) % date(3)         = day
         profiles(tovsIndex) % latitude        = latitudes(profileIndex)
         profiles(tovsIndex) % elevation       = 0.001d0 * col_getHeight(columnTrl,ilowlvl_T,headerIndex,'TH') ! unite km
-        profiles(tovsIndex) % skin % watertype= 1 !utilise pour calcul rayonnement solaire reflechi seulement
-        profiles(tovsIndex) % skin % t        = col_getElem(columnTrl,1,headerIndex,'TG')
-        profiles(tovsIndex) % skin % salinity = 35.d0 ! for FASTEM-4 only to revise (practical salinity units)
-        profiles(tovsIndex) % skin % fastem(:)= 0.0d0
+        call validateRttovVariable(profiles(tovsIndex) % elevation, "elevation", obsSpaceData, headerIndex, maximum_opt=elevmax)
+        profiles(tovsIndex) % skin % watertype = watertype_ocean_water !utilise pour calcul rayonnement solaire reflechi seulement
+        profiles(tovsIndex) % skin % t         = col_getElem(columnTrl,1,headerIndex,'TG')
+        call validateRttovVariable( profiles(tovsIndex) % skin % t, "skin temperature", obsSpaceData, headerIndex, tmin, tmax) 
+        profiles(tovsIndex) % skin % salinity  = 35.d0 ! for FASTEM-4 only to revise (practical salinity units)
+        profiles(tovsIndex) % skin % fastem(:) = 0.0d0
         profiles(tovsIndex) % skin % snow_fraction  = 0.d0 ! Surface coverage snow fraction(0-1), used only by IR emissivity atlas
         profiles(tovsIndex) % skin % soil_moisture  = 0.d0 ! soil moisure (m**3/m**3) not yet used
-        profiles(tovsIndex) % s2m % t         = col_getElem(columnTrl,ilowlvl_T,headerIndex,'TT')
-        profiles(tovsIndex) % s2m % q         = 0.3D6  * qppmv2Mixratio ! a value between 0 and 0.6d6 so that RTTOV will not complain; not used
+        profiles(tovsIndex) % s2m % t          = col_getElem(columnTrl,ilowlvl_T,headerIndex,'TT')
+        call validateRttovVariable(profiles(tovsIndex) % s2m % t, '2m air temperature', &
+            obsSpaceData, headerIndex, tmin, tmax) 
         profiles(tovsIndex) % s2m % p         = col_getElem(columnTrl,1      ,headerIndex,'P0')*MPC_MBAR_PER_PA_R8
+        call validateRttovVariable(profiles(tovsIndex) % s2m % p, 'surface pressure', &
+            obsSpaceData, headerIndex, pmin, pmax) 
         profiles(tovsIndex) % s2m % u         = col_getElem(columnTrl,ilowlvl_M,headerIndex,'UU')
         profiles(tovsIndex) % s2m % v         = col_getElem(columnTrl,ilowlvl_M,headerIndex,'VV')
+        wind = sqrt( profiles(tovsIndex) % s2m % u ** 2 + &
+            profiles(tovsIndex) % s2m % v ** 2 )
+        if ( wind > wmax ) then
+          write(*,*) '!!! WARNING !!!'
+          write(*,*) 'INVALID 10m wind speed'
+          write(*,*) 'value, headerIndex ', wind, headerIndex, " !" 
+          profiles(tovsIndex) % s2m % u = 0.d0
+          profiles(tovsIndex) % s2m % v = 0.d0
+          write(*,*) 'set to zero !'
+          call blackList(obsSpaceData, headerIndex)
+        end if
         profiles(tovsIndex) % s2m % o         = 0.0d0 !surface ozone never used
         profiles(tovsIndex) % s2m % wfetc     = 100000.0d0 ! Wind fetch (in meter for rttov10 ?) used to calculate reflection of solar radiation by sea surface
         profiles(tovsIndex) % icede_param     = 0
         profiles(tovsIndex) % Be              = 0.4d0 ! earth magnetic field strength (gauss) (must be non zero)
         profiles(tovsIndex) % cosbk           = 0.0d0 ! cosine of the angle between the earth magnetic field and wave propagation direction
         profiles(tovsIndex) % p(:)            = pressure(:,profileIndex)
+        call validateRttovVariable(profiles(tovsIndex) % p(nlv_T), "pressure profile near surface", obsSpaceData, headerIndex, maximum_opt=2000.d0)
+        call validateRttovVariable(profiles(tovsIndex) % p(1), "pressure profile near top", obsSpaceData, headerIndex, 0.d0) 
         !RTTOV scatt needs half pressure levels (see figure 5 of RTTOV 12 User's Guide)
         if (runObsOperatorWithHydrometeors) then
           cld_profiles(tovsIndex) % ph (1) = 0.d0
@@ -2577,17 +2676,18 @@ contains
         end if
         column_ptr => col_getColumn(columnTrl, headerIndex,'TT' )
         profiles(tovsIndex) % t(:)   = column_ptr(:)
-        
+        call validateRttovProfile(profiles(tovsIndex) % t, 'temparature', tmin, tmax, obsSpaceData, headerIndex) 
         if (tvs_coefs(sensorIndex) %coef %nozone > 0) then
           profiles(tovsIndex) % o3(:) = ozone(:,profileIndex) * o3ppmv2Mixratio ! Climatology output is ppmv over dry air                                                                                                            ! because atmosphere is very dry where there is significant absorption by ozone)
           if (.not. tvs_useO3Climatology)  then
             profiles(tovsIndex) % s2m % o  = col_getElem(columnTrl,ilowlvl_T,headerIndex,trim(ozoneVarName)) * 1.0d-9 ! Assumes model ozone in ug/kg
           end if
+          call validateRttovProfile(profiles(tovsIndex) % o3, 'ozone', o3min, o3max, obsSpaceData, headerIndex)
         end if
 
         column_ptr => col_getColumn(columnTrl, headerIndex,'HU' )
         profiles(tovsIndex) % q(:)            =  column_ptr(:)
-
+        call validateRttovProfile(profiles(tovsIndex) % q, 'water vapor', qmin, qmax, obsSpaceData, headerIndex)
         profiles(tovsIndex) % ctp = 1013.25d0
         profiles(tovsIndex) % cfraction = 0.d0
         if (runObsOperatorWithClw) then
@@ -3545,9 +3645,9 @@ contains
     ! satzang(nprf) -- satellite zenith angle (deg)
 
     do jn = 1, nprf
-      latitudes(jn)   = tvs_profiles_nl(sensorTovsIndexes(jn))% latitude
-      longitudes(jn)  = tvs_profiles_nl(sensorTovsIndexes(jn))% longitude
-      satzang(jn)     = tvs_profiles_nl(sensorTovsIndexes(jn))% zenangle
+      latitudes(jn)  = tvs_profiles_nl(sensorTovsIndexes(jn)) % latitude
+      longitudes(jn) = tvs_profiles_nl(sensorTovsIndexes(jn)) % longitude
+      satzang(jn)    = tvs_profiles_nl(sensorTovsIndexes(jn)) % zenangle
     end do
 
     !  Assign surface properties from grid to profiles
@@ -3568,7 +3668,7 @@ contains
 
     do jn = 1, nprf
       !       find surface wind
-      wind_sfc(jn) = min(sqrt(tvs_profiles_nl(sensorTovsIndexes(jn))%S2M%U**2 + tvs_profiles_nl(sensorTovsIndexes(jn))%S2M%V**2 + 1.d-12),15.d0)
+      wind_sfc(jn) = min(sqrt(tvs_profiles_nl(sensorTovsIndexes(jn)) % s2m %u**2 + tvs_profiles_nl(sensorTovsIndexes(jn)) % s2m % v**2 + 1.d-12),15.d0)
     end do
 
     !     find new ocean emissivities     
@@ -3584,16 +3684,16 @@ contains
 
     do jn = 1, nprf
       !       set albedo to 0.6 where snow is present
-      if ( tvs_profiles_nl(sensorTovsIndexes(jn))%SKIN%SURFTYPE == 0 .and. tvs_surfaceParameters(sensorTovsIndexes(jn))%snow > 0.999 ) tvs_surfaceParameters(sensorTovsIndexes(jn))%albedo = 0.6
+      if ( tvs_profiles_nl(sensorTovsIndexes(jn)) % skin % surftype == surftype_land .and. tvs_surfaceParameters(sensorTovsIndexes(jn)) % snow > 0.999 ) tvs_surfaceParameters(sensorTovsIndexes(jn)) % albedo = 0.6
       !       if albedo too high no water
-      if ( tvs_surfaceParameters(sensorTovsIndexes(jn))%albedo >= 0.55 ) tvs_surfaceParameters(sensorTovsIndexes(jn))%pcnt_wat = 0.
+      if ( tvs_surfaceParameters(sensorTovsIndexes(jn)) % albedo >= 0.55 ) tvs_surfaceParameters(sensorTovsIndexes(jn)) % pcnt_wat = 0.
       !       if water and CMC ice present then sea ice
-      if ( tvs_profiles_nl(sensorTovsIndexes(jn))%SKIN%SURFTYPE == 1 .and. tvs_surfaceParameters(sensorTovsIndexes(jn))%ice > 0.001 ) tvs_surfaceParameters(sensorTovsIndexes(jn))%ltype = 20
+      if ( tvs_profiles_nl(sensorTovsIndexes(jn)) % skin % surftype == surftype_sea .and. tvs_surfaceParameters(sensorTovsIndexes(jn)) % ice > 0.001 ) tvs_surfaceParameters(sensorTovsIndexes(jn)) % ltype = 20
       !       if land and CMC snow present then snow
-      if ( tvs_profiles_nl(sensorTovsIndexes(jn))%SKIN%SURFTYPE == 0 .and. tvs_surfaceParameters(sensorTovsIndexes(jn))%snow > 0.999 ) tvs_surfaceParameters(sensorTovsIndexes(jn))%ltype = 15
+      if ( tvs_profiles_nl(sensorTovsIndexes(jn)) % skin % surftype == surftype_land .and. tvs_surfaceParameters(sensorTovsIndexes(jn)) % snow > 0.999 ) tvs_surfaceParameters(sensorTovsIndexes(jn)) % ltype = 15
       do jc=1,nchn
-        surfem1((jn-1)*nchn+jc) =  tvs_surfaceParameters(sensorTovsIndexes(jn))%pcnt_wat * em_oc(jc,jn)  +   &
-             ( 1.d0 - tvs_surfaceParameters(sensorTovsIndexes(jn))%pcnt_wat ) * emi_mat(jc,tvs_surfaceParameters(sensorTovsIndexes(jn))%ltype)
+        surfem1((jn-1)*nchn+jc) =  tvs_surfaceParameters(sensorTovsIndexes(jn)) % pcnt_wat * em_oc(jc,jn)  +   &
+             ( 1.d0 - tvs_surfaceParameters(sensorTovsIndexes(jn)) % pcnt_wat ) * emi_mat(jc,tvs_surfaceParameters(sensorTovsIndexes(jn)) % ltype)
       end do
     end do
 
@@ -3601,7 +3701,7 @@ contains
     call pcnt_box (f_low, waterFraction,nprf,ilat,ilon,kslat,kslon,7)
 
     do jn = 1, nprf
-      tvs_surfaceParameters(sensorTovsIndexes(jn))%pcnt_reg = f_low(jn)
+      tvs_surfaceParameters(sensorTovsIndexes(jn)) % pcnt_reg = f_low(jn)
     end do
 
   end subroutine emis_getIrEmissivity
@@ -3871,9 +3971,9 @@ contains
     ! assign surface caracteristics to observation profiles
 
     do jn=1, nprf
-      tvs_surfaceParameters(sensorTovsIndexes(jn))%ice      = glace_intrpl(jn,1)
-      tvs_surfaceParameters(sensorTovsIndexes(jn))%snow     = neige_intrpl(jn,1)
-      tvs_surfaceParameters(sensorTovsIndexes(jn))%albedo   = alb_intrpl(jn,1)
+      tvs_surfaceParameters(sensorTovsIndexes(jn)) % ice    = glace_intrpl(jn,1)
+      tvs_surfaceParameters(sensorTovsIndexes(jn)) % snow   = neige_intrpl(jn,1)
+      tvs_surfaceParameters(sensorTovsIndexes(jn)) % albedo = alb_intrpl(jn,1)
     end do
 
     deallocate(glace,neige,alb)
