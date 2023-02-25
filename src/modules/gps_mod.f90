@@ -2882,32 +2882,21 @@ contains
     ! Locals:
     integer :: nulnam,ierr,fnom,fclos,SatID
     
-    !*    Namelist variables for GPS-RO
-    !
-    !     LEVELGPSRO: Data level to use (1 for bending angle, 2 for refractivity)
-    !     GPSRO_MAXPRFSIZE: Maximal number of data that is expected from a profile (default 300)
-    !     SURFMIN:  Minimum allowed distance to the model surface (default 1000 m)
-    !     HSFMIN:   Minimum allowed MSL height of an obs          (default 4000 m)
-    !     HTPMAX:   Maximum allowed MSL height of an obs          (default 40000 m)
-    !     HTPMAXER: Maximum MSL height to evaluate the obs error  (default to HTPMAX)
-    !     BGCKBAND: Maximum allowed deviation abs(O-P)/P          (default 0.05)
-    !     gpsroError: key for using dynamic/static refractivity error estimation (default 'DYNAMIC')
-    !     gpsroBNorm: Whether to normalize based on B=H(x) (default=.True.), or upon an approximate exponential reference.
-    !     gpsroEotvos: Add an operator-only Eotvos correction to local gravity (shift of altitudes, default False)
-    INTEGER LEVELGPSRO
-    INTEGER GPSRO_MAXPRFSIZE
-    REAL*8  SURFMIN
-    REAL*8  HSFMIN
-    REAL*8  HTPMAX
-    REAL*8  BGCKBAND
-    REAL*8  HTPMAXER
-    REAL*4  WGPS(0:1023,4)
-    character(len=20) :: gpsroError
-    LOGICAL :: gpsroBNorm
-    LOGICAL :: gpsroEotvos
+    ! Namelist variables for GPS-RO
+    INTEGER :: LEVELGPSRO       ! Data level to use (1 for bending angle, 2 for refractivity)
+    INTEGER :: GPSRO_MAXPRFSIZE ! Maximal number of data that is expected from a profile (default 300)
+    REAL(8) :: SURFMIN          ! Minimum allowed distance to the model surface (default 0 m)
+    REAL(8) :: HSFMIN           ! Minimum allowed MSL height of an obs          (default 0 m)
+    REAL(8) :: HTPMAX           ! Maximum allowed MSL height of an obs          (default 70000 m)
+    REAL(8) :: BGCKBAND         ! Maximum allowed deviation abs(O-P)/P          (default 0.05)
+    REAL(8) :: HTPMAXER         ! Maximum MSL height to evaluate the obs error  (default to HTPMAX)
+    REAL(4) :: WGPS(0:1023,4)   ! WGPS values for each satellite sensor
+    character(len=20) :: gpsroError ! key for using dynamic/static refractivity error estimation (default 'DYNAMIC')
+    LOGICAL :: gpsroBNorm       ! Choose to normalize based on B=H(x) (default=.True.), or approximate exponential reference
+    LOGICAL :: gpsroEotvos      ! Add an operator-only Eotvos correction to local gravity (shift of altitudes, default False)
 
-    NAMELIST /NAMGPSRO/ LEVELGPSRO,GPSRO_MAXPRFSIZE,SURFMIN,HSFMIN,HTPMAX,HTPMAXER, &
-                        BGCKBAND,WGPS, gpsroError, gpsroBNorm, gpsroEotvos
+    NAMELIST /NAMGPSRO/ LEVELGPSRO, GPSRO_MAXPRFSIZE, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, &
+                        BGCKBAND, WGPS, gpsroError, gpsroBNorm, gpsroEotvos
 
 
 !
@@ -3000,46 +2989,18 @@ contains
     integer :: nulnam,ierr,fnom,fclos
 
     ! Namelist variables for Ground-based GPS (ZTD)
-    !
-    !     DZMIN:      Minimum DZ = Zobs-Zmod (m) for which DZ adjustment to ZTD 
-    !                 will be made.
-    !     YSFERRWGT:  Weighting factor multiplier for GPS surface met errors (to 
-    !                 account for time series observations with error correlations)
-    !     DZMAX:      Maximum DZ (m) over which the ZTD data are rejected
-    !                 due to topography (used in SOBSSFC when LTOPOFILT = .TRUE.)
-    !     YZTDERR:    If < 0 then read ZTD errors from data blocks in input
-    !                 files (i.e. the formal errors). 
-    !                 If > 0 then use value as a constant error (m) for all ZTD
-    !                 observations.
-    !                 If = 0 then compute error as a function of ZWD.
-    !     LASSMET:    Flag to assimilate GPS Met surface P, T, T-Td
-    !     LLBLMET:    Flag to indicate that surface met data have been blacklisted
-    !                 for GPS sites close to surface weather stations.
-    !     YZDERRWGT:  Weighting factor multiplier for GPS ZTD errors (to account
-    !                 for time series observations with error correlations)
-    !     LBEVIS:     .true.  = use Bevis(1994)  refractivity (k1,k2,k3) constants
-    !                 .false. = use Rueger(2002) refractivity (k1,k2,k3) constants
-    !     IREFOPT:    1 = conventional expression for refractivity N using k1,k2,k3
-    !                 2 = Aparicio & Laroche refractivity N (incl. compressibility)
-    !     L1OBS       Flag to select a single ZTD observation using criteria in
-    !                 subroutine DOBSGPSGB
-    !     LTESTOP     Flag to test ZTD observation operator (Omp and Bgck modes only)
-    !                 Runs subroutine SETFGEGPS to do the test.
-    !     IZTDOP      1 = normal mode: use stored ZTD profiles to get ZTDmod
-    !                 2 = Vedel & Huang ZTD formulation: ZTDmod = ZHD(Pobs) + ZWD
-    !
-    REAL*8  DZMIN
-    REAL(8) :: DZMAX = 1000.0D0 ! need to give it a default value here in case setup not called
-    REAL*8  YZTDERR
-    REAL*8  YSFERRWGT
-    REAL*8  YZDERRWGT
-    LOGICAL LASSMET
-    LOGICAL LLBLMET
-    LOGICAL LBEVIS
-    LOGICAL L1OBS
-    LOGICAL LTESTOP
-    INTEGER IREFOPT
-    INTEGER IZTDOP
+    REAL(8) :: DZMIN            ! Minimum DZ = Zobs-Zmod (m) for which DZ adjustment to ZTD will be made
+    REAL(8) :: DZMAX = 1000.0D0 ! Maximum DZ (m) over which ZTD rejected due to topography (when LTOPOFILT = .TRUE.)
+    REAL(8) :: YZTDERR          ! If < 0 use errors in input files; if > 0 use value as constant error (m); if 0 compute error as f(ZWD)
+    REAL(8) :: YSFERRWGT        ! Scale factor for GPS surface met errors (account for time series obs with error correlations)
+    REAL(8) :: YZDERRWGT        ! Scale factor for GPS ZTD errors (account for time series obs with error correlations)
+    LOGICAL :: LASSMET          ! Choose to assimilate GPS Met surface P, T, T-Td
+    LOGICAL :: LLBLMET          ! Indicate that surface met data blacklisted for GPS sites close to surface weather stations.
+    LOGICAL :: LBEVIS           ! If .true. use Bevis(1994); if .false. use Rueger(2002) refractivity (k1,k2,k3) constants
+    LOGICAL :: L1OBS            ! Choose to select a single ZTD observation
+    LOGICAL :: LTESTOP          ! Choose to test ZTD observation operator (Omp and Bgck modes only)
+    INTEGER :: IREFOPT          ! 1 = conventional expression for N using k1,k2,k3; 2 = Aparicio & Laroche N (incl. compressibility)
+    INTEGER :: IZTDOP           ! 1 = use stored ZTD profiles to get ZTDmod; 2 = Vedel & Huang ZTD formulation: ZTDmod = ZHD(Pobs) + ZWD
 
     NAMELIST /NAMGPSGB/ DZMIN, DZMAX, YZTDERR, LASSMET, YSFERRWGT,  &
          LLBLMET, YZDERRWGT, LBEVIS, L1OBS, LTESTOP, IREFOPT, IZTDOP

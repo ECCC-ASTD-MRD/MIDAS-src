@@ -371,16 +371,16 @@ module sqliteRead_mod
     integer, parameter       :: maxNumberBits = 15
     
     ! Namelist variables:
-    integer                  :: numberElem    ! MUST NOT BE INCLUDE IN NAMELIST!
-    character(len=256)       :: listElem
-    character(len=256)       :: sqlExtraDat
-    character(len=256)       :: sqlExtraHeader
-    character(len=256)       :: sqlNull
-    character(len=256)       :: sqlLimit 
-    integer                  :: numberBitsOff ! MUST NOT BE INCLUDE IN NAMELIST!
-    integer                  :: numberBitsOn  ! MUST NOT BE INCLUDE IN NAMELIST!
-    integer                  :: bitsOff(maxNumberBits)
-    integer                  :: bitsOn(maxNumberBits)
+    integer                  :: numberElem    ! MUST NOT BE INCLUDED IN NAMELIST!
+    character(len=256)       :: listElem      ! list of bufr element ids to read
+    character(len=256)       :: sqlExtraDat   ! can be used e.g. for ' and id_obs in (select id_obs from header where...) '
+    character(len=256)       :: sqlExtraHeader! can be used e.g. for ' id_stn in (...) '
+    character(len=256)       :: sqlNull       ! can be used e.g. for ' and obsvalue is not null '
+    character(len=256)       :: sqlLimit      ! can be used to add something to the end of the data table query
+    integer                  :: numberBitsOff ! MUST NOT BE INCLUDED IN NAMELIST!
+    integer                  :: numberBitsOn  ! MUST NOT BE INCLUDED IN NAMELIST!
+    integer                  :: bitsOff(maxNumberBits) ! list of flags for selecting obs (rarely used)
+    integer                  :: bitsOn(maxNumberBits)  ! list of flags for selecting obs (rarely used)
 
     namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
     namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn

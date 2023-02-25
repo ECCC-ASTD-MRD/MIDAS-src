@@ -49,27 +49,27 @@ integer, parameter :: maxItems = 20
 integer, parameter :: maxBits = 15
 integer, parameter :: maxElements = 20
 ! Namelist variables
-INTEGER          :: NELEMS
-INTEGER          :: NELEMS_SFC
-INTEGER          :: BNBITSOFF
-INTEGER          :: BNBITSON
-INTEGER          :: BBITOFF(maxBits)
-INTEGER          :: BBITON(maxBits)
-INTEGER          :: NELEMS_GPS
-INTEGER          :: LISTE_ELE_GPS(maxElements)
-INTEGER          :: BLISTELEMENTS(maxElements)
-INTEGER          :: BLISTELEMENTS_SFC(maxElements)
-INTEGER          :: BN_ITEMS
-CHARACTER(len=3) :: BITEMLIST(maxItems)
-CHARACTER(len=7) :: TYPE_RESUME = 'UNKNOWN'
-LOGICAL          :: ENFORCE_CLASSIC_SONDES
-LOGICAL          :: UA_HIGH_PRECISION_TT_ES
-LOGICAL          :: UA_FLAG_HIGH_PRECISION_TT_ES
-LOGICAL          :: READ_QI_GA_MT_SW
-logical          :: addBtClearToBurp
-integer          :: clwFgElementId
-integer          :: siFgElementId
-integer          :: btClearElementId
+INTEGER          :: NELEMS           ! MUST NOT BE INCLUDED IN NAMELIST!
+INTEGER          :: NELEMS_SFC       ! MUST NOT BE INCLUDED IN NAMELIST!
+INTEGER          :: BNBITSOFF        ! MUST NOT BE INCLUDED IN NAMELIST!
+INTEGER          :: BNBITSON         ! MUST NOT BE INCLUDED IN NAMELIST!
+INTEGER          :: BBITOFF(maxBits) ! list of flags for selecting observations (rarely used)
+INTEGER          :: BBITON(maxBits)  ! list of flags for selecting observations (rarely used)
+INTEGER          :: NELEMS_GPS       ! MUST NOT BE INCLUDED IN NAMELIST!
+INTEGER          :: LISTE_ELE_GPS(maxElements) ! list of bufr element ids to read
+INTEGER          :: BLISTELEMENTS(maxElements) ! list of bufr element ids to read
+INTEGER          :: BLISTELEMENTS_SFC(maxElements) ! list of bufr element ids to read
+INTEGER          :: BN_ITEMS         ! MUST NOT BE INCLUDED IN NAMELIST!
+CHARACTER(len=3) :: BITEMLIST(maxItems) ! list of blocks to include in updated file (e.g. 'OMP','OMA')
+CHARACTER(len=7) :: TYPE_RESUME = 'UNKNOWN'      ! can be 'BGCKALT', 'POSTALT' or 'DERIALT'
+LOGICAL          :: ENFORCE_CLASSIC_SONDES       ! choose to ignore high-res raobs lat/lon/time information
+LOGICAL          :: UA_HIGH_PRECISION_TT_ES      ! choose to use higher precision elements for raobs 
+LOGICAL          :: UA_FLAG_HIGH_PRECISION_TT_ES ! choose to read flag of higher precision elements for raobs
+LOGICAL          :: READ_QI_GA_MT_SW ! read additional QC-related elements for AMV obs
+logical          :: addBtClearToBurp ! choose to write clear-sky radiance to file in all-sky mode
+integer          :: clwFgElementId   ! bufr element id of cloud liquid water from background in all-sky mode
+integer          :: siFgElementId    ! bufr element id of scattering index in all-sky mode
+integer          :: btClearElementId ! bufr element id of clear-sky radiance in all-sky mode
 
 CONTAINS
 
@@ -1750,13 +1750,14 @@ CONTAINS
     CHARACTER(len = *) :: NML_SECTION
     integer            :: itemIndex
 
-    NAMELIST /NAMBURP_FILTER_CONV/NELEMS,    BLISTELEMENTS,    BNBITSOFF,BBITOFF,BNBITSON,BBITON, &
-         ENFORCE_CLASSIC_SONDES,UA_HIGH_PRECISION_TT_ES,UA_FLAG_HIGH_PRECISION_TT_ES,READ_QI_GA_MT_SW
-    NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON,NELEMS_GPS,LISTE_ELE_GPS
-    NAMELIST /NAMBURP_FILTER_TOVS/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
-    NAMELIST /NAMBURP_FILTER_CHM_SFC/NELEMS_SFC,BLISTELEMENTS_SFC,BNBITSOFF,BBITOFF,BNBITSON,BBITON
-    NAMELIST /NAMBURP_FILTER_CHM/NELEMS,BLISTELEMENTS,BNBITSOFF,BBITOFF,BNBITSON,BBITON
-    NAMELIST /NAMBURP_UPDATE/BN_ITEMS, BITEMLIST,TYPE_RESUME
+    NAMELIST /NAMBURP_FILTER_CONV/NELEMS, BLISTELEMENTS, BNBITSOFF, BBITOFF, BNBITSON, BBITON, &
+         ENFORCE_CLASSIC_SONDES, UA_HIGH_PRECISION_TT_ES, UA_FLAG_HIGH_PRECISION_TT_ES, READ_QI_GA_MT_SW
+    NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC, BLISTELEMENTS_SFC, BNBITSOFF, BBITOFF, BNBITSON, BBITON, &
+         NELEMS_GPS, LISTE_ELE_GPS
+    NAMELIST /NAMBURP_FILTER_TOVS/NELEMS, BLISTELEMENTS, BNBITSOFF, BBITOFF, BNBITSON, BBITON
+    NAMELIST /NAMBURP_FILTER_CHM_SFC/NELEMS_SFC, BLISTELEMENTS_SFC, BNBITSOFF, BBITOFF, BNBITSON, BBITON
+    NAMELIST /NAMBURP_FILTER_CHM/NELEMS, BLISTELEMENTS, BNBITSOFF, BBITOFF, BNBITSON, BBITON
+    NAMELIST /NAMBURP_UPDATE/BN_ITEMS, BITEMLIST, TYPE_RESUME
 
     if (present(beSilent_opt)) then
       beSilent = beSilent_opt
@@ -1877,7 +1878,9 @@ CONTAINS
       END SELECT
 
     ier=FCLOS(NULNAM)
+
   contains
+
     subroutine getListAndSize(numberElements, list, variable)
       implicit none
       integer, intent(inout) :: numberElements
