@@ -45,23 +45,7 @@ module multi_ir_bgck_mod
   integer, parameter :: NIR = 3, NVIS = 3
   integer, parameter :: nChanAVHRR = NIR + NVIS
   integer, parameter :: nmaxinst = 10
-
-
-  character(len=7) :: inst(nmaxinst)
  
-  ! Number of channels (and their values) to use for cloud top height detection
-  ! with the "background profile matching" method (subroutine cloud_top)
-
-  integer, parameter        :: nch_he = 4
-
-  integer :: ilist1(nmaxinst,nch_he) 
-
-  ! Number of channels pairs (and their values) to use for cloud top height detection
-  ! with the CO2-slicing method.
-  ! (subroutine co2_slicing)
-
-  integer, parameter  :: nco2 = 13
-
   ! Cloud top units : (1) mb, (2) meters
   ! (subroutines cloud_height (iopt1) and cloud_top (iopt2))
 
@@ -88,22 +72,28 @@ module multi_ir_bgck_mod
                                                                   5.d0, 4.d0, 4.d0, 5.d0, 5.d0, 5.d0, &
                                                                   4.d0, 3.d0, 3.d0, 5.d0, 5.d0, 5.d0/), (/3,3,2/) )
 
+  ! Number of channels to use for cloud top height detection
+  ! with the "background profile matching" method (subroutine cloud_top)
+  integer, parameter        :: nch_he = 4
+
+  ! Number of channels pairs to use for cloud top height detection
+  ! with the CO2-slicing method. (subroutine co2_slicing)
+  integer, parameter  :: nco2 = 13
+
   ! Namelist variables:
-  integer :: ninst
+  integer :: ninst                 ! Number of instruments
+  character(len=7) :: inst(nmaxinst) ! List of instrument names
   integer :: iwindow(nmaxinst)     ! Ref window channel for clear/cloudy profile detection
   integer :: iwindow_alt(nmaxinst) ! Alternate window channel for clear/cloudy profile detection
-  integer :: ilist2(nmaxinst,nco2)
-  integer :: ilist2_pair(nmaxinst,nco2)
-  integer :: ichn_sun(nmaxinst)    ! First channel affected by sun (for chan used only at night)
+  integer :: ilist1(nmaxinst,nch_he) ! Chan numbers for cloud top height detection: background profile matching 
+  integer :: ilist2(nmaxinst,nco2)   ! Chan numbers for cloud top height detection: CO2-slicing
+  integer :: ilist2_pair(nmaxinst,nco2) ! Chan number pairs for cloud top height detection: CO2-slicing
   real(8) :: dtw                   ! Max delta allowed btwn guess and true skin temp over water
   real(8) :: dtl                   ! Max delta allowed btwn guess and true skin temp over land
   real(8) :: pco2min               ! Min RTTOV level for lev_start variable entering CO2 slicing in mb
   real(8) :: pco2max               ! Max RTTOV level for lev_start variable entering CO2 slicing in mb
   real(8) :: night_ang             ! Min solar zenith angle for night (between 90 and 180)
   real(8) :: crisCloudFractionThreshold ! threshold for CrIS cloud detection from VIIRS cloud mask
-
-  namelist /NAMBGCKIR/ ninst, inst, iwindow, iwindow_alt, ilist1, ilist2, ilist2_pair, ichn_sun
-  namelist /NAMBGCKIR/ dtw, dtl, pco2min, pco2max, night_ang, crisCloudFractionThreshold
 
   type(rttov_coefs) :: coefs_avhrr
 
@@ -143,8 +133,27 @@ contains
     logical, save :: first = .true.
     integer, external :: fnom, fclos
 
+    namelist /NAMBGCKIR/ ninst, inst, iwindow, iwindow_alt, ilist1, ilist2, ilist2_pair
+    namelist /NAMBGCKIR/ dtw, dtl, pco2min, pco2max, night_ang, crisCloudFractionThreshold
+
     if (first) then
+
+      ! set the default values for namelist variables
+      ninst = 0
+      inst(:) = ''
+      iwindow(:) = 0
+      iwindow_alt(:) = 0
+      ilist1(:,:) = 0
+      ilist2(:,:) = 0
+      ilist2_pair(:,:) = 0
+      dtw = 0.0d0
+      dtl = 0.0d0
+      pco2min = 0.0d0
+      pco2max = 0.0d0
+      night_ang = 0.0d0
       crisCloudFractionThreshold = -1.d0
+
+      ! read the namelist
       nulnam = 0
       ierr = fnom(nulnam, './flnml','FTN+SEQ+R/O', 0)
       read(nulnam, nml=NAMBGCKIR, iostat=ierr)
@@ -152,7 +161,9 @@ contains
       if (mmpi_myid == 0) write(*, nml=NAMBGCKIR)
       ierr = fclos(nulnam)
       first = .false.
+
     end if
+
   end subroutine irbg_init
 
   !--------------------------------------------------------------------------

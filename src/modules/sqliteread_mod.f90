@@ -1126,8 +1126,8 @@ module sqliteRead_mod
     ! namelist variables:
     integer          :: numberUpdateItems                    ! MUST NOT BE INCLUDED IN NAMELIST!
     integer          :: numberUpdateItemsRadar               ! MUST NOT BE INCLUDED IN NAMELIST!
-    character(len=3) :: itemUpdateList(maxNumberUpdate)
-    character(len=3) :: itemUpdateListRadar(maxNumberUpdate)
+    character(len=3) :: itemUpdateList(maxNumberUpdate)      ! List of columns to be updated (e.g.'OMA','OMP')
+    character(len=3) :: itemUpdateListRadar(maxNumberUpdate) ! List of columns to be updated for Radar data
 
     namelist/namSQLUpdate/ numberUpdateItems,      itemUpdateList,     &
                            numberUpdateItemsRadar, itemUpdateListRadar
@@ -1459,8 +1459,8 @@ module sqliteRead_mod
     integer, parameter     :: maxNumberInsertItems = 15
 
     ! namelist variables
-    integer :: itemInsertList(maxNumberInsertItems)
-    integer :: numberInsertItems
+    integer :: itemInsertList(maxNumberInsertItems) ! List of bufr element ids to insert in sql file data table
+    integer :: numberInsertItems                    ! MUST NOT BE INCLUDED IN NAMELIST!
 
     namelist/namSQLInsert/ numberInsertItems, itemInsertList
 
