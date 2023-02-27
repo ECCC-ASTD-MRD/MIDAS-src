@@ -251,12 +251,13 @@ contains
     end if
     
     if ( value < minimum .or. value > maximum ) then
-      write(*,*) '!!! WARNING !!!'
-      write(*,*) 'INVALID ' // trim(variableName)
-      write(*,*) 'value, headerIndex ', value, headerIndex, " !" 
+      write(*,*) 'validateRttovVariable: !!! WARNING !!!'
+      write(*,*) 'validateRttovVariable: INVALID ' // trim(variableName)
+      write(*,*) 'validateRttovVariable: headerIndex ', headerIndex, " !"
+      write(*,*) 'validateRttovVariable: ', value, ' should be between ', minimum, ' and ', maximum
       value = max(minimum, min(value, maximum) )
-      write(*,*) 'replaced with ', value, ' !'
-      call blackList(obsSpaceData, headerIndex)
+      write(*,*) 'validateRttovVariable: replaced with ', value, ' !'
+      call rejectObs(obsSpaceData, headerIndex)
     end if
 
   end subroutine validateRttovVariable
@@ -285,25 +286,28 @@ contains
     ltest(:) = (profile(:) > maximum .or. profile(:) < minimum)
     
     if ( any(ltest) ) then
-      write(*,*) '!!! WARNING !!!'
-      write(*,*) 'some INVALID ' // trim(profileName)
-      write(*,*) 'values, headerIndex ', pack(profile,mask=ltest), headerIndex, " !"
-      do levelIndex =1, size(profile)
+      write(*,*) 'validateRttovProfile: !!! WARNING !!!'
+      write(*,*) 'validateRttovProfile: some INVALID ' // trim(profileName)
+      write(*,*) 'validateRttovProfile: headerIndex ', headerIndex, " !"
+      do levelIndex = 1, size(profile)
         if ( ltest(levelIndex) ) then
+          write(*,*) 'validateRttovProfile: ', profile(levelIndex), &
+              'should be between ', minimum, ' and ', maximum
           profile(levelIndex) = max(minimum, min(profile(levelIndex), maximum) )
+          write(*,*) 'validateRttovProfile: replaced with ', profile(levelIndex) 
         end if
       end do
-      call blackList(obsSpaceData, headerIndex)
+      call rejectObs(obsSpaceData, headerIndex)
     end if
     
   end subroutine validateRttovProfile
   
   !--------------------------------------------------------------------------
-  ! blackList
+  ! rejectObs
   !--------------------------------------------------------------------------
-  subroutine blackList(obsSpaceData, headerIndex)
+  subroutine rejectObs(obsSpaceData, headerIndex)
     !
-    ! :Purpose: blackList all data corresponding to headerIndex
+    ! :Purpose: reject all data corresponding to headerIndex
     !
     implicit none
 
@@ -320,7 +324,7 @@ contains
       if (bodyIndex < 0) exit BODY
       call obs_bodySet_i(obsSpaceData, OBS_ASS, bodyIndex, obs_notAssimilated)
     end do BODY
-  end subroutine blackList
+  end subroutine rejectObs
   
   !--------------------------------------------------------------------------
   ! tvs_setupAlloc
@@ -387,7 +391,7 @@ contains
 
       if ( .not. tvs_isIdBurpTovs(idatyp) ) then
         write(*,*) 'tvs_setupAlloc: warning unknown radiance codtyp present check NAMTOVSINST', idatyp
-        call blackList(obsSpaceData, headerIndex)
+        call rejectObs(obsSpaceData, headerIndex)
         cycle HEADER   ! Proceed to the next headerIndex
       end if
       tvs_nobtov = tvs_nobtov + 1
@@ -2273,9 +2277,6 @@ contains
     end do
    
   end subroutine tvs_getOtherEmissivities
-
-
-  
   
   !--------------------------------------------------------------------------
   !  tvs_fillProfiles
@@ -2648,13 +2649,13 @@ contains
         wind = sqrt( profiles(tovsIndex) % s2m % u ** 2 + &
             profiles(tovsIndex) % s2m % v ** 2 )
         if ( wind > wmax ) then
-          write(*,*) '!!! WARNING !!!'
-          write(*,*) 'INVALID 10m wind speed'
-          write(*,*) 'value, headerIndex ', wind, headerIndex, " !" 
+          write(*,*) 'tvs_fillProfiles: !!! WARNING !!!'
+          write(*,*) 'tvs_fillProfiles: INVALID 10m wind speed'
+          write(*,*) 'tvs_fillProfiles: headerIndex ', headerIndex, " !"
+          write(*,*) 'tvs_fillProfiles: modulus ', wind, ' larger than ', wmax, 'set to zero !'
           profiles(tovsIndex) % s2m % u = 0.d0
           profiles(tovsIndex) % s2m % v = 0.d0
-          write(*,*) 'set to zero !'
-          call blackList(obsSpaceData, headerIndex)
+          call rejectObs(obsSpaceData, headerIndex)
         end if
         profiles(tovsIndex) % s2m % o         = 0.0d0 !surface ozone never used
         profiles(tovsIndex) % s2m % wfetc     = 100000.0d0 ! Wind fetch (in meter for rttov10 ?) used to calculate reflection of solar radiation by sea surface
