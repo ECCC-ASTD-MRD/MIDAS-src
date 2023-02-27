@@ -20,13 +20,13 @@ program midas_sstTrial
   !
   !          ---
   !
-  !:Algorithm: The background state of SST is computed from SST analysis field
+  !:Algorithm: The background state of SST is computed from the previous SST analysis field
   !            using a relaxation towards climatology as follows:
   !            :math:`X_{b}(t) = (X_{a}(t-1) - X_{clim}(t-1)) * \alpha + X_{clim}(t)`,
   !            where :math:`X_{b}(t)` is a resulting background state at time :math:`t`,
   !            :math:`X_{a}(t-1)` is analysis state at time :math:`t-1`,
   !            :math:`\alpha` is a relaxation coefficient, 
-  !            :math:`X_{clim}(t)` is a climatology filed at time :math:`t`,
+  !            :math:`X_{clim}(t)` is a climatology state at time :math:`t`,
   !            computed as an interpolation in time 
   !            between climatological field of the current and the following month
   !            for the current day of the month. 
@@ -58,34 +58,28 @@ program midas_sstTrial
   !
   !            - **Computation**
   !
-  !             - ``obgd_getClimatology``: to read SST climatological fields from a standard file,
+  !             - ``obgd_getClimatology`` to read SST climatological fields from a standard file,
   !               to interpolate the field in time fot the current day :math:`t` in current month :math:`m` as follows   
   !               :math:`X_{clim}(t) = X_{clim}(m) + (t - 1) /(N - 1) * (X_{clim}(m+1) - X_{clim}(m))`,
   !               where :math:`N` is a number of days in the current month         
   !
-  !             - ``obgd_computeSSTrial``: to compute the background field and save it into a standard file
+  !             - ``obgd_computeSSTrial`` to compute the background field and save it into a standard file
   !
   !            --
   !
-  !:Options: `List of namelist blocks <../namelists_in_each_program.html#SSTtrial>`_
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#ssttrial>`_
   !          that can affect the ``SSTtrial`` program.
   !
   !            * The use of ``SSTtrial`` program is controlled by the namelist block
   !              ``&NAMSSTTRIAL`` read by the ``SSTtrial`` program.
-  !            * ``etiketAnalysis``: etiket to put into output standard file
+  !                * ``etiketAnalysis`` etiket to put into output standard file
   !
-  !            * ``datestampClim``: list of twelve datestamps of climatological fields
-  !              in the ``climatology`` file
+  !                * ``datestampClim`` list of twelve datestamps of climatological fields
+  !                  in the ``climatology`` file
   !
-  !            * ``alphaClim``: a parameter defining the relaxation towards climatology.
+  !                * ``alphaClim`` a parameter defining the relaxation towards climatology.
   !
   !            --
-  !   
-  !========================= ====================== ====================================
-  ! Module                   Namelist               Description of what is controlled
-  !========================= ====================== ====================================
-  ! ``oceanBackground_mod``  ``NAMSSTTRIAL``        parameters of SST trial program
-  !========================= ====================== ====================================
   !
   use version_mod
   use ramDisk_mod

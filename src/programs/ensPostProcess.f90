@@ -31,7 +31,7 @@ program midas_ensPostProcess
   !                alter the mean or the standard deviation.
   !
   !              - **RTPP**: Relaxation to the prior perturbation will relax the analysis
-  !                perturbation to the trial perturbation with a given mounnt (:math:`\alpha`) in the namelist.
+  !                perturbation to the trial perturbation with a given amount (:math:`\alpha`) in the namelist.
   !                It can be formulated as:
   !                :math:`x^a_i \leftarrow \overline{x^a} + (1-\alpha)(\overline{x^a}-x^a_i)+\alpha(\overline{x^b}-x^b_i)`
   !
@@ -40,8 +40,8 @@ program midas_ensPostProcess
   !                Data Assimilation with an Ensemble Kalman Filter
   !                <https://journals.ametsoc.org/view/journals/mwre/132/5/1520-0493_2004_132_1238_ioieao_2.0.co_2.xml>`_
   !
-  !              - **RTPS**: Relaxation to the prior spread will relax the analysis ensemble spread
-  !                to the trial ensemble spread with a given amount (:math:`\alpha`) in the namelist.
+  !              - **RTPS**: Relaxation to the prior spread will relax the analysis ensemble spread (i.e. standard
+  !                deviation) to the trial ensemble spread with a given amount (:math:`\alpha`) in the namelist.
   !                With the ensemble spread of analysis (:math:`\sigma^a`)
   !                and trial (:math:`\sigma^b`), it can be formulated as:
   !                :math:`x^a_i \leftarrow \overline{x^a} + (\overline{x^a}-x^a_i)(1+\alpha(\sigma^b-\sigma^a)/\sigma^a)`
@@ -82,18 +82,18 @@ program midas_ensPostProcess
   ! ``ensemble_anal/$YYYYMMDDHH_000_$NNNN``       In - Analysis ensemble member files
   ! ``bgcov``                                     In - Bnmc matrix for the random perturbations
   ! ``analysis_grid``                             In - Horizontal grid file on which the random perturbations
-  !                                                    are generated
+  !                                               are generated
   ! ``$YYYYMMDDHH_recentering_analysis``          In - Analysis from EnVar for recentering the ensemble analyses
   ! ``analinc_mask``                              In - Mask file for masking the analysis increments for LAM grid
   ! ``$YYYYMMDDHH_000_inc_$NNNN``                 Out - Ensemble analysis increments for trials
   ! ``$YYYYMMDDHH_000_$NNNN``                     Out - Ensemble analyses recentered and perturbed
   ! ``$YYYYMMDDHH_000_$NNNN_raw``                 Out - Ensemble analyses from LETKF
   ! ``$YYYYMMDDHH_000_analmean``                  Out - Mean ensemble analysis without perturbation
-  ! ``$YYYYMMDDHH_000_analrms``                   Out - Analysis ensemble spread without perturbation
+  ! ``$YYYYMMDDHH_000_analrms``                   Out - Analysis ensemble spread (i.e. standard deviation) without perturbation
   ! ``$YYYYMMDDHH_000_analrms_ascii``             Out - Global average of  ``$YYYYMMDDHH_000_analrms``
   ! ``$YYYYMMDDHH_000_analpertmean``              Out - Mean ensemble analysis with perturbation and recentering
   ! ``$YYYYMMDDHH_000_analpertrms``               Out - Analysis ensemble spread with perturbation and recentering
-  ! ``$YYYYMMDDHH_000_analpertrms_asci``          Out - Global average of  ``$YYYYMMDDHH_000_analpertrms``
+  ! ``$YYYYMMDDHH_000_analpertrms_ascii``         Out - Global average of  ``$YYYYMMDDHH_000_analpertrms``
   ! ``$YYYYMMDDHH_006_trialmean``                 Out - Mean ensemble trial for all time levels
   ! ``$YYYYMMDDHH_006_trialrms``                  Out - Trial ensemble spread at 6H
   ! ``$YYYYMMDDHH_006_trialrms_ascii``            Out - Global average of ``$YYYYMMDDHH_006_trialrms``
@@ -120,17 +120,17 @@ program midas_ensPostProcess
   !
   !             - **Ensemble postprocess:**
   !
-  !               - Compute ensemble mean and spread for analysis and trial
+  !               - Compute ensemble mean and spread (i.e. standard deviation) for analysis and trial
   !
   !               - Perform RTPP and RTPS and recompute analysis spread
   !
   !               - Recenter ensemble mean and recompute analysis mean and spread
   !
-  !               - Apply humidity saturation limite and RTTOV HU limit and recompute analysis mean
+  !               - Apply humidity saturation limit and RTTOV HU limit and recompute analysis mean
   !
   !               - Subsample ensemble analysis
   !
-  !               - Add random perturbation to the analyses and compute preturbed analysis spread
+  !               - Add random perturbation to the analyses and compute perturbed analysis spread
   !
   !               - Add random perturbation to the subsampled analyses and recenter subsampled mean to the
   !                 global mean.

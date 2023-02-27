@@ -17,18 +17,19 @@
 program midas_ensembleH
   !
   !:Purpose: Main program for applying the observation operator to an ensemble
-  !          of states to compute the innovations and store them in eob*_HX binary files.
-  !          ``letkf`` program can read these binary files instead of computing the innovations.
+  !          of states to compute the innovations and store them in eob*_HX binary files. The
+  !          ``LETKF`` program can read these binary files instead of computing the innovations.
   !
   !          ---
   !
-  !:Algorithm: The trial ensemble members are read and the non-linear observation operator 
-  !            is applied to each ensemble member:
+  !:Algorithm: The background (a.k.a trial) ensemble members are read and the non-linear 
+  !            observation operators are applied to each ensemble member:
   !            :math:`H(xb_{i})`,
   !            the innovations are computed: 
   !            :math:`y-H(xb_{i})`,
   !            and stored in unformatted binary files. ``ensembleH`` has the ability 
-  !            to compute innovations for a squential batch of ensemble members. 
+  !            to compute innovations for a batch of ensemble members when the member 
+  !            indices are sequential. 
   !
   !            --
   !
@@ -40,7 +41,6 @@ program midas_ensembleH
   ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
   ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Background ensemble member files
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
-  ! ``obscov``                                     In - Observation error statistics
   ! ``obserr``                                     In - Observation error statistics
   ! ``$YYYYMMDDHH_000_$NNNN``                      Out - Analysis ensemble member files
   ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
@@ -85,7 +85,7 @@ program midas_ensembleH
   !
   !               - Allocate some objects for ``gridStateVector_mod``.
   !
-  !               - Allocate ensemble object and read trial ensemble:
+  !               - Allocate ensemble object and read background ensemble members:
   !                 ``ens_readEnsemble``.
   !
   !             - **Computation**
@@ -93,8 +93,8 @@ program midas_ensembleH
   !               - Option to read ensemble mean from file (``gio_readFromFile``) or 
   !                 compute ensemble mean (``ens_computeMean``)
   !
-  !               - Loop over trial members, computing innovation for each, with
-  !                 resulting ``H(xb)`` being stored in ``ensObs`` objects both for
+  !               - Loop over background ensemble members, computing innovation for each, 
+  !                 with resulting ``H(xb)`` being stored in ``ensObs`` objects both for
   !                 original ensemble and, optionally, for the modulated
   !                 ensemble members.
   !
@@ -117,8 +117,8 @@ program midas_ensembleH
   !===================== ================== ===============================================================
   ! ``midas_ensembleh``   ``NAMENSEMBLEH``   number of ensemble members, additional parameters to control
   !                                          generating modulated members from original ensembles, 
-  !                                          the member number the current batch starts, number of members
-  !                                          in the batch, option to read ensemble mean from file.
+  !                                          the member number the current batch starts with, number of 
+  !                                          members in the batch, option to read ensemble mean from file.
   ! ``timeCoord_mod``     ``NAMTIME``        assimilation time window length, temporal resolution of
   !                                          the background state.
   !===================== ================== ===============================================================

@@ -57,7 +57,6 @@ program midas_diagHBHt
   ! ``bgchemcov``                                  In - Static B matrix file for chemistry fields
   ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Ensemble member files defining ensemble B matrix
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
-  ! ``obscov``                                     In - Observation error statistics
   ! ``obserr``                                     In - Observation error statistics
   ! ``obsinfo_chm``                                In - Something needed for chemistry assimilation?
   ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task

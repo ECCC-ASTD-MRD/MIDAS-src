@@ -77,6 +77,8 @@ program midas_analysisErrorOI
   !               - Setup observation-error for scatterometer backscatter
   !                 anisotropy observations: ``oer_setErrBackScatAnisIce``.
   !
+  !             - **Main calculation:**
+  !
   !               - Compute the analysis-error: ``aer_analysisError``.
   !
   !               - Update the Days Since Last Obs: ``aer_daysSinceLastObs``.
@@ -85,7 +87,7 @@ program midas_analysisErrorOI
   !
   !           --
   !
-  !:Options: `List of namelist blocks <../namelists_in_each_program.html#analysisErrorOI>`_
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#analysiserroroi>`_
   !          that can affect the ``analysisErrorOI`` program.
   !
   !          * The relevant namelist blocks used to configure the
@@ -96,7 +98,8 @@ program midas_analysisErrorOI
   !======================== ================== ==============================================================
   ! ``timeCoord_mod``       ``NAMTIME``         assimilation time window length, temporal resolution of
   !                                             the background state
-  ! ``columndata_mod``      ``NAMSTATE``        name of the analysis variable (RPN nomvar, 4-character long)
+  ! ``columndata_mod``      ``NAMSTATE``        name of the analysis variable (RPN nomvar, 4-character long),
+  !                                             only sea ice concentration (GL) is allowed for now
   ! ``gridstatevector_mod``       "                                   "
   ! ``obsspacedata_mod``    ``NAMDIMO``         specify the maximum number of header and body elements
   ! ``obsfilter_mod``       ``NAMFILT``         list of varno to use and bit flags (13-bit#) for filtering

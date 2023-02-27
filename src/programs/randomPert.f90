@@ -23,10 +23,10 @@ program midas_randomPert
   !          ---
   !
   !:Algorithm: Uses a gaussian pseudorandom generator to produce an ensemble
-  !            of control vectors in spectral space.  These control vectors are
-  !            transformed into pertubations in physical space through the action
-  !            of the background covariance matrix square root.  The ensemble of 
-  !            perturbations can then be unbiased and some smoothing can be applied.
+  !            of control vectors.  These control vectors are transformed into
+  !            pertubations in physical space through the action of the square-root
+  !            of the background-error covariance matrix.  The ensemble of perturbations
+  !            can then be unbiased and some smoothing can be applied.
   !            The perturbations thus obtained can then be interpolated and added
   !            to a provided ensemble mean and/or be mixed with some previous time
   !            perturbations.
@@ -111,7 +111,7 @@ program midas_randomPert
   !         * ``&NAMENKF`` define specific parameters to configure the ``randomPert``
   !           program and is read by the program.
   !
-  !         * The background covariance matrix contributions are defined through
+  !         * The background-error covariance matrix contributions are defined through
   !           the namelists ``&NAMBHI``, for the homogeneous and isotropic part
   !           and ``&NAMBEN``, for the ensemble part.  When the matrix is a weighted
   !           sum, it is important to make sure to define the ``SCALEFACTOR`` values.

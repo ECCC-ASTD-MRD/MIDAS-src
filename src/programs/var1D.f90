@@ -20,7 +20,13 @@ program midas_var1D
   !
   !          ---
   !
-  !:Algorithm:
+  !:Algorithm: This program performs a similar data assimilation procedure as the var program,
+  !            except without taking into account the horizontal or temporal dimensions.
+  !            The assimilation is performed separately at each horizontal location and time where
+  !            observations are present. The B matrix can be either an explicit representation of
+  !            the covariances produced by the program extractBmatrixFor1Dvar or from an ensemble
+  !            (controlled by the namelists). The resulting analysis and analysis increment at the
+  !            observation locations/times are output in standard files on a "Y" grid.
   !
   !            --
   !
@@ -36,12 +42,11 @@ program midas_var1D
   ! ``Bmatrix_sea.bin``                            In - 1DVar Bmatrix file over sea (output from extractBmatrixFor1DVar) 
   ! ``Bmatrix_land.bin``                           In - 1DVar Bmatrix file over land (output from extractBmatrixFor1DVar)
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
-  ! ``obscov``                                     In - Observation error statistics
   ! ``obserr``                                     In - Observation error statistics
   ! ``rttov_h2o_limits.dat``                       In - minimum and maximum humidity profile to clip analysis
   ! ``pm1q``                                       In/Out - Preconditioning file (Hessian of the cost function)
-  ! ``rebm_$MMMm`` (e.g. ``rebm_180m``)            Out - Analysis increment on the (low-res) analysis grid
-  ! ``anlm_$MMMm``                                 Out - Analysis on Y grid on Y grid
+  ! ``rebm_$MMMm`` (e.g. ``rebm_180m``)            Out - Analysis increment on Y grid
+  ! ``anlm_$MMMm``                                 Out - Analysis on Y grid
   ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task 
   ! Remainder are files related to radiance obs:
   ! ``stats_tovs``                                 In - Observation error file for radiances
@@ -58,85 +63,58 @@ program midas_var1D
   !
   !             - **Initial setups:**
   !
-  !               - Setup temporal grid
+  !               - Initialize temporal grid
+  !
+  !               - Initialize observation file names and set date stamp
   !
   !               - Setup horizontal and vertical grid objects for "analysis
-  !                 grid" from ``analysisgrid`` file and for "trial grid" from
-  !                 first trial file: ``trlm_01``.
+  !                 grid" from ``analysisgrid`` file
   !
   !               - Setup ``obsSpaceData`` object and read observations from
   !                 files: ``inn_setupObs``.
   !
-  !               - Setup ``columnData`` and ``gridStateVector`` modules (read
-  !                 list of analysis variables from namelist) and allocate column
-  !                 object for storing trial on analysis levels.
+  !               - Setup ``columnData`` module
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
   !                 object: ``oer_setObsErrors``.
   !
-  !               - Allocate a stateVector object on the trial grid and then
-  !                 read the trials: ``gio_readTrials``.
+  !               - Setup the gridStateVector module (initialize list of analyzed variables)
   !
-  !               - Setup the 1DVar B matrix: ``bmat1D_bsetup``.
+  !               - Get horizontal and vertical grid descriptors from trial fields: ``inn_getHcoVcoFromTrlmFile``,
+  !                 and allocate a gridStateVector objects 
   !
-  !               - Setup the ``gridVariableTransforms`` and ``minimization``
-  !                 modules.
+  !               - Read the trials: ``gio_readTrials``
+  !
+  !               - Setup the 1DVar B matrix: ``bmat1D_bsetup``
+  !
+  !               - Setup the ``gridVariableTransforms`` and ``minimization`` modules
+  !
+  !               - Horizontally interpolate high-resolution stateVectorUpdate to trial columns: ``inn_setupColumnsOnTrlLev``
+  !
+  !               - Interpolate trial columns to analysis levels and setup for linearized H: ``inn_setupColumnsOnAnlIncLev``
+  !
+  !               - Compute observation innovations and prepare obsSpaceData for minimization: ``inn_computeInnovation``
   !
   !             - **Minimization:**
   !
-  !               - Impose RTTOV humidity limits on  (initially the
-  !                 trial) on trial grid: ``qlim_rttovLimit``.
+  !               - Do the minimization ``min_minimize`` to obtain ``controlVectorIncr``
   !
-  !               - Use the  on trial grid to setup the reference
-  !                 state used by ``gridVariableTransforms`` module for height
-  !                 calculations.
+  !               - Get 1DVar increment from ``controlVectorIncr`` to ``columnAnlInc``: ``bmat1D_get1DvarIncrement``
+  !               - Transfer increment to ``stateVectorIncr``: ``var1D_transferColumnToYGrid``
   !
-  !               - Compute ``columnTrlOnTrlLev`` and ``columnTrlOnAnlIncLev`` from
-  !                 : ``inn_setupColumnsOnTrlLev``,
-  !                 ``inn_setupColumnsOnAnlIncLev``
+  !               - Write increment to file: ``inc_writeIncrement``
   !
-  !               - Compute innovation from :
-  !                 ``inn_computeInnovation``.
+  !             - **Final step:**
   !
-  !               - Use the  on trial grid to setup the reference
-  !                 state used by ``gridVariableTransforms`` module for ``LQ``
-  !                 to ``HU`` calculations.
+  !               - Release resources
   !
-  !               - Do the minimization for this outer loop iteration:
-  !                 ``min_minimize`` to obtain ``controlVectorIncr``.
+  !               - Write hessian if requested to: ``min_writeHessian``
   !
-  !               - Update sum of all computed increment control vectors:
-  !                 ``controlVectorIncrSum(:)`` which is needed in the
-  !                 background cost function for outer loop.
-  !
-  !               - Compute ``stateVectorIncr`` (on analysis grid) from
-  !                 ``controlVectorIncr``: ``inc_getIncrement``.
-  !
-  !               - Interpolate and add ``stateVectorIncr`` to the updated
-  !                 state: ``inc_computeHighResAnalysis``.
-  !
-  !               - If requested, impose saturation and RTTOV humidity limits
-  !
-  !               - Write increment (or sum of increments when outer loop used)
-  !                 to file: ``inc_writeIncrement``.
-  !
-  !             - **Final steps:**
-  !
-  !               - If requested, compute final cost function value using
-  !                 non-linear observation operators.
-  !
-  !               - Write the final analysis and recomputed complete increment on
-  !                 the trial grid: ``inc_writeincAndAnalHighRes``.
-  !
-  !               - Various final steps, including: write the Hessian to binary
-  !                 file (``min_writeHessian``), update the observation files
-  !                 (``obsf_writeFiles``).
+  !               - Write updated observation files: ``obsf_writeFiles``
   !
   !           --
   !
-  !
-  !           --
-  !:Options: `List of namelist blocks <../namelists_in_each_program.html#var1D>`_
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#var1d>`_
   !          that can affect the ``var1D`` program.
   !
   
@@ -165,7 +143,6 @@ program midas_var1D
   use var1D_mod
   use bMatrix1Dvar_mod
  
-
   implicit none
 
   integer :: istamp, exdb, exfin

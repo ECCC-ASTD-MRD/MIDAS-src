@@ -23,11 +23,10 @@ program midas_obsSelection
   !:Algorithm: For background check of each observation type, several quality control tests 
   !            specific to that observation type are performed on each available observation
   !            to determine if the observation meets the standard to be assimilated later.
-  !            Certain bit numbers of the observation flag are modified depending on whether
-  !            the observation is assimilable or if not, the reason for which the observation 
-  !            was flagged for rejection. The thinning is performed in next step to reduce 
-  !            the number of observation data for assimilation. This is to reduce the 
-  !            1-computational cost, 2-observation error correlation during 
+  !            Observation flags are modified for rejected observations as well as for the 
+  !            assimilated observations of inferior quality.The thinning is performed afterwards 
+  !            to reduce the number of observation data for assimilation. This is to reduce the 
+  !            1) computational cost, and 2) observation error correlation during 
   !            assimilation stage. The background-checked thinned observations are written
   !            to new files, ready for assimilation.
   !
@@ -45,12 +44,11 @@ program midas_obsSelection
   !============================================== ==============================================================
   ! Input and Output Files                        Description of file
   !============================================== ==============================================================
-  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``flnml``                                      In - Main namelist file with parameters that user may modify
   ! ``flnml_static``                               In - The "static" namelist that should not be modified
   ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
   ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
-  ! ``obscov``                                     In - Observation error statistics
   ! ``obserr``                                     In - Observation error statistics
   ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
   ! Remainder are files related to radiance obs:
@@ -60,7 +58,6 @@ program midas_obsSelection
   ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
   ! ``dynbcor.coeffs.$SENSOR.*.coeffs_$SENSOR``    In - Dynamic bias correction file
   ! ``ceres_global.std``                           In - Surface emmissivity and type?
-  ! ``champ_fd_181x91``                            In - NOT USED?
   ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
   ! ``rttov_h2o_limits.dat``                       In - Min/max humidity limits applied to analysis
   ! ``ozoneclim98``                                In - Ozone climatology
@@ -92,7 +89,8 @@ program midas_obsSelection
   !               - Setup the observation error statistics in ``obsSpaceData``
   !                 object: ``oer_setObsErrors``
   !
-  !               - Setup ``gridStateVector`` module.
+  !               - Setup ``gridStateVector`` module to initialize the gridstatevector 
+  !                 objects.
   !
   !               - Applying optional bias corrections to some observation types.
   !
@@ -146,16 +144,16 @@ program midas_obsSelection
   !=========================== ========================= =========================================
   ! Module                      Namelist                  Description of what is controlled
   !=========================== ========================= =========================================
-  ! ``midas_obsSelection``      ``NAMOBSSELECTION``       if or not thinning is done.
-  ! ``biasCorrectionConv_mod``  ``NAMBIASCONV``           variables to performs bias correction 
+  ! ``midas_obsSelection``      ``NAMOBSSELECTION``       whether thinning is performed or not.
+  ! ``biasCorrectionConv_mod``  ``NAMBIASCONV``           variables to perform bias correction 
   !                                                       for conventional observations.
-  ! ``biasCorrectionConv_mod``  ``NAMSONDETYPES``         additional variables to performs bias 
+  ! ``biasCorrectionConv_mod``  ``NAMSONDETYPES``         additional variables to perform bias 
   !                                                       correction for radiosondes conventional 
   !                                                       observations.
   ! ``backgroundCheck_mod``     ``NAMBGCKCONV``           variables to perform background check 
   !                                                       for conventional observations.
-  ! ``SSTbias_mod``             ``NAMSSTBIASESTIMATE``    variables to perform bias correction 
-  !                                                       for satellite SST.
+  ! ``SSTbias_mod``             ``NAMSSTBIASESTIMATE``    variables to perform bias estimation 
+  !                                                       and bias correction for satellite SST.
   ! ``biasCorrectionSat_mod``   ``NAMBIASSAT``            variables to perform bias correction 
   !                                                       for satellite radiances.
   ! ``multi_ir_bgck_mod``       ``NAMBGCKIR``             Variables to perform background check 
@@ -169,7 +167,7 @@ program midas_obsSelection
   ! ``bgckOcean_mod``           ``NAMOCEANBGCHECK``       Variables to perform background check 
   !                                                       for ocean data.
   ! ``bgckOcean_mod``           ``NAMICEBGCHECK``         Variables to perform background check 
-  !                                                       for the SeaIce data.
+  !                                                       for SST data.
   ! ``burpread_mod``            ``NAMADDTOBURP``          element IDs to add to the BURP file
   ! ``thinning_mod``            ``THIN_HYPER``            variables to perform thinning on 
   !                                                       hyperspectral infrared radiances.

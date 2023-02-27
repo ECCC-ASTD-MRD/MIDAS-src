@@ -16,10 +16,10 @@
 
 program midas_adjointTest
   !
-  !:Purpose: Main program for adjoint test applications, testing if the identity
+  !:Purpose: Main program for adjoint test applications, i.e., testing if the identity
   !          :math:`<x,L(y)> = <L^T(x),y>` is respected.
   !
-  !:Algorithm: Initialise a physical grid space random stateVector :math:`x` and a random
+  !:Algorithm: Initialize a random grid-point space statevector :math:`x` and a random
   !            control vector :math:`y`.  Compute :math:`L(y)` by the action of a linear
   !            operator and compute the inner product :math:`<x,L(y)>`.  Then compute
   !            :math:`L^T(x)` through the action of the corresponding adjoint operator
@@ -28,9 +28,7 @@ program midas_adjointTest
   !
   !            --
   !
-  !:File I/O: The required input files vary according to the application (see options
-  !           below). These inputs conrespond to square root covariance adjoint
-  !           tests ('Bhi', 'Bens' and 'loc').
+  !:File I/O: The required input files vary according to the application (see options below).
   !
   !================================================= ==============================================================
   ! Input and Output Files (square root covariances)  Description of file
@@ -43,68 +41,33 @@ program midas_adjointTest
   ! ``innerProd.txt``                                 Out - Results of inner products and their difference
   !================================================= ==============================================================
   !
-  !:Synopsis: There are several favors of tests that can be run. The choice of test
-  !           is configured in the namelist block ``NAMADT`` with the variable ``test``
-  !           that can take these values:
+  !:Synopsis: There are several flavors of tests that can be run. The choice is configured
+  !           in the namelist block ``NAMADT`` with the variable ``test`` (see below).
+  !           All tests follow this general synopsis:
   !
-  !           - **'Bhi'** : test the adjoint of the square root of the isotropic and
-  !             homogeneous covariance matrix:
+  !           - initialize with gaussian noise (``rng_gaussian()``) a statevector
+  !             :math:`x` and a control vector :math:`y`.
   !
-  !             - initialise with gaussian noise (``rng_gaussian()``) a statevector
-  !               :math:`x` and a control vector :math:`y`.
+  !           - apply the corresponding square root operator on :math:`y` to obtain :math:`Ly`
   !
-  !             - apply ``bhi_bSqrt()`` on :math:`y` to obtain :math:`Ly`
+  !           - compute the inner product :math:`<x ,Ly>`
   !
-  !             - compute the inner product :math:`<x ,Ly>`
+  !           - apply the corresponding square root adjoint operator on :math:`x` to
+  !             obtain :math:`L^T(x)`
   !
-  !             - apply ``bhi_bSqrtAd()`` on :math:`x` to obtain :math:`L^T(x)`
+  !           - compute the inner product :math:`<L^Tx,y>`
   !
-  !             - compute the inner product :math:`<L^Tx,y>`
-  !
-  !             - print :math:`<x,L(y)>`, :math:`<L^T(x),y>` and their relative difference
-  !
-  !           - **'Bens'** : test the adjoint of the square root of an ensemble
-  !             covariance matrix:
-  !
-  !             - the synopsis is the same as for 'Bhi' except it uses ``ben_bSqrt``
-  !               and ``ben_bSqrtAd``.
-  !
-  !           - **'loc'** : test the adjoint of the square root of localized covariance
-  !             matrix
-  !
-  !             - the synopsis is the same as for 'Bens' except it uses ``loc_LSqrt``
-  !               and ``loc_LSqrtAd``.
-  !
-  !           - **'advEns'** : test the adjoint of advection on ensembles (``adv_ensemble_ad``)
-  !
-  !             - initialise the advection module with ``adv_setup``
-  !
-  !             - initialise an ensemble of gaussian random states :math:`x`
-  !
-  !             - copy the former ensemble and apply in ``adv_ensemble_ad()`` and
-  !               ``adv_ensemble_tl()`` on the :math:`x` ensemble
-  !
-  !             - compute the sum of inner product :math:`<x,LL^Tx>`
-  !
-  !             - apply ``adv_ensemble_ad()`` on the initial ensemble and compute
-  !               the sum of inner products :math:`<L^Tx,L^Tx>`
-  !
-  !             - compare and print the results
-  !
-  !           - **'advGSV'** : test the adjoint of advection on statevector (``adv_statevector_ad``)
-  !
-  !             - the synopsis is the same as for 'advEns' but for a single statevector
-  !             
+  !           - print :math:`<x,L(y)>`, :math:`<L^T(x),y>` and their relative difference
   !
   !:Options: `List of namelist blocks <../namelists_in_each_program.html#adjointtest>`_
   !          that can affect the ``adjointTest`` program.
   !
-  !          * As described in the algorith section, four different tests are implemented.
-  !            The test that is conducted is chosen through the namlist variable
+  !          * As described in the algorithm section, four different tests are implemented.
+  !            The test that is conducted is chosen through the namelist variable
   !            `&NAMADT Test` that can be either
   !
   !             * **'Bhi'** : test the adjoint of the square root of the homogeneous and
-  !               isortopic covariance matrix.  The namelist block `&NAMBHI` will
+  !               isotropic covariance matrix.  The namelist block `&NAMBHI` will
   !               configure the covariance matrix properties.
   !
   !             * **'Bens'** : test the adjoint of the square root of the ensemble covariance
@@ -117,7 +80,7 @@ program midas_adjointTest
   !             * **'advEns'** : test the adjoint of the advection operator on ensemble
   !
   !             * **'advGSV'** : test the adjoint of the advection operator on a single
-  !               statvector
+  !               statevector
   !
   use version_mod
   use codePrecision_mod

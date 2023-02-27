@@ -56,10 +56,8 @@ program midas_letkf
   !============================================== ==============================================================
   ! ``flnml``                                      In - Main namelist file with parameters user may modify
   ! ``flnml_static``                               In - The "static" namelist that should not be modified
-  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
   ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Background ensemble member files
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
-  ! ``obscov``                                     In - Observation error statistics
   ! ``obserr``                                     In - Observation error statistics
   ! ``$YYYYMMDDHH_000_$NNNN``                      Out - Analysis ensemble member files
   ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
@@ -69,7 +67,6 @@ program midas_letkf
   ! ``stats_tovs_symmetricObsErr``                 In - User-defined symmetric TOVS errors for all sky
   ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
   ! ``ceres_global.std``                           In - Surface emmissivity and type?
-  ! ``champ_fd_181x91``                            In - NOT USED?
   ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
   ! ``rttov_h2o_limits.dat``                       In - Min/max humidity limits applied to analysis
   ! ``ozoneclim98``                                In - Ozone climatology
@@ -116,14 +113,14 @@ program midas_letkf
   !             - **LETKF computations:**
   !
   !               - Loop over trial members, computing innovation for each, with
-  !                 resulting ``H(xb)`` being stored in ``ensObs`` objects both for
+  !                 resulting :math:`H(xb)` being stored in ``ensObs`` objects both for
   !                 original ensemble and, optionally, for the modulated
   !                 ensemble members.
   !
   !               - Compute some additional quantities in ``ensObs`` objects based
-  !                 on ``H(xb)`` values.
+  !                 on :math:`H(xb)` values.
   !
-  !               - Compute ``y-H(xb)`` for trial ensemble mean.
+  !               - Compute :math:`y-H(xb)` for trial ensemble mean.
   !
   !               - Additional observation quality control procedures based on
   !                 quantities computed from trial ensemble.
@@ -132,7 +129,7 @@ program midas_letkf
   !                 tasks.
   !
   !               - Allocate and prepare objects for ``ensembleStateVector_mod``
-  !                 used to stored the trial and analysis ensembles with
+  !                 used to store the trial and analysis ensembles with
   !                 temporal resolution of analysis (can be same as temporal
   !                 resolution for innovation calculation or only a single time
   !                 step).
@@ -140,20 +137,20 @@ program midas_letkf
   !               - Setup information for interpolating weights from coarse grid
   !                 to the full model grid: ``enkf_setupInterpInfo``.
   !
-  !               - Perform LETKF analysis to compute analysis ensemble:
+  !               - Perform LETKF analysis to compute the analysis ensemble:
   !                 ``enkf_LETKFanalyses``
   !
   !             - **Final steps:**
   !
-  !               - Optionally, compute ``H(xa)`` for each member and put values in
-  !                 ``ensObs`` object for later output to diag sql files.
+  !               - Optionally, compute :math:`H(xa)` for each member and put values in
+  !                 ``ensObs`` object for later output to diag SQLite files.
   !
   !               - Write out (update) the observation files: ``obsf_writeFiles``.
   !
-  !               - Compute ``y-H(xa)`` for ensemble mean analysis, stored in
+  !               - Compute :math:`y-H(xa)` for ensemble mean analysis, stored in
   !                 ``obsSpaceData``.
   !
-  !               - Optionally, do post-processing of analysis ensemble (same
+  !               - Optionally, do post-processing of the analysis ensemble (same
   !                 functionality as the ``ensPostProcess`` program), or just
   !                 write out the raw analysis ensemble (for later processing by
   !                 ``ensPostProcess``).
@@ -170,7 +167,7 @@ program midas_letkf
   ! Program/Module           Namelist       Description of what is controlled
   !======================== ============== ==============================================================
   ! ``midas_letkf``          ``NAMLETKF``   LETKF algorithm, number of ensemble members and
-  !                                         additional parameters for controlling the letkf analysis
+  !                                         additional parameters for controlling the LETKF analysis
   ! ``timeCoord_mod``        ``NAMTIME``    assimilation time window length, temporal resolution of
   !                                         the background state and the analysis
   !======================== ============== ==============================================================

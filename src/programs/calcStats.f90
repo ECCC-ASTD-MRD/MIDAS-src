@@ -17,7 +17,7 @@
 program midas_calcstats
   !
   !:Purpose: Swiss-knife type program originally used only for computing background-error covariances
-  !          (B) based on homogeneous and isotropic (HI) correlations that was extended with time
+  !          (**B**) based on homogeneous and isotropic (HI) correlations that was extended with time
   !          to compute various statistics and diagnostics from an ensemble of background-error estimates
   !
   !          ---
@@ -25,26 +25,27 @@ program midas_calcstats
   !:Algorithm: The ``calcStats`` program performs various types of statistics and diagnostics based on
   !            the namelist options.
   !
-  !              - **BHI** : Compute HI B. The approach for global applications is based
-  !                          on sperical-harmonics spectral representation and the control variable transform (CVT)
-  !                          described in <https://doi.org/10.1175/MWR-D-11-00097.1> and refereces therein.
-  !                          The approach for limited-area applications is based on a bi-Fourier spectral representation
-  !                          and the CVT described in <https://doi.org/10.1175/2010WAF2222401.1>
+  !              - **BHI**: Compute HI B. The approach for global applications is based
+  !                on sperical-harmonics spectral representation and the control variable transform (CVT)
+  !                described in <https://doi.org/10.1175/MWR-D-11-00097.1> and refereces therein.
+  !                The approach for limited-area applications is based on a bi-Fourier spectral representation
+  !                         and the CVT described in <https://doi.org/10.1175/2010WAF2222401.1>
   !              - **BHI2**: A new experimental-only HI B formulation for global applications that mimics the
-  !                          CVT model used in the above limited-area mode.
-  !              - **TOOLBOX**: The swiss-knife component of this program. Compute various statistics and
-  !                             diagnostics from an ensemble of background-error estimates in model-variable and/or
-  !                             control-variable space, such as:
-  !                               - HI vertical correlations
-  !                               - HI horizontal correlation functions
-  !                               - Variances
-  !                               - Local correlations
-  !                               - Optimal covariance localization radii
-  !                             Note that the above options are not all available in both global and limited-area
-  !                             applications.
+  !                CVT model used in the above limited-area mode.
+  !              - **TOOLBOX**: The swiss-knife component of this program controlled by ``NAMTOOLBOX`` from the
+  !                global and LAM calcstats-related modules. Compute various statistics and diagnostics from
+  !                an ensemble of background-error estimates in model-variable and/or control-variable space,
+  !                such as:
+  !                - HI vertical correlations
+  !                - HI horizontal correlation functions
+  !                - Variances
+  !                - Local correlations
+  !                - Optimal covariance localization radii
+  !                Note that the above options are not all available in both global and limited-area
+  !                applications.
   !              - **STDDEV**: Compute standard deviations in control-variable space in global mode.
   !              - **POWERSPEC**: Compute power spectra in model-variable space in global mode
-  !          ---
+  !            ---
   !
   !============================================= ==============================================================
   ! Input and Output Files                        Description of file

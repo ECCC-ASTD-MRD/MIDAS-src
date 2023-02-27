@@ -16,16 +16,12 @@
 
 program midas_prepcma
   !
-  !:Purpose: Read observation files that are in bgckalt format (i.e. output from
-  !          the background check) and transform them to the ObsSpaceData
-  !          format. All observations will collected in a single ObsSpaceData
-  !          structure. The structure is output in binary format.
-  !          This program also makes furthur quality control and backgroud check
-  !          mainly for the ``LETKF`` data assimilation.
+  !:Purpose: Read the observation files (usually after output by the background check) 
+  !          and apply further quality control and thinning for use by the ``LETKF`` program 
   !
   !          ---
   !
-  !:Algorithm: After reading the observaiton files with the background check,
+  !:Algorithm: After reading the observation files that have been processed by the background check,
   !            the ``prepcma`` program rejects more observations based on the
   !            various flags and conditions. It also performs further thinnings
   !            on the data types of aircraft (AI), scatterometer (SC),
@@ -42,14 +38,12 @@ program midas_prepcma
   ! Input and Output Files                         Description of file
   !============================================== ==============================================================
   ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``flnml_static``                               In - The "static" namelist that should not be modified
   ! ``obserr``                                     In - Observation error statistics
-  ! ``obsfiles/obs$FAM``                           In - Observation file for each "family"
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family"
   ! ``stats_tovs``                                 In - Satellite radiance observation errors
-  ! ``ceres_global.std``                           In - ceres surface type and water fraction
   ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files 
-  ! ``rttov_h2o_limits.dat``                       In - RTTOV file
-  ! ``ozoneclim98``                                In - Climatological ozone (1998)
-  ! ``obsfiles_final/obs$FAM``                     Out - final observation file for each family
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - final observation file for each family
   !============================================== ==============================================================
   !
   !          ---
@@ -68,7 +62,7 @@ program midas_prepcma
   !
   !             - ``obsf_readFiles``: get the observations 
   !
-  !             - ``filt_suprep``: select the elements to assimilate and apply rejection flags for TOVS
+  !             - ``filt_suprep``: select the elements to assimilate and apply rejection flags 
   !
   !             - ``oer_setObsErrors``: initialize obs error covariances and set flag 
   !
@@ -78,12 +72,14 @@ program midas_prepcma
   !
   !             - ``enkf_modifyAmsubObsError``: modify the obs error stddev for AMSUB in the tropics 
   !
-  !             - ``thinning_fam``: preform thinning for aircraft (AI), scatterometer (SC),
+  !             - ``thinning_fam``: perform thinning for aircraft (AI), scatterometer (SC),
   !                                 satellite winds (SW) and some radiance (TO)
   !
   !           - **Final steps:**
   !
   !             - ``obsf_writeFiles``: write to burp/sqlite files 
+  !
+  !             - ``obsf_printFiles``: print to ascci file and to unformatted files
   !
   !          ---
   !

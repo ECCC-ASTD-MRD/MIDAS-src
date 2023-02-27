@@ -17,50 +17,51 @@
 program midas_sstBias
   !
   !:Purpose: Main program to compute Sea Surface Temperature (SST) 
-  !          satellite data bias estimate.
+  !          satellite observations bias estimate.
   !          
   !          ---
   !
-  !:Algorithm: The bias estimation of SST satellite data is computed
-  !            with respect to insitu data that are considered unbiased.
+  !:Algorithm: The bias estimation of SST satellite observations is computed
+  !            with respect to insitu observations that are considered unbiased.
   !            The bias estimation is produced for each sensor separately
   !            for day and night time.
   !  
   !            --
   !
   !            First, each dataset is put on a regular grid using a small 
-  !            search radius (of ~25 km).
+  !            search radius (of ~25 km). It is currently a 1800x900 Gaussian grid.
   !            Second, the bias estimation at every gridpoint is computed as
-  !            an average difference between satellite and insitu data
-  !            between all valid satellite and insitu data
+  !            an average difference between satellite and insitu observations
+  !            between all collocated valid satellite and insitu observations
   !            within a larger search radius (of ~1500km).
   !            
   !            --
   !
   !            The resulting bias estimation :math:`B_{a}(k)` at point :math:`k`
   !            is computed as follows:
-  !            :math:`B_{a}(k) = (1 - w(k)) * B_{b}(k) + w(k) * B_{a}(k)`,
+  !            :math:`B_{a}(k) = (1 - w(k)) * B_{b}(k) * \beta + w(k) * B_{a}(k)`,
   !            where :math:`B_{b}(k)` is a background state of the bias estimation
-  !            computed on the previous day
+  !            computed on the previous day,
+  !            :math:`\beta` is a background term for zero bias in unobserved areas,
   !            and :math:`w(k)` is a weight which is defined as:
   !            :math:`w(k) = N_{a}(k) / (N_{a}(k) + N_{b})`,
-  !            where :math:`N_{a}(k)` is the number of data involved in the
+  !            where :math:`N_{a}(k)` is the number of observations involved in the
   !            computation of the current bias estimate :math:`B_{a}(k)` at point :math:`k`
   !            and :math:`N_{b}` is a parameter for corresponding number
-  !            of data used to compute the background state :math:`B_{b}(k)`.
+  !            of observations used to compute the background state :math:`B_{b}(k)`.
   !
-  !=========================================================== ======================================================
+  !=========================================================== ========================================================
   ! Input and Output Files                                     Description of file
-  !=========================================================== ======================================================
-  ! ``analysisgrid``                                           In - File defining sea-ice global grid
+  !=========================================================== ========================================================
+  ! ``analysisgrid``                                           In - File containing the grid where the bias is computed
   ! ``seaice_analysis``                                        In - File containing ``LG`` and ``VF`` fields
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``                      In - Observation file for each "family" and MPI task
   ! ``searchRadius``                                           In - 'Large' search radius field to compute biases
   ! ``trlm_01``                                                In - Background state of the bias estimation
   ! ``satellite_bias.fst``                                     Out - Bias estimations
   ! ``auxOutput.fst``                                          Out - Auxiliary output (optional): 
-  !                                                                  number of observations and weight fields
-  !=========================================================== ======================================================
+  !                                                            number of observations and weight fields
+  !=========================================================== ========================================================
   !
   !           --
   !
@@ -78,52 +79,46 @@ program midas_sstBias
   !
   !           - **Computation**
   !
-  !             - ``ocm_readMaskFromFile``: get the land-ocean mask
+  !             - ``ocm_readMaskFromFile`` get the land-ocean mask
   !
-  !             - ``oobs_computeObsData`` compute pseudo observation values and their coordinates
-  !                                       and save them in SQLite files.
+  !             - ``oobs_computeObsData`` compute pseudo observation values 
+  !                and their coordinates and save them in SQLite files.
   !
-  !             - ``sstb_getGriddedObs``: get all datasets on a regular grid
+  !             - ``sstb_getGriddedObs`` get all datasets on a regular grid
   !
-  !             - ``sstb_getGriddedBias``: compute bias estimation for each sensor,
+  !             - ``sstb_getGriddedBias`` compute bias estimation for each sensor,
   !                for day time or night time on a regular grid,
   !                and save the results into an output standard file.  
   !           --
   !
-  !:Options: `List of namelist blocks <../namelists_in_each_program.html#SSTbias>`_
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#sstbias>`_
   !          that can affect the ``SSTbias`` program.
   !
   !          * The use of ``SSTbias`` program is controlled by the namelist block
   !            ``&namSSTbiasEstimate`` read by the ``SSTbias`` program.
   !
-  !          * ``iceFractionThreshold``: the sea-ice fraction threshold to define 
-  !                                      the presence of ice
+  !              * ``iceFractionThreshold`` the sea-ice fraction threshold to define 
+  !                the presence of ice
   !
-  !          * ``searchRadius``: horizontal search radius for observation gridding 
+  !              * ``searchRadius`` horizontal search radius for observation gridding 
   !
-  !          * ``maxBias``: max allowed insitu-satellite difference in degrees
+  !              * ``maxBias`` max allowed insitu-satellite difference in degrees
   !
-  !          * ``numberPointsBG``: :math:`N_{b}`, number of points to compute the background bias estimation
+  !              * ``numberPointsBG`` :math:`N_{b}`, number of points to compute 
+  !                the background bias estimation
   !
-  !          * ``numberSensors``: number of sensors to treat
-  !
-  !          * ``sensorList``: name of sensor 
+  !              * ``sensorList`` name of sensor 
   ! 
-  !          *  ``weightMin``: minimum value of weight
+  !              *  ``weightMin`` minimum value of weight
   !
-  !          *  ``weightMax``: maximum value of weight
+  !              *  ``weightMax`` maximum value of weight
   !
-  !          *  ``saveAuxFields``: to store or not auxiliary fields: nobs and weight
+  !              *  ``saveAuxFields`` to store or not auxiliary fields: nobs and weight
+  !
+  !              *  ``bgTermZeroBias`` background term to zero bias
   !
   !           --
   !   
-  !================= ====================== ====================================
-  ! Module           Namelist               Description of what is controlled
-  !================= ====================== ====================================
-  ! ``SSTbias_mod``  ``namSSTbiasEstimate`` parameters of bias estimation
-  !================= ====================== ====================================
-  !
-  !
   use version_mod
   use ramDisk_mod
   use utilities_mod

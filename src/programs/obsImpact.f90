@@ -16,32 +16,35 @@
 
 program midas_obsimpact
   !
-  !:Purpose: Main program for Observation Impact computation (FSOI)
+  !:Purpose: Main program for computing the Forecast Sensitivity to Observation Impact (FSOI)
   !
   !           ---
   !
-  !:Algorithm: FSOI is to partition the forecast error reduction within the current system  
-  !            from assimilating the observations, defined as:
+  !:Algorithm: FSOI partitions the forecast error reduction within the current system from 
+  !            assimilating the observations. The total forecast error reduction defined as:
   !
   !             :math:`(e_{t}^{fa})^{T}*C*(e_{t}^{fa})-(e_{t}^{fb})^{T}*C*(e_{t}^{fb})`
   !
   !             where :math:`e_{t}^{fa}=M(x_{0}^{a})-x_{t}^{a}`
   !
-  !             :math:`e_{t}^{fb}=M(x_{0}^{b})-x_{t}^{a}`
+  !             and :math:`e_{t}^{fb}=M(x_{0}^{b})-x_{t}^{a}`
   !
   !            and C is the energy norm. 
   !             
   !            --
   !
-  !            In this program, there are the hybrid FSOI approach (HFSO) approach and
-  !            Ensemble Forecast Sensitivity to Observation (EFSO) approach developped 
-  !            for FSOI calculation.
+  !            In this program, there are the hybrid FSOI approach (HFSOI) and the ensemble FSOI (EFSOI) approaches.
+  !            The hybrid approach is appropriate for computing the impact of observations assimilated with 4D-EnVar.
+  !            It combines the ensemble approach for propagating the sensitivities from forecast to analysis time and
+  !            the variational approach for the adjoint of the assimilation procedure. The ensemble approach is 
+  !            appropriate for computing the impact of observations assimilated with the LETKF. It relies purely on
+  !            analysis and forecast ensemble for the calculation. 
   !
-  !            More details on HFSO can be found in the paper: `HFSO approach <https://doi.org/10.1175/MWR-D-17-0252.1>`_
   !
-  !            --
+  !            More details on HFSOI can be found in the paper: `HFSOI approach <https://doi.org/10.1175/MWR-D-17-0252.1>`_
   !
-  !            More details on EFSO can be found in the paper:`EFSO approach <http://doi.org/10.3402/tellusa.v65i0.20038>`_
+  !
+  !            More details on EFSOI can be found in the paper:`EFSOI approach <http://doi.org/10.3402/tellusa.v65i0.20038>`_
   !
   !            --
   !
@@ -115,14 +118,19 @@ program midas_obsimpact
   !             - ``bmat_sqrtBT``: Compute the variable vhat for minimization in HFSO mode.             
   !                                       :math:`vhat=B_{t}^{T/2}*C*(e_{t}^{fa}+e_{t}^{fb})` 
   !
-  !             - ``minimize``: Do the minimization of vhat for HFSO mode.
+  !             - ``minimize``: Do the minimization to apply the adjoint of the 4D-EnVar assimilation  
+  !                             to vhat with the result being ahat.
   !
   !             - ``bmat_sqrt``: Compute :math:`B^{1/2}*ahat` .
   !
-  !             - ``s2c_tl``, ``oop_Htl``: Put in columndata and get :math:`H*B^{1/2}*ahat` .
+  !             - ``s2c_tl``, ``oop_Htl``: Apply the observation operators :math:`H*B^{1/2}*ahat` .
   !
-  !             - ``rmat_RsqrtInverseAllObs``: Apply observation error variances and get
+  !             - ``rmat_RsqrtInverseAllObs``: Multiply by the inverse of the observation error variances
   !                                                    :math:`R^{-1}*H*B^{1/2}*ahat` 
+  !
+  !             - ``obs_bodySet_r``: Multiply the resulting sensitivity value by the innovation and put  
+  !                                  the result in the ``obsSpaceDate`` column ``OBS_FSO`` so it can be stored in
+  !                                  the observation files 
   !
   !             - ``sumFSO``: Print out the FSOI value, including total and the one from each obs family.
   !
@@ -147,12 +155,8 @@ program midas_obsimpact
   !========================= ====================== =============================================================
   ! ``timeCoord_mod``        ``NAMTIME``            assimilation time window length, temporal resolution of
   !                                                 the background state and increment
-  !                                                 the background state and increment
   ! ``bMatrixEnsemble_mod``  ``NAMBEN``             weight and other parameters for ensemble-based B matrix
   !                                                 component
-  ! ``bMatrixHI_mod``        ``NAMBHI``             weight and other parameters for the climatological B matrix
-  !                                                 component based on homogeneous-isotropic covariances
-  !                                                 represented in spectral space
   !========================= ====================== =============================================================
   !
   !

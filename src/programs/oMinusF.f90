@@ -25,8 +25,10 @@ program midas_ominusf
   !            and that state in observation space. The gridded state vector can be 
   !            background state or the analysis. In case of background state, the 
   !            difference is the innovation vector: ``y-H(xb)``. If asked by 
-  !            the user, the background errors in observation space, :math:`H B H^{T}`, 
-  !            are also computed. 
+  !            the user, the diagonal of the background errors standard deviation in 
+  !            observation space, :math:`{diag(H B H^{T})}^{1/2}`, are also computed.
+  !            The bias corrections are applied for satellite radiances before writing 
+  !            the observation files.
   !
   !            --
   !
@@ -38,17 +40,15 @@ program midas_ominusf
   ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
   ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
-  ! ``obscov``                                     In - Observation error statistics
   ! ``obserr``                                     In - Observation error statistics
   ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
   ! Remainder are files related to radiance obs:
-  ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of difference sensors
+  ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of different sensors
   ! ``stats_tovs``                                 In - Satellite radiance observation errors
   ! ``stats_tovs_symmetricObsErr``                 In - User-defined symmetric TOVS errors for all sky
   ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
   ! ``dynbcor.coeffs.$SENSOR.*.coeffs_$SENSOR``    In - Dynamic bias correction file
   ! ``ceres_global.std``                           In - Surface emmissivity and type?
-  ! ``champ_fd_181x91``                            In - NOT USED?
   ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
   ! ``rttov_h2o_limits.dat``                       In - Min/max humidity limits applied to analysis
   ! ``ozoneclim98``                                In - Ozone climatology
@@ -64,7 +64,7 @@ program midas_ominusf
   !
   !               - Various modules are setup: ``obsFiles_mod``, ``timeCoord_mod``.
   !
-  !               - Setup ``gridStateVector`` modules.
+  !               - Setup ``gridStateVector`` module.
   !
   !               - Setup horizontal and vertical grid objects from either
   !                 ``analysisgrid`` or  first trial file: ``trlm_01``.
@@ -82,8 +82,8 @@ program midas_ominusf
   !
   !             - **Computation**
   !
-  !               - Compute ``columnTrlOnTrlLev`` from the state: 
-  !                 ``inn_setupColumnsOnTrlLev``.
+  !               - Compute interpolated column on trial level ``columnTrlOnTrlLev`` 
+  !                 from the state: ``inn_setupColumnsOnTrlLev``.
   !
   !               - Compute innovation from background state: ``inn_computeInnovation``.
   !
@@ -100,7 +100,7 @@ program midas_ominusf
   !
   !             --
   !
-  !:Options: `List of namelist blocks <../namelists_in_each_program.html#oMinusF>`_
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#ominusf>`_
   !          that can affect the ``oMinusF`` program.
   !
   !          * The use of ``oMinusF`` program is controlled by the namelist block
@@ -112,11 +112,9 @@ program midas_ominusf
   !=========================== ========================= =========================================
   ! Module                      Namelist                  Description of what is controlled
   !=========================== ========================= =========================================
-  ! ``midas_ominusf``           ``NAMOMF``                compute :math:`H B H^{T}`, set observation 
-  !                                                       errors covariances.
-  ! ``biasCorrectionConv_mod``  ``NAMBIASCONV``           variables to performs bias correction 
+  ! ``biasCorrectionConv_mod``  ``NAMBIASCONV``           variables to perform bias correction 
   !                                                       for conventional observations.
-  ! ``biasCorrectionConv_mod``  ``NAMSONDETYPES``         additional variables to performs bias 
+  ! ``biasCorrectionConv_mod``  ``NAMSONDETYPES``         additional variables to perform bias 
   !                                                       correction for radiosondes conventional 
   !                                                       observations.
   ! ``biasCorrectionSat_mod``   ``NAMBIASSAT``            variables to perform bias correction 

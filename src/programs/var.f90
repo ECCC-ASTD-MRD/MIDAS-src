@@ -87,7 +87,6 @@ program midas_var
   ! ``bgchemcov``                                  In - Static B matrix file for chemistry fields
   ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Ensemble member files defining ensemble B matrix
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
-  ! ``obscov``                                     In - Observation error statistics
   ! ``obserr``                                     In - Observation error statistics
   ! ``obsinfo_chm``                                In - Something needed for chemistry assimilation?
   ! ``preconin``                                   In - Preconditioning file (Hessian of the cost function)
@@ -101,7 +100,6 @@ program midas_var
   ! ``stats_tovs_symmetricObsErr``                 In - User-defined symmetric TOVS errors for all sky
   ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
   ! ``ceres_global.std``                           In - Surface emmissivity and type?
-  ! ``champ_fd_181x91``                            In - NOT USED?
   ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
   ! ``rttov_h2o_limits.dat``                       In - Min/max humidity limits applied to analysis
   ! ``ozoneclim98``                                In - Ozone climatology
