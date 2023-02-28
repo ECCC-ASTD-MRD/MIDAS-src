@@ -224,17 +224,17 @@ contains
   subroutine validateRttovVariable(value, variableName, obsSpaceData, headerIndex, minimum_opt, maximum_opt) 
     !
     ! :Purpose:  check variable for validity for RTTOV-13, 
-    !            if invalid replace by acceptable value and blacklist
+    !            if invalid replace by acceptable value and reject
     !
     implicit none
 
     ! Arguments:
-    real(8), intent(inout)          :: value
-    character(len=*),intent(in)     :: variableName
-    type(struct_obs), intent(inout) :: obsSpaceData
-    integer, intent(in)             :: headerIndex
-    real(8), intent(in), optional   :: minimum_opt
-    real(8), intent(in), optional   :: maximum_opt
+    real(8), intent(inout)          :: value           ! Value of the RTTOV input variable to check for validity
+    character(len=*),intent(in)     :: variableName    ! Name of the checked variable for output in listings
+    type(struct_obs), intent(inout) :: obsSpaceData    ! obsSpaceData object
+    integer, intent(in)             :: headerIndex     ! Index of the observation in obsSpaceData header table 
+    real(8), intent(in), optional   :: minimum_opt     ! Minimum acceptable value
+    real(8), intent(in), optional   :: maximum_opt     ! Maximum acceptable value
     ! Locals:
     real(8)                         :: minimum, maximum
 
@@ -268,17 +268,17 @@ contains
   subroutine validateRttovProfile(profile, profileName, minimum, maximum, obsSpaceData, headerIndex) 
     !
     ! :Purpose:  check profile for validity for RTTOV-13, 
-    !            if invalid replace by acceptable value(s) and blacklist
+    !            if invalid replace by acceptable value(s) and reject
     !
     implicit none
 
     ! Arguments:
-    real(8), intent(inout)          :: profile(:)
-    character(len=*),intent(in)     :: profileName
-    real(8), intent(in)             :: minimum
-    real(8), intent(in)             :: maximum
-    type(struct_obs), intent(inout) :: obsSpaceData
-    integer, intent(in)             :: headerIndex
+    real(8), intent(inout)          :: profile(:)    ! Vertical profile of input variables to check for validity
+    character(len=*),intent(in)     :: profileName   ! Name of the checked profile for output in listings
+    real(8), intent(in)             :: minimum       ! Minimum acceptable value
+    real(8), intent(in)             :: maximum       ! Maximum acceptable value
+    type(struct_obs), intent(inout) :: obsSpaceData  ! obsSpaceData object
+    integer, intent(in)             :: headerIndex   ! Index of the observation in obsSpaceData header table
     ! Locals:
     logical                         :: ltest(size(profile))
     integer                         :: levelIndex
@@ -312,8 +312,8 @@ contains
     implicit none
 
     !Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData
-    integer, intent(in) :: headerIndex
+    type(struct_obs), intent(inout) :: obsSpaceData ! obsSpaceData object
+    integer, intent(in)             :: headerIndex  ! Index of the observation in obsSpaceData header table
 
     !Locals:
     integer :: bodyIndex
