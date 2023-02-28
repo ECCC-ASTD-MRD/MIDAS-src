@@ -1772,11 +1772,11 @@ CONTAINS
 
     SELECT CASE(trim(NML_SECTION))
       CASE( 'namburp_filter_gp')
-        nElems_gps = 0
+        nElems_gps = MPC_missingValue_INT
         LISTE_ELE_GPS(:) = mpc_missingValue_int
-        BNBITSOFF = 0
+        BNBITSOFF = MPC_missingValue_INT
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
+        BNBITSON = MPC_missingValue_INT
         BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_SFC)
         call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
@@ -1787,11 +1787,11 @@ CONTAINS
           call utl_abort('brpacma_nml (burpread_mod): no GPS elements specified in NAMBURP_FILTER_SFC')
         end if
       CASE( 'namburp_filter_sfc')
-        nElems_sfc = 0
+        nElems_sfc = MPC_missingValue_INT
         bListElements_sfc(:) = mpc_missingValue_int
-        BNBITSOFF = 0
+        BNBITSOFF = MPC_missingValue_INT
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
+        BNBITSON = MPC_missingValue_INT
         BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_SFC)
         call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
@@ -1802,11 +1802,11 @@ CONTAINS
           call utl_abort('brpacma_nml (burpread_mod): no SFC elements specified in NAMBURP_FILTER_SFC')
         end if
       CASE( 'namburp_filter_conv')
-        nElems = 0
+        nElems = MPC_missingValue_INT
         bListElements(:) = mpc_missingValue_int
-        BNBITSOFF = 0
+        BNBITSOFF = MPC_missingValue_INT
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
+        BNBITSON = MPC_missingValue_INT
         BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_CONV)
         call getListAndSize(nelems, blistelements, "nelems")
@@ -1817,11 +1817,11 @@ CONTAINS
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CONV')
         end if
       CASE( 'namburp_filter_tovs')
-        nElems = 0
+        nElems = MPC_missingValue_INT
         bListElements(:) = mpc_missingValue_int
-        BNBITSOFF = 0
+        BNBITSOFF = MPC_missingValue_INT
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
+        BNBITSON = MPC_missingValue_INT
         BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_TOVS)
         call getListAndSize(nelems, blistelements, "nelems")
@@ -1832,11 +1832,11 @@ CONTAINS
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_TOVS')
         end if
       CASE( 'namburp_filter_chm_sfc')
-        nElems_sfc = 0
+        nElems_sfc = MPC_missingValue_INT
         bListElements_sfc(:) = mpc_missingValue_int
-        BNBITSOFF = 0
+        BNBITSOFF = MPC_missingValue_INT
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
+        BNBITSON = MPC_missingValue_INT
         BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_CHM_SFC)
         call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
@@ -1847,11 +1847,11 @@ CONTAINS
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM_SFC')
         end if
       CASE( 'namburp_filter_chm')
-        nElems = 0
+        nElems = MPC_missingValue_INT
         bListElements(:) = mpc_missingValue_int
-        BNBITSOFF = 0
+        BNBITSOFF = MPC_missingValue_INT
         BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = 0
+        BNBITSON = MPC_missingValue_INT
         BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_CHM)
         call getListAndSize(nelems, blistelements, "nelems")
@@ -1862,12 +1862,13 @@ CONTAINS
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM')
         end if
       CASE( 'namburp_update')
-        BN_ITEMS = 0
+        BN_ITEMS = MPC_missingValue_INT
         bItemList(:) = '***' 
         READ(NULNAM,NML=NAMBURP_UPDATE)
-        if (BN_ITEMS /= 0) then
+        if (BN_ITEMS /= MPC_missingValue_INT) then
           call utl_abort('brpacma_nml: check namburp_update namelist section, you should remove BN_ITEMS')
         end if
+        BN_ITEMS = 0
         do itemIndex = 1, maxItems 
           if (bItemList(itemIndex) == '***') exit
           BN_ITEMS = BN_ITEMS + 1
@@ -1888,9 +1889,10 @@ CONTAINS
       character(len=*), intent(in) :: variable
       integer :: listIndex
       
-      if (numberElements /= 0) then
+      if (numberElements /= MPC_missingValue_INT) then
         call utl_abort('brpacma_nml: check '//trim(nml_section)//' namelist section, you should remove '//trim(variable))
       end if
+      numberElements = 0
       do listIndex = 1, size(list)
         if (list(listIndex) == MPC_missingValue_INT) exit
         numberElements = numberElements + 1
