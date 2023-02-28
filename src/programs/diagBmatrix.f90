@@ -89,7 +89,6 @@ program midas_diagBmatrix
   ! namelist variables
   integer :: numperturbations        ! number of perturbations for randomization estimate of stddev
   integer :: nrandseed               ! initial random seed value
-  integer :: diagdate                ! date to be used for center of time window
   integer :: oneobs_levs(100)        ! list of level indexes where B matrix columns are computed 
   integer :: oneobs_lonlat(100,2)    ! list of lon,lat index pairs where B matrix columns are computed
   character(len=128) :: oneobs_timeStep ! can be 'first', 'last' or 'middle'
