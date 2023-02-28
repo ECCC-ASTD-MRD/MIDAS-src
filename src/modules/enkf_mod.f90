@@ -470,67 +470,110 @@ contains
         call utl_tmg_start(134,'----CalculateWeights')
 
         ! Extract initial quantities YbTinvR and first term of PaInv (YbTinvR*Yb)
-        do localObsIndex = 1, numLocalObs
-          bodyIndex = localBodyIndices(localObsIndex)
+        if ( edaObsImpact ) then
+          do localObsIndex = 1, numLocalObs
+            bodyIndex = localBodyIndices(localObsIndex)
 
-          ! Compute value of localization function
-          ! Horizontal
-          localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
-          ! Vertical when NOT using modulated ensembles - use pressures at the grid point (not obs) location
-          if ( vLocalize > 0.0d0 .and. .not. useModulatedEns ) then
-            distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
-            localization = localization * lfn_Response(distance,vLocalize)
-          end if
+            ! Compute value of localization function
+            ! Horizontal
+            localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
+            ! Vertical when NOT using modulated ensembles - use pressures at the grid point (not obs) location
+            if ( vLocalize > 0.0d0 .and. .not. useModulatedEns ) then
+              distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
+              localization = localization * lfn_Response(distance,vLocalize)
+            end if
 
-          do memberIndex = 1, nEnsGain
-            ! YbTinvR for updating ensemble perturbations
-            YbTinvR_pert(memberIndex,localObsIndex) =  &
-                 ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-                 localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)            
-            if ( edaObsImpact ) then
+            do memberIndex = 1, nEnsGain
+              ! YbTinvR for updating ensemble perturbations
+              YbTinvR_pert(memberIndex,localObsIndex) =  &
+                   ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
+                   localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)            
+
               ! YbTinvR for the ensemble mean update for EDA observation simulation experiment
               YbTinvR_mean(memberIndex,localObsIndex) =  &
                    ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
                    localization * ensObsGain_mpiglobal%obsErrInv_eda(bodyIndex)             
-            end if              
-          end do        
-        end do ! localObsIndex
+            end do        
+          end do ! localObsIndex
+        else
+          do localObsIndex = 1, numLocalObs
+            bodyIndex = localBodyIndices(localObsIndex)
+
+            ! Compute value of localization function
+            ! Horizontal
+            localization = lfn_Response(distances(localObsIndex),hLocalize(hLocIndex))
+            ! Vertical when NOT using modulated ensembles - use pressures at the grid point (not obs) location
+            if ( vLocalize > 0.0d0 .and. .not. useModulatedEns ) then
+              distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
+              localization = localization * lfn_Response(distance,vLocalize)
+            end if
+
+            do memberIndex = 1, nEnsGain
+              ! YbTinvR for updating ensemble perturbations (version for mean points to this)
+              YbTinvR_pert(memberIndex,localObsIndex) =  &
+                   ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
+                   localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)                        
+            end do        
+          end do ! localObsIndex
+        end if
 
         call utl_tmg_start(136,'------CalcYbTinvRYb')
         ! make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4
         call utl_tmg_start(137,'--------YbArraysCopy')
-        YbGainCopy_r4(:,:) = 0.0
-        if ( edaObsImpact ) YbTinvRCopy_mean(:,:) = 0.0d0
-        YbTinvRCopy_pert(:,:) = 0.0d0
-        do localObsIndex = 1, numLocalObs
-          bodyIndex = localBodyIndices(localObsIndex)
-          do memberIndex2 = 1, nEnsGain
-            YbGainCopy_r4(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
-            YbTinvRCopy_pert(localObsIndex,memberIndex2) = YbTinvR_pert(memberIndex2,localObsIndex)
-            if ( edaObsImpact ) then
+        if ( edaObsImpact ) then
+          YbGainCopy_r4(:,:) = 0.0
+          YbTinvRCopy_mean(:,:) = 0.0d0
+          YbTinvRCopy_pert(:,:) = 0.0d0
+          do localObsIndex = 1, numLocalObs
+            bodyIndex = localBodyIndices(localObsIndex)
+            do memberIndex2 = 1, nEnsGain
+              YbGainCopy_r4(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
+              YbTinvRCopy_pert(localObsIndex,memberIndex2) = YbTinvR_pert(memberIndex2,localObsIndex)
               YbTinvRCopy_mean(localObsIndex,memberIndex2) = YbTinvR_mean(memberIndex2,localObsIndex)             
-            end if
+            end do
           end do
-        end do
+        else
+          YbGainCopy_r4(:,:) = 0.0
+          YbTinvRCopy_pert(:,:) = 0.0d0
+          do localObsIndex = 1, numLocalObs
+            bodyIndex = localBodyIndices(localObsIndex)
+            do memberIndex2 = 1, nEnsGain
+              YbGainCopy_r4(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
+              YbTinvRCopy_pert(localObsIndex,memberIndex2) = YbTinvR_pert(memberIndex2,localObsIndex)
+            end do
+          end do
+        end if
         call utl_tmg_stop(137)
 
-        if ( edaObsImpact ) YbTinvRYb_mean(:,:) = 0.0D0
-        YbTinvRYb_pert(:,:) = 0.0D0
+
         call utl_tmg_start(138,'--------YbTinvRYb1')
-        !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
-        do memberIndex2 = 1, nEnsGain
-          do memberIndex1 = 1, nEnsGain
-            YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
-                YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
-                sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))
-            if ( edaObsImpact ) then
+        if ( edaObsImpact ) then
+          YbTinvRYb_mean(:,:) = 0.0D0
+          YbTinvRYb_pert(:,:) = 0.0D0        
+          !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
+          do memberIndex2 = 1, nEnsGain
+            do memberIndex1 = 1, nEnsGain
+              YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
+                  YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
+                  sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))
               YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
                   YbTinvRYb_mean(memberIndex1,memberIndex2) +  &
                   sum(YbTinvRCopy_mean(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))              
-            end if
+            end do
           end do
-        end do
-        !$OMP END PARALLEL DO
+          !$OMP END PARALLEL DO
+        else
+          YbTinvRYb_pert(:,:) = 0.0D0        
+          !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
+          do memberIndex2 = 1, nEnsGain
+            do memberIndex1 = 1, nEnsGain
+              YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
+                  YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
+                  sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))             
+            end do
+          end do
+          !$OMP END PARALLEL DO
+        end if
         call utl_tmg_stop(138)
 
         ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
@@ -571,12 +614,19 @@ contains
             !
 
             ! Add second term of PaInv
-            PaInv_pert(:,:) = YbTinvRYb_pert(:,:)
-            if ( edaObsImpact ) PaInv_mean(:,:) = YbTinvRYb_mean(:,:)            
-            do memberIndex = 1, nEns
-              PaInv_pert(memberIndex,memberIndex) = PaInv_pert(memberIndex,memberIndex) + real(nEns - 1,8)
-              if ( edaObsImpact ) PaInv_mean(memberIndex,memberIndex) = PaInv_mean(memberIndex,memberIndex) + real(nEns - 1,8)
-            end do
+            if ( edaObsImpact ) then
+              PaInv_pert(:,:) = YbTinvRYb_pert(:,:)
+              PaInv_mean(:,:) = YbTinvRYb_mean(:,:)            
+              do memberIndex = 1, nEns
+                PaInv_pert(memberIndex,memberIndex) = PaInv_pert(memberIndex,memberIndex) + real(nEns - 1,8)
+                PaInv_mean(memberIndex,memberIndex) = PaInv_mean(memberIndex,memberIndex) + real(nEns - 1,8)
+              end do
+            else
+              PaInv_pert(:,:) = YbTinvRYb_pert(:,:)
+              do memberIndex = 1, nEns
+                PaInv_pert(memberIndex,memberIndex) = PaInv_pert(memberIndex,memberIndex) + real(nEns - 1,8)
+              end do
+            end if
 
             ! Compute Pa and sqrt(Pa) matrices from PaInv
             Pa_pert(:,:) = PaInv_pert(:,:)
