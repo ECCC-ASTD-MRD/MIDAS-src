@@ -1915,6 +1915,51 @@ contains
   end subroutine oer_computeAllskyHuInflatedStateDepSigmaObs
 
   !--------------------------------------------------------------------------
+  ! chanIsAllsky
+  !--------------------------------------------------------------------------
+  subroutine chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+    !
+    !:Purpose: Determine if the tovs instrument/channel combination is all-sky.
+    !
+    implicit none
+    
+    ! Arguments:
+    type(struct_obs), intent(in)  :: obsSpaceData
+    integer,          intent(in)  :: bodyIndex
+    logical,          intent(out) :: chanIsAllskyTt
+    logical,          intent(out) :: chanIsAllskyHu
+
+    ! Locals:
+    integer :: headerIndex
+    integer :: channelNumber_withOffset
+    integer :: channelNumber, channelIndex
+    integer :: tovsIndex, sensorIndex, instrumId
+
+    headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
+    tovsIndex = tvs_tovsIndex(headerIndex)
+    sensorIndex = tvs_lsensor(tovsIndex)
+    instrumId = tvs_instruments(sensorIndex)
+
+    call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
+                                       channelNumber, channelIndex)
+    channelNumber_withOffset = channelNumber + tvs_channelOffset(sensorIndex)
+
+    chanIsAllskyTt = .false.
+    chanIsAllskyHu = .false.
+    if (.not. tvs_mwAllskyAssim .or. &
+        .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex)) return
+    
+    if (tvs_isInstrumAllskyTtAssim(instrumId)) then
+      chanIsAllskyTt = .true.
+    else if (tvs_isInstrumAllskyHuAssim(instrumId)) then
+      chanIsAllskyHu = .true.
+    else if (tvs_isInstrumAllskyTtHuAssim(instrumId)) then
+      call utl_abort('chanIsAllsky: all-sky TtHu is not implemented')
+    end if
+
+  end subroutine chanIsAllsky
+
+  !--------------------------------------------------------------------------
   ! readOerFromObsFileForSW
   !--------------------------------------------------------------------------
   subroutine readOerFromObsFileForSW(obsSpaceData)
