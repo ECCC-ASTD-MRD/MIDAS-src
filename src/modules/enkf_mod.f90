@@ -503,52 +503,52 @@ contains
           end if
         end do ! localObsIndex
 
-      call utl_tmg_start(136,'------CalcYbTinvRYb')
-      ! make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4
-      call utl_tmg_start(137,'--------YbArraysCopy')
-      YbGainCopy_r4(:,:) = 0.0
-      YbTinvRCopy_pert(:,:) = 0.0d0
-      do localObsIndex = 1, numLocalObs
-        bodyIndex = localBodyIndices(localObsIndex)
-        do memberIndex2 = 1, nEnsGain
-          YbGainCopy_r4(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
-          YbTinvRCopy_pert(localObsIndex,memberIndex2) = YbTinvR_pert(memberIndex2,localObsIndex)
-        end do
-      end do      
-      if ( edaObsImpact ) then
-        YbTinvRCopy_mean(:,:) = 0.0d0
+        call utl_tmg_start(136,'------CalcYbTinvRYb')
+        ! make copy of YbTinvR, and ensObsGain_mpiglobal%Yb_r4
+        call utl_tmg_start(137,'--------YbArraysCopy')
+        YbGainCopy_r4(:,:) = 0.0
+        YbTinvRCopy_pert(:,:) = 0.0d0
         do localObsIndex = 1, numLocalObs
           bodyIndex = localBodyIndices(localObsIndex)
           do memberIndex2 = 1, nEnsGain
-            YbTinvRCopy_mean(localObsIndex,memberIndex2) = YbTinvR_mean(memberIndex2,localObsIndex)             
+            YbGainCopy_r4(localObsIndex,memberIndex2) = ensObsGain_mpiglobal%Yb_r4(memberIndex2,bodyIndex)
+            YbTinvRCopy_pert(localObsIndex,memberIndex2) = YbTinvR_pert(memberIndex2,localObsIndex)
           end do
-        end do
-      end if
-      call utl_tmg_stop(137)
+        end do      
+        if ( edaObsImpact ) then
+          YbTinvRCopy_mean(:,:) = 0.0d0
+          do localObsIndex = 1, numLocalObs
+            bodyIndex = localBodyIndices(localObsIndex)
+            do memberIndex2 = 1, nEnsGain
+              YbTinvRCopy_mean(localObsIndex,memberIndex2) = YbTinvR_mean(memberIndex2,localObsIndex)             
+            end do
+          end do
+        end if
+        call utl_tmg_stop(137)
 
-      call utl_tmg_start(138,'--------YbTinvRYb1')
+        call utl_tmg_start(138,'--------YbTinvRYb1')
 
-      YbTinvRYb_pert(:,:) = 0.0D0
-      do memberIndex2 = 1, nEnsGain
-        do memberIndex1 = 1, nEnsGain
-          YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
-              YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
-              sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))             
-        end do
-      end do
-      if ( edaObsImpact ) then
-        YbTinvRYb_mean(:,:) = 0.0D0
-        !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
+        YbTinvRYb_pert(:,:) = 0.0D0
         do memberIndex2 = 1, nEnsGain
           do memberIndex1 = 1, nEnsGain
-            YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
-                YbTinvRYb_mean(memberIndex1,memberIndex2) +  &
-                sum(YbTinvRCopy_mean(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))              
+            YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
+                YbTinvRYb_pert(memberIndex1,memberIndex2) +  &
+                sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))             
           end do
         end do
-        !$OMP END PARALLEL DO
-      end if
-      call utl_tmg_stop(138)
+        if ( edaObsImpact ) then
+          YbTinvRYb_mean(:,:) = 0.0D0
+          !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
+          do memberIndex2 = 1, nEnsGain
+            do memberIndex1 = 1, nEnsGain
+              YbTinvRYb_mean(memberIndex1,memberIndex2) =  &
+                  YbTinvRYb_mean(memberIndex1,memberIndex2) +  &
+                  sum(YbTinvRCopy_mean(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))              
+            end do
+          end do
+          !$OMP END PARALLEL DO
+        end if
+        call utl_tmg_stop(138)
 
         ! computing YbTinvRYb that uses modulated and original ensembles for perturbation update
         if ( trim(algorithm) == 'CVLETKF-ME' .or. &
