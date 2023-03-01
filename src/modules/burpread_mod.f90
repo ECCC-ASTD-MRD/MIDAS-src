@@ -4168,7 +4168,7 @@ CONTAINS
     integer                :: flag_passage1,flag_passage2,flag_passage3
     integer                :: flag_passage4,flag_passage5
     integer                :: idatyp, val
-    real                   :: val_option_r4, val_r4
+    real                   :: valBurpMissing_r4, val_r4
     character(len=9)       :: station_id
     
     write(*,*) '----------------------------------------------------------'
@@ -4184,11 +4184,11 @@ CONTAINS
     flag_passage5 = 0
     
     opt_missing = 'MISSING'
-    val_option_r4  = -7777.77
+    valBurpMissing_r4 = -7777.77
 
-    call BURP_Set_Options(                  &                
-         REAL_OPTNAME       = opt_missing,  &
-         REAL_OPTNAME_VALUE = val_option_r4,&
+    call BURP_Set_Options(                       &                
+         REAL_OPTNAME       = opt_missing,       &
+         REAL_OPTNAME_VALUE = valBurpMissing_r4, &
          iostat             = error )
     call handle_error(error, "brpr_addCloudParametersandEmissivity: BURP_Set_Options")
 
@@ -5313,7 +5313,7 @@ CONTAINS
              NELE_IND = pele, &
              NVAL_IND = pval, &
              NT_IND   = pt, &
-             RVAL     = val_option_r4, &
+             RVAL     = valBurpMissing_r4, &
              iostat   = error)
       else
         call BURP_Set_Rval(inputBlock, &
@@ -5355,7 +5355,7 @@ CONTAINS
              NELE_IND = pele, &
              NVAL_IND = pval, &
              NT_IND   = pt, &
-             RVAL     = val_option_r4, &
+             RVAL     = valBurpMissing_r4, &
              iostat   = error)
       end if
       
