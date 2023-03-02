@@ -662,6 +662,7 @@ module SSTbias_mod
     weightMax = 1.0
     saveAuxFields = .False.
     bgTermZeroBias = 1.0
+    
     ! Read the namelist
     nulnam = 0
     ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
