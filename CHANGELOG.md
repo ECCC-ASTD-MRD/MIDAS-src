@@ -88,6 +88,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed bug in observation simulation functionality, including namelist change in `letkf` (#768 and !697)
  * Fixed `midas.mpirun` so that it works with latest version of rpn/libs (#782 and !700)
  * Fixed SSMIS satqc procedure by using biased observations, like in operations (#769 and !690)
  * Fixed `SSTbias` program when some mpi processors don't have data (#772 and !689)
