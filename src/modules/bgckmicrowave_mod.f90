@@ -6884,29 +6884,29 @@ contains
 
   end subroutine mwbg_reviewAllCritforFinalFlagsMwhs2
 
-  function calcStateDepObsErr_r4(cloudPredictorThresh1, cloudPredictorThresh2, &
-                                 sigmaThresh1, sigmaThresh2, cloudPredictorUsed) result(sigmaObsErrUsed)
+  function calcStateDepObsErr_r4(cldPredThresh1, cldPredThresh2, &
+                                 sigmaThresh1, sigmaThresh2, cldPredUsed) result(sigmaObsErrUsed)
     !
     ! :Purpose: Calculate single-precision state-dependent observation error.
     !                                 
     implicit none
 
     ! Arguments:
-    real, intent(in) :: cloudPredictorThresh1
-    real, intent(in) :: cloudPredictorThresh2
+    real, intent(in) :: cldPredThresh1
+    real, intent(in) :: cldPredThresh2
     real, intent(in) :: sigmaThresh1
     real, intent(in) :: sigmaThresh2
-    real, intent(in) :: cloudPredictorUsed
+    real, intent(in) :: cldPredUsed
     real :: sigmaObsErrUsed
 
-    if (cloudPredictorUsed <= cloudPredictorThresh1) then
+    if (cldPredUsed <= cldPredThresh1) then
       sigmaObsErrUsed = sigmaThresh1
-    else if (cloudPredictorUsed >  cloudPredictorThresh1 .and. & 
-             cloudPredictorUsed <= cloudPredictorThresh2) then
+    else if (cldPredUsed >  cldPredThresh1 .and. & 
+             cldPredUsed <= cldPredThresh2) then
       sigmaObsErrUsed = sigmaThresh1 + &
                         (sigmaThresh2 - sigmaThresh1) / &
-                        (cloudPredictorThresh2 - cloudPredictorThresh1) * &
-                        (cloudPredictorUsed - cloudPredictorThresh1) 
+                        (cldPredThresh2 - cldPredThresh1) * &
+                        (cldPredUsed - cldPredThresh1) 
     else
       sigmaObsErrUsed = sigmaThresh2
     end if
@@ -7259,7 +7259,7 @@ contains
       !###############################################################################
 
       if (instName == 'AMSUA') then
-        call mwbg_tovCheckAmsua(oer_toverrst, oer_cloudPredictorThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+        call mwbg_tovCheckAmsua(oer_toverrst, oer_cldPredThresh, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
                                 oer_tovutil, landQualifierIndice,&
                                 obsChannels, obsTb, btClear, obsTbBiasCorr, &
                                 ompTb, qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
@@ -7269,7 +7269,7 @@ contains
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,      &
                                 atmScatteringIndexObs, burpFileSatId, RESETQC, obsLatitude)
       else if (instName == 'AMSUB') then
-        call mwbg_tovCheckAmsub(oer_toverrst, oer_cloudPredictorThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+        call mwbg_tovCheckAmsub(oer_toverrst, oer_cldPredThresh, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
                                 oer_tovutil, landQualifierIndice,&
                                 obsChannels, obsTb, btClear, obsTbBiasCorr, ompTb,      & 
                                 qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
@@ -7279,7 +7279,7 @@ contains
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,       &
                                 atmScatteringIndexObs, atmScatteringIndexFG, burpFileSatId, RESETQC)
       else if (instName == 'ATMS') then
-        call mwbg_tovCheckAtms(oer_toverrst, oer_cloudPredictorThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+        call mwbg_tovCheckAtms(oer_toverrst, oer_cldPredThresh, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
                                oer_tovutil, obsLatitude, obsLongitude,&
                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
                                obsQcFlag2, obsQcFlag1, &

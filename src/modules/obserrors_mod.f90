@@ -54,21 +54,20 @@ module obsErrors_mod
   ! public variables (parameters)
   public :: oer_ascatAnisOpenWater, oer_ascatAnisIce
   
- ! Temporary arrays for QC purpose
-  public :: oer_toverrst, oer_cloudPredictorThreshArr, oer_tovutil
+ ! Arrays for QC purpose
+  public :: oer_toverrst, oer_cldPredThresh, oer_tovutil
   public :: oer_sigmaObsErr, oer_useStateDepSigmaObs 
   ! TOVS OBS ERRORS
   real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  real(8) :: cloudPredictorThreshArr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  real(8) :: cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   integer :: tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   logical :: useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  ! Temporary arrays for QC purpose
   real(8) :: oer_toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  real(8) :: oer_cloudPredictorThreshArr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  real(8) :: oer_cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: oer_sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
-  real(8) :: clearCldPredThresholdSigmaObsInflation(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-  real(8) :: stateDepSigmaObsInflationCoeff(tvs_maxNumberOfSensors)
+  real(8) :: clearCldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+  real(8) :: inflateErrAllskyCoeff(tvs_maxNumberOfSensors)
   integer :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   logical :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
@@ -176,8 +175,8 @@ module obsErrors_mod
   logical :: mwAllskyTtInflateByClwDiff ! choose to inflate all sky TT radiance errors by an amount related to cloud O-P
   logical :: mwAllskyHuInflateByOmp     ! choose to inflate all sky HU radiance errors by an amount related to O-P
   logical :: mwAllskyHuInflateBySiDiff  ! choose to inflate all sky HU radiance errors by an amount related to cloud O-P
-  real(8) :: amsuaClearCldPredThresholdSigmaObsInflation(5) ! cloud threshold for considering obs as clear sky
-  real(8) :: amsuaStateDepSigmaObsInflationCoeff ! state dependent obs error inflation factor
+  real(8) :: amsuaClearCldPredThresh(5) ! cloud threshold for considering obs as clear sky
+  real(8) :: amsuaInflateErrAllskyCoeff ! state dependent obs error inflation factor
   logical :: readOldSymmetricObsErrFile ! choose to read 'old style' obs error file, when only AMSU-A was all sky
 
 contains
@@ -223,8 +222,8 @@ contains
     namelist /namoer/ new_oer_sw, obsfile_oer_sw, visAndGustAdded
     namelist /namoer/ mwAllskyTtInflateByOmp, mwAllskyTtInflateByClwDiff
     namelist /namoer/ mwAllskyHuInflateByOmp, mwAllskyHuInflateBySiDiff
-    namelist /namoer/ amsuaClearCldPredThresholdSigmaObsInflation
-    namelist /namoer/ amsuaStateDepSigmaObsInflationCoeff
+    namelist /namoer/ amsuaClearCldPredThresh
+    namelist /namoer/ amsuaInflateErrAllskyCoeff
     namelist /namoer/ readOldSymmetricObsErrFile
     integer :: fnom, fclos, nulnam, ierr
 
@@ -248,10 +247,10 @@ contains
     mwAllskyTtInflateByClwDiff = .false.
     mwAllskyHuInflateByOmp = .false.
     mwAllskyHuInflateBySiDiff = .false.
-    amsuaClearCldPredThresholdSigmaObsInflation(:) = 0.03D0
-    amsuaClearCldPredThresholdSigmaObsInflation(1) = 0.05D0
-    amsuaClearCldPredThresholdSigmaObsInflation(4) = 0.02D0
-    amsuaStateDepSigmaObsInflationCoeff = 13.0D0
+    amsuaClearCldPredThresh(:) = 0.03D0
+    amsuaClearCldPredThresh(1) = 0.05D0
+    amsuaClearCldPredThresh(4) = 0.02D0
+    amsuaInflateErrAllskyCoeff = 13.0D0
     readOldSymmetricObsErrFile = .true.
 
     if (utl_isNamelistPresent('namoer','./flnml')) then
@@ -357,11 +356,11 @@ contains
     integer :: ICHNIN2(tvs_maxChannelNumber)
 
     real(8) :: TOVERRIN(tvs_maxChannelNumber,2,tvs_maxNumberOfSensors)
-    real(8) :: cloudPredictorThreshArrInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+    real(8) :: cldPredThreshInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
     real(8) :: sigmaObsErrInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
     real(8) :: tovsObsInflation(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-    real(8) :: clearCldPredThresholdSigmaObsInflationInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
-    real(8) :: stateDepSigmaObsInflationCoeffInput(tvs_maxNumberOfSensors)
+    real(8) :: clearCldPredThreshInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
+    real(8) :: inflateErrAllskyCoeffInput(tvs_maxNumberOfSensors)
     integer :: useStateDepSigmaObsInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     integer :: amsuaChannelOffset, amsuaChannelNum  
 
@@ -375,18 +374,18 @@ contains
     !
     TOVERRST(:,:) = 0.0D0
     TOVERRIN(:,:,:) = 0.0D0
-    cloudPredictorThreshArr(:,:,:) = 0.0d0
-    cloudPredictorThreshArrInput(:,:,:) = 0.0d0
+    cldPredThresh(:,:,:) = 0.0d0
+    cldPredThreshInput(:,:,:) = 0.0d0
     sigmaObsErr(:,:,:) = 0.0d0
     sigmaObsErrInput(:,:,:) = 0.0d0
     tovsObsInflation(:,:) = 0.0d0
     IUTILST(:,:) = 0
     useStateDepSigmaObs(:,:) = .false.
     useStateDepSigmaObsInput(:,:) = 0
-    clearCldPredThresholdSigmaObsInflation(:,:) = 0.0d0
-    clearCldPredThresholdSigmaObsInflationInput(:,:) = 0.0d0
-    stateDepSigmaObsInflationCoeff(:) = 0.0d0
-    stateDepSigmaObsInflationCoeffInput(:) = 0.0d0
+    clearCldPredThresh(:,:) = 0.0d0
+    clearCldPredThreshInput(:,:) = 0.0d0
+    inflateErrAllskyCoeff(:) = 0.0d0
+    inflateErrAllskyCoeffInput(:) = 0.0d0
 
     IPLATFORM(:) = 0
     NUMCHN(:) = 0
@@ -487,9 +486,9 @@ contains
         ! If reading the old style stats_tovs_symmetricObsErr, the the all-sky parameters are available only for AMSUA.
         if (readOldSymmetricObsErrFile) then
           read(ILUTOV2,*) ISATID2, NUMCHNIN2
-          if (CINSTR == "AMSUA") stateDepSigmaObsInflationCoeffInput(JL) = amsuaStateDepSigmaObsInflationCoeff
+          if (CINSTR == "AMSUA") inflateErrAllskyCoeffInput(JL) = amsuaInflateErrAllskyCoeff
         else
-          read(ILUTOV2,*) ISATID2, NUMCHNIN2, stateDepSigmaObsInflationCoeffInput(JL)
+          read(ILUTOV2,*) ISATID2, NUMCHNIN2, inflateErrAllskyCoeffInput(JL)
         end if
 
         if (ISATID2 /= ISATID(JL) .or. NUMCHNIN2 /= NUMCHNIN(JL)) &
@@ -508,22 +507,21 @@ contains
           ! If reading the old style stats_tovs_symmetricObsErr, then the all-sky parameters are available only for AMSUA.
           if (readOldSymmetricObsErrFile) then
             read(ILUTOV2,*) ICHNIN2(JI), &
-                  cloudPredictorThreshArrInput(ICHNIN2(JI),JL,1), cloudPredictorThreshArrInput(ICHNIN2(JI),JL,2), &
+                  cldPredThreshInput(ICHNIN2(JI),JL,1), cldPredThreshInput(ICHNIN2(JI),JL,2), &
                   sigmaObsErrInput(ICHNIN2(JI),JL,1), sigmaObsErrInput(ICHNIN2(JI),JL,2), &
                   useStateDepSigmaObsInput(ICHNIN2(JI),JL)
             if (CINSTR == "AMSUA") then
               amsuaChannelOffset = 27
               amsuaChannelNum = ICHNIN2(JI) - amsuaChannelOffset
               if (amsuaChannelNum >= 1 .and.  amsuaChannelNum <= 5) then
-                clearCldPredThresholdSigmaObsInflationInput(ICHNIN2(JI),JL) = &
-                        amsuaClearCldPredThresholdSigmaObsInflation(amsuaChannelNum)
+                clearCldPredThreshInput(ICHNIN2(JI),JL) = amsuaClearCldPredThresh(amsuaChannelNum)
               end if
             end if
           else
             read(ILUTOV2,*) ICHNIN2(JI), &
-                  cloudPredictorThreshArrInput(ICHNIN2(JI),JL,1), cloudPredictorThreshArrInput(ICHNIN2(JI),JL,2), &
+                  cldPredThreshInput(ICHNIN2(JI),JL,1), cldPredThreshInput(ICHNIN2(JI),JL,2), &
                   sigmaObsErrInput(ICHNIN2(JI),JL,1), sigmaObsErrInput(ICHNIN2(JI),JL,2), &
-                  clearCldPredThresholdSigmaObsInflationInput(ICHNIN2(JI),JL), &
+                  clearCldPredThreshInput(ICHNIN2(JI),JL), &
                   useStateDepSigmaObsInput(ICHNIN2(JI),JL)
           end if
 
@@ -564,15 +562,12 @@ contains
               ICHN(JI,JL) = ICHNIN(JI,JM)
 
               if (tvs_mwAllskyAssim) then
-                cloudPredictorThreshArr(JI,JL,:) = cloudPredictorThreshArrInput(JI,JM,:)
+                cldPredThresh(JI,JL,:) = cldPredThreshInput(JI,JM,:)
                 sigmaObsErr(JI,JL,:) = sigmaObsErrInput(JI,JM,:)
-                clearCldPredThresholdSigmaObsInflation(JI,JL) = &
-                        clearCldPredThresholdSigmaObsInflationInput(JI,JM)
-                useStateDepSigmaObs(JI,JL) = &
-                        (useStateDepSigmaObsInput(JI,JM) == 1)
+                clearCldPredThresh(JI,JL) = clearCldPredThreshInput(JI,JM)
+                useStateDepSigmaObs(JI,JL) = (useStateDepSigmaObsInput(JI,JM) == 1)
 
-                if (JI == 1) stateDepSigmaObsInflationCoeff(JL) = &
-                                stateDepSigmaObsInflationCoeffInput(JM)
+                if (JI == 1) inflateErrAllskyCoeff(JL) = inflateErrAllskyCoeffInput(JM)
 
                 ! inflate the sigmaObsErr in analysis mode
                 if (obsErrorColumnIndex == analysisColumnIndex) then
@@ -623,13 +618,13 @@ contains
           write(*,'(A,4(2X,A8),(1X,A9),(2X,A3))') 'Channel','cld1','cld2','sigmaO1','sigmaO2','anlErrInf','use'
           do JI = 1, NUMCHN(JL)
             write(*,'(I7,5(2X,F8.4),(2X,L3))') ICHN(JI,JL), &
-              cloudPredictorThreshArr(ICHN(JI,JL),JL,1), cloudPredictorThreshArr(ICHN(JI,JL),JL,2), &
+              cldPredThresh(ICHN(JI,JL),JL,1), cldPredThresh(ICHN(JI,JL),JL,2), &
               sigmaObsErr(ICHN(JI,JL),JL,1), sigmaObsErr(ICHN(JI,JL),JL,2), &
-              clearCldPredThresholdSigmaObsInflation(ICHN(JI,JL),JL), &
+              clearCldPredThresh(ICHN(JI,JL),JL), &
               useStateDepSigmaObs(ICHN(JI,JL),JL)
           end do
-          write(*,'(A,(2X,F8.4))') 'stateDepSigmaObsInflationCoeff=', &
-                stateDepSigmaObsInflationCoeff(JL) 
+          write(*,'(A,(2X,F8.4))') 'inflateErrAllskyCoeff=', &
+                inflateErrAllskyCoeff(JL) 
         else
           write(*,'(A,2X,A8)') 'Channel','sigmaO'
           do JI = 1, NUMCHN(JL)
@@ -647,11 +642,11 @@ contains
     if (IER /= 0) call utl_abort ('oer_readObsErrorsTOVS')
 
     !
-    !    7. Temporary: Filll the publics variables for QC purpose
+    !    7. Fill the publics variables for QC purpose
     !       --------------
     oer_toverrst(:,:) = toverrst(:,:)
     oer_tovutil (:,:) = tovutil(:,:)
-    oer_cloudPredictorThreshArr(:,:,:) = cloudPredictorThreshArr(:,:,:)
+    oer_cldPredThresh(:,:,:) = cldPredThresh(:,:,:)
     oer_sigmaObsErr(:,:,:) = sigmaObsErr(:,:,:)
     oer_useStateDepSigmaObs(:,:) = useStateDepSigmaObs(:,:)
 
@@ -1079,7 +1074,7 @@ contains
 
     real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
     real(8) :: obsValue, obsStdDevError, obsPPP, obsOER
-    real(8) :: cloudPredictorThresh1, cloudPredictorThresh2, cloudPredictorUsed
+    real(8) :: cldPredThresh1, cldPredThresh2, cldPredUsed
     real(8) :: sigmaThresh1, sigmaThresh2, sigmaObsErrUsed
     real(4), parameter :: minRetrievableClwValue_r4 = 0.0
     real(4), parameter :: maxRetrievableClwValue_r4 = 3.0
@@ -1152,17 +1147,17 @@ contains
                     if (trim(obserrorMode) == 'bgck') then
                       sigmaObsErrUsed = 1.0d0
                     else
-                      cloudPredictorThresh1 = cloudPredictorThreshArr(channelNumber,sensorIndex,1)
-                      cloudPredictorThresh2 = cloudPredictorThreshArr(channelNumber,sensorIndex,2)
+                      cldPredThresh1 = cldPredThresh(channelNumber,sensorIndex,1)
+                      cldPredThresh2 = cldPredThresh(channelNumber,sensorIndex,2)
                       sigmaThresh1 = sigmaObsErr(channelNumber,sensorIndex,1)
                       sigmaThresh2 = sigmaObsErr(channelNumber,sensorIndex,2)
 
                       ! Compute cloudPredictor to use
-                      cloudPredictorUsed = computeCloudPredictor(sensorIndex, headerIndex)
+                      cldPredUsed = computeCloudPredictor(sensorIndex, headerIndex)
 
                       ! Use cloud predictor to compute state-dependent obs error
-                      sigmaObsErrUsed = calcStateDepObsErr(cloudPredictorThresh1, cloudPredictorThresh2, &
-                                                           sigmaThresh1, sigmaThresh2, cloudPredictorUsed)
+                      sigmaObsErrUsed = calcStateDepObsErr(cldPredThresh1, cldPredThresh2, &
+                                                           sigmaThresh1, sigmaThresh2, cldPredUsed)
                     end if
                   else
                     sigmaObsErrUsed = TOVERRST(channelNumber, sensorIndex)
@@ -1617,36 +1612,36 @@ contains
 
   contains
 
-    function calcStateDepObsErr(cloudPredictorThresh1, cloudPredictorThresh2, &
-                                sigmaThresh1, sigmaThresh2, cloudPredictorUsed) result(sigmaObsErrUsed)
+    function calcStateDepObsErr(cldPredThresh1, cldPredThresh2, &
+                                sigmaThresh1, sigmaThresh2, cldPredUsed) result(sigmaObsErrUsed)
       !
       ! :Purpose: Calculate state-dependent observation error.
       !
       implicit none
 
       ! Arguments:
-      real(8), intent(in) :: cloudPredictorThresh1
-      real(8), intent(in) :: cloudPredictorThresh2
+      real(8), intent(in) :: cldPredThresh1
+      real(8), intent(in) :: cldPredThresh2
       real(8), intent(in) :: sigmaThresh1
       real(8), intent(in) :: sigmaThresh2
-      real(8), intent(in) :: cloudPredictorUsed
+      real(8), intent(in) :: cldPredUsed
       real(8) :: sigmaObsErrUsed
 
-      if (cloudPredictorUsed <= cloudPredictorThresh1) then
+      if (cldPredUsed <= cldPredThresh1) then
         sigmaObsErrUsed = sigmaThresh1
-      else if (cloudPredictorUsed >  cloudPredictorThresh1 .and. & 
-               cloudPredictorUsed <= cloudPredictorThresh2) then
+      else if (cldPredUsed >  cldPredThresh1 .and. & 
+               cldPredUsed <= cldPredThresh2) then
         sigmaObsErrUsed = sigmaThresh1 + &
                           (sigmaThresh2 - sigmaThresh1) / &
-                          (cloudPredictorThresh2 - cloudPredictorThresh1) * &
-                          (cloudPredictorUsed - cloudPredictorThresh1) 
+                          (cldPredThresh2 - cldPredThresh1) * &
+                          (cldPredUsed - cldPredThresh1) 
       else
         sigmaObsErrUsed = sigmaThresh2
       end if
 
     end function calcStateDepObsErr
 
-    function computeCloudPredictor(sensorIndex, headerIndex) result(cloudPredictorUsed)
+    function computeCloudPredictor(sensorIndex, headerIndex) result(cldPredUsed)
       !
       ! :Purpose: Compute cloud predictor to use for state-dependent observation error.
       !
@@ -1655,7 +1650,7 @@ contains
       ! Arguments:
       integer, intent(in) :: sensorIndex
       integer, intent(in) :: headerIndex
-      real(8) :: cloudPredictorUsed
+      real(8) :: cldPredUsed
 
       ! Locals:
       integer :: platformId
@@ -1663,7 +1658,7 @@ contains
       integer :: instrumId
       real(8) :: clwObs, clwFG
       real(8) :: siObs, siFG
-      real(4) :: cloudPredictorUsed_r4
+      real(4) :: cldPredUsed_r4
 
       platformId = tvs_platforms(sensorIndex)
       satelliteId = tvs_satellites(sensorIndex)
@@ -1672,12 +1667,12 @@ contains
       if (tvs_isInstrumAllskyTtAssim(instrumId)) then
         clwObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
         clwFG  = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
-        cloudPredictorUsed = 0.5D0 * (clwObs + clwFG)
-        cloudPredictorUsed_r4 = real(cloudPredictorUsed)
+        cldPredUsed = 0.5D0 * (clwObs + clwFG)
+        cldPredUsed_r4 = real(cldPredUsed)
 
         ! check to ensure CLW is retrieved and properly set
-        if (cloudPredictorUsed_r4 < minRetrievableClwValue_r4 .or. &
-            cloudPredictorUsed_r4 > maxRetrievableClwValue_r4) then
+        if (cldPredUsed_r4 < minRetrievableClwValue_r4 .or. &
+            cldPredUsed_r4 > maxRetrievableClwValue_r4) then
           write(*,*) 'This observation should have been rejected ', &
                      'for all-sky temperature in background check!' 
           write(*,*) 'computeCloudPredictor: platformId=', platformId, &
@@ -1690,12 +1685,12 @@ contains
       else if (tvs_isInstrumAllskyHuAssim(instrumId)) then
         siObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
         siFG  = obs_headElem_r(obsSpaceData, OBS_SIB, headerIndex)
-        cloudPredictorUsed = 0.5D0 * (siObs + siFG)
-        cloudPredictorUsed_r4 = real(cloudPredictorUsed)
+        cldPredUsed = 0.5D0 * (siObs + siFG)
+        cldPredUsed_r4 = real(cldPredUsed)
 
         ! check to ensure SI is retrieved and properly set
-        if (cloudPredictorUsed_r4 < minRetrievableSiValue_r4 .or. &
-            cloudPredictorUsed_r4 > maxRetrievableSiValue_r4) then
+        if (cldPredUsed_r4 < minRetrievableSiValue_r4 .or. &
+            cldPredUsed_r4 > maxRetrievableSiValue_r4) then
           write(*,*) 'This observation should have been rejected ', &
                      'for all-sky humidity in background check!' 
           write(*,*) 'computeCloudPredictor: platformId=', platformId, &
@@ -1790,8 +1785,8 @@ contains
       ! error inflation for cloud placement 
       deltaE1 = 0.0D0
       if (mwAllskyTtInflateByOmp .and. &
-          ((clwObs - clearCldPredThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) * &
-           (clwFG  - clearCldPredThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) < 0) .and. &
+          ((clwObs - clearCldPredThresh(channelNumber_withOffset,sensorIndex)) * &
+           (clwFG  - clearCldPredThresh(channelNumber_withOffset,sensorIndex)) < 0) .and. &
           abs(clwObs - clwFG) >= 0.005) then
         deltaE1 = abs(ompValue)
       end if
@@ -1799,7 +1794,7 @@ contains
       ! error inflation due to cloud liquid water difference
       deltaE2 = 0.0D0
       if (mwAllskyTtInflateByClwDiff) then
-        deltaE2 = stateDepSigmaObsInflationCoeff(sensorIndex) * abs(clwObs - clwFG) * &
+        deltaE2 = inflateErrAllskyCoeff(sensorIndex) * abs(clwObs - clwFG) * &
                   sigmaObsBeforeInflation
       end if
       deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
@@ -1829,8 +1824,8 @@ contains
       ! error inflation for cloud placement 
       deltaE1 = 0.0D0
       if (mwAllskyHuInflateByOmp .and. &
-          ((siObs - clearCldPredThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) * &
-           (siFG  - clearCldPredThresholdSigmaObsInflation(channelNumber_withOffset,sensorIndex)) < 0) .and. &
+          ((siObs - clearCldPredThresh(channelNumber_withOffset,sensorIndex)) * &
+           (siFG  - clearCldPredThresh(channelNumber_withOffset,sensorIndex)) < 0) .and. &
           abs(siObs - siFG) >= 1.0) then
         deltaE1 = abs(ompValue)
       end if
@@ -1838,7 +1833,7 @@ contains
       ! error inflation due to scattering-index difference
       deltaE2 = 0.0D0
       if (mwAllskyHuInflateBySiDiff) then
-        deltaE2 = stateDepSigmaObsInflationCoeff(sensorIndex) * abs(siObs - siFG) * &
+        deltaE2 = inflateErrAllskyCoeff(sensorIndex) * abs(siObs - siFG) * &
                   sigmaObsBeforeInflation
       end if
       deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)      
