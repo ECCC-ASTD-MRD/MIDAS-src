@@ -46,7 +46,7 @@ module obsErrors_mod
 
   ! public procedures
   public :: oer_setObsErrors, oer_SETERRGPSGB, oer_SETERRGPSRO, oer_setErrBackScatAnisIce, oer_sw
-  public :: oer_setInterchanCorr, oer_computeAllskyInflatedStateDepSigmaObs
+  public :: oer_setInterchanCorr, oer_inflateErrAllsky
   
   ! public functions
   public :: oer_getSSTdataParam_char, oer_getSSTdataParam_int, oer_getSSTdataParam_R8
@@ -1714,9 +1714,9 @@ contains
   end subroutine oer_fillObsErrors
 
   !--------------------------------------------------------------------------
-  ! oer_computeAllskyInflatedStateDepSigmaObs
+  ! oer_inflateErrAllsky
   !--------------------------------------------------------------------------
-  subroutine oer_computeAllskyInflatedStateDepSigmaObs(obsSpaceData, headerIndex, bodyIndex, &
+  subroutine oer_inflateErrAllsky(obsSpaceData, headerIndex, bodyIndex, &
                                                          ompOmaObsColumn, beSilent_opt)
     !
     ! :Purpose: Update OBS_OER with inflated state dependant observation error for all-sky
@@ -1778,12 +1778,12 @@ contains
       ompValue                = obs_bodyElem_r(obsSpaceData, ompOmaObsColumn, bodyIndex)
 
       if (.not. beSilent) then
-        write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: chanIsAllskyTt', &
+        write(*,*) 'oer_inflateErrAllsky: chanIsAllskyTt', &
                           ', headerIndex=', headerIndex, &
                           ', sensorIndex=', sensorIndex, &
                           ', chan_noOff=', channelNumber_withOffset, &
                           ', chan_no=', channelNumber
-        write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: clwObs=', clwObs, &
+        write(*,*) 'oer_inflateErrAllsky: clwObs=', clwObs, &
                           ', clwFG=', clwFG, ', OMP=', ompValue                          
       end if
 
@@ -1817,12 +1817,12 @@ contains
       ompValue                = obs_bodyElem_r(obsSpaceData, ompOmaObsColumn, bodyIndex)
 
       if (.not. beSilent) then
-        write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: chanIsAllskyHu', &
+        write(*,*) 'oer_inflateErrAllsky: chanIsAllskyHu', &
                           ', headerIndex=', headerIndex, &
                           ', sensorIndex=', sensorIndex, &
                           ', chan_noOff=', channelNumber_withOffset, &
                           ', chan_no=', channelNumber
-        write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: siObs=', siObs, &
+        write(*,*) 'oer_inflateErrAllsky: siObs=', siObs, &
                           ', siFG=', siFG, ', OMP=', ompValue                          
       end if      
   
@@ -1851,15 +1851,15 @@ contains
                              (deltaE1 + deltaE2) ** 2)
 
     if (.not. beSilent) then
-      write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: deltaE1=', deltaE1, &
+      write(*,*) 'oer_inflateErrAllsky: deltaE1=', deltaE1, &
                         ', deltaE2=', deltaE2
-      write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: sigmaObs=', &
+      write(*,*) 'oer_inflateErrAllsky: sigmaObs=', &
           sigmaObsBeforeInflation, ', sigmaObsInflated=', sigmaObsAfterInflation
     end if                             
 
     call obs_bodySet_r(obsSpaceData, OBS_OER, bodyIndex, sigmaObsAfterInflation)
 
-  end subroutine oer_computeAllskyInflatedStateDepSigmaObs
+  end subroutine oer_inflateErrAllsky
 
   !--------------------------------------------------------------------------
   ! chanIsAllsky
