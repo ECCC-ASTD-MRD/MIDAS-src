@@ -6892,12 +6892,12 @@ contains
     implicit none
 
     ! Arguments:
-    real, intent(in) :: cldPredThresh1
-    real, intent(in) :: cldPredThresh2
-    real, intent(in) :: errThresh1
-    real, intent(in) :: errThresh2
-    real, intent(in) :: cldPredUsed
-    real :: sigmaObsErrUsed
+    real, intent(in) :: cldPredThresh1 ! first cloud predictor threshold
+    real, intent(in) :: cldPredThresh2 ! second cloud predictor threshold
+    real, intent(in) :: errThresh1 ! sigmaO corresponding to first cloud predictor threshold
+    real, intent(in) :: errThresh2 ! sigmaO corresponding to second cloud predictor threshold
+    real, intent(in) :: cldPredUsed    ! cloud predictor for the obs
+    real :: sigmaObsErrUsed            ! estimated sigmaO for the obs
 
     if (cldPredUsed <= cldPredThresh1) then
       sigmaObsErrUsed = errThresh1

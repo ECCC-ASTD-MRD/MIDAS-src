@@ -1629,12 +1629,12 @@ contains
       implicit none
 
       ! Arguments:
-      real(8), intent(in) :: cldPredThresh1
-      real(8), intent(in) :: cldPredThresh2
-      real(8), intent(in) :: errThresh1
-      real(8), intent(in) :: errThresh2
-      real(8), intent(in) :: cldPredUsed
-      real(8) :: sigmaObsErrUsed
+      real(8), intent(in) :: cldPredThresh1 ! first cloud predictor threshold
+      real(8), intent(in) :: cldPredThresh2 ! second cloud predictor threshold
+      real(8), intent(in) :: errThresh1 ! sigmaO corresponding to first cloud predictor threshold
+      real(8), intent(in) :: errThresh2 ! sigmaO corresponding to second cloud predictor threshold
+      real(8), intent(in) :: cldPredUsed    ! cloud predictor for the obs
+      real(8) :: sigmaObsErrUsed            ! estimated sigmaO for the obs
 
       if (cldPredUsed <= cldPredThresh1) then
         sigmaObsErrUsed = errThresh1
@@ -1660,9 +1660,9 @@ contains
       implicit none
 
       ! Arguments:
-      integer, intent(in) :: sensorIndex
+      integer, intent(in) :: sensorIndex ! index of sensor in tvs_nsensors
       integer, intent(in) :: headerIndex
-      real(8) :: cldPredUsed
+      real(8) :: cldPredUsed             ! cloud predictor. CLW/SI for all-sky temperature/humidity
 
       ! Locals:
       integer :: platformId
@@ -1734,7 +1734,7 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData
     integer,          intent(in)    :: bodyIndex
     integer,          intent(in)    :: ompOmaObsColumn  ! obsSpaceData OBS_OMP or OBS_OMA column
-    logical, intent(in), optional   :: beSilent_opt
+    logical, intent(in), optional   :: beSilent_opt     ! prints extra info to listing if .true.
     
     ! Locals:
     integer :: headerIndex
@@ -1880,8 +1880,8 @@ contains
     ! Arguments:
     type(struct_obs), intent(in)  :: obsSpaceData
     integer,          intent(in)  :: bodyIndex
-    logical,          intent(out) :: chanIsAllskyTt
-    logical,          intent(out) :: chanIsAllskyHu
+    logical,          intent(out) :: chanIsAllskyTt ! .true. if channel is all-sky temperature
+    logical,          intent(out) :: chanIsAllskyHu ! .true. if channel is all-sky humidity
 
     ! Locals:
     integer :: headerIndex
