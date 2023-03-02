@@ -139,8 +139,8 @@ contains
     real(8), allocatable, target :: eigenValues_pert(:), eigenVectors_pert(:,:)
     
     real(8), allocatable :: distances(:), PaSqrt_pert(:,:)
-    real(8), allocatable :: YbTinvRYb_CV_pert(:,:), YbTinvRYb_mod_pert(:,:)
-    real(8), allocatable :: eigenValues_CV_pert(:), eigenVectors_CV_pert(:,:)
+    real(8), allocatable :: YbTinvRYb_CV(:,:), YbTinvRYb_mod(:,:)
+    real(8), allocatable :: eigenValues_CV(:), eigenVectors_CV(:,:)
     real(8), allocatable :: weightsTemp(:), weightsTemp2(:)
     real(8), allocatable :: weightsMembers(:,:,:,:), weightsMembersLatLon(:,:,:)
     real(8), allocatable :: weightsMean(:,:,:,:), weightsMeanLatLon(:,:,:)
@@ -211,7 +211,7 @@ contains
     allocate(YbTinvRYb_pert(nEnsGain,nEnsGain))
     if ( trim(algorithm) == 'CVLETKF-ME' .or. &
          trim(algorithm) == 'LETKF-Gain-ME' ) then
-      allocate(YbTinvRYb_mod_pert(nEnsGain,nEns))
+      allocate(YbTinvRYb_mod(nEnsGain,nEns))
       allocate(YbCopy_r4(maxNumLocalObs,nEns))
     end if
     allocate(eigenValues_pert(nEnsGain))
@@ -284,9 +284,9 @@ contains
         nEnsPerSubEns_mod = nEnsPerSubEns * numRetainedEigen
         nEnsIndependentPerSubEns = nEnsGain - nEnsPerSubEns_mod
       end if      
-      allocate(YbTinvRYb_CV_pert(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
-      allocate(eigenValues_CV_pert(nEnsIndependentPerSubEns))
-      allocate(eigenVectors_CV_pert(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
+      allocate(YbTinvRYb_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
+      allocate(eigenValues_CV(nEnsIndependentPerSubEns))
+      allocate(eigenVectors_CV(nEnsIndependentPerSubEns,nEnsIndependentPerSubEns))
       allocate(memberIndexSubEns(nEnsPerSubEns,numSubEns))
       allocate(memberIndexSubEnsComp(nEnsIndependentPerSubEns,numSubEns))
       if ( useModulatedEns ) allocate(memberIndexSubEns_mod(nEnsPerSubEns_mod,numSubEns))
@@ -481,24 +481,18 @@ contains
             distance = abs( anlVertLocation - ensObs_mpiglobal%vertLocation(bodyIndex) )
             localization = localization * lfn_Response(distance,vLocalize)
           end if
+          do memberIndex = 1, nEnsGain
+            ! YbTinvR for updating ensemble perturbations
+            YbTinvR_pert(memberIndex,localObsIndex) =  &
+                 ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
+                 localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
+          end do
           if ( edaObsImpact ) then
             do memberIndex = 1, nEnsGain
-              ! YbTinvR for updating ensemble perturbations
-              YbTinvR_pert(memberIndex,localObsIndex) =  &
-                   ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-                   localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)            
-
               ! YbTinvR for the ensemble mean update for EDA observation simulation experiment
               YbTinvR_mean(memberIndex,localObsIndex) =  &
                    ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
                    localization * ensObsGain_mpiglobal%obsErrInv_eda(bodyIndex)             
-            end do
-          else
-            do memberIndex = 1, nEnsGain
-              ! YbTinvR for updating ensemble perturbations
-              YbTinvR_pert(memberIndex,localObsIndex) =  &
-                   ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-                   localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
             end do
           end if
         end do ! localObsIndex
@@ -529,6 +523,7 @@ contains
         call utl_tmg_start(138,'--------YbTinvRYb1')
 
         YbTinvRYb_pert(:,:) = 0.0D0
+        !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
         do memberIndex2 = 1, nEnsGain
           do memberIndex1 = 1, nEnsGain
             YbTinvRYb_pert(memberIndex1,memberIndex2) =  &
@@ -536,7 +531,8 @@ contains
                 sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbGainCopy_r4(1:numLocalObs,memberIndex2))             
           end do
         end do
-        if ( edaObsImpact ) then
+        !$OMP END PARALLEL DO       
+        if ( edaObsImpact ) then     
           YbTinvRYb_mean(:,:) = 0.0D0
           !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEnsGain
@@ -564,13 +560,13 @@ contains
           end do
           call utl_tmg_stop(137)
 
-          YbTinvRYb_mod_pert(:,:) = 0.0D0
+          YbTinvRYb_mod(:,:) = 0.0D0
           call utl_tmg_start(139,'--------YbTinvRYb2')
           !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEns
             do memberIndex1 = 1, nEnsGain
-              YbTinvRYb_mod_pert(memberIndex1,memberIndex2) =  &
-                  YbTinvRYb_mod_pert(memberIndex1,memberIndex2) +  &
+              YbTinvRYb_mod(memberIndex1,memberIndex2) =  &
+                  YbTinvRYb_mod(memberIndex1,memberIndex2) +  &
                   sum(YbTinvRCopy_pert(1:numLocalObs,memberIndex1) * YbCopy_r4(1:numLocalObs,memberIndex2))
             end do
           end do
@@ -797,7 +793,7 @@ contains
                 do memberIndex1 = 1, nEnsGain
                   weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
                                               eigenVectors_pert(memberIndex1,memberIndex2) *  &
-                                              YbTinvRYb_mod_pert(memberIndex1,memberIndex)
+                                              YbTinvRYb_mod(memberIndex1,memberIndex)
                 end do
               end do
 
@@ -845,10 +841,7 @@ contains
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
             call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
-            call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
-            if ( edaObsImpact ) then
-              call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-            end if
+            call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
             call utl_tmg_stop(135)
 
             ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
@@ -897,11 +890,11 @@ contains
                 memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
                 do memberIndexCV1 = 1, nEnsIndependentPerSubEns
                   memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                  YbTinvRYb_CV_pert(memberIndexCV1,memberIndexCV2) = YbTinvRYb_pert(memberIndex1,memberIndex2)
+                  YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb_pert(memberIndex1,memberIndex2)
                 end do
               end do
               tolerance = 1.0D-50
-              call utl_eigenDecomp(YbTinvRYb_CV_pert, eigenValues_CV_pert, eigenVectors_CV_pert, tolerance, matrixRank)
+              call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
               call utl_tmg_stop(135)
 
               ! Loop over members within the current sub-ensemble being updated
@@ -916,7 +909,7 @@ contains
                   do memberIndexCV1 = 1, nEnsIndependentPerSubEns
                     memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
                     weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
-                                                eigenVectors_CV_pert(memberIndexCV1,memberIndex2) *  &
+                                                eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
                                                 YbTinvRYb_pert(memberIndex1,memberIndex)
                   end do
                 end do
@@ -926,10 +919,10 @@ contains
                 do memberIndex1 = 1, matrixRank
                   weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
                                               ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns - 1,8)) -   &
-                                                1.0D0/sqrt(eigenValues_CV_pert(memberIndex1) +  &
+                                                1.0D0/sqrt(eigenValues_CV(memberIndex1) +  &
                                                            real(nEnsIndependentPerSubEns - 1,8)) )
                   weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
-                                              eigenValues_CV_pert(memberIndex1)
+                                              eigenValues_CV(memberIndex1)
                 end do
 
                 ! E * previous_result
@@ -939,7 +932,7 @@ contains
                     memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
                     weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) =   &
                          weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) +   &
-                         eigenVectors_CV_pert(memberIndexCV1,memberIndex2) *  &
+                         eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
                          weightsTemp(memberIndex2)
                   end do
                 end do
@@ -971,10 +964,7 @@ contains
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
             call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
-            call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
-            if ( edaObsImpact ) then
-              call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-            end if
+            call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
             call utl_tmg_stop(135)
             !if (matrixRank < (nEns-1)) then
             !  write(*,*) 'YbTinvRYb is rank deficient =', matrixRank, nEns, numLocalObs
@@ -1026,11 +1016,11 @@ contains
                 memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
                 do memberIndexCV1 = 1, nEnsIndependentPerSubEns
                   memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                  YbTinvRYb_CV_pert(memberIndexCV1,memberIndexCV2) = YbTinvRYb_pert(memberIndex1,memberIndex2)
+                  YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb_pert(memberIndex1,memberIndex2)
                 end do
               end do
               tolerance = 1.0D-50
-              call utl_eigenDecomp(YbTinvRYb_CV_pert, eigenValues_CV_pert, eigenVectors_CV_pert, tolerance, matrixRank)
+              call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
               call utl_tmg_stop(135)
 
               ! Loop over members within the current sub-ensemble being updated
@@ -1045,8 +1035,8 @@ contains
                   do memberIndexCV1 = 1, nEnsIndependentPerSubEns
                     memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
                     weightsTemp(memberIndex2) = weightsTemp(memberIndex2) +  &
-                                                eigenVectors_CV_pert(memberIndexCV1,memberIndex2) *  &
-                                                YbTinvRYb_mod_pert(memberIndex1,memberIndex)
+                                                eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
+                                                YbTinvRYb_mod(memberIndex1,memberIndex)
                   end do
                 end do
 
@@ -1055,10 +1045,10 @@ contains
                 do memberIndex1 = 1, matrixRank
                   weightsTemp(memberIndex1) = weightsTemp(memberIndex1) *  &
                                               ( 1.0D0/sqrt(real(nEnsIndependentPerSubEns - 1,8)) -   &
-                                                1.0D0/sqrt(eigenValues_CV_pert(memberIndex1) +  &
+                                                1.0D0/sqrt(eigenValues_CV(memberIndex1) +  &
                                                            real(nEnsIndependentPerSubEns - 1,8)) )
                   weightsTemp(memberIndex1) = weightsTemp(memberIndex1) /  &
-                                              eigenValues_CV_pert(memberIndex1)
+                                              eigenValues_CV(memberIndex1)
                 end do
 
                 ! E * previous_result
@@ -1068,7 +1058,7 @@ contains
                     memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
                     weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) =   &
                          weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) +   &
-                         eigenVectors_CV_pert(memberIndexCV1,memberIndex2) *  &
+                         eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
                          weightsTemp(memberIndex2)
                   end do
                 end do
@@ -1096,10 +1086,7 @@ contains
             ! Compute eigenValues/Vectors of Yb^T R^-1 Yb = E * Lambda * E^T
             call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
-            call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
-            if ( edaObsImpact ) then
-              call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
-            end if
+            call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
             call utl_tmg_stop(135)
 
             ! Compute ensemble mean local weights as E * (Lambda + (Nens-1)*I)^-1 * E^T * YbTinvR * (obs - meanYb)
@@ -1149,11 +1136,11 @@ contains
                 memberIndex2 = memberIndexSubEnsComp(memberIndexCV2, subEnsIndex)
                 do memberIndexCV1 = 1, nEnsIndependentPerSubEns
                   memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
-                  YbTinvRYb_CV_pert(memberIndexCV1,memberIndexCV2) = YbTinvRYb_pert(memberIndex1,memberIndex2)
+                  YbTinvRYb_CV(memberIndexCV1,memberIndexCV2) = YbTinvRYb_pert(memberIndex1,memberIndex2)
                 end do
               end do
               tolerance = 1.0D-50
-              call utl_eigenDecomp(YbTinvRYb_CV_pert, eigenValues_CV_pert, eigenVectors_CV_pert, tolerance, matrixRank)
+              call utl_eigenDecomp(YbTinvRYb_CV, eigenValues_CV, eigenVectors_CV, tolerance, matrixRank)
               call utl_tmg_stop(135)
 
               ! Loop over members within the current sub-ensemble being updated
@@ -1183,7 +1170,7 @@ contains
                 do memberIndex2 = 1, matrixRank
                   do memberIndex1 = 1, nEnsIndependentPerSubEns
                     weightsTemp2(memberIndex2) = weightsTemp2(memberIndex2) +   &
-                                                 eigenVectors_CV_pert(memberIndex1,memberIndex2) *  &
+                                                 eigenVectors_CV(memberIndex1,memberIndex2) *  &
                                                  weightsTemp(memberIndex1)
                   end do
                 end do
@@ -1192,7 +1179,7 @@ contains
                 do memberIndex1 = 1, matrixRank
                   weightsTemp2(memberIndex1) =  &
                        weightsTemp2(memberIndex1) *  &
-                       1.0D0/(eigenValues_CV_pert(memberIndex1) + real(nEnsIndependentPerSubEns - 1,8))
+                       1.0D0/(eigenValues_CV(memberIndex1) + real(nEnsIndependentPerSubEns - 1,8))
                 end do
 
                 ! E * previous_result
@@ -1202,7 +1189,7 @@ contains
                     memberIndex1 = memberIndexSubEnsComp(memberIndexCV1, subEnsIndex)
                     weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) =  &
                          weightsMembersLatLon(memberIndex1,memberIndex,latLonIndex) +   &
-                         eigenVectors_CV_pert(memberIndexCV1,memberIndex2) *  &
+                         eigenVectors_CV(memberIndexCV1,memberIndex2) *  &
                          weightsTemp2(memberIndex2)
                   end do
                 end do
