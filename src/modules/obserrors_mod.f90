@@ -1735,7 +1735,7 @@ contains
     ! Locals:
     integer :: channelNumber_withOffset
     integer :: channelNumber, channelIndex
-    integer :: tovsIndex, sensorIndex, instrumId
+    integer :: tovsIndex, sensorIndex
     logical :: surfTypeIsWater 
     real(8) :: clwObs
     real(8) :: clwFG
@@ -1744,6 +1744,7 @@ contains
     real(8) :: ompValue
     real(8) :: sigmaObsBeforeInflation
     real(8) :: sigmaObsAfterInflation
+    logical :: chanIsAllskyTt, chanIsAllskyHu
     logical :: beSilent
 
     if (present(beSilent_opt)) then
@@ -1754,7 +1755,6 @@ contains
 
     tovsIndex = tvs_tovsIndex(headerIndex)
     sensorIndex = tvs_lsensor(tovsIndex)
-    instrumId = tvs_instruments(sensorIndex)
 
     call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                         channelNumber, channelIndex)
@@ -1762,10 +1762,9 @@ contains
 
     surfTypeIsWater = (obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex) == surftype_sea)
 
-    if (.not. tvs_mwAllskyAssim .or. &
-        .not. tvs_isInstrumAllskyTtAssim(instrumId) .or. &
-        .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .or. &
-        .not. surfTypeIsWater .or. &
+    call chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+
+    if (.not. chanIsAllskyTt .or. .not. surfTypeIsWater .or. &
         (.not. mwAllskyTtInflateByOmp .and. .not. mwAllskyTtInflateByClwDiff)) return
 
     if (.not. beSilent) then
@@ -1835,7 +1834,7 @@ contains
     ! Locals:
     integer :: channelNumber_withOffset
     integer :: channelNumber, channelIndex
-    integer :: tovsIndex, sensorIndex, instrumId
+    integer :: tovsIndex, sensorIndex
     logical :: surfTypeIsWater 
     real(8) :: siObs
     real(8) :: siFG
@@ -1844,6 +1843,7 @@ contains
     real(8) :: ompValue
     real(8) :: sigmaObsBeforeInflation
     real(8) :: sigmaObsAfterInflation
+    logical :: chanIsAllskyTt, chanIsAllskyHu
     logical :: beSilent
 
     if (present(beSilent_opt)) then
@@ -1854,7 +1854,6 @@ contains
 
     tovsIndex = tvs_tovsIndex(headerIndex)
     sensorIndex = tvs_lsensor(tovsIndex)
-    instrumId = tvs_instruments(sensorIndex)
 
     call tvs_getChannelNumIndexFromPPP(obsSpaceData, headerIndex, bodyIndex, &
                                         channelNumber, channelIndex)
@@ -1862,10 +1861,9 @@ contains
 
     surfTypeIsWater = (tvs_ChangedStypValue(obsSpaceData,headerIndex) == surftype_sea)
 
-    if (.not. tvs_mwAllskyAssim .or. &
-        .not. tvs_isInstrumAllskyHuAssim(instrumId) .or. &
-        .not. useStateDepSigmaObs(channelNumber_withOffset,sensorIndex) .or. &
-        .not. surfTypeIsWater .or. &
+    call chanIsAllsky(obsSpaceData, bodyIndex, chanIsAllskyTt, chanIsAllskyHu)
+
+    if (.not. chanIsAllskyHu .or. .not. surfTypeIsWater .or. &
         (.not. mwAllskyHuInflateByOmp .and. .not. mwAllskyHuInflateBySiDiff)) return
 
     if (.not. beSilent) then
