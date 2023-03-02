@@ -56,16 +56,16 @@ module obsErrors_mod
   
  ! Arrays for QC purpose
   public :: oer_toverrst, oer_cldPredThresh, oer_tovutil
-  public :: oer_sigmaObsErr, oer_useStateDepSigmaObs 
+  public :: oer_errThreshAllsky, oer_useStateDepSigmaObs 
   ! TOVS OBS ERRORS
   real(8) :: toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
-  real(8) :: sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  real(8) :: errThreshAllsky(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   integer :: tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   logical :: useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: oer_toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: oer_cldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
-  real(8) :: oer_sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+  real(8) :: oer_errThreshAllsky(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: clearCldPredThresh(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: inflateErrAllskyCoeff(tvs_maxNumberOfSensors)
   integer :: oer_tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
@@ -357,7 +357,7 @@ contains
 
     real(8) :: TOVERRIN(tvs_maxChannelNumber,2,tvs_maxNumberOfSensors)
     real(8) :: cldPredThreshInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
-    real(8) :: sigmaObsErrInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
+    real(8) :: errThreshAllskyInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
     real(8) :: tovsObsInflation(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(8) :: clearCldPredThreshInput(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
     real(8) :: inflateErrAllskyCoeffInput(tvs_maxNumberOfSensors)
@@ -376,8 +376,8 @@ contains
     TOVERRIN(:,:,:) = 0.0D0
     cldPredThresh(:,:,:) = 0.0d0
     cldPredThreshInput(:,:,:) = 0.0d0
-    sigmaObsErr(:,:,:) = 0.0d0
-    sigmaObsErrInput(:,:,:) = 0.0d0
+    errThreshAllsky(:,:,:) = 0.0d0
+    errThreshAllskyInput(:,:,:) = 0.0d0
     tovsObsInflation(:,:) = 0.0d0
     IUTILST(:,:) = 0
     useStateDepSigmaObs(:,:) = .false.
@@ -508,7 +508,7 @@ contains
           if (readOldSymmetricObsErrFile) then
             read(ILUTOV2,*) ICHNIN2(JI), &
                   cldPredThreshInput(ICHNIN2(JI),JL,1), cldPredThreshInput(ICHNIN2(JI),JL,2), &
-                  sigmaObsErrInput(ICHNIN2(JI),JL,1), sigmaObsErrInput(ICHNIN2(JI),JL,2), &
+                  errThreshAllskyInput(ICHNIN2(JI),JL,1), errThreshAllskyInput(ICHNIN2(JI),JL,2), &
                   useStateDepSigmaObsInput(ICHNIN2(JI),JL)
             if (CINSTR == "AMSUA") then
               amsuaChannelOffset = 27
@@ -520,7 +520,7 @@ contains
           else
             read(ILUTOV2,*) ICHNIN2(JI), &
                   cldPredThreshInput(ICHNIN2(JI),JL,1), cldPredThreshInput(ICHNIN2(JI),JL,2), &
-                  sigmaObsErrInput(ICHNIN2(JI),JL,1), sigmaObsErrInput(ICHNIN2(JI),JL,2), &
+                  errThreshAllskyInput(ICHNIN2(JI),JL,1), errThreshAllskyInput(ICHNIN2(JI),JL,2), &
                   clearCldPredThreshInput(ICHNIN2(JI),JL), &
                   useStateDepSigmaObsInput(ICHNIN2(JI),JL)
           end if
@@ -563,16 +563,16 @@ contains
 
               if (tvs_mwAllskyAssim) then
                 cldPredThresh(JI,JL,:) = cldPredThreshInput(JI,JM,:)
-                sigmaObsErr(JI,JL,:) = sigmaObsErrInput(JI,JM,:)
+                errThreshAllsky(JI,JL,:) = errThreshAllskyInput(JI,JM,:)
                 clearCldPredThresh(JI,JL) = clearCldPredThreshInput(JI,JM)
                 useStateDepSigmaObs(JI,JL) = (useStateDepSigmaObsInput(JI,JM) == 1)
 
                 if (JI == 1) inflateErrAllskyCoeff(JL) = inflateErrAllskyCoeffInput(JM)
 
-                ! inflate the sigmaObsErr in analysis mode
+                ! inflate the errThreshAllsky in analysis mode
                 if (obsErrorColumnIndex == analysisColumnIndex) then
-                  sigmaObsErr(JI,JL,1) = sigmaObsErr(JI,JL,1) * tovsObsInflation(JI,JM)
-                  sigmaObsErr(JI,JL,2) = sigmaObsErr(JI,JL,2) * tovsObsInflation(JI,JM)
+                  errThreshAllsky(JI,JL,1) = errThreshAllsky(JI,JL,1) * tovsObsInflation(JI,JM)
+                  errThreshAllsky(JI,JL,2) = errThreshAllsky(JI,JL,2) * tovsObsInflation(JI,JM)
                 end if
               end if
 
@@ -619,7 +619,7 @@ contains
           do JI = 1, NUMCHN(JL)
             write(*,'(I7,5(2X,F8.4),(2X,L3))') ICHN(JI,JL), &
               cldPredThresh(ICHN(JI,JL),JL,1), cldPredThresh(ICHN(JI,JL),JL,2), &
-              sigmaObsErr(ICHN(JI,JL),JL,1), sigmaObsErr(ICHN(JI,JL),JL,2), &
+              errThreshAllsky(ICHN(JI,JL),JL,1), errThreshAllsky(ICHN(JI,JL),JL,2), &
               clearCldPredThresh(ICHN(JI,JL),JL), &
               useStateDepSigmaObs(ICHN(JI,JL),JL)
           end do
@@ -647,7 +647,7 @@ contains
     oer_toverrst(:,:) = toverrst(:,:)
     oer_tovutil (:,:) = tovutil(:,:)
     oer_cldPredThresh(:,:,:) = cldPredThresh(:,:,:)
-    oer_sigmaObsErr(:,:,:) = sigmaObsErr(:,:,:)
+    oer_errThreshAllsky(:,:,:) = errThreshAllsky(:,:,:)
     oer_useStateDepSigmaObs(:,:) = useStateDepSigmaObs(:,:)
 
   contains
@@ -1075,7 +1075,7 @@ contains
     real(8) :: zlat, zlon, zlev, zval, zwb, zwt, obs_err_stddev, solarZenith
     real(8) :: obsValue, obsStdDevError, obsPPP, obsOER
     real(8) :: cldPredThresh1, cldPredThresh2, cldPredUsed
-    real(8) :: sigmaThresh1, sigmaThresh2, sigmaObsErrUsed
+    real(8) :: errThresh1, errThresh2, sigmaObsErrUsed
     real(4), parameter :: minRetrievableClwValue_r4 = 0.0
     real(4), parameter :: maxRetrievableClwValue_r4 = 3.0
     real(4), parameter :: minRetrievableSiValue_r4 = -10.0
@@ -1149,15 +1149,15 @@ contains
                     else
                       cldPredThresh1 = cldPredThresh(channelNumber,sensorIndex,1)
                       cldPredThresh2 = cldPredThresh(channelNumber,sensorIndex,2)
-                      sigmaThresh1 = sigmaObsErr(channelNumber,sensorIndex,1)
-                      sigmaThresh2 = sigmaObsErr(channelNumber,sensorIndex,2)
+                      errThresh1 = errThreshAllsky(channelNumber,sensorIndex,1)
+                      errThresh2 = errThreshAllsky(channelNumber,sensorIndex,2)
 
                       ! Compute cloudPredictor to use
                       cldPredUsed = computeCloudPredictor(sensorIndex, headerIndex)
 
                       ! Use cloud predictor to compute state-dependent obs error
                       sigmaObsErrUsed = calcStateDepObsErr(cldPredThresh1, cldPredThresh2, &
-                                                           sigmaThresh1, sigmaThresh2, cldPredUsed)
+                                                           errThresh1, errThresh2, cldPredUsed)
                     end if
                   else
                     sigmaObsErrUsed = TOVERRST(channelNumber, sensorIndex)
@@ -1613,7 +1613,7 @@ contains
   contains
 
     function calcStateDepObsErr(cldPredThresh1, cldPredThresh2, &
-                                sigmaThresh1, sigmaThresh2, cldPredUsed) result(sigmaObsErrUsed)
+                                errThresh1, errThresh2, cldPredUsed) result(sigmaObsErrUsed)
       !
       ! :Purpose: Calculate state-dependent observation error.
       !
@@ -1622,21 +1622,21 @@ contains
       ! Arguments:
       real(8), intent(in) :: cldPredThresh1
       real(8), intent(in) :: cldPredThresh2
-      real(8), intent(in) :: sigmaThresh1
-      real(8), intent(in) :: sigmaThresh2
+      real(8), intent(in) :: errThresh1
+      real(8), intent(in) :: errThresh2
       real(8), intent(in) :: cldPredUsed
       real(8) :: sigmaObsErrUsed
 
       if (cldPredUsed <= cldPredThresh1) then
-        sigmaObsErrUsed = sigmaThresh1
+        sigmaObsErrUsed = errThresh1
       else if (cldPredUsed >  cldPredThresh1 .and. & 
                cldPredUsed <= cldPredThresh2) then
-        sigmaObsErrUsed = sigmaThresh1 + &
-                          (sigmaThresh2 - sigmaThresh1) / &
+        sigmaObsErrUsed = errThresh1 + &
+                          (errThresh2 - errThresh1) / &
                           (cldPredThresh2 - cldPredThresh1) * &
                           (cldPredUsed - cldPredThresh1) 
       else
-        sigmaObsErrUsed = sigmaThresh2
+        sigmaObsErrUsed = errThresh2
       end if
 
     end function calcStateDepObsErr

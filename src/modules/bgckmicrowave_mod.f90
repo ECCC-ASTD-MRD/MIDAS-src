@@ -1297,7 +1297,7 @@ contains
   ! amsuaTest14RogueCheck
   !--------------------------------------------------------------------------
   subroutine amsuaTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, clwThreshArr, &
-                                   useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clwObs, clwFG, &
+                                   useStateDepSigmaObs, errThreshAllsky, ktermer, PTBOMP, clwObs, clwFG, &
                                    MISGRODY, MXSFCREJ, ISFCREJ, KMARQ, ICHECK)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
@@ -1317,7 +1317,7 @@ contains
     real(8),     intent(in)                :: TOVERRST(:,:)                  !  erreur totale TOVs
     logical,     intent(in)                :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
     real(8),     intent(in)                :: clwThreshArr(:,:,:)            ! cloud threshold array
-    real(8),     intent(in)                :: sigmaObsErr(:,:,:)             ! sigma obs error
+    real(8),     intent(in)                :: errThreshAllsky(:,:,:)         ! sigma obs error thresholds for all-sky
     integer,     intent(in)                :: ktermer(KNT)                   ! land/sea identifier
     real,        intent(in)                :: clwObs(KNT)                    ! retrieved cloud liquid water from observation
     real,        intent(in)                :: clwFG(KNT)                     ! retrieved cloud liquid water from background
@@ -1336,8 +1336,8 @@ contains
     real                                   :: XCHECKVAL
     real                                   :: clwThresh1 
     real                                   :: clwThresh2
-    real                                   :: sigmaThresh1 
-    real                                   :: sigmaThresh2
+    real                                   :: errThresh1 
+    real                                   :: errThresh2
     real                                   :: sigmaObsErrUsed  
     logical                                :: SFCREJCT
     logical                                :: surfTypeIsWater
@@ -1356,14 +1356,14 @@ contains
                 .and. surfTypeIsWater ) then
             clwThresh1 = clwThreshArr(channelval,KNOSAT,1)
             clwThresh2 = clwThreshArr(channelval,KNOSAT,2)
-            sigmaThresh1 = sigmaObsErr(channelval,KNOSAT,1)
-            sigmaThresh2 = sigmaObsErr(channelval,KNOSAT,2)
+            errThresh1 = errThreshAllsky(channelval,KNOSAT,1)
+            errThresh2 = errThreshAllsky(channelval,KNOSAT,2)
             clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
             if ( clwObsFGaveraged == MISGRODY ) then
               sigmaObsErrUsed = MPC_missingValue_R4
             else
-              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1, &
-                                                        sigmaThresh2,clwObsFGaveraged)
+              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,errThresh1, &
+                                                        errThresh2,clwObsFGaveraged)
             end if
           else
             sigmaObsErrUsed = TOVERRST(channelval,KNOSAT)
@@ -1417,7 +1417,7 @@ contains
   ! amsubTest14RogueCheck
   !--------------------------------------------------------------------------
   subroutine amsubTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
-                                   siThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+                                   siThreshArr, errThreshAllsky, useStateDepSigmaObs, &
                                    iterrain, ktermer, PTBOMP, scatwObs, scatwFG, &
                                    ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK, &
                                    skipTestArr_opt)
@@ -1438,7 +1438,7 @@ contains
     real,        intent(in)                :: ROGUEFAC(:)                    ! rogue factor 
     real(8),     intent(in)                :: TOVERRST(:,:)                  ! erreur totale TOVs
     real(8),     intent(in)                :: siThreshArr(:,:,:)             ! SI threshold array
-    real(8),     intent(in)                :: sigmaObsErr(:,:,:)             ! sigma obs error    
+    real(8),     intent(in)                :: errThreshAllsky(:,:,:)         ! sigma obs error thresholds for all-sky   
     logical,     intent(in)                :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
     integer,     intent(in)                :: ktermer(KNT)                   !
     integer,     intent(in)                :: iterrain(KNT)                  !
@@ -1460,8 +1460,8 @@ contains
     real                                   :: XCHECKVAL
     real                                   :: siThresh1 
     real                                   :: siThresh2
-    real                                   :: sigmaThresh1 
-    real                                   :: sigmaThresh2
+    real                                   :: errThresh1 
+    real                                   :: errThresh2
     real                                   :: sigmaObsErrUsed
     real                                   :: siObsFGaveraged 
     logical                                :: CH2OMPREJCT
@@ -1495,14 +1495,14 @@ contains
           if (channelIsAllsky) then
             siThresh1 = siThreshArr(channelval,KNOSAT,1)
             siThresh2 = siThreshArr(channelval,KNOSAT,2)
-            sigmaThresh1 = sigmaObsErr(channelval,KNOSAT,1)
-            sigmaThresh2 = sigmaObsErr(channelval,KNOSAT,2)
+            errThresh1 = errThreshAllsky(channelval,KNOSAT,1)
+            errThresh2 = errThreshAllsky(channelval,KNOSAT,2)
             siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
             if (siObsFGaveraged == mwbg_realMissing) then
               sigmaObsErrUsed = MPC_missingValue_R4
             else
-              sigmaObsErrUsed = calcStateDepObsErr_r4(siThresh1,siThresh2,sigmaThresh1, &
-                                                      sigmaThresh2,siObsFGaveraged)
+              sigmaObsErrUsed = calcStateDepObsErr_r4(siThresh1,siThresh2,errThresh1, &
+                                                      errThresh2,siObsFGaveraged)
             end if
           else
             sigmaObsErrUsed = TOVERRST(channelval,KNOSAT)
@@ -1788,7 +1788,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsua(TOVERRST,  clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+  subroutine mwbg_tovCheckAmsua(TOVERRST, clwThreshArr, errThreshAllsky, useStateDepSigmaObs, &
                                 IUTILST, KTERMER, ICANO, ZO, btClear, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
                                 globMarq, IMARQ, ident, clwObs, clwFG, scatw, STNID, RESETQC, ZLAT)
@@ -1821,8 +1821,8 @@ contains
     !                                                                    1 (assmilate)
     !                                                                    2 (assimilate over open water only)
     real(8), intent(in)                    :: TOVERRST(:,:)            ! l'erreur totale des TOVS
-    real(8), intent(in)                    :: clwThreshArr(:,:,:)      ! 
-    real(8), intent(in)                    :: sigmaObsErr(:,:,:)       ! 
+    real(8), intent(in)                    :: clwThreshArr(:,:,:)      ! clw thresholds for all-sky
+    real(8), intent(in)                    :: errThreshAllsky(:,:,:)   ! sigma obs error thresholds for all-sky
     logical, intent(in)                    :: useStateDepSigmaObs(:,:) ! if using state dependent obs error
     integer, allocatable, intent(inout)    :: globMarq(:)              ! Marqueurs globaux  
     integer, intent(in)                    :: KTERMER(:)               ! indicateur terre/mer
@@ -2045,7 +2045,7 @@ contains
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
     call amsuaTest14RogueCheck (KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, clwThreshArr, &
-                                    useStateDepSigmaObs, sigmaObsErr, ktermer, PTBOMP, clwObs, clwFG, &
+                                    useStateDepSigmaObs, errThreshAllsky, ktermer, PTBOMP, clwObs, clwFG, &
                                     MISGRODY, MXSFCREJ, ISFCREJ, KMARQ, ICHECK)
 
     ! 15) test 15: Channel Selection using array IUTILST(chan,sat)
@@ -2103,7 +2103,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsub
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsub(TOVERRST, siThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+  subroutine mwbg_tovCheckAmsub(TOVERRST, siThreshArr, errThreshAllsky, useStateDepSigmaObs, &
                                 IUTILST,  KTERMER, ICANO, ZO, btClear, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
                                 globMarq, IMARQ, ident, clwOBS, clwFG, scatwObs, scatwFG, STNID, RESETQC)
@@ -2136,8 +2136,8 @@ contains
     !                                                               1 (assmilate)
     !                                                               2 (assimilate over open water only)
     real(8), intent(in)                    :: TOVERRST(:,:)      ! l'erreur totale des TOVS
-    real(8), intent(in)                    :: siThreshArr(:,:,:)  ! SI thresholds for state-dep obs err
-    real(8), intent(in)                    :: sigmaObsErr(:,:,:)  ! sigmaObs limits for state-dep obs err    
+    real(8), intent(in)                    :: siThreshArr(:,:,:)  ! SI thresholds for all-sky
+    real(8), intent(in)                    :: errThreshAllsky(:,:,:)  ! sigma obs error thresholds for all-sky
     logical, intent(in)                    :: useStateDepSigmaObs(:,:) ! if using state dependent obs error
     integer, allocatable, intent(inout)    :: globMarq(:)        !Marqueurs globaux  
     integer, intent(in)                    :: KTERMER(:)         ! indicateur terre/mer
@@ -2364,7 +2364,7 @@ contains
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
 
     call amsubTest14RogueCheck(KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
-                               siThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+                               siThreshArr, errThreshAllsky, useStateDepSigmaObs, &
                                iterrain, ktermer, PTBOMP, scatwObs, scatwFG, &
                                ICH2OMPREJ, MXCH2OMPREJ, KMARQ, ICHECK, &
                                skipTestArr_opt=skipTestArr(:))
@@ -3256,7 +3256,7 @@ contains
   ! atmsTest4RogueCheck
   !--------------------------------------------------------------------------
   subroutine atmsTest4RogueCheck(itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
-                                 clwThreshArr, useStateDepSigmaObs, sigmaObsErr, waterobs, &
+                                 clwThreshArr, useStateDepSigmaObs, errThreshAllsky, waterobs, &
                                  PTBOMP, clwObs, clwFG, IDENTF, MXSFCREJ, ISFCREJ, ICH2OMPREJ, &
                                  MXCH2OMPREJ, KMARQ, B7CHCK, ICHECK)
 
@@ -3280,8 +3280,8 @@ contains
     real,        intent(in)              :: ROGUEFAC(:)                    ! rogue factor 
     real(8),     intent(in)              :: TOVERRST(:,:)                  ! erreur totale TOVs
     logical,     intent(in)              :: useStateDepSigmaObs(:,:)       ! if using state dependent obs error
-    real(8),     intent(in)              :: clwThreshArr(:,:,:)            ! cloud threshold array
-    real(8),     intent(in)              :: sigmaObsErr(:,:,:)             ! sigma obs error
+    real(8),     intent(in)              :: clwThreshArr(:,:,:)            ! clw thresholds for all-sky
+    real(8),     intent(in)              :: errThreshAllsky(:,:,:)         ! sigma obs error thresholds for all-sky
     logical,     intent(in)              :: waterobs(:)                    ! open water obs
     real,        intent(in)              :: PTBOMP(KNO,KNT)                ! radiance o-p 
     real,        intent(in)              :: clwObs(:)
@@ -3304,8 +3304,8 @@ contains
     real                                 :: XCHECKVAL
     real                                 :: clwThresh1 
     real                                 :: clwThresh2
-    real                                 :: sigmaThresh1 
-    real                                 :: sigmaThresh2
+    real                                 :: errThresh1 
+    real                                 :: errThresh2
     real                                 :: sigmaObsErrUsed  
     real                                 :: clwObsFGaveraged 
     logical                              :: SFCREJCT
@@ -3325,14 +3325,14 @@ contains
                 .and. waterobs(nDataIndex) ) then
             clwThresh1 = clwThreshArr(channelval,KNOSAT,1)
             clwThresh2 = clwThreshArr(channelval,KNOSAT,2)
-            sigmaThresh1 = sigmaObsErr(channelval,KNOSAT,1)
-            sigmaThresh2 = sigmaObsErr(channelval,KNOSAT,2)
+            errThresh1 = errThreshAllsky(channelval,KNOSAT,1)
+            errThresh2 = errThreshAllsky(channelval,KNOSAT,2)
             clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
             if ( clwObs(nDataIndex) == mwbg_realMissing ) then
               sigmaObsErrUsed = MPC_missingValue_R4
             else
-              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,sigmaThresh1, &
-                                                        sigmaThresh2,clwObsFGaveraged)
+              sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,errThresh1, &
+                                                        errThresh2,clwObsFGaveraged)
             end if
           else
             sigmaObsErrUsed = TOVERRST(channelval,KNOSAT)
@@ -3613,7 +3613,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAtms 
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAtms(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+  subroutine mwbg_tovCheckAtms(TOVERRST, clwThreshArr, errThreshAllsky, useStateDepSigmaObs, &
                                IUTILST, zlat, zlon, ilq, itt, zenith, qcflag2, qcflag1, &
                                ICANO, ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
                                ISCNPOS, MTINTRP, globMarq, IMARQ, clwObs, clwFG, riwv, &
@@ -3631,8 +3631,8 @@ contains
     !                                                            2 (assimilate over open water only)
 
     real(8), intent(in)              :: TOVERRST(:,:)          ! l'erreur totale des TOVS
-    real(8), intent(in)              :: clwThreshArr(:,:,:)
-    real(8), intent(in)              :: sigmaObsErr(:,:,:)
+    real(8), intent(in)              :: clwThreshArr(:,:,:)    ! clw thresholds for all-sky
+    real(8), intent(in)              :: errThreshAllsky(:,:,:) ! sigma obs error thresholds for all-sky
     logical, intent(in)              :: useStateDepSigmaObs(:,:) ! if using state dependent obs error
     integer, intent(in)              :: KNO                    ! nombre de canaux des observations
     integer, intent(in)              :: KNT                    ! nombre de tovs
@@ -3871,7 +3871,7 @@ contains
     !  OVER OPEN WATER
     !    ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
     call atmsTest4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
-                              clwThreshArr, useStateDepSigmaObs, sigmaObsErr, waterobs, &
+                              clwThreshArr, useStateDepSigmaObs, errThreshAllsky, waterobs, &
                               PTBOMP, clwObs, clwFG, IDENT, MXSFCREJ, ISFCREJ, ICH2OMPREJ, &
                               MXCH2OMPREJ, KMARQ, B7CHCK, ICHECK)
 
@@ -6885,7 +6885,7 @@ contains
   end subroutine mwbg_reviewAllCritforFinalFlagsMwhs2
 
   function calcStateDepObsErr_r4(cldPredThresh1, cldPredThresh2, &
-                                 sigmaThresh1, sigmaThresh2, cldPredUsed) result(sigmaObsErrUsed)
+                                 errThresh1, errThresh2, cldPredUsed) result(sigmaObsErrUsed)
     !
     ! :Purpose: Calculate single-precision state-dependent observation error.
     !                                 
@@ -6894,21 +6894,21 @@ contains
     ! Arguments:
     real, intent(in) :: cldPredThresh1
     real, intent(in) :: cldPredThresh2
-    real, intent(in) :: sigmaThresh1
-    real, intent(in) :: sigmaThresh2
+    real, intent(in) :: errThresh1
+    real, intent(in) :: errThresh2
     real, intent(in) :: cldPredUsed
     real :: sigmaObsErrUsed
 
     if (cldPredUsed <= cldPredThresh1) then
-      sigmaObsErrUsed = sigmaThresh1
+      sigmaObsErrUsed = errThresh1
     else if (cldPredUsed >  cldPredThresh1 .and. & 
              cldPredUsed <= cldPredThresh2) then
-      sigmaObsErrUsed = sigmaThresh1 + &
-                        (sigmaThresh2 - sigmaThresh1) / &
+      sigmaObsErrUsed = errThresh1 + &
+                        (errThresh2 - errThresh1) / &
                         (cldPredThresh2 - cldPredThresh1) * &
                         (cldPredUsed - cldPredThresh1) 
     else
-      sigmaObsErrUsed = sigmaThresh2
+      sigmaObsErrUsed = errThresh2
     end if
 
   end function calcStateDepObsErr_r4
@@ -7259,7 +7259,7 @@ contains
       !###############################################################################
 
       if (instName == 'AMSUA') then
-        call mwbg_tovCheckAmsua(oer_toverrst, oer_cldPredThresh, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+        call mwbg_tovCheckAmsua(oer_toverrst, oer_cldPredThresh, oer_errThreshAllsky, oer_useStateDepSigmaObs, &
                                 oer_tovutil, landQualifierIndice,&
                                 obsChannels, obsTb, btClear, obsTbBiasCorr, &
                                 ompTb, qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
@@ -7269,7 +7269,7 @@ contains
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,      &
                                 atmScatteringIndexObs, burpFileSatId, RESETQC, obsLatitude)
       else if (instName == 'AMSUB') then
-        call mwbg_tovCheckAmsub(oer_toverrst, oer_cldPredThresh, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+        call mwbg_tovCheckAmsub(oer_toverrst, oer_cldPredThresh, oer_errThreshAllsky, oer_useStateDepSigmaObs, &
                                 oer_tovutil, landQualifierIndice,&
                                 obsChannels, obsTb, btClear, obsTbBiasCorr, ompTb,      & 
                                 qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
@@ -7279,7 +7279,7 @@ contains
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,       &
                                 atmScatteringIndexObs, atmScatteringIndexFG, burpFileSatId, RESETQC)
       else if (instName == 'ATMS') then
-        call mwbg_tovCheckAtms(oer_toverrst, oer_cldPredThresh, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+        call mwbg_tovCheckAtms(oer_toverrst, oer_cldPredThresh, oer_errThreshAllsky, oer_useStateDepSigmaObs, &
                                oer_tovutil, obsLatitude, obsLongitude,&
                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
                                obsQcFlag2, obsQcFlag1, &
