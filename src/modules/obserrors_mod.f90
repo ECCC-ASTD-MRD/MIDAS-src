@@ -1716,8 +1716,7 @@ contains
   !--------------------------------------------------------------------------
   ! oer_inflateErrAllsky
   !--------------------------------------------------------------------------
-  subroutine oer_inflateErrAllsky(obsSpaceData, headerIndex, bodyIndex, &
-                                                         ompOmaObsColumn, beSilent_opt)
+  subroutine oer_inflateErrAllsky(obsSpaceData, bodyIndex, ompOmaObsColumn, beSilent_opt)
     !
     ! :Purpose: Update OBS_OER with inflated state dependant observation error for all-sky
     !           temperature/humidity assimilation.
@@ -1726,12 +1725,12 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
-    integer,          intent(in)    :: headerIndex
     integer,          intent(in)    :: bodyIndex
     integer,          intent(in)    :: ompOmaObsColumn  ! obsSpaceData OBS_OMP or OBS_OMA column
     logical, intent(in), optional   :: beSilent_opt
-
+    
     ! Locals:
+    integer :: headerIndex
     integer :: channelNumber_withOffset
     integer :: channelNumber, channelIndex
     integer :: tovsIndex, sensorIndex
@@ -1754,6 +1753,7 @@ contains
       beSilent = .true.
     end if
 
+    headerIndex = obs_bodyElem_i(obsSpaceData, OBS_HIND, bodyIndex)
     tovsIndex = tvs_tovsIndex(headerIndex)
     sensorIndex = tvs_lsensor(tovsIndex)
 
