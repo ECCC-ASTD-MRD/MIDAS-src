@@ -52,14 +52,27 @@ module SSTbias_mod
   integer           :: myLonBeg, myLonEnd
   integer           :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
 
+  integer, parameter          :: maxNumberSensors = 10
+
+  ! namelist variables
+  real(8)                     :: searchRadius             ! horizontal search radius, in km, for obs gridding
+  real(4)                     :: maxBias                  ! max acceptable difference (insitu - satellite)
+  real(4)                     :: iceFractionThreshold     ! consider no ice condition below this threshold
+  integer                     :: numberPointsBG           ! parameter, number of matchups of the background bias estimation
+  character(len=20)           :: timeInterpType_nl        ! 'NEAREST' or 'LINEAR'
+  integer                     :: numObsBatches            ! number of batches for calling interp setup
+  integer                     :: numberSensors            ! MUST NOT BE INCLUDED IN NAMELIST!
+  character(len=10)           :: sensorList(maxNumberSensors)  ! list of sensors
+  logical                     :: saveAuxFields           ! to store or not auxiliary fields: nobs and weight        
+  real(4)                     :: weightMin               ! minimum value of weight for the current day bias
+  real(4)                     :: weightMax               ! maximum value of weight for the current day bias
+
   contains
 
   !--------------------------------------------------------------------------
   ! sstb_computeBias
   !--------------------------------------------------------------------------
-  subroutine sstb_computeBias(obsData, hco, vco, iceFractionThreshold, searchRadius, &
-                              numberSensors, sensorList, maxBias, numberPointsBG, &
-                              weightMin, weightMax, saveAuxFields)
+  subroutine sstb_computeBias(obsData, hco, vco)
     !
     !:Purpose: compute bias for SST satellite data with respect to insitu data 
     !  
@@ -69,15 +82,6 @@ module SSTbias_mod
     type(struct_obs), intent(inout)          :: obsData              ! obsSpaceData
     type(struct_hco), intent(inout), pointer :: hco                  ! horizontal grid structure
     type(struct_vco), intent(in)   , pointer :: vco                  ! vertical grid structure
-    real(4)         , intent(in)             :: iceFractionThreshold ! for ice fraction below it, consider open water      
-    real(8)         , intent(in)             :: searchRadius         ! horizontal search radius for obs gridding
-    integer         , intent(in)             :: numberSensors        ! Current satellites: AMSR2, METO-B, METO-A, NOAA19, NPP
-    character(len=*), intent(in)             :: sensorList(:)        ! list of satellite names
-    real(4)         , intent(in)             :: maxBias              ! max allowed insitu-satellite difference in degrees, defined in namelist  
-    integer         , intent(in)             :: numberPointsBG       ! namelist parameter: number of points used to compute background state
-    logical         , intent(in)             :: saveAuxFields        ! to store or not auxiliary fields: nobs and weight        
-    real(4)         , intent(in)             :: weightMin            ! minimum value of weight from namelist
-    real(4)         , intent(in)             :: weightMax            ! maximum value of weight from namelist
       									    
     ! locals
     integer                     :: sensorIndex, productIndex
@@ -95,7 +99,10 @@ module SSTbias_mod
 
     write(*,*) 'sstb_computeBias: Starting...'
     write(*,*) 'sstb_computeBias: Sea-ice Fraction threshold: ', iceFractionThreshold
-    
+
+    ! read the namelist
+    call readNml()
+
     ! get mpi topology
     call mmpi_setup_lonbands(hco%ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
     call mmpi_setup_latbands(hco%nj, latPerPE, latPerPEmax, myLatBeg, myLatEnd)
@@ -638,6 +645,67 @@ module SSTbias_mod
   end subroutine sstb_getBiasCorrection
 
   !--------------------------------------------------------------------------
+  ! readNml (private subroutine)
+  !--------------------------------------------------------------------------
+  subroutine readNml()
+    !
+    !:Purpose: Read the namelist `namSSTbiasEstimate`
+    !
+    implicit none
+
+    ! locals
+    integer :: ierr, nulnam, sensorIndex
+    
+    namelist /namSSTbiasEstimate/ searchRadius, maxBias, iceFractionThreshold, numberPointsBG, &
+                                  timeInterpType_nl, numObsBatches, numberSensors, sensorList, &
+                                  weightMin, weightMax, saveAuxFields
+
+    ! Setting default namelist variable values
+    searchRadius = 10.            
+    maxBias = 1.                  
+    iceFractionThreshold   = 0.05 
+    numberSensors = MPC_missingValue_INT
+    numberPointsBG = 0            
+    timeInterpType_nl = 'NEAREST'
+    numObsBatches = 20
+    sensorList(:) = ''
+    weightMin = 0.0
+    weightMax = 1.0
+    saveAuxFields = .False.
+    
+    ! Read the namelist
+    nulnam = 0
+    ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
+    read(nulnam, nml = namSSTbiasEstimate, iostat = ierr )
+    if (ierr /= 0) call utl_abort('readNml (sstb): Error reading namelist')
+    if (mmpi_myid == 0) write(*, nml = namSSTbiasEstimate )
+    ierr = fclos( nulnam )
+
+    if (numberSensors /= MPC_missingValue_INT) then
+      call utl_abort('readNml (sstb): check namSSTbiasEstimate namelist section: numberSensors should be removed')
+    end if
+
+    numberSensors = 0
+    do sensorIndex = 1, maxNumberSensors
+      if (trim(sensorList(sensorIndex))=='') exit
+      numberSensors = numberSensors + 1
+    end do
+    if (numberSensors == 0) call utl_abort('readNml (sstb): check namSSTbiasEstimate namelist section: empty sensorList')
+
+    if (mmpi_myid == 0) then
+      write(*,*)
+      write(*,*) 'readNml (sstb): sensors to treat: '
+      do sensorIndex = 1, numberSensors
+        write(*,*) 'readNml (sstb): sensor index: ', sensorIndex, ', sensor: ', sensorList( sensorIndex )
+      end do
+      write(*,*) 'readNml (sstb): interpolation type: ', timeInterpType_nl
+      write(*,*) 'readNml (sstb): number obs batches: ', numObsBatches
+      write(*,*) 'readNml (sstb): weight limits for current bias estimate: ', weightMin, weightMax
+    end if
+
+  end subroutine readNml
+
+  !--------------------------------------------------------------------------
   ! sstb_applySatelliteSSTBiasCorrection
   !--------------------------------------------------------------------------
   subroutine sstb_applySatelliteSSTBiasCorrection(obsData, hco, vco, column)
@@ -654,59 +722,16 @@ module SSTbias_mod
     type(struct_columnData), intent(in)             :: column  ! column data 
 
     ! locals
-    type(struct_gsv)            :: stateVector  
-    real(8)                     :: searchRadius             ! namelist variable, is not used in this subroutine
-    real(4)                     :: maxBias                  ! namelist variable, is not used in this subroutine 
-    real(4)                     :: iceFractionThreshold     ! namelist variable, is not used in this subroutine
-    integer                     :: numberPointsBG           ! namelist variable, is not used in this subroutine
-    character(len=20)           :: timeInterpType_nl        ! 'NEAREST' or 'LINEAR'
-    integer                     :: numObsBatches            ! number of batches for calling interp setup
-    integer                     :: numberSensors            ! number of sensors to treat
-    integer, parameter          :: maxNumberSensors = 10
-    character(len=10)           :: sensorList(maxNumberSensors)  ! list of sensors
+    type(struct_gsv)            :: stateVector
     integer         , parameter :: numberProducts = 2            ! day and night
     character(len=*), parameter :: listProducts(numberProducts)= (/'day', 'night'/) ! day and night biases
-    integer                     :: sensorIndex, productIndex, ierr,  nulnam
+    integer                     :: sensorIndex, productIndex
     character(len=1)            :: extension
     character(len=*), parameter :: biasFileName = './satellite_bias.fst'
-    namelist /namSSTbiasEstimate/ searchRadius, maxBias, iceFractionThreshold, numberPointsBG, &
-                                  timeInterpType_nl, numObsBatches, numberSensors, sensorList
 
-    ! Setting default namelist variable values
-    searchRadius = 10.            
-    maxBias = 1.                  
-    iceFractionThreshold   = 0.05 
-    numberSensors = MPC_missingValue_INT
-    numberPointsBG = 0            
-    timeInterpType_nl = 'NEAREST'
-    numObsBatches = 20
-    sensorList(:) = ''
-    
-    ! Read the namelist
-    nulnam = 0
-    ierr = fnom( nulnam, './flnml', 'FTN+SEQ+R/O', 0 )
-    read(nulnam, nml = namSSTbiasEstimate, iostat = ierr )
-    if (ierr /= 0) call utl_abort('sstb_applySatelliteSSTBiasCorrection: Error reading namelist')
-    if (mmpi_myid == 0) write(*, nml = namSSTbiasEstimate )
-    ierr = fclos( nulnam )
-  
-    if (numberSensors /= MPC_missingValue_INT) then
-      call utl_abort('sstb_applySatelliteSSTBiasCorrection: check namSSTbiasEstimate namelist section: numberSensors should be removed')
-    end if
-    numberSensors = 0
-    do sensorIndex = 1, maxNumberSensors
-      if (trim(sensorList(sensorIndex))=='') exit
-      numberSensors = numberSensors + 1
-    end do
-    if (numberSensors == 0) call utl_abort('sstb_applySatelliteSSTBiasCorrection: check namSSTbiasEstimate namelist section: empty sensorList')
-    write(*,*)''
-    write(*,*) 'sstb_applySatelliteSSTBiasCorrection: sensors to treat: '
-    do sensorIndex = 1, numberSensors
-      write(*,*) 'sstb_applySatelliteSSTBiasCorrection: sensor index: ', sensorIndex, ', sensor: ', sensorList( sensorIndex )
-    end do
-    write(*,*) 'sstb_applySatelliteSSTBiasCorrection: interpolation type: ', timeInterpType_nl
-    write(*,*) 'sstb_applySatelliteSSTBiasCorrection: number obs batches: ', numObsBatches
-        
+    ! read the namelist
+    call readNml()
+
     ! allocate state vector for bias estimation field
     call gsv_allocate(stateVector, 1, hco, vco, dataKind_opt = 4, hInterpolateDegree_opt = 'LINEAR', &
                       datestamp_opt = -1, mpi_local_opt = .true., varNames_opt = (/'TM'/))

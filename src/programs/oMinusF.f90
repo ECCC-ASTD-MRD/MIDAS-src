@@ -31,9 +31,9 @@ program midas_ominusf
   implicit none
 
   ! Namelist
-  integer :: nEns
-  logical :: addHBHT
-  logical :: addSigmaO
+  integer :: nEns       ! ensemble size
+  logical :: addHBHT    ! choose to add the value of HBHT to obsSpaceData so it can be output
+  logical :: addSigmaO  ! choose to add the value of sigma_obs to obsSpaceData so it can be output
   NAMELIST /NAMOMF/addHBHT, addSigmaO, nEns
   
   integer :: fnom, fclos, nulnam, ierr, headerIndex

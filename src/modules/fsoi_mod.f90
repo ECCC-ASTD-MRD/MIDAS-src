@@ -59,23 +59,23 @@ module fsoi_mod
   type(struct_hco), pointer :: hco_anl => null()
 
   ! namelist variables
-  integer             :: nvamaj
-  integer             :: nitermax
-  integer             :: nsimmax
-  real(8)             :: leadTime
-  real(8)             :: repsg
-  real(8)             :: rdf1fac
-  real(8)             :: latMinNorm
-  real(8)             :: latMaxNorm
-  real(8)             :: lonMinNorm
-  real(8)             :: lonMaxNorm
-  logical             :: includeUVnorm
-  logical             :: includeTTnorm
-  logical             :: includeP0norm
-  logical             :: includeHUnorm
-  logical             :: includeTGnorm
-  character(len=256)  :: forecastPath
-  character(len=4)    :: fsoMode
+  integer             :: nvamaj        ! number of vector pairs to store in memory for Hessian approximation
+  integer             :: nitermax      ! maximum number of minimization iterations
+  integer             :: nsimmax       ! maximum number of cost function evaluations during minimization
+  real(8)             :: leadTime      ! lead time of forecast (in hours)
+  real(8)             :: repsg         ! relative gradient amplitude used as stopping criteria
+  real(8)             :: rdf1fac       ! factor applied to initial cost function value to approximate final value
+  real(8)             :: latMinNorm    ! minimum latitude for area included in forecast error norm (in degrees)
+  real(8)             :: latMaxNorm    ! maximum latitude for area included in forecast error norm (in degrees)
+  real(8)             :: lonMinNorm    ! minimum longitude for area included in forecast error norm (in degrees)
+  real(8)             :: lonMaxNorm    ! maximum longitude for area included in forecast error norm (in degrees)
+  logical             :: includeUVnorm ! choose to include winds in forecast error norm
+  logical             :: includeTTnorm ! choose to include temperature in forecast error norm
+  logical             :: includeP0norm ! choose to include surface pressure in forecast error norm
+  logical             :: includeHUnorm ! choose to include humidity in forecast error norm
+  logical             :: includeTGnorm ! choose to include surface skin temperature in forecast error norm
+  character(len=256)  :: forecastPath  ! relative path where forecast files are stored
+  character(len=4)    :: fsoMode       ! type of FSOI algorithm: can be 'HFSO' or 'EFSO'
 
   contains
 
@@ -127,6 +127,11 @@ module fsoi_mod
     if(ierr /= 0) call utl_abort('fso_setup: Error reading namelist')
     write(*,nml=namfso)
     ierr = fclos(nulnam)
+
+    if (trim(fsoMode) /= 'HFSO' .and. trim(fsoMode) /= 'EFSO') then
+      call utl_abort('fso_setup: Invalid value of fsoMode. Must be HFSO or EFSO')
+    end if
+
     ! convert Latmin,max and Lonmin,max from degres into RAD
     latMinNorm = latMinNorm*MPC_RADIANS_PER_DEGREE_R8
     latMaxNorm = latMaxNorm*MPC_RADIANS_PER_DEGREE_R8

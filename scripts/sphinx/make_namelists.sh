@@ -19,18 +19,8 @@ cat <<EOF > $docdir/namelists_html
 EOF
 
 cd $codedir
-directories=""
-for filename in ./* ; do 
-  if [[ -d $filename ]]; then
-    directories="$directories $filename"
-  fi
-done
-for filename in ./*/* ; do 
-  if [[ -d $filename ]]; then
-    directories="$directories $filename"
-  fi
-done
-echo "Directories found: $directories"
+directories="./programs ./modules"
+echo "Directories used to generate namelist documentation: $directories"
 
 namelistnames=''
 for directory in $directories ; do
@@ -86,7 +76,15 @@ for filename in $directory/*.f* ; do
       echo '<table style="width:100%">' >> $docdir/namelists_html
       for namelistvar in $namelistvars2 ; do
         echo "greping for type definition of variable $namelistvar in $filename"
-        greppedline=`grep -wi $namelistvar $filename | grep -i -E -w 'integer|real|logical|character|^ *type' |grep -v '^ *!' |head -1`
+        numMatchesWithDescrip=`grep -iEw "$namelistvar" "$filename" | grep -iE "^ *(integer|real|logical|character|type).*${namelistvar}.*!" |wc -l`
+	if (( "$numMatchesWithDescrip" > 0 )); then
+	    echo "matches with description found"
+	    greppedline=`grep -iEw "$namelistvar" "$filename" | grep -iE "^ *(integer|real|logical|character|type).*${namelistvar}.*!" | head -1 | sed -e 's/!/<b>!/'`
+	    greppedline="${greppedline}</b>"
+	else
+	    echo "no matches with description found"
+	    greppedline=`grep -iEw "$namelistvar" "$filename" | grep -iE "^ *(integer|real|logical|character|type).*${namelistvar}.*" | head -1`
+	fi
         greppedline="$(echo -e "${greppedline}" | sed -e 's/^[[:space:]]*//')"
         echo "<tr>" >> $docdir/namelists_html
         echo "<td>$namelistvar</td>" >> $docdir/namelists_html

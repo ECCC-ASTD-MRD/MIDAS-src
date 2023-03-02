@@ -70,10 +70,10 @@ module obsFilter_mod
   logical :: initialized = .false.
 
   ! Namelist variables:
-  logical :: discardlandsfcwind
-  real(8) :: surfaceBufferZone_Pres
-  real(8) :: surfaceBufferZone_Height
-  logical :: useEnkfTopoFilt
+  logical :: discardlandsfcwind       ! choose to reject surface wind obs over land
+  real(8) :: surfaceBufferZone_Pres   ! height of buffer zone (in Pa) for rejecting obs near sfc
+  real(8) :: surfaceBufferZone_Height ! height of buffer zone (in m) for rejecting obs near sfc
+  logical :: useEnkfTopoFilt          ! choose to use simpler approach (originally in EnKF) for rejecting obs near sfc
 
 contains
 
@@ -105,6 +105,7 @@ contains
 
     integer :: nulnam, ierr, elem, jflag, ibit, obsFamilyIndex, elemIndex
     integer :: fnom, fclos
+    integer :: flagIndex, elementIndex
 
     character(len=35) :: CREASON(-8:13)
     data creason/'JACOBIAN IMPORTANT ABOVE MODEL TOP', &
@@ -131,16 +132,15 @@ contains
          'ELEMENT MODIFIED OR GEN BY  ADE   '/
 
     ! Namelist variables: (local)
-    integer :: nelems
-    integer :: nlist(nelemsMax)
-    integer :: nflags
-    integer :: nlistflg(nFLagsMax)
-    integer :: nelems_altDiffMax
-    integer :: list_altDiffMax(numElem)
-    integer :: flagIndex, elementIndex
-    character(len=2) :: list_topoFilt(nTopoFiltFam)
-    real(8) :: value_altDiffMax(numElem)
-    real(8) :: rlimlvhu
+    integer :: nelems                    ! MUST NOT BE INCLUDED IN NAMELIST!
+    integer :: nlist(nelemsMax)          ! list of bufr element IDs to consider for assimilation
+    integer :: nflags                    ! MUST NOT BE INCLUDED IN NAMELIST!
+    integer :: nlistflg(nFLagsMax)       ! list of flag 'reference numbers' to use for rejecting obs
+    integer :: nelems_altDiffMax         ! MUST NOT BE INCLUDED IN NAMELIST!
+    integer :: list_altDiffMax(numElem)  ! list of bufr element IDs to apply maximum altitude difference
+    character(len=2) :: list_topoFilt(nTopoFiltFam) ! list of obs family names for applying max altitude
+    real(8) :: value_altDiffMax(numElem) ! value of maximum difference between model sfc and obs altitude
+    real(8) :: rlimlvhu                  ! pressure level (in hPa) above which humidity (ES) obs are rejected
 
     namelist /namfilt/nelems, nlist, nflags, nlistflg, rlimlvhu, discardlandsfcwind, &
          nelems_altDiffMax, list_altDiffMax, value_altDiffMax, surfaceBufferZone_Pres, &
@@ -170,7 +170,7 @@ contains
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namfilt,iostat=ierr)
-    if(ierr.ne.0) call utl_abort('filt_setup: Error reading namelist! Hint: did you replaced ltopofilt by list_topoFilt?')
+    if(ierr.ne.0) call utl_abort('filt_setup: Error reading namelist! Hint: did you replace ltopofilt by list_topoFilt?')
     if(mmpi_myid == 0) write(*,nml=namfilt)
     ierr=fclos(nulnam)
 
@@ -1305,7 +1305,7 @@ end subroutine filt_topoAISW
     real(8) :: levelRangeNear, levelRangeFar
     
     ! namelist variables:
-    real(8) :: maxRangeInterp
+    real(8) :: maxRangeInterp ! max allowable horizontal distance between levels (in m) for radar winds
 
     namelist /namradvel/ maxRangeInterp
 
@@ -1664,9 +1664,10 @@ end subroutine filt_topoAISW
     logical           :: inPlatformList
 
     ! List of satellites (id_stn in SQLite files) used for sea ice concentration
-    integer            :: nPlatformIce
     integer, parameter :: maxPlatformIce = 50
-    character(len=12)  :: listPlatformIce(maxPlatformIce)
+    ! namelist variables
+    integer            :: nPlatformIce                    ! number of 'platforms' in 'listPlatformice'
+    character(len=12)  :: listPlatformIce(maxPlatformIce) ! list of ice obs 'platforms' (station IDs) to assimilate 
 
     namelist /namPlatformIce/ nPlatformIce, listPlatformIce
 

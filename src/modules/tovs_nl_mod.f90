@@ -761,24 +761,24 @@ contains
     integer :: instrumentIndex, numMWInstrumToUseCLW, numMWInstrumToUseHydrometeors
 
     ! Namelist variables: (local)
-    character(len=8)  :: crtmodl
-    integer :: nsensors
-    character(len=15) :: csatid(tvs_maxNumberOfSensors)
-    character(len=15) :: cinstrumentid(tvs_maxNumberOfSensors)
-    logical :: ldbgtov
-    logical :: useO3Climatology
-    logical :: regLimitExtrap
-    logical :: doAzimuthCorrection(tvs_maxNumberOfSensors)
-    logical :: isAzimuthValid(tvs_maxNumberOfSensors)
-    logical :: userDefinedDoAzimuthCorrection
-    logical :: userDefinedIsAzimuthValid
-    logical :: mpiTask0ReadCoeffs
-    logical :: mwInstrumUsingCLW_tl
-    logical :: mwInstrumUsingHydrometeors_tl
-    real(8) :: cloudScaleFactor 
-    character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors)
-    character(len=15) :: instrumentNamesUsingHydrometeors(tvs_maxNumberOfSensors)
-    logical :: mwAllskyAssim
+    character(len=8)  :: crtmodl ! For now, must equal 'RTTOV'
+    integer :: nsensors ! MUST NOT BE INCLUDED IN NAMELIST!
+    character(len=15) :: csatid(tvs_maxNumberOfSensors)        ! List of satellite names
+    character(len=15) :: cinstrumentid(tvs_maxNumberOfSensors) ! List of incstrument names
+    logical :: ldbgtov  ! Choose to print simulated and observed Tb to listing
+    logical :: useO3Climatology ! Choose to use ozone climatology (otherwise model field)
+    logical :: regLimitExtrap ! Choose to use RTTOV reg_limit_extrap option
+    logical :: doAzimuthCorrection(tvs_maxNumberOfSensors) ! Choose to apply correction to azimuth angle
+    logical :: isAzimuthValid(tvs_maxNumberOfSensors) ! Indicate if azimuth angle is valid
+    logical :: userDefinedDoAzimuthCorrection ! Indicate if user defined azimuth correction is to be used
+    logical :: userDefinedIsAzimuthValid ! Indicate if user defined azimuth angle is valid
+    logical :: mpiTask0ReadCoeffs ! Choose to read coeffs only on task 0 and broadcast
+    logical :: mwInstrumUsingCLW_tl ! Choose to use CLW increment in TL/AD if exists as state variable
+    logical :: mwInstrumUsingHydrometeors_tl ! Choose to all hydomet variables in TL/AD if exist as state variables
+    real(8) :: cloudScaleFactor  ! Scale factor applied to model produced clouds to account for bias
+    character(len=15) :: instrumentNamesUsingCLW(tvs_maxNumberOfSensors) ! List of inst names using CLW
+    character(len=15) :: instrumentNamesUsingHydrometeors(tvs_maxNumberOfSensors) ! List of inst name using full set of hydromet variables
+    logical :: mwAllskyAssim ! High-level key to activate all-sky treatment of MW radiances
 
     namelist /NAMTOV/ nsensors, csatid, cinstrumentid
     namelist /NAMTOV/ ldbgtov,useO3Climatology
@@ -1084,18 +1084,20 @@ contains
     !
     implicit none
 
-    !Locals:
+    ! Locals:
     integer sensorIndex, instrumentIndex, platformIndex
     integer ipos1, ipos2
     integer numerosat, ierr, kindex, nulnam
     character(len=15) :: tempocsatid
     logical, save :: first=.true.
     integer, save :: ioffset1b(0:ninst-1)
-    character(len=8) :: listinstrum(0:ninst-1)
     character(len=15) :: tempo_inst
-    integer:: listoffset(0:ninst-1)
-    namelist /NAMCHANOFFSET/ listoffset, listinstrum
     integer, external :: fnom, fclos
+
+    ! namelist variables
+    character(len=8) :: listinstrum(0:ninst-1) ! List of instrument names
+    integer          :: listoffset(0:ninst-1)  ! Corresponding list of channel offset values
+    namelist /NAMCHANOFFSET/ listoffset, listinstrum
 
     !  1.0 Go through sensors and set RTTOV-10 variables
 
@@ -1247,7 +1249,9 @@ contains
     integer :: nulnam, ierr, instrumentIndex 
     integer, external :: fnom, fclos
     integer, save :: list_inst(ninst)
-    character(len=22) :: inst_names(ninst)
+
+    ! namelist variables
+    character(len=22) :: inst_names(ninst) ! List of instrument names for all radiance types
     namelist /namtovsinst/ inst_names
 
     if (tvs_nsensors == 0) then
@@ -1311,7 +1315,9 @@ contains
     integer :: nulnam, ierr, instrumentIndex 
     integer, external :: fnom, fclos
     integer, save :: list_inst(ninst)
-    character(len=22) :: inst_names(ninst)
+
+    ! namelist variables
+    character(len=22) :: inst_names(ninst) ! List of instrument names for all radiance types
     namelist /namtovsinst/ inst_names
 
     if (tvs_nsensors == 0) then
@@ -1379,7 +1385,9 @@ contains
     integer :: nulnam, ierr, instrumentIndex 
     integer, external :: fnom, fclos
     integer, save :: list_inst(ninst)
-    character(len=22) :: name_inst(ninst)
+
+    ! namelist variables
+    character(len=22) :: name_inst(ninst) ! List of instrument names for hyperspectral IR
     namelist /namhyper/ name_inst
 
     if (tvs_nsensors == 0) then
@@ -1541,7 +1549,9 @@ contains
     integer, save :: list_inst(maxsize), ninst_hir
     logical, save :: first = .true.
     integer, external :: fclos, fnom
-    character (len=8) :: name_inst(maxsize)
+
+    ! namelist variables
+    character (len=8) :: name_inst(maxsize) ! List of instrument names for hyperspectral IR
     namelist /NAMHYPER/ name_inst
     
     if (first) then
@@ -1601,8 +1611,10 @@ contains
     integer, save :: ninst_hir
     logical, save :: lfirst = .true.
     integer, external :: fclos, fnom
-    character (len=8),save  :: name_inst(maxsize)
     character (len=8) :: name2
+
+    ! namelist variables
+    character (len=8),save  :: name_inst(maxsize) ! List of instrument names for hyperspectral IR
     namelist /NAMHYPER/ name_inst
 
     if (lfirst) then
@@ -1657,10 +1669,12 @@ contains
     integer :: nulnam, ierr, instrumentIndex 
     integer, save :: list_inst(maxsize), ninst_geo
     logical, save :: first = .true.
-    character(len=8) :: name_inst(maxsize)
     integer, external :: fnom, fclos
 
+    ! namelist variables
+    character(len=8) :: name_inst(maxsize) ! List of instrument names for geostationary
     namelist /NAMGEO/ name_inst
+
     if (first) then
       if ( utl_isNamelistPresent('NAMGEO', './flnml') ) then
         call utl_abort('tvs_isInstrumGeostationary: NAMGEO namelist section should be now in flnml_static !')
@@ -1853,12 +1867,14 @@ contains
     !Locals:  
     integer instrumentIndex, numinstburp
     integer, parameter :: mxinstrumburp   = 100
-    integer, save ::   listburp(mxinstrumburp)
-    character(len=8), save :: listinstrum(mxinstrumburp)
-    namelist /NAMINST/ listburp, listinstrum
     logical, save :: first = .true.
     integer :: nulnam, ier
     integer, external :: fnom, fclos
+
+    ! namelist variables
+    integer, save ::   listburp(mxinstrumburp)           ! List of instrument ID values from obs file
+    character(len=8), save :: listinstrum(mxinstrumburp) ! List of instrument names
+    namelist /NAMINST/ listburp, listinstrum
 
     !      Table of BURP satellite sensor identifier element #002019
 
@@ -1928,10 +1944,12 @@ contains
     integer :: nulnam, ierr, i 
     integer, save :: ninst_geo
     logical, save :: lfirst = .true.
-    character (len=8),save :: name_inst(maxsize)
     integer, external :: fnom, fclos
 
+    ! namelist variables
+    character (len=8),save :: name_inst(maxsize) ! List of instrument names for geostationary
     namelist /NAMGEOBUFR/ name_inst
+
     if (lfirst) then
       if ( utl_isNamelistPresent('NAMGEOBUFR', './flnml') ) then
         call utl_abort('tvs_isNameGeostationary: NAMGEOBUFR namelist section should be now in flnml_static !')
@@ -2024,9 +2042,11 @@ contains
     integer, external :: fnom, fclos
     integer, parameter:: mxsatburp = 100
     integer, save     :: numsatburp
-    integer, save     :: listburp(mxsatburp)         ! Table of BURP satellite identifier element #001007
-    character(len=8), save :: listplat(mxsatburp)! Table of RTTOV platform identifier
-    integer, save :: listsat (mxsatburp)         ! Table of RTTOV satellite identifier
+
+    ! namelist variables
+    integer, save          :: listburp(mxsatburp) ! Table of BURP satellite identifier element #001007
+    character(len=8), save :: listplat(mxsatburp) ! Table of RTTOV platform identifier
+    integer, save          :: listsat (mxsatburp) ! Table of RTTOV satellite identifier
 
     namelist /NAMSAT/ listburp, listplat, listsat
 

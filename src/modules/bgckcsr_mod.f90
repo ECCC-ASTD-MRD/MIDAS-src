@@ -40,8 +40,8 @@ module bgckcsr_mod
   integer, parameter :: maxNumchan = 15     ! nb max de canaux
 
   ! namelist variables
-  character (len=9)  :: burpSatName(maxNumSat)
-  integer            :: satCloudCoverLimit(maxNumSat,maxNumchan)
+  character (len=9)  :: burpSatName(maxNumSat)                   ! list of platform names to treat (BURP file station id)
+  integer            :: satCloudCoverLimit(maxNumSat,maxNumchan) ! maximum limit of cloud cover (careful this is an integer!)
 
   namelist /namcsr/burpSatName,satCloudCoverLimit
 
@@ -93,18 +93,18 @@ contains
     integer, allocatable  :: obsDate(:)          ! date YYYYMMDD
     integer, allocatable  :: obsHour(:)          ! Hour HHMM
     integer               :: sensorIndex         ! find tvs_sensor index corresponding to current obs
-    character(len=9)          :: burpFileSatId       ! Platform Name
+    character(len=9)      :: burpFileSatId       ! Platform Name
 
     ! Data derived from elements read in obspace data
 
-    logical, allocatable  :: maxAngleReached(:)     ! satellite angle exceed max angle at obs
+    logical, allocatable  :: maxAngleReached(:)  ! satellite angle exceed max angle at obs
     logical, allocatable  :: topographicData(:)  ! data flagged as topo data
     logical, allocatable  :: nonCorrectedData(:) ! data non corrected by bias corr
     logical, allocatable  :: isTbPresent(:)      ! non missing data
     logical, allocatable  :: isClearSky(:)       ! clear sky obs
     logical, allocatable  :: strayLight(:)       !
     logical, allocatable  :: goesMidi(:)         ! goes noon
-    logical, allocatable  :: isToAssim(:)            ! is channel assimilable
+    logical, allocatable  :: isToAssim(:)        ! is channel assimilable
     logical, allocatable  :: ompOutOfRange(:)        
     integer               :: categorieRejet(7)        
     integer               :: headerIndex 
@@ -305,9 +305,9 @@ contains
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex ) - 1
       currentChannelNumber = nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex )) - & 
                              tvs_channelOffset(sensorIndex)
-      obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_VAR, bodyIndex )
-      ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData,  OBS_OMP, bodyIndex )
-      obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData,  OBS_FLG, bodyIndex )
+      obsTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData, OBS_VAR, bodyIndex )
+      ompTb(currentChannelNumber)          = obs_bodyElem_r( obsSpaceData, OBS_OMP, bodyIndex )
+      obsFlags(currentChannelNumber)       = obs_bodyElem_i( obsSpaceData, OBS_FLG, bodyIndex )
       cloudAmount(currentChannelNumber)    = obs_bodyElem_i( obsSpaceData, OBS_CLA, bodyIndex)
 
     end do BODY

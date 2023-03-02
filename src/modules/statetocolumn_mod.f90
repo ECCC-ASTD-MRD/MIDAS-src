@@ -103,14 +103,14 @@ module stateToColumn_mod
   integer, parameter :: maxNumLocalGridptsSearch = 1000
   integer, parameter :: minNumLocalGridptsSearch = 8
 
-  ! namelist variables:
-  logical :: slantPath_TO_nl
-  logical :: slantPath_TO_tlad
-  logical :: slantPath_RO_nl
-  logical :: slantPath_RA_nl
-  logical :: calcHeightPressIncrOnColumn
-  logical :: useFootprintForTovs
-  logical :: rejectObsNonMonotonicPressure
+  ! namelist variables
+  logical :: slantPath_TO_nl               ! choose to use slant path for non-linear radiance operator
+  logical :: slantPath_TO_tlad             ! choose to use slant path for linearized radiance operators
+  logical :: slantPath_RO_nl               ! choose to use slant path for non-linear GPS-RO operator
+  logical :: slantPath_RA_nl               ! choose to use slant path for non-linear radar operator
+  logical :: calcHeightPressIncrOnColumn   ! choose to compute Z and P increment on column, instead of grid
+  logical :: useFootprintForTovs           ! choose to use a horizontal footprint operator for radiance obs
+  logical :: rejectObsNonMonotonicPressure ! choose to reject obs when interpolated column pressure is non-monotonic
 
   integer, external :: get_max_rss
 

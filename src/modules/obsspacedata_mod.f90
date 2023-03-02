@@ -3616,8 +3616,8 @@ contains
       character(len=120) :: message
 
       ! Namelist variables:
-      integer :: nmxobs
-      integer :: ndatamx
+      integer :: nmxobs  ! maximum number of rows in 'header' table (used for initial allocation)
+      integer :: ndatamx ! maximum number of rows in 'body' table (used for initial allocation)
       namelist /namdimo/nmxobs,ndatamx
 
       if(.not. obs_class_initialized) then

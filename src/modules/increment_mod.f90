@@ -43,18 +43,18 @@ module increment_mod
   public :: inc_writeAnalysis, inc_analPostProcessing
 
   ! namelist variables
-  integer  :: writeNumBits
-  logical  :: writeHiresIncrement
-  logical  :: imposeRttovHuLimits
-  logical :: useAnalIncMask
-  character(len=12) :: etiket_anlm
-  character(len=12) :: etiket_rehm
-  character(len=12) :: etiket_rebm
-  character(len=12) :: hInterpolationDegree
-  logical :: applyLiebmann
-  logical :: SSTSpread
-  integer :: SSTSpreadMaxBoxSize
-  character(len=10) :: SSTSubgrid
+  integer           :: writeNumBits          ! number of bits to use when writing analysis and high-res increment
+  logical           :: writeHiresIncrement   ! choose to write the high-res increment to a file
+  logical           :: imposeRttovHuLimits   ! choose to impose "rttov" humidity limits to analysis
+  logical           :: useAnalIncMask        ! for LAM only, choose to apply scale factor from a mask file to the increment  
+  character(len=12) :: etiket_anlm           ! 'etiket' used when writing the analysis
+  character(len=12) :: etiket_rehm           ! 'etiket' used when writing the high-res increment
+  character(len=12) :: etiket_rebm           ! 'etiket' used when writing the low-res increment
+  character(len=12) :: hInterpolationDegree  ! type of interpolation to use: 'LINEAR' or 'CUBIC'
+  logical           :: applyLiebmann         ! choose to apply Liebmann extrapolation to SST and/or sea ice
+  logical           :: SSTSpread             ! choose to apply spatial spreading of the SST increment onto land
+  integer           :: SSTSpreadMaxBoxSize   ! control the amount of SST increment spreading
+  character(len=10) :: SSTSubgrid            ! select subgrid on which to apply spreading: 'Yin' or 'Yan'
 
 CONTAINS
 

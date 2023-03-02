@@ -27,12 +27,15 @@ module codtyp_mod
   use utilities_mod
   use midasMpi_mod
   private
+
   integer ,parameter :: codtyp_maxNumber = 256
   integer, parameter :: codtyp_name_length = 21
-  character(len=codtyp_name_length) :: cnames(codtyp_maxNumber)
-  integer  :: icod (codtyp_maxNumber)
   integer  :: ncodtyp
   logical  :: initialized=.false.
+
+  ! namelist variables
+  character(len=codtyp_name_length) :: cnames(codtyp_maxNumber) ! names for new additions to standard codtype list
+  integer                           :: icod (codtyp_maxNumber)  ! codes for new additions to standard codtype list
   namelist /NAMCODTYP/ cnames, icod
 
   public :: codtyp_get_codtyp,codtyp_get_name

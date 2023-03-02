@@ -303,15 +303,15 @@ module obsOperatorsChem_mod
   type(struct_bcsc_bgStats) :: bgStats ! Background covariances
 
   ! Namelist variables:
-  character(len=2) :: assim_fam(assim_maxfamnum)
-  logical :: assim_all(assim_maxfamnum)
-  integer :: assim_num(assim_maxfamnum)
-  integer :: assim_varno(assim_maxfamnum,assim_maxsize)
-  integer :: assim_nlev(assim_maxfamnum,assim_maxsize)
-  integer :: assim_exclude_nflag(assim_maxfamnum)
-  integer :: assim_exclude_flag(assim_maxfamnum,assim_maxsize)
-  character(len=9) :: assim_stnid(assim_maxfamnum,assim_maxsize)
-  character(len=20) :: operatorSubType(2,assim_maxsize)
+  character(len=2) :: assim_fam(assim_maxfamnum) ! List of families to which filt_diagnOnly is to apply
+  logical :: assim_all(assim_maxfamnum) ! Choose to assimilate all obs of specified family
+  integer :: assim_num(assim_maxfamnum) ! Number of combinations identified for assimilation
+  integer :: assim_varno(assim_maxfamnum,assim_maxsize) ! List of bufr elements to assimilate (0 means all)
+  integer :: assim_nlev(assim_maxfamnum,assim_maxsize) ! 0: multi- and uni-lev; 1: uni-lev; >1 multi-lev
+  integer :: assim_exclude_nflag(assim_maxfamnum) ! List of bits for excluding obs from assimilation
+  integer :: assim_exclude_flag(assim_maxfamnum,assim_maxsize) ! Number of bits for excluding obs
+  character(len=9) :: assim_stnid(assim_maxfamnum,assim_maxsize) ! List of stnid to assimilation '*' for wild card
+  character(len=20) :: operatorSubType(2,assim_maxsize) ! Operator sub-type name
   character(len=10) :: modelName = 'GEM-MACH' ! Identification of the model
 
 
@@ -534,12 +534,12 @@ module obsOperatorsChem_mod
     character(len=10)  :: namfile 
 
     ! Namelist variables (local)
-    integer :: tropo_mode(0:oopc_constituentsSize)
-    integer :: tropo_bound(0:oopc_constituentsSize)
-    real(8) :: tropo_column_top(0:oopc_constituentsSize)
-    logical :: storeOperators
-    integer :: genoper(0:oopc_constituentsSize)
-    integer :: obsdata_maxsize
+    integer :: tropo_mode(0:oopc_constituentsSize) ! Special treatment for troposphere of total column obs
+    integer :: tropo_bound(0:oopc_constituentsSize) ! Indicate which column top value used for special treatment
+    real(8) :: tropo_column_top(0:oopc_constituentsSize) ! Default for column boundary (in Pa) of total column obs
+    logical :: storeOperators ! Choose to store linear operators for re-use in TL/AD
+    integer :: genoper(0:oopc_constituentsSize) ! Choose to use generalized obs operator and which approach
+    integer :: obsdata_maxsize ! Max number of obs associated with ordered obs indices
 
     external fnom,fclos
 

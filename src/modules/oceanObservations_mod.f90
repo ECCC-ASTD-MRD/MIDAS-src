@@ -69,8 +69,8 @@ module oceanObservations_mod
     real(4)          , intent(in)             :: outputSST            ! output SST value for pseudo observations
     real(4)          , intent(in)             :: outputFreshWaterST   ! output fresh water surface temperature for pseudo observations
     integer          , intent(in)             :: iceThinning          ! generate pseudo obs in every 'iceThinning' points   
-    character(len=20), intent(in)             :: outputFileName    
-    character(len=20), intent(in)             :: etiket    
+    character(len=*) , intent(in)             :: outputFileName    
+    character(len=*) , intent(in)             :: etiket    
     real(4)          , intent(in)             :: seaWaterThreshold    ! to distinguish inland water from sea water  
     
     ! Locals:
@@ -220,8 +220,8 @@ module oceanObservations_mod
     integer          , intent(in)    :: iceThinning        ! generate pseudo obs in every 'iceThinning' points   
     real(4)          , intent(in)    :: outputSST          ! output SST value for pseudo observations
     real(4)          , intent(in)    :: outputFreshWaterST ! output fresh water surface temperature for pseudo obs
-    character(len=20), intent(in)    :: outputFileName    
-    character(len=20), intent(in)    :: etiket    
+    character(len=*) , intent(in)    :: outputFileName    
+    character(len=*) , intent(in)    :: etiket    
     integer          , intent(in)    :: datePrint
     integer          , intent(in)    :: timePrint
     real(4)          , intent(in)    :: seaWaterFraction(:)! sea water fraction data: 0: fresh water; 1: sea water

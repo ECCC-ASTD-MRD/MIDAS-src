@@ -50,30 +50,27 @@ module bgckOcean_mod
   integer           :: myLonBeg, myLonEnd
   integer           :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
 
- ! namelist variables with setting default values
+  ! namelist variables with setting default values
   character(len=20) :: timeInterpType_nl = 'NEAREST' ! 'NEAREST' or 'LINEAR'
   integer           :: numObsBatches     = 20        ! number of batches for calling interp setup
-  logical           :: checkWinds        = .false.   ! if .true., check the winds for the last four
-                                                     ! days to amplify the error in the zone of maximum wind speed
+  logical           :: checkWinds        = .false.   ! check winds for last 4 days to amplify error in zone of max wind speed
   integer           :: ndaysWinds        = 4         ! number of days in the 'winds' file to detect tropical storm (TS)
   integer           :: timeStepWinds     = 6         ! in hours, winds are available every timeStepWinds-hours
   integer           :: windForecastLeadtime = 6      ! in hours, lead time of wind forecast in the input file
-  real(4)           :: minLatNH = 10.                ! min lat of Northern hemisphere latutude band where TS is detected
-  real(4)           :: maxLatNH = 40.                ! max lat of Northern hemisphere latutude band where TS is detected
-  real(4)           :: maxLatExceptionNH = 45.       ! max lat of Northern hemisphere latutude band
-                                                     ! allows for TS to penetrate further North in some months 
-  integer           :: nmonthsExceptionNH = 0        ! number of months where TS penetrates exceptionnally North
+  real(4)           :: minLatNH = 10.                ! min lat of N. hemisphere lat band where TS is detected
+  real(4)           :: maxLatNH = 40.                ! max lat of N. hemisphere lat band where TS is detected
+  real(4)           :: maxLatExceptionNH = 45.       ! max lat of N. hemisphere lat band allows TS to penetrate further North in some months
+  integer           :: nmonthsExceptionNH  = 0       ! number of months where TS penetrates exceptionnally North
   character(len=3)  :: monthExceptionNH(12) = '   '  ! exceptional months where TS allowed to penetrated further North 
   real(4)           :: minLatSH = -35.               ! min lat of Southern hemisphere latutude band where TS is detected
   real(4)           :: maxLatSH = -10.               ! max lat of Southern hemisphere latutude band where TS is detected
-  real(8)           :: smoothLenghtScale = 50000.    ! lenght scale. in m, to smooth the amplification error field
+  real(8)           :: smoothLenghtScale = 50000.    ! length scale. in m, to smooth the amplification error field
   real(8)           :: globalSelectCriteria(3) = (/5.d0, 25.d0, 30.d0/) ! global selection criteria
-  logical           :: separateSelectCriteria = .false.! to apply a separate selection criteria on sea/inland waters 
-                                                       ! and insitu/satellite data 
-  real(8)           :: inlandWaterSelectCriteriaSatData(3) = (/5.d0, 25.d0, 30.d0/)
-  real(8)           :: inlandWaterSelectCriteriaInsitu(3)  = (/5.d0, 25.d0, 30.d0/)
-  real(8)           :: seaWaterSelectCriteriaSatData(3)    = (/5.d0, 25.d0, 30.d0/)
-  real(8)           :: seaWaterSelectCriteriaInsitu(3)     = (/5.d0, 25.d0, 30.d0/) 
+  logical           :: separateSelectCriteria = .false. ! apply separate selection criteria: sea/inland waters; insitu/satellite
+  real(8)           :: inlandWaterSelectCriteriaSatData(3) = (/5.d0, 25.d0, 30.d0/) ! inland water, satellite selection criteria
+  real(8)           :: inlandWaterSelectCriteriaInsitu(3)  = (/5.d0, 25.d0, 30.d0/) ! inland water, insitu selection criteria
+  real(8)           :: seaWaterSelectCriteriaSatData(3)    = (/5.d0, 25.d0, 30.d0/) ! sea water, satellite selection criteria
+  real(8)           :: seaWaterSelectCriteriaInsitu(3)     = (/5.d0, 25.d0, 30.d0/) ! sea water, insitu selection criteria
   real(4)           :: seaWaterThreshold = 0.1       ! threshold to distinguish inland water from sea water
   namelist /namOceanBGcheck/ timeInterpType_nl, numObsBatches, checkWinds, ndaysWinds, timeStepWinds, &
                              windForecastLeadtime, minLatNH, maxLatNH, maxLatExceptionNH, nmonthsExceptionNH, &
@@ -357,9 +354,9 @@ module bgckOcean_mod
     integer            :: imode, prntdate, prnttime
 
     ! Namelist variables: (local)
-    integer           :: numStation = 11
-    character(len=12) :: idStation(11) = 'null'
-    real              :: OmpRmsdThresh(11) = 0.0
+    integer           :: numStation = 11         ! number of 'idStation' values
+    character(len=12) :: idStation(11) = 'null'  ! list of obsSpaceData 'idStation' values to consider
+    real              :: OmpRmsdThresh(11) = 0.0 ! rejection threshold applied to RMS of O-P for entire swath
     namelist /namIceBGcheck/ numStation, idStation, OmpRmsdThresh
 
     call msg('ocebg_bgCheckSeaIce', 'performing background check for the SeaIce data...')

@@ -39,9 +39,11 @@ module slantprofilelatlon_mod
   public :: slp_calcLatLonTovs, slp_calcLatLonRO, slp_calcLatLonRadar
 
   ! private module variables and derived types
-  real(4), save :: toleranceHeightDiff
-  integer, save :: maxNumIteration
-  logical, save :: nmlAlreadyRead = .false.
+  logical :: nmlAlreadyRead = .false.
+
+  ! namelist variables
+  real(4) :: toleranceHeightDiff  ! threshold of height diff (in m) for convergence of slant path
+  integer :: maxNumIteration      ! maximum number of iterations for determining slant path
 
 
 contains 

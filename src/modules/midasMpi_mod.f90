@@ -64,8 +64,8 @@ module midasMpi_mod
     integer :: rpn_comm_comm, rpn_comm_datyp
 
     ! Namelist variables
-    integer :: npex
-    integer :: npey
+    integer :: npex  ! number of MPI tasks in 'x' direction (set automatically by launch script)
+    integer :: npey  ! number of MPI tasks in 'y' direction (set automatically by launch script)
 
     ! Initilize MPI
     npex=0

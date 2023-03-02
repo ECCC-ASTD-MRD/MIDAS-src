@@ -76,17 +76,17 @@ program midas_randomPert
   character(len=2)  :: typvarOut
 
   ! Namelist variables
-  logical :: remove_mean
-  logical :: smoothVariances
-  logical :: mpiTopoIndependent
-  logical :: readEnsMean
-  logical :: setPertZeroUnderIce
-  integer :: nens
-  integer :: seed
-  integer :: numBits
-  character(len=12) :: out_etiket
-  real(4) :: iceFractionThreshold
-  real(4) :: previousDateFraction
+  logical :: remove_mean          ! choose to remove mean from perturbations
+  logical :: smoothVariances      ! choose to impose horizontally constant perturbation variances
+  logical :: mpiTopoIndependent   ! choose to compute random numbers with mpi-topology-independent method 
+  logical :: readEnsMean          ! choose to read ens mean and add this to the perturbations
+  logical :: setPertZeroUnderIce  ! choose to set perturbation to zero under sea ice (for SST)
+  integer :: nens                 ! number of perturbations to compute
+  integer :: seed                 ! initial value of the random seed
+  integer :: numBits              ! number of bits to use when writing to standard files
+  character(len=12) :: out_etiket ! the 'etiket' to write to standard files
+  real(4) :: iceFractionThreshold ! ice fraction threshold to use in combination with 'setPertZeroUnderIce'
+  real(4) :: previousDateFraction ! relative amount of previous date perturbations to include in current perturbations
   NAMELIST /NAMENKF/nens, seed, out_etiket, remove_mean,  &
                     smoothVariances, mpiTopoIndependent, numBits, &
                     readEnsMean, setPertZeroUnderIce, iceFractionThreshold, &

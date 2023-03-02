@@ -73,18 +73,20 @@ module bmatrix1DVar_mod
   character(len=9) :: bmatLabelList (numBmatMax)
   logical          :: bmatIs3dList  (numBmatMax)
   logical          :: bmatActive    (numBmatMax)
-  integer          :: nEns
-  real(8)          :: vlocalize
   type(struct_columnData), allocatable :: ensColumns(:)
   type(struct_columnData) :: meanColumn
   type(struct_ens) :: ensPerts
-  !Namelist variables
-  character(len=4)    :: includeAnlVar(vnl_numvarmax)
-  integer :: numIncludeAnlVar
-  real(8) :: scaleFactorHI(vco_maxNumLevels)          ! scaling factors for HI variances
-  real(8) :: scaleFactorHIHumidity(vco_maxNumLevels)  ! scaling factors for HI humidity variances
-  real(8) :: scaleFactorEns(vco_maxNumLevels)         ! scaling factors for Ens variances
-  real(8) :: scaleFactorEnsHumidity(vco_maxNumLevels) ! scaling factors for Ens humidity variances
+
+  ! Namelist variables
+  integer          :: nEns                             ! ensemble size
+  real(8)          :: vlocalize                        ! vertical localization length scale
+  character(len=4) :: includeAnlVar(vnl_numvarmax)     ! list of variable names to include in B matrix
+  integer :: numIncludeAnlVar                          ! number of variables to include in B matrix
+  real(8) :: scaleFactorHI(vco_maxNumLevels)           ! scaling factors for HI variances
+  real(8) :: scaleFactorHIHumidity(vco_maxNumLevels)   ! scaling factors for HI humidity variances
+  real(8) :: scaleFactorEns(vco_maxNumLevels)          ! scaling factors for Ens variances
+  real(8) :: scaleFactorEnsHumidity(vco_maxNumLevels)  ! scaling factors for Ens humidity variances
+
   NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorENs, scaleFactorEnsHumidity, nEns, &
        vLocalize, includeAnlVar, numIncludeAnlVar
 

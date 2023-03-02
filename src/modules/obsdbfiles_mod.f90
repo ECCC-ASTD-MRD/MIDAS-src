@@ -38,7 +38,7 @@ module obsdbFiles_mod
   private
 
   ! Public subroutines and functions:
-  public :: odbf_isActive, odbf_getDateStamp, odbf_readFile, odbf_updateFile, obdf_clean
+  public :: odbf_getDateStamp, odbf_readFile, odbf_updateFile, obdf_clean
 
   ! Arrays used to match obsDB column names with obsSpaceData column names
 
@@ -86,9 +86,8 @@ module obsdbFiles_mod
   logical, parameter :: setObsFlagZero = .true.
 
   ! NAMELIST variables
-  logical :: obsDbActive
-  integer :: numElemIdList
-  integer :: elemIdList(100)
+  integer :: numElemIdList    ! number of bufr element IDs to read from file
+  integer :: elemIdList(100)  ! list of bufr element IDs to read from file
 
 contains
 
@@ -106,14 +105,13 @@ contains
     integer, external  :: fnom, fclos
     logical, save      :: alreadyRead = .false.
 
-    namelist /namobsdb/ obsDbActive, numElemIdList, elemIdList
+    namelist /namobsdb/ numElemIdList, elemIdList
 
     if ( alreadyRead ) return
 
     alreadyRead = .true.
 
     ! default values
-    obsDbActive = .false.
     numElemIdList = 0
     elemIdList(:) = 0
 
@@ -132,8 +130,8 @@ contains
     end if
     if ( mmpi_myid == 0 ) write(*, nml=namObsDb)
 
-    if (obsDbActive .and. numElemIdList==0) then
-      call utl_abort('readNml (odbf): element list is empty')
+    if (numElemIdList==0) then
+      call utl_abort('odbf_setup: element list is empty')
     end if
 
   end subroutine readNml
@@ -173,7 +171,6 @@ contains
     call readNml()
 
     ! initialize obsDb columns names to be consistent with MIDAS obsSpaceData Report column names
-    if (.not. obsDbActive) return
 
     nulfile = 0 
     ierr = fnom(nulfile,trim(obsDbColumnFile),'FTN+SEQ+R/O',0)
@@ -426,24 +423,6 @@ contains
     end do
 
   end subroutine odbf_setup
-
-  !--------------------------------------------------------------------------
-  ! odbf_isActive
-  !--------------------------------------------------------------------------
-  function odbf_isActive() result(isActive)
-    !
-    ! :Purpose: Tell the caller if the namelist indicates obsDB is active
-    !
-    implicit none
-
-    ! return value
-    logical :: isActive
-
-    call readNml()
-
-    isActive = obsDbActive
-
-  end function odbf_isActive
 
   !--------------------------------------------------------------------------
   ! odbf_getDateStamp
@@ -2647,7 +2626,7 @@ contains
     character(len = lenSqlName) :: flgSqlName
     
     ! namelist variables
-    logical, save               :: useVacuum
+    logical, save               :: useVacuum ! choose to 'vacuum' the file after cleaning to reduce file size
 
     namelist/namObsDbClean/ useVacuum
 

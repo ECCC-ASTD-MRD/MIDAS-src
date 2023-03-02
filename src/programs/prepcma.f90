@@ -60,20 +60,20 @@ program midas_prepcma
   real(8) :: nto_pmax(1) = (/ 0.0 /)
 
   ! Namelist variables:
-  character(len=256) :: cmahdr
-  character(len=256) :: cmabdy
-  character(len=256) :: cmadim
-  character(len=256) :: obsout
-  character(len=256) :: brpform
-  logical :: suprep
-  logical :: rejectOutsideTimeWindow
-  logical :: thinning
-  logical :: applySatUtil
-  logical :: modifyAmsubObsError
-  logical :: rejectHighLatIR
-  logical :: obsClean
-  logical :: writeObsFiles
-  logical :: writeAsciiCmaFiles
+  character(len=256) :: cmahdr        ! should not be used anymore
+  character(len=256) :: cmabdy        ! should not be used anymore
+  character(len=256) :: cmadim        ! should not be used anymore
+  character(len=256) :: obsout        ! file name for ascii output
+  character(len=256) :: brpform       ! should not be used anymore
+  logical :: suprep                   ! choose to execute 'suprep' obs filtering
+  logical :: rejectOutsideTimeWindow  ! choose to reject obs outside time window
+  logical :: thinning                 ! choose to apply 'extra' thinning of some obs types
+  logical :: applySatUtil             ! choose to reject satellite obs based on 'util' column of stats_tovs
+  logical :: modifyAmsubObsError      ! choose to modify the obs error stddev for AMSUB/MHS in the tropics
+  logical :: rejectHighLatIR          ! choose to reject IR data in high latitudes
+  logical :: obsClean                 ! choose to remove rejected observations from files
+  logical :: writeObsFiles            ! choose to update the (burp or sqlite) observation files
+  logical :: writeAsciiCmaFiles       ! choose to write ascii output
 
   NAMELIST /NAMPREPCMA/ cmahdr, cmabdy, cmadim, obsout, brpform,  &
                         suprep, rejectOutsideTimeWindow, thinning, &
@@ -96,6 +96,7 @@ program midas_prepcma
   cmabdy        = 'NOT_DEFINED'
   cmadim        = 'NOT_DEFINED'
   obsout        = 'NOT_DEFINED'
+  brpform       = 'brpform'
   suprep                  = .true.
   rejectOutsideTimeWindow = .true.
   thinning                = .true.

@@ -123,8 +123,8 @@ contains
     integer :: fnom, fclos, ierr
 
     ! Namelist variables
-    logical :: verticalThinningES !
-    logical :: ecmwfRejetsES      !
+    logical :: verticalThinningES ! choose to do vertical thinning of humidity obs
+    logical :: ecmwfRejetsES      ! choose to do filtering of T-Td obs with approach similar to ECMWF
 
     namelist /thin_raobs/ verticalThinningES, ecmwfRejetsES
 
@@ -531,8 +531,8 @@ contains
     integer :: fnom, fclos, ierr
 
     ! Namelist variables
-    integer :: delta    !
-    integer :: deltrad
+    integer :: delta    ! thinning (dimension of box sides) (in km)
+    integer :: deltrad  ! radius around box center for chosen obs (in km)
 
     namelist /thin_tovs/delta, deltrad
 
@@ -1410,11 +1410,11 @@ contains
     integer, parameter :: numVars=5, numTraj=2, maxNumLev=300
 
     ! Namelist variables:
-    real(8) :: rprefinc
-    real(8) :: rptopinc
-    real(8) :: rcoefinc
-    real(4) :: vlev(maxNumLev)
-    integer :: numlev
+    real(8) :: rprefinc        ! parameter for defining fixed set of model levels for vertical thinning
+    real(8) :: rptopinc        ! parameter for defining fixed set of model levels for vertical thinning
+    real(8) :: rcoefinc        ! parameter for defining fixed set of model levels for vertical thinning
+    real(4) :: vlev(maxNumLev) ! parameter for defining fixed set of model levels for vertical thinning
+    integer :: numlev          ! parameter for defining fixed set of model levels for vertical thinning
     namelist /namgem/rprefinc, rptopinc, rcoefinc, numlev, vlev
 
     ! Check if any observations to be treated and count number of "profiles"
@@ -4327,11 +4327,11 @@ contains
     integer, parameter :: maxLev = 500
 
     ! Namelist variables:
-    real(8) :: rprefinc
-    real(8) :: rptopinc
-    real(8) :: rcoefinc
-    real(4) :: vlev(maxLev)
-    integer :: numlev
+    real(8) :: rprefinc      ! parameter for defining fixed set of model levels for vertical thinning
+    real(8) :: rptopinc      ! parameter for defining fixed set of model levels for vertical thinning
+    real(8) :: rcoefinc      ! parameter for defining fixed set of model levels for vertical thinning
+    real(4) :: vlev(maxLev)  ! parameter for defining fixed set of model levels for vertical thinning
+    integer :: numlev        ! parameter for defining fixed set of model levels for vertical thinning
     namelist /namgem/rprefinc, rptopinc, rcoefinc, numlev, vlev
 
     write(*,*)

@@ -85,26 +85,23 @@ module minimization_mod
   logical :: oneDVarMode
 
   ! namelist variables
-  real(8) :: REPSG
-  real(8) :: rdf1fac
-  integer :: NVAMAJ
-  integer :: NITERMAX
-  integer :: NSIMMAX
-  integer :: nwoqcv
-  integer :: numAnalyses
-  logical :: lxbar
-  logical :: lwrthess
-  logical :: lgrtest
-  logical :: lvazx
-  logical :: lvarqc
-  character(len=256) :: ensPathName
+  real(8) :: REPSG    ! relative gradient amplitude used as stopping criteria
+  real(8) :: rdf1fac  ! factor applied to initial cost function value to approximate final value
+  integer :: NVAMAJ   ! number of vector pairs to store in memory for Hessian approximation
+  integer :: NITERMAX ! maximum number of minimization iterations
+  integer :: NSIMMAX  ! maximum number of cost function evaluations during minimization
+  integer :: nwoqcv   ! number of iterations to initially perform without varQC
+  logical :: lxbar    ! generally not used any longer
+  logical :: lwrthess ! choose to write the Hessian approximation
+  logical :: lgrtest  ! choose to perform the 'gradient test" before and after minimization
+  logical :: lvazx    ! generally not used any longer
+  logical :: lvarqc   ! choose to activate varQC
 
   NAMELIST /NAMMIN/ NVAMAJ, NITERMAX, NSIMMAX
   NAMELIST /NAMMIN/ LGRTEST
   NAMELIST /NAMMIN/ lxbar, lwrthess, lvazx
   NAMELIST /NAMMIN/ REPSG, rdf1fac
   NAMELIST /NAMMIN/ LVARQC, NWOQCV
-  NAMELIST /NAMMIN/ numAnalyses, ensPathName
 
 CONTAINS
 
@@ -155,8 +152,6 @@ CONTAINS
     repsg    = 1.0d-5
     lvarqc   = .false.
     nwoqcv   = 5
-    numAnalyses = 20
-    ensPathName = './ensemble'
 
     ! read in the namelist NAMMIN
     nulnam=0

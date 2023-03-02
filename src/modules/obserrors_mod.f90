@@ -63,7 +63,7 @@ module obsErrors_mod
   real(8) :: sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   integer :: tovutil(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   logical :: useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
- ! Temporary arrays for QC purpose
+  ! Temporary arrays for QC purpose
   real(8) :: oer_toverrst(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
   real(8) :: oer_clwThreshArr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
   real(8) :: oer_sigmaObsErr(tvs_maxChannelNumber,tvs_maxNumberOfSensors,2)
@@ -73,8 +73,6 @@ module obsErrors_mod
   logical :: oer_useStateDepSigmaObs(tvs_maxChannelNumber,tvs_maxNumberOfSensors)
 
   ! SST data 
-  integer, parameter :: maxNumberSSTDatasets = 15
-  integer :: numberSSTDatasets = MPC_missingValue_INT ! number of SST datasets in namelist
   type SSTdataParamsType
     character(len=20) :: dataType   = '' ! type of data: insitu, satellite, pseudo
     character(len=20) :: instrument = '' ! instrument: drifts, bouys, ships, AVHRR, VIIRS, AMSR2
@@ -84,7 +82,11 @@ module obsErrors_mod
     real(8)           :: dayError   = MPC_missingValue_R8  ! data error for daytime 
     real(8)           :: nightError = MPC_missingValue_R8  ! data error for nighttime
   end type SSTdataParamsType
-  type(SSTdataParamsType) :: SSTdataParams(maxNumberSSTDatasets)
+  integer, parameter :: maxNumberSSTDatasets = 15
+
+  ! SST namelist variables
+  integer :: numberSSTDatasets = MPC_missingValue_INT            ! MUST NOT BE INCLUDED IN NAMELIST!
+  type(SSTdataParamsType) :: SSTdataParams(maxNumberSSTDatasets) ! list of SSTdataParamsType defining SST obs errors
 
   ! CONVENTIONAL OBS ERRORS
   real(8) :: xstd_ua_ai_sw(20,11)
@@ -167,14 +169,14 @@ module obsErrors_mod
   character(len=48) :: obserrorMode
 
   ! Namelist variables:
-  logical :: new_oer_sw
-  logical :: obsfile_oer_sw
-  logical :: visAndGustAdded
-  logical :: mwAllskyInflateByOmp
-  logical :: mwAllskyInflateByClwDiff
-  real(8) :: amsuaClearClwThresholdSigmaObsInflation(5)
-  real(8) :: amsuaStateDepSigmaObsInflationCoeff
-  logical :: readOldSymmetricObsErrFile
+  logical :: new_oer_sw                 ! use the 'new' method to compute errors for AMV observations
+  logical :: obsfile_oer_sw             ! choose to read errors for AMV from the obs files
+  logical :: visAndGustAdded            ! choose to read visibility and gust errors in addition to other conv variables
+  logical :: mwAllskyInflateByOmp       ! choose to inflate all sky radiance errors by an amount related to O-P
+  logical :: mwAllskyInflateByClwDiff   ! choose to inflate all sky radiance errors by an amount related to cloud O-P
+  real(8) :: amsuaClearClwThresholdSigmaObsInflation(5) ! cloud threshold for considering obs as clear sky
+  real(8) :: amsuaStateDepSigmaObsInflationCoeff ! state dependent obs error inflation factor
+  logical :: readOldSymmetricObsErrFile ! choose to read 'old style' obs error file, when only AMSU-A was all sky
 
 contains
 
@@ -498,7 +500,7 @@ contains
           call utl_abort ('oer_readObsErrorsTOVS: problem with IPLATFORM2, IINSTRUMENT2 in symmetricObsErr')
 
         do JI = 1, NUMCHNIN2
-          ! If reading the old style stats_tovs_symmetricObsErr, the the all-sky parameters are available only for AMSUA.
+          ! If reading the old style stats_tovs_symmetricObsErr, then the all-sky parameters are available only for AMSUA.
           if (readOldSymmetricObsErrFile) then
             read(ILUTOV2,*) ICHNIN2(JI), &
                   clwThreshArrInput(ICHNIN2(JI),JL,1), clwThreshArrInput(ICHNIN2(JI),JL,2), &
