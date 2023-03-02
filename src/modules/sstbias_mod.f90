@@ -155,7 +155,7 @@ module SSTbias_mod
                                      nobsFoundSatLoc, hco, vco, mask, openWater, maxBias, &
                                      sensorList(sensorIndex), numberOpenWaterPoints, &
                                      numberPointsBG, listProducts(productIndex), &
-                                     weightMin, weightMax, saveAuxFields)
+                                     weightMin, weightMax, saveAuxFields, scalingBeta)
           else
             write(*,*) 'sstb_computeBias: WARNING: missing ', trim(sensorList(sensorIndex)), ' ', &
                        trim(listProducts(productIndex)),' data.' 
@@ -367,7 +367,7 @@ module SSTbias_mod
   subroutine sstb_getGriddedBias(satelliteGrid, insituGrid, nobsGlob, nobsLoc, &
                                  hco, vco,  mask, openWater, maxBias, sensor, &
                                  numberOpenWaterPoints, numberPointsBG, dayOrNight, &
-                                 weightMin, weightMax, saveAuxFields)
+                                 weightMin, weightMax, saveAuxFields, scalingBeta)
     !
     !:Purpose: compute the satellite SST data bias estimation field on a grid
     !           
@@ -390,6 +390,7 @@ module SSTbias_mod
     logical         , intent(in)             :: saveAuxFields        ! to store or not auxiliary fields: nobs and weight        
     real(4)         , intent(in)             :: weightMin            ! namelist parameter: minimum value of weight
     real(4)         , intent(in)             :: weightMax            ! namelist parameter: maximum value of weight
+    real(4)         , intent(in)             :: scalingBeta          ! scaling factor for zero background bias estimate
 
     ! locals
     real(4), parameter          :: solarZenithThreshold = 90.0       ! to distinguish day and night
@@ -552,7 +553,7 @@ module SSTbias_mod
 	  end if
 	  
 	  ! computation of the bias:
-          griddedBias_r4_ptr(lonIndex, latIndex, 1) = (1.0d0 - weight) * &
+          griddedBias_r4_ptr(lonIndex, latIndex, 1) = (1.0d0 - weight) * scalingBeta * &
                                                       griddedBias_r4_previous_ptr(lonIndex, latIndex, 1) + &
                                                       weight * griddedBias_r4_ptr(lonIndex, latIndex, 1)
         else ! no data on the current processor   
