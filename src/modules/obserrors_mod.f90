@@ -652,6 +652,9 @@ contains
 
   contains
 
+    !--------------------------------------------------------------------------
+    ! compact
+    !--------------------------------------------------------------------------
     subroutine compact(str)
       ! Code from Benthien's module: http://www.gbenthien.net/strings/index.html
       ! Converts multiple spaces and tabs to single spaces; deletes control characters;
@@ -690,7 +693,10 @@ contains
       str=adjustl(outstr)
 
     end subroutine compact
-
+    
+    !--------------------------------------------------------------------------
+    ! split
+    !--------------------------------------------------------------------------
     subroutine split(str, delims, before)
       !
       ! :Comment:
@@ -1612,6 +1618,9 @@ contains
 
   contains
 
+    !--------------------------------------------------------------------------
+    ! calcStateDepObsErr
+    !--------------------------------------------------------------------------
     function calcStateDepObsErr(cldPredThresh1, cldPredThresh2, &
                                 errThresh1, errThresh2, cldPredUsed) result(sigmaObsErrUsed)
       !
@@ -1641,6 +1650,9 @@ contains
 
     end function calcStateDepObsErr
 
+    !--------------------------------------------------------------------------
+    ! computeCloudPredictor
+    !--------------------------------------------------------------------------
     function computeCloudPredictor(sensorIndex, headerIndex) result(cldPredUsed)
       !
       ! :Purpose: Compute cloud predictor to use for state-dependent observation error.
