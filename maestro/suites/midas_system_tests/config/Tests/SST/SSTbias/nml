@@ -22,7 +22,7 @@
 /
  &namSSTbiasEstimate
    searchRadius =   25.    
-   iceFractionThreshold = 0.01
+   iceFractionThreshold = 0.6
    maxBias = 5.
    numberPointsBG = 100
    timeInterpType_nl = 'NEAREST'
@@ -47,10 +47,6 @@
  &namSQLUpdate
 /
  &namSQLInsert
-/
- &NAMINC
-   hInterpolationDegree = 'CUBIC'
-   etiket_rebm ='XXXXXX'
 /
  &NAMCODTYP
 /
