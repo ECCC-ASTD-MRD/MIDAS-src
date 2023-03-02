@@ -32,7 +32,7 @@
    weightMin = 0.0
    weightMax = 0.2
    saveAuxFields = .True.
-   scalingBeta = 0.95
+   bgTermZeroBias = 0.95
 /
  &NAMSQLsfc
    listElem='22042'
