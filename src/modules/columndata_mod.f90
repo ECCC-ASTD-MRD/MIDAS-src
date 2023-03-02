@@ -83,8 +83,8 @@ contains
     ! Namelist variables (local)
     character(len=4) :: anlvar(vnl_numvarmax)           ! list of state variable names
     character(len=8) :: anltime_bin                     ! can be 'MIDDLE', 'FIRST' or 'LAST'
-    logical          :: conversionVarKindCHtoMicrograms ! not used in this module
-    logical          :: abortOnMpiImbalance             ! not used in this module
+    logical          :: conversionVarKindCHtoMicrograms ! activate unit conversion for CH variables
+    logical          :: abortOnMpiImbalance             ! choose to abort program when MPI imbalance is too large
 
     namelist /namstate/anlvar,rhumin,anltime_bin,addHeightSfcOffset,conversionVarKindCHtoMicrograms, &
                        minValVarKindCH, abortOnMpiImbalance
