@@ -1771,19 +1771,21 @@ contains
         return
       end if
 
+      clwObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
+      clwFG  = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
+
+      sigmaObsBeforeInflation = obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)
+      ompValue                = obs_bodyElem_r(obsSpaceData, ompOmaObsColumn, bodyIndex)
+
       if (.not. beSilent) then
         write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: chanIsAllskyTt', &
                           ', headerIndex=', headerIndex, &
                           ', sensorIndex=', sensorIndex, &
                           ', chan_noOff=', channelNumber_withOffset, &
                           ', chan_no=', channelNumber
+        write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: clwObs=', clwObs, &
+                          ', clwFG=', clwFG, ', OMP=', ompValue                          
       end if
-
-      clwObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
-      clwFG  = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
-
-      sigmaObsBeforeInflation = obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)
-      ompValue                = obs_bodyElem_r(obsSpaceData, ompOmaObsColumn, bodyIndex)
 
       ! error inflation for cloud placement 
       deltaE1 = 0.0D0
@@ -1802,23 +1804,10 @@ contains
       end if
       deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)
 
-      if (.not. beSilent) then
-        write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: clwObs=', clwObs, &
-                          ', clwFG=', clwFG, ', OMP=', ompValue
-      end if                               
-
     else if (chanIsAllskyHu) then
       if (.not. surfTypeIsWater .or. &
           (.not. mwAllskyHuInflateByOmp .and. .not. mwAllskyHuInflateBySiDiff)) then
         return
-      end if
-
-      if (.not. beSilent) then
-        write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: chanIsAllskyHu', &
-                          ', headerIndex=', headerIndex, &
-                          ', sensorIndex=', sensorIndex, &
-                          ', chan_noOff=', channelNumber_withOffset, &
-                          ', chan_no=', channelNumber
       end if
 
       siObs = obs_headElem_r(obsSpaceData, OBS_SIO, headerIndex)
@@ -1826,6 +1815,16 @@ contains
   
       sigmaObsBeforeInflation = obs_bodyElem_r(obsSpaceData, OBS_OER, bodyIndex)
       ompValue                = obs_bodyElem_r(obsSpaceData, ompOmaObsColumn, bodyIndex)
+
+      if (.not. beSilent) then
+        write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: chanIsAllskyHu', &
+                          ', headerIndex=', headerIndex, &
+                          ', sensorIndex=', sensorIndex, &
+                          ', chan_noOff=', channelNumber_withOffset, &
+                          ', chan_no=', channelNumber
+        write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: siObs=', siObs, &
+                          ', siFG=', siFG, ', OMP=', ompValue                          
+      end if      
   
       ! error inflation for cloud placement 
       deltaE1 = 0.0D0
@@ -1843,11 +1842,6 @@ contains
                   sigmaObsBeforeInflation
       end if
       deltaE2 = min(deltaE2,3.5D0 * sigmaObsBeforeInflation)      
-
-      if (.not. beSilent) then
-        write(*,*) 'oer_computeAllskyInflatedStateDepSigmaObs: siObs=', siObs, &
-                          ', siFG=', siFG, ', OMP=', ompValue
-      end if
 
     else
       return
