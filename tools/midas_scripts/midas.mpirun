@@ -45,8 +45,10 @@ if [ "${EC_ARCH}" = ubuntu-18.04-skylake-64 ]; then
     set -x
 elif [ "${EC_ARCH}" = rhel-8-icelake-64 ]; then
     set +x
-    echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2
-    . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.5.7-inteloneapi-2022.1.2
+    echo loading eccc/mrd/rpn/code-tools/ENV/cdt-1.6.1/SCIENCE/inteloneapi-2022.1.2
+    . r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.1/SCIENCE/inteloneapi-2022.1.2
+    echo loading eccc/mrd/rpn/libs/20230222-beta3
+    . r.load.dot eccc/mrd/rpn/libs/20230222-beta3
     set -x
 elif [ "${EC_ARCH}" = sles-15-skylake-64-xc50/PrgEnv-intel-6.0.5 ]; then
     ## This allows us to save 7% of computation time without changing the results!
