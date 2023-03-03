@@ -1168,9 +1168,9 @@ contains
     real                                   :: ZSEUILSCATICE
     real                                   :: ZSEUILSCATL
     real                                   :: ZSEUILSCATW
-    real                                   :: siUsedForQcThreshold
-    real                                   :: siObsFGaveraged
-    real                                   :: siUsedForQC
+    real                                   :: scatwUsedForQcThresh
+    real                                   :: scatwObsFGaveraged
+    real                                   :: scatwUsedForQC
     logical                                :: FULLREJCT
     logical                                :: surfTypeIsSea 
     logical, save                          :: firstCall = .true.
@@ -1205,16 +1205,16 @@ contains
           surfTypeIsSea = .true.
 
           if (tvs_mwAllskyAssim) then
-            siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
-            siUsedForQC = siObsFGaveraged
-            siUsedForQcThreshold = mwbg_maxSiOverWaterThreshold
+            scatwObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
+            scatwUsedForQC = scatwObsFGaveraged
+            scatwUsedForQcThresh = mwbg_maxSiOverWaterThreshold
           else
-            siUsedForQC = scatwObs(nDataIndex)
-            siUsedForQcThreshold = ZSEUILSCATW
+            scatwUsedForQC = scatwObs(nDataIndex)
+            scatwUsedForQcThresh = ZSEUILSCATW
           end if
 
-          if (  siUsedForQC /= mwbg_realMissing    .and. &
-                siUsedForQC > siUsedForQcThreshold  ) then
+          if (  scatwUsedForQC /= mwbg_realMissing    .and. &
+                scatwUsedForQC > scatwUsedForQcThresh  ) then
             FULLREJCT = .TRUE.
           end if
         end if
@@ -1242,13 +1242,13 @@ contains
 
 
       if (tvs_mwAllskyAssim .and. surfTypeIsSea) then
-        siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
+        scatwObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
 
         ! In all-sky mode, turn on bit=23 for cloud-affected radiances over sea
         ! when there is mismatch between scatwObs and scatwFG
         ! (to be used in gen_bias_corr)
-        if (siObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. &
-            siObsFGaveraged == mwbg_realMissing) then
+        if (scatwObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. &
+            scatwObsFGaveraged == mwbg_realMissing) then
           do nChannelIndex = 1,KNO
             channelval = KCANO(nChannelIndex,nDataIndex)
             chanIndex = ISRCHEQI(chanFlaggedForAllskyGenCoeff(:),size(chanFlaggedForAllskyGenCoeff(:)), &
@@ -1258,22 +1258,22 @@ contains
           end do
           if ( mwbg_debug ) then
             write(*,*) STNID(2:9),' BENNARTZ scattering index check', &
-                      ' cloud-affected obs. siObsFGaveraged= ', siObsFGaveraged, ', threshold= ', &
+                      ' cloud-affected obs. scatwObsFGaveraged= ', scatwObsFGaveraged, ', threshold= ', &
                       mwbg_cloudySiThresholdBcorr
           end if
         end if
       end if
       
       if (tvs_mwAllskyAssim .and. ktermer(nDataIndex) == 1) then
-        siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
+        scatwObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
 
         ! In all-sky mode, reject observations over sea if: 
-        !   - siObsFGaveraged can not be computed.
-        !   - siObsFGaveraged smaller than the minimum value
-        !   - siObsFGaveraged greater than the maximum value
-        ! siObsFGaveraged is needed to define obs error.
-        if (siObsFGaveraged == mwbg_realMissing .or. siObsFGaveraged < mwbg_minSiOverWaterThreshold .or. &
-            siObsFGaveraged > mwbg_maxSiOverWaterThreshold) then
+        !   - scatwObsFGaveraged can not be computed.
+        !   - scatwObsFGaveraged smaller than the minimum value
+        !   - scatwObsFGaveraged greater than the maximum value
+        ! scatwObsFGaveraged is needed to define obs error.
+        if (scatwObsFGaveraged == mwbg_realMissing .or. scatwObsFGaveraged < mwbg_minSiOverWaterThreshold .or. &
+            scatwObsFGaveraged > mwbg_maxSiOverWaterThreshold) then
 
           loopChannel3: do nChannelIndex = 1, KNO
             channelval = KCANO(nChannelIndex,nDataIndex)
@@ -1285,7 +1285,7 @@ contains
                       rejectionCodArray(testIndex,channelval,KNOSAT)+ 1
             end if
           end do loopChannel3
-        end if ! if (siObsFGaveraged == mwbg_realMissing)
+        end if ! if (scatwObsFGaveraged == mwbg_realMissing)
 
       end if ! if (tvs_mwAllskyAssim .and. surfTypeIsSea)
       
@@ -1463,7 +1463,7 @@ contains
     real                                   :: errThresh1 
     real                                   :: errThresh2
     real                                   :: sigmaObsErrUsed
-    real                                   :: siObsFGaveraged 
+    real                                   :: scatwObsFGaveraged 
     logical                                :: CH2OMPREJCT
     logical                                :: ch2OmpRejectInAllsky
     logical                                :: channelIsAllsky
@@ -1497,17 +1497,17 @@ contains
             siThresh2 = siThreshArr(channelval,KNOSAT,2)
             errThresh1 = errThreshAllsky(channelval,KNOSAT,1)
             errThresh2 = errThreshAllsky(channelval,KNOSAT,2)
-            siObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
-            if (siObsFGaveraged == mwbg_realMissing) then
+            scatwObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
+            if (scatwObsFGaveraged == mwbg_realMissing) then
               sigmaObsErrUsed = MPC_missingValue_R4
             else
               sigmaObsErrUsed = calcStateDepObsErr_r4(siThresh1,siThresh2,errThresh1, &
-                                                      errThresh2,siObsFGaveraged)
+                                                      errThresh2,scatwObsFGaveraged)
             end if
           else
             sigmaObsErrUsed = TOVERRST(channelval,KNOSAT)
           end if
-          ! For sigmaObsErrUsed=MPC_missingValue_R4 (siObsFGaveraged=mwbg_realMissing
+          ! For sigmaObsErrUsed=MPC_missingValue_R4 (scatwObsFGaveraged=mwbg_realMissing
           ! in all-sky mode), the observation is already rejected in test 13.
           XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
           if (PTBOMP(nChannelIndex,nDataIndex) /= mwbg_realMissing .and. &
