@@ -14,7 +14,7 @@ which maestro 1>/dev/null 2>&1 || ${SEQ_MAESTRO_SHORTCUT:-". ssmuse-sh -d eccc/c
 which clone_suite 1>/dev/null 2>&1 || . ssmuse-sh -d eccc/cmd/cmdi/utils/2.6
 
 if [ "${ORDENV_PLAT}" = rhel-8-icelake-64 ]; then
-    __rmnlib_version__=20230222-beta3
+    __rmnlib_version__=20230228-beta4
 elif [ "${ORDENV_PLAT}" = ubuntu-18.04-skylake-64 ]; then
     __rmnlib_version__=19.6.0
 else
