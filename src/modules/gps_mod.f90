@@ -2898,7 +2898,7 @@ contains
     REAL(8) :: gpsroNsigma      ! Factor applied to observation error for background departure check when gpsroBNorm is .true. (default 1.d6)
 
     NAMELIST /NAMGPSRO/ LEVELGPSRO, GPSRO_MAXPRFSIZE, SURFMIN, HSFMIN, HTPMAX, HTPMAXER, &
-        BGCKBAND, WGPS, gpsroError, gpsroBNorm, gpsroEotvos, gproNsigma
+        BGCKBAND, WGPS, gpsroError, gpsroBNorm, gpsroEotvos, gpsroNsigma
 
 !
 !   Define default values:
