@@ -57,8 +57,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Now using `rpn/libs/20230228-beta4` and `rpn/utils/20230228-beta4` (#782 and !700)
+ * Now using `rpn/libs/20230222-beta3` and `rpn/utils/20230222-beta3` (#725 and !694)
  * Remove use of `resume` table in all obsDB/sqlite files; add `MIDAS_DATE` (#761 and !691)
-  * Removed date-related namelist variables in NAMTIME, NAMENKF and NAMDIAG
+   * Removed date-related namelist variables in NAMTIME, NAMENKF and NAMDIAG
  * Primary keys in MIDAS_HEADER/BODY_OUTPUT tables now unique across split ObsDB files (#765 and !685)
  * Moved the definition of maxNumLevels to verticalcoord_mod (#758 and !688)
  * Centralised and wrapped all `vgd_{levels,dpidpis}` calls in `czp` (#745 and !687)
@@ -84,6 +86,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fixed `midas.mpirun` so that it works with latest version of rpn/libs (#782 and !700)
  * Fixed SSMIS satqc procedure by using biased observations, like in operations (#769 and !690)
  * Fixed `SSTbias` program when some mpi processors don't have data (#772 and !689)
  * Fixed `str` vertical array representation + now configurable in namelist (#704 and !677)
