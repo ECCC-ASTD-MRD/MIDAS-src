@@ -1130,7 +1130,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
                                                      useStateDepSigmaObs, KTERMER, GLINTRP, &
-                                                     KMARQ, ICHECK, chanFlaggedForAllskyGenCoeff, &
+                                                     KMARQ, ICHECK, chanIgnoreInAllskyGenCoeff, &
                                                      skipTestArr_opt)
 
     !:Purpose:                  13) test 13: Bennartz scattering index check (full)
@@ -1154,7 +1154,7 @@ contains
     real,        intent(in)                :: GLINTRP(KNT)                   ! glace de mer
     integer,     intent(inout)             :: KMARQ(KNO,KNT)                 ! marqueur de radiance 
     integer,     intent(inout)             :: ICHECK(KNO,KNT)                ! indicateur du QC par canal
-    integer,     intent(in)                :: chanFlaggedForAllskyGenCoeff(:)! channels to exclude from genCoeff
+    integer,     intent(in)                :: chanIgnoreInAllskyGenCoeff(:)  ! channels to exclude from genCoeff
     logical,     intent(in), optional      :: skipTestArr_opt(:)             ! array to set to skip the test
 
 
@@ -1245,13 +1245,13 @@ contains
       if (tvs_mwAllskyAssim .and. surfTypeIsSea) then
         scatwObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
 
-        ! In all-sky mode, turn on bit=23 for channels in chanFlaggedForAllskyGenCoeff(:)
+        ! In all-sky mode, turn on bit=23 for channels in chanIgnoreInAllskyGenCoeff(:)
         ! as cloud-affected radiances over sea when there is mismatch between 
         ! scatwObs and scatwFG (to be used in gen_bias_corr)
         if (scatwObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. cldPredMissing) then
           do nChannelIndex = 1,KNO
             channelval = KCANO(nChannelIndex,nDataIndex)
-            chanIndex = ISRCHEQI(chanFlaggedForAllskyGenCoeff(:),size(chanFlaggedForAllskyGenCoeff(:)), &
+            chanIndex = ISRCHEQI(chanIgnoreInAllskyGenCoeff(:),size(chanIgnoreInAllskyGenCoeff(:)), &
                                  channelval)
             if (chanIndex == 0) cycle
             KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**23)
@@ -2193,7 +2193,7 @@ contains
     integer                                :: ISFCREJ (MXSFCREJ)
     integer                                :: ICH2OMPREJ(MXCH2OMPREJ)
     integer                                :: ISFCREJ2(MXSFCREJ2)
-    integer                                :: chanFlaggedForAllskyGenCoeff(5)
+    integer                                :: chanIgnoreInAllskyGenCoeff(5)
     real                                   :: EPSILON
     real                                   :: MISGRODY
     real, allocatable                      :: GROSSMIN(:)
@@ -2248,7 +2248,7 @@ contains
     altitudeForTopoFilter(:) = (/ 2500., 2000., 1000./)
 
     ! Channels excluded from genCoeff in all-sky mode
-    chanFlaggedForAllskyGenCoeff(:) = (/43, 44, 45, 46, 47/)
+    chanIgnoreInAllskyGenCoeff(:) = (/43, 44, 45, 46, 47/)
 
     ! Allocation
     call utl_reAllocate(scatwObs, KNT)
@@ -2359,7 +2359,7 @@ contains
     ! 13) test 13: Bennartz scattering index check (full)
     call amsubTest13BennartzScatteringIndexCheck(KCANO, KNOSAT, KNT, KNO, STNID, scatwObs, scatwFG, scatl, &
                                                  useStateDepSigmaObs, KTERMER, GLINTRP, &
-                                                 KMARQ, ICHECK, chanFlaggedForAllskyGenCoeff, &
+                                                 KMARQ, ICHECK, chanIgnoreInAllskyGenCoeff, &
                                                  skipTestArr_opt=skipTestArr(:))
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
@@ -3706,7 +3706,7 @@ contains
     real, allocatable                :: ROGUEFAC(:)
     real                             :: ZCRIT(MXTOPO)
     integer                          :: ITEST(mwbg_maxNumTest)
-    integer                          :: chanFlaggedForAllskyGenCoeff(MXCLWREJ)
+    integer                          :: chanIgnoreInAllskyGenCoeff(MXCLWREJ)
     integer                          :: ICHTOPO(MXTOPO)
     logical, save                    :: LLFIRST = .true.
     integer, save                    :: numReportWithMissingTb
@@ -3748,7 +3748,7 @@ contains
     ITEST(1:5) = (/1, 1, 1, 1, 1/)
 
     ! Channels excluded from gen_bias_corr in all-sky mode
-    chanFlaggedForAllskyGenCoeff(:) = (/ 1, 2, 3, 4, 5, 6/)
+    chanIgnoreInAllskyGenCoeff(:) = (/ 1, 2, 3, 4, 5, 6/)
 
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
@@ -3834,7 +3834,7 @@ contains
                                              precipobs, clwObs, clwFG, scatec, scatbg, &
                                              iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
                                              drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
-                                             MXCLWREJ, chanFlaggedForAllskyGenCoeff, icano)
+                                             MXCLWREJ, chanIgnoreInAllskyGenCoeff, icano)
 
     !###############################################################################
     ! PART 2 TESTS:
@@ -4046,7 +4046,7 @@ contains
     real, allocatable                :: ROGUEFAC(:)
     real                             :: ZCRIT(MXTOPO)
     integer                          :: ITEST(mwbg_maxNumTest)
-    integer                          :: chanFlaggedForAllskyGenCoeff(MXCLWREJ)
+    integer                          :: chanIgnoreInAllskyGenCoeff(MXCLWREJ)
     integer                          :: ICHTOPO(MXTOPO)
     logical, save                    :: LLFIRST = .true.
     integer, save                    :: numReportWithMissingTb
@@ -4084,7 +4084,7 @@ contains
     ITEST(1:5) = (/1, 1, 1, 1, 1/)
 
     ! Channels excluded from gen_bias_corr in all-sky mode
-    chanFlaggedForAllskyGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
+    chanIgnoreInAllskyGenCoeff(:) = (/ 10, 11, 12, 13, 14, 15/)
 
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
@@ -4168,7 +4168,7 @@ contains
                                               precipobs, clwObs, clwFG, scatec, scatbg, &
                                               iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
                                               allcnt, drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
-                                              MXCLWREJ, chanFlaggedForAllskyGenCoeff, icano)
+                                              MXCLWREJ, chanIgnoreInAllskyGenCoeff, icano)
 
     !###############################################################################
     ! PART 2 TESTS:
@@ -6508,7 +6508,7 @@ contains
                                                  precipobs, clwObs, clwFG, scatec, scatbg, &
                                                  iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
                                                  drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
-                                                 MXCLWREJ, chanFlaggedForAllskyGenCoeff, icano)
+                                                 MXCLWREJ, chanIgnoreInAllskyGenCoeff, icano)
 
     !:Purpose:                   Review all the checks previously made to determine which obs are to be accepted
     !                            for assimilation and which are to be flagged for exclusion (lflagchn).
@@ -6541,7 +6541,7 @@ contains
     integer, intent(inout)                     :: pcpcnt
     integer, intent(inout)                     :: flgcnt
     integer, intent(in)                        :: MXCLWREJ
-    integer, intent(in)                        :: chanFlaggedForAllskyGenCoeff(:)
+    integer, intent(in)                        :: chanIgnoreInAllskyGenCoeff(:)
     integer, intent(in)                        :: icano(:)
 
     ! Locals
@@ -6659,7 +6659,7 @@ contains
     where (riwv == -99. ) riwv = mwbg_realMissing
 
     ! Modify data flag values (set bit 7) for rejected data
-    ! In all-sky mode, turn on bit=23 for channels in chanFlaggedForAllskyGenCoeff(:)
+    ! In all-sky mode, turn on bit=23 for channels in chanIgnoreInAllskyGenCoeff(:)
     ! as cloud-affected radiances over sea when there is mismatch between 
     ! clwObs and clwFG (to be used in gen_bias_corr)
     ipos=0
@@ -6672,7 +6672,7 @@ contains
           IMARQ(ipos) = IBSET(IMARQ(ipos),7)
         end if
 
-        INDXCAN = ISRCHEQI(chanFlaggedForAllskyGenCoeff, MXCLWREJ, ICANO(ipos))
+        INDXCAN = ISRCHEQI(chanIgnoreInAllskyGenCoeff, MXCLWREJ, ICANO(ipos))
         if (tvs_mwAllskyAssim .and. waterobs(kk) .and. INDXCAN /= 0 .and. &
             (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
              clwObs(kk) == mwbg_realMissing .or. clwFG(kk) == mwbg_realMissing)) then
@@ -6696,7 +6696,7 @@ contains
                                                   precipobs, clwObs, clwFG, scatec, scatbg, &
                                                   iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
                                                   allcnt, drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
-                                                  MXCLWREJ, chanFlaggedForAllskyGenCoeff, icano)
+                                                  MXCLWREJ, chanIgnoreInAllskyGenCoeff, icano)
 
     !:Purpose:                   Review all the checks previously made to determine which obs are to be accepted
     !                            for assimilation and which are to be flagged for exclusion (lflagchn).
@@ -6731,7 +6731,7 @@ contains
     integer, intent(inout)                     :: flgcnt
     integer, intent(inout)                     :: trn(:)
     integer, intent(in)                        :: MXCLWREJ
-    integer, intent(in)                        :: chanFlaggedForAllskyGenCoeff(:)
+    integer, intent(in)                        :: chanIgnoreInAllskyGenCoeff(:)
     integer, intent(in)                        :: icano(:)
 
     ! Locals
@@ -6860,7 +6860,7 @@ contains
     where (riwv == -99. ) riwv = mwbg_realMissing
 
     ! Modify data flag values (set bit 7) for rejected data
-    ! In all-sky mode, turn on bit=23 for channels in chanFlaggedForAllskyGenCoeff(:)
+    ! In all-sky mode, turn on bit=23 for channels in chanIgnoreInAllskyGenCoeff(:)
     ! as cloud-affected radiances over sea when there is mismatch between 
     ! clwObs and clwFG (to be used in gen_bias_corr)
     ipos=0
@@ -6873,7 +6873,7 @@ contains
           IMARQ(ipos) = IBSET(IMARQ(ipos),7)
         end if
 
-        INDXCAN = ISRCHEQI(chanFlaggedForAllskyGenCoeff, MXCLWREJ, ICANO(ipos))
+        INDXCAN = ISRCHEQI(chanIgnoreInAllskyGenCoeff, MXCLWREJ, ICANO(ipos))
         if (tvs_mwAllskyAssim .and. waterobs(kk) .and. INDXCAN /= 0 .and. &
             (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
              clwObs(kk) == mwbg_realMissing .or. clwFG(kk) == mwbg_realMissing)) then
