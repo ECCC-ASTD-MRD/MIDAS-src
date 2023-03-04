@@ -579,7 +579,7 @@ module backgroundCheck_mod
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),9))
                     end if
                   else
-                    if ( DABS(ZOMF)/ZREF > gps_BgckBand ) then
+                    if ( DABS(ZOMF)/ZREF > gps_BgckBand .or. DABS(ZOMF)/ZOER > gps_roNsigma) then
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),16))
                       call obs_bodySet_i(obsData,OBS_FLG,bodyIndex,ibset(obs_bodyElem_i(obsData,OBS_FLG,bodyIndex),9))
                       write(*,'(A40,F10.0,3F12.4)') ' REJECT BGCSGPSRO H  O  P (O-P/ZREF) =',HNH1,ZOBS,ZMHX,(ZOMF)/ZREF
