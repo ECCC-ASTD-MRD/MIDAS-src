@@ -936,12 +936,11 @@ contains
           end if
         end if
 
-        ! In all-sky mode, turn on bit=23 for cloud-affected radiances 
-        ! when there is mismatch between clwObs and clwFG
-        ! (to be used in gen_bias_corr)
+        ! In all-sky mode, turn on bit=23 for channels in ICLWREJ(:) as 
+        ! cloud-affected radiances over sea when there is mismatch between 
+        ! clwObs and clwFG (to be used in gen_bias_corr)
         clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
-        IF (tvs_mwAllskyAssim .and. &
-            (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. cldPredMissing)) then
+        IF (tvs_mwAllskyAssim .and. clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr) then
           do nChannelIndex = 1,KNO
             INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,KCANO(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 ) KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**23)
@@ -1173,6 +1172,7 @@ contains
     real                                   :: scatwUsedForQC
     logical                                :: FULLREJCT
     logical                                :: surfTypeIsSea 
+    logical                                :: cldPredMissing
     logical, save                          :: firstCall = .true.
 
 
@@ -1208,19 +1208,16 @@ contains
             scatwObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
             scatwUsedForQC = scatwObsFGaveraged
             scatwUsedForQcThresh = mwbg_maxSiOverWaterThreshold
-            if (scatwObs(nDataIndex) /= mwbg_realMissing .and. &
-                scatwFG(nDataIndex) /= mwbg_realMissing .and. &
-                scatwUsedForQC > scatwUsedForQcThresh) then
-              FULLREJCT = .TRUE.
-            end if
-
+            cldPredMissing = (scatwObs(nDataIndex) == mwbg_realMissing .or. &
+                              scatwFG(nDataIndex) == mwbg_realMissing)
           else
             scatwUsedForQC = scatwObs(nDataIndex)
             scatwUsedForQcThresh = ZSEUILSCATW
-            if (scatwObs(nDataIndex) /= mwbg_realMissing .and. &
-                scatwUsedForQC > scatwUsedForQcThresh) then
-              FULLREJCT = .TRUE.
-            end if
+            cldPredMissing = (scatwObs(nDataIndex) == mwbg_realMissing)
+          end if
+
+          if (.not. cldPredMissing .and. scatwUsedForQC > scatwUsedForQcThresh) then
+            FULLREJCT = .TRUE.
           end if
         end if
 
@@ -1245,15 +1242,13 @@ contains
         end if
       end if
 
-
       if (tvs_mwAllskyAssim .and. surfTypeIsSea) then
         scatwObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
 
         ! In all-sky mode, turn on bit=23 for channels in chanFlaggedForAllskyGenCoeff(:)
         ! as cloud-affected radiances over sea when there is mismatch between 
         ! scatwObs and scatwFG (to be used in gen_bias_corr)
-        if (scatwObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. &
-            scatwObs(nDataIndex) == mwbg_realMissing .or. scatwFG(nDataIndex) == mwbg_realMissing) then
+        if (scatwObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. cldPredMissing) then
           do nChannelIndex = 1,KNO
             channelval = KCANO(nChannelIndex,nDataIndex)
             chanIndex = ISRCHEQI(chanFlaggedForAllskyGenCoeff(:),size(chanFlaggedForAllskyGenCoeff(:)), &
@@ -1271,14 +1266,15 @@ contains
       
       if (tvs_mwAllskyAssim .and. ktermer(nDataIndex) == 1) then
         scatwObsFGaveraged = 0.5 * (scatwObs(nDataIndex) + scatwFG(nDataIndex))
+        cldPredMissing = (scatwObs(nDataIndex) == mwbg_realMissing .or. &
+                          scatwFG(nDataIndex) == mwbg_realMissing)
 
         ! In all-sky mode, reject observations over sea if: 
         !   - scatwObsFGaveraged can not be computed.
         !   - scatwObsFGaveraged smaller than the minimum value
         !   - scatwObsFGaveraged greater than the maximum value
         ! scatwObsFGaveraged is needed to define obs error.
-        if (scatwObs(nDataIndex) == mwbg_realMissing .or. scatwFG(nDataIndex) == mwbg_realMissing .or. &
-            scatwObsFGaveraged < mwbg_minSiOverWaterThreshold .or. &
+        if (cldPredMissing .or. scatwObsFGaveraged < mwbg_minSiOverWaterThreshold .or. &
             scatwObsFGaveraged > mwbg_maxSiOverWaterThreshold) then
 
           loopChannel3: do nChannelIndex = 1, KNO
@@ -1347,7 +1343,6 @@ contains
     real                                   :: sigmaObsErrUsed  
     logical                                :: SFCREJCT
     logical                                :: surfTypeIsWater
-    logical                                :: cldPredMissing
     real                                   :: clwObsFGaveraged 
 
     testIndex = 14
@@ -1366,9 +1361,7 @@ contains
             errThresh1 = errThreshAllsky(channelval,KNOSAT,1)
             errThresh2 = errThreshAllsky(channelval,KNOSAT,2)
             clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
-            cldPredMissing = (clwObs(nDataIndex) == MISGRODY .or. &
-                              clwFG(nDataIndex) == MISGRODY)
-            if (cldPredMissing) then
+            if (clwObs(nDataIndex) == MISGRODY .or. clwFG(nDataIndex) == MISGRODY) then
               sigmaObsErrUsed = MPC_missingValue_R4
             else
               sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,errThresh1, &
@@ -6666,8 +6659,9 @@ contains
     where (riwv == -99. ) riwv = mwbg_realMissing
 
     ! Modify data flag values (set bit 7) for rejected data
-    ! In all-sky mode, turn on bit=23 for cloud-affected radiances when
-    ! there is mismatch between clwObs and clwFG (to be used in gen_bias_corr)
+    ! In all-sky mode, turn on bit=23 for channels in chanFlaggedForAllskyGenCoeff(:)
+    ! as cloud-affected radiances over sea when there is mismatch between 
+    ! clwObs and clwFG (to be used in gen_bias_corr)
     ipos=0
     do kk =1, nt
       clwObsFGaveraged = 0.5 * (clwObs(kk) + clwFG(kk))
@@ -6679,9 +6673,9 @@ contains
         end if
 
         INDXCAN = ISRCHEQI(chanFlaggedForAllskyGenCoeff, MXCLWREJ, ICANO(ipos))
-        if ( tvs_mwAllskyAssim .and. waterobs(kk) .and. INDXCAN /= 0 .and. &
-             (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
-              clwObs(kk) == mwbg_realMissing) ) then
+        if (tvs_mwAllskyAssim .and. waterobs(kk) .and. INDXCAN /= 0 .and. &
+            (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
+             clwObs(kk) == mwbg_realMissing .or. clwFG(kk) == mwbg_realMissing)) then
           IMARQ(ipos) = IBSET(IMARQ(ipos),23)
         end if
       end do
@@ -6866,8 +6860,9 @@ contains
     where (riwv == -99. ) riwv = mwbg_realMissing
 
     ! Modify data flag values (set bit 7) for rejected data
-    ! In all-sky mode, turn on bit=23 for cloud-affected radiances when
-    ! there is mismatch between clwObs and clwFG (to be used in gen_bias_corr)
+    ! In all-sky mode, turn on bit=23 for channels in chanFlaggedForAllskyGenCoeff(:)
+    ! as cloud-affected radiances over sea when there is mismatch between 
+    ! clwObs and clwFG (to be used in gen_bias_corr)
     ipos=0
     do kk =1, nt
       clwObsFGaveraged = 0.5 * (clwObs(kk) + clwFG(kk))
@@ -6879,9 +6874,9 @@ contains
         end if
 
         INDXCAN = ISRCHEQI(chanFlaggedForAllskyGenCoeff, MXCLWREJ, ICANO(ipos))
-        if ( tvs_mwAllskyAssim .and. waterobs(kk) .and. INDXCAN /= 0 .and. &
-             (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
-              clwObs(kk) == mwbg_realMissing) ) then
+        if (tvs_mwAllskyAssim .and. waterobs(kk) .and. INDXCAN /= 0 .and. &
+            (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
+             clwObs(kk) == mwbg_realMissing .or. clwFG(kk) == mwbg_realMissing)) then
           IMARQ(ipos) = IBSET(IMARQ(ipos),23)
         end if
       end do
