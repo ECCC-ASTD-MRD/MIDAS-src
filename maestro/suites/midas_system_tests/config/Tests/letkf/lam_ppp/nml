@@ -14,8 +14,8 @@
    outputEnsObs          = .true.
    obsTimeInterpType     = 'LINEAR'
    mpiDistribution       = 'TILES'
-   oseImpact             = .true.
-   oseObsFamily          = 'UA'
+   edaObsImpact          = .true.
+   edaObsFamily          = 'UA'
 /
  &namEnsPostProcModule
    alphaRTPP             = 0.40D0

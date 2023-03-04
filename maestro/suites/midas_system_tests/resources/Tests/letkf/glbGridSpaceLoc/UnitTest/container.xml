@@ -1,4 +1,4 @@
 <?xml version="1.0" ?>
 <NODE_RESOURCES>
-     <BATCH catchup="9" machine="${FRONTEND}" queue="${FRONTEND_DEFAULT_Q}"/>
+     <BATCH catchup="2" machine="${FRONTEND}" queue="${FRONTEND_DEFAULT_Q}"/>
 </NODE_RESOURCES>
