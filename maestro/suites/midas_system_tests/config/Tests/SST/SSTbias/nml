@@ -8,8 +8,8 @@
   ANLVAR(1) = 'TM'
 /
  &NAMDIMO
-   NMXOBS=3500000,
-   NDATAMX=3500000
+   NMXOBS=1500000,
+   NDATAMX=1500000
 /
  &NAMFILT
   NLIST(1)=22042,
@@ -22,17 +22,17 @@
 /
  &namSSTbiasEstimate
    searchRadius =   25.    
-   iceFractionThreshold = 0.01
+   iceFractionThreshold = 0.6
    maxBias = 5.
-   numberPointsBG = 250
+   numberPointsBG = 100
    timeInterpType_nl = 'NEAREST'
    numObsBatches = 20
-   sensorList(1)='AMSR2'
-   sensorList(2)='METO-B'
-   sensorList(3)='METO-C'
+   sensorList(1)='METO-B'
+   sensorList(2)='METO-C'
    weightMin = 0.0
    weightMax = 0.2
    saveAuxFields = .True.
+   bgTermZeroBias = 0.95
 /
  &NAMSQLsfc
    listElem='22042'
@@ -47,20 +47,6 @@
  &namSQLUpdate
 /
  &namSQLInsert
-/
- &NAMMIN
-   NVAMAJ   = 30,
-   NITERMAX = 50,
-   NSIMMAX  = 100,
-   REPSG    = 1.0D-5,
-   LGRTEST  = .FALSE.,
-   LWRTHESS = .FALSE.,
-   LVARQC   = .FALSE.,
-   NWOQCV   = 5
-/
- &NAMINC
-   hInterpolationDegree = 'CUBIC'
-   etiket_rebm ='XXXXXX'
 /
  &NAMCODTYP
 /

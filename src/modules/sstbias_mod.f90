@@ -55,17 +55,18 @@ module SSTbias_mod
   integer, parameter          :: maxNumberSensors = 10
 
   ! namelist variables
-  real(8)                     :: searchRadius             ! horizontal search radius, in km, for obs gridding
-  real(4)                     :: maxBias                  ! max acceptable difference (insitu - satellite)
-  real(4)                     :: iceFractionThreshold     ! consider no ice condition below this threshold
-  integer                     :: numberPointsBG           ! parameter, number of matchups of the background bias estimation
-  character(len=20)           :: timeInterpType_nl        ! 'NEAREST' or 'LINEAR'
-  integer                     :: numObsBatches            ! number of batches for calling interp setup
-  integer                     :: numberSensors            ! MUST NOT BE INCLUDED IN NAMELIST!
-  character(len=10)           :: sensorList(maxNumberSensors)  ! list of sensors
-  logical                     :: saveAuxFields           ! to store or not auxiliary fields: nobs and weight        
-  real(4)                     :: weightMin               ! minimum value of weight for the current day bias
-  real(4)                     :: weightMax               ! maximum value of weight for the current day bias
+  real(8)           :: searchRadius		   ! horizontal search radius, in km, for obs gridding
+  real(4)           :: maxBias  		   ! max acceptable difference (insitu - satellite)
+  real(4)           :: iceFractionThreshold	   ! consider no ice condition below this threshold
+  integer           :: numberPointsBG		   ! parameter, number of matchups of the background bias estimation
+  character(len=20) :: timeInterpType_nl	   ! 'NEAREST' or 'LINEAR'
+  integer           :: numObsBatches		   ! number of batches for calling interp setup
+  integer           :: numberSensors		   ! MUST NOT BE INCLUDED IN NAMELIST!
+  character(len=10) :: sensorList(maxNumberSensors)! list of sensors
+  logical           :: saveAuxFields		   ! to store or not auxiliary fields: nobs and weight        
+  real(4)           :: weightMin		   ! minimum value of weight for the current day bias
+  real(4)           :: weightMax		   ! maximum value of weight for the current day bias
+  real(4)           :: bgTermZeroBias		   ! background term of zero bias estimate
 
   contains
 
@@ -140,22 +141,20 @@ module SSTbias_mod
     insituGrid(:, :) = MPC_missingValue_R8
 
     call sstb_getGriddedObs(obsData, insituGrid, nobsFoundInsituGlob, &
-                            nobsFoundInsituLoc, hco, searchRadius, openWater, 'insitu')
+                            nobsFoundInsituLoc, hco, openWater, 'insitu')
 
     do sensorIndex = 1, numberSensors 
       do productIndex = 1, numberProducts
         if (nobsFoundInsituGlob > 0) then
           satelliteGrid(:, :) = MPC_missingValue_R8
           call sstb_getGriddedObs(obsData, satelliteGrid(:, :), nobsFoundSatGlob, &
-                                  nobsFoundSatLoc, hco, searchRadius, &
-                                  openWater, sensorList(sensorIndex), &
+                                  nobsFoundSatLoc, hco, openWater, sensorList(sensorIndex), &
                                   dayOrNight_opt = listProducts(productIndex))
           if (nobsFoundSatGlob > 0) then
             call sstb_getGriddedBias(satelliteGrid(:, :), insituGrid, nobsFoundSatGlob, &
-                                     nobsFoundSatLoc, hco, vco, mask, openWater, maxBias, &
+                                     nobsFoundSatLoc, hco, vco, mask, openWater, &
                                      sensorList(sensorIndex), numberOpenWaterPoints, &
-                                     numberPointsBG, listProducts(productIndex), &
-                                     weightMin, weightMax, saveAuxFields)
+                                     listProducts(productIndex))
           else
             write(*,*) 'sstb_computeBias: WARNING: missing ', trim(sensorList(sensorIndex)), ' ', &
                        trim(listProducts(productIndex)),' data.' 
@@ -182,7 +181,7 @@ module SSTbias_mod
   ! sstb_getGriddedObs
   !--------------------------------------------------------------------------
   subroutine sstb_getGriddedObs(obsData, obsGrid, countObsGlob, countObsLoc, &
-                                hco, searchRadius, openWater, instrument, dayOrNight_opt)
+                                hco, openWater, instrument, dayOrNight_opt)
     !
     !:Purpose: put observations of a given family on the grid
     !           
@@ -194,7 +193,6 @@ module SSTbias_mod
     integer         , intent(out)            :: countObsGlob   ! global number of data found (all procs)
     integer         , intent(out)            :: countObsLoc    ! number of data found (current MPI proc)
     type(struct_hco), intent(in)   , pointer :: hco            ! horizontal grid structure
-    real(8)         , intent(in)             :: searchRadius   ! horizontal search radius where to search obs
     logical         , intent(in)             :: openWater(:,:) ! open water points (.true.)
     character(len=*), intent(in)             :: instrument     ! name of instrument
     character(len=*), intent(in), optional   :: dayOrNight_opt ! look for daytime or nighttime obs
@@ -365,9 +363,8 @@ module SSTbias_mod
   ! sstb_getGriddedBias
   !--------------------------------------------------------------------------
   subroutine sstb_getGriddedBias(satelliteGrid, insituGrid, nobsGlob, nobsLoc, &
-                                 hco, vco,  mask, openWater, maxBias, sensor, &
-                                 numberOpenWaterPoints, numberPointsBG, dayOrNight, &
-                                 weightMin, weightMax, saveAuxFields)
+                                 hco, vco,  mask, openWater, sensor, &
+                                 numberOpenWaterPoints, dayOrNight)
     !
     !:Purpose: compute the satellite SST data bias estimation field on a grid
     !           
@@ -382,14 +379,9 @@ module SSTbias_mod
     type(struct_vco), intent(in)   , pointer :: vco                  ! vertical grid structure
     logical         , intent(in)             :: mask(:,:)            ! land-ocean mask
     logical         , intent(in)             :: openWater(:,:)       ! open water points (.true.)
-    real(4)         , intent(in)             :: maxBias              ! namelist parameter: max allowed insitu-satellite difference in degrees 
     character(len=*), intent(in)             :: sensor               ! current sensor name
     integer         , intent(in)             :: numberOpenWaterPoints! number of open water points to allocate kd-tree work arrays 
-    integer         , intent(in)             :: numberPointsBG       ! namelist parameter: number of data used to compute the previous bias estimation
     character(len=*), intent(in)             :: dayOrNight           ! look for daytime or nighttime obs
-    logical         , intent(in)             :: saveAuxFields        ! to store or not auxiliary fields: nobs and weight        
-    real(4)         , intent(in)             :: weightMin            ! namelist parameter: minimum value of weight
-    real(4)         , intent(in)             :: weightMax            ! namelist parameter: maximum value of weight
 
     ! locals
     real(4), parameter          :: solarZenithThreshold = 90.0       ! to distinguish day and night
@@ -552,7 +544,7 @@ module SSTbias_mod
 	  end if
 	  
 	  ! computation of the bias:
-          griddedBias_r4_ptr(lonIndex, latIndex, 1) = (1.0d0 - weight) * &
+          griddedBias_r4_ptr(lonIndex, latIndex, 1) = (1.0d0 - weight) * bgTermZeroBias * &
                                                       griddedBias_r4_previous_ptr(lonIndex, latIndex, 1) + &
                                                       weight * griddedBias_r4_ptr(lonIndex, latIndex, 1)
         else ! no data on the current processor   
@@ -589,8 +581,7 @@ module SSTbias_mod
   !--------------------------------------------------------------------------
   ! sstb_getBiasCorrection
   !--------------------------------------------------------------------------
-  subroutine sstb_getBiasCorrection(stateVector, column, obsData, hco, sensor, &
-                                    dayOrNight, timeInterpType_nl, numObsBatches)
+  subroutine sstb_getBiasCorrection(stateVector, column, obsData, hco, sensor, dayOrNight)
     !
     !:Purpose: To compute bias correction and put it into obsSpace data. 
     !          Columns from input field are interpolated to obs location
@@ -604,8 +595,6 @@ module SSTbias_mod
     type(struct_hco)       , intent(in), pointer :: hco               ! horizontal grid
     character(len=*)       , intent(in)          :: sensor            ! current sensor name
     character(len=*)       , intent(in)          :: dayOrNight        ! look for daytime or nighttime obs
-    character(len=20)      , intent(in)          :: timeInterpType_nl ! 'NEAREST' or 'LINEAR'
-    integer                , intent(in)          :: numObsBatches     ! number of batches for calling interp setup
 
     ! locals
     real(4), parameter :: solarZenithThreshold = 90.0 ! to distinguish day and night
@@ -658,12 +647,12 @@ module SSTbias_mod
     
     namelist /namSSTbiasEstimate/ searchRadius, maxBias, iceFractionThreshold, numberPointsBG, &
                                   timeInterpType_nl, numObsBatches, numberSensors, sensorList, &
-                                  weightMin, weightMax, saveAuxFields
+                                  weightMin, weightMax, saveAuxFields, bgTermZeroBias
 
     ! Setting default namelist variable values
     searchRadius = 10.            
     maxBias = 1.                  
-    iceFractionThreshold   = 0.05 
+    iceFractionThreshold   = 0.6 
     numberSensors = MPC_missingValue_INT
     numberPointsBG = 0            
     timeInterpType_nl = 'NEAREST'
@@ -672,6 +661,7 @@ module SSTbias_mod
     weightMin = 0.0
     weightMax = 1.0
     saveAuxFields = .False.
+    bgTermZeroBias = 1.0
     
     ! Read the namelist
     nulnam = 0
@@ -750,7 +740,7 @@ module SSTbias_mod
         call gio_readFromFile(stateVector, biasFileName, 'B_'//trim(sensorList(sensorIndex))//'_'//trim(extension), &
                               'R', unitConversion_opt=.false., containsFullField_opt=.true.)
         call sstb_getBiasCorrection(stateVector, column, obsData, hco, trim(sensorList(sensorIndex)), &
-                                    trim(listProducts(productIndex)), timeInterpType_nl, numObsBatches)
+                                    trim(listProducts(productIndex)))
       end do
     end do
     				    
