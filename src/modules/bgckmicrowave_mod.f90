@@ -903,20 +903,23 @@ contains
     real                                  :: clwUsedForQC
     real                                  :: clwObsFGaveraged
     logical                               :: surfTypeIsWater 
+    logical                               :: cldPredMissing
 
     testIndex = 12
     do nDataIndex=1,KNT
       if ( tvs_mwAllskyAssim ) then
         clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
         clwUsedForQC = clwObsFGaveraged
+        cldPredMissing = (clwObs(nDataIndex) == MISGRODY .or. clwFG(nDataIndex) == MISGRODY)
       else
         clwUsedForQC = clwObs(nDataIndex)
+        cldPredMissing = (clwObs(nDataIndex) == MISGRODY)
       end if
 
       surfTypeIsWater = ( ktermer(nDataIndex) ==  1 )
 
-      if ( clwUsedForQC /=  MISGRODY  ) then
-        if ( clwUsedForQC > mwbg_clwQcThreshold ) then
+      if (.not. cldPredMissing) then
+        if (clwUsedForQC > mwbg_clwQcThreshold) then
           do nChannelIndex=1,KNO
             INDXCAN = ISRCHEQI (ICLWREJ,MXCLWREJ,KCANO(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 )  then
@@ -937,9 +940,8 @@ contains
         ! when there is mismatch between clwObs and clwFG
         ! (to be used in gen_bias_corr)
         clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
-        IF ( tvs_mwAllskyAssim .and. &
-            (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
-            clwObsFGaveraged == MISGRODY) ) then
+        IF (tvs_mwAllskyAssim .and. &
+            (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. cldPredMissing)) then
           do nChannelIndex = 1,KNO
             INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,KCANO(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 ) KMARQ(nChannelIndex,nDataIndex) = OR(KMARQ(nChannelIndex,nDataIndex),2**23)
@@ -953,9 +955,7 @@ contains
 
       ! Reject surface sensitive observations over water, in all-sky mode, 
       ! if CLW is not retrieved, and is needed to define obs error.
-      else if ( tvs_mwAllskyAssim .and. surfTypeIsWater .and. &
-                clwUsedForQC == MISGRODY ) then
-
+      else if (tvs_mwAllskyAssim .and. surfTypeIsWater .and. cldPredMissing) then
         loopChannel: do nChannelIndex = 1, KNO
           channelval = KCANO(nChannelIndex,nDataIndex)
           INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,channelval)
@@ -1347,6 +1347,7 @@ contains
     real                                   :: sigmaObsErrUsed  
     logical                                :: SFCREJCT
     logical                                :: surfTypeIsWater
+    logical                                :: cldPredMissing
     real                                   :: clwObsFGaveraged 
 
     testIndex = 14
@@ -1365,7 +1366,9 @@ contains
             errThresh1 = errThreshAllsky(channelval,KNOSAT,1)
             errThresh2 = errThreshAllsky(channelval,KNOSAT,2)
             clwObsFGaveraged = 0.5 * (clwObs(nDataIndex) + clwFG(nDataIndex))
-            if ( clwObsFGaveraged == MISGRODY ) then
+            cldPredMissing = (clwObs(nDataIndex) == MISGRODY .or. &
+                              clwFG(nDataIndex) == MISGRODY)
+            if (cldPredMissing) then
               sigmaObsErrUsed = MPC_missingValue_R4
             else
               sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,errThresh1, &
@@ -1374,7 +1377,7 @@ contains
           else
             sigmaObsErrUsed = TOVERRST(channelval,KNOSAT)
           end if
-          ! For sigmaObsErrUsed=MPC_missingValue_R4 (clwObsFGaveraged=MISGRODY
+          ! For sigmaObsErrUsed=MPC_missingValue_R4 (clwObs[FG]=MISGRODY
           ! in all-sky mode), the observation is already rejected in test 12.
           XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
           if ( PTBOMP(nChannelIndex,nDataIndex) /= mwbg_realMissing .and. &
