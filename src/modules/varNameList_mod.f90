@@ -902,16 +902,16 @@ module varNameList_mod
       character(len=20)            :: varNameNetCDF
 
       select case(trim(varName))
+      case('SSH')
+        varNameNetCDF = 'zos'
       case('TM')
         varNameNetCDF = 'toce'
       case('SALW')
         varNameNetCDF = 'soce'
       case('UUW')
-        varNameNetCDF = 'un'
+        varNameNetCDF = 'uo'
       case('VVW')
-        varNameNetCDF = 'vn'
-      case('SSH')
-        varNameNetCDF = 'sshn'
+        varNameNetCDF = 'vo'
       case default
         varNameNetCDF = trim(varName)
         write(*,*) 'vnl_varNameNetCDF: WARNING: no equivalent name for NetCDF files for varName = ', trim(varName)

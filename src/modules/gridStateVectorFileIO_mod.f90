@@ -604,7 +604,7 @@ module gridStateVectorFileIO_mod
 
         numLevVar = gsv_getNumLevFromVarName(statevector,varName)
         write(*,*) 'gio_readFileNetCDF: reading varName, levIndex, numLev = ', &
-             trim(varName), trim(vnl_varNameNetCDF(varName)), levIndex, numLevVar
+             trim(varName), ', ', trim(vnl_varNameNetCDF(varName)), levIndex, numLevVar
 
         ierr = nf90_inq_varid(nulfile, trim(vnl_varNameNetCDF(varName)), varID)
         if (ierr /= nf90_noErr) then
