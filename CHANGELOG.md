@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Skip `inn_setupColumnsOnAnlIncLev` when there is no obs (#784 and !701)
  * Added new O-P background check test for GPS-RO data (#753 and !696)
  * Added a scaling factor for the background SST bias term (#781 and !699)
  * Add brief description of all namelist variables (#754 and !698)
@@ -60,6 +59,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Skip `inn_setupColumnsOnAnlIncLev` when there is no obs (#784 and !701)
  * Now using `rpn/libs/20230228-beta4` and `rpn/utils/20230228-beta4` (#782 and !700)
  * Now using `rpn/libs/20230222-beta3` and `rpn/utils/20230222-beta3` (#725 and !694)
  * Remove use of `resume` table in all obsDB/sqlite files; add `MIDAS_DATE` (#761 and !691)
