@@ -311,6 +311,8 @@ contains
     integer :: jvar, jlev, columnIndex
     real(8), pointer :: columnTrlOnAnlIncLev_ptr(:), columnTrlOnTrlLev_ptr(:)
 
+    if (col_getNumCol(columnTrlOnAnlIncLev) == 0) return
+
     call msg('inn_setupColumnsOnAnlIncLev','START',verb_opt=2)
 
     !
@@ -318,20 +320,16 @@ contains
     !
     
     ! copy latitude
-    if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 ) then
-      columnTrlOnAnlIncLev%lat(:) = columnTrlOnTrlLev%lat(:)
-    end if
+    columnTrlOnAnlIncLev%lat(:) = columnTrlOnTrlLev%lat(:)
 
     ! copy 2D surface variables
     do jvar = 1, vnl_numvarmax2D
       if ( .not. col_varExist(columnTrlOnAnlIncLev,vnl_varNameList2D(jvar)) ) cycle
-      if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 ) then       
-        do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
-          columnTrlOnAnlIncLev_ptr  => col_getColumn(columnTrlOnAnlIncLev , columnIndex, vnl_varNameList2D(jvar))
-          columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev, columnIndex, vnl_varNameList2D(jvar))
-          columnTrlOnAnlIncLev_ptr(:) = columnTrlOnTrlLev_ptr(:)
-        end do
-      end if
+      do columnIndex = 1, col_getNumCol(columnTrlOnAnlIncLev)
+        columnTrlOnAnlIncLev_ptr  => col_getColumn(columnTrlOnAnlIncLev , columnIndex, vnl_varNameList2D(jvar))
+        columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev, columnIndex, vnl_varNameList2D(jvar))
+        columnTrlOnAnlIncLev_ptr(:) = columnTrlOnTrlLev_ptr(:)
+      end do
     end do
 
     !
@@ -381,7 +379,7 @@ contains
     end do
 
     ! Print pressure on thermo levels for the first column
-    if ( col_getNumCol(columnTrlOnAnlIncLev) > 0 .and. col_varExist(columnTrlOnAnlIncLev,'P_T') ) then
+    if (col_varExist(columnTrlOnAnlIncLev,'P_T')) then
       columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'P_T')
       call msg('inn_setupColumnsOnAnlIncLev', ' after vintprof:'&
            //new_line('')//'P_T (columnTrlOnAnlIncLev(1)) = '//str(columnTrlOnAnlIncLev_ptr(:)), mpiAll_opt=.false.)
@@ -411,26 +409,23 @@ contains
     end if
 
     ! Print height info of the first original and interpolated columns
-    if (col_getNumCol(columnTrlOnAnlIncLev) > 0) then
-
-      if ( col_getNumLev(columnTrlOnAnlIncLev,'TH') > 0 .and. col_varExist(columnTrlOnAnlIncLev,'Z_T') ) then
-        columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'Z_T')
-        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'Z_T')
-        call msg('inn_setupColumnsOnAnlIncLev','vIntProf output:' &
-             //new_line('')//'Z_T (columnTrlOnTrlLev) = '//str(columnTrlOnTrlLev_ptr(:)) &
-             //new_line('')//'Z_T (columnTrlOnAnlIncLev) = '//str(columnTrlOnAnlIncLev_ptr(:)))
-      end if
-      
-      if ( col_getNumLev(columnTrlOnAnlIncLev,'MM') > 0 .and. col_varExist(columnTrlOnAnlIncLev,'Z_M') ) then
-        columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'Z_M')
-        columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'Z_M')
-        call msg('inn_setupColumnsOnAnlIncLev','vIntProf output:'&
-             //new_line('')//'Z_M (columnTrlOnTrlLev) = '//str(columnTrlOnTrlLev_ptr(:)) &
-             //new_line('')//'Z_M (columnTrlOnAnlIncLev) = '//str(columnTrlOnAnlIncLev_ptr(:)))
-      end if
- 
-      call msg('inn_setupColumnsOnAnlIncLev','HeightSfc:'//str(columnTrlOnAnlIncLev%heightSfc(1)))
+    if ( col_getNumLev(columnTrlOnAnlIncLev,'TH') > 0 .and. col_varExist(columnTrlOnAnlIncLev,'Z_T') ) then
+      columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'Z_T')
+      columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'Z_T')
+      call msg('inn_setupColumnsOnAnlIncLev','vIntProf output:' &
+            //new_line('')//'Z_T (columnTrlOnTrlLev) = '//str(columnTrlOnTrlLev_ptr(:)) &
+            //new_line('')//'Z_T (columnTrlOnAnlIncLev) = '//str(columnTrlOnAnlIncLev_ptr(:)))
     end if
+    
+    if ( col_getNumLev(columnTrlOnAnlIncLev,'MM') > 0 .and. col_varExist(columnTrlOnAnlIncLev,'Z_M') ) then
+      columnTrlOnTrlLev_ptr => col_getColumn(columnTrlOnTrlLev,1,'Z_M')
+      columnTrlOnAnlIncLev_ptr => col_getColumn(columnTrlOnAnlIncLev,1,'Z_M')
+      call msg('inn_setupColumnsOnAnlIncLev','vIntProf output:'&
+            //new_line('')//'Z_M (columnTrlOnTrlLev) = '//str(columnTrlOnTrlLev_ptr(:)) &
+            //new_line('')//'Z_M (columnTrlOnAnlIncLev) = '//str(columnTrlOnAnlIncLev_ptr(:)))
+    end if
+
+    call msg('inn_setupColumnsOnAnlIncLev','HeightSfc:'//str(columnTrlOnAnlIncLev%heightSfc(1)))
 
     call msg('inn_setupColumnsOnAnlIncLev','END',verb_opt=2)
 
