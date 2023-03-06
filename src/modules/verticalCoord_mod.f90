@@ -598,30 +598,30 @@ contains
     ! Open the template file
     ierr = nf90_open(templateFile, NF90_NOWRITE, nultemplate)
 
-    ! Get numLev from variable 'nav_lev'
-    ierr = nf90_inq_varid(nultemplate, 'nav_lev', varID)
+    ! Get numLev from variable 'deptht'
+    ierr = nf90_inq_varid(nultemplate, 'deptht', varID)
     if (ierr /= nf90_NoErr) then
-      call utl_abort('vco_setupOceanFromNetCdfFile: could not find "nav_lev" variable in template file')
+      call utl_abort('vco_setupOceanFromNetCdfFile: could not find "deptht" variable in template file')
     end if
 
-    ! Get the number of levels, i.e. length of 'z' dimension
+    ! Get the number of levels, i.e. length of 'deptht' dimension
     ierr = nf90_inquire_variable(nultemplate, varID, nomvar, xtype, nDims, dimids, nAtts)
     vco%nLev_depth = -1
     do dimIndex = 1, nDims
       ierr = nf90_inquire_dimension(nultemplate, dimids(dimIndex), dimName, dimLength(dimIndex))
-      if (trim(dimName) == 'z') vco%nLev_depth = dimLength(dimIndex)
+      if (trim(dimName) == 'deptht') vco%nLev_depth = dimLength(dimIndex)
     enddo
     if (vco%nLev_depth < 0) then
-      call utl_abort('vco_setupOceanFromNetCdfFile: not able to find z dimension in NetCDF file')
+      call utl_abort('vco_setupOceanFromNetCdfFile: not able to find deptht dimension in NetCDF file')
     end if
 
     allocate(vco%depths(vco%nLev_depth))
     allocate(vco%ip1_depth(vco%nLev_depth))
 
     ! Read 1D vector of depth values (in meters)
-    ierr = nf90_inq_varid(nultemplate, 'nav_lev', varID)
+    ierr = nf90_inq_varid(nultemplate, 'deptht', varID)
     if (ierr /= nf90_NoErr) then
-      call utl_abort('vco_setupOceanFromNetCdfFile: Could not find depths in "nav_lev"')
+      call utl_abort('vco_setupOceanFromNetCdfFile: Could not find depths in "deptht"')
     end if
     ierr = nf90_get_var(nultemplate, varID, vco%depths)
 

@@ -1598,9 +1598,15 @@ contains
     case (35)
       fileType = 'NetCDF'
     case default
-      write(*,*) 'utl_fileType: fileName     = ', trim(fileName_opt)
-      write(*,*) 'utl_fileType: wkoffit code = ', typeCode
-      call utl_abort('utl_fileType: unknown file type')
+      ! check if filename contain '.nc' in case it is a new netCDF version
+      if (index(trim(fileName_opt),'.nc') /= 0) then
+        write(*,*) 'utl_fileType: assume NetCDF based on file name extension'
+        fileType = 'NetCDF'
+      else
+        write(*,*) 'utl_fileType: fileName     = ', trim(fileName_opt)
+        write(*,*) 'utl_fileType: wkoffit code = ', typeCode
+        call utl_abort('utl_fileType: unknown file type')
+      end if
     end select
 
   end function utl_fileType

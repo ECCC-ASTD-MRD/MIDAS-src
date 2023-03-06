@@ -30,9 +30,8 @@
    DWINDOWSIZE = 24.0d0
 /
  &NAMSTATE
-   ANLVAR(1)   = 'SSH'
-   ANLVAR(2)   = 'TM'
-   ANLVAR(3)   = 'SALW'
+   ANLVAR(1)   = 'TM'
+   ANLVAR(2)   = 'SALW'
 /
  &NAMDIMO
    NMXOBS  =  500000

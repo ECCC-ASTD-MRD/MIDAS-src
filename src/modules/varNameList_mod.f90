@@ -903,9 +903,9 @@ module varNameList_mod
 
       select case(trim(varName))
       case('TM')
-        varNameNetCDF = 'tn'
+        varNameNetCDF = 'toce'
       case('SALW')
-        varNameNetCDF = 'sn'
+        varNameNetCDF = 'soce'
       case('UUW')
         varNameNetCDF = 'un'
       case('VVW')
