@@ -353,12 +353,12 @@ module sqliteRead_mod
     real(8)                  :: modelWindSpeed_R8
     integer                  :: iasiImagerCollocationFlag, iasiGeneralQualityFlag
     integer                  :: obsSat, landSea, terrainType, instrument, sensor
-    integer                  :: bitIndex, rowIndex, obsNlv, headerIndex, bodyIndex
-    integer                  :: bitsFlagOn, bitsFlagOff, numBody, numHeader
+    integer                  :: rowIndex, obsNlv, headerIndex, bodyIndex
+    integer                  :: numBody, numHeader
     real(pre_obsReal), parameter :: zemFact = 0.01
     character(len=512)       :: query, queryData, queryHeader, queryIDs
     character(len=256)       :: selectIDs, selectData
-    character(len=256)       :: cfgSqlite, csqlcrit, columnsHeader, columnsData
+    character(len=256)       :: csqlcrit, columnsHeader, columnsData
     logical                  :: finished
     real(8), allocatable     :: matdata(:,:)
     type(fSQL_DATABASE)      :: db         ! type for SQLIte  file handle
@@ -368,7 +368,6 @@ module sqliteRead_mod
     character(len=256), allocatable :: listElemArray(:)
     integer, allocatable            :: listElemArrayInteger(:)
     integer                  :: numberRows, numberColumns
-    integer, parameter       :: maxNumberBits = 15
     
     ! Namelist variables:
     integer                  :: numberElem    ! MUST NOT BE INCLUDED IN NAMELIST!
@@ -377,33 +376,29 @@ module sqliteRead_mod
     character(len=256)       :: sqlExtraHeader! can be used e.g. for ' id_stn in (...) '
     character(len=256)       :: sqlNull       ! can be used e.g. for ' and obsvalue is not null '
     character(len=256)       :: sqlLimit      ! can be used to add something to the end of the data table query
-    integer                  :: numberBitsOff ! MUST NOT BE INCLUDED IN NAMELIST!
-    integer                  :: numberBitsOn  ! MUST NOT BE INCLUDED IN NAMELIST!
-    integer                  :: bitsOff(maxNumberBits) ! list of flags for selecting obs (rarely used)
-    integer                  :: bitsOn(maxNumberBits)  ! list of flags for selecting obs (rarely used)
 
-    namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLairs/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLiasi/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLcris/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLcrisfsr/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLssmi/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLgo/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLcsr/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLatms/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLua/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLai/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLsw/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLro/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLsfc/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /namReadSSTSat/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLsc/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLpr/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLgl/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLradar/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
-    namelist /NAMSQLradvel/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit,numberBitsOff,bitsOff,numberBitsOn,bitsOn
+    namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLairs/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLiasi/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLcris/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLcrisfsr/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLssmi/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLgo/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLcsr/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLatms/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLua/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLai/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLsw/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLro/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLsfc/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /namReadSSTSat/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLsc/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLpr/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLgl/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLradar/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
+    namelist /NAMSQLradvel/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlLimit
 
     write(*,*) 'sqlr_readSqlite: fileName   : ', trim(fileName)
     write(*,*) 'sqlr_readSqlite: familyType : ', trim(familyType)
@@ -422,10 +417,6 @@ module sqliteRead_mod
     sqlNull        = ''
     listElem       = ''
     numberElem = MPC_missingValue_INT
-    numberBitsOff = MPC_missingValue_INT
-    bitsOff(:) = MPC_missingValue_INT
-    numberBitsOn = MPC_missingValue_INT
-    bitsOn(:) = MPC_missingValue_INT
     
     vertCoordfact  = 1
     columnsData = " vcoord, varno, obsvalue, flag "
@@ -585,24 +576,6 @@ module sqliteRead_mod
     end select
     ierr=fclos(nulnam)
     
-    if (numberBitsOff /=  MPC_missingValue_R4) then
-      call utl_abort('sqlr_readSqlite: check namelist, numberBitsOff  should be removed')
-    end if
-    numberBitsOff = 0
-    do bitIndex = 1, numberBitsOff
-      if (bitsOff(bitIndex)==MPC_missingValue_R4) exit
-      numberBitsOff = numberBitsOff + 1
-    end do
-    
-    if (numberBitsOn /=  MPC_missingValue_R4) then
-      call utl_abort('sqlr_readSqlite: check namelist, numberBitsOn  should be removed')
-    end if
-    numberBitsOn = 0
-    do bitIndex = 1, numberBitsOn
-      if (bitsOn(bitIndex)==MPC_missingValue_R4) exit
-      numberBitsOn = numberBitsOn + 1
-    end do
-
     if (numberElem /= MPC_missingValue_R4) then
       call utl_abort('sqlr_readSqlite: check namelist, numberElem should be removed')
     end if
@@ -621,34 +594,17 @@ module sqliteRead_mod
     end if
 
     ! Compose SQL queries
-    bitsFlagOff=0
-    do bitIndex = 1, numberBitsOff
-      bitsFlagOff = ibset (bitsFlagOff, 13 - bitsOff(bitIndex))
-    end do
-    bitsFlagOn=0
-    do bitIndex = 1, numberBitsOn
-      bitsFlagOn = ibset (bitsFlagOn, 13 - bitsOn(bitIndex))
-    end do
-
-    write(cfgSqlite, '(i6)') bitsFlagOff
-    csqlcrit=trim(" (flag & "//cfgSqlite)//" = 0 "
-
-    if (numberBitsOn > 0) then
-      write(cfgSqlite, '(i6)') bitsFlagOn
-      csqlcrit = trim(csqlcrit)//trim(" and flag & "//cfgSqlite)
-      csqlcrit = trim(csqlcrit)//" = "//cfgSqlite
-    end if
 
     !ordering of data that will get read in matdata, bodyPrimaryKeys and bodyHeadKeys
     sqlDataOrder = ' order by id_obs, varno, id_data' 
 
     selectIDs  = 'select id_data, id_obs'
     selectData = 'select '//trim(columnsData)
-    csqlcrit = trim(csqlcrit)//' or flag is null) and varno in ('//trim(listElem)//')'//trim(sqlExtraDat)//trim(SQLNull)
+    csqlcrit = 'varno in ('//trim(listElem)//')'//trim(sqlExtraDat)//trim(SQLNull)
     
     !it is very important that queryIDs and queryData be identical except for the column names being selected
-    queryIDs  =  trim(selectIDs)//trim(' from data where ')//trim(csqlcrit)//trim(sqlDataOrder)//trim(sqlLimit)//';'
-    queryData = trim(selectData)//trim(' from data where ')//trim(csqlcrit)//trim(sqlDataOrder)//trim(sqlLimit)//';'
+    queryIDs  = trim(selectIDs) //' from data where '//trim(csqlcrit)//trim(sqlDataOrder)//trim(sqlLimit)//';'
+    queryData = trim(selectData)//' from data where '//trim(csqlcrit)//trim(sqlDataOrder)//trim(sqlLimit)//';'
     
     write(*,'(4a)') 'sqlr_readSqlite: ', trim(rdbSchema), ' queryIDs     --> ', trim(queryIDs)
     write(*,'(4a)') 'sqlr_readSqlite: ', trim(rdbSchema), ' queryData    --> ', trim(queryData)
@@ -1217,7 +1173,7 @@ module sqliteRead_mod
       ! Check if column exist. If not, add column when corresponding
       ! obsspacedata variable have non-missing values
       if (sqlu_sqlColumnExists(fileName, 'data', columnName)) then
-        itemChar = trim(itemChar)//','// trim(columnName) // trim(' = ? ')
+        itemChar = trim(itemChar)//','// trim(columnName) // ' = ? '
       else
         write(*,*) 'sqlr_updateSqlite: WARNING: column '//columnName// &
                    ' does not exist in the file '//trim(fileName)
@@ -1250,7 +1206,7 @@ module sqliteRead_mod
         if (nonEmptyColumn_mpiglobal) then
           write(*,*) 'sqlr_updateSqlite: ' // trim(columnName) // ' column is not empty and will be added'
           call sqlr_addColumn(updateList( itemIndex ), columnName, 'data', fileName)
-          itemChar = trim(itemChar)//','// trim(columnName) // trim(' = ? ')
+          itemChar = trim(itemChar)//','// trim(columnName) // ' = ? '
         end if
 
       end if	
