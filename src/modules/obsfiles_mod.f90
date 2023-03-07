@@ -176,6 +176,8 @@ contains
   
     ! locals
     integer           :: fileIndex, fnom, fclos, nulnam, ierr
+    integer           :: status, baseNameIndexBeg
+    character(len=200) :: baseName, fullName
     character(len=10) :: obsFileType, sfFileName
     character(len=*), parameter :: myName = 'obsf_writeFiles'
     character(len=*), parameter :: myWarning = myName //' WARNING: '
@@ -237,6 +239,24 @@ contains
 
       if ( present(HXens_mpiglobal_opt) .and. mmpi_myid == 0 ) then
         call obsf_writeHX(obsSpaceData, HXens_mpiglobal_opt)
+      end if
+
+
+      if (obsFileType == 'BURP') then
+        ! Create destination directory
+        if (mmpi_myid == 0) status = clib_mkdir_r('./obsDB')
+        if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
+
+        ! update obsDB files
+        call odbf_setup()
+        do fileIndex = 1, obsf_nfiles
+          fullName = trim( obsf_cfilnam(fileIndex) )
+          baseNameIndexBeg = index(fullName,'/',back=.true.)
+          baseName = fullName(baseNameIndexBeg+1:)
+
+          call odbf_updateFile( obsSpaceData, './obsDB/'//trim(baseName), &
+                                obsf_cfamtyp(fileIndex), fileIndex )
+        end do        
       end if
 
     end if
