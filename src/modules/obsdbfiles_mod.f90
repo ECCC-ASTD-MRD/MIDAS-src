@@ -23,7 +23,7 @@ module obsdbFiles_mod
   private
 
   ! Public subroutines and functions:
-  public :: odbf_getDateStamp, odbf_readFile, odbf_updateFile, obdf_clean
+  public :: odbf_getDateStamp, odbf_readFile, odbf_updateFile, obdf_clean, odbf_setup
 
   ! Arrays used to match obsDB column names with obsSpaceData column names
 
@@ -1701,6 +1701,14 @@ contains
       end if
     end if ! not nmlAlreadyRead
 
+    ! set OBS_IDF
+    call obs_set_current_header_list(obsdat, FamilyType)
+    HEADER0: do
+      headIndex = obs_getHeaderIndex(obsdat)
+      if (headIndex < 0) exit HEADER0
+      call obs_headSet_i(obsdat, OBS_IDF, headIndex, fileIndex)
+    end do HEADER0
+
     ! check if midasTable already exists in the file
     midasTableExists = sqlu_sqlTableExists(fileName, midasHeadTableName)
 
@@ -1722,6 +1730,7 @@ contains
         if ( obsIdf /= fileIndex ) cycle HEADER1
         maxNumHeader = maxNumHeader + 1
       end do HEADER1
+      write(*,*) 'maziar: maxNumHeader=', maxNumHeader
 
       call rpn_comm_allGather(maxNumHeader,       1, 'mpi_integer',  &
                               maxNumHeaderAllMpi, 1, 'mpi_integer', &
@@ -1743,10 +1752,12 @@ contains
       write(*,*) 'odbf_updateMidasHeaderTable: query = ', trim(query)
       call fSQL_prepare( db, query, stmt, stat )
       call fSQL_begin(db)
-
+      write(*,*) 'maziar: obs_numHeader(obsdat)=', obs_numHeader(obsdat)
+      write(*,*) 'maziar: fileIndex=', fileIndex
       HEADER: do headIndex = 1, obs_numHeader(obsdat)
 
         obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
+        if (mmpi_myid == 0 .and. headIndex == 1) write(*,*) 'maziar: obsIdf=', obsIdf
         if ( obsIdf /= fileIndex ) cycle HEADER
 
         midasKey = midasKey +1
