@@ -1959,6 +1959,14 @@ contains
     pppSqlName = odbf_midasTabColFromObsSpaceName('PPP', midasBodyNamesList)
     varSqlName = odbf_midasTabColFromObsSpaceName('VAR', midasBodyNamesList)
 
+    ! set OBS_IDF
+    call obs_set_current_header_list(obsdat, FamilyType)
+    HEADER0: do
+      headIndex = obs_getHeaderIndex(obsdat)
+      if (headIndex < 0) exit HEADER0
+      call obs_headSet_i(obsdat, OBS_IDF, headIndex, fileIndex)
+    end do HEADER0
+
     ! check if midasTable already exists in the file
     midasTableExists = sqlu_sqlTableExists(fileName, midasBodyTableName)
 
@@ -1989,7 +1997,8 @@ contains
           maxNumBody = maxNumBody + 1
         end do BODY1
       end do HEADER1
-
+      write(*,*) 'maziar: maxNumBody=', maxNumBody
+      
       call rpn_comm_allGather(maxNumBody,       1, 'mpi_integer',  &
                               maxNumBodyAllMpi, 1, 'mpi_integer', &
                             'GRID', ierr )
@@ -2011,9 +2020,12 @@ contains
       write(*,*) 'odbf_updateMidasBodyTable: query = ', trim(query)
       call fSQL_prepare( db, query, stmt, stat )
       call fSQL_begin(db)
+      write(*,*) 'maziar: obs_numHeader(obsdat)=', obs_numHeader(obsdat)
+      write(*,*) 'maziar: fileIndex=', fileIndex
       HEADER: do headIndex = 1, obs_numHeader(obsdat)
 
         obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
+        if (mmpi_myid == 0 .and. headIndex == 1) write(*,*) 'maziar: obsIdf=', obsIdf
         if ( obsIdf /= fileIndex ) cycle HEADER
 
         bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
