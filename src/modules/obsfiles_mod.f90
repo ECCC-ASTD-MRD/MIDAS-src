@@ -186,8 +186,9 @@ contains
     logical :: lwritediagsql ! choose to write 'diag' sqlite observation files
     logical :: onlyAssimObs  ! choose to not include unassimilated obs in 'diag' sqlite files
     logical :: addFSOdiag    ! choose to include FSO column in body table
+    logical :: writeObsDb    ! write obDB file from scratch
 
-    namelist /namwritediag/lwritediagsql,onlyAssimObs,addFSOdiag
+    namelist /namwritediag/ lwritediagsql, onlyAssimObs, addFSOdiag, writeObsDb
 
     call utl_tmg_start(10,'--Observations')
 
@@ -199,6 +200,7 @@ contains
     lwritediagsql = .false.
     onlyAssimObs = .false.
     addFSOdiag = .false.
+    writeObsDb = .false.
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namwritediag,iostat=ierr)
     if (ierr /= 0) write(*,*) myWarning//' namwritediag is missing in the namelist. The default value will be taken.'
@@ -241,8 +243,7 @@ contains
         call obsf_writeHX(obsSpaceData, HXens_mpiglobal_opt)
       end if
 
-
-      if (obsFileType /= 'OBSDB') then
+      if (obsFileType /= 'OBSDB' .and. writeObsDb) then
         ! Create destination directory
         if (mmpi_myid == 0) status = clib_mkdir_r('./obsDB')
         if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
