@@ -1714,6 +1714,12 @@ contains
       end if
     end if ! not nmlAlreadyRead
 
+    if (numberUpdateItems == 0) then
+      write(*,*) 'odbf_updateMidasHeaderTable: numberUpdateItems=0. ' // &
+                 'MIDAS Header Output Table will not be updated.'
+      return
+    end if
+
     ! check if midasTable already exists in the file
     midasTableExists = sqlu_sqlTableExists(fileName, midasHeadTableName)
 
@@ -1955,6 +1961,12 @@ contains
         write(*, nml=namObsDbMIDASBodyUpdate)
       end if
     end if ! not nmlAlreadyRead
+
+    if (numberUpdateItems == 0) then
+      write(*,*) 'odbf_updateMidasBodyTable: numberUpdateItems=0. ' // &
+                 'MIDAS Body Output Table will not be updated.'
+      return
+    end if
 
     ! some sql column names
     vnmSqlName = odbf_midasTabColFromObsSpaceName('VNM', midasBodyNamesList)
