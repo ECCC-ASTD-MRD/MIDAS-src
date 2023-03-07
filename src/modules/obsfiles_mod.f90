@@ -242,7 +242,7 @@ contains
       end if
 
 
-      if (obsFileType == 'BURP') then
+      if (obsFileType /= 'OBSDB') then
         ! Create destination directory
         if (mmpi_myid == 0) status = clib_mkdir_r('./obsDB')
         if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
