@@ -179,7 +179,7 @@ contains
 
     do headerIndex = headerIndexBegin, headerIndexEnd
 
-      call obs_headSet_i(obsdat, OBS_OTP, headerIndex, fileIndex)
+      call obs_headSet_i(obsdat, OBS_IDF, headerIndex, fileIndex)
       call obs_setFamily(obsdat, trim(familyType), headerIndex)
 
       ! For CH family, apply scaling from the element BUFR_SCALE_EXPONENT when present.

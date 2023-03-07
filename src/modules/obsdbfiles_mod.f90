@@ -627,7 +627,6 @@ contains
 
     do headIndex = headIndexBegin, headIndexEnd
       call obs_headSet_i(obsdat, OBS_ONM, headIndex, headIndex)
-      call obs_headSet_i(obsdat, OBS_OTP, headIndex, fileIndex)
       call obs_headSet_i(obsdat, OBS_IDF, headIndex, fileIndex)
       call obs_setFamily(obsdat, trim(familyType), headIndex)
       if ( headIndex == 1 ) then

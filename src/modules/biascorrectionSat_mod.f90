@@ -829,7 +829,7 @@ contains
         cycle HEADER
       end if
       iobs = iobs + 1
-      fileIndex = fileIndexes(obs_headElem_i(obsSpaceData, OBS_OTP, headerIndex))
+      fileIndex = fileIndexes(obs_headElem_i(obsSpaceData, OBS_IDF, headerIndex))
       indxtovs = tvs_tovsIndex(headerIndex)
       if (indxtovs < 0) cycle HEADER
       sensorIndex = tvs_lsensor(indxTovs)
