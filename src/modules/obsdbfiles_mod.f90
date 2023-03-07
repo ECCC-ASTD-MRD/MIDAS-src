@@ -1602,13 +1602,7 @@ contains
     
     ! prepare to create obsDB from scratch if the file does not exist
     inquire(file=trim(fileName), exist=fileExists)
-    if (.not. fileExists) then
-      ! read namelist
-      call odbf_setup()
-
-      ! set OBS_IDF in obsSpaceData
-      call odbf_setObsIdNo(obsdat, familyType, fileIndex)
-    end if
+    if (.not. fileExists) call odbf_setup()
 
     ! Check if the Midas Header Table needs to be updated, specified from namelist
     if ( .not. utl_isNamelistPresent('namObsDbMIDASHeaderUpdate','./flnml') ) then
@@ -2610,32 +2604,5 @@ contains
     call fSQL_close(db, stat)
 
   end subroutine obdf_clean
-
-  !--------------------------------------------------------------------------
-  ! odbf_setObsIdNo
-  !--------------------------------------------------------------------------
-  subroutine odbf_setObsIdNo(obsdat, familyType, fileIndex)
-    !
-    ! :Purpose: Setting OBS_IDF column of obsSpaceData in preparation to create 
-    !           obsDB file from scratch.
-    !
-    implicit none
-
-    ! Arguments:
-    type (struct_obs), intent(inout) :: obsdat
-    character(len=*),  intent(in)    :: familyType
-    integer,           intent(in)    :: fileIndex
-
-    ! Locals:
-    integer                          :: headIndex
-
-    call obs_set_current_header_list(obsdat, familyType)
-    HEADER0: do
-      headIndex = obs_getHeaderIndex(obsdat)
-      if (headIndex < 0) exit HEADER0
-      call obs_headSet_i(obsdat, OBS_IDF, headIndex, fileIndex)
-    end do HEADER0
-    
-  end subroutine odbf_setObsIdNo
 
 end module obsdbFiles_mod
