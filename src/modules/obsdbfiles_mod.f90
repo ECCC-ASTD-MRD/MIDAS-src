@@ -23,7 +23,7 @@ module obsdbFiles_mod
   private
 
   ! Public subroutines and functions:
-  public :: odbf_getDateStamp, odbf_readFile, odbf_updateFile, obdf_clean, odbf_setup
+  public :: odbf_getDateStamp, odbf_readFile, odbf_updateFile, obdf_clean
 
   ! Arrays used to match obsDB column names with obsSpaceData column names
 
@@ -1596,7 +1596,20 @@ contains
     character(len=*),  intent(in)    :: fileName, familyType
     integer,           intent(in)    :: fileIndex
 
+    ! Locals:
+    logical                          :: fileExists
+
     call utl_tmg_start(14,'----UpdateObsDBfile')
+    
+    ! prepare to create obsDB from scratch if the file does not exist
+    inquire(file=trim(fileName), exist=fileExists)
+    if (.not. fileExists) then
+      ! read namelist
+      call odbf_setup()
+
+      ! set OBS_IDF in obsSpaceData
+      call odbf_setObsIdNo(obsdat, familyType, fileIndex)
+    end if
 
     ! Check if the Midas Header Table needs to be updated, specified from namelist
     if ( .not. utl_isNamelistPresent('namObsDbMIDASHeaderUpdate','./flnml') ) then
@@ -1701,14 +1714,6 @@ contains
       end if
     end if ! not nmlAlreadyRead
 
-    ! set OBS_IDF
-    call obs_set_current_header_list(obsdat, FamilyType)
-    HEADER0: do
-      headIndex = obs_getHeaderIndex(obsdat)
-      if (headIndex < 0) exit HEADER0
-      call obs_headSet_i(obsdat, OBS_IDF, headIndex, fileIndex)
-    end do HEADER0
-
     ! check if midasTable already exists in the file
     midasTableExists = sqlu_sqlTableExists(fileName, midasHeadTableName)
 
@@ -1730,7 +1735,6 @@ contains
         if ( obsIdf /= fileIndex ) cycle HEADER1
         maxNumHeader = maxNumHeader + 1
       end do HEADER1
-      write(*,*) 'maziar: maxNumHeader=', maxNumHeader
 
       call rpn_comm_allGather(maxNumHeader,       1, 'mpi_integer',  &
                               maxNumHeaderAllMpi, 1, 'mpi_integer', &
@@ -1752,12 +1756,10 @@ contains
       write(*,*) 'odbf_updateMidasHeaderTable: query = ', trim(query)
       call fSQL_prepare( db, query, stmt, stat )
       call fSQL_begin(db)
-      write(*,*) 'maziar: obs_numHeader(obsdat)=', obs_numHeader(obsdat)
-      write(*,*) 'maziar: fileIndex=', fileIndex
+
       HEADER: do headIndex = 1, obs_numHeader(obsdat)
 
         obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
-        if (mmpi_myid == 0 .and. headIndex == 1) write(*,*) 'maziar: obsIdf=', obsIdf
         if ( obsIdf /= fileIndex ) cycle HEADER
 
         midasKey = midasKey +1
@@ -1959,14 +1961,6 @@ contains
     pppSqlName = odbf_midasTabColFromObsSpaceName('PPP', midasBodyNamesList)
     varSqlName = odbf_midasTabColFromObsSpaceName('VAR', midasBodyNamesList)
 
-    ! set OBS_IDF
-    call obs_set_current_header_list(obsdat, FamilyType)
-    HEADER0: do
-      headIndex = obs_getHeaderIndex(obsdat)
-      if (headIndex < 0) exit HEADER0
-      call obs_headSet_i(obsdat, OBS_IDF, headIndex, fileIndex)
-    end do HEADER0
-
     ! check if midasTable already exists in the file
     midasTableExists = sqlu_sqlTableExists(fileName, midasBodyTableName)
 
@@ -1997,7 +1991,6 @@ contains
           maxNumBody = maxNumBody + 1
         end do BODY1
       end do HEADER1
-      write(*,*) 'maziar: maxNumBody=', maxNumBody
       
       call rpn_comm_allGather(maxNumBody,       1, 'mpi_integer',  &
                               maxNumBodyAllMpi, 1, 'mpi_integer', &
@@ -2020,12 +2013,9 @@ contains
       write(*,*) 'odbf_updateMidasBodyTable: query = ', trim(query)
       call fSQL_prepare( db, query, stmt, stat )
       call fSQL_begin(db)
-      write(*,*) 'maziar: obs_numHeader(obsdat)=', obs_numHeader(obsdat)
-      write(*,*) 'maziar: fileIndex=', fileIndex
       HEADER: do headIndex = 1, obs_numHeader(obsdat)
 
         obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
-        if (mmpi_myid == 0 .and. headIndex == 1) write(*,*) 'maziar: obsIdf=', obsIdf
         if ( obsIdf /= fileIndex ) cycle HEADER
 
         bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
@@ -2609,5 +2599,32 @@ contains
     call fSQL_close(db, stat)
 
   end subroutine obdf_clean
+
+  !--------------------------------------------------------------------------
+  ! odbf_setObsIdNo
+  !--------------------------------------------------------------------------
+  subroutine odbf_setObsIdNo(obsdat, familyType, fileIndex)
+    !
+    ! :Purpose: Setting OBS_IDF column of obsSpaceData in preparation to create 
+    !           obsDB file from scratch.
+    !
+    implicit none
+
+    ! Arguments:
+    type (struct_obs), intent(inout) :: obsdat
+    character(len=*),  intent(in)    :: familyType
+    integer,           intent(in)    :: fileIndex
+
+    ! Locals:
+    integer                          :: headIndex
+
+    call obs_set_current_header_list(obsdat, familyType)
+    HEADER0: do
+      headIndex = obs_getHeaderIndex(obsdat)
+      if (headIndex < 0) exit HEADER0
+      call obs_headSet_i(obsdat, OBS_IDF, headIndex, fileIndex)
+    end do HEADER0
+    
+  end subroutine odbf_setObsIdNo
 
 end module obsdbFiles_mod

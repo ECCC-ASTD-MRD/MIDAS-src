@@ -248,7 +248,6 @@ contains
         if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
 
         ! update obsDB files
-        call odbf_setup()
         do fileIndex = 1, obsf_nfiles
           fullName = trim( obsf_cfilnam(fileIndex) )
           baseNameIndexBeg = index(fullName,'/',back=.true.)
