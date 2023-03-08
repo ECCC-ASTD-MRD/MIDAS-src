@@ -1777,8 +1777,7 @@ contains
     integer, intent(in) :: instrumId     ! input Rttov instrument code
     logical             :: allskyTtAssim
 
-    allskyTtAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingCLW(instrumId) .and. &
-                     .not. tvs_isInstrumUsingHydrometeors(instrumId))
+    allskyTtAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingCLW(instrumId))
 
   end function tvs_isInstrumAllskyTtAssim
 
@@ -1795,8 +1794,7 @@ contains
     integer, intent(in) :: instrumId     ! input Rttov instrument code
     logical             :: allskyHuAssim
 
-    allskyHuAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingHydrometeors(instrumId) .and. &
-                     .not. tvs_isInstrumUsingCLW(instrumId))
+    allskyHuAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingHydrometeors(instrumId))
 
   end function tvs_isInstrumAllskyHuAssim
 
