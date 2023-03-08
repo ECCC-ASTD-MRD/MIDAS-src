@@ -22,11 +22,14 @@ module sqliteUtilities_mod
 use fSQLite
 use clib_interfaces_mod
 use utilities_mod
+use mathPhysConstants_mod
 
 implicit none
 save
 private
-public :: sqlu_sqlColumnExists, sqlu_sqlTableExists, sqlu_getSqlColumnNames, sqlu_query, sqlu_handleError
+public :: sqlu_sqlColumnExists, sqlu_sqlTableExists, sqlu_getSqlColumnNames
+public :: sqlu_query, sqlu_handleError
+public :: sqlu_getColumnValuesNum
 
 ! Arrays used to match SQLite column names with obsSpaceData column names
 integer, parameter :: lenSqlName = 60
@@ -149,7 +152,7 @@ contains
     ! locals:
     integer :: numRows, numColumns, rowIndex, ierr
     character(len=100), allocatable :: charValues(:,:)
-    character(len=100)       :: dataTypeCriteria
+    character(len=200)       :: dataTypeCriteria
     character(len=3000)      :: query
     type(fSQL_STATUS)        :: stat ! sqlite error status
     type(fSQL_DATABASE)      :: db   ! sqlite file handle
@@ -167,7 +170,8 @@ contains
       dataTypeCriteria = 'substr(type,1,7)="varchar"'
     else if (trim(dataType) == 'numeric') then
       dataTypeCriteria = 'type="real" or type="REAL" or type="double" or ' // &
-                         'type="DOUBLE" or type="integer" or type="INTEGER"'
+                         'type="DOUBLE" or type="integer" or type="INTEGER" or ' // &
+                         'type="INT" or type=""'
     else
       call utl_abort( myName//': invalid dataType = ' // trim(dataType) )
     end if
@@ -196,6 +200,75 @@ contains
     call fSQL_close( db, stat ) 
 
   end subroutine sqlu_getSqlColumnNames
+
+  !--------------------------------------------------------------------------
+  ! sqlu_getColumnValuesNum
+  !--------------------------------------------------------------------------
+  subroutine sqlu_getColumnValuesNum(columnValues, fileName, tableName, &
+                                     sqlColumnNames, extraQuery_opt)
+    !
+    ! :Purpose: Read the column values from obsDB file for the specified table
+    !           and column names.
+    !
+    implicit none
+
+    ! arguments:
+    real(8), allocatable, intent(out) :: columnValues(:,:)
+    character(len=*),     intent(in)  :: sqlColumnNames(:)
+    character(len=*),     intent(in)  :: fileName
+    character(len=*),     intent(in)  :: tableName
+    character(len=*),     intent(in), optional :: extraQuery_opt
+
+    ! locals:
+    integer :: numRows, numColumns, columnIndex
+    character(len=3000)       :: query, extraQuery
+    type(fSQL_STATUS)         :: stat ! sqlite error status
+    type(fSQL_DATABASE)       :: db   ! sqlite file handle
+    type(fSQL_STATEMENT)      :: stmt ! precompiled sqlite statements
+
+    if (present(extraQuery_opt)) then
+      extraQuery = trim(extraQuery_opt)
+    else
+      extraQuery = ''
+    end if
+
+    ! open the obsDB file
+    call fSQL_open( db, trim(fileName), status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'sqlu_getColumnValuesNum: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'sqlu_getColumnValuesNum: fSQL_open' )
+    end if
+
+    ! build the sqlite query
+    query = 'select'
+    numColumns = size(sqlColumnNames)
+    do columnIndex = 1, numColumns
+      query = trim(query) // ' ' // trim(sqlColumnNames(columnIndex))
+      if (columnIndex < numColumns) query = trim(query) // ','
+    end do
+    query = trim(query) // ' from ' // trim(tableName)
+    query = trim(query) // trim(extraQuery) // ';'
+    write(*,*) 'sqlu_getColumnValuesNum: query ---> ', trim(query)
+
+    ! read the values from the file
+    call fSQL_prepare( db, trim(query) , stmt, status=stat )
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, mode=FSQL_REAL8, &
+                        real8_missing=MPC_missingValue_R8, status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'sqlu_getColumnValuesNum: fSQL_get_many: ', fSQL_errmsg(stat)
+      call utl_abort('sqlu_getColumnValuesNum: problem with fSQL_get_many')
+    end if
+    write(*,*) 'sqlu_getColumnValuesNum: numRows = ', numRows, ', numColumns = ', numColumns
+    allocate( columnValues(numRows, numColumns) )
+    columnValues(:,:) = 0.0d0
+    call fSQL_fill_matrix( stmt, columnValues )
+
+    ! close the obsDB file
+    call fSQL_free_mem( stmt )
+    call fSQL_finalize( stmt )
+    call fSQL_close( db, stat ) 
+
+  end subroutine sqlu_getColumnValuesNum
 
   !--------------------------------------------------------------------------
   ! sqlu_query
