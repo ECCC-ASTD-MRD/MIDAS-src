@@ -48,7 +48,7 @@ module message_mod
   !--------------------------------------------------------------------------
   ! msg
   !--------------------------------------------------------------------------
-  subroutine msg(origin, message, verb_opt, mpiAll_opt)
+  subroutine msg(origin, message, verb_opt, mpiAll_opt, separator_opt)
     !
     ! :Purpose: Output message if its verbosity level is greater or equal than
     !           the user provided verbosity threshold (see `msg_readNml()`).
@@ -64,10 +64,11 @@ module message_mod
     implicit none
 
     ! Arguments:
-    character(len=*),  intent(in) :: origin     ! originating subroutine, function or program
-    character(len=*),  intent(in) :: message    ! message to be printed
-    integer, optional, intent(in) :: verb_opt   ! minimal verbosity level to print the message, defaults to 1
-    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` (default) prints to all MPI tasks, otherwise only to tile 0, defaults to `.true.`
+    character(len=*),           intent(in) :: origin        ! originating subroutine, function or program
+    character(len=*),           intent(in) :: message       ! message to be printed
+    integer,          optional, intent(in) :: verb_opt      ! minimal verbosity level to print the message, defaults to 1
+    logical,          optional, intent(in) :: mpiAll_opt    ! if `.true.` (default) prints to all MPI tasks, otherwise only to tile 0, defaults to `.true.`
+    character(len=*), optional, intent(in) :: separator_opt ! separator string between origin and message
 
     ! Locals:
     logical :: mpiAll
@@ -87,9 +88,9 @@ module message_mod
 
     if (verbLevel == msg_ALWAYS) then
       if (mpiAll) then
-        call msg_write(origin, message)
+        call msg_write(origin, message, separator_opt=separator_opt)
       else
-        if (mmpi_myid == 0) call msg_write(origin, message)
+        if (mmpi_myid == 0) call msg_write(origin, message, separator_opt=separator_opt)
       end if
 
     else if (verbLevel == msg_NEVER) then
@@ -99,9 +100,9 @@ module message_mod
       call msg_readNml()
       if (verbLevel <= verbosityThreshold) then
         if (mpiAll) then
-          call msg_write(origin, message)
+          call msg_write(origin, message, separator_opt=separator_opt)
         else
-          if (mmpi_myid == 0) call msg_write(origin, message)
+          if (mmpi_myid == 0) call msg_write(origin, message, separator_opt=separator_opt)
         end if
       end if
     end if
@@ -149,12 +150,13 @@ module message_mod
     ! Locals:
     character(len=:), allocatable :: message
 
-    message = 'SECTION '//str(section)
+    message = 'SECTION '//str(section, quote_opt=.false.)
     if (present(description_opt)) then
       message = message//' - '//description_opt
     end if
-    message = message//'\n________________________________'
-    call msg(origin, message, verb_opt, mpiAll_opt)
+    write(*,*)
+    write(*,*) repeat('_',msg_lineLen)
+    call msg(origin, message, verb_opt, mpiAll_opt, separator_opt=' >>> ')
 
   end subroutine msg_section
 
@@ -241,22 +243,29 @@ module message_mod
   !--------------------------------------------------------------------------
   ! msg_write (private)
   !--------------------------------------------------------------------------
-  subroutine msg_write(origin, message)
+  subroutine msg_write(origin, message, separator_opt)
     !
     ! :Purpose: Format and write message to default output
     !
     implicit none
   
     ! Arguments:
-    character(len=*), intent(in) :: origin     ! originating subroutine/function
-    character(len=*), intent(in) :: message    ! message to be printed
+    character(len=*),           intent(in) :: origin        ! originating subroutine/function
+    character(len=*),           intent(in) :: message       ! message to be printed
+    character(len=*), optional, intent(in) :: separator_opt ! separator string between origin and message
   
     ! Locals:
     integer :: originLen, oneLineMsgLen, posIdx
     character(len=15) :: firstLineFormat, otherLineFormat
     character(len=msg_lineLen)  :: msgLine
     character(len=msg_lineLen)  :: readLine
-    character(len=:), allocatable :: originTrunc, adjustedLine
+    character(len=:), allocatable :: originTrunc, adjustedLine, separator
+
+    if (present(separator_opt)) then
+      separator = separator_opt
+    else
+      separator = ': '
+    end if
 
     if (len(origin) > msg_lineLen) then
       originTrunc = origin(1:msg_lineLen)
@@ -265,7 +274,7 @@ module message_mod
     end if
     originLen = len(originTrunc)
 
-    oneLineMsgLen = msg_lineLen - originLen - 2
+    oneLineMsgLen = msg_lineLen - originLen - len(separator)
   
     if (len(message) > oneLineMsgLen) then
       ! Multiple lines message
@@ -276,10 +285,10 @@ module message_mod
       readLine = message(1:oneLineMsgLen+1)
       msgLine = msg_breakOnSpace(readLine)
       posIdx = posIdx + len(trim(msgLine)) +1
-      write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A', &
-                                              len(trim(msgLine)),')'
-      write(*,firstLineFormat) originTrunc, ': ', message(1:oneLineMsgLen)
-      oneLineMsgLen = msg_lineLen - msg_indent - 2
+      write(firstLineFormat,'(A,I2,A,I2,A,I2,A)') '(A',originLen,',A',len(separator),&
+                                                  ',A', len(trim(msgLine)),')'
+      write(*,firstLineFormat) originTrunc, separator, message(1:oneLineMsgLen)
+      oneLineMsgLen = msg_lineLen - msg_indent - len(separator)
       do
         if ( posIdx >= len(message) ) then
           ! message printed
@@ -301,8 +310,9 @@ module message_mod
     else
       ! Single lines message
       ! format: "origin: short message"
-      write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A',len(message),')'
-      write(*,firstLineFormat) originTrunc, ': ', message
+    write(firstLineFormat,'(A,I2,A,I2,A, I2, A)') '(A',originLen,',A',len(separator), &
+                                                  ',A',len(message),')'
+      write(*,firstLineFormat) originTrunc, separator, message
     end if
     contains
       !----------------------------------------------------------------------
@@ -339,7 +349,7 @@ module message_mod
   !--------------------------------------------------------------------------
   ! msg_str2str (private)
   !--------------------------------------------------------------------------
-  function msg_str2str(stringIn, trim_opt) result(string)
+  function msg_str2str(stringIn, trim_opt, quote_opt) result(string)
     !
     ! :Purpose: Trivial overloading (for uniformity of concatenation)
     !
@@ -349,20 +359,32 @@ module message_mod
     character(len=*), intent(in)  :: stringIn
     character(len=:), allocatable :: string
     logical, optional             :: trim_opt
+    logical, optional             :: quote_opt  ! if `.true.` (default), writes preceding and following single quote "'" to insist it is a string
 
     ! Locals:
-    logical :: doTrim
+    logical :: doTrim, showQuotes
+    character(len=1)  :: quote
 
     if ( present(trim_opt) ) then
       doTrim = trim_opt
     else
       doTrim = .true.
     end if
+    if ( present(quote_opt) ) then
+      showQuotes = quote_opt
+    else
+      showQuotes = .true.
+    end if
+    if (showQuotes) then
+      quote = "'"
+    else
+      quote = ''
+    end if
 
     if (doTrim) then
-      string = "'"//trim(stringIn)//"'"
+      string = quote//trim(stringIn)//quote
     else
-      string = "'"//stringIn//"'"
+      string = quote//stringIn//quote
     end if
 
   end function msg_str2str
