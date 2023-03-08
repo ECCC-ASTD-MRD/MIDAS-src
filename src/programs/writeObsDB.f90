@@ -20,6 +20,7 @@ program midas_writeObsDB
   !
   use version_mod
   use codePrecision_mod
+  use ramDisk_mod
   use obsSpaceData_mod
   use obsFiles_mod
   use utilities_mod
@@ -47,6 +48,11 @@ program midas_writeObsDB
   call tmg_init(mmpi_myid, 'TMG_INFO')
   call utl_tmg_start(0,'Main')
 
+  !
+  !- Initialize the ram disk
+  !
+  call ram_setup
+  
   !
   !- Initialize observation file names, but don't use datestamp
   !
