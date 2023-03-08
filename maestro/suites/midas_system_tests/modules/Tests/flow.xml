@@ -18,6 +18,7 @@
   <SUBMITS sub_name="analysisErrorOI"/>
   <SUBMITS sub_name="SST"/>
   <SUBMITS sub_name="adjointTest"/>
+  <SUBMITS sub_name="writeObsDB"/>
   
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
@@ -596,6 +597,11 @@
   </FAMILY>
   
   <FAMILY  name="adjointTest">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
+  </FAMILY>
+
+  <FAMILY  name="writeObsDB">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
   </FAMILY>
