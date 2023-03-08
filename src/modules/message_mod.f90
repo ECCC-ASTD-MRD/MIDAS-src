@@ -11,7 +11,7 @@ module message_mod
   private
 
   ! public procedures
-  public :: msg, msg_memUsage, msg_setVerbThreshold
+  public :: msg, msg_memUsage, msg_section, msg_setVerbThreshold
 
   ! public module variables
   integer, public, parameter :: msg_ALWAYS   = -99 ! verbosity level indicating a message is always printed irrespectively of set threshold
@@ -67,7 +67,7 @@ module message_mod
     character(len=*),  intent(in) :: origin     ! originating subroutine, function or program
     character(len=*),  intent(in) :: message    ! message to be printed
     integer, optional, intent(in) :: verb_opt   ! minimal verbosity level to print the message, defaults to 1
-    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` prints to all MPI tasks, otherwise only to tile 0, defaults to `.true.`
+    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` (default) prints to all MPI tasks, otherwise only to tile 0, defaults to `.true.`
 
     ! Locals:
     logical :: mpiAll
@@ -119,7 +119,7 @@ module message_mod
     ! Arguments:
     character(len=*),  intent(in) :: origin     ! originating subroutine, function or program
     integer, optional, intent(in) :: verb_opt   ! verbosity level of the message
-    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` prints to all MPI tasks, otherwise only to MPI task 0
+    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` (default) prints to all MPI tasks, otherwise only to MPI task 0
 
     ! Locals:
     integer :: usageMb
@@ -129,6 +129,34 @@ module message_mod
     call msg( origin, 'Memory Used: '//str(usageMb)//' Mb', verb_opt, mpiAll_opt)
 
   end subroutine msg_memUsage
+
+  !--------------------------------------------------------------------------
+  ! msg_section
+  !--------------------------------------------------------------------------
+  subroutine msg_section(origin, section, description_opt, verb_opt, mpiAll_opt)
+    !
+    ! :Purpose: Document, both in source and runtime listings, sections of a program.
+    !
+    implicit none
+
+    ! Arguments:
+    character(len=*),           intent(in) :: origin          ! originating subroutine, function or program
+    character(len=*),           intent(in) :: section         ! section number
+    character(len=*), optional, intent(in) :: description_opt ! optional description message to be printed
+    integer,          optional, intent(in) :: verb_opt        ! verbosity level of the message
+    logical,          optional, intent(in) :: mpiAll_opt      ! if `.true.` (default) prints to all MPI tasks, otherwise only to MPI task 0
+
+    ! Locals:
+    character(len=:), allocatable :: message
+
+    message = 'SECTION '//str(section)
+    if (present(description_opt)) then
+      message = message//' - '//description_opt
+    end if
+    message = message//'\n________________________________'
+    call msg(origin, message, verb_opt, mpiAll_opt)
+
+  end subroutine msg_section
 
   !--------------------------------------------------------------------------
   ! msg_setVerbThreshold
