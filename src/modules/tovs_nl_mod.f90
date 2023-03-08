@@ -135,7 +135,7 @@ module tovs_nl_mod
   public :: tvs_getMWemissivityFromAtlas, tvs_getProfile
   public :: tvs_getCorrectedSatelliteAzimuth
   public :: tvs_isInstrumUsingCLW, tvs_isInstrumUsingHydrometeors, tvs_getChannelNumIndexFromPPP
-  public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim, tvs_isInstrumAllskyTtHuAssim
+  public :: tvs_isInstrumAllskyTtAssim, tvs_isInstrumAllskyHuAssim
   ! Module parameters
   ! units conversion from  mixing ratio to ppmv and vice versa
   real(8), parameter :: qMixratio2ppmv  = (1000000.0d0 * mair) / mh2o
@@ -1802,24 +1802,6 @@ contains
                      .not. tvs_isInstrumUsingCLW(instrumId))
 
   end function tvs_isInstrumAllskyHuAssim
-
-  !--------------------------------------------------------------------------
-  !  tvs_isInstrumAllskyTtHuAssim
-  !--------------------------------------------------------------------------
-  function tvs_isInstrumAllskyTtHuAssim(instrumId) result(AllskyTtHuAssim)
-    !
-    ! :Purpose: determine if all-sky temperature- AND humidity-channel assimilation is asked for the instrument.
-    !
-    implicit none
-
-    ! Argument:
-    integer, intent(in) :: instrumId     ! input Rttov instrument code
-    logical             :: AllskyTtHuAssim
-
-    AllskyTtHuAssim = (tvs_mwAllskyAssim .and. tvs_isInstrumUsingCLW(instrumId) .and. &
-                       tvs_isInstrumUsingHydrometeors(instrumId))
-
-  end function tvs_isInstrumAllskyTtHuAssim
 
   !--------------------------------------------------------------------------
   !  tvs_mapInstrum

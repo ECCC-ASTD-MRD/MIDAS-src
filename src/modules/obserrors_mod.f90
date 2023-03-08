@@ -1905,10 +1905,12 @@ contains
     
     if (tvs_isInstrumAllskyTtAssim(instrumId)) then
       chanIsAllskyTt = .true.
-    else if (tvs_isInstrumAllskyHuAssim(instrumId)) then
+    end if
+    if (tvs_isInstrumAllskyHuAssim(instrumId)) then
       chanIsAllskyHu = .true.
-    else if (tvs_isInstrumAllskyTtHuAssim(instrumId)) then
-      call utl_abort('chanIsAllsky: all-sky TtHu is not implemented')
+    end if
+    if (tvs_isInstrumAllskyTtAssim(instrumId) .and. tvs_isInstrumAllskyHuAssim(instrumId)) then
+      call utl_abort('chanIsAllsky: all-sky TtHu is not yet implemented')
     end if
 
   end subroutine chanIsAllsky

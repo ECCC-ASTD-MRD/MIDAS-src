@@ -1694,7 +1694,7 @@ module sqliteRead_mod
         fileName = 'cris'
       else if (codtyp_get_name(codeType_opt) == 'atms') then
         if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt))) .or. &
-            tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt)))) then
+            tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt)))) then
           fileName = 'atms_allsky'
         else
           fileName = 'atms'        

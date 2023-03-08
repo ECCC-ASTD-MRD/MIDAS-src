@@ -4681,8 +4681,7 @@ CONTAINS
               end if
 
               ! clwFG
-              if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                  tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+              if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indClwFG = BURP_Find_Element(inputBlock, ELEMENT=clwFgElementId)
                 if (indClwFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4706,8 +4705,7 @@ CONTAINS
               end if
 
               ! siFG
-              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                  tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
                 if (indSiFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4737,8 +4735,7 @@ CONTAINS
                   val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_CLWO, idata2))
                   call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   ! clwFG
-                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_CLWB, idata2))
                     call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   end if
@@ -4748,8 +4745,7 @@ CONTAINS
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
                                            valueIsMissing=(val_r4==mpc_missingValue_r4))
                   ! siFG
-                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_SIB, idata2))
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
                                              valueIsMissing=(val_r4==mpc_missingValue_r4))
@@ -4762,14 +4758,12 @@ CONTAINS
                 else
                   val_r4 = -1.0
                   call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=.true.)
-                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=.true.)
                   end if
 
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, valueIsMissing=.true.)
-                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, valueIsMissing=.true.)
                   end if
                   
@@ -4925,8 +4919,7 @@ CONTAINS
               end if
 
               ! clwFG
-              if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                  tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+              if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indClwFG = BURP_Find_Element(inputBlock, ELEMENT=clwFgElementId)
                 if (indClwFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4961,8 +4954,7 @@ CONTAINS
               end if
 
               ! siFG
-              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                  tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
                 if (indSiFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -4989,8 +4981,7 @@ CONTAINS
                   val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_CLWO, idata2))
                   call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   ! clwFG
-                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_CLWB, idata2))
                     call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   end if
@@ -5000,8 +4991,7 @@ CONTAINS
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
                                            valueIsMissing=(val_r4==mpc_missingValue_r4))
                   ! siFG
-                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_SIB, idata2))
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
                                              valueIsMissing=(val_r4==mpc_missingValue_r4))
@@ -5021,14 +5011,12 @@ CONTAINS
                 else
                   val_r4 = -1.0
                   call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=.true.)
-                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=.true.)
                   end if
 
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, valueIsMissing=.true.)
-                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, valueIsMissing=.true.)
                   end if
 
@@ -5097,8 +5085,7 @@ CONTAINS
               end if
 
               ! clwFG
-              if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                  tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+              if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indClwFG = BURP_Find_Element(inputBlock, ELEMENT=clwFgElementId)
                 if (indClwFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -5122,8 +5109,7 @@ CONTAINS
               end if
 
               ! siFG
-              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                  tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+              if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                 indSiFG = BURP_Find_Element(inputBlock, ELEMENT=siFgElementId)
                 if (indSiFG < 0) then
                   call BURP_Resize_Block(inputBlock, ADD_NELE=1, iostat=error)
@@ -5150,8 +5136,7 @@ CONTAINS
                   val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_CLWO, idata2))
                   call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   ! clwFG
-                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_CLWB, idata2))
                     call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=(val_r4<0.0))
                   end if
@@ -5161,8 +5146,7 @@ CONTAINS
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, &
                                            valueIsMissing=(val_r4==mpc_missingValue_r4))
                   ! siFG
-                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     val_r4 = sngl(obs_headElem_r(obsSpaceData, OBS_SIB, idata2))
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, &
                                              valueIsMissing=(val_r4==mpc_missingValue_r4))
@@ -5178,14 +5162,12 @@ CONTAINS
                 else
                   val_r4 = -1.0
                   call Insert_into_burp_r4(val_r4, ind13209, 1, tIndex, valueIsMissing=.true.)
-                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(val_r4, indClwFG, 1, tIndex, valueIsMissing=.true.)
                   end if
 
                   call Insert_into_burp_r4(val_r4, ind13208, 1, tIndex, valueIsMissing=.true.)
-                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                      tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
+                  if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) then
                     call Insert_into_burp_r4(val_r4, indSiFG, 1, tIndex, valueIsMissing=.true.)
                   end if
 
@@ -5818,8 +5800,7 @@ CONTAINS
         end if
 
         ! check clwFG element is in the namelist in all-sky mode.
-        if ((tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-             tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp)))) .and. &
+        if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .and. &
             clwFgElementId < 0) then
           call utl_abort('brpr_addElementsToBurp: clwFgElementId missing in the namelist')
         end if
@@ -5906,9 +5887,8 @@ CONTAINS
         
             ! Adding clear-sky radiance to data block for instrument in all-sky mode.
             if (addBtClearToBurp .and. &
-                (tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                   tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                   tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))))) then
+                (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                 tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))))) then
               
               indele = burp_find_element(inputBlock, element=btClearElementId)
 
@@ -5960,9 +5940,8 @@ CONTAINS
         
             ! Adding clear-sky radiance to MRQ block for instrument in all-sky mode.
             if (addBtClearToBurp .and. &
-                (tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                   tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
-                   tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))))) then
+                (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))) .or. &
+                 tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(idatyp))))) then
 
               indele = burp_find_element(inputBlock, element=btClearMrqElementID)
               if ( indele <= 0 ) then
