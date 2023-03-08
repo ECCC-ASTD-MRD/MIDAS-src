@@ -54,7 +54,7 @@ module gridStateVector_mod
   public :: gsv_getVco, gsv_getHco, gsv_getHco_physics, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
-  public :: gsv_printVarNames, gsv_printFldExtremum
+  public :: gsv_msgVarNames, gsv_msgFldExtremum
   public :: gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
@@ -380,9 +380,9 @@ module gridStateVector_mod
   end subroutine gsv_varNamesList
 
   !--------------------------------------------------------------------------
-  ! gsv_printVarNames
+  ! gsv_msgVarNames
   !--------------------------------------------------------------------------
-  function gsv_printVarNames(statevector) result(string)
+  function gsv_msgVarNames(statevector) result(string)
     !
     ! :Purpose: Return a string of all variables present in the statevector
     !
@@ -398,12 +398,12 @@ module gridStateVector_mod
     call gsv_varNamesList(varNames, statevector)
     string = str(varNames)
     nullify(varNames)
-  end function gsv_printVarNames
+  end function gsv_msgVarNames
 
   !--------------------------------------------------------------------------
-  ! gsv_printFldExtremum
+  ! gsv_msgFldExtremum
   !--------------------------------------------------------------------------
-  function gsv_printFldExtremum(statevector, varName) result(string)
+  function gsv_msgFldExtremum(statevector, varName) result(string)
     !
     ! :Purpose: Return a string describing value span for a given field
     !
@@ -431,7 +431,7 @@ module gridStateVector_mod
     end if
 
 
-  end function gsv_printFldExtremum
+  end function gsv_msgFldExtremum
 
   !--------------------------------------------------------------------------
   ! gsv_getNumLev
