@@ -945,15 +945,12 @@ contains
 
     ! check instrument is either using CLW or hydrometeors for non-ATMS instruments
     do instrumentIndex = 1, numMWInstrumToUseHydrometeors
-      if (numMWInstrumToUseCLW == 0 .or. &
-          instrumentIdsUsingHydrometeors(instrumentIndex) == tvs_getInstrumentId('atms')) then
-        exit
-      end if
+      if (numMWInstrumToUseCLW == 0) exit
 
       if (any(instrumentIdsUsingCLW(1:numMWInstrumToUseCLW) == &
               instrumentIdsUsingHydrometeors(instrumentIndex))) then
         write(*,*) instrumentIndex, instrumentNamesUsingHydrometeors(instrumentIndex)
-        call utl_abort('tvs_setup: this instrument is mentioned in instrumentIdsUsingCLW namelist')
+        call utl_abort('tvs_setup: all-sky TtHu for this intrument is not assimilated yet')
       end if
     end do
 
