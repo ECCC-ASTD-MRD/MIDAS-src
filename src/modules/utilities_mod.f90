@@ -1882,9 +1882,9 @@ contains
     implicit none
     character(len=*), intent(in) :: string
     character(len=*), intent(in) :: separator
-    character(len=256), allocatable :: stringArray(:)
+    character(len=*), allocatable :: stringArray(:)
 
-    integer :: stringArraySize
+    integer :: stringArraySize, stringIndex
 
     stringArraySize = count(transfer(string, 'a', len(string)) == separator) + 1
 
@@ -1893,7 +1893,7 @@ contains
     read(string, *) stringArray(1:stringArraySize)
 
     write(*,*)  'utl_splitString: stringArraySize = ', stringArraySize
-    write(*,*)  'utl_splitString: stringArray     = ', stringArray(:)
+    write(*,*)  'utl_splitString: stringArray     = ', (trim(stringArray(stringIndex))//',', stringIndex=1,stringArraySize)
     
   end subroutine utl_splitString
 
