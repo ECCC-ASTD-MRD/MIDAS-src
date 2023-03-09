@@ -177,7 +177,7 @@ contains
     ! locals
     integer           :: fileIndex, fnom, fclos, nulnam, ierr
     integer           :: status, baseNameIndexBeg
-    character(len=200) :: baseName, fullName
+    character(len=200) :: baseName, fullName, fileNameDir
     character(len=10) :: obsFileType, sfFileName
     character(len=*), parameter :: myName = 'obsf_writeFiles'
     character(len=*), parameter :: myWarning = myName //' WARNING: '
@@ -245,17 +245,23 @@ contains
 
       if (obsFileType /= 'OBSDB' .and. writeObsDb) then
         ! Create destination directory
-        if (mmpi_myid == 0) status = clib_mkdir_r('./obsDB')
+        fileNameDir = trim(ram_getRamDiskDir())
+        if (fileNameDir == ' ') then
+          write(*,*) 'obsf_writeFiles: WARNING! Writing obsDB to current working path ' // &
+                     'instead of ramdisk'
+        end if
+
+        if (mmpi_myid == 0) status = clib_mkdir_r(trim(fileNameDir)//'obsDB')
         if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
 
         ! update obsDB files
         do fileIndex = 1, obsf_nfiles
-          fullName = trim( obsf_cfilnam(fileIndex) )
+          fullName = trim(obsf_cfilnam(fileIndex))
           baseNameIndexBeg = index(fullName,'/',back=.true.)
           baseName = fullName(baseNameIndexBeg+1:)
 
-          call odbf_updateFile( obsSpaceData, './obsDB/'//trim(baseName), &
-                                obsf_cfamtyp(fileIndex), fileIndex )
+          call odbf_updateFile(obsSpaceData, trim(fileNameDir)//'obsDB/'//trim(baseName), &
+                               obsf_cfamtyp(fileIndex), fileIndex)
         end do        
       end if
 
