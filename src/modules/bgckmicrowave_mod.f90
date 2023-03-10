@@ -3559,7 +3559,7 @@ contains
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.
     !###############################################################################
 
-    call mwbg_grossValueCheck(KNT, KNO, ztb, 50., 380., grossrej)
+    call mwbg_grossValueCheck(KNT, KNO, ztb, biasCorr, 50., 380., grossrej)
 
     !###############################################################################
     ! STEP 3 ) Preliminary QC checks --> set lqc(KNT,KNO)=.true.
@@ -3747,7 +3747,16 @@ contains
     !
 
     implicit none
+    !Arguments
+    integer, intent(in)              :: IUTILST(:,:)           ! channel Selection using array IUTILST(chan,sat)
+    !                                                            IUTILST = 0 (blacklisted)
+    !                                                            1 (assmilate)
+    !                                                            2 (assimilate over open water only)
 
+    real(8), intent(in)              :: TOVERRST(:,:)          ! l'erreur totale des TOVS
+    real(8), intent(in)              :: clwThreshArr(:,:,:)
+    real(8), intent(in)              :: sigmaObsErr(:,:,:)
+    logical, intent(in)              :: useStateDepSigmaObs(:,:) ! if using state dependent obs error
     integer, intent(in)              :: KNO                    ! nombre de canaux des observations
     integer, intent(in)              :: KNT                    ! nombre de tovs
     real,    intent(in)              :: zlat(:)
@@ -3762,8 +3771,10 @@ contains
     real, intent(inout)              :: ztb(:)                 ! radiances
     real, intent(in)                 :: biasCorr(:)            ! correction aux radiances
     real, intent(in)                 :: zomp(:)                ! residus (o-p)
+    real, intent(in)                 :: MTINTRP(KNT)           ! topographie du modele
     integer, allocatable, intent(out):: IDENT(:)               ! flag to identify all obs pts in report
     !                                                            as being over land/ice, cloudy, bad IWV
+    character *9, intent(in)         :: STNID                  ! identificateur du satellite
     logical, intent(in)              :: RESETQC                ! reset du controle de qualite?
     logical, intent(in)              :: modLSQ                 ! If active, recalculate values for land/sea
                                                                ! qualifier and terrain type based on LG/MG
@@ -3819,6 +3830,7 @@ contains
     integer                          :: ICHTOPO(MXTOPO)
     logical, save                    :: LLFIRST = .true.
     integer, save                    :: numReportWithMissingTb
+    integer, save                    :: allcnt                          ! Number of Tovs obs
     integer, save                    :: drycnt                          ! Number of pts flagged for AMSU-B Dryness Index
     integer, save                    :: landcnt                         ! Number of obs pts found over land/ice
     integer, save                    :: rejcnt                          ! Number of problem obs pts (Tb err, QCfail)
@@ -3857,6 +3869,7 @@ contains
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
       numReportWithMissingTb = 0
+      allcnt = 0
       flgcnt = 0
       landcnt = 0
       rejcnt = 0
@@ -3882,14 +3895,12 @@ contains
     !###############################################################################
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.
     !###############################################################################
-
-    call mwbg_grossValueCheck(KNT, KNO, ztb, 50., 380., grossrej)
+    call mwbg_grossValueCheck(KNT, KNO, ztb, biasCorr, 50., 380., grossrej)
 
     !###############################################################################
     ! STEP 3 ) Preliminary QC checks --> set lqc(KNT,KNO)=.true.
     !          for data that fail QC
     !###############################################################################
-
     call mwbg_firstQcCheckMwhs2(zenith, ilq, itt, zlat, zlon, ztb, ISCNPOS, &
                                 KNO, KNT, lqc, lsq, trn, ICANO, reportHasMissingTb, modLSQ)
 
@@ -3936,7 +3947,7 @@ contains
     call mwbg_reviewAllCritforFinalFlagsMwhs2(KNT, KNO, lqc, grossrej, trn, waterobs, &
                                               precipobs, clwObs, clwFG, scatec, scatbg, &
                                               iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
-                                              drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
+                                              allcnt, drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
                                               MXCLWREJ, chanFlaggedForAllskyGenCoeff, icano)
 
     !###############################################################################
@@ -4014,6 +4025,7 @@ contains
 
     if (lastHeader) then
       write(*,*) ' --------------------------------------------------------------- '
+      write(*,*) ' Number of obs pts read from BURP file                         = ', allcnt
       write(*,*) ' Number of BURP file reports where Tb set to mwbg_realMissing  = ', numReportWithMissingTb
       write(*,*) ' --------------------------------------------------------------- '
       write(*,*) ' 1. Number of obs pts found over land/ice           = ', landcnt
@@ -4954,7 +4966,7 @@ contains
   ! mwbg_grossValueCheck  
   !--------------------------------------------------------------------------
 
-  subroutine mwbg_grossValueCheck(npts,KNO, ztb, ztbThresholdMin, ztbThresholdMax, grossrej)
+  subroutine mwbg_grossValueCheck(npts, KNO, ztbcor, biasCorr, ztbThresholdMin, ztbThresholdMax, grossrej)
 
     !:Purpose: Check Tbs for values that are missing or outside physical limits.
     !          **NOTE: REJECT ALL CHANNELS OF ONE IS FOUND TO BE BAD.
@@ -4963,25 +4975,40 @@ contains
     ! Arguments
     integer, intent(in)               :: npts             ! number of obs pts to process
     integer, intent(in)               :: KNO              ! number of ichannels
-    real,    intent(in)               :: ztb(:)           ! bs from input BURP file
+    real,    intent(in)               :: ztbcor(:)        ! bs from input BURP file
+    real,    intent(in)               :: biasCorr(:)      ! Bias correction
     real,    intent(in)               :: ztbThresholdMin  ! ztb threshold for rejection
     real,    intent(in)               :: ztbThresholdMax  ! ztb threshold for rejection
-    logical, intent(out), allocatable :: grossrej(:)      ! ogical array defining which obs are to be rejected
+    logical, intent(out), allocatable :: grossrej(:)      ! logical array defining which obs are to be rejected
 
     ! Locals
-    integer :: ii, indx1, indx2
+    integer :: pt, indx, channel
 
+    real, allocatable                 :: ztb(:)           ! biased or unbiased radiances
+
+    call utl_reAllocate(ztb, KNO)
     call utl_reAllocate(grossrej, npts)
     
     grossrej(1:npts) = .true.
-    indx1 = 1
-    do ii = 1, npts
-
-      indx2 = ii*KNO
-      if ( all( ztb(indx1:indx2) > ztbThresholdMin ) .and. all( ztb(indx1:indx2) < ztbThresholdMax ) ) then
-        grossrej(ii) = .false.
+    indx = 0
+    do pt = 1, npts
+      if ( mwbg_useUnbiasedObsForClw ) then
+        do channel = 1, KNO
+          ztb(channel) = ztbcor(indx+channel)
+        end do
+      else
+        do channel = 1, KNO
+          if (biasCorr(indx+channel) /= mwbg_realMissing) then
+            ztb(channel) = ztbcor(indx+channel) - biasCorr(indx+channel)
+          else
+            ztb(channel) = ztbcor(indx+channel)
+          end if
+        end do
       end if
-      indx1 = indx2 + 1
+      if ( all( ztb > ztbThresholdMin ) .and. all( ztb < ztbThresholdMax ) ) then
+        grossrej(pt) = .false.
+      end if
+      indx = pt*KNO
 
     end do
 
@@ -5873,19 +5900,32 @@ contains
         abslat = abs(plat(i))
         cosz   = cosd(pangl(i))
 
-        if ( mwbg_useUnbiasedObsForClw ) then
+        if (bcor23(i) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
           t23 = tb23(i)
-          t31 = tb31(i)
-          t50 = tb50(i)
-          t89 = tb89(i)
-          t165 = tb165(i)
         else
           t23 = tb23(i) - bcor23(i)
+        end if
+        if (bcor31(i) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
+          t31 = tb31(i)
+        else
           t31 = tb31(i) - bcor31(i)
+        end if
+        if (bcor50(i) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
+          t50 = tb50(i)
+        else
           t50 = tb50(i) - bcor50(i)
+        end if
+        if (bcor89(i) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
+          t89 = tb89(i)
+        else
           t89 = tb89(i) - bcor89(i)
+        end if
+        if (bcor165(i) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
+          t165 = tb165(i)
+        else
           t165 = tb165(i) - bcor165(i)
         end if
+
         deltb = t89 - t165
         t23FG = tb23FG(i)
         t31FG = tb31FG(i)
@@ -5900,7 +5940,6 @@ contains
           end if
 
           SeaIce(i) = ice(i)
-
           if ( ice(i) >= 0.55 .and. waterobs(i) ) then
             iNumSeaIce = iNumSeaIce + 1
             waterobs(i) = .false.
@@ -6135,6 +6174,7 @@ contains
     real, allocatable, intent(out)             :: riwv(:)
 
     ! Locals
+    integer                                    :: indx
     integer                                    :: indx1
     integer                                    :: indx2
     integer                                    :: ii
@@ -6184,19 +6224,13 @@ contains
     do ii = 1, nt
       indx2 = ii*nval
       if (.not.grossrej(ii)) then
-        if ( useUnbiasedObsForClw ) then
-          ztb183(1) = ztbcor(indx1+10)
-          ztb183(2) = ztbcor(indx1+11)
-          ztb183(3) = ztbcor(indx1+12)
-          ztb183(4) = ztbcor(indx1+13)
-          ztb183(5) = ztbcor(indx1+14)
-        else
-          ztb183(1) = ztbcor(indx1+10) - biasCorr(indx1+10)
-          ztb183(2) = ztbcor(indx1+11) - biasCorr(indx1+11)
-          ztb183(3) = ztbcor(indx1+12) - biasCorr(indx1+12)
-          ztb183(4) = ztbcor(indx1+13) - biasCorr(indx1+13)
-          ztb183(5) = ztbcor(indx1+14) - biasCorr(indx1+14)
-        end if
+        do indx = 1, 5
+          if (biasCorr(indx1+indx+9) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
+            ztb183(indx) = ztbcor(indx1+indx+9)
+          else
+            ztb183(indx) = ztbcor(indx1+indx+9) - biasCorr(indx1+indx+9)
+          end if
+        end do
         riwv(ii)  = sum(ztb183)/5.0
         if ( riwv(ii) < mean_Tb_183Ghz_min ) iwvreject(ii) = .true.
       else
@@ -6226,13 +6260,13 @@ contains
 
     ! Compute the simple AMSU-B Dryness Index zdi for all points = Tb(ch.3)-Tb(ch.5)
     if ( useUnbiasedObsForClw ) then
-      where ( .not.grossrej )
+      where ( .not. grossrej )
         zdi = ztb_amsub3 - ztb_amsub5
       elsewhere
         zdi = mwbg_realMissing
       end where
     else
-      where ( .not.grossrej )
+      where ( .not. grossrej )
         zdi = (ztb_amsub3 - bcor_amsub3) - (ztb_amsub5 - bcor_amsub5)
       elsewhere
         zdi = mwbg_realMissing
@@ -6434,7 +6468,7 @@ contains
   subroutine mwbg_reviewAllCritforFinalFlagsMwhs2(nt, nval, lqc, grossrej, trn, waterobs, &
                                                   precipobs, clwObs, clwFG, scatec, scatbg, &
                                                   iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
-                                                  drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
+                                                  allcnt, drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
                                                   MXCLWREJ, chanFlaggedForAllskyGenCoeff, icano)
 
     !:Purpose:                   Review all the checks previously made to determine which obs are to be accepted
@@ -6461,6 +6495,7 @@ contains
     real, intent(inout)                        :: riwv(:)
     integer, intent(inout)                     :: IMARQ(:)
     integer, intent(inout)                     :: globMarq(:)
+    integer, intent(inout)                     :: allcnt
     integer, intent(inout)                     :: drycnt
     integer, intent(inout)                     :: landcnt
     integer, intent(inout)                     :: rejcnt
@@ -6484,6 +6519,7 @@ contains
 
     lflagchn(:,:) = lqc(:,:)  ! initialize with flags set in mwbg_firstQcCheckMwhs2
     do kk = 1, nt
+      allcnt = allcnt + 1  ! Counting total number of observations
       ! Reject all channels if gross Tb error detected in any channel or other problems
       if ( grossrej(kk) ) then
         lflagchn(kk,:) = .true.
@@ -7008,12 +7044,13 @@ contains
                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                atmScatteringIndex, burpFileSatId, RESETQC)
       else if (instName == 'MWHS2') then
-        call mwbg_tovCheckMwhs2(obsLatitude, obsLongitude,&
-                                landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
+        call mwbg_tovCheckMwhs2(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+                                oer_tovutil, obsLatitude, obsLongitude, &
+                                landQualifierIndice, terrainTypeIndice, satZenithAngle,  &
                                 obsChannels, obsTb, obsTbBiasCorr, ompTb, qcIndicator,   &
                                 actualNumChannel, numObsToProcess, sensorIndex,          &
                                 newInformationFlag, satScanPosition,   &
-                                obsGlobalMarker, obsFlags,            &
+                                modelInterpTerrain, obsGlobalMarker, obsFlags,            &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                 atmScatteringIndex, burpFileSatId, RESETQC, modLSQ, lastHeader)
       else
