@@ -2556,19 +2556,17 @@ contains
 
             ! cloud liquid water content
             clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
-            clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor
             if (clw(levelIndex,profileCount) < qlim_getMinValueCloud('LWCR') .or. &
                 clw(levelIndex,profileCount) > qlim_getMaxValueCloud('LWCR')) then
               write(*,*) 'tvs_fillProfiles: clw=' , clw(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has clw outside RTTOV bounds')
             end if
 
+            clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor
           end if
-
           if (runObsOperatorWithHydrometeors .and. surfTypeIsWater(profileCount)) then
             ! cloud ice water content
             ciw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'IWCR')
-            ciw(levelIndex,profileCount) = ciw(levelIndex,profileCount) * tvs_cloudScaleFactor
             if (ciw(levelIndex,profileCount) < qlim_getMinValueCloud('IWCR') .or. &
                 ciw(levelIndex,profileCount) > qlim_getMaxValueCloud('IWCR')) then
               write(*,*) 'tvs_fillProfiles: ciw=' , ciw(:,profileCount) 
@@ -2578,7 +2576,6 @@ contains
             ! rain flux (zero, if not part of control variables)
             if (col_varExist(columnTrl,'RF')) then
               rainFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'RF')
-              rainFlux(levelIndex,profileCount) = rainFlux(levelIndex,profileCount) * tvs_cloudScaleFactor
             end if
             if (rainFlux(levelIndex,profileCount) < qlim_getMinValueCloud('RF') .or. &
                 rainFlux(levelIndex,profileCount) > qlim_getMaxValueCloud('RF')) then
@@ -2589,7 +2586,6 @@ contains
             ! snow flux (zero, if not part of control variables)
             if (col_varExist(columnTrl,'SF')) then
               snowFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'SF')
-              snowFlux(levelIndex,profileCount) = snowFlux(levelIndex,profileCount) * tvs_cloudScaleFactor
             end if
             if (snowFlux(levelIndex,profileCount) < qlim_getMinValueCloud('SF') .or. &
                 snowFlux(levelIndex,profileCount) > qlim_getMaxValueCloud('SF')) then
@@ -2606,6 +2602,10 @@ contains
               write(*,*) 'tvs_fillProfiles: cloudFraction=' , cloudFraction(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has cloud fraction outside RTTOV bounds')
             end if
+
+            ciw(levelIndex,profileCount) = ciw(levelIndex,profileCount) * tvs_cloudScaleFactor
+            rainFlux(levelIndex,profileCount) = rainFlux(levelIndex,profileCount) * tvs_cloudScaleFactor
+            snowFlux(levelIndex,profileCount) = snowFlux(levelIndex,profileCount) * tvs_cloudScaleFactor
 
           end if ! runObsOperatorWithHydrometeors .and. surfTypeIsWater
         end do ! levelIndex
