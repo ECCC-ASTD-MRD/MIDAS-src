@@ -162,8 +162,6 @@ contains
                                  tvs_mwInstrumUsingCLW_tl
       runObsOperatorWithHydrometeors_tl = col_varExist(columnTrlOnAnlIncLev,'LWCR') .and. &
                                           col_varExist(columnTrlOnAnlIncLev,'IWCR') .and. &
-                                          col_varExist(columnTrlOnAnlIncLev,'RF') .and. &
-                                          col_varExist(columnTrlOnAnlIncLev,'SF') .and. &
                                           tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)) .and. &
                                           tvs_mwInstrumUsingHydrometeors_tl
        
@@ -268,20 +266,38 @@ contains
 
         if (runObsOperatorWithHydrometeors_tl) then 
           if (surfTypeIsWater(profileIndex)) then
-            delRF => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'RF')
-            cld_profiles_tl(profileIndex) % hydro(1:nlv_T,1) = delRF(:)
-            delSF => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'SF')
-            cld_profiles_tl(profileIndex) % hydro(1:nlv_T,2)  = delSF(:)
+            ! rain flux
+            if (col_varExist(columnAnlInc,'RF')) then
+              delRF => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'RF')
+              cld_profiles_tl(profileIndex) % hydro(1:nlv_T,1) = delRF(:)
+            else
+              cld_profiles_tl(profileIndex) % hydro(1:nlv_T,1) = 0.0d0
+            end if
+
+            ! snow flux
+            if (col_varExist(columnAnlInc,'SF')) then
+              delSF => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'SF')
+              cld_profiles_tl(profileIndex) % hydro(1:nlv_T,2)  = delSF(:)
+            else
+              cld_profiles_tl(profileIndex) % hydro(1:nlv_T,2) = 0.0d0
+            end if
+
+            ! graupel
             cld_profiles_tl(profileIndex) % hydro(1:nlv_T,3)  = 0.d0 ! no information for graupel
+
+            ! cloud liquid water content
             delCLW => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'LWCR')
             cld_profiles_tl(profileIndex) % hydro(1:nlv_T,4) = delCLW(:)
+
+            ! cloud ice water content
             delCIW => col_getColumn(columnAnlInc,sensorHeaderIndexes(profileIndex),'IWCR')
             cld_profiles_tl(profileIndex) % hydro(1:nlv_T,5)  = delCIW(:)
           else
             cld_profiles_tl(profileIndex) % hydro(1:nlv_T,1:5)  = 0.d0
-          end if
+          end if ! surfTypeIsWater
+
           cld_profiles_tl(profileIndex) % hydro_frac(1:nlv_T,1) = 0.d0   ! no perturbation on cloud fraction as it is a binary variable (or or 1.0) in this implementation
-        end if
+        end if ! runObsOperatorWithHydrometeors_tl
         
         profilesdata_tl(profileIndex) % ctp             = 0.0d0
         profilesdata_tl(profileIndex) % cfraction       = 0.0d0
@@ -583,8 +599,6 @@ contains
                                  tvs_mwInstrumUsingCLW_tl
       runObsOperatorWithHydrometeors_ad = col_varExist(columnTrlOnAnlIncLev,'LWCR') .and. &
                                           col_varExist(columnTrlOnAnlIncLev,'IWCR') .and. &
-                                          col_varExist(columnTrlOnAnlIncLev,'RF') .and. &
-                                          col_varExist(columnTrlOnAnlIncLev,'SF') .and. &
                                           tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)) .and. &
                                           tvs_mwInstrumUsingHydrometeors_tl
      
@@ -868,23 +882,32 @@ contains
         do  profileIndex = 1 , profileCount 
           surfTypeIsWater(profileIndex) = (tvs_ChangedStypValue(obsSpaceData,sensorHeaderIndexes(profileIndex)) == surftype_sea)
           if (surfTypeIsWater(profileIndex)) then
-            rf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'RF')
-            sf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'SF')
+            ! rain flux
+            if (col_varExist(columnAnlInc,'RF')) then
+              rf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'RF')
+              do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
+                rf_column(levelIndex) = rf_column(levelIndex) + rf_ad(levelIndex,profileIndex)
+              end do
+            end if
+
+            ! snow flux
+            if (col_varExist(columnAnlInc,'SF')) then
+              sf_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'SF')
+              do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
+                sf_column(levelIndex) = sf_column(levelIndex) + sf_ad(levelIndex,profileIndex)
+              end do
+            end if
+
+            ! cloud liquid/ice water content
             clw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'LWCR')
             ciw_column => col_getColumn(columnAnlInc, sensorHeaderIndexes(profileIndex),'IWCR')
             do levelIndex = 1, col_getNumLev(columnAnlInc,'TH')
-              rf_column(levelIndex) = rf_column(levelIndex) +   &
-                                      rf_ad(levelIndex,profileIndex)
-              sf_column(levelIndex) = sf_column(levelIndex) +   &
-                                      sf_ad(levelIndex,profileIndex)
-              clw_column(levelIndex) = clw_column(levelIndex) + &
-                                       clw_ad(levelIndex,profileIndex)
-              ciw_column(levelIndex) = ciw_column(levelIndex) + &
-                                       ciw_ad(levelIndex,profileIndex)
+              clw_column(levelIndex) = clw_column(levelIndex) + clw_ad(levelIndex,profileIndex)
+              ciw_column(levelIndex) = ciw_column(levelIndex) + ciw_ad(levelIndex,profileIndex)
             end do
-          end if
-        end do
-      end if
+          end if ! surfTypeIsWater
+        end do ! profileIndex
+      end if ! runObsOperatorWithHydrometeors_ad
 
       deallocate (sensorHeaderIndexes, stat= allocStatus(1) )
       deallocate (tt_ad,               stat= allocStatus(2) )
