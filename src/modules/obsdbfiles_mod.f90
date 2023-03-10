@@ -2058,7 +2058,7 @@ contains
       ! create an index for the new table - necessary to speed up the update
       query = 'create index idx_midasBodyTable on ' // &
               trim(midasBodyTableName) // &
-              '(' // trim(obsBodyKeySqlName) // ',' // trim(vnmSqlName) // ');'
+              '(' // trim(obsBodyKeySqlName) // ');'
       write(*,*) 'odbf_updateMidasBodyTable: query = ', trim(query)
       call fSQL_do_many( db, query, stat )
       if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -2157,10 +2157,6 @@ contains
 
           obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
           call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdd)
-          obsVarNo  = obs_bodyElem_i( obsdat, obs_vnm, bodyIndex )
-          call fSQL_bind_param(stmt, PARAM_INDEX=3, INT_VAR=obsVarNo)
-          obsPPP  = obs_bodyElem_r( obsdat, obs_ppp, bodyIndex )
-          call fSQL_bind_param(stmt, PARAM_INDEX=4, REAL8_VAR=obsPPP)
 
           call fSQL_exec_stmt(stmt)
 
@@ -2453,8 +2449,7 @@ contains
         pppSqlName = odbf_midasTabColFromObsSpaceName('PPP', midasBodyNamesList)
         query = 'create index idx_midasBodyTable on ' // &
               trim(midasTableName) // &
-              '(' // trim(obsBodyKeySqlName) // ',' // trim(vnmSqlName) // ',' &
-                  // trim(pppSqlName) // ');'
+              '(' // trim(obsBodyKeySqlName) // ');'
       end if
       
       write(*,*) 'odbf_addColumnsMidasTable: query --->', trim(query)
