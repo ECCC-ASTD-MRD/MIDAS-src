@@ -2312,7 +2312,7 @@ contains
     logical, allocatable             :: midasColumnExists(:)
     character(len=3000)              :: query
     character(len=5000)              :: tableInsertColumnList
-    character(len=lenSqlName)        :: sqlColumnName, vnmSqlName
+    character(len=lenSqlName)        :: sqlColumnName, vnmSqlName, pppSqlName
     character(len=20)                :: sqlDataType
     character(len=4)                 :: obsSpaceColumnName
     integer                          :: updateItemIndex, columnIndex, obsColumnIndex
@@ -2450,9 +2450,11 @@ contains
 
       else if (trim(midasTableType) == 'body' ) then
         vnmSqlName = odbf_midasTabColFromObsSpaceName('VNM', midasBodyNamesList)
+        pppSqlName = odbf_midasTabColFromObsSpaceName('PPP', midasBodyNamesList)
         query = 'create index idx_midasBodyTable on ' // &
               trim(midasTableName) // &
-              '(' // trim(obsBodyKeySqlName) // ',' // trim(vnmSqlName) // ');'
+              '(' // trim(obsBodyKeySqlName) // ',' // trim(vnmSqlName) // ',' &
+                  // trim(pppSqlName) // ');'
       end if
       
       write(*,*) 'odbf_addColumnsMidasTable: query --->', trim(query)
