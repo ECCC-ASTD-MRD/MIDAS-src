@@ -1855,6 +1855,7 @@ contains
         obsIdo  = obs_headPrimaryKey( obsdat, headIndex )
         call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdo)
 
+        write(*,*) 'midasheader maziar: headIndex=', headIndex
         call fSQL_exec_stmt(stmt)
 
       end do HEADER2
@@ -2158,6 +2159,7 @@ contains
           obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
           call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdd)
 
+          write(*,*) 'midasBody maziar: headIndex=', headIndex, ', bodyIndex=', bodyIndex
           call fSQL_exec_stmt(stmt)
 
         end do BODY2
