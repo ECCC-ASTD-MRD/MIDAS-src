@@ -90,125 +90,6 @@ module sqliteRead_mod
   end subroutine sqlr_initData
 
 
-  subroutine sqlr_initHeader(obsdat, rdbSchema, familyType, headerIndex, elev, obsSat, azimuth, geoidUndulation, &
-                             earthLocRadCurv, roQcFlag, instrument, zenith, cloudCover, solarZenith, &
-                             solarAzimuth, terrainType, landSea, iasiImagerCollocationFlag, iasiGeneralQualityFlag, &
-                             headPrimaryKey, obsLat, obsLon, codeType, obsDate, obsTime, &
-                             obsStatus, idStation, idProf, trackCellNum, modelWindSpeed, &
-                             beamAzimuth, beamElevation, beamRangeStart, beamRangeEnd,   &
-                             firstBodyIndexOfThisBatch, obsNlv, iceChartID)
-    !
-    ! :Purpose: To initialize the header information when SQLite files are read.
-    !
-    implicit none
-
-    ! arguments
-    type (struct_obs), intent(inout) :: obsdat
-    character(len=*) , intent(in)    :: rdbSchema
-    character(len=*) , intent(in)    :: idStation
-    character(len=2) , intent(in)    :: familyType
-    integer          , intent(in)    :: headerIndex
-    integer(8)       , intent(in)    :: headPrimaryKey
-    integer          , intent(in)    :: codeType
-    integer          , intent(in)    :: obsDate
-    integer          , intent(in)    :: obsTime
-    integer          , intent(in)    :: obsStatus
-    integer          , intent(in)    :: terrainType
-    integer          , intent(in)    :: landSea
-    integer          , intent(in)    :: iasiImagerCollocationFlag
-    integer          , intent(in)    :: iasiGeneralQualityFlag
-    integer          , intent(in)    :: roQcFlag
-    integer          , intent(in)    :: obsSat
-    integer          , intent(in)    :: instrument
-    integer          , intent(in)    :: idProf
-    integer          , intent(in)    :: trackCellNum
-    integer          , intent(in)    :: firstBodyIndexOfThisBatch
-    integer          , intent(in)    :: obsNlv
-    integer          , intent(in)    :: iceChartID
-    real(pre_obsReal), intent(in)    :: geoidUndulation
-    real(pre_obsReal), intent(in)    :: earthLocRadCurv
-    real(pre_obsReal), intent(in)    :: elev
-    real(pre_obsReal), intent(in)    :: obsLat
-    real(pre_obsReal), intent(in)    :: obsLon
-    real(pre_obsReal), intent(in)    :: solarAzimuth
-    real(pre_obsReal), intent(in)    :: cloudCover
-    real(pre_obsReal), intent(in)    :: solarZenith
-    real(pre_obsReal), intent(in)    :: zenith
-    real(pre_obsReal), intent(in)    :: azimuth
-    real(pre_obsReal), intent(in)    :: modelWindSpeed
-    real(pre_obsReal), intent(in)    :: beamAzimuth
-    real(pre_obsReal), intent(in)    :: beamElevation
-    real(pre_obsReal), intent(in)    :: beamRangeStart
-    real(pre_obsReal), intent(in)    :: beamRangeEnd
-
-    call obs_setFamily(obsdat, trim(familyType), headerIndex)
-    call obs_setHeadPrimaryKey(obsdat,  headerIndex, headPrimaryKey)
-    call obs_headSet_i(obsdat, OBS_ONM, headerIndex, headerIndex)
-    call obs_headSet_i(obsdat, OBS_ITY, headerIndex, codeType)
-    call obs_headSet_r(obsdat, OBS_LAT, headerIndex, obsLat)
-    call obs_headSet_r(obsdat, OBS_LON, headerIndex, obsLon)
-    call obs_headSet_i(obsdat, OBS_DAT, headerIndex, obsDate)
-    call obs_headSet_i(obsdat, OBS_ETM, headerIndex, obsTime)
-    call obs_headSet_i(obsdat, OBS_ST1, headerIndex, obsStatus)
-    call     obs_set_c(obsdat, 'STID' , headerIndex, trim(idStation))
-    call obs_headSet_i(obsdat, OBS_RLN, headerIndex, firstBodyIndexOfThisBatch)
-    call obs_headSet_i(obsdat, OBS_NLV, headerIndex, obsNlv)
-
-    if (trim(familyType) == 'TO') then
-
-      call obs_headSet_i(obsdat, OBS_SAT , headerIndex, obsSat)
-      call obs_headSet_i(obsdat, OBS_TTYP, headerIndex, terrainType)
-      call obs_headSet_i(obsdat, OBS_STYP, headerIndex, landSea)
-      call obs_headSet_i(obsdat, OBS_INS , headerIndex, instrument)
-      call obs_headSet_r(obsdat, OBS_SZA , headerIndex, zenith)
-      call obs_headSet_r(obsdat, OBS_SUN , headerIndex, solarZenith)
-      if (obs_columnActive_IH(obsdat,OBS_GQF)) call obs_headSet_i(obsdat,OBS_GQF,headerIndex,iasiGeneralQualityFlag)
-      if (obs_columnActive_IH(obsdat,OBS_GQL)) call obs_headSet_i(obsdat,OBS_GQL,headerIndex,iasiImagerCollocationFlag)
-
-      if (trim(rdbSchema) /= 'csr') then
-        call obs_headSet_r(obsdat, OBS_AZA , headerIndex, azimuth)
-      end if
-
-      if (trim(rdbSchema) == 'airs' .or. trim(rdbSchema) == 'iasi' .or. trim(rdbSchema) == 'cris') then
-        call obs_headSet_r(obsdat, OBS_CLF , headerIndex, cloudCover)
-        call obs_headSet_r(obsdat, OBS_SAZ , headerIndex, solarAzimuth)  
-      else if (trim(rdbSchema) == 'amsua' .or. trim(rdbSchema) == 'amsub' .or. trim(rdbSchema) == 'atms') then   
-        call obs_headSet_r(obsdat, OBS_SAZ , headerIndex, solarAzimuth)
-      end if
-
-    else
-
-      call obs_headSet_r(obsdat, OBS_ALT ,headerIndex , elev)
-      
-      if (trim(rdbSchema) == 'sst') then
-        call obs_headSet_r(obsdat, OBS_SUN , headerIndex, solarZenith)
-      end if
-      
-      if (trim(rdbSchema) == 'ro') then
-        call obs_headSet_i(obsdat, OBS_ROQF, headerIndex, roQcFlag)
-        call obs_headSet_r(obsdat, OBS_GEOI, headerIndex, geoidUndulation)
-        call obs_headSet_r(obsdat, OBS_TRAD, headerIndex, earthLocRadCurv)
-        call obs_headSet_i(obsdat, OBS_SAT , headerIndex, obsSat)
-        call obs_headSet_r(obsdat, OBS_AZA , headerIndex, azimuth)
-      else if (trim(rdbSchema) == 'al') then
-        call obs_headSet_i(obsdat, OBS_PRFL, headerIndex, idProf)
-      else if (trim(rdbSchema) == 'gl_ascat') then
-         call obs_headSet_i(obsdat, OBS_FOV, headerIndex, trackCellNum)
-         call obs_headSet_r(obsdat, OBS_MWS, headerIndex, modelWindSpeed)
-      else if (trim(rdbSchema) == 'gl') then
-         call obs_headSet_i(obsdat, OBS_CHID, headerIndex, iceChartID)
-      end if
-      if (trim(rdbSchema) == 'radvel') then
-          call obs_headSet_r(obsdat, OBS_RZAM, headerIndex, beamAzimuth)
-          call obs_headSet_r(obsdat, OBS_RELE, headerIndex, beamElevation)
-          call obs_headSet_r(obsdat, OBS_RANS, headerIndex, beamRangeStart)
-          call obs_headSet_r(obsdat, OBS_RANE, headerIndex, beamRangeEnd)
-      end if   
-    end if
-
-  end subroutine sqlr_initHeader
-
-
   subroutine sqlr_readSqlite_avhrr(obsdat, fileName, headerIndexBegin, headerIndexEnd)
     ! :Purpose: To read SQLite avhrr_cloud parameters .
     ! 
@@ -714,75 +595,125 @@ module sqliteRead_mod
         beamRangeEnd   = MPC_missingValue_R4
         obsSat = MPC_missingValue_INT
 
+        ! Set some default values
+        if (trim(familyType) == 'TO') then
+          call obs_headSet_i(obsdat, OBS_TTYP, headerIndex+1, terrainType)
+        end if
+        call obs_headSet_r(obsdat, OBS_ALT, headerIndex+1, elevReal)
+
+        call obs_setFamily(obsdat, trim(familyType), headerIndex+1)
+        call obs_setHeadPrimaryKey(obsdat, headerIndex+1, headPrimaryKey)
+        call obs_headSet_i(obsdat, OBS_ONM, headerIndex+1, headerIndex+1)
         do columnIndex = 1, size(headSqlNames)
           select case(trim(headSqlNames(columnIndex)))
             case('LAT')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = obsLat)
+              xlat = obsLat * MPC_RADIANS_PER_DEGREE_R8
+              call obs_headSet_r(obsdat, OBS_LAT, headerIndex+1, xLat)
             case('LON')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = obsLon)
+              if (obsLon < 0.) obsLon = obsLon + 360.
+              xlon = obsLon * MPC_RADIANS_PER_DEGREE_R8
+              call obs_headSet_r(obsdat, OBS_LON, headerIndex+1, xLon)
             case('CODTYP')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = codeType)
+              call obs_headSet_i(obsdat, OBS_ITY, headerIndex+1, codeType)
             case('DATE')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = obsDate)
+              call obs_headSet_i(obsdat, OBS_DAT, headerIndex+1, obsDate)
             case('TIME')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = obsTime)
+              obsTime = obsTime/100
+              call obs_headSet_i(obsdat, OBS_ETM, headerIndex+1, obsTime)
             case('ID_STN')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, char_var  = idStation)
+              call obs_set_c(obsdat, 'STID' , headerIndex+1, trim(idStation))
             case('STATUS')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = obsStatus)
+              call obs_headSet_i(obsdat, OBS_ST1, headerIndex+1, obsStatus)
             case('ELEV','ANTENNA_ALTITUDE')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = elev, REAL_MISSING=MPC_missingValue_R4)
               elevReal=elev
+              if (trim(familyType) /= 'TO') then
+                call obs_headSet_r(obsdat, OBS_ALT ,headerIndex+1, elevReal)
+              end if
             case('LAND_SEA')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = landSea, INT_MISSING=MPC_missingValue_INT)
+              call obs_headSet_i(obsdat, OBS_STYP, headerIndex+1, landSea)
             case('ID_SAT')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = obsSat, INT_MISSING=MPC_missingValue_INT)
+              call obs_headSet_i(obsdat, OBS_SAT , headerIndex+1, obsSat)
             case('INSTRUMENT')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = instrument, INT_MISSING=MPC_missingValue_INT)
             case('ZENITH')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = zenithReal, REAL_MISSING=MPC_missingValue_R4)
+              call obs_headSet_r(obsdat, OBS_SZA , headerIndex+1, real(zenithReal,kind=pre_obsReal))
             case('SOLAR_ZENITH')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = solarZenithReal, REAL_MISSING=MPC_missingValue_R4)
+              call obs_headSet_r(obsdat, OBS_SUN , headerIndex+1, real(solarZenithReal,kind=pre_obsReal))
             case('AZIMUTH')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real8_var = azimuthReal_R8)
+              call obs_headSet_r(obsdat, OBS_AZA , headerIndex+1, real(azimuthReal_R8,kind=pre_obsReal))
             case('TERRAIN_TYPE')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = terrainType, INT_MISSING=MPC_missingValue_INT)
+              call obs_headSet_i(obsdat, OBS_TTYP, headerIndex+1, terrainType)
             case('CLOUD_COVER')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = cloudCoverReal, REAL_MISSING=MPC_missingValue_R4)
+              call obs_headSet_r(obsdat, OBS_CLF , headerIndex+1, real(cloudCoverReal,kind=pre_obsReal))
             case('SOLAR_AZIMUTH')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4)
+              call obs_headSet_r(obsdat, OBS_SAZ , headerIndex+1, real(solarAzimuthReal,kind=pre_obsReal))
             case('SENSOR')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = sensor, INT_MISSING=MPC_missingValue_INT)
             case('FANION_QUAL_IASI_SYS_IND')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = iasiGeneralQualityFlag, INT_MISSING=MPC_missingValue_INT)
+              if (obs_columnActive_IH(obsdat,OBS_GQF)) then
+                call obs_headSet_i(obsdat,OBS_GQF, headerIndex+1, iasiGeneralQualityFlag)
+              end if
             case('INDIC_NDX_QUAL_GEOM')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = iasiImagerCollocationFlag, INT_MISSING=MPC_missingValue_INT)
+              if (obs_columnActive_IH(obsdat,OBS_GQL)) then
+                call obs_headSet_i(obsdat, OBS_GQL, headerIndex+1, iasiImagerCollocationFlag)
+              end if
             case('RO_QC_FLAG')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = roQcFlag, INT_MISSING=MPC_missingValue_INT)
+              call obs_headSet_i(obsdat, OBS_ROQF, headerIndex+1, roQcFlag)
             case('GEOID_UNDULATION')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real8_var = geoidUndulation_R8)
               geoidUndulation = geoidUndulation_R8
+              call obs_headSet_r(obsdat, OBS_GEOI, headerIndex+1, geoidUndulation)
             case('EARTH_LOCAL_RAD_CURV')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real8_var = earthLocRadCurv_R8)
               earthLocRadCurv = earthLocRadCurv_R8
+              call obs_headSet_r(obsdat, OBS_TRAD, headerIndex+1, earthLocRadCurv)
             case('CENTER_AZIMUTH')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = beamAzimuth)
+              beamAzimuthReal   = beamAzimuth   * MPC_RADIANS_PER_DEGREE_R8
+              call obs_headSet_r(obsdat, OBS_RZAM, headerIndex+1, beamAzimuthReal)
             case('CENTER_ELEVATION')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = beamElevation)
+              beamElevationReal = beamElevation * MPC_RADIANS_PER_DEGREE_R8
+              call obs_headSet_r(obsdat, OBS_RELE, headerIndex+1, beamElevationReal)
             case('RANGE_START')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = beamRangeStart)
+              call obs_headSet_r(obsdat, OBS_RANS, headerIndex+1, real(beamRangeStart,kind=pre_obsReal))
             case('RANGE_END')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = beamRangeEnd)
+              call obs_headSet_r(obsdat, OBS_RANE, headerIndex+1, real(beamRangeEnd,kind=pre_obsReal))
             case('ID_PROF')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = idProf)
+              call obs_headSet_i(obsdat, OBS_PRFL, headerIndex+1, idProf)
             case('CHARTINDEX')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = iceChartID)
+              call obs_headSet_i(obsdat, OBS_CHID, headerIndex+1, iceChartID)
             case('TRACK_CELL_NO')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = trackCellNum)
               if (trackCellNum > 21) trackCellNum = 43 - trackCellNum
+              call obs_headSet_i(obsdat, OBS_FOV, headerIndex+1, trackCellNum)
             case('MOD_WIND_SPD')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real8_var = modelWindSpeed_R8)
               modelWindSpeed = modelWindSpeed_R8
+              call obs_headSet_r(obsdat, OBS_MWS, headerIndex+1, modelWindSpeed)
          end select
         end do
 
@@ -799,11 +730,9 @@ module sqliteRead_mod
           else
             instrument = obsu_cvt_obs_instrum(sensor)
           end if
+          call obs_headSet_i(obsdat, OBS_SAT , headerIndex+1, obsSat)
+          call obs_headSet_i(obsdat, OBS_INS , headerIndex+1, instrument)
         end if
-
-        if (obsLon < 0.) obsLon = obsLon + 360.
-        xlat = obsLat * MPC_RADIANS_PER_DEGREE_R8
-        xlon = obsLon * MPC_RADIANS_PER_DEGREE_R8
 
       end if READHEADER
 
@@ -922,17 +851,8 @@ module sqliteRead_mod
 
         headerIndex = headerIndex + 1 
 
-        call sqlr_initHeader(obsdat, rdbSchema, familyType, headerIndex, elevReal, obsSat, &
-             real(azimuthReal_R8,kind=pre_obsReal), geoidUndulation, earthLocRadCurv,       &
-             roQcFlag, instrument, real(zenithReal,kind=pre_obsReal),                       &
-             real(cloudCoverReal,kind=pre_obsReal), real(solarZenithReal,kind=pre_obsReal), &
-             real(solarAzimuthReal,kind=pre_obsReal), terrainType, landSea,                 &
-             iasiImagerCollocationFlag, iasiGeneralQualityFlag, headPrimaryKey,             &
-             xlat, xlon, codeType, obsDate, obsTime/100, obsStatus, idStation, idProf,      &
-             trackCellNum, modelWindSpeed,                                                  &
-             beamAzimuthReal, beamElevationReal,                                            &
-             real(beamRangeStart,kind=pre_obsReal), real(beamRangeEnd,kind=pre_obsReal),    &
-             firstBodyIndexOfThisBatch, obsNlv, iceChartID)
+        call obs_headSet_i(obsdat, OBS_RLN, headerIndex, firstBodyIndexOfThisBatch)
+        call obs_headSet_i(obsdat, OBS_NLV, headerIndex, obsNlv)
 
         ! reset level counter for next batch of data entries
         obsNlv = 0
