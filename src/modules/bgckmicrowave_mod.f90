@@ -5641,19 +5641,32 @@ contains
         abslat = abs(plat(i))
         cosz   = cosd(pangl(i))
 
-        if ( mwbg_useUnbiasedObsForClw ) then
+        if (bcor23(i) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
           t23 = tb23(i)
-          t31 = tb31(i)
-          t50 = tb50(i)
-          t89 = tb89(i)
-          t165 = tb165(i)
         else
           t23 = tb23(i) - bcor23(i)
+        end if
+        if (bcor31(i) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
+          t31 = tb31(i)
+        else
           t31 = tb31(i) - bcor31(i)
+        end if
+        if (bcor50(i) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
+          t50 = tb50(i)
+        else
           t50 = tb50(i) - bcor50(i)
+        end if
+        if (bcor89(i) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
+          t89 = tb89(i)
+        else
           t89 = tb89(i) - bcor89(i)
+        end if
+        if (bcor165(i) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
+          t165 = tb165(i)
+        else
           t165 = tb165(i) - bcor165(i)
         end if
+
         deltb = t89 - t165
         t23FG = tb23FG(i)
         t31FG = tb31FG(i)
@@ -6028,6 +6041,7 @@ contains
     real, allocatable, intent(out)             :: riwv(:)
 
     ! Locals
+    integer                                    :: indx
     integer                                    :: indx1
     integer                                    :: indx2
     integer                                    :: ii
@@ -6077,19 +6091,13 @@ contains
     do ii = 1, nt
       indx2 = ii*nval
       if (.not.grossrej(ii)) then
-        if ( useUnbiasedObsForClw ) then
-          ztb183(1) = ztbcor(indx1+17)
-          ztb183(2) = ztbcor(indx1+18)
-          ztb183(3) = ztbcor(indx1+19)
-          ztb183(4) = ztbcor(indx1+20)
-          ztb183(5) = ztbcor(indx1+21)
-        else
-          ztb183(1) = ztbcor(indx1+17) - biasCorr(indx1+17)
-          ztb183(2) = ztbcor(indx1+18) - biasCorr(indx1+18)
-          ztb183(3) = ztbcor(indx1+19) - biasCorr(indx1+19)
-          ztb183(4) = ztbcor(indx1+20) - biasCorr(indx1+20)
-          ztb183(5) = ztbcor(indx1+21) - biasCorr(indx1+21)
-        end if
+        do indx = 1, 5
+          if (biasCorr(indx1+indx+9) == mwbg_realMissing .or. useUnbiasedObsForClw) then
+            ztb183(indx) = ztbcor(indx1+indx+16)
+          else
+            ztb183(indx) = ztbcor(indx1+indx+16) - biasCorr(indx1+indx+16)
+          end if
+        end do
         riwv(ii)  = sum(ztb183)/5.0
         if ( riwv(ii) < mean_Tb_183Ghz_min ) iwvreject(ii) = .true.
       else
@@ -6225,7 +6233,7 @@ contains
       indx2 = ii*nval
       if (.not.grossrej(ii)) then
         do indx = 1, 5
-          if (biasCorr(indx1+indx+9) == mwbg_realMissing .or. mwbg_useUnbiasedObsForClw) then
+          if (biasCorr(indx1+indx+9) == mwbg_realMissing .or. useUnbiasedObsForClw) then
             ztb183(indx) = ztbcor(indx1+indx+9)
           else
             ztb183(indx) = ztbcor(indx1+indx+9) - biasCorr(indx1+indx+9)
