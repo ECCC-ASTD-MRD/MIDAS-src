@@ -29,7 +29,7 @@ save
 private
 public :: sqlu_sqlColumnExists, sqlu_sqlTableExists, sqlu_getSqlColumnNames
 public :: sqlu_query, sqlu_handleError
-public :: sqlu_getColumnValuesNum
+public :: sqlu_getColumnValuesNum, sqlu_getColumnValuesDate, sqlu_getColumnValuesChar
 
 ! Arrays used to match SQLite column names with obsSpaceData column names
 integer, parameter :: lenSqlName = 60
@@ -77,7 +77,7 @@ contains
     if (debug) write(*,*) myName//': output = XXX' // trim(sqliteOutput) // 'XXX'
     columnExists = (trim(sqliteOutput) /= '0')
 
-    ! close the obsDB file
+    ! close the sqlite file
     call fSQL_close( db, stat )
 
   end function sqlu_sqlColumnExists
@@ -107,7 +107,7 @@ contains
     logical, parameter          :: debug = .false.
     character(len=*), parameter :: myName = 'sqlu_sqlTableExists'
 
-    ! open the obsDB file
+    ! open the sqlite file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
@@ -129,7 +129,7 @@ contains
     if (debug) write(*,*) myName//': output = XXX' // trim(sqliteOutput) // 'XXX'
     tableExists = (trim(sqliteOutput) == trim(upperTableName))
 
-    ! close the obsDB file
+    ! close the sqlite file
     call fSQL_close( db, stat ) 
 
   end function sqlu_sqlTableExists
@@ -139,7 +139,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine sqlu_getSqlColumnNames(sqlColumnNames, fileName, tableName, dataType)
     !
-    ! :Purpose: Read the column names in the obsDB file for the specified table.
+    ! :Purpose: Read the column names in the sqlite file for the specified table.
     !
     implicit none
 
@@ -159,7 +159,7 @@ contains
     type(fSQL_STATEMENT)     :: stmt ! precompiled sqlite statements
     character(len=*), parameter :: myName = 'sqlu_getSqlColumnNames'
 
-    ! open the obsDB file
+    ! open the sqlite file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       call utl_abort( myName//': fSQL_open '//fSQL_errmsg(stat) )
@@ -194,7 +194,7 @@ contains
     end do
     deallocate( charValues )
 
-    ! clean up and close the obsDB file
+    ! clean up and close the sqlite file
     call fSQL_free_mem( stmt )
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
@@ -207,7 +207,7 @@ contains
   subroutine sqlu_getColumnValuesNum(columnValues, fileName, tableName, &
                                      sqlColumnNames, extraQuery_opt)
     !
-    ! :Purpose: Read the column values from obsDB file for the specified table
+    ! :Purpose: Read the column values from sqlite file for the specified table
     !           and column names.
     !
     implicit none
@@ -232,7 +232,7 @@ contains
       extraQuery = ''
     end if
 
-    ! open the obsDB file
+    ! open the sqlite file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'sqlu_getColumnValuesNum: fSQL_open: ', fSQL_errmsg(stat)
@@ -263,12 +263,140 @@ contains
     columnValues(:,:) = 0.0d0
     call fSQL_fill_matrix( stmt, columnValues )
 
-    ! close the obsDB file
+    ! close the sqlite file
     call fSQL_free_mem( stmt )
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
 
   end subroutine sqlu_getColumnValuesNum
+
+  !--------------------------------------------------------------------------
+  ! sqlu_getColumnValuesChar
+  !--------------------------------------------------------------------------
+  subroutine sqlu_getColumnValuesChar(columnValues, fileName, tableName, &
+                                      sqlColumnNames)
+    !
+    ! :Purpose: Read the column values from sqlite file for the specified table
+    !           and column names.
+    !
+    implicit none
+
+    ! arguments:
+    character(len=50), allocatable, intent(out) :: columnValues(:,:)
+    character(len=*),               intent(in)  :: sqlColumnNames(:)
+    character(len=*),               intent(in)  :: fileName
+    character(len=*),               intent(in)  :: tableName
+
+    ! locals:
+    integer :: numRows, numColumns, columnIndex
+    character(len=3000)      :: query
+    type(fSQL_STATUS)        :: stat ! sqlite error status
+    type(fSQL_DATABASE)      :: db   ! sqlite file handle
+    type(fSQL_STATEMENT)     :: stmt ! precompiled sqlite statements
+
+    ! open the sqlite file
+    call fSQL_open( db, trim(fileName), status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'sqlu_getColumnValuesChar: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'sqlu_getColumnValuesChar: fSQL_open' )
+    end if
+
+    ! build the sqlite query
+    query = 'select'
+    numColumns = size(sqlColumnNames)
+    do columnIndex = 1, numColumns
+      query = trim(query) // ' ' // trim(sqlColumnNames(columnIndex))
+      if (columnIndex < numColumns) query = trim(query) // ','
+    end do
+    query = trim(query) // ' from ' // trim(tableName) // ';'
+    write(*,*) 'sqlu_getColumnValuesChar: query ---> ', trim(query)
+
+    ! read the values from the file
+    call fSQL_prepare( db, trim(query), stmt, status=stat )
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
+                        mode=FSQL_CHAR, status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'sqlu_getColumnValuesChar: fSQL_get_many: ', fSQL_errmsg(stat)
+      call utl_abort('sqlu_getColumnValuesChar: problem with fSQL_get_many')
+    end if
+    write(*,*) 'sqlu_getColumnValuesChar: numRows = ', numRows, ', numColumns = ', numColumns
+    allocate( columnValues(numRows, numColumns) )
+    call fSQL_fill_matrix( stmt, columnValues )
+
+    ! close the sqlite file
+    call fSQL_free_mem( stmt )
+    call fSQL_finalize( stmt )
+    call fSQL_close( db, stat ) 
+
+  end subroutine sqlu_getColumnValuesChar
+
+  !--------------------------------------------------------------------------
+  ! sqlu_getColumnValuesDate
+  !--------------------------------------------------------------------------
+  subroutine sqlu_getColumnValuesDate(columnDateValues, columnTimeValues, fileName, &
+                                      tableName, sqlColumnName)
+    !
+    ! :Purpose: Read the column values from sqlite file for the specified table
+    !           and column names.
+    !
+    implicit none
+
+    ! arguments:
+    integer, allocatable, intent(out) :: columnDateValues(:)
+    integer, allocatable, intent(out) :: columnTimeValues(:)
+    character(len=*),     intent(in)  :: sqlColumnName
+    character(len=*),     intent(in)  :: fileName
+    character(len=*),     intent(in)  :: tableName
+
+    ! locals:
+    integer              :: numRows, numColumns, rowIndex
+    character(len=20), allocatable :: columnValuesStr(:,:)
+    character(len=3000)  :: query
+    type(fSQL_STATUS)    :: stat ! sqlite error status
+    type(fSQL_DATABASE)  :: db   ! sqlite file handle
+    type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
+
+    ! open the sqlite file
+    call fSQL_open( db, trim(fileName), status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'sqlu_getColumnValuesDate: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'sqlu_getColumnValuesDate: fSQL_open' )
+    end if
+
+    ! Get the date and time
+
+    ! build the sqlite query
+    query = "select strftime('%Y%m%d'," // trim(sqlColumnName) // &
+            "), strftime('%H%M'," // trim(sqlColumnName) // ") " // &
+            "from " // trim(tableName) // ";"
+    write(*,*) 'sqlu_getColumnValuesDate: query ---> ', trim(query)
+
+    ! read the values from the file
+    call fSQL_prepare( db, trim(query), stmt, status=stat )
+    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
+                        mode=FSQL_CHAR, status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'sqlu_getColumnValuesDate: fSQL_get_many: ', fSQL_errmsg(stat)
+      call utl_abort('sqlu_getColumnValuesDate: problem with fSQL_get_many')
+    end if
+    write(*,*) 'sqlu_getColumnValuesDate: numRows = ', numRows, ', numColumns = ', numColumns
+    allocate( columnValuesStr(numRows,2) )
+    call fSQL_fill_matrix( stmt, columnValuesStr )
+    allocate( columnDateValues(numRows) )
+    allocate( columnTimeValues(numRows) )
+    do rowIndex = 1, numRows
+      read(columnValuesStr(rowIndex,1),*) columnDateValues(rowIndex)
+      read(columnValuesStr(rowIndex,2),*) columnTimeValues(rowIndex)
+    end do
+
+    deallocate(columnValuesStr)
+
+    ! close the sqlite file
+    call fSQL_free_mem( stmt )
+    call fSQL_finalize( stmt )
+    call fSQL_close( db, stat ) 
+
+  end subroutine sqlu_getColumnValuesDate
 
   !--------------------------------------------------------------------------
   ! sqlu_query
