@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added two `gsv` functions to query statevector content (#713 and !703)
  * Added new O-P background check test for GPS-RO data (#753 and !696)
  * Added a scaling factor for the background SST bias term (#781 and !699)
  * Add brief description of all namelist variables (#754 and !698)

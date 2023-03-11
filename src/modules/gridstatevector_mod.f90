@@ -54,6 +54,7 @@ module gridStateVector_mod
   public :: gsv_getVco, gsv_getHco, gsv_getHco_physics, gsv_getDataKind, gsv_getNumK
   public :: gsv_horizSubSample
   public :: gsv_varKindExist, gsv_varExist, gsv_varNamesList
+  public :: gsv_msgVarNames, gsv_msgFldExtremum
   public :: gsv_dotProduct, gsv_schurProduct
   public :: gsv_field3d_hbilin, gsv_smoothHorizontal
   public :: gsv_communicateTimeParams, gsv_resetTimeParams, gsv_getInfo, gsv_isInitialized
@@ -377,6 +378,60 @@ module gridStateVector_mod
     end if
 
   end subroutine gsv_varNamesList
+
+  !--------------------------------------------------------------------------
+  ! gsv_msgVarNames
+  !--------------------------------------------------------------------------
+  function gsv_msgVarNames(statevector) result(string)
+    !
+    ! :Purpose: Return a string of all variables present in the statevector
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_gsv), intent(in)  :: statevector ! stateVector for which variable names extracted
+    character(len=:), allocatable :: string      ! allocated string with list of variable names
+
+    ! Locals:
+    character(len=4), pointer     :: varNames(:)
+
+    call gsv_varNamesList(varNames, statevector)
+    string = str(varNames)
+    nullify(varNames)
+
+  end function gsv_msgVarNames
+
+  !--------------------------------------------------------------------------
+  ! gsv_msgFldExtremum
+  !--------------------------------------------------------------------------
+  function gsv_msgFldExtremum(statevector, varName) result(string)
+    !
+    ! :Purpose: Return a string describing span of values (min/max) for the specified field
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_gsv), intent(in)  :: statevector ! stateVector for which values provided
+    character(len=*), intent(in)  :: varName     ! specified variable name for the calculation
+    character(len=:), allocatable :: string      ! allocated string with min/max values
+
+    ! Locals
+    real(8), pointer :: ptr_r8(:,:,:,:)
+    real(4), pointer :: ptr_r4(:,:,:,:)
+
+    if (statevector%datakind == 4) then
+      call gsv_getField(statevector, ptr_r4, varName)
+      string = trim(varName)//' (real('//str(statevector%datakind) &
+           //')) in ['//str(minval(ptr_r4))//', ' &
+           //str(maxval(ptr_r4))//']'
+    else
+      call gsv_getField(statevector, ptr_r8, varName)
+      string = trim(varName)//' (real('//str(statevector%datakind) &
+           //')) in ['//str(minval(ptr_r8))//', ' &
+           //str(maxval(ptr_r8))//']'
+    end if
+
+  end function gsv_msgFldExtremum
 
   !--------------------------------------------------------------------------
   ! gsv_getNumLev
