@@ -29,7 +29,7 @@ save
 private
 public :: sqlu_sqlColumnExists, sqlu_sqlTableExists, sqlu_getSqlColumnNames
 public :: sqlu_query, sqlu_handleError
-public :: sqlu_getColumnValuesNum, sqlu_getColumnValuesDate, sqlu_getColumnValuesChar
+public :: sqlu_getColumnValuesNum, sqlu_getColumnValuesDateStr, sqlu_getColumnValuesChar
 
 ! Arrays used to match SQLite column names with obsSpaceData column names
 integer, parameter :: lenSqlName = 60
@@ -331,10 +331,10 @@ contains
   end subroutine sqlu_getColumnValuesChar
 
   !--------------------------------------------------------------------------
-  ! sqlu_getColumnValuesDate
+  ! sqlu_getColumnValuesDateStr
   !--------------------------------------------------------------------------
-  subroutine sqlu_getColumnValuesDate(columnDateValues, columnTimeValues, fileName, &
-                                      tableName, sqlColumnName)
+  subroutine sqlu_getColumnValuesDateStr(columnDateValues, columnTimeValues, fileName, &
+                                         tableName, sqlColumnName)
     !
     ! :Purpose: Read the column values from sqlite file for the specified table
     !           and column names.
@@ -359,8 +359,8 @@ contains
     ! open the sqlite file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'sqlu_getColumnValuesDate: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'sqlu_getColumnValuesDate: fSQL_open' )
+      write(*,*) 'sqlu_getColumnValuesDateStr: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'sqlu_getColumnValuesDateStr: fSQL_open' )
     end if
 
     ! Get the date and time
@@ -369,17 +369,17 @@ contains
     query = "select strftime('%Y%m%d'," // trim(sqlColumnName) // &
             "), strftime('%H%M'," // trim(sqlColumnName) // ") " // &
             "from " // trim(tableName) // ";"
-    write(*,*) 'sqlu_getColumnValuesDate: query ---> ', trim(query)
+    write(*,*) 'sqlu_getColumnValuesDateStr: query ---> ', trim(query)
 
     ! read the values from the file
     call fSQL_prepare( db, trim(query), stmt, status=stat )
     call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
                         mode=FSQL_CHAR, status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'sqlu_getColumnValuesDate: fSQL_get_many: ', fSQL_errmsg(stat)
-      call utl_abort('sqlu_getColumnValuesDate: problem with fSQL_get_many')
+      write(*,*) 'sqlu_getColumnValuesDateStr: fSQL_get_many: ', fSQL_errmsg(stat)
+      call utl_abort('sqlu_getColumnValuesDateStr: problem with fSQL_get_many')
     end if
-    write(*,*) 'sqlu_getColumnValuesDate: numRows = ', numRows, ', numColumns = ', numColumns
+    write(*,*) 'sqlu_getColumnValuesDateStr: numRows = ', numRows, ', numColumns = ', numColumns
     allocate( columnValuesStr(numRows,2) )
     call fSQL_fill_matrix( stmt, columnValuesStr )
     allocate( columnDateValues(numRows) )
@@ -396,7 +396,7 @@ contains
     call fSQL_finalize( stmt )
     call fSQL_close( db, stat ) 
 
-  end subroutine sqlu_getColumnValuesDate
+  end subroutine sqlu_getColumnValuesDateStr
 
   !--------------------------------------------------------------------------
   ! sqlu_query

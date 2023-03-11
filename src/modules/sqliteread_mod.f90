@@ -52,53 +52,22 @@ module sqliteRead_mod
 
   contains
   
-  subroutine sqlr_initData(obsdat, vertCoord, obsValue, obsVarno, obsFlag, vertCoordType, numberData, latd, lond)
-    !
-    ! :Purpose: Initialize data values for an observation object.
-    !
-    implicit none
-
-    ! arguments
-    type (struct_obs), intent(inout) :: obsdat
-    real(pre_obsReal), intent(in)    :: vertCoord
-    real(pre_obsReal), intent(in)    :: obsValue
-    integer          , intent(in)    :: obsVarno
-    integer          , intent(in)    :: obsFlag 
-    integer          , intent(in)    :: vertCoordType
-    integer          , intent(in)    :: numberData
-    real(pre_obsReal), optional, intent(in) :: latd
-    real(pre_obsReal), optional, intent(in) :: lond
-
-    call obs_bodySet_r(obsdat, OBS_PPP, numberData, vertCoord)
-    call obs_bodySet_r(obsdat, OBS_VAR, numberData, obsValue)
-    call obs_bodySet_i(obsdat, OBS_VNM, numberData, obsVarno)
-    call obs_bodySet_i(obsdat, OBS_FLG, numberData, obsFlag)
-    call obs_bodySet_i(obsdat, OBS_VCO, numberData, vertCoordType)
-
-    if (present(latd)) then
-      call obs_bodySet_r(obsdat, OBS_LATD, numberData, latd)
-    else
-      call obs_bodySet_r(obsdat, OBS_LATD, numberData, obs_missingValue_R)
-    end if
-
-    if (present(lond)) then
-      call obs_bodySet_r(obsdat, OBS_LOND, numberData, lond)
-    else
-      call obs_bodySet_r(obsdat, OBS_LOND, numberData, obs_missingValue_R)
-    end if 
-
-  end subroutine sqlr_initData
-
-
+  !--------------------------------------------------------------------------
+  ! sqlr_readSqlite_avhrr
+  !--------------------------------------------------------------------------
   subroutine sqlr_readSqlite_avhrr(obsdat, fileName, headerIndexBegin, headerIndexEnd)
-    ! :Purpose: To read SQLite avhrr_cloud parameters .
+    !
+    ! :Purpose: To read SQLite avhrr_cloud parameters.
     ! 
     implicit none
+
     ! Arguments:
     type (struct_obs), intent(inout) :: obsdat     ! ObsSpaceData Structure
     character(len=*) , intent(in)    :: fileName   ! SQLite filename
-    integer          , intent(in)    :: headerIndexBegin, headerIndexEnd
-    ! locals
+    integer          , intent(in)    :: headerIndexBegin
+    integer          , intent(in)    :: headerIndexEnd
+
+    ! Locals:
     type(fSQL_DATABASE)      :: db   ! type for SQLIte  file handle
     type(fSQL_STATEMENT)     :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)        :: stat ! type for error status
@@ -547,6 +516,7 @@ module sqliteRead_mod
       headPrimaryKey = bodyHeadKeys(rowIndex)
       bodyIndex = bodyIndex + 1
       obsNlv    = obsNlv + 1
+      call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKeys(rowIndex))
 
       READHEADER: if (obsNlv == 1) then
 
@@ -807,10 +777,8 @@ module sqliteRead_mod
         call obs_bodySet_i(obsdat, OBS_FLG, bodyIndex, ibset(obsFlag,11))
       end if
 
-      call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKeys(rowIndex))
-
-      if (.not. (trim(familyType) == 'RA' .and. trim(rdbSchema) == 'radvel') .and. &
-          trim(familyType) /= 'TO') then
+      ! In some cases we need to add extra row(s) to the BODY table
+      if (trim(familyType) /= 'RA' .and. trim(familyType) /= 'TO') then
 
         if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
             .not. ovt_bufrCodeSkipped(obsVarno)) then
@@ -818,17 +786,17 @@ module sqliteRead_mod
           ! Add an extra row to the obsSpaceData body table
           ! to contain quantity later calculated by ovt_transformObsValue
           call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, -1)
-          call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                              obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno), &
-                              0, vertCoordType, bodyIndex + 1)
+          call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                    ovt_getDestinationBufrCode(obsVarno), &
+                                    vertCoordType, bodyIndex+1)
           bodyIndex = bodyIndex + 1
           obsNlv = obsNlv + 1
           if (ovt_isWindObs(obsVarno)) then
             ! Add an extra row for the other wind component
             call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, -1)
-            call sqlr_initData(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                obs_missingValue_R, ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
-                                0, vertCoordType, bodyIndex + 1)
+            call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                      ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
+                                      vertCoordType, bodyIndex+1)
             bodyIndex = bodyIndex + 1
             obsNlv = obsNlv + 1
           end if
@@ -847,17 +815,12 @@ module sqliteRead_mod
           createHeaderEntry = .true.
         end if
       end if
-      WRITEHEADER: if (createHeaderEntry) then
-
+      if (createHeaderEntry) then
         headerIndex = headerIndex + 1 
-
         call obs_headSet_i(obsdat, OBS_RLN, headerIndex, firstBodyIndexOfThisBatch)
         call obs_headSet_i(obsdat, OBS_NLV, headerIndex, obsNlv)
-
-        ! reset level counter for next batch of data entries
-        obsNlv = 0
-
-      end if WRITEHEADER
+        obsNlv = 0 ! reset level counter for next batch of data entries
+      end if
 
     end do BODY
     call fSQL_commit(db)
@@ -876,6 +839,32 @@ module sqliteRead_mod
   end subroutine sqlr_readSqlite
 
   !--------------------------------------------------------------------------
+  ! sqlr_addExtraDataRow
+  !--------------------------------------------------------------------------
+  subroutine sqlr_addExtraDataRow(obsdat, vertCoord, obsVarno, vertCoordType, numberData)
+    !
+    ! :Purpose: Initialize data values for an extra row in data table.
+    !
+    implicit none
+
+    ! Arguments:
+    type (struct_obs), intent(inout) :: obsdat
+    real(pre_obsReal), intent(in)    :: vertCoord
+    integer          , intent(in)    :: obsVarno
+    integer          , intent(in)    :: vertCoordType
+    integer          , intent(in)    :: numberData
+
+    call obs_bodySet_r(obsdat, OBS_PPP,  numberData, vertCoord)
+    call obs_bodySet_r(obsdat, OBS_VAR,  numberData, obs_missingValue_R)
+    call obs_bodySet_i(obsdat, OBS_VNM,  numberData, obsVarno)
+    call obs_bodySet_i(obsdat, OBS_FLG,  numberData, 0)
+    call obs_bodySet_i(obsdat, OBS_VCO,  numberData, vertCoordType)
+    call obs_bodySet_r(obsdat, OBS_LATD, numberData, obs_missingValue_R)
+    call obs_bodySet_r(obsdat, OBS_LOND, numberData, obs_missingValue_R)
+
+  end subroutine sqlr_addExtraDataRow
+
+  !--------------------------------------------------------------------------
   ! sqlr_addColumn
   !--------------------------------------------------------------------------
   subroutine sqlr_addColumn(obsSpaceColIndexSource, columnName, tableName, fileName)
@@ -885,13 +874,13 @@ module sqliteRead_mod
 
     implicit none
 
-    ! arguments:  
+    ! Arguments:  
     character(len=*)   , intent(in)    :: fileName    
     character(len=*)   , intent(in)    :: tableName   
     character(len=*)   , intent(in)    :: columnName   
     integer, intent(in)         :: obsSpaceColIndexSource  
 
-    ! locals: 
+    ! Locals: 
     character(len=3000)         :: query
     character(len=10)           :: sqlDataType
     character(len=*), parameter :: myName = 'sqlr_addColumn'
@@ -935,14 +924,14 @@ module sqliteRead_mod
       
     implicit none
     
-    ! arguments
+    ! Arguments:
     type(fSQL_database), intent(inout) :: db         ! SQL database
     type (struct_obs)  , intent(inout) :: obsdat     ! obsSpaceData
     character(len=*)   , intent(in)    :: fileName   ! file name  
     character(len=*)   , intent(in)    :: familyType ! Observation Family Type 
     integer            , intent(in)    :: fileNumber ! FILE NUMBER ASSOCIATED WITH db
     
-    ! locals
+    ! Locals:
     type(fSQL_statement)        :: stmt ! prepared statement for  SQLite
     type(fSQL_status)           :: stat ! type error status
     integer                     :: obsRln, obsNlv, obsIdf, obsFlag
@@ -1201,14 +1190,15 @@ module sqliteRead_mod
   !--------------------------------------------------------------------------
   subroutine sqlr_addCloudParametersandEmissivity(db, obsdat,fileNumber)
     implicit none
-    ! arguments
+
+    ! Arguments:
     type(fSQL_DATABASE), intent(inout) :: db   ! SQLite file handle
     type(struct_obs),    intent(in) :: obsdat
     integer,             intent(in) :: fileNumber
 
+    ! Locals:
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
-
     character(len = 256)   :: query
     integer                :: numberInsert, headerIndex, obsIdo, obsIdf
     integer                :: NCO2
@@ -1276,13 +1266,15 @@ module sqliteRead_mod
   !--------------------------------------------------------------------------
   subroutine sqlr_insertSqlite(db, obsdat, familyType, fileName, fileNumber)
     implicit none
-    ! arguments
+
+    ! Arguments:
     type(fSQL_DATABASE)    :: db   ! type for SQLIte  file handle
     type(struct_obs)       :: obsdat
     character(len=*)       :: familyType
     character(len=*)       :: fileName
     integer                :: fileNumber
-    ! locals
+
+    ! Locals:
     type(fSQL_STATEMENT)   :: stmt ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat !type for error status
     integer                :: obsVarno, obsFlag, vertCoordType, fnom, fclos, nulnam, ierr 
@@ -1463,11 +1455,11 @@ module sqliteRead_mod
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(fSQL_DATABASE), intent(inout) :: db   ! SQLite file handle
     character(len=*),    intent(in) :: fileName
 
-    ! locals
+    ! Locals:
     character(len = 128) :: query
     type(fSQL_STATEMENT) :: statement ! prepared statement for SQLite
     type(fSQL_STATUS)    :: status
@@ -1499,11 +1491,11 @@ module sqliteRead_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=*)           :: obsFamily
     character(len=*), optional :: sfFileName_opt ! fileName acronym used for surface obs file
     integer, optional          :: codetype_opt
-    character(len=20) :: fileName
+    character(len=20)          :: fileName
 
     if (obsFamily == 'TO') then
       if (.not. present(codetype_opt)) then
@@ -1561,14 +1553,14 @@ module sqliteRead_mod
     !  
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_obs)                :: obsdat         ! obsSpaceData object
     character(len=*)                :: sfFileName     ! fileName acronym used for surface obs file
     logical                         :: onlyAssimObs   ! only write assimilated obs
     logical                         :: addFSOdiag     ! include FSO column in body table
     type(struct_eob), optional      :: ensObs_opt     ! ensObs object
     
-    ! locals:
+    ! Locals:
     integer                :: familyIndex, codeTypeIndex, fileIndex
     character(len=2)       :: obsFamilyList(50)
     integer                :: obsFamilyListSize
@@ -1649,12 +1641,12 @@ module sqliteRead_mod
     !
     implicit none
       
-    ! arguments:
+    ! Arguments:
     type(struct_obs) :: obsdat
     integer          :: obsFamilyListSizeCommon
     character(len=*) :: obsFamilyListCommon(:)
 
-    ! locals:
+    ! Locals:
     integer                       :: headerIndex, familyIndex, charIndex, procIndex, nsize, ierr
     integer                       :: obsFamilyListSizeMpiLocal, obsFamilyListSizeMaxMpiLocal, obsFamilyListSizeMax
     character(len=2), allocatable :: obsFamilyListMpiLocal(:)
@@ -1747,7 +1739,7 @@ module sqliteRead_mod
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_obs)           , intent(inout) :: obsdat
     character(len=*)           , intent(in)    :: obsFamily
     logical                    , intent(in)    :: onlyAssimObs
@@ -1756,7 +1748,7 @@ module sqliteRead_mod
     integer          , optional, intent(in)    :: codeTypeList_opt(:)
     type(struct_eob) , optional                :: ensObs_opt 
 
-    ! locals
+    ! Locals:
     type(fSQL_DATABASE)    :: db                                   ! type for SQLIte  file handle
     type(fSQL_STATEMENT)   :: stmtData, stmtHeader, stmtEnsObs     ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat                                 ! type for error status
@@ -2100,13 +2092,13 @@ module sqliteRead_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_obs)  :: obsdat
     character(len=*)  :: obsFamily    
     integer           :: idObs, idData
     integer, optional :: codeTypeList_opt(:)
 
-    ! locals:
+    ! Locals:
     integer                :: headerIndex, numHeader, numBody, codeType, ierr
     integer, allocatable   :: allNumHeader(:), allNumBody(:)
 
@@ -2138,19 +2130,19 @@ module sqliteRead_mod
     end if
     deallocate(allNumHeader)
     deallocate(allNumBody)
+
   end subroutine getInitialIdObsData
 
   !--------------------------------------------------------------------------
   ! sqlr_writePseudoSSTobs
   !--------------------------------------------------------------------------
-
   subroutine sqlr_writePseudoSSTobs(obsData, obsFamily, instrumentFileName, etiket, datePrint, timePrint)
     !
     ! :Purpose: To write the obsSpaceData content into SQLite format files
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_obs) , intent(inout) :: obsData
     character(len=*) , intent(in)    :: obsFamily
     character(len=*) , intent(in)    :: instrumentFileName
@@ -2158,7 +2150,7 @@ module sqliteRead_mod
     integer          , intent(in)    :: datePrint ! date to put into the table "resume" of output SQLite file 
     integer          , intent(in)    :: timePrint ! hour to put into the table "resume" of output SQLite file
             
-    ! locals
+    ! Locals:
     type(fSQL_DATABASE)    :: db                        ! type for SQLIte  file handle
     type(fSQL_STATEMENT)   :: stmtData, stmtHeader      ! type for precompiled SQLite statements
     type(fSQL_STATEMENT)   :: stmtRDBSchema, stmtResume ! type for precompiled SQLite statements
@@ -2349,7 +2341,6 @@ module sqliteRead_mod
   !--------------------------------------------------------------------------
   ! sqlr_writeEmptyPseudoSSTobsFile
   !--------------------------------------------------------------------------
-
   subroutine sqlr_writeEmptyPseudoSSTobsFile(obsData, obsFamily, instrumentFileName, etiket, datePrint, timePrint)
     !
     ! :Purpose: to generate an empty SQLite SST pseudo obs file for mpi tasks,
@@ -2357,7 +2348,7 @@ module sqliteRead_mod
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_obs) , intent(inout) :: obsData   
     character(len=*) , intent(in)    :: obsFamily
     character(len=*) , intent(in)    :: instrumentFileName
@@ -2365,7 +2356,7 @@ module sqliteRead_mod
     integer          , intent(in)    :: datePrint ! date to put into the table "resume" of output SQLite file 
     integer          , intent(in)    :: timePrint ! hour to put into the table "resume" of output SQLite file
             
-    ! locals
+    ! Locals:
     type(fSQL_DATABASE)    :: db                        ! type for SQLIte  file handle
     type(fSQL_STATEMENT)   :: stmtRDBSchema, stmtResume ! type for precompiled SQLite statements
     type(fSQL_STATEMENT)   :: stmtData, stmtHeader      ! type for precompiled SQLite statements
@@ -2459,12 +2450,12 @@ module sqliteRead_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     integer, allocatable, intent(out) :: columnDateValues(:)
     integer, allocatable, intent(out) :: columnTimeValues(:)
     character(len=*),     intent(in)  :: fileName
 
-    ! locals:
+    ! Locals:
     integer              :: numRows, numColumns, rowIndex
     character(len=20), allocatable :: columnValuesStr(:,:)
     character(len=3000)  :: query

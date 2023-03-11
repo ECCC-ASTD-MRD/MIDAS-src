@@ -454,8 +454,8 @@ contains
 
     call odbf_setup()
 
-    call sqlu_getColumnValuesDate(headDateValues, headTimeValues, fileName=trim(fileName), &
-                                  tableName=headTableName, sqlColumnName=headDateSqlName)
+    call sqlu_getColumnValuesDateStr(headDateValues, headTimeValues, fileName=trim(fileName), &
+                                     tableName=headTableName, sqlColumnName=headDateSqlName)
 
     validDate = MPC_missingValue_INT 
     validTime = MPC_missingValue_INT 
@@ -548,8 +548,8 @@ contains
     call odbf_getPrimaryKeys(headPrimaryKey, bodyPrimaryKey, bodyHeadKey, &
                              fileName=trim(fileName))
 
-    call sqlu_getColumnValuesDate(headDateValues, headTimeValues, fileName=trim(fileName), &
-                                  tableName=headTableName, sqlColumnName=headDateSqlName)
+    call sqlu_getColumnValuesDateStr(headDateValues, headTimeValues, fileName=trim(fileName), &
+                                     tableName=headTableName, sqlColumnName=headDateSqlName)
     call sqlu_getColumnValuesChar(headCharValues, fileName=trim(fileName), &
                                   tableName=headTableName, sqlColumnNames=headCharSqlNames)
     call sqlu_getColumnValuesNum (headValues, fileName=trim(fileName), &
