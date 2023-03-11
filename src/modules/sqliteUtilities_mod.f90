@@ -21,6 +21,8 @@ module sqliteUtilities_mod
 
 use fSQLite
 use clib_interfaces_mod
+use obsSpaceData_mod
+use midasMpi_mod
 use utilities_mod
 use mathPhysConstants_mod
 
@@ -30,6 +32,7 @@ private
 public :: sqlu_sqlColumnExists, sqlu_sqlTableExists, sqlu_getSqlColumnNames
 public :: sqlu_query, sqlu_handleError
 public :: sqlu_getColumnValuesNum, sqlu_getColumnValuesDateStr, sqlu_getColumnValuesChar
+public :: sqlu_getInitialIdObsData
 
 ! Arrays used to match SQLite column names with obsSpaceData column names
 integer, parameter :: lenSqlName = 60
@@ -397,6 +400,57 @@ contains
     call fSQL_close( db, stat ) 
 
   end subroutine sqlu_getColumnValuesDateStr
+
+  !--------------------------------------------------------------------------
+  ! sqlu_getInitialIdObsData
+  !--------------------------------------------------------------------------
+  subroutine sqlu_getInitialIdObsData(obsDat, obsFamily, idObs, idData, codeTypeList_opt)
+    !
+    ! :Purpose: Compute initial value for idObs and idData that will ensure
+    !           unique values over all mpi tasks
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs)  :: obsdat
+    character(len=*)  :: obsFamily    
+    integer           :: idObs, idData
+    integer, optional :: codeTypeList_opt(:)
+
+    ! Locals:
+    integer                :: headerIndex, numHeader, numBody, codeType, ierr
+    integer, allocatable   :: allNumHeader(:), allNumBody(:)
+
+    numHeader = 0
+    numBody = 0
+    call obs_set_current_header_list(obsdat, obsFamily)
+    HEADERCOUNT: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADERCOUNT
+      if (present(codeTypeList_opt)) then
+        codeType  = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
+        if (all(codeTypeList_opt(:) /= codeType)) cycle HEADERCOUNT
+      end if
+      numHeader = numHeader + 1
+      numBody = numBody + obs_headElem_i(obsdat, OBS_NLV, headerIndex)
+    end do HEADERCOUNT
+    allocate(allNumHeader(mmpi_nprocs))
+    allocate(allNumBody(mmpi_nprocs))
+    call rpn_comm_allgather(numHeader,1,'mpi_integer',       &
+                            allNumHeader,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(numBody,1,'mpi_integer',       &
+                            allNumBody,1,'mpi_integer','GRID',ierr)
+    if (mmpi_myid > 0) then
+      idObs = sum(allNumHeader(1:mmpi_myid))
+      idData = sum(allNumBody(1:mmpi_myid))
+    else
+      idObs = 0
+      idData = 0
+    end if
+    deallocate(allNumHeader)
+    deallocate(allNumBody)
+
+  end subroutine sqlu_getInitialIdObsData
 
   !--------------------------------------------------------------------------
   ! sqlu_query
