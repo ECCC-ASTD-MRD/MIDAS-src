@@ -11,7 +11,7 @@ module message_mod
   private
 
   ! public procedures
-  public :: msg, msg_memUsage, msg_setVerbThreshold
+  public :: msg, msg_memUsage, msg_section, msg_setVerbThreshold
 
   ! public module variables
   integer, public, parameter :: msg_ALWAYS   = -99 ! verbosity level indicating a message is always printed irrespectively of set threshold
@@ -48,9 +48,9 @@ module message_mod
   !--------------------------------------------------------------------------
   ! msg
   !--------------------------------------------------------------------------
-  subroutine msg(origin, message, verb_opt, mpiAll_opt)
+  subroutine msg(origin, message, verb_opt, mpiAll_opt, separator_opt)
     !
-    ! :Purpose: Output message if its verbosity level is greater or equal than
+    ! :Purpose: Output message if its verbosity level is less than or equal to
     !           the user provided verbosity threshold (see `msg_readNml()`).
     !           The verbosity levels are:
     !
@@ -64,10 +64,11 @@ module message_mod
     implicit none
 
     ! Arguments:
-    character(len=*),  intent(in) :: origin     ! originating subroutine, function or program
-    character(len=*),  intent(in) :: message    ! message to be printed
-    integer, optional, intent(in) :: verb_opt   ! minimal verbosity level to print the message, defaults to 1
-    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` prints to all MPI tasks, otherwise only to tile 0, defaults to `.true.`
+    character(len=*),           intent(in) :: origin        ! originating subroutine, function or program
+    character(len=*),           intent(in) :: message       ! message to be printed
+    integer,          optional, intent(in) :: verb_opt      ! maximum verbosity level of messages to be printed, defaults to 1
+    logical,          optional, intent(in) :: mpiAll_opt    ! choose to prints to all MPI tasks (default), otherwise only task 0
+    character(len=*), optional, intent(in) :: separator_opt ! separator string between origin and message
 
     ! Locals:
     logical :: mpiAll
@@ -87,9 +88,9 @@ module message_mod
 
     if (verbLevel == msg_ALWAYS) then
       if (mpiAll) then
-        call msg_write(origin, message)
+        call msg_write(origin, message, separator_opt=separator_opt)
       else
-        if (mmpi_myid == 0) call msg_write(origin, message)
+        if (mmpi_myid == 0) call msg_write(origin, message, separator_opt=separator_opt)
       end if
 
     else if (verbLevel == msg_NEVER) then
@@ -99,12 +100,13 @@ module message_mod
       call msg_readNml()
       if (verbLevel <= verbosityThreshold) then
         if (mpiAll) then
-          call msg_write(origin, message)
+          call msg_write(origin, message, separator_opt=separator_opt)
         else
-          if (mmpi_myid == 0) call msg_write(origin, message)
+          if (mmpi_myid == 0) call msg_write(origin, message, separator_opt=separator_opt)
         end if
       end if
     end if
+
   end subroutine msg
 
   !--------------------------------------------------------------------------
@@ -119,7 +121,7 @@ module message_mod
     ! Arguments:
     character(len=*),  intent(in) :: origin     ! originating subroutine, function or program
     integer, optional, intent(in) :: verb_opt   ! verbosity level of the message
-    logical, optional, intent(in) :: mpiAll_opt ! if `.true.` prints to all MPI tasks, otherwise only to MPI task 0
+    logical, optional, intent(in) :: mpiAll_opt ! choose to prints to all MPI tasks (default), otherwise only task 0
 
     ! Locals:
     integer :: usageMb
@@ -131,17 +133,46 @@ module message_mod
   end subroutine msg_memUsage
 
   !--------------------------------------------------------------------------
-  ! msg_setVerbThreshold
+  ! msg_section
   !--------------------------------------------------------------------------
-  subroutine msg_setVerbThreshold(threshold, beSilent_opt)
+  subroutine msg_section(origin, section, description_opt, verb_opt, mpiAll_opt)
     !
-    ! :Purpose: Sets the verbosity level.
+    ! :Purpose: Document, both in source and runtime listings, sections of a program.
     !
     implicit none
 
     ! Arguments:
-    integer,           intent(in) :: threshold
-    logical, optional, intent(in) :: beSilent_opt
+    character(len=*),           intent(in) :: origin          ! originating subroutine, function or program
+    character(len=*),           intent(in) :: section         ! section number
+    character(len=*), optional, intent(in) :: description_opt ! optional description message to be printed
+    integer,          optional, intent(in) :: verb_opt        ! verbosity level of the message
+    logical,          optional, intent(in) :: mpiAll_opt      ! choose to prints to all MPI tasks (default), otherwise only task 0
+
+    ! Locals:
+    character(len=:), allocatable :: message
+
+    message = 'SECTION '//str(section, quote_opt=.false.)
+    if (present(description_opt)) then
+      message = message//' - '//description_opt
+    end if
+    write(*,*)
+    write(*,*) repeat('_',msg_lineLen)
+    call msg(origin, message, verb_opt, mpiAll_opt, separator_opt=' >>> ')
+
+  end subroutine msg_section
+
+  !--------------------------------------------------------------------------
+  ! msg_setVerbThreshold
+  !--------------------------------------------------------------------------
+  subroutine msg_setVerbThreshold(threshold, beSilent_opt)
+    !
+    ! :Purpose: Sets the maximum verbosity level of messages to be printed.
+    !
+    implicit none
+
+    ! Arguments:
+    integer,           intent(in) :: threshold    ! maximum verbosity level of messages to be printed to listing
+    logical, optional, intent(in) :: beSilent_opt ! choose to not print warning message (default .false.)
 
     ! Locals:
     logical :: beSilent
@@ -179,8 +210,8 @@ module message_mod
     integer :: nulnam, ierr, fnom, fclos
 
     ! Namelist variables
-    logical :: arrayVertical  ! array vertical representation by default when .true.
-    integer :: verbosity      ! specify the maximum verbosity level to include in listing
+    logical :: arrayVertical  ! choose to use array vertical representation by default
+    integer :: verbosity      ! maximum verbosity level of messages to be printed in the listing
     namelist /NAMMSG/verbosity, arrayVertical
   
     if (alreadyRead) then
@@ -213,22 +244,29 @@ module message_mod
   !--------------------------------------------------------------------------
   ! msg_write (private)
   !--------------------------------------------------------------------------
-  subroutine msg_write(origin, message)
+  subroutine msg_write(origin, message, separator_opt)
     !
     ! :Purpose: Format and write message to default output
     !
     implicit none
   
     ! Arguments:
-    character(len=*), intent(in) :: origin     ! originating subroutine/function
-    character(len=*), intent(in) :: message    ! message to be printed
+    character(len=*),           intent(in) :: origin        ! originating subroutine/function
+    character(len=*),           intent(in) :: message       ! message to be printed
+    character(len=*), optional, intent(in) :: separator_opt ! separator string between origin and message
   
     ! Locals:
     integer :: originLen, oneLineMsgLen, posIdx
     character(len=15) :: firstLineFormat, otherLineFormat
     character(len=msg_lineLen)  :: msgLine
     character(len=msg_lineLen)  :: readLine
-    character(len=:), allocatable :: originTrunc, adjustedLine
+    character(len=:), allocatable :: originTrunc, adjustedLine, separator
+
+    if (present(separator_opt)) then
+      separator = separator_opt
+    else
+      separator = ': '
+    end if
 
     if (len(origin) > msg_lineLen) then
       originTrunc = origin(1:msg_lineLen)
@@ -237,7 +275,7 @@ module message_mod
     end if
     originLen = len(originTrunc)
 
-    oneLineMsgLen = msg_lineLen - originLen - 2
+    oneLineMsgLen = msg_lineLen - originLen - len(separator)
   
     if (len(message) > oneLineMsgLen) then
       ! Multiple lines message
@@ -248,10 +286,10 @@ module message_mod
       readLine = message(1:oneLineMsgLen+1)
       msgLine = msg_breakOnSpace(readLine)
       posIdx = posIdx + len(trim(msgLine)) +1
-      write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A', &
-                                              len(trim(msgLine)),')'
-      write(*,firstLineFormat) originTrunc, ': ', message(1:oneLineMsgLen)
-      oneLineMsgLen = msg_lineLen - msg_indent - 2
+      write(firstLineFormat,'(A,I2,A,I2,A,I2,A)') '(A',originLen,',A',len(separator),&
+                                                  ',A', len(trim(msgLine)),')'
+      write(*,firstLineFormat) originTrunc, separator, message(1:oneLineMsgLen)
+      oneLineMsgLen = msg_lineLen - msg_indent - len(separator)
       do
         if ( posIdx >= len(message) ) then
           ! message printed
@@ -273,8 +311,9 @@ module message_mod
     else
       ! Single lines message
       ! format: "origin: short message"
-      write(firstLineFormat,'(A,I2,A,I2,A)') '(A',originLen,',A2,A',len(message),')'
-      write(*,firstLineFormat) originTrunc, ': ', message
+    write(firstLineFormat,'(A,I2,A,I2,A, I2, A)') '(A',originLen,',A',len(separator), &
+                                                  ',A',len(message),')'
+      write(*,firstLineFormat) originTrunc, separator, message
     end if
     contains
       !----------------------------------------------------------------------
@@ -287,8 +326,8 @@ module message_mod
         implicit none
     
         ! Arguments:
-        character(len=*),           intent(inout)  :: line
-        character(len=msg_lineLen)                 :: shorterLine
+        character(len=*), intent(inout) :: line        ! line of text to be processed
+        character(len=msg_lineLen)      :: shorterLine ! resulting processed line of text
 
         ! Locals:
         integer :: idx, idxNewLine
@@ -311,30 +350,42 @@ module message_mod
   !--------------------------------------------------------------------------
   ! msg_str2str (private)
   !--------------------------------------------------------------------------
-  function msg_str2str(stringIn, trim_opt) result(string)
+  function msg_str2str(stringIn, trim_opt, quote_opt) result(string)
     !
     ! :Purpose: Trivial overloading (for uniformity of concatenation)
     !
     implicit none
 
     ! Arguments:
-    character(len=*), intent(in)  :: stringIn
-    character(len=:), allocatable :: string
-    logical, optional             :: trim_opt
+    character(len=*), intent(in)  :: stringIn  ! input string to be processed
+    logical, optional             :: trim_opt  ! choose to trim the string (possibly inside quotes)
+    logical, optional             :: quote_opt ! choose to write preceding and following single quote "'" to insist it is a string
+    character(len=:), allocatable :: string    ! resulting string that was processed
 
     ! Locals:
-    logical :: doTrim
+    logical :: doTrim, showQuotes
+    character(len=1)  :: quote
 
     if ( present(trim_opt) ) then
       doTrim = trim_opt
     else
       doTrim = .true.
     end if
+    if ( present(quote_opt) ) then
+      showQuotes = quote_opt
+    else
+      showQuotes = .true.
+    end if
+    if (showQuotes) then
+      quote = "'"
+    else
+      quote = ''
+    end if
 
     if (doTrim) then
-      string = "'"//trim(stringIn)//"'"
+      string = quote//trim(stringIn)//quote
     else
-      string = "'"//stringIn//"'"
+      string = quote//stringIn//quote
     end if
 
   end function msg_str2str
@@ -344,13 +395,13 @@ module message_mod
   !--------------------------------------------------------------------------
   function msg_log2str(num) result(string)
     !
-    ! :Purpose: Returns string representation of `logical`
+    ! :Purpose: Returns string representation of `logical` variable value
     !
     implicit none
 
     ! Arguments:
-    logical,                      intent(in)  :: num
-    character(len=:), allocatable             :: string
+    logical,                      intent(in)  :: num    ! input logical variable to be interpreted
+    character(len=:), allocatable             :: string ! resulting string with logical value
 
     ! Locals:
     character(len=msg_num2strBufferLen) :: buffer
@@ -370,8 +421,8 @@ module message_mod
     implicit none
 
     ! Arguments:
-    integer,                      intent(in)  :: num
-    character(len=:), allocatable             :: string
+    integer,                      intent(in)  :: num    ! input integer variable to be interpreted
+    character(len=:), allocatable             :: string ! resulting string with integer value
 
     ! Locals:
     character(len=msg_num2strBufferLen) :: buffer
@@ -391,9 +442,9 @@ module message_mod
     implicit none
 
     ! Arguments:
-    real(4),                      intent(in) :: num
-    integer, optional,            intent(in) :: digits_opt
-    character(len=:), allocatable            :: string
+    real(4),                      intent(in) :: num        ! input real(4) variable to be interpreted
+    integer, optional,            intent(in) :: digits_opt ! number of digits to include in output
+    character(len=:), allocatable            :: string     ! resulting string with variable's value
 
     ! Locals:
     character(len=20)                   :: readFmt, digitBuffer
@@ -420,9 +471,9 @@ module message_mod
     implicit none
 
     ! Arguments:
-    real(8),                      intent(in) :: num
-    integer, optional,            intent(in) :: digits_opt
-    character(len=:), allocatable            :: string
+    real(8),                      intent(in) :: num        ! input real(8) variable to be interpreted
+    integer, optional,            intent(in) :: digits_opt ! number of digits to include in output
+    character(len=:), allocatable            :: string     ! resulting string with variable's value
 
     ! Locals:
     character(len=20)                   :: readFmt, digitBuffer
@@ -449,9 +500,9 @@ module message_mod
     implicit none
 
     ! Arguments
-    character(len=*),             intent(in) :: array(:)
-    logical, optional,            intent(in) :: vertical_opt ! optional argument to represent the array vertically, defaults to .false.
-    character(len=:), allocatable            :: string
+    character(len=*),             intent(in) :: array(:)     ! input character string array
+    logical, optional,            intent(in) :: vertical_opt ! choose to represent array vertically (default .false.)
+    character(len=:), allocatable            :: string       ! resulting string
 
     ! Locals:
     integer           :: arrIndex
@@ -481,7 +532,7 @@ module message_mod
   end function msg_charArray2str
 
   !--------------------------------------------------------------------------
-  ! msg_intArray2str (private)
+  ! msg_logArray2str (private)
   !--------------------------------------------------------------------------
   function msg_logArray2str(array, vertical_opt) result(string)
     !
@@ -490,9 +541,9 @@ module message_mod
     implicit none
 
     ! Arguments
-    logical,                      intent(in) :: array(:)
-    logical, optional,            intent(in) :: vertical_opt ! optional argument to represent the array vertically, defaults to .false.
-    character(len=:), allocatable            :: string
+    logical,           intent(in) :: array(:)     ! input array of logical variables
+    logical, optional, intent(in) :: vertical_opt ! choose to represent the array vertically (default .false.)
+    character(len=:), allocatable :: string       ! resulting string
 
     ! Locals:
     integer           :: arrIndex
@@ -531,9 +582,9 @@ module message_mod
     implicit none
 
     ! Arguments
-    integer,                      intent(in) :: array(:)
-    logical, optional,            intent(in) :: vertical_opt ! optional argument to represent the array vertically, defaults to .false.
-    character(len=:), allocatable            :: string
+    integer,           intent(in) :: array(:)     ! input array of integer variables
+    logical, optional, intent(in) :: vertical_opt ! choose to represent the array vertically (defaults .false.)
+    character(len=:), allocatable :: string       ! resulting string
 
     ! Locals:
     integer           :: arrIndex
@@ -572,10 +623,10 @@ module message_mod
     implicit none
 
     ! Arguments
-    real(4),                      intent(in) :: array(:)
-    integer, optional,            intent(in) :: digits_opt
-    logical, optional,            intent(in) :: vertical_opt ! optional argument to represent the array vertically, defaults to .false.
-    character(len=:), allocatable            :: string
+    real(4),           intent(in) :: array(:)     ! input array of real(4) variables
+    integer, optional, intent(in) :: digits_opt   ! number of digits to include in output 
+    logical, optional, intent(in) :: vertical_opt ! choose to represent array vertically (default .false.)
+    character(len=:), allocatable :: string       ! resulting string
 
     ! Locals:
     integer           :: arrIndex
@@ -614,10 +665,10 @@ module message_mod
     implicit none
 
     ! Arguments
-    real(8),                      intent(in) :: array(:)
-    integer, optional,            intent(in) :: digits_opt
-    logical, optional,            intent(in) :: vertical_opt ! optional argument to represent the array vertically, defaults to .false.
-    character(len=:), allocatable            :: string
+    real(8),           intent(in) :: array(:)     ! input array of real(4) variables
+    integer, optional, intent(in) :: digits_opt   ! number of digits to include in output
+    logical, optional, intent(in) :: vertical_opt ! choose to represent array vertically (default .false.)
+    character(len=:), allocatable :: string       ! resulting string
 
     ! Locals:
     integer           :: arrIndex
@@ -645,4 +696,5 @@ module message_mod
     string = string//' /)'
     
   end function msg_real8Array2str
+
 end module message_mod
