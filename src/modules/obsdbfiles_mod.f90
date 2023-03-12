@@ -2106,9 +2106,8 @@ contains
       ! prepare sql update query
       query = 'update ' // trim(midasBodyTableName) // ' set ' // &
               trim(sqlColumnName)  // ' = ? where ' // &
-              trim(obsBodyKeySqlName) // ' = ? and '   // &
-              trim(vnmSqlName)     // ' = ? and '   // &
-              trim(pppSqlName)     // ' = ? ;'
+              trim(obsBodyKeySqlName) // ' = ? ;'
+
       write(*,*) 'odbf_updateMidasBodyTable: query ---> ', trim(query)
 
       call fSQL_prepare( db, query , stmt, stat )
