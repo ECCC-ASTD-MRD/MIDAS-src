@@ -37,7 +37,9 @@ module utilities_mod
   public :: utl_readFstField
   public :: utl_varNamePresentInFile
   public :: utl_reAllocate
-  public :: utl_heapsort2d, utl_splitString, utl_stringArrayToIntegerArray, utl_parseColumns
+  public :: utl_heapsort2d
+  public :: utl_combineString, utl_splitString, utl_removeEmptyStrings
+  public :: utl_stringArrayToIntegerArray, utl_parseColumns
   public :: utl_copyFile, utl_allReduce, utl_findloc, utl_findlocs
   public :: utl_randomOrderInt
   public :: utl_tmg_start, utl_tmg_stop, utl_medianIndex
@@ -1892,10 +1894,87 @@ contains
 
     read(string, *) stringArray(1:stringArraySize)
 
-    write(*,*)  'utl_splitString: stringArraySize = ', stringArraySize
-    write(*,*)  'utl_splitString: stringArray     = ', (trim(stringArray(stringIndex))//',', stringIndex=1,stringArraySize)
+    write(*,*) 'utl_splitString: stringArraySize = ', stringArraySize
+    write(*,*) 'utl_splitString: stringArray     = ', &
+               (trim(stringArray(stringIndex))//' ', stringIndex=1,stringArraySize)
     
   end subroutine utl_splitString
+
+
+  subroutine utl_combineString(string,separator,stringArray)
+    implicit none
+
+    ! Arguments:
+    character(len=*), intent(out) :: string
+    character(len=*), intent(in)  :: separator
+    character(len=*), intent(in)  :: stringArray(:)
+
+    ! Locals:
+    integer :: stringArraySize, stringIndex, stringCount, stringCountTotal
+
+    stringArraySize = size(stringArray)
+
+    stringCountTotal = 0
+    do stringIndex = 1, size(stringArray)
+      if (trim(stringArray(stringIndex)) == '') cycle
+      stringCountTotal = stringCountTotal + 1
+    end do
+
+    string = ''
+    stringCount = 0
+    do stringIndex = 1, size(stringArray)
+      if (trim(stringArray(stringIndex)) == '') cycle
+      stringCount = stringCount + 1
+      if (stringCount < stringCountTotal) then
+        string = trim(string) // ' ' // trim(stringArray(stringIndex)) // trim(separator)
+      else
+        string = trim(string) // ' ' // trim(stringArray(stringIndex))
+      end if
+    end do
+
+    write(*,*) 'utl_combineString: stringCountTotal = ', stringCountTotal
+    write(*,*) 'utl_combineString: string     = ', trim(string)
+    
+  end subroutine utl_combineString
+
+
+  subroutine utl_removeEmptyStrings(stringArray)
+    implicit none
+
+    ! Arguments:
+    character(len=*), allocatable, intent(inout) :: stringArray(:)
+
+    ! Locals:
+    integer :: stringArraySize, stringIndex, stringCount, stringCountTotal
+    character(len=len(stringArray(1))), allocatable :: newStringArray(:)
+
+    stringArraySize = size(stringArray)
+
+    stringCountTotal = 0
+    do stringIndex = 1, size(stringArray)
+      if (trim(stringArray(stringIndex)) == '') cycle
+      stringCountTotal = stringCountTotal + 1
+    end do
+
+    allocate(newStringArray(stringCountTotal))
+
+    stringCount = 0
+    do stringIndex = 1, size(stringArray)
+      if (trim(stringArray(stringIndex)) == '') cycle
+      stringCount = stringCount + 1
+      newStringArray(stringCount) = stringArray(stringIndex)
+    end do
+
+    deallocate(stringArray)
+    allocate(stringArray(stringCountTotal))
+    stringArray(:) = newStringArray(:)
+    deallocate(newStringArray)
+
+    write(*,*) 'utl_removeEmptyStrings: stringCountTotal = ', stringCountTotal
+    write(*,*) 'utl_removeEmptyStrings: stringArray      = ', &
+               (trim(stringArray(stringIndex))//' ', stringIndex = 1, size(stringArray))
+    
+  end subroutine utl_removeEmptyStrings
 
 
   subroutine utl_stringArrayToIntegerArray(stringArray,integerArray)
@@ -1913,7 +1992,7 @@ contains
       read(stringArray(arrayIndex),'(i5)')  integerArray(arrayIndex)
     end do
 
-    write(*,*)  'utl_stringArrayToIntegerArray: integerArray = ', integerArray(:)
+    write(*,*) 'utl_stringArrayToIntegerArray: integerArray = ', integerArray(:)
 
   end subroutine utl_stringArrayToIntegerArray
 

@@ -152,14 +152,13 @@ module sqliteRead_mod
     character(len=*) , intent(in)    :: fileName   ! SQLite filename
 
     ! Locals:
-    character(len=9)         :: rdbSchema
+    character(len=256)       :: codtypStr
     character(len=12)        :: idStation
     integer                  :: codeType, obsDate, obsTime, obsStatus, obsFlag, obsVarno
     integer(8)               :: headPrimaryKey
     integer(8), allocatable  :: bodyHeadKeys(:), bodyPrimaryKeys(:)
     integer(8), allocatable  :: tempBodyKeys(:,:)
-    integer                  :: firstBodyIndexOfThisBatch
-    logical                  :: createHeaderEntry
+    logical                  :: finishedWithHeader
     real(pre_obsReal)        :: elevReal, xlat, xlon, vertCoord
     real                     :: elev    , obsLat, obsLon, elevFact
     real                     :: beamAzimuth, beamRangeStart, beamRangeEnd, beamElevation          
@@ -178,219 +177,167 @@ module sqliteRead_mod
     integer                  :: rowIndex, obsNlv, headerIndex, bodyIndex
     integer                  :: numBody, numHeader
     real(pre_obsReal), parameter :: zemFact = 0.01
-    character(len=512)       :: query, queryHeader, queryIDs
-    character(len=256)       :: selectIDs
-    character(len=256)       :: csqlcrit, columnsHeader
+    character(len=1024)      :: query, queryHeader, queryIDs
+    character(len=256)       :: csqlcrit, selectIDs
+    character(len=1024)      :: columnsHeader
     logical                  :: finished
     type(fSQL_DATABASE)      :: db         ! type for SQLIte  file handle
-    type(fSQL_STATEMENT)     :: stmt,stmt3 ! type for precompiled SQLite statements
+    type(fSQL_STATEMENT)     :: stmt,stmt2 ! type for precompiled SQLite statements
     type(fSQL_STATUS)        :: stat       !type for error status
     character(len=256)       :: sqlDataOrder, extraQueryData
     character(len=256), allocatable :: listElemArray(:)
     integer, allocatable            :: listElemArrayInteger(:)
     integer                  :: numberBodyRows, numberBodyColumns, numberIDsRows, numberIDsColumns
-    integer                  :: columnIndex, columnIndexIDO
+    integer                  :: columnIndex
 
     integer, parameter :: lenSqlName    = 60
     character(len=lenSqlName), allocatable :: headSqlNames(:), bodySqlNames(:)
+    character(len=lenSqlName), parameter :: headSqlNamesToRead(32) = (/'ID_STN','LAT','LON','CODTYP', &
+         'DATE','TIME','STATUS','ELEV','ANTENNA_ALTITUDE','LAND_SEA','ID_SAT','INSTRUMENT','SENSOR', &
+         'ZENITH','SOLAR_ZENITH','AZIMUTH','SOLAR_AZIMUTH','TERRAIN_TYPE','CLOUD_COVER', &
+         'FANION_QUAL_IASI_SYS_IND','INDIC_NDX_QUAL_GEOM','RO_QC_FLAG','GEOID_UNDULATION', &
+         'EARTH_LOCAL_RAD_CURV','CENTER_AZIMUTH','CENTER_ELEVATION','RANGE_START','RANGE_END', &
+         'ID_PROF','CHARTINDEX','TRACK_CELL_NO','MOD_WIND_SPD'/)
     real(8),                   allocatable :: bodyValues(:,:)
     logical :: beamRangeFound
 
     ! Namelist variables:
-    integer                  :: numberElem    ! MUST NOT BE INCLUDED IN NAMELIST!
-    character(len=256)       :: listElem      ! list of bufr element ids to read
-    character(len=256)       :: sqlExtraDat   ! can be used e.g. for ' and id_obs in (select id_obs from header where...) '
-    character(len=256)       :: sqlExtraHeader! can be used e.g. for ' id_stn in (...) '
-    character(len=256)       :: sqlNull       ! can be used e.g. for ' and obsvalue is not null '
+    integer                  :: numberElem        ! MUST NOT BE INCLUDED IN NAMELIST!
+    character(len=256)       :: listElem          ! list of bufr element ids to read
+    character(len=256)       :: sqlExtraDat       ! can be used e.g. for ' and id_obs in (select id_obs from header where...) '
+    character(len=256)       :: sqlExtraDat_sat   ! same as sqlExtraDat, but only for SST satellite obs
+    character(len=256)       :: sqlExtraHeader    ! can be used e.g. for ' id_stn in (...) '
+    character(len=256)       :: sqlExtraHeader_sat! same as sqlExtraHeader, but only for SST satellite obs
+    character(len=256)       :: sqlNull           ! can be used e.g. for ' and obsvalue is not null '
 
-    namelist /NAMSQLamsua/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /NAMSQLamsub/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /NAMSQLairs/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /NAMSQLiasi/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /NAMSQLcris/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /NAMSQLcrisfsr/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /NAMSQLssmi/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /NAMSQLgo/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /NAMSQLcsr/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /NAMSQLatms/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
+    namelist /NAMSQLtovs/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLua/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLai/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLsw/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLro/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLsfc/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /namReadSSTSat/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLsc/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLpr/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLgl/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLradar/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /NAMSQLradvel/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
+    namelist /NAMSQLsst/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlExtraDat_sat,sqlExtraHeader_sat
 
     write(*,*) 'sqlr_readSqlite: fileName   : ', trim(fileName)
     write(*,*) 'sqlr_readSqlite: familyType : ', trim(familyType)
+
+    ! Get the codtyp from the file to use in determining how to build the main queries
     call fSQL_open(db, trim(fileName) ,stat)
     if (fSQL_error(stat) /= FSQL_OK) then
       call utl_abort('sqlr_readSqlite: fSQL_open '//fSQL_errmsg(stat))
     end if
 
-    query = "select schema from rdb4_schema ;"
-    rdbSchema = sqlu_query(db,trim(query))
-    write(*,'(4a)') 'sqlr_readSqlite: rdbSchema is ---> ', trim(rdbSchema)
-    call fSQL_close(db, stat) 
+    query = 'select codtyp from header group by codtyp;'
+    codtypStr = sqlu_query(db,trim(query))
+    write(*,*) 'sqlr_readSqlite: codtypStr = **', trim(codtypStr), '**'
 
+    call fSQL_close(db, stat) 
     if (fSQL_error(stat) /= FSQL_OK) then
       write(*,*) 'sqlr_readSqlite: problem closing sqlite db', trim(fileName)
       call sqlu_handleError(stat, 'fSQL_close')
     end if
 
-    sqlExtraHeader = ''
-    sqlExtraDat    = ''
-    sqlNull        = ''
-    listElem       = ''
-    numberElem = MPC_missingValue_INT
+    ! Default namelist variable values
+    sqlExtraHeader     = ''
+    sqlExtraDat        = ''
+    sqlExtraHeader_sat = ''
+    sqlExtraDat_sat    = ''
+    sqlNull            = ''
+    listElem           = ''
+    numberElem         = MPC_missingValue_INT
     
-    vertCoordfact  = 1
-    if (trim(familyType) == 'TO') then      
-      columnsHeader = " ID_OBS, LAT, LON, CODTYP, DATE, TIME, ID_STN, STATUS, ID_SAT, LAND_SEA, INSTRUMENT, ZENITH, SOLAR_ZENITH"
-      vertCoordType = 3
-    else if (trim(familyType) == 'GL') then
-      columnsHeader = " ID_OBS, LAT, LON, CODTYP, DATE, TIME, ID_STN"
-    else if (trim(rdbSchema) == 'ra') then
-      columnsHeader = " ID_OBS, LAT, LON, CODTYP, DATE, TIME, ID_STN"
-      vertCoordType = 1
-    else if (trim(rdbSchema) == 'radvel') then
-      columnsHeader = " ID_OBS, LAT, LON, CODTYP, DATE, TIME, ID_STN, ANTENNA_ALTITUDE, CENTER_AZIMUTH, CENTER_ELEVATION, RANGE_START, RANGE_END"
-      vertCoordType = 1
-    else
-      columnsHeader = " ID_OBS, LAT, LON, CODTYP, DATE, TIME, ID_STN, STATUS, ELEV"  
-    end if
+    ! Set the type of vertical coordinate
+    vertCoordType  = 1
+    select case(trim(familyType))
+      case('RA','PR','AL','RO','SF','TM','SC','GL','HY','GP')
+        vertCoordType = 1
+      case('UA','AI','SW')
+        vertCoordType = 2
+      case('TO')
+        vertCoordType = 3
+      case default
+        call utl_abort('sqlr_readSqlite: unknown family '//trim(familyType))
+    end select
 
+    ! Set multiplying factor for vertical coordinate
+    select case(trim(familyType))
+      case('SF','TM','SC')
+        vertCoordFact = 0
+      case default
+        vertCoordFact = 1
+    end select
+
+    ! Set multiplying factor used when adding elevation to vcoord
+    select case(trim(familyType))
+      case('PR','SF','TM','GP')
+        elevFact=1.0
+      case default
+        elevFact=0.0
+    end select
+
+    ! Read appropriate namelist based on obs family
     nulnam = 0
     ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-    select case(trim(rdbSchema))
-      case ('ua')
-        vertCoordFact = 1
-        vertCoordType = 2
+    select case(trim(familyType))
+      case('TO')
+        read(nulnam, nml = NAMSQLtovs, iostat = ierr)
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLtovs')
+        if (mmpi_myid == 0) write(*, nml = NAMSQLtovs)
+      case('UA')
         read(nulnam, nml = NAMSQLua, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLua')
         if (mmpi_myid == 0) write(*, nml = NAMSQLua)
-      case ('ai')
-        vertCoordFact = 1
-        vertCoordType = 2
+      case ('AI')
         read(nulnam, nml = NAMSQLai, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLai')
         if (mmpi_myid == 0) write(*, nml = NAMSQLai)
-      case ('sw')
-        vertCoordFact = 1
-        vertCoordType = 2
+      case ('SW')
         read(nulnam, nml = NAMSQLsw, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsw')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsw)
-      case ('pr')
-        vertCoordFact = 1
-        vertCoordType = 1
+      case ('PR')
         read(nulnam, nml = NAMSQLpr, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLpr')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLpr)
-      case ('al')  
-        columnsHeader = trim(columnsHeader)//", ID_PROF"
-        vertCoordFact = 1
-        vertCoordType = 1
+      case ('AL')  
         read(nulnam, nml = NAMSQLal, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLal')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLal)
-      case ('ro')     
-        columnsHeader = trim(columnsHeader)//", RO_QC_FLAG, GEOID_UNDULATION, EARTH_LOCAL_RAD_CURV, ID_SAT, AZIMUTH"
-        vertCoordFact = 1
-        vertCoordType = 1
+      case ('RO')     
         read(nulnam, nml = NAMSQLro, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLro')
         if (mmpi_myid == 0) write(*, nml = NAMSQLro)
-      case ('sf')
-        vertCoordFact = 0
-        vertCoordType = 1
+      case ('SF','GP','HY')
         read(nulnam, nml = NAMSQLsfc, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsfc')
-        if (mmpi_myid == 0) write(*, nml = NAMSQLsfc)
-      case ('sst')
-        columnsHeader = trim(columnsHeader)//", SOLAR_ZENITH "
-        vertCoordFact = 0
-        vertCoordType = 1
-        read(nulnam, nml = namReadSSTSat, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: namReadSSTSat')
-        if (mmpi_myid == 0) write(*, nml = namReadSSTSat)
-      case ('scat')
-        vertCoordFact = 0
-        vertCoordType = 1
+        if (mmpi_myid == 0) write(*, nml = NAMSQLsfc)        
+      case ('SC')
         read(nulnam, nml = NAMSQLsc, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsc')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsc)
-      case('airs')
-        columnsHeader = trim(columnsHeader)//", AZIMUTH, TERRAIN_TYPE, CLOUD_COVER, SOLAR_AZIMUTH"
-        read(nulnam, nml = NAMSQLairs, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLairs')
-        if (mmpi_myid == 0) write(*, nml = NAMSQLairs)
-      case('iasi')
-        columnsHeader = trim(columnsHeader)//", AZIMUTH, TERRAIN_TYPE, CLOUD_COVER, SOLAR_AZIMUTH, FANION_QUAL_IASI_SYS_IND, INDIC_NDX_QUAL_GEOM"
-        read(nulnam, nml = NAMSQLiasi, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLiasi')
-        if (mmpi_myid == 0) write(*, nml = NAMSQLiasi)
-      case('cris')
-        columnsHeader = trim(columnsHeader)//", AZIMUTH, TERRAIN_TYPE, CLOUD_COVER, SOLAR_AZIMUTH"
-        read(nulnam, nml = NAMSQLcris, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLcris')
-        if (mmpi_myid == 0) write(*, nml = NAMSQLcris)
-      case('crisfsr')
-        columnsHeader = trim(columnsHeader)//", AZIMUTH, TERRAIN_TYPE, CLOUD_COVER, SOLAR_AZIMUTH"
-        read(nulnam, nml = NAMSQLcrisfsr, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLcrisfsr')
-        if (mmpi_myid == 0) write(*, nml = NAMSQLcrisfsr)
-      case('amsua')
-        columnsHeader = trim(columnsHeader)//", AZIMUTH, TERRAIN_TYPE, SENSOR, SOLAR_AZIMUTH"
-        read(nulnam, nml = NAMSQLamsua, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLamsua')
-        if (mmpi_myid == 0) write(*, nml = NAMSQLamsua)
-      case('amsub')
-        columnsHeader = trim(columnsHeader)//", AZIMUTH, TERRAIN_TYPE, SENSOR, SOLAR_AZIMUTH"
-        read(nulnam, nml = NAMSQLamsub, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLamsub')
-        if (mmpi_myid == 0) write(*, nml = NAMSQLamsub)
-      case('atms')
-        columnsHeader = trim(columnsHeader)//", AZIMUTH, TERRAIN_TYPE, SENSOR, SOLAR_AZIMUTH"
-        read(nulnam, nml = NAMSQLatms, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLatms')
-        if (mmpi_myid == 0) write(*, nml = NAMSQLatms)
-      case('ssmi')
-        columnsHeader = trim(columnsHeader)//", AZIMUTH, TERRAIN_TYPE"
-        read(nulnam, nml = NAMSQLssmi, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLssmi')
-        if (mmpi_myid == 0) write(*, nml = NAMSQLssmi)
-      case('csr')
-        read(nulnam, nml = NAMSQLcsr, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLcsr')
-        if (mmpi_myid == 0) write(*, nml =  NAMSQLcsr)
-      case('gl')
-        if (sqlu_sqlColumnExists(fileName, 'header', 'chartIndex') == .true.) then
-          columnsHeader = trim(columnsHeader)//", CHARTINDEX"
+      case ('TM')
+        read(nulnam, nml = NAMSQLsst, iostat = ierr)
+        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsst')
+        if (mmpi_myid == 0) write(*, nml = NAMSQLsst)
+        if (trim(codtypStr) == '88') then
+          sqlExtraHeader = sqlExtraHeader_sat
+          sqlExtraDat = sqlExtraDat_sat
         end if
+      case ('GL')
         read(nulnam, nml = NAMSQLgl, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLgl')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLgl)
-      case('gl_ascat')
-        columnsHeader = trim(columnsHeader)//", TRACK_CELL_NO, MOD_WIND_SPD"
-        read(nulnam, nml = NAMSQLgl, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLgl')
-        if (mmpi_myid == 0) write(*, nml =  NAMSQLgl)
-      case('ra')
+      case('RA')
         read(nulnam, nml = NAMSQLradar, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLradar')
         if (mmpi_myid == 0) write(*, nml =  NAMSQLradar) 
-      case('radvel')
-        read(nulnam, nml = NAMSQLradvel, iostat = ierr)
-        if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLradvel')
-        if (mmpi_myid == 0) write(*, nml =  NAMSQLradvel)
-      case DEFAULT
-        call utl_abort('sqlr_readSqlite: Unsupported  SCHEMA in SQLITE file!'//trim(rdbSchema))
+      case default
+        call utl_abort('sqlr_readSqlite: No namelist read for this family: '//trim(familyType))
     end select
     ierr=fclos(nulnam)
     
@@ -398,89 +345,82 @@ module sqliteRead_mod
       call utl_abort('sqlr_readSqlite: check namelist, numberElem should be removed')
     end if
     numberElem = count(transfer(listElem, 'a', len(listElem)) == ',') + 1
-    
-    call utl_splitString(columnsHeader,',', & ! IN
-                         headSqlNames)  ! OUT
-    do columnIndex = 1, size(headSqlNames)
-      write(*,*) 'sqlr_readSqlite: headSqlNames   =', columnIndex, &
-                 trim(headSqlNames(columnIndex))
-    end do
-    
+
     ! Set the observation variable transforms
     if (numberElem > 0) then
-      call utl_splitString(listElem,',', & ! IN
-                           listElemArray)  ! OUT
-      call utl_stringArrayToIntegerArray(listElemArray,      & ! IN
-                                         listElemArrayInteger) ! OUT
-      call ovt_setup(listElemArrayInteger) ! IN
+      call utl_splitString(listElem,',', listElemArray)
+      call utl_stringArrayToIntegerArray(listElemArray, listElemArrayInteger)
+      call ovt_setup(listElemArrayInteger)
       deallocate(listElemArrayInteger)
       deallocate(listElemArray)
     end if
 
     ! Compose SQL queries
 
+    ! Get list of all header table columns in file, then remove those we don't read
+    call sqlu_getSqlColumnNames(headSqlNames, fileName=trim(fileName), &
+                                tableName='header', dataType='all')
+    do columnIndex = 1, size(headSqlNames)
+      if (utl_findloc(headSqlNamesToRead,headSqlNames(columnIndex)) == 0) then
+        headSqlNames(columnIndex) = ''
+      end if
+    end do
+    call utl_removeEmptyStrings(headSqlNames)
+    do columnIndex = 1, size(headSqlNames)
+      write(*,*) 'sqlr_readSqlite: headSqlNames   =', columnIndex, &
+                 trim(headSqlNames(columnIndex))
+    end do
+    call utl_combineString(columnsHeader, ',', headSqlNames)
+    
     ! ordering of data that will get read in matdata, bodyPrimaryKeys and bodyHeadKeys
     sqlDataOrder = ' order by id_obs, varno, id_data' 
 
     selectIDs  = 'select id_data, id_obs'
     csqlcrit = 'varno in ('//trim(listElem)//')'//trim(sqlExtraDat)//trim(SQLNull)
 
-    ! Determine names of columns present in sqlite file
+    ! Determine names of body columns present in sqlite file
     call sqlu_getSqlColumnNames(bodySqlNames, fileName=trim(fileName), &
                                 tableName='data', dataType='numeric')
-    !call sqlu_getSqlColumnNames(headSqlNames, fileName=trim(fileName), &
-    !                            tableName='header', dataType='numeric')
     do columnIndex = 1, size(bodySqlNames)
       write(*,*) 'sqlr_readSqlite: bodySqlNames   =', columnIndex, &
                  trim(bodySqlNames(columnIndex))
     end do
-    !do columnIndex = 1, size(headSqlNames)
-    !  write(*,*) 'sqlr_readSqlite: headSqlNames   =', columnIndex, &
-    !             trim(headSqlNames(columnIndex))
-    !end do
 
-    ! Let's read all of the columns in the file, then we'll decide what to do with them later
-    ! NOTE: need to add extra part to query for ordering, etc.
+    ! Read all of the columns in the file, then we decide what to do with them later
     extraQueryData = ' where '//trim(csqlcrit)//trim(sqlDataOrder)
     call sqlu_getColumnValuesNum(bodyValues, fileName=trim(fileName), &
                                  tableName='data', sqlColumnNames=bodySqlNames, &
                                  extraQuery_opt=extraQueryData)
-    numberBodyRows = size(bodyValues,1)
+    numberBodyRows    = size(bodyValues,1)
     numberBodyColumns = size(bodyValues,2)
 
-    ! it is very important that queryIDs and queryData be identical except for the column names being selected
+    ! It is very important that queryIDs and queryData be identical except for the column names being selected
     queryIDs  = trim(selectIDs) //' from data where '//trim(csqlcrit)//trim(sqlDataOrder)//';'
-    write(*,'(4a)') 'sqlr_readSqlite: ', trim(rdbSchema), ' queryIDs     --> ', trim(queryIDs)
+    write(*,'(4a)') 'sqlr_readSqlite: queryIDs     --> ', trim(queryIDs)
 
-    ! open the sqlite file
+    ! Open the sqlite file
     call fSQL_open(db, trim(fileName) ,stat)
     if (fSQL_error(stat) /= FSQL_OK) then
       call utl_abort('sqlr_readSqlite: fSQL_open '//fSQL_errmsg(stat))
     end if
 
-    ! read id_data and id_obs columns in the body table ("status" not set when getting integers)
-    call fSQL_prepare(db, trim(queryIDs) , stmt3, status=stat)
-    call fSQL_get_many(stmt3, nrows=numberIDsRows, ncols=numberIDsColumns, &
+    ! Read id_data and id_obs columns in the body table ("status" not set when getting integers)
+    call fSQL_prepare(db, trim(queryIDs) , stmt2, status=stat)
+    call fSQL_get_many(stmt2, nrows=numberIDsRows, ncols=numberIDsColumns, &
                        mode=FSQL_INT8)
     allocate(tempBodyKeys(numberIDsRows,numberIDsColumns))
-    call fSQL_fill_matrix(stmt3, tempBodyKeys)
+    call fSQL_fill_matrix(stmt2, tempBodyKeys)
     allocate(bodyPrimaryKeys(numberIDsRows))
     allocate(bodyHeadKeys(numberIDsRows))
     bodyPrimaryKeys(:) = tempBodyKeys(:,1)
     bodyHeadKeys(:)    = tempBodyKeys(:,2)
     deallocate(tempBodyKeys)
-    call fSQL_free_mem(stmt3)
-    call fSQL_finalize(stmt3)
+    call fSQL_free_mem(stmt2)
+    call fSQL_finalize(stmt2)
 
     if (numberIDsRows /= numberBodyRows) then
       call utl_abort('sqlr_readSqlite: number of body keys not equal to number of rows in bodyValues')
     end if 
-
-    if (trim(rdbSchema)=='pr' .or. trim(rdbSchema)=='sf' .or. trim(rdbSchema)=='sst') then
-      elevFact=1.
-    else
-      elevFact=0.
-    end if
 
     headerIndex  = obs_numHeader(obsdat)
     bodyIndex = obs_numBody(obsdat)
@@ -489,23 +429,18 @@ module sqliteRead_mod
     write(*,*) 'sqlr_readSqlite: DEBUT numheader  =', numHeader
     write(*,*) 'sqlr_readSqlite: DEBUT numbody    =', numBody
     write(*,*) 'sqlr_readSqlite:  numberBodyRows numberBodyColumns =', numberBodyRows, numberBodyColumns
-    write(*,*) 'sqlr_readSqlite:  rdbSchema = ', rdbSchema
     write(*,*) 'sqlr_readSqlite: =========================================='
 
     ! Here is a summary of what is going on in the rest of this routine:
     ! 
-    ! for each row of the body table
+    ! for each row of the body table (which has already been read)
     !
     !   if this if the first id_data associated with a given id_obs
-    !     -> read associated header
+    !     -> read associated header and write to obsSpaceData
     !
-    !   -> write body entry in obsspacedata
-    !
-    !   if this is the last id_data associated with a given id_obs
-    !     -> write header entry in obsspacedata
+    !   -> write body entry in obsSpaceData
     !
     obsNlv = 0
-    columnIndexIDO = 0
     call fSQL_begin(db)
     BODY: do rowIndex = 1, numberIDsRows
 
@@ -516,9 +451,10 @@ module sqliteRead_mod
       call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKeys(rowIndex))
 
       READHEADER: if (obsNlv == 1) then
+        headerIndex = headerIndex + 1
 
-        ! this is the first body entry associated with a new headPrimaryKey
-        firstBodyIndexOfThisBatch = bodyIndex
+        ! This is the first body entry associated with a new headPrimaryKey
+        call obs_headSet_i(obsdat, OBS_RLN, headerIndex, bodyIndex)
 
         ! we read the associated header
         if (trim(sqlExtraHeader) == '') then
@@ -528,7 +464,7 @@ module sqliteRead_mod
 	end if
 
         if (rowIndex == 1) then
-          write(*,'(4a)') 'sqlr_readSqlite: ',trim(rdbSchema),' first queryHeader    --> ', trim(queryHeader)
+          write(*,'(4a)') 'sqlr_readSqlite: first queryHeader    --> ', trim(queryHeader)
         end if
         call fSQL_prepare(db, queryHeader, stmt, stat)
         if (fSQL_error(stat)  /= FSQL_OK) then
@@ -536,8 +472,7 @@ module sqliteRead_mod
           call sqlu_handleError(stat, 'fSQL_prepare')
         end if
 
-        if (columnIndexIDO == 0) columnIndexIDO = utl_findloc(headSqlNames,'ID_OBS')
-        call fSQL_bind_param(stmt, param_index = columnIndexIDO, int8_var = headPrimaryKey)
+        call fSQL_bind_param(stmt, param_index = 1, int8_var = headPrimaryKey)
 
         call fSQL_get_row(stmt, finished)
         if (finished) then
@@ -550,7 +485,8 @@ module sqliteRead_mod
         landSea     = MPC_missingValue_INT
         sensor      = MPC_missingValue_INT
         cloudCoverReal = MPC_missingValue_R4
-        elev = 0.; elevReal = 0.
+        elev = 0.
+        elevReal = 0.
         solarAzimuthReal = MPC_missingValue_R4
         solarZenithReal  = MPC_missingValue_R4
         zenithReal = MPC_missingValue_R4
@@ -564,124 +500,124 @@ module sqliteRead_mod
 
         ! Set some default values
         if (trim(familyType) == 'TO') then
-          call obs_headSet_i(obsdat, OBS_TTYP, headerIndex+1, terrainType)
+          call obs_headSet_i(obsdat, OBS_TTYP, headerIndex, terrainType)
         end if
-        call obs_headSet_r(obsdat, OBS_ALT, headerIndex+1, elevReal)
+        call obs_headSet_r(obsdat, OBS_ALT, headerIndex, elevReal)
 
-        call obs_setFamily(obsdat, trim(familyType), headerIndex+1)
-        call obs_setHeadPrimaryKey(obsdat, headerIndex+1, headPrimaryKey)
-        call obs_headSet_i(obsdat, OBS_ONM, headerIndex+1, headerIndex+1)
+        call obs_setFamily(obsdat, trim(familyType), headerIndex)
+        call obs_setHeadPrimaryKey(obsdat, headerIndex, headPrimaryKey)
+        call obs_headSet_i(obsdat, OBS_ONM, headerIndex, headerIndex)
         do columnIndex = 1, size(headSqlNames)
           select case(trim(headSqlNames(columnIndex)))
             case('LAT')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = obsLat)
               xlat = obsLat * MPC_RADIANS_PER_DEGREE_R8
-              call obs_headSet_r(obsdat, OBS_LAT, headerIndex+1, xLat)
+              call obs_headSet_r(obsdat, OBS_LAT, headerIndex, xLat)
             case('LON')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = obsLon)
               if (obsLon < 0.) obsLon = obsLon + 360.
               xlon = obsLon * MPC_RADIANS_PER_DEGREE_R8
-              call obs_headSet_r(obsdat, OBS_LON, headerIndex+1, xLon)
+              call obs_headSet_r(obsdat, OBS_LON, headerIndex, xLon)
             case('CODTYP')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = codeType)
-              call obs_headSet_i(obsdat, OBS_ITY, headerIndex+1, codeType)
+              call obs_headSet_i(obsdat, OBS_ITY, headerIndex, codeType)
             case('DATE')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = obsDate)
-              call obs_headSet_i(obsdat, OBS_DAT, headerIndex+1, obsDate)
+              call obs_headSet_i(obsdat, OBS_DAT, headerIndex, obsDate)
             case('TIME')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = obsTime)
               obsTime = obsTime/100
-              call obs_headSet_i(obsdat, OBS_ETM, headerIndex+1, obsTime)
+              call obs_headSet_i(obsdat, OBS_ETM, headerIndex, obsTime)
             case('ID_STN')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, char_var  = idStation)
-              call obs_set_c(obsdat, 'STID' , headerIndex+1, trim(idStation))
+              call obs_set_c(obsdat, 'STID' , headerIndex, trim(idStation))
             case('STATUS')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = obsStatus)
-              call obs_headSet_i(obsdat, OBS_ST1, headerIndex+1, obsStatus)
+              call obs_headSet_i(obsdat, OBS_ST1, headerIndex, obsStatus)
             case('ELEV','ANTENNA_ALTITUDE')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = elev, REAL_MISSING=MPC_missingValue_R4)
               elevReal=elev
               if (trim(familyType) /= 'TO') then
-                call obs_headSet_r(obsdat, OBS_ALT ,headerIndex+1, elevReal)
+                call obs_headSet_r(obsdat, OBS_ALT ,headerIndex, elevReal)
               end if
             case('LAND_SEA')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = landSea, INT_MISSING=MPC_missingValue_INT)
-              call obs_headSet_i(obsdat, OBS_STYP, headerIndex+1, landSea)
+              call obs_headSet_i(obsdat, OBS_STYP, headerIndex, landSea)
             case('ID_SAT')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = obsSat, INT_MISSING=MPC_missingValue_INT)
-              call obs_headSet_i(obsdat, OBS_SAT , headerIndex+1, obsSat)
+              call obs_headSet_i(obsdat, OBS_SAT , headerIndex, obsSat)
             case('INSTRUMENT')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = instrument, INT_MISSING=MPC_missingValue_INT)
             case('ZENITH')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = zenithReal, REAL_MISSING=MPC_missingValue_R4)
-              call obs_headSet_r(obsdat, OBS_SZA , headerIndex+1, real(zenithReal,kind=pre_obsReal))
+              call obs_headSet_r(obsdat, OBS_SZA , headerIndex, real(zenithReal,kind=pre_obsReal))
             case('SOLAR_ZENITH')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = solarZenithReal, REAL_MISSING=MPC_missingValue_R4)
-              call obs_headSet_r(obsdat, OBS_SUN , headerIndex+1, real(solarZenithReal,kind=pre_obsReal))
+              call obs_headSet_r(obsdat, OBS_SUN , headerIndex, real(solarZenithReal,kind=pre_obsReal))
             case('AZIMUTH')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real8_var = azimuthReal_R8)
-              call obs_headSet_r(obsdat, OBS_AZA , headerIndex+1, real(azimuthReal_R8,kind=pre_obsReal))
+              call obs_headSet_r(obsdat, OBS_AZA , headerIndex, real(azimuthReal_R8,kind=pre_obsReal))
             case('TERRAIN_TYPE')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = terrainType, INT_MISSING=MPC_missingValue_INT)
-              call obs_headSet_i(obsdat, OBS_TTYP, headerIndex+1, terrainType)
+              call obs_headSet_i(obsdat, OBS_TTYP, headerIndex, terrainType)
             case('CLOUD_COVER')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = cloudCoverReal, REAL_MISSING=MPC_missingValue_R4)
-              call obs_headSet_r(obsdat, OBS_CLF , headerIndex+1, real(cloudCoverReal,kind=pre_obsReal))
+              call obs_headSet_r(obsdat, OBS_CLF , headerIndex, real(cloudCoverReal,kind=pre_obsReal))
             case('SOLAR_AZIMUTH')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = solarAzimuthReal, REAL_MISSING=MPC_missingValue_R4)
-              call obs_headSet_r(obsdat, OBS_SAZ , headerIndex+1, real(solarAzimuthReal,kind=pre_obsReal))
+              call obs_headSet_r(obsdat, OBS_SAZ , headerIndex, real(solarAzimuthReal,kind=pre_obsReal))
             case('SENSOR')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = sensor, INT_MISSING=MPC_missingValue_INT)
             case('FANION_QUAL_IASI_SYS_IND')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = iasiGeneralQualityFlag, INT_MISSING=MPC_missingValue_INT)
               if (obs_columnActive_IH(obsdat,OBS_GQF)) then
-                call obs_headSet_i(obsdat,OBS_GQF, headerIndex+1, iasiGeneralQualityFlag)
+                call obs_headSet_i(obsdat,OBS_GQF, headerIndex, iasiGeneralQualityFlag)
               end if
             case('INDIC_NDX_QUAL_GEOM')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = iasiImagerCollocationFlag, INT_MISSING=MPC_missingValue_INT)
               if (obs_columnActive_IH(obsdat,OBS_GQL)) then
-                call obs_headSet_i(obsdat, OBS_GQL, headerIndex+1, iasiImagerCollocationFlag)
+                call obs_headSet_i(obsdat, OBS_GQL, headerIndex, iasiImagerCollocationFlag)
               end if
             case('RO_QC_FLAG')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = roQcFlag, INT_MISSING=MPC_missingValue_INT)
-              call obs_headSet_i(obsdat, OBS_ROQF, headerIndex+1, roQcFlag)
+              call obs_headSet_i(obsdat, OBS_ROQF, headerIndex, roQcFlag)
             case('GEOID_UNDULATION')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real8_var = geoidUndulation_R8)
               geoidUndulation = geoidUndulation_R8
-              call obs_headSet_r(obsdat, OBS_GEOI, headerIndex+1, geoidUndulation)
+              call obs_headSet_r(obsdat, OBS_GEOI, headerIndex, geoidUndulation)
             case('EARTH_LOCAL_RAD_CURV')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real8_var = earthLocRadCurv_R8)
               earthLocRadCurv = earthLocRadCurv_R8
-              call obs_headSet_r(obsdat, OBS_TRAD, headerIndex+1, earthLocRadCurv)
+              call obs_headSet_r(obsdat, OBS_TRAD, headerIndex, earthLocRadCurv)
             case('CENTER_AZIMUTH')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = beamAzimuth)
               beamAzimuthReal   = beamAzimuth   * MPC_RADIANS_PER_DEGREE_R8
-              call obs_headSet_r(obsdat, OBS_RZAM, headerIndex+1, beamAzimuthReal)
+              call obs_headSet_r(obsdat, OBS_RZAM, headerIndex, beamAzimuthReal)
             case('CENTER_ELEVATION')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = beamElevation)
               beamElevationReal = beamElevation * MPC_RADIANS_PER_DEGREE_R8
-              call obs_headSet_r(obsdat, OBS_RELE, headerIndex+1, beamElevationReal)
+              call obs_headSet_r(obsdat, OBS_RELE, headerIndex, beamElevationReal)
             case('RANGE_START')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = beamRangeStart)
-              call obs_headSet_r(obsdat, OBS_RANS, headerIndex+1, real(beamRangeStart,kind=pre_obsReal))
+              call obs_headSet_r(obsdat, OBS_RANS, headerIndex, real(beamRangeStart,kind=pre_obsReal))
             case('RANGE_END')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real_var  = beamRangeEnd)
-              call obs_headSet_r(obsdat, OBS_RANE, headerIndex+1, real(beamRangeEnd,kind=pre_obsReal))
+              call obs_headSet_r(obsdat, OBS_RANE, headerIndex, real(beamRangeEnd,kind=pre_obsReal))
             case('ID_PROF')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = idProf)
-              call obs_headSet_i(obsdat, OBS_PRFL, headerIndex+1, idProf)
+              call obs_headSet_i(obsdat, OBS_PRFL, headerIndex, idProf)
             case('CHARTINDEX')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = iceChartID)
-              call obs_headSet_i(obsdat, OBS_CHID, headerIndex+1, iceChartID)
+              call obs_headSet_i(obsdat, OBS_CHID, headerIndex, iceChartID)
             case('TRACK_CELL_NO')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, int_var   = trackCellNum)
               if (trackCellNum > 21) trackCellNum = 43 - trackCellNum
-              call obs_headSet_i(obsdat, OBS_FOV, headerIndex+1, trackCellNum)
+              call obs_headSet_i(obsdat, OBS_FOV, headerIndex, trackCellNum)
             case('MOD_WIND_SPD')
               call fSQL_get_column(stmt, COL_INDEX = columnIndex, real8_var = modelWindSpeed_R8)
               modelWindSpeed = modelWindSpeed_R8
-              call obs_headSet_r(obsdat, OBS_MWS, headerIndex+1, modelWindSpeed)
-         end select
+              call obs_headSet_r(obsdat, OBS_MWS, headerIndex, modelWindSpeed)
+          end select
         end do
 
         ! we are done reading this header entry
@@ -697,8 +633,8 @@ module sqliteRead_mod
           else
             instrument = obsu_cvt_obs_instrum(sensor)
           end if
-          call obs_headSet_i(obsdat, OBS_SAT , headerIndex+1, obsSat)
-          call obs_headSet_i(obsdat, OBS_INS , headerIndex+1, instrument)
+          call obs_headSet_i(obsdat, OBS_SAT , headerIndex, obsSat)
+          call obs_headSet_i(obsdat, OBS_INS , headerIndex, instrument)
         end if
 
       end if READHEADER
@@ -725,7 +661,7 @@ module sqliteRead_mod
             end if
             call obs_bodySet_r(obsdat, OBS_PPP, bodyIndex, vertCoord)
           case('VCOORD_TYPE')
-            ! This is set earlier based on rdbschema or familyType
+            ! This is set earlier based on familyType
             call obs_bodySet_i(obsdat, OBS_VCO, bodyIndex, vertCoordType)
           case('VARNO')
             obsVarno = int(bodyValues(rowIndex,columnIndex))
@@ -775,48 +711,44 @@ module sqliteRead_mod
       end if
 
       ! In some cases we need to add extra row(s) to the BODY table
-      if (trim(rdbSchema) /= 'radvel' .and. trim(familyType) /= 'TO') then
-
-        if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
-            .not. ovt_bufrCodeSkipped(obsVarno)) then
+      if (.not. filt_bufrCodeAssimilated(obsVarno) .and. &
+          .not. ovt_bufrCodeSkipped(obsVarno)) then
           
-          ! Add an extra row to the obsSpaceData body table
-          ! to contain quantity later calculated by ovt_transformObsValue
+        ! Add an extra row to the obsSpaceData body table
+        ! to contain quantity later calculated by ovt_transformObsValue
+        call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, -1)
+        call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
+                                  ovt_getDestinationBufrCode(obsVarno), &
+                                  vertCoordType, bodyIndex+1)
+        bodyIndex = bodyIndex + 1
+        obsNlv = obsNlv + 1
+        if (ovt_isWindObs(obsVarno)) then
+          ! Add an extra row for the other wind component
           call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, -1)
           call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                    ovt_getDestinationBufrCode(obsVarno), &
+                                    ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
                                     vertCoordType, bodyIndex+1)
           bodyIndex = bodyIndex + 1
           obsNlv = obsNlv + 1
-          if (ovt_isWindObs(obsVarno)) then
-            ! Add an extra row for the other wind component
-            call obs_setBodyPrimaryKey(obsdat, bodyIndex+1, -1)
-            call sqlr_addExtraDataRow(obsdat, vertCoord * vertCoordFact + elevReal * elevFact, &
-                                      ovt_getDestinationBufrCode(obsVarno,extra_opt=.true.), &
-                                      vertCoordType, bodyIndex+1)
-            bodyIndex = bodyIndex + 1
-            obsNlv = obsNlv + 1
-          end if
         end if
-      end if     
+      end if
 
-      ! Logic to determine whether we need to create a header entry
-      createHeaderEntry = .false.
+      ! Logic to determine whether we are finished with this header entry
+      finishedWithHeader = .false.
       if (rowIndex == numberIDsRows) then
         ! This is the last body entry, nothing comes after.
-        createHeaderEntry = .true.
+        finishedWithHeader = .true.
       else
         if (headPrimaryKey /= bodyHeadKeys(rowIndex+1)) then
           ! we just treated the last body entry associated with this id_obs (headPrimaryKey)
           ! make header for this id_obs
-          createHeaderEntry = .true.
+          finishedWithHeader = .true.
         end if
       end if
-      if (createHeaderEntry) then
-        headerIndex = headerIndex + 1 
-        call obs_headSet_i(obsdat, OBS_RLN, headerIndex, firstBodyIndexOfThisBatch)
+      if (finishedWithHeader) then
+        ! Record the number of body rows associated with this header entry
         call obs_headSet_i(obsdat, OBS_NLV, headerIndex, obsNlv)
-        obsNlv = 0 ! reset level counter for next batch of data entries
+        obsNlv = 0 ! and reset counter for next batch of body entries
       end if
 
     end do BODY

@@ -175,11 +175,15 @@ contains
       dataTypeCriteria = 'type="real" or type="REAL" or type="double" or ' // &
                          'type="DOUBLE" or type="integer" or type="INTEGER" or ' // &
                          'type="INT" or type=""'
-    else
+    else if (trim(dataType) /= 'all') then
       call utl_abort( myName//': invalid dataType = ' // trim(dataType) )
     end if
-    query = 'select name from pragma_table_info("' // trim(tableName) // &
-            '") where ' // trim(dataTypeCriteria) // ' ;'
+    if (trim(dataType) == 'all') then
+      query = 'select name from pragma_table_info("' // trim(tableName) // '");'
+    else
+      query = 'select name from pragma_table_info("' // trim(tableName) // &
+              '") where ' // trim(dataTypeCriteria) // ' ;'
+    end if
     call fSQL_prepare( db, trim(query) , stmt, stat )
     call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
                         mode=FSQL_CHAR, status=stat )
