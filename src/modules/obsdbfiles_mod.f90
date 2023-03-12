@@ -24,6 +24,7 @@ module obsdbFiles_mod
 
   ! Public subroutines and functions:
   public :: odbf_getDateStamp, odbf_readFile, odbf_updateFile, obdf_clean
+  public :: odbf_insertInMidasBodyTable
 
   ! Arrays used to match obsDB column names with obsSpaceData column names
 
@@ -1622,8 +1623,13 @@ contains
         write(*,*) '                 The MIDAS Body Output Table will not be updated.'
       end if
     else
-      ! Update the MIDAS Body Output Table
-      call odbf_updateMidasBodyTable(obsdat, fileIndex, fileName, familyType)
+      if (fileExists) then
+        ! Update the MIDAS Body Output Table
+        call odbf_updateMidasBodyTable(obsdat, fileIndex, fileName, familyType)
+      else
+        ! Insert into the MIDAS Body Output Table
+        call odbf_insertInMidasBodyTable(obsdat, fileIndex, fileName, familyType)
+      end if
     end if
 
     call utl_tmg_stop(14)
@@ -1855,7 +1861,7 @@ contains
         obsIdo  = obs_headPrimaryKey( obsdat, headIndex )
         call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdo)
 
-        write(*,*) 'midasheader maziar: headIndex=', headIndex
+        !write(*,*) 'midasheader maziar: headIndex=', headIndex
         call fSQL_exec_stmt(stmt)
 
       end do HEADER2
@@ -2177,6 +2183,405 @@ contains
     write(*,*)
 
   end subroutine odbf_updateMidasBodyTable
+
+  !--------------------------------------------------------------------------
+  ! odbf_insertInMidasBodyTable
+  !--------------------------------------------------------------------------
+  subroutine odbf_insertInMidasBodyTable(obsdat, fileIndex, fileName, familyType)
+    !
+    ! :Purpose: Insert selected columns in the MIDAS body table using
+    !           values from obsSpaceData. The MIDAS Body table should not 
+    !           exist and it will be created from scratch.
+    !           A single table is created that contains all quantities being
+    !           updated. Unlike the observation table, each observed variable
+    !           is stored in a separate row and all quantities are in columns
+    !           (e.g. obsValue, OMP, OMA,...).
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_obs), intent(inout) :: obsdat
+    character(len=*), intent(in)    :: fileName   
+    character(len=*), intent(in)    :: familyType
+    integer,          intent(in)    :: fileIndex
+
+    ! locals:
+    type(fSQL_STATUS)    :: stat ! sqlite error status
+    type(fSQL_DATABASE)  :: db   ! sqlite file handle
+    type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
+    integer(8)           :: obsIdo, obsIdd
+    integer              :: obsIdo_i4, obsIdd_i4
+    integer              :: obsIdf, obsVarNo, midasKey, updateItemIndex, updateValue_i
+    integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd, maxNumBody
+    integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
+    integer              :: maxNumBodyAllMpi(mmpi_nprocs)
+    real(8)              :: updateValue_r, obsValue, obsPPP, obsVAR
+    character(len=4)     :: obsSpaceColumnName
+    character(len=lenSqlName) :: sqlColumnName, vnmSqlName, pppSqlName, varSqlName
+    character(len=3000)  :: query
+    character(len=lenSqlName) :: midasBodyTableName_tmp = ' '
+    character(len=20)        :: sqlDataType
+    logical              :: midasTableExists
+    logical, save        :: nmlAlreadyRead = .false.
+    character(len=6), parameter  :: midasTableType='body' ! Define the type of MIDAS table: header/body
+    
+    ! namelist variables
+    integer,          save :: numberUpdateItems  ! number of items to use from the list
+    character(len=4), save :: updateItemList(15) ! obsSpace column names used to update the file
+
+    namelist/namObsDbMIDASBodyUpdate/ numberUpdateItems, updateItemList
+
+    write(*,*)
+    write(*,*) 'odbf_insertInMidasBodyTable: Starting'
+    write(*,*)
+    write(*,*) 'odbf_insertInMidasBodyTable: FileName   : ', trim(FileName)
+    write(*,*) 'odbf_insertInMidasBodyTable: FamilyType : ', FamilyType
+    write(*,*) 'odbf_insertInMidasBodyTable: fileIndex : ', fileIndex
+
+    if (.not. nmlAlreadyRead) then
+      nmlAlreadyRead = .true.
+
+      ! set default values of namelist variables
+      updateItemList(:) = ''
+      numberUpdateItems = 0
+
+      ! Read the namelist for directives
+      nulnam = 0
+      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam, nml=namObsDbMIDASBodyUpdate, iostat=ierr)
+      if ( ierr /= 0 ) call utl_abort('odbf_insertInMidasBodyTable: Error reading namelist')
+      ierr = fclos(nulnam)
+
+      ! Add "FLG" to the updateItemList to ensure it is always updated
+      numberUpdateItems = numberUpdateItems + 1
+      updateItemList(numberUpdateItems) = 'FLG'
+
+      if ( mmpi_myid == 0 ) then
+        write(*,*) 'odbf_insertInMidasBodyTable: NOTE: the FLG column is always added to update list'
+        write(*, nml=namObsDbMIDASBodyUpdate)
+      end if
+    end if ! not nmlAlreadyRead
+
+    if (numberUpdateItems == 0) then
+      write(*,*) 'odbf_insertInMidasBodyTable: numberUpdateItems=0. ' // &
+                 'MIDAS Body Output Table will not be updated.'
+      return
+    end if
+
+    ! determine initial idData,idObs to ensure unique values across mpi tasks
+    call getInitialIdObsData(obsdat, familyType, obsIdo_i4, obsIdd_i4)
+    obsIdo = obsIdo_i4
+    obsIdd = obsIdd_i4
+
+    ! some sql column names
+    vnmSqlName = odbf_midasTabColFromObsSpaceName('VNM', midasBodyNamesList)
+    pppSqlName = odbf_midasTabColFromObsSpaceName('PPP', midasBodyNamesList)
+    varSqlName = odbf_midasTabColFromObsSpaceName('VAR', midasBodyNamesList)
+
+    ! check if midasTable already exists in the file
+    midasTableExists = sqlu_sqlTableExists(fileName, midasBodyTableName)
+
+    if (.not. midasTableExists) then
+      ! create midasTable by copying rearranging contents of observation table
+      call odbf_createMidasBodyTable(fileName)
+
+      ! open the obsDB file
+      call fSQL_open( db, trim(fileName), stat )
+      if ( fSQL_error(stat) /= FSQL_OK ) then
+        write(*,*) 'odbf_insertInMidasBodyTable: fSQL_open: ', fSQL_errmsg(stat)
+        call utl_abort( 'odbf_insertInMidasBodyTable: fSQL_open' )
+      end if
+
+      ! Obtain the max number of body rows per mpi task
+      maxNumBody = 0
+      HEADER1: do headIndex = 1, obs_numHeader(obsdat)
+        obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
+        if ( obsIdf /= fileIndex ) cycle HEADER1
+
+        bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
+        bodyIndexEnd = bodyIndexBegin + &
+                       obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
+        
+        BODY1: do bodyIndex = bodyIndexBegin, bodyIndexEnd
+          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+          if ( obsValue == obs_missingValue_R ) cycle BODY1
+          maxNumBody = maxNumBody + 1
+        end do BODY1
+      end do HEADER1
+      
+      call rpn_comm_allGather(maxNumBody,       1, 'mpi_integer',  &
+                              maxNumBodyAllMpi, 1, 'mpi_integer', &
+                            'GRID', ierr )
+
+      ! Set the midasKey to start counting based on the latest value from the previous 
+      ! mpi task
+      if( mmpi_myid == 0 ) then
+        midasKey = 0
+      else
+        midasKey = sum(maxNumBodyAllMpi(1:mmpi_myid))
+      end if
+                      
+      ! set the primary key, keys to main obsDB tables and other basic info
+      query = 'insert into ' // trim(midasBodyTableName) // '(' // &
+              trim(midasBodyKeySqlName) // ',' // trim(obsHeadKeySqlName) // ',' // &
+              trim(obsBodyKeySqlName)  // ',' // trim(vnmSqlname)     // ',' // &
+              trim(pppSqlName)      // ',' // trim(varSqlname)     // &
+              ') values(?,?,?,?,?,?);'
+      write(*,*) 'odbf_insertInMidasBodyTable: query = ', trim(query)
+      call fSQL_prepare( db, query, stmt, stat )
+      call fSQL_begin(db)
+      HEADER: do headIndex = 1, obs_numHeader(obsdat)
+
+        obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
+        if ( obsIdf /= fileIndex ) cycle HEADER
+
+        obsIdo = obsIdo + 1
+
+        bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
+        bodyIndexEnd = bodyIndexBegin + &
+                       obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
+
+        BODY: do bodyIndex = bodyIndexBegin, bodyIndexEnd
+
+          ! do not try to update if the observed value is missing
+          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+          if ( obsValue == obs_missingValue_R ) cycle BODY
+
+          obsIdd = obsIdd + 1
+
+          midasKey = midasKey + 1
+          call fSQL_bind_param(stmt, PARAM_INDEX=1, INT_VAR=midasKey)
+          call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdo)
+          call fSQL_bind_param(stmt, PARAM_INDEX=3, INT8_VAR=obsIdd)
+          obsVarNo  = obs_bodyElem_i( obsdat, obs_vnm, bodyIndex )
+          call fSQL_bind_param(stmt, PARAM_INDEX=4, INT_VAR=obsVarNo)
+          obsPPP  = obs_bodyElem_r( obsdat, obs_ppp, bodyIndex )
+          call fSQL_bind_param(stmt, PARAM_INDEX=5, REAL8_VAR=obsPPP)
+          obsVAR  = obs_bodyElem_r( obsdat, obs_var, bodyIndex )
+          call fSQL_bind_param(stmt, PARAM_INDEX=6, REAL8_VAR=obsVAR)
+
+          call fSQL_exec_stmt(stmt)
+
+        end do BODY
+
+      end do HEADER
+
+      call fSQL_finalize( stmt )
+      call fSQL_commit( db )
+
+      ! create an index for the new table - necessary to speed up the update
+      query = 'create index idx_midasBodyTable on ' // &
+              trim(midasBodyTableName) // &
+              '(' // trim(obsBodyKeySqlName) // ');'
+      write(*,*) 'odbf_insertInMidasBodyTable: query = ', trim(query)
+      call fSQL_do_many( db, query, stat )
+      if ( fSQL_error(stat) /= FSQL_OK ) then
+        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+        call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+      end if
+
+      ! close the obsDB file
+      call fSQL_close( db, stat ) 
+
+    else
+
+      write(*,*) 'odbf_insertInMidasBodyTable: the midas body output table already exists, ' // &
+                 'will just update its values'
+
+    end if ! .not.midasTableExists
+
+    !! Add additional columns to the MIDAS Body table if requested from namObsDbMIDASBodyUpdate
+    !! namelist
+    !call odbf_addColumnsMidasTable(midasTableType, fileName, midasBodyTableName, midasBodyNamesList, &
+    !                              obsHeadKeySqlName, obsBodyKeySqlName, &
+    !                              numberUpdateItems, updateItemList, &
+    !                              midasBodyKeySqlName, &
+    !                              numMidasTableRequired_opt = numBodyMidasTableRequired)
+
+    call fSQL_open( db, trim(fileName), status=stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_insertInMidasBodyTable: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_insertInMidasBodyTable: fSQL_open '//fSQL_errmsg(stat) )
+    end if
+
+    ! Create Temporary table
+    midasBodyTableName_tmp = 'newColumn_tmp'
+    query = 'create table ' // trim(midasBodyTableName_tmp) // ' (' // new_line('A') // &
+            '  ' // trim(obsBodyKeySqlName) // ' integer' // new_line('A')
+
+!    ! Add additional columns to the temporary table
+!    do updateItemIndex = 1, numberUpdateItems
+!      
+!      ! get obsSpaceData column index for source of updated sql column
+!      obsSpaceColumnName = updateItemList(updateItemIndex)
+!      ierr = clib_toUpper(obsSpaceColumnName)
+!      obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
+!
+!      sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasBodyNamesList)
+!      write(*,*) 'odbf_insertInMidasBodyTable: updating midasTable column: ', trim(sqlColumnName)
+!      write(*,*) 'odbf_insertInMidasBodyTable: with contents of obsSpaceData column: ', &
+!                trim(obsSpaceColumnName)
+!
+!      ! add column to sqlite table
+!      if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
+!        sqlDataType = 'double'
+!      else
+!        sqlDataType = 'integer'
+!      end if
+!      query = trim(query) // '  ' // trim(sqlColumnName) // ' ' // trim(sqlDataType)
+!        
+!      if (updateItemIndex < numberUpdateItems) query = trim(query) // ', '
+!      query = trim(query) // new_line('A')
+!    end do
+
+    query = trim(query) // ');'
+    write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
+    call fSQL_do_many( db, query, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+    end if     
+
+    query = 'insert into ' // trim(midasBodyTableName_tmp) // '(' // &
+            trim(obsBodyKeySqlName)  // &
+            ') values(?);'
+    write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
+
+    call fSQL_prepare( db, query, stmt, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_insertInMidasBodyTable: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_insertInMidasBodyTable: fSQL_prepare' )
+    end if
+
+    call fSQL_begin(db)
+    HEADER2: do headIndex = 1, obs_numHeader(obsdat)
+
+      obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
+      if ( obsIdf /= fileIndex ) cycle HEADER2
+
+      obsIdo = obsIdo + 1
+
+      bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
+      bodyIndexEnd = bodyIndexBegin + &
+                      obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
+
+      BODY2: do bodyIndex = bodyIndexBegin, bodyIndexEnd
+      
+        ! do not try to update if the observed value is missing
+        obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+        if ( obsValue == obs_missingValue_R ) cycle BODY2
+
+        obsIdd = obsIdd + 1
+        call fSQL_bind_param(stmt, PARAM_INDEX=1, INT8_VAR=obsIdd)
+
+        write(*,*) 'maziar: bodyIndex=', bodyIndex, ', obsIdd=', obsIdd
+        call fSQL_exec_stmt(stmt)
+
+      end do BODY2
+
+    end do HEADER2
+
+    call fSQL_finalize( stmt )
+    call fSQL_commit( db )
+
+    ! create an index for the new table - necessary to speed up the update
+    query = 'create index idx_midasBodyTable_temp on ' // &
+            trim(midasBodyTableName_tmp) // &
+            '(' // trim(obsBodyKeySqlName) // ');'
+
+    write(*,*) 'odbf_insertInMidasBodyTable: query --->', trim(query)
+    call fSQL_do_many( db, query, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+    end if            
+
+!    do updateItemIndex = 1, numberUpdateItems
+!
+!      ! get obsSpaceData column index for source of updated sql column
+!      obsSpaceColumnName = updateItemList(updateItemIndex)
+!      ierr = clib_toUpper(obsSpaceColumnName)
+!      obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
+!
+!      sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasBodyNamesList)
+!      write(*,*) 'odbf_insertInMidasBodyTable: updating midasTable column: ', trim(sqlColumnName)
+!      write(*,*) 'odbf_insertInMidasBodyTable: with contents of obsSpaceData column: ', &
+!                  trim(obsSpaceColumnName)
+!
+!      ! prepare sql update query
+!      query = 'update ' // trim(midasBodyTableName_tmp) // ' set ' // &
+!              trim(sqlColumnName)  // ' = ? where ' // &
+!              trim(obsBodyKeySqlName) // ' = ? ;'
+!
+!      write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
+!
+!      call fSQL_prepare( db, query , stmt, stat )
+!      if ( fSQL_error(stat) /= FSQL_OK ) then
+!        write(*,*) 'odbf_insertInMidasBodyTable: fSQL_prepare: ', fSQL_errmsg(stat)
+!        call utl_abort( 'odbf_insertInMidasBodyTable: fSQL_prepare' )
+!      end if
+!
+!      call fSQL_begin(db)
+!      HEADER2: do headIndex = 1, obs_numHeader(obsdat)
+!
+!        obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
+!        if ( obsIdf /= fileIndex ) cycle HEADER2
+!
+!        bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
+!        bodyIndexEnd = bodyIndexBegin + &
+!                       obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
+!
+!        BODY2: do bodyIndex = bodyIndexBegin, bodyIndexEnd
+!
+!          ! do not try to update if the observed value is missing
+!          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+!          if ( obsValue == obs_missingValue_R ) cycle BODY2
+!
+!          ! update the value, but set to null if it is missing
+!          if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
+!            updateValue_r = obs_bodyElem_r(obsdat, obsSpaceColIndexSource, bodyIndex)
+!
+!            ! change units for surface emissivity
+!            if (obsSpaceColIndexSource == OBS_SEM) then
+!              updateValue_r =updateValue_r * 100.0D0
+!            end if
+!
+!            if ( updateValue_r == obs_missingValue_R ) then
+!              call fSQL_bind_param(stmt, PARAM_INDEX=1)  ! sql null values
+!            else
+!              call fSQL_bind_param(stmt, PARAM_INDEX=1, REAL8_VAR=updateValue_r)
+!            end if
+!          else
+!            updateValue_i = obs_bodyElem_i(obsdat, obsSpaceColIndexSource, bodyIndex)
+!            if ( updateValue_i == mpc_missingValue_int ) then
+!              call fSQL_bind_param(stmt, PARAM_INDEX=1)  ! sql null values
+!            else
+!              call fSQL_bind_param(stmt, PARAM_INDEX=1, INT_VAR=updateValue_i)
+!            end if
+!          end if
+!
+!          obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
+!          call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdd)
+!
+!          write(*,*) 'midasBody maziar: headIndex=', headIndex, ', bodyIndex=', bodyIndex
+!          call fSQL_exec_stmt(stmt)
+!
+!        end do BODY2
+!
+!      end do HEADER2
+!
+!      call fSQL_finalize( stmt )
+!      call fSQL_commit( db )
+!    end do
+
+    ! close the obsDB file
+    call fSQL_close( db, stat ) 
+
+    write(*,*)
+    write(*,*) 'odbf_insertInMidasBodyTable: finished'
+    write(*,*)
+
+  end subroutine odbf_insertInMidasBodyTable
 
   !--------------------------------------------------------------------------
   ! odbf_createMidasHeaderTable
@@ -2602,5 +3007,55 @@ contains
     call fSQL_close(db, stat)
 
   end subroutine obdf_clean
+
+  !--------------------------------------------------------------------------
+  ! getInitialIdObsData
+  !--------------------------------------------------------------------------
+  subroutine getInitialIdObsData(obsDat, obsFamily, idObs, idData, codeTypeList_opt)
+    !
+    ! :Purpose: Compute initial value for idObs and idData that will ensure
+    !           unique values over all mpi tasks
+    !
+    implicit none
+
+    ! arguments:
+    type(struct_obs)  :: obsdat
+    character(len=*)  :: obsFamily    
+    integer           :: idObs, idData
+    integer, optional :: codeTypeList_opt(:)
+
+    ! locals:
+    integer                :: headerIndex, numHeader, numBody, codeType, ierr
+    integer, allocatable   :: allNumHeader(:), allNumBody(:)
+
+    numHeader = 0
+    numBody = 0
+    call obs_set_current_header_list(obsdat, obsFamily)
+    HEADERCOUNT: do
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADERCOUNT
+      if (present(codeTypeList_opt)) then
+        codeType  = obs_headElem_i(obsdat, OBS_ITY, headerIndex)
+        if (all(codeTypeList_opt(:) /= codeType)) cycle HEADERCOUNT
+      end if
+      numHeader = numHeader + 1
+      numBody = numBody + obs_headElem_i(obsdat, OBS_NLV, headerIndex)
+    end do HEADERCOUNT
+    allocate(allNumHeader(mmpi_nprocs))
+    allocate(allNumBody(mmpi_nprocs))
+    call rpn_comm_allgather(numHeader,1,'mpi_integer',       &
+                            allNumHeader,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(numBody,1,'mpi_integer',       &
+                            allNumBody,1,'mpi_integer','GRID',ierr)
+    if (mmpi_myid > 0) then
+      idObs = sum(allNumHeader(1:mmpi_myid))
+      idData = sum(allNumBody(1:mmpi_myid))
+    else
+      idObs = 0
+      idData = 0
+    end if
+    deallocate(allNumHeader)
+    deallocate(allNumBody)
+  end subroutine getInitialIdObsData
 
 end module obsdbFiles_mod
