@@ -186,35 +186,14 @@
  itemUpdateList(1)='OMP'
  itemUpdateList(2)='OMA'
 /
- &NAMSQLamsua
-  listElem="12163"
-/
- &NAMSQLamsub
-  listElem="12163"
-/
- &NAMSQLssmi
-  listElem="12163"
-/
- &NAMSQLatms
-  listElem="12163"
-/
- &NAMSQLcsr
-  listElem="12163"
-/
- &NAMSQLairs
+ &NAMSQLTOVS
   listElem="12163"
 /
  &NAMSQLai
   listElem="12001,11001,11002,12192"
   sqlNull=" and obsvalue is not null and vcoord is not null "
 /
- &NAMSQLcris
-  listElem="12163"
-/
  &NAMSQLgp
-/
- &NAMSQLiasi
-  listElem="12163"
 /
  &NAMSQLro
   listElem="15036,15037"

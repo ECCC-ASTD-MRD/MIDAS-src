@@ -31,10 +31,12 @@
 /
  &NAMBEN
 /
- &NAMSQLsfc
-   listElem='22042'
-   sqlNull=" and obsvalue is not null "
-/ 
+ &NAMSQLsst
+  listElem='22042'
+  sqlNull=' and obsvalue is not null '
+  sqlExtraDat_sat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","NOAA19","N20","NPP","AMSR2")) '
+  sqlExtraHeader_sat=' id_stn in ("METO-A","METO-B","NOAA19","N20","NPP","AMSR2") '
+/
  &namSSTObsErrors
    !#                     dataType ,    instrument ,   sensor ,  sensorType , codetype , dayError , nightError
    SSTdataParams(1)  =    'insitu' ,     'drifter' ,       '' ,          '' ,       18 ,     0.36 ,       0.36
@@ -48,12 +50,6 @@
    SSTdataParams(9)  = 'satellite' ,       'VIIRS' ,    'NPP' ,  'infrared' ,       88 ,     0.80 ,       0.49
    SSTdataParams(10) = 'satellite' ,       'AMSR2' ,  'AMSR2' , 'microwave' ,       88 ,     0.80 ,       0.80
    SSTdataParams(11) =    'pseudo' ,       'Bogus' ,       '' ,          '' ,      150 ,     1.00 ,       1.00
-/
-&namReadSSTSat
-   listElem='22042'
-   sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","NOAA19","N20","NPP","AMSR2")) '
-   sqlNull=' and obsvalue is not null '
-   sqlExtraHeader=' id_stn in ("METO-A","METO-B","NOAA19","N20","NPP","AMSR2") '
 /
  &namSQLUpdate
   itemUpdateList(1)='OMP'
