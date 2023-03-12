@@ -6,11 +6,8 @@
  elemIdList(1) = 12163
 /
 &namObsDbMIDASBodyUpdate
- numberUpdateItems=4
+ numberUpdateItems=1
  updateItemList(1)='OMP'
- updateItemList(2)='BCOR'
- updateItemList(3)='OER'
- updateItemList(4)='SEM'
 /
 &namObsDbMIDASHeaderUpdate
  numberUpdateItems=1
