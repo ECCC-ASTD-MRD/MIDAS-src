@@ -1726,7 +1726,7 @@ contains
             write(*,*) STNID(2:9),' extreme scattering check reject: ', &
                     ' obs location index = ', nChannelIndex, &
                     ' channel = 1-5'
-          endif
+          end if
         end do
       end if
 
@@ -2899,7 +2899,7 @@ contains
             clwFG(i) = clwFG(i)*cosz           ! theoretical cloud liquid water (0-3mm)
             clwFG(i) = clwFG(i) - 0.03         ! corrected   cloud liquid water 
             clwFG(i) = min(3.,max(0.,clwFG(i)))   ! jh       
-          endif
+          end if
 
           if ( skipLoopChan15Missing ) cycle loopObsGrody
 
@@ -3066,7 +3066,7 @@ contains
       else
           ier(i) = 0      
       end if 
-    enddo
+    end do
 
     ! 3) Compute parameters
     do i = 1, knt 
@@ -3080,14 +3080,14 @@ contains
           end if
         else
           scatl(i) = (tb89(i) - tb150(i)) - (0.158 + 0.0163 * pangl(i))
-        endif ! if (ktermer(i) == 1)
+        end if ! if (ktermer(i) == 1)
       else if ((ier(i) /= 0) .and. (i <= 100 )) then 
         print *, 'bennartz: input Parameters are not all valid: '
         print *, 'bennartz: i, tb89(i), tb150(i), pangl(i), ktermer(i) = ', &
                             i, tb89(i), tb150(i), pangl(i), ktermer(i)
         print *, 'bennartz: ier(i), scatl(i), scatwObs(i), scatwFG(i)=', &
                             ier(i), scatl(i), scatwObs(i), scatwFG(i)
-      endif ! if (ier(i) == 0)
+      end if ! if (ier(i) == 0)
     end do 
 
   end subroutine bennartz
@@ -5084,7 +5084,7 @@ contains
       else
         mgintrp(kk) = sum(mgintob(:))/real((mxlat*mxlon))
         lgintrp(kk) = sum(lgintob(:))/real((mxlat*mxlon))
-      endif
+      end if
 
     end do
 
