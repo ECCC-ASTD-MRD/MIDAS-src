@@ -2220,7 +2220,6 @@ contains
     character(len=lenSqlName) :: sqlColumnName, vnmSqlName, pppSqlName, varSqlName
     character(len=3000)  :: query
     character(len=5000)  :: tableInsertColumnList
-    character(len=lenSqlName) :: midasBodyTableName_tmp = ' '
     character(len=20)        :: sqlDataType
     logical              :: midasTableExists
     logical, save        :: nmlAlreadyRead = .false.
@@ -2370,17 +2369,6 @@ contains
       call fSQL_finalize( stmt )
       call fSQL_commit( db )
 
-      ! create an index for the new table - necessary to speed up the update
-      query = 'create index idx_midasBodyTable on ' // &
-              trim(midasBodyTableName) // &
-              '(' // trim(obsBodyKeySqlName) // ');'
-      write(*,*) 'odbf_insertInMidasBodyTable: query = ', trim(query)
-      call fSQL_do_many( db, query, stat )
-      if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
-      end if
-
       ! close the obsDB file
       call fSQL_close( db, stat ) 
 
@@ -2391,79 +2379,50 @@ contains
 
     end if ! .not.midasTableExists
 
-    !! Add additional columns to the MIDAS Body table if requested from namObsDbMIDASBodyUpdate
-    !! namelist
-    !call odbf_addColumnsMidasTable(midasTableType, fileName, midasBodyTableName, midasBodyNamesList, &
-    !                              obsHeadKeySqlName, obsBodyKeySqlName, &
-    !                              numberUpdateItems, updateItemList, &
-    !                              midasBodyKeySqlName, &
-    !                              numMidasTableRequired_opt = numBodyMidasTableRequired)
-!return
-
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_insertInMidasBodyTable: fSQL_open: ', fSQL_errmsg(stat)
       call utl_abort('odbf_insertInMidasBodyTable: fSQL_open '//fSQL_errmsg(stat) )
     end if
 
-    ! Create Temporary table
-    midasBodyTableName_tmp = 'newColumn_tmp'
-    query = 'create table ' // trim(midasBodyTableName_tmp) // ' (' // &
-            'ID_OBSERVATION integer,'
-
-    ! Add additional columns to the temporary table
+    tableInsertColumnList = ''
+    
+    ! At each loop iteration, create temporary table for the current updateItemList, add it to
+    !  a separate table, to have all updateItemList(:) columns in the table at the end
     do updateItemIndex = 1, numberUpdateItems
-      
+
       ! get obsSpaceData column index for source of updated sql column
       obsSpaceColumnName = updateItemList(updateItemIndex)
       ierr = clib_toUpper(obsSpaceColumnName)
       obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
-
+      
       sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasBodyNamesList)
       write(*,*) 'odbf_insertInMidasBodyTable: updating midasTable column: ', trim(sqlColumnName)
       write(*,*) 'odbf_insertInMidasBodyTable: with contents of obsSpaceData column: ', &
                 trim(obsSpaceColumnName)
-
-      ! add column to sqlite table
+                
+      ! Create temporary table 'newColumn_tmp'
+      query = 'create table newColumn_tmp(' // new_line('A') // &
+              '  ' // trim(obsBodyKeySqlName) // ' integer,' // new_line('A')
+              
+      ! add column to the temporary table
       if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
         sqlDataType = 'double'
       else
         sqlDataType = 'integer'
       end if
       query = trim(query) // '  ' // trim(sqlColumnName) // ' ' // trim(sqlDataType)
-        
-      if (updateItemIndex < numberUpdateItems) query = trim(query) // ', '
-      query = trim(query) // new_line('A')
 
-    end do
-
-    query = trim(query) // ');'
-    write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
-    call fSQL_do_many( db, query, stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
-    end if     
-
-    tableInsertColumnList = ''
-
-    do updateItemIndex = 1, numberUpdateItems
-
-      ! get obsSpaceData column index for source of updated sql column
-      obsSpaceColumnName = updateItemList(updateItemIndex)
-      ierr = clib_toUpper(obsSpaceColumnName)
-      obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
-      
-      sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasBodyNamesList)
-      write(*,*) 'odbf_insertInMidasBodyTable: updating midasTable column: ', trim(sqlColumnName)
-      write(*,*) 'odbf_insertInMidasBodyTable: with contents of obsSpaceData column: ', &
-                trim(obsSpaceColumnName)
-
-      tableInsertColumnList = trim(tableInsertColumnList) // trim(sqlColumnName)
-      if (updateItemIndex < numberUpdateItems) tableInsertColumnList = trim(tableInsertColumnList) // ', '
+      query = trim(query) // ');'
+      write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
+      call fSQL_do_many( db, query, stat )
+      if ( fSQL_error(stat) /= FSQL_OK ) then
+        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+        call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+      end if    
 
       ! prepare sql update query
-      query = 'insert into ' // trim(midasBodyTableName_tmp) // '(' // &
+      query = 'insert into newColumn_tmp(' // &
               trim(sqlColumnName)  // ',' // &
               trim(obsBodyKeySqlName) // ') values(?,?);'
       write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
@@ -2522,8 +2481,6 @@ contains
 
           call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdd)
 
-          !if (updateItemIndex == 1) write(*,*) 'maziar: bodyIndex=', bodyIndex, ', OMP=', updateValue_r
-
           call fSQL_exec_stmt(stmt)
 
         end do BODY2
@@ -2532,40 +2489,121 @@ contains
 
       call fSQL_finalize( stmt )
       call fSQL_commit( db )
+
+      if (updateItemIndex == 1) then
+        ! Rename temporary table 'newColumn_tmp' -> 'combinedTable'
+        query = 'alter table newColumn_tmp rename to combinedTable;'
+        write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
+        call fSQL_do_many( db, query, stat )
+        if ( fSQL_error(stat) /= FSQL_OK ) then
+          write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+          call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+        end if
+      else
+        ! Combine temporary table 'newColumn_tmp' + 'combinedTable' -> 'combinedTable_tmp'
+        query = 'create table combinedTable_tmp as select ' // new_line('A') // &
+                '  ' // 'newColumn_tmp.' // trim(obsBodyKeySqlName) // ', ' // new_line('A') // &
+                '  ' // 'newColumn_tmp.' // trim(sqlColumnName) // new_line('A') // &        
+                        trim(tableInsertColumnList) // '  from ' // new_line('A') // &
+                '  ' // 'newColumn_tmp inner join combinedTable' // ' on ' // new_line('A') // &
+                '  ' // 'newColumn_tmp.' // trim(obsBodyKeySqlName) // '=' // &
+                'combinedTable.' // trim(obsBodyKeySqlName) // ';'
+
+        write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
+        call fSQL_do_many( db, query, stat )
+        if ( fSQL_error(stat) /= FSQL_OK ) then
+          write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+          call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+        end if
+
+        ! Drop the newColumn_tmp/combinedTable tables 
+        query = 'drop table newColumn_tmp;'
+        write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
+        call fSQL_do_many( db, query, stat )
+        if ( fSQL_error(stat) /= FSQL_OK ) then
+          write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+          call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+        end if
+
+        query = 'drop table combinedTable;'
+        write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
+        call fSQL_do_many( db, query, stat )
+        if ( fSQL_error(stat) /= FSQL_OK ) then
+          write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+          call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+        end if
+
+        ! Rename temporary table 'combinedTable_tmp' -> 'combinedTable'
+        query = 'alter table combinedTable_tmp rename to combinedTable;'
+        write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
+        call fSQL_do_many( db, query, stat )
+        if ( fSQL_error(stat) /= FSQL_OK ) then
+          write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+          call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+        end if        
+      end if
+
+      tableInsertColumnList = trim(tableInsertColumnList) // &
+                              '  , combinedTable.' // trim(sqlColumnName) // new_line('A')
+
     end do
 
-    query = 'create table combinedTable as ' // &
-            'select newColumn_tmp.ID_OBSERVATION, MIDAS_BODY_OUTPUT.OBS_VALUE, ' // &
-            '       newColumn_tmp.FLAG from ' // &
-            '    newColumn_tmp ' // &
-            '    inner join  MIDAS_BODY_OUTPUT on' // &
-            '    newColumn_tmp.ID_OBSERVATION=MIDAS_BODY_OUTPUT.ID_OBSERVATION;'
+    ! Combine temporary table midasBodyTableName + 'combinedTable' -> 'combinedTable_tmp'
+    query = 'create table combinedTable_tmp as select ' // new_line('A') // &
+            '  ' // trim(midasBodyTableName) // '.' // trim(midasBodyKeySqlName) // ', ' // new_line('A') // &
+            '  ' // trim(midasBodyTableName) // '.' // trim(obsHeadKeySqlName) // ', ' // new_line('A') // &
+            '  ' // trim(midasBodyTableName) // '.' // trim(obsBodyKeySqlName) // ', ' // new_line('A') // &
+            '  ' // trim(midasBodyTableName) // '.' // trim(vnmSqlname) // ', ' // new_line('A') // &
+            '  ' // trim(midasBodyTableName) // '.' // trim(pppSqlName) // ', ' // new_line('A') // &
+            '  ' // trim(midasBodyTableName) // '.' // trim(varSqlname) // new_line('A') // &
+            '  ' // trim(tableInsertColumnList) // '  from ' // new_line('A') // &
+            '  ' // 'combinedTable inner join ' // trim(midasBodyTableName) // ' on ' // new_line('A') // &
+            '  ' // 'combinedTable.' // trim(obsBodyKeySqlName) // '=' // &
+                    trim(midasBodyTableName) // '.' // trim(obsBodyKeySqlName) // ';'
+
     write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
     call fSQL_do_many( db, query, stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
       call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
     end if
-!
-!    ! Copy the content of temporary table into original table
-!    query = 'insert into combinedTable (ID_OBSERVATION,FLAG) ' // &
-!            'select (ID_OBSERVATION,FLAG) from MIDAS_BODY_OUTPUT,newColumn_tmp;'
-!
-!    write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
-!    call fSQL_do_many( db, query, stat )
-!    if ( fSQL_error(stat) /= FSQL_OK ) then
-!      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-!      call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
-!    end if
-    
-    !! Drop the temporary table
-    !query = 'drop table '// trim(midasBodyTableName_tmp) //';'
-    !write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
-    !call fSQL_do_many( db, query, stat )
-    !if ( fSQL_error(stat) /= FSQL_OK ) then
-    !  write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-    !  call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
-    !end if
+
+    ! Drop the midasBodyTableName/'combinedTable' tables 
+    query = 'drop table ' // trim(midasBodyTableName) // ';'
+    write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
+    call fSQL_do_many( db, query, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+    end if
+
+    query = 'drop table combinedTable;'
+    write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
+    call fSQL_do_many( db, query, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+    end if
+
+    ! Rename temporary table 'combinedTable_tmp' -> midasBodyTableName
+    query = 'alter table combinedTable_tmp rename to ' // trim(midasBodyTableName) // ';'
+    write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
+    call fSQL_do_many( db, query, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+    end if
+
+    ! create an index for the new table - necessary to speed up the update
+    query = 'create index idx_midasBodyTable on ' // &
+            trim(midasBodyTableName) // &
+            '(' // trim(obsBodyKeySqlName) // ');'
+    write(*,*) 'odbf_insertInMidasBodyTable: query = ', trim(query)
+    call fSQL_do_many( db, query, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+    end if
 
     ! close the obsDB file
     call fSQL_close( db, stat ) 
