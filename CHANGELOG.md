@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Integrated inovqc program for MWHS2 data (#715 and !705)
  * Added a `msg` subroutine to replace section comments in source (#751 and !702)
  * Added two `gsv` functions to query statevector content (#713 and !703)
  * Added new O-P background check test for GPS-RO data (#753 and !696)
