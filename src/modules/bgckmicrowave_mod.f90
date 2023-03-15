@@ -3956,7 +3956,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckMwhs2(TOVERRST, clwThreshArr, sigmaObsErr, useStateDepSigmaObs, &
+  subroutine mwbg_tovCheckMwhs2(TOVERRST, clwThreshArr, errThreshAllsky, useStateDepSigmaObs, &
                                 IUTILST, zlat, zlon, ilq, itt, zenith, &
                                 ICANO, ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
                                 ISCNPOS, MTINTRP, globMarq, IMARQ, clwObs, clwFG, riwv, &
@@ -3974,8 +3974,8 @@ contains
     !                                                            2 (assimilate over open water only)
 
     real(8), intent(in)              :: TOVERRST(:,:)          ! l'erreur totale des TOVS
-    real(8), intent(in)              :: clwThreshArr(:,:,:)
-    real(8), intent(in)              :: sigmaObsErr(:,:,:)
+    real(8), intent(in)              :: clwThreshArr(:,:,:)    ! clw thresholds for all-sky
+    real(8), intent(in)              :: errThreshAllsky(:,:,:) ! sigma obs error thresholds for all-sky
     logical, intent(in)              :: useStateDepSigmaObs(:,:) ! if using state dependent obs error
     integer, intent(in)              :: KNO                    ! nombre de canaux des observations
     integer, intent(in)              :: KNT                    ! nombre de tovs
@@ -4207,7 +4207,7 @@ contains
     !  OVER OPEN WATER
     !    ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
     call Mwhs2Test4RogueCheck (itest, KCANO, KNOSAT, KNO, KNT, STNID, ROGUEFAC, TOVERRST, &
-                              clwThreshArr, useStateDepSigmaObs, sigmaObsErr, waterobs, &
+                              clwThreshArr, useStateDepSigmaObs, errThreshAllsky, waterobs, &
                               PTBOMP, clwObs, clwFG, IDENT, ICH2OMPREJ, &
                               MXCH2OMPREJ, KMARQ, B7CHCK, ICHECK)
 
@@ -7293,7 +7293,7 @@ contains
                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                atmScatteringIndexObs, burpFileSatId, RESETQC)
       else if (instName == 'MWHS2') then
-        call mwbg_tovCheckMwhs2(oer_toverrst, oer_clwThreshArr, oer_sigmaObsErr, oer_useStateDepSigmaObs, &
+        call mwbg_tovCheckMwhs2(oer_toverrst, oer_cldPredThresh, oer_errThreshAllsky, oer_useStateDepSigmaObs, &
                                 oer_tovutil, obsLatitude, obsLongitude, &
                                 landQualifierIndice, terrainTypeIndice, satZenithAngle,  &
                                 obsChannels, obsTb, obsTbBiasCorr, ompTb, qcIndicator,   &
