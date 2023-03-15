@@ -268,7 +268,7 @@
    NIGHT_ANG=100.d0,
 /
  &NAMOER
-  mwAllskyInflateByOmp = .true.,
-  mwAllskyInflateByClwDiff = .true.,
+  mwAllskyTtInflateByOmp = .true.,
+  mwAllskyTtInflateByClwDiff = .true.,
   readOldSymmetricObsErrFile = .false.,
 /

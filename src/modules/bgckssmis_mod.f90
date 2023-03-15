@@ -39,7 +39,6 @@ module bgckssmis_mod
   real,    parameter :: ssbg_realMissing=-99. 
   integer, parameter :: ssbg_intMissing=-1
   ! Other variables:
-  real,    parameter :: ssbg_zmisg=9.9e09
   real,    parameter :: ssbg_rmisg=-999.0
   real,    parameter :: ssbg_clwThresh=0.02
   integer, parameter :: ssbg_mxval=30
@@ -863,15 +862,13 @@ contains
     ! Locals
     ! Notes: In the case where an output parameter cannot be calculated, the
     ! value of this parameter is the missing value, i.e. -99.
-    real, parameter :: zMisg = -99.
-
     integer :: obsIndex
 
     ! ____1) Initialise output parameters:**    -------------------------------*
 
     do obsIndex = 1, numObsToProcess
-      scatL(obsIndex) = zMisg
-      scatW(obsIndex) = zMisg
+      scatL(obsIndex) = ssbg_realMissing
+      scatW(obsIndex) = ssbg_realMissing
     end do
 
     !____2) Validate input parameters:**    -----------------------------*
@@ -1846,7 +1843,6 @@ contains
     !initialization
     obsTb(:) = ssbg_realMissing
     riwv(:) = ssbg_realMissing
-    scatW(:) = ssbg_realMissing
     
     ! Lecture dans obsspacedata
 
@@ -2113,7 +2109,11 @@ contains
     !-------------------------------------------------------------------------------
     call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, landSeaQualifier(1))
     call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, terrainType(1))
-    call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, scatW(1))
+    if (scatW(1) /= ssbg_realMissing) then
+      call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, scatW(1))
+    else
+      call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, MPC_missingValue_R4)
+    end if
     call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, rclw(1))
     call obs_headSet_r(obsSpaceData, OBS_IWV,  headerIndex, riwv(1))
 

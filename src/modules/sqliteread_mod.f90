@@ -1677,10 +1677,13 @@ module sqliteRead_mod
       if (codtyp_get_name(codeType_opt) == 'radianceclear') then
         fileName  = 'csr'
       else if (codtyp_get_name(codeType_opt) == 'mhs' .or. codtyp_get_name(codeType_opt) == 'amsub') then
-        fileName = 'to_amsub'
+        if (tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt)))) then
+          fileName = 'to_amsub_allsky'
+        else
+          fileName = 'to_amsub'
+        end if
       else if (codtyp_get_name(codeType_opt) == 'amsua') then
-        if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt))) .or. &
-            tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt)))) then
+        if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt)))) then
           fileName = 'to_amsua_allsky'
         else
           fileName = 'to_amsua'
@@ -1689,6 +1692,13 @@ module sqliteRead_mod
         fileName = 'ssmis'
       else if (codtyp_get_name(codeType_opt) == 'crisfsr') then
         fileName = 'cris'
+      else if (codtyp_get_name(codeType_opt) == 'atms') then
+        if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt))) .or. &
+            tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt)))) then
+          fileName = 'atms_allsky'
+        else
+          fileName = 'atms'        
+        end if
       else
         fileName = codtyp_get_name(codeType_opt)
       end if

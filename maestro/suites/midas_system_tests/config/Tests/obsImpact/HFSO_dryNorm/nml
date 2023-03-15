@@ -216,8 +216,8 @@
 /
  &NAMOER
   NEW_OER_SW=.true.
-  mwAllskyInflateByOmp = .true.
-  mwAllskyInflateByClwDiff = .true.
+  mwAllskyTtInflateByOmp = .true.
+  mwAllskyTtInflateByClwDiff = .true.
 /
  &NAMBGCKCONV
   NEW_BGCK_SW=.true.
