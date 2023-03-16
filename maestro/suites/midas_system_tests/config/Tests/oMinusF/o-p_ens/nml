@@ -159,6 +159,9 @@
   BITEMLIST(1)='OMP',
   TYPE_RESUME='DERIALT'
 /
+ &NAMPHY
+  saturationCurve='Tetens_1930'
+/
  &NAMWRITEDIAG
   lWriteDiagSql=.true.
 /

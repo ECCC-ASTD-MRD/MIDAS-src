@@ -30,3 +30,6 @@
    ANLVAR(4)    ='HU'
    ANLVAR(5)    ='P0'
 /
+ &NAMPHY
+  saturationCurve='Tetens_1930'
+/

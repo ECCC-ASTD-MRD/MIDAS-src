@@ -173,6 +173,9 @@
   BITEMLIST(3)='OER',
   TYPE_RESUME='POSTALT'
 /
+ &NAMPHY
+  saturationCurve='Tetens_1930'
+/
  &namSQLInsert
   itemInsertList(1)=11215
   itemInsertList(2)=11216

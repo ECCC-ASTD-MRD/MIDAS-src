@@ -23,6 +23,8 @@ module physicsFunctions_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
+  use midasMpi_mod
+  use message_mod
   
   implicit none
   private
@@ -38,318 +40,401 @@ module physicsFunctions_mod
   public :: phf_get_tropopause, phf_get_pbl, phf_calcDistance, phf_calcDistanceFast
   public :: phf_height2geopotential, phf_gravityalt, phf_gravitysrf
 
-  LOGICAL :: initialized = .false.
+  logical           :: phf_initialized = .false.
 
-  ! namelist variable
-  LOGICAL :: NEW_TETENS_COEFS  ! choose to use 'new' coefficients for computing humidity saturation point
+  ! namelist variables:
+  character(len=20) :: saturationCurve   ! saturationCurve must be one of 'Tetens_1930', 'Tetens_2018a', 'Tetens_2018'
 
   contains
 
-  !--------------------------------------------------------------------------
-  ! tetens_coefs_switch
-  !--------------------------------------------------------------------------
-   subroutine tetens_coefs_switch
+   !--------------------------------------------------------------------------
+   ! tetens_coefs_switch
+   !--------------------------------------------------------------------------
+   subroutine phf_tetens_coefs_switch
+     !
+     ! :Purpose: Read water saturation strategy from nml. Options are:
+     !
+     !             - 'Tetens_1930' was active before 2018.
+     !             - 'Tetens_2018a' is a partial update that missed some functions (active before IC4)
+     !             - 'Tetens_2018' completes the update to the intended 2018 specification.
+     !
+     integer            :: NULNAM,IERR,FNOM,FCLOS
+     character(len=256) :: NAMFILE
+     logical            :: validOption
 
-      INTEGER*4      :: NULNAM,IER,FNOM,FCLOS
-      CHARACTER *256 :: NAMFILE
+     !$omp single
+     saturationCurve = 'Tetens_2018'
+     NAMELIST /NAMPHY/ saturationCurve
 
-      NAMELIST /NAMPHY/NEW_TETENS_COEFS
+     if ( .not. utl_isNamelistPresent('NAMPHY','./flnml') ) then
+       call msg( 'phf_tetens_coefs_switch', &
+            'NAMPHY is missing in the namelist. Default values will be taken.', mpiAll_opt=.False.)
+     else
+       ! Reading the namelist
+       nulnam = 0
+       ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+       read(nulnam, nml=namphy, iostat=ierr)
+       if ( ierr /= 0) call utl_abort('tetens_coefs: Error reading namelist')
+       ierr = fclos(nulnam)
+     end if
 
-      ! read the namelist
-      NEW_TETENS_COEFS = .false.  
-      NAMFILE=trim("flnml")
-      nulnam=0
-      IER=FNOM(NULNAM,NAMFILE,'R/O',0)
+     validOption = (trim(saturationCurve) == 'Tetens_1930'  .or.  &
+                    trim(saturationCurve) == 'Tetens_2018a' .or.  &
+                    trim(saturationCurve) == 'Tetens_2018')
+     if (.not.validOption) then
+       call utl_abort('phf_tetens: WV Saturation not in expected list')
+     end if
 
-      READ(NULNAM,NML=NAMPHY,IOSTAT=IER)
-      if(IER.ne.0) then
-        write(*,*) 'No valid namelist NAMPHY found'
-      endif
+     call msg( 'phf_tetens_coefs_switch ', saturationCurve )
+     phf_initialized = .true.
+     !$omp end single
+   end subroutine phf_tetens_coefs_switch
 
-      IER=FCLOS(NULNAM)
-
-      write(*,*) 'new_tetens_coefs = ',new_tetens_coefs
-      initialized = .true.
-
-   end subroutine tetens_coefs_switch
-
-  !--------------------------------------------------------------------------
-  ! phf_FOEW8
-  !--------------------------------------------------------------------------
+   !--------------------------------------------------------------------------
+   ! phf_FOEW8
+   !--------------------------------------------------------------------------
    real*8 function phf_FOEW8(TTT)
-        !
-        !:Purpose: FONCTION DE TENSION DE VAPEUR SATURANTE (TETENS) - EW OU EI SELON TT
-        !
-        implicit none
-        real*8 TTT
-        phf_FOEW8 = 610.78D0*EXP( MIN(SIGN(17.269D0,TTT-MPC_TRIPLE_POINT_R8),SIGN &
-              (21.875D0,TTT-MPC_TRIPLE_POINT_R8))*ABS(TTT-MPC_TRIPLE_POINT_R8)/ &
-              (TTT-35.86D0+MAX(0.D0,SIGN(28.2D0,MPC_TRIPLE_POINT_R8-TTT))))
-    end function phf_foew8
+     !
+     ! :Purpose: Water vapour saturation pressure (Tetens) - EW or EI as a fct of TT
+     !
+     implicit none
+     real*8 TTT
 
-  !--------------------------------------------------------------------------
-  ! phf_FODLE8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FODLE8(TTT)
-        !
-        !:Purpose: FONCTION CALCULANT LA DERIVEE SELON T DE  LN EW (OU LN EI)
-        !
-        implicit none
-        real*8 TTT
-        phf_FODLE8=(4097.93D0+MAX(0.D0,SIGN(1709.88D0,MPC_TRIPLE_POINT_R8-TTT))) &
-             /((TTT-35.86D0+MAX(0.D0,SIGN(28.2D0,MPC_TRIPLE_POINT_R8-TTT)))*  &
-               (TTT-35.86D0+MAX(0.D0,SIGN(28.2D0,MPC_TRIPLE_POINT_R8-TTT))))
-  end function phf_FODLE8
+     if (.not.phf_initialized) call phf_tetens_coefs_switch
 
-  !--------------------------------------------------------------------------
-  ! phf_FOQST8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FOQST8(TTT,PRS) 
-        !
-        !:Purpose: FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE (QSAT)
-        !
-        implicit none
-        real*8 TTT,PRS
-        phf_FOQST8=MPC_EPS1_R8/(MAX(1.D0,PRS/phf_FOEW8(TTT))-MPC_EPS2_R8)
-  end function phf_FOQST8
+     if (trim(saturationCurve) == 'Tetens_2018') then
+       ! Updated coefficients 2018
+       if (TTT > MPC_K_C_DEGREE_OFFSET_R8) then
+         phf_FOEW8 = 610.94D0*EXP(17.625D0 * (TTT-MPC_TRIPLE_POINT_R8) / (TTT-30.11D0))
+       else
+         phf_FOEW8 = 610.94D0*EXP(22.587D0 * (TTT-MPC_TRIPLE_POINT_R8) / (TTT+ 0.71D0))
+       end if
+     else
+       ! Classic Tetens 1930 coefficients
+       if (TTT > MPC_TRIPLE_POINT_R8) then
+         phf_FOEW8 = 610.78D0*EXP(17.269D0 * (TTT-MPC_TRIPLE_POINT_R8) / (TTT-35.86D0))
+       else
+         phf_FOEW8 = 610.78D0*EXP(21.875D0 * (TTT-MPC_TRIPLE_POINT_R8) / (TTT- 7.66D0))
+       end if
+     end if
+   end function phf_foew8
 
-  !--------------------------------------------------------------------------
-  ! phf_FODQS8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FODQS8(QST,TTT) 
-        !
-        !:Purpose: FONCTION CALCULANT LA DERIVEE DE QSAT SELON T
-        !
-        implicit none
-        real*8 TTT,QST
-        phf_FODQS8=QST*(1.D0+MPC_DELTA_R8*QST)*phf_FODLE8(TTT)
-  end function phf_FODQS8
-  ! QST EST LA SORTIE DE FOQST
+   !--------------------------------------------------------------------------
+   ! phf_FODLE8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FODLE8(TTT)
+     !
+     ! :Purpose: FONCTION CALCULANT LA DERIVEE SELON T DE  LN EW (OU LN EI)
+     !
+     implicit none
+     real*8 TTT
 
-  !--------------------------------------------------------------------------
-  ! phf_FOEFQ8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FOEFQ8(QQQ,PRS)  
-        !
-        !:Purpose: FONCTION CALCULANT TENSION VAP (EEE) FN DE HUM SP (QQQ) ET PRS
-        !
-        implicit none
-        real*8 QQQ,PRS
-        phf_FOEFQ8= MIN(PRS,(QQQ*PRS) / (MPC_EPS1_R8 + MPC_EPS2_R8*QQQ))
-  end function phf_FOEFQ8
+     if (.not.phf_initialized) call phf_tetens_coefs_switch
 
-  !--------------------------------------------------------------------------
-  ! FOQFE8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FOQFE8(EEE,PRS)  
-        !
-        !:Purpose: FONCTION CALCULANT HUM SP (QQQ) DE TENS. VAP (EEE) ET PRES (PRS)
-        !
-        implicit none
-        real*8 EEE,PRS
-        phf_FOQFE8= MIN(1.D0,MPC_EPS1_R8*EEE / (PRS-MPC_EPS2_R8*EEE))
-  end function phf_FOQFE8
+     if (trim(saturationCurve) == 'Tetens_2018') then
+       if (TTT > MPC_TRIPLE_POINT_R8) then
+         phf_FODLE8 = 4283.76D0/(TTT-30.11D0)**2
+       else
+         phf_FODLE8 = 6185.90D0/(TTT+ 0.71D0)**2
+       end if
+     else
+       if (TTT > MPC_TRIPLE_POINT_R8) then
+         phf_FODLE8 = 4097.93D0/(TTT-35.86D0)**2
+       else
+         phf_FODLE8 = 5807.81D0/(TTT- 7.66D0)**2
+       end if
+     end if
+   end function phf_FODLE8
 
-  !--------------------------------------------------------------------------
-  ! phf_FOTVT8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FOTVT8(TTT,QQQ)  
-        !
-        !:Purpose: FONCTION CALCULANT TEMP VIRT. (TVI) DE TEMP (TTT) ET HUM SP (QQQ)
-        !
-        implicit none
-        real*8 TTT,QQQ
-        phf_FOTVT8= TTT * (1.0D0 + MPC_DELTA_R8*QQQ)
+   !--------------------------------------------------------------------------
+   ! phf_FOQST8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FOQST8(TTT,PRS)
+     !
+     ! :Purpose: FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE (QSAT)
+     !
+     implicit none
+     real*8 TTT,PRS
+
+     phf_FOQST8=MPC_EPS1_R8/(MAX(1.D0,PRS/phf_FOEW8(TTT))-MPC_EPS2_R8)
+   end function phf_FOQST8
+
+   !--------------------------------------------------------------------------
+   ! phf_FODQS8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FODQS8(QST,TTT)
+     !
+     ! :Purpose: FONCTION CALCULANT LA DERIVEE DE QSAT SELON T
+     !
+     implicit none
+     real*8 TTT,QST
+
+     phf_FODQS8=QST*(1.D0+MPC_DELTA_R8*QST)*phf_FODLE8(TTT)
+   end function phf_FODQS8
+   ! QST EST LA SORTIE DE FOQST
+
+   !--------------------------------------------------------------------------
+   ! phf_FOEFQ8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FOEFQ8(QQQ,PRS)
+     !
+     ! :Purpose: FONCTION CALCULANT TENSION VAP (EEE) FN DE HUM SP (QQQ) ET PRS
+     !
+     implicit none
+     real*8 QQQ,PRS
+
+     phf_FOEFQ8= MIN(PRS,(QQQ*PRS) / (MPC_EPS1_R8 + MPC_EPS2_R8*QQQ))
+   end function phf_FOEFQ8
+
+   !--------------------------------------------------------------------------
+   ! FOQFE8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FOQFE8(EEE,PRS)
+     !
+     ! :Purpose: FONCTION CALCULANT HUM SP (QQQ) DE TENS. VAP (EEE) ET PRES (PRS)
+     !
+     implicit none
+     real*8 EEE,PRS
+
+     phf_FOQFE8= MIN(1.D0,MPC_EPS1_R8*EEE / (PRS-MPC_EPS2_R8*EEE))
+   end function phf_FOQFE8
+
+   !--------------------------------------------------------------------------
+   ! phf_FOTVT8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FOTVT8(TTT,QQQ)
+     !
+     ! :Purpose: FONCTION CALCULANT TEMP VIRT. (TVI) DE TEMP (TTT) ET HUM SP (QQQ)
+     !
+     implicit none
+     real*8 TTT,QQQ
+
+     phf_FOTVT8= TTT * (1.0D0 + MPC_DELTA_R8*QQQ)
    end function phf_FOTVT8
 
-  !--------------------------------------------------------------------------
-  ! phf_FOTTV8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FOTTV8(TVI,QQQ)  
-        !
-        !:Purpose: FONCTION CALCULANT TTT DE TEMP VIRT. (TVI) ET HUM SP (QQQ)
-        !
-        implicit none
-        real*8 TVI,QQQ
-        phf_FOTTV8= TVI / (1.0D0 + MPC_DELTA_R8*QQQ)
-  end function phf_FOTTV8
+   !--------------------------------------------------------------------------
+   ! phf_FOTTV8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FOTTV8(TVI,QQQ)
+     !
+     !:Purpose: FONCTION CALCULANT TTT DE TEMP VIRT. (TVI) ET HUM SP (QQQ)
+     !
+     implicit none
+     real*8 TVI,QQQ
 
-  !--------------------------------------------------------------------------
-  ! phf_FOHR8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FOHR8(QQQ,TTT,PRS) 
-        !
-        !:Purpose: FONCTION CALCULANT HUM REL DE HUM SP (QQQ), TEMP (TTT) ET PRES (PRS). 
-        !          Where HR = E/ESAT
-        !
-        implicit none
-        real*8 QQQ,TTT,PRS
-        phf_FOHR8 = MIN(PRS,phf_FOEFQ8(QQQ,PRS)) / phf_FOEW8(TTT)
-  end function phf_FOHR8
+     phf_FOTTV8= TVI / (1.0D0 + MPC_DELTA_R8*QQQ)
+   end function phf_FOTTV8
 
-  ! LES 5 FONCTIONS SUIVANTES SONT VALIDES DANS LE CONTEXTE OU ON
-  ! NE DESIRE PAS TENIR COMPTE DE LA PHASE GLACE DANS LES CALCULS
-  ! DE SATURATION.
+   !--------------------------------------------------------------------------
+   ! phf_FOHR8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FOHR8(QQQ,TTT,PRS)
+     !
+     !:Purpose: FONCTION CALCULANT HUM REL DE HUM SP (QQQ), TEMP (TTT) ET PRES (PRS).
+     !          Where HR = E/ESAT
+     !
+     implicit none
+     real*8 QQQ,TTT,PRS
+
+     phf_FOHR8 = MIN(PRS,phf_FOEFQ8(QQQ,PRS)) / phf_FOEW8(TTT)
+   end function phf_FOHR8
+
+   ! LES 5 FONCTIONS SUIVANTES SONT VALIDES DANS LE CONTEXTE OU ON
+   ! NE DESIRE PAS TENIR COMPTE DE LA PHASE GLACE DANS LES CALCULS
+   ! DE SATURATION.
   
-  !--------------------------------------------------------------------------
-  ! phf_FOEWA8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FOEWA8(TTT) 
-        !
-        !:Purpose: FONCTION DE VAPEUR SATURANTE (TETENS)
-        !
-        implicit none
-        real*8 TTT
-        phf_FOEWA8=610.78D0*EXP(17.269D0*(TTT-MPC_TRIPLE_POINT_R8)/(TTT-35.86D0))
-  end function phf_FOEWA8
+   !--------------------------------------------------------------------------
+   ! phf_FOEWA8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FOEWA8(TTT)
+     !
+     !:Purpose: FONCTION DE VAPEUR SATURANTE (TETENS)
+     !
+     implicit none
+     real*8 TTT
 
-  !--------------------------------------------------------------------------
-  ! phf_FODLA8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FODLA8(TTT) 
-        !
-        !:Purpose: FONCTION CALCULANT LA DERIVEE SELON T DE LN EW
-        !
-        implicit none
-        real*8 TTT
-        phf_FODLA8=17.269D0*(MPC_TRIPLE_POINT_R8-35.86D0)/(TTT-35.86D0)**2
-  end function phf_FODLA8
+     if (.not.phf_initialized) call phf_tetens_coefs_switch
 
-  !--------------------------------------------------------------------------
-  ! FOQSA8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FOQSA8(TTT,PRS) 
-        !
-        !:Purpose: FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE
-        !
-        implicit none
-        real*8 TTT,PRS
-        phf_FOQSA8=MPC_EPS1_R8/(MAX(1.D0,PRS/phf_FOEWA8(TTT))-MPC_EPS2_R8)
-  end function phf_FOQSA8
+     if (trim(saturationCurve) == 'Tetens_2018') then
+       phf_FOEWA8=610.94D0*EXP(17.625D0*(TTT-MPC_TRIPLE_POINT_R8)/(TTT-30.11D0))
+     else
+       phf_FOEWA8=610.78D0*EXP(17.269D0*(TTT-MPC_TRIPLE_POINT_R8)/(TTT-35.86D0))
+     end if
+   end function phf_FOEWA8
 
-  !--------------------------------------------------------------------------
-  ! phf_FODQA8
-  !--------------------------------------------------------------------------
-   real*8 function phf_FODQA8(QST,TTT) 
-        !
-        !:Purpose: FONCTION CALCULANT LA DERIVEE DE QSAT SELON T
-        !
-        implicit none
-        real*8 QST,TTT
-        phf_FODQA8=QST*(1.D0+MPC_DELTA_R8*QST)*phf_FODLA8(TTT)
-  end function phf_FODQA8
+   !--------------------------------------------------------------------------
+   ! phf_FODLA8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FODLA8(TTT)
+     !
+     !:Purpose: FONCTION CALCULANT LA DERIVEE SELON T DE LN EW
+     !
+     implicit none
+     real*8 TTT
 
-  !--------------------------------------------------------------------------
-  ! phf_FOHRA8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FOHRA8(QQQ,TTT,PRS) 
-        !
-        !:Purpose: FONCTION CALCULANT L'HUMIDITE RELATIVE
-        !
-        implicit none
-        real*8 QQQ,TTT,PRS
-        phf_FOHRA8=MIN(PRS,phf_FOEFQ8(QQQ,PRS))/phf_FOEWA8(TTT)
-  end function phf_FOHRA8
+     if (.not.phf_initialized) call phf_tetens_coefs_switch
 
-  ! LES 6 FONCTIONS SUIVANTES SONT REQUISES POUR LA TEMPERATURE
-  ! EN FONCTION DE LA TENSION DE VAPEUR SATURANTE.
-  ! (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)
+     if (trim(saturationCurve) == 'Tetens_2018') then
+       phf_FODLA8=17.625D0*(MPC_TRIPLE_POINT_R8-30.11D0)/(TTT-30.11D0)**2
+     else
+       phf_FODLA8=17.269D0*(MPC_TRIPLE_POINT_R8-35.86D0)/(TTT-35.86D0)**2
+     end if
+   end function phf_FODLA8
 
-  !--------------------------------------------------------------------------
-  ! phf_FOTW8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FOTW8(EEE) 
-        !
-        !:Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
-        !          SATURANTE PAR RAPPORT A EW.
-        !
-        implicit none
-        real*8 EEE
+   !--------------------------------------------------------------------------
+   ! FOQSA8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FOQSA8(TTT,PRS)
+     !
+     !:Purpose: FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE
+     !
+     implicit none
+     real*8 TTT,PRS
 
-       if(.not.initialized) call tetens_coefs_switch
-       if(new_tetens_coefs) then
-         phf_FOTW8=(30.11D0*LOG(EEE/610.94D0)-17.625D0*MPC_TRIPLE_POINT_R8)/ &
-              (LOG(EEE/610.94D0)-17.625D0)
-        else
-         phf_FOTW8=(35.86D0*LOG(EEE/610.78D0)-17.269D0*MPC_TRIPLE_POINT_R8)/ &
-              (LOG(EEE/610.78D0)-17.269D0)
-        endif
+     phf_FOQSA8=MPC_EPS1_R8/(MAX(1.D0,PRS/phf_FOEWA8(TTT))-MPC_EPS2_R8)
+   end function phf_FOQSA8
 
+   !--------------------------------------------------------------------------
+   ! phf_FODQA8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FODQA8(QST,TTT)
+     !
+     !:Purpose: FONCTION CALCULANT LA DERIVEE DE QSAT SELON T
+     !
+     implicit none
+     real*8 QST,TTT
+
+     phf_FODQA8=QST*(1.D0+MPC_DELTA_R8*QST)*phf_FODLA8(TTT)
+   end function phf_FODQA8
+
+   !--------------------------------------------------------------------------
+   ! phf_FOHRA8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FOHRA8(QQQ,TTT,PRS)
+     !
+     !:Purpose: FONCTION CALCULANT L'HUMIDITE RELATIVE
+     !
+     implicit none
+     real*8 QQQ,TTT,PRS
+
+     phf_FOHRA8=MIN(PRS,phf_FOEFQ8(QQQ,PRS))/phf_FOEWA8(TTT)
+   end function phf_FOHRA8
+
+   ! LES 6 FONCTIONS SUIVANTES SONT REQUISES POUR LA TEMPERATURE
+   ! EN FONCTION DE LA TENSION DE VAPEUR SATURANTE.
+   ! (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)
+
+   !--------------------------------------------------------------------------
+   ! phf_FOTW8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FOTW8(EEE)
+     !
+     !:Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
+     !          SATURANTE PAR RAPPORT A EW.
+     !
+     implicit none
+     real*8 EEE
+
+     if (.not.phf_initialized) call phf_tetens_coefs_switch
+
+     if (trim(saturationCurve) == 'Tetens_2018a' .or. trim(saturationCurve) == 'Tetens_2018') then
+       phf_FOTW8=(30.11D0*LOG(EEE/610.94D0)-17.625D0*MPC_TRIPLE_POINT_R8)/ &
+           (LOG(EEE/610.94D0)-17.625D0)
+     else
+       phf_FOTW8=(35.86D0*LOG(EEE/610.78D0)-17.269D0*MPC_TRIPLE_POINT_R8)/ &
+           (LOG(EEE/610.78D0)-17.269D0)
+     end if
    end function phf_FOTW8
 
-  !--------------------------------------------------------------------------
-  ! phf_FOTI8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FOTI8(EEE) 
-        !
-        !:Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
-        !          SATURANTE PAR RAPPORT A EI.
-        !
-        implicit none
-        real*8 EEE
-        phf_FOTI8=(7.66D0*LOG(EEE/610.78D0)-21.875D0*MPC_TRIPLE_POINT_R8)/ &
-             (LOG(EEE/610.78D0)-21.875D0)
-  end function phf_FOTI8
+   !--------------------------------------------------------------------------
+   ! phf_FOTI8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FOTI8(EEE)
+     !
+     ! :Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
+     !          SATURANTE PAR RAPPORT A EI.
+     !
+     implicit none
+     real*8 EEE
 
-  !--------------------------------------------------------------------------
-  ! phf_FODTH8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FODTW8(TTT,EEE) 
-        !
-        !:Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
-        !          VAPEUR SATURANTE (EW).
-        !
-        implicit none
-        real*8 TTT,EEE
+     if (.not.phf_initialized) call phf_tetens_coefs_switch
 
-        if(.not.initialized) call tetens_coefs_switch
-        if(new_tetens_coefs) then
-         phf_FODTW8=(30.11D0-TTT)/EEE/(LOG(EEE/610.94D0)-17.625D0)
-        else
-         phf_FODTW8=(35.86D0-TTT)/EEE/(LOG(EEE/610.78D0)-17.269D0)
-        endif
+     if (trim(saturationCurve) == 'Tetens_2018') then
+       phf_FOTI8=(-0.71D0*LOG(EEE/610.94D0)-22.587D0*MPC_TRIPLE_POINT_R8)/ &
+           (LOG(EEE/610.94D0)-22.587D0)
+     else
+       phf_FOTI8=( 7.66D0*LOG(EEE/610.78D0)-21.875D0*MPC_TRIPLE_POINT_R8)/ &
+           (LOG(EEE/610.78D0)-21.875D0)
+     end if
+   end function phf_FOTI8
 
-  end function phf_FODTW8
+   !--------------------------------------------------------------------------
+   ! phf_FODTH8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FODTW8(TTT,EEE)
+     !
+     ! :Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
+     !           VAPEUR SATURANTE (EW).
+     !
+     implicit none
+     real*8 TTT,EEE
 
-  !--------------------------------------------------------------------------
-  ! phf_FODTI8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FODTI8(TTT,EEE) 
-        !
-        !:Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
-        !          VAPEUR SATURANTE (EI).
-        !
-        implicit none
-        real*8 TTT,EEE
-        phf_FODTI8=(7.66D0-TTT)/EEE  &
-                      /(LOG(EEE/610.78D0)-21.875D0)
- end function phf_FODTI8
+     if (.not.phf_initialized) call phf_tetens_coefs_switch
 
-  !--------------------------------------------------------------------------
-  ! phf_FOTWI8
-  !--------------------------------------------------------------------------
-   real*8 function phf_FOTWI8(TTT,EEE) 
-        !
-        !:Purpose: FONCTION DE L'AJUSTEMENT DE LA TEMPERATURE.
-        !
-        implicit none
-        real*8 TTT,EEE
-        phf_FOTWI8=MAX(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FOTW8(EEE)  &
-                  -MIN(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FOTI8(EEE)
+     if (trim(saturationCurve) == 'Tetens_2018a' .or. trim(saturationCurve) == 'Tetens_2018') then
+       phf_FODTW8=(30.11D0-TTT)/EEE/(LOG(EEE/610.94D0)-17.625D0)
+     else
+       phf_FODTW8=(35.86D0-TTT)/EEE/(LOG(EEE/610.78D0)-17.269D0)
+     endif
+   end function phf_FODTW8
+
+   !--------------------------------------------------------------------------
+   ! phf_FODTI8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FODTI8(TTT,EEE)
+     !
+     ! :Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
+     !           VAPEUR SATURANTE (EI).
+     !
+     implicit none
+     real*8 TTT,EEE
+
+     if (.not.phf_initialized) call phf_tetens_coefs_switch
+
+     if (trim(saturationCurve) == 'Tetens_2018') then
+       phf_FODTI8=(-0.71D0-TTT)/EEE / (LOG(EEE/610.94D0)-22.587D0)
+     else
+       phf_FODTI8=( 7.66D0-TTT)/EEE / (LOG(EEE/610.78D0)-21.875D0)
+     end if
+   end function phf_FODTI8
+
+   !--------------------------------------------------------------------------
+   ! phf_FOTWI8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FOTWI8(TTT,EEE)
+     !
+     ! :Purpose: FONCTION DE L'AJUSTEMENT DE LA TEMPERATURE.
+     !
+     implicit none
+     real*8 TTT,EEE
+
+     phf_FOTWI8=MAX(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FOTW8(EEE)  &
+               -MIN(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FOTI8(EEE)
    end function phf_FOTWI8
 
-  !--------------------------------------------------------------------------
-  ! phf_FODWTI8
-  !--------------------------------------------------------------------------
-  real*8 function phf_FODTWI8(TTT,EEE) 
-        !
-        !:Purpose: FONCTION DE L'AJUSTEMENT DE LA DERIVEE DE LA TEMPERATURE.
-        !
-        implicit none
-        real*8 TTT,EEE
-        phf_FODTWI8=MAX(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FODTW8(TTT,EEE)  &
-                   -MIN(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FODTI8(TTT,EEE)
-  end function phf_FODTWI8
+   !--------------------------------------------------------------------------
+   ! phf_FODWTI8
+   !--------------------------------------------------------------------------
+   real*8 function phf_FODTWI8(TTT,EEE)
+     !
+     ! :Purpose: FONCTION DE L'AJUSTEMENT DE LA DERIVEE DE LA TEMPERATURE.
+     !
+     implicit none
+     real*8 TTT,EEE
+
+     phf_FODTWI8=MAX(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FODTW8(TTT,EEE)  &
+                -MIN(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FODTI8(TTT,EEE)
+   end function phf_FODTWI8
 
   ! LES 7 FONCTIONS SUIVANTES POUR EW-EI SONT REQUISES POUR LES MODELES
   ! CMAM ET CGCM. (AJOUTE PAR YVES J. ROCHON, ARQX/SMC, JUIN 2004)

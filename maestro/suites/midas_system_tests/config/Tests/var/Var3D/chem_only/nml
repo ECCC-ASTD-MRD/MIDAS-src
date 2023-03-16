@@ -75,6 +75,9 @@
   BITEMLIST(3)='OER',
   TYPE_RESUME='POSTALT'
 /
+ &NAMPHY
+  saturationCurve='Tetens_1930'
+/
  &NAMOSD
    NRANDSEED=999
    LRANDOM=.true.

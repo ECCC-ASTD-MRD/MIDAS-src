@@ -183,6 +183,9 @@
   BITEMLIST(3)='OER',
   TYPE_RESUME='POSTALT'
 /
+ &NAMPHY
+  saturationCurve='Tetens_1930'
+/
  &NAMSQLsfc
   listElem="11011,11012,12004,12203,10051,10004,15031,15032,15035"
   sqlNull=" and obsvalue is not null " 
@@ -192,7 +195,6 @@
   itemInsertList(2)=11216
   itemInsertList(3)=11003
   itemInsertList(4)=11004
-
 /
  &namSQLUpdate
  itemUpdateList(1)='OMP'
