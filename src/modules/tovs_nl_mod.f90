@@ -2336,12 +2336,15 @@ contains
       call utl_abort('tvs_fillProfiles: if number of instrument to use CLW greater than zero, ' // &
                      'the LWCR variable must be included as an analysis variable in NAMSTATE. ')
     end if
-    if (tvs_numMWInstrumUsingHydrometeors > 0 .and. &
-        .not. (col_varExist(columnTrl,'LWCR') .and. col_varExist(columnTrl,'IWCR') .and. &
-               col_varExist(columnTrl,'RF')   .and. col_varExist(columnTrl,'SF')   .and. &
-               col_varExist(columnTrl,'CLDR'))) then
-      call utl_abort('tvs_fillProfiles: if number of instrument to use hydrometeors greater than zero, ' // &
-                     'the LWCR/IWCR/RF/SF/CLDR variables must be included as an analysis variable in NAMSTATE. ')
+    if (tvs_numMWInstrumUsingHydrometeors > 0) then
+      if (.not. (col_varExist(columnTrl,'LWCR') .and. col_varExist(columnTrl,'IWCR'))) then
+        call utl_abort('tvs_fillProfiles: if number of instrument to use hydrometeors greater than zero, ' // &
+                       'the LWCR/IWCR variables must be included as an analysis variable in NAMSTATE. ')
+      end if
+      if (.not. beSilent .and. .not. (col_varExist(columnTrl,'RF') .and. col_varExist(columnTrl,'SF') .and. &
+          col_varExist(columnTrl,'CLDR'))) then
+        write(*,*) 'tvs_fillProfiles: one of RF/SF/CLDR does not exist in NAMSTATE'
+      end if
     end if
 
     if ( (tvs_numMWInstrumUsingCLW == 0 .and. tvs_numMWInstrumUsingHydrometeors == 0 .and. &
@@ -2435,8 +2438,6 @@ contains
                                tvs_isInstrumUsingCLW(tvs_instruments(sensorIndex)))
 
       runObsOperatorWithHydrometeors = (col_varExist(columnTrl,'LWCR') .and. col_varExist(columnTrl,'IWCR') .and. &
-                                        col_varExist(columnTrl,'RF')   .and. col_varExist(columnTrl,'SF')   .and. &
-                                        col_varExist(columnTrl,'CLDR')                                      .and. &
                                         tvs_isInstrumUsingHydrometeors(tvs_instruments(sensorIndex)))
 
       if (runObsOperatorWithClw .and. runObsOperatorWithHydrometeors) then
@@ -2552,8 +2553,9 @@ contains
           pressure(levelIndex,profileCount) = col_getPressure(columnTrl,levelIndex,headerIndex,'TH') * MPC_MBAR_PER_PA_R8
           if ((runObsOperatorWithClw .and. surfTypeIsWater(profileCount)) .or. &
               (runObsOperatorWithHydrometeors .and. surfTypeIsWater(profileCount))) then
-            clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
 
+            ! cloud liquid water content
+            clw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'LWCR')
             if (clw(levelIndex,profileCount) < qlim_getMinValueCloud('LWCR') .or. &
                 clw(levelIndex,profileCount) > qlim_getMaxValueCloud('LWCR')) then
               write(*,*) 'tvs_fillProfiles: clw=' , clw(:,profileCount) 
@@ -2563,29 +2565,38 @@ contains
             clw(levelIndex,profileCount) = clw(levelIndex,profileCount) * tvs_cloudScaleFactor
           end if
           if (runObsOperatorWithHydrometeors .and. surfTypeIsWater(profileCount)) then
+            ! cloud ice water content
             ciw(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'IWCR')
-            rainFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'RF')
-            snowFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'SF')
-            cloudFraction(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'CLDR')
-
             if (ciw(levelIndex,profileCount) < qlim_getMinValueCloud('IWCR') .or. &
                 ciw(levelIndex,profileCount) > qlim_getMaxValueCloud('IWCR')) then
               write(*,*) 'tvs_fillProfiles: ciw=' , ciw(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has ciw outside RTTOV bounds')
             end if
 
+            ! rain flux (zero, if not part of control variables)
+            if (col_varExist(columnTrl,'RF')) then
+              rainFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'RF')
+            end if
             if (rainFlux(levelIndex,profileCount) < qlim_getMinValueCloud('RF') .or. &
                 rainFlux(levelIndex,profileCount) > qlim_getMaxValueCloud('RF')) then
               write(*,*) 'tvs_fillProfiles: rainFlux=' , rainFlux(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has rain flux outside RTTOV bounds')
             end if
 
+            ! snow flux (zero, if not part of control variables)
+            if (col_varExist(columnTrl,'SF')) then
+              snowFlux(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'SF')
+            end if
             if (snowFlux(levelIndex,profileCount) < qlim_getMinValueCloud('SF') .or. &
                 snowFlux(levelIndex,profileCount) > qlim_getMaxValueCloud('SF')) then
               write(*,*) 'tvs_fillProfiles: snowFlux=' , snowFlux(:,profileCount) 
               call utl_abort('tvs_fillProfiles: columnTrl has snow flux outside RTTOV bounds')
             end if
 
+            ! cloud fraction (zero, if not part of control variables)
+            if (col_varExist(columnTrl,'CLDR')) then
+              cloudFraction(levelIndex,profileCount) = col_getElem(columnTrl,levelIndex,headerIndex,'CLDR')
+            end if
             if (cloudFraction(levelIndex,profileCount) < qlim_getMinValueCloud('CLDR') .or. &
                 cloudFraction(levelIndex,profileCount) > qlim_getMaxValueCloud('CLDR')) then
               write(*,*) 'tvs_fillProfiles: cloudFraction=' , cloudFraction(:,profileCount) 
@@ -2595,9 +2606,9 @@ contains
             ciw(levelIndex,profileCount) = ciw(levelIndex,profileCount) * tvs_cloudScaleFactor
             rainFlux(levelIndex,profileCount) = rainFlux(levelIndex,profileCount) * tvs_cloudScaleFactor
             snowFlux(levelIndex,profileCount) = snowFlux(levelIndex,profileCount) * tvs_cloudScaleFactor
-            !should we introduce a separate scaling factor for various variables ? 
-          end if
-        end do
+
+          end if ! runObsOperatorWithHydrometeors .and. surfTypeIsWater
+        end do ! levelIndex
         
         if (tvs_coefs(sensorIndex) %coef % nozone > 0 .and. .not. tvs_useO3Climatology) then
           column_ptr => col_getColumn(columnTrl, headerIndex, trim(ozoneVarName) )
@@ -2695,17 +2706,26 @@ contains
           cld_profiles(tovsIndex) % hydro(:,2) = snowFlux(:,profileIndex)
           cld_profiles(tovsIndex) % hydro(:,4) = clw(:,profileIndex)
           cld_profiles(tovsIndex) % hydro(:,5) = ciw(:,profileIndex)
-          
-          where (cld_profiles(tovsIndex) % hydro(:,1) > qlim_getMinValueCloud('RF') .or. &
-                 cld_profiles(tovsIndex) % hydro(:,2) > qlim_getMinValueCloud('SF') .or. &
-                 cld_profiles(tovsIndex) % hydro(:,4) > qlim_getMinValueCloud('LWCR') .or. &
-                 cld_profiles(tovsIndex) % hydro(:,5) > qlim_getMinValueCloud('IWCR'))
-                 cld_profiles(tovsIndex) % hydro_frac(:,1) = cloudFraction(:,profileIndex)
-          elsewhere
-            cld_profiles(tovsIndex) % hydro_frac(:,1) = qlim_getMinValueCloud('CLDR')
-          end where
-        end if     
-      end do
+
+          do levelIndex = 1, nlv_T
+            if (cld_profiles(tovsIndex) % hydro(levelIndex,1) > qlim_getMinValueCloud('RF') .or. &
+                cld_profiles(tovsIndex) % hydro(levelIndex,2) > qlim_getMinValueCloud('SF') .or. &
+                cld_profiles(tovsIndex) % hydro(levelIndex,4) > qlim_getMinValueCloud('LWCR') .or. &
+                cld_profiles(tovsIndex) % hydro(levelIndex,5) > qlim_getMinValueCloud('IWCR')) then
+              
+              ! set to overcast cloud, if CLDR not part of control variables
+              if (col_varExist(columnTrl,'CLDR')) then
+                cld_profiles(tovsIndex) % hydro_frac(levelIndex,1) = cloudFraction(levelIndex,profileIndex)
+              else
+                cld_profiles(tovsIndex) % hydro_frac(levelIndex,1) = 1.0d0
+              end if
+            else
+              cld_profiles(tovsIndex) % hydro_frac(levelIndex,1) = qlim_getMinValueCloud('CLDR')  
+            end if
+
+          end do ! levelIndex
+        end if  ! runObsOperatorWithClw
+      end do ! profileIndex
 
       deallocate (pressure,            stat = allocStatus(2))
       deallocate (ozone,               stat = allocStatus(3))

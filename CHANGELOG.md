@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Allow user to exclude some cloud fields needed for humidity all sky assimilation (#788 and !705)
  * Background check and assimilation of microwave humidity channels in all-sky mode (#728 and !692)
  * Integrated inovqc program for MWHS2 data (#715 and !705)
  * Added a `msg` subroutine to replace section comments in source (#751 and !702)
