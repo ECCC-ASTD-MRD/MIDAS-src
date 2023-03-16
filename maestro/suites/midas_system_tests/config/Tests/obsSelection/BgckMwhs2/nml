@@ -6,7 +6,7 @@
   modLSQ = .true.
 /
  &namObsSelection
-  doThinning = .false.
+  doThinning = .true.
 /
  &THIN_TOVS
   delta   = 150
