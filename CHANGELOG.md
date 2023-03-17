@@ -116,6 +116,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
+ * Removed namelist variable `bbiton` and `bbitoff` (#786 and !709)
  * Removed unneeded "use" statements and some code (#694 and !648)
  * Removed multi-platform compilation support (#663 and !640)
  * Removed code documentation for `v_3.6` branch (#681 and !627)
