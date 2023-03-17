@@ -46,15 +46,10 @@ public :: brpr_addElementsToBurp, brpr_updateMissingObsFlags, brpr_burpClean
 
 
 integer, parameter :: maxItems = 20
-integer, parameter :: maxBits = 15
 integer, parameter :: maxElements = 20
 ! Namelist variables
 INTEGER          :: NELEMS           ! MUST NOT BE INCLUDED IN NAMELIST!
 INTEGER          :: NELEMS_SFC       ! MUST NOT BE INCLUDED IN NAMELIST!
-INTEGER          :: BNBITSOFF        ! MUST NOT BE INCLUDED IN NAMELIST!
-INTEGER          :: BNBITSON         ! MUST NOT BE INCLUDED IN NAMELIST!
-INTEGER          :: BBITOFF(maxBits) ! list of flags for selecting observations (rarely used)
-INTEGER          :: BBITON(maxBits)  ! list of flags for selecting observations (rarely used)
 INTEGER          :: NELEMS_GPS       ! MUST NOT BE INCLUDED IN NAMELIST!
 INTEGER          :: LISTE_ELE_GPS(maxElements) ! list of bufr element ids to read
 INTEGER          :: BLISTELEMENTS(maxElements) ! list of bufr element ids to read
@@ -146,7 +141,7 @@ CONTAINS
     CHARACTER(LEN=9)       :: STNID,STN_RESUME,STID
     LOGICAL                :: HIRES,HIPCS
     integer                :: NDATA_SF
-    integer                :: IFLAG,BITSflagoff
+    integer                :: IFLAG
 
     integer                :: OBS_START,SAVE_OBS
     integer                :: IL_INDEX,IRLN,INLV,LK,VNM
@@ -185,8 +180,6 @@ CONTAINS
     ILEMTBCOR=12204 ! bcor element for altitude TT observations
     ILEMHBCOR=12243 ! bcor element for altitude ES observations
     ELEVFACT=0.
-    BNBITSOFF=0
-    BNBITSON=0
     ENFORCE_CLASSIC_SONDES=.false.
     UA_HIGH_PRECISION_TT_ES=.false.
     UA_FLAG_HIGH_PRECISION_TT_ES=.false.
@@ -264,10 +257,6 @@ CONTAINS
 
         call BRPACMA_NML('namburp_filter_conv')
         WINDS=.FALSE.
-        !================GPS-RO CANNOT BE FILTERED=======
-        BNBITSOFF=0
-        BNBITSON=0
-        !================GPS-RO CANNOT BE FILTERED=======
         NELE_INFO=16
       CASE('TO')
         BURP_TYP='multi'
@@ -319,7 +308,6 @@ CONTAINS
     end if
     if(NELE     > 0)write(*,*)  ' LISTE_ELE =',LISTE_ELE
     if(NELE_SFC > 0)write(*,*)  ' LISTE_ELE_SFC =',LISTE_ELE_SFC
-    if(BNBITSOFF > 0 .or. BNBITSON > 0)write(*,*)  ' BNBITSON BNBITSOFF SIZE OF CP_RPT   =',BNBITSON,BNBITSOFF,LNMX*8
 
     TYPE_RESUME='POSTALT'
     call BRPACMA_NML('namburp_update')
@@ -513,10 +501,6 @@ CONTAINS
 
     write(*, *)  ' NUMBER OF VALID REPORTS IN FILE = ',count
     write(*, *)  ' BTYP10obs BTYP10obs_uni         = ',BTYP10obs,BTYP10obs_uni
-    BITSflagoff=0
-    DO J = 1, Bnbitsoff
-      BITSflagoff = IBSET ( BITSflagoff, 13-BBITOFF(J) )
-    END DO
 
     if ( count > 0 ) then
 
@@ -881,7 +865,6 @@ CONTAINS
                  IFLAG =  BURP_Get_Tblval(Block_MAR_SFC_CP,NELE_IND = IND_ele_mar,NVAL_IND = 1, NT_IND = k)
                  OBSVA =  BURP_Get_Rval  (Block_OBS_SFC_CP,NELE_IND = IND_ele    ,NVAL_IND = 1, NT_IND = k)
                  if (OBSVA == MPC_missingValue_R4 .and. iele /= ILEMU  .and. iele /= ILEMV ) cycle
-                 if(iand(IFLAG,BITSflagoff) /= 0) cycle
 
                  if (OBSN > obs_numHeader(obsdat) ) then
                    write(*,*)  ' debordement  surface OBS_START=',OBS_START
@@ -1328,9 +1311,6 @@ CONTAINS
 
                   IFLAG =  BURP_Get_Tblval(Block_MAR_MUL_CP,NELE_IND = IND_ELE_MAR,NVAL_IND = J, NT_IND = k)
                   OBSVA =  BURP_Get_Rval  (Block_OBS_MUL_CP,NELE_IND = IND_ele    ,NVAL_IND = J, NT_IND = k)
-                  if(iand(iflag,BITSflagoff) /= 0) CYCLE ELEMS     
-
-                  OBSVA =  BURP_Get_Rval  (Block_OBS_MUL_CP,NELE_IND = IND_ele    ,NVAL_IND = J, NT_IND = k)
                   !if( idtyp == 168 ) print * , ' bobossmi avant vcoord obsva    stnid =',  VCOORD,OBSVA,stnid
 
                   if (VCOORD == MPC_missingValue_R4 ) CYCLE ELEMS
@@ -1750,13 +1730,13 @@ CONTAINS
     CHARACTER(len = *) :: NML_SECTION
     integer            :: itemIndex
 
-    NAMELIST /NAMBURP_FILTER_CONV/NELEMS, BLISTELEMENTS, BNBITSOFF, BBITOFF, BNBITSON, BBITON, &
+    NAMELIST /NAMBURP_FILTER_CONV/NELEMS, BLISTELEMENTS, &
          ENFORCE_CLASSIC_SONDES, UA_HIGH_PRECISION_TT_ES, UA_FLAG_HIGH_PRECISION_TT_ES, READ_QI_GA_MT_SW
-    NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC, BLISTELEMENTS_SFC, BNBITSOFF, BBITOFF, BNBITSON, BBITON, &
+    NAMELIST /NAMBURP_FILTER_SFC/ NELEMS_SFC, BLISTELEMENTS_SFC, &
          NELEMS_GPS, LISTE_ELE_GPS
-    NAMELIST /NAMBURP_FILTER_TOVS/NELEMS, BLISTELEMENTS, BNBITSOFF, BBITOFF, BNBITSON, BBITON
-    NAMELIST /NAMBURP_FILTER_CHM_SFC/NELEMS_SFC, BLISTELEMENTS_SFC, BNBITSOFF, BBITOFF, BNBITSON, BBITON
-    NAMELIST /NAMBURP_FILTER_CHM/NELEMS, BLISTELEMENTS, BNBITSOFF, BBITOFF, BNBITSON, BBITON
+    NAMELIST /NAMBURP_FILTER_TOVS/NELEMS, BLISTELEMENTS
+    NAMELIST /NAMBURP_FILTER_CHM_SFC/NELEMS_SFC, BLISTELEMENTS_SFC
+    NAMELIST /NAMBURP_FILTER_CHM/NELEMS, BLISTELEMENTS
     NAMELIST /NAMBURP_UPDATE/BN_ITEMS, BITEMLIST, TYPE_RESUME
 
     if (present(beSilent_opt)) then
@@ -1774,13 +1754,7 @@ CONTAINS
       CASE( 'namburp_filter_gp')
         nElems_gps = MPC_missingValue_INT
         LISTE_ELE_GPS(:) = mpc_missingValue_int
-        BNBITSOFF = MPC_missingValue_INT
-        BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = MPC_missingValue_INT
-        BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_SFC)
-        call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
-        call getListAndSize(bnbitson, bbiton, "bnbitson")
         call getListAndSize(nElems_gps, LISTE_ELE_GPS, "nElems_gps")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
         if (nElems_gps == 0) then
@@ -1789,14 +1763,8 @@ CONTAINS
       CASE( 'namburp_filter_sfc')
         nElems_sfc = MPC_missingValue_INT
         bListElements_sfc(:) = mpc_missingValue_int
-        BNBITSOFF = MPC_missingValue_INT
-        BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = MPC_missingValue_INT
-        BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_SFC)
         call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
-        call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
-        call getListAndSize(bnbitson, bbiton, "bnbitson")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_SFC)
         if (nElems_sfc == 0) then
           call utl_abort('brpacma_nml (burpread_mod): no SFC elements specified in NAMBURP_FILTER_SFC')
@@ -1804,14 +1772,8 @@ CONTAINS
       CASE( 'namburp_filter_conv')
         nElems = MPC_missingValue_INT
         bListElements(:) = mpc_missingValue_int
-        BNBITSOFF = MPC_missingValue_INT
-        BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = MPC_missingValue_INT
-        BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_CONV)
         call getListAndSize(nelems, blistelements, "nelems")
-        call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
-        call getListAndSize(bnbitson, bbiton, "bnbitson")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CONV)
         if (nElems == 0) then
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CONV')
@@ -1819,14 +1781,8 @@ CONTAINS
       CASE( 'namburp_filter_tovs')
         nElems = MPC_missingValue_INT
         bListElements(:) = mpc_missingValue_int
-        BNBITSOFF = MPC_missingValue_INT
-        BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = MPC_missingValue_INT
-        BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_TOVS)
         call getListAndSize(nelems, blistelements, "nelems")
-        call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
-        call getListAndSize(bnbitson, bbiton, "bnbitson")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_TOVS)
         if (nElems == 0) then
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_TOVS')
@@ -1834,14 +1790,8 @@ CONTAINS
       CASE( 'namburp_filter_chm_sfc')
         nElems_sfc = MPC_missingValue_INT
         bListElements_sfc(:) = mpc_missingValue_int
-        BNBITSOFF = MPC_missingValue_INT
-        BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = MPC_missingValue_INT
-        BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_CHM_SFC)
         call getListAndSize(nelems_sfc, blistelements_sfc, "nelems_sfc")
-        call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
-        call getListAndSize(bnbitson, bbiton, "bnbitson")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM_SFC)
         if (nElems_sfc == 0) then
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM_SFC')
@@ -1849,14 +1799,8 @@ CONTAINS
       CASE( 'namburp_filter_chm')
         nElems = MPC_missingValue_INT
         bListElements(:) = mpc_missingValue_int
-        BNBITSOFF = MPC_missingValue_INT
-        BBITOFF(:) = MPC_missingValue_INT
-        BNBITSON = MPC_missingValue_INT
-        BBITON(:) = MPC_missingValue_INT
         READ(NULNAM,NML=NAMBURP_FILTER_CHM)
         call getListAndSize(nelems, blistelements, "nelems")
-        call getListAndSize(bnbitsoff, bbitoff, "bnbitsoff")
-        call getListAndSize(bnbitson, bbiton, "bnbitson")
         if (.not.beSilent) write(*,nml=NAMBURP_FILTER_CHM)
         if (nElems == 0) then
           call utl_abort('brpacma_nml (burpread_mod): no elements specified in NAMBURP_FILTER_CHM')
@@ -2021,8 +1965,6 @@ CONTAINS
     NELEMS=0
     NELEMS_SFC=0
     NELEMS_GPS=0
-    BNBITSOFF=0
-    BNBITSON=0
     ILEMZBCOR=15234 ! bcor element for GP  ZTD observations
     ILEMTBCOR=12204 ! bcor element for altitude TT observations
     ILEMHBCOR=12243 ! bcor element for altitude ES observations
@@ -2099,10 +2041,6 @@ CONTAINS
         vcord_type(2)=7040
 
         call BRPACMA_NML('namburp_filter_conv')
-        !================GPS-RO CANNOT BE FILTERED=======
-        BNBITSOFF=0
-        BNBITSON=0
-        !================GPS-RO CANNOT BE FILTERED=======
         NELE_INFO=18
       CASE('TO')
         BURP_TYP='multi'
@@ -2148,8 +2086,6 @@ CONTAINS
       write(*,*)  ' LISTE_ELE_SFC =',LISTE_ELE_SFC(1:NELE_SFC)
       call ovt_setup(LISTE_ELE_SFC(1:NELE_SFC))
     end if
-
-    write(*,*) ' BNBITSON BNBITSOFF     =',BNBITSON,BNBITSOFF
 
     btyp_offset_uni=-999
     btyp_offset=-999
@@ -3510,7 +3446,7 @@ CONTAINS
     REAL              :: ELEVFACT,VCOORD,ZEMFACT
     INTEGER           :: NELE,NVAL,VCO,NONELEV
     integer           :: LISTE_ELE(:),NOBS,VARNO,IL,J,COUNT,NLV
-    INTEGER           :: IFLAG,IFLAG2,BITSflagoff,BITSflagon,cloudFrac
+    INTEGER           :: IFLAG,IFLAG2,cloudFrac
     REAL(pre_obsReal) :: MISG,OBSV,ELEV,ELEV_R,REMIS,BCOR,rolat1,rolon1
     LOGICAL           :: L_EMISS,L_BCOR,L_dataQcFlag2, L_dataCloudFrac
     
@@ -3524,17 +3460,6 @@ CONTAINS
     ZEMFACT=0.01
 
     REMIS = MISG
-
-    BITSflagoff=0
-    DO J = 1, Bnbitsoff
-      BITSflagoff = IBSET ( BITSflagoff, 13-BBITOFF(J) )
-    END DO
-
-    BITSflagon=0
-    DO J = 1, Bnbitson
-       BITSflagon = IBSET ( BITSflagon,  13-BBITON(J)  )
-    END DO
-    !write(*,*) ' write body BITSFLAGON= ',BITSFLAGON, ' BITSFLAGOFF= ',BITSFLAGOFF
 
     NOBS =obs_numHeader(obsdat) +1
     COUNT=obs_numBody (obsdat)
@@ -3628,8 +3553,6 @@ CONTAINS
           cloudFrac  =  dataCloudFracLEV(j)
         end if
         IFLAG = INT(qCflag(il,j))
-
-        if(iand(iflag,BITSflagoff) /= 0) cycle
 
         if ( obsv /= MPC_missingValue_R4 .and. VCOORD /= MPC_missingValue_R4   ) then
           count = count  + 1
