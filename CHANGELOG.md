@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * Introduction of variable `passiveChannelList` in namelist section NAMBIASSAT (#824 and !737)
+ * (Nothing yet)
 
 ### Changed
 
@@ -16,12 +16,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fix `ssm/post-install` to set `CMCCONST` if it is not already set (#831 and !739)
- * Fix bug in Fortran documentation page related to the search bar (#817 and !738)
+ * (Nothing yet)
 
 ### Removed
 
  * (Nothing yet)
+
+## [3.9.0-rc3]
+
+### Added
+
+ * Introduction of variable `passiveChannelList` in namelist section `NAMBIASSAT` (#824 and !737)
+
+### Fixed
+
+ * Fix `ssm/post-install` to set `CMCCONST` if it is not already set (#831 and !739)
+ * Fix bug in Fortran documentation page related to the search bar (#817 and !738)
 
 ## [3.9.0-rc2]
 
@@ -1114,7 +1124,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc2...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc3...HEAD
+[3.9.0-rc3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc2...v_3.9.0-rc3
 [3.9.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc1...v_3.9.0-rc2
 [3.9.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...v_3.9.0-rc1
 [3.8.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.0...v_3.8.1
