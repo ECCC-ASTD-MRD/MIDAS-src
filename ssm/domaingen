@@ -4,8 +4,8 @@ set -e
 
 DOMAIN_BASE=${1:-${HOME}/data_maestro/ords/SSM/midas}
 SSM_PACKAGES=${2:-${DOMAIN_BASE}/packages}
-DO_COMPILE=${3:-yes}
 MIDAS_ABS=${3:-${DOMAIN_BASE}/midas-abs}
+DO_COMPILE=${4:-yes}
 
 toplevel=$(git rev-parse --show-toplevel)
 cd ${toplevel}
