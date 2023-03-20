@@ -15,12 +15,12 @@ mkdir -p ${profileDirPath}
 
 cat > ${profilePath} << EOF
 if [[ -z "\${AFSISIO}" ]]; then
-    export AFSISIO=/home/smco502
+    export CMCCONST=/home/smco502/datafiles/constants
 fi
 EOF
 
 cat > ${loginPath} << EOF
 if [[ -z "\${AFSISIO}" ]]; then
-    setenv AFSISIO '/home/smco502
+    setenv CMCCONST '/home/smco502/datafiles/constants'
 fi
 EOF
