@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.9.0-rc6]
+
+### Added
+
  * Update documentation and CI to support the branch `v_3.9` (#851 and !758)
  * Introduction of the possibility for var1D to output the ensemble B matrices used (#818 and !754)
 
@@ -1158,8 +1176,9 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc5...HEAD
-[3.9.0-rc5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc3...v_3.9.0-rc5
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc6...HEAD
+[3.9.0-rc6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc5...v_3.9.0-rc6
+[3.9.0-rc5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc4...v_3.9.0-rc5
 [3.9.0-rc4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc3...v_3.9.0-rc4
 [3.9.0-rc3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc2...v_3.9.0-rc3
 [3.9.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc1...v_3.9.0-rc2
