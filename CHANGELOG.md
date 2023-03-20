@@ -12,6 +12,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.9.0-rc5]
+
+### Changed
+
  * Improve clarity/consistency of procedure variable declarations (#837 and !749)
  * Enforce camel case naming convention to all filenames in src (#839 and !746)
    * WARNING: includes changing filename `ObsDBColumnTable.dat` to `obsdbColumTable.dat`
@@ -21,10 +35,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Initialize BURP parameters in routine `brpr_updateMissingObsFlags` (#842 and !751)
  * Fixed `calcStats/vertModes_glb` unitTest and added some error traps in `calcStatsGlb_mod` (#841 and !750)
  * Fixed incorrect treatment of passive channel bias correction for most of the CSR instruments (#840 and !748)
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.9.0-rc4]
 
@@ -1147,7 +1157,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc4...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc5...HEAD
+[3.9.0-rc5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc3...v_3.9.0-rc5
 [3.9.0-rc4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc3...v_3.9.0-rc4
 [3.9.0-rc3]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc2...v_3.9.0-rc3
 [3.9.0-rc2]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc1...v_3.9.0-rc2
