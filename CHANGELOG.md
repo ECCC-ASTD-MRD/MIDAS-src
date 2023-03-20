@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.9.0-rc1]
+
+### Added
+
  * Added thinning in obsSelection/BgckMwhs2 system test (#795 and !708)
  * Allow user to exclude some cloud fields needed for humidity all sky assimilation (#788 and !705)
  * Background check and assimilation of microwave humidity channels in all-sky mode (#728 and !692)
@@ -123,6 +141,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Removed comment about documentation temporarily pointing to master (#657 and !611)
 
 ## [3.8.1]
+
+### Changed
 
  * Updated radiative transfer code from RTTOV-12 to RTTOV-13. Minor impact on results (#508 and !601)
 
@@ -1045,7 +1065,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc1...HEAD
+[3.9.0-rc1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.1...v_3.9.0-rc1
 [3.8.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.8.0...v_3.8.1
 [3.8.0]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.1...v_3.8.0
 [3.7.1]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.7.0...v_3.7.1
