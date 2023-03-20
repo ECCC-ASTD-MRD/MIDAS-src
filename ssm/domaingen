@@ -25,7 +25,7 @@ cd ssm
 cd ..
 
 cd ssm
-./publish --packages ${SSM_PACKAGES}/${VERSION} --post-install ${PWD}/post-install --workdir ${PWD}/midas-publish-workdir-$$ --domainpath ${DOMAIN_BASE}/${VERSION}
+./publish --packages ${SSM_PACKAGES}/${VERSION} --post-install ${PWD}/post-install --workdir ${PWD}/midas-publish-workdir-$$ --domainpath $(true_path ${DOMAIN_BASE})/${VERSION}
 
 echo "You can use the SSM domain published with:"
 echo "   . ssmuse-sh -d ${DOMAIN_BASE}/${VERSION}"
