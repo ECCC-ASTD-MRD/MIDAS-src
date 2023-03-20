@@ -115,8 +115,9 @@ for package in ${packages}/*.ssm; do
         cp ${postinstall} ${pkgname}/.ssm.d/post-install
         tar czf ${pkgname}.ssm ${pkgname}
         rm -r ${pkgname}
+        ssminstall_args="-s ${PWD}"
     else
-        ssminstall_args="-r $(dirname ${package})"
+        ssminstall_args="-s $(dirname ${package})"
     fi
 
     ssmpublish_args=
