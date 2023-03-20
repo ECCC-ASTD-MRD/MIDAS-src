@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Added
+
+ * (Nothing yet)
+
+### Changed
+
+ * (Nothing yet)
+
+### Fixed
+
+ * (Nothing yet)
+
+### Removed
+
+ * (Nothing yet)
+
+## [3.9.0-rc7]
+
+### Added
  
  * Added an extra norm, named stratoNorm, from 100hPa to 1hPa for FSOI(#836 and !785)
  * Added RCM data for sea ice concentration analysis (#848 and !761)
@@ -21,10 +39,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Changes for the new orca12 grid (#863 and !769)
-
-### Removed
-
- * (Nothing yet)
 
 ## [3.9.0-rc6]
 
@@ -1195,7 +1209,8 @@ network.
 Some other `v_2.2.*` subsequent versions have been published but we
 are not documenting them here.
 
-[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc6...HEAD
+[Unreleased]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc7...HEAD
+[3.9.0-rc7]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc6...v_3.9.0-rc7
 [3.9.0-rc6]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc5...v_3.9.0-rc6
 [3.9.0-rc5]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc4...v_3.9.0-rc5
 [3.9.0-rc4]: https://gitlab.science.gc.ca/atmospheric-data-assimilation/midas/compare/v_3.9.0-rc3...v_3.9.0-rc4
