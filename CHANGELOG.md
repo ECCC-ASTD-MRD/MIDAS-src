@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * The environment variable `CMCCONST` is set instead of `AFSISIO` when loading the MIDAS SSM domain (#799 and !710)
 
 ### Fixed
 
