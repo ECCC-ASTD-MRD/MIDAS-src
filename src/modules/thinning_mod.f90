@@ -7308,7 +7308,7 @@ contains
     write(*,*) 'thn_satelliteSSTByGridCell: ', trim(dataSet), ': numHeader, numHeaderMaxMpi: ', &
                numHeader, numHeaderMaxMpi
 
-    call rpn_comm_allReduce(satSSTCount, satSSTCountMpi, 4, 'mpi_integer', 'mpi_sum','grid', ierr)
+    call rpn_comm_allReduce(satSSTCount, satSSTCountMpi, 1, 'mpi_integer', 'mpi_sum','grid', ierr)
     write(*,*) 'thn_satelliteSSTByGridCell: ', trim(dataSet),' data: total number of initial data: ', satSSTCountMpi
     write(*,*) 'thn_satelliteSSTByGridCell: ', trim(dataSet),' data: number of thinning timesteps: ', numTimesteps
 
