@@ -4,27 +4,30 @@ set -e
 
 DOMAIN_BASE=${1:-${HOME}/data_maestro/ords/SSM/midas}
 SSM_PACKAGES=${2:-${DOMAIN_BASE}/packages}
-DO_COMPILE=${3:-yes}
+MIDAS_ABS=${3:-${DOMAIN_BASE}/midas-abs}
+DO_COMPILE=${4:-yes}
 
 toplevel=$(git rev-parse --show-toplevel)
-if [ "${DO_COMPILE}" = yes ]; then
-    cd ${toplevel}/src/programs
-    ./compile_all_plat.sh
-    cd ../../tools/monitor
-    make install PGM=${PWD}/../../compiledir/midas_abs/midas.monitor_$(../../midas.version.sh).Abs
-fi
-
 cd ${toplevel}
 
 VERSION=$(./midas.version.sh | cut -c3-)
+
+if [ "${DO_COMPILE}" = yes ]; then
+    cd ${toplevel}/src
+    MIDAS_COMPILE_DIR_MAIN=${MIDAS_ABS} MIDAS_ABS_LEAFDIR='./' MIDAS_COMPILE_CLEAN=true ./midas_build
+    cd ${toplevel}/tools/monitor
+    make install PGM=${MIDAS_ABS}/midas.monitor_$(${toplevel}/midas.version.sh).Abs
+fi
+
 ## to set variables 'MACHINE_PPP' and 'MACHINE_SUPER'
+cd ${toplevel}
 . maestro/suites/midas_system_tests/set_machine_list.dot
 cd ssm
-./build_packages --midas-abs ${PWD}/../compiledir/midas_abs --packages ${SSM_PACKAGES}/${VERSION} --workdir ${PWD}/midas-packages-workdir-$$
+./build_packages --midas-abs ${MIDAS_ABS} --packages ${SSM_PACKAGES}/${VERSION} --workdir ${PWD}/midas-packages-workdir-$$
 cd ..
 
 cd ssm
-./publish --packages ${SSM_PACKAGES}/${VERSION} --post-install ${PWD}/post-install --workdir ${PWD}/midas-publish-workdir-$$ --domainpath ${DOMAIN_BASE}/${VERSION}
+./publish --packages ${SSM_PACKAGES}/${VERSION} --post-install ${PWD}/post-install --workdir ${PWD}/midas-publish-workdir-$$ --domainpath $(true_path ${DOMAIN_BASE})/${VERSION}
 
 echo "You can use the SSM domain published with:"
 echo "   . ssmuse-sh -d ${DOMAIN_BASE}/${VERSION}"
