@@ -222,7 +222,7 @@ module message_mod
   
     ! default namelist value
     verbosity = msg_DEFAULT
-    msg_arrayVertical = .false.
+    arrayVertical = .false.
   
     if ( .not. utl_isNamelistPresent('NAMMSG','./flnml') ) then
       call msg( 'msg_readNml', 'NAMMSG is missing in the namelist. The default values will be taken.', &
