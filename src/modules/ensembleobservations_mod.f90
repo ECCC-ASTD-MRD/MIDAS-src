@@ -634,12 +634,13 @@ CONTAINS
         read(unitNum) (lonFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
         read(unitNum) (obsVcoCodeFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
         read(unitNum) (obsValueFromFile(obsIndex), obsIndex = 1, ensObs%numObs)
-      
-        if (.not. all(latFromFile(:) == ensObs%lat(:)) .or. &
-            .not. all(lonFromFile(:) == ensObs%lon(:)) .or. &
-            .not. all(obsValueFromFile(:) == ensObs%obsValue(:)) .or. &
+        
+        if (maxval(abs(latFromFile(:) - ensObs%lat(:))) > 1.0d-5 .or. &
+            maxval(abs(lonFromFile(:) - ensObs%lon(:))) > 1.0d-5 .or. &
+            maxval(abs(obsValueFromFile(:) - ensObs%obsValue(:))) > 1.0d-7 .or. &
             .not. all(obsVcoCodeFromFile(:) == obsVcoCode(:))) then
-          call utl_abort('eob_readFromFiles: onsInfo file do not match ensObs')
+
+          call utl_abort('eob_readFromFiles: obsInfo file do not match ensObs')
         end if
       
         ! Read assimilation flag for of all files and apply a "logical or" to get the value 
