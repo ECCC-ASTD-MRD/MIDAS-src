@@ -2126,7 +2126,7 @@ CONTAINS
     if ( present(recenteringCoeffLand_opt) ) then
       if (any(recenteringCoeffLand_opt < 0.0D0)) then
         ! negative coeff specified for land, apply same coeff as other variables
-        recenteringCoeffArrayLand(:) = recenteringCoeffArray(ens_getNumLev(ens,'MM'),:)
+        recenteringCoeffArrayLand(:) = recenteringCoeffArray(max(1,ens_getNumLev(ens,'MM')),:)
       else
         ! specified coeff for land variables used for all members
         write(*,*) 'ens_recenter: different recentering applied to land variables:', &
@@ -2135,7 +2135,7 @@ CONTAINS
       end if
     else
       ! coeff for land not specified, apply same coeff as other variables
-      recenteringCoeffArrayLand(:) = recenteringCoeffArray(ens_getNumLev(ens,'MM'),:)
+      recenteringCoeffArrayLand(:) = recenteringCoeffArray(max(1,ens_getNumLev(ens,'MM')),:)
     end if
 
     if (present(numMembersToRecenter_opt)) then
