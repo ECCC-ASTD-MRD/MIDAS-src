@@ -3962,7 +3962,7 @@ contains
   subroutine mwbg_tovCheckMwhs2(TOVERRST, clwThreshArr, errThreshAllsky, useStateDepSigmaObs, &
                                 IUTILST, zlat, zlon, ilq, itt, zenith, &
                                 ICANO, ztb, biasCorr, ZOMP, ICHECK, KNO, KNT, KNOSAT, IDENT, &
-                                ISCNPOS, MTINTRP, globMarq, IMARQ, clwObs, clwFG, riwv, &
+                                ISCNPOS, MTINTRP, globMarq, IMARQ, clwObs, clwFG, scatwObs, scatwFG, &
                                 STNID, RESETQC, modLSQ, lastHeader)
 
 
@@ -4010,7 +4010,8 @@ contains
     !                                                             (chech n2) par satellite, critere et par canal
     real, allocatable, intent(out)   :: clwObs(:)
     real, allocatable, intent(out)   :: clwFG(:)
-    real, allocatable, intent(out)   :: riwv(:)
+    real, allocatable, intent(out)   :: scatwObs(:)            ! scattering index over water from observation
+    real, allocatable, intent(out)   :: scatwFG(:)             ! scattering index over water from background
 
     !locals
     real                             :: PTBOMP(KNO,KNT)
@@ -4031,6 +4032,7 @@ contains
     real, allocatable                :: scatec(:)
     real, allocatable                :: scatbg(:)
     real, allocatable                :: SeaIce(:)
+    real, allocatable                :: riwv(:)
 
     integer, parameter               :: maxScanAngleAMSU = 98
     integer, parameter               :: MXSFCREJ   = 8
@@ -4169,8 +4171,9 @@ contains
 
     call mwbg_reviewAllCritforFinalFlagsMwhs2(KNT, KNO, lqc, grossrej, trn, waterobs, &
                                               precipobs, clwObs, clwFG, scatec, scatbg, &
-                                              iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
-                                              allcnt, drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
+                                              scatwObs, scatwFG, iwvreject, riwv, IMARQ, &
+                                              globMarq, zdi, ident, allcnt, drycnt, landcnt, &
+                                              rejcnt, iwvcnt, pcpcnt, flgcnt, &
                                               MXCLWREJ, chanIgnoreInAllskyGenCoeff, icano)
 
     !###############################################################################
@@ -6697,8 +6700,9 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_reviewAllCritforFinalFlagsMwhs2(nt, nval, lqc, grossrej, trn, waterobs, &
                                                   precipobs, clwObs, clwFG, scatec, scatbg, &
-                                                  iwvreject, riwv, IMARQ, globMarq, zdi, ident, &
-                                                  allcnt, drycnt, landcnt, rejcnt, iwvcnt, pcpcnt, flgcnt, &
+                                                  scatwObs, scatwFG, iwvreject, riwv, IMARQ, &
+                                                  globMarq, zdi, ident, allcnt, drycnt, landcnt, &
+                                                  rejcnt, iwvcnt, pcpcnt, flgcnt, &
                                                   MXCLWREJ, chanIgnoreInAllskyGenCoeff, icano)
 
     !:Purpose:                   Review all the checks previously made to determine which obs are to be accepted
@@ -6716,13 +6720,15 @@ contains
     real, intent(inout)                        :: clwFG(:)
     real, intent(in)                           :: scatec(:)
     real, intent(in)                           :: scatbg(:)
+    real, allocatable, intent(out)             :: scatwObs(:)
+    real, allocatable, intent(out)             :: scatwFG(:)
     logical, intent(in)                        :: grossrej(:)
     logical, intent(in)                        :: waterobs(:)
     logical, intent(in)                        :: iwvreject(:)
     logical, intent(in)                        :: precipobs(:)
     integer, intent(inout)                     :: ident(:)
     real, intent(in)                           :: zdi(:)
-    real, intent(inout)                        :: riwv(:)
+    real, intent(in)                           :: riwv(:)
     integer, intent(inout)                     :: IMARQ(:)
     integer, intent(inout)                     :: globMarq(:)
     integer, intent(inout)                     :: allcnt
@@ -6746,6 +6752,8 @@ contains
 
     ! Allocation
     call utl_reAllocate(lflagchn,nt, nval)
+    call utl_reAllocate(scatwObs,nt)
+    call utl_reAllocate(scatwFG, nt)
 
     lflagchn(:,:) = lqc(:,:)  ! initialize with flags set in mwbg_firstQcCheckMwhs2
     do kk = 1, nt
@@ -6855,12 +6863,13 @@ contains
       if ( ANY(lflagchn(kk,:)) ) flgcnt = flgcnt + 1
     end do
 
-    ! RESET riwv array to Bennartz-Grody scattering index for output to BURP file
-    riwv(:) = scatbg(:)
-    ! Set missing clwObs and riwv to BURP missing value (mwbg_realMissing)
+    ! RESET scatwObs array to Bennartz-Grody scattering index for output to BURP file
+    scatwObs(:) = scatbg(:)
+    ! Set missing clwObs and scatwObs to BURP missing value (mwbg_realMissing)
     where (clwObs == -99. ) clwObs = mwbg_realMissing
     where (clwObs == -99. ) clwFG = mwbg_realMissing
-    where (riwv == -99. ) riwv = mwbg_realMissing
+    where (scatwObs == -99. ) scatwObs = mwbg_realMissing
+    scatwFG(:) = mwbg_realMissing
 
     ! Modify data flag values (set bit 7) for rejected data
     ! In all-sky mode, turn on bit=23 for channels in chanIgnoreInAllskyGenCoeff(:)
@@ -7305,7 +7314,8 @@ contains
                                 newInformationFlag, satScanPosition,   &
                                 modelInterpTerrain, obsGlobalMarker, obsFlags,            &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                atmScatteringIndexObs, burpFileSatId, RESETQC, modLSQ, lastHeader)
+                                atmScatteringIndexObs, atmScatteringIndexFG, &
+                                burpFileSatId, RESETQC, modLSQ, lastHeader)
       else
         write(*,*) 'midas-bgckMW: instName = ', instName
         call utl_abort('midas-bgckMW: unknown instName')
