@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Initialize `atmScatteringIndexFG` for background check of all microwave instruments (#803 and !712)
  * Fix `msg` nml variable `arrayVertical` initialization (#801 and !711)
 
 ### Removed
