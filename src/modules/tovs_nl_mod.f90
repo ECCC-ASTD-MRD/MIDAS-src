@@ -2301,7 +2301,7 @@ contains
     integer :: ilowlvl_M,ilowlvl_T,nlv_M,nlv_T
     integer :: Vcode
     integer :: ierr,day,month,year,ijour,itime
-    integer :: allocStatus(12)
+    integer :: allocStatus(13)
     
     integer,external ::  omp_get_num_threads
     integer,external ::  newdate
