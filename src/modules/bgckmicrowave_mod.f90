@@ -1794,7 +1794,8 @@ contains
   subroutine mwbg_tovCheckAmsua(TOVERRST, clwThreshArr, errThreshAllsky, useStateDepSigmaObs, &
                                 IUTILST, KTERMER, ICANO, ZO, btClear, ZCOR, &
                                 ZOMP, ICHECK, KNO, KNT, KNOSAT, ISCNPOS, MGINTRP, MTINTRP, GLINTRP, ITERRAIN, SATZEN, &
-                                globMarq, IMARQ, ident, clwObs, clwFG, scatw, STNID, RESETQC, ZLAT)
+                                globMarq, IMARQ, ident, clwObs, clwFG, scatwObs, scatwFG, &
+                                STNID, RESETQC, ZLAT)
 
   
     !:Purpose:          Effectuer le controle de qualite des radiances tovs.
@@ -1852,7 +1853,8 @@ contains
     !                                                                     >0, rejet,
     real, allocatable, intent(out)         :: clwObs(:)                ! retrieved cloud liquid water from observation 
     real, allocatable, intent(out)         :: clwFG(:)                 ! retrieved cloud liquid water from background 
-    real, allocatable, intent(out)         :: scatw(:)                 ! scattering index over water
+    real, allocatable, intent(out)         :: scatwObs(:)              ! scattering index over water from observation
+    real, allocatable, intent(out)         :: scatwFG(:)               ! scattering index over water from background
 
     integer, allocatable, intent(out)      :: ident(:)                 !ATMS Information flag (ident) values (new BURP element 025174 in header)
     !                                                                   FOR AMSUA just fill with zeros
@@ -1940,7 +1942,8 @@ contains
     ! Allocation
     call utl_reAllocate(clwObs,  KNT)
     call utl_reAllocate(clwFG,   KNT)
-    call utl_reAllocate(scatw,   KNT)
+    call utl_reAllocate(scatwObs,KNT)
+    call utl_reAllocate(scatwFG, KNT)
 
     call utl_reAllocate(kchkprf, KNT)
     call utl_reAllocate(ident, KNT)
@@ -1973,7 +1976,7 @@ contains
 
     call grody (err, knt, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
                 satzen, zlat, ktermer, ice, tpw, clwObs, clwFG, &
-                rain, snow, scatl, scatw)   
+                rain, snow, scatl, scatwObs)   
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
@@ -2041,7 +2044,7 @@ contains
                                 ICLWREJ, KMARQ, ICHECK)
     ! 13) test 13: Grody scattering index check (partial)
     ! For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
-    call amsuaTest13GrodyScatteringIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, scatw, KTERMER, ITERRAIN, &
+    call amsuaTest13GrodyScatteringIndexCheck (KCANO, KNOSAT, KNO, KNT, STNID, scatwObs, KTERMER, ITERRAIN, &
                                               MISGRODY, MXSCATREJ, ISCATREJ, KMARQ, ICHECK)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
@@ -7269,8 +7272,9 @@ contains
                                 satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, obsFlags, newInformationFlag, &
-                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,      &
-                                atmScatteringIndexObs, burpFileSatId, RESETQC, obsLatitude)
+                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                                atmScatteringIndexObs, atmScatteringIndexFG, &
+                                burpFileSatId, RESETQC, obsLatitude)
       else if (instName == 'AMSUB') then
         call mwbg_tovCheckAmsub(oer_toverrst, oer_cldPredThresh, oer_errThreshAllsky, oer_useStateDepSigmaObs, &
                                 oer_tovutil, landQualifierIndice,&
