@@ -113,6 +113,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Updated and made corrections related to weighted integration operator of routine `oopc_genoper` (#789 and !707)
  * Set environment variable in midas.launch to get access to the BUFR table (#787 and !704)
  * Fixed bug in observation simulation functionality, including namelist change in `letkf` (#768 and !697)
  * Fixed `midas.mpirun` so that it works with latest version of rpn/libs (#782 and !700)

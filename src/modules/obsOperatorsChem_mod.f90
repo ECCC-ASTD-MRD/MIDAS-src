@@ -116,10 +116,11 @@ module obsOperatorsChem_mod
     character(len=4)  :: varName
     real(8), allocatable :: vlayertop(:),vlayerbottom(:),tt(:),height(:),pp(:)
     real(8), allocatable :: zh(:,:),zhp(:,:),obslev(:),hu(:)
-    real(8), allocatable :: ixtr(:)
+    integer, allocatable :: ixtr(:)
     logical, allocatable :: success(:)
     real(8), pointer     :: trial(:)
-    integer, allocatable :: modlevindexTop(:),modlevindexBot(:),obsSpaceTrial(:)
+    integer, allocatable :: modlevindexTop(:),modlevindexBot(:)
+    real(8), allocatable :: obsSpaceTrial(:)
 
   end type struct_oopc_obsoperators
  
@@ -152,7 +153,7 @@ module obsOperatorsChem_mod
     logical :: applyGenoper
     real(8), allocatable :: vlayertop(:),vlayerbottom(:)
     real(8), allocatable :: zh(:,:),zhp(:,:)
-    real(8), allocatable :: ixtr(:)
+    integer, allocatable :: ixtr(:)
     logical, allocatable :: success(:)
     real(8), pointer     :: trial(:)
     integer, allocatable :: modlevindexTop(:),modlevindexBot(:)
@@ -289,6 +290,8 @@ module obsOperatorsChem_mod
   integer :: assim_famNum
 
   integer :: oopc_generalizedOperator(0:oopc_constituentsSize)   ! Same as genoper in NAMCHEM
+  real(8) :: oopc_genOperHCorrlenExpnt(0:oopc_constituentsSize)  ! Same as hCorrlenExptn in NAMCHEM
+  real(8) :: oopc_genOperOmAStatsFactor(0:oopc_constituentsSize) ! Same as omaStatsFactor  in NAMCHEM
   integer :: oopc_tropo_mode(0:oopc_constituentsSize),oopc_tropo_bound(0:oopc_constituentsSize)
   integer :: oopc_obsdata_maxsize
   real(8) :: oopc_tropo_column_top(0:oopc_constituentsSize)
@@ -404,8 +407,11 @@ module obsOperatorsChem_mod
     !
     ! 
     !     :genoper:
-    !                           Whether generalized observation operator should
-    !                           be used and selection of approach
+    !                           Reference profile type for weighted integration
+    !                           or layer averaging (generalized observation) 
+    !                           operator. Generalized obs operator
+    !                           not used if 0 provided as type index.
+    !                           Currently relevant for operatorSubType(2,i)='wgtInteg'.
     !                             ===  =======================================
     !                             <=0  not applied
     !                              1   use trial field xb for mass weighted
@@ -508,7 +514,7 @@ module obsOperatorsChem_mod
     !                           Default: 'GEM-MACH'
     !                           Set to 'GEM' for varNames of 'O3L', 'CH4L', and 'N2OL'
     !
-    !     :operatorSubType(2,i) Operator sub-type name.
+    !     :operatorSubType(2,i):Operator sub-type name.
     !                           Index (2,i) for sub-type to apply for stnid in element (1,i)
     !
     !                           Operator type      Sub-type name      Description
@@ -517,13 +523,23 @@ module obsOperatorsChem_mod
     !                              profile           'wgtAvg'         Piecewise weighted averaging  interpolator
     !                             surface pts        'default'        No special treatment (default)
     !                           integ. columns       'default'        Simple/basic vertical integration (default)
-    !                           integ. columns      'wgtInteg'        Weighted vertical integration (see 'genoper')
+    !                           integ. columns      'wgtInteg'        Weighted vertical integration (see 'genoper*'
     !                           layer avg prof       'default'        Simple layer averaging (default)
     !                           ====================================================================================
     !
     !     :storeOperators:      Logical indicating if linear operators are stored for re-use in TL and AD calc.
     !                           If so, the linear operators will not be re-calculated at different iterations.
     !                           Not used when tropo_mode>=1
+    !
+    !     :hCorrlenExpnt:       Used with genoper>0 and operatorSubType(2,i) ='wgtInteg'
+    !                           Exponent for partially mitigating the effect of 
+    !                           the influence of neighbouring column amonunt obs
+    !                           from background error correlations.
+    !                           Emperically obtained exponent value.
+    !                           Not optimal for all possible local horizontal data densities.
+    !
+    !     :omaStatsFactor:      OmA RMS (or std dev) conservation factor for 
+    !                           genoper>0 and operatorSubType(2,i) ='wgtInteg'.
     !
     
     implicit none
@@ -539,6 +555,8 @@ module obsOperatorsChem_mod
     real(8) :: tropo_column_top(0:oopc_constituentsSize) ! Default for column boundary (in Pa) of total column obs
     logical :: storeOperators ! Choose to store linear operators for re-use in TL/AD
     integer :: genoper(0:oopc_constituentsSize) ! Choose to use generalized obs operator and which approach
+    real(8) :: hCorrlenExpnt(0:oopc_constituentsSize)  ! Exponent for horiz. correl. length weighting in oopc_genoper
+    real(8) :: omaStatsFactor(0:oopc_constituentsSize) ! Additional OmAStats normalization factor for oopc_genoper
     integer :: obsdata_maxsize ! Max number of obs associated with ordered obs indices
 
     external fnom,fclos
@@ -546,11 +564,15 @@ module obsOperatorsChem_mod
     namelist /namchem/ assim_fam,assim_all,assim_num,assim_stnid,assim_varno,    &
                        assim_nlev, assim_exclude_nflag,assim_exclude_flag,       &
                        tropo_mode,tropo_bound,tropo_column_top,obsdata_maxsize,  &
-                       genoper,modelName,operatorSubType,storeOperators
+                       genoper,modelName,operatorSubType,storeOperators, &
+		       hCorrlenExpnt,omaStatsFactor
   
     ! Default NAMCHEM values
 
     genoper(:)=0
+    hCorrlenExpnt(:)=1.7
+    omaStatsFactor(:)=1.0
+    
     obsdata_maxsize=90000
     
     storeOperators=.false.
@@ -595,6 +617,8 @@ module obsOperatorsChem_mod
     assim_famnum=i
 
     oopc_generalizedOperator(:) = genoper(:)
+    oopc_genOperHCorrlenExpnt(:) =  hCorrlenExpnt(:)
+    oopc_genOperOmAStatsFactor(:) = omaStatsFactor(:)
     oopc_tropo_mode(:) = tropo_mode(:)
     oopc_tropo_bound(:) = tropo_bound(:)
     oopc_tropo_column_top(:) = tropo_column_top(:)
@@ -1200,7 +1224,7 @@ module obsOperatorsChem_mod
 
       ! Check if number of levels and BUFR code are equal.
       if (iset) then
-        if ( varno == oopc_avgkern%element(stnidIndex)) then
+        if ( varno == oopc_avgkern%element(stnidIndex) ) then
           if (nlev < 1 .or. ( nlev == oopc_avgkern%n_lvl(stnidIndex) .or. &
 	      nlev == oopc_avgkern%n_col(stnidIndex) .or. &
               nlev == oopc_avgkern%n_col(stnidIndex)-1 .or. &
@@ -2421,7 +2445,7 @@ module obsOperatorsChem_mod
         varIndex=varIndex+1
       end do
       if (trim(bgStats%varNameList(varIndex)) == '') then
-        call utl_abort('oopc_genoper: Correlation matrix not found for ' &
+        call utl_abort('oopc_obsoperators: Correlation matrix not found for ' &
 	               // trim(obsoper%varName) )
       end if
 
@@ -3564,12 +3588,20 @@ module obsOperatorsChem_mod
   subroutine oopc_genoper(kmode)
     !
     !:Purpose: Set generalized innovation operator for integral or layer avg
-    !          obs. Relevant only for 3D incremental fields. This version is
+    !          obs. Relevant only for incremental fields. This version is
     !          intended to vertically distribute (approximately) the obs increments
-    !          proportionally to the background state.
+    !          proportionally to the (a) background state or (b) the differences
+    !          between a reference/climatological state and the background state.
+    !          Option (b) is recommended for a spinup period when the shape of the
+    !          background state is not physically representative. This is to force
+    !          the analysis shape toward the reference/climatology shape in the absence
+    !          of local profiles observations.
     !
     !:Input:
-    !       :obsoper%zh,zhp:       see routine ppo_vertIntegSetup
+    !       :kmode:              index indicating if the operator is to be applied             
+    !       :obsoper%zh,zhp:     see routine ppo_vertIntegSetup
+    !       :oopc_generalizedOperator: index specifying the reference state
+    !       :bgStats:            structure containing the background stats data
     !
     !:Output:
     !       :obsoper%zh(obsoper%nmodlev):     a*w: Final innovation model array
@@ -3585,7 +3617,8 @@ module obsOperatorsChem_mod
     ! 
     !             g = a*w
     ! 
-    !          where the modified innovation operator 'w' can be set as:
+    !          where the innovation weight operator 'w' can be set as, 
+    !          for the 1D case,
     ! 
     !             w = P[ (h'x)^T ] *  B^{-1}     
     ! 
@@ -3595,7 +3628,7 @@ module obsOperatorsChem_mod
     !            - x is the state profile rval
     !            - P is a window cutoff operator (sets small values to zero)
     !            - B is the original/initial total "vertical" covariance matrix
-    !              (in 2D)
+    !              (2D)
     !          
     ! 
     !          and 'a' is a proportionality constant ensuring that the
@@ -3608,62 +3641,30 @@ module obsOperatorsChem_mod
     !          increment profile be more proportional to the state profile.
     ! 
     !          The presence of B^{-1} is to negate the weight re-distribution
-    !          from the later application of B in grad(Jo).
-    ! 
-    !          While dx is provided to the obs operator, the minimization is
-    !          done for dx/stddev where stddev is the background error std. dev.
-    !          in B and so C (correlation matrix) is used instead of B in the
-    !          minimization. Moreover, the transformation from dx/stddev to dx is
-    !          done outside the forward model operators (at the spectral to
-    !          physical space  transformation step). For this reason, the
-    !          expression for w should technically be replaced by
-    !  
-    !             w = P[ (h'x/stddev^2)^T ] *  C^{-1}            (Option 1 below)
-    ! 
-    !          still with
-    ! 
-    !             a^2 = (h*B*h^T)(w*B*w^T)^{-1}
+    !          from the later application of B in grad(Jo). Its specification
+    !          is approximate to reduce the effect of numerical error in the 
+    !          generating the inverse of B.
     !
-    !          The presence of C^{-1} does/can give difficulty to the iterative
-    !          variational  minimization. It can result in oscillations in the
-    !          increment profile depending on where the iterations are stopped.
-    !          Moreover, if the spectral space C matrix is for  non-separable
-    !          vertical and horizontal correlations, there will be oscillations 
-    !          due to inconstencies between the total inverse vertical
-    !          correlation C^{-1} in physical space  and the inverse vertical
-    !          correlation matrix for each spectral wavenumber.
-    ! 
-    !          As alternatives, one can completely omit the role of  C^{-1} from
-    !          w, i.e.
-    ! 
-    !             w = P[ (h'x/stddev^2)^T ]                        (Option 3)
-    ! 
-    !          or use the following substitute to approximate the role of C^{-1}
-    !          in approximately negating the weight re-distribution from later
-    !          application of C in grad(Jo), i.e.
-    ! 
-    !             w(i) = P[ (h'x/stddev^2)^T ]_i / sum(C(:,i))  (Option 2 - preferred)
-    ! 
-    !          Note that the denominator stddev^2 could be replaced by
-    !          (stddev^2*bgStats%hcorrlen^2) or something similar to counteract the 
-    !          variation in teh vertical of the influence of neighbouring obs via 
-    !          the horizotal correlations (not done in this version)
+    !          A scaling by the 1/bgStats%hcorrlen^q profile is addded to 
+    !          partially mitigate effect of the variation in the vertical 
+    !          of the influence of neighbouring obs via background horizontal 
+    !          error correlations. 
+    !   
+    !          The specification of the q value is to roughly give (a) a more 
+    !          constant-like increment in the absence of the trial profile form 
+    !          constraint and (b), in the presence of the form constraint, a 
+    !          better match of the max increment level to the max concentration
+    !          level. 
     !
-    !      (2) The matrices B and B^{-1} are the total error covariance matrix
-    !          (in physical space)
-    !          and its inverse with the related error correlation matrices
-    !          *corvert* and *corverti*  provided from *bmatrixchem_mod.ftn90*.
+    !          As the horizontal density of obs is somewhat variable
+    !          and not known locally, the specified q value is not optimal for each
+    !          individual case but better than not applying any related mitigation.
+    !
+    !      (2) The matrix B is the total error covariance matrix (in physical space)
+    !          with the related error correlation matrix
+    !          *corvert* and std dev provided from *bCovarSetupChem_mod.ftn90*.
     ! 
-    !      (3) In the presence of both (a) neighbouring measurements and (b)
-    !          horizontal background error  correlation lengths that vary in the
-    !          vertical, the increments will also be subject to the latter,
-    !          displaying larger increments in vertical regions with larger
-    !          horizontal error correlation lengths - this distorting the
-    !          vertical increment distribution stemming from oopc_genoper alone.
-    !          This stems from w accounting for vertical correlations via
-    !          C^{^-1} and not the horizontal correlations in B.
-    ! 
-    !      (4) NOTE: Cases with ensemble-based and or lam-based background
+    !      (3) NOTE: Cases with ensemble-based and or lam-based background
     !          covariances are not taken into account in this version.
     !
     
@@ -3684,9 +3685,19 @@ module obsOperatorsChem_mod
     if (kmode <= 1) return
 
     ! Retrieve from stored background error std dev [elemements (:,1-2)] at obs location [and inverses at elements (:,3-4)]    
-    fdeStddev = bcsc_retrieveBgStddev(obsoper%nmodlev,2,obsoper%obs_index)               
-    ! Identify variable position index in background error correlation matrices
+    fdeStddev = bcsc_retrieveBgStddev(obsoper%nmodlev,2,obsoper%obs_index) 
+    if (obsoper%constituentId == 0) then
+      ! To mitigate combined effects of approximations in expressions below and 
+      ! the forced strong reduction of fdeStddev(:,1) in the top level(s) of the
+      ! model. Bkgd ozone error std dev was set to near zero at the lid. The
+      ! absence of a resettting such as below would otherwise
+      ! lead to oscillatory numerical error effects in the first few levels.
+      ! This change will still force a near-zero (small) increment at the lid.
+      fdeStddev(1,2) = fdeStddev(2,2)
+    end if
     
+    ! Identify variable position index in background error correlation matrices
+   
     varIndex=1
     do while (trim(bgStats%varNameList(varIndex)) /= '') 
       if (trim(bgStats%varNameList(varIndex)) == trim(obsoper%varName)) exit
@@ -3756,33 +3767,26 @@ module obsOperatorsChem_mod
 	         fdeStddev(modlevIndex,2))**2
           end if
         end do
-        rmse=rmse*2.0d0/irmse
+        if (irmse > 0) rmse=rmse*2.0d0/irmse
         if (rmse < 1.0d0) then
           rvalw(1:obsoper%nmodlev)=rvalc(1:obsoper%nmodlev)
         else 
           rvalw(1:obsoper%nmodlev)=rvalc(1:obsoper%nmodlev)- &
                                   obsoper%trial(1:obsoper%nmodlev)
-          if (rmse < 5.0d0) then
-            w1=(5.0d0-rmse)/(5.0d0-1.0d0)
-            rvalw(1:obsoper%nmodlev)=(1.0d0-w1)*rvalw(1:obsoper%nmodlev)+ &
-	     	                      w1*obsoper%trial(1:obsoper%nmodlev)
-          end if
           where (abs(rvalw(1:obsoper%nmodlev)) < 0.01d0* &
 	         rvalc(1:obsoper%nmodlev)) 
             rvalw(1:obsoper%nmodlev)=sign(0.01d0*rvalc(1:obsoper%nmodlev), &
                                    rvalw(1:obsoper%nmodlev))
 	  end where
         end if
-        if (any(abs(rvalw(:)) <= threshold)) then
-          if (all(abs(rvalw(:)) <= threshold)) then
-            rvalw(:)=1.0 
-          else  
-            zmin=minval(abs(rvalw(:)),mask=abs(rvalw(:)) > threshold)
-            where (abs(rvalw(:)) <= threshold) rvalw(:)=zmin
-	  end if
+        if (all(abs(rvalw(:)) <= threshold)) then
+          rvalw(1:obsoper%nmodlev)=rvalc(1:obsoper%nmodlev)
+        else if (any(abs(rvalw(:)) <= threshold)) then 
+          zmin=minval(abs(rvalw(:)),mask=abs(rvalw(:)) > threshold)
+          where (abs(rvalw(:)) <= threshold) rvalw(:)= zmin
 	end if  
       end if
-       
+
       ! Begin preparation of the new innovation operator w (=new zhp)
        
       if (obsoper%nobslev == 1 .and. obsoper%modlevindexTop(obslevIndex) == 1 .and.  &
@@ -3792,47 +3796,52 @@ module obsOperatorsChem_mod
         ! to 1 except for the near-end points of the model vertical domain,
         ! the latter due to the discretized domain. Not using zhp avoids this
         ! discretization issue from weakly affecting results at the boundaries.
-          
-        work(1:obsoper%nmodlev)=rvalw(1:obsoper%nmodlev)*fdeStddev(1:obsoper%nmodlev,2) 
+
+	work(1:obsoper%nmodlev)=1.0
+
       else 
 
         ! Account for localized obs function (e.g. partial columns, Jacobians. For Jacobians,
         ! zhp must also be independent of the model layer thicknesses.)
-        work(1:obsoper%nmodlev)=obsoper%zhp(obslevIndex,1:obsoper%nmodlev)* &
-             rvalw(1:obsoper%nmodlev)*fdeStddev(1:obsoper%nmodlev,2) 
+	
+	! Apply cutoff       
+        zmin=pwin*maxval(abs(obsoper%zhp(obslevIndex,1:obsoper%nmodlev)))					     
+        where (abs(obsoper%zhp(obslevIndex,1:obsoper%nmodlev)) < zmin) 
+          work(1:obsoper%nmodlev)=0.0d0 
+        elsewhere
+          work(1:obsoper%nmodlev)=obsoper%zhp(obslevIndex,1:obsoper%nmodlev)
+	endwhere 
       end if
 
-      ! Apply cutoff (apply to zhp*rvalw/fdeStddev(:,1) instead of the resultant zh)
-      ! Resultant outside cutoff region should be zhp*obsoper%trial/fdeStddev(:,1)/fdeStddev(:,1).
-      ! Note: fdeStddev(:,2)=1.0/fdeStddev(:,1)
- 
-      zmin=pwin*maxval(abs(work(1:obsoper%nmodlev)))
-      where (abs(work(1:obsoper%nmodlev)) < zmin) 
-        work(1:obsoper%nmodlev)=0.0d0 
-      elsewhere        
-        work(1:obsoper%nmodlev)=work(1:obsoper%nmodlev)*fdeStddev(1:obsoper%nmodlev,2)
-      endwhere
+      ! Application of 1D space vertical covariance inverse B^{-1} for partially
+      ! mitigate the weight impact of the later application of B in finalizing 
+      ! grad(Jo). Note: fdeStddev(:,2)=1.0/fdeStddev(:,1)
 
-      ! Application of simple alternattive to C^{-1} for negating the weight 
-      ! impact of the later application of C in finalizing grad(Jo). 
-         
-      ! Alternative: Application of 1/sum(C(:,j)) to approximately negate the weight re-distribution
-      ! from C in the calc of grad(Jo). 
-       
-      obsoper%zhp(obslevIndex,obsoper%modlevindexTop(obslevIndex): &
-                     obsoper%modlevindexBot(obslevIndex))= &
-                   work(obsoper%modlevindexTop(obslevIndex): &
-	             obsoper%modlevindexBot(obslevIndex)) &
-                   *bgStats%invsum(obsoper%modlevindexTop(obslevIndex): &
-	                           obsoper%modlevindexBot(obslevIndex),varIndex)
-       
+      ! Also impose 
+      ! - approximate mitigation of horizontal correlation effect
+      ! - shape forcing profile via rvalw   
+
+      work(1:obsoper%nmodlev)=work(1:obsoper%nmodlev)*rvalw(1:obsoper%nmodlev) &
+        *fdeStddev(1:obsoper%nmodlev,2) 
+	
+      obsoper%zhp(obslevIndex,:)=0.0D0
+      !$OMP PARALLEL DO PRIVATE(modlevIndex)       
+      do modlevIndex=obsoper%modlevindexTop(obslevIndex), &
+                     obsoper%modlevindexBot(obslevIndex)
+        obsoper%zhp(obslevIndex,modlevIndex) = fdeStddev(modlevIndex,2)    &
+	     /bgStats%hcorrlen(modlevIndex,varIndex)**oopc_genOperhCorrlenExpnt(varIndex) &
+	     *sum(work(1:obsoper%nmodlev)                                  &
+	         *bgStats%corverti(1:obsoper%nmodlev,modlevIndex,varIndex))
+      end do
+      !$OMP END PARALLEL DO
+
       ! Determine proportionality factor 'a' = (h*B*h^T)(w*B*w^T)^{-1}
        
-      ! Determine/estimate w*B*w^T (zwbw)
+      ! First determine/estimate w*B*w^T (zwbw)
        
       !$OMP PARALLEL DO PRIVATE(modlevIndex)       
       do modlevIndex=obsoper%modlevindexTop(obslevIndex), &
-        obsoper%modlevindexBot(obslevIndex)
+                     obsoper%modlevindexBot(obslevIndex)
 	 
         work(modlevIndex)=sum(obsoper%zhp(obslevIndex, &
 	  obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) &
@@ -3843,14 +3852,16 @@ module obsOperatorsChem_mod
       end do
       !$OMP END PARALLEL DO
        
-      zwbw=sum(obsoper%zhp(obslevIndex,obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) &
-           *work(obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)))
+      zwbw=sum(obsoper%zhp(obslevIndex,obsoper%modlevindexTop(obslevIndex): &
+                           obsoper%modlevindexBot(obslevIndex)) &
+               *work(obsoper%modlevindexTop(obslevIndex):           &
+	             obsoper%modlevindexBot(obslevIndex)))
        
       ! Determine/estimate h*B*h^T (zhbh)
 
       !$OMP PARALLEL DO PRIVATE(modlevIndex)       
       do modlevIndex=obsoper%modlevindexTop(obslevIndex), &
-                      obsoper%modlevindexBot(obslevIndex)
+                     obsoper%modlevindexBot(obslevIndex)
 	 
         work(modlevIndex)=sum(obsoper%zh(obslevIndex, &
 	  obsoper%modlevindexTop(obslevIndex):obsoper%modlevindexBot(obslevIndex)) &
@@ -3863,15 +3874,15 @@ module obsOperatorsChem_mod
        
       zhbh=sum(obsoper%zh(obslevIndex,obsoper%modlevindexTop(obslevIndex): &
                           obsoper%modlevindexBot(obslevIndex)) &
-           *work(obsoper%modlevindexTop(obslevIndex): &
-	     obsoper%modlevindexBot(obslevIndex)))
+               *work(obsoper%modlevindexTop(obslevIndex):          &
+	             obsoper%modlevindexBot(obslevIndex)))
 
       ! Set proportionality factor 'a'
 
-      za=sqrt(zhbh/zwbw)
+      za=sqrt(zhbh/zwbw)*oopc_genOperOmAStatsFactor(varIndex)
          
       ! Set final innovation operator
-         
+      
       obsoper%zh(obslevIndex,1:obsoper%nmodlev)= &
                                  obsoper%zhp(obslevIndex,1:obsoper%nmodlev)*za
          
@@ -4062,6 +4073,7 @@ module obsOperatorsChem_mod
       if ( all(fieldRequired(:) < 2) ) then
         ! Not needed
         success=.true.
+	return
       end if
     end if
    

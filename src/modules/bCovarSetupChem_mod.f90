@@ -156,9 +156,6 @@ module BCovarSetupChem_mod
      
      real(8), allocatable :: corverti(:,:,:) ! Inverse of 'corvert'
      
-     ! 1 / sum of vertical correlations in each row
-     real(8), allocatable :: invsum(:,:)
-     
      real(8), allocatable :: stddev(:,:,:)   ! error std dev
      real(8), allocatable :: hcorrlen(:,:)   ! horizontal correlation lengths
   
@@ -431,7 +428,6 @@ module BCovarSetupChem_mod
       if (getPhysSpaceStats) then
         allocate(bgStats%corverti(bgStats%nlev,bgStats%nlev,&
           bgStats%numvar3d))
-        allocate(bgStats%invsum(bgStats%nlev,bgStats%numvar3d))
       end if
     end if
     
@@ -955,7 +951,7 @@ module BCovarSetupChem_mod
     end do
     
     nsize=bgStats%nJ*(bgStats%ntrunc+1)    
-    call rpn_comm_allreduce(wtemp(0:bgStats%ntrunc,1:bgStats%ni,1), &
+    call rpn_comm_allreduce(wtemp(0:bgStats%ntrunc,1:bgStats%nJ,1), &
          zleg(0:bgStats%ntrunc,1:bgStats%nJ),nsize,"mpi_double_precision", &
          "mpi_sum","GRID",ierr)
 
@@ -986,29 +982,30 @@ module BCovarSetupChem_mod
     call rpn_comm_allreduce(wtemp,hcorrel,nsize,"mpi_double_precision", &
                             "mpi_sum","GRID",ierr)
     deallocate(wtemp)
+
+    varIndex = 1
+    levelIndex = 1
+    do jk = 1, bgStats%nkgdim
+      if (jk == bgStats%nsposit(varIndex+1)) then
+        varIndex = varIndex+1 
+        levelIndex = 1
+      end if
+      do latIndex=bgStats%nj-1,2,-1
+        if (hcorrel(latIndex,levelIndex,varIndex) <= 0.368) then  ! 1/e ~ 0.368
+          bgStats%hcorrlen(levelIndex,varIndex) = (hdist(latIndex)* &
+	    (hcorrel(latIndex+1,levelIndex,varIndex)-0.368) &
+            + hdist(latIndex+1)*(0.368-hcorrel(latIndex,    &
+	    levelIndex,varIndex))) &
+            /(hcorrel(latIndex+1,levelIndex,varIndex)- &
+	    hcorrel(latIndex,levelIndex,varIndex))
+          exit
+        end if
+      end do
+      levelIndex = levelIndex+1
+    end do  
+
     
     if ( mmpi_myid == 0 ) then
-
-      varIndex = 1
-      levelIndex = 1
-      do jk = 1, bgStats%nkgdim
-        if (jk == bgStats%nsposit(varIndex+1)) then
-          varIndex = varIndex+1 
-          levelIndex = 1
-        end if
-        do latIndex=bgStats%nj-1,2,-1
-          if (hcorrel(latIndex,levelIndex,varIndex) <= 0.368) then  ! 1/e ~ 0.368
-            bgStats%hcorrlen(levelIndex,varIndex) = (hdist(latIndex)* &
-	      (hcorrel(latIndex+1,levelIndex,varIndex)-0.368) &
-              + hdist(latIndex+1)*(0.368-hcorrel(latIndex,    &
-	      levelIndex,varIndex))) &
-              /(hcorrel(latIndex+1,levelIndex,varIndex)- &
-	      hcorrel(latIndex,levelIndex,varIndex))
-            exit
-          end if
-        end do
-        levelIndex = levelIndex+1
-      end do  
     
       if (WritePhysSpaceStats) then 
         nulcorns = 0
@@ -1710,12 +1707,6 @@ module BCovarSetupChem_mod
       
       if (trim(bcsc_mode) == 'BackgroundCheck') cycle
 
-      ! Generate 1/sum(covert(:,i,VarIndex)
-        
-      do jn = 1, jnum 
-        bgStats%invsum(jn,varIndex) = 1.0d0/sum(bgStats%corvert(1:jnum,jn,varIndex)) 
-      end do
-      
       if (varIndex == 1) then
         allocate(lfound(numvartot))
         call readcorns(lfound,0,'CORVERTI') 
@@ -1749,7 +1740,13 @@ module BCovarSetupChem_mod
         ! E * lambda^{-1}
         eigenvalmax=maxval(eigenval(1:jnum))
         do jk1 = 1, jnum
-          if (eigenval(jk1) > 1.0d-8*eigenvalmax) then
+          !! if (eigenval(jk1) > 1.0d-8*eigenvalmax) then
+          ! Threshold increased below to reduce numerical error effects
+	  ! relevant when using corverti in applications
+	  ! (Threshold factor should not be smaller than 1.0D-4.)
+	  ! As consequence C*C^-1 will differ from the identity matrix
+	  ! while being nearly diagonal.
+          if (eigenval(jk1) > 1.0D-4*eigenvalmax) then
             result(1:jnum,jk1) = eigenvec(1:jnum,jk1)/eigenval(jk1)
           else
             result(1:jnum,jk1) = 0.0D0
@@ -2032,7 +2029,6 @@ module BCovarSetupChem_mod
       if (allocated(bgStats%hcorrlen)) deallocate(bgStats%hcorrlen)
       if (allocated(bgStats%corvert))  deallocate(bgStats%corvert)
       if (allocated(bgStats%corverti)) deallocate(bgStats%corverti)
-      if (allocated(bgStats%invsum))   deallocate(bgStats%invsum)         
     end if
 
   end subroutine bcsc_finalize
@@ -2083,7 +2079,7 @@ module BCovarSetupChem_mod
     integer :: ilev1,ilev2,j,d1,d2
     real(8) :: dz
 
-    real(8), allocatable :: wtemp1(:,:), wtemp2(:,:,:)
+    real(8), allocatable :: wtemp(:,:,:)
         
     d2=0 
     d1=nlev_T-bgStats%nlev
@@ -2092,30 +2088,22 @@ module BCovarSetupChem_mod
       d2=d1
     end if
     
-    allocate(wtemp2(nlev_T, nlev_T,bgStats%numvar3d))
-    allocate(wtemp1(nlev_T,bgStats%numvar3d))
-    wtemp2(:,:,:)=0.0d0
-    wtemp1(:,:)=0.0d0
+    allocate(wtemp(nlev_T, nlev_T,bgStats%numvar3d))
+    wtemp(:,:,:)=0.0d0
     
     ! Apply interpolation
 
     do ilev1 = 1, nlev_T
       if (bgStats%vlev(1) >= vlev_T(ilev1)) then
-        wtemp1(ilev1,1:bgStats%numvar3d)= &
-	      bgStats%invsum(1,1:bgStats%numvar3d)
-
-        wtemp2(ilev1,1:bgStats%nlev+d2,1:bgStats%numvar3d)= &
+        wtemp(ilev1,1:bgStats%nlev+d2,1:bgStats%numvar3d)= &
 	      bgStats%corvert(1,1:bgStats%nlev+d2,1:bgStats%numvar3d)
-        wtemp2(1:bgStats%nlev+d2,ilev1,1:bgStats%numvar3d)= &
+        wtemp(1:bgStats%nlev+d2,ilev1,1:bgStats%numvar3d)= &
 	      bgStats%corvert(1:bgStats%nlev+d2,1,1:bgStats%numvar3d)          
       else if (bgStats%vlev(bgStats%nlev) <= vlev_T(ilev1)) then
-        wtemp1(ilev1,1:bgStats%numvar3d)= &
-	      bgStats%invsum(bgStats%nlev,1:bgStats%numvar3d)
-
-        wtemp2(ilev1,1+ilev1-bgStats%nlev-d2:ilev1,1:bgStats%numvar3d)= &
+        wtemp(ilev1,1+ilev1-bgStats%nlev-d2:ilev1,1:bgStats%numvar3d)= &
 	      bgStats%corvert(bgStats%nlev,1-d2:bgStats%nlev, &
 	                      1:bgStats%numvar3d)
-        wtemp2(1+ilev1-bgStats%nlev-d2:ilev1,ilev1,1:bgStats%numvar3d)= &
+        wtemp(1+ilev1-bgStats%nlev-d2:ilev1,ilev1,1:bgStats%numvar3d)= &
 	      bgStats%corvert(1-d2:bgStats%nlev,bgStats%nlev, &
 	                      1:bgStats%numvar3d)          
       else 
@@ -2127,25 +2115,20 @@ module BCovarSetupChem_mod
         dz=log(vlev_T(ilev1)/bgStats%vlev(ilev2)) &
             /log(bgStats%vlev(ilev2+1)/bgStats%vlev(ilev2)) 
                   
-        wtemp1(ilev1,1:bgStats%numvar3d)=bgStats%invsum(ilev2, &
-	  1:bgStats%numvar3d)*(1.0-dz) &
-          +bgStats%invsum(ilev2+1,1:bgStats%numvar3d)*dz
-
         do j=1-max(ilev1-d1,1),nlev_T-min(d1+ilev1,nlev_T)
-          wtemp2(ilev1,ilev1+j,1:bgStats%numvar3d)= &
+          wtemp(ilev1,ilev1+j,1:bgStats%numvar3d)= &
 	        (bgStats%corvert(ilev2,ilev2+j,1:bgStats%numvar3d) &
                 *(1.0-dz) + bgStats%corvert(ilev2+1,ilev2+1+j, &
 		                            1:bgStats%numvar3d)*dz)
-          wtemp2(ilev1+j,ilev1,1:bgStats%numvar3d)= &
-	    wtemp2(ilev1,ilev1+j,1:bgStats%numvar3d)
+          wtemp(ilev1+j,ilev1,1:bgStats%numvar3d)= &
+	    wtemp(ilev1,ilev1+j,1:bgStats%numvar3d)
         end do               
       end if
     end do
     
-    bgStats%invsum(1:nlev_T,:) = wtemp1(:,:)
-    bgStats%corvert(1:nlev_T,1:nlev_T,:) = wtemp2(:,:,:)
+    bgStats%corvert(1:nlev_T,1:nlev_T,:) = wtemp(:,:,:)
     
-    deallocate(wtemp1,wtemp2)
+    deallocate(wtemp)
     
   end subroutine bcsc_resetCorvert
 
