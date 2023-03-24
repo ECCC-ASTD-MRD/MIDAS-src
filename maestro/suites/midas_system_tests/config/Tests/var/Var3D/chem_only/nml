@@ -5,6 +5,8 @@
  &NAMBCHM
    NTRUNC  = 270
    SCALEFACTOR(1,1:100) = 100*1.0D0
+   getPhysSpaceStats=.true.
+   getPhysSpaceHCorrel=.true.
 /
  &NAMRMAT
    rmat_lnonDiagR=.true.
@@ -100,4 +102,8 @@
   assim_stnid(1,1)='AUROMI00'  ! OMI on AURA (Removed TROPOMI and OMPS-NM for this test)
   assim_stnid(1,2)='R2362400'  ! SBUV2 with 6 layers (Removed OMPS-NP for this test)
   assim_stnid(1,3)='78538700'  ! MLS on AURA
+  operatorSubType(1,1)='78538700'
+  operatorSubType(2,1)='wgtAvg'
+  operatorSubType(1,2)='AUROMI00'
+  operatorSubType(2,2)='genOper'
 /
