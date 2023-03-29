@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Addition of new variables maxSwath, maxPerSwath to the namIceBGcheck namelist (#806 and !715)
 
 ### Changed
 
