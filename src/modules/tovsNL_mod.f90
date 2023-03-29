@@ -76,7 +76,7 @@ module tovsNL_mod
   use obsSpaceData_mod
   use earthConstants_mod
   use MathPhysConstants_mod
-  use ozoneClim_mod
+  use climatologies_mod
   use columnData_mod 
   use mod_rttov_emis_atlas
   use verticalCoord_mod
@@ -2480,7 +2480,7 @@ contains
 
     !  1.2   Read ozone climatology
 
-    if (tvs_useO3Climatology) call ozo_read_climatology(datestamp)
+    if (tvs_useO3Climatology) call clm_readOzoneClimatology(datestamp)
 
     !     2.  Fill profiles structure
     
@@ -2669,7 +2669,7 @@ contains
 
       !    2.5  Get ozone profiles (ppmv) from climatology if necessary
       if (tvs_coefs(sensorIndex) %coef % nozone > 0 .and. tvs_useO3Climatology) then
-        call ozo_get_profile (ozone, latitudes, pressure, nlv_T, profileCount)
+        call clm_getOzoneProfile (ozone, latitudes, pressure, nlv_T, profileCount)
       end if
 
       !   2.5  Fill profiles structure
