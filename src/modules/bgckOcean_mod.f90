@@ -338,26 +338,26 @@ module bgckOcean_mod
     type(struct_obs), intent(inout) :: obsData           ! obsSpaceData object
 
     ! Locals:
-    integer            :: nulnam, ierr
-    integer            :: headerIndex, bodyIndex, stationIndex, bodyCount
-    integer            :: obsChid, obsDate, obsTime, obsFlag
-    integer            :: obsDateStamp
-    integer, parameter :: maxSwath = 10, maxPerSwath = 200000
-    integer            :: numberObs(maxSwath), bodyIndexList(maxPerSwath,maxSwath)
-    integer            :: minDateStamp(maxSwath), maxDateStamp(maxSwath), swathID(maxSwath)
-    real               :: rmsDiff(maxSwath)
-    integer            :: swathIndex, nSwath
-    real(8)            :: OmP, deltaHours
-    integer            :: numberObsRejected
-    character(len=12)  :: cstnid
-    integer, external  :: newdate
-    integer            :: imode, prntdate, prnttime
+    integer              :: nulnam, ierr
+    integer              :: headerIndex, bodyIndex, stationIndex, bodyCount
+    integer              :: obsChid, obsDate, obsTime, obsFlag
+    integer              :: obsDateStamp
+    integer, allocatable :: numberObs(:), bodyIndexList(:,:)
+    integer, allocatable :: minDateStamp(:), maxDateStamp(:), swathID(:)
+    real, allocatable    :: rmsDiff(:)
+    integer              :: swathIndex, nSwath
+    real(8)              :: OmP, deltaHours
+    integer              :: numberObsRejected
+    character(len=12)    :: cstnid
+    integer, external    :: newdate
+    integer              :: imode, prntdate, prnttime
 
     ! Namelist variables: (local)
     integer           :: numStation = 11         ! number of 'idStation' values
     character(len=12) :: idStation(11) = 'null'  ! list of obsSpaceData 'idStation' values to consider
     real              :: OmpRmsdThresh(11) = 0.0 ! rejection threshold applied to RMS of O-P for entire swath
-    namelist /namIceBGcheck/ numStation, idStation, OmpRmsdThresh
+    integer           :: maxSwath = 10, maxPerSwath = 200000
+    namelist /namIceBGcheck/ numStation, idStation, OmpRmsdThresh, maxSwath, maxPerSwath
 
     call msg('ocebg_bgCheckSeaIce', 'performing background check for the SeaIce data...')
  
@@ -376,6 +376,10 @@ module bgckOcean_mod
       ierr = fclos(nulnam)
     end if
     write(*, nml = namIceBGcheck)
+
+    allocate(numberObs(maxSwath), bodyIndexList(maxPerSwath,maxSwath))
+    allocate(minDateStamp(maxSwath), maxDateStamp(maxSwath), swathID(maxSwath))
+    allocate(rmsDiff(maxSwath))
 
     STATION: do stationIndex = 1, numStation
 
@@ -490,6 +494,10 @@ module bgckOcean_mod
       end do SWATH
 
     end do STATION
+
+    deallocate(numberObs, bodyIndexList)
+    deallocate(minDateStamp, maxDateStamp, swathID)
+    deallocate(rmsDiff)
 
   end subroutine ocebg_bgCheckSeaIce
 
