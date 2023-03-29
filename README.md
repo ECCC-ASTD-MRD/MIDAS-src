@@ -17,7 +17,7 @@ git describe
 ```
 
 Also, to run the system tests for versions that include the latest
-update to `rpn/utils`, you mush update your login profile to
+update to `rpn/utils`, you must update your login profile to
 version `1.28.0` or later.
 
 # MIDAS Fortran coding standards:
