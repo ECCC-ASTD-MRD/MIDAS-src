@@ -319,7 +319,7 @@ contains
 
     ! Get index for satCloudCoverLimit for current current sat  
     indexSatFound = .false.
-    do indexSat = 1, maxNumChan
+    do indexSat = 1, maxNumSat
       if (trim(burpSatName(indexSat)) == trim(burpFileSatId)) then
         indexSatFound = .true.
         exit
