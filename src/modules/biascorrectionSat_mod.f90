@@ -91,7 +91,8 @@ module biasCorrectionSat_mod
   integer, parameter    :: NumPredictors = 7
   integer, parameter    :: NumPredictorsBcif = 6
   integer, parameter    :: maxfov = 120
-
+  integer, parameter    :: maxNumInst = 25
+  
   real(8), allocatable  :: trialHeight300m1000(:)
   real(8), allocatable  :: trialHeight50m200(:)
   real(8), allocatable  :: trialHeight1m10(:)
@@ -100,7 +101,7 @@ module biasCorrectionSat_mod
   real(8), allocatable  :: trialTG(:)
   integer               :: nobs
   integer, external     :: fnom, fclos 
-
+  character(len=2), parameter  :: predTab(0:7) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG"]
   ! Namelist variables
   character(len=5) :: biasMode  ! "varbc" for varbc, "reg" to compute bias correction coefficients by regression, "apply" to compute and apply bias correction
   logical  :: biasActive        ! logical variable to activate the module
@@ -115,10 +116,9 @@ module biasCorrectionSat_mod
   logical  :: outOmFPredCov         ! flag to activate output of O-F/predictors coefficients covariances and correlations
   real(8)  :: scanBiasCorLength     ! if positive and .not. mimicSatBcor use error correlation between scan positions with the given correlation length
   real(8)  :: bg_stddev(NumPredictors) ! background error for predictors ("varbc" mode)
-  character(len=7) :: cinst(25)   ! to read the bcif file for each instrument in cinst
-  character(len=3) :: cglobal(25) ! a "global" parameter and
-  integer          :: nbscan(25)  ! the number of scan positions are necessary
-  character(len=2), parameter  :: predTab(0:7) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG"]
+  character(len=7) :: cinst(maxNumInst)   ! to read the bcif file for each instrument in cinst
+  character(len=3) :: cglobal(maxNumInst) ! a "global" parameter and
+  integer          :: nbscan( maxNumInst)  ! the number of scan positions are necessary
   ! To understand the meaning of the following parameters controling filtering,
   ! please see  https://wiki.cmc.ec.gc.ca/images/f/f6/Unified_SatRad_Dyn_bcor_v19.pdf pages 20-22
   logical  :: offlineMode   ! flag to select offline mode for bias correction computation
