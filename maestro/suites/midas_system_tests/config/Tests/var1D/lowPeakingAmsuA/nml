@@ -6,6 +6,12 @@
 /
  &NAMBMAT1D
   scalefactorHI=200*1.0
+  includeAnlVar(1)= 'UU',
+  includeAnlVar(2)= 'VV',
+  includeAnlVar(3)= 'TT',
+  includeAnlVar(4)= 'HU',
+  includeAnlVar(5)= 'P0',
+  includeAnlVar(6)= 'TG',
 /
  &NAMRTTOV
   pertInput = .TRUE.,

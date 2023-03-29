@@ -26,7 +26,6 @@
   NLISTFLG(10) = 13
 /
  &namPlatformIce
-  nPlatformIce = 4
   listPlatformIce(1) = 'CIS_DAILY'
   listPlatformIce(2) = 'RS1_IMG'
   listPlatformIce(3) = 'CIS_REGIONAL'

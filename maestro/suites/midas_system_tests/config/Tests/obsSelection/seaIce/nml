@@ -25,7 +25,6 @@
   NLISTFLG(9) = 11
 /
  &namPlatformIce
-  nPlatformIce = 8
   listPlatformIce(1) = 'DMSP'
   listPlatformIce(2) = 'GCOM-W1'
   listPlatformIce(3) = 'METOP-1'
@@ -50,7 +49,6 @@
  &NAMCODTYP
 /
  &NAMICEBGCHECK
- numStation = 11
  idStation(1) = 'CIS_DAILY'
  idStation(2) = 'RS1_IMG'
  idStation(3) = 'CIS_REGIONAL'

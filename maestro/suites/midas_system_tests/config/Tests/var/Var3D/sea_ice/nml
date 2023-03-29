@@ -26,7 +26,6 @@
   NLISTFLG(10) = 13
 /
  &namPlatformIce
-  nPlatformIce = 8
   listPlatformIce(1) = 'DMSP'
   listPlatformIce(2) = 'GCOM-W1'
   listPlatformIce(3) = 'METOP-1'
