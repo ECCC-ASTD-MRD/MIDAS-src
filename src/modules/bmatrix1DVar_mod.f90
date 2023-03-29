@@ -19,6 +19,7 @@ module bmatrix1DVar_mod
   !
   ! :Purpose: contains all 1Dvar B matrices.
   !
+  use mathPhysConstants_mod
   use columnData_mod
   use columnVariableTransforms_mod
   use controlVector_mod
@@ -112,7 +113,7 @@ contains
     logical :: active
     integer :: nulnam, ierr
     integer, external ::  fnom, fclos
-    
+    integer :: varIndex
     call utl_tmg_start(50, '--Bmatrix')
 
     ! default values for namelist variables
@@ -123,13 +124,7 @@ contains
     nEns = -1
     vLocalize = -1.d0
     includeAnlVar(:)= ''
-    includeAnlVar(1)= 'UU'
-    includeAnlVar(2)= 'VV'
-    includeAnlVar(3)= 'TT'
-    includeAnlVar(4)= 'HU'
-    includeAnlVar(5)= 'P0'
-    includeAnlVar(6)= 'TG'
-    numIncludeAnlVar = 6
+    numIncludeAnlVar = MPC_missingValue_INT
 
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
@@ -137,7 +132,14 @@ contains
     if ( ierr /= 0 ) call utl_abort( 'bmat1D_bsetup: Error reading namelist' )
     if ( mmpi_myid == 0 ) write( *, nml = nambmat1D )
     ierr = fclos( nulnam )
-
+    if (numIncludeAnlVar /= MPC_missingValue_INT) then
+      call utl_abort('bmat1D_bsetup: check NAMBMAT1D namelist section: numIncludeAnlVar should be removed')
+    end if
+    numIncludeAnlVar = 0
+    do varIndex = 1, vnl_numvarmax
+      if (trim(includeAnlVar(varIndex)) == '') exit
+      numIncludeAnlVar = numIncludeAnlVar + 1
+    end do
     bmat1D_numIncludeAnlVar = numIncludeAnlVar
     allocate( bmat1D_includeAnlVar(bmat1D_numIncludeAnlVar) )
     bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar) = includeAnlVar(1:numIncludeAnlVar)

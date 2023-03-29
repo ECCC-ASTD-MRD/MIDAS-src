@@ -133,7 +133,7 @@ module bgckOcean_mod
       if (ierr /= 0) call utl_abort('ocebg_bgCheckSST: Error reading namelist')
       ierr = fclos(nulnam)
       if (nmonthsExceptionNH /=0) then
-        call utl_abort('ocebg_bgCheckSST: check namelist section')
+        call utl_abort('ocebg_bgCheckSST: check namOceanBGcheck namelist section: nmonthsExceptionNH should be removed')
       end if
       do monthIndex = 1, 12
         if (monthExceptionNH(monthIndex) == '   ') exit
@@ -358,13 +358,14 @@ module bgckOcean_mod
     character(len=12)    :: cstnid
     integer, external    :: newdate
     integer              :: imode, prntdate, prnttime
-
+    integer, parameter   :: numStationMax = 11              ! maximum number of 'idStation' values
+    
     ! Namelist variables: (local)
-    integer           :: numStation = 11         ! number of 'idStation' values
-    character(len=12) :: idStation(11) = 'null'  ! list of obsSpaceData 'idStation' values to consider
-    real              :: OmpRmsdThresh(11) = 0.0 ! rejection threshold applied to RMS of O-P for entire swath
-    integer           :: maxSwath = 10           ! maximum number of swaths
-    integer           :: maxPerSwath = 200000    ! maximum number of data per swath
+    integer           :: numStation = MPC_missingValue_INT  ! number of 'idStation' values
+    character(len=12) :: idStation(numStationMax) = 'null'  ! list of obsSpaceData 'idStation' values to consider
+    real              :: OmpRmsdThresh(numStationMax) = 0.0 ! rejection threshold applied to RMS of O-P for entire swath
+    integer           :: maxSwath = 10                      ! maximum number of swaths
+    integer           :: maxPerSwath = 200000               ! maximum number of data per swath
     namelist /namIceBGcheck/ numStation, idStation, OmpRmsdThresh, maxSwath, maxPerSwath
 
     call msg('ocebg_bgCheckSeaIce', 'performing background check for the SeaIce data...')
@@ -382,6 +383,14 @@ module bgckOcean_mod
       read(nulnam, nml = namIceBGcheck, iostat = ierr)
       if (ierr /= 0) call utl_abort('ocebg_bgCheckSeaIce: Error reading namelist')
       ierr = fclos(nulnam)
+      if (numStation /= MPC_missingValue_INT) then
+        call utl_abort('ocebg_bgCheckSeaIce: check namIceBGcheck namelist section: numStation should be removed')
+      end if
+      numStation = 0
+      do stationIndex = 1, numStationMax
+        if (trim(idStation(stationIndex)) == 'null') exit
+        numStation = numStation + 1
+      end do
     end if
     write(*, nml = namIceBGcheck)
 
@@ -392,8 +401,6 @@ module bgckOcean_mod
     STATION: do stationIndex = 1, numStation
 
       call msg('ocebg_bgCheckSeaIce', 'doing idStation: '//idStation(stationIndex))
-
-      if (idStation(stationIndex) == 'null') cycle STATION
 
       numberObs(:) = 0
       rmsDiff(:) = 0.0

@@ -132,15 +132,15 @@ contains
     integer :: nulnam, ierr
     logical, save :: first = .true.
     integer, external :: fnom, fclos
-
+    integer :: instrumentIndex
     namelist /NAMBGCKIR/ ninst, inst, iwindow, iwindow_alt, ilist1, ilist2, ilist2_pair
     namelist /NAMBGCKIR/ dtw, dtl, pco2min, pco2max, night_ang, crisCloudFractionThreshold
 
     if (first) then
 
       ! set the default values for namelist variables
-      ninst = 0
-      inst(:) = ''
+      ninst = MPC_missingValue_INT
+      inst(:) = '*EMPTY*'
       iwindow(:) = 0
       iwindow_alt(:) = 0
       ilist1(:,:) = 0
@@ -159,6 +159,14 @@ contains
       read(nulnam, nml=NAMBGCKIR, iostat=ierr)
       if (ierr /= 0) call utl_abort('irbg_init: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml=NAMBGCKIR)
+      if (ninst /= MPC_missingValue_INT) then
+        call utl_abort('irbg_init: check NAMBGCKIR namelist section: ninst should be removed')
+      end if
+      ninst = 0
+      do instrumentIndex = 1, nmaxinst
+        if (inst(instrumentIndex) == '*EMPTY*') exit
+        ninst = ninst + 1
+      end do
       ierr = fclos(nulnam)
       first = .false.
 

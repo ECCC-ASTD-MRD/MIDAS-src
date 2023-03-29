@@ -296,12 +296,12 @@ contains
 
     ! COMPUTE BMATRIX PERTURBATION FOR THE STATIC COVARIANCES CASE; from Bhi and or BChm 
 
-    if (all(familyList(1:numFamily).eq.'CH').or.(.not.cvm_subVectorExists('B_HI'))) then
+    if (all(familyList(1:numFamily) == 'CH').or.(.not.cvm_subVectorExists('B_HI'))) then
        cvBhi => null()
     else
        cvBhi => cvm_getSubVector(controlVector,'B_HI')
     end if
-    if (any(familyList(1:numFamily).eq.'CH').and.obs_famExist(obsSpaceData,'CH').and.cvm_subVectorExists('B_CHM')) then
+    if (any(familyList(1:numFamily) == 'CH').and.obs_famExist(obsSpaceData,'CH').and.cvm_subVectorExists('B_CHM')) then
        cvBChm => cvm_getSubVector(controlVector,'B_CHM')
     else
        cvBChm => null()
@@ -356,7 +356,7 @@ contains
              else if (vnl_varKindFromVarname(vnl_varNameList(jvar)) == 'CH') then
                 ivar_count=ivar_count+1
                 do jlev = 1, gsv_getNumLev(statevector,vnl_varLevelFromVarname(vnl_varNameList(jvar)))   
-                   if(scaleFactorChm(ivar_count,jlev).gt.0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:) &
+                   if(scaleFactorChm(ivar_count,jlev) > 0.0d0) field(:,:,jlev,:)=field(:,:,jlev,:) &
                          /scaleFactorChm(ivar_count,jlev)
                 end do
              end if
@@ -551,7 +551,7 @@ contains
           write(nulcount,*) '***maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight='
           write(nulcount,*) maxLon,maxLat,deltaLon,deltaLat,deltaPressure,deltaHeight
           do verticalIndex = 1,maxVertical
-            if(sum(counts(:,:,verticalIndex)).gt.0) then
+            if(sum(counts(:,:,verticalIndex)) > 0) then
               write(nulinnov,*) '***verticalIndex,vco='
               write(nulinnov,*) verticalIndex,ivco
               
@@ -679,7 +679,8 @@ contains
     logical :: nmlExists
 
     !Locals:
-    integer :: nulnam,ierr,fnom,fclos,j
+    integer :: nulnam,ierr,fnom,fclos
+    integer :: familyIndex, elementIndex
     
     namelist /namosd/nrandseed,deltaLat,deltaLon,deltaPressure,deltaHeight, &
         numFamily,familyList,numElement,elementList,lrandom, &
@@ -696,29 +697,11 @@ contains
 
     !numFamily = ofl_numFamily
     !familyList(:) = ofl_familyList(:)
-    numFamily = 7
+    numFamily = MPC_missingValue_INT
     familyList(:) = '  '
-    familyList(1) = 'UA'
-    familyList(2) = 'AI'
-    familyList(3) = 'SC'
-    familyList(4) = 'RO'
-    familyList(5) = 'TO'
-    familyList(6) = 'SW'
-    familyList(7) = 'SF'
     
-    numElement = 11
+    numElement = MPC_missingValue_INT
     elementList(:) = -1
-    elementList(1) = BUFR_NETT
-    elementList(2) = BUFR_NEUU
-    elementList(3) = BUFR_NEVV
-    elementList(4) = BUFR_NEES
-    elementList(5) = BUFR_NEUS
-    elementList(6) = BUFR_NEVS
-    elementList(7) = BUFR_NBT1
-    elementList(8) = BUFR_NBT2
-    elementList(9) = BUFR_NBT3
-    elementList(10)= BUFR_NERF
-    elementList(11)= BUFR_NEPS
 
     diagn_save(:)=.false.
     diagn_all(:)=.true. 
@@ -728,15 +711,11 @@ contains
     diagn_stnid(:,:)='*********'
     diagn_varno(:,:)=0
     diagn_unilev(:,:)=.false.
-    obsspace_diagn_filename(:)='obsspace_diag_'
-    do j=1,numFamily
-       obsspace_diagn_filename(j) ='obsspace_diag_'//familyList(j)//'_'
-    end do
 
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namosd,iostat=ierr)
-    if(ierr.ne.0) then
+    if(ierr /= 0) then
       write(*,*) 'osd_setup: No valid namelist NAMOSD found, skipping some diagnostics'
       nmlExists = .false.
       ierr = fclos(nulnam)
@@ -744,14 +723,29 @@ contains
     else
       nmlExists = .true.
     endif
-    if(mmpi_myid.eq.0) write(*,nml=namosd)
+    if(mmpi_myid == 0) write(*,nml=namosd)
     ierr = fclos(nulnam)
-
-    do j=1,numFamily
-       if ( .not. ofl_isFamilyTypeInList(familyList(j)) ) &
-         call utl_abort('osd_setup: Specified family '//familyList(j)//' was not recognized')
-       obsspace_diagn_filename(j) ='obsspace_diag_'//familyList(j)//'_'
-       if (diagn_num(j).gt.max_cfg_size) call utl_abort('osd_setup: Number exceeds allowed size of max_cfg_size')
+    if (numFamily /= MPC_missingValue_INT) then
+      call utl_abort('osd_setup: check NAMOSD namelist section: numFamily should be removed')
+    end if
+    numFamily = 0
+    do familyIndex = 1, ofl_numFamily
+      if (familyList(familyIndex) == '  ') exit
+       numFamily = numFamily + 1
+    end do
+    if (numElement /= MPC_missingValue_INT) then
+      call utl_abort('osd_setup: check NAMOSD namelist section: numElement should be removed')
+    end if
+    numElement = 0
+    do elementIndex = 1, ofl_numFamily
+      if (elementList(elementIndex) == -1) exit
+      numElement = numElement + 1
+    end do
+    do familyIndex = 1, numFamily
+      if ( .not. ofl_isFamilyTypeInList(familyList(familyIndex)) ) &
+          call utl_abort('osd_setup: Specified family '//familyList(familyIndex)//' was not recognized')
+      obsspace_diagn_filename(familyIndex) ='obsspace_diag_'//familyList(familyIndex)//'_'
+      if (diagn_num(familyIndex) > max_cfg_size) call utl_abort('osd_setup: Number exceeds allowed size of max_cfg_size')
     end do
     
   end subroutine osd_setup
@@ -1088,7 +1082,7 @@ contains
              end do
 
              ! Convert altidudes to pressure
-             success = status.gt.0
+             success = status > 0
              lev = phf_convert_z_to_pressure(lev,height_mod,pres_mod,nlev_obs,nlev_mod,lat/MPC_DEGREES_PER_RADIAN_R8,success)
 
              deallocate(pres_mod)
@@ -1626,7 +1620,7 @@ contains
           write(unit,*) trim(label_opt)
        end if
                       
-       if (any(obs_diagn%counts.gt.0)) then
+       if (any(obs_diagn%counts > 0)) then
 
           nlat = obs_diagn%nlat
           nlon = obs_diagn%nlon
@@ -1649,8 +1643,8 @@ contains
           counts_total_assim = counts_total_assim + sum(ncounts_assim)
 
           ! Indicates if any multilevel or unilevel observations exist
-          multilevel = any(obs_diagn%nstatus(:,:,1:nlev-1,:).gt.0)
-          unilevel = any(obs_diagn%nstatus(:,:,nlev,:).gt.0)
+          multilevel = any(obs_diagn%nstatus(:,:,1:nlev-1,:) > 0)
+          unilevel = any(obs_diagn%nstatus(:,:,nlev,:) > 0)
           
           if (obs_diagn%assim_mode) then
               write(unit,*)
