@@ -52,7 +52,8 @@ module obsOperatorsChem_mod
 
   type :: struct_oopc_obsoperators  
   
-    !  Structure holding work variables for observation operators
+    !  Structure holding work variables for individual observation operator
+    !  applications
     !     
     !  Variable               Description
     !  --------               -----------
@@ -61,10 +62,13 @@ module obsOperatorsChem_mod
     !  varno                  BUFR descriptor element for obs units
     !  constituentId          BUFR code element of local GRIB Table 08046 identifying the constituent
     !                         (similar to BUFR Table 08043)
-    !  modelIndex             Obs operator index
-    !                         0 - vertical interpolator
-    !                         1 - layer averaging
-    !                         2 - layer integration
+    !  operatorCategory       CH obs operator category. One of the following.
+    !                           'Interp': interpolators
+    !                           'Surface': surface point operators
+    !                           'Integ': integration operators
+    !                           'LayerAvg': layer averaging operators
+    !                         Automatically assigned based on obs BUFR element
+    !                         and, when relevant, assocciated obsinfo_chm content.
     !  layerIdentified        .true. if a layer (with identified layer boundaries)
     !                         .false if layer boundaries are not available.
     !  valertop               Layer top (final work values in Pa)
@@ -103,16 +107,17 @@ module obsOperatorsChem_mod
     !  iavgkern               Integer indicating if averaging kernels are to be applied. Value
     !                         of zero indicates no averaging kernel to be applied. Non-zero value
     !                         indicates index in oopc_avgkern%obsSubSpace arrays.
-    !  applyGenoper           Indicates if the generalized observation operator should be applied
+    !  applyGenOper           Indicates if the generalized observation operator should be applied
     !  columnBound            Boundary imposed on a column measurement
     !  ixtr                   Indicates when outside model vertical range (when >0)
     !  success                Indicates if the observation is to be assimilated
     !                         or was successfully assimilated 
     
-    integer :: nobslev,nmodlev,modelIndex,constituentId,vco,varno,date,hhmm,iavgkern,obs_index
-    logical :: layerIdentified,applyGenoper
+    integer :: nobslev,nmodlev,constituentId,vco,varno,date,hhmm,iavgkern,obs_index
+    logical :: layerIdentified,applyGenOper
     real(8) :: lat,lon,columnBound
     character(len=12) :: stnid
+    character(len=10) :: operatorCategory
     character(len=4)  :: varName
     real(8), allocatable :: vlayertop(:),vlayerbottom(:),tt(:),height(:),pp(:)
     real(8), allocatable :: zh(:,:),zhp(:,:),obslev(:),hu(:)
@@ -144,13 +149,13 @@ module obsOperatorsChem_mod
     !  iavgkern               Integer indicating if averaging kernels are to be applied. Value
     !                         of zero indicates no averaging kernel to be applied. Non-zero value
     !                         indicates index in oopc_avgkern%obsSubSpace arrays.
-    !  applyGenoper           Indicates if the generalized observation operator should be applied
+    !  applyGenOper           Indicates if the generalized observation operator should be applied
     !  ixtr                   Indicates when outside model vertical range (when >0)
     !  success                Indicates if the observation is to be assimilated
     !                         or was successfully assimilated 
     
     integer :: nobslev,iavgkern
-    logical :: applyGenoper
+    logical :: applyGenOper
     real(8), allocatable :: vlayertop(:),vlayerbottom(:)
     real(8), allocatable :: zh(:,:),zhp(:,:)
     integer, allocatable :: ixtr(:)
@@ -161,6 +166,7 @@ module obsOperatorsChem_mod
   end type struct_oopc_operatorsDepot
 
   type :: struct_oopc_info
+  
     !  Information arrays retrieved from auxiliary file regarding vertical levels 
     !  or averaging kernels
     !
@@ -247,7 +253,9 @@ module obsOperatorsChem_mod
   
   type :: struct_oopc_field
 
-    !  Structure for storing reference (climatological) fields 
+    !  Structure for storing reference (climatological) fields needed for
+    !  operatorSubType(2,:) == 'genOper' with 
+    !  genOperConstraintType == 'Diff' (see below).
     !     
     !  Variable               Description
     !  --------               -----------
@@ -281,31 +289,32 @@ module obsOperatorsChem_mod
 
   type(struct_oss_obsdata) :: oopc_efftemp
 
-  ! General config/setup information parameters 
-  ! See description list of NAMCHEM namelist parameters in routine oopc_setupCH
+  type(struct_bcsc_bgStats) :: bgStats ! Background covariances
 
-  integer, parameter :: assim_maxfamnum=1           ! Could be used for other families as well with >1
-  integer, parameter :: assim_maxsize=100           ! max size of assim_* arrays  
-
-  integer :: assim_famNum
-
-  integer :: oopc_generalizedOperator(0:oopc_constituentsSize)   ! Same as genoper in NAMCHEM
-  real(8) :: oopc_genOperHCorrlenExpnt(0:oopc_constituentsSize)  ! Same as hCorrlenExptn in NAMCHEM
-  real(8) :: oopc_genOperOmAStatsFactor(0:oopc_constituentsSize) ! Same as omaStatsFactor  in NAMCHEM
-  integer :: oopc_tropo_mode(0:oopc_constituentsSize),oopc_tropo_bound(0:oopc_constituentsSize)
-  integer :: oopc_obsdata_maxsize
-  real(8) :: oopc_tropo_column_top(0:oopc_constituentsSize)
-  logical :: oopc_storeOperators
-  
   ! Setup initialization key
   logical :: initializedChem = .false.    
   
   ! Operator storage initialization key
   logical :: initializedOperators = .false.    
  
-  type(struct_bcsc_bgStats) :: bgStats ! Background covariances
+  ! General config/setup information parameters 
+  ! See description list of NAMCHEM namelist parameters and others 
+  ! in routine oopc_readNamchem.
+  ! Following variables/parameters could be placed in a data structure/type
+  ! (e.g. struct_oopc_nmlparm)
 
-  ! Namelist variables:
+  character(len=5) :: oopc_genOperConstraintType(0:oopc_constituentsSize) 
+  real(8) :: oopc_genOperHCorrlenExpnt(0:oopc_constituentsSize)  
+  real(8) :: oopc_genOperOmAStatsFactor(0:oopc_constituentsSize) 
+  integer :: oopc_tropo_mode(0:oopc_constituentsSize),oopc_tropo_bound(0:oopc_constituentsSize)
+  integer :: oopc_obsdata_maxsize
+  real(8) :: oopc_tropo_column_top(0:oopc_constituentsSize)
+  logical :: oopc_storeOperators
+  
+  integer, parameter :: assim_maxfamnum=1           ! Could be used for other families as well with >1
+  integer, parameter :: assim_maxsize=100           ! max size of assim_* arrays  
+
+  integer :: assim_famNum
   character(len=2) :: assim_fam(assim_maxfamnum) ! List of families to which filt_diagnOnly is to apply
   logical :: assim_all(assim_maxfamnum) ! Choose to assimilate all obs of specified family
   integer :: assim_num(assim_maxfamnum) ! Number of combinations identified for assimilation
@@ -316,7 +325,6 @@ module obsOperatorsChem_mod
   character(len=9) :: assim_stnid(assim_maxfamnum,assim_maxsize) ! List of stnid to assimilation '*' for wild card
   character(len=20) :: operatorSubType(2,assim_maxsize) ! Operator sub-type name
   character(len=10) :: modelName = 'GEM-MACH' ! Identification of the model
-
 
   !**************************************************************************
   
@@ -367,7 +375,7 @@ module obsOperatorsChem_mod
     ! Read reference (e.g. climatological) fields
   
     call oopc_readFields(oopc_climFields,oopc_aux_filename,'CH', &
-                         oopc_constituentsSize,2,oopc_generalizedOperator, &
+                         oopc_constituentsSize,2,oopc_genOperConstraintType, &
 			 success,filetype_opt='TXT')
     if ( .not. success ) then
       call utl_abort('oopc_setupCH: Failed in oopc_readFields')
@@ -387,7 +395,7 @@ module obsOperatorsChem_mod
     
     bgStats%initialized = .false.
     
-    if (kmode == 1 .or. any(oopc_generalizedOperator(:) /= 0) ) then
+    if (kmode == 1 .or. any(operatorSubType(2,:) == 'genOper') ) then
       call bcsc_getCovarCH(bgStats)
     end if
 
@@ -406,23 +414,32 @@ module obsOperatorsChem_mod
     !          dimensions settings).
     !
     ! 
-    !     :genoper:
+    !     :genOperConstraintType:
     !                           Reference profile type for weighted integration
     !                           or layer averaging (generalized observation) 
-    !                           operator. Generalized obs operator
-    !                           not used if 0 provided as type index.
-    !                           Currently relevant for operatorSubType(2,i)='wgtInteg'.
-    !                             ===  =======================================
-    !                             <=0  not applied
-    !                              1   use trial field xb for mass weighted
-    !                                  increment distribution
-    !                              2   use a combination of the difference of
-    !                                  an external reference xc and the trial
-    !                                  field xb, i.e. mass weighted increment
-    !                                  distribution as a(xc-xb) + b*xc where a
-    !                                  and b depend on the size of
-    !                                  sum[(xc-xb)/sig(xb)]^2 over the profile
-    !                             ===  =======================================
+    !                           operator.
+    !                           Relevant for operatorSubType(2,i)='genOper'.
+    !                           ================================================
+    !                           'Trial'  use trial field xb for mass weighted
+    !                                    increment distribution
+    !                           'Diff'   use a combination of the difference of
+    !                                    an external reference xc and the trial
+    !                                    field xb, i.e. mass weighted increment
+    !                                    distribution as a(xc-xb) + b*xc where a
+    !                                    and b depend on the size of
+    !                                    sum[(xc-xb)/sig(xb)]^2 over the profile
+    !                             ==============================================
+    !
+    !     :genOperHCorrlenExpnt: Used with operatorSubType(2,i) ='genOper'
+    !                           Exponent for partially mitigating the effect of 
+    !                           the influence of neighbouring column amonunt obs
+    !                           from background error correlations.
+    !                           Emperically obtained exponent value.
+    !                           Not optimal for all possible local horizontal data densities.
+    !
+    !     :genOperOmAStatsFactor:  OmA RMS (or std dev) conservation factor for 
+    !                           operatorSubType(2,i) ='genOper'.
+    !
     !
     !     :assim_fam:           List of families to which filt_diagnOnly is to
     !                           apply.
@@ -516,30 +533,32 @@ module obsOperatorsChem_mod
     !
     !     :operatorSubType(2,i):Operator sub-type name.
     !                           Index (2,i) for sub-type to apply for stnid in element (1,i)
+    !                           See related "obsoper@operatorCategory" automatically assigned
+    !                           based on obs BUFR element and obsinfo_chm content.
     !
-    !                           Operator type      Sub-type name      Description
+    !                           Operator        Sub-type name    Description
+    !                           Category 
     !                           =============  =====================================================================
-    !                           profile or pt        'default'        Piecewise linear interpolation (default)
-    !                              profile           'wgtAvg'         Piecewise weighted averaging  interpolator
-    !                             surface pts        'default'        No special treatment (default)
-    !                           integ. columns       'default'        Simple/basic vertical integration (default)
-    !                           integ. columns      'wgtInteg'        Weighted vertical integration (see 'genoper*'
-    !                           layer avg prof       'default'        Simple layer averaging (default)
+    !                           'Interp'        'default'        Piecewise linear interpolation (default)
+    !                                           'wgtAvg'         Piecewise weighted averaging  interpolator
+    !                           'Surface'       'default'        No special treatment (default)
+    !                           'Integ'         'default'        Simple/basic vertical integration (default)
+    !                                           'genOper'        Weighted vertical integration - see 'genOper*' parameters
+    !                           'LayerAvg'      'default'        Simple layer averaging (default)
+    !                                           'genOper'        Weighted vertical layer averaging - see 'genOper*' parameters
     !                           ====================================================================================
     !
+    !                           Notes:
+    !
+    !                           - 'genOper' requires NAMBCHM namelist parameter settings
+    !                             getPhysSpaceStats=.true. and 
+    !                             getPhysSpaceHCorrel=.true.
+    !                           - Application of averaging kernels is directed only
+    !                             by the content of the obsinfo_chm file 'SECTION III'
+    !                                             
     !     :storeOperators:      Logical indicating if linear operators are stored for re-use in TL and AD calc.
     !                           If so, the linear operators will not be re-calculated at different iterations.
     !                           Not used when tropo_mode>=1
-    !
-    !     :hCorrlenExpnt:       Used with genoper>0 and operatorSubType(2,i) ='wgtInteg'
-    !                           Exponent for partially mitigating the effect of 
-    !                           the influence of neighbouring column amonunt obs
-    !                           from background error correlations.
-    !                           Emperically obtained exponent value.
-    !                           Not optimal for all possible local horizontal data densities.
-    !
-    !     :omaStatsFactor:      OmA RMS (or std dev) conservation factor for 
-    !                           genoper>0 and operatorSubType(2,i) ='wgtInteg'.
     !
     
     implicit none
@@ -554,9 +573,9 @@ module obsOperatorsChem_mod
     integer :: tropo_bound(0:oopc_constituentsSize) ! Indicate which column top value used for special treatment
     real(8) :: tropo_column_top(0:oopc_constituentsSize) ! Default for column boundary (in Pa) of total column obs
     logical :: storeOperators ! Choose to store linear operators for re-use in TL/AD
-    integer :: genoper(0:oopc_constituentsSize) ! Choose to use generalized obs operator and which approach
-    real(8) :: hCorrlenExpnt(0:oopc_constituentsSize)  ! Exponent for horiz. correl. length weighting in oopc_genoper
-    real(8) :: omaStatsFactor(0:oopc_constituentsSize) ! Additional OmAStats normalization factor for oopc_genoper
+    character(len=5) :: genOperConstraintType(0:oopc_constituentsSize) ! Strong constraint for generalized obs operator (see oopc_genOper)
+    real(8) :: genOperHCorrlenExpnt(0:oopc_constituentsSize)  ! Exponent for horiz. correl. length weighting in oopc_genOper
+    real(8) :: genOperOmAStatsFactor(0:oopc_constituentsSize) ! Additional OmAStats normalization factor for oopc_genOper
     integer :: obsdata_maxsize ! Max number of obs associated with ordered obs indices
 
     external fnom,fclos
@@ -564,14 +583,14 @@ module obsOperatorsChem_mod
     namelist /namchem/ assim_fam,assim_all,assim_num,assim_stnid,assim_varno,    &
                        assim_nlev, assim_exclude_nflag,assim_exclude_flag,       &
                        tropo_mode,tropo_bound,tropo_column_top,obsdata_maxsize,  &
-                       genoper,modelName,operatorSubType,storeOperators, &
-		       hCorrlenExpnt,omaStatsFactor
+                       modelName,operatorSubType,storeOperators, &
+		       genOperConstraintType,genOperHCorrlenExpnt,genOperOmAStatsFactor
   
     ! Default NAMCHEM values
 
-    genoper(:)=0
-    hCorrlenExpnt(:)=1.7
-    omaStatsFactor(:)=1.0
+    genOperConstraintType(:)='Trial'
+    genOperHCorrlenExpnt(:)=1.7
+    genOperOmAStatsFactor(:)=1.0
     
     obsdata_maxsize=90000
     
@@ -616,9 +635,9 @@ module obsOperatorsChem_mod
     end do
     assim_famnum=i
 
-    oopc_generalizedOperator(:) = genoper(:)
-    oopc_genOperHCorrlenExpnt(:) =  hCorrlenExpnt(:)
-    oopc_genOperOmAStatsFactor(:) = omaStatsFactor(:)
+    oopc_genOperConstraintType(:) = genOperConstraintType(:)
+    oopc_genOperHCorrlenExpnt(:) =  genOperHCorrlenExpnt(:)
+    oopc_genOperOmAStatsFactor(:) = genOperOmAStatsFactor(:)
     oopc_tropo_mode(:) = tropo_mode(:)
     oopc_tropo_bound(:) = tropo_bound(:)
     oopc_tropo_column_top(:) = tropo_column_top(:)
@@ -2406,7 +2425,7 @@ module obsOperatorsChem_mod
       ! Calculate concentration-weighted effective temperature (for output purpose)
 
       if ((obsoper%constituentId >= 0 .and. obsoper%constituentId < 7000) .and.  &
-        obsoper%modelIndex == 3 .and. obsoper%nobslev == 1 .and. &
+        trim(obsoper%operatorCategory) == 'Integ' .and. obsoper%nobslev == 1 .and. &
 	obsoper%vco == 4 .and. obsoper%success(1)) then
 	
         if (all(obsoper%tt > 0.0) .and. obs_col(1) > 0.0) then
@@ -2611,17 +2630,17 @@ module obsOperatorsChem_mod
         call utl_abort('oopc_obsoperators: Required layer boundaries not available!')
       else      
         ! Vertical integration operator
-        obsoper%modelIndex=3
+        obsoper%operatorCategory='Integ'
       end if
     else if (obsoper%layerIdentified) then
       ! Layer averaging operator
-      obsoper%modelIndex=4
+      obsoper%operatorCategory='LayerAvg'
     else if (obsoper%vco == 5 .and. obsoper%nobslev == 1) then  
       ! Surface point (in-situ) measurement
-      obsoper%modelIndex=2
+      obsoper%operatorCategory='Surface'
     else    
       ! Vertical interpolation operator
-      obsoper%modelIndex=1
+      obsoper%operatorCategory='Interp'
     end if  
 
     ! Look for pre-calculated operator
@@ -2652,13 +2671,13 @@ module obsOperatorsChem_mod
 
     ! Indicate if the generalized innovation operator is to be applied.
 
-    obsoper%applyGenoper=.false.
+    obsoper%applyGenOper=.false.
     if (obsoper%constituentId >= 0 .and. &
       oopc_checkType(operatorSubType(1,:),operatorSubType(2,:), &
-      obsoper%stnid,'wgtInteg')) then 
+      obsoper%stnid,'genOper')) then 
       
-      if (oopc_generalizedOperator(obsoper%constituentId) > 0 .and. kmode /= 1 &
-         .and. (obsoper%modelIndex == 3 .or. obsoper%modelIndex == 4)) then
+      if (kmode /= 1 .and. (trim(obsoper%operatorCategory) == 'Integ' .or. &
+	                    trim(obsoper%operatorCategory) == 'LayerAvg'   )) then
        
         if ( kmode == 2) then
           ! Set reference profiles for use with generalized innovation operator
@@ -2680,7 +2699,7 @@ module obsOperatorsChem_mod
 	    oopc_obsdata_maxsize)
   
         end if 	
-        if (kmode >= 2) obsoper%applyGenoper = .true.
+        if (kmode >= 2) obsoper%applyGenOper = .true.
 
       end if
     end if
@@ -2700,7 +2719,7 @@ module obsOperatorsChem_mod
       call oopc_convertUnits(model_col,incr_opt=.true.)
     end select
 
-    if (obsoper%applyGenoper) then
+    if (obsoper%applyGenOper) then
       ! Perform unit conversion on obsoper%trial when applying the generalized
       ! obs operator for kmode=2,3. Keep obsoper%trial in ug/kg in this case.
       call oopc_convertUnits(obsoper%trial,ppb_opt=.true.)
@@ -2729,7 +2748,7 @@ module obsOperatorsChem_mod
     select case(obsoper%vco)
     case(1)
       ! Convert altitude to pressure
-      if (obsoper%modelIndex == 1) then
+      if (trim(obsoper%operatorCategory) == 'Interp') then
         press_obs = phf_convert_z_to_pressure(obsoper%obslev,obsoper%height, &
 	            obsoper%pp, &
                     obsoper%nobslev,obsoper%nmodlev,obsoper%lat,successLocal)
@@ -2738,7 +2757,8 @@ module obsOperatorsChem_mod
 	  obsoper%height(obsoper%nmodlev)) &
 	  press_obs(1:obsoper%nobslev)= obsoper%pp(obsoper%nmodlev)
 	  
-      else if (obsoper%modelIndex == 2 .or. obsoper%modelIndex == 3) then
+      else if (trim(obsoper%operatorCategory) == 'Integ' .or. &
+               trim(obsoper%operatorCategory) == 'LayerAvg') then
         obsoper%vlayertop = phf_convert_z_to_pressure(obsoper%vlayertop, &
 	                    obsoper%height, &
                             obsoper%pp,obsoper%nobslev,obsoper%nmodlev, &
@@ -2750,7 +2770,7 @@ module obsOperatorsChem_mod
       end if
     case(2)
       ! Pressure, no conversion needed
-      if (obsoper%modelIndex == 1) press_obs = obsoper%obslev
+      if (trim(obsoper%operatorCategory) == 'Interp') press_obs = obsoper%obslev
     case(4,5)
       ! No actions taken
     case default
@@ -2770,8 +2790,8 @@ module obsOperatorsChem_mod
   
     ! Apply appropriate core observation operator
    
-    select case(obsoper%modelIndex)
-    case(1)
+    select case(trim(obsoper%operatorCategory))
+    case('Interp')
 
       ! Vertical interpolation operator
      
@@ -2786,7 +2806,7 @@ module obsOperatorsChem_mod
 	   operatorSubType(2,:),obsoper%stnid),skipType_opt=message, &
 	   outbound_opt=ixtrLocal,success_opt=successLocal)
  
-    case(2)
+    case('Surface')
 
       ! Surface point measurement
 
@@ -2798,7 +2818,7 @@ module obsOperatorsChem_mod
       obsoper%modlevindexTop(1) = obsoper%nmodlev
       obsoper%modlevindexBot(1) = obsoper%nmodlev 
     
-    case(3)
+    case('Integ')
   
       ! Layer integration operator
 
@@ -2810,7 +2830,7 @@ module obsOperatorsChem_mod
       
       call oopc_vertObsLayersWgts('integ',ixtrLocal,successLocal,kmode,message)
 
-    case(4)
+    case('LayerAvg')
     
       ! Layer averaging operator
 
@@ -2863,7 +2883,7 @@ module obsOperatorsChem_mod
             
             obsoper%zh(obslevIndex,:) = matmul(avg_kern(obslevIndex, &
 	                                1:obsoper%nobslev),obsoper%zh(:,:))
-            if (obsoper%applyGenoper) then
+            if (obsoper%applyGenOper) then
 	      obsoper%zhp(obslevIndex,:) = &
 	        matmul(avg_kern(obslevIndex,1:obsoper%nobslev),obsoper%zhp(:,:))
 	    end if
@@ -2931,11 +2951,11 @@ module obsOperatorsChem_mod
            
         end if  
        
-        ! Note that obsoper%applyGenoper=.true. is not set up for this case
-        if (obsoper%applyGenoper) then
+        ! Note that obsoper%applyGenOper=.true. is not set up for this case
+        if (obsoper%applyGenOper) then
 	  call utl_abort('prepareOperator: Log ' // &
 	                 'space averaging kernels not currently usable with ' // &
-	                 'obsoper%applyGenoper=.true.')
+	                 'obsoper%applyGenOper=.true.')
 	end if
       else
         call utl_abort('oopc_prepareOperator: This averaging kernel ' // &
@@ -2950,7 +2970,7 @@ module obsOperatorsChem_mod
 
     ! Apply generalized innovation operator if requested
 
-    if (obsoper%applyGenoper) call oopc_genoper(kmode)
+    if (obsoper%applyGenOper) call oopc_genOper(kmode)
 
     ! Save operator if needed
     
@@ -2982,7 +3002,8 @@ module obsOperatorsChem_mod
     success = .false.
         
     if ( .not.oopc_storeOperators .or. kmode < 2 .or. headerCount <= 0 .or. &
-         ( any(oopc_tropo_mode(:) >= 1) .and. obsoper%modelIndex == 3) ) return
+         ( any(oopc_tropo_mode(:) >= 1) .and. &
+	   trim(obsoper%operatorCategory) == 'Integ') ) return
     
     if ( trim(action) == 'get' .and. initializedOperators .and. kmode >=2 ) then
     
@@ -3002,9 +3023,9 @@ module obsOperatorsChem_mod
         obsoper%ixtr(:) = operators(headerCount)%ixtr(:)
         obsoper%success(:) = operators(headerCount)%success(:)
         obsoper%iavgkern = operators(headerCount)%iavgkern
-        obsoper%applyGenoper = operators(headerCount)%applyGenoper
+        obsoper%applyGenOper = operators(headerCount)%applyGenOper
 
-        if ( obsoper%applyGenoper ) then
+        if ( obsoper%applyGenOper ) then
 	  obsoper%zhp(:,:) = operators(headerCount)%zhp(:,:) 
 	end if
 
@@ -3040,7 +3061,7 @@ module obsOperatorsChem_mod
         deallocate(operators(headerCount)%zh)
         deallocate(operators(headerCount)%ixtr)
         deallocate(operators(headerCount)%success)
-        if ( obsoper%applyGenoper ) deallocate(operators(headerCount)%zhp)
+        if ( obsoper%applyGenOper ) deallocate(operators(headerCount)%zhp)
       end if
       
       allocate(operators(headerCount)%trial(obsoper%nmodlev))    
@@ -3054,7 +3075,7 @@ module obsOperatorsChem_mod
       
       operators(headerCount)%nobslev=obsoper%nobslev
       operators(headerCount)%iavgkern=obsoper%iavgkern
-      operators(headerCount)%applyGenoper=obsoper%applyGenoper
+      operators(headerCount)%applyGenOper=obsoper%applyGenOper
       operators(headerCount)%trial(:) = obsoper%trial(:)
       operators(headerCount)%vlayertop(:) = obsoper%vlayertop(:)
       operators(headerCount)%vlayerbottom(:) = obsoper%vlayerbottom(:)
@@ -3064,7 +3085,7 @@ module obsOperatorsChem_mod
       operators(headerCount)%ixtr(:) = obsoper%ixtr(:)
       operators(headerCount)%success(:) = obsoper%success(:)
  
-      if ( obsoper%applyGenoper ) then
+      if ( obsoper%applyGenOper ) then
         allocate(operators(headerCount)%zhp(obsoper%nobslev,obsoper%nmodlev)) 
         operators(headerCount)%zhp(:,:) = obsoper%zhp(:,:)
       end if
@@ -3512,7 +3533,7 @@ module obsOperatorsChem_mod
           ! model in the lower region for kmode=2 must be consistent with 
           ! that associated with kmode=3.
              
-          ! Start with bottom region in order to use correct zhp with oopc_genoper
+          ! Start with bottom region in order to use correct zhp with oopc_genOper
           ! when use of this operator is requested.
            
           vlayertop_ref=obsoper%vlayertop(1)
@@ -3525,9 +3546,9 @@ module obsOperatorsChem_mod
                skipType_opt=skipType,outbound_opt=ixtr,success_opt=success)
 	       	 
           ! Apply generalized innovation operator if requested             
-          if (obsoper%applyGenoper) call oopc_genoper(kmode)
+          if (obsoper%applyGenOper) call oopc_genoper(kmode)
             
-          obsoper%applyGenoper=.false.
+          obsoper%applyGenOper=.false.
              
           modlevindexBot_ref=obsoper%modlevindexBot(1)
              
@@ -3583,9 +3604,9 @@ module obsOperatorsChem_mod
   end subroutine oopc_vertObsLayersWgts
 
   !--------------------------------------------------------------------------
-  ! oopc_genoper
+  ! oopc_genOper
   !--------------------------------------------------------------------------
-  subroutine oopc_genoper(kmode)
+  subroutine oopc_genOper(kmode)
     !
     !:Purpose: Set generalized innovation operator for integral or layer avg
     !          obs. Relevant only for incremental fields. This version is
@@ -3600,7 +3621,9 @@ module obsOperatorsChem_mod
     !:Input:
     !       :kmode:              index indicating if the operator is to be applied             
     !       :obsoper%zh,zhp:     see routine ppo_vertIntegSetup
-    !       :oopc_generalizedOperator: index specifying the reference state
+    !       :oopc_genOperConstraintType: index specifying the reference state
+    !       :oopc_genOperhCorrlenExpnt:  Exponent for horiz. correl. length weighting
+    !       :oopc_genOperOmaStatsFactor: Additional OmAStats normalization factor
     !       :bgStats:            structure containing the background stats data
     !
     !:Output:
@@ -3679,7 +3702,7 @@ module obsOperatorsChem_mod
     real(8)  :: zwbw,zhbh,za,work(obsoper%nmodlev),fdeStddev(obsoper%nmodlev,2)
     real(8), parameter :: threshold=1.D-20
     real(8)  :: zmin,rvalw(obsoper%nmodlev),rvalr(obsoper%nmodlev)
-    real(8)  :: rvalc(obsoper%nmodlev),rmse,w1 
+    real(8)  :: rvalc(obsoper%nmodlev),rmse
     character(len=22) :: code
    
     if (kmode <= 1) return
@@ -3705,7 +3728,7 @@ module obsOperatorsChem_mod
     end do
 
     if (trim(bgStats%varNameList(varIndex)) == '') then
-      call utl_abort('oopc_genoper: Background stats not found for ' // &
+      call utl_abort('oopc_genOper: Background stats not found for ' // &
                      trim(obsoper%varName) )
     end if
     
@@ -3736,7 +3759,7 @@ module obsOperatorsChem_mod
       ! Set reference mass (mixing ratio) weighting profile
        
       rvalw(1:obsoper%nmodlev)=rvalr(1:obsoper%nmodlev)
-      if (oopc_generalizedOperator(obsoper%constituentId) > 1) then
+      if (trim(oopc_genOperConstraintType(obsoper%constituentId)) == 'Diff') then
 
         ! Set reference mass weighting profile according to the difference between 
         ! an external reference (such as a climatology) and trial field profiles.
@@ -3829,7 +3852,7 @@ module obsOperatorsChem_mod
       do modlevIndex=obsoper%modlevindexTop(obslevIndex), &
                      obsoper%modlevindexBot(obslevIndex)
         obsoper%zhp(obslevIndex,modlevIndex) = fdeStddev(modlevIndex,2)    &
-	     /bgStats%hcorrlen(modlevIndex,varIndex)**oopc_genOperhCorrlenExpnt(varIndex) &
+	     /bgStats%hcorrlen(modlevIndex,varIndex)**oopc_genOperHCorrlenExpnt(varIndex) &
 	     *sum(work(1:obsoper%nmodlev)                                  &
 	         *bgStats%corverti(1:obsoper%nmodlev,modlevIndex,varIndex))
       end do
@@ -3888,7 +3911,7 @@ module obsOperatorsChem_mod
          
     end do
 
-  end subroutine oopc_genoper
+  end subroutine oopc_genOper
 
   !--------------------------------------------------------------------------
   ! oopc_getColBoundary
@@ -4016,7 +4039,7 @@ module obsOperatorsChem_mod
   !--------------------------------------------------------------------------
   ! oopc_readFields
   !--------------------------------------------------------------------------
-  subroutine oopc_readFields(clim_fields,filename,variable,    &
+  subroutine oopc_readFields(climatFields,filename,variable,    &
                              maxNumFields,maxNumTypes,         &
                              fieldRequired,success,filetype_opt)
     !
@@ -4033,12 +4056,12 @@ module obsOperatorsChem_mod
     implicit none
 
     ! Arguments:    
-    type(struct_oopc_field), intent(out) :: clim_fields(0:maxNumFields,maxNumTypes)
+    type(struct_oopc_field), intent(out) :: climatFields(0:maxNumFields,maxNumTypes)
     character(len=*), intent(in) :: filename
     integer, intent(in):: maxNumFields,maxNumTypes
     logical, intent(out) :: success
     character(len=*), intent(in) :: variable
-    integer, intent(in) :: fieldRequired(0:maxNumFields) ! Index indicating if filed needed.
+    character(len=*), intent(in) :: fieldRequired(0:maxNumFields) 
     character(len=*), intent(in), optional :: filetype_opt
 
     ! Locals:
@@ -4065,12 +4088,12 @@ module obsOperatorsChem_mod
 
     ! Initialize dimensions to zero
     
-    clim_fields(:,:)%nlon=0
-    clim_fields(:,:)%nlat=0
-    clim_fields(:,:)%nlev=1
+    climatFields(:,:)%nlon=0
+    climatFields(:,:)%nlat=0
+    climatFields(:,:)%nlev=1
  
     if ( trim(variable) == 'CH' ) then
-      if ( all(fieldRequired(:) < 2) ) then
+      if ( all(fieldRequired(:) == 'Trial') ) then
         ! Not needed
         success=.true.
 	return
@@ -4214,25 +4237,25 @@ module obsOperatorsChem_mod
                lvls_opt=lvls,kind_opt=kind)
         end if      
 
-        clim_fields(id,j)%nlon=ni
-        clim_fields(id,j)%nlat=nj
-        clim_fields(id,j)%nlev=nkeys
-        clim_fields(id,j)%ivkind=kind   
+        climatFields(id,j)%nlon=ni
+        climatFields(id,j)%nlat=nj
+        climatFields(id,j)%nlev=nkeys
+        climatFields(id,j)%ivkind=kind   
                          
-        allocate(clim_fields(id,j)%field(ni,nj,nkeys))
-        allocate(clim_fields(id,j)%vlev(nkeys),clim_fields(id,j)%lon(ni))
-        allocate(clim_fields(id,j)%lat(nj))
+        allocate(climatFields(id,j)%field(ni,nj,nkeys))
+        allocate(climatFields(id,j)%vlev(nkeys),climatFields(id,j)%lon(ni))
+        allocate(climatFields(id,j)%lat(nj))
               
-        clim_fields(id,j)%lat(1:nj)=xlat(1:nj)*MPC_RADIANS_PER_DEGREE_R8
-        clim_fields(id,j)%lon(1:ni)=xlong(1:ni)*MPC_RADIANS_PER_DEGREE_R8
-        where (clim_fields(id,j)%lon(1:ni) < 0.0) 
-	  clim_fields(id,j)%lon(1:ni)=2.0*MPC_PI_R8 + clim_fields(id,j)%lon(1:ni)
+        climatFields(id,j)%lat(1:nj)=xlat(1:nj)*MPC_RADIANS_PER_DEGREE_R8
+        climatFields(id,j)%lon(1:ni)=xlong(1:ni)*MPC_RADIANS_PER_DEGREE_R8
+        where (climatFields(id,j)%lon(1:ni) < 0.0) 
+	  climatFields(id,j)%lon(1:ni)=2.0*MPC_PI_R8 + climatFields(id,j)%lon(1:ni)
 	end where
-        clim_fields(id,j)%vlev(1:nkeys)=lvls(1:nkeys)              
+        climatFields(id,j)%vlev(1:nkeys)=lvls(1:nkeys)              
 
         if (.not.timeInterp) then
 
-          clim_fields(id,j)%field(:,:,:) = array1(:,:,:)
+          climatFields(id,j)%field(:,:,:) = array1(:,:,:)
 
         else
 
@@ -4250,7 +4273,7 @@ module obsOperatorsChem_mod
             ! Linearly interpolate in time 
 	    ! (approximately - assumes 30 day months)
 
-            clim_fields(id,j)%field(:,:,:) = (array1(:,:,:)*(30.0-day)+array2(:,:,:)*day)/30.0
+            climatFields(id,j)%field(:,:,:) = (array1(:,:,:)*(30.0-day)+array2(:,:,:)*day)/30.0
              
           else if (iday <= 15) then
             if (imonth == 1) then
@@ -4264,7 +4287,7 @@ module obsOperatorsChem_mod
             ! Linearly interpolate in time 
             ! (approximately - assumes 30 day months)
 
-            clim_fields(id,j)%field(:,:,:) = (array2(:,:,:)* &
+            climatFields(id,j)%field(:,:,:) = (array2(:,:,:)* &
 		                             (30.0-day)+array1(:,:,:)*day)/30.0             
           end if          
         end if
@@ -4281,9 +4304,9 @@ module obsOperatorsChem_mod
     end if   
     close(unit=nulun)
     ierr = fclos(nulun)
-    if ( any(fieldRequired(:) == 2) .and. trim(variable) == 'CH' ) then
+    if ( any(fieldRequired(:) == 'Diff') .and. trim(variable) == 'CH' ) then
       do j=0,maxNumFields
-        if ( clim_fields(j,1)%nlon == 0 .and. fieldRequired(j) == 2 ) then
+        if ( climatFields(j,1)%nlon == 0 .and. trim(fieldRequired(j)) == 'Diff' ) then
           call utl_abort('oopc_readFields: READING PROBLEM. Did not' // &
 	                 ' find SECTION IV required for constituent ID ' // &
 			 trim(utl_str(j)))
@@ -4295,9 +4318,9 @@ module obsOperatorsChem_mod
 
  11 close(unit=nulun)
     ierr = fclos(nulun)
-    if ( any(fieldRequired(:) == 2) .and. trim(variable) == 'CH' ) then
+    if ( any(fieldRequired(:) == 'Diff') .and. trim(variable) == 'CH' ) then
       call utl_abort('oopc_readFields: READING PROBLEM. Did not find ' // &
-                      'SECTION IV. Required when any genoper>0.') 
+                      'SECTION IV.') 
     end if 
 	     
   end subroutine oopc_readFields
@@ -4305,46 +4328,46 @@ module obsOperatorsChem_mod
   !--------------------------------------------------------------------------
   ! oopc_addToProfileSet
   !--------------------------------------------------------------------------
-  subroutine oopc_addToProfileSet(clim_fields,clim_profileSet,maxNumFields,maxNumTypes, &
-                                  numModelLevs,modelPressLevs,modelHeightLevs,obs_lat, &
-                                  obs_long,obs_index,maxsize,varKind_opt,varNumber_opt,tt_opt,hu_opt)
+  subroutine oopc_addToProfileSet(climatFields,climatProfileSet,maxNumFields,maxNumTypes, &
+                                  numModelLevs,modelPressLevs,modelHeightLevs,obsLat, &
+                                  obsLong,obsIndex,maxsize,varKind_opt,varNumber_opt,tt_opt,hu_opt)
     
     !:Purpose: To determine and to store a profile at obs location as part of a cumulative
     !          profile set for a specific variable
     !
     !:Input:
     !
-    !    :clim_fields:            Input fields from which interpolations are done
-    !    :clim_profileSet:        Input profile set
-    !    :maxNumFields:           Size of first dimension for clim_fields
-    !    :maxNumTypes:            Size of second dimension for clim_fields
+    !    :climatFields:           Input fields from which interpolations are done
+    !    :climatProfileSet:       Input profile set
+    !    :maxNumFields:           Size of first dimension for climatFields
+    !    :maxNumTypes:            Size of second dimension for climatFields
     !    :numModelLevs:           Number of model levels
     !    :modelPressLevs          Model pressure array (Pa)
     !    :modelHeightLevs:        Model height (m)
-    !    :obs_lat:                Latitude (rad)
-    !    :obs_long:               Longitude (rad)
-    !    :obs_index:              Unique measurement identifier    
+    !    :obsLat:                 Latitude (rad)
+    !    :obsLong:                Longitude (rad)
+    !    :obsIndex:               Unique measurement identifier    
     !    :varKind_opt:            variable kind (currently only relevant for 'CH')
     !    :varNumber_opt:          Constituent id
     !    :tt_opt:                 Model temperature (Kelvin)
     !    :hu_opt:                 Specific humidity 
-    !    :maxsize:                Max number of obs for which clim_profileSet will be used
+    !    :maxsize:                Max number of obs for which climatProfileSet will be used
     !
     !:Output:
     ! 
-    !    :clim_profileSet:        Updated profile set (with one profile added for (obs_long,obs_lat))
+    !    :climatProfileSet:       Updated profile set (with one profile added for (obs_long,obs_lat))
     !
     !:Comments:
     !
     implicit none
 
     ! Arguments
-    type(struct_oopc_field), intent(in) :: clim_fields(0:maxNumFields,maxNumTypes)
-    type(struct_oss_obsdata), intent(inout)  :: clim_profileSet
+    type(struct_oopc_field), intent(in) :: climatFields(0:maxNumFields,maxNumTypes)
+    type(struct_oss_obsdata), intent(inout)  :: climatProfileSet
     integer, intent(in):: maxNumFields,maxNumTypes
-    integer, intent(in) :: obs_index,numModelLevs,maxsize
+    integer, intent(in) :: obsIndex,numModelLevs,maxsize
     real(8), intent(in) :: modelPressLevs(numModelLevs),modelHeightLevs(numModelLevs)
-    real(8), intent(in) :: obs_lat,obs_long
+    real(8), intent(in) :: obsLat,obsLong
     
     integer, intent(in), optional :: varNumber_opt
     real(8), intent(in), optional :: tt_opt(:),hu_opt(:)
@@ -4367,46 +4390,46 @@ module obsOperatorsChem_mod
       ! Not currently used
     end if
     
-    if (clim_fields(id,1)%nlat == 0) return
+    if (climatFields(id,1)%nlat == 0) return
     
     ! Set vertical levels of reference.
     ! Convert to pressure coordinate if needed.
     
     if (allocated(pressrefin)) deallocate(pressrefin)
-    allocate(pressrefin(clim_fields(id,1)%nlev))
-    pressrefin(:) = clim_fields(id,1)%vlev(1:clim_fields(id,1)%nlev)
+    allocate(pressrefin(climatFields(id,1)%nlev))
+    pressrefin(:) = climatFields(id,1)%vlev(1:climatFields(id,1)%nlev)
 
     if (allocated(success)) deallocate(success)
-    allocate(success(clim_fields(id,1)%nlev))
+    allocate(success(climatFields(id,1)%nlev))
     success(:)=.true.
     
-    if (clim_fields(id,1)%ivkind == 2) then
+    if (climatFields(id,1)%ivkind == 2) then
       pressrefin(:)=pressrefin(:)*100. ! Conversion from hPa to Pa.
-    else if (clim_fields(id,1)%ivkind == 0) then
+    else if (climatFields(id,1)%ivkind == 0) then
       where (pressrefin < modelHeightLevs(numModelLevs))
         pressrefin=modelHeightLevs(numModelLevs)
       end where
       pressrefin(:) = phf_convert_z_to_pressure(pressrefin,modelHeightLevs,modelPressLevs, &
-                      clim_fields(id,1)%nlev,numModelLevs,obs_lat,success)
-    else if (clim_fields(id,1)%ivkind == 4) then
+                      climatFields(id,1)%nlev,numModelLevs,obsLat,success)
+    else if (climatFields(id,1)%ivkind == 4) then
       pressrefin(:)=pressrefin(:) + modelHeightLevs(numModelLevs)
       pressrefin(:) = phf_convert_z_to_pressure(pressrefin,modelHeightLevs,modelPressLevs, &
-                      clim_fields(id,1)%nlev,numModelLevs,obs_lat,success)
-    else if (clim_fields(id,1)%ivkind == 1) then
+                      climatFields(id,1)%nlev,numModelLevs,obsLat,success)
+    else if (climatFields(id,1)%ivkind == 1) then
       pressrefin(:)=pressrefin(:)*modelPressLevs(numModelLevs) ! Convert from sigma to Pa   
     else
-       call utl_abort('oopc_addToProfileSet: Cannot handle vertical coordinate of kind ' // trim(utl_str(clim_fields(id,1)%ivkind)))
+       call utl_abort('oopc_addToProfileSet: Cannot handle vertical coordinate of kind ' // trim(utl_str(climatFields(id,1)%ivkind)))
     end if
     
     ! Interpolate to obs lat/long (or lat) location and model level
 
-    call oopc_column_hbilin(clim_fields(id,1)%field,pressrefin, &
-                  clim_fields(id,1)%nlon,clim_fields(id,1)%nlat,clim_fields(id,1)%nlev, &
-                  clim_fields(id,1)%lon,clim_fields(id,1)%lat,obs_long,obs_lat, &
+    call oopc_column_hbilin(climatFields(id,1)%field,pressrefin, &
+                  climatFields(id,1)%nlon,climatFields(id,1)%nlat,climatFields(id,1)%nlev, &
+                  climatFields(id,1)%lon,climatFields(id,1)%lat,obsLong,obsLat, &
                   refprof,modelPressLevs,numModelLevs)
 
-    if (clim_fields(id,2)%nlat > 0 .and. clim_fields(id,2)%nlon > 0 &
-        .and. clim_fields(id,2)%nlev > 0) then
+    if (climatFields(id,2)%nlat > 0 .and. climatFields(id,2)%nlon > 0 &
+        .and. climatFields(id,2)%nlev > 0) then
         
       if ( .not. present(tt_opt) ) then
         call utl_abort('oopc_addToProfileSet: Missing TT for determining ' // &
@@ -4439,41 +4462,41 @@ module obsOperatorsChem_mod
         ! Convert to pressure coordinate if needed
  
         if (allocated(pressrefin)) deallocate(pressrefin)
-        allocate(pressrefin(clim_fields(id,2)%nlev))    
-        pressrefin(:)= clim_fields(id,2)%vlev(1:clim_fields(id,2)%nlev)
+        allocate(pressrefin(climatFields(id,2)%nlev))    
+        pressrefin(:)= climatFields(id,2)%vlev(1:climatFields(id,2)%nlev)
 
         if (allocated(success)) deallocate(success)
-        allocate(success(clim_fields(id,2)%nlev))
+        allocate(success(climatFields(id,2)%nlev))
         success(:)=.true.
 
-        if (clim_fields(id,2)%ivkind == 2) then
+        if (climatFields(id,2)%ivkind == 2) then
           pressrefin(:)=pressrefin(:)*100. ! Conversion from hPa to Pa.
-        else if (clim_fields(id,2)%ivkind == 0) then
+        else if (climatFields(id,2)%ivkind == 0) then
           where (pressrefin < modelHeightLevs(numModelLevs)) 
 	    pressrefin=modelHeightLevs(numModelLevs)
 	  end where 
           pressrefin(:) = phf_convert_z_to_pressure(pressrefin, &
 	                  modelHeightLevs,modelPressLevs, &
-                          clim_fields(id,2)%nlev,numModelLevs, &
-	                  obs_lat,success)
-        else if (clim_fields(id,2)%ivkind == 4) then
+                          climatFields(id,2)%nlev,numModelLevs, &
+	                  obsLat,success)
+        else if (climatFields(id,2)%ivkind == 4) then
           pressrefin(:)=pressrefin(:) + modelHeightLevs(numModelLevs)
           pressrefin(:) = phf_convert_z_to_pressure(pressrefin, &
 	                   modelHeightLevs,modelPressLevs, &
-                           clim_fields(id,2)%nlev,numModelLevs,obs_lat, &
+                           climatFields(id,2)%nlev,numModelLevs,obsLat, &
 	                   success)
-        else if (clim_fields(id,2)%ivkind == 1) then
+        else if (climatFields(id,2)%ivkind == 1) then
           pressrefin(:)=pressrefin(:)*modelPressLevs(numModelLevs) ! Convert from sigma to Pa   
         else
           call utl_abort('oopc_addToProfileSet: Cannot handle vertical ' // &
-	      'coordinate of kind ' // trim(utl_str(clim_fields(id,2)%ivkind)))
+	      'coordinate of kind ' // trim(utl_str(climatFields(id,2)%ivkind)))
         end if
             
         ! Interpolate to obs lat/long (or lat) and model levels
             
-        call oopc_column_hbilin(clim_fields(id,2)%field,pressrefin, &
-             clim_fields(id,2)%nlon,clim_fields(id,2)%nlat,clim_fields(id,2)%nlev, &
-             clim_fields(id,2)%lon,clim_fields(id,2)%lat,obs_long,obs_lat, &
+        call oopc_column_hbilin(climatFields(id,2)%field,pressrefin, &
+             climatFields(id,2)%nlon,climatFields(id,2)%nlat,climatFields(id,2)%nlev, &
+             climatFields(id,2)%lon,climatFields(id,2)%lat,obsLong,obsLat, &
              refprof2,modelPressLevs,numModelLevs)
     
       end if
@@ -4498,49 +4521,49 @@ module obsOperatorsChem_mod
     if (allocated(pressrefin)) deallocate(pressrefin)
     if (allocated(success)) deallocate(success) 
 
-    ! ------- Save in clim_profileSet ---------
+    ! ------- Save in climatProfileSet ---------
        
-    if (.not.associated(clim_profileSet%data1d)) then
-      call oss_obsdata_alloc(clim_profileSet, maxsize, dim1=numModelLevs)
-      clim_profileSet%nrep = 0
+    if (.not.associated(climatProfileSet%data1d)) then
+      call oss_obsdata_alloc(climatProfileSet, maxsize, dim1=numModelLevs)
+      climatProfileSet%nrep = 0
     end if
 
     ! Here, nrep will count the number of filled elements in the data arrays
-    clim_profileSet%nrep = clim_profileSet%nrep+1 
+    climatProfileSet%nrep = climatProfileSet%nrep+1 
 
-    if (clim_profileSet%nrep > maxsize) then
+    if (climatProfileSet%nrep > maxsize) then
       call utl_abort('oopc_addToProfilesSet: Reach max size of array ' // &
 	             trim(utl_str(maxsize)) )
     end if
     
-    ! obs_index serves as the unique locator code 
-    write(clim_profileSet%code(clim_profileSet%nrep),'(I22)') obs_index
+    ! obsIndex serves as the unique locator code 
+    write(climatProfileSet%code(climatProfileSet%nrep),'(I22)') obsIndex
     
-    ! Save profile in clim_profileSet
+    ! Save profile in climatProfileSet
     
-    clim_profileSet%data1d(:,clim_profileSet%nrep) = refprof(:)
+    climatProfileSet%data1d(:,climatProfileSet%nrep) = refprof(:)
 
   end subroutine oopc_addToProfileSet
   
   !--------------------------------------------------------------------------
   ! oopc_getProfile
   !--------------------------------------------------------------------------
-  function oopc_getProfile(clim_profileSet,code) result(profile)
+  function oopc_getProfile(climatProfileSet,code) result(profile)
     !
-    !:Purpose: To extract and to provide profile from clim_profileSet according to 
-    !          code.     
+    !:Purpose: To extract and provide profile from climatProfileSet according to 
+    !          code value.     
     !  
     implicit none
   
     ! Arguments
-    type(struct_oss_obsdata), intent(inout)  :: clim_profileSet  ! Profile set
-    character(len=*), intent(in) :: code     ! unique obs identifying code    
-    real(8) :: profile(clim_profileSet%dim1) ! retrieved array from obsdata%data1d of dimension obsdata%dim1
+    type(struct_oss_obsdata), intent(inout)  :: climatProfileSet  ! Profile set
+    character(len=*), intent(in) :: code      ! unique obs identifying code    
+    real(8) :: profile(climatProfileSet%dim1) ! retrieved array from obsdata%data1d of dimension obsdata%dim1
 
     ! Locals:
     integer :: status ! search success (0 = found; 1 = no data; 2 = not found)
 
-    profile = oss_obsdata_get_array1d(clim_profileSet,code,status)
+    profile = oss_obsdata_get_array1d(climatProfileSet,code,status)
     if (status > 0) then
       call utl_abort("oopc_getProfile: Code not found - " // trim(code))
     end if
