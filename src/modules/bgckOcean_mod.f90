@@ -329,7 +329,14 @@ module bgckOcean_mod
   !----------------------------------------------------------------------------------------
   subroutine ocebg_bgCheckSeaIce(obsData)
     !
-    ! :Purpose: Compute sea ice data background check
+    ! :Purpose: Compute sea ice data background check.
+    !           The rms of the difference between the observations and
+    !           the background values is calculated over a "swath" of data.
+    !           For satellite observations, this is based on a single passage
+    !           of the satellite over the domain.
+    !           A flag is then set for all observations in the swath
+    !           if the rms value is larger than the threshold
+    !           specified for the observation type.
     !
 
     implicit none
@@ -356,7 +363,8 @@ module bgckOcean_mod
     integer           :: numStation = 11         ! number of 'idStation' values
     character(len=12) :: idStation(11) = 'null'  ! list of obsSpaceData 'idStation' values to consider
     real              :: OmpRmsdThresh(11) = 0.0 ! rejection threshold applied to RMS of O-P for entire swath
-    integer           :: maxSwath = 10, maxPerSwath = 200000
+    integer           :: maxSwath = 10           ! maximum number of swaths
+    integer           :: maxPerSwath = 200000    ! maximum number of data per swath
     namelist /namIceBGcheck/ numStation, idStation, OmpRmsdThresh, maxSwath, maxPerSwath
 
     call msg('ocebg_bgCheckSeaIce', 'performing background check for the SeaIce data...')
