@@ -128,7 +128,7 @@ program midas_analysisErrorOI
 
   istamp = exdb('ANALYSISERROROI','DEBUT','NON')
 
-  call ver_printNameAndVersion(myName,'Program to calculate the analysis-error standard deviation for sea ice using OI.')
+  call ver_printNameAndVersion(myName, 'Program to calculate the analysis-error standard deviation using OI.')
 
   ! MPI initialization
   call mmpi_initialize
@@ -213,7 +213,7 @@ program midas_analysisErrorOI
   !
   !- Memory allocation for background column data
   !
-  call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+  call col_allocate(trlColumnOnAnlLev, obs_numheader(obsSpaceData), mpiLocal_opt = .true.)
 
   !
   !- Initialize the observation error covariances
@@ -222,9 +222,11 @@ program midas_analysisErrorOI
   call msg_memUsage(myName)
 
   ! Sea ice concentration
-  call filt_iceConcentration(obsSpaceData, beSilent=.false.)
-  call filt_backScatAnisIce(obsSpaceData, beSilent=.false.)
-  call oer_setErrBackScatAnisIce(obsSpaceData, beSilent=.false.)
+  if (obs_famExist(obsSpaceData, 'GL')) then
+    call filt_iceConcentration(obsSpaceData, beSilent = .false.)
+    call filt_backScatAnisIce(obsSpaceData, beSilent = .false.)
+    call oer_setErrBackScatAnisIce(obsSpaceData, beSilent = .false.)
+  end if
 
   ! Compute the analysis-error
   call aer_analysisError(obsSpaceData, hco_anl, vco_anl, trlmFileName)

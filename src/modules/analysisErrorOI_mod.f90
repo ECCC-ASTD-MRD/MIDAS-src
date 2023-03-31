@@ -118,8 +118,6 @@ contains
     type(struct_gsv)            :: statevector
     real(4), pointer            :: field3D_r4_ptr(:,:,:)
 
-    character(len=2 ) :: typvar
-
     type(struct_columnData) :: column
     type(struct_columnData) :: columng
 
@@ -131,13 +129,12 @@ contains
 
     if( mmpi_nprocs > 1 ) then
       write(*,*) 'mmpi_nprocs = ',mmpi_nprocs
-      call utl_abort( myName// &
-                      ': this version of the code should only be used with one mpi task.')
+      call utl_abort('aer_analysisError: this version of the code should only be used with one mpi task.')
     end if
     if( mmpi_myid > 0 ) return
 
     write(*,*) '**********************************************************'
-    write(*,*) '** '//myName//': Calculate analysis-error variance **'
+    write(*,*) '** aer_analysisError: Calculate analysis-error variance **'
     write(*,*) '**********************************************************'
 
     ! Read the namelist
@@ -145,38 +142,44 @@ contains
     maxAnalysisErrorStdDev = 1.0d0
     if (.not. utl_isNamelistPresent('namaer','./flnml')) then
       if (mmpi_myid == 0) then
-        call msg(myName, 'namaer is missing in the namelist.')
-        call msg(myName, 'the default values will be taken.')
+        call msg('aer_analysisError:', ' namaer is missing in the namelist.')
+        call msg('aer_analysisError:', ' the default values will be taken.')
       end if
     else
       ! reading namelist variables
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam, nml = namaer, iostat = ierr)
-      if ( ierr /= 0 ) call utl_abort( myName//': Error reading namelist')
+      if ( ierr /= 0 ) call utl_abort('aer_analysisError:: Error reading namelist')
       ierr = fclos(nulnam)
     end if
     write(*, nml = namaer)
 
     nullify(anlVar)
     call gsv_varNamesList(anlVar)
-
-    if (size(anlVar) > 1 .or. anlVar(1) /= 'GL') then
-      call msg(myName, 'The code has only been tested with the analysis variable GL.')
-      call utl_abort( myName//': Check namelist and/or revise the code.')
+    
+    if (size(anlVar) > 1) then
+      call utl_abort('aer_analysisError: Check namelist NAMSTATE. ANLVAR is greater than 1.')
     end if
 
-    call gsv_allocate( stateVectorBkGnd, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       varNames_opt=(/anlVar(1)/), dataKind_opt=8 )
-    call gsv_allocate( stateVectorAnal,  1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
-                       varNames_opt=(/anlVar(1)/), dataKind_opt=8 )
+    if (anlVar(1) == 'GL') then
+      call msg('aer_analysisError:', ' computing seaice analysis error...')
+    else if(anlVar(1) == 'TM') then
+      call msg('aer_analysisError:', ' computing SST analysis error...')
+    else
+      call utl_abort('aer_analysisError:: The current code does not work with '&
+                     //trim(anlVar(1))//' analysis variable.')
+    end if      
+    
+    call gsv_allocate(stateVectorBkGnd, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                      varNames_opt = (/anlVar(1)/), dataKind_opt = 8 )
+    call gsv_allocate(stateVectorAnal,  1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
+                      varNames_opt = (/anlVar(1)/), dataKind_opt = 8 )
 
-    typvar = 'P@'
+    call gio_readFromFile(stateVectorBkGnd, trlmFileName, aer_backgroundEtiket, 'P@')
 
-    call gio_readFromFile( stateVectorBkGnd, trlmFileName, aer_backgroundEtiket, typvar )
-
-    leadTimeInHours = real(stateVectorBkGnd%deet*stateVectorBkGnd%npasList(1),8)/3600.0d0
+    leadTimeInHours = real(stateVectorBkGnd%deet * stateVectorBkGnd%npasList(1),8) / 3600.0d0
     call incdatr(stateVectorAnal%dateOriginList(1), stateVectorBkGnd%dateOriginList(1), &
                  leadTimeInHours)
 
@@ -192,31 +195,30 @@ contains
     ni = stateVectorBkGnd%hco%ni
     nj = stateVectorBkGnd%hco%nj
 
-    allocate( lonInRad( ni, nj ), latInRad( ni, nj) )
-    allocate( Lcorr( ni, nj ) )
+    allocate(lonInRad(ni, nj), latInRad(ni, nj))
+    allocate(Lcorr( ni, nj ))
 
-    write(*,*) myName// &
-               ': Correlation length scale 2D field will be read from the file: ', &
+    write(*,*) 'aer_analysisError: Correlation length scale 2D field will be read from the file: ', &
                correlationLengthFileName
-    call gsv_allocate( statevector, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
-                       dataKind_opt=4, hInterpolateDegree_opt='LINEAR', &
-                       varNames_opt=(/anlVar(1)/) )
-    call gsv_zero( statevector )
-    call gio_readFromFile( statevector, correlationLengthFileName, 'CORRLEN', ' ', &
-                           unitConversion_opt = .false. )
+    call gsv_allocate(statevector, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
+                      dataKind_opt = 4, hInterpolateDegree_opt = 'LINEAR', &
+                      varNames_opt = (/anlVar(1)/))
+    call gsv_zero(statevector)
+    call gio_readFromFile(statevector, correlationLengthFileName, 'CORRLEN', ' ', &
+                          unitConversion_opt = .false.)
 
-    call gsv_getField( statevector, field3D_r4_ptr, anlVar(1) )
+    call gsv_getField(statevector, field3D_r4_ptr, anlVar(1))
     ! Convert from km to meters
-    Lcorr(:,:) = 1000.0d0*real(field3D_r4_ptr( :, :, 1 ), 8)
-    write(*,*) myName//': min/max correlation length scale 2D field: ', &
-               minval( Lcorr(:,:) ), maxval( Lcorr(:,:) )
-    call gsv_deallocate( statevector )
+    Lcorr(:,:) = 1000.0d0 * real(field3D_r4_ptr(:, :, 1), 8)
+    write(*,*) 'aer_analysisError: min/max correlation length scale 2D field: ', &
+               minval(Lcorr(:,:) ), maxval(Lcorr(:,:))
+    call gsv_deallocate(statevector)
 
     ! create kdtree
-    write(*,*) myName//': start creating kdtree for stateVectorBkGnd'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'aer_analysisError: start creating kdtree for stateVectorBkGnd'
+    write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
 
-    allocate(positionArray(3,ni*nj))
+    allocate(positionArray(3, ni * nj))
 
     gridIndex = 0
     do latIndex = 1, nj
@@ -224,28 +226,28 @@ contains
 
         gridIndex = gridIndex + 1
         latInRad(lonIndex,latIndex) = real( &
-                                      stateVectorBkGnd%hco%lat2d_4(lonIndex,latIndex), 8)
+                                      stateVectorBkGnd%hco%lat2d_4(lonIndex, latIndex), 8)
         lonInRad(lonIndex,latIndex) = real( &
-                                      stateVectorBkGnd%hco%lon2d_4(lonIndex,latIndex), 8)
+                                      stateVectorBkGnd%hco%lon2d_4(lonIndex, latIndex), 8)
 
-        positionArray(:,gridIndex) = kdtree2_3dPosition(lonInRad(lonIndex,latIndex), &
-                                                        latInRad(lonIndex,latIndex))
+        positionArray(:,gridIndex) = kdtree2_3dPosition(lonInRad(lonIndex, latIndex), &
+                                                        latInRad(lonIndex, latIndex))
 
       end do
     end do
 
-    write(*,*) myName//': latInRad min/max: ', minval(latInRad(:,:) ), &
-                                               maxval( latInRad(:,:) )
-    write(*,*) myName//': lonInRad min/max: ', minval(lonInRad(:,:) ), &
-                                               maxval( lonInRad(:,:) )
+    write(*,*) 'aer_analysisError: latInRad min/max: ', minval(latInRad(:,:)), &
+                                                        maxval(latInRad(:,:))
+    write(*,*) 'aer_analysisError: lonInRad min/max: ', minval(lonInRad(:,:)), &
+                                                        maxval(lonInRad(:,:))
 
     nullify(tree)
-    tree => kdtree2_create(positionArray, sort=.false., rearrange=.true.) 
+    tree => kdtree2_create(positionArray, sort = .false., rearrange = .true.) 
 
     deallocate(positionArray)
 
-    write(*,*) myName//': done creating kdtree for stateVectorBkGnd'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'aer_analysisError: done creating kdtree for stateVectorBkGnd'
+    write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
 
     ! Go through all observations a first time to get
     ! the number of influential observations
@@ -260,9 +262,9 @@ contains
 
     do latIndex = 1, nj
       do lonIndex = 1, ni
-        influentObs(lonIndex,latIndex)%numObs = numObs(lonIndex,latIndex)
-        allocate(influentObs(lonIndex,latIndex)%headerIndex(numObs(lonIndex,latIndex)))
-        allocate(influentObs(lonIndex,latIndex)%bodyIndex(numObs(lonIndex,latIndex)))
+        influentObs(lonIndex, latIndex)%numObs = numObs(lonIndex,latIndex)
+        allocate(influentObs(lonIndex, latIndex)%headerIndex(numObs(lonIndex, latIndex)))
+        allocate(influentObs(lonIndex, latIndex)%bodyIndex(numObs(lonIndex, latIndex)))
       end do
     end do
 
@@ -275,8 +277,8 @@ contains
 
     deallocate(numObs)
 
-    write(*,*) myName//': obs found'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'aer_analysisError:: obs found'
+    write(*,*) 'Memory Used: ',get_max_rss() / 1024, 'Mb'
 
     ! Calculate analysis-error one analysis variable (grid point) at a time
 
@@ -288,8 +290,8 @@ contains
       do levIndex = 1, gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname(anlVar(1)))
         do latIndex = 1, nj
           do lonIndex = 1, ni
-            analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
-               bkGndErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex)
+            analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
+               bkGndErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex)
           end do
         end do
       end do
@@ -314,10 +316,10 @@ contains
         YINDEX: do latIndex = 1, nj
           XINDEX: do lonIndex = 1, ni
 
-            numInfluentObs = influentObs(lonIndex,latIndex)%numObs
+            numInfluentObs = influentObs(lonIndex, latIndex)%numObs
 
-            if ( numInfluentObs == 0 .or. &
-                 .not. stateVectorBkGnd%oceanMask%mask(lonIndex,latIndex,levIndex) ) cycle
+            if (numInfluentObs == 0 .or. &
+                .not. stateVectorBkGnd%oceanMask%mask(lonIndex, latIndex, levIndex)) cycle
 
             ! form the observation-error covariance (diagonal) matrix
 
@@ -325,8 +327,8 @@ contains
 
             do influentObsIndex = 1, numInfluentObs
               bodyIndex = influentObs(lonIndex,latIndex)%bodyIndex(influentObsIndex)
-              obsErrorVariance(influentObsIndex) = ( obs_bodyElem_r(obsSpaceData,OBS_OER, &
-                                                                    bodyIndex) )**2
+              obsErrorVariance(influentObsIndex) = (obs_bodyElem_r(obsSpaceData, OBS_OER, &
+                                                                   bodyIndex))**2
             end do
 
             ! find all model variables involved here
@@ -336,12 +338,16 @@ contains
             statej(:) = 0
             do influentObsIndex = 1, numInfluentObs
 
-              headerIndex = influentObs(lonIndex,latIndex)%headerIndex(influentObsIndex)
-              bodyIndex   = influentObs(lonIndex,latIndex)%bodyIndex(influentObsIndex)
+              headerIndex = influentObs(lonIndex, latIndex)%headerIndex(influentObsIndex)
+              bodyIndex   = influentObs(lonIndex, latIndex)%bodyIndex(influentObsIndex)
 
-              scaling = oop_iceScaling(obsSpaceData, bodyIndex)
+              if (anlVar(1) == 'GL') then
+                scaling = oop_iceScaling(obsSpaceData, bodyIndex)
+              else if (anlVar(1) == 'TM') then
+                scaling = 1.0d0
+              end if	
 
-              if ( scaling /= 0.0d0 ) then
+              if (scaling /= 0.0d0) then
 
                 do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
                   do procIndex = 1, mmpi_nprocs
@@ -352,13 +358,13 @@ contains
 
                     do gridpt = 1, gridptCount
 
-                      if ( interpWeight(gridpt) /= 0.0d0 ) then
+                      if (interpWeight(gridpt) /= 0.0d0) then
 
                         xStateIndex = obsLonIndex(gridpt)
                         yStateIndex = obsLatIndex(gridpt)
 
                         found = .false.
-                        do varIndex2=1,numVariables
+                        do varIndex2=1, numVariables
                           if(xStateIndex == statei(varIndex2) .and. &
                              yStateIndex == statej(varIndex2)) then
                             found = .true.
@@ -368,7 +374,7 @@ contains
                         if(.not. found) then
                           numVariables = numVariables + 1
                           if(numVariables > maxvar) then
-                            call utl_abort( myName//': Structure state'// &
+                            call utl_abort('aer_analysisError: Structure state'// &
                                  ' too small in subroutine'// &
                                  ' analysis_error_mod'// &
                                  ' Increase maxvar')
@@ -392,7 +398,7 @@ contains
             ! vector even if it does not participate in obs calculation
 
             found = .false.
-            do varIndex2=1,numVariables
+            do varIndex2 = 1, numVariables
               if(lonIndex == statei(varIndex2) .and. &
                  latIndex == statej(varIndex2)) then
                 currentAnalVarIndex = varIndex2
@@ -403,7 +409,7 @@ contains
             if(.not. found) then
               numVariables = numVariables + 1
               if(numVariables > maxvar) then
-                call utl_abort(myName//': Structure state too small in'// &
+                call utl_abort('aer_analysisError: Structure state too small in'// &
                      ' subroutine analysis_error_mod'// &
                      ' increase maxvar')
               end if
@@ -414,7 +420,7 @@ contains
 
             ! form the observation operator matrix (obsOperator)
 
-            allocate(obsOperator(numVariables,numInfluentObs))
+            allocate(obsOperator(numVariables, numInfluentObs))
 
             obsOperator(:,:) = 0.0d0
 
@@ -422,12 +428,16 @@ contains
 
             do influentObsIndex = 1, numInfluentObs
 
-              headerIndex = influentObs(lonIndex,latIndex)%headerIndex(influentObsIndex)
-              bodyIndex   = influentObs(lonIndex,latIndex)%bodyIndex(influentObsIndex)
+              headerIndex = influentObs(lonIndex, latIndex)%headerIndex(influentObsIndex)
+              bodyIndex   = influentObs(lonIndex, latIndex)%bodyIndex(influentObsIndex)
 
-              scaling = oop_iceScaling(obsSpaceData, bodyIndex)
+              if (anlVar(1) == 'GL') then
+                scaling = oop_iceScaling(obsSpaceData, bodyIndex)
+              else if (anlVar(1) == 'TM') then
+                scaling = 1.0d0
+              end if
 
-              if ( scaling /= 0.0d0 ) then
+              if (scaling /= 0.0d0) then
 
                 do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
                   do procIndex = 1, mmpi_nprocs
@@ -438,7 +448,7 @@ contains
 
                     do gridpt = 1, gridptCount
 
-                      if ( interpWeight(gridpt) /= 0.0d0 ) then
+                      if (interpWeight(gridpt) /= 0.0d0) then
 
                         xStateIndex = obsLonIndex(gridpt)
                         yStateIndex= obsLatIndex(gridpt)
@@ -453,19 +463,19 @@ contains
                           if(xStateIndex == statei(varIndex2) .and. &
                              yStateIndex == statej(varIndex2)) then
                             found = .true.
-                            obsOperator(varIndex2,influentObsIndex) = scaling* &
-                                                                      interpWeight(gridpt)
+                            obsOperator(varIndex2, influentObsIndex) = scaling * &
+                                                                       interpWeight(gridpt)
                           end if
                         end do
                         if(.not. found) then
-                          write(*,*) 'xStateIndex = ',xStateIndex
-                          write(*,*) 'yStateIndex = ',yStateIndex
-                          write(*,*) 'lonIndex = ',lonIndex
-                          write(*,*) 'latIndex = ',latIndex
-                          write(*,*) 'gridptCount = ',gridptCount
-                          write(*,*) 'gridpt = ',gridpt
-                          write(*,*) 'numVariables = ',numVariables
-                          do varIndex2=1,numVariables
+                          write(*,*) 'xStateIndex = ', xStateIndex
+                          write(*,*) 'yStateIndex = ', yStateIndex
+                          write(*,*) 'lonIndex = ', lonIndex
+                          write(*,*) 'latIndex = ', latIndex
+                          write(*,*) 'gridptCount = ', gridptCount
+                          write(*,*) 'gridpt = ', gridpt
+                          write(*,*) 'numVariables = ', numVariables
+                          do varIndex2=1, numVariables
                             write(*,*) 'varIndex2 statei statej = ',statei(varIndex2), &
                                                                     statej(varIndex2)
                           end do
@@ -485,7 +495,7 @@ contains
 
             ! form the background-error covariance matrix
 
-            allocate(Bmatrix(numVariables,numVariables))
+            allocate(Bmatrix(numVariables, numVariables))
 
             Bmatrix(:,:) = 0.0d0
 
@@ -500,19 +510,19 @@ contains
                 yIndex1 = statej(varIndex1)
 
                 if(xIndex2 == xIndex1 .and. yIndex2 == yIndex1) then
-                  Bmatrix(varIndex1,varIndex2) = bkGndErrorStdDev_ptr(xIndex1,yIndex1,levIndex,stepIndex)**2
+                  Bmatrix(varIndex1,varIndex2) = bkGndErrorStdDev_ptr(xIndex1, yIndex1, levIndex, stepIndex)**2
                 else if(Lcorr(xIndex2,yIndex2) > 0.0d0) then
-                  distance = phf_calcDistance(latInRad(xIndex2,yIndex2), &
-                                              lonInRad(xIndex2,yIndex2), &
-                                              latInRad(xIndex1,yIndex1), &
-                                              lonInRad(xIndex1,yIndex1))
-                  Bmatrix(varIndex1,varIndex2) = bkGndErrorStdDev_ptr(xIndex2,yIndex2,levIndex,stepIndex)* &
-                                     bkGndErrorStdDev_ptr(xIndex1,yIndex1,levIndex,stepIndex) &
-                                     *exp(-0.5*(distance/Lcorr(xIndex2,yIndex2))**2)
+                  distance = phf_calcDistance(latInRad(xIndex2, yIndex2), &
+                                              lonInRad(xIndex2, yIndex2), &
+                                              latInRad(xIndex1, yIndex1), &
+                                              lonInRad(xIndex1, yIndex1))
+                  Bmatrix(varIndex1,varIndex2) = bkGndErrorStdDev_ptr(xIndex2, yIndex2, levIndex, stepIndex) * &
+                                     bkGndErrorStdDev_ptr(xIndex1, yIndex1, levIndex, stepIndex) &
+                                     * exp(-0.5 * (distance / Lcorr(xIndex2, yIndex2))**2)
                 end if
 
                 ! symmetric matrix !
-                Bmatrix(varIndex2,varIndex1) = Bmatrix(varIndex1,varIndex2)
+                Bmatrix(varIndex2, varIndex1) = Bmatrix(varIndex1, varIndex2)
 
               end do
 
@@ -520,13 +530,13 @@ contains
 
             ! form the observation background error covariance matrix (PHT)
 
-            allocate(PH(numInfluentObs,numVariables))
+            allocate(PH(numInfluentObs, numVariables))
 
             ! PH = matmul (Bmatrix, transpose(obsOperator))
             do varIndex1 = 1, numVariables
               do influentObsIndex = 1, numInfluentObs
-                PH(influentObsIndex,varIndex1) = dot_product(Bmatrix(:,varIndex1), &
-                                                 obsOperator(:,influentObsIndex))
+                PH(influentObsIndex,varIndex1) = dot_product(Bmatrix(:, varIndex1), &
+                                                 obsOperator(:, influentObsIndex))
               end do
             end do
 
@@ -538,14 +548,14 @@ contains
             do influentObsIndex = 1, numInfluentObs
 
               do influentObsIndex2 = 1, numInfluentObs
-                if ( influentObsIndex == influentObsIndex2 ) then
-                  innovCovariance(influentObsIndex2,influentObsIndex) = &
-                       dot_product(obsOperator(:,influentObsIndex), &
+                if (influentObsIndex == influentObsIndex2) then
+                  innovCovariance(influentObsIndex2, influentObsIndex) = &
+                       dot_product(obsOperator(:, influentObsIndex), &
                        PH(influentObsIndex2,:)) + &
                        obsErrorVariance(influentObsIndex)
                 else
-                  innovCovariance(influentObsIndex2,influentObsIndex) = &
-                       dot_product(obsOperator(:,influentObsIndex), &
+                  innovCovariance(influentObsIndex2, influentObsIndex) = &
+                       dot_product(obsOperator(:, influentObsIndex), &
                        PH(influentObsIndex2,:))
                 end if
               end do
@@ -555,14 +565,14 @@ contains
             ! Inverse of the covariance matrix of the innovation
 
             innovCovarianceInverse(:,:) = innovCovariance(:,:)
-            call utl_matInverse(innovCovarianceInverse, numInfluentObs, printInformation_opt=.false.)
+            call utl_matInverse(innovCovarianceInverse, numInfluentObs, printInformation_opt = .false.)
 
             ! Kalman gain; this is the row corresponding to the analysis variable
 
             allocate(PHiA(numInfluentObs))
 
             do influentObsIndex = 1, numInfluentObs
-              PHiA(influentObsIndex) = dot_product(PH(:,currentAnalVarIndex), &
+              PHiA(influentObsIndex) = dot_product(PH(:, currentAnalVarIndex), &
                                        innovCovarianceInverse(influentObsIndex,:))
             end do
 
@@ -583,33 +593,33 @@ contains
 
             IKH(currentAnalVarIndex) = 1.0d0 - KH(currentAnalVarIndex)
 
-            analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
-                 sqrt( dot_product (IKH, Bmatrix(:,currentAnalVarIndex)) )
+            analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
+                 sqrt( dot_product (IKH, Bmatrix(:, currentAnalVarIndex)) )
 
-            if(analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex) < 0.0) then
-              write(*,*) myName//'negative analysis-error Std dev. = ', &
-                   analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex), &
-                   ' reset to zero at grid point (',lonIndex,latIndex,')'
-              analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
-                   max(analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex), 0.0)
+            if(analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) < 0.0) then
+              write(*,*) 'aer_analysisError: negative analysis-error Std dev. = ', &
+                         analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), &
+                         ' reset to zero at grid point (',lonIndex, latIndex,')'
+              analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
+                   max(analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), 0.0)
             end if
 
-            if(analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex) > &
-                  bkGndErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex)) then
-              write(*,*) myName//'analysis-error Std dev. = ', &
-                   analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex), &
-                   ' is larger than background-error ', &
-                   'Std dev. is kept at = ', &
-                   bkGndErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex)
-              analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
-                   min(bkGndErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex), &
+            if(analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) > &
+                  bkGndErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex)) then
+              write(*,*) 'aer_analysisError: analysis-error Std dev. = ', &
+                         analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex), &
+                         ' is larger than background-error ', &
+                         'Std dev. is kept at = ', &
+                         bkGndErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex)
+              analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
+                   min(bkGndErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), &
                    maxAnalysisErrorStdDev)
             end if
 
             deallocate(Bmatrix, obsErrorVariance, innovCovariance, &
                        innovCovarianceInverse, obsOperator, PH, PHiA, KH, IKH)
-            deallocate(influentObs(lonIndex,latIndex)%headerIndex)
-            deallocate(influentObs(lonIndex,latIndex)%bodyIndex)
+            deallocate(influentObs(lonIndex, latIndex)%headerIndex)
+            deallocate(influentObs(lonIndex, latIndex)%bodyIndex)
 
           end do XINDEX
         end do YINDEX
@@ -620,15 +630,15 @@ contains
 
     deallocate(influentObs)
     deallocate( Lcorr )
-    deallocate( lonInRad, latInRad )
+    deallocate(lonInRad, latInRad)
 
-    call gio_writeToFile( stateVectorAnal, './anlm_000m', '', typvar_opt='A@', &
-                          containsFullField_opt=.true. )
+    call gio_writeToFile(stateVectorAnal, './anlm_000m', '', typvar_opt = 'A@', &
+                         containsFullField_opt=.true. )
 
-    call col_deallocate( columng )
-    call col_deallocate( column )
-    call gsv_deallocate( stateVectorBkGnd )
-    call gsv_deallocate( stateVectorAnal )
+    call col_deallocate(columng)
+    call col_deallocate(column)
+    call gsv_deallocate(stateVectorBkGnd)
+    call gsv_deallocate(stateVectorAnal)
 
   end subroutine aer_analysisError
 

@@ -560,8 +560,16 @@
   </FAMILY>
 
   <FAMILY  name="analysisErrorOI">
-    <SUBMITS sub_name="UnitTest"/>
-    <MODULE  name="UnitTest"/>
+    <SUBMITS sub_name="analysisErrorOIIce"/>
+      <FAMILY  name="analysisErrorOIIce">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
+    <SUBMITS sub_name="analysisErrorOISST"/>
+      <FAMILY  name="analysisErrorOISST">
+        <SUBMITS sub_name="UnitTest"/>
+        <MODULE  name="UnitTest"/>
+      </FAMILY>
   </FAMILY>
  
   <FAMILY  name="SST">
