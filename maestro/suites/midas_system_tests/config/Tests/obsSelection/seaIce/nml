@@ -73,4 +73,6 @@
  OmpRmsdThresh(9) = 10.0
  OmpRmsdThresh(10) = 10.0
  OmpRmsdThresh(11) = 95.0
+ maxSwath = 10
+ maxPerSwath = 200000
 /
