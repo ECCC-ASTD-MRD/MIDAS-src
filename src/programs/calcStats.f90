@@ -117,37 +117,15 @@ program midas_calcstats
   select case(trim(mode))
   case ('BHI')
      if (hco_ens % global) then
-        call csg_computeStats
+        call csg_computeBhi
      else
         call csl_computeBhi
-     end if
-  case ('BHI2')
-     if (hco_ens % global) then
-        call csg_computeStatsLatBands
-     else
-        call utl_abort('BHI2 mode is not available for LAM')
      end if
   case ('TOOLBOX')
      if (hco_ens % global) then
         call csg_toolbox
      else
         call csl_toolbox
-     end if
-  case ('STDDEV')
-     if (hco_ens % global) then
-        call csg_stddev
-     else
-        write(*,*)
-        write(*,*) 'STDDEV mode is not availbale in LAM mode'
-        call utl_abort('midas-calcstats')
-     end if
-  case ('POWERSPEC')
-     if (hco_ens % global) then
-        call csg_powerspec
-     else
-        write(*,*)
-        write(*,*) 'POWERSPEC mode is not availbale in LAM mode'
-        call utl_abort('midas-calcstats')
      end if
   case default
      write(*,*)

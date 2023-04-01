@@ -38,13 +38,14 @@ module calcStatsGlb_mod
   use menetrierDiag_mod
   use fileNames_mod
   use timeCoord_mod
+  use gridVariableTransforms_mod
+  use gridBinning_mod
   implicit none
   save
   private
 
   ! Public Subroutines
-  public :: csg_setup, csg_computeStats, csg_computeStatsLatBands, csg_stddev
-  public :: csg_toolbox, csg_powerspec
+  public :: csg_setup, csg_computeBhi, csg_toolbox
 
   type(struct_hco), pointer :: hco_ens ! Ensemble horizontal grid parameters
   type(struct_vco), pointer :: vco_ens ! Ensemble horizontal grid parameters
@@ -245,11 +246,49 @@ module calcStatsGlb_mod
   end subroutine csg_setup
 
   !--------------------------------------------------------------------------
-  ! CSG_COMPUTESTATS
+  ! csg_computeBhi
   !--------------------------------------------------------------------------
-  subroutine csg_computeStats
+  subroutine csg_computeBhi()
     !
-    !:Purpose: High-level routine to compute the global statistics
+    !:Purpose: Master routine for Bhi computation in global mode
+    !
+    implicit none
+    ! locals:
+    integer :: ierr, nulnam
+    integer :: fclos, fnom
+    character(len=12) :: formulation
+
+    NAMELIST /NAMCOMPUTEBHI/formulation
+
+    ! parameters from namelist
+    formulation='legacy'
+
+    nulnam=0
+    ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    read(nulnam,nml=NAMCOMPUTEBHI)
+    write(*,nml=NAMCOMPUTEBHI)
+    ierr=fclos(nulnam)
+
+    select case(trim(formulation))
+    case ('legacy')
+      call csg_computeBhiLegacy
+    case ('latbands')
+      call csg_computeBhiLatBands
+    case default
+     write(*,*)
+     write(*,*) 'Unknown value of FORMULATION for Bhi computation: ',formulation
+     write(*,*) 'Please select legacy or latbands'
+     call utl_abort('csg_computeBhi')
+  end select
+
+  end subroutine csg_computeBhi
+  
+  !--------------------------------------------------------------------------
+  ! csg_computeBhiLegacy
+  !--------------------------------------------------------------------------
+  subroutine csg_computeBhiLegacy
+    !
+    !:Purpose: Computation of Bhi using the legacy formulation
     !
     implicit none
     real(4), pointer :: ensPerturbations(:,:,:,:), ens_ptr(:,:,:,:)
@@ -365,15 +404,14 @@ module calcStatsGlb_mod
       write(404,*) stddevZonAvgUnbal((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
     end if
 
-  end subroutine csg_computeStats
+  end subroutine csg_computeBhiLegacy
 
   !--------------------------------------------------------------------------
-  ! CSG_COMPUTESTATSLATBANDS
+  ! csg_computeBhiLatBands
   !--------------------------------------------------------------------------
-  subroutine csg_computeStatsLatBands
+  subroutine csg_computeBhiLatBands
     !
-    !:Purpose: High-level routine to compute the statistics on a set of latitude
-    !          bands
+    !:Purpose: Computation of Bhi on a set of latitude bands
     !
     implicit none
     
@@ -406,7 +444,7 @@ module calcStatsGlb_mod
     call removeGlobalMean(ensPerturbations)
 
     do jlatband = 1, 3
-      write(*,*) 'calcb_glb2_computeStats: selected LATBAND = ',jlatband
+      write(*,*) 'csg_computeBhiLatBands: selected LATBAND = ',jlatband
       lat1=nj/4
       lat2=nj/2
       lat3=3*nj/4
@@ -469,7 +507,7 @@ module calcStatsGlb_mod
       write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
     end if
 
-  end subroutine csg_computeStatsLatBands
+  end subroutine csg_computeBhiLatBands
 
   !--------------------------------------------------------------------------
   ! CSG_TOOLBOOX
@@ -487,7 +525,7 @@ module calcStatsGlb_mod
     integer :: waveBandIndex
     integer :: nulnam, ierr, fclos, fnom, numStep
 
-    real(8), allocatable :: corns(:,:,:), rstddev(:,:)
+    real(8), allocatable :: corns(:,:,:), rstddev(:,:), powerSpec(:,:)
 
     integer, allocatable :: dateStampList(:)
     
@@ -496,9 +534,11 @@ module calcStatsGlb_mod
     type(struct_ens), pointer :: ensPerts_ptr
     
     type(struct_gsv) :: statevector_template
+
+    type(struct_gbi) :: gbi_zonalMean
     
     integer :: variableType
-
+ 
     logical :: ensContainsFullField
     logical :: makeBiPeriodic
     logical :: doSpectralFilter
@@ -609,33 +649,67 @@ module calcStatsGlb_mod
       call calcLocalVertCorrMatrix(ensPerts_ptr) ! IN
 
     case ('LOCALIZATIONRADII')
-       write(*,*)
-       write(*,*) 'Estimating the optimal covariance localization radii'
+      write(*,*)
+      write(*,*) 'Estimating the optimal covariance localization radii'
 
-       call ens_removeGlobalMean(ensPerts)
+      call ens_removeGlobalMean(ensPerts)
 
-       do waveBandIndex = 1, nWaveBand
+      do waveBandIndex = 1, nWaveBand
 
-         call spectralFilter2(ensPerts,                      & ! IN
-                              ensPerts_ptr,                  & ! OUT
-                              waveBandIndex_opt=waveBandIndex) ! IN
+        call spectralFilter2(ensPerts,                      & ! IN
+                             ensPerts_ptr,                  & ! OUT
+                             waveBandIndex_opt=waveBandIndex) ! IN
 
-         call ens_computeStdDev(ensPerts_ptr)
+        call ens_computeStdDev(ensPerts_ptr)
        
-         if (waveBandIndex == 1) then
-           call ens_copyEnsStdDev(ensPerts_ptr, statevector_template) ! IN
-           call bmd_setup(statevector_template, hco_ens, nEns, pressureProfile_M, & ! IN
-                          pressureProfile_T, nWaveBand)                             ! IN
-         end if
+        if (waveBandIndex == 1) then
+          call ens_copyEnsStdDev(ensPerts_ptr, statevector_template) ! IN
+          call bmd_setup(statevector_template, hco_ens, nEns, pressureProfile_M, & ! IN
+                         pressureProfile_T, nWaveBand)                             ! IN
+        end if
          
-         call bmd_localizationRadii(ensPerts_ptr, waveBandIndex_opt=waveBandIndex) ! IN
+        call bmd_localizationRadii(ensPerts_ptr, waveBandIndex_opt=waveBandIndex) ! IN
 
-       end do
+      end do
+      
+    case ('STDDEV')
+      write(*,*)
+      write(*,*) 'Computing standard deviations using PSI/CHI for winds'
 
+      ! u,v to psi,chi 
+      call gvt_setup(hco_ens, hco_ens, vco_ens)
+      call gvt_transform(ensPerts_ptr, 'UVtoPsiChi')
+      if (.not. ens_varExist(ensPerts_ptr,'PP') .and. &
+          .not. ens_varExist(ensPerts_ptr,'CC') ) then
+        call ens_modifyVarName(ensPerts_ptr, 'UU', 'PP')
+        call ens_modifyVarName(ensPerts_ptr, 'VV', 'CC')
+      end if
+
+      ! Compute the grid point std dev
+      call ens_computeStdDev(ensPerts_ptr)
+      call ens_copyEnsStdDev(ensPerts_ptr, statevector_template) ! IN
+      call gio_writeToFile(statevector_template, './stddev.fst', 'STDDEV_GRIDP', &
+                           typvar_opt = 'E', numBits_opt = 32)
+
+      ! Compute the zonal std dev
+      call gbi_setup(gbi_zonalMean, 'YrowBand', statevector_template, hco_ens)
+      call gbi_stdDev(gbi_zonalMean, ensPerts_ptr, & ! IN
+                      statevector_template)          ! OUT
+      call gio_writeToFile(statevector_template, './stddev.fst', 'STDDEV_ZONAL', &
+                           typvar_opt = 'E', numBits_opt = 32)
+
+    case ('POWERSPEC')
+      write(*,*)
+      write(*,*) 'Computing power spectra'
+
+      call calcPowerSpec(ensPerts_ptr, & ! IN
+                         powerSpec)      ! OUT
+      call writePowerSpec(powerSpec, modelSpace) ! IN
+      
     case default
-       write(*,*)
-       write(*,*) 'Unknown TOOL in csg_toolbox : ', trim(tool)
-       call utl_abort('csg_toolbox')
+      write(*,*)
+      write(*,*) 'Unknown TOOL in csg_toolbox : ', trim(tool)
+      call utl_abort('csg_toolbox')
     end select
 
     !
@@ -655,85 +729,6 @@ module calcStatsGlb_mod
     write(*,*) 'csl_toolbox: Done!'
 
   end subroutine csg_toolbox
-
-  !--------------------------------------------------------------------------
-  ! CSG_POWERSPEC
-  !--------------------------------------------------------------------------
-  subroutine csg_powerspec
-    !
-    !:Purpose: High-level routine to calculate the power spectrum and write to file
-    !
-    implicit none
-
-    ! NOTE: The diagnostic computed here are in model variable space 
-    !       (no variable transform!!!)
-
-    integer :: variableType
-
-    real(4),pointer     :: ensPerturbations(:,:,:,:)
-    real(8),allocatable :: powerSpec(:,:)
-
-    write(*,*)
-    write(*,*) 'csg_powerspec'
-    write(*,*)
-    
-    variableType = modelSpace
-
-    allocate(ensPerturbations(ni,nj,nkgdimEns,nens))
-    allocate(powerspec(nkgdimEns,0:ntrunc))
-
-    call readEnsemble(ensPerturbations) ! OUT, IN
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
-
-    call removeMean(ensPerturbations) ! INOUT
-
-    call calcPowerSpec(ensPerturbations, & ! IN
-                       powerSpec)          ! OUT
-
-    call writePowerSpec(powerSpec, variableType) ! IN
-
-  end subroutine csg_powerspec
-
-  !--------------------------------------------------------------------------
-  ! CSG_STDDEV
-  !--------------------------------------------------------------------------
-  subroutine csg_stddev
-    !
-    !:Purpose: High-level routine to calculate stddev and write to file
-    !
-    implicit none
-    integer :: ierr
-    real(4), pointer :: ensPerturbations(:,:,:,:)
-    real(8), pointer :: stddev3d(:,:,:),stddevZonAvg(:,:)
-
-    allocate(ensPerturbations(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns,nens),stat=ierr)
-    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
-    allocate(stddev3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns),stat=ierr)
-    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
-    allocate(stddevZonAvg(nkgdimEns,nj),stat=ierr)
-    if(ierr.ne.0) call utl_abort('Problem allocating memory 1')
-
-    call readEnsemble(ensPerturbations)
-
-    call removeMean(ensPerturbations)
-
-    call uv_to_psichi(ensPerturbations)
-
-    call calcStddev3d(ensPerturbations,stddev3d,nkgdimens)
-
-    call calcZonAvg(stddevZonAvg,stddev3d,nkgdimens)
-
-    call writeStddev(stddevZonAvg,stddev3d)
-
-    if (mmpi_myid == 0) then
-      write(200,*) stddevZonAvg(1:nlevEns_M,:)
-      write(201,*) stddevZonAvg((1+1*nlevEns_M):(2*nlevEns_M),:)
-      write(202,*) stddevZonAvg((1+2*nlevEns_M):(3*nlevEns_T),:)
-      write(203,*) stddevZonAvg((1+2*nlevEns_M+1*nlevEns_T):(2*nlevEns_M+2*nlevEns_T),:)
-      write(204,*) stddevZonAvg((1+2*nlevEns_M+2*nlevEns_T),:)/1.0d2
-    end if
-
-  end subroutine csg_stddev
 
   !--------------------------------------------------------------------------
   ! WRITESPSTATS
@@ -1145,63 +1140,106 @@ module calcStatsGlb_mod
     write(*,*) 'finished computing correlations...'
 
   end subroutine calcCorrelations2
-  
+
   !--------------------------------------------------------------------------
   ! CALCPOWERSPEC
   !--------------------------------------------------------------------------
-  subroutine calcPowerSpec(ensPerturbations,powerSpec)
+  subroutine calcPowerSpec(ensPerts,powerSpec)
     !
     !:Purpose: Calculate the horizontal power spectrum of the ensemble
     !          of error samples
     !
     implicit none
-    real(4),pointer, intent(in)  :: ensPerturbations(:,:,:,:)
-    real(8),         intent(out) :: powerSpec(nkgdimEns,0:ntrunc)
+    type(struct_ens)           :: ensPerts
+    real(8), allocatable       :: powerSpec(:,:)
 
-    real(8) :: spectralState(nla,2,nkgdimEns)
-    real(8) :: gridState(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nkgdimEns)
+    real(8), allocatable :: ensPertSP(:,:,:)
+    real(8), allocatable :: ensPertGD(:,:,:)
+    real(8), allocatable :: powerSpec_mpiglobal(:,:)
+    real(4), pointer     :: ptr4d_r4(:,:,:,:)
     real(8) :: dfact, dfact2
 
-    integer :: ensIndex,ila,jn,jm,jk
+    integer :: gstPowerSpecID, nsize, ierr
+    integer :: memberIndex, levIndex, latIndex, lonIndex
+    integer :: jn, jm, ila_mpilocal, ila_mpiglobal
+
+    allocate(powerSpec          (ens_getNumK(ensPerts),0:ntrunc))
+    allocate(powerSpec_mpiglobal(ens_getNumK(ensPerts),0:ntrunc))
+
+    !
+    !- Spectral decomposition and spectral coefficient summation
+    !
+    gstPowerSpecID = gst_setup(ni,nj,nTrunc,nEnsOverDimension)
+    
+    allocate(ensPertSP(nla_mpilocal,2,nEnsOverDimension))
+    allocate(ensPertGD(nEnsOverDimension,myLonBeg:myLonEnd,myLatBeg:myLatEnd))
 
     powerSpec(:,:)=0.0d0
+    
+    do levIndex = 1, ens_getNumK(ensPerts) ! Loop on variables and vertical levels
+      
+      ptr4d_r4 => ens_getOneLev_r4(ensPerts,levIndex)
 
-    do ensIndex = 1, nens
+      do latIndex = myLatBeg, myLatEnd
+        ensPertGD(:,:,latIndex) = 0.0d0
+      end do
 
-      write(*,*) 'calcPowerSpec: processing member ',ensIndex
-
-      gridState(:,:,:)=ensPerturbations(:,:,:,ensIndex)
-      call gst_setID(gstID_nkgdimEns)
-      call gst_reespe(spectralState,gridState)
-
-      !$OMP PARALLEL DO PRIVATE (jn,jm,dfact,ila,jk)
-      do jn = 0, ntrunc
-        do jm = 0, jn
-          dfact = 2.0d0
-          if (jm.eq.0) dfact = 1.0d0
-          ila = gst_getNind(jm) + jn - jm
-          do jk = 1, nkgdimEns
-              powerSpec(jk,jn) = powerSpec(jk,jn) +     &
-                 dfact*( spectralState(ila,1,jk)**2 + spectralState(ila,2,jk)**2 )
+      !$OMP PARALLEL DO PRIVATE (memberIndex,latIndex,lonIndex)
+      do latIndex = myLatBeg, myLatEnd
+        do lonIndex = myLonBeg, myLonEnd
+          do memberIndex = 1, nEns
+            ensPertGD(memberIndex,lonIndex,latIndex) = dble(ptr4d_r4(memberIndex,1,lonIndex,latIndex))
           end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+      
+      !- GridPoint space -> Spectral Space
+      call gst_setID(gstPowerSpecID) ! IN
+      call gst_reespe_kij(ensPertSP, & ! OUT
+                          ensPertGD)   ! IN
+
+      !$OMP PARALLEL DO PRIVATE (memberIndex,jn,jm,dfact,ila_mpilocal,ila_mpiglobal)
+      do jn = mynBeg, mynEnd, mynSkip
+        do jm = mymBeg, mymEnd, mymSkip
+          if (jm .le. jn) then
+            dfact = 2.0d0
+            if (jm.eq.0) dfact = 1.0d0
+            ila_mpiglobal = gst_getNind(jm,gstPowerSpecID) + jn - jm
+            ila_mpilocal = ilaList_mpilocal(ila_mpiglobal)
+            do memberIndex = 1, nEns
+              powerSpec(levIndex,jn) = powerSpec(levIndex,jn) +     &
+                   dfact*( ensPertSP(ila_mpilocal,1,memberIndex)**2 + ensPertSP(ila_mpilocal,2,memberIndex)**2 )
+            end do
+          end if
         end do
       end do
       !$OMP END PARALLEL DO
 
     end do
 
+    !
+    !- Communicate between all tasks
+    !
+    nsize = ens_getNumK(ensPerts)*(1+ntrunc)
+    call rpn_comm_allreduce(powerSpec,powerSpec_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
+    powerSpec(:,:) = powerSpec_mpiglobal(:,:)
+
+    !
+    !- Apply the appropriate scaling
+    !
     dfact2 = 1.0d0/sqrt(dble(nens-1))
     do jn = 0, ntrunc
       dfact = 1.0d0/sqrt(2.0d0*dble(jn) + 1.0d0)
-      do jk = 1, nkgdimEns
-        powerSpec(jk,jn) = powerSpec(jk,jn)*dfact2*dfact
+      do levIndex = 1, ens_getNumK(ensPerts)
+        powerSpec(levIndex,jn) = powerSpec(levIndex,jn)*dfact2*dfact
       end do
     end do
 
     write(*,*) 'finished computing power spectrum...'
 
   end subroutine calcPowerSpec
-
+  
   !--------------------------------------------------------------------------
   ! WRITESTATS
   !--------------------------------------------------------------------------
@@ -2839,6 +2877,8 @@ module calcStatsGlb_mod
 
     character(len=128) :: outfilename
 
+    if (mmpi_myid /= 0) return
+    
     !- Write to txt files
     do varIndex = 1, nvar3d
 
