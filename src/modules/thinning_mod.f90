@@ -1414,7 +1414,7 @@ contains
     real(8) :: rptopinc        ! parameter for defining fixed set of model levels for vertical thinning
     real(8) :: rcoefinc        ! parameter for defining fixed set of model levels for vertical thinning
     real(4) :: vlev(maxNumLev) ! parameter for defining fixed set of model levels for vertical thinning
-    integer :: numlev          ! parameter for defining fixed set of model levels for vertical thinning
+    integer :: numlev          ! MUST NOT BE INCLUDED IN NAMELIST!
     namelist /namgem/rprefinc, rptopinc, rcoefinc, numlev, vlev
 
     ! Check if any observations to be treated and count number of "profiles"
@@ -1599,7 +1599,7 @@ contains
       read(nulnam,nml=namgem,iostat=ierr)
       if (ierr /= 0) call utl_abort('thn_radiosonde: Error reading namgem namelist')
       if (numlev /= MPC_missingValue_INT) then
-        call utl_abort('thn_radiosonde: check NAMGEM namelist section, you should remove numlev')
+        call utl_abort('thn_radiosonde: check NAMGEM namelist section: numlev should be removed')
       end if
       numlev = 0
       do levIndex = 1, maxNumLev
@@ -4331,7 +4331,7 @@ contains
     real(8) :: rptopinc      ! parameter for defining fixed set of model levels for vertical thinning
     real(8) :: rcoefinc      ! parameter for defining fixed set of model levels for vertical thinning
     real(4) :: vlev(maxLev)  ! parameter for defining fixed set of model levels for vertical thinning
-    integer :: numlev        ! parameter for defining fixed set of model levels for vertical thinning
+    integer :: numlev        ! MUST NOT BE INCLUDED IN NAMELIST!
     namelist /namgem/rprefinc, rptopinc, rcoefinc, numlev, vlev
 
     write(*,*)

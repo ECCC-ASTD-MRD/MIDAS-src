@@ -1666,7 +1666,7 @@ end subroutine filt_topoAISW
     ! List of satellites (id_stn in SQLite files) used for sea ice concentration
     integer, parameter :: maxPlatformIce = 50
     ! namelist variables
-    integer            :: nPlatformIce                    ! number of 'platforms' in 'listPlatformice'
+    integer            :: nPlatformIce                    ! MUST NOT BE INCLUDED IN NAMELIST!
     character(len=12)  :: listPlatformIce(maxPlatformIce) ! list of ice obs 'platforms' (station IDs) to assimilate 
 
     namelist /namPlatformIce/ nPlatformIce, listPlatformIce

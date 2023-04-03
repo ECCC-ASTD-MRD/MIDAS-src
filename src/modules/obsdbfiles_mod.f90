@@ -87,7 +87,7 @@ module obsdbFiles_mod
   logical, parameter :: setObsFlagZero = .true.
 
   ! NAMELIST variables
-  integer :: numElemIdList                ! number of bufr element IDs to read from file
+  integer :: numElemIdList                ! MUST NOT BE INCLUDED IN NAMELIST!
   integer :: elemIdList(maxElementNumber) ! list of bufr element IDs to read from file
 
 contains
@@ -1836,7 +1836,7 @@ contains
     character(len=6), parameter     :: midasTableType = 'header' !Define the type of MIDAS table: header/body
     integer, parameter   :: maxItemNumber = 15
     ! namelist variables
-    integer,          save :: numberUpdateItems  ! number of items to use from the list
+    integer,          save :: numberUpdateItems             ! MUST NOT BE INCLUDED IN NAMELIST!
     character(len=4), save :: updateItemList(maxItemNumber) ! obsSpace column names used to update the file
 
     namelist/namObsDbMIDASHeaderUpdate/ numberUpdateItems, updateItemList
@@ -2073,7 +2073,7 @@ contains
     character(len=6), parameter  :: midasTableType='body' ! Define the type of MIDAS table: header/body
     integer, parameter   :: maxItemNumber = 15
     ! namelist variables
-    integer,          save :: numberUpdateItems  ! number of items to use from the list
+    integer,          save :: numberUpdateItems             ! MUST NOT BE INCLUDED IN NAMELIST!
     character(len=4), save :: updateItemList(maxItemNumber) ! obsSpace column names used to update the file
 
     namelist/namObsDbMIDASBodyUpdate/ numberUpdateItems, updateItemList

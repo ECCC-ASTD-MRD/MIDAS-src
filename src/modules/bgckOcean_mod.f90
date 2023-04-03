@@ -60,7 +60,7 @@ module bgckOcean_mod
   real(4)           :: minLatNH = 10.                ! min lat of N. hemisphere lat band where TS is detected
   real(4)           :: maxLatNH = 40.                ! max lat of N. hemisphere lat band where TS is detected
   real(4)           :: maxLatExceptionNH = 45.       ! max lat of N. hemisphere lat band allows TS to penetrate further North in some months
-  integer           :: nmonthsExceptionNH  = 0       ! number of months where TS penetrates exceptionnally North
+  integer           :: nmonthsExceptionNH  = 0       ! MUST NOT BE INCLUDED IN NAMELIST!
   character(len=3)  :: monthExceptionNH(12) = '   '  ! exceptional months where TS allowed to penetrated further North 
   real(4)           :: minLatSH = -35.               ! min lat of Southern hemisphere latutude band where TS is detected
   real(4)           :: maxLatSH = -10.               ! max lat of Southern hemisphere latutude band where TS is detected
@@ -361,7 +361,7 @@ module bgckOcean_mod
     integer, parameter   :: numStationMax = 11              ! maximum number of 'idStation' values
     
     ! Namelist variables: (local)
-    integer           :: numStation = MPC_missingValue_INT  ! number of 'idStation' values
+    integer           :: numStation = MPC_missingValue_INT  ! MUST NOT BE INCLUDED IN NAMELIST!
     character(len=12) :: idStation(numStationMax) = 'null'  ! list of obsSpaceData 'idStation' values to consider
     real              :: OmpRmsdThresh(numStationMax) = 0.0 ! rejection threshold applied to RMS of O-P for entire swath
     integer           :: maxSwath = 10                      ! maximum number of swaths

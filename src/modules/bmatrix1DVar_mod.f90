@@ -82,7 +82,7 @@ module bmatrix1DVar_mod
   integer          :: nEns                             ! ensemble size
   real(8)          :: vlocalize                        ! vertical localization length scale
   character(len=4) :: includeAnlVar(vnl_numvarmax)     ! list of variable names to include in B matrix
-  integer :: numIncludeAnlVar                          ! number of variables to include in B matrix
+  integer :: numIncludeAnlVar                          ! MUST NOT BE INCLUDED IN NAMELIST!
   real(8) :: scaleFactorHI(vco_maxNumLevels)           ! scaling factors for HI variances
   real(8) :: scaleFactorHIHumidity(vco_maxNumLevels)   ! scaling factors for HI humidity variances
   real(8) :: scaleFactorEns(vco_maxNumLevels)          ! scaling factors for Ens variances

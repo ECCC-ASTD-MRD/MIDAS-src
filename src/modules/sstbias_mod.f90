@@ -733,8 +733,8 @@ module SSTbias_mod
           extension = 'D'
         else if (trim(listProducts(productIndex)) == 'night') then
           extension = 'N'
-	else
-	  call utl_abort('sstb_applySatelliteSSTBiasCorrection: wrong extension: '//trim(extension)) 
+        else
+          call utl_abort('sstb_applySatelliteSSTBiasCorrection: wrong extension: '//trim(extension)) 
         end if
 	
         call gio_readFromFile(stateVector, biasFileName, 'B_'//trim(sensorList(sensorIndex))//'_'//trim(extension), &

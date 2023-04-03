@@ -148,24 +148,24 @@ module obsSpaceDiag_mod
   integer, parameter :: max_cfg_size=100
 
   ! Namelist variables
-  real(8) :: deltaLat ! Size of latitude bins for diagnostics (degrees)
-  real(8) :: deltaLon ! Size of longitude bins for diagnostics (degrees)
-  real(8) :: deltaPressure ! Size of vertical bins for diagnostics (Pascal)
-  real(8) :: deltaHeight   ! Size of vertical bins for diagnostics (meters)
-  integer :: numFamily ! Number of families to consider
-  character(len=2) :: familyList(ofl_numFamily) ! List of family names to consider
-  integer :: numElement ! Number of bufr element ids to consider
-  integer :: elementList(ofl_numFamily)  ! List of bufr element ids to consider
-  integer :: nrandseed ! Random seed value
-  logical :: lrandom   ! Perform diagnostics from random perturbations
-  integer :: diagn_num(ofl_numFamily) ! Prescribed (starting) number of (stnid, bufr, nlev) for diag calc
-  integer :: diagn_nset(ofl_numFamily) ! Choose to group by 1: stnid, 2: stnid,bufr, 3: stnid,bufr,nlev
-  integer :: diagn_varno(ofl_numFamily,max_cfg_size) ! List of bufr element ids for diag calc
+  real(8) :: deltaLat                                         ! Size of latitude bins for diagnostics (degrees)
+  real(8) :: deltaLon                                         ! Size of longitude bins for diagnostics (degrees)
+  real(8) :: deltaPressure                                    ! Size of vertical bins for diagnostics (Pascal)
+  real(8) :: deltaHeight                                      ! Size of vertical bins for diagnostics (meters)
+  integer :: numFamily                                        ! MUST NOT BE INCLUDED IN NAMELIST!
+  character(len=2) :: familyList(ofl_numFamily)               ! List of family names to consider
+  integer :: numElement                                       ! MUST NOT BE INCLUDED IN NAMELIST!
+  integer :: elementList(ofl_numFamily)                       ! List of bufr element ids to consider
+  integer :: nrandseed                                        ! Random seed value
+  logical :: lrandom                                          ! Perform diagnostics from random perturbations
+  integer :: diagn_num(ofl_numFamily)                         ! Prescribed (starting) number of (stnid, bufr, nlev) for diag calc
+  integer :: diagn_nset(ofl_numFamily)                        ! Choose to group by 1: stnid, 2: stnid,bufr, 3: stnid,bufr,nlev
+  integer :: diagn_varno(ofl_numFamily,max_cfg_size)          ! List of bufr element ids for diag calc
   character(len=9) :: diagn_stnid(ofl_numFamily,max_cfg_size) ! List of stnid for diag calc
-  logical :: diagn_save(ofl_numFamily) ! Choose to save gridded info in ascii file
-  logical :: diagn_all(ofl_numFamily) ! Choose to use all combinations specified by diagn_nset
-  logical :: diagn_unilev(ofl_numFamily,max_cfg_size) ! List indicating if uni-lev obs for diag calc
-  real(8) :: diagn_pressmin(ofl_numFamily) ! Bottom of top layer for diagnostics (in Pa)
+  logical :: diagn_save(ofl_numFamily)                        ! Choose to save gridded info in ascii file
+  logical :: diagn_all(ofl_numFamily)                         ! Choose to use all combinations specified by diagn_nset
+  logical :: diagn_unilev(ofl_numFamily,max_cfg_size)         ! List indicating if uni-lev obs for diag calc
+  real(8) :: diagn_pressmin(ofl_numFamily)                    ! Bottom of top layer for diagnostics (in Pa)
 
 contains
 
