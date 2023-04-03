@@ -45,28 +45,28 @@ module SSTbias_mod
   public :: sstb_computeBias, sstb_applySatelliteSSTBiasCorrection
   
   ! external 
-  integer, external :: fnom, fclos
+  integer, external  :: fnom, fclos
   
   ! mpi topology
-  integer           :: myLatBeg, myLatEnd
-  integer           :: myLonBeg, myLonEnd
-  integer           :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
+  integer            :: myLatBeg, myLatEnd
+  integer            :: myLonBeg, myLonEnd
+  integer            :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax
 
-  integer, parameter          :: maxNumberSensors = 10
+  integer, parameter :: maxNumberSensors = 10
 
   ! namelist variables
-  real(8)           :: searchRadius		   ! horizontal search radius, in km, for obs gridding
-  real(4)           :: maxBias  		   ! max acceptable difference (insitu - satellite)
-  real(4)           :: iceFractionThreshold	   ! consider no ice condition below this threshold
-  integer           :: numberPointsBG		   ! parameter, number of matchups of the background bias estimation
-  character(len=20) :: timeInterpType_nl	   ! 'NEAREST' or 'LINEAR'
-  integer           :: numObsBatches		   ! number of batches for calling interp setup
-  integer           :: numberSensors		   ! MUST NOT BE INCLUDED IN NAMELIST!
-  character(len=10) :: sensorList(maxNumberSensors)! list of sensors
-  logical           :: saveAuxFields		   ! to store or not auxiliary fields: nobs and weight        
-  real(4)           :: weightMin		   ! minimum value of weight for the current day bias
-  real(4)           :: weightMax		   ! maximum value of weight for the current day bias
-  real(4)           :: bgTermZeroBias		   ! background term of zero bias estimate
+  real(8)            :: searchRadius                 ! horizontal search radius, in km, for obs gridding
+  real(4)            :: maxBias                      ! max acceptable difference (insitu - satellite)
+  real(4)            :: iceFractionThreshold         ! consider no ice condition below this threshold
+  integer            :: numberPointsBG               ! parameter, number of matchups of the background bias estimation
+  character(len=20)  :: timeInterpType_nl            ! 'NEAREST' or 'LINEAR'
+  integer            :: numObsBatches                ! number of batches for calling interp setup
+  integer            :: numberSensors                ! MUST NOT BE INCLUDED IN NAMELIST!
+  character(len=10)  :: sensorList(maxNumberSensors) ! list of sensors
+  logical            :: saveAuxFields                ! to store or not auxiliary fields: nobs and weight        
+  real(4)            :: weightMin                    ! minimum value of weight for the current day bias
+  real(4)            :: weightMax                    ! maximum value of weight for the current day bias
+  real(4)            :: bgTermZeroBias               ! background term of zero bias estimate
 
   contains
 
@@ -83,7 +83,7 @@ module SSTbias_mod
     type(struct_obs), intent(inout)          :: obsData              ! obsSpaceData
     type(struct_hco), intent(inout), pointer :: hco                  ! horizontal grid structure
     type(struct_vco), intent(in)   , pointer :: vco                  ! vertical grid structure
-      									    
+      
     ! locals
     integer                     :: sensorIndex, productIndex
     real(8)                     :: insituGrid   (hco%ni, hco%nj)
@@ -733,8 +733,8 @@ module SSTbias_mod
           extension = 'D'
         else if (trim(listProducts(productIndex)) == 'night') then
           extension = 'N'
-	else
-	  call utl_abort('sstb_applySatelliteSSTBiasCorrection: wrong extension: '//trim(extension)) 
+        else
+          call utl_abort('sstb_applySatelliteSSTBiasCorrection: wrong extension: '//trim(extension)) 
         end if
 	
         call gio_readFromFile(stateVector, biasFileName, 'B_'//trim(sensorList(sensorIndex))//'_'//trim(extension), &

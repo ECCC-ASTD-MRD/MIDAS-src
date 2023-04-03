@@ -81,18 +81,18 @@ module multi_ir_bgck_mod
   integer, parameter  :: nco2 = 13
 
   ! Namelist variables:
-  integer :: ninst                 ! Number of instruments
-  character(len=7) :: inst(nmaxinst) ! List of instrument names
-  integer :: iwindow(nmaxinst)     ! Ref window channel for clear/cloudy profile detection
-  integer :: iwindow_alt(nmaxinst) ! Alternate window channel for clear/cloudy profile detection
-  integer :: ilist1(nmaxinst,nch_he) ! Chan numbers for cloud top height detection: background profile matching 
-  integer :: ilist2(nmaxinst,nco2)   ! Chan numbers for cloud top height detection: CO2-slicing
+  integer :: ninst                      ! MUST NOT BE INCLUDED IN NAMELIST!
+  character(len=7) :: inst(nmaxinst)    ! List of instrument names
+  integer :: iwindow(nmaxinst)          ! Ref window channel for clear/cloudy profile detection
+  integer :: iwindow_alt(nmaxinst)      ! Alternate window channel for clear/cloudy profile detection
+  integer :: ilist1(nmaxinst,nch_he)    ! Chan numbers for cloud top height detection: background profile matching 
+  integer :: ilist2(nmaxinst,nco2)      ! Chan numbers for cloud top height detection: CO2-slicing
   integer :: ilist2_pair(nmaxinst,nco2) ! Chan number pairs for cloud top height detection: CO2-slicing
-  real(8) :: dtw                   ! Max delta allowed btwn guess and true skin temp over water
-  real(8) :: dtl                   ! Max delta allowed btwn guess and true skin temp over land
-  real(8) :: pco2min               ! Min RTTOV level for lev_start variable entering CO2 slicing in mb
-  real(8) :: pco2max               ! Max RTTOV level for lev_start variable entering CO2 slicing in mb
-  real(8) :: night_ang             ! Min solar zenith angle for night (between 90 and 180)
+  real(8) :: dtw                        ! Max delta allowed btwn guess and true skin temp over water
+  real(8) :: dtl                        ! Max delta allowed btwn guess and true skin temp over land
+  real(8) :: pco2min                    ! Min RTTOV level for lev_start variable entering CO2 slicing in mb
+  real(8) :: pco2max                    ! Max RTTOV level for lev_start variable entering CO2 slicing in mb
+  real(8) :: night_ang                  ! Min solar zenith angle for night (between 90 and 180)
   real(8) :: crisCloudFractionThreshold ! threshold for CrIS cloud detection from VIIRS cloud mask
 
   type(rttov_coefs) :: coefs_avhrr
@@ -132,15 +132,15 @@ contains
     integer :: nulnam, ierr
     logical, save :: first = .true.
     integer, external :: fnom, fclos
-
+    integer :: instrumentIndex
     namelist /NAMBGCKIR/ ninst, inst, iwindow, iwindow_alt, ilist1, ilist2, ilist2_pair
     namelist /NAMBGCKIR/ dtw, dtl, pco2min, pco2max, night_ang, crisCloudFractionThreshold
 
     if (first) then
 
       ! set the default values for namelist variables
-      ninst = 0
-      inst(:) = ''
+      ninst = MPC_missingValue_INT
+      inst(:) = '*EMPTY*'
       iwindow(:) = 0
       iwindow_alt(:) = 0
       ilist1(:,:) = 0
@@ -159,6 +159,14 @@ contains
       read(nulnam, nml=NAMBGCKIR, iostat=ierr)
       if (ierr /= 0) call utl_abort('irbg_init: Error reading namelist')
       if (mmpi_myid == 0) write(*, nml=NAMBGCKIR)
+      if (ninst /= MPC_missingValue_INT) then
+        call utl_abort('irbg_init: check NAMBGCKIR namelist section: ninst should be removed')
+      end if
+      ninst = 0
+      do instrumentIndex = 1, nmaxinst
+        if (inst(instrumentIndex) == '*EMPTY*') exit
+        ninst = ninst + 1
+      end do
       ierr = fclos(nulnam)
       first = .false.
 

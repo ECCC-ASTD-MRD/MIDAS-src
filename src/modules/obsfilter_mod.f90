@@ -1659,14 +1659,14 @@ end subroutine filt_topoAISW
     ! locals
     character(len=12) :: cstnid
     integer           :: nulnam, ierr
-    integer           :: headerIndex, bodyIndex, codeType, iplat
+    integer           :: headerIndex, bodyIndex, codeType, platformIndex
     integer           :: fnom, fclos
     logical           :: inPlatformList
 
     ! List of satellites (id_stn in SQLite files) used for sea ice concentration
     integer, parameter :: maxPlatformIce = 50
     ! namelist variables
-    integer            :: nPlatformIce                    ! number of 'platforms' in 'listPlatformice'
+    integer            :: nPlatformIce                    ! MUST NOT BE INCLUDED IN NAMELIST!
     character(len=12)  :: listPlatformIce(maxPlatformIce) ! list of ice obs 'platforms' (station IDs) to assimilate 
 
     namelist /namPlatformIce/ nPlatformIce, listPlatformIce
@@ -1674,7 +1674,7 @@ end subroutine filt_topoAISW
     if (.not. obs_famExist(obsSpaceData,'GL')) return
 
     ! set default values for namelist variables
-    nPlatformIce = 0
+    nPlatformIce = MPC_missingValue_INT
     listPlatformIce(:) = '1234567890ab'
 
     if (utl_isNamelistPresent('namPlatformIce','./flnml')) then
@@ -1684,9 +1684,17 @@ end subroutine filt_topoAISW
       if ( ierr /= 0 ) call utl_abort('filt_iceConcentration: Error reading namelist')
       if ( mmpi_myid == 0 ) write(*,nml=namPlatformIce)
       ierr = fclos(nulnam)
+      if (nPlatformIce /= MPC_missingValue_INT) then
+        call utl_abort('filt_iceConcentration: check namPlatformIce namelist section: nPlatformIce should be removed')
+      end if
+      nPlatformIce = 0
+      do platformIndex = 1, maxPlatformIce 
+        if (listPlatformIce(platformIndex) == '1234567890ab') exit
+         nPlatformIce = nPlatformIce + 1
+      end do
     else
       write(*,*)
-      write(*,*) 'filt_iceConcentration: namPlatformIce is missing in the namelist. The default values will be taken.'
+      write(*,*) 'filt_iceConcentration: namPlatformIce is missing in the namelist. Filtering will be skipped.'
     end if
 
     if ( nPlatformIce < 1 ) return
@@ -1713,10 +1721,10 @@ end subroutine filt_topoAISW
 
       inPlatformList = .false.
 
-      PLATFORM: do iplat = 1, nPlatformIce
+      PLATFORM: do platformIndex = 1, nPlatformIce
 
-        if ( index(cstnid,trim(listPlatformIce(iplat))) > 0 .or. &
-             index(codtyp_get_name(codeType),trim(listPlatformIce(iplat))) > 0) then
+        if ( index(cstnid,trim(listPlatformIce(platformIndex))) > 0 .or. &
+             index(codtyp_get_name(codeType),trim(listPlatformIce(platformIndex))) > 0) then
 
           inPlatformList = .true.
           exit PLATFORM
