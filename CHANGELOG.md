@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * More simplifications to namelists by removing number of items in namelist arrays (#805 and !716)
    * many namelist files will need modification to remove variables, otherwise programs abort
  * The environment variable `CMCCONST` is set instead of `AFSISIO` when loading the MIDAS SSM domain (#799 and !710)
+ * The program `calcstats` now uses only two main modes: BHI and TOOLBOX (#796 and !717)	
 
 ### Fixed
 
