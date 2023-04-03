@@ -1689,7 +1689,7 @@ end subroutine filt_topoAISW
       end if
       nPlatformIce = 0
       do platformIndex = 1, maxPlatformIce 
-        if ( listPlatformIce(platformIndex) == '1234567890ab') exit
+        if (listPlatformIce(platformIndex) == '1234567890ab') exit
          nPlatformIce = nPlatformIce + 1
       end do
     else
