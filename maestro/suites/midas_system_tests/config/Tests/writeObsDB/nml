@@ -6,11 +6,13 @@
  elemIdList(1) = 12163
 /
 &namObsDbMIDASBodyUpdate
- numberUpdateItems=1
+ numberUpdateItems=3
  updateItemList(1)='OMP'
+ updateItemList(2)='BCOR'
+ updateItemList(3)='OER'
 /
 &namObsDbMIDASHeaderUpdate
- numberUpdateItems=1
+ numberUpdateItems=0
  updateItemList(1)='STYP'
 /
  &NAMDIMO
