@@ -124,7 +124,8 @@ module calcStatsGlb_mod
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMCALCSTATS_GLB)
-    write(*,nml=NAMCALCSTATS_GLB)
+    if (ierr /= 0) call utl_abort('csg_setup: Error reading namelist NAMCALCSTATS_GLB')
+    if (mmpi_myid == 0) write(*,nml=NAMCALCSTATS_GLB)
     ierr=fclos(nulnam)
 
     !- Setup horizontal grid
@@ -256,7 +257,7 @@ module calcStatsGlb_mod
     ! locals:
     integer :: ierr, nulnam
     integer :: fclos, fnom
-    character(len=12) :: formulation
+    character(len=12) :: formulation ! Bhi formulation
 
     NAMELIST /NAMCOMPUTEBHI/formulation
 
@@ -266,7 +267,8 @@ module calcStatsGlb_mod
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMCOMPUTEBHI)
-    write(*,nml=NAMCOMPUTEBHI)
+    if (ierr /= 0) call utl_abort('csg_computeBhi: Error reading namelist NAMCOMPUTEBHI')
+    if (mmpi_myid == 0) write(*,nml=NAMCOMPUTEBHI)
     ierr=fclos(nulnam)
 
     select case(trim(formulation))
@@ -275,11 +277,11 @@ module calcStatsGlb_mod
     case ('latbands')
       call csg_computeBhiLatBands
     case default
-     write(*,*)
-     write(*,*) 'Unknown value of FORMULATION for Bhi computation: ',formulation
-     write(*,*) 'Please select legacy or latbands'
-     call utl_abort('csg_computeBhi')
-  end select
+      write(*,*)
+      write(*,*) 'csg_computeBhi: Unknown value of FORMULATION for Bhi computation: ',formulation
+      write(*,*) 'Please select legacy or latbands'
+      call utl_abort('csg_computeBhi')
+    end select
 
   end subroutine csg_computeBhi
   
@@ -561,7 +563,8 @@ module calcStatsGlb_mod
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMTOOLBOX)
-    write(*,nml=NAMTOOLBOX)
+    if (ierr /= 0) call utl_abort('csg_toolbox: Error reading namelist NAMTOOLBOX')
+    if (mmpi_myid == 0) write(*,nml=NAMTOOLBOX)
     ierr = fclos(nulnam)
 
     !
@@ -594,35 +597,35 @@ module calcStatsGlb_mod
     !
     select case(trim(tool))
     case ('HVCORREL_HI')
-       write(*,*)
-       write(*,*) 'Computing Homogeneous and Isotropic Correlation'
+      write(*,*)
+      write(*,*) 'Computing Homogeneous and Isotropic Correlation'
 
-       if (mmpi_nprocs > 1) then
-         call utl_abort('csg_toolbox: this tool is not yet MPI capable') ! only due to horizCorrelFunction
-       end if
+      if (mmpi_nprocs > 1) then
+        call utl_abort('csg_toolbox: this tool is not yet MPI capable') ! only due to horizCorrelFunction
+      end if
        
-       call spectralFilter2(ensPerts,          & ! IN
-                            ensPerts_ptr,      & ! OUT
-                            waveBandIndex_opt=1) ! IN
-       call ens_computeStdDev(ensPerts_ptr)
-       call ens_normalize(ensPerts_ptr)
-       call ens_removeGlobalMean(ensPerts_ptr)
+      call spectralFilter2(ensPerts,          & ! IN
+                           ensPerts_ptr,      & ! OUT
+                           waveBandIndex_opt=1) ! IN
+      call ens_computeStdDev(ensPerts_ptr)
+      call ens_normalize(ensPerts_ptr)
+      call ens_removeGlobalMean(ensPerts_ptr)
 
-       allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc))
-       allocate(rstddev(nkgdimEns,0:ntrunc))
+      allocate(corns(nkgdimEns,nkgdimEns,0:ntrunc))
+      allocate(rstddev(nkgdimEns,0:ntrunc))
        
-       call calcCorrelations2(ensPerts_ptr, & ! IN
-                              corns,        & ! OUT (vertical correlation in spectral space)
-                              rstddev)        ! OUT ( sqrt(normalized power spectrum) )
+      call calcCorrelations2(ensPerts_ptr, & ! IN
+                             corns,        & ! OUT (vertical correlation in spectral space)
+                             rstddev)        ! OUT ( sqrt(normalized power spectrum) )
 
-       call writeStats(corns,rstddev,waveBandIndex_opt=1) ! IN
-       call calcHorizScale(rstddev,variableType,waveBandIndex_opt=1) ! IN
-       call horizCorrelFunction(rstddev,variableType,waveBandIndex_opt=1) ! IN
+      call writeStats(corns,rstddev,waveBandIndex_opt=1) ! IN
+      call calcHorizScale(rstddev,variableType,waveBandIndex_opt=1) ! IN
+      call horizCorrelFunction(rstddev,variableType,waveBandIndex_opt=1) ! IN
 
-       deallocate(rstddev)
-       deallocate(corns)
+      deallocate(rstddev)
+      deallocate(corns)
        
-     case ('HVCORREL_LOCAL')
+    case ('HVCORREL_LOCAL')
       write(*,*)
       write(*,*) 'Computing Local Correlation'
 
@@ -634,7 +637,7 @@ module calcStatsGlb_mod
       call ens_normalize(ensPerts_ptr)
       call calcLocalCorrelations(ensPerts_ptr) ! IN
 
-     case ('VCORRMATRIX')
+    case ('VCORRMATRIX')
       write(*,*)
       write(*,*) 'Computing Local Correlation'
 
@@ -655,7 +658,7 @@ module calcStatsGlb_mod
       call ens_removeGlobalMean(ensPerts)
 
       do waveBandIndex = 1, nWaveBand
-
+        
         call spectralFilter2(ensPerts,                      & ! IN
                              ensPerts_ptr,                  & ! OUT
                              waveBandIndex_opt=waveBandIndex) ! IN
@@ -1155,16 +1158,14 @@ module calcStatsGlb_mod
 
     real(8), allocatable :: ensPertSP(:,:,:)
     real(8), allocatable :: ensPertGD(:,:,:)
-    real(8), allocatable :: powerSpec_mpiglobal(:,:)
     real(4), pointer     :: ptr4d_r4(:,:,:,:)
     real(8) :: dfact, dfact2
 
-    integer :: gstPowerSpecID, nsize, ierr
+    integer :: gstPowerSpecID
     integer :: memberIndex, levIndex, latIndex, lonIndex
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal
 
     allocate(powerSpec          (ens_getNumK(ensPerts),0:ntrunc))
-    allocate(powerSpec_mpiglobal(ens_getNumK(ensPerts),0:ntrunc))
 
     !
     !- Spectral decomposition and spectral coefficient summation
@@ -1221,9 +1222,7 @@ module calcStatsGlb_mod
     !
     !- Communicate between all tasks
     !
-    nsize = ens_getNumK(ensPerts)*(1+ntrunc)
-    call rpn_comm_allreduce(powerSpec,powerSpec_mpiglobal,nsize,"mpi_double_precision","mpi_sum","GRID",ierr)
-    powerSpec(:,:) = powerSpec_mpiglobal(:,:)
+    call mmpi_allreduce_sumR8_2d(powerSpec, "GRID")
 
     !
     !- Apply the appropriate scaling
@@ -2955,7 +2954,7 @@ module calcStatsGlb_mod
 
     character(len=4), pointer :: varNamesList(:)
 
-    integer :: ier, fclos, fnom, nulnam
+    integer :: ierr, fclos, fnom, nulnam
 
     ! Namelist variables
     integer :: blockpadding
@@ -2975,10 +2974,11 @@ module calcStatsGlb_mod
     blockpadding = 4  ! Number of grid point padding between blocks (to set correlation to 0 between each block)
 
     nulnam = 0
-    ier = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+    ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMHVCORREL_LOCAL)
-    write(*,nml=NAMHVCORREL_LOCAL)
-    ier = fclos(nulnam)
+    if (ierr /= 0) call utl_abort('calcLocalCorrelations: Error reading namelist NAMHVCORREL_LOCAL')
+    if (mmpi_myid == 0) write(*,nml=NAMHVCORREL_LOCAL)
+    ierr = fclos(nulnam)
 
     blocklength_x = hco_ens%ni / nirefpoint ! Horizontal correlation will be compute blocklength x blocklength gridpoint
     ! around each reference point
