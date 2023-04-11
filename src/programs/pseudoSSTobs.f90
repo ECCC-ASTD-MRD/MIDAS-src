@@ -152,11 +152,10 @@ program midas_pseudoSSTobs
   real(4)                     :: outputFreshWaterST      ! output fresh water surface temperature for pseudo obs.  
   integer                     :: seaiceThinning          ! generate pseudo obs in every 'seaiceThinning' points 
   character(len=100)          :: outputFileName          ! name of the file containing the generated observations
-  character(len=20)           :: etiket                  ! name to write in 'run' column of 'resume' table
   real(4)                     :: seaWaterThreshold       ! to distinguish inland water from sea water
 
   namelist /pseudoSSTobs/ iceFractionThreshold, outputSST, outputFreshWaterST, seaiceThinning, &
-                          outputFileName, etiket, seaWaterThreshold
+                          outputFileName, seaWaterThreshold
   
   istamp = exdb('pseudoSSTobs','DEBUT','NON')
 
@@ -177,7 +176,7 @@ program midas_pseudoSSTobs
   call pseudoSSTobs_setup()
 
   call oobs_pseudoSST(hco_anl, vco_anl, iceFractionThreshold, outputSST, outputFreshWaterST, &
-                      seaiceThinning, outputFileName, etiket, seaWaterThreshold)
+                      seaiceThinning, outputFileName, seaWaterThreshold)
 
   ! 3. Job termination
 
@@ -213,7 +212,6 @@ program midas_pseudoSSTobs
     outputSST              = 271.4
     outputFreshWaterST     = 271.4
     outputFileName         = ''
-    etiket                 = ''
     seaiceThinning         = 5
     seaWaterThreshold      = 0.0
     
@@ -232,7 +230,6 @@ program midas_pseudoSSTobs
     write(*,*) myName//': sea water fraction threshold: ', seaWaterThreshold
     write(*,*) myName//': pseudo SST obs will be generated in every ', seaiceThinning, ' points of the sea-ice field'    
     write(*,*) myName//': output file name: ', outputFileName
-    write(*,*) myName//': etiket for output SQLite files: ', etiket   
     !
     !- Initialize the Analysis grid
     !

@@ -77,58 +77,58 @@ module sqliteRead_mod
 
     write(*,*) 'sqlr_readSqlite_avhrr: fileName : ', trim(fileName)
 
-    call fSQL_open(db, trim(fileName) ,stat)
-    if (fSQL_error(stat) /= FSQL_OK) then
-      call utl_abort('sqlr_readSqlite_avhrr: fSQL_open '//fSQL_errmsg(stat))
-    end if
-
     if (.not. sqlu_sqlTableExists(trim(fileName), 'avhrr')) then
       write(*,*) 'sqlr_readSqlite_avhrr: Table avhrr does not exist :  ... return  '
       return
     end if
     write(*,*) 'sqlr_readSqlite_avhrr: Table avhrr exists: insert contents into obsdat '
 
+    call fSQL_open(db, trim(fileName) ,stat)
+    if (fSQL_error(stat) /= FSQL_OK) then
+      call utl_abort('sqlr_readSqlite_avhrr: fSQL_open '//fSQL_errmsg(stat))
+    end if
+
     querySqlite = ' select mean_radiance,stddev_radiance,fractionClearPixels from avhrr where id_obs = ? '
     call fSQL_prepare(db, querySqlite , stmt, stat)
     write(*,*) 'sqlr_readSqlite_avhrr: obs_getNchanAvhr=',obs_getNchanAvhrr()
     do headerIndex = headerIndexBegin, headerIndexEnd
       obsIdo = obs_headPrimaryKey(obsdat, headerIndex)
-      call fSQL_bind_param(stmt, param_index = 1, int_var  =  obsIdo)
-      call fSQL_exec_stmt (stmt)
-      call fSQL_get_many (stmt, nrows = numberAvhrrRows , ncols = numberAvhrrColumns , mode = FSQL_REAL)
+      call fSQL_bind_param(stmt, param_index = 1, int_var = obsIdo)
+      call fSQL_exec_stmt(stmt)
+      call fSQL_get_many(stmt, nrows = numberAvhrrRows , ncols = numberAvhrrColumns , mode = FSQL_REAL)
       allocate(matdata(numberAvhrrRows, numberAvhrrColumns))
       matdata(:,:) = MPC_missingValue_R4
-      call fSQL_fill_matrix (stmt, matdata)
+      call fSQL_fill_matrix(stmt, matdata)
 
-      rowIndex=1
-      do columnIndex=OBS_CF1,OBS_CF7
+      rowIndex = 1
+      do columnIndex = OBS_CF1, OBS_CF7
         if(obs_columnActive_RH(obsdat,columnIndex)) then
           CFRAC = matdata(rowIndex,3)
           call obs_headSet_r(obsdat,columnIndex,headerIndex, CFRAC)
-          rowIndex = rowIndex+6
+          rowIndex = rowIndex + 6
         end if
       end do
 
-      rowIndex=1
-      do columnIndex=OBS_M1C1,OBS_M7C6
+      rowIndex = 1
+      do columnIndex = OBS_M1C1, OBS_M7C6
         if(obs_columnActive_RH(obsdat,columnIndex)) then
           MOYRAD = matdata(rowIndex,1) * 100000.d0
           call obs_headSet_r(obsdat,columnIndex,headerIndex, MOYRAD)
-          rowIndex = rowIndex+1
+          rowIndex = rowIndex + 1
         endif
       end do
 
-      rowIndex=1
-      do columnIndex=OBS_S1C1,OBS_S7C6
+      rowIndex = 1
+      do columnIndex = OBS_S1C1, OBS_S7C6
         if(obs_columnActive_RH(obsdat,columnIndex)) then
           STDRAD = matdata(rowIndex,2) * 100000.d0
           call obs_headSet_r(obsdat,columnIndex,headerIndex,  STDRAD)
-          rowIndex = rowIndex+1
+          rowIndex = rowIndex + 1
         end if
       end do
 
       deallocate(matdata)
-      call fSQL_free_mem    (stmt)
+      call fSQL_free_mem(stmt)
 
     end do
 
@@ -800,7 +800,6 @@ module sqliteRead_mod
     !
     ! :Purpose: Add columns to sqlite tables that does not previously exists.
     !
-
     implicit none
 
     ! Arguments:  
@@ -850,7 +849,6 @@ module sqliteRead_mod
     !
     ! :Purpose: update SQLite files. List of items to update is in the 
     !           namSQLUpdate namelist
-      
     implicit none
     
     ! Arguments:
@@ -1117,7 +1115,11 @@ module sqliteRead_mod
   !--------------------------------------------------------------------------
   ! sqlr_addCloudParametersandEmissivity
   !--------------------------------------------------------------------------
-  subroutine sqlr_addCloudParametersandEmissivity(db, obsdat,fileNumber)
+  subroutine sqlr_addCloudParametersandEmissivity(db, obsdat, fileNumber)
+    !
+    !:Purpose: Add a new table if it doesn't already exist `cld_params` with
+    !          cloud-related information.
+    !
     implicit none
 
     ! Arguments:
@@ -1133,19 +1135,18 @@ module sqliteRead_mod
     integer                :: NCO2
     real                   :: ETOP,VTOP,ECF,VCF,HE,ZTSR,ZTM,ZTGM,ZLQM,ZPS
 
+    ! First create the table if it does not already exist
     query = 'create table if not exists cld_params(id_obs integer,ETOP real,VTOP real, &
-         ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
-    query=trim(query)
-    write(*,*) 'sqlr_addCloudParametersandEmissivity: create query = ', trim(query)
+             ECF real,VCF real,HE real,ZTSR real,NCO2 integer,ZTM real,ZTGM real,ZLQM real,ZPS real);'
+    write(*,*) 'sqlr_addCloudParametersandEmissivity: Create query = ', trim(query)
 
     call fSQL_do(db, trim(query), stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_do : ')
 
+    ! Insert values in the table
     query = 'insert into cld_params(id_obs,ETOP,VTOP,ECF,VCF,HE,ZTSR,NCO2,ZTM,ZTGM,ZLQM,ZPS) &
-         values(?,?,?,?,?,?,?,?,?,?,?,?);'
-    query=trim(query)
-
-    write(*,*) ' Insert query = ', trim(query)
+             values(?,?,?,?,?,?,?,?,?,?,?,?);'
+    write(*,*) 'sqlr_addCloudParametersandEmissivity: Insert query = ', trim(query)
 
     call fSQL_prepare(db, query, stmt, stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'fSQL_prepare : ')
@@ -1194,6 +1195,10 @@ module sqliteRead_mod
   ! sqlr_insertSqlite
   !--------------------------------------------------------------------------
   subroutine sqlr_insertSqlite(db, obsdat, familyType, fileName, fileNumber)
+    !
+    !:Purpose: Insert rows in the sqlite file data table for bufr element IDs
+    !          specified in the namelist block `namSQLInsert`.
+    !
     implicit none
 
     ! Arguments:
@@ -1288,81 +1293,79 @@ module sqliteRead_mod
         OER           = obs_bodyElem_r(obsdat, OBS_OER , bodyIndex)
         FGE           = obs_bodyElem_r(obsdat, OBS_HPHT, bodyIndex)
         PPP           = obs_bodyElem_r(obsdat, OBS_PPP , bodyIndex)
-        llok = .false.
 
+        llok = .false.
         do insertItem = 1, numberInsertItems
           if (obsVarno == itemInsertList(insertItem)) llok=.true.
         end do
 
-        if (bodyPrimaryKey == -1) then
-          if (llok) then
-            select case(trim(familyType))
-              case('SF', 'SC', 'GP')
-                call fSQL_bind_param(stmt, param_index = 1, int8_var = headPrimaryKey)
-                call fSQL_bind_param(stmt, param_index = 2, int_var  = obsVarno)
-                call fSQL_bind_param(stmt, param_index = 3, real_var = PPP)
-                if (obsValue == obs_missingValue_R) then          ! sql null values
-                  call fSQL_bind_param(stmt, param_index = 4)
-                else
-                  call fSQL_bind_param(stmt, param_index = 4, real_var = obsValue)
-                end if
-                call fSQL_bind_param(stmt, param_index = 5, int_var  = obsFlag)
-                if (OMA == obs_missingValue_R) then
-                  call fSQL_bind_param(stmt, param_index = 6) 
-                else 
-                  call fSQL_bind_param(stmt, param_index = 6, real_var = OMA) 
-                end if
-                if (OMP == obs_missingValue_R) then
-                  call fSQL_bind_param(stmt, param_index = 7) 
-                else
-                  call fSQL_bind_param(stmt, param_index = 7, real_var = OMP) 
-                end if
-                if (FGE == obs_missingValue_R) then
-                  call fSQL_bind_param(stmt, param_index = 8) 
-                else
-                  call fSQL_bind_param(stmt, param_index = 8, real_var = FGE)
-                end if
-                if (OER == obs_missingValue_R) then
-                  call fSQL_bind_param(stmt, param_index = 9) 
-                else
-                  call fSQL_bind_param(stmt, param_index = 9, real_var = OER) 
-                end if
-              case DEFAULT
-                call fSQL_bind_param(stmt, param_index = 1, int8_var = headPrimaryKey)
-                call fSQL_bind_param(stmt, param_index = 2, int_var  = obsVarno)
-                call fSQL_bind_param(stmt, param_index = 3, real_var = PPP) 
-                call fSQL_bind_param(stmt, param_index = 4, int_var  = vertCoordType)
-                if (obsValue == obs_missingValue_R) then
-                  call fSQL_bind_param(stmt, param_index = 5)
-                else
-                  call fSQL_bind_param(stmt, param_index = 5, real_var = obsValue)
-                end if 
-                call fSQL_bind_param(stmt, param_index = 6, int_var  = obsFlag)
-                if (OMA == obs_missingValue_R) then
-                  call fSQL_bind_param(stmt, param_index = 7) 
-                else 
-                  call fSQL_bind_param(stmt, param_index = 7, real_var = OMA)
-                end if
-                if (OMP == obs_missingValue_R) then
-                  call fSQL_bind_param(stmt, param_index = 8) 
-                else
-                  call fSQL_bind_param(stmt, param_index = 8, real_var = OMP) 
-                end if
-                if (FGE == obs_missingValue_R) then
-                  call fSQL_bind_param(stmt, param_index = 9) 
-                else
-                  call fSQL_bind_param(stmt, param_index = 9, real_var = FGE) 
-                end if
-                if (OER == obs_missingValue_R) then
-                  call fSQL_bind_param(stmt, param_index = 10) 
-                else
-                  call fSQL_bind_param(stmt, param_index = 10, real_var = OER)
-                end if 
-            end select
-            call fSQL_exec_stmt (stmt)
+        if (bodyPrimaryKey == -1 .and. llok) then
+          select case(trim(familyType))
+            case('SF', 'SC', 'GP')
+              call fSQL_bind_param(stmt, param_index = 1, int8_var = headPrimaryKey)
+              call fSQL_bind_param(stmt, param_index = 2, int_var  = obsVarno)
+              call fSQL_bind_param(stmt, param_index = 3, real_var = PPP)
+              if (obsValue == obs_missingValue_R) then          ! sql null values
+                call fSQL_bind_param(stmt, param_index = 4)
+              else
+                call fSQL_bind_param(stmt, param_index = 4, real_var = obsValue)
+              end if
+              call fSQL_bind_param(stmt, param_index = 5, int_var  = obsFlag)
+              if (OMA == obs_missingValue_R) then
+                call fSQL_bind_param(stmt, param_index = 6) 
+              else 
+                call fSQL_bind_param(stmt, param_index = 6, real_var = OMA) 
+              end if
+              if (OMP == obs_missingValue_R) then
+                call fSQL_bind_param(stmt, param_index = 7) 
+              else
+                call fSQL_bind_param(stmt, param_index = 7, real_var = OMP) 
+              end if
+              if (FGE == obs_missingValue_R) then
+                call fSQL_bind_param(stmt, param_index = 8) 
+              else
+                call fSQL_bind_param(stmt, param_index = 8, real_var = FGE)
+              end if
+              if (OER == obs_missingValue_R) then
+                call fSQL_bind_param(stmt, param_index = 9) 
+              else
+                call fSQL_bind_param(stmt, param_index = 9, real_var = OER) 
+              end if
+            case DEFAULT
+              call fSQL_bind_param(stmt, param_index = 1, int8_var = headPrimaryKey)
+              call fSQL_bind_param(stmt, param_index = 2, int_var  = obsVarno)
+              call fSQL_bind_param(stmt, param_index = 3, real_var = PPP) 
+              call fSQL_bind_param(stmt, param_index = 4, int_var  = vertCoordType)
+              if (obsValue == obs_missingValue_R) then
+                call fSQL_bind_param(stmt, param_index = 5)
+              else
+                call fSQL_bind_param(stmt, param_index = 5, real_var = obsValue)
+              end if
+              call fSQL_bind_param(stmt, param_index = 6, int_var  = obsFlag)
+              if (OMA == obs_missingValue_R) then
+                call fSQL_bind_param(stmt, param_index = 7) 
+              else 
+                call fSQL_bind_param(stmt, param_index = 7, real_var = OMA)
+              end if
+              if (OMP == obs_missingValue_R) then
+                call fSQL_bind_param(stmt, param_index = 8) 
+              else
+                call fSQL_bind_param(stmt, param_index = 8, real_var = OMP) 
+              end if
+              if (FGE == obs_missingValue_R) then
+                call fSQL_bind_param(stmt, param_index = 9) 
+              else
+                call fSQL_bind_param(stmt, param_index = 9, real_var = FGE) 
+              end if
+              if (OER == obs_missingValue_R) then
+                call fSQL_bind_param(stmt, param_index = 10) 
+              else
+                call fSQL_bind_param(stmt, param_index = 10, real_var = OER)
+              end if
+          end select
+          call fSQL_exec_stmt (stmt)
 
-            numberInsert = numberInsert + 1
-          end if    ! llok
+          numberInsert = numberInsert + 1
         end if
 
       end do BODY
@@ -1371,7 +1374,8 @@ module sqliteRead_mod
 
     call fSQL_finalize(stmt)
     call fSQL_commit(db)
-    write(*,'(3a,i8)') 'sqlr_insertSqlite: FAMILY ---> ' ,trim(familyType), '  NUMBER OF INSERTIONS ----> ', numberInsert
+    write(*,'(3a,i8)') 'sqlr_insertSqlite: FAMILY ---> ' ,trim(familyType), &
+         '  NUMBER OF INSERTIONS ----> ', numberInsert
 
   end subroutine sqlr_insertSqlite
 
@@ -1408,12 +1412,13 @@ module sqliteRead_mod
     call fSQL_commit(db)
     write(*,*) 'sqlr_cleanSqlite: closed database -->', trim(FileName)
     call fSQL_close(db, status)
+
   end subroutine sqlr_cleanSqlite
 
   !--------------------------------------------------------------------------
   ! sqlr_writePseudoSSTobs
   !--------------------------------------------------------------------------
-  subroutine sqlr_writePseudoSSTobs(obsData, obsFamily, instrumentFileName, etiket, datePrint, timePrint)
+  subroutine sqlr_writePseudoSSTobs(obsData, obsFamily, instrumentFileName)
     !
     ! :Purpose: To write the obsSpaceData content into SQLite format files
     !
@@ -1423,20 +1428,16 @@ module sqliteRead_mod
     type(struct_obs) , intent(inout) :: obsData
     character(len=*) , intent(in)    :: obsFamily
     character(len=*) , intent(in)    :: instrumentFileName
-    character(len=*) , intent(in)    :: etiket    ! etiket to put into the table "resume" of output SQLite file 
-    integer          , intent(in)    :: datePrint ! date to put into the table "resume" of output SQLite file 
-    integer          , intent(in)    :: timePrint ! hour to put into the table "resume" of output SQLite file
             
     ! Locals:
     type(fSQL_DATABASE)    :: db                        ! type for SQLIte  file handle
     type(fSQL_STATEMENT)   :: stmtData, stmtHeader      ! type for precompiled SQLite statements
-    type(fSQL_STATEMENT)   :: stmtRDBSchema, stmtResume ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat                      ! type for error status
     integer                :: obsVarno, obsFlag, ASS, codeType, date, time, idObs, idData
     integer, parameter     :: obsStatus = 3072 
     real                   :: obsValue, OMA, OMP, OER, FGE, PPP, lon, lat, altitude
     integer                :: numberInsertions, numHeaders, headerIndex, bodyIndex, obsNlv, obsRln
-    character(len = 512)   :: queryData, queryHeader, queryCreate, queryCreateAdd, queryResume, queryRDBSchema 
+    character(len = 512)   :: queryData, queryHeader, queryCreate
     character(len = 12)    :: idStation
     character(len=256)     :: fileName, fileNameDir
     character(len=4)       :: cmyidx, cmyidy
@@ -1485,13 +1486,9 @@ module sqliteRead_mod
                   &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
                   &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
                   &an_error real, fg_error real, obs_error real);'
-    queryCreateAdd = 'create table resume(date integer , time integer , run varchar(9)); &
-                     &create table rdb4_schema(schema varchar(9));'
     
     call fSQL_do_many(db, queryCreate, stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreate))
-    call fSQL_do_many(db, queryCreateAdd, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_do_many with query: '//trim(queryCreateAdd))
     
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
@@ -1505,16 +1502,7 @@ module sqliteRead_mod
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
-    queryRDBSchema = ' insert into rdb4_schema values(?); '
-    queryResume = ' insert into resume (date, time, run) values(?,?,?); '
-    write(*,*) 'sqlr_writePseudoSSTobs: Insert query rdb4_schema: ', trim(queryRDBSchema)
-    write(*,*) 'sqlr_writePseudoSSTobs: Insert query resume: ', trim(queryResume)
      
-    call fSQL_prepare(db, queryRDBSchema, stmtRDBSchema, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
-    call fSQL_prepare(db, queryResume, stmtResume, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writePseudoSSTobs: fSQL_prepare:')
-    
     numberInsertions = 0
 
     call obs_set_current_header_list(obsData, obsFamily)
@@ -1599,17 +1587,9 @@ module sqliteRead_mod
     
     call fSQL_finalize(stmtData)
 
-    write(*,*) 'sqlr_writePseudoSSTobs: Observation Family: ', obsFamily,', number of insertions: ', numberInsertions
+    write(*,*) 'sqlr_writePseudoSSTobs: Observation Family: ', obsFamily, &
+               ', number of insertions: ', numberInsertions
 
-    call fSQL_bind_param(stmtRDBSchema, param_index = 1, char_var  = 'sf')
-    call fSQL_exec_stmt (stmtRDBSchema)
-    call fSQL_finalize(stmtRDBSchema)
-    call fSQL_bind_param(stmtResume, param_index = 1,  int_var  = datePrint /100)
-    call fSQL_bind_param(stmtResume, param_index = 2,  int_var  = timePrint)
-    call fSQL_bind_param(stmtResume, param_index = 3, char_var  = etiket)
-    call fSQL_exec_stmt (stmtResume)
-    call fSQL_finalize(stmtResume)
-    
     call fSQL_commit(db)
     call fSQL_close(db, stat)
 
@@ -1618,7 +1598,7 @@ module sqliteRead_mod
   !--------------------------------------------------------------------------
   ! sqlr_writeEmptyPseudoSSTobsFile
   !--------------------------------------------------------------------------
-  subroutine sqlr_writeEmptyPseudoSSTobsFile(obsData, obsFamily, instrumentFileName, etiket, datePrint, timePrint)
+  subroutine sqlr_writeEmptyPseudoSSTobsFile(obsData, obsFamily, instrumentFileName)
     !
     ! :Purpose: to generate an empty SQLite SST pseudo obs file for mpi tasks,
     !           with no sea-ice on them.
@@ -1629,16 +1609,12 @@ module sqliteRead_mod
     type(struct_obs) , intent(inout) :: obsData   
     character(len=*) , intent(in)    :: obsFamily
     character(len=*) , intent(in)    :: instrumentFileName
-    character(len=*) , intent(in)    :: etiket    ! etiket to put into the table "resume" of output SQLite file 
-    integer          , intent(in)    :: datePrint ! date to put into the table "resume" of output SQLite file 
-    integer          , intent(in)    :: timePrint ! hour to put into the table "resume" of output SQLite file
             
     ! Locals:
     type(fSQL_DATABASE)    :: db                        ! type for SQLIte  file handle
-    type(fSQL_STATEMENT)   :: stmtRDBSchema, stmtResume ! type for precompiled SQLite statements
     type(fSQL_STATEMENT)   :: stmtData, stmtHeader      ! type for precompiled SQLite statements
     type(fSQL_STATUS)      :: stat                      ! type for error status
-    character(len = 512)   :: queryCreate, queryCreateAdd, queryResume, queryRDBSchema
+    character(len = 512)   :: queryCreate
     character(len = 512)   :: queryHeader, queryData  
     integer                :: idObs, idData
     character(len=30)      :: fileNameExtention
@@ -1674,13 +1650,11 @@ module sqliteRead_mod
                   &create table data (id_data integer primary key, id_obs integer, varno integer, vcoord real, &
                   &vcoord_type integer, obsvalue real, flag integer, oma real, ompt real, oma0 real, omp real, &
                   &an_error real, fg_error real, obs_error real);'
-    queryCreateAdd = 'create table resume(date integer , time integer , run varchar(9)); &
-                     &create table rdb4_schema(schema varchar(9));'
     
     call fSQL_do_many(db, queryCreate, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreate))
-    call fSQL_do_many(db, queryCreateAdd, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreateAdd))
+    if (fSQL_error(stat) /= FSQL_OK) then
+      call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_do_many with query: '//trim(queryCreate))
+    end if
     
     queryHeader = ' insert into header (id_obs, id_stn, lat, lon, date, time, codtyp, elev, status) values(?,?,?,?,?,?,?,?,?); '
     queryData = 'insert into data (id_data, id_obs, varno, vcoord, vcoord_type, obsvalue, flag, oma, oma0, ompt, fg_error, &
@@ -1694,25 +1668,7 @@ module sqliteRead_mod
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
     call fSQL_prepare(db, queryHeader, stmtHeader, stat)
     if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
-    queryRDBSchema = ' insert into rdb4_schema values(?); '
-    queryResume = ' insert into resume (date, time, run) values(?,?,?); '
-    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query rdb4_schema: ', trim(queryRDBSchema)
-    write(*,*) 'sqlr_writeEmptyPseudoSSTobsFile: Insert query resume: ', trim(queryResume)
-     
-    call fSQL_prepare(db, queryRDBSchema, stmtRDBSchema, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
-    call fSQL_prepare(db, queryResume, stmtResume, stat)
-    if (fSQL_error(stat) /= FSQL_OK) call sqlu_handleError(stat, 'sqlr_writeEmptyPseudoSSTobsFile: fSQL_prepare:')
-    
-    call fSQL_bind_param(stmtRDBSchema, param_index = 1, char_var  = 'sf')
-    call fSQL_exec_stmt (stmtRDBSchema)
-    call fSQL_finalize(stmtRDBSchema)
-    call fSQL_bind_param(stmtResume, param_index = 1,  int_var  = datePrint /100)
-    call fSQL_bind_param(stmtResume, param_index = 2,  int_var  = timePrint)
-    call fSQL_bind_param(stmtResume, param_index = 3, char_var  = etiket)
-    call fSQL_exec_stmt (stmtResume)
-    call fSQL_finalize(stmtResume)
-    
+
     call fSQL_commit(db)
     call fSQL_close(db, stat)
 

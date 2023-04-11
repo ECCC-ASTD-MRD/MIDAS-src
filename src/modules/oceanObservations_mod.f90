@@ -55,7 +55,7 @@ module oceanObservations_mod
   ! oobs_pseudoSST
   !----------------------------------------------------------------------------------------
   subroutine oobs_pseudoSST(hco, vco, iceFractionThreshold, outputSST, outputFreshWaterST, &
-                            iceThinning, outputFileName, etiket, seaWaterThreshold)
+                            iceThinning, outputFileName, seaWaterThreshold)
     !
     !:Purpose: to generate pseudo SST data  
     !           
@@ -70,7 +70,6 @@ module oceanObservations_mod
     real(4)          , intent(in)             :: outputFreshWaterST   ! output fresh water surface temperature for pseudo observations
     integer          , intent(in)             :: iceThinning          ! generate pseudo obs in every 'iceThinning' points   
     character(len=*) , intent(in)             :: outputFileName    
-    character(len=*) , intent(in)             :: etiket    
     real(4)          , intent(in)             :: seaWaterThreshold    ! to distinguish inland water from sea water  
     
     ! Locals:
@@ -178,12 +177,12 @@ module oceanObservations_mod
     
       call oobs_computeObsData(obsData, iceDomainIndexes, iceLons, iceLats, &
                                iceThinning, outputSST, outputFreshWaterST, &
-                               outputFileName, etiket, datePrint, timePrint, &
+                               outputFileName, datePrint, timePrint, &
                                seaWaterFraction, seaWaterThreshold, inlandWaterPoints)
     else 
     
       call obs_initialize(obsData, numHeader_max = 0, numBody_max = 0, mpi_local= .true.)
-      call sqlr_writeEmptyPseudoSSTobsFile(obsData, 'SF', outputFileName, etiket, datePrint, timePrint)   
+      call sqlr_writeEmptyPseudoSSTobsFile(obsData, 'SF', outputFileName)   
 
     end if
 
@@ -204,7 +203,7 @@ module oceanObservations_mod
 
   subroutine oobs_computeObsData(obsData, iceDomainIndexes, iceLons, iceLats, iceThinning, &
                                  outputSST, outputFreshWaterST, outputFileName, &
-                                 etiket, datePrint, timePrint, &
+                                 datePrint, timePrint, &
                                  seaWaterFraction, seaWaterThreshold, inlandWaterPoints)
     !
     !:Purpose: pseudo SST data are put into obsSpaceData  
@@ -221,7 +220,6 @@ module oceanObservations_mod
     real(4)          , intent(in)    :: outputSST          ! output SST value for pseudo observations
     real(4)          , intent(in)    :: outputFreshWaterST ! output fresh water surface temperature for pseudo obs
     character(len=*) , intent(in)    :: outputFileName    
-    character(len=*) , intent(in)    :: etiket    
     integer          , intent(in)    :: datePrint
     integer          , intent(in)    :: timePrint
     real(4)          , intent(in)    :: seaWaterFraction(:)! sea water fraction data: 0: fresh water; 1: sea water
@@ -292,7 +290,7 @@ module oceanObservations_mod
       headerIndex = headerIndex + 1
     end do 
     
-    call sqlr_writePseudoSSTobs(obsData, 'SF', outputFileName, etiket, datePrint, timePrint) 
+    call sqlr_writePseudoSSTobs(obsData, 'SF', outputFileName) 
  
     ! Deallocate obsSpaceData
     call obs_finalize(obsData)
