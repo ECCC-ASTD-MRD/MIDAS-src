@@ -1552,9 +1552,9 @@ contains
 
 
   !--------------------------------------------------------------------------
-  ! amsuABTest15ChannelSelectionWithIutilst
+  ! amsuABTest15ChannelSelectionWithTovutil
   !--------------------------------------------------------------------------
-  subroutine amsuABTest15ChannelSelectionWithIutilst(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, &
+  subroutine amsuABTest15ChannelSelectionWithTovutil(KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, &
                                               GLINTRP, MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK)
 
     !:Purpose: test 15: Channel Selection using array oer_tovutil(chan,sat)
@@ -1636,7 +1636,7 @@ contains
        write(*,*)'ICHECK = ',((ICHECK(nChannelIndex,nDataIndex),nChannelIndex=1,KNO),nDataIndex=1,KNT)
     end if
 
-  end subroutine amsuABTest15ChannelSelectionWithIutilst
+  end subroutine amsuABTest15ChannelSelectionWithTovutil
 
   !--------------------------------------------------------------------------
   ! amsuaTest16ExcludeExtremeScattering
@@ -2041,7 +2041,7 @@ contains
     !  we set QC flag bits 7 and 9 ON for channels 1-3,15 over land
     !  or sea-ice REGARDLESS of oer_tovutil value (but oer_tovutil=0 always for
     !  these unassimilated channels).
-    call amsuABTest15ChannelSelectionWithIutilst (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, GLINTRP, &
+    call amsuABTest15ChannelSelectionWithTovutil (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, GLINTRP, &
                                               MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK)
 
     ! 16) test 16: exclude radiances affected by extreme scattering in deep convective region in all-sky mode.
@@ -2353,7 +2353,7 @@ contains
     !  or sea-ice REGARDLESS of oer_tovutil value (but oer_tovutil=0 always for
     !  these unassimilated channels).
 
-    call amsuABTest15ChannelSelectionWithIutilst (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, GLINTRP, &
+    call amsuABTest15ChannelSelectionWithTovutil (KCANO, KNOSAT, KNO, KNT, STNID, KTERMER, ITERRAIN, GLINTRP, &
                                                  MXSFCREJ2, ISFCREJ2, KMARQ, ICHECK)
     !  Synthese de la controle de qualite au niveau de chaque point
     !  d'observation. Code:
@@ -3524,9 +3524,9 @@ contains
   end subroutine Mwhs2Test4RogueCheck
 
   !--------------------------------------------------------------------------
-  ! atmsMwhs2Test5ChannelSelectionUsingIutilst
+  ! atmsMwhs2Test5ChannelSelectionUsingTovutil
   !--------------------------------------------------------------------------
-  subroutine atmsMwhs2Test5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
+  subroutine atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
                                                    KMARQ, ICHECK)
 
     !:Purpose: test 5: Channel selection using array oer_tovutil(chan,sat)
@@ -3571,7 +3571,7 @@ contains
       write(*,*) 'ICHECK = ',((ICHECK(nChannelIndex,nDataIndex),nChannelIndex=1,KNO),nDataIndex=1,KNT)
     end if
 
-  end subroutine atmsMwhs2Test5ChannelSelectionUsingIutilst
+  end subroutine atmsMwhs2Test5ChannelSelectionUsingTovutil
 
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAtms 
@@ -3834,7 +3834,7 @@ contains
     ! 5) test 5: Channel selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
     !                1 (assmilate)
-    call atmsMwhs2Test5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
+    call atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
                                                     KMARQ, ICHECK)
 
     !  Synthese de la controle de qualite au niveau de chaque point
@@ -4159,7 +4159,7 @@ contains
     ! 5) test 5: Channel selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
     !                1 (assmilate)
-    call atmsMwhs2Test5ChannelSelectionUsingIutilst(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
+    call atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, KCANO, KNOSAT, KNO, KNT, STNID, &
                                                     KMARQ, ICHECK)
 
     !  Synthese de la controle de qualite au niveau de chaque point
