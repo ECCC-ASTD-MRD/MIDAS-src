@@ -511,8 +511,7 @@ module obsDiagFiles_mod
           fileName = 'to_amsub'
         end if
       else if (codtyp_get_name(codeType_opt) == 'amsua') then
-        if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt))) .or. &
-            tvs_isInstrumAllskyTtHuAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt)))) then
+        if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codeType_opt)))) then
           fileName = 'to_amsua_allsky'
         else
           fileName = 'to_amsua'
