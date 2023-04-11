@@ -579,6 +579,10 @@ contains
             end do
             if (trim(obserrorMode) == 'bgck' .or. useTovsUtil) THEN
               do JI = 1, tvs_maxChannelNumber
+                ! channel Selection using array IUTILST(chan,sat):
+                !   0 (blacklisted)
+                !   1 (assmilate)
+                !   2 (assimilate over open water only)
                 tovutil(JI,JL) =  IUTILST(JI,JM)
               end do
             end if
