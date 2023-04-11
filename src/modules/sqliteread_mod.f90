@@ -152,7 +152,6 @@ module sqliteRead_mod
     character(len=*) , intent(in)    :: fileName   ! SQLite filename
 
     ! Locals:
-    character(len=256)       :: codtypStr
     character(len=12)        :: idStation
     integer                  :: codeType, obsDate, obsTime, obsStatus, obsFlag, obsVarno
     integer(8)               :: headPrimaryKey
@@ -177,7 +176,7 @@ module sqliteRead_mod
     integer                  :: rowIndex, obsNlv, headerIndex, bodyIndex
     integer                  :: numBody, numHeader
     real(pre_obsReal), parameter :: zemFact = 0.01
-    character(len=1024)      :: query, queryHeader, queryIDs
+    character(len=1024)      :: queryHeader, queryIDs
     character(len=256)       :: csqlcrit, selectIDs
     character(len=1024)      :: columnsHeader
     logical                  :: finished
@@ -198,7 +197,7 @@ module sqliteRead_mod
          'FANION_QUAL_IASI_SYS_IND','INDIC_NDX_QUAL_GEOM','RO_QC_FLAG','GEOID_UNDULATION', &
          'EARTH_LOCAL_RAD_CURV','CENTER_AZIMUTH','CENTER_ELEVATION','RANGE_START','RANGE_END', &
          'ID_PROF','CHARTINDEX','TRACK_CELL_NO','MOD_WIND_SPD'/)
-    real(8),                   allocatable :: bodyValues(:,:)
+    real(8),                   allocatable :: bodyValues(:,:), codtypInFileList(:,:)
     logical :: beamRangeFound
 
     ! Namelist variables:
@@ -208,6 +207,7 @@ module sqliteRead_mod
     character(len=256)       :: sqlExtraDat_sat   ! same as sqlExtraDat, but only for SST satellite obs
     character(len=256)       :: sqlExtraHeader    ! can be used e.g. for ' id_stn in (...) '
     character(len=256)       :: sqlExtraHeader_sat! same as sqlExtraHeader, but only for SST satellite obs
+    integer                  :: codtyp_sat(10)    ! list of codtyp values of SST satellite obs (default is 88)
     character(len=256)       :: sqlNull           ! can be used e.g. for ' and obsvalue is not null '
 
     namelist /NAMSQLtovs/ numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
@@ -221,32 +221,25 @@ module sqliteRead_mod
     namelist /NAMSQLal/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLgl/   numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
     namelist /NAMSQLradar/numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull
-    namelist /NAMSQLsst/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull,sqlExtraDat_sat,sqlExtraHeader_sat
+    namelist /NAMSQLsst/  numberElem,listElem,sqlExtraDat,sqlExtraHeader,sqlNull, &
+                          sqlExtraDat_sat,sqlExtraHeader_sat,codtyp_sat
 
     write(*,*) 'sqlr_readSqlite: fileName   : ', trim(fileName)
     write(*,*) 'sqlr_readSqlite: familyType : ', trim(familyType)
 
     ! Get the codtyp from the file to use in determining how to build the main queries
-    call fSQL_open(db, trim(fileName) ,stat)
-    if (fSQL_error(stat) /= FSQL_OK) then
-      call utl_abort('sqlr_readSqlite: fSQL_open '//fSQL_errmsg(stat))
-    end if
-
-    query = 'select codtyp from header group by codtyp;'
-    codtypStr = sqlu_query(db,trim(query))
-    write(*,*) 'sqlr_readSqlite: codtypStr = **', trim(codtypStr), '**'
-
-    call fSQL_close(db, stat) 
-    if (fSQL_error(stat) /= FSQL_OK) then
-      write(*,*) 'sqlr_readSqlite: problem closing sqlite db', trim(fileName)
-      call sqlu_handleError(stat, 'fSQL_close')
-    end if
+    call sqlu_getColumnValuesNum(codtypInFileList, fileName=trim(fileName), &
+                                 tableName='header', sqlColumnNames=(/'codtyp'/), &
+                                 extraQuery_opt='group by codtyp')
+    write(*,*) 'sqlr_readSqlite: codtyp array = ', codtypInFileList(:,:)
 
     ! Default namelist variable values
     sqlExtraHeader     = ''
     sqlExtraDat        = ''
     sqlExtraHeader_sat = ''
     sqlExtraDat_sat    = ''
+    codtyp_sat(:)      = MPC_missingValue_INT
+    codtyp_sat(1)      = 88
     sqlNull            = ''
     listElem           = ''
     numberElem         = MPC_missingValue_INT
@@ -324,10 +317,14 @@ module sqliteRead_mod
         read(nulnam, nml = NAMSQLsst, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLsst')
         if (mmpi_myid == 0) write(*, nml = NAMSQLsst)
-        if (trim(codtypStr) == '88') then
-          sqlExtraHeader = sqlExtraHeader_sat
-          sqlExtraDat = sqlExtraDat_sat
-        end if
+        do rowIndex = 1, size(codtypInFileList,1)
+          if (any(nint(codtypInFileList(rowIndex,1)) == codtyp_sat(:))) then
+            write(*,*) 'sqlr_readSqlite: Found satellite SST observation in file:', &
+                       nint(codtypInFileList(rowIndex,1))
+            sqlExtraHeader = sqlExtraHeader_sat
+            sqlExtraDat = sqlExtraDat_sat
+          end if
+        end do
       case ('GL')
         read(nulnam, nml = NAMSQLgl, iostat = ierr)
         if (ierr /= 0) call utl_abort('sqlr_readSqlite: Error reading namelist: NAMSQLgl')
@@ -387,7 +384,7 @@ module sqliteRead_mod
     end do
 
     ! Read all of the columns in the file, then we decide what to do with them later
-    extraQueryData = ' where '//trim(csqlcrit)//trim(sqlDataOrder)
+    extraQueryData = 'where '//trim(csqlcrit)//trim(sqlDataOrder)
     call sqlu_getColumnValuesNum(bodyValues, fileName=trim(fileName), &
                                  tableName='data', sqlColumnNames=bodySqlNames, &
                                  extraQuery_opt=extraQueryData)

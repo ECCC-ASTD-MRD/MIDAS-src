@@ -254,7 +254,7 @@ contains
       if (columnIndex < numColumns) query = trim(query) // ','
     end do
     query = trim(query) // ' from ' // trim(tableName)
-    query = trim(query) // trim(extraQuery) // ';'
+    query = trim(query) // ' ' // trim(extraQuery) // ';'
     write(*,*) 'sqlu_getColumnValuesNum: query ---> ', trim(query)
 
     ! read the values from the file
