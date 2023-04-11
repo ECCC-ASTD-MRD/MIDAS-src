@@ -1553,8 +1553,14 @@ CONTAINS
 
       call gsv_getField(statevector,uu_ptr,'UU')
       call gsv_getField(statevector,vv_ptr,'VV')
-      call gsv_getField(statevector,psi_ptr,'PP')
-      call gsv_getField(statevector,chi_ptr,'CC')
+      if (gsv_varExist(statevector,'PP') .and. &
+          gsv_varExist(statevector,'CC')) then
+        call gsv_getField(statevector,psi_ptr,'PP')
+        call gsv_getField(statevector,chi_ptr,'CC')
+      else
+        call gsv_getField(statevector,psi_ptr,'UU')
+        call gsv_getField(statevector,chi_ptr,'VV')
+      end if
       nlev_M = gsv_getNumLev(statevector,'MM')
 
       if ( gstID < 0 ) then
@@ -1631,10 +1637,6 @@ CONTAINS
     write(*,*) 'gvt_UVtoPsiChi_ens: starting'
 
     hco_ens => ens_getHco(ens)
-
-    if (hco_ens%global ) then
-      call utl_abort('gvt_UVtoPsiChi_ens: global mode not yet available')
-    end if
 
     !
     !- 1.  Create a working stateVector

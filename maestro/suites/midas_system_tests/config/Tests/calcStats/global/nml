@@ -1,6 +1,9 @@
  &NAMCONF
    MODE   = 'BHI'
 /
+ &NAMCOMPUTEBHI
+   FORMULATION = 'legacy'
+/
  &NAMSTATE
    ANLVAR(1)   ='UU'
    ANLVAR(2)   ='VV'
