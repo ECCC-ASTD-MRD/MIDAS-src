@@ -135,7 +135,6 @@ program midas_var1D
   use obsFiles_mod
   use minimization_mod
   use innovation_mod
-  use minimization_mod
   use obsErrors_mod
   use gridVariableTransforms_mod
   use increment_mod
