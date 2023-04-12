@@ -57,7 +57,7 @@ program midas_obsSelection
   ! ``stats_tovs_symmetricObsErr``                 In - User-defined symmetric TOVS errors for all sky
   ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
   ! ``dynbcor.coeffs.$SENSOR.*.coeffs_$SENSOR``    In - Dynamic bias correction file
-  ! ``ceres_global.std``                           In - Surface emmissivity and type?
+  ! ``ceres_global.std``                           In - High-res surface type and water fraction for radiance obs
   ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
   ! ``rttov_h2o_limits.dat``                       In - Min/max humidity limits applied to analysis
   ! ``ozoneclim98``                                In - Ozone climatology

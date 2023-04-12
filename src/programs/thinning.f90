@@ -35,17 +35,18 @@ program midas_thinning
   !            ======================= ====== 
   !             Namelist                    
   !            ======================= ====== 
-  !             ``thin_surface``          
-  !             ``thin_raobs``            
-  !             ``thin_aircraft``         
-  !             ``thin_satwind``          
-  !             ``thin_gpsro``           
-  !             ``thin_gbgps``            
-  !             ``thin_aladin``           
-  !             ``thin_csr``              
-  !             ``thin_scat``             
-  !             ``thin_tovs``             
-  !             ``thin_hyper``            
+  !             ``thn_surface``
+  !             ``thn_raobs``
+  !             ``thn_aircraft``
+  !             ``thn_satwind``
+  !             ``thn_gpsro``
+  !             ``thn_gbgps``
+  !             ``thn_aladin``
+  !             ``thn_csr``
+  !             ``thn_scat``
+  !             ``thn_tovs``
+  !             ``thn_hyper``
+  !             ``thn_thinSatSST``
   !            ======================= ====== 
   !
   !            |

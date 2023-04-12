@@ -28,8 +28,8 @@ program midas_diagHBHt
   !:Algorithm: The random realization of background error in observation space
   !            is computed following these steps:
   !
-  !            1. Compute random vector for the control vector with each element
-  !               drawn from independent Gaussion distribution with variance of one
+  !            1. Compute random values for the control vector with each element
+  !               drawn from independent Gaussian distribution with variance of one
   !               and bias of zero.
   !            
   !            2. Multiply random vector by sqrt of B matrix.
@@ -61,11 +61,10 @@ program midas_diagHBHt
   ! ``obsinfo_chm``                                In - Something needed for chemistry assimilation?
   ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
   ! Remainder are files related to radiance obs:
-  ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of difference sensors
+  ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of different sensors
   ! ``stats_tovs``                                 In - Satellite radiance observation errors
   ! ``stats_tovs_symmetricObsErr``                 In - User-defined symmetric TOVS errors for all sky
-  ! ``ceres_global.std``                           In - Surface emmissivity and type?
-  ! ``champ_fd_181x91``                            In - NOT USED?
+  ! ``ceres_global.std``                           In - High-res surface type and water fraction for radiance obs
   ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
   ! ``ozoneclim98``                                In - Ozone climatology
   !============================================== ==============================================================

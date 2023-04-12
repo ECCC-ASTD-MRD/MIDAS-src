@@ -16,7 +16,7 @@
 
 program midas_randomPert
   !
-  !:Purpose: Main program for generating an ensemble of random perturbations
+  !:Purpose: Main program for generating an ensemble of random perturbations,
   !          based on the B matrix (can be homogeneous and isotropic, ensemble-based
   !          or a weighted sum of covariance matrices).
   !
@@ -24,9 +24,9 @@ program midas_randomPert
   !
   !:Algorithm: Uses a gaussian pseudorandom generator to produce an ensemble
   !            of control vectors.  These control vectors are transformed into
-  !            pertubations in physical space through the action of the square-root
+  !            pertubations in physical space, through the action of the square-root
   !            of the background-error covariance matrix.  The ensemble of perturbations
-  !            can then be unbiased and some smoothing can be applied.
+  !            can then be debiased and some smoothing can be applied.
   !            The perturbations thus obtained can then be interpolated and added
   !            to a provided ensemble mean and/or be mixed with some previous time
   !            perturbations.
@@ -41,8 +41,8 @@ program midas_randomPert
   ! ``analysisgrid``                               In - File defining grid on which perturbations are generated
   ! ``targetgrid``                                 In - File defining destination ensemble grid
   ! ``bgcov``                                      In - Static (i.e. NMC) B matrix file for NWP fields
-  ! ``seaIceAnalysis``                             In - Sea-ice analysis to set under ice perturbations to zero
-  ! ``pert_$YYYYMMDDHH_000_$NNNN``                 In - Previous date perturbations when ensemble not provided
+  ! ``seaIceAnalysis``                             In - Sea-ice analysis, to set under-ice perturbations to zero
+  ! ``pert_$YYYYMMDDHH_000_$NNNN``                 In - Previous date perturbations, when ensemble not provided
   ! ``$YYYYMMDDHH_006_$NNNN``                      In/Out - Ensemble member files
   ! ``pert_$YYYYMMDDHH_000_$NNNN``                 Out - Output perturbations
   !============================================== ==============================================================
@@ -58,7 +58,7 @@ program midas_randomPert
   !
   !               - Setup the B matrices: ``bmat_setup``.
   !
-  !               - Allocate arrays and a stateVector object on the ``analysisgrid``
+  !               - Allocate arrays and a stateVector object on the ``analysisgrid``,
   !                 to receive the perturbations and first statistical moments.
   !
   !               - Initialize the pseudorandom generator : ``rng_setup``.
@@ -79,7 +79,7 @@ program midas_randomPert
   !
   !             - **Read ensemble mean** if ``readEnsMean`` is true:
   !
-  !               - Allocate a stateVector object on the ``targetgrid`` and then
+  !               - Allocate a stateVector object on the ``targetgrid``, and then
   !                 read the ensemble mean using ``gio_readFromFile``.
   !
   !               - if ``setPertZeroUnderIce`` is true, allocate a stateVector
@@ -87,7 +87,7 @@ program midas_randomPert
   !                 Where the ice fraction is higher than ``iceFractionThreshold``,
   !                 the perturbations are set to zero.
   !
-  !             - **Read and unbias previous date perturbations** if
+  !             - **Read and debias previous date perturbations** if
   !               ``previousDateFraction`` is higher than zero.
   !
   !             - **Final steps**:
@@ -112,8 +112,8 @@ program midas_randomPert
   !           program and is read by the program.
   !
   !         * The background-error covariance matrix contributions are defined through
-  !           the namelists ``&NAMBHI``, for the homogeneous and isotropic part
-  !           and ``&NAMBEN``, for the ensemble part.  When the matrix is a weighted
+  !           the namelists ``&NAMBHI``, for the homogeneous and isotropic part,
+  !           and ``&NAMBEN`` for the ensemble part.  When the matrix is a weighted
   !           sum, it is important to make sure to define the ``SCALEFACTOR`` values.
   !           Note that it would be also possible to define contributions from
   !           ``&NAMBDIFF`` for diffusion correlations and ``&NAMBCHM`` for homogeneous

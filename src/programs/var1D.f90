@@ -71,12 +71,12 @@ program midas_var1D
   !                 grid" from ``analysisgrid`` file
   !
   !               - Setup ``obsSpaceData`` object and read observations from
-  !                 files: ``inn_setupObs``.
+  !                 files: ``inn_setupObs``
   !
   !               - Setup ``columnData`` module
   !
   !               - Setup the observation error statistics in ``obsSpaceData``
-  !                 object: ``oer_setObsErrors``.
+  !                 object: ``oer_setObsErrors``
   !
   !               - Setup the gridStateVector module (initialize list of analyzed variables)
   !
@@ -117,7 +117,19 @@ program midas_var1D
   !:Options: `List of namelist blocks <../namelists_in_each_program.html#var1d>`_
   !          that can affect the ``var1D`` program.
   !
-  
+  !          - The B matrix used by the ``var1D`` program is controlled by the namelist block
+  !            ``&nambmat1D`` of module bmatrix1DVar_mod
+  !              * scaleFactorHI scaling factors for HI variances
+  !              * scaleFactorHIHumidity scaling factors for HI humidity variances
+  !              * scaleFactorENs scaling factors for Ens variances
+  !              * scaleFactorEnsHumidity scaling factors for Ens humidity variances
+  !              * nEns number of ensemble members for the ensemble part of  B matrix (negative means no ensemble)
+  !              * vLocalize vertical localization length scale for the ensemble part of B matrix
+  !              * includeAnlVar list of variable for the B matrix
+  !              * numIncludeAnlVar number of variables in  includeAnlVar (to be removed later)
+  !
+  !           --
+  !
   use version_mod
   use codePrecision_mod
   use ramDisk_mod
