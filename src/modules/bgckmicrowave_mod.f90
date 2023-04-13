@@ -872,7 +872,7 @@ contains
   ! amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
   subroutine amsuaTest12GrodyClwCheck(obsChannels2D, sensorIndex, actualNumChannel, numObsToProcess, burpStnId, cloudLiquidWaterPathObs, &
-                                      cloudLiquidWaterPathFG, landQualifierIndice, MISGRODY, MXCLWREJ, &
+                                      cloudLiquidWaterPathFG, landQualifierIndice, MXCLWREJ, &
                                       ICLWREJ, obsFlags2D, qcIndicator)
 
     !:Purpose:                    12) test 12: Grody cloud liquid water check (partial)
@@ -888,7 +888,6 @@ contains
     real,        intent(in)               :: cloudLiquidWaterPathObs(numObsToProcess)   ! retrieved cloud liquid water from observation
     real,        intent(in)               :: cloudLiquidWaterPathFG(numObsToProcess)    ! retrieved cloud liquid water from background
     integer,     intent(in)               :: landQualifierIndice(numObsToProcess)       ! land sea qualifyer 
-    real,        intent(in)               :: MISGRODY                       ! MISGRODY
     integer,     intent(in)               :: MXCLWREJ                       ! cst 
     integer,     intent(in)               :: ICLWREJ(MXCLWREJ)              !
     integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)                 ! marqueur de radiance 
@@ -909,10 +908,10 @@ contains
       if ( tvs_mwAllskyAssim ) then
         clwObsFGaveraged = 0.5 * (cloudLiquidWaterPathObs(nDataIndex) + cloudLiquidWaterPathFG(nDataIndex))
         clwUsedForQC = clwObsFGaveraged
-        cldPredMissing = (cloudLiquidWaterPathObs(nDataIndex) == MISGRODY .or. cloudLiquidWaterPathFG(nDataIndex) == MISGRODY)
+        cldPredMissing = (cloudLiquidWaterPathObs(nDataIndex) == mwbg_realMissing .or. cloudLiquidWaterPathFG(nDataIndex) == mwbg_realMissing)
       else
         clwUsedForQC = cloudLiquidWaterPathObs(nDataIndex)
-        cldPredMissing = (cloudLiquidWaterPathObs(nDataIndex) == MISGRODY)
+        cldPredMissing = (cloudLiquidWaterPathObs(nDataIndex) == mwbg_realMissing)
       end if
 
       surfTypeIsWater = (landQualifierIndice(nDataIndex) ==  1)
@@ -1069,7 +1068,7 @@ contains
   ! amsuaTest13GrodyScatteringIndexCheck
   !--------------------------------------------------------------------------
   subroutine amsuaTest13GrodyScatteringIndexCheck(obsChannels2D, sensorIndex, actualNumChannel, numObsToProcess, burpStnId, scatIndexOverWaterObs, landQualifierIndice, terrainTypeIndice, &
-                                                  MISGRODY, MXSCATREJ, ISCATREJ, obsFlags2D, qcIndicator)
+                                                  MXSCATREJ, ISCATREJ, obsFlags2D, qcIndicator)
 
     !:Purpose:                  13) test 13: Grody scattering index check (partial)
     !                               For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
@@ -1084,7 +1083,6 @@ contains
     real,        intent(in)                :: scatIndexOverWaterObs(numObsToProcess)     ! scattering index 
     integer,     intent(in)                :: landQualifierIndice(numObsToProcess)       ! land sea qualifyer 
     integer,     intent(in)                :: terrainTypeIndice(numObsToProcess)         ! terrain type 
-    real,        intent(in)                :: MISGRODY                       ! MISGRODY
     integer,     intent(in)                :: MXSCATREJ                       ! cst 
     integer,     intent(in)                :: ISCATREJ(MXSCATREJ)              !
     integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)                 ! marqueur de radiance 
@@ -1099,7 +1097,7 @@ contains
     testIndex = 13
     ZSEUILSCAT = 9.0
     do nDataIndex=1,numObsToProcess
-      if ( scatIndexOverWaterObs(nDataIndex) /=  MISGRODY  ) then
+      if ( scatIndexOverWaterObs(nDataIndex) /=  mwbg_realMissing  ) then
         if (landQualifierIndice (nDataIndex) ==  1 .and. &
             terrainTypeIndice(nDataIndex) /=  0 .and. &   
             scatIndexOverWaterObs(nDataIndex) > ZSEUILSCAT) then
@@ -1298,7 +1296,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuaTest14RogueCheck(obsChannels2D, sensorIndex, actualNumChannel, numObsToProcess, burpStnId, ROGUEFAC, &
                                    landQualifierIndice, ompTb2D, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                   MISGRODY, MXSFCREJ, ISFCREJ, obsFlags2D, qcIndicator)
+                                   MXSFCREJ, ISFCREJ, obsFlags2D, qcIndicator)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !                                  (single/full). Les observations, dont le residu (O-P) 
@@ -1318,7 +1316,6 @@ contains
     real,        intent(in)                :: cloudLiquidWaterPathObs(numObsToProcess)   ! retrieved cloud liquid water from observation
     real,        intent(in)                :: cloudLiquidWaterPathFG(numObsToProcess)    ! retrieved cloud liquid water from background
     real,        intent(in)                :: ompTb2D(actualNumChannel,numObsToProcess)  ! radiance o-p 
-    real,        intent(in)                :: MISGRODY                       ! MISGRODY
     integer,     intent(in)                :: MXSFCREJ                       ! cst 
     integer,     intent(in)                :: ISFCREJ(MXSFCREJ)              !
     integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)                 ! marqueur de radiance 
@@ -1355,7 +1352,7 @@ contains
             errThresh1 = oer_errThreshAllsky(channelval,sensorIndex,1)
             errThresh2 = oer_errThreshAllsky(channelval,sensorIndex,2)
             clwObsFGaveraged = 0.5 * (cloudLiquidWaterPathObs(nDataIndex) + cloudLiquidWaterPathFG(nDataIndex))
-            if (cloudLiquidWaterPathObs(nDataIndex) == MISGRODY .or. cloudLiquidWaterPathFG(nDataIndex) == MISGRODY) then
+            if (cloudLiquidWaterPathObs(nDataIndex) == mwbg_realMissing .or. cloudLiquidWaterPathFG(nDataIndex) == mwbg_realMissing) then
               sigmaObsErrUsed = MPC_missingValue_R4
             else
               sigmaObsErrUsed = calcStateDepObsErr_r4(clwThresh1,clwThresh2,errThresh1, &
@@ -1364,7 +1361,7 @@ contains
           else
             sigmaObsErrUsed = oer_toverrst(channelval,sensorIndex)
           end if
-          ! For sigmaObsErrUsed=MPC_missingValue_R4 (cloudLiquidWaterPathObs[FG]=MISGRODY
+          ! For sigmaObsErrUsed=MPC_missingValue_R4 (cloudLiquidWaterPathObs[FG]=mwbg_realMissing
           ! in all-sky mode), the observation is already rejected in test 12.
           XCHECKVAL = ROGUEFAC(channelval) * sigmaObsErrUsed
           if ( ompTb2D(nChannelIndex,nDataIndex) /= mwbg_realMissing .and. &
@@ -1860,7 +1857,6 @@ contains
     integer                                :: ISFCREJ2(MXSFCREJ2)
     integer                                :: ISCATREJ(MXSCATREJ)
     real                                   :: EPSILON
-    real                                   :: MISGRODY
     real, allocatable                      :: GROSSMIN(:)
     real, allocatable                      :: GROSSMAX(:) 
     real, allocatable                      :: ROGUEFAC(:)
@@ -1885,7 +1881,6 @@ contains
     logical, save                          :: LLFIRST = .true.
 
     EPSILON = 0.01
-    MISGRODY = -99.
 
     call utl_reAllocate(ROGUEFAC, actualNumChannel+tvs_channelOffset(sensorIndex))
     ROGUEFAC(:) =(/ 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
@@ -2016,19 +2011,19 @@ contains
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
     call amsuaTest12GrodyClwCheck (obsChannels2D, sensorIndex, actualNumChannel, numObsToProcess, burpStnId, cloudLiquidWaterPathObs, &
-                                cloudLiquidWaterPathFG, landQualifierIndice, MISGRODY, MXCLWREJ, &
+                                cloudLiquidWaterPathFG, landQualifierIndice, MXCLWREJ, &
                                 ICLWREJ, obsFlags2D, qcIndicator)
     ! 13) test 13: Grody scattering index check (partial)
     ! For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
     call amsuaTest13GrodyScatteringIndexCheck (obsChannels2D, sensorIndex, actualNumChannel, numObsToProcess, burpStnId, scatIndexOverWaterObs, landQualifierIndice, terrainTypeIndice, &
-                                              MISGRODY, MXSCATREJ, ISCATREJ, obsFlags2D, qcIndicator)
+                                              MXSCATREJ, ISCATREJ, obsFlags2D, qcIndicator)
 
     ! 14) test 14: "Rogue check" for (O-P) Tb residuals out of range. (single/full)
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
     call amsuaTest14RogueCheck (obsChannels2D, sensorIndex, actualNumChannel, numObsToProcess, burpStnId, ROGUEFAC, &
                                     landQualifierIndice, ompTb2D, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                    MISGRODY, MXSFCREJ, ISFCREJ, obsFlags2D, qcIndicator)
+                                    MXSFCREJ, ISFCREJ, obsFlags2D, qcIndicator)
 
     ! 15) test 15: Channel Selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
@@ -2165,7 +2160,6 @@ contains
     integer                                :: ISFCREJ2(MXSFCREJ2)
     integer                                :: chanIgnoreInAllskyGenCoeff(5)
     real                                   :: EPSILON
-    real                                   :: MISGRODY
     real, allocatable                      :: GROSSMIN(:)
     real, allocatable                      :: GROSSMAX(:) 
     real, allocatable                      :: ROGUEFAC(:)
@@ -2185,7 +2179,6 @@ contains
     logical, save                          :: LLFIRST = .true.
 
     EPSILON = 0.01
-    MISGRODY = -99.
 
     call utl_reAllocate(ROGUEFAC, actualNumChannel+tvs_channelOffset(sensorIndex))
     ROGUEFAC(:) =(/ 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, &
