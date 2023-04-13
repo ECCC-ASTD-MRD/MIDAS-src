@@ -2646,7 +2646,7 @@ contains
   ! GRODY
   !--------------------------------------------------------------------------
   subroutine GRODY (ier, numObsToProcess, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
-                   satZenithAngle, obsLat, ilansea, ice, tpw, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                   satZenithAngle, obsLat, landQualifierIndice, ice, tpw, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                    rain, snow, scatl, scatIndexOverWaterObs)
     !OBJET          Compute the following parameters using 5 AMSU-A
     !               channels:
@@ -2661,7 +2661,7 @@ contains
     !REGERENCES     N. Grody, NOAA/NESDIS, ....
     !
     !APPEL          call   GRODY (ier, numObsToProcess, tb23, tb31, tb50, tb53, tb89, satZenithAngle, obsLat,
-    !                             ilansea, ice, tpw, clw, rain, snow, scatl, scatIndexOverWaterObs) 
+    !                             landQualifierIndice, ice, tpw, clw, rain, snow, scatl, scatIndexOverWaterObs) 
     !
     !ARGUMENTS      ier     - output - error return code:
     !                                  0, ok,  
@@ -2676,7 +2676,7 @@ contains
     !               - tb31FG  - input  -  31Ghz brightness temperature from background (K)
     !               - satZenithAngle   - input  -  satellite zenith angle (deg.)
     !               - obsLat  - input  -  lalitude (deg.)
-    !               - ilansea - input  -  land/sea indicator (0=land;1=ocean)
+    !               - landQualifierIndice - input  -  land/sea indicator (0=land;1=ocean)
     !               - ice     - output -  sea ice concentration (0-100%)
     !               - tpw     - output -  total precipitable water (0-70mm)
     !               - cloudLiquidWaterPathObs  - output -  retrieved cloud liquid water from observation (0-3mm)
@@ -2695,7 +2695,7 @@ contains
     integer numObsToProcess, i
 
     integer ier    (:)
-    integer ilansea(:)
+    integer landQualifierIndice(:)
     integer rain   (:)
     integer snow   (:)
 
@@ -2752,8 +2752,8 @@ contains
            satZenithAngle(i)   > 90.   .or. &
            obsLat(i)  < -90.  .or. &
            obsLat(i)  > 90.   .or. &
-           ilansea(i) < 0     .or. &
-           ilansea(i) > 1        ) then
+           landQualifierIndice(i) < 0 .or. &
+           landQualifierIndice(i) > 1 ) then
         ier(i) = 1
       else
         ier(i) = 0
@@ -2798,7 +2798,7 @@ contains
         df2 =  5.10 + 0.078*t23 - 0.096*t50 ! used to identify (also remove) warm deserts
         df3 = 10.20 + 0.036*t23 - 0.074*t50 ! used to identify (also remove) cold deserts
 
-        if ( ilansea(i)== 1 ) then
+        if ( landQualifierIndice(i)== 1 ) then
 
           ! Ocean Parameters
 
@@ -2958,9 +2958,9 @@ contains
 
       if ( mwbg_DEBUG .and. i <= 100 ) then
         print *, 'GRODY: i,tb23(i),tb31(i),tb50(i),tb89(i),satZenithAngle(i),obsLat(i), &
-                  ilansea(i) = ', &
+                  landQualifierIndice(i) = ', &
                   i,tb23(i),tb31(i),tb50(i),tb89(i),satZenithAngle(i),obsLat(i), &
-                  ilansea(i)
+                  landQualifierIndice(i)
         print *, 'GRODY: ier(i),ice(i),tpw(i),cloudLiquidWaterPathObs(i),cloudLiquidWaterPathFG(i),rain(i),snow(i)=', &
                   ier(i),ice(i),tpw(i),cloudLiquidWaterPathObs(i),cloudLiquidWaterPathFG(i),rain(i),snow(i)
       end if
