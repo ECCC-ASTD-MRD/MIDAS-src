@@ -2658,97 +2658,69 @@ contains
   ! GRODY
   !--------------------------------------------------------------------------
   subroutine GRODY (ier, numObsToProcess, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
-                   satZenithAngle, obsLat, landQualifierIndice, ice, tpw, &
-                   cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                   rain, snow, scatl, scatIndexOverWaterObs)
-    !OBJET          Compute the following parameters using 5 AMSU-A
-    !               channels:
-    !                  - sea ice, 
-    !                  - total precipitable water, 
-    !                  - cloud liquid water, 
-    !                  - ocean/land rain, 
-    !                  - snow cover/glacial ice,
-    !                  - scattering index (sur la terre et sur l'eau).
-    !               The four channels used are: 23Ghz, 31Ghz, 50Ghz and 89Ghz.
-    !
-    !REGERENCES     N. Grody, NOAA/NESDIS, ....
-    !
-    !APPEL          call   GRODY (ier, numObsToProcess, tb23, tb31, tb50, tb53, tb89, satZenithAngle, obsLat,
-    !                             landQualifierIndice, ice, tpw, clw, rain, snow, scatl, scatIndexOverWaterObs) 
-    !
-    !ARGUMENTS      ier     - output - error return code:
-    !                                  0, ok,  
-    !                                  1, input parameter out of range. 
-    !               - numObsToProcess - input  -  number of points to process
-    !               - tb23    - input  -  23Ghz brightness temperature (K)
-    !               - tb31    - input  -  31Ghz brightness temperature (K)
-    !               - tb50    - input  -  50Ghz brightness temperature (K)
-    !               - tb53    - input  -  53Ghz brightness temperature (K)
-    !               - tb89    - input  -  89Ghz brightness temperature (K)
-    !               - tb23FG  - input  -  23Ghz brightness temperature from background (K)
-    !               - tb31FG  - input  -  31Ghz brightness temperature from background (K)
-    !               - satZenithAngle   - input  -  satellite zenith angle (deg.)
-    !               - obsLat  - input  -  lalitude (deg.)
-    !               - landQualifierIndice - input  -  land/sea indicator (0=land;1=ocean)
-    !               - ice     - output -  sea ice concentration (0-100%)
-    !               - tpw     - output -  total precipitable water (0-70mm)
-    !               - cloudLiquidWaterPathObs  - output -  retrieved cloud liquid water from observation (0-3mm)
-    !               - cloudLiquidWaterPathFG   - output -  retrieved cloud liquid water from background (0-3mm)
-    !               - rain    - output -  rain identification (0=no rain; 1=rain)
-    !               - snow    - output -  snow cover and glacial ice identification: 
-    !                                   (0=no snow; 1=snow; 2=glacial ice)
-    !               - scatl   - output -  scattering index over land
-    !               - scatIndexOverWaterObs   - output -  scattering index over water
+                    satZenithAngle, obsLat, landQualifierIndice, ice, tpw, &
+                    cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                    rain, snow, scatl, scatIndexOverWaterObs)
+    !:Purpose: Compute the following parameters using 5 AMSU-A channels:
+    !          - sea ice, 
+    !          - total precipitable water, 
+    !          - cloud liquid water, 
+    !          - ocean/land rain, 
+    !          - snow cover/glacial ice,
+    !          - scattering index (sur la terre et sur l'eau).
+    !          The four channels used are: 23Ghz, 31Ghz, 50Ghz and 89Ghz.
+    !          REGERENCES     N. Grody, NOAA/NESDIS, ....
+
+    implicit none
+
+    ! Arguments:
+    integer, intent(out) :: ier(:) ! error return code: 0 ok, 1 input parameter out of range.
+    integer,  intent(in) :: numObsToProcess ! number of points to process
+    real,     intent(in) :: tb23  (:) ! 23Ghz brightness temperature (K)
+    real,     intent(in) :: tb31  (:) ! 31Ghz brightness temperature (K)
+    real,     intent(in) :: tb50  (:) ! 50Ghz brightness temperature (K)
+    real,     intent(in) :: tb53  (:) ! 53Ghz brightness temperature (K)
+    real,     intent(in) :: tb89  (:) ! 89Ghz brightness temperature (K)
+    real,     intent(in) :: tb23FG(:) ! 23Ghz brightness temperature from background (K)
+    real,     intent(in) :: tb31FG(:) ! 31Ghz brightness temperature from background (K)
+    real,     intent(in) :: satZenithAngle(:) ! satellite zenith angle (deg.)
+    real,     intent(in) :: obsLat(:) ! latitude (deg.)
+    integer,  intent(in) :: landQualifierIndice(:) ! land/sea indicator (0=land;1=ocean)
+    real,    intent(out) :: ice (:) ! sea ice concentration (0-100%)
+    real,    intent(out) :: tpw (:) ! total precipitable water (0-70mm)
+    real,    intent(out) :: cloudLiquidWaterPathObs(:) ! retrieved cloud liquid water from observation (0-3mm)
+    real,    intent(out) :: cloudLiquidWaterPathFG (:) ! retrieved cloud liquid water from background (0-3mm)
+    integer, intent(out) :: rain(:) ! rain identification (0=no rain; 1=rain)
+    integer, intent(out) :: snow(:) ! snow cover and glacial ice identification:
+                                    ! (0=no snow; 1=snow; 2=glacial ice)
+    real,    intent(out) :: scatl (:)                  ! scattering index over land
+    real,    intent(out) :: scatIndexOverWaterObs (:)  ! scattering index over water
+
+    ! Locals:
+    real :: siw, sil, df1, df2, df3, a, b, c, d, e23
+    real :: ei, cosz, tt, scat, sc31, abslat, t23, t31, t50, t89
+    real :: sc50, par, t53
+    real :: dif285t23, dif285t31, epsilon
+    real :: dif285t23FG, dif285t31FG
+    integer :: i
+
+    data epsilon / 1.E-30 /
+
+    logical skipLoopChan15Missing 
     !
     ! Notes: In the case where an output parameter cannot be calculated, the
     !        value of this parameter is to to the missing value, i.e. -99.
 
-    implicit none
-
-    integer numObsToProcess, i
-
-    integer ier    (:)
-    integer landQualifierIndice(:)
-    integer rain   (:)
-    integer snow   (:)
-
-    real zmisgLocal, siw, sil, df1, df2, df3, a, b, c, d, e23
-    real ei, cosz, tt, scat, sc31, abslat, t23, t31, t50, t89
-    real sc50, par, t53
-    real dif285t23, dif285t31, epsilon
-    real dif285t23FG, dif285t31FG
-
-    real tb23  (:)
-    real tb31  (:)
-    real tb50  (:)
-    real tb53  (:)
-    real tb89  (:)
-    real tb23FG(:)
-    real tb31FG(:)
-    real satZenithAngle (:)
-    real obsLat(:)
-    real ice   (:)
-    real tpw   (:)
-    real cloudLiquidWaterPathObs(:)
-    real cloudLiquidWaterPathFG (:)
-    real scatl (:)
-    real scatIndexOverWaterObs (:)
-
-    data zmisgLocal   / -99.     /
-    data epsilon /   1.E-30 /
-
-    logical skipLoopChan15Missing 
-
     ! 1) Initialise output parameters:
     do i = 1, numObsToProcess
-      ice  (i) = zmisgLocal
-      tpw  (i) = zmisgLocal
-      cloudLiquidWaterPathObs(i) = zmisgLocal
-      cloudLiquidWaterPathFG(i) = zmisgLocal
-      scatl(i) = zmisgLocal
-      scatIndexOverWaterObs(i) = zmisgLocal
-      rain (i) = nint(zmisgLocal)
-      snow (i) = nint(zmisgLocal)
+      ice  (i) = mwbg_realMissing
+      tpw  (i) = mwbg_realMissing
+      cloudLiquidWaterPathObs(i) = mwbg_realMissing
+      cloudLiquidWaterPathFG(i) = mwbg_realMissing
+      scatl(i) = mwbg_realMissing
+      scatIndexOverWaterObs(i) = mwbg_realMissing
+      rain (i) = nint(mwbg_realMissing)
+      snow (i) = nint(mwbg_realMissing)
     end do
 
     ! 2) Validate input parameters:
@@ -2840,7 +2812,7 @@ contains
           ! identify and remove sea ice
           if ( abslat > 50.  .and. &
               df1     >  0.2        ) then  
-            tpw(i) = zmisgLocal
+            tpw(i) = mwbg_realMissing
           else
             a =  247.920  - (69.235 - 44.177*cosz)*cosz
             b = -116.270
@@ -2856,8 +2828,8 @@ contains
           ! identify and remove sea ice
           if ( abslat > 50.  .and. &
               df1     >  0.0        ) then  
-            cloudLiquidWaterPathObs(i) = zmisgLocal
-            cloudLiquidWaterPathFG(i) = zmisgLocal
+            cloudLiquidWaterPathObs(i) = mwbg_realMissing
+            cloudLiquidWaterPathFG(i) = mwbg_realMissing
           else
             a =  8.240 - (2.622 - 1.846*cosz)*cosz
             b =  0.754
@@ -2881,7 +2853,7 @@ contains
           ! identify and remove sea ice
           if ( abslat > 50.  .and. &
               df1    >  0.0        ) then  
-            rain(i) = nint(zmisgLocal)
+            rain(i) = nint(mwbg_realMissing)
           else                                   ! remove non-precipitating clouds
             if ( cloudLiquidWaterPathObs(i) > 0.3 .or. &
                 siw        > 9.0      ) then 
