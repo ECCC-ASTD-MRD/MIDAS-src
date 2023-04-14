@@ -3645,14 +3645,14 @@ contains
     real                             :: ompTb2D(actualNumChannel,numObsToProcess)
     integer                          :: obsChannels2D(actualNumChannel,numObsToProcess)
     integer                          :: obsFlags2D(actualNumChannel,numObsToProcess)
-    integer, allocatable             :: lsq(:)
-    integer, allocatable             :: trn(:)
+    integer, allocatable             :: calcLandQualifierIndice(:)
+    integer, allocatable             :: calcTerrainTypeIndice(:)
     integer,allocatable              :: KCHKPRF(:)
 
     logical, allocatable             :: waterobs(:)
     logical, allocatable             :: grossrej(:)
     logical                          :: reportHasMissingTb
-    logical, allocatable             :: lqc(:,:)
+    logical, allocatable             :: qcRejectLogic(:,:)
     logical, allocatable             :: cloudobs(:)
     logical, allocatable             :: iwvreject(:)
     logical, allocatable             :: precipobs(:)
@@ -3754,7 +3754,8 @@ contains
     ! STEP 1 ) Determine which obs pts are over open water (i.e NOT near coasts or
     !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL
     !###############################################################################
-    call atmsMwhs2landIceMask(numObsToProcess, obsLat, obsLon, lsq, trn, waterobs, ilsmOpt)
+    call atmsMwhs2landIceMask(numObsToProcess, obsLat, obsLon, calcLandQualifierIndice, &
+                              calcTerrainTypeIndice, waterobs, ilsmOpt)
 
     !###############################################################################
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.
@@ -3762,27 +3763,28 @@ contains
     call mwbg_grossValueCheck(numObsToProcess, actualNumChannel, obsTb, obsTbBiasCorr, 50., 380., grossrej)
 
     !###############################################################################
-    ! STEP 3 ) Preliminary QC checks --> set lqc(numObsToProcess,actualNumChannel)=.true.
+    ! STEP 3 ) Preliminary QC checks --> set qcRejectLogic(numObsToProcess,actualNumChannel)=.true.
     !          for data that fail QC
     !###############################################################################
     call mwbg_firstQcCheckAtms(satZenithAngle, landQualifierIndice, terrainTypeIndice, obsLat, obsLon, obsTb, satScanPosition, &
-                               actualNumChannel, numObsToProcess, lqc, grossrej, lsq, trn, obsQcFlag1, obsQcFlag2, &
-                               obsChannels, reportHasMissingTb)
+                               actualNumChannel, numObsToProcess, qcRejectLogic, grossrej, calcLandQualifierIndice, calcTerrainTypeIndice, &
+                               obsQcFlag1, obsQcFlag2, obsChannels, reportHasMissingTb)
 
     if ( reportHasMissingTb ) numReportWithMissingTb = numReportWithMissingTb + 1
     !  Exclude problem points from further calculations
     do kk = 1,numObsToProcess
-      if ( COUNT(lqc(kk,:)) == actualNumChannel ) grossrej(kk) = .true.
+      if ( COUNT(qcRejectLogic(kk,:)) == actualNumChannel ) grossrej(kk) = .true.
     end do
 
     !###############################################################################
     ! STEP 4 ) mwbg_nrlFilterAtms returns cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg and also does sea-ice
     !          detection missing value for  cloudLiquidWaterPathObs, scatec, scatbg  is -99.0 (e.g. over
-    !          land or sea-ice).Sets trn=0 (sea ice) for points where retrieved SeaIce
-    !          >=0.55. Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
+    !          land or sea-ice).Sets calcTerrainTypeIndice=0 (sea ice) for points where retrieved SeaIce
+    !          >=0.55. Does nothing if calcTerrainTypeIndice=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
     call mwbg_nrlFilterAtms(numObsToProcess, actualNumChannel, obsTb, ompTb, obsTbBiasCorr, satZenithAngle, obsLat, &
-                            lsq, trn, waterobs, grossrej, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                            calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
+                            cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                             scatec, scatbg, iNumSeaIce, iRej, SeaIce)
 
     seaIcePointNum = seaIcePointNum + iNumSeaIce
@@ -3808,7 +3810,7 @@ contains
     !            iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry
     !            for ch.20-22 over land)
     !###############################################################################
-    call mwbg_reviewAllCritforFinalFlagsAtms(numObsToProcess, actualNumChannel, lqc, grossrej, waterobs, &
+    call mwbg_reviewAllCritforFinalFlagsAtms(numObsToProcess, actualNumChannel, qcRejectLogic, grossrej, waterobs, &
                                              precipobs, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg, &
                                              scatIndexOverWaterObs, scatIndexOverWaterFG, iwvreject, riwv, obsFlags, &
                                              obsGlobalMarker, zdi, newInformationFlag, drycnt, landcnt, &
@@ -3985,14 +3987,14 @@ contains
     real                             :: ompTb2D(actualNumChannel,numObsToProcess)
     integer                          :: obsChannels2D(actualNumChannel,numObsToProcess)
     integer                          :: obsFlags2D(actualNumChannel,numObsToProcess)
-    integer, allocatable             :: lsq(:)
-    integer, allocatable             :: trn(:)
+    integer, allocatable             :: calcLandQualifierIndice(:)
+    integer, allocatable             :: calcTerrainTypeIndice(:)
     integer,allocatable              :: KCHKPRF(:)
 
     logical, allocatable             :: waterobs(:)
     logical, allocatable             :: grossrej(:)
     logical                          :: reportHasMissingTb
-    logical, allocatable             :: lqc(:,:)
+    logical, allocatable             :: qcRejectLogic(:,:)
     logical, allocatable             :: cloudobs(:)
     logical, allocatable             :: iwvreject(:)
     logical, allocatable             :: precipobs(:)
@@ -4090,7 +4092,8 @@ contains
     ! STEP 1 ) Determine which obs pts are over open water (i.e NOT near coasts or
     !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL
     !###############################################################################
-    call atmsMwhs2landIceMask(numObsToProcess, obsLat, obsLon, lsq, trn, waterobs, ilsmOpt)
+    call atmsMwhs2landIceMask(numObsToProcess, obsLat, obsLon, calcLandQualifierIndice, &
+                              calcTerrainTypeIndice, waterobs, ilsmOpt)
 
     !###############################################################################
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.
@@ -4098,26 +4101,28 @@ contains
     call mwbg_grossValueCheck(numObsToProcess, actualNumChannel, obsTb, obsTbBiasCorr, 50., 380., grossrej)
 
     !###############################################################################
-    ! STEP 3 ) Preliminary QC checks --> set lqc(numObsToProcess,actualNumChannel)=.true.
+    ! STEP 3 ) Preliminary QC checks --> set qcRejectLogic(numObsToProcess,actualNumChannel)=.true.
     !          for data that fail QC
     !###############################################################################
     call mwbg_firstQcCheckMwhs2(satZenithAngle, landQualifierIndice, terrainTypeIndice, obsLat, obsLon, obsTb, satScanPosition, &
-                                actualNumChannel, numObsToProcess, lqc, lsq, trn, obsChannels, reportHasMissingTb, modLSQ)
+                                actualNumChannel, numObsToProcess, qcRejectLogic, calcLandQualifierIndice, calcTerrainTypeIndice, &
+                                obsChannels, reportHasMissingTb, modLSQ)
 
     if ( reportHasMissingTb ) numReportWithMissingTb = numReportWithMissingTb + 1
     !  Exclude problem points from further calculations
     do kk = 1,numObsToProcess
-      if ( COUNT(lqc(kk,:)) == actualNumChannel ) grossrej(kk) = .true.
+      if ( COUNT(qcRejectLogic(kk,:)) == actualNumChannel ) grossrej(kk) = .true.
     end do
 
     !###############################################################################
     ! STEP 4 ) mwbg_nrlFilterMwhs2 returns cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg and also does sea-ice
     !          detection missing value for  cloudLiquidWaterPathObs, scatec, scatbg  is -99.0 (e.g. over
-    !          land or sea-ice).Sets trn=0 (sea ice) for points where retrieved SeaIce
-    !          >=0.55. Does nothing if trn=0 (sea ice) and retrieved SeaIce<0.55.
+    !          land or sea-ice).Sets calcTerrainTypeIndice=0 (sea ice) for points where retrieved SeaIce
+    !          >=0.55. Does nothing if calcTerrainTypeIndice=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
     call mwbg_nrlFilterMwhs2(numObsToProcess, actualNumChannel, obsTb, obsTbBiasCorr, satZenithAngle, obsLat, &
-                             lsq, trn, waterobs, grossrej, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                             calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
+                             cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                              scatec, scatbg, iNumSeaIce, iRej, SeaIce)
 
     seaIcePointNum = seaIcePointNum + iNumSeaIce
@@ -4143,7 +4148,7 @@ contains
     !            iwvreject() = .true. if Mean 183 Ghz [ch. 11-15] Tb < 240K (too dry
     !            for ch.11-13 over land)
     !###############################################################################
-    call mwbg_reviewAllCritforFinalFlagsMwhs2(numObsToProcess, actualNumChannel, lqc, grossrej, trn, waterobs, &
+    call mwbg_reviewAllCritforFinalFlagsMwhs2(numObsToProcess, actualNumChannel, qcRejectLogic, grossrej, calcTerrainTypeIndice, waterobs, &
                                               precipobs, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg, &
                                               scatIndexOverWaterObs, scatIndexOverWaterFG, iwvreject, riwv, obsFlags, &
                                               obsGlobalMarker, zdi, newInformationFlag, allcnt, drycnt, landcnt, &
@@ -4527,7 +4532,8 @@ contains
   !--------------------------------------------------------------------------
   ! atmsMwhs2landIceMask
   !--------------------------------------------------------------------------
-  subroutine atmsMwhs2landIceMask(numObsToProcess, obsLat, obsLon, zlq, ztt, waterobs, ilsmOpt)
+  subroutine atmsMwhs2landIceMask(numObsToProcess, obsLat, obsLon, calcLandQualifierIndice, &
+                                  calcTerrainTypeIndice, waterobs, ilsmOpt)
     ! Adapted from: land_ice_mask_ssmis.ftn90 of mwbg_ssmis (D. Anselmo, S. Macpherson)
     !
     ! Object:   This routine sets waterobs array by performing a land/ice proximity check using
@@ -4537,8 +4543,8 @@ contains
     !           The GEM Global (glbhyb2) analysis contains MG and LG fields (on different grids).
     !
     !           NOTE: The 0.1 deg binary ice field check from land_ice_mask_ssmis.ftn90
-    !           was removed. The land/sea qualifier (zlq) and terrain type (ztt) are modified
-    !           to indicate proximity to land and sea-ice but are NOT changed in output BURP file.
+    !           was removed. The land/sea qualifier (calcLandQualifierIndice) and terrain type (calcTerrainTypeIndice) 
+    !           are modified to indicate proximity to land and sea-ice but are NOT changed in output BURP file.
     !
     !           In the application of this check, a 5x5 mesh, with spacing defined by rlat_km and
     !           rlon_km, is positioned with its center over an obs pt (2 grid pts on either side
@@ -4577,9 +4583,9 @@ contains
     ! - numObsToProcess : input  -  number of input obs pts in report
     ! - obsLat     : input  -  array holding lat values for all obs pts in report
     ! - obsLon     : input  -  array holding lon values for all obs pts in report
-    ! - zlq        : in/out -  array holding land/sea qualifier values for all obs
+    ! - calcLandQualifierIndice  : in/out -  array holding land/sea qualifier values for all obs
     !                        pts of report (0 = land, 1 = sea)
-    ! - ztt        : in/out -  array holding terrain-type values for all obs pts
+    ! - calcTerrainTypeIndice  : in/out -  array holding terrain-type values for all obs pts
     !                        of current report (-1 land/open water, 0 = ice)
     ! - waterobs   : output -  logical array identifying for each obs in current report
     !                        whether it is over open water, far from coast/ice
@@ -4619,8 +4625,8 @@ contains
     integer, intent(in)                   :: ilsmOpt    
     real,    intent(in)                   :: obsLat(:)
     real,    intent(in)                   :: obsLon(:)
-    integer, intent(out), allocatable     :: zlq(:)
-    integer, intent(out), allocatable     :: ztt(:)
+    integer, intent(out), allocatable     :: calcLandQualifierIndice(:)
+    integer, intent(out), allocatable     :: calcTerrainTypeIndice(:)
     logical, intent(out), allocatable     :: waterobs(:)
 
     ! Locals:
@@ -4678,8 +4684,8 @@ contains
     call utl_reAllocate(lgintob, mxlat*mxlon)
     call utl_reAllocate(zlatbox, mxlat*mxlon, numObsToProcess)
     call utl_reAllocate(zlonbox, mxlat*mxlon, numObsToProcess)
-    call utl_reAllocate(zlq, numObsToProcess)
-    call utl_reAllocate(ztt, numObsToProcess)
+    call utl_reAllocate(calcLandQualifierIndice, numObsToProcess)
+    call utl_reAllocate(calcTerrainTypeIndice, numObsToProcess)
     call utl_reAllocate(waterobs, numObsToProcess)
 
     ! Open FST file.
@@ -4798,13 +4804,13 @@ contains
     !  Initialize all obs as being over land and free of ice or snow.
     !  Determine which obs are over open water.
     waterobs(:) = .false.   ! not over open water
-    ztt(:) = -1             ! no ice (reset terain type)
-    zlq(:) = 0              ! land   (reset land/sea qualifier)
+    calcTerrainTypeIndice(:) = -1             ! no ice (reset terain type)
+    calcLandQualifierIndice(:) = 0 ! land   (reset land/sea qualifier)
 
     do kk = 1, numObsToProcess
-      if ( mgintrp(kk) < MGthresh ) zlq(kk) = 1  ! ocean point away from coast
-      if ( lgintrp(kk) >= LGthresh .and. zlq(kk) == 1 ) ztt(kk) = 0  ! sea-ice affected point
-      if ( lgintrp(kk)  < LGthresh .and. zlq(kk) == 1 ) then
+      if ( mgintrp(kk) < MGthresh ) calcLandQualifierIndice(kk) = 1  ! ocean point away from coast
+      if ( lgintrp(kk) >= LGthresh .and. calcLandQualifierIndice(kk) == 1 ) calcTerrainTypeIndice(kk) = 0  ! sea-ice affected point
+      if ( lgintrp(kk)  < LGthresh .and. calcLandQualifierIndice(kk) == 1 ) then
         waterobs(kk) = .true.  ! water point not in close proximity to land or sea-ice
       end if
     end do
@@ -4949,25 +4955,26 @@ contains
   ! mwbg_firstQcCheckAtms
   !--------------------------------------------------------------------------
   subroutine mwbg_firstQcCheckAtms(satZenithAngle, landQualifierIndice, terrainTypeIndice, obsLat, obsLon, obsTb, satScanPosition, &
-                                   actualNumChannel, numObsToProcess, lqc, grossrej, lsq, trn, obsQcFlag1, obsQcFlag2, &
-                                   obsChannels, reportHasMissingTb)
+                                   actualNumChannel, numObsToProcess, qcRejectLogic, grossrej, calcLandQualifierIndice, calcTerrainTypeIndice, &
+                                   obsQcFlag1, obsQcFlag2, obsChannels, reportHasMissingTb)
     !  :Purpose: This routine performs basic quality control checks on the data. It sets array
-    !            lqc(numObsToProcess,actualNumChannel) elements to .true. to flag data with failed checks.
+    !            qcRejectLogic(numObsToProcess,actualNumChannel) elements to .true. to flag data with failed checks.
     !
     !  The 6 QC checks are:
     !                 - 1) Invalid land/sea qualifier or terrain type,
     !                 - 2) Invalid field of view number,
     !                 - 3) Satellite zenith angle missing or out of range, (> 75 deg),
     !                 - 4) lat,lon check (lat,lon = O(-90.), 0(-180.))
-    !                 - 5) Change in (computed) lsq,trn from (input) landQualifierIndice,terrainTypeIndice (from MG,LG fields)
+    !                 - 5) Change in (computed) calcLandQualifierIndice,calcTerrainTypeIndice from (input) 
+    !                      landQualifierIndice,terrainTypeIndice (from MG,LG fields).
     !                      landQualifierIndice= 0,1 (from hi-res land/sea mask interpolated to obs point [CMDA])
     !                      terrainTypeIndice=-1,0 (from hi-res ice analysis  interpolated to obs point [CMDA])
-    !                      lsq= 0,1 (from max interp MG (0.0 to 1.0) in box surrounding obs point)
-    !                      trn=-1,0 (from max interp LG (0.0 to 1.0) in box surrounding obs point)
+    !                      calcLandQualifierIndice= 0,1 (from max interp MG (0.0 to 1.0) in box surrounding obs point)
+    !                      calcTerrainTypeIndice=-1,0 (from max interp LG (0.0 to 1.0) in box surrounding obs point)
     !                 - 6) ATMS quality flag check (qual. flag elements 33078,33079,33080,33081)
 
     !
-    !  In most cases, lqc(ii,actualNumChannel) is set to .true. for all channels at point ii
+    !  In most cases, qcRejectLogic(ii,actualNumChannel) is set to .true. for all channels at point ii
     !  if the check detects a problem. In addition, Tb (obsTb) is set to missing_value
     !  for checks 3 and 4 fails.
     implicit none
@@ -4981,30 +4988,31 @@ contains
     integer,              intent(in)                :: obsQcFlag1(:,:)
     integer,              intent(in)                :: numObsToProcess
     integer,              intent(in)                :: actualNumChannel
-    integer,              intent(in)                :: lsq(:)
-    integer,              intent(in)                :: trn(:)
+    integer,              intent(in)                :: calcLandQualifierIndice(:)
+    integer,              intent(in)                :: calcTerrainTypeIndice(:)
     logical,              intent(in)                :: grossrej(:)     ! dim(numObsToProcess), true if 1 or more Tb fail gross error check
     real,                 intent(in)                :: obsLat(:)
     real,                 intent(in)                :: obsLon(:)
     real,                 intent(inout)             :: obsTb(:)
     real,                 intent(inout)             :: satZenithAngle(:)
     logical,              intent(out)               :: reportHasMissingTb ! true if Tb(obsTb) are set to missing_value
-    logical, allocatable, intent(out)               :: lqc(:,:)        ! dim(numObsToProcess,actualNumChannel), lqc = .false. on input
+    logical, allocatable, intent(out)               :: qcRejectLogic(:,:) ! dim(numObsToProcess,actualNumChannel) 
+                                                                          ! qcRejectLogic = .false. on input
 
     ! Locals
     integer :: ii, jj, indx1, icount
     logical :: fail, fail1, fail2
 
     reportHasMissingTb = .false.
-    call utl_reAllocate(lqc, numObsToProcess, actualNumChannel)
-    lqc(:,:) = .false.  ! Flag for preliminary QC checks
+    call utl_reAllocate(qcRejectLogic, numObsToProcess, actualNumChannel)
+    qcRejectLogic(:,:) = .false.  ! Flag for preliminary QC checks
     ! Global rejection checks
 
     ! Check if number of channels is correct
     !if ( actualNumChannel /= mwbg_maxNumChan ) then
     !  write(*,*) 'WARNING: Number of channels (',actualNumChannel, ') is not equal to mwbg_maxNumChan (', mwbg_maxNumChan,')'
     !  write(*,*) '         All data flagged as bad and returning to calling routine!'
-    !  lqc(:,:) = .true.  ! flag all data in report as bad
+    !  qcRejectLogic(:,:) = .true.  ! flag all data in report as bad
     !  return
     !end if
 
@@ -5021,15 +5029,15 @@ contains
       write(*,*) 'WARNING: Bad channel number(s) detected!'
       write(*,*) '         All data flagged as bad and returning to calling routine!'
       write(*,*) '  obsChannels(numObsToProcess*actualNumChannel) array = ', obsChannels(:)
-      lqc(:,:) = .true.  ! flag all data in report as bad
+      qcRejectLogic(:,:) = .true.  ! flag all data in report as bad
       return
     end if
 
     ! 1) invalid land/sea qualifier or terrain type
     !  landQualifierIndice = 0 (land),     1 (sea)
     !  terrainTypeIndice = 0 (sea-ice), -1 otherwise
-    !  lsq = 1 (sea, away from land/coast [MG]),      0 otherwise
-    !  trn = 0 (over or near analyzed sea-ice [LG]), -1 otherwise
+    !  calcLandQualifierIndice = 1 (sea, away from land/coast [MG]),      0 otherwise
+    !  calcTerrainTypeIndice = 0 (over or near analyzed sea-ice [LG]), -1 otherwise
     do ii = 1,numObsToProcess
       fail = .false.
       if ( landQualifierIndice(ii) < 0  .or. landQualifierIndice(ii) > 2 ) fail = .true.
@@ -5044,18 +5052,19 @@ contains
         write(*,*) 'WARNING: Sea ice point (terrainTypeIndice=0) at land point (landQualifierIndice=0)!'
         write(*,*) ' lat, lon =  ', obsLat(ii), obsLon(ii)
       end if
-      if ( fail ) lqc(ii,:) = .true.
+      if ( fail ) qcRejectLogic(ii,:) = .true.
     end do
 
     do ii = 1,numObsToProcess
       fail = .false.
-      if ( lsq(ii) < 0  .or. lsq(ii) > 2 ) fail = .true.
-      if ( trn(ii) < -1 .or. trn(ii) > 1 ) fail = .true.
+      if ( calcLandQualifierIndice(ii) < 0  .or. calcLandQualifierIndice(ii) > 2 ) fail = .true.
+      if ( calcTerrainTypeIndice(ii) < -1 .or. calcTerrainTypeIndice(ii) > 1 ) fail = .true.
       if ( fail ) then
         write(*,*) 'WARNING: Invalid model-based (MG/LG) land/sea qualifier or terrain type!'
-        write(*,*) '  lsq, trn, (lat, lon) = ', lsq(ii), trn(ii), '(',obsLat(ii), obsLon(ii),')'
+        write(*,*) '  calcLandQualifierIndice, calcTerrainTypeIndice, (lat, lon) = ', &
+                   calcLandQualifierIndice(ii), calcTerrainTypeIndice(ii), '(',obsLat(ii), obsLon(ii),')'
       end if
-      if ( fail ) lqc(ii,:) = .true.
+      if ( fail ) qcRejectLogic(ii,:) = .true.
     end do
 
     ! 2) invalid field of view number
@@ -5065,7 +5074,7 @@ contains
         fail = .true.
         write(*,*) 'WARNING: Invalid field of view! satScanPosition, lat, lon = ', satScanPosition(ii), obsLat(ii), obsLon(ii)
       end if
-      if ( fail ) lqc(ii,:) = .true.
+      if ( fail ) qcRejectLogic(ii,:) = .true.
     end do
 
     ! 3) satellite zenith angle missing or out of range (> 75 deg)
@@ -5081,7 +5090,7 @@ contains
       end if
       do jj = 1, actualNumChannel
         if ( fail ) then
-          lqc(ii,jj) = .true.
+          qcRejectLogic(ii,jj) = .true.
           obsTb(indx1+jj-1) = mwbg_realMissing
         end if
       end do
@@ -5103,7 +5112,7 @@ contains
       end if
       do jj = 1, actualNumChannel
         if ( fail ) then
-          lqc(ii,jj) = .true.
+          qcRejectLogic(ii,jj) = .true.
           obsTb(indx1+jj-1) = mwbg_realMissing
         end if
       end do
@@ -5122,7 +5131,7 @@ contains
       end if
       do jj = 1, actualNumChannel
         if ( fail ) then
-          lqc(ii,jj) = .true.
+          qcRejectLogic(ii,jj) = .true.
           obsTb(indx1+jj-1) = mwbg_realMissing
         end if
       end do
@@ -5134,7 +5143,8 @@ contains
     icount = 0
     do ii = 1,numObsToProcess
       fail = .false.
-      if ( (landQualifierIndice(ii) /= lsq(ii)) .or. (terrainTypeIndice(ii) /= trn(ii)) ) then
+      if ( (landQualifierIndice(ii) /= calcLandQualifierIndice(ii)) .or. &
+           (terrainTypeIndice(ii) /= calcTerrainTypeIndice(ii)) ) then
         fail = .true.
       end if
       if ( fail ) then
@@ -5171,14 +5181,14 @@ contains
           fail = .true.
           !if ( (.not. fail1) .and. grossrej(ii) ) write(*,*) ' NOTE: grossrej is also true for this point!'
         end if
-        if ( fail2 .or. fail1 ) lqc(ii,jj) = .true.
+        if ( fail2 .or. fail1 ) qcRejectLogic(ii,jj) = .true.
       end do
       if ( fail ) write(*,*) 'WARNING: DATA BLOCK QC flag ele33081 >= 4 for one or more channels! lat, lon = ', obsLat(ii), obsLon(ii)
       indx1 = indx1 + actualNumChannel
     end do
 
     !write(*,*) 'mwbg_firstQcCheckAtms: Number of data processed and flagged = ', &
-    !           numObsToProcess*actualNumChannel, count(lqc)
+    !           numObsToProcess*actualNumChannel, count(qcRejectLogic)
 
   end subroutine mwbg_firstQcCheckAtms
 
@@ -5186,25 +5196,27 @@ contains
   ! mwbg_firstQcCheckMwhs2
   !--------------------------------------------------------------------------
   subroutine mwbg_firstQcCheckMwhs2(satZenithAngle, landQualifierIndice, terrainTypeIndice, obsLat, obsLon, obsTb, satScanPosition, &
-                                    actualNumChannel, numObsToProcess, lqc, lsq, trn, obsChannels, reportHasMissingTb, modLSQ)
+                                    actualNumChannel, numObsToProcess, qcRejectLogic, calcLandQualifierIndice, calcTerrainTypeIndice, &
+                                    obsChannels, reportHasMissingTb, modLSQ)
     !  :Purpose: This routine performs basic quality control checks on the data. It sets array
-    !            lqc(numObsToProcess,actualNumChannel) elements to .true. to flag data with failed checks. Check 1
+    !            qcRejectLogic(numObsToProcess,actualNumChannel) elements to .true. to flag data with failed checks. Check 1
     !            (for landQualifierIndice,terrainTypeIndice) and check 5 are skipped if modlsqtt=.true., 
-    !            as the original values will be replaced in output file by lsq,trn.
+    !            as the original values will be replaced in output file by calcLandQualifierIndice,calcTerrainTypeIndice.
     !
     !  The 5 QC checks are:
     !                 - 1) Invalid land/sea qualifier or terrain type,
     !                 - 2) Invalid field of view number,
     !                 - 3) Satellite zenith angle missing or out of range, (> 75 deg),
     !                 - 4) lat,lon check (lat,lon = O(-90.), 0(-180.))
-    !                 - 5) Change in (computed) lsq,trn from (input) landQualifierIndice,terrainTypeIndice (from MG,LG fields)
+    !                 - 5) Change in (computed) calcLandQualifierIndice,calcTerrainTypeIndice 
+    !                      from (input) landQualifierIndice,terrainTypeIndice (from MG,LG fields).
     !                      landQualifierIndice= 0,1 (from hi-res land/sea mask interpolated to obs point [CMDA])
     !                      terrainTypeIndice=-1,0 (from hi-res ice analysis  interpolated to obs point [CMDA])
-    !                      lsq= 0,1 (from max interp MG (0.0 to 1.0) in box surrounding obs point)
-    !                      trn=-1,0 (from max interp LG (0.0 to 1.0) in box surrounding obs point)
+    !                      calcLandQualifierIndice= 0,1 (from max interp MG (0.0 to 1.0) in box surrounding obs point)
+    !                      calcTerrainTypeIndice=-1,0 (from max interp LG (0.0 to 1.0) in box surrounding obs point)
 
     !
-    !  In most cases, lqc(ii,actualNumChannel) is set to .true. for all channels at point ii
+    !  In most cases, qcRejectLogic(ii,actualNumChannel) is set to .true. for all channels at point ii
     !  if the check detects a problem. In addition, Tb (obsTb) is set to missing_value
     !  for checks 3 and 4 fails.
     implicit none
@@ -5216,30 +5228,31 @@ contains
     integer,              intent(in)                :: obsChannels(:)
     integer,              intent(in)                :: numObsToProcess
     integer,              intent(in)                :: actualNumChannel
-    integer,              intent(in)                :: lsq(:)
-    integer,              intent(in)                :: trn(:)
+    integer,              intent(in)                :: calcLandQualifierIndice(:)
+    integer,              intent(in)                :: calcTerrainTypeIndice(:)
     real,                 intent(in)                :: obsLat(:)
     real,                 intent(in)                :: obsLon(:)
     real,                 intent(inout)             :: obsTb(:)
     real,                 intent(inout)             :: satZenithAngle(:)
     logical,              intent(out)               :: reportHasMissingTb ! true if Tb(obsTb) are set to missing_value
     logical,              intent(in)                :: modLSQ
-    logical, allocatable, intent(out)               :: lqc(:,:)  ! dim(numObsToProcess,actualNumChannel), lqc = .false. on input
+    logical, allocatable, intent(out)               :: qcRejectLogic(:,:) ! dim(numObsToProcess,actualNumChannel)
+                                                                          ! qcRejectLogic = .false. on input
 
     ! Locals
     integer :: ii, jj, indx1, icount
     logical :: fail
 
     reportHasMissingTb = .false.
-    call utl_reAllocate(lqc, numObsToProcess, actualNumChannel)
-    lqc(:,:) = .false.  ! Flag for preliminary QC checks
+    call utl_reAllocate(qcRejectLogic, numObsToProcess, actualNumChannel)
+    qcRejectLogic(:,:) = .false.  ! Flag for preliminary QC checks
     ! Global rejection checks
 
     ! Check if number of channels is correct
     !if ( actualNumChannel /= mwbg_maxNumChan ) then
     !  write(*,*) 'WARNING: Number of channels (',actualNumChannel, ') is not equal to mwbg_maxNumChan (', mwbg_maxNumChan,')'
     !  write(*,*) '         All data flagged as bad and returning to calling routine!'
-    !  lqc(:,:) = .true.  ! flag all data in report as bad
+    !  qcRejectLogic(:,:) = .true.  ! flag all data in report as bad
     !  return
     !end if
 
@@ -5256,15 +5269,15 @@ contains
       write(*,*) 'WARNING: Bad channel number(s) detected!'
       write(*,*) '         All data flagged as bad and returning to calling routine!'
       write(*,*) '  obsChannels(numObsToProcess*actualNumChannel) array = ', obsChannels(:)
-      lqc(:,:) = .true.  ! flag all data in report as bad
+      qcRejectLogic(:,:) = .true.  ! flag all data in report as bad
       return
     end if
 
     ! 1) invalid land/sea qualifier or terrain type
     !  landQualifierIndice = 0 (land),     1 (sea)
     !  terrainTypeIndice = 0 (sea-ice), -1 otherwise
-    !  lsq = 1 (sea, away from land/coast [MG]),      0 otherwise
-    !  trn = 0 (over or near analyzed sea-ice [LG]), -1 otherwise
+    !  calcLandQualifierIndice = 1 (sea, away from land/coast [MG]),      0 otherwise
+    !  calcTerrainTypeIndice = 0 (over or near analyzed sea-ice [LG]), -1 otherwise
 
     ! Checks on landQualifierIndice,terrainTypeIndice are not done if values are to be replaced in output file.
 
@@ -5283,19 +5296,20 @@ contains
           write(*,*) 'WARNING: Sea ice point (terrainTypeIndice=0) at land point (landQualifierIndice=0)!'
           write(*,*) ' lat, lon =  ', obsLat(ii), obsLon(ii)
         end if
-        if ( fail ) lqc(ii,:) = .true.
+        if ( fail ) qcRejectLogic(ii,:) = .true.
       end do
     end if
 
     do ii = 1,numObsToProcess
       fail = .false.
-      if ( lsq(ii) < 0  .or. lsq(ii) > 2 ) fail = .true.
-      if ( trn(ii) < -1 .or. trn(ii) > 1 ) fail = .true.
+      if ( calcLandQualifierIndice(ii) < 0  .or. calcLandQualifierIndice(ii) > 2 ) fail = .true.
+      if ( calcTerrainTypeIndice(ii) < -1 .or. calcTerrainTypeIndice(ii) > 1 ) fail = .true.
       if ( fail ) then
         write(*,*) 'WARNING: Invalid model-based (MG/LG) land/sea qualifier or terrain type!'
-        write(*,*) '  lsq, trn, (lat, lon) = ', lsq(ii), trn(ii), '(',obsLat(ii), obsLon(ii),')'
+        write(*,*) '  calcLandQualifierIndice, calcTerrainTypeIndice, (lat, lon) = ', &
+                   calcLandQualifierIndice(ii), calcTerrainTypeIndice(ii), '(',obsLat(ii), obsLon(ii),')'
       end if
-      if ( fail ) lqc(ii,:) = .true.
+      if ( fail ) qcRejectLogic(ii,:) = .true.
     end do
 
     ! 2) invalid field of view number
@@ -5305,7 +5319,7 @@ contains
         fail = .true.
         write(*,*) 'WARNING: Invalid field of view! satScanPosition, lat, lon = ', satScanPosition(ii), obsLat(ii), obsLon(ii)
       end if
-      if ( fail ) lqc(ii,:) = .true.
+      if ( fail ) qcRejectLogic(ii,:) = .true.
     end do
 
     ! 3) satellite zenith angle missing or out of range (> 75 deg)
@@ -5321,7 +5335,7 @@ contains
       end if
       do jj = 1, actualNumChannel
         if ( fail ) then
-          lqc(ii,jj) = .true.
+          qcRejectLogic(ii,jj) = .true.
           obsTb(indx1+jj-1) = mwbg_realMissing
         end if
       end do
@@ -5343,7 +5357,7 @@ contains
       end if
       do jj = 1, actualNumChannel
         if ( fail ) then
-          lqc(ii,jj) = .true.
+          qcRejectLogic(ii,jj) = .true.
           obsTb(indx1+jj-1) = mwbg_realMissing
         end if
       end do
@@ -5362,7 +5376,7 @@ contains
       end if
       do jj = 1, actualNumChannel
         if ( fail ) then
-          lqc(ii,jj) = .true.
+          qcRejectLogic(ii,jj) = .true.
           obsTb(indx1+jj-1) = mwbg_realMissing
         end if
       end do
@@ -5375,7 +5389,7 @@ contains
       icount = 0
       do ii = 1,numObsToProcess
         fail = .false.
-        if ( (landQualifierIndice(ii) /= lsq(ii)) .or. (terrainTypeIndice(ii) /= trn(ii)) ) then
+        if ( (landQualifierIndice(ii) /= calcLandQualifierIndice(ii)) .or. (terrainTypeIndice(ii) /= calcTerrainTypeIndice(ii)) ) then
           fail = .true.
         end if
         if ( fail ) then
@@ -5390,7 +5404,8 @@ contains
   ! mwbg_nrlFilterAtms
   !--------------------------------------------------------------------------
   subroutine mwbg_nrlFilterAtms(numObsToProcess, actualNumChannel, obsTb, ompTb, obsTbBiasCorr, satZenithAngle, obsLat, &
-                                ilansea, iglace, waterobs, grossrej, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                                calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
+                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                 si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce)
     !OBJET          Compute the following parameters using 5 ATMS channels:
     !                  - sea ice,
@@ -5401,7 +5416,7 @@ contains
     !
     !NOTES*
     !                - open water points are converted to sea-ice points if sea ice concentration >= 0.55
-    !                   and iglace (terrainTypeIndice or terrain type) is changed accordingly
+    !                   and calcTerrainTypeIndice (terrainTypeIndice or terrain type) is changed accordingly
     !                - cloudLiquidWaterPathObs are missing when out-of-range parameters/Tb detected or grossrej = .true.
     !                - cloudLiquidWaterPathObs and si only computed over open water away from coasts and sea-ice
     !                - cloudLiquidWaterPathObs and si = -99.0 where value cannot be computed.
@@ -5423,8 +5438,8 @@ contains
     !               - tb165       - input  -  165Ghz brightness temperature (K) -- ch. 17
     !               - satZenithAngle - input  -  satellite zenith angle (deg.)
     !               - obsLat      - input  -  latitude (deg.)
-    !               - ilansea     - input  -  land/sea indicator (0=land, 1=ocean)
-    !               - iglace      - in/out -  terrain type (0=ice, -1 otherwise)
+    !               - calcLandQualifierIndice - input  -  land/sea indicator (0=land, 1=ocean)
+    !               - calcTerrainTypeIndice  - in/out -  terrain type (0=ice, -1 otherwise)
     !               - waterobs    - in/out -  .true. if open water point (away from coasts and sea-ice)
     !               - grossrej    - input  -  .true. if any channel had a gross error from mwbg_grossValueCheck
     !               - cloudLiquidWaterPathObs      - output -  cloud liquid water from observation (kg/m**2) from tb23 & tb31
@@ -5434,7 +5449,7 @@ contains
     !               - iNumSeaIce  - in/out -  running counter for number of open water points
     !                                       with sea-ice detected (from algorithm)
     !               - iRej        - in/out -  running counter for number of locations with bad
-    !                                       satZenithAngle, obsLat, ilansea, or with grossrej=true
+    !                                       satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
     !               - SeaIce      - output -  computed sea-ice fraction from tb23 & tb50
     !
     !               - ice         - internal -  sea ice
@@ -5450,8 +5465,8 @@ contains
     integer, intent(in)                   ::  numObsToProcess
     integer, intent(in)                   ::  actualNumChannel
     integer, intent(out)                  ::  iNumSeaIce
-    integer, intent(in)                   ::  ilansea(:)
-    integer, intent(inout)                ::  iglace(:)
+    integer, intent(in)                   ::  calcLandQualifierIndice(:)
+    integer, intent(inout)                ::  calcTerrainTypeIndice(:)
     integer, intent(out)                  ::  iRej
 
 
@@ -5554,8 +5569,8 @@ contains
            satZenithAngle(i) > 70. .or. &
            obsLat(i)  < -90.  .or. &
            obsLat(i)  >  90.  .or. &
-           ilansea(i) <   0   .or. &
-           ilansea(i) >   1        ) then
+           calcLandQualifierIndice(i) < 0 .or. &
+           calcLandQualifierIndice(i) > 1 ) then
          ier(i) = 1
       end if
 
@@ -5604,7 +5619,7 @@ contains
         t31FG = tb31FG(i)
 
         ! Check for sea-ice over water points. Set terrain type to 0 if ice>=0.55 detected.
-        if ( ilansea(i) == 1 ) then  ! water point
+        if ( calcLandQualifierIndice(i) == 1 ) then  ! water point
 
           if ( abslat < 50. ) then
             ice(i) = 0.0
@@ -5617,7 +5632,7 @@ contains
           if ( ice(i) >= 0.55 .and. waterobs(i) ) then
             iNumSeaIce = iNumSeaIce + 1
             waterobs(i) = .false.
-            iglace(i) = 0
+            calcTerrainTypeIndice(i) = 0
           end if
 
         end if
@@ -5645,10 +5660,10 @@ contains
 
       if ( mwbg_debug .and. (i <= 100) ) then
         write(*,*) ' '
-        write(*,*) ' i,tb23(i),tb23FG(i),tb31(i),tb31FG(i),tb50(i),tb89(i),tb165(i),satZenithAngle(i),obsLat(i), ilansea(i) = ', &
-     &             i,tb23(i),tb23FG(i),tb31(i),tb31FG(i),tb50(i),tb89(i),tb165(i),satZenithAngle(i),obsLat(i), ilansea(i)
-        write(*,*) ' ier(i),ice(i),cloudLiquidWaterPathObs(i),cloudLiquidWaterPathFG(i),si_ecmwf(i),si_bg(i),iglace(i),waterobs(i) =',ier(i),ice(i),&
-     &             cloudLiquidWaterPathObs(i),cloudLiquidWaterPathFG(i),si_ecmwf(i),si_bg(i),iglace(i),waterobs(i)
+        write(*,*) ' i,tb23(i),tb23FG(i),tb31(i),tb31FG(i),tb50(i),tb89(i),tb165(i),satZenithAngle(i),obsLat(i), calcLandQualifierIndice(i) = ', &
+     &             i,tb23(i),tb23FG(i),tb31(i),tb31FG(i),tb50(i),tb89(i),tb165(i),satZenithAngle(i),obsLat(i), calcLandQualifierIndice(i)
+        write(*,*) ' ier(i),ice(i),cloudLiquidWaterPathObs(i),cloudLiquidWaterPathFG(i),si_ecmwf(i),si_bg(i),calcTerrainTypeIndice(i),waterobs(i) =',ier(i),ice(i),&
+     &             cloudLiquidWaterPathObs(i),cloudLiquidWaterPathFG(i),si_ecmwf(i),si_bg(i),calcTerrainTypeIndice(i),waterobs(i)
       end if
 
     end do   ! i loop over numObsToProcess points
@@ -5659,7 +5674,8 @@ contains
   ! mwbg_nrlFilterMwhs2
   !--------------------------------------------------------------------------
   subroutine mwbg_nrlFilterMwhs2(numObsToProcess, actualNumChannel, obsTb, obsTbBiasCorr, satZenithAngle, obsLat, &
-                                 ilansea, iglace, waterobs, grossrej, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                                 calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
+                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                  si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce)
     !OBJET          Compute the following parameters using 2 MWHS2 channels:
     !                  - sea ice,
@@ -5670,7 +5686,7 @@ contains
     !
     !NOTES*
     !                - open water points are converted to sea-ice points if sea ice concentration >= 0.55
-    !                   and iglace (terrainTypeIndice or terrain type) is changed accordingly
+    !                   and calcTerrainTypeIndice (terrainTypeIndice or terrain type) is changed accordingly
     !                - cloudLiquidWaterPathObs are missing when out-of-range parameters/Tb detected or grossrej = .true.
     !                - cloudLiquidWaterPathObs and si_ecmwf only computed over open water away from coasts and sea-ice
     !                - si_bg is computed for all points
@@ -5693,8 +5709,8 @@ contains
     !               - tb165       - input  -  165Ghz brightness temperature (K) -- ch. 17
     !               - satZenithAngle - input  -  satellite zenith angle (deg.)
     !               - obsLat      - input  -  latitude (deg.)
-    !               - ilansea     - input  -  land/sea indicator (0=land, 1=ocean)
-    !               - iglace      - in/out -  terrain type (0=ice, -1 otherwise)
+    !               - calcLandQualifierIndice  - input  -  land/sea indicator (0=land, 1=ocean)
+    !               - calcTerrainTypeIndice  - in/out -  terrain type (0=ice, -1 otherwise)
     !               - waterobs    - in/out -  .true. if open water point (away from coasts and sea-ice)
     !               - grossrej    - input  -  .true. if any channel had a gross error from mwbg_grossValueCheck
     !               - cloudLiquidWaterPathObs - output -  cloud liquid water from observation (kg/m**2) from tb23 & tb31
@@ -5704,7 +5720,7 @@ contains
     !               - iNumSeaIce  - in/out -  running counter for number of open water points
     !                                       with sea-ice detected (from algorithm)
     !               - iRej        - in/out -  running counter for number of locations with bad
-    !                                       satZenithAngle, obsLat, ilansea, or with grossrej=true
+    !                                       satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
     !               - SeaIce      - output -  computed sea-ice fraction from tb23 & tb50
     !
     !               - ice         - internal -  sea ice
@@ -5720,8 +5736,8 @@ contains
     integer, intent(in)                   ::  numObsToProcess
     integer, intent(in)                   ::  actualNumChannel
     integer, intent(out)                  ::  iNumSeaIce
-    integer, intent(in)                   ::  ilansea(:)
-    integer, intent(inout)                ::  iglace(:)
+    integer, intent(in)                   ::  calcLandQualifierIndice(:)
+    integer, intent(inout)                ::  calcTerrainTypeIndice(:)
     integer, intent(out)                  ::  iRej
 
 
@@ -5827,8 +5843,8 @@ contains
            satZenithAngle(i) > 70. .or. &
            obsLat(i)  < -90.  .or. &
            obsLat(i)  >  90.  .or. &
-           ilansea(i) <   0   .or. &
-           ilansea(i) >   1        ) then
+           calcLandQualifierIndice(i) < 0 .or. &
+           calcLandQualifierIndice(i) > 1 ) then
          ier(i) = 1
       end if
 
@@ -5877,7 +5893,7 @@ contains
         t31FG = tb31FG(i)
 
         ! Check for sea-ice over water points. Set terrain type to 0 if ice>=0.55 detected.
-        if ( ilansea(i) == 1 .and. t23 /= mwbg_realMissing ) then  ! water point
+        if ( calcLandQualifierIndice(i) == 1 .and. t23 /= mwbg_realMissing ) then  ! water point
 
           if ( abslat < 50. ) then
             ice(i) = 0.0
@@ -5889,7 +5905,7 @@ contains
           if ( ice(i) >= 0.55 .and. waterobs(i) ) then
             iNumSeaIce = iNumSeaIce + 1
             waterobs(i) = .false.
-            iglace(i) = 0
+            calcTerrainTypeIndice(i) = 0
           end if
 
         end if
@@ -5921,10 +5937,10 @@ contains
 
       if ( mwbg_debug .and. (i <= 100) ) then
         write(*,*) ' '
-        write(*,*) ' i,tb23(i),tb23FG(i),tb31(i),tb31FG(i),tb50(i),tb89(i),tb165(i),satZenithAngle(i),obsLat(i), ilansea(i) = ', &
-     &             i,tb23(i),tb23FG(i),tb31(i),tb31FG(i),tb50(i),tb89(i),tb165(i),satZenithAngle(i),obsLat(i), ilansea(i)
-        write(*,*) ' ier(i),ice(i),cloudLiquidWaterPathObs(i),cloudLiquidWaterPathFG(i),si_ecmwf(i),si_bg(i),iglace(i),waterobs(i) =',ier(i),ice(i),&
-     &             cloudLiquidWaterPathObs(i),cloudLiquidWaterPathFG(i),si_ecmwf(i),si_bg(i),iglace(i),waterobs(i)
+        write(*,*) ' i,tb23(i),tb23FG(i),tb31(i),tb31FG(i),tb50(i),tb89(i),tb165(i),satZenithAngle(i),obsLat(i), calcLandQualifierIndice(i) = ', &
+     &             i,tb23(i),tb23FG(i),tb31(i),tb31FG(i),tb50(i),tb89(i),tb165(i),satZenithAngle(i),obsLat(i), calcLandQualifierIndice(i)
+        write(*,*) ' ier(i),ice(i),cloudLiquidWaterPathObs(i),cloudLiquidWaterPathFG(i),si_ecmwf(i),si_bg(i),calcTerrainTypeIndice(i),waterobs(i) =',ier(i),ice(i),&
+     &             cloudLiquidWaterPathObs(i),cloudLiquidWaterPathFG(i),si_ecmwf(i),si_bg(i),calcTerrainTypeIndice(i),waterobs(i)
       end if
 
     end do   ! i loop over numObsToProcess points
@@ -6221,7 +6237,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_reviewAllCritforFinalFlagsAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_reviewAllCritforFinalFlagsAtms(numObsToProcess, actualNumChannel, lqc, grossrej, waterobs, &
+  subroutine mwbg_reviewAllCritforFinalFlagsAtms(numObsToProcess, actualNumChannel, qcRejectLogic, grossrej, waterobs, &
                                                  precipobs, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg, &
                                                  scatIndexOverWaterObs, scatIndexOverWaterFG, iwvreject, riwv, obsFlags, &
                                                  obsGlobalMarker, zdi, newInformationFlag, drycnt, landcnt, &
@@ -6238,7 +6254,7 @@ contains
     ! Arguments
     integer, intent(in)                        :: numObsToProcess
     integer, intent(in)                        :: actualNumChannel
-    logical, intent(in)                        :: lqc(:,:)
+    logical, intent(in)                        :: qcRejectLogic(:,:)
     real, intent(inout)                        :: cloudLiquidWaterPathObs(:)
     real, intent(inout)                        :: cloudLiquidWaterPathFG(:)
     real, intent(in)                           :: scatec(:)
@@ -6275,7 +6291,7 @@ contains
     call utl_reAllocate(scatIndexOverWaterObs,numObsToProcess)
     call utl_reAllocate(scatIndexOverWaterFG, numObsToProcess)
 
-    lflagchn(:,:) = lqc(:,:)  ! initialize with flags set in mwbg_firstQcCheckAtms
+    lflagchn(:,:) = qcRejectLogic(:,:)  ! initialize with flags set in mwbg_firstQcCheckAtms
     do kk = 1, numObsToProcess
       ! Reject all channels if gross Tb error detected in any channel or other problems
       if ( grossrej(kk) ) then
@@ -6415,7 +6431,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_reviewAllCritforFinalFlagsMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_reviewAllCritforFinalFlagsMwhs2(numObsToProcess, actualNumChannel, lqc, grossrej, trn, waterobs, &
+  subroutine mwbg_reviewAllCritforFinalFlagsMwhs2(numObsToProcess, actualNumChannel, qcRejectLogic, grossrej, calcTerrainTypeIndice, waterobs, &
                                                   precipobs, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg, &
                                                   scatIndexOverWaterObs, scatIndexOverWaterFG, iwvreject, riwv, obsFlags, &
                                                   obsGlobalMarker, zdi, newInformationFlag, allcnt, drycnt, landcnt, &
@@ -6432,7 +6448,7 @@ contains
     ! Arguments
     integer, intent(in)                        :: numObsToProcess
     integer, intent(in)                        :: actualNumChannel
-    logical, intent(in)                        :: lqc(:,:)
+    logical, intent(in)                        :: qcRejectLogic(:,:)
     real, intent(inout)                        :: cloudLiquidWaterPathObs(:)
     real, intent(inout)                        :: cloudLiquidWaterPathFG(:)
     real, intent(in)                           :: scatec(:)
@@ -6455,7 +6471,7 @@ contains
     integer, intent(inout)                     :: iwvcnt
     integer, intent(inout)                     :: pcpcnt
     integer, intent(inout)                     :: flgcnt
-    integer, intent(inout)                     :: trn(:)
+    integer, intent(inout)                     :: calcTerrainTypeIndice(:)
     integer, intent(in)                        :: MXCLWREJ
     integer, intent(in)                        :: chanIgnoreInAllskyGenCoeff(:)
     integer, intent(in)                        :: obsChannels(:)
@@ -6472,7 +6488,7 @@ contains
     call utl_reAllocate(scatIndexOverWaterObs,numObsToProcess)
     call utl_reAllocate(scatIndexOverWaterFG, numObsToProcess)
 
-    lflagchn(:,:) = lqc(:,:)  ! initialize with flags set in mwbg_firstQcCheckMwhs2
+    lflagchn(:,:) = qcRejectLogic(:,:)  ! initialize with flags set in mwbg_firstQcCheckMwhs2
     do kk = 1, numObsToProcess
       allcnt = allcnt + 1  ! Counting total number of observations
       ! Reject all channels if gross Tb error detected in any channel or other problems
@@ -6510,7 +6526,7 @@ contains
           end if
 
           ! Bennartz -Grody SI check thresholds (same as for QC of AMSU-B/MHS)
-          if ( trn(kk) == 0 ) then ! sea-ice
+          if ( calcTerrainTypeIndice(kk) == 0 ) then ! sea-ice
             scatbg_rej = scatbg_mwhs2_cmc_ICErej
           else                     ! land
             scatbg_rej = scatbg_mwhs2_cmc_LANDrej
