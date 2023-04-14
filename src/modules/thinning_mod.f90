@@ -125,8 +125,9 @@ contains
     ! Namelist variables
     logical :: verticalThinningES ! choose to do vertical thinning of humidity obs
     logical :: ecmwfRejetsES      ! choose to do filtering of T-Td obs with approach similar to ECMWF
+    real(4) :: toleranceFactor    ! Tolerance factor for TAC vs BUFR selection
 
-    namelist /thin_raobs/ verticalThinningES, ecmwfRejetsES
+    namelist /thin_raobs/ verticalThinningES, ecmwfRejetsES, toleranceFactor
 
     ! return if no aircraft obs
     if (.not. obs_famExist(obsdat,'UA')) return
@@ -134,6 +135,7 @@ contains
     ! Default values for namelist variables
     verticalThinningES = .true.
     ecmwfRejetsES = .true.
+    toleranceFactor = 1.4
 
     ! Read the namelist for Radiosonde observations (if it exists)
     if (utl_isNamelistPresent('thin_raobs','./flnml')) then
@@ -152,7 +154,7 @@ contains
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
-    call thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES)
+    call thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES, toleranceFactor)
     call utl_tmg_stop(114)
 
   end subroutine thn_thinRaobs
@@ -1357,7 +1359,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_radiosonde
   !--------------------------------------------------------------------------
-  subroutine thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES)
+  subroutine thn_radiosonde(obsdat, verticalThinningES, ecmwfRejetsES, toleranceFactor)
     !
     ! :Purpose: Original method for thinning radiosonde data vertically.
     !           We assume that each vertical level is stored in obsSpaceData
@@ -1370,6 +1372,7 @@ contains
     type(struct_obs), intent(inout) :: obsdat
     logical,          intent(in)    :: verticalThinningES
     logical,          intent(in)    :: ecmwfRejetsES
+    real(4),          intent(in)    :: toleranceFactor
 
     ! Locals:
     type(struct_hco), pointer :: hco_sfc
@@ -1712,7 +1715,7 @@ contains
                                           obsHeadDateMpi, trajFlagsMpi, &
                                           obsFlagsMpi, obsValuesMpi, oMinusBMpi, &
                                           obsLaunchTimeMpi, stationFlagsMpi, &
-                                          numVars, numStationMpi )
+                                          numVars, numStationMpi, toleranceFactor )
 
     ! modify obs flags based on stnIdMpi
     do stationIndexMpi = 1, numStationMpi
@@ -2107,7 +2110,7 @@ contains
   subroutine raobs_check_duplicated_stations ( stnId, obsLevOffset, obsLat, obsLon,  &
                                                obsHeadDate, trajFlags, obsFlags, obsValues, &
                                                oMinusB, obsLaunchTime, stationFlags, &
-                                               numVars, numStation )
+                                               numVars, numStation, toleranceFactor )
     ! :Purpose: Check duplicated stations and select the best TAC/BUFR profiles
 
     implicit none
@@ -2116,7 +2119,7 @@ contains
     integer,           intent(in)    :: numVars, numStation
     integer,           intent(in)    :: obsHeadDate(:), obsLaunchTime(:), stationFlags(:)
     real(4),           intent(in)    :: obsLat(:), obsLon(:)
-    real(4),           intent(in)    :: obsValues(:,:), oMinusB(:,:)
+    real(4),           intent(in)    :: obsValues(:,:), oMinusB(:,:), toleranceFactor
     integer,           intent(in)    :: trajFlags(:,:)
     integer,           intent(in)    :: obsFlags(:,:)
     integer,           intent(in)    :: obsLevOffset(:)
@@ -2227,7 +2230,7 @@ contains
                                             stationFlags, trajFlags, obsFlags, obsValues, &
                                             oMinusB, obsLevOffset, &
                                             numVars, cloche, selectCriteria, &
-                                            selectStationIndex)
+                                            selectStationIndex, toleranceFactor)
 
                 numCriteria(selectCriteria) = numCriteria(selectCriteria) + 1
 
@@ -2407,7 +2410,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine raobs_compare_profiles( stationIndex, stationIndex2, stationFlags, trajFlags, &
                                      obsFlags, obsValues, oMinusB, obsLevOffset, numVars, &
-                                     cloche, selectCriteria, selectStationIndex )
+                                     cloche, selectCriteria, selectStationIndex, toleranceFactor )
     ! :Purpose: Perform a comparison between two raobs profiles.
 
     implicit none
@@ -2416,7 +2419,7 @@ contains
     integer,           intent(in)    :: stationIndex, stationIndex2, numVars
     integer,           intent(in)    :: trajFlags(:,:)
     integer,           intent(in)    :: obsFlags(:,:)
-    real(4),           intent(in)    :: obsValues(:,:), oMinusB(:,:)
+    real(4),           intent(in)    :: obsValues(:,:), oMinusB(:,:), toleranceFactor
     integer,           intent(in)    :: obsLevOffset(:), stationFlags(:)
     integer,           intent(inout) :: cloche(:)
     integer,           intent(out)   :: selectCriteria, selectStationIndex
@@ -2428,12 +2431,11 @@ contains
     integer :: countValues(2), thisStationIndex
     real(4) :: presBottom, ombBottom, deltaPres, sumDeltaPres, oMinusBavg
     real(4) :: sumEnergy, presLower, presUpper
-    real(4) :: percentTrajBad, toleranceFactor
+    real(4) :: percentTrajBad
     real(4) :: sumEnergyVar(numVars,2), energyTot(2)
     real(4) :: presLowerTacBufr(numVars,2), presUpperTacBufr(numVars,2)
 
     percentTrajBad = 10.0
-    toleranceFactor     =  1.4
     catIndex = 1
     selectCriteria = 1
 
