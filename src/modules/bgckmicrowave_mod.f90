@@ -189,22 +189,22 @@ contains
     !          - 89 Ghz = AMSU-A15 = channel #42
     implicit none
     ! Arguments
-    integer,     intent(in)               :: actualNumChannel                    ! nombre de canaux des observations 
-    integer,     intent(in)               :: numObsToProcess                    ! nombre de tovs
-    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
+    integer,     intent(in)               :: actualNumChannel                                   ! nombre de canaux des observations 
+    integer,     intent(in)               :: numObsToProcess                                    ! nombre de tovs
+    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess)    ! observations channels
     real,        intent(in)               :: obsTb2D(actualNumChannel,numObsToProcess)          ! radiances
-    real,        intent(in)               :: ompTb2D(actualNumChannel,numObsToProcess)        ! radiances o-p
-    real,        intent(in)               :: obsTbBiasCorr2D(actualNumChannel,numObsToProcess) ! correction aux radiances
-    real,        intent(out)              :: tb23(numObsToProcess)              ! radiance frequence 23 Ghz   
-    real,        intent(out)              :: tb31(numObsToProcess)              ! radiance frequence 31 Ghz
-    real,        intent(out)              :: tb50(numObsToProcess)              ! radiance frequence 50 Ghz  
-    real,        intent(out)              :: tb53(numObsToProcess)              ! radiance frequence 53 Ghz  
-    real,        intent(out)              :: tb89(numObsToProcess)              ! radiance frequence 89 Ghz  
-    real,        intent(out)              :: tb23FG(numObsToProcess)            ! radiance frequence 23 Ghz   
-    real,        intent(out)              :: tb31FG(numObsToProcess)            ! radiance frequence 31 Ghz
-    real,        intent(out)              :: tb50FG(numObsToProcess)            ! radiance frequence 50 Ghz  
-    real,        intent(out)              :: tb53FG(numObsToProcess)            ! radiance frequence 53 Ghz  
-    real,        intent(out)              :: tb89FG(numObsToProcess)            ! radiance frequence 89 Ghz        
+    real,        intent(in)               :: ompTb2D(actualNumChannel,numObsToProcess)          ! radiances o-p
+    real,        intent(in)               :: obsTbBiasCorr2D(actualNumChannel,numObsToProcess)  ! correction aux radiances
+    real,        intent(out)              :: tb23(numObsToProcess)                              ! radiance frequence 23 Ghz   
+    real,        intent(out)              :: tb31(numObsToProcess)                              ! radiance frequence 31 Ghz
+    real,        intent(out)              :: tb50(numObsToProcess)                              ! radiance frequence 50 Ghz  
+    real,        intent(out)              :: tb53(numObsToProcess)                              ! radiance frequence 53 Ghz  
+    real,        intent(out)              :: tb89(numObsToProcess)                              ! radiance frequence 89 Ghz  
+    real,        intent(out)              :: tb23FG(numObsToProcess)                            ! radiance frequence 23 Ghz   
+    real,        intent(out)              :: tb31FG(numObsToProcess)                            ! radiance frequence 31 Ghz
+    real,        intent(out)              :: tb50FG(numObsToProcess)                            ! radiance frequence 50 Ghz  
+    real,        intent(out)              :: tb53FG(numObsToProcess)                            ! radiance frequence 53 Ghz  
+    real,        intent(out)              :: tb89FG(numObsToProcess)                            ! radiance frequence 89 Ghz        
 
     ! Locals
     integer                               :: channelval
@@ -276,22 +276,22 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)               :: actualNumChannel                    ! nombre de canaux des observations 
-    integer,     intent(in)               :: numObsToProcess                    ! nombre de tovs    
-    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
+    integer,     intent(in)               :: actualNumChannel                                   ! nombre de canaux des observations 
+    integer,     intent(in)               :: numObsToProcess                                    ! nombre de tovs    
+    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess)    ! observations channels
     real,        intent(in)               :: obsTb2D(actualNumChannel,numObsToProcess)          ! radiances
-    real,        intent(in)               :: btClear2D(actualNumChannel,numObsToProcess)     ! clear-sky radiances from background
-    real,        intent(in)               :: ompTb2D(actualNumChannel,numObsToProcess)        ! radiances o-p
-    real,        intent(in)               :: obsTbBiasCorr2D(actualNumChannel,numObsToProcess) ! correction aux radiances
-    real,        intent(out)              :: tb89(numObsToProcess)              ! 89GHz radiance from observation
-    real,        intent(out)              :: tb150(numObsToProcess)             ! 150GHz radiance from observation
-    real,        intent(out)              :: tb1831(numObsToProcess)            ! 183GHz radiance from observation
-    real,        intent(out)              :: tb1832(numObsToProcess)            ! 183GHz radiance from observation
-    real,        intent(out)              :: tb1833(numObsToProcess)            ! 183GHz radiance from observation
-    real,        intent(out)              :: tb89FG(numObsToProcess)            ! 89GHz radiance from background
-    real,        intent(out)              :: tb150FG(numObsToProcess)           ! 150GHz radiance from background
-    real,        intent(out)              :: tb89FgClear(numObsToProcess)       ! 89GHz clear-sky radiance from background
-    real,        intent(out)              :: tb150FgClear(numObsToProcess)      ! 150GHz clear-sky radiance from background
+    real,        intent(in)               :: btClear2D(actualNumChannel,numObsToProcess)        ! clear-sky radiances from background
+    real,        intent(in)               :: ompTb2D(actualNumChannel,numObsToProcess)          ! radiances o-p
+    real,        intent(in)               :: obsTbBiasCorr2D(actualNumChannel,numObsToProcess)  ! correction aux radiances
+    real,        intent(out)              :: tb89(numObsToProcess)                              ! 89GHz radiance from observation
+    real,        intent(out)              :: tb150(numObsToProcess)                             ! 150GHz radiance from observation
+    real,        intent(out)              :: tb1831(numObsToProcess)                            ! 183GHz radiance from observation
+    real,        intent(out)              :: tb1832(numObsToProcess)                            ! 183GHz radiance from observation
+    real,        intent(out)              :: tb1833(numObsToProcess)                            ! 183GHz radiance from observation
+    real,        intent(out)              :: tb89FG(numObsToProcess)                            ! 89GHz radiance from background
+    real,        intent(out)              :: tb150FG(numObsToProcess)                           ! 150GHz radiance from background
+    real,        intent(out)              :: tb89FgClear(numObsToProcess)                       ! 89GHz clear-sky radiance from background
+    real,        intent(out)              :: tb150FgClear(numObsToProcess)                      ! 150GHz clear-sky radiance from background
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -360,14 +360,14 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)                :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)                :: numObsToProcess                            ! nombre de tovs    
+    integer,     intent(in)                :: actualNumChannel                                ! nombre de canaux des observations 
+    integer,     intent(in)                :: numObsToProcess                                 ! nombre de tovs    
     integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    logical,     intent(in)                :: RESETQC                        ! yes or not reset QC flag
-    character *9, intent(in)               :: burpStnId                      ! identificateur du satellite
-    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
+    logical,     intent(in)                :: RESETQC                                         ! yes or not reset QC flag
+    character *9, intent(in)               :: burpStnId                                       ! identificateur du satellite
+    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
+    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -411,16 +411,16 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)                :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)                :: numObsToProcess                            ! nombre de tovs
+    integer,     intent(in)                :: actualNumChannel                                ! nombre de canaux des observations 
+    integer,     intent(in)                :: numObsToProcess                                 ! nombre de tovs
     integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                :: burpStnId                      ! identificateur du satellite
-    integer,     intent(in)                :: channelForTopoFilter(:)        ! channel list for filter
-    real,        intent(in)                :: altitudeForTopoFilter(:)       ! altitude threshold
-    real,        intent(in)                :: modelInterpTerrain(numObsToProcess) ! topo aux point d'obs
-    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
+    character *9,intent(in)                :: burpStnId                                       ! identificateur du satellite
+    integer,     intent(in)                :: channelForTopoFilter(:)                         ! channel list for filter
+    real,        intent(in)                :: altitudeForTopoFilter(:)                        ! altitude threshold
+    real,        intent(in)                :: modelInterpTerrain(numObsToProcess)             ! topo aux point d'obs
+    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
+    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -473,14 +473,14 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)                :: actualNumChannel                           ! nombre de canaux des observations 
-    integer,     intent(in)                :: numObsToProcess                            ! nombre de tovs    
+    integer,     intent(in)                :: actualNumChannel                                ! nombre de canaux des observations 
+    integer,     intent(in)                :: numObsToProcess                                 ! nombre de tovs    
     integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                :: burpStnId                      ! identificateur du satellite
-    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)       ! land sea qualifier
-    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
+    character *9,intent(in)                :: burpStnId                                       ! identificateur du satellite
+    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)            ! land sea qualifier
+    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
+    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -518,14 +518,14 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)               :: actualNumChannel                           ! nombre de canaux des observations 
-    integer,     intent(in)               :: numObsToProcess                            ! nombre de tovs    
+    integer,     intent(in)               :: actualNumChannel                                ! nombre de canaux des observations 
+    integer,     intent(in)               :: numObsToProcess                                 ! nombre de tovs    
     integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)               :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)               :: burpStnId                      ! identificateur du satellite
-    integer,     intent(in)               :: terrainTypeIndice(numObsToProcess) ! terrain type
-    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(in)               :: sensorIndex                                     ! numero de satellite (i.e. indice) 
+    character *9,intent(in)               :: burpStnId                                       ! identificateur du satellite
+    integer,     intent(in)               :: terrainTypeIndice(numObsToProcess)              ! terrain type
+    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
+    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -564,15 +564,15 @@ contains
     !                                      Field of view acceptable range is [1,maxScanAngleAMSU]  for AMSU footprints.
     implicit none
     ! Arguments
-    integer,     intent(in)               :: actualNumChannel                           ! nombre de canaux des observations 
-    integer,     intent(in)               :: numObsToProcess                            ! nombre de tovs    
-    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)               :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)               :: burpStnId                      ! identificateur du satellite
-    integer,     intent(in)               :: satScanPosition(numObsToProcess) ! position sur le "scan" 
-    integer,     intent(in)               :: maxScanAngleAMSU               ! max scan angle 
-    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(in)               :: actualNumChannel                                 ! nombre de canaux des observations 
+    integer,     intent(in)               :: numObsToProcess                                  ! nombre de tovs    
+    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess)  ! observations channels
+    integer,     intent(in)               :: sensorIndex                                      ! numero de satellite (i.e. indice) 
+    character *9,intent(in)               :: burpStnId                                        ! identificateur du satellite
+    integer,     intent(in)               :: satScanPosition(numObsToProcess)                 ! position sur le "scan" 
+    integer,     intent(in)               :: maxScanAngleAMSU                                 ! max scan angle 
+    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)     ! marqueur de radiance 
+    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess)    ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -608,14 +608,14 @@ contains
     !                               Satellite zenith angle acceptable range is [0.,60.].
     implicit none
     ! Arguments
-    integer,     intent(in)               :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)               :: numObsToProcess                            ! nombre de tovs
-    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)               :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)               :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)               :: satZenithAngle(numObsToProcess) ! satellite zenith angle 
-    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(in)               :: actualNumChannel                                 ! nombre de canaux des observations 
+    integer,     intent(in)               :: numObsToProcess                                  ! nombre de tovs
+    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess)  ! observations channels
+    integer,     intent(in)               :: sensorIndex                                      ! numero de satellite (i.e. indice) 
+    character *9,intent(in)               :: burpStnId                                        ! identificateur du satellite
+    real,        intent(in)               :: satZenithAngle(numObsToProcess)                  ! satellite zenith angle 
+    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)     ! marqueur de radiance 
+    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess)    ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -658,17 +658,17 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)               :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)               :: numObsToProcess                            ! nombre de tovs    
-    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)               :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)               :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)               :: satZenithAngle(numObsToProcess)! satellite zenith angle 
-    real,        intent(in)               :: ZANGL                          ! satellite constant param
-    integer,     intent(in)               :: satScanPosition(numObsToProcess) ! position sur le "scan" 
-    integer,     intent(in)               :: maxScanAngleAMSU               ! max scan angle 
-    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(in)               :: actualNumChannel                                 ! nombre de canaux des observations 
+    integer,     intent(in)               :: numObsToProcess                                  ! nombre de tovs    
+    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess)  ! observations channels
+    integer,     intent(in)               :: sensorIndex                                      ! numero de satellite (i.e. indice) 
+    character *9,intent(in)               :: burpStnId                                        ! identificateur du satellite
+    real,        intent(in)               :: satZenithAngle(numObsToProcess)                  ! satellite zenith angle 
+    real,        intent(in)               :: ZANGL                                            ! satellite constant param
+    integer,     intent(in)               :: satScanPosition(numObsToProcess)                 ! position sur le "scan" 
+    integer,     intent(in)               :: maxScanAngleAMSU                                 ! max scan angle 
+    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)     ! marqueur de radiance 
+    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess)    ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -718,15 +718,15 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)                :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)                :: numObsToProcess                            ! nombre de tovs
+    integer,     intent(in)                :: actualNumChannel                                ! nombre de canaux des observations 
+    integer,     intent(in)                :: numObsToProcess                                 ! nombre de tovs
     integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)                :: modelInterpGroundIce(numObsToProcess)      ! glace mer 
-    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)       ! land sea qualifyer 
-    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
+    character *9,intent(in)                :: burpStnId                                       ! identificateur du satellite
+    real,        intent(in)                :: modelInterpGroundIce(numObsToProcess)           ! glace mer 
+    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)            ! land sea qualifyer 
+    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
+    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -769,14 +769,14 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)               :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)               :: numObsToProcess                            ! nombre de tovs    
-    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)               :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)               :: burpStnId                      ! identificateur du satellite
-    logical,     intent(in)               :: RESETQC                        ! yes or not reset QC flag
-    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(in)               :: actualNumChannel                                 ! nombre de canaux des observations 
+    integer,     intent(in)               :: numObsToProcess                                  ! nombre de tovs    
+    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess)  ! observations channels
+    integer,     intent(in)               :: sensorIndex                                      ! numero de satellite (i.e. indice) 
+    character *9,intent(in)               :: burpStnId                                        ! identificateur du satellite
+    logical,     intent(in)               :: RESETQC                                          ! yes or not reset QC flag
+    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)     ! marqueur de radiance 
+    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess)    ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -818,16 +818,16 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)               :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)               :: numObsToProcess                            ! nombre de tovs    
-    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)               :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)               :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)               :: obsTb2D(actualNumChannel,numObsToProcess)                  ! radiances 
-    real,        intent(in)               :: GROSSMIN(:)                  ! Gross val min 
-    real,        intent(in)               :: GROSSMAX(:)                  ! Gross val max 
-    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(in)               :: actualNumChannel                                 ! nombre de canaux des observations 
+    integer,     intent(in)               :: numObsToProcess                                  ! nombre de tovs    
+    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess)  ! observations channels
+    integer,     intent(in)               :: sensorIndex                                      ! numero de satellite (i.e. indice) 
+    character *9,intent(in)               :: burpStnId                                        ! identificateur du satellite
+    real,        intent(in)               :: obsTb2D(actualNumChannel,numObsToProcess)        ! radiances 
+    real,        intent(in)               :: GROSSMIN(:)                                      ! Gross val min 
+    real,        intent(in)               :: GROSSMAX(:)                                      ! Gross val max 
+    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)     ! marqueur de radiance 
+    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess)    ! indicateur du QC par canal
     ! Locals
     integer                               :: nDataIndex
     integer                               :: nChannelIndex
@@ -873,17 +873,17 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)               :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)               :: numObsToProcess                            ! nombre de tovs
+    integer,     intent(in)               :: actualNumChannel                                 ! nombre de canaux des observations 
+    integer,     intent(in)               :: numObsToProcess                                  ! nombre de tovs
     integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess)  ! observations channels
-    integer,     intent(in)               :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)               :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)               :: cloudLiquidWaterPathObs(numObsToProcess)   ! retrieved cloud liquid water from observation
-    real,        intent(in)               :: cloudLiquidWaterPathFG(numObsToProcess)    ! retrieved cloud liquid water from background
-    integer,     intent(in)               :: landQualifierIndice(numObsToProcess)       ! land sea qualifyer 
+    integer,     intent(in)               :: sensorIndex                                      ! numero de satellite (i.e. indice) 
+    character *9,intent(in)               :: burpStnId                                        ! identificateur du satellite
+    real,        intent(in)               :: cloudLiquidWaterPathObs(numObsToProcess)         ! retrieved cloud liquid water from observation
+    real,        intent(in)               :: cloudLiquidWaterPathFG(numObsToProcess)          ! retrieved cloud liquid water from background
+    integer,     intent(in)               :: landQualifierIndice(numObsToProcess)             ! land sea qualifyer 
     integer,     intent(in)               :: ICLWREJ(:)
-    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)     ! marqueur de radiance 
+    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess)    ! indicateur du QC par canal
     ! Locals
     integer                               :: channelval
     integer                               :: nDataIndex
@@ -978,18 +978,18 @@ contains
     implicit none
 
     ! Arguments:
-    integer,     intent(in)               :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)               :: numObsToProcess                            ! nombre de tovs    
-    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)               :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)               :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)               :: tb1831(numObsToProcess)                    ! tb for channel  
-    real,        intent(in)               :: tb1833(numObsToProcess)                    ! tb for channel  
-    integer,     intent(in)               :: landQualifierIndice(:)         ! mask terre-mer
-    real,        intent(in)               :: modelInterpSeaIce(:)           ! topo interpolated to obs point
-    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
-    logical,     intent(in), optional     :: skipTestArr_opt(:)             ! array to set to skip the test
+    integer,     intent(in)               :: actualNumChannel                                 ! nombre de canaux des observations 
+    integer,     intent(in)               :: numObsToProcess                                  ! nombre de tovs    
+    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess)  ! observations channels
+    integer,     intent(in)               :: sensorIndex                                      ! numero de satellite (i.e. indice) 
+    character *9,intent(in)               :: burpStnId                                        ! identificateur du satellite
+    real,        intent(in)               :: tb1831(numObsToProcess)                          ! tb for channel  
+    real,        intent(in)               :: tb1833(numObsToProcess)                          ! tb for channel  
+    integer,     intent(in)               :: landQualifierIndice(:)                           ! mask terre-mer
+    real,        intent(in)               :: modelInterpSeaIce(:)                             ! topo interpolated to obs point
+    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)     ! marqueur de radiance 
+    integer,     intent(inout)            :: qcIndicator(actualNumChannel,numObsToProcess)    ! indicateur du QC par canal
+    logical,     intent(in), optional     :: skipTestArr_opt(:)                               ! array to set to skip the test
 
     ! Locals:
     integer                               :: nDataIndex
@@ -1069,17 +1069,17 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)                :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)                :: numObsToProcess                            ! nombre de tovs    
+    integer,     intent(in)                :: actualNumChannel                                ! nombre de canaux des observations 
+    integer,     intent(in)                :: numObsToProcess                                 ! nombre de tovs    
     integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)                :: scatIndexOverWaterObs(numObsToProcess)     ! scattering index 
-    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)       ! land sea qualifyer 
-    integer,     intent(in)                :: terrainTypeIndice(numObsToProcess)         ! terrain type 
+    integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
+    character *9,intent(in)                :: burpStnId                                       ! identificateur du satellite
+    real,        intent(in)                :: scatIndexOverWaterObs(numObsToProcess)          ! scattering index 
+    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)            ! land sea qualifyer 
+    integer,     intent(in)                :: terrainTypeIndice(numObsToProcess)              ! terrain type 
     integer,     intent(in)                :: ISCATREJ(:)
-    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
+    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
     ! Locals
     integer                                :: nDataIndex
     integer                                :: nChannelIndex
@@ -1132,20 +1132,20 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)                :: numObsToProcess                            ! nombre de tovs
-    integer,     intent(in)                :: actualNumChannel                            ! nombre canaux de tovs    
+    integer,     intent(in)                :: numObsToProcess                                 ! nombre de tovs
+    integer,     intent(in)                :: actualNumChannel                                ! nombre canaux de tovs    
     integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)                :: scatIndexOverWaterObs(numObsToProcess)     ! scattering index over water from observation
-    real,        intent(in)                :: scatIndexOverWaterFG(numObsToProcess)      ! scattering index over water from background
-    real,        intent(in)                :: scatIndexOverLandObs(numObsToProcess)      ! scattering index over land
-    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)       ! land sea qualifyer 
-    real,        intent(in)                :: modelInterpSeaIce(numObsToProcess)         ! glace de mer
-    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
-    integer,     intent(in)                :: chanIgnoreInAllskyGenCoeff(:)  ! channels to exclude from genCoeff
-    logical,     intent(in), optional      :: skipTestArr_opt(:)             ! array to set to skip the test
+    integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
+    character *9,intent(in)                :: burpStnId                                       ! identificateur du satellite
+    real,        intent(in)                :: scatIndexOverWaterObs(numObsToProcess)          ! scattering index over water from observation
+    real,        intent(in)                :: scatIndexOverWaterFG(numObsToProcess)           ! scattering index over water from background
+    real,        intent(in)                :: scatIndexOverLandObs(numObsToProcess)           ! scattering index over land
+    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)            ! land sea qualifyer 
+    real,        intent(in)                :: modelInterpSeaIce(numObsToProcess)              ! glace de mer
+    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
+    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
+    integer,     intent(in)                :: chanIgnoreInAllskyGenCoeff(:)                   ! channels to exclude from genCoeff
+    logical,     intent(in), optional      :: skipTestArr_opt(:)                              ! array to set to skip the test
 
 
     ! Locals
@@ -1299,19 +1299,19 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)                :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)                :: numObsToProcess                            ! nombre de tovs    
+    integer,     intent(in)                :: actualNumChannel                                ! nombre de canaux des observations 
+    integer,     intent(in)                :: numObsToProcess                                 ! nombre de tovs    
     integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)                :: ROGUEFAC(:)                    ! rogue factor 
-    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)       ! land/sea identifier
-    real,        intent(in)                :: cloudLiquidWaterPathObs(numObsToProcess)   ! retrieved cloud liquid water from observation
-    real,        intent(in)                :: cloudLiquidWaterPathFG(numObsToProcess)    ! retrieved cloud liquid water from background
-    real,        intent(in)                :: ompTb2D(actualNumChannel,numObsToProcess)  ! radiance o-p 
+    integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
+    character *9,intent(in)                :: burpStnId                                       ! identificateur du satellite
+    real,        intent(in)                :: ROGUEFAC(:)                                     ! rogue factor 
+    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)            ! land/sea identifier
+    real,        intent(in)                :: cloudLiquidWaterPathObs(numObsToProcess)        ! retrieved cloud liquid water from observation
+    real,        intent(in)                :: cloudLiquidWaterPathFG(numObsToProcess)         ! retrieved cloud liquid water from background
+    real,        intent(in)                :: ompTb2D(actualNumChannel,numObsToProcess)       ! radiance o-p 
     integer,     intent(in)                :: ISFCREJ(:)
-    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
+    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
     ! Locals
     integer                                :: channelval
     integer                                :: nDataIndex
@@ -1413,21 +1413,21 @@ contains
     implicit none
 
     ! Arguments:
-    integer,     intent(in)                :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)                :: numObsToProcess                            ! nombre de tovs    
+    integer,     intent(in)                :: actualNumChannel                                ! nombre de canaux des observations 
+    integer,     intent(in)                :: numObsToProcess                                 ! nombre de tovs    
     integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)                :: ROGUEFAC(:)                    ! rogue factor 
-    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)       ! land/sea identifier
-    integer,     intent(in)                :: terrainTypeIndice(numObsToProcess)         ! terrain type
-    real,        intent(in)                :: ompTb2D(actualNumChannel,numObsToProcess)                ! radiance o-p 
-    real,        intent(in)                :: scatIndexOverWaterObs(numObsToProcess) ! retrieved scattering-index over water from observation
-    real,        intent(in)                :: scatIndexOverWaterFG(numObsToProcess)  ! retrieved scattering-index over water from background
+    integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
+    character *9,intent(in)                :: burpStnId                                       ! identificateur du satellite
+    real,        intent(in)                :: ROGUEFAC(:)                                     ! rogue factor 
+    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)            ! land/sea identifier
+    integer,     intent(in)                :: terrainTypeIndice(numObsToProcess)              ! terrain type
+    real,        intent(in)                :: ompTb2D(actualNumChannel,numObsToProcess)       ! radiance o-p 
+    real,        intent(in)                :: scatIndexOverWaterObs(numObsToProcess)          ! retrieved scattering-index over water from observation
+    real,        intent(in)                :: scatIndexOverWaterFG(numObsToProcess)           ! retrieved scattering-index over water from background
     integer,     intent(in)                :: ICH2OMPREJ(:)
-    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
-    logical,     intent(in), optional      :: skipTestArr_opt(:)             ! array to set to skip the test
+    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
+    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
+    logical,     intent(in), optional      :: skipTestArr_opt(:)                              ! array to set to skip the test
 
     ! Locals:
     integer                                :: channelval
@@ -1555,17 +1555,17 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)                :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)                :: numObsToProcess                            ! nombre de tovs    
+    integer,     intent(in)                :: actualNumChannel                                ! nombre de canaux des observations 
+    integer,     intent(in)                :: numObsToProcess                                 ! nombre de tovs    
     integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                :: burpStnId                      ! identificateur du satellite
-    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)       ! land sea identifier 
-    integer,     intent(in)                :: terrainTypeIndice(numObsToProcess)         ! terrain type
-    real  ,      intent(in)                :: modelInterpSeaIce(numObsToProcess)         ! gl
+    integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
+    character *9,intent(in)                :: burpStnId                                       ! identificateur du satellite
+    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)            ! land sea identifier 
+    integer,     intent(in)                :: terrainTypeIndice(numObsToProcess)              ! terrain type
+    real  ,      intent(in)                :: modelInterpSeaIce(numObsToProcess)              ! gl
     integer,     intent(in)                :: ISFCREJ2(:)
-    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
+    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
     ! Locals
     integer                                :: channelval
     integer                                :: nDataIndex
@@ -1634,17 +1634,17 @@ contains
     !          For channel 5, if BT_cld-BT_clr < -0.5 OR O-BT_clr < -0.5, reject channels 4-5.
 
     ! Arguments
-    integer,     intent(in)                :: actualNumChannel                            ! nombre de canaux des observations 
-    integer,     intent(in)                :: numObsToProcess                            ! nombre de tovs                                                 
+    integer,     intent(in)                :: actualNumChannel                                ! nombre de canaux des observations 
+    integer,     intent(in)                :: numObsToProcess                                 ! nombre de tovs                                                 
     integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                :: burpStnId                      ! identificateur du satellite
-    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)       ! land sea identifier
-    real,        intent(in)                :: obsTb2D(actualNumChannel,numObsToProcess)     ! radiance o
-    real,        intent(in)                :: btClear2D(actualNumChannel,numObsToProcess)   ! clear-radiance o
-    real,        intent(in)                :: ompTb2D(actualNumChannel,numObsToProcess)     ! radiance o-p 
-    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
+    character *9,intent(in)                :: burpStnId                                       ! identificateur du satellite
+    integer,     intent(in)                :: landQualifierIndice(numObsToProcess)            ! land sea identifier
+    real,        intent(in)                :: obsTb2D(actualNumChannel,numObsToProcess)       ! radiance o
+    real,        intent(in)                :: btClear2D(actualNumChannel,numObsToProcess)     ! clear-radiance o
+    real,        intent(in)                :: ompTb2D(actualNumChannel,numObsToProcess)       ! radiance o-p 
+    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
+    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
     ! Locals
     integer :: channelval
     integer :: nDataIndex
@@ -1794,36 +1794,36 @@ contains
     !                  - **) set terrain type to sea ice given certain conditions
     implicit none 
     !Arguments:
-    integer, allocatable, intent(inout)    :: obsGlobalMarker(:)       ! Marqueurs globaux  
-    integer, intent(in)                    :: landQualifierIndice(:)   ! indicateur terre/mer
-    integer, intent(in)                    :: satScanPosition(:)       ! position sur le "scan"
-    integer, intent(in)                    :: obsChannels(:)           ! canaux des observations
-    integer, intent(inout)                 :: terrainTypeIndice(:)     ! indicateur du type de terrain
-    integer, intent(in)                    :: actualNumChannel         ! nombre de canaux des observations 
-    integer, intent(in)                    :: numObsToProcess          ! nombre de tovs
-    integer, intent(in)                    :: sensorIndex              ! numero de satellite (i.e. indice)
-    integer, intent(inout)                 :: obsFlags(:)              ! marqueurs des radiances
-    real, intent(in)                       :: obsTb(:)                 ! radiances
-    real, intent(in)                       :: btClear(:)               ! clear-sky radiances
-    real, intent(in)                       :: obsTbBiasCorr(:)         ! correction aux radiances
-    real, intent(in)                       :: ompTb(:)                 ! residus (o-p)
-    real, intent(in)                       :: modelInterpGroundIce(:)  ! masque terre/mer du modele
-    real, intent(in)                       :: modelInterpTerrain(:)    ! topographie du modele
-    real, intent(in)                       :: modelInterpSeaIce(:)     ! etendue de glace du modele
-    real, intent(in)                       :: satZenithAngle(:)        ! angle zenith du satellite (deg.)
-    real, intent(in)                       :: obsLat(:)                ! latitude
-    character *9, intent(in)               :: burpStnId                ! identificateur du satellite
-    logical, intent(in)                    :: RESETQC                  ! reset du controle de qualite?
-    integer, allocatable, intent(out)      :: qcIndicator(:,:)         ! indicateur controle de qualite tovs par canal 
-    !                                                                     =0 ok, >0 rejet
-    real, allocatable, intent(out)         :: cloudLiquidWaterPathObs(:) ! retrieved cloud liquid water from observation 
-    real, allocatable, intent(out)         :: cloudLiquidWaterPathFG(:)  ! retrieved cloud liquid water from background 
-    real, allocatable, intent(out)         :: scatIndexOverWaterObs(:) ! scattering index over water from observation
-    real, allocatable, intent(out)         :: scatIndexOverWaterFG(:)  ! scattering index over water from background
+    integer, allocatable, intent(inout)    :: obsGlobalMarker(:)          ! Marqueurs globaux  
+    integer, intent(in)                    :: landQualifierIndice(:)      ! indicateur terre/mer
+    integer, intent(in)                    :: satScanPosition(:)          ! position sur le "scan"
+    integer, intent(in)                    :: obsChannels(:)              ! canaux des observations
+    integer, intent(inout)                 :: terrainTypeIndice(:)        ! indicateur du type de terrain
+    integer, intent(in)                    :: actualNumChannel            ! nombre de canaux des observations 
+    integer, intent(in)                    :: numObsToProcess             ! nombre de tovs
+    integer, intent(in)                    :: sensorIndex                 ! numero de satellite (i.e. indice)
+    integer, intent(inout)                 :: obsFlags(:)                 ! marqueurs des radiances
+    real, intent(in)                       :: obsTb(:)                    ! radiances
+    real, intent(in)                       :: btClear(:)                  ! clear-sky radiances
+    real, intent(in)                       :: obsTbBiasCorr(:)            ! correction aux radiances
+    real, intent(in)                       :: ompTb(:)                    ! residus (o-p)
+    real, intent(in)                       :: modelInterpGroundIce(:)     ! masque terre/mer du modele
+    real, intent(in)                       :: modelInterpTerrain(:)       ! topographie du modele
+    real, intent(in)                       :: modelInterpSeaIce(:)        ! etendue de glace du modele
+    real, intent(in)                       :: satZenithAngle(:)           ! angle zenith du satellite (deg.)
+    real, intent(in)                       :: obsLat(:)                   ! latitude
+    character *9, intent(in)               :: burpStnId                   ! identificateur du satellite
+    logical, intent(in)                    :: RESETQC                     ! reset du controle de qualite?
+    integer, allocatable, intent(out)      :: qcIndicator(:,:)            ! indicateur controle de qualite tovs par canal 
+    !                                                                       =0 ok, >0 rejet
+    real, allocatable, intent(out)         :: cloudLiquidWaterPathObs(:)  ! retrieved cloud liquid water from observation 
+    real, allocatable, intent(out)         :: cloudLiquidWaterPathFG(:)   ! retrieved cloud liquid water from background 
+    real, allocatable, intent(out)         :: scatIndexOverWaterObs(:)    ! scattering index over water from observation
+    real, allocatable, intent(out)         :: scatIndexOverWaterFG(:)     ! scattering index over water from background
 
-    integer, allocatable, intent(out)      :: newInformationFlag(:)    !ATMS Information flag (newInformationFlag) values 
-                                                                       ! (new BURP element 025174 in header)
-                                                                       ! FOR AMSUA just fill with zeros
+    integer, allocatable, intent(out)      :: newInformationFlag(:)       !ATMS Information flag (newInformationFlag) values 
+                                                                          ! (new BURP element 025174 in header)
+                                                                          ! FOR AMSUA just fill with zeros
     !locals
     integer, parameter                     :: mwbg_maxScanAngleHIRS= 56 
     integer, parameter                     :: maxScanAngleAMSU= 30 
@@ -2108,35 +2108,35 @@ contains
     !                  - **) set terrain type to sea ice given certain conditions
     implicit none 
     !Arguments:
-    integer, allocatable, intent(inout)    :: obsGlobalMarker(:) !Marqueurs globaux  
-    integer, intent(in)                    :: landQualifierIndice(:) ! indicateur terre/mer
-    integer, intent(in)                    :: satScanPosition(:) ! position sur le "scan"
-    integer, intent(in)                    :: obsChannels(:)     ! canaux des observations
-    integer, intent(inout)                 :: terrainTypeIndice(:) ! indicateur du type de terrain
-    integer, intent(in)                    :: actualNumChannel   ! nombre de canaux des observations 
-    integer, intent(in)                    :: numObsToProcess    ! nombre de tovs
-    integer, intent(in)                    :: sensorIndex        ! numero de satellite (i.e. indice)
-    integer, intent(inout)                 :: obsFlags(:)        ! marqueurs des radiances
-    real, intent(in)                       :: obsTb(:)           ! radiances from observation
-    real, intent(in)                       :: btClear(:)         ! clear-sky radiances from background
-    real, intent(in)                       :: obsTbBiasCorr(:)   ! correction aux radiances
-    real, intent(in)                       :: ompTb(:)            ! residus (o-p)
-    real, intent(in)                       :: modelInterpGroundIce(:) ! masque terre/mer du modele
-    real, intent(in)                       :: modelInterpTerrain(:)   ! topographie du modele
-    real, intent(in)                       :: modelInterpSeaIce(:) ! etendue de glace du modele
-    real, intent(in)                       :: satZenithAngle(:)  ! angle zenith du satellite (deg.)
-    character *9, intent(in)               :: burpStnId          ! identificateur du satellite
-    logical, intent(in)                    :: RESETQC            ! reset du controle de qualite?
-    integer, allocatable, intent(out)      :: qcIndicator(:,:)   ! indicateur controle de qualite tovs par canal 
-    !                                                              =0 ok, >0 rejet,
-    real, allocatable, intent(out)         :: cloudLiquidWaterPathObs(:) ! retrieved cloud liquid water from observation 
-    real, allocatable, intent(out)         :: cloudLiquidWaterPathFG(:)  ! retrieved cloud liquid water from background 
-    real, allocatable, intent(out)         :: scatIndexOverWaterObs(:)   ! scattering index over water from observation
-    real, allocatable, intent(out)         :: scatIndexOverWaterFG(:)    ! scattering index over water from background
+    integer, allocatable, intent(inout)    :: obsGlobalMarker(:)          !Marqueurs globaux  
+    integer, intent(in)                    :: landQualifierIndice(:)      ! indicateur terre/mer
+    integer, intent(in)                    :: satScanPosition(:)          ! position sur le "scan"
+    integer, intent(in)                    :: obsChannels(:)              ! canaux des observations
+    integer, intent(inout)                 :: terrainTypeIndice(:)        ! indicateur du type de terrain
+    integer, intent(in)                    :: actualNumChannel            ! nombre de canaux des observations 
+    integer, intent(in)                    :: numObsToProcess             ! nombre de tovs
+    integer, intent(in)                    :: sensorIndex                 ! numero de satellite (i.e. indice)
+    integer, intent(inout)                 :: obsFlags(:)                 ! marqueurs des radiances
+    real, intent(in)                       :: obsTb(:)                    ! radiances from observation
+    real, intent(in)                       :: btClear(:)                  ! clear-sky radiances from background
+    real, intent(in)                       :: obsTbBiasCorr(:)            ! correction aux radiances
+    real, intent(in)                       :: ompTb(:)                    ! residus (o-p)
+    real, intent(in)                       :: modelInterpGroundIce(:)     ! masque terre/mer du modele
+    real, intent(in)                       :: modelInterpTerrain(:)       ! topographie du modele
+    real, intent(in)                       :: modelInterpSeaIce(:)        ! etendue de glace du modele
+    real, intent(in)                       :: satZenithAngle(:)           ! angle zenith du satellite (deg.)
+    character *9, intent(in)               :: burpStnId                   ! identificateur du satellite
+    logical, intent(in)                    :: RESETQC                     ! reset du controle de qualite?
+    integer, allocatable, intent(out)      :: qcIndicator(:,:)            ! indicateur controle de qualite tovs par canal 
+    !                                                                       =0 ok, >0 rejet,
+    real, allocatable, intent(out)         :: cloudLiquidWaterPathObs(:)  ! retrieved cloud liquid water from observation 
+    real, allocatable, intent(out)         :: cloudLiquidWaterPathFG(:)   ! retrieved cloud liquid water from background 
+    real, allocatable, intent(out)         :: scatIndexOverWaterObs(:)    ! scattering index over water from observation
+    real, allocatable, intent(out)         :: scatIndexOverWaterFG(:)     ! scattering index over water from background
 
-    integer, allocatable, intent(out)      :: newInformationFlag(:) !ATMS Information flag (newInformationFlag) values 
-                                                                    ! (new BURP element 025174 in header)
-                                                                    ! FOR AMSUA just fill with zeros
+    integer, allocatable, intent(out)      :: newInformationFlag(:)       !ATMS Information flag (newInformationFlag) values 
+                                                                          ! (new BURP element 025174 in header)
+                                                                          ! FOR AMSUA just fill with zeros
 
     !locals
     integer, parameter                     :: mwbg_maxScanAngleHIRS= 56 
@@ -2404,15 +2404,15 @@ contains
     !                   des rejets tovs.
     implicit none 
     !Arguments:
-    character(*), intent(in)               :: instName                           ! Instrument Name
-    integer, intent(in)                    :: qcIndicator(:,:)                   ! indicateur controle de qualite tovs par canal 
-    !                                                                              =0 ok, >0 rejet,
-    integer, intent(in)                    :: actualNumChannel                   ! nombre de canaux des observations 
-    integer, intent(in)                    :: numObsToProcess                    ! nombre de tovs
-    integer, intent(in)                    :: obsChannels(actualNumChannel*numObsToProcess)  ! canaux des observations
-    integer, intent(in)                    :: sensorIndex                        ! numero d'identificateur du satellite
-    character(len=15), intent(in)          :: satelliteId(:)                     ! identificateur du satellite
-    logical, intent(in)                    :: LDprint                            ! mode: imprimer ou cumuler?
+    character(*), intent(in)               :: instName                                        ! Instrument Name
+    integer, intent(in)                    :: qcIndicator(:,:)                                ! indicateur controle de qualite tovs par canal 
+    !                                                                                           =0 ok, >0 rejet,
+    integer, intent(in)                    :: actualNumChannel                                ! nombre de canaux des observations 
+    integer, intent(in)                    :: numObsToProcess                                 ! nombre de tovs
+    integer, intent(in)                    :: obsChannels(actualNumChannel*numObsToProcess)   ! canaux des observations
+    integer, intent(in)                    :: sensorIndex                                     ! numero d'identificateur du satellite
+    character(len=15), intent(in)          :: satelliteId(:)                                  ! identificateur du satellite
+    logical, intent(in)                    :: LDprint                                         ! mode: imprimer ou cumuler?
     !Locals
     integer                                :: numSats
     integer                                :: JI
@@ -2420,9 +2420,9 @@ contains
     integer                                :: JK
     integer                                :: INTOTOBS
     integer                                :: INTOTACC
-    integer, allocatable, save             :: INTOT(:)!INTOT(mwbg_maxNumSat)
-    integer, allocatable, save             :: INTOTRJF(:)!INTOTRJF(mwbg_maxNumSat)
-    integer, allocatable, save             :: INTOTRJP(:)!INTOTRJP(mwbg_maxNumSat)
+    integer, allocatable, save             :: INTOT(:)                                        ! INTOT(mwbg_maxNumSat)
+    integer, allocatable, save             :: INTOTRJF(:)                                     ! INTOTRJF(mwbg_maxNumSat)
+    integer, allocatable, save             :: INTOTRJP(:)                                     ! INTOTRJP(mwbg_maxNumSat)
     integer                                :: obsChannels2D(actualNumChannel,numObsToProcess) ! canaux des observations
 
     logical, save                          :: LLFIRST = .true.
@@ -2591,9 +2591,9 @@ contains
     !                 sa valeur de defaut, soit 1024,  avant de faire la mise a jour.
     implicit none
     !Arguments:
-    logical,              intent(in)     :: RESETQC       !reset the quality control flags before adding the new ones ?
-    integer,              intent(in)     :: KCHKPRF(:)    !indicateur global controle de qualite tovs. Code:
-    integer,              intent(inout)  :: obsGlobalMarker(:)   !Marqueurs globaux  
+    logical,              intent(in)     :: RESETQC               !reset the quality control flags before adding the new ones ?
+    integer,              intent(in)     :: KCHKPRF(:)            !indicateur global controle de qualite tovs. Code:
+    integer,              intent(inout)  :: obsGlobalMarker(:)    !Marqueurs globaux  
 
     !Locals
     integer                              :: dataNum 
@@ -2627,9 +2627,9 @@ contains
     !                on specifie "sea ice" pour le "terrain type" (terrainTypeIndice=0).
     implicit none 
     !Arguments:
-    real,                 intent(in)     :: modelInterpSeaIce(:)    !sea ice
-    integer,              intent(in)     :: landQualifierIndice(:)    !land sea qualifier
-    integer,              intent(inout)  :: terrainTypeIndice(:)   !terrain type
+    real,                 intent(in)     :: modelInterpSeaIce(:)    ! sea ice
+    integer,              intent(in)     :: landQualifierIndice(:)  ! land sea qualifier
+    integer,              intent(inout)  :: terrainTypeIndice(:)    ! terrain type
 
     !Locals
     integer                              :: dataNum 
@@ -2674,27 +2674,27 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(out) :: ier(:) ! error return code: 0 ok, 1 input parameter out of range.
-    integer,  intent(in) :: numObsToProcess ! number of points to process
-    real,     intent(in) :: tb23  (:) ! 23Ghz brightness temperature (K)
-    real,     intent(in) :: tb31  (:) ! 31Ghz brightness temperature (K)
-    real,     intent(in) :: tb50  (:) ! 50Ghz brightness temperature (K)
-    real,     intent(in) :: tb53  (:) ! 53Ghz brightness temperature (K)
-    real,     intent(in) :: tb89  (:) ! 89Ghz brightness temperature (K)
-    real,     intent(in) :: tb23FG(:) ! 23Ghz brightness temperature from background (K)
-    real,     intent(in) :: tb31FG(:) ! 31Ghz brightness temperature from background (K)
-    real,     intent(in) :: satZenithAngle(:) ! satellite zenith angle (deg.)
-    real,     intent(in) :: obsLat(:) ! latitude (deg.)
-    integer,  intent(in) :: landQualifierIndice(:) ! land/sea indicator (0=land;1=ocean)
-    real,    intent(out) :: ice (:) ! sea ice concentration (0-100%)
-    real,    intent(out) :: tpw (:) ! total precipitable water (0-70mm)
-    real,    intent(out) :: cloudLiquidWaterPathObs(:) ! retrieved cloud liquid water from observation (0-3mm)
-    real,    intent(out) :: cloudLiquidWaterPathFG (:) ! retrieved cloud liquid water from background (0-3mm)
-    integer, intent(out) :: rain(:) ! rain identification (0=no rain; 1=rain)
-    integer, intent(out) :: snow(:) ! snow cover and glacial ice identification:
-                                    ! (0=no snow; 1=snow; 2=glacial ice)
-    real,    intent(out) :: scatIndexOverLandObs (:)   ! scattering index over land
-    real,    intent(out) :: scatIndexOverWaterObs (:)  ! scattering index over water
+    integer, intent(out) :: ier(:)                      ! error return code: 0 ok, 1 input parameter out of range.
+    integer,  intent(in) :: numObsToProcess             ! number of points to process
+    real,     intent(in) :: tb23  (:)                   ! 23Ghz brightness temperature (K)
+    real,     intent(in) :: tb31  (:)                   ! 31Ghz brightness temperature (K)
+    real,     intent(in) :: tb50  (:)                   ! 50Ghz brightness temperature (K)
+    real,     intent(in) :: tb53  (:)                   ! 53Ghz brightness temperature (K)
+    real,     intent(in) :: tb89  (:)                   ! 89Ghz brightness temperature (K)
+    real,     intent(in) :: tb23FG(:)                   ! 23Ghz brightness temperature from background (K)
+    real,     intent(in) :: tb31FG(:)                   ! 31Ghz brightness temperature from background (K)
+    real,     intent(in) :: satZenithAngle(:)           ! satellite zenith angle (deg.)
+    real,     intent(in) :: obsLat(:)                   ! latitude (deg.)
+    integer,  intent(in) :: landQualifierIndice(:)      ! land/sea indicator (0=land;1=ocean)
+    real,    intent(out) :: ice (:)                     ! sea ice concentration (0-100%)
+    real,    intent(out) :: tpw (:)                     ! total precipitable water (0-70mm)
+    real,    intent(out) :: cloudLiquidWaterPathObs(:)  ! retrieved cloud liquid water from observation (0-3mm)
+    real,    intent(out) :: cloudLiquidWaterPathFG (:)  ! retrieved cloud liquid water from background (0-3mm)
+    integer, intent(out) :: rain(:)                     ! rain identification (0=no rain; 1=rain)
+    integer, intent(out) :: snow(:)                     ! snow cover and glacial ice identification:
+                                                        ! (0=no snow; 1=snow; 2=glacial ice)
+    real,    intent(out) :: scatIndexOverLandObs (:)    ! scattering index over land
+    real,    intent(out) :: scatIndexOverWaterObs (:)   ! scattering index over water
 
     ! Locals:
     real :: siw, sil, df1, df2, df3, a, b, c, d, e23
@@ -2970,24 +2970,24 @@ contains
     !                         Visiting Scientist Report, November 1999.
     implicit none
     ! arguments: 
-    integer, intent(out) :: ier(numObsToProcess) ! error return code:
-    integer, intent(in)  :: numObsToProcess      ! number of points to process
-    real,    intent(in)  :: tb89(:)          ! 89Ghz AMSU-B brightness temperature (K)
-    real,    intent(in)  :: tb150(:)         ! 150Ghz AMSU-B brightness temperature (K)
-    real,    intent(in)  :: tb89FG(:)        ! 89Ghz AMSU-B brightness temperature from background (K)
-    real,    intent(in)  :: tb150FG(:)       ! 150Ghz AMSU-B brightness temperature from background (K)
-    real,    intent(in)  :: tb89FgClear(:)   ! 89Ghz clear-sky brightness temperature from background (K)
-    real,    intent(in)  :: tb150FgClear(:)  ! 150Ghz clear-sky brightness temperature from background (K)
-    real,    intent(in)  :: satZenithAngle(:)!  satellite zenith angle (deg.)
-    integer, intent(in)  :: landQualifierIndice(:) ! land/sea indicator (0=land;1=ocean)
-    real,    intent(out) :: scatIndexOverLandObs(:)    ! scattering index over land
-    real,    intent(out) :: scatIndexOverWaterObs(:)   ! scattering index over water from observation
-    real,    intent(out) :: scatIndexOverWaterFG(:)    ! scattering index over water from background
-    real,    intent(out) :: cloudLiquidWaterPathObs(:) ! obs cloud liquid water content (not computed for NOW)
-    real,    intent(out) :: cloudLiquidWaterPathFG(:)  ! first guess cloud liquid water content (not computed for NOW)
+    integer, intent(out) :: ier(numObsToProcess)        ! error return code:
+    integer, intent(in)  :: numObsToProcess             ! number of points to process
+    real,    intent(in)  :: tb89(:)                     ! 89Ghz AMSU-B brightness temperature (K)
+    real,    intent(in)  :: tb150(:)                    ! 150Ghz AMSU-B brightness temperature (K)
+    real,    intent(in)  :: tb89FG(:)                   ! 89Ghz AMSU-B brightness temperature from background (K)
+    real,    intent(in)  :: tb150FG(:)                  ! 150Ghz AMSU-B brightness temperature from background (K)
+    real,    intent(in)  :: tb89FgClear(:)              ! 89Ghz clear-sky brightness temperature from background (K)
+    real,    intent(in)  :: tb150FgClear(:)             ! 150Ghz clear-sky brightness temperature from background (K)
+    real,    intent(in)  :: satZenithAngle(:)           !  satellite zenith angle (deg.)
+    integer, intent(in)  :: landQualifierIndice(:)      ! land/sea indicator (0=land;1=ocean)
+    real,    intent(out) :: scatIndexOverLandObs(:)     ! scattering index over land
+    real,    intent(out) :: scatIndexOverWaterObs(:)    ! scattering index over water from observation
+    real,    intent(out) :: scatIndexOverWaterFG(:)     ! scattering index over water from background
+    real,    intent(out) :: cloudLiquidWaterPathObs(:)  ! obs cloud liquid water content (not computed for NOW)
+    real,    intent(out) :: cloudLiquidWaterPathFG(:)   ! first guess cloud liquid water content (not computed for NOW)
 
-    !     Notes: In the case where an output parameter cannot be calculated, the
-    !     value of this parameter is to to the missing value, i.e. -99.
+    ! Notes: In the case where an output parameter cannot be calculated, the
+    !        value of this parameter is to to the missing value, i.e. -99.
     ! Locals: 
     integer :: i
 
@@ -3052,15 +3052,15 @@ contains
 
 
     ! Arguments
-    integer,     intent(in)                                   :: itest(:)                 ! test number
-    integer,     intent(in)                                   :: actualNumChannel         ! nombre de canaux des observations 
-    integer,     intent(in)                                   :: numObsToProcess          ! nombre de tovs    
-    integer,     intent(in)                                   :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(inout)                                :: obsFlags2D(actualNumChannel,numObsToProcess)    ! observations channels
-    integer,     intent(in)                                   :: sensorIndex              ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                                   :: burpStnId                ! identificateur du satellite
+    integer,     intent(in)                                   :: itest(:)                                         ! test number
+    integer,     intent(in)                                   :: actualNumChannel                                 ! nombre de canaux des observations 
+    integer,     intent(in)                                   :: numObsToProcess                                  ! nombre de tovs    
+    integer,     intent(in)                                   :: obsChannels2D(actualNumChannel,numObsToProcess)  ! observations channels
+    integer,     intent(inout)                                :: obsFlags2D(actualNumChannel,numObsToProcess)     ! observations channels
+    integer,     intent(in)                                   :: sensorIndex                                      ! numero de satellite (i.e. indice) 
+    character *9,intent(in)                                   :: burpStnId                                        ! identificateur du satellite
     integer,     intent(inout)                                :: B7CHCK(actualNumChannel,numObsToProcess) 
-    integer,     intent(inout)                                :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(inout)                                :: qcIndicator(actualNumChannel,numObsToProcess)    ! indicateur du QC par canal
     ! Locals
     integer                                                   :: nDataIndex
     integer                                                   :: nChannelIndex
@@ -3099,17 +3099,17 @@ contains
     !:Purpose:               1) test 2: Topography check (partial)
 
     ! Arguments
-    integer,     intent(in)                                   :: itest(:)                       ! test number
-    integer,     intent(in)                                   :: actualNumChannel               ! nombre de canaux des observations 
-    integer,     intent(in)                                   :: numObsToProcess                ! nombre de tovs    
-    integer,     intent(in)                                   :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                                   :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                                   :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)                                   :: modelInterpTerrain(numObsToProcess) ! topo aux point d'obs
-    integer,     intent(inout)                                :: obsFlags2D(actualNumChannel,numObsToProcess) ! marqueur de radiance 
+    integer,     intent(in)                                   :: itest(:)                                         ! test number
+    integer,     intent(in)                                   :: actualNumChannel                                 ! nombre de canaux des observations 
+    integer,     intent(in)                                   :: numObsToProcess                                  ! nombre de tovs    
+    integer,     intent(in)                                   :: obsChannels2D(actualNumChannel,numObsToProcess)  ! observations channels
+    integer,     intent(in)                                   :: sensorIndex                                      ! numero de satellite (i.e. indice) 
+    character *9,intent(in)                                   :: burpStnId                                        ! identificateur du satellite
+    real,        intent(in)                                   :: modelInterpTerrain(numObsToProcess)              ! topo aux point d'obs
+    integer,     intent(inout)                                :: obsFlags2D(actualNumChannel,numObsToProcess)     ! marqueur de radiance 
     integer,     intent(in)                                   :: ICHTOPO(:) 
     real ,       intent(in)                                   :: ZCRIT(:)
-    integer,     intent(inout)                                :: qcIndicator(actualNumChannel,numObsToProcess)! indicateur du QC par canal
+    integer,     intent(inout)                                :: qcIndicator(actualNumChannel,numObsToProcess)    ! indicateur du QC par canal
     integer,     intent(inout)                                :: B7CHCK(actualNumChannel,numObsToProcess)
     ! Locals
     integer                                                   :: nDataIndex
@@ -3157,15 +3157,15 @@ contains
     !                                In this case switch bit 11 ON.
 
     ! Arguments
-    integer,     intent(in)                                   :: itest(:)                       ! test number
-    integer,     intent(in)                                   :: actualNumChannel               ! nombre de canaux des observations 
-    integer,     intent(in)                                   :: numObsToProcess                ! nombre de tovs    
-    integer,     intent(in)                                   :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                                   :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                                   :: burpStnId                      ! identificateur du satellite
-    logical,     intent(in)                                   :: RESETQC                        ! resetqc logical
-    integer,     intent(inout)                                :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)                                :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(in)                                   :: itest(:)                                         ! test number
+    integer,     intent(in)                                   :: actualNumChannel                                 ! nombre de canaux des observations 
+    integer,     intent(in)                                   :: numObsToProcess                                  ! nombre de tovs    
+    integer,     intent(in)                                   :: obsChannels2D(actualNumChannel,numObsToProcess)  ! observations channels
+    integer,     intent(in)                                   :: sensorIndex                                      ! numero de satellite (i.e. indice) 
+    character *9,intent(in)                                   :: burpStnId                                        ! identificateur du satellite
+    logical,     intent(in)                                   :: RESETQC                                          ! resetqc logical
+    integer,     intent(inout)                                :: obsFlags2D(actualNumChannel,numObsToProcess)     ! marqueur de radiance 
+    integer,     intent(inout)                                :: qcIndicator(actualNumChannel,numObsToProcess)    ! indicateur du QC par canal
     integer,     intent(inout)                                :: B7CHCK(actualNumChannel,numObsToProcess)
     ! Locals
     integer                                                   :: nDataIndex
@@ -3222,22 +3222,22 @@ contains
     !                                  ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
 
     ! Arguments
-    integer,     intent(in)              :: itest(:)                 ! test number
-    integer,     intent(in)              :: actualNumChannel         ! nombre de canaux des observations 
-    integer,     intent(in)              :: numObsToProcess          ! nombre de tovs
+    integer,     intent(in)              :: itest(:)                                        ! test number
+    integer,     intent(in)              :: actualNumChannel                                ! nombre de canaux des observations 
+    integer,     intent(in)              :: numObsToProcess                                 ! nombre de tovs
     integer,     intent(in)              :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)              :: sensorIndex                    ! numero de satellite (i.e. indice) 
-    character *9,intent(in)              :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)              :: ROGUEFAC(:)                    ! rogue factor 
-    logical,     intent(in)              :: waterobs(:)                    ! open water obs
-    real,        intent(in)              :: ompTb2D(actualNumChannel,numObsToProcess) ! radiance o-p 
+    integer,     intent(in)              :: sensorIndex                                     ! numero de satellite (i.e. indice) 
+    character *9,intent(in)              :: burpStnId                                       ! identificateur du satellite
+    real,        intent(in)              :: ROGUEFAC(:)                                     ! rogue factor 
+    logical,     intent(in)              :: waterobs(:)                                     ! open water obs
+    real,        intent(in)              :: ompTb2D(actualNumChannel,numObsToProcess)       ! radiance o-p 
     real,        intent(in)              :: cloudLiquidWaterPathObs(:)
     real,        intent(in)              :: cloudLiquidWaterPathFG(:)
-    integer,     intent(in)              :: newInformationFlag(numObsToProcess) ! data flag newInformationFlag  
+    integer,     intent(in)              :: newInformationFlag(numObsToProcess)             ! data flag newInformationFlag  
     integer,     intent(in)              :: ISFCREJ(:)
     integer,     intent(in)              :: ICH2OMPREJ(:)
-    integer,     intent(inout)           :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
-    integer,     intent(inout)           :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(inout)           :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
+    integer,     intent(inout)           :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
     integer,     intent(inout)           :: B7CHCK(actualNumChannel,numObsToProcess)
 
     ! Locals
@@ -3382,21 +3382,21 @@ contains
     !                                  ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
 
     ! Arguments
-    integer,     intent(in)              :: itest(:)                       ! test number
-    integer,     intent(in)              :: actualNumChannel               ! nombre de canaux des observations
-    integer,     intent(in)              :: numObsToProcess                ! nombre de tovs    
+    integer,     intent(in)              :: itest(:)                                        ! test number
+    integer,     intent(in)              :: actualNumChannel                                ! nombre de canaux des observations
+    integer,     intent(in)              :: numObsToProcess                                 ! nombre de tovs    
     integer,     intent(in)              :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)              :: sensorIndex                    ! numero de satellite (i.e. indice)
-    character *9,intent(in)              :: burpStnId                      ! identificateur du satellite
-    real,        intent(in)              :: ROGUEFAC(:)                    ! rogue factor
-    logical,     intent(in)              :: waterobs(:)                    ! open water obs
-    real,        intent(in)              :: ompTb2D(actualNumChannel,numObsToProcess) ! radiance o-p
+    integer,     intent(in)              :: sensorIndex                                     ! numero de satellite (i.e. indice)
+    character *9,intent(in)              :: burpStnId                                       ! identificateur du satellite
+    real,        intent(in)              :: ROGUEFAC(:)                                     ! rogue factor
+    logical,     intent(in)              :: waterobs(:)                                     ! open water obs
+    real,        intent(in)              :: ompTb2D(actualNumChannel,numObsToProcess)       ! radiance o-p
     real,        intent(in)              :: cloudLiquidWaterPathObs(:)
     real,        intent(in)              :: cloudLiquidWaterPathFG(:)
-    integer,     intent(in)              :: newInformationFlag(numObsToProcess) ! data flag newInformationFlag
+    integer,     intent(in)              :: newInformationFlag(numObsToProcess)             ! data flag newInformationFlag
     integer,     intent(in)              :: ICH2OMPREJ(:)
-    integer,     intent(inout)           :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance
-    integer,     intent(inout)           :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
+    integer,     intent(inout)           :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance
+    integer,     intent(inout)           :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
     integer,     intent(inout)           :: B7CHCK(actualNumChannel,numObsToProcess)
 
     ! Locals
@@ -3508,14 +3508,14 @@ contains
     !          oer_tovutil = 0 (blacklisted), 1 (assmilate)
 
     ! Arguments
-    integer,     intent(in)               :: itest(:)                 ! test number
-    integer,     intent(in)               :: actualNumChannel         ! nombre de canaux des observations 
-    integer,     intent(in)               :: numObsToProcess          ! nombre de tovs    
-    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)               :: sensorIndex              ! numero de satellite (i.e. indice) 
-    character *9,intent(in)               :: burpStnId                ! identificateur du satellite
-    integer,     intent(in)               :: qcIndicator(actualNumChannel,numObsToProcess) ! indicateur du QC par canal
-    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
+    integer,     intent(in)               :: itest(:)                                         ! test number
+    integer,     intent(in)               :: actualNumChannel                                 ! nombre de canaux des observations 
+    integer,     intent(in)               :: numObsToProcess                                  ! nombre de tovs    
+    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess)  ! observations channels
+    integer,     intent(in)               :: sensorIndex                                      ! numero de satellite (i.e. indice) 
+    character *9,intent(in)               :: burpStnId                                        ! identificateur du satellite
+    integer,     intent(in)               :: qcIndicator(actualNumChannel,numObsToProcess)    ! indicateur du QC par canal
+    integer,     intent(inout)            :: obsFlags2D(actualNumChannel,numObsToProcess)     ! marqueur de radiance 
 
     ! Locals
     integer                               :: channelval
@@ -3564,8 +3564,8 @@ contains
 
     implicit none
     !Arguments
-    integer, intent(in)              :: actualNumChannel       ! nombre de canaux des observations
-    integer, intent(in)              :: numObsToProcess        ! nombre de tovs
+    integer, intent(in)              :: actualNumChannel                    ! nombre de canaux des observations
+    integer, intent(in)              :: numObsToProcess                     ! nombre de tovs
     real,    intent(in)              :: obsLat(:)
     real,    intent(in)              :: obsLon(:)
     integer, intent(in)              :: landQualifierIndice(:)
@@ -3574,26 +3574,26 @@ contains
     integer, intent(in)              :: obsQcFlag2(:)
     integer, intent(in)              :: obsQcFlag1(:,:)
     integer, intent(inout)           :: obsGlobalMarker(:)
-    integer, intent(in)              :: satScanPosition(numObsToProcess) ! position sur le "scan"
-    integer, intent(in)              :: obsChannels(:)         ! canaux des observations
-    integer, intent(in)              :: sensorIndex            ! numero de satellite (i.e. indice)
-    real, intent(inout)              :: obsTb(:)               ! radiances
-    real, intent(in)                 :: obsTbBiasCorr(:)       ! correction aux radiances
-    real, intent(in)                 :: ompTb(:)               ! residus (o-p)
+    integer, intent(in)              :: satScanPosition(numObsToProcess)    ! position sur le "scan"
+    integer, intent(in)              :: obsChannels(:)                      ! canaux des observations
+    integer, intent(in)              :: sensorIndex                         ! numero de satellite (i.e. indice)
+    real, intent(inout)              :: obsTb(:)                            ! radiances
+    real, intent(in)                 :: obsTbBiasCorr(:)                    ! correction aux radiances
+    real, intent(in)                 :: ompTb(:)                            ! residus (o-p)
     real, intent(in)                 :: modelInterpTerrain(numObsToProcess) ! topographie du modele
-    integer, allocatable, intent(out):: newInformationFlag(:)  ! flag to identify all obs pts in report
-    !                                                            as being over land/ice, cloudy, bad IWV
-    character *9, intent(in)         :: burpStnId              ! identificateur du satellite
-    logical, intent(in)              :: RESETQC                ! reset du controle de qualite?
-    integer,allocatable, intent(out) :: qcIndicator(:,:)       ! indicateur controle de qualite tovs par canal 
-    !                                                            =0 ok, >0 rejet,
-    integer, intent(inout)           :: obsFlags(:)            ! marqueurs des radiances
-                                                               ! satellite, critere et par canal
-                                                               ! (chech n2) par satellite, critere et par canal
+    integer, allocatable, intent(out):: newInformationFlag(:)               ! flag to identify all obs pts in report
+    !                                                                         as being over land/ice, cloudy, bad IWV
+    character *9, intent(in)         :: burpStnId                           ! identificateur du satellite
+    logical, intent(in)              :: RESETQC                             ! reset du controle de qualite?
+    integer,allocatable, intent(out) :: qcIndicator(:,:)                    ! indicateur controle de qualite tovs par canal 
+    !                                                                         =0 ok, >0 rejet,
+    integer, intent(inout)           :: obsFlags(:)                         ! marqueurs des radiances
+                                                                            ! satellite, critere et par canal
+                                                                            ! (chech n2) par satellite, critere et par canal
     real, allocatable, intent(out)   :: cloudLiquidWaterPathObs(:)
     real, allocatable, intent(out)   :: cloudLiquidWaterPathFG(:)
-    real, allocatable, intent(out)   :: scatIndexOverWaterObs(:) ! scattering index over water from observation
-    real, allocatable, intent(out)   :: scatIndexOverWaterFG(:)  ! scattering index over water from background
+    real, allocatable, intent(out)   :: scatIndexOverWaterObs(:)            ! scattering index over water from observation
+    real, allocatable, intent(out)   :: scatIndexOverWaterFG(:)             ! scattering index over water from background
 
     !locals
     real                             :: ompTb2D(actualNumChannel,numObsToProcess)
@@ -3900,37 +3900,37 @@ contains
 
     implicit none
     !Arguments
-    integer, intent(in)              :: actualNumChannel       ! nombre de canaux des observations
-    integer, intent(in)              :: numObsToProcess        ! nombre de tovs
+    integer, intent(in)              :: actualNumChannel                    ! nombre de canaux des observations
+    integer, intent(in)              :: numObsToProcess                     ! nombre de tovs
     real,    intent(in)              :: obsLat(:)
     real,    intent(in)              :: obsLon(:)
     integer, intent(in)              :: landQualifierIndice(:)
     integer, intent(in)              :: terrainTypeIndice(:)
     real,    intent(inout)           :: satZenithAngle(:)
     integer, intent(inout)           :: obsGlobalMarker(:)
-    integer, intent(in)              :: satScanPosition(numObsToProcess) ! position sur le "scan"
-    integer, intent(in)              :: obsChannels(:)         ! canaux des observations
-    integer, intent(in)              :: sensorIndex            ! numero de satellite (i.e. indice)
-    real, intent(inout)              :: obsTb(:)               ! radiances
-    real, intent(in)                 :: obsTbBiasCorr(:)       ! correction aux radiances
-    real, intent(in)                 :: ompTb(:)               ! residus (o-p)
+    integer, intent(in)              :: satScanPosition(numObsToProcess)    ! position sur le "scan"
+    integer, intent(in)              :: obsChannels(:)                      ! canaux des observations
+    integer, intent(in)              :: sensorIndex                         ! numero de satellite (i.e. indice)
+    real, intent(inout)              :: obsTb(:)                            ! radiances
+    real, intent(in)                 :: obsTbBiasCorr(:)                    ! correction aux radiances
+    real, intent(in)                 :: ompTb(:)                            ! residus (o-p)
     real, intent(in)                 :: modelInterpTerrain(numObsToProcess) ! topographie du modele
-    integer, allocatable, intent(out):: newInformationFlag(:)  ! flag to identify all obs pts in report
-    !                                                            as being over land/ice, cloudy, bad IWV
-    character *9, intent(in)         :: burpStnId              ! identificateur du satellite
-    logical, intent(in)              :: RESETQC                ! reset du controle de qualite?
-    logical, intent(in)              :: modLSQ                 ! If active, recalculate values for land/sea
-                                                               ! qualifier and terrain type based on LG/MG
-    logical, intent(in)              :: lastHeader             ! active if last header
-    integer,allocatable, intent(out) :: qcIndicator(:,:)       ! indicateur controle de qualite tovs par canal
-    !                                                            =0 ok, >0 rejet,
-    integer, intent(inout)           :: obsFlags(:)            ! marqueurs des radiances
-                                                               ! satellite, critere et par canal
-                                                               ! (chech n2) par satellite, critere et par canal
+    integer, allocatable, intent(out):: newInformationFlag(:)               ! flag to identify all obs pts in report
+    !                                                                         as being over land/ice, cloudy, bad IWV
+    character *9, intent(in)         :: burpStnId                           ! identificateur du satellite
+    logical, intent(in)              :: RESETQC                             ! reset du controle de qualite?
+    logical, intent(in)              :: modLSQ                              ! If active, recalculate values for land/sea
+                                                                            ! qualifier and terrain type based on LG/MG
+    logical, intent(in)              :: lastHeader                          ! active if last header
+    integer,allocatable, intent(out) :: qcIndicator(:,:)                    ! indicateur controle de qualite tovs par canal
+    !                                                                         =0 ok, >0 rejet,
+    integer, intent(inout)           :: obsFlags(:)                         ! marqueurs des radiances
+                                                                            ! satellite, critere et par canal
+                                                                            ! (chech n2) par satellite, critere et par canal
     real, allocatable, intent(out)   :: cloudLiquidWaterPathObs(:)
     real, allocatable, intent(out)   :: cloudLiquidWaterPathFG(:)
-    real, allocatable, intent(out)   :: scatIndexOverWaterObs(:) ! scattering index over water from observation
-    real, allocatable, intent(out)   :: scatIndexOverWaterFG(:)  ! scattering index over water from background
+    real, allocatable, intent(out)   :: scatIndexOverWaterObs(:)            ! scattering index over water from observation
+    real, allocatable, intent(out)   :: scatIndexOverWaterFG(:)             ! scattering index over water from background
 
     !locals
     real                             :: ompTb2D(actualNumChannel,numObsToProcess)
@@ -4231,22 +4231,22 @@ contains
     !         Masque Terre-Mer (MG)
     !         Then Interpolate Those variables to observation location
     !Arguments:
-    character(*),       intent(in)   :: instName       ! Instrument Name
-    real,               intent(in)   :: obsLat(:)      ! Obseravtion Lats
-    real,               intent(in)   :: obsLon(:)      ! Observation Lons
+    character(*),       intent(in)   :: instName                ! Instrument Name
+    real,               intent(in)   :: obsLat(:)               ! Obseravtion Lats
+    real,               intent(in)   :: obsLon(:)               ! Observation Lons
     real, allocatable,  intent(out)  :: modelInterpGroundIce(:) ! Glace de mer interpolees au pt d'obs.
-    real, allocatable,  intent(out)  :: modelInterpTerrain(:) ! topographie filtree (en metres) et interpolees
-    real ,allocatable,  intent(out)  :: modelInterpSeaIce(:)  ! Glace de mer interpolees au pt d'obs.
+    real, allocatable,  intent(out)  :: modelInterpTerrain(:)   ! topographie filtree (en metres) et interpolees
+    real ,allocatable,  intent(out)  :: modelInterpSeaIce(:)    ! Glace de mer interpolees au pt d'obs.
 
     ! Locals:
-    real, allocatable, save  :: GL(:)                  ! Modele Glace de Mer (GL)
-    real, allocatable, save  :: MG(:)                  ! Modele Masque Terre-Mer (MG)
-    real, allocatable, save  :: MT(:)                  ! Modele Topographie (MT)
-    real,              save  :: TOPOFACT               ! Facteur x topo pour avoir des unites en metre
-    logical,           save  :: ifFirstCall = .True.   ! If .True. we read GL, MT and MG
-    integer,           save  ::  gdmt                  ! topo interpolation param
-    integer,           save  ::  gdmg                  ! mask terre-mer interpolation param
-    integer,           save  ::  gdgl                  ! glace interpolation param
+    real, allocatable, save  :: GL(:)                           ! Modele Glace de Mer (GL)
+    real, allocatable, save  :: MG(:)                           ! Modele Masque Terre-Mer (MG)
+    real, allocatable, save  :: MT(:)                           ! Modele Topographie (MT)
+    real,              save  :: TOPOFACT                        ! Facteur x topo pour avoir des unites en metre
+    logical,           save  :: ifFirstCall = .True.            ! If .True. we read GL, MT and MG
+    integer,           save  ::  gdmt                           ! topo interpolation param
+    integer,           save  ::  gdmg                           ! mask terre-mer interpolation param
+    integer,           save  ::  gdgl                           ! glace interpolation param
     integer                  ::  gdllsval
     integer                  :: IUNGEO
     logical                  :: readGlaceMask
@@ -4540,13 +4540,13 @@ contains
     ! - mxlat      : internal-  number of grid pts in lat. direction for mesh
     ! - mxlon      : internal-  number of grid pts in lon. direction for mesh
     ! - rlat_km    : internal-  spacing desired between mesh grid points in km
-    !                        along lat. direction
+    !                           along lat. direction
     ! - rlon_km    : internal-  spacing desired between mesh grid points in km
-    !                        along lon. direction
+    !                           along lon. direction
     ! - dlat       : internal-  spacing between mesh grid points along lon. direction
-    !                        in degrees computed from rlat_km
+    !                           in degrees computed from rlat_km
     ! - dlon       : internal-  spacing between mesh grid points along lon. direction
-    !                        in degrees computed from rlon_km
+    !                           in degrees computed from rlon_km
     ! - rkm_per_deg : internal- distance in km per degree
     !                           = Earth radius * PI/180.0
     !                           = 6371.01 km * PI/180.0
@@ -4934,7 +4934,7 @@ contains
     integer,              intent(in)                :: actualNumChannel
     integer,              intent(in)                :: calcLandQualifierIndice(:)
     integer,              intent(in)                :: calcTerrainTypeIndice(:)
-    logical,              intent(in)                :: grossrej(:)     ! dim(numObsToProcess), true if 1 or more Tb fail gross error check
+    logical,              intent(in)                :: grossrej(:)        ! dim(numObsToProcess), true if 1 or more Tb fail gross error check
     real,                 intent(in)                :: obsLat(:)
     real,                 intent(in)                :: obsLon(:)
     real,                 intent(inout)             :: obsTb(:)
@@ -5373,27 +5373,27 @@ contains
     !                                        0, ok,
     !                                        1, input parameter out of range or grossrej=.true.
     !               - numObsToProcess - input  -  number of points to process (= numObsToProcess)
-    !               - tb23        - input  -  23Ghz brightness temperature (K) -- ch. 1
-    !               - tb23FG      - input  -  23Ghz brightness temperature (K) from first guess -- ch. 1
-    !               - tb31        - input  -  31Ghz brightness temperature (K) -- ch. 2
-    !               - tb31FG      - input  -  31Ghz brightness temperature (K) from first guess -- ch. 2
-    !               - tb50        - input  -  50Ghz brightness temperature (K) -- ch. 3
-    !               - tb89        - input  -  89Ghz brightness temperature (K) -- ch. 16
-    !               - tb165       - input  -  165Ghz brightness temperature (K) -- ch. 17
-    !               - satZenithAngle - input  -  satellite zenith angle (deg.)
-    !               - obsLat      - input  -  latitude (deg.)
+    !               - tb23            - input  -  23Ghz brightness temperature (K) -- ch. 1
+    !               - tb23FG          - input  -  23Ghz brightness temperature (K) from first guess -- ch. 1
+    !               - tb31            - input  -  31Ghz brightness temperature (K) -- ch. 2
+    !               - tb31FG          - input  -  31Ghz brightness temperature (K) from first guess -- ch. 2
+    !               - tb50            - input  -  50Ghz brightness temperature (K) -- ch. 3
+    !               - tb89            - input  -  89Ghz brightness temperature (K) -- ch. 16
+    !               - tb165           - input  -  165Ghz brightness temperature (K) -- ch. 17
+    !               - satZenithAngle  - input  -  satellite zenith angle (deg.)
+    !               - obsLat          - input  -  latitude (deg.)
     !               - calcLandQualifierIndice - input  -  land/sea indicator (0=land, 1=ocean)
-    !               - calcTerrainTypeIndice  - in/out -  terrain type (0=ice, -1 otherwise)
+    !               - calcTerrainTypeIndice   - in/out -  terrain type (0=ice, -1 otherwise)
     !               - waterobs    - in/out -  .true. if open water point (away from coasts and sea-ice)
     !               - grossrej    - input  -  .true. if any channel had a gross error from mwbg_grossValueCheck
-    !               - cloudLiquidWaterPathObs      - output -  cloud liquid water from observation (kg/m**2) from tb23 & tb31
-    !               - cloudLiquidWaterPathFG       - output -  cloud liquid water from first guess (kg/m**2) from tb23FG & tb31FG
+    !               - cloudLiquidWaterPathObs - output -  cloud liquid water from observation (kg/m**2) from tb23 & tb31
+    !               - cloudLiquidWaterPathFG  - output -  cloud liquid water from first guess (kg/m**2) from tb23FG & tb31FG
     !               - si_ecmwf    - output -  ECMWF scattering index from tb89 & tb165
     !               - si_bg       - output -  Bennartz-Grody scattering index from tb89 & tb165
     !               - iNumSeaIce  - in/out -  running counter for number of open water points
-    !                                       with sea-ice detected (from algorithm)
+    !                                         with sea-ice detected (from algorithm)
     !               - iRej        - in/out -  running counter for number of locations with bad
-    !                                       satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
+    !                                         satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
     !               - SeaIce      - output -  computed sea-ice fraction from tb23 & tb50
     !
     !               - ice         - internal -  sea ice
@@ -5644,17 +5644,17 @@ contains
     !                                        0, ok,
     !                                        1, input parameter out of range or grossrej=.true.
     !               - numObsToProcess - input  -  number of points to process (= numObsToProcess)
-    !               - tb23        - input  -  23Ghz brightness temperature (K) -- ch. 1 [missing for MWHS-2]
-    !               - tb23FG      - input  -  23Ghz brightness temperature (K) from first guess -- ch. 1
-    !               - tb31        - input  -  31Ghz brightness temperature (K) -- ch. 2 [missing for MWHS-2]
-    !               - tb31FG      - input  -  31Ghz brightness temperature (K) from first guess -- ch. 2
-    !               - tb50        - input  -  50Ghz brightness temperature (K) -- ch. 3 [missing for MWHS-2]
-    !               - tb89        - input  -  89Ghz brightness temperature (K) -- ch. 16
-    !               - tb165       - input  -  165Ghz brightness temperature (K) -- ch. 17
-    !               - satZenithAngle - input  -  satellite zenith angle (deg.)
-    !               - obsLat      - input  -  latitude (deg.)
-    !               - calcLandQualifierIndice  - input  -  land/sea indicator (0=land, 1=ocean)
-    !               - calcTerrainTypeIndice  - in/out -  terrain type (0=ice, -1 otherwise)
+    !               - tb23            - input  -  23Ghz brightness temperature (K) -- ch. 1 [missing for MWHS-2]
+    !               - tb23FG          - input  -  23Ghz brightness temperature (K) from first guess -- ch. 1
+    !               - tb31            - input  -  31Ghz brightness temperature (K) -- ch. 2 [missing for MWHS-2]
+    !               - tb31FG          - input  -  31Ghz brightness temperature (K) from first guess -- ch. 2
+    !               - tb50            - input  -  50Ghz brightness temperature (K) -- ch. 3 [missing for MWHS-2]
+    !               - tb89            - input  -  89Ghz brightness temperature (K) -- ch. 16
+    !               - tb165           - input  -  165Ghz brightness temperature (K) -- ch. 17
+    !               - satZenithAngle  - input  -  satellite zenith angle (deg.)
+    !               - obsLat          - input  -  latitude (deg.)
+    !               - calcLandQualifierIndice   - input  -  land/sea indicator (0=land, 1=ocean)
+    !               - calcTerrainTypeIndice     - in/out -  terrain type (0=ice, -1 otherwise)
     !               - waterobs    - in/out -  .true. if open water point (away from coasts and sea-ice)
     !               - grossrej    - input  -  .true. if any channel had a gross error from mwbg_grossValueCheck
     !               - cloudLiquidWaterPathObs - output -  cloud liquid water from observation (kg/m**2) from tb23 & tb31
@@ -5662,9 +5662,9 @@ contains
     !               - si_ecmwf    - output -  ECMWF scattering index from tb89 & tb165
     !               - si_bg       - output -  Bennartz-Grody scattering index from tb89 & tb165
     !               - iNumSeaIce  - in/out -  running counter for number of open water points
-    !                                       with sea-ice detected (from algorithm)
+    !                                         with sea-ice detected (from algorithm)
     !               - iRej        - in/out -  running counter for number of locations with bad
-    !                                       satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
+    !                                         satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
     !               - SeaIce      - output -  computed sea-ice fraction from tb23 & tb50
     !
     !               - ice         - internal -  sea ice
@@ -6585,12 +6585,12 @@ contains
     implicit none
 
     ! Arguments:
-    real, intent(in) :: cldPredThresh1 ! first cloud predictor threshold
-    real, intent(in) :: cldPredThresh2 ! second cloud predictor threshold
-    real, intent(in) :: errThresh1 ! sigmaO corresponding to first cloud predictor threshold
-    real, intent(in) :: errThresh2 ! sigmaO corresponding to second cloud predictor threshold
-    real, intent(in) :: cldPredUsed    ! cloud predictor for the obs
-    real :: sigmaObsErrUsed            ! estimated sigmaO for the obs
+    real, intent(in) :: cldPredThresh1  ! first cloud predictor threshold
+    real, intent(in) :: cldPredThresh2  ! second cloud predictor threshold
+    real, intent(in) :: errThresh1      ! sigmaO corresponding to first cloud predictor threshold
+    real, intent(in) :: errThresh2      ! sigmaO corresponding to second cloud predictor threshold
+    real, intent(in) :: cldPredUsed     ! cloud predictor for the obs
+    real :: sigmaObsErrUsed             ! estimated sigmaO for the obs
 
     if (cldPredUsed <= cldPredThresh1) then
       sigmaObsErrUsed = errThresh1
@@ -6618,17 +6618,17 @@ contains
     implicit None
 
     !Arguments
-    type(struct_obs),     intent(inout)     :: obsSpaceData           ! obspaceData Object
-    integer,              intent(in)        :: sensorIndex            ! tvs_sensorIndex
-    integer,              intent(in)        :: headerIndex            ! current header index
-    integer,              intent(in)        :: obsFlags(:)            ! data flags
-    real,                 intent(in)        :: obsTb(:)               ! obs Tb
-    real,                 intent(in)        :: cloudLiquidWaterPathObs(:)   ! obs CLW
-    real,                 intent(in)        :: cloudLiquidWaterPathFG(:)    ! trial CLW
-    real,                 intent(in)        :: scatIndexOverWaterObs(:)  ! atmospheric scatering index from observation
-    real,                 intent(in)        :: scatIndexOverWaterFG(:)   ! atmospheric scatering index from background
-    integer,              intent(in)        :: newInformationFlag(:)     ! information flag used with satplot
-    integer,              intent(in)        :: obsGlobalMarker(:)        ! information flag used with satplot
+    type(struct_obs),     intent(inout)     :: obsSpaceData               ! obspaceData Object
+    integer,              intent(in)        :: sensorIndex                ! tvs_sensorIndex
+    integer,              intent(in)        :: headerIndex                ! current header index
+    integer,              intent(in)        :: obsFlags(:)                ! data flags
+    real,                 intent(in)        :: obsTb(:)                   ! obs Tb
+    real,                 intent(in)        :: cloudLiquidWaterPathObs(:) ! obs CLW
+    real,                 intent(in)        :: cloudLiquidWaterPathFG(:)  ! trial CLW
+    real,                 intent(in)        :: scatIndexOverWaterObs(:)   ! atmospheric scatering index from observation
+    real,                 intent(in)        :: scatIndexOverWaterFG(:)    ! atmospheric scatering index from background
+    integer,              intent(in)        :: newInformationFlag(:)      ! information flag used with satplot
+    integer,              intent(in)        :: obsGlobalMarker(:)         ! information flag used with satplot
     ! Locals
     integer                                 :: bodyIndex
     integer                                 :: obsNumCurrentLoc
