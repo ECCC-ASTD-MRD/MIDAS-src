@@ -1022,7 +1022,7 @@ contains
             rejectionCodArray(testIndex,obsChannels2D(nChannelIndex,nDataIndex),sensorIndex) = &
               rejectionCodArray(testIndex,obsChannels2D(nChannelIndex,nDataIndex),sensorIndex)+ 1
             if (mwbg_debug) then
-              WRITE(6,*)stnId(2:9),' DRYNESS INDEX REJECT.',        &
+              write(*,*)stnId(2:9),' DRYNESS INDEX REJECT.',        &
                        'CHANNEL=', obsChannels2D(nChannelIndex,nDataIndex), &
                        'INDEX= ',drynessIndex
             end if
@@ -1034,7 +1034,7 @@ contains
             rejectionCodArray(testIndex,obsChannels2D(nChannelIndex,nDataIndex),sensorIndex) =  &
             rejectionCodArray(testIndex,obsChannels2D(nChannelIndex,nDataIndex),sensorIndex)+ 1
             if (mwbg_debug) then
-              WRITE(6,*)stnId(2:9),' DRYNESS INDEX REJECT.',       &
+              write(*,*)stnId(2:9),' DRYNESS INDEX REJECT.',       &
                       'CHANNEL=', obsChannels2D(nChannelIndex,nDataIndex),&
                       'INDEX= ',drynessIndex
             end if
@@ -1046,7 +1046,7 @@ contains
             rejectionCodArray(testIndex,obsChannels2D(nChannelIndex,nDataIndex),sensorIndex) = &
             rejectionCodArray(testIndex,obsChannels2D(nChannelIndex,nDataIndex),sensorIndex)+ 1
             if (mwbg_debug) then
-              WRITE(6,*)stnId(2:9),' DRYNESS INDEX REJECT.',       &
+              write(*,*)stnId(2:9),' DRYNESS INDEX REJECT.',       &
                        'CHANNEL=', obsChannels2D(nChannelIndex,nDataIndex),&
                        'INDEX= ',drynessIndex
             end if
