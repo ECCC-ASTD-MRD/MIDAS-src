@@ -145,25 +145,27 @@ contains
   !--------------------------------------------------------------------------
   ! ISRCHEQI function
   !--------------------------------------------------------------------------
-  function ISRCHEQI(KLIST, KLEN, KENTRY) result(ISRCHEQI_out)
+  function ISRCHEQI(KLIST, KENTRY) result(ISRCHEQI_out)
     !OBJET          Rechercher un element dans une liste (valeurs entieres).
     !ARGUMENTS      - indx    - output -  position de l'element recherche:
     !                                   =0, element introuvable,
     !                                   >0, position de l'element trouve,
     !               - klist   - input  -  la liste
-    !               - klen    - input  -  longueur de la liste
     !               - kentry  - input  -  l'element recherche
 
     implicit none
-
+    
+    ! Arguments:
+    integer, intent(in) ::  KLIST(:)
+    integer, intent(in) ::  KENTRY
     integer :: ISRCHEQI_out
-    integer  KLEN, JI
 
-    integer  KLIST(KLEN)
-    integer  KENTRY
+    ! Locals:
+    integer :: KLEN, JI
 
     ISRCHEQI_out = 0
-    do JI=1,KLEN
+    klen = size(KLIST)
+    do JI = 1, KLEN
        if ( KLIST(JI) == KENTRY ) then
           ISRCHEQI_out = JI
           return
@@ -910,7 +912,7 @@ contains
       if (.not. cldPredMissing) then
         if (clwUsedForQC > mwbg_clwQcThreshold) then
           do nChannelIndex=1,actualNumChannel
-            INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,obsChannels2D(nChannelIndex,nDataIndex))
+            INDXCAN = ISRCHEQI(ICLWREJ,obsChannels2D(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 )  then
               qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
               obsFlags2D(nChannelIndex,nDataIndex) = OR(obsFlags2D(nChannelIndex,nDataIndex),2**9)
@@ -931,7 +933,7 @@ contains
         clwObsFGaveraged = 0.5 * (cloudLiquidWaterPathObs(nDataIndex) + cloudLiquidWaterPathFG(nDataIndex))
         IF (tvs_mwAllskyAssim .and. clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr) then
           do nChannelIndex = 1,actualNumChannel
-            INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,obsChannels2D(nChannelIndex,nDataIndex))
+            INDXCAN = ISRCHEQI(ICLWREJ,obsChannels2D(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 ) obsFlags2D(nChannelIndex,nDataIndex) = OR(obsFlags2D(nChannelIndex,nDataIndex),2**23)
           end do
           if ( mwbg_debug ) then
@@ -946,7 +948,7 @@ contains
       else if (tvs_mwAllskyAssim .and. surfTypeIsWater .and. cldPredMissing) then
         loopChannel: do nChannelIndex = 1, actualNumChannel
           channelval = obsChannels2D(nChannelIndex,nDataIndex)
-          INDXCAN = ISRCHEQI(ICLWREJ,MXCLWREJ,channelval)
+          INDXCAN = ISRCHEQI(ICLWREJ,channelval)
           if ( INDXCAN /= 0 .and. oer_useStateDepSigmaObs(channelval,sensorIndex) ) then
             qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
             obsFlags2D(nChannelIndex,nDataIndex) = OR(obsFlags2D(nChannelIndex,nDataIndex),2**9)
@@ -1095,7 +1097,7 @@ contains
             terrainTypeIndice(nDataIndex) /=  0 .and. &   
             scatIndexOverWaterObs(nDataIndex) > ZSEUILSCAT) then
           do nChannelIndex=1,actualNumChannel
-            INDXCAN = ISRCHEQI(ISCATREJ,MXSCATREJ,obsChannels2D(nChannelIndex,nDataIndex))
+            INDXCAN = ISRCHEQI(ISCATREJ,obsChannels2D(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 )  then
               qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
               obsFlags2D(nChannelIndex,nDataIndex) = OR(obsFlags2D(nChannelIndex,nDataIndex),2**9)
@@ -1241,8 +1243,7 @@ contains
         if (scatwObsFGaveraged > mwbg_cloudySiThresholdBcorr .or. cldPredMissing) then
           do nChannelIndex = 1,actualNumChannel
             channelval = obsChannels2D(nChannelIndex,nDataIndex)
-            chanIndex = ISRCHEQI(chanIgnoreInAllskyGenCoeff(:),size(chanIgnoreInAllskyGenCoeff(:)), &
-                                 channelval)
+            chanIndex = ISRCHEQI(chanIgnoreInAllskyGenCoeff(:),channelval)
             if (chanIndex == 0) cycle
             obsFlags2D(nChannelIndex,nDataIndex) = OR(obsFlags2D(nChannelIndex,nDataIndex),2**23)
           end do
@@ -1384,7 +1385,7 @@ contains
 
       if ( SFCREJCT ) then
         do nChannelIndex=1,actualNumChannel
-          INDXCAN = ISRCHEQI(ISFCREJ,MXSFCREJ,obsChannels2D(nChannelIndex,nDataIndex))
+          INDXCAN = ISRCHEQI(ISFCREJ,obsChannels2D(nChannelIndex,nDataIndex))
           if ( INDXCAN /= 0 )  then
             if ( qcIndicator(nChannelIndex,nDataIndex) /= testIndex ) then
                qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
@@ -1525,7 +1526,7 @@ contains
 
       if (CH2OMPREJCT .and. landQualifierIndice(nDataIndex) == 1 .and. terrainTypeIndice(nDataIndex) /= 0) then
         do nChannelIndex=1,actualNumChannel
-          INDXCAN = ISRCHEQI(ICH2OMPREJ,MXCH2OMPREJ,obsChannels2D(nChannelIndex,nDataIndex))
+          INDXCAN = ISRCHEQI(ICH2OMPREJ,obsChannels2D(nChannelIndex,nDataIndex))
           if ( INDXCAN /= 0 )  then
             if ( qcIndicator(nChannelIndex,nDataIndex) /= testIndex ) then
                qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
@@ -1591,7 +1592,7 @@ contains
       end if        
       do nChannelIndex=1,actualNumChannel
         channelval = obsChannels2D(nChannelIndex,nDataIndex)
-        INDXCAN = ISRCHEQI (ISFCREJ2,MXSFCREJ2,channelval)
+        INDXCAN = ISRCHEQI (ISFCREJ2,channelval)
         if ( INDXCAN /= 0 )  then
           if (landQualifierIndice (nDataIndex) == 0 .or. ITRN == 0)  then
             obsFlags2D(nChannelIndex,nDataIndex) = OR(obsFlags2D(nChannelIndex,nDataIndex),2**9)
@@ -1690,7 +1691,7 @@ contains
       if ( rejectLowPeakingChannels ) then
         do nChannelIndex = 1, actualNumChannel
           channelval = obsChannels2D(nChannelIndex,nDataIndex)
-          INDXCAN = ISRCHEQI(lowPeakingChannelsList,size(lowPeakingChannelsList),channelval)
+          INDXCAN = ISRCHEQI(lowPeakingChannelsList,channelval)
           if ( INDXCAN /= 0 )  then
             qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
             obsFlags2D(nChannelIndex,nDataIndex) = OR(obsFlags2D(nChannelIndex,nDataIndex),2**9)
@@ -3164,7 +3165,7 @@ contains
     if ( itest(testIndex) == 1 ) then
       do nDataIndex=1,numObsToProcess
         do nChannelIndex=1,actualNumChannel
-          INDXTOPO = ISRCHEQI(ICHTOPO, MXTOPO, obsChannels2D(nChannelIndex,nDataIndex))
+          INDXTOPO = ISRCHEQI(ICHTOPO,obsChannels2D(nChannelIndex,nDataIndex))
           if ( INDXTOPO > 0 ) then
             if (modelInterpTerrain(nDataIndex) >= ZCRIT(INDXTOPO)) then
               qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
@@ -3366,7 +3367,7 @@ contains
 
         if ( SFCREJCT ) then
           do nChannelIndex=1,actualNumChannel
-            INDXCAN = ISRCHEQI(ISFCREJ,MXSFCREJ,obsChannels2D(nChannelIndex,nDataIndex))
+            INDXCAN = ISRCHEQI(ISFCREJ,obsChannels2D(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 )  then
               if ( qcIndicator(nChannelIndex,nDataIndex) /= testIndex ) then
                 qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
@@ -3389,7 +3390,7 @@ contains
         IBIT = AND(newInformationFlag(nDataIndex), 2**0)
         if ( CH2OMPREJCT .and. (IBIT /= 0) ) then
           do nChannelIndex=1,actualNumChannel
-            INDXCAN = ISRCHEQI (ICH2OMPREJ,MXCH2OMPREJ,obsChannels2D(nChannelIndex,nDataIndex))
+            INDXCAN = ISRCHEQI (ICH2OMPREJ,obsChannels2D(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 )  then
               if ( qcIndicator(nChannelIndex,nDataIndex) /= testIndex ) then
                 qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
@@ -3522,7 +3523,7 @@ contains
         IBIT = AND(newInformationFlag(nDataIndex), 2**0)
         if ( CH2OMPREJCT .and. (IBIT /= 0) ) then
           do nChannelIndex=1,actualNumChannel
-            INDXCAN = ISRCHEQI(ICH2OMPREJ,MXCH2OMPREJ,obsChannels2D(nChannelIndex,nDataIndex))
+            INDXCAN = ISRCHEQI(ICH2OMPREJ,obsChannels2D(nChannelIndex,nDataIndex))
             if ( INDXCAN /= 0 )  then
               if ( qcIndicator(nChannelIndex,nDataIndex) /= testIndex ) then
                 qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
@@ -6411,7 +6412,7 @@ contains
           obsFlags(ipos) = IBSET(obsFlags(ipos),7)
         end if
 
-        INDXCAN = ISRCHEQI(chanIgnoreInAllskyGenCoeff, MXCLWREJ, obsChannels(ipos))
+        INDXCAN = ISRCHEQI(chanIgnoreInAllskyGenCoeff,obsChannels(ipos))
         if (tvs_mwAllskyAssim .and. waterobs(kk) .and. INDXCAN /= 0 .and. &
             (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
              cloudLiquidWaterPathObs(kk) == mwbg_realMissing .or. cloudLiquidWaterPathFG(kk) == mwbg_realMissing)) then
@@ -6618,7 +6619,7 @@ contains
           obsFlags(ipos) = IBSET(obsFlags(ipos),7)
         end if
 
-        INDXCAN = ISRCHEQI(chanIgnoreInAllskyGenCoeff, MXCLWREJ, obsChannels(ipos))
+        INDXCAN = ISRCHEQI(chanIgnoreInAllskyGenCoeff,obsChannels(ipos))
         if (tvs_mwAllskyAssim .and. waterobs(kk) .and. INDXCAN /= 0 .and. &
             (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
              cloudLiquidWaterPathObs(kk) == mwbg_realMissing .or. cloudLiquidWaterPathFG(kk) == mwbg_realMissing)) then
