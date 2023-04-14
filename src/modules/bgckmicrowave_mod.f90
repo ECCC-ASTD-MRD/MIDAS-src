@@ -71,13 +71,6 @@ module bgckmicrowave_mod
   integer, parameter :: mwbg_maxNumChan = 100
   integer, parameter :: mwbg_maxNumTest = 16
 
-  ! OPTION for values of MG (land/sea mask) and LG (ice) at each observation
-  ! point using values on 5x5 mesh centered at each point.
-  ! ilsmOpt = 1 --> use MAX value from all 25 mesh points
-  ! ilsmOpt = 2 --> use value at central mesh point (obs location)
-  ! ilsmOpt = 3 --> use AVG value from all 25 mesh points
-  integer, parameter :: ilsmOpt = 2
-
   integer            :: rejectionCodArray (mwbg_maxNumTest, &
                                            mwbg_maxNumChan, &
                                            mwbg_maxNumSat) ! number of rejection 
@@ -3674,6 +3667,14 @@ contains
     integer, parameter               :: MXCH2OMPREJ= 6
     integer, parameter               :: MXTOPO     = 5
     integer, parameter               :: MXCLWREJ   = 6
+
+    integer, parameter               :: ilsmOpt = 1   ! OPTION for values of MG (land/sea mask) and LG (ice) 
+                                                      ! at each observation point using values on 5x5 mesh 
+                                                      ! centered at each point.
+                                                      ! ilsmOpt = 1 --> use MAX value from all 25 mesh points
+                                                      ! ilsmOpt = 2 --> use value at central mesh point (obs location)
+                                                      ! ilsmOpt = 3 --> use AVG value from all 25 mesh points
+
     integer                          :: iRej
     integer                          :: iNumSeaIce
     integer                          :: JI
@@ -3753,7 +3754,7 @@ contains
     ! STEP 1 ) Determine which obs pts are over open water (i.e NOT near coasts or
     !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL
     !###############################################################################
-    call mwbg_landIceMaskAtms(numObsToProcess, obsLat, obsLon, lsq, trn, waterobs)
+    call atmsMwhs2landIceMask(numObsToProcess, obsLat, obsLon, lsq, trn, waterobs, ilsmOpt)
 
     !###############################################################################
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.
@@ -4007,6 +4008,13 @@ contains
     integer, parameter               :: MXTOPO     = 3
     integer, parameter               :: MXCLWREJ   = 6
 
+    integer, parameter               :: ilsmOpt = 2   ! OPTION for values of MG (land/sea mask) and LG (ice) 
+                                                      ! at each observation point using values on 5x5 mesh 
+                                                      ! centered at each point.
+                                                      ! ilsmOpt = 1 --> use MAX value from all 25 mesh points
+                                                      ! ilsmOpt = 2 --> use value at central mesh point (obs location)
+                                                      ! ilsmOpt = 3 --> use AVG value from all 25 mesh points
+    
     integer                          :: iRej
     integer                          :: iNumSeaIce
     integer                          :: JI
@@ -4082,7 +4090,7 @@ contains
     ! STEP 1 ) Determine which obs pts are over open water (i.e NOT near coasts or
     !          over/near land/ice) using model MG and LG fields from glbhyb2 ANAL
     !###############################################################################
-    call mwbg_landIceMaskMwhs2(numObsToProcess, obsLat, obsLon, lsq, trn, waterobs, ilsmOpt)
+    call atmsMwhs2landIceMask(numObsToProcess, obsLat, obsLon, lsq, trn, waterobs, ilsmOpt)
 
     !###############################################################################
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.
@@ -4517,9 +4525,9 @@ contains
   end subroutine mwbg_readGeophysicFieldsAndInterpolate
 
   !--------------------------------------------------------------------------
-  ! mwbg_landIceMaskAtms
+  ! atmsMwhs2landIceMask
   !--------------------------------------------------------------------------
-  subroutine mwbg_landIceMaskAtms(numObsToProcess, obsLat, obsLon, zlq, ztt, waterobs)
+  subroutine atmsMwhs2landIceMask(numObsToProcess, obsLat, obsLon, zlq, ztt, waterobs, ilsmOpt)
     ! Adapted from: land_ice_mask_ssmis.ftn90 of mwbg_ssmis (D. Anselmo, S. Macpherson)
     !
     ! Object:   This routine sets waterobs array by performing a land/ice proximity check using
@@ -4535,8 +4543,9 @@ contains
     !           In the application of this check, a 5x5 mesh, with spacing defined by rlat_km and
     !           rlon_km, is positioned with its center over an obs pt (2 grid pts on either side
     !           of the obs pt; size of mesh is equal to 4*rlat_km x 4*rlon_km). The values of MG
-    !           and LG are evaluated at the grid points of this mesh. The maximum value of each
-    !           determines whether the obs pt is too close to ice or land to be retained.
+    !           and LG are evaluated at the grid points of this mesh. For ilsmOpt=1 (or 3), the maximum
+    !           (or average) determines whether the obs pt is too close to ice or land to be retained.
+    !           For ilsmOpt=2, the value at the central mesh point is used.
     !           **NOTE: the threshold value for MG has a very strong effect on the distance
     !                   from land that is permitted for an obs to be retained
     !
@@ -4574,6 +4583,10 @@ contains
     !                        of current report (-1 land/open water, 0 = ice)
     ! - waterobs   : output -  logical array identifying for each obs in current report
     !                        whether it is over open water, far from coast/ice
+    ! - ilsmOpt    : input  -  option for "interpolated" value of MG, LG at each location
+    !                        1 = use MAX value taken from all mesh grid points
+    !                        2 = use CENTRAL mesh point value (value at obs location)
+    !                        3 = use AVG value of all mesh grid points    
     ! - mxlat      : internal-  number of grid pts in lat. direction for mesh
     ! - mxlon      : internal-  number of grid pts in lon. direction for mesh
     ! - rlat_km    : internal-  spacing desired between mesh grid points in km
@@ -4603,6 +4616,7 @@ contains
 
     ! Arguments:
     integer, intent(in)                   :: numObsToProcess
+    integer, intent(in)                   :: ilsmOpt    
     real,    intent(in)                   :: obsLat(:)
     real,    intent(in)                   :: obsLon(:)
     integer, intent(out), allocatable     :: zlq(:)
@@ -4622,6 +4636,8 @@ contains
 
     integer :: indx,ii,jj,kk
     integer :: nlat,nlon
+
+    integer, parameter :: ii_obsloc=((mxlat*mxlon)/2)+1  ! 1D-index of central mesh-point (obs location)
 
     real, parameter :: pi=3.141592654
     real, parameter :: MGthresh=0.01,LGthresh=0.01
@@ -4677,7 +4693,7 @@ contains
       ! Read MG field.
       key = fstinf(iungeo,ni,nj,nk,-1,' ',-1,-1,-1,' ' ,'MG')
       if ( key <  0 ) then
-        call utl_abort('mwbg_landIceMaskAtms: The MG field is MISSING')
+        call utl_abort('atmsMwhs2landIceMask: The MG field is MISSING')
       end if
 
       call utl_reAllocate(mg, ni*nj)
@@ -4696,7 +4712,7 @@ contains
       if ( key <  0 ) then
         key = fstinf(iungeo,nilg,njlg,nk,-1,' ',-1,-1,-1,' ' ,'GL')
         if ( key <  0 ) then
-          call utl_abort('mwbg_landIceMaskAtms: The LG or GL field is MISSING')
+          call utl_abort('atmsMwhs2landIceMask: The LG or GL field is MISSING')
         end if
       else
         llg = .true.
@@ -4766,8 +4782,16 @@ contains
       ier  = gdllsval(gdid,mgintob,mg,latmesh,lonmesh,mxlat*mxlon)
       ier  = gdllsval(gdidlg,lgintob,lg,latmesh,lonmesh,mxlat*mxlon)
 
-      mgintrp(kk) = maxval(mgintob(:))
-      lgintrp(kk) = maxval(lgintob(:))
+      if ( ilsmOpt == 1 ) then
+        mgintrp(kk) = maxval(mgintob(:))
+        lgintrp(kk) = maxval(lgintob(:))
+      elseif ( ilsmOpt == 2) then
+        mgintrp(kk) = mgintob(ii_obsloc)
+        lgintrp(kk) = lgintob(ii_obsloc)
+      else
+        mgintrp(kk) = sum(mgintob(:))/real((mxlat*mxlon))
+        lgintrp(kk) = sum(lgintob(:))/real((mxlat*mxlon))
+      end if      
 
     end do
 
@@ -4788,7 +4812,7 @@ contains
     ier = fstfrm(iungeo)
     ier = fclos(iungeo)
 
-  end subroutine mwbg_landIceMaskAtms
+  end subroutine atmsMwhs2landIceMask
 
   !--------------------------------------------------------------------------
   ! mwbg_landIceMaskMwhs2
@@ -5089,15 +5113,21 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData           ! ObsSpaceData object
-
+    ! Locals:
     integer, allocatable :: calcLandQualifierIndice(:)
     integer, allocatable :: calcTerrainTypeIndice(:)
     logical, allocatable :: waterobs(:)
     integer              :: codtyp
     integer              :: headerIndex
 
+    integer, parameter :: ilsmOpt = 2   ! OPTION for values of MG (land/sea mask) and LG (ice) 
+                                        ! at each observation point using values on 5x5 mesh 
+                                        ! centered at each point.
+                                        ! ilsmOpt = 1 --> use MAX value from all 25 mesh points
+                                        ! ilsmOpt = 2 --> use value at central mesh point (obs location)
+                                        ! ilsmOpt = 3 --> use AVG value from all 25 mesh points
     logical              :: mwhs2DataPresent
 
     real                 :: obsLat(1)
@@ -5142,8 +5172,8 @@ contains
       obsLon(1) = obs_headElem_r( obsSpaceData, OBS_LON, headerIndex )
       obsLon(1) = obsLon(1)*MPC_DEGREES_PER_RADIAN_R8
       if( obsLon(1) > 180. ) obsLon(1) = obsLon(1) - 360.
-      call mwbg_landIceMaskMwhs2(1, obsLat, obsLon, calcLandQualifierIndice, &
-                                 calcTerrainTypeIndice, waterobs, ilsmOpt)
+      call atmsMwhs2landIceMask(1, obsLat, obsLon, calcLandQualifierIndice, &
+                                calcTerrainTypeIndice, waterobs, ilsmOpt)
       call obs_headSet_i(obsSpaceData, OBS_STYP, headerIndex, calcLandQualifierIndice(1))
       call obs_headSet_i(obsSpaceData, OBS_TTYP, headerIndex, calcTerrainTypeIndice(1))
 
