@@ -1119,7 +1119,7 @@ contains
   ! amsubTest13BennartzScatteringIndexCheck
   !--------------------------------------------------------------------------
   subroutine amsubTest13BennartzScatteringIndexCheck(obsChannels2D, sensorIndex, numObsToProcess, actualNumChannel, burpStnId, &
-                                                     scatIndexOverWaterObs, scatIndexOverWaterFG, scatl, &
+                                                     scatIndexOverWaterObs, scatIndexOverWaterFG, scatIndexOverLandObs, &
                                                      landQualifierIndice, modelInterpSeaIce, &
                                                      obsFlags2D, qcIndicator, chanIgnoreInAllskyGenCoeff, &
                                                      skipTestArr_opt)
@@ -1139,7 +1139,7 @@ contains
     character *9,intent(in)                :: burpStnId                      ! identificateur du satellite
     real,        intent(in)                :: scatIndexOverWaterObs(numObsToProcess)     ! scattering index over water from observation
     real,        intent(in)                :: scatIndexOverWaterFG(numObsToProcess)      ! scattering index over water from background
-    real,        intent(in)                :: scatl(numObsToProcess)                     ! scattering index over land
+    real,        intent(in)                :: scatIndexOverLandObs(numObsToProcess)      ! scattering index over land
     integer,     intent(in)                :: landQualifierIndice(numObsToProcess)       ! land sea qualifyer 
     real,        intent(in)                :: modelInterpSeaIce(numObsToProcess)         ! glace de mer
     integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)  ! marqueur de radiance 
@@ -1212,8 +1212,8 @@ contains
         end if
 
       else                                      ! land
-        if (  SCATL(nDataIndex) /= mwbg_realMissing    .and. &
-              SCATL(nDataIndex) > ZSEUILSCATL  ) then
+        if ( scatIndexOverLandObs(nDataIndex) /= mwbg_realMissing    .and. &
+             scatIndexOverLandObs(nDataIndex) > ZSEUILSCATL ) then
           FULLREJCT = .TRUE.
         end if
       end if
@@ -1228,7 +1228,7 @@ contains
         if (mwbg_debug) then
           write(*,*)  burpStnId(2:9), ' BENNARTZ scattering index check REJECT, scatIndexOverWaterObs=', &
                       scatIndexOverWaterObs(nDataIndex), ', scatIndexOverWaterFG=', scatIndexOverWaterFG(nDataIndex), &
-                     ', SCATL= ',SCATL(nDataIndex)
+                     ', scatIndexOverLandObs= ',scatIndexOverLandObs(nDataIndex)
         end if
       end if
 
@@ -1860,7 +1860,7 @@ contains
     real                                   :: tb89FG (numObsToProcess)
     real                                   :: ice  (numObsToProcess)
     real                                   :: tpw  (numObsToProcess)
-    real                                   :: scatl(numObsToProcess)
+    real                                   :: scatIndexOverLandObs(numObsToProcess)
     integer                                :: err (numObsToProcess)
     integer                                :: rain(numObsToProcess)
     integer                                :: snow(numObsToProcess)
@@ -1935,7 +1935,7 @@ contains
     call grody (err, numObsToProcess, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
                 satZenithAngle, obsLat, landQualifierIndice, ice, tpw, &
                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                rain, snow, scatl, scatIndexOverWaterObs)   
+                rain, snow, scatIndexOverLandObs, scatIndexOverWaterObs)   
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
@@ -2170,7 +2170,7 @@ contains
     real                                   :: tb150FG(numObsToProcess)
     real                                   :: tb89FgClear(numObsToProcess)
     real                                   :: tb150FgClear(numObsToProcess)    
-    real                                   :: scatl(numObsToProcess)
+    real                                   :: scatIndexOverLandObs(numObsToProcess)
     integer                                :: err (numObsToProcess)
     integer                                :: channelForTopoFilter(3)
     real                                   :: altitudeForTopoFilter(3)
@@ -2246,7 +2246,7 @@ contains
     
     !  Run Bennartz AMSU-B algorithms.
     call bennartz (err, numObsToProcess, tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
-                   satZenithAngle, landQualifierIndice, scatl, &
+                   satZenithAngle, landQualifierIndice, scatIndexOverLandObs, &
                    scatIndexOverWaterObs, scatIndexOverWaterFG, &
                    cloudLiquidWaterPathObs, cloudLiquidWaterPathFG)
 
@@ -2331,7 +2331,7 @@ contains
 
     ! 13) test 13: Bennartz scattering index check (full)
     call amsubTest13BennartzScatteringIndexCheck(obsChannels2D, sensorIndex, numObsToProcess, actualNumChannel, burpStnId, &
-                                                 scatIndexOverWaterObs, scatIndexOverWaterFG, scatl, &
+                                                 scatIndexOverWaterObs, scatIndexOverWaterFG, scatIndexOverLandObs, &
                                                  landQualifierIndice, modelInterpSeaIce, &
                                                  obsFlags2D, qcIndicator, chanIgnoreInAllskyGenCoeff, &
                                                  skipTestArr_opt=skipTestArr(:))
@@ -2660,7 +2660,7 @@ contains
   subroutine GRODY (ier, numObsToProcess, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
                     satZenithAngle, obsLat, landQualifierIndice, ice, tpw, &
                     cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                    rain, snow, scatl, scatIndexOverWaterObs)
+                    rain, snow, scatIndexOverLandObs, scatIndexOverWaterObs)
     !:Purpose: Compute the following parameters using 5 AMSU-A channels:
     !          - sea ice, 
     !          - total precipitable water, 
@@ -2693,7 +2693,7 @@ contains
     integer, intent(out) :: rain(:) ! rain identification (0=no rain; 1=rain)
     integer, intent(out) :: snow(:) ! snow cover and glacial ice identification:
                                     ! (0=no snow; 1=snow; 2=glacial ice)
-    real,    intent(out) :: scatl (:)                  ! scattering index over land
+    real,    intent(out) :: scatIndexOverLandObs (:)   ! scattering index over land
     real,    intent(out) :: scatIndexOverWaterObs (:)  ! scattering index over water
 
     ! Locals:
@@ -2717,7 +2717,7 @@ contains
       tpw  (i) = mwbg_realMissing
       cloudLiquidWaterPathObs(i) = mwbg_realMissing
       cloudLiquidWaterPathFG(i) = mwbg_realMissing
-      scatl(i) = mwbg_realMissing
+      scatIndexOverLandObs(i) = mwbg_realMissing
       scatIndexOverWaterObs(i) = mwbg_realMissing
       rain (i) = nint(mwbg_realMissing)
       snow (i) = nint(mwbg_realMissing)
@@ -2773,7 +2773,7 @@ contains
                        - t89 
           sil = t23 - t89 
 
-          scatl (i) = sil
+          scatIndexOverLandObs (i) = sil
           scatIndexOverWaterObs (i) = siw
         end if
 
@@ -2957,7 +2957,7 @@ contains
   ! bennartz
   !------------------------------------------------------------------------------------
   subroutine bennartz (ier, numObsToProcess, tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
-                       satZenithAngle, landQualifierIndice, scatl, &
+                       satZenithAngle, landQualifierIndice, scatIndexOverLandObs, &
                        scatIndexOverWaterObs, scatIndexOverWaterFG, &
                        cloudLiquidWaterPathObs, cloudLiquidWaterPathFG)
 
@@ -2980,7 +2980,7 @@ contains
     real,    intent(in)  :: tb150FgClear(:)  ! 150Ghz clear-sky brightness temperature from background (K)
     real,    intent(in)  :: satZenithAngle(:)!  satellite zenith angle (deg.)
     integer, intent(in)  :: landQualifierIndice(:) ! land/sea indicator (0=land;1=ocean)
-    real,    intent(out) :: scatl(:)         ! scattering index over land
+    real,    intent(out) :: scatIndexOverLandObs(:)    ! scattering index over land
     real,    intent(out) :: scatIndexOverWaterObs(:)   ! scattering index over water from observation
     real,    intent(out) :: scatIndexOverWaterFG(:)    ! scattering index over water from background
     real,    intent(out) :: cloudLiquidWaterPathObs(:) ! obs cloud liquid water content (not computed for NOW)
@@ -2993,7 +2993,7 @@ contains
 
     ! 1) Initialise output parameters
     do i = 1, numObsToProcess 
-      scatl(i) = mwbg_realMissing
+      scatIndexOverLandObs(i) = mwbg_realMissing
       scatIndexOverWaterObs(i) = mwbg_realMissing
       scatIndexOverWaterFG(i) = mwbg_realMissing
       cloudLiquidWaterPathObs(i) = mwbg_realMissing
@@ -3027,14 +3027,14 @@ contains
             scatIndexOverWaterObs(i) = (tb89(i) - tb150(i)) - (-39.2010 + 0.1104 * satZenithAngle(i))
           end if
         else
-          scatl(i) = (tb89(i) - tb150(i)) - (0.158 + 0.0163 * satZenithAngle(i))
+          scatIndexOverLandObs(i) = (tb89(i) - tb150(i)) - (0.158 + 0.0163 * satZenithAngle(i))
         end if ! if (landQualifierIndice(i) == 1)
       else if ((ier(i) /= 0) .and. (i <= 100 )) then 
         print *, 'bennartz: input Parameters are not all valid: '
         print *, 'bennartz: i, tb89(i), tb150(i), satZenithAngle(i), landQualifierIndice(i) = ', &
                             i, tb89(i), tb150(i), satZenithAngle(i), landQualifierIndice(i)
-        print *, 'bennartz: ier(i), scatl(i), scatIndexOverWaterObs(i), scatIndexOverWaterFG(i)=', &
-                            ier(i), scatl(i), scatIndexOverWaterObs(i), scatIndexOverWaterFG(i)
+        print *, 'bennartz: ier(i), scatIndexOverLandObs(i), scatIndexOverWaterObs(i), scatIndexOverWaterFG(i)=', &
+                            ier(i), scatIndexOverLandObs(i), scatIndexOverWaterObs(i), scatIndexOverWaterFG(i)
       end if ! if (ier(i) == 0)
     end do 
 
