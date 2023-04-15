@@ -706,7 +706,7 @@ contains
   !  amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck
   !--------------------------------------------------------------------------
   subroutine amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck(obsChannels2D, sensorIndex, actualNumChannel, &
-                                                                        numObsToProcess, stnId, modelInterpGroundIce, &
+                                                                        numObsToProcess, stnId, modelInterpLandFrac, &
                                                                         landQualifierIndice, obsFlags2D, qcIndicator)
 
     !:Purpose: test 7: "Land/sea qual."/"model land/sea" consistency check (full)
@@ -723,7 +723,7 @@ contains
     integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
     integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
     character *9,intent(in)                :: stnId                                           ! identificateur du satellite
-    real,        intent(in)                :: modelInterpGroundIce(numObsToProcess)           ! glace mer 
+    real,        intent(in)                :: modelInterpLandFrac(numObsToProcess)            ! model interpolated land fraction
     integer,     intent(in)                :: landQualifierIndice(numObsToProcess)            ! land sea qualifyer 
     integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
     integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
@@ -736,9 +736,9 @@ contains
     do nDataIndex=1,numObsToProcess
       if (landQualifierIndice (nDataIndex) /= mwbg_intMissing) then
         if (landQualifierIndice(nDataIndex) == 1 .and. &
-            modelInterpGroundIce(nDataIndex) < 0.20) then
+            modelInterpLandFrac(nDataIndex) < 0.20) then
         else if (landQualifierIndice(nDataIndex) == 0 .and. &
-                 modelInterpGroundIce(nDataIndex) > 0.50) then
+                 modelInterpLandFrac(nDataIndex) > 0.50) then
         else
           do nChannelIndex=1,actualNumChannel
             qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
@@ -750,7 +750,7 @@ contains
           if ( mwbg_debug ) then
             write(*,*)stnId(2:9),' LAND/SEA QUALifIER', &
                       ' INCONSISTENCY REJECT. landQualifierIndice= ', &
-                      landQualifierIndice(nDataIndex), ' MODEL MASK= ',modelInterpGroundIce(nDataIndex)
+                      landQualifierIndice(nDataIndex), ' MODEL MASK= ',modelInterpLandFrac(nDataIndex)
           end if
         end if
       end if
@@ -1765,7 +1765,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsua(landQualifierIndice, obsChannels, obsTb, btClear, obsTbBiasCorr, &
                                 ompTb, qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
-                                satScanPosition, modelInterpGroundIce, modelInterpTerrain, &
+                                satScanPosition, modelInterpLandFrac, modelInterpTerrain, &
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle, &
                                 obsGlobalMarker, obsFlags, newInformationFlag, &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
@@ -1807,7 +1807,7 @@ contains
     real, intent(in)                       :: btClear(:)                  ! clear-sky radiances
     real, intent(in)                       :: obsTbBiasCorr(:)            ! correction aux radiances
     real, intent(in)                       :: ompTb(:)                    ! residus (o-p)
-    real, intent(in)                       :: modelInterpGroundIce(:)     ! masque terre/mer du modele
+    real, intent(in)                       :: modelInterpLandFrac(:)      ! masque terre/mer du modele
     real, intent(in)                       :: modelInterpTerrain(:)       ! topographie du modele
     real, intent(in)                       :: modelInterpSeaIce(:)        ! etendue de glace du modele
     real, intent(in)                       :: satZenithAngle(:)           ! angle zenith du satellite (deg.)
@@ -1982,7 +1982,7 @@ contains
     !       b) both over land  (landQualifierIndice=0; mg>0.80), new threshold 0.50, jh dec 2000.
     ! Other conditions are unacceptable.
     call amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck (obsChannels2D, sensorIndex, actualNumChannel, &
-                                                                     numObsToProcess, stnId, modelInterpGroundIce, &
+                                                                     numObsToProcess, stnId, modelInterpLandFrac, &
                                                                      landQualifierIndice, obsFlags2D, qcIndicator)
 
     ! 8) test 8: "Terrain type"/"Land/sea qual."/"model ice" consistency check. (full)
@@ -2080,7 +2080,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsub(landQualifierIndice, obsChannels, obsTb, btClear, obsTbBiasCorr, &
                                 ompTb, qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
-                                satScanPosition, modelInterpGroundIce, modelInterpTerrain, &
+                                satScanPosition, modelInterpLandFrac, modelInterpTerrain, &
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle, &
                                 obsGlobalMarker, obsFlags, newInformationFlag, &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
@@ -2121,7 +2121,7 @@ contains
     real, intent(in)                       :: btClear(:)                  ! clear-sky radiances from background
     real, intent(in)                       :: obsTbBiasCorr(:)            ! correction aux radiances
     real, intent(in)                       :: ompTb(:)                    ! residus (o-p)
-    real, intent(in)                       :: modelInterpGroundIce(:)     ! masque terre/mer du modele
+    real, intent(in)                       :: modelInterpLandFrac(:)      ! masque terre/mer du modele
     real, intent(in)                       :: modelInterpTerrain(:)       ! topographie du modele
     real, intent(in)                       :: modelInterpSeaIce(:)        ! etendue de glace du modele
     real, intent(in)                       :: satZenithAngle(:)           ! angle zenith du satellite (deg.)
@@ -2299,7 +2299,7 @@ contains
     !       b) both over land  (landQualifierIndice=0; mg>0.80), new threshold 0.50, jh dec 2000.
     ! Other conditions are unacceptable.
     call amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck (obsChannels2D, sensorIndex, actualNumChannel, &
-                                                                     numObsToProcess, stnId, modelInterpGroundIce, &
+                                                                     numObsToProcess, stnId, modelInterpLandFrac, &
                                                                      landQualifierIndice, obsFlags2D, qcIndicator)
 
     ! 8) test 8: "Terrain type"/"Land/sea qual."/"model ice" consistency check. (full)
@@ -4219,7 +4219,7 @@ contains
   ! mwbg_readGeophysicFieldsAndInterpolate
   !--------------------------------------------------------------------------
   subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, obsLat, obsLon, modelInterpTerrain, &
-                                                    modelInterpGroundIce, modelInterpSeaIce)
+                                                    modelInterpLandFrac, modelInterpSeaIce)
 
     implicit none
 
@@ -4234,7 +4234,7 @@ contains
     character(*),       intent(in)   :: instName                ! Instrument Name
     real,               intent(in)   :: obsLat(:)               ! Obseravtion Lats
     real,               intent(in)   :: obsLon(:)               ! Observation Lons
-    real, allocatable,  intent(out)  :: modelInterpGroundIce(:) ! Glace de mer interpolees au pt d'obs.
+    real, allocatable,  intent(out)  :: modelInterpLandFrac(:)  ! model interpolated land fraction.
     real, allocatable,  intent(out)  :: modelInterpTerrain(:)   ! topographie filtree (en metres) et interpolees
     real ,allocatable,  intent(out)  :: modelInterpSeaIce(:)    ! Glace de mer interpolees au pt d'obs.
 
@@ -4433,8 +4433,8 @@ contains
 
     if(allocated(modelInterpTerrain)) deallocate(modelInterpTerrain)
     allocate (modelInterpTerrain(dataNum) , STAT=ier)
-    if(allocated(modelInterpGroundIce)) deallocate(modelInterpGroundIce)
-    allocate (modelInterpGroundIce(dataNum) , STAT=ier)
+    if(allocated(modelInterpLandFrac)) deallocate(modelInterpLandFrac)
+    allocate (modelInterpLandFrac(dataNum) , STAT=ier)
     if(allocated(modelInterpSeaIce)) deallocate(modelInterpSeaIce)
     allocate (modelInterpSeaIce(dataNum) , STAT=ier)
     do dataIndex = 1, dataNum
@@ -4455,18 +4455,18 @@ contains
         print *, ' GLINTBOX = '
         print *,  (GLINTBOX(boxPointIndex,dataIndex),boxPointIndex=1,boxPointNum)
       end if
-      modelInterpGroundIce(dataIndex) = 0.0
+      modelInterpLandFrac(dataIndex) = 0.0
       modelInterpTerrain(dataIndex) = 0.0
       modelInterpSeaIce(dataIndex) = 0.0
       do boxPointIndex=1,MXLAT*MXLON
         modelInterpTerrain(dataIndex) = MAX(modelInterpTerrain(dataIndex),MTINTBOX(boxPointIndex,dataIndex)/TOPOFACT)
         if(readGlaceMask) then
-          modelInterpGroundIce(dataIndex) = MAX(modelInterpGroundIce(dataIndex),MGINTBOX(boxPointIndex,dataIndex))
+          modelInterpLandFrac(dataIndex) = MAX(modelInterpLandFrac(dataIndex),MGINTBOX(boxPointIndex,dataIndex))
           modelInterpSeaIce(dataIndex) = MAX(modelInterpSeaIce(dataIndex),GLINTBOX(boxPointIndex,dataIndex))
         end if
       end do
       if (mwbg_debug) then
-        print *, ' modelInterpGroundIce = ', modelInterpGroundIce(dataIndex)
+        print *, ' modelInterpLandFrac = ', modelInterpLandFrac(dataIndex)
         print *, ' modelInterpTerrain = ', modelInterpTerrain(dataIndex)
         print *, ' modelInterpSeaIce = ', modelInterpSeaIce(dataIndex)
       end if
@@ -6843,7 +6843,7 @@ contains
     character(len=9)              :: stnId                         ! station id in burp file
     real, allocatable             :: modelInterpTerrain(:)         ! topo in standard file interpolated to obs point
     real, allocatable             :: modelInterpSeaIce(:)          ! Glace de mer " "
-    real, allocatable             :: modelInterpGroundIce(:)       ! Glace de continent " "
+    real, allocatable             :: modelInterpLandFrac(:)        ! model interpolated land fraction
     real,    allocatable          :: obsLat(:)                     ! obs. point latitudes
     real,    allocatable          :: obsLon(:)                     ! obs. point longitude
     integer, allocatable          :: satIdentifier(:)              ! Satellite identifier
@@ -6942,7 +6942,7 @@ contains
       ! STEP 3) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
       !###############################################################################
       call mwbg_readGeophysicFieldsAndInterpolate(instName, obsLat, obsLon, modelInterpTerrain,     &
-                                                  modelInterpGroundIce, modelInterpSeaIce)
+                                                  modelInterpLandFrac, modelInterpSeaIce)
       !###############################################################################
       ! STEP 4) Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
       !###############################################################################
@@ -6950,7 +6950,7 @@ contains
       if (instName == 'AMSUA') then
         call mwbg_tovCheckAmsua(landQualifierIndice, obsChannels, obsTb, btClear, obsTbBiasCorr, &
                                 ompTb, qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
-                                satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
+                                satScanPosition, modelInterpLandFrac, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, obsFlags, newInformationFlag, &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
@@ -6959,7 +6959,7 @@ contains
       else if (instName == 'AMSUB') then
         call mwbg_tovCheckAmsub(landQualifierIndice, obsChannels, obsTb, btClear, obsTbBiasCorr, &
                                 ompTb, qcIndicator, actualNumChannel, numObsToProcess, sensorIndex, &
-                                satScanPosition, modelInterpGroundIce, modelInterpTerrain,&
+                                satScanPosition, modelInterpLandFrac, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, obsFlags, newInformationFlag,        & 
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,       &
