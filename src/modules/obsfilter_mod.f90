@@ -1303,9 +1303,10 @@ end subroutine filt_topoAISW
     real(8) :: levelAltLow, levelAltHigh
     real(8) :: levelBracketLow, levelBracketHigh
     real(8) :: levelRangeNear, levelRangeFar
-    
+    logical, save :: firstCall = .true.
+
     ! namelist variables:
-    real(8) :: maxRangeInterp ! max allowable horizontal distance between levels (in m) for radar winds
+    real(8), save :: maxRangeInterp ! max allowable horizontal distance between levels (in m) for radar winds
 
     namelist /namradvel/ maxRangeInterp
 
@@ -1314,20 +1315,23 @@ end subroutine filt_topoAISW
       write(*,*) 'filt_radvel: begin'
     end if
     
-    ! default value 
-    maxRangeInterp = -1.0D0
-
     ! reading namelist variables
-    if ( utl_isNamelistPresent('namradvel', './flnml') ) then
-      nulnam=0
-      ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-      read(nulnam, nml=namradvel, iostat=ierr)
-      if ( ierr /= 0 ) call utl_abort('oop_raDvel_nl: Error reading namelist namradvel')
-      if ( .not. beSilent ) write(*,nml=namradvel)
-      ierr = fclos(nulnam)
-    else if ( .not. beSilent ) then
-      write(*,*)
-      write(*,*) 'filt_radvel: namradvel is missing in the namelist. The default value will be taken.'
+    if (firstCall) then
+      ! default value 
+      maxRangeInterp = -1.0D0
+
+      if ( utl_isNamelistPresent('namradvel', './flnml') ) then
+        nulnam=0
+        ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+        read(nulnam, nml=namradvel, iostat=ierr)
+        if ( ierr /= 0 ) call utl_abort('oop_raDvel_nl: Error reading namelist namradvel')
+        if ( .not. beSilent ) write(*,nml=namradvel)
+        ierr = fclos(nulnam)
+      else if ( .not. beSilent ) then
+        write(*,*)
+        write(*,*) 'filt_radvel: namradvel is missing in the namelist. The default value will be taken.'
+      end if
+      firstCall = .false.
     end if
     !
     ! Loop over all header indices of the 'RA' family (Doppler Velocity)
@@ -1662,39 +1666,44 @@ end subroutine filt_topoAISW
     integer           :: headerIndex, bodyIndex, codeType, platformIndex
     integer           :: fnom, fclos
     logical           :: inPlatformList
+    logical, save     :: firstCall = .true.
 
     ! List of satellites (id_stn in SQLite files) used for sea ice concentration
     integer, parameter :: maxPlatformIce = 50
+
     ! namelist variables
-    integer            :: nPlatformIce                    ! MUST NOT BE INCLUDED IN NAMELIST!
-    character(len=12)  :: listPlatformIce(maxPlatformIce) ! list of ice obs 'platforms' (station IDs) to assimilate 
+    integer, save            :: nPlatformIce                    ! MUST NOT BE INCLUDED IN NAMELIST!
+    character(len=12), save  :: listPlatformIce(maxPlatformIce) ! list of ice obs 'platforms' (station IDs) to assimilate 
 
     namelist /namPlatformIce/ nPlatformIce, listPlatformIce
 
     if (.not. obs_famExist(obsSpaceData,'GL')) return
 
-    ! set default values for namelist variables
-    nPlatformIce = MPC_missingValue_INT
-    listPlatformIce(:) = '1234567890ab'
+    if (firstCall) then
+      ! set default values for namelist variables
+      nPlatformIce = MPC_missingValue_INT
+      listPlatformIce(:) = '1234567890ab'
 
-    if (utl_isNamelistPresent('namPlatformIce','./flnml')) then
-      nulnam = 0
-      ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read (nulnam, nml = namPlatformIce, iostat = ierr)
-      if ( ierr /= 0 ) call utl_abort('filt_iceConcentration: Error reading namelist')
-      if ( mmpi_myid == 0 ) write(*,nml=namPlatformIce)
-      ierr = fclos(nulnam)
-      if (nPlatformIce /= MPC_missingValue_INT) then
-        call utl_abort('filt_iceConcentration: check namPlatformIce namelist section: nPlatformIce should be removed')
+      if (utl_isNamelistPresent('namPlatformIce','./flnml')) then
+        nulnam = 0
+        ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+        read (nulnam, nml = namPlatformIce, iostat = ierr)
+        if ( ierr /= 0 ) call utl_abort('filt_iceConcentration: Error reading namelist')
+        if ( mmpi_myid == 0 ) write(*,nml=namPlatformIce)
+        ierr = fclos(nulnam)
+        if (nPlatformIce /= MPC_missingValue_INT) then
+          call utl_abort('filt_iceConcentration: check namPlatformIce namelist section: nPlatformIce should be removed')
+        end if
+        nPlatformIce = 0
+        do platformIndex = 1, maxPlatformIce 
+          if (listPlatformIce(platformIndex) == '1234567890ab') exit
+          nPlatformIce = nPlatformIce + 1
+        end do
+      else
+        write(*,*)
+        write(*,*) 'filt_iceConcentration: namPlatformIce is missing in the namelist. Filtering will be skipped.'
       end if
-      nPlatformIce = 0
-      do platformIndex = 1, maxPlatformIce 
-        if (listPlatformIce(platformIndex) == '1234567890ab') exit
-         nPlatformIce = nPlatformIce + 1
-      end do
-    else
-      write(*,*)
-      write(*,*) 'filt_iceConcentration: namPlatformIce is missing in the namelist. Filtering will be skipped.'
+      firstCall = .false.
     end if
 
     if ( nPlatformIce < 1 ) return
