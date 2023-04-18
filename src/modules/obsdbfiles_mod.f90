@@ -2268,11 +2268,6 @@ contains
       return
     end if
 
-    ! determine initial idData,idObs to ensure unique values across mpi tasks
-    call getInitialIdObsData(obsdat, familyType, obsIdo_i4, obsIdd_i4)
-    obsIdo = obsIdo_i4
-    obsIdd = obsIdd_i4
-
     ! some sql column names
     vnmSqlName = odbf_midasTabColFromObsSpaceName('VNM', midasBodyNamesList)
     pppSqlName = odbf_midasTabColFromObsSpaceName('PPP', midasBodyNamesList)
@@ -2335,8 +2330,6 @@ contains
         obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
         if ( obsIdf /= fileIndex ) cycle HEADER
 
-        obsIdo = obsIdo + 1
-
         bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
         bodyIndexEnd = bodyIndexBegin + &
                        obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
@@ -2347,11 +2340,11 @@ contains
           obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           if ( obsValue == obs_missingValue_R ) cycle BODY
 
-          obsIdd = obsIdd + 1
-
           midasKey = midasKey + 1
           call fSQL_bind_param(stmt, PARAM_INDEX=1, INT_VAR=midasKey)
+          obsIdo  = obs_headPrimaryKey( obsdat, headIndex )
           call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdo)
+          obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
           call fSQL_bind_param(stmt, PARAM_INDEX=3, INT8_VAR=obsIdd)
           obsVarNo  = obs_bodyElem_i( obsdat, obs_vnm, bodyIndex )
           call fSQL_bind_param(stmt, PARAM_INDEX=4, INT_VAR=obsVarNo)
@@ -2433,16 +2426,11 @@ contains
         call utl_abort( 'odbf_insertInMidasBodyTable: fSQL_prepare' )
       end if
 
-      obsIdo = obsIdo_i4
-      obsIdd = obsIdd_i4
-      
       call fSQL_begin(db)
       HEADER2: do headIndex = 1, obs_numHeader(obsdat)
 
         obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
         if ( obsIdf /= fileIndex ) cycle HEADER2
-
-        obsIdo = obsIdo + 1
 
         bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
         bodyIndexEnd = bodyIndexBegin + &
@@ -2453,8 +2441,6 @@ contains
           ! do not try to update if the observed value is missing
           obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           if ( obsValue == obs_missingValue_R ) cycle BODY2
-
-          obsIdd = obsIdd + 1
 
           ! update the value, but set to null if it is missing
           if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
@@ -2479,6 +2465,7 @@ contains
             end if
           end if
 
+          obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
           call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdd)
 
           call fSQL_exec_stmt(stmt)

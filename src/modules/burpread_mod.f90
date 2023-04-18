@@ -3432,6 +3432,8 @@ CONTAINS
     integer(8) :: headerPrimaryKey, bodyPrimaryKey
     integer, allocatable :: allNumHeader(:), allNumBody(:)
 
+    if (mmpi_myid == 0) write(*,*) 'setHeadBodyPrimaryKeyColumns: start'
+
     numHeader = 0
     numBody = 0
     call obs_set_current_header_list(obsdat, obsFamily)
@@ -3471,6 +3473,8 @@ CONTAINS
         call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey)
       end do BODY
     end do HEADER
+
+    if (mmpi_myid == 0) write(*,*) 'setHeadBodyPrimaryKeyColumns: end'
 
   end subroutine setHeadBodyPrimaryKeyColumns
 
