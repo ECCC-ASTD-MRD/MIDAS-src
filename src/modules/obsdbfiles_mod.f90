@@ -1625,7 +1625,8 @@ contains
     else
       if (fileExists) then
         ! Update the MIDAS Body Output Table
-        call odbf_updateMidasBodyTable(obsdat, fileIndex, fileName, familyType)
+        !call odbf_updateMidasBodyTable(obsdat, fileIndex, fileName, familyType)
+        call odbf_insertInMidasBodyTable(obsdat, fileIndex, fileName, familyType)
       else
         ! Insert into the MIDAS Body Output Table
         call odbf_insertInMidasBodyTable(obsdat, fileIndex, fileName, familyType)
