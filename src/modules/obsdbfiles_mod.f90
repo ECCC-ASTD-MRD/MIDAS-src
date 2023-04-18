@@ -2210,7 +2210,7 @@ contains
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
     integer(8)           :: obsIdo, obsIdd
-    integer              :: obsIdo_i4, obsIdd_i4
+    integer              :: columnParamIndex
     integer              :: obsIdf, obsVarNo, midasKey, updateItemIndex, updateValue_i
     integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd, maxNumBody
     integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
@@ -2453,6 +2453,9 @@ contains
       write(*,*) 'odbf_insertInMidasBodyTable: with contents of obsSpaceData column: ', &
                 trim(obsSpaceColumnName)
 
+      columnParamIndex = updateItemIndex + 1
+      write(*,*) 'odbf_insertInMidasBodyTable: columnParamIndex=', columnParamIndex
+
       call fSQL_begin(db)
       HEADER2: do headIndex = 1, obs_numHeader(obsdat)
 
@@ -2469,6 +2472,11 @@ contains
           obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
           if ( obsValue == obs_missingValue_R ) cycle BODY2
 
+          if (updateItemIndex == 1) then
+            obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
+            call fSQL_bind_param(stmt, PARAM_INDEX=1, INT8_VAR=obsIdd)
+          end if
+
           ! update the value, but set to null if it is missing
           if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
             updateValue_r = obs_bodyElem_r(obsdat, obsSpaceColIndexSource, bodyIndex)
@@ -2479,21 +2487,18 @@ contains
             end if
 
             if ( updateValue_r == obs_missingValue_R ) then
-              call fSQL_bind_param(stmt, PARAM_INDEX=1)  ! sql null values
+              call fSQL_bind_param(stmt, PARAM_INDEX=columnParamIndex)  ! sql null values
             else
-              call fSQL_bind_param(stmt, PARAM_INDEX=1, REAL8_VAR=updateValue_r)
+              call fSQL_bind_param(stmt, PARAM_INDEX=columnParamIndex, REAL8_VAR=updateValue_r)
             end if
           else
             updateValue_i = obs_bodyElem_i(obsdat, obsSpaceColIndexSource, bodyIndex)
             if ( updateValue_i == mpc_missingValue_int ) then
-              call fSQL_bind_param(stmt, PARAM_INDEX=1)  ! sql null values
+              call fSQL_bind_param(stmt, PARAM_INDEX=columnParamIndex)  ! sql null values
             else
-              call fSQL_bind_param(stmt, PARAM_INDEX=1, INT_VAR=updateValue_i)
+              call fSQL_bind_param(stmt, PARAM_INDEX=columnParamIndex, INT_VAR=updateValue_i)
             end if
           end if
-
-          obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
-          call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdd)
 
           call fSQL_exec_stmt(stmt)
 
