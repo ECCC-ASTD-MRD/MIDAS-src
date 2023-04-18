@@ -2218,7 +2218,7 @@ contains
     real(8)              :: updateValue_r, obsValue, obsPPP, obsVAR
     character(len=4)     :: obsSpaceColumnName
     character(len=lenSqlName) :: sqlColumnName, vnmSqlName, pppSqlName, varSqlName
-    character(len=3000)  :: query
+    character(len=3000)  :: query, queryCreateTable, queryInsertInTable, queryForValues
     character(len=5000)  :: tableInsertColumnList
     character(len=20)        :: sqlDataType
     logical              :: midasTableExists
@@ -2379,6 +2379,47 @@ contains
     end if
 
     tableInsertColumnList = ''
+    ! build 'queryCreateTable'/'queryInsertInTable'/'queryForValues' with all updateItemList(:) columns
+    do updateItemIndex = 1, numberUpdateItems
+
+      ! get obsSpaceData column index for source of updated sql column
+      obsSpaceColumnName = updateItemList(updateItemIndex)
+      ierr = clib_toUpper(obsSpaceColumnName)
+      obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))      
+
+      sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasBodyNamesList)
+      write(*,*) 'odbf_insertInMidasBodyTable: updating midasTable column: ', trim(sqlColumnName)
+      write(*,*) 'odbf_insertInMidasBodyTable: with contents of obsSpaceData column: ', &
+                trim(obsSpaceColumnName)
+
+      if (updateItemIndex == 1) then
+        queryCreateTable = 'create table newColumn_tmp(' // new_line('A') // &
+                            '  ' // trim(obsBodyKeySqlName) // ' integer ' // new_line('A')                
+        queryInsertInTable = 'insert into newColumn_tmp(' // new_line('A') // &
+                              '  ' // trim(obsBodyKeySqlName) // new_line('A')
+        queryForValues = 'values(?'
+      end if
+      
+      if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
+        sqlDataType = 'double'
+      else
+        sqlDataType = 'integer'
+      end if
+      queryCreateTable = trim(queryCreateTable) // &
+                        ', ' // trim(sqlColumnName) // ' ' // trim(sqlDataType) // new_line('A')
+      queryInsertInTable = trim(queryInsertInTable) // &
+                        ', ' // trim(sqlColumnName) // new_line('A')
+      queryForValues = trim(queryForValues) // ',?'
+
+      if (updateItemIndex == numberUpdateItems) then
+        queryCreateTable = trim(queryCreateTable) // ');'
+        queryForValues = trim(queryForValues) // ')'        
+        queryInsertInTable = trim(queryInsertInTable) // ') ' // trim(queryForValues) // ';'
+      end if
+
+    end do
+    write(*,*) 'odbf_insertInMidasBodyTable: queryCreateTable   -->', trim(queryCreateTable)
+    write(*,*) 'odbf_insertInMidasBodyTable: queryInsertInTable -->', trim(queryInsertInTable)
     
     ! At each loop iteration, create temporary table for the current updateItemList, add it to
     !  a separate table, to have all updateItemList(:) columns in the table at the end
