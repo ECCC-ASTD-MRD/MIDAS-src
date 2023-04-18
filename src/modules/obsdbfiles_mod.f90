@@ -2441,41 +2441,39 @@ contains
 
     ! At each loop iteration, create temporary table for the current updateItemList, add it to
     !  a separate table, to have all updateItemList(:) columns in the table at the end
-    do updateItemIndex = 1, numberUpdateItems
+    call fSQL_begin(db)
+    HEADER2: do headIndex = 1, obs_numHeader(obsdat)
 
-      ! get obsSpaceData column index for source of updated sql column
-      obsSpaceColumnName = updateItemList(updateItemIndex)
-      ierr = clib_toUpper(obsSpaceColumnName)
-      obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
+      obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
+      if ( obsIdf /= fileIndex ) cycle HEADER2
+
+      bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
+      bodyIndexEnd = bodyIndexBegin + &
+                      obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
+
+      BODY2: do bodyIndex = bodyIndexBegin, bodyIndexEnd
       
-      sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasBodyNamesList)
-      write(*,*) 'odbf_insertInMidasBodyTable: updating midasTable column: ', trim(sqlColumnName)
-      write(*,*) 'odbf_insertInMidasBodyTable: with contents of obsSpaceData column: ', &
-                trim(obsSpaceColumnName)
+        ! do not try to update if the observed value is missing
+        obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
+        if ( obsValue == obs_missingValue_R ) cycle BODY2
 
-      columnParamIndex = updateItemIndex + 1
-      write(*,*) 'odbf_insertInMidasBodyTable: columnParamIndex=', columnParamIndex
+        obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
+        call fSQL_bind_param(stmt, PARAM_INDEX=1, INT8_VAR=obsIdd)
 
-      call fSQL_begin(db)
-      HEADER2: do headIndex = 1, obs_numHeader(obsdat)
+        do updateItemIndex = 1, numberUpdateItems
 
-        obsIdf = obs_headElem_i( obsdat, OBS_IDF, headIndex )
-        if ( obsIdf /= fileIndex ) cycle HEADER2
-
-        bodyIndexBegin = obs_headElem_i( obsdat, OBS_RLN, headIndex )
-        bodyIndexEnd = bodyIndexBegin + &
-                        obs_headElem_i( obsdat, OBS_NLV, headIndex ) - 1
-
-        BODY2: do bodyIndex = bodyIndexBegin, bodyIndexEnd
-        
-          ! do not try to update if the observed value is missing
-          obsValue = obs_bodyElem_r(obsdat, OBS_VAR, bodyIndex)
-          if ( obsValue == obs_missingValue_R ) cycle BODY2
-
-          if (updateItemIndex == 1) then
-            obsIdd  = obs_bodyPrimaryKey( obsdat, bodyIndex )
-            call fSQL_bind_param(stmt, PARAM_INDEX=1, INT8_VAR=obsIdd)
-          end if
+          ! get obsSpaceData column index for source of updated sql column
+          obsSpaceColumnName = updateItemList(updateItemIndex)
+          ierr = clib_toUpper(obsSpaceColumnName)
+          obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
+          
+          sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasBodyNamesList)
+          !write(*,*) 'odbf_insertInMidasBodyTable: updating midasTable column: ', trim(sqlColumnName)
+          !write(*,*) 'odbf_insertInMidasBodyTable: with contents of obsSpaceData column: ', &
+          !          trim(obsSpaceColumnName)
+    
+          columnParamIndex = updateItemIndex + 1
+          !write(*,*) 'odbf_insertInMidasBodyTable: columnParamIndex=', columnParamIndex
 
           ! update the value, but set to null if it is missing
           if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
@@ -2499,17 +2497,16 @@ contains
               call fSQL_bind_param(stmt, PARAM_INDEX=columnParamIndex, INT_VAR=updateValue_i)
             end if
           end if
+        end do
 
-          call fSQL_exec_stmt(stmt)
+        call fSQL_exec_stmt(stmt)
 
-        end do BODY2
+      end do BODY2
 
-      end do HEADER2
+    end do HEADER2
 
-      call fSQL_finalize( stmt )
-      call fSQL_commit( db )
-
-    end do
+    call fSQL_finalize( stmt )
+    call fSQL_commit( db )
 
     ! Combine temporary table midasBodyTableName + 'combinedTable' -> 'combinedTable_tmp'
     query = 'create table combinedTable_tmp as select ' // new_line('A') // &
