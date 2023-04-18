@@ -2214,7 +2214,7 @@ contains
     integer              :: obsIdf, obsVarNo, midasKey, updateItemIndex, updateValue_i
     integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd, maxNumBody
     integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
-    integer              :: maxNumBodyAllMpi(mmpi_nprocs)
+    integer              :: maxNumBodyAllMpi(mmpi_nprocs), obsSpaceColIndexSourceArr(15)
     real(8)              :: updateValue_r, obsValue, obsPPP, obsVAR
     character(len=4)     :: obsSpaceColumnName
     character(len=lenSqlName) :: sqlColumnName, vnmSqlName, pppSqlName, varSqlName
@@ -2379,6 +2379,7 @@ contains
     end if
 
     tableInsertColumnList = ''
+    obsSpaceColIndexSourceArr(:) = mpc_missingValue_int
     ! build 'queryCreateTable'/'queryInsertInTable'/'queryForValues' with all updateItemList(:) columns
     do updateItemIndex = 1, numberUpdateItems
 
@@ -2417,10 +2418,10 @@ contains
         queryInsertInTable = trim(queryInsertInTable) // ') ' // trim(queryForValues) // ';'
       end if
 
-      ! build list of added column names.
+      ! build string for column names and array for obsSpaceColIndexSource to use later
       tableInsertColumnList = trim(tableInsertColumnList) // &
                               '  , combinedTable.' // trim(sqlColumnName) // new_line('A')
-
+      obsSpaceColIndexSourceArr(updateItemIndex) = obsSpaceColIndexSource
     end do
 
     ! Create the table
@@ -2462,18 +2463,8 @@ contains
 
         do updateItemIndex = 1, numberUpdateItems
 
-          ! get obsSpaceData column index for source of updated sql column
-          obsSpaceColumnName = updateItemList(updateItemIndex)
-          ierr = clib_toUpper(obsSpaceColumnName)
-          obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
-          
-          sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasBodyNamesList)
-          !write(*,*) 'odbf_insertInMidasBodyTable: updating midasTable column: ', trim(sqlColumnName)
-          !write(*,*) 'odbf_insertInMidasBodyTable: with contents of obsSpaceData column: ', &
-          !          trim(obsSpaceColumnName)
-    
+          obsSpaceColIndexSource = obsSpaceColIndexSourceArr(updateItemIndex)
           columnParamIndex = updateItemIndex + 1
-          !write(*,*) 'odbf_insertInMidasBodyTable: columnParamIndex=', columnParamIndex
 
           ! update the value, but set to null if it is missing
           if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
