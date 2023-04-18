@@ -2417,6 +2417,10 @@ contains
         queryInsertInTable = trim(queryInsertInTable) // ') ' // trim(queryForValues) // ';'
       end if
 
+      ! build list of added column names.
+      tableInsertColumnList = trim(tableInsertColumnList) // &
+                              '  , combinedTable.' // trim(sqlColumnName) // new_line('A')
+
     end do
     write(*,*) 'odbf_insertInMidasBodyTable: queryCreateTable   -->', trim(queryCreateTable)
     write(*,*) 'odbf_insertInMidasBodyTable: queryInsertInTable -->', trim(queryInsertInTable)
