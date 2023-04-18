@@ -2393,9 +2393,9 @@ contains
                 trim(obsSpaceColumnName)
 
       if (updateItemIndex == 1) then
-        queryCreateTable = 'create table newColumn_tmp(' // new_line('A') // &
+        queryCreateTable = 'create table combinedTable(' // new_line('A') // &
                             '  ' // trim(obsBodyKeySqlName) // ' integer ' // new_line('A')                
-        queryInsertInTable = 'insert into newColumn_tmp(' // new_line('A') // &
+        queryInsertInTable = 'insert into combinedTable(' // new_line('A') // &
                               '  ' // trim(obsBodyKeySqlName) // new_line('A')
         queryForValues = 'values(?'
       end if
@@ -2422,9 +2422,23 @@ contains
                               '  , combinedTable.' // trim(sqlColumnName) // new_line('A')
 
     end do
+
+    ! Create the table
     write(*,*) 'odbf_insertInMidasBodyTable: queryCreateTable   -->', trim(queryCreateTable)
+    call fSQL_do_many( db, queryCreateTable, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
+    end if 
+
+    ! Prepare to insert into the table
     write(*,*) 'odbf_insertInMidasBodyTable: queryInsertInTable -->', trim(queryInsertInTable)
-    
+    call fSQL_prepare( db, queryInsertInTable, stmt, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'odbf_insertInMidasBodyTable: fSQL_prepare: ', fSQL_errmsg(stat)
+      call utl_abort( 'odbf_insertInMidasBodyTable: fSQL_prepare' )
+    end if
+
     ! At each loop iteration, create temporary table for the current updateItemList, add it to
     !  a separate table, to have all updateItemList(:) columns in the table at the end
     do updateItemIndex = 1, numberUpdateItems
@@ -2438,38 +2452,6 @@ contains
       write(*,*) 'odbf_insertInMidasBodyTable: updating midasTable column: ', trim(sqlColumnName)
       write(*,*) 'odbf_insertInMidasBodyTable: with contents of obsSpaceData column: ', &
                 trim(obsSpaceColumnName)
-                
-      ! Create temporary table 'newColumn_tmp'
-      query = 'create table newColumn_tmp(' // new_line('A') // &
-              '  ' // trim(obsBodyKeySqlName) // ' integer,' // new_line('A')
-              
-      ! add column to the temporary table
-      if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
-        sqlDataType = 'double'
-      else
-        sqlDataType = 'integer'
-      end if
-      query = trim(query) // '  ' // trim(sqlColumnName) // ' ' // trim(sqlDataType)
-
-      query = trim(query) // ');'
-      write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
-      call fSQL_do_many( db, query, stat )
-      if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
-      end if    
-
-      ! prepare sql update query
-      query = 'insert into newColumn_tmp(' // &
-              trim(sqlColumnName)  // ',' // &
-              trim(obsBodyKeySqlName) // ') values(?,?);'
-      write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
-
-      call fSQL_prepare( db, query, stmt, stat )
-      if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'odbf_insertInMidasBodyTable: fSQL_prepare: ', fSQL_errmsg(stat)
-        call utl_abort( 'odbf_insertInMidasBodyTable: fSQL_prepare' )
-      end if
 
       call fSQL_begin(db)
       HEADER2: do headIndex = 1, obs_numHeader(obsdat)
@@ -2521,62 +2503,6 @@ contains
 
       call fSQL_finalize( stmt )
       call fSQL_commit( db )
-
-      if (updateItemIndex == 1) then
-        ! Rename temporary table 'newColumn_tmp' -> 'combinedTable'
-        query = 'alter table newColumn_tmp rename to combinedTable;'
-        write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
-        call fSQL_do_many( db, query, stat )
-        if ( fSQL_error(stat) /= FSQL_OK ) then
-          write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-          call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
-        end if
-      else
-        ! Combine temporary table 'newColumn_tmp' + 'combinedTable' -> 'combinedTable_tmp'
-        query = 'create table combinedTable_tmp as select ' // new_line('A') // &
-                '  ' // 'newColumn_tmp.' // trim(obsBodyKeySqlName) // ', ' // new_line('A') // &
-                '  ' // 'newColumn_tmp.' // trim(sqlColumnName) // new_line('A') // &        
-                        trim(tableInsertColumnList) // '  from ' // new_line('A') // &
-                '  ' // 'newColumn_tmp inner join combinedTable' // ' on ' // new_line('A') // &
-                '  ' // 'newColumn_tmp.' // trim(obsBodyKeySqlName) // '=' // &
-                'combinedTable.' // trim(obsBodyKeySqlName) // ';'
-
-        write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
-        call fSQL_do_many( db, query, stat )
-        if ( fSQL_error(stat) /= FSQL_OK ) then
-          write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-          call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
-        end if
-
-        ! Drop the newColumn_tmp/combinedTable tables 
-        query = 'drop table newColumn_tmp;'
-        write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
-        call fSQL_do_many( db, query, stat )
-        if ( fSQL_error(stat) /= FSQL_OK ) then
-          write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-          call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
-        end if
-
-        query = 'drop table combinedTable;'
-        write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
-        call fSQL_do_many( db, query, stat )
-        if ( fSQL_error(stat) /= FSQL_OK ) then
-          write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-          call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
-        end if
-
-        ! Rename temporary table 'combinedTable_tmp' -> 'combinedTable'
-        query = 'alter table combinedTable_tmp rename to combinedTable;'
-        write(*,*) 'odbf_insertInMidasBodyTable: query ---> ', trim(query)
-        call fSQL_do_many( db, query, stat )
-        if ( fSQL_error(stat) /= FSQL_OK ) then
-          write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-          call utl_abort('odbf_insertInMidasBodyTable: Problem with fSQL_do_many')
-        end if        
-      end if
-
-      tableInsertColumnList = trim(tableInsertColumnList) // &
-                              '  , combinedTable.' // trim(sqlColumnName) // new_line('A')
 
     end do
 
