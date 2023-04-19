@@ -12,8 +12,8 @@ toplevel=$(git rev-parse --show-toplevel)
 
 # CHOOSE WHETHER OR NOT TO GENERATE DEPENDENCY GRAPHS (COSTLY) AND NAMELIST INFORMATION
 
-do_graphs=no
-do_namelists=no
+do_graphs=yes
+do_namelists=yes
 
 # PREPARE THE MODULE DEPENDENCY ARRAYS
 
