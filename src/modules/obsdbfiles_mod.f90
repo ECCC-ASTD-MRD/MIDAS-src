@@ -3304,4 +3304,90 @@ contains
 
   end subroutine obdf_clean
 
+  !--------------------------------------------------------------------------
+  ! getCreateTableInsertQueries
+  !--------------------------------------------------------------------------
+  subroutine getCreateTableInsertQueries(numberUpdateItems, updateItemList, midasTableType, &
+                                          outputTableName, queryCreateTable, queryInsertInTable, &
+                                          tableInsertColumnList, obsSpaceColIndexSourceArr)
+    !
+    ! :Purpose: Generate the queries for creating the table and inset columns into it.
+    !
+    implicit none
+
+    ! arguments:
+    integer, intent(in)          :: numberUpdateItems
+    character(len=4), intent(in) :: updateItemList(:)
+    character(len=*), intent(in) :: midasTableType
+    character(len=*), intent(in) :: outputTableName
+    character(len=*), intent(inout) :: queryCreateTable
+    character(len=*), intent(inout) :: queryInsertInTable
+    character(len=*), intent(inout) :: tableInsertColumnList
+    integer         , intent(inout) :: obsSpaceColIndexSourceArr(:)
+
+    ! locals:
+    integer :: updateItemIndex, ierr
+    integer :: obsSpaceColIndexSource
+    character(len=4)          :: obsSpaceColumnName
+    character(len=20)         :: sqlDataType
+    character(len=lenSqlName) :: sqlColumnName
+    character(len=3000)       :: queryForValues
+
+
+    do updateItemIndex = 1, numberUpdateItems
+
+      ! get obsSpaceData column index for source of updated sql column
+      obsSpaceColumnName = updateItemList(updateItemIndex)
+      ierr = clib_toUpper(obsSpaceColumnName)
+      obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))      
+
+      if (midasTableType == 'header') then
+        sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasHeadNamesList)
+      else if (midasTableType == 'body') then
+        sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasBodyNamesList)
+      end if
+      write(*,*) 'getCreateTableInsertQueries: updating midasTable column: ', trim(sqlColumnName)
+      write(*,*) 'getCreateTableInsertQueries: with contents of obsSpaceData column: ', &
+                trim(obsSpaceColumnName)
+
+      if (updateItemIndex == 1) then
+        if (midasTableType == 'header') then
+          queryCreateTable = 'create table '// trim(outputTableName) // '(' // new_line('A') // &
+                              '  ' // trim(obsHeadKeySqlName) // ' integer ' // new_line('A')
+
+          queryInsertInTable = 'insert into '// trim(outputTableName) // '(' // new_line('A') // &
+                                '  ' // trim(obsHeadKeySqlName) // new_line('A')
+
+        else if (midasTableType == 'body') then
+          queryCreateTable = 'create table '// trim(outputTableName) // '(' // new_line('A') // &
+                              '  ' // trim(obsBodyKeySqlName) // ' integer ' // new_line('A')
+
+          queryInsertInTable = 'insert into '// trim(outputTableName) // '(' // new_line('A') // &
+                                '  ' // trim(obsBodyKeySqlName) // new_line('A')                              
+        end if
+
+        queryForValues = 'values(?'
+      end if
+
+      if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
+        sqlDataType = 'double'
+      else
+        sqlDataType = 'integer'
+      end if
+      queryCreateTable = trim(queryCreateTable) // ', ' // trim(sqlColumnName) // ' ' // trim(sqlDataType) // new_line('A')
+      queryInsertInTable = trim(queryInsertInTable) // ', ' // trim(sqlColumnName) // new_line('A')
+      queryForValues = trim(queryForValues) // ',?'
+
+      if (updateItemIndex == numberUpdateItems) then
+        queryCreateTable = trim(queryCreateTable) // ');'
+        queryForValues = trim(queryForValues) // ')'        
+        queryInsertInTable = trim(queryInsertInTable) // ') ' // trim(queryForValues) // ';'
+      end if
+
+      tableInsertColumnList = trim(tableInsertColumnList) // ', combinedTable.' // trim(sqlColumnName) // new_line('A')
+      obsSpaceColIndexSourceArr(updateItemIndex) = obsSpaceColIndexSource
+    end do
+
+  end subroutine getCreateTableInsertQueries
+
 end module obsdbFiles_mod
