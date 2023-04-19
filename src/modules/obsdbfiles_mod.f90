@@ -2336,49 +2336,9 @@ contains
     
     tableInsertColumnList = ''
     obsSpaceColIndexSourceArr(:) = mpc_missingValue_int
-    ! build 'queryCreateTable'/'queryInsertInTable'/'queryForValues' with all updateItemList(:) columns
-    do updateItemIndex = 1, numberUpdateItems
-
-      ! get obsSpaceData column index for source of updated sql column
-      obsSpaceColumnName = updateItemList(updateItemIndex)
-      ierr = clib_toUpper(obsSpaceColumnName)
-      obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
-
-      sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasHeadNamesList)
-      write(*,*) 'odbf_insertInMidasHeaderTable: updating midasTable column: ', trim(sqlColumnName)
-      write(*,*) 'odbf_insertInMidasHeaderTable: with contents of obsSpaceData column: ', &
-                trim(obsSpaceColumnName)
-
-      if (updateItemIndex == 1) then
-        queryCreateTable = 'create table combinedTable(' // new_line('A') // &
-                            '  ' // trim(obsHeadKeySqlName) // ' integer ' // new_line('A')                
-        queryInsertInTable = 'insert into combinedTable(' // new_line('A') // &
-                              '  ' // trim(obsHeadKeySqlName) // new_line('A')
-        queryForValues = 'values(?'
-      end if
-      
-      if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
-        sqlDataType = 'double'
-      else
-        sqlDataType = 'integer'
-      end if
-      queryCreateTable = trim(queryCreateTable) // &
-                        ', ' // trim(sqlColumnName) // ' ' // trim(sqlDataType) // new_line('A')
-      queryInsertInTable = trim(queryInsertInTable) // &
-                        ', ' // trim(sqlColumnName) // new_line('A')
-      queryForValues = trim(queryForValues) // ',?'
-
-      if (updateItemIndex == numberUpdateItems) then
-        queryCreateTable = trim(queryCreateTable) // ');'
-        queryForValues = trim(queryForValues) // ')'        
-        queryInsertInTable = trim(queryInsertInTable) // ') ' // trim(queryForValues) // ';'
-      end if
-
-      ! build string for column names and array for obsSpaceColIndexSource to use later
-      tableInsertColumnList = trim(tableInsertColumnList) // &
-                              '  , combinedTable.' // trim(sqlColumnName) // new_line('A')
-      obsSpaceColIndexSourceArr(updateItemIndex) = obsSpaceColIndexSource
-    end do
+    call getCreateTableInsertQueries(numberUpdateItems, updateItemList, midasTableType, &
+                                      'combinedTable', queryCreateTable, queryInsertInTable, &
+                                      tableInsertColumnList, obsSpaceColIndexSourceArr(:))
 
     ! Create the table
     write(*,*) 'odbf_insertInMidasHeaderTable: queryCreateTable   -->', trim(queryCreateTable)
@@ -2693,49 +2653,9 @@ contains
 
     tableInsertColumnList = ''
     obsSpaceColIndexSourceArr(:) = mpc_missingValue_int
-    ! build 'queryCreateTable'/'queryInsertInTable'/'queryForValues' with all updateItemList(:) columns
-    do updateItemIndex = 1, numberUpdateItems
-
-      ! get obsSpaceData column index for source of updated sql column
-      obsSpaceColumnName = updateItemList(updateItemIndex)
-      ierr = clib_toUpper(obsSpaceColumnName)
-      obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))      
-
-      sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasBodyNamesList)
-      write(*,*) 'odbf_insertInMidasBodyTable: updating midasTable column: ', trim(sqlColumnName)
-      write(*,*) 'odbf_insertInMidasBodyTable: with contents of obsSpaceData column: ', &
-                trim(obsSpaceColumnName)
-
-      if (updateItemIndex == 1) then
-        queryCreateTable = 'create table combinedTable(' // new_line('A') // &
-                            '  ' // trim(obsBodyKeySqlName) // ' integer ' // new_line('A')                
-        queryInsertInTable = 'insert into combinedTable(' // new_line('A') // &
-                              '  ' // trim(obsBodyKeySqlName) // new_line('A')
-        queryForValues = 'values(?'
-      end if
-      
-      if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
-        sqlDataType = 'double'
-      else
-        sqlDataType = 'integer'
-      end if
-      queryCreateTable = trim(queryCreateTable) // &
-                        ', ' // trim(sqlColumnName) // ' ' // trim(sqlDataType) // new_line('A')
-      queryInsertInTable = trim(queryInsertInTable) // &
-                        ', ' // trim(sqlColumnName) // new_line('A')
-      queryForValues = trim(queryForValues) // ',?'
-
-      if (updateItemIndex == numberUpdateItems) then
-        queryCreateTable = trim(queryCreateTable) // ');'
-        queryForValues = trim(queryForValues) // ')'        
-        queryInsertInTable = trim(queryInsertInTable) // ') ' // trim(queryForValues) // ';'
-      end if
-
-      ! build string for column names and array for obsSpaceColIndexSource to use later
-      tableInsertColumnList = trim(tableInsertColumnList) // &
-                              ', combinedTable.' // trim(sqlColumnName) // new_line('A')
-      obsSpaceColIndexSourceArr(updateItemIndex) = obsSpaceColIndexSource
-    end do
+    call getCreateTableInsertQueries(numberUpdateItems, updateItemList, midasTableType, &
+                                      'combinedTable', queryCreateTable, queryInsertInTable, &
+                                      tableInsertColumnList, obsSpaceColIndexSourceArr(:))
 
     ! Create the table
     write(*,*) 'odbf_insertInMidasBodyTable: queryCreateTable   -->', trim(queryCreateTable)
