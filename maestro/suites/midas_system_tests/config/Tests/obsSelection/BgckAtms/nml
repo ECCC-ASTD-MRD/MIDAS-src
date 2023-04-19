@@ -7,33 +7,7 @@
   cloudyClwThresholdBcorr = 0.05,
 /
  &namObsSelection
-  doThinning = .true.
-/
- &NAMobsDB
-  numElemIdList = 1
-  elemIdList(1) = 12163
-/
- &namObsDbMIDASBodyUpdate
-   numberUpdateItems=4
-   updateItemList(1)='OMP'
-   updateItemList(2)='BCOR'
-   updateItemList(3)='OER'
-   updateItemList(4)='SEM'
-/
- &namObsDbMIDASHeaderUpdate
-   numberUpdateItems=12
-   updateItemList(1)='ETOP'
-   updateItemList(2)='VTOP'
-   updateItemList(3)='ECF'
-   updateItemList(4)='VCF'
-   updateItemList(5)='HE'
-   updateItemList(6)='NCO2'
-   updateItemList(7)='ZTSR'
-   updateItemList(8)='ZTM'
-   updateItemList(9)='ZLQM'
-   updateItemList(10)='ZTGM'
-   updateItemList(11)='ZPS'
-   updateItemList(12)='STYP'
+  doThinning = .false.
 /
  &NAMDIMO
    NMXOBS=100000,
