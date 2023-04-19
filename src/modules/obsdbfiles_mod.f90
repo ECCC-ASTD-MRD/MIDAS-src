@@ -1623,14 +1623,7 @@ contains
         write(*,*) '                 The MIDAS Body Output Table will not be updated.'
       end if
     else
-      if (fileExists) then
-        ! Update the MIDAS Body Output Table
-        !call odbf_updateMidasBodyTable(obsdat, fileIndex, fileName, familyType)
-        call odbf_insertInMidasBodyTable(obsdat, fileIndex, fileName, familyType)
-      else
-        ! Insert into the MIDAS Body Output Table
-        call odbf_insertInMidasBodyTable(obsdat, fileIndex, fileName, familyType)
-      end if
+      call odbf_insertInMidasBodyTable(obsdat, fileIndex, fileName, familyType)
     end if
 
     call utl_tmg_stop(14)
@@ -1881,8 +1874,9 @@ contains
 
   end subroutine odbf_updateMidasHeaderTable
 
+  ! MAZIAR: **REMOVE THIS SUBROUTINE. NOT USED**
   !--------------------------------------------------------------------------
-  ! odbf_updateMidasBodyTable
+  ! odbf_updateMidasBodyTable 
   !--------------------------------------------------------------------------
   subroutine odbf_updateMidasBodyTable(obsdat, fileIndex, fileName, familyType)
     !
