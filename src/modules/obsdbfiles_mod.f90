@@ -2438,8 +2438,8 @@ contains
     ! Combine temporary table midasHeadTableName + 'combinedTable' -> 'combinedTable_tmp'
     query = 'create table combinedTable_tmp as select ' // new_line('A') // &
             '  ' // trim(midasHeadTableName) // '.' // trim(midasHeadKeySqlName) // ', ' // new_line('A') // &
-            '  ' // trim(midasHeadTableName) // '.' // trim(obsHeadKeySqlName) // ', ' // new_line('A')
-    query = trim(query) // '  ' // trim(tableInsertColumnList) // '  from ' // new_line('A') // &
+            '  ' // trim(midasHeadTableName) // '.' // trim(obsHeadKeySqlName) // new_line('A')
+    query = trim(query) // trim(tableInsertColumnList) // '  from ' // new_line('A') // &
             '  ' // 'combinedTable inner join ' // trim(midasHeadTableName) // ' on ' // new_line('A') // &
             '  ' // 'combinedTable.' // trim(obsHeadKeySqlName) // '=' // &
                     trim(midasHeadTableName) // '.' // trim(obsHeadKeySqlName) // ';'
