@@ -24,7 +24,6 @@ module obsdbFiles_mod
 
   ! Public subroutines and functions:
   public :: odbf_getDateStamp, odbf_readFile, odbf_updateFile, obdf_clean
-  public :: odbf_insertInMidasBodyTable
 
   ! Arrays used to match obsDB column names with obsSpaceData column names
 
@@ -1613,7 +1612,7 @@ contains
       end if
     else
       ! Update the MIDAS Header Output Table
-      call odbf_updateMidasHeaderTable(obsdat, fileIndex, fileName, familyType)
+      call odbf_insertInMidasHeaderTable(obsdat, fileIndex, fileName, familyType)
     end if
 
     ! Check if the Midas Body Table needs to be updated, specified from namelist
@@ -1623,6 +1622,7 @@ contains
         write(*,*) '                 The MIDAS Body Output Table will not be updated.'
       end if
     else
+      ! Update the MIDAS Body Output Table
       call odbf_insertInMidasBodyTable(obsdat, fileIndex, fileName, familyType)
     end if
 
@@ -1630,6 +1630,7 @@ contains
 
   end subroutine odbf_updateFile
 
+  ! MAZIAR: **REMOVE THIS SUBROUTINE. NOT USED**
   !--------------------------------------------------------------------------
   ! odbf_updateMidasHeaderTable
   !--------------------------------------------------------------------------
