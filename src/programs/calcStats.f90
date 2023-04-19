@@ -23,15 +23,14 @@ program midas_calcstats
   !          ---
   !
   !:Algorithm: The ``calcStats`` program performs various types of statistics and diagnostics based on
-  !            the namelist options.
+  !            two modes defined through namelist options.
   !
-  !              - **BHI**: Compute HI B. The approach for global applications is based
-  !                on sperical-harmonics spectral representation and the control variable transform (CVT)
-  !                described in <https://doi.org/10.1175/MWR-D-11-00097.1> and refereces therein.
-  !                The approach for limited-area applications is based on a bi-Fourier spectral representation
-  !                         and the CVT described in <https://doi.org/10.1175/2010WAF2222401.1>
-  !              - **BHI2**: A new experimental-only HI B formulation for global applications that mimics the
-  !                CVT model used in the above limited-area mode.
+  !              - **BHI**: Compute HI **B**. The approach for  limited-area applications is based on a bi-Fourier
+  !                         spectral representation and the CVT described in <https://doi.org/10.1175/2010WAF2222401.1>.
+  !                         For global applications, two formulations based on sperical-harmonics spectral representation
+  !                         are available and controlled controlled by ``NAMCOMPUTEBHI``: 1) the legacy CVT formulation
+  !                         described in <https://doi.org/10.1175/MWR-D-11-00097.1> and refereces therein,
+  !                         and 2) an experimental-only formulation that mimics the CVT model used in the limited-area mode.
   !              - **TOOLBOX**: The swiss-knife component of this program controlled by ``NAMTOOLBOX`` from the
   !                global and LAM calcstats-related modules. Compute various statistics and diagnostics from
   !                an ensemble of background-error estimates in model-variable and/or control-variable space,
@@ -41,10 +40,9 @@ program midas_calcstats
   !                - Variances
   !                - Local correlations
   !                - Optimal covariance localization radii
+  !                - Power spectra
   !                Note that the above options are not all available in both global and limited-area
   !                applications.
-  !              - **STDDEV**: Compute standard deviations in control-variable space in global mode.
-  !              - **POWERSPEC**: Compute power spectra in model-variable space in global mode
   !            ---
   !
   !============================================= ==============================================================
