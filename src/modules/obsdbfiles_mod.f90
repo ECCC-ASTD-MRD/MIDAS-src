@@ -2326,13 +2326,6 @@ contains
                  'will just update its values'
     end if ! .not.midasTableExists
 
-    ! Add additional columns to the MIDAS Header table if requested from namObsDbMIDASBodyUpdate
-    ! namelist
-    call odbf_addColumnsMidasTable(midasTableType, fileName, midasHeadTableName, midasHeadNamesList, &
-                                  obsHeadKeySqlName, obsBodyKeySqlName,                                    &
-                                  numberUpdateItems, updateItemList,                                 &
-                                  midasHeadKeySqlName)
-
     ! now that the table exists, we can update the selected columns
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), stat )
