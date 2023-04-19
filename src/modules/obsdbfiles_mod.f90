@@ -2211,7 +2211,7 @@ contains
     type(fSQL_DATABASE)  :: db   ! sqlite file handle
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
     integer(8)           :: obsIdo, obsIdd
-    integer              :: columnParamIndex
+    integer              :: columnParamIndex, columnIndex
     integer              :: obsIdf, obsVarNo, midasKey, updateItemIndex, updateValue_i
     integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd, maxNumBody
     integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
@@ -2421,7 +2421,7 @@ contains
 
       ! build string for column names and array for obsSpaceColIndexSource to use later
       tableInsertColumnList = trim(tableInsertColumnList) // &
-                              '  , combinedTable.' // trim(sqlColumnName) // new_line('A')
+                              ', combinedTable.' // trim(sqlColumnName) // new_line('A')
       obsSpaceColIndexSourceArr(updateItemIndex) = obsSpaceColIndexSource
     end do
 
@@ -2504,11 +2504,13 @@ contains
     query = 'create table combinedTable_tmp as select ' // new_line('A') // &
             '  ' // trim(midasBodyTableName) // '.' // trim(midasBodyKeySqlName) // ', ' // new_line('A') // &
             '  ' // trim(midasBodyTableName) // '.' // trim(obsHeadKeySqlName) // ', ' // new_line('A') // &
-            '  ' // trim(midasBodyTableName) // '.' // trim(obsBodyKeySqlName) // ', ' // new_line('A') // &
-            '  ' // trim(midasBodyTableName) // '.' // trim(vnmSqlname) // ', ' // new_line('A') // &
-            '  ' // trim(midasBodyTableName) // '.' // trim(pppSqlName) // ', ' // new_line('A') // &
-            '  ' // trim(midasBodyTableName) // '.' // trim(varSqlname) // new_line('A') // &
-            '  ' // trim(tableInsertColumnList) // '  from ' // new_line('A') // &
+            '  ' // trim(midasBodyTableName) // '.' // trim(obsBodyKeySqlName) // ', ' // new_line('A')
+    do columnIndex = 1, numBodyMidasTableRequired
+      query = trim(query) // '  ' // trim(midasBodyTableName) // '.' // trim(midasBodyNamesList(1,columnIndex))
+      if (columnIndex < numBodyMidasTableRequired) query = trim(query) // ', '
+      query = trim(query) // new_line('A')
+    end do
+    query = trim(query) // '  ' // trim(tableInsertColumnList) // '  from ' // new_line('A') // &
             '  ' // 'combinedTable inner join ' // trim(midasBodyTableName) // ' on ' // new_line('A') // &
             '  ' // 'combinedTable.' // trim(obsBodyKeySqlName) // '=' // &
                     trim(midasBodyTableName) // '.' // trim(obsBodyKeySqlName) // ';'
