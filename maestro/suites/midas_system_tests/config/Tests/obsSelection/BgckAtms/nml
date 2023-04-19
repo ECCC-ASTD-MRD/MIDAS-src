@@ -9,9 +9,6 @@
  &namObsSelection
   doThinning = .true.
 /
- &namWriteDiag
-  writeObsDb = .true.
-/
  &NAMobsDB
   numElemIdList = 1
   elemIdList(1) = 12163
