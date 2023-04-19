@@ -592,27 +592,31 @@ contains
     real(8) :: trlValue
     real(8) :: trlUwind, trlVwind, squareSum, trlWindSpeed 
     character(len=4) :: varLevel
+    logical, save :: firstCall = .true.
 
     ! namelist variables
-    logical :: adjustTemperature ! choose to adjust near-sfc temperature using lapse rate and height difference
+    logical, save :: adjustTemperature ! choose to adjust near-sfc temperature using lapse rate and height difference
 
     namelist /namSurfaceObs/adjustTemperature
 
     if (.not.beSilent) write(*,*) "Entering subroutine oop_sfc_nl"
 
     ! Read in the namelist namSurfaceObs
-    adjustTemperature = .true. ! default value
+    if (firstCall) then
+      adjustTemperature = .true. ! default value
 
-    if (utl_isNamelistPresent('namSurfaceObs','./flnml')) then
-      nulnam=0
-      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
-      read(nulnam,nml=namSurfaceObs,iostat=ierr)
-      if (ierr /= 0) call utl_abort('oop_sfc_nl: Error reading namelist namSurfaceObs')
-      if (.not. beSilent) write(*,nml=namSurfaceObs)
-      ierr=fclos(nulnam)
-    else if (.not. beSilent) then
-      write(*,*)
-      write(*,*) 'oop_sfc_nl: namSurfaceObs is missing in the namelist. The default value will be taken.'
+      if (utl_isNamelistPresent('namSurfaceObs','./flnml')) then
+        nulnam=0
+        ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+        read(nulnam,nml=namSurfaceObs,iostat=ierr)
+        if (ierr /= 0) call utl_abort('oop_sfc_nl: Error reading namelist namSurfaceObs')
+        if (.not. beSilent) write(*,nml=namSurfaceObs)
+        ierr=fclos(nulnam)
+      else if (.not. beSilent) then
+        write(*,*)
+        write(*,*) 'oop_sfc_nl: namSurfaceObs is missing in the namelist. The default value will be taken.'
+      end if
+      firstCall = .false.
     end if
 
     ! loop over all header indices of the specified family with surface obs

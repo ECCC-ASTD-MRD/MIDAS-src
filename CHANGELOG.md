@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Addition of new variables maxSwath, maxPerSwath to the namIceBGcheck namelist (#806 and !715)
 
 ### Changed
-	
+
+ * Read the namelist file only on first call in some subroutines to speed up `letkf` (#811 and !721)
  * The program `calcstats` now uses only two main modes: BHI and TOOLBOX (#796 and !717)
  * More simplifications to namelists by removing number of items in namelist arrays (#805 and !716)
    * many namelist files will need modification to remove variables, otherwise programs abort
@@ -157,7 +158,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * Added thinning for SSMIS (#452 and !606)
- * S2C consistency check (#645 and !602) 
+ * S2C consistency check (#645 and !602)
  * Introduction of the ability to use ensemble B matrix to the 1Dvar.Abs code (#533 and !579)
  * Added background check for Doppler Velocity (#634 and !589)
  * A new program computing SST background field (#619 and !586)
@@ -445,12 +446,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    * Includes bias correction, QC and thinning
  * Added all-sky approach for AMSU-A radiances over ocean
  * Added slant-path interpolation for GPS-RO obs
- * Added program `midas-ensPostProcess` for all processing of ensembles 
+ * Added program `midas-ensPostProcess` for all processing of ensembles
    (replaces `midas-ensManip`)
  * For sea-ice and ocean: can read background state on "Y" grid and explicit
    diffusion solver now MPI compatible
  * Several MIDAS-related scripts and tools were migrated into the git repository
- * Numerous other modifications, bug fixes and efficiency improvements in 
+ * Numerous other modifications, bug fixes and efficiency improvements in
    preparation for the IC3 operational delivery
 
 ### Added
