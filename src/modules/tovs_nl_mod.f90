@@ -343,7 +343,7 @@ contains
     integer :: satelliteCode, instrumentCode, iplatform, isat, instrum
     integer :: tovsIndex, idatyp, sensorIndex
     integer :: channelNumber, nosensor, channelIndex
-    integer :: errorStatus(1)
+    integer :: errorStatus
     integer :: headerIndex, bodyIndex, taskIndex
     logical :: runObsOperatorWithClw
     logical :: runObsOperatorWithHydrometeors
@@ -508,14 +508,14 @@ contains
     end if
     
     do sensorIndex = 1, tvs_nsensors
-      call RPN_COMM_gather( tvs_isReallyPresent ( sensorIndex ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, 'GRID', errorStatus(1) )
+      call RPN_COMM_gather( tvs_isReallyPresent ( sensorIndex ) , 1, 'MPI_LOGICAL', logicalBuffer, 1,'MPI_LOGICAL', 0, 'GRID', errorStatus )
       if (mmpi_myid ==0) then
         tvs_isReallyPresentMpiGlobal ( sensorIndex ) =.false.
         do taskIndex=1, mmpi_nprocs
           tvs_isReallyPresentMpiGlobal ( sensorIndex ) =  tvs_isReallyPresentMpiGlobal ( sensorIndex ) .or. logicalBuffer(taskIndex)
         end do
       end if
-      call rpn_comm_bcast(tvs_isReallyPresentMpiGlobal ( sensorIndex ), 1, 'MPI_LOGICAL', 0, 'GRID', errorStatus(1) )
+      call rpn_comm_bcast(tvs_isReallyPresentMpiGlobal ( sensorIndex ), 1, 'MPI_LOGICAL', 0, 'GRID', errorStatus )
     end do
     
     deallocate(logicalBuffer)
@@ -621,17 +621,17 @@ contains
         call utl_tmg_start(16,'----RttovSetup')
         write(*,*) ' sensorIndex,tvs_nchan(sensorIndex)',  sensorIndex,tvs_nchan(sensorIndex)
         if ( tvs_mpiTask0ReadCoeffs ) then
-          call tvs_rttov_read_coefs(errorStatus(1), tvs_coefs(sensorIndex), tvs_opts(sensorIndex), & 
+          call tvs_rttov_read_coefs(errorStatus, tvs_coefs(sensorIndex), tvs_opts(sensorIndex), & 
                tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex), tvs_listSensors(:,sensorIndex))
         else
           call rttov_read_coefs (                               &
-               errorStatus(1),                                  &! out
+               errorStatus,                                     &! out
                tvs_coefs(sensorIndex),                          &
                tvs_opts(sensorIndex),                           &
                instrument= tvs_listSensors(:,sensorIndex),      &! in
                channels=  tvs_ichan(1:tvs_nchan(sensorIndex),sensorIndex) )     ! in option
         end if
-        if (errorStatus(1) /= errorStatus_success) then
+        if (errorStatus /= errorStatus_success) then
           write(*,*) 'rttov_read_coefs: fatal error reading coefficients',errorStatus,sensorIndex,tvs_listSensors(1:3,sensorIndex)
           call utl_abort('tvs_setupAlloc')
         end if
@@ -639,9 +639,9 @@ contains
         if (runObsOperatorWithHydrometeors) then
           hydrotableFilename = 'hydrotable_' // trim(platform_name(tvs_platforms(sensorIndex))) // '_' // &
                trim(inst_name(tvs_instruments(sensorIndex))) // '.dat'
-          call rttov_read_scattcoeffs(errorstatus(1), tvs_opts_scatt(sensorIndex), tvs_coefs(sensorIndex), &
+          call rttov_read_scattcoeffs(errorStatus, tvs_opts_scatt(sensorIndex), tvs_coefs(sensorIndex), &
                tvs_coef_scatt(sensorIndex), file_coef=hydrotableFilename)
-          if (errorstatus(1) /= errorstatus_success) then
+          if (errorStatus /= errorStatus_success) then
             write(*,*) 'rttov_read_scattcoeffs: fatal error reading RTTOV-SCATT coefficients', hydrotableFilename
             call utl_abort('tvs_setupAlloc')
           end if
@@ -651,9 +651,9 @@ contains
         tvs_opts(sensorIndex) % rt_all % ozone_data = ( tvs_coefs(sensorIndex) % coef % nozone > 0 ) ! profil d'ozone disponible
 
         ! Ensure the options and coefficients are consistent
-        call rttov_user_options_checkinput(errorStatus(1), tvs_opts(sensorIndex), tvs_coefs(sensorIndex))
-        if (errorStatus(1) /= errorStatus_success) then
-          write(*,*) 'error in rttov options',errorStatus
+        call rttov_user_options_checkinput(errorStatus, tvs_opts(sensorIndex), tvs_coefs(sensorIndex))
+        if (errorStatus /= errorStatus_success) then
+          write(*,*) 'error in rttov options', errorStatus
           call utl_abort('tvs_setupAlloc')
         end if
        
@@ -4292,7 +4292,7 @@ contains
   !--------------------------------------------------------------------------
   !  tvs_rttov_read_coefs
   !--------------------------------------------------------------------------
-  subroutine tvs_rttov_read_coefs(err, coefs, opts, channels, instrument)
+  subroutine tvs_rttov_read_coefs(errorStatus, coefs, opts, channels, instrument)
     !
     ! :Purpose: MPI wrapper for rttov_read_coefs
     !           the coefficient files are read by MPI task 0
@@ -4326,7 +4326,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer(kind=jpim), intent(out) :: err          ! Error status
+    integer(kind=jpim), intent(out) :: errorStatus  ! Error status
     type(rttov_coefs),  intent(out) :: coefs        ! Rttov coefficient structure
     type(rttov_options), intent(in) :: opts         ! Rttov option structure
     integer(kind=jpim), intent(in)  :: channels(:)  ! Channel list
@@ -4346,12 +4346,16 @@ contains
 
     ! Second step: mpi task 0 will do the job
     if ( mmpi_myid == 0 ) then
-      call rttov_read_coefs ( &
-           err,             &! out
-           coefs,           &
-           opts,            &
-           instrument=instrument,      &! in
-           channels=listAll(1:countUniqueChannel)  )     ! in option
+      call rttov_read_coefs (         &
+          errorStatus,                &! out
+          coefs,                      &
+          opts,                       &
+          instrument=instrument,      &! in
+          channels=listAll(1:countUniqueChannel)  )     ! in option
+      if (errorStatus /= errorStatus_success) then
+        write(*,*) 'tvs_rttov_read_coefs: failure in rttov_read_coefs while reading RTTOV coefficient file', instrument, errorStatus
+        call utl_abort('tvs_rttov_read_coefs')
+      end if
     else
       call rttov_nullify_coef(coefs%coef)
     end if
@@ -4638,17 +4642,17 @@ contains
     call extractR83dArray(coefs%coef%pmc_coef,coefs%coef%pmc_nlay,countUniqueChannel,coefs%coef%pmc_nvar,indexchan)
 
     ! then coefficients. It is more complicated with RTTOV12
-    call dispatch_fast_coef(err, coefs%coef%thermal, coefs%coef%fmv_gas_id, coefs%coef%fmv_coe, coefs%coef%fmv_model_ver, &
+    call dispatch_fast_coef(errorStatus, coefs%coef%thermal, coefs%coef%fmv_gas_id, coefs%coef%fmv_coe, coefs%coef%fmv_model_ver, &
          coefs%coef%nlayers, coefs%coef%fmv_gas)
     if (coefs%coef%fmv_model_ver > 9) THEN
-      call dispatch_fast_coef(err, coefs%coef%thermal_corr, coefs%coef%fmv_gas_id, coefs%coef%fmv_ncorr, coefs%coef%fmv_model_ver, &
+      call dispatch_fast_coef(errorStatus, coefs%coef%thermal_corr, coefs%coef%fmv_gas_id, coefs%coef%fmv_ncorr, coefs%coef%fmv_model_ver, &
            coefs%coef%nlayers, coefs%coef%fmv_gas)
     end if
     if (coefs%coef%solarcoef) then
-      call dispatch_fast_coef(err, coefs%coef%solar, coefs%coef%fmv_gas_id, coefs%coef%fmv_coe, coefs%coef%fmv_model_ver, &
+      call dispatch_fast_coef(errorStatus, coefs%coef%solar, coefs%coef%fmv_gas_id, coefs%coef%fmv_coe, coefs%coef%fmv_model_ver, &
            coefs%coef%nlayers, coefs%coef%fmv_gas)
       if (coefs%coef%fmv_model_ver > 9) THEN
-        call dispatch_fast_coef(err, coefs%coef%solar_corr, coefs%coef%fmv_gas_id, coefs%coef%fmv_ncorr, coefs%coef%fmv_model_ver, &
+        call dispatch_fast_coef(errorStatus, coefs%coef%solar_corr, coefs%coef%fmv_gas_id, coefs%coef%fmv_ncorr, coefs%coef%fmv_model_ver, &
              coefs%coef%nlayers, coefs%coef%fmv_gas)
       end if
     end if
@@ -4739,14 +4743,14 @@ contains
     ! surface water reflectance for visible/near-ir channels
     if (any(coefs%coef%ss_val_chn == 2)) then
       if ( mmpi_myid==0) deallocate(coefs%coef%refl_visnir_ow, &
-           coefs%coef%refl_visnir_fw, stat = err)
+           coefs%coef%refl_visnir_fw, stat = errorStatus)
       allocate(coefs%coef%refl_visnir_ow(coefs%coef%fmv_chn), &
-           coefs%coef%refl_visnir_fw(coefs%coef%fmv_chn), stat = err)
+           coefs%coef%refl_visnir_fw(coefs%coef%fmv_chn), stat = errorStatus)
       call rttov_refl_water_interp(coefs%coef%ff_cwn, coefs%coef%refl_visnir_ow, coefs%coef%refl_visnir_fw)
     end if
 
     if (coefs%coef%pmc_shift .and. mmpi_myid > 0) then
-      allocate(coefs%coef%pmc_ppmc(coefs%coef%fmv_chn), stat = err)
+      allocate(coefs%coef%pmc_ppmc(coefs%coef%fmv_chn), stat = errorStatus)
     else
       nullify(coefs%coef%pmc_pnominal, coefs%coef%pmc_coef, coefs%coef%pmc_ppmc)
     end if
@@ -4769,11 +4773,11 @@ contains
     subroutine dispatch_fast_coef(err, fast_coef, gas_ids, ncoefs, version, nlayers, ngas)
       integer,                        intent(out)   :: err
       type(rttov_fast_coef), pointer, intent(inout) :: fast_coef(:)
-      integer(jpim),         intent(in)           :: gas_ids(:)
-      integer(jpim),         intent(in)           :: ncoefs(:)
-      integer(jpim),         intent(in)           :: version
-      integer(jpim),         intent(in)           :: nlayers
-      integer(jpim),         intent(in)           :: ngas
+      integer(jpim),         intent(in)             :: gas_ids(:)
+      integer(jpim),         intent(in)             :: ncoefs(:)
+      integer(jpim),         intent(in)             :: version
+      integer(jpim),         intent(in)             :: nlayers
+      integer(jpim),         intent(in)             :: ngas
 
       integer(jpim) :: channelIndex, gasIndex, layerIndex, coefIndex
       real(8), allocatable :: bigArray(:,:,:,:)
