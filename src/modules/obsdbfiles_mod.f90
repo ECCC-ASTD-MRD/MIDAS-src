@@ -3311,4 +3311,135 @@ contains
 
   end subroutine getCreateTableInsertQueries
 
+  !--------------------------------------------------------------------------
+  ! mergeTableInMidasTables
+  !--------------------------------------------------------------------------
+  subroutine mergeTableInMidasTables(fileName, midasTableType, tableInsertColumnList, &
+                                      inputTableName)
+    !
+    ! :Purpose: In a series of join/drop/alter merge input table and midasHeader[Body]Table
+    !           to create a new midasHeader[Body]Table which contains the original columns plus 
+    !           columns from the input table.   
+    !
+    implicit none
+
+    ! arguments:
+    character(len=*), intent(in) :: fileName
+    character(len=*), intent(in) :: midasTableType
+    character(len=*), intent(in) :: tableInsertColumnList
+    character(len=*), intent(in) :: inputTableName
+
+    ! locals:
+    type(fSQL_STATUS)   :: stat ! sqlite error status
+    type(fSQL_DATABASE) :: db   ! sqlite file handle
+    integer             :: columnIndex
+    character(len=3000) :: query
+
+    write(*,*)
+    write(*,*) 'mergeTableInMidasTables: START'
+    write(*,*)
+
+    ! open the obsDB file
+    call fSQL_open( db, trim(fileName), stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'mergeTableInMidasTables: fSQL_open: ', fSQL_errmsg(stat)
+      call utl_abort( 'mergeTableInMidasTables: fSQL_open' )
+    end if
+
+    ! Combine midasHeader[Body]Table + inputTable -> table_tmp
+    if ( midasTableType == 'header' ) then
+      query = 'create table table_tmp as select ' // new_line('A') // &
+              '  ' // trim(midasHeadTableName) // '.' // trim(midasHeadKeySqlName) // ', ' // new_line('A') // &
+              '  ' // trim(midasHeadTableName) // '.' // trim(obsHeadKeySqlName) // new_line('A')
+      query = trim(query) // trim(tableInsertColumnList) // '  from ' // new_line('A') // &
+              '  ' // trim(inputTableName) // ' inner join ' // trim(midasHeadTableName) // ' on ' // new_line('A') // &
+              '  ' // trim(inputTableName) // '.' // trim(obsHeadKeySqlName) // '=' // &
+                      trim(midasHeadTableName) // '.' // trim(obsHeadKeySqlName) // ';'
+      
+    else if ( midasTableType == 'body' ) then
+      query = 'create table table_tmp as select ' // new_line('A') // &
+              '  ' // trim(midasBodyTableName) // '.' // trim(midasBodyKeySqlName) // ', ' // new_line('A') // &
+              '  ' // trim(midasBodyTableName) // '.' // trim(obsHeadKeySqlName) // ', ' // new_line('A') // &
+              '  ' // trim(midasBodyTableName) // '.' // trim(obsBodyKeySqlName) // ', ' // new_line('A')
+      do columnIndex = 1, numBodyMidasTableRequired
+        query = trim(query) // '  ' // trim(midasBodyTableName) // '.' // trim(midasBodyNamesList(1,columnIndex))
+        if (columnIndex < numBodyMidasTableRequired) query = trim(query) // ', '
+        query = trim(query) // new_line('A')
+      end do
+      query = trim(query) // '  ' // trim(tableInsertColumnList) // '  from ' // new_line('A') // &
+              '  ' // trim(inputTableName) // ' inner join ' // trim(midasBodyTableName) // ' on ' // new_line('A') // &
+              '  ' // trim(inputTableName) // '.' // trim(obsBodyKeySqlName) // '=' // &
+                      trim(midasBodyTableName) // '.' // trim(obsBodyKeySqlName) // ';'    
+
+    end if
+
+    write(*,*) 'mergeTableInMidasTables: query ---> ', trim(query)
+    call fSQL_do_many( db, query, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
+    end if
+
+    ! Drop the midasHeader[Body]Table
+    if ( midasTableType == 'header' ) then
+      query = 'drop table ' // trim(midasHeadTableName) // ';'
+    else if ( midasTableType == 'body' ) then
+      query = 'drop table ' // trim(midasBodyTableName) // ';'
+    end if
+      
+    write(*,*) 'mergeTableInMidasTables: query ---> ', trim(query)
+    call fSQL_do_many( db, query, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
+    end if
+
+    ! Drop the inputTable
+    query = 'drop table ' // trim(inputTableName) // ';'
+    write(*,*) 'mergeTableInMidasTables: query ---> ', trim(query)
+    call fSQL_do_many( db, query, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
+    end if
+
+    ! Rename table_tmp -> midasHeader[Body]Table
+    if ( midasTableType == 'header' ) then
+      query = 'alter table table_tmp rename to ' // trim(midasHeadTableName) // ';'
+    else if ( midasTableType == 'body' ) then
+      query = 'alter table table_tmp rename to ' // trim(midasBodyTableName) // ';'
+    end if
+
+    write(*,*) 'mergeTableInMidasTables: query ---> ', trim(query)
+    call fSQL_do_many( db, query, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
+    end if
+
+    ! create an index for the new table - necessary to speed up the update
+    if ( midasTableType == 'header' ) then
+      query = 'create index idx_midasHeaderTable on ' // trim(midasHeadTableName) // &
+              '(' // trim(obsHeadKeySqlName) // ');'
+    else if ( midasTableType == 'body' ) then
+      query = 'create index idx_midasBodyTable on ' // trim(midasBodyTableName) // &
+              '(' // trim(obsBodyKeySqlName) // ');'      
+    end if
+
+    write(*,*) 'mergeTableInMidasTables: query = ', trim(query)
+    call fSQL_do_many( db, query, stat )
+    if ( fSQL_error(stat) /= FSQL_OK ) then
+      write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
+      call utl_abort('mergeTableInMidasTables: Problem with fSQL_do_many')
+    end if
+
+    ! close the obsDB file
+    call fSQL_close( db, stat ) 
+
+    write(*,*)
+    write(*,*) 'mergeTableInMidasTables: END'
+    write(*,*)
+
+  end subroutine mergeTableInMidasTables
+
 end module obsdbFiles_mod
