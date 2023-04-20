@@ -3304,7 +3304,8 @@ contains
         queryInsertInTable = trim(queryInsertInTable) // ') ' // trim(queryForValues) // ';'
       end if
 
-      tableInsertColumnList = trim(tableInsertColumnList) // ', combinedTable.' // trim(sqlColumnName) // new_line('A')
+      tableInsertColumnList = trim(tableInsertColumnList) // ', '// &
+                              trim(outputTableName) // '.' // trim(sqlColumnName) // new_line('A')
       obsSpaceColIndexSourceArr(updateItemIndex) = obsSpaceColIndexSource
     end do
 
