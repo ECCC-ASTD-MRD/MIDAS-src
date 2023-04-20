@@ -179,7 +179,7 @@
   BLISTELEMENTS=12163
 /
  &NAMPHY
-  NEW_TETENS_COEFS=.true.
+  saturationCurve='Tetens_2018'
 /
  &NAMOER
   NEW_OER_SW=.true.

@@ -178,6 +178,9 @@
   BITEMLIST(3)='OER',
   TYPE_RESUME='POSTALT'
 /
+ &NAMPHY
+  saturationCurve='Tetens_1930'
+/
  &NAMSQLradar
   listElem="21036"
   sqlNull=" and obsvalue is not null "  

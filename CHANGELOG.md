@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Corrected Tetens WV saturation curve, controlled through namelist variable (#757 and !720)
  * Make sure all indexes and valid when fetching values from arrays (#800 and !714)
  * Initialize `atmScatteringIndexFG` for background check of all microwave instruments (#803 and !712)
  * Fix `msg` nml variable `arrayVertical` initialization (#801 and !711)

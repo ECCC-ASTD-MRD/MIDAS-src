@@ -165,3 +165,6 @@
   BITEMLIST(3)='FGE',
   TYPE_RESUME='POSTALT'
 /
+ &NAMPHY
+  saturationCurve='Tetens_1930'
+/

@@ -158,5 +158,5 @@
   TYPE_RESUME='DERIALT'
 /
  &NAMPHY
-  NEW_TETENS_COEFS=.true.
+  saturationCurve='Tetens_2018a'
 /

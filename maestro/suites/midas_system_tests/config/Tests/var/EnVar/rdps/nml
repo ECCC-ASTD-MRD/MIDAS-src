@@ -184,3 +184,6 @@
   BITEMLIST(3)='OER',
   TYPE_RESUME='POSTALT'
 /
+ &NAMPHY
+  saturationCurve='Tetens_2018'
+/
