@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Cleaning up `bgckmicrowave_mod` (#779 and !719)
  * Read the namelist file only on first call in some subroutines to speed up `letkf` (#811 and !721)
  * The program `calcstats` now uses only two main modes: BHI and TOOLBOX (#796 and !717)
  * More simplifications to namelists by removing number of items in namelist arrays (#805 and !716)
