@@ -61,33 +61,37 @@ module physicsFunctions_mod
      integer            :: NULNAM,IERR,FNOM,FCLOS
      character(len=256) :: NAMFILE
      logical            :: validOption
-
-     !$omp single
-     saturationCurve = 'Tetens_2018'
      NAMELIST /NAMPHY/ saturationCurve
 
-     if ( .not. utl_isNamelistPresent('NAMPHY','./flnml') ) then
-       call msg( 'phf_tetens_coefs_switch', &
-            'NAMPHY is missing in the namelist. Default values will be taken.', mpiAll_opt=.False.)
-     else
-       ! Reading the namelist
-       nulnam = 0
-       ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
-       read(nulnam, nml=namphy, iostat=ierr)
-       if ( ierr /= 0) call utl_abort('tetens_coefs: Error reading namelist')
-       ierr = fclos(nulnam)
-     end if
+     !$omp critical
+     if (.not.phf_initialized) then
 
-     validOption = (trim(saturationCurve) == 'Tetens_1930'  .or.  &
-                    trim(saturationCurve) == 'Tetens_2018a' .or.  &
-                    trim(saturationCurve) == 'Tetens_2018')
-     if (.not.validOption) then
-       call utl_abort('phf_tetens: WV Saturation not in expected list')
-     end if
+       saturationCurve = 'Tetens_2018'
 
-     call msg( 'phf_tetens_coefs_switch ', saturationCurve )
-     phf_initialized = .true.
-     !$omp end single
+       if ( .not. utl_isNamelistPresent('NAMPHY','./flnml') ) then
+         call msg( 'phf_tetens_coefs_switch', &
+              'NAMPHY is missing in the namelist. Default values will be taken.', mpiAll_opt=.False.)
+       else
+         ! Reading the namelist
+         nulnam = 0
+         ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+         read(nulnam, nml=namphy, iostat=ierr)
+         if ( ierr /= 0) call utl_abort('tetens_coefs: Error reading namelist')
+         ierr = fclos(nulnam)
+       end if
+
+       validOption = (trim(saturationCurve) == 'Tetens_1930'  .or.  &
+                      trim(saturationCurve) == 'Tetens_2018a' .or.  &
+                      trim(saturationCurve) == 'Tetens_2018')
+       if (.not.validOption) then
+         call utl_abort('phf_tetens: WV Saturation not in expected list')
+       end if
+
+       call msg( 'phf_tetens_coefs_switch ', saturationCurve )
+       phf_initialized = .true.
+     end if
+     !$omp end critical
+
    end subroutine phf_tetens_coefs_switch
 
    !--------------------------------------------------------------------------

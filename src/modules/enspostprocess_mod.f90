@@ -803,7 +803,7 @@ contains
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
-        call utl_tmg_stop(3)
+        call utl_tmg_stop(5)
 
         ! Output the sub-sampled analysis ensemble members
         call utl_tmg_start(3,'--WriteEnsemble')
@@ -1476,7 +1476,7 @@ contains
     type(struct_hco), pointer     :: hco
     character(len=4), allocatable :: nomvar_v(:)
     character(len=4)              :: varLevel
-    real(8), allocatable          :: weight(:,:), scaleFactor(:)
+    real(8), allocatable          :: scaleFactor(:)
     real(4), allocatable          :: pressureOrDepth(:)
     integer :: ierr, latIndex, lonIndex, nulFile
     integer :: kIndex, kIndexCount, levIndex, numK, nLev_M, kIndexUU, kIndexVV
@@ -1484,6 +1484,8 @@ contains
     real(8)                       :: pSfc(1,1)
     real(8), pointer              :: pressures_T(:,:,:), pressures_M(:,:,:)
     integer, external             :: fnom, fclos
+    real(8), save, allocatable    :: weight(:,:)
+    logical, save                 :: firstCall = .true.
 
     vco => gsv_getVco(stateVectorStdDev)
     nLev_M = vco_getNumLev(vco,'MM')
@@ -1493,13 +1495,16 @@ contains
     allocate(pressureOrDepth(numK))
     allocate(rmsvalue(numK))
     allocate(scaleFactor(numK))
-    allocate(weight(stateVectorStdDev%ni,stateVectorStdDev%nj))
-    weight(:,:) = 0.0d0
 
     ! compute a 2D weight field used for horizontal averaging
     hco => gsv_getHco(stateVectorStdDev)
-    ! weights are reduced in the overlap region in case of a Yin-Yang grid
-    call hco_weight(hco, weight)
+    if (firstCall) then
+      ! weights are reduced in the overlap region in case of a Yin-Yang grid
+      allocate(weight(stateVectorStdDev%ni,stateVectorStdDev%nj))
+      weight(:,:) = 0.0d0
+      call hco_weight(hco, weight)
+      firstCall = .false.
+    end if
     ! compute global mean variance accounting for weights
     call gsv_getField(stateVectorStdDev,stdDev_ptr_r4)
     rmsvalue(:) = 0.0D0
@@ -1598,7 +1603,6 @@ contains
 
 100 format(f7.2,1x,A1,1x,I5,1x,A4,1x,f12.7,1x,(2E12.5))
 
-    deallocate(weight)
     deallocate(nomvar_v)
     deallocate(pressureOrDepth)
     deallocate(scaleFactor)

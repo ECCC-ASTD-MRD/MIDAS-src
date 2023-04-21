@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix bug in `physicsfunction_mod` that could cause programs to hang (#814 and !723)
+   * also sped up `ensPostProcess` when computing global ensemble statistics
  * Corrected Tetens WV saturation curve, controlled through namelist variable (#757 and !720)
  * Make sure all indexes and valid when fetching values from arrays (#800 and !714)
  * Initialize `atmScatteringIndexFG` for background check of all microwave instruments (#803 and !712)
