@@ -803,7 +803,7 @@ contains
                                typvar_opt='A', writeHeightSfc_opt=.false., numBits_opt=numBits, &
                                stepIndex_opt=stepIndex, containsFullField_opt=.true.)
         end do
-        call utl_tmg_stop(3)
+        call utl_tmg_stop(5)
 
         ! Output the sub-sampled analysis ensemble members
         call utl_tmg_start(3,'--WriteEnsemble')
