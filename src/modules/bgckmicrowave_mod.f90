@@ -177,7 +177,7 @@ contains
   !--------------------------------------------------------------------------
   ! extractParamForGrodyRun
   !--------------------------------------------------------------------------  
-  subroutine extractParamForGrodyRun(obsChannels2D, obsTb2D, ompTb2D, obsTbBiasCorr2D, numObsToProcess, actualNumChannel, &
+  subroutine extractParamForGrodyRun(obsChannels, obsTb, ompTb, obsTbBiasCorr, actualNumChannel, &
                                      tb23,   tb31,   tb50,   tb53,   tb89, &
                                      tb23FG, tb31FG, tb50FG, tb53FG, tb89FG)
 
@@ -189,75 +189,71 @@ contains
     !          - 89 Ghz = AMSU-A15 = channel #42
     implicit none
     ! Arguments
-    integer,     intent(in)               :: actualNumChannel                                   ! nombre de canaux des observations 
-    integer,     intent(in)               :: numObsToProcess                                    ! nombre de tovs
-    integer,     intent(in)               :: obsChannels2D(actualNumChannel,numObsToProcess)    ! observations channels
-    real,        intent(in)               :: obsTb2D(actualNumChannel,numObsToProcess)          ! radiances
-    real,        intent(in)               :: ompTb2D(actualNumChannel,numObsToProcess)          ! radiances o-p
-    real,        intent(in)               :: obsTbBiasCorr2D(actualNumChannel,numObsToProcess)  ! correction aux radiances
-    real,        intent(out)              :: tb23(numObsToProcess)                              ! radiance frequence 23 Ghz   
-    real,        intent(out)              :: tb31(numObsToProcess)                              ! radiance frequence 31 Ghz
-    real,        intent(out)              :: tb50(numObsToProcess)                              ! radiance frequence 50 Ghz  
-    real,        intent(out)              :: tb53(numObsToProcess)                              ! radiance frequence 53 Ghz  
-    real,        intent(out)              :: tb89(numObsToProcess)                              ! radiance frequence 89 Ghz  
-    real,        intent(out)              :: tb23FG(numObsToProcess)                            ! radiance frequence 23 Ghz   
-    real,        intent(out)              :: tb31FG(numObsToProcess)                            ! radiance frequence 31 Ghz
-    real,        intent(out)              :: tb50FG(numObsToProcess)                            ! radiance frequence 50 Ghz  
-    real,        intent(out)              :: tb53FG(numObsToProcess)                            ! radiance frequence 53 Ghz  
-    real,        intent(out)              :: tb89FG(numObsToProcess)                            ! radiance frequence 89 Ghz        
+    integer,     intent(in)               :: actualNumChannel                ! nombre de canaux des observations 
+    integer,     intent(in)               :: obsChannels(actualNumChannel)   ! observations channels
+    real,        intent(in)               :: obsTb(actualNumChannel)         ! radiances
+    real,        intent(in)               :: ompTb(actualNumChannel)         ! radiances o-p
+    real,        intent(in)               :: obsTbBiasCorr(actualNumChannel) ! correction aux radiances
+    real,        intent(out)              :: tb23                            ! radiance frequence 23 Ghz   
+    real,        intent(out)              :: tb31                            ! radiance frequence 31 Ghz
+    real,        intent(out)              :: tb50                            ! radiance frequence 50 Ghz  
+    real,        intent(out)              :: tb53                            ! radiance frequence 53 Ghz  
+    real,        intent(out)              :: tb89                            ! radiance frequence 89 Ghz  
+    real,        intent(out)              :: tb23FG                          ! radiance frequence 23 Ghz   
+    real,        intent(out)              :: tb31FG                          ! radiance frequence 31 Ghz
+    real,        intent(out)              :: tb50FG                          ! radiance frequence 50 Ghz  
+    real,        intent(out)              :: tb53FG                          ! radiance frequence 53 Ghz  
+    real,        intent(out)              :: tb89FG                          ! radiance frequence 89 Ghz        
 
     ! Locals
     integer                               :: channelval
-    integer                               :: nDataIndex
     integer                               :: nChannelIndex
 
-    do nDataIndex=1,numObsToProcess
-      do nChannelIndex=1,actualNumChannel
-        channelval = obsChannels2D(nChannelIndex,nDataIndex)
-        if ( obsTb2D(nChannelIndex,nDataIndex) /= mwbg_realMissing ) then
-          if ( obsTbBiasCorr2D(nChannelIndex,nDataIndex) /= mwbg_realMissing ) then
-            if ( channelval == 28 ) tb23(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex) &
-                 - obsTbBiasCorr2D(nChannelIndex,nDataIndex)
-            if ( channelval == 29 ) tb31(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex) &
-                 - obsTbBiasCorr2D(nChannelIndex,nDataIndex)
-            if ( channelval == 30 ) tb50(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex) &
-                 - obsTbBiasCorr2D(nChannelIndex,nDataIndex)
-            if ( channelval == 32 ) tb53(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex) &
-                 - obsTbBiasCorr2D(nChannelIndex,nDataIndex)
-            if ( channelval == 42 ) tb89(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex) &
-                 - obsTbBiasCorr2D(nChannelIndex,nDataIndex)
-          else
-            if ( channelval == 28 ) tb23(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex)
-            if ( channelval == 29 ) tb31(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex)
-            if ( channelval == 30 ) tb50(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex)
-            if ( channelval == 32 ) tb53(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex)
-            if ( channelval == 42 ) tb89(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex)
-          end if
-
-          if ( channelval == 28 ) tb23FG(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex) - &
-                                                         ompTb2D(nChannelIndex,nDataIndex)
-          if ( channelval == 29 ) tb31FG(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex) - &
-                                                         ompTb2D(nChannelIndex,nDataIndex)
-          if ( channelval == 30 ) tb50FG(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex) - &
-                                                         ompTb2D(nChannelIndex,nDataIndex)
-          if ( channelval == 32 ) tb53FG(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex) - &
-                                                         ompTb2D(nChannelIndex,nDataIndex)
-          if ( channelval == 42 ) tb89FG(nDataIndex) = obsTb2D(nChannelIndex,nDataIndex) - &
-                                                         ompTb2D(nChannelIndex,nDataIndex)
+    do nChannelIndex=1,actualNumChannel
+      channelval = obsChannels(nChannelIndex)
+      if ( obsTb(nChannelIndex) /= mwbg_realMissing ) then
+        if ( obsTbBiasCorr(nChannelIndex) /= mwbg_realMissing ) then
+          if ( channelval == 28 ) tb23 = obsTb(nChannelIndex) &
+                - obsTbBiasCorr(nChannelIndex)
+          if ( channelval == 29 ) tb31 = obsTb(nChannelIndex) &
+                - obsTbBiasCorr(nChannelIndex)
+          if ( channelval == 30 ) tb50 = obsTb(nChannelIndex) &
+                - obsTbBiasCorr(nChannelIndex)
+          if ( channelval == 32 ) tb53 = obsTb(nChannelIndex) &
+                - obsTbBiasCorr(nChannelIndex)
+          if ( channelval == 42 ) tb89 = obsTb(nChannelIndex) &
+                - obsTbBiasCorr(nChannelIndex)
         else
-          if ( channelval == 28 ) tb23(nDataIndex) = 0.
-          if ( channelval == 29 ) tb31(nDataIndex) = 0.
-          if ( channelval == 30 ) tb50(nDataIndex) = 0.
-          if ( channelval == 32 ) tb53(nDataIndex) = 0.
-          if ( channelval == 42 ) tb89(nDataIndex) = 0.
-
-          if ( channelval == 28 ) tb23FG(nDataIndex) = 0.  
-          if ( channelval == 29 ) tb31FG(nDataIndex) = 0. 
-          if ( channelval == 30 ) tb50FG(nDataIndex) = 0. 
-          if ( channelval == 32 ) tb53FG(nDataIndex) = 0. 
-          if ( channelval == 42 ) tb89FG(nDataIndex) = 0. 
+          if ( channelval == 28 ) tb23 = obsTb(nChannelIndex)
+          if ( channelval == 29 ) tb31 = obsTb(nChannelIndex)
+          if ( channelval == 30 ) tb50 = obsTb(nChannelIndex)
+          if ( channelval == 32 ) tb53 = obsTb(nChannelIndex)
+          if ( channelval == 42 ) tb89 = obsTb(nChannelIndex)
         end if
-      end do
+
+        if ( channelval == 28 ) tb23FG = obsTb(nChannelIndex) - &
+                                                        ompTb(nChannelIndex)
+        if ( channelval == 29 ) tb31FG = obsTb(nChannelIndex) - &
+                                                        ompTb(nChannelIndex)
+        if ( channelval == 30 ) tb50FG = obsTb(nChannelIndex) - &
+                                                        ompTb(nChannelIndex)
+        if ( channelval == 32 ) tb53FG = obsTb(nChannelIndex) - &
+                                                        ompTb(nChannelIndex)
+        if ( channelval == 42 ) tb89FG = obsTb(nChannelIndex) - &
+                                                        ompTb(nChannelIndex)
+      else
+        if ( channelval == 28 ) tb23 = 0.
+        if ( channelval == 29 ) tb31 = 0.
+        if ( channelval == 30 ) tb50 = 0.
+        if ( channelval == 32 ) tb53 = 0.
+        if ( channelval == 42 ) tb89 = 0.
+
+        if ( channelval == 28 ) tb23FG = 0.  
+        if ( channelval == 29 ) tb31FG = 0. 
+        if ( channelval == 30 ) tb50FG = 0. 
+        if ( channelval == 32 ) tb53FG = 0. 
+        if ( channelval == 42 ) tb89FG = 0. 
+      end if
     end do
 
   end subroutine extractParamForGrodyRun
@@ -352,47 +348,41 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest10RttovRejectCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest10RttovRejectCheck(obsChannels2D, sensorIndex, actualNumChannel, numObsToProcess, RESETQC, &
-                                          stnId, obsFlags2D, qcIndicator)
+  subroutine amsuABTest10RttovRejectCheck(obsChannels, sensorIndex, actualNumChannel, RESETQC, &
+                                          stnId, obsFlags, qcIndicator)
 
     !:Purpose:               10) test 10: RTTOV reject check (single)
     !                        Rejected datum flag has bit #9 on.
 
     implicit none
     ! Arguments
-    integer,     intent(in)                :: actualNumChannel                                ! nombre de canaux des observations 
-    integer,     intent(in)                :: numObsToProcess                                 ! nombre de tovs    
-    integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
-    logical,     intent(in)                :: RESETQC                                         ! yes or not reset QC flag
-    character *9, intent(in)               :: stnId                                           ! identificateur du satellite
-    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
-    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
+    integer,     intent(in)    :: actualNumChannel              ! nombre de canaux des observations 
+    integer,     intent(in)    :: obsChannels(actualNumChannel) ! observations channels
+    integer,     intent(in)    :: sensorIndex                   ! numero de satellite (i.e. indice) 
+    logical,     intent(in)    :: RESETQC                       ! yes or not reset QC flag
+    character *9, intent(in)   :: stnId                         ! identificateur du satellite
+    integer,     intent(inout) :: obsFlags(actualNumChannel)    ! marqueur de radiance 
+    integer,     intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
     ! Locals
-    integer                                :: nDataIndex
-    integer                                :: nChannelIndex
-    integer                                :: testIndex
-    integer                                :: IBIT
+    integer :: nChannelIndex, testIndex, IBIT
 
-    if (.NOT.RESETQC) then
-      testIndex = 10
-      do nDataIndex=1,numObsToProcess
-        do nChannelIndex=1,actualNumChannel
-          if (obsChannels2D(nChannelIndex,nDataIndex) /= 20) then
-            IBIT = AND(obsFlags2D(nChannelIndex,nDataIndex), 2**9)
-            if (IBIT /= 0) then
-              qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
-              obsFlags2D(nChannelIndex,nDataIndex) = OR(obsFlags2D(nChannelIndex,nDataIndex),2**7)
-              rejectionCodArray(testIndex,obsChannels2D(nChannelIndex,nDataIndex),sensorIndex) = &
-                   rejectionCodArray(testIndex,obsChannels2D(nChannelIndex,nDataIndex),sensorIndex)+ 1
-              if ( mwbg_DEBUG ) then
-                write(*,*)stnId(2:9),' RTTOV REJECT.', &
-                          'CHANNEL=', obsChannels2D(nChannelIndex,nDataIndex), &
-                          ' obsFlags2D= ',obsFlags2D(nChannelIndex,nDataIndex)
-              end if
+    if (.NOT. RESETQC) then
+    testIndex = 10
+      do nChannelIndex = 1, actualNumChannel
+        if (obsChannels(nChannelIndex) /= 20) then
+          IBIT = AND(obsFlags(nChannelIndex), 2**9)
+          if (IBIT /= 0) then
+            qcIndicator(nChannelIndex) = MAX(qcIndicator(nChannelIndex),testIndex)
+            obsFlags(nChannelIndex) = OR(obsFlags(nChannelIndex),2**7)
+            rejectionCodArray(testIndex,obsChannels(nChannelIndex),sensorIndex) = &
+                  rejectionCodArray(testIndex,obsChannels(nChannelIndex),sensorIndex)+ 1
+            if ( mwbg_DEBUG ) then
+              write(*,*)stnId(2:9),' RTTOV REJECT.', &
+                        'CHANNEL=', obsChannels(nChannelIndex), &
+                        ' obsFlags= ',obsFlags(nChannelIndex)
             end if
           end if
-        end do
+        end if
       end do
     end if
 
@@ -401,8 +391,8 @@ contains
   !--------------------------------------------------------------------------
   ! amsuABTest1TopographyCheck
   !--------------------------------------------------------------------------
-  subroutine amsuABTest1TopographyCheck(obsChannels2D, sensorIndex, actualNumChannel, numObsToProcess, stnId, &
-                                        modelInterpTerrain, channelForTopoFilter, altitudeForTopoFilter, obsFlags2D, &
+  subroutine amsuABTest1TopographyCheck(obsChannels, sensorIndex, actualNumChannel, stnId, &
+                                        modelInterpTerrain, channelForTopoFilter, altitudeForTopoFilter, obsFlags, &
                                         qcIndicator)
 
     !:Purpose:               1) test 1: Topography check (partial)
@@ -411,22 +401,17 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)                :: actualNumChannel                                ! nombre de canaux des observations 
-    integer,     intent(in)                :: numObsToProcess                                 ! nombre de tovs
-    integer,     intent(in)                :: obsChannels2D(actualNumChannel,numObsToProcess) ! observations channels
-    integer,     intent(in)                :: sensorIndex                                     ! numero de satellite (i.e. indice) 
-    character *9,intent(in)                :: stnId                                           ! identificateur du satellite
-    integer,     intent(in)                :: channelForTopoFilter(:)                         ! channel list for filter
-    real,        intent(in)                :: altitudeForTopoFilter(:)                        ! altitude threshold
-    real,        intent(in)                :: modelInterpTerrain(numObsToProcess)             ! topo aux point d'obs
-    integer,     intent(inout)             :: obsFlags2D(actualNumChannel,numObsToProcess)    ! marqueur de radiance 
-    integer,     intent(inout)             :: qcIndicator(actualNumChannel,numObsToProcess)   ! indicateur du QC par canal
+    integer,     intent(in)    :: actualNumChannel              ! nombre de canaux des observations 
+    integer,     intent(in)    :: obsChannels(actualNumChannel) ! observations channels
+    integer,     intent(in)    :: sensorIndex                   ! numero de satellite (i.e. indice) 
+    character *9,intent(in)    :: stnId                         ! identificateur du satellite
+    integer,     intent(in)    :: channelForTopoFilter(:)       ! channel list for filter
+    real,        intent(in)    :: altitudeForTopoFilter(:)      ! altitude threshold
+    real,        intent(in)    :: modelInterpTerrain            ! topo aux point d'obs
+    integer,     intent(inout) :: obsFlags(actualNumChannel)    ! marqueur de radiance 
+    integer,     intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
     ! Locals
-    integer                                :: nDataIndex
-    integer                                :: nChannelIndex
-    integer                                :: numFilteringTest
-    integer                                :: indexFilteringTest
-    integer                                :: testIndex
+    integer :: nChannelIndex, numFilteringTest, indexFilteringTest, testIndex
 
     testIndex = 1
 
@@ -439,23 +424,21 @@ contains
     indexFilteringTest = 1
 
     do while ( indexFilteringTest <= numFilteringTest )
-      do nDataIndex=1,numObsToProcess
-        do nChannelIndex=1,actualNumChannel
-          if (obsChannels2D(nChannelIndex,nDataIndex) == channelForTopoFilter(indexFilteringTest)) then
-            if (modelInterpTerrain(nDataIndex) >= altitudeForTopoFilter(indexFilteringTest)) then
-              qcIndicator(nChannelIndex,nDataIndex) = MAX(qcIndicator(nChannelIndex,nDataIndex),testIndex)
-              obsFlags2D(nChannelIndex,nDataIndex) = OR(obsFlags2D(nChannelIndex,nDataIndex),2**9)
-              obsFlags2D(nChannelIndex,nDataIndex) = OR(obsFlags2D(nChannelIndex,nDataIndex),2**18)
-              rejectionCodArray(testIndex,obsChannels2D(nChannelIndex,nDataIndex),sensorIndex) = &
-                   rejectionCodArray(testIndex,obsChannels2D(nChannelIndex,nDataIndex),sensorIndex)+ 1
-              if ( mwbg_DEBUG ) then
-                write(*,*)stnId(2:9),' TOPOGRAPHY REJECT.', &
-                          'CHANNEL=', obsChannels2D(nChannelIndex,nDataIndex), &
-                          ' TOPO= ',modelInterpTerrain(nDataIndex)
-              end if
+      do nChannelIndex = 1, actualNumChannel
+        if (obsChannels(nChannelIndex) == channelForTopoFilter(indexFilteringTest)) then
+          if (modelInterpTerrain >= altitudeForTopoFilter(indexFilteringTest)) then
+            qcIndicator(nChannelIndex) = MAX(qcIndicator(nChannelIndex),testIndex)
+            obsFlags(nChannelIndex) = OR(obsFlags(nChannelIndex),2**9)
+            obsFlags(nChannelIndex) = OR(obsFlags(nChannelIndex),2**18)
+            rejectionCodArray(testIndex,obsChannels(nChannelIndex),sensorIndex) = &
+                  rejectionCodArray(testIndex,obsChannels(nChannelIndex),sensorIndex)+ 1
+            if ( mwbg_DEBUG ) then
+              write(*,*)stnId(2:9),' TOPOGRAPHY REJECT.', &
+                        'CHANNEL=', obsChannels(nChannelIndex), &
+                        ' TOPO= ',modelInterpTerrain
             end if
           end if
-        end do
+        end if
       end do
       indexFilteringTest = indexFilteringTest + 1
     end do
@@ -1924,29 +1907,29 @@ contains
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
     newInformationFlag(:) = 0
     qcIndicator(:,:) = 0
-    if ( RESETQC ) obsFlags2D(:,:) = 0
+    if ( RESETQC ) obsFlags(:) = 0
 
     ! Grody parameters are   extract required channels:
-    call extractParamForGrodyRun (obsChannels2D, obsTb2D, ompTb2D, obsTbBiasCorr2D, numObsToProcess, actualNumChannel, &
-                                     tb23,   tb31,   tb50,   tb53,   tb89, &
-                                     tb23FG, tb31FG, tb50FG, tb53FG, tb89FG)
+    call extractParamForGrodyRun (obsChannels, obsTb, ompTb, obsTbBiasCorr, actualNumChannel, &
+                                  tb23,   tb31,   tb50,   tb53,   tb89, &
+                                  tb23FG, tb31FG, tb50FG, tb53FG, tb89FG)
     
     !  Run Grody AMSU-A algorithms.
-    call grody (err, numObsToProcess, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
+    call grody (err, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
                 satZenithAngle, obsLat, landQualifierIndice, ice, tpw, &
                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                 rain, snow, scatIndexOverLandObs, scatIndexOverWaterObs)   
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
-    call amsuABTest10RttovRejectCheck (obsChannels2D, sensorIndex, actualNumChannel, numObsToProcess, RESETQC, &
-                                       stnId, obsFlags2D, qcIndicator)
+    call amsuABTest10RttovRejectCheck (obsChannels, sensorIndex, actualNumChannel, RESETQC, &
+                                       stnId, obsFlags, qcIndicator)
 
     ! 1) test 1: Topography check (partial)
     ! Channel 6 is rejected for topography >  250m.
     ! Channel 7 is rejected for topography > 2000m.
-    call amsuABTest1TopographyCheck (obsChannels2D, sensorIndex, actualNumChannel, numObsToProcess, stnId, &
-                                     modelInterpTerrain, channelForTopoFilter, altitudeForTopoFilter, obsFlags2D, &
+    call amsuABTest1TopographyCheck (obsChannels, sensorIndex, actualNumChannel, stnId, &
+                                     modelInterpTerrain, channelForTopoFilter, altitudeForTopoFilter, obsFlags, &
                                      qcIndicator)
  
     ! 2) test 2: "Land/sea qualifier" code check (full)
@@ -2237,7 +2220,7 @@ contains
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
     newInformationFlag(:) = 0
     qcIndicator(:,:) = 0
-    if ( RESETQC ) obsFlags2D(:,:) = 0
+    if ( RESETQC ) obsFlags(:) = 0
 
     ! Bennartz parameters are   extract required channels:
     call extractParamForBennartzRun (obsChannels2D, obsTb2D, btClear2D, ompTb2D, obsTbBiasCorr2D, numObsToProcess, actualNumChannel, &
@@ -2252,15 +2235,15 @@ contains
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
-    call amsuABTest10RttovRejectCheck (obsChannels2D, sensorIndex, actualNumChannel, numObsToProcess, RESETQC, &
-                                       stnId, obsFlags2D, qcIndicator)
+    call amsuABTest10RttovRejectCheck (obsChannels, sensorIndex, actualNumChannel, RESETQC, &
+                                       stnId, obsFlags, qcIndicator)
 
     ! 1) test 1: Topography check (partial)
     ! Channel 3- 45 is rejected for topography >  2500m.
     ! Channel 4 - 46 is rejected for topography > 2000m.
     ! Channel 5 - 47 is rejected for topography > 1000m.
-    call amsuABTest1TopographyCheck (obsChannels2D, sensorIndex, actualNumChannel, numObsToProcess, stnId, &
-                                     modelInterpTerrain, channelForTopoFilter, altitudeForTopoFilter, obsFlags2D, &
+    call amsuABTest1TopographyCheck (obsChannels, sensorIndex, actualNumChannel, stnId, &
+                                     modelInterpTerrain, channelForTopoFilter, altitudeForTopoFilter, obsFlags, &
                                      qcIndicator)
  
     ! 2) test 2: "Land/sea qualifier" code check (full)
@@ -2657,7 +2640,7 @@ contains
   !--------------------------------------------------------------------------
   ! GRODY
   !--------------------------------------------------------------------------
-  subroutine GRODY (ier, numObsToProcess, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
+  subroutine GRODY (ier, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
                     satZenithAngle, obsLat, landQualifierIndice, ice, tpw, &
                     cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                     rain, snow, scatIndexOverLandObs, scatIndexOverWaterObs)
@@ -2674,30 +2657,29 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(out) :: ier(:)                      ! error return code: 0 ok, 1 input parameter out of range.
-    integer,  intent(in) :: numObsToProcess             ! number of points to process
-    real,     intent(in) :: tb23  (:)                   ! 23Ghz brightness temperature (K)
-    real,     intent(in) :: tb31  (:)                   ! 31Ghz brightness temperature (K)
-    real,     intent(in) :: tb50  (:)                   ! 50Ghz brightness temperature (K)
-    real,     intent(in) :: tb53  (:)                   ! 53Ghz brightness temperature (K)
-    real,     intent(in) :: tb89  (:)                   ! 89Ghz brightness temperature (K)
-    real,     intent(in) :: tb23FG(:)                   ! 23Ghz brightness temperature from background (K)
-    real,     intent(in) :: tb31FG(:)                   ! 31Ghz brightness temperature from background (K)
-    real,     intent(in) :: satZenithAngle(:)           ! satellite zenith angle (deg.)
-    real,     intent(in) :: obsLat(:)                   ! latitude (deg.)
-    integer,  intent(in) :: landQualifierIndice(:)      ! land/sea indicator (0=land;1=ocean)
-    real,    intent(out) :: ice (:)                     ! sea ice concentration (0-100%)
-    real,    intent(out) :: tpw (:)                     ! total precipitable water (0-70mm)
-    real,    intent(out) :: cloudLiquidWaterPathObs(:)  ! retrieved cloud liquid water from observation (0-3mm)
-    real,    intent(out) :: cloudLiquidWaterPathFG (:)  ! retrieved cloud liquid water from background (0-3mm)
-    integer, intent(out) :: rain(:)                     ! rain identification (0=no rain; 1=rain)
-    integer, intent(out) :: snow(:)                     ! snow cover and glacial ice identification:
-                                                        ! (0=no snow; 1=snow; 2=glacial ice)
-    real,    intent(out) :: scatIndexOverLandObs (:)    ! scattering index over land
-    real,    intent(out) :: scatIndexOverWaterObs (:)   ! scattering index over water
+    integer, intent(out) :: ier             ! error return code: 0 ok, 1 input parameter out of range.
+    real,     intent(in) :: tb23            ! 23Ghz brightness temperature (K)
+    real,     intent(in) :: tb31            ! 31Ghz brightness temperature (K)
+    real,     intent(in) :: tb50            ! 50Ghz brightness temperature (K)
+    real,     intent(in) :: tb53            ! 53Ghz brightness temperature (K)
+    real,     intent(in) :: tb89            ! 89Ghz brightness temperature (K)
+    real,     intent(in) :: tb23FG          ! 23Ghz brightness temperature from background (K)
+    real,     intent(in) :: tb31FG          ! 31Ghz brightness temperature from background (K)
+    real,     intent(in) :: satZenithAngle  ! satellite zenith angle (deg.)
+    real,     intent(in) :: obsLat          ! latitude (deg.)
+    integer,  intent(in) :: landQualifierIndice ! land/sea indicator (0=land;1=ocean)
+    real,    intent(out) :: ice             ! sea ice concentration (0-100%)
+    real,    intent(out) :: tpw             ! total precipitable water (0-70mm)
+    real,    intent(out) :: cloudLiquidWaterPathObs ! retrieved cloud liquid water from observation (0-3mm)
+    real,    intent(out) :: cloudLiquidWaterPathFG  ! retrieved cloud liquid water from background (0-3mm)
+    integer, intent(out) :: rain            ! rain identification (0=no rain; 1=rain)
+    integer, intent(out) :: snow            ! snow cover and glacial ice identification:
+                                            ! (0=no snow; 1=snow; 2=glacial ice)
+    real,    intent(out) :: scatIndexOverLandObs    ! scattering index over land
+    real,    intent(out) :: scatIndexOverWaterObs   ! scattering index over water
 
     ! Locals:
-    real :: siw, sil, df1, df2, df3, a, b, c, d, e23
+    real :: df1, df2, df3, a, b, c, d, e23
     real :: ei, cosz, tt, scat, sc31, abslat, t23, t31, t50, t89
     real :: sc50, par, t53
     real :: dif285t23, dif285t31, epsilon
@@ -2706,250 +2688,198 @@ contains
 
     data epsilon / 1.E-30 /
 
-    logical skipLoopChan15Missing 
+    logical chan15Missing 
     !
     ! Notes: In the case where an output parameter cannot be calculated, the
     !        value of this parameter is to to the missing value, i.e. -99.
 
     ! 1) Initialise output parameters:
-    do i = 1, numObsToProcess
-      ice  (i) = mwbg_realMissing
-      tpw  (i) = mwbg_realMissing
-      cloudLiquidWaterPathObs(i) = mwbg_realMissing
-      cloudLiquidWaterPathFG(i) = mwbg_realMissing
-      scatIndexOverLandObs(i) = mwbg_realMissing
-      scatIndexOverWaterObs(i) = mwbg_realMissing
-      rain (i) = nint(mwbg_realMissing)
-      snow (i) = nint(mwbg_realMissing)
-    end do
+    ice = mwbg_realMissing
+    tpw = mwbg_realMissing
+    cloudLiquidWaterPathObs = mwbg_realMissing
+    cloudLiquidWaterPathFG = mwbg_realMissing
+    scatIndexOverLandObs = mwbg_realMissing
+    scatIndexOverWaterObs = mwbg_realMissing
+    rain = nint(mwbg_realMissing)
+    snow = nint(mwbg_realMissing)
 
     ! 2) Validate input parameters:
-    do i = 1, numObsToProcess
-      if ( tb23(i)    < 120.  .or. &
-           tb23(i)    > 350.  .or. &
-           tb31(i)    < 120.  .or. &
-           tb31(i)    > 350.  .or. &
-           tb50(i)    < 120.  .or. &
-           tb50(i)    > 350.  .or. &
-           tb53(i)    < 120.  .or. &
-           tb53(i)    > 350.  .or. &
-           satZenithAngle(i)   < -90.  .or. &
-           satZenithAngle(i)   > 90.   .or. &
-           obsLat(i)  < -90.  .or. &
-           obsLat(i)  > 90.   .or. &
-           landQualifierIndice(i) < 0 .or. &
-           landQualifierIndice(i) > 1 ) then
-        ier(i) = 1
-      else
-        ier(i) = 0
-      end if
-    end do
+    if ( tb23 < 120. .or. &
+          tb23 > 350. .or. &
+          tb31 < 120. .or. &
+          tb31 > 350. .or. &
+          tb50 < 120. .or. &
+          tb50 > 350. .or. &
+          tb53 < 120. .or. &
+          tb53 > 350. .or. &
+          satZenithAngle < -90. .or. &
+          satZenithAngle >  90. .or. &
+          obsLat < -90. .or. &
+          obsLat >  90. .or. &
+          landQualifierIndice < 0 .or. &
+          landQualifierIndice > 1 ) then
+      ier = 1
+    else
+      ier = 0
+    end if
 
     !3) Compute parameters:
-    loopObsGrody: do i = 1, numObsToProcess
-      if ( ier(i) == 0 ) then
-        abslat = abs(obsLat(i))
-        cosz   = cosd(satZenithAngle(i))
-        t23 = tb23(i)
-        t31 = tb31(i)
-        t50 = tb50(i)
-        t53 = tb53(i)
-        dif285t23  =max(285.-t23,epsilon)
-        dif285t23FG=max(285.-tb23FG(i),epsilon)
-        dif285t31  =max(285.-t31,epsilon)
-        dif285t31FG=max(285.-tb31FG(i),epsilon)
+    if ( ier == 0 ) then
+      cosz   = cosd(satZenithAngle)
+      dif285t23  =max(285.-t23,epsilon)
+      dif285t23FG=max(285.-tb23FG,epsilon)
+      dif285t31  =max(285.-t31,epsilon)
+      dif285t31FG=max(285.-tb31FG,epsilon)
 
-        skipLoopChan15Missing = .false.
-        if ( tb89(i) < 120.0 .or. tb89(i) > 350.0 ) then 
-          skipLoopChan15Missing = .true.
-        end if
+      chan15Missing = .false.
+      if (tb89 < 120.0 .or. tb89 > 350.0) then 
+        chan15Missing = .true.
+      end if
 
-        if ( .not. skipLoopChan15Missing ) then
-          t89 = tb89(i)
+      if (.not. chan15Missing) then
+        ! scattering indices:
+        scatIndexOverWaterObs = -113.2 + (2.41 - 0.0049 * t23) * t23 + 0.454 * t31 - t89 
+        scatIndexOverLandObs = t23 - t89
+      end if
 
-          ! scattering indices:
-          siw = -113.2 + (2.41 - 0.0049*t23)*t23 &
-                       + 0.454*t31 &
-                       - t89 
-          sil = t23 - t89 
+      ! discriminate functions:
+      df1 =  2.85 + 0.020 * t23 - 0.028 * t50 ! used to identify (also remove) sea ice
+      df2 =  5.10 + 0.078 * t23 - 0.096 * t50 ! used to identify (also remove) warm deserts
+      df3 = 10.20 + 0.036 * t23 - 0.074 * t50 ! used to identify (also remove) cold deserts
 
-          scatIndexOverLandObs (i) = sil
-          scatIndexOverWaterObs (i) = siw
-        end if
+      if (landQualifierIndice == 1) then
 
-        ! discriminate functions:
-        df1 =  2.85 + 0.020*t23 - 0.028*t50 ! used to identify (also remove) sea ice
-        df2 =  5.10 + 0.078*t23 - 0.096*t50 ! used to identify (also remove) warm deserts
-        df3 = 10.20 + 0.036*t23 - 0.074*t50 ! used to identify (also remove) cold deserts
+        ! Ocean Parameters
 
-        if ( landQualifierIndice(i)== 1 ) then
-
-          ! Ocean Parameters
-
-          !3.1) Sea ice:
-          if ( abslat < 50. ) then
-            ice(i) = 0.0
+        !3.1) Sea ice:
+        if (abs(obsLat) < 50.) then
+          ice = 0.0
+        else
+          if ( df1 < 0.45 ) then
+            ice = 0.0
           else
-            if ( df1 < 0.45 ) then
-               ice(i) = 0.0
+            a =  1.7340  - 0.6236 * cosz
+            b =  0.0070  + 0.0025 * cosz
+            c = -0.00106 
+            d = -0.00909
+            e23 = a + b * t31 + c * t23 + d * t50 ! theoretical 23Ghz sfc emissivity (0.3-1.)
+            if ( (t23-t31) >= 5. ) then   ! fov contains multiyear or new ice/water
+              ei = 0.88
             else
-              a =  1.7340  - 0.6236*cosz
-              b =  0.0070  + 0.0025*cosz
-              c = -0.00106 
-              d = -0.00909
-              e23 = a + b*t31 + c*t23 + d*t50 ! theoretical 23Ghz sfc emissivity (0.3-1.)
-              if ( (t23-t31) >= 5. ) then   ! fov contains multiyear or new ice/water
-                ei = 0.88
-              else
-                ei = 0.95
-              end if
-              ice(i) = 100*(e23-0.45)/(ei-0.45) ! sea-ice concentration within fov (0-100%) 
-              ice(i) = min(100.,max(0.,ice(i)))/100.   !jh (0.-1.)
+              ei = 0.95
             end if
+            ice = 100*(e23-0.45)/(ei-0.45) ! sea-ice concentration within fov (0-100%) 
+            ice = min(100.,max(0.,ice))/100.   !jh (0.-1.)
           end if
+        end if
 
-          ! 3.2) Total precipitable water:
-          ! identify and remove sea ice
-          if ( abslat > 50.  .and. &
-              df1     >  0.2        ) then  
-            tpw(i) = mwbg_realMissing
-          else
-            a =  247.920  - (69.235 - 44.177*cosz)*cosz
-            b = -116.270
-            c =   73.409
-            tpw(i) = a + b*log(dif285t23) & 
-                      + c*log(dif285t31)
-            tpw(i) = tpw(i)*cosz           ! theoretical total precipitable water (0-70mm)
-            tpw(i) = 0.942*tpw(i) - 2.17   ! corrected   total precipitable water 
-            tpw(i) = min(70.,max(0.,tpw(i)))   ! jh     
-          end if
+        ! 3.2) Total precipitable water:
+        ! identify and remove sea ice
+        if (abs(obsLat) > 50. .and. df1 > 0.2) then  
+          tpw = mwbg_realMissing
+        else
+          a =  247.920 - (69.235 - 44.177 * cosz) * cosz
+          b = -116.270
+          c =   73.409
+          tpw = a + b * log(dif285t23) + c * log(dif285t31)
+          tpw = tpw * cosz           ! theoretical total precipitable water (0-70mm)
+          tpw = 0.942 * tpw - 2.17   ! corrected   total precipitable water 
+          tpw = min(70.,max(0.,tpw))   ! jh     
+        end if
 
-          !3.3) Cloud liquid water from obs (cloudLiquidWaterPathObs) and background state (cloudLiquidWaterPathFG):
-          ! identify and remove sea ice
-          if ( abslat > 50.  .and. &
-              df1     >  0.0        ) then  
-            cloudLiquidWaterPathObs(i) = mwbg_realMissing
-            cloudLiquidWaterPathFG(i) = mwbg_realMissing
-          else
-            a =  8.240 - (2.622 - 1.846*cosz)*cosz
-            b =  0.754
-            c = -2.265
-            cloudLiquidWaterPathObs(i) = a + b*log(dif285t23) & 
-                      + c*log(dif285t31)
-            cloudLiquidWaterPathObs(i) = cloudLiquidWaterPathObs(i)*cosz           ! theoretical cloud liquid water (0-3mm)
-            cloudLiquidWaterPathObs(i) = cloudLiquidWaterPathObs(i) - 0.03         ! corrected   cloud liquid water 
-            cloudLiquidWaterPathObs(i) = min(3.,max(0.,cloudLiquidWaterPathObs(i)))   ! jh       
+        !3.3) Cloud liquid water from obs (cloudLiquidWaterPathObs) and background state (cloudLiquidWaterPathFG):
+        ! identify and remove sea ice
+        if (abs(obsLat) > 50. .and. df1 > 0.0) then  
+          cloudLiquidWaterPathObs = mwbg_realMissing
+          cloudLiquidWaterPathFG = mwbg_realMissing
+        else
+          a =  8.240 - (2.622 - 1.846 * cosz) * cosz
+          b =  0.754
+          c = -2.265
+          cloudLiquidWaterPathObs = a + b * log(dif285t23) + c * log(dif285t31)
+          cloudLiquidWaterPathObs = cloudLiquidWaterPathObs * cosz         ! theoretical cloud liquid water (0-3mm)
+          cloudLiquidWaterPathObs = cloudLiquidWaterPathObs - 0.03         ! corrected cloud liquid water 
+          cloudLiquidWaterPathObs = min(3.,max(0.,cloudLiquidWaterPathObs))
 
-            cloudLiquidWaterPathFG(i) = a + b*log(dif285t23FG) & 
-                      + c*log(dif285t31FG)
-            cloudLiquidWaterPathFG(i) = cloudLiquidWaterPathFG(i)*cosz           ! theoretical cloud liquid water (0-3mm)
-            cloudLiquidWaterPathFG(i) = cloudLiquidWaterPathFG(i) - 0.03         ! corrected   cloud liquid water 
-            cloudLiquidWaterPathFG(i) = min(3.,max(0.,cloudLiquidWaterPathFG(i)))   ! jh       
-          end if
+          cloudLiquidWaterPathFG = a + b * log(dif285t23FG) + c * log(dif285t31FG)
+          cloudLiquidWaterPathFG = cloudLiquidWaterPathFG * cosz           ! theoretical cloud liquid water (0-3mm)
+          cloudLiquidWaterPathFG = cloudLiquidWaterPathFG - 0.03           ! corrected cloud liquid water 
+          cloudLiquidWaterPathFG = min(3.,max(0.,cloudLiquidWaterPathFG))
+        end if
 
-          if ( skipLoopChan15Missing ) cycle loopObsGrody
-
+        if (.not. chan15Missing) then
           !3.4) Ocean rain: 0=no rain; 1=rain.
           ! identify and remove sea ice
-          if ( abslat > 50.  .and. &
-              df1    >  0.0        ) then  
-            rain(i) = nint(mwbg_realMissing)
+          if (abs(obsLat) > 50. .and. df1 > 0.0) then  
+            rain = nint(mwbg_realMissing)
           else                                   ! remove non-precipitating clouds
-            if ( cloudLiquidWaterPathObs(i) > 0.3 .or. &
-                siw        > 9.0      ) then 
-              rain(i) = 1
+            if (cloudLiquidWaterPathObs > 0.3 .or. scatIndexOverLandObs> 9.0) then 
+              rain = 1
             else
-              rain(i) = 0
+              rain = 0
             end if
           end if
+        end if
 
-        else
+      else
 
-          if ( skipLoopChan15Missing ) cycle loopObsGrody
-
+        if (.not. chan15Missing) then
           ! Land Parameters
 
           ! 3.5) Rain  over land: 0=no rain; 1=rain.
           tt = 168. + 0.49*t89
-          if ( sil >= 3. ) then
-            rain(i) = 1
+          if (scatIndexOverLandObs >= 3.) then
+            rain = 1
           else 
-            rain(i) = 0
+            rain = 0
           end if
           
           ! remove snow cover
-          if ( t23 <= 261. .and. &
-              t23 < tt         ) then
-            rain(i) = 0
-          end if
+          if (t23 <= 261. .and. t23 < tt) rain = 0
 
           ! remove warm deserts
-          if ( t89 > 273.  .or. &
-              df2  <   0.6      ) then
-            rain(i) = 0
-          end if
+          if (t89 > 273. .or. df2 < 0.6) rain = 0
 
           ! 3.6) Snow cover and glacial ice: 0=no snow; 1=snow; 2=glacial ice.
-          tt = 168. + 0.49*t89
+          tt = 168. + 0.49 * t89
           scat = t23 - t89
           sc31 = t23 - t31
           sc50 = t31 - t50
           par  = t50 - t53
 
           ! re-frozen snow
-          if ( t89 < 255.  .and. &
-              scat < sc31        ) then
-            scat = sc31
-          end if
+          if (t89 < 255. .and. scat < sc31) scat = sc31
 
           ! identify glacial ice
-          if ( scat <   3.  .and. &
-              t23   < 215.        ) then
-            snow(i) = 2
-          end if
-          if ( scat >= 3.       ) then
-            snow(i) = 1
+          if (scat < 3. .and. t23 < 215.) snow = 2
+          if (scat >= 3.) then
+            snow = 1
           else
-            snow(i) = 0
+            snow = 0
           end if
 
           ! remove precipitation
-          if ( t23 >= 262.  .or. &
-              t23  >= tt           ) then
-            snow(i) = 0
-          end if
-          if ( df3 <= 0.35         ) then    ! remove deserts
-            snow(i) = 0
-          end if
+          if (t23 >= 262. .or. t23 >= tt) snow = 0
+          ! remove deserts
+          if (df3 <= 0.35) snow = 0
 
           ! high elevation deserts
-          if ( scat <  15.  .and. &
-              sc31  <   3.  .and. &
-              par   >   2.        ) then
-            snow(i) = 0
-          end if
+          if (scat < 15. .and. sc31 < 3. .and. par > 2.) snow = 0
 
           ! remove frozen ground
-          if ( scat <   9.  .and. &
-              sc31  <   3.  .and. &
-              sc50  <   0.        ) then
-            snow(i) = 0
-          end if
-
+          if (scat < 9. .and. sc31 < 3. .and. sc50 < 0.) snow = 0
         end if
 
       end if
 
-      if ( mwbg_DEBUG .and. i <= 100 ) then
-        print *, 'GRODY: i,tb23(i),tb31(i),tb50(i),tb89(i),satZenithAngle(i),obsLat(i), &
-                  landQualifierIndice(i) = ', &
-                  i,tb23(i),tb31(i),tb50(i),tb89(i),satZenithAngle(i),obsLat(i), &
-                  landQualifierIndice(i)
-        print *, 'GRODY: ier(i),ice(i),tpw(i),cloudLiquidWaterPathObs(i),cloudLiquidWaterPathFG(i),rain(i),snow(i)=', &
-                  ier(i),ice(i),tpw(i),cloudLiquidWaterPathObs(i),cloudLiquidWaterPathFG(i),rain(i),snow(i)
-      end if
+    end if
 
-    end do loopObsGrody
+    if (mwbg_DEBUG) then
+      write(*,*) 'GRODY: tb23, tb31, tb50, tb89, satZenithAngle, obsLat, landQualifierIndice = ', &
+                tb23, tb31, tb50, tb89, satZenithAngle, obsLat, landQualifierIndice
+      write(*,*) 'GRODY: ier, ice, tpw, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, rain, snow=', &
+                  ier, ice, tpw, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, rain, snow
+    end if
 
   end subroutine GRODY
 
