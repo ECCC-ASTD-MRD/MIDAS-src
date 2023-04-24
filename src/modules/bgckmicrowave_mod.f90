@@ -189,25 +189,24 @@ contains
     !          - 89 Ghz = AMSU-A15 = channel #42
     implicit none
     ! Arguments
-    integer,     intent(in)               :: actualNumChannel                ! nombre de canaux des observations 
-    integer,     intent(in)               :: obsChannels(actualNumChannel)   ! observations channels
-    real,        intent(in)               :: obsTb(actualNumChannel)         ! radiances
-    real,        intent(in)               :: ompTb(actualNumChannel)         ! radiances o-p
-    real,        intent(in)               :: obsTbBiasCorr(actualNumChannel) ! correction aux radiances
-    real,        intent(out)              :: tb23                            ! radiance frequence 23 Ghz   
-    real,        intent(out)              :: tb31                            ! radiance frequence 31 Ghz
-    real,        intent(out)              :: tb50                            ! radiance frequence 50 Ghz  
-    real,        intent(out)              :: tb53                            ! radiance frequence 53 Ghz  
-    real,        intent(out)              :: tb89                            ! radiance frequence 89 Ghz  
-    real,        intent(out)              :: tb23FG                          ! radiance frequence 23 Ghz   
-    real,        intent(out)              :: tb31FG                          ! radiance frequence 31 Ghz
-    real,        intent(out)              :: tb50FG                          ! radiance frequence 50 Ghz  
-    real,        intent(out)              :: tb53FG                          ! radiance frequence 53 Ghz  
-    real,        intent(out)              :: tb89FG                          ! radiance frequence 89 Ghz        
+    integer, intent(in)  :: actualNumChannel                ! nombre de canaux des observations 
+    integer, intent(in)  :: obsChannels(actualNumChannel)   ! observations channels
+    real(4), intent(in)  :: obsTb(actualNumChannel)         ! radiances
+    real(4), intent(in)  :: ompTb(actualNumChannel)         ! radiances o-p
+    real(4), intent(in)  :: obsTbBiasCorr(actualNumChannel) ! correction aux radiances
+    real(4), intent(out) :: tb23                            ! radiance frequence 23 Ghz   
+    real(4), intent(out) :: tb31                            ! radiance frequence 31 Ghz
+    real(4), intent(out) :: tb50                            ! radiance frequence 50 Ghz  
+    real(4), intent(out) :: tb53                            ! radiance frequence 53 Ghz  
+    real(4), intent(out) :: tb89                            ! radiance frequence 89 Ghz  
+    real(4), intent(out) :: tb23FG                          ! radiance frequence 23 Ghz   
+    real(4), intent(out) :: tb31FG                          ! radiance frequence 31 Ghz
+    real(4), intent(out) :: tb50FG                          ! radiance frequence 50 Ghz  
+    real(4), intent(out) :: tb53FG                          ! radiance frequence 53 Ghz  
+    real(4), intent(out) :: tb89FG                          ! radiance frequence 89 Ghz        
 
     ! Locals
-    integer                               :: channelval
-    integer                               :: nChannelIndex
+    integer :: channelval, nChannelIndex
 
     do nChannelIndex=1,actualNumChannel
       channelval = obsChannels(nChannelIndex)
@@ -356,13 +355,13 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)    :: actualNumChannel              ! nombre de canaux des observations 
-    integer,     intent(in)    :: obsChannels(actualNumChannel) ! observations channels
-    integer,     intent(in)    :: sensorIndex                   ! numero de satellite (i.e. indice) 
-    logical,     intent(in)    :: RESETQC                       ! yes or not reset QC flag
-    character *9, intent(in)   :: stnId                         ! identificateur du satellite
-    integer,     intent(inout) :: obsFlags(actualNumChannel)    ! marqueur de radiance 
-    integer,     intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
+    integer,          intent(in) :: actualNumChannel              ! nombre de canaux des observations 
+    integer,          intent(in) :: obsChannels(actualNumChannel) ! observations channels
+    integer,          intent(in) :: sensorIndex                   ! numero de satellite (i.e. indice) 
+    logical,          intent(in) :: RESETQC                       ! yes or not reset QC flag
+    character(len=9), intent(in) :: stnId                         ! identificateur du satellite
+    integer,       intent(inout) :: obsFlags(actualNumChannel)    ! marqueur de radiance 
+    integer,       intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
     ! Locals
     integer :: nChannelIndex, testIndex, IBIT
 
@@ -401,15 +400,15 @@ contains
 
     implicit none
     ! Arguments
-    integer,     intent(in)    :: actualNumChannel              ! nombre de canaux des observations 
-    integer,     intent(in)    :: obsChannels(actualNumChannel) ! observations channels
-    integer,     intent(in)    :: sensorIndex                   ! numero de satellite (i.e. indice) 
-    character *9,intent(in)    :: stnId                         ! identificateur du satellite
-    integer,     intent(in)    :: channelForTopoFilter(:)       ! channel list for filter
-    real,        intent(in)    :: altitudeForTopoFilter(:)      ! altitude threshold
-    real,        intent(in)    :: modelInterpTerrain            ! topo aux point d'obs
-    integer,     intent(inout) :: obsFlags(actualNumChannel)    ! marqueur de radiance 
-    integer,     intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
+    integer,          intent(in) :: actualNumChannel              ! nombre de canaux des observations 
+    integer,          intent(in) :: obsChannels(actualNumChannel) ! observations channels
+    integer,          intent(in) :: sensorIndex                   ! numero de satellite (i.e. indice) 
+    character(len=9), intent(in) :: stnId                         ! identificateur du satellite
+    integer,          intent(in) :: channelForTopoFilter(:)       ! channel list for filter
+    real(4),          intent(in) :: altitudeForTopoFilter(:)      ! altitude threshold
+    real(4),          intent(in) :: modelInterpTerrain            ! topo aux point d'obs
+    integer,       intent(inout) :: obsFlags(actualNumChannel)    ! marqueur de radiance 
+    integer,       intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
     ! Locals
     integer :: nChannelIndex, numFilteringTest, indexFilteringTest, testIndex
 
