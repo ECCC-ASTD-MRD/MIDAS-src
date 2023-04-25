@@ -3171,7 +3171,7 @@ contains
           end if
 
           if ( rejectES ) then
-            obsFlags(varIndexES,levStnIndex) = ibset(obsFlags(varIndexES,levStnIndex),8)
+            obsFlags(varIndexES,levStnIndex) = ibset(obsFlags(varIndexES,levStnIndex),11)
           end if
 
         else
