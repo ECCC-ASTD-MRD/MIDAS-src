@@ -2351,32 +2351,32 @@ contains
 
     ! Arguments:
     integer, intent(out) :: ier             ! error return code: 0 ok, 1 input parameter out of range.
-    real,     intent(in) :: tb23            ! 23Ghz brightness temperature (K)
-    real,     intent(in) :: tb31            ! 31Ghz brightness temperature (K)
-    real,     intent(in) :: tb50            ! 50Ghz brightness temperature (K)
-    real,     intent(in) :: tb53            ! 53Ghz brightness temperature (K)
-    real,     intent(in) :: tb89            ! 89Ghz brightness temperature (K)
-    real,     intent(in) :: tb23FG          ! 23Ghz brightness temperature from background (K)
-    real,     intent(in) :: tb31FG          ! 31Ghz brightness temperature from background (K)
-    real,     intent(in) :: satZenithAngle  ! satellite zenith angle (deg.)
-    real,     intent(in) :: obsLat          ! latitude (deg.)
+    real(4),  intent(in) :: tb23            ! 23Ghz brightness temperature (K)
+    real(4),  intent(in) :: tb31            ! 31Ghz brightness temperature (K)
+    real(4),  intent(in) :: tb50            ! 50Ghz brightness temperature (K)
+    real(4),  intent(in) :: tb53            ! 53Ghz brightness temperature (K)
+    real(4),  intent(in) :: tb89            ! 89Ghz brightness temperature (K)
+    real(4),  intent(in) :: tb23FG          ! 23Ghz brightness temperature from background (K)
+    real(4),  intent(in) :: tb31FG          ! 31Ghz brightness temperature from background (K)
+    real(4),  intent(in) :: satZenithAngle  ! satellite zenith angle (deg.)
+    real(4),  intent(in) :: obsLat          ! latitude (deg.)
     integer,  intent(in) :: landQualifierIndice ! land/sea indicator (0=land;1=ocean)
-    real,    intent(out) :: ice             ! sea ice concentration (0-100%)
-    real,    intent(out) :: tpw             ! total precipitable water (0-70mm)
-    real,    intent(out) :: cloudLiquidWaterPathObs ! retrieved cloud liquid water from observation (0-3mm)
-    real,    intent(out) :: cloudLiquidWaterPathFG  ! retrieved cloud liquid water from background (0-3mm)
+    real(4), intent(out) :: ice             ! sea ice concentration (0-100%)
+    real(4), intent(out) :: tpw             ! total precipitable water (0-70mm)
+    real(4), intent(out) :: cloudLiquidWaterPathObs ! retrieved cloud liquid water from observation (0-3mm)
+    real(4), intent(out) :: cloudLiquidWaterPathFG  ! retrieved cloud liquid water from background (0-3mm)
     integer, intent(out) :: rain            ! rain identification (0=no rain; 1=rain)
     integer, intent(out) :: snow            ! snow cover and glacial ice identification:
                                             ! (0=no snow; 1=snow; 2=glacial ice)
-    real,    intent(out) :: scatIndexOverLandObs    ! scattering index over land
-    real,    intent(out) :: scatIndexOverWaterObs   ! scattering index over water
+    real(4), intent(out) :: scatIndexOverLandObs    ! scattering index over land
+    real(4), intent(out) :: scatIndexOverWaterObs   ! scattering index over water
 
     ! Locals:
-    real :: df1, df2, df3, a, b, c, d, e23
-    real :: ei, cosz, tt, scat, sc31, abslat, t23, t31, t50, t89
-    real :: sc50, par, t53
-    real :: dif285t23, dif285t31, epsilon
-    real :: dif285t23FG, dif285t31FG
+    real(4) :: df1, df2, df3, a, b, c, d, e23
+    real(4) :: ei, cosz, tt, scat, sc31, abslat, t23, t31, t50, t89
+    real(4) :: sc50, par, t53
+    real(4) :: dif285t23, dif285t31, epsilon
+    real(4) :: dif285t23FG, dif285t31FG
     integer :: i
 
     data epsilon / 1.E-30 /
@@ -2397,20 +2397,13 @@ contains
     snow = nint(mwbg_realMissing)
 
     ! 2) Validate input parameters:
-    if ( tb23 < 120. .or. &
-          tb23 > 350. .or. &
-          tb31 < 120. .or. &
-          tb31 > 350. .or. &
-          tb50 < 120. .or. &
-          tb50 > 350. .or. &
-          tb53 < 120. .or. &
-          tb53 > 350. .or. &
-          satZenithAngle < -90. .or. &
-          satZenithAngle >  90. .or. &
-          obsLat < -90. .or. &
-          obsLat >  90. .or. &
-          landQualifierIndice < 0 .or. &
-          landQualifierIndice > 1 ) then
+    if ( tb23 < 120. .or. tb23 > 350. .or. &
+          tb31 < 120. .or. tb31 > 350. .or. &
+          tb50 < 120. .or. tb50 > 350. .or. &
+          tb53 < 120. .or. tb53 > 350. .or. &
+          satZenithAngle < -90. .or. satZenithAngle >  90. .or. &
+          obsLat < -90. .or. obsLat > 90. .or. &
+          landQualifierIndice < 0 .or. landQualifierIndice > 1 ) then
       ier = 1
     else
       ier = 0
