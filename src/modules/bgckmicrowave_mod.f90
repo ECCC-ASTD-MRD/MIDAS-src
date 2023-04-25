@@ -4331,9 +4331,9 @@ contains
 
     !  Initialize all obs as being over land and free of ice or snow.
     !  Determine which obs are over open water.
-    waterobs(:) = .false.   ! not over open water
-    calcTerrainTypeIndice(:) = -1             ! no ice (reset terain type)
-    calcLandQualifierIndice(:) = 0 ! land   (reset land/sea qualifier)
+    waterobs = .false.   ! not over open water
+    calcTerrainTypeIndice = -1             ! no ice (reset terain type)
+    calcLandQualifierIndice = 0 ! land   (reset land/sea qualifier)
 
     if ( mgintrp < MGthresh ) calcLandQualifierIndice = 1  ! ocean point away from coast
     if ( lgintrp >= LGthresh .and. calcLandQualifierIndice == 1 ) calcTerrainTypeIndice = 0  ! sea-ice affected point
