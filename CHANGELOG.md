@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add new variable toleranceFactor to thin_raobs namelist (#763 and !724)
  * Addition of new variables maxSwath, maxPerSwath to the namIceBGcheck namelist (#806 and !715)
 
 ### Changed
