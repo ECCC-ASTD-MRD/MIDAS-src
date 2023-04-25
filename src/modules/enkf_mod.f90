@@ -60,7 +60,7 @@ contains
                                 stateVectorMeanAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
                                 hLocalize, hLocalizePressure, vLocalize,  &
-                                mpiDistribution, numRetainedEigen, edaObsImpact)
+                                mpiDistribution, numRetainedEigen, simObsAssim)
     ! :Purpose: Local subroutine containing the code for computing
     !           the LETKF analyses for all ensemble members, ensemble
     !           mean.
@@ -82,7 +82,7 @@ contains
     real(8)                     :: vLocalize
     character(len=*)            :: mpiDistribution
     integer                     :: numRetainedEigen
-    logical                     :: edaObsImpact
+    logical                     :: simObsAssim
 
     ! Locals
     integer :: nEns, nEnsPerSubEns, nEnsPerSubEns_mod, nEnsIndependentPerSubEns
@@ -205,7 +205,7 @@ contains
     allocate(PaSqrt_pert(nEnsGain,nEnsGain))
     allocate(Pa_pert(nEnsGain,nEnsGain))
 
-    if ( edaObsImpact ) then
+    if ( simObsAssim ) then
       allocate(YbTinvR_mean(nEnsGain,maxNumLocalObs))
       allocate(YbTinvRCopy_mean(maxNumLocalObs,nEnsGain))
       allocate(YbTinvRYb_mean(nEnsGain,nEnsGain))
@@ -472,12 +472,12 @@ contains
                  ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
                  localization * ensObsGain_mpiglobal%obsErrInv(bodyIndex)
           end do
-          if ( edaObsImpact ) then
+          if ( simObsAssim ) then
             do memberIndex = 1, nEnsGain
               ! YbTinvR for the ensemble mean update for EDA observation simulation experiment
               YbTinvR_mean(memberIndex,localObsIndex) =  &
                    ensObsGain_mpiglobal%Yb_r4(memberIndex, bodyIndex) * &
-                   localization * ensObsGain_mpiglobal%obsErrInv_eda(bodyIndex)             
+                   localization * ensObsGain_mpiglobal%obsErrInv_sim(bodyIndex)             
             end do
           end if
         end do ! localObsIndex
@@ -494,7 +494,7 @@ contains
             YbTinvRCopy_pert(localObsIndex,memberIndex2) = YbTinvR_pert(memberIndex2,localObsIndex)
           end do
         end do      
-        if ( edaObsImpact ) then
+        if ( simObsAssim ) then
           YbTinvRCopy_mean(:,:) = 0.0d0
           do localObsIndex = 1, numLocalObs
             bodyIndex = localBodyIndices(localObsIndex)
@@ -517,7 +517,7 @@ contains
           end do
         end do
         !$OMP END PARALLEL DO       
-        if ( edaObsImpact ) then     
+        if ( simObsAssim ) then     
           YbTinvRYb_mean(:,:) = 0.0D0
           !$OMP PARALLEL DO PRIVATE (memberIndex1, memberIndex2)
           do memberIndex2 = 1, nEnsGain
@@ -573,7 +573,7 @@ contains
             do memberIndex = 1, nEns
               PaInv_pert(memberIndex,memberIndex) = PaInv_pert(memberIndex,memberIndex) + real(nEns - 1,8)
             end do
-            if ( edaObsImpact ) then
+            if ( simObsAssim ) then
               PaInv_mean(:,:) = YbTinvRYb_mean(:,:)            
               do memberIndex = 1, nEns
                 PaInv_mean(memberIndex,memberIndex) = PaInv_mean(memberIndex,memberIndex) + real(nEns - 1,8)
@@ -584,7 +584,7 @@ contains
             Pa_pert(:,:) = PaInv_pert(:,:)
             call utl_tmg_start(135,'------EigenDecomp')
             call utl_matInverse(Pa_pert, nEns, inverseSqrt_opt=PaSqrt_pert)
-            if ( edaObsImpact ) then
+            if ( simObsAssim ) then
               Pa_mean(:,:) = PaInv_mean(:,:)
               call utl_matInverse(Pa_mean, nEns)
             end if
@@ -623,7 +623,7 @@ contains
             call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
-            if ( edaObsImpact ) then
+            if ( simObsAssim ) then
               call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
             end if
             call utl_tmg_stop(135)
@@ -727,7 +727,7 @@ contains
             call utl_tmg_start(135,'------EigenDecomp')
             tolerance = 1.0D-50
             call utl_eigenDecomp(YbTinvRYb_pert, eigenValues_pert, eigenVectors_pert, tolerance, matrixRank)
-            if ( edaObsImpact ) then
+            if ( simObsAssim ) then
               call utl_eigenDecomp(YbTinvRYb_mean, eigenValues_mean, eigenVectors_mean, tolerance, matrixRank)
             end if
             call utl_tmg_stop(135)

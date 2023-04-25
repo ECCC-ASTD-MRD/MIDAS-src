@@ -29,10 +29,10 @@ MODULE ensembleObservations_mod
 
   ! public procedures
   public :: eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
-  public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setSimObsErrInv, eob_setMeanOMP
+  public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setPsvObsErrInv
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_setAssFlag, eob_copy, eob_zero
-  public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord, eob_setSimulatedObs
-  public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
+  public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord, eob_setSimObsVal, eob_setSimObsErrInv
+  public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc, eob_setMeanOMP
   public :: eob_removeObsNearLand, eob_readFromFiles, eob_writeToFiles
 
   integer, parameter :: maxNumLocalObsSearch = 500000
@@ -49,7 +49,7 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: lat(:), lon(:)   ! lat/lon of observation
     real(8), allocatable          :: vertLocation(:)  ! in ln(pres) or meters, used for localization
     real(8), allocatable          :: obsErrInv(:)     ! inverse of obs error variances
-    real(8), allocatable          :: obsErrInv_eda(:) ! like obsErrInv, but for use in EDA-based obs simulation experiments
+    real(8), allocatable          :: obsErrInv_sim(:) ! like obsErrInv, but for use in EDA-based obs simulation experiments
     real(4), allocatable          :: Yb_r4(:,:)       ! background ensemble perturbation in obs space
     real(4), allocatable          :: Ya_r4(:,:)       ! analysis ensemble perturbation in obs space    
     real(4), allocatable          :: randPert_r4(:,:) ! unbiased random perturbations with covariance equal to R
@@ -67,7 +67,7 @@ CONTAINS
   ! eob_allocate
   !--------------------------------------------------------------------------
   subroutine eob_allocate(ensObs, numMembers, numObs, obsSpaceData, &
-                          fileMemberIndex1_opt, edaObsImpact_opt)
+                          fileMemberIndex1_opt, simObsAssim_opt)
     !
     ! :Purpose: Allocate an ensObs object
     !
@@ -79,10 +79,10 @@ CONTAINS
     integer                 , intent(in)    :: numObs
     type(struct_obs), target, intent(in)    :: obsSpaceData
     integer, optional       , intent(in)    :: fileMemberIndex1_opt
-    logical, optional       , intent(in)    :: edaObsImpact_opt
+    logical, optional       , intent(in)    :: simObsAssim_opt
 
     ! locals
-    logical :: edaObsImpact
+    logical :: simObsAssim
 
     if ( ensObs%allocated ) then
       write(*,*) 'eob_allocate: this object is already allocated, deallocating first.'
@@ -91,10 +91,10 @@ CONTAINS
 
     if ( present(fileMemberIndex1_opt) ) ensObs%fileMemberIndex1 = fileMemberIndex1_opt
 
-    if ( present(edaObsImpact_opt) ) then
-      edaObsImpact = edaObsImpact_opt
+    if ( present(simObsAssim_opt) ) then
+      simObsAssim = simObsAssim_opt
     else
-      edaObsImpact = .false.
+      simObsAssim = .false.
     end if
 
     ensObs%obsSpaceData  => obsSpaceData
@@ -106,7 +106,7 @@ CONTAINS
     allocate( ensObs%vertLocation(ensObs%numObs) )
     allocate( ensObs%obsValue(ensObs%numObs) )
     allocate( ensObs%obsErrInv(ensObs%numObs) )
-    if ( edaObsImpact ) allocate( ensObs%obsErrInv_eda(ensObs%numObs) )
+    if ( simObsAssim ) allocate( ensObs%obsErrInv_sim(ensObs%numObs) )
     allocate( ensObs%Yb_r4(ensObs%numMembers,ensObs%numObs) )
     allocate( ensObs%meanYb(ensObs%numObs) )
     allocate( ensObs%deterYb(ensObs%numObs) )
@@ -134,7 +134,7 @@ CONTAINS
     deallocate( ensObs%vertLocation )
     deallocate( ensObs%obsValue )
     deallocate( ensObs%obsErrInv )
-    if ( allocated(ensObs%obsErrInv_eda) ) deallocate( ensObs%obsErrInv_eda)
+    if ( allocated(ensObs%obsErrInv_sim) ) deallocate( ensObs%obsErrInv_sim)
     deallocate( ensObs%Yb_r4 )
     if ( allocated(ensObs%Ya_r4) ) deallocate( ensObs%Ya_r4 )
     if ( allocated(ensObs%randPert_r4) ) deallocate( ensObs%randPert_r4 )
@@ -167,7 +167,7 @@ CONTAINS
     ensObs%vertLocation(:)  = 0.0d0
     ensObs%obsValue(:)      = 0.0d0
     ensObs%obsErrInv(:)     = 0.0d0
-    if ( allocated(ensObs%obsErrInv_eda) ) ensObs%obsErrInv_eda(:) = 0.0
+    if ( allocated(ensObs%obsErrInv_sim) ) ensObs%obsErrInv_sim(:) = 0.0
     ensObs%Yb_r4(:,:)       = 0.0
     if ( allocated(ensObs%Ya_r4) ) ensObs%Ya_r4(:,:) = 0.0
     if ( allocated(ensObs%randPert_r4) ) ensObs%randPert_r4(:,:) = 0.0
@@ -229,8 +229,8 @@ CONTAINS
 
     write(*,*) 'eob_clean: reducing numObs from ', ensObs%numObs, ' to ', numObsClean
     call eob_allocate(ensObsClean, ensObs%numMembers, numObsClean, ensObs%obsSpaceData)
-    if ( allocated(ensObs%obsErrInv_eda) ) then
-      allocate(ensObsClean%obsErrInv_eda(numObsClean))
+    if ( allocated(ensObs%obsErrInv_sim) ) then
+      allocate(ensObsClean%obsErrInv_sim(numObsClean))
     end if
     if ( allocated(ensObs%Ya_r4) ) then
       allocate(ensObsClean%Ya_r4(ensObs%numMembers,numObsClean))
@@ -247,8 +247,8 @@ CONTAINS
         ensObsClean%lon(obsCleanIndex)           = ensObs%lon(obsIndex)
         ensObsClean%vertLocation(obsCleanIndex)  = ensObs%vertLocation(obsIndex)
         ensObsClean%obsErrInv(obsCleanIndex)     = ensObs%obsErrInv(obsIndex)
-        if ( allocated(ensObs%obsErrInv_eda) ) then
-          ensObsClean%obsErrInv_eda(obsCleanIndex) = ensObs%obsErrInv_eda(obsIndex)
+        if ( allocated(ensObs%obsErrInv_sim) ) then
+          ensObsClean%obsErrInv_sim(obsCleanIndex) = ensObs%obsErrInv_sim(obsIndex)
         end if 
         ensObsClean%Yb_r4(:,obsCleanIndex)       = ensObs%Yb_r4(:,obsIndex)
         if ( allocated(ensObs%Ya_r4) ) then
@@ -280,8 +280,8 @@ CONTAINS
     ensObsOut%lon(:)           = ensObsIn%lon(:)
     ensObsOut%vertLocation(:)  = ensObsIn%vertLocation(:)
     ensObsOut%obsErrInv(:)     = ensObsIn%obsErrInv(:)
-    if (allocated(ensObsIn%obsErrInv_eda) ) then
-      ensObsOut%obsErrInv(:) = ensObsIn%obsErrInv_eda(:)
+    if (allocated(ensObsIn%obsErrInv_sim) ) then
+      ensObsOut%obsErrInv(:) = ensObsIn%obsErrInv_sim(:)
     end if
     ensObsOut%Yb_r4(:,:)       = ensObsIn%Yb_r4(:,:)
     if ( allocated(ensObsIn%Ya_r4) ) then
@@ -343,8 +343,8 @@ CONTAINS
     if ( allocated(ensObsClean%Ya_r4) ) then
       allocate(ensObs_mpiglobal%Ya_r4(ensObsClean%numMembers,numObs_mpiglobal))
     end if
-    if ( allocated(ensObsClean%obsErrInv_eda) ) then
-      allocate(ensObs_mpiglobal%obsErrInv_eda(numObs_mpiglobal))
+    if ( allocated(ensObsClean%obsErrInv_sim) ) then
+      allocate(ensObs_mpiglobal%obsErrInv_sim(numObs_mpiglobal))
     end if  
     if ( allocated(ensObsClean%randPert_r4) ) then
       allocate(ensObs_mpiglobal%randPert_r4(ensObsClean%numMembers,numObs_mpiglobal))
@@ -384,9 +384,9 @@ CONTAINS
     call rpn_comm_gatherv( ensObsClean%assFlag, ensObsClean%numObs, 'mpi_integer', &
                            ensObs_mpiglobal%assFlag, allNumObs, displs, 'mpi_integer',  &
                            0, 'GRID', ierr )
-    if ( allocated(ensObsClean%obsErrInv_eda) ) then
-      call rpn_comm_gatherv( ensObsClean%obsErrInv_eda, ensObsClean%numObs, 'mpi_real8', &
-                             ensObs_mpiglobal%obsErrInv_eda, allNumObs, displs, 'mpi_real8',  &
+    if ( allocated(ensObsClean%obsErrInv_sim) ) then
+      call rpn_comm_gatherv( ensObsClean%obsErrInv_sim, ensObsClean%numObs, 'mpi_real8', &
+                             ensObs_mpiglobal%obsErrInv_sim, allNumObs, displs, 'mpi_real8',  &
                              0, 'GRID', ierr )
     end if
     do memberIndex = 1, ensObsClean%numMembers
@@ -415,8 +415,8 @@ CONTAINS
                         0, 'GRID', ierr)
     call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
-    if ( allocated(ensObs_mpiglobal%obsErrInv_eda) ) then
-      call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv_eda, ensObs_mpiglobal%numObs, 'mpi_real8',  &
+    if ( allocated(ensObs_mpiglobal%obsErrInv_sim) ) then
+      call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv_sim, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                           0, 'GRID', ierr)
     end if 
     call rpn_comm_bcast(ensObs_mpiglobal%meanYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
@@ -821,38 +821,138 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_setSimObsErrInv
   !--------------------------------------------------------------------------
-  subroutine eob_setSimObsErrInv(ensObs, edaObsFamily)
+  subroutine eob_setSimObsErrInv(ensObs, simObsFamily, simtvs_opt)
     !
-    !:Purpose:  Computes the inverse of the observation error variance for observation
-    !           simulation experiments. For the observation family being simulated,
-    !           the observation error is inflated by setting the inverse to 0.
+    !:Purpose:  Computes the inverse of the observation error variance 
+    !           if simulating any observations. Stores this in
+    !           ensObs%obsErrInv_sim.
     !
     implicit none
 
     ! arguments
-    type(struct_eob), intent(inout)  :: ensObs
-    character(len=*), intent(in)     :: edaObsFamily
+    type(struct_eob),  intent(inout)        :: ensObs
+    character(len=2),  intent(in)           :: simObsFamily(:)
+    character(len=64), optional, intent(in) :: simtvs_opt(:)
 
     ! locals
-    integer :: obsIndex, headerIndex
+    integer              :: obsIndex, headerIndex, tvsidx
+    integer              :: instrum, instrumentCode
+    integer, allocatable :: simtvsint(:)
+    logical              :: simtvs
+    character(2)         :: obsfam_curr
 
-    call obs_extractObsRealBodyColumn(ensObs%obsErrInv_eda, ensObs%obsSpaceData, OBS_OER)
+    if ( present( simtvs_opt) ) then
+      simtvs = .true.
+      ! get IDs from names, and store in simtvsint
+      allocate ( simtvsint(size(simtvs_opt)) )
+      simtvsint(:) = -999
+      do tvsidx = 1, size(simtvs_opt)
+        if ( simtvs_opt(tvsidx) /= '' ) then
+          simtvsint(tvsidx) = tvs_getinstrumentID(simtvs_opt(tvsidx))
+        end if
+      end do
+    else
+      simtvs = .false.
+    end if
+
+    call obs_extractObsRealBodyColumn(ensObs%obsErrInv_sim, ensObs%obsSpaceData, OBS_OER)
     do obsIndex = 1, ensObs%numObs
-      headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
-      if ( obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex) == edaObsFamily ) then
-        ! update obs error inverse for simulated obs
-        ensObs%obsErrInv_eda(obsIndex) = 0.0d0       
+      ! initially, set to standard obs errors
+      if(ensObs%obsErrInv_sim(obsIndex) > 0.0d0) then
+        ensObs%obsErrInv_sim(obsIndex) = 1.0d0/(ensObs%obsErrInv_sim(obsIndex)**2)
       else
-        ! update obs error inverse for assimilated obs
-        if(ensObs%obsErrInv_eda(obsIndex) > 0.0d0) then
-          ensObs%obsErrInv_eda(obsIndex) = 1.0d0/(ensObs%obsErrInv_eda(obsIndex)**2)
+        ensObs%obsErrInv_sim(obsIndex) = 0.0d0
+      end if
+      ! update obs error inverse to 0 if current observation is being simulated
+      headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
+      obsfam_curr = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      if ( ANY( simObsFamily == obsfam_curr ) ) then
+        if ( ( simtvs ) .and. ( obsfam_curr == 'TO') ) then
+          ! see if any specified TOVS instrument is for current observation
+          instrumentCode = obs_headElem_i(ensObs%obsSpaceData, OBS_INS, headerIndex)
+          call tvs_mapinstrum(instrumentCode, instrum)
+          if ( ANY( simtvsint == instrum ) ) ensObs%obsErrInv_sim(obsIndex) = 0.0d0
         else
-          ensObs%obsErrInv_eda(obsIndex) = 0.0d0
-        end if        
-      end if      
+          ! simulated observation families don't include TOVS, or no instrument specified
+          ensObs%obsErrInv_sim(obsIndex) = 0.0d0
+        end if
+      end if 
     end do
 
   end subroutine eob_setSimObsErrInv
+
+  !--------------------------------------------------------------------------
+  ! eob_setPsvObsErrInv
+  !--------------------------------------------------------------------------
+  subroutine eob_setPsvObsErrInv(ensObs, psvObsFamily, psvtvs_opt, simObsAssim_opt)
+    !
+    !:Purpose:  Updates the inverse of the observation error variance  
+    !           for passive osbervations and stores this in ensObs%obsErrInv.
+    !           This is done assuming that ensObs%obsErrInv was already set.
+    !           Additionaly if simObsAssim_opt=.true, then it is assumed that
+    !           ensObs%obsErrInv_sim was already set as well.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_eob),  intent(inout)        :: ensObs
+    character(len=2),  intent(in)           :: psvObsFamily(:)
+    character(len=64), optional, intent(in) :: psvtvs_opt(:)
+    logical, optional, intent(in)           :: simObsAssim_opt
+
+    ! locals
+    integer              :: obsIndex, headerIndex, tvsidx
+    integer              :: instrum, instrumentCode
+    integer, allocatable :: psvtvsint(:)
+    logical              :: psvtvs, simObsAssim
+    character(2)         :: obsfam_curr
+
+    if ( present( psvtvs_opt ) ) then
+      psvtvs = .true.
+      ! get IDs from names, and store in simtvsint
+      allocate( psvtvsint(size(psvtvs_opt)) )
+      psvtvsint(:) = -999
+      do tvsidx = 1, size(psvtvs_opt)
+        if ( psvtvs_opt(tvsidx) /= '' ) then
+          psvtvsint(tvsidx) = tvs_getinstrumentID(psvtvs_opt(tvsidx))
+        end if
+      end do
+    else
+      psvtvs = .false.
+    end if
+
+    if ( present( simObsAssim_opt ) ) then
+      simObsAssim = simObsAssim_opt
+    else
+      simObsAssim = .false.
+    end if
+
+    do obsIndex = 1, ensObs%numObs
+      headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
+      obsfam_curr = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      if ( ANY(psvObsFamily == obsfam_curr ) ) then
+        ! update obs error inverse for passive obs
+        if ( ( psvtvs ) .and. ( obsfam_curr == 'TO' ) ) then
+          ! see if any specified TOVS instrument matches current observation
+          instrumentCode = obs_headElem_i(ensObs%obsSpaceData, OBS_INS, headerIndex)
+          call tvs_mapinstrum(instrumentCode, instrum)
+          if ( ANY( psvtvsint == instrum ) ) then
+            ensObs%obsErrInv(obsIndex) = 0.0d0
+            if ( simObsAssim ) then
+              ensObs%obsErrInv_sim(obsIndex) = 0.0d0
+            end if
+          end if
+        else
+          ! passive observation familes don't include TOVS, or no instrument specified          
+          ensObs%obsErrInv(obsIndex) = 0.0d0
+          if ( simObsAssim ) then
+            ensObs%obsErrInv_sim(obsIndex) = 0.0d0
+          end if
+        end if 
+      end if
+    end do
+
+  end subroutine eob_setPsvObsErrInv
 
   !--------------------------------------------------------------------------
   ! eob_setVertLocation
@@ -1080,9 +1180,9 @@ CONTAINS
   end subroutine eob_setYa
 
   !--------------------------------------------------------------------------
-  ! eob_setSimulatedObs
+  ! eob_setSimObsVal
   !--------------------------------------------------------------------------
-  subroutine eob_setSimulatedObs(ensObs, edaObsFamily)
+  subroutine eob_setSimObsVal(ensObs, simObsFamily)
     !
     ! :Purpose: Set the observed value for the observation family
     !           provided to the background ensemble mean in observation space.
@@ -1091,7 +1191,7 @@ CONTAINS
 
     ! Arguments:
     type(struct_eob) , intent(inout)  :: ensObs
-    character(len=*), intent(in)     :: edaObsFamily
+    character(len=2),  intent(in)     :: simObsFamily(:)
 
     ! Locals:
     integer :: obsIndex
@@ -1100,12 +1200,12 @@ CONTAINS
     ! Loop through observations and set y to mean(H(x)) if y is in obs family of interest
     do obsIndex = 1, ensObs%numObs
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
-      if ( obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex) == edaObsFamily ) then
+      if ( ANY( simObsFamily == obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex) ) ) then
         ensObs%obsvalue(obsIndex) = ensObs%meanYb(ObsIndex)
       end if
     end do
 
-  end subroutine eob_setSimulatedObs
+  end subroutine eob_setSimObsVal
   
   !--------------------------------------------------------------------------
   ! eob_setDeterYb
