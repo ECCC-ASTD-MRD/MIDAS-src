@@ -451,7 +451,7 @@ contains
     integer,      intent(inout)  :: obsFlags(actualNumChannel)    ! marqueur de radiance 
     integer,      intent(inout)  :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
     ! Locals
-    integer :: nDataIndex, nChannelIndex, testIndex
+    integer :: nChannelIndex, testIndex
 
   
     testIndex = 2
@@ -615,7 +615,7 @@ contains
     integer,       intent(inout) :: obsFlags(actualNumChannel)    ! marqueur de radiance 
     integer,       intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
     ! Locals
-    integer :: nDataIndex, nChannelIndex, testIndex
+    integer :: nChannelIndex, testIndex
     real(4) :: APPROXIM, ANGDif 
 
     testIndex = 6
@@ -1584,7 +1584,7 @@ contains
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle, &
                                 obsGlobalMarker, obsFlags, newInformationFlag, &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                scatIndexOverWaterObs, scatIndexOverWaterFG, &
+                                scatIndexOverWaterObs, &
                                 stnId, RESETQC, obsLat)
   
     !:Purpose:          Effectuer le controle de qualite des radiances tovs.
@@ -1612,15 +1612,15 @@ contains
     integer,           intent(inout) :: obsGlobalMarker         ! Marqueurs globaux  
     integer,              intent(in) :: landQualifierIndice     ! indicateur terre/mer
     integer,              intent(in) :: satScanPosition         ! position sur le "scan"
-    integer,              intent(in) :: obsChannels             ! canaux des observations
+    integer,              intent(in) :: obsChannels(:)          ! canaux des observations
     integer,           intent(inout) :: terrainTypeIndice       ! indicateur du type de terrain
     integer,              intent(in) :: actualNumChannel        ! nombre de canaux des observations 
     integer,              intent(in) :: sensorIndex             ! numero de satellite (i.e. indice)
-    integer,           intent(inout) :: obsFlags                ! marqueurs des radiances
-    real(4),              intent(in) :: obsTb                   ! radiances
-    real(4),              intent(in) :: btClear                 ! clear-sky radiances
-    real(4),              intent(in) :: obsTbBiasCorr           ! correction aux radiances
-    real(4),              intent(in) :: ompTb                   ! residus (o-p)
+    integer,           intent(inout) :: obsFlags(:)             ! marqueurs des radiances
+    real(4),              intent(in) :: obsTb(:)                ! radiances
+    real(4),              intent(in) :: btClear(:)              ! clear-sky radiances
+    real(4),              intent(in) :: obsTbBiasCorr(:)        ! correction aux radiances
+    real(4),              intent(in) :: ompTb(:)                ! residus (o-p)
     real(4),              intent(in) :: modelInterpLandFrac     ! masque terre/mer du modele
     real(4),              intent(in) :: modelInterpTerrain      ! topographie du modele
     real(4),              intent(in) :: modelInterpSeaIce       ! etendue de glace du modele
@@ -1633,16 +1633,15 @@ contains
     real(4),             intent(out) :: cloudLiquidWaterPathObs ! retrieved cloud liquid water from observation 
     real(4),             intent(out) :: cloudLiquidWaterPathFG  ! retrieved cloud liquid water from background 
     real(4),             intent(out) :: scatIndexOverWaterObs   ! scattering index over water from observation
-    real(4),             intent(out) :: scatIndexOverWaterFG    ! scattering index over water from background
     integer,             intent(out) :: newInformationFlag      ! ATMS Information flag (newInformationFlag) values 
-                                                                          ! (new BURP element 025174 in header)
-                                                                          ! FOR AMSUA just fill with zeros
+                                                                !   (new BURP element 025174 in header)
+                                                                !   FOR AMSUA just fill with zeros
     !locals
     integer, parameter :: maxScanAngleAMSU = 30 
     real, parameter    :: cloudyClwThreshold = 0.3
     real, parameter    :: ZANGL = 117.6/maxScanAngleAMSU
     
-    integer :: KCHKPRF, JI, JJ, INDX, err, rain, snow
+    integer :: KCHKPRF, JI, err, rain, snow
     integer :: ICLWREJ(6), ISFCREJ(6), ISFCREJ2(4), ISCATREJ(7), channelForTopoFilter(2)
     real(4), allocatable :: GROSSMIN(:), GROSSMAX(:), ROGUEFAC(:)
     real(4) :: EPSILON, tb23, tb31, tb50, tb53, tb89
@@ -1865,10 +1864,10 @@ contains
     implicit none 
     !Arguments:
     integer,            intent(inout) :: obsGlobalMarker        ! Marqueurs globaux  
-    integer,               intent(in) :: landQualifierIndice ! indicateur terre/mer
-    integer,               intent(in) :: satScanPosition(:)     ! position sur le "scan"
+    integer,               intent(in) :: landQualifierIndice    ! indicateur terre/mer
+    integer,               intent(in) :: satScanPosition        ! position sur le "scan"
     integer,               intent(in) :: obsChannels(:)         ! canaux des observations
-    integer,            intent(inout) :: terrainTypeIndice(:)   ! indicateur du type de terrain
+    integer,            intent(inout) :: terrainTypeIndice      ! indicateur du type de terrain
     integer,               intent(in) :: actualNumChannel       ! nombre de canaux des observations 
     integer,               intent(in) :: sensorIndex            ! numero de satellite (i.e. indice)
     integer,            intent(inout) :: obsFlags(:)            ! marqueurs des radiances
@@ -1876,27 +1875,27 @@ contains
     real(4),               intent(in) :: btClear(:)             ! clear-sky radiances from background
     real(4),               intent(in) :: obsTbBiasCorr(:)       ! correction aux radiances
     real(4),               intent(in) :: ompTb(:)               ! residus (o-p)
-    real(4),               intent(in) :: modelInterpLandFrac(:) ! masque terre/mer du modele
-    real(4),               intent(in) :: modelInterpTerrain(:)  ! topographie du modele
-    real(4),               intent(in) :: modelInterpSeaIce(:)   ! etendue de glace du modele
-    real(4),               intent(in) :: satZenithAngle(:)      ! angle zenith du satellite (deg.)
+    real(4),               intent(in) :: modelInterpLandFrac    ! masque terre/mer du modele
+    real(4),               intent(in) :: modelInterpTerrain     ! topographie du modele
+    real(4),               intent(in) :: modelInterpSeaIce      ! etendue de glace du modele
+    real(4),               intent(in) :: satZenithAngle         ! angle zenith du satellite (deg.)
     character(len=9),      intent(in) :: stnId                  ! identificateur du satellite
     logical,               intent(in) :: RESETQC                ! reset du controle de qualite?
-    integer, allocatable, intent(out) :: qcIndicator(:,:)       ! indicateur controle de qualite tovs par canal 
+    integer, allocatable, intent(out) :: qcIndicator(:)         ! indicateur controle de qualite tovs par canal 
                                                                 !           =0 ok, >0 rejet,
     real(4),              intent(out) :: cloudLiquidWaterPathObs! retrieved cloud liquid water from observation 
     real(4),              intent(out) :: cloudLiquidWaterPathFG ! retrieved cloud liquid water from background 
     real(4),              intent(out) :: scatIndexOverWaterObs  ! scattering index over water from observation
     real(4),              intent(out) :: scatIndexOverWaterFG   ! scattering index over water from background
     integer,              intent(out) :: newInformationFlag     ! ATMS Information flag (newInformationFlag) values 
-                                                                          ! (new BURP element 025174 in header)
-                                                                          ! FOR AMSUA just fill with zeros
+                                                                !   (new BURP element 025174 in header)
+                                                                !   FOR AMSUA just fill with zeros
 
     !locals
     integer, parameter  :: maxScanAngleAMSU = 90 
     real(4), parameter  :: ZANGL =  117.6/maxScanAngleAMSU
     
-    integer :: KCHKPRF, JI, JJ, INDX, err
+    integer :: KCHKPRF, JI, err
     integer :: ISFCREJ(2), ICH2OMPREJ(4), ISFCREJ2(1), chanIgnoreInAllskyGenCoeff(5), channelForTopoFilter(3)
     real(4), allocatable :: GROSSMIN(:), GROSSMAX(:), ROGUEFAC(:)
     real(4) :: EPSILON, tb89, tb150, tb1831, tb1832, tb1833
@@ -2360,11 +2359,10 @@ contains
 
     ! Locals:
     real(4) :: df1, df2, df3, a, b, c, d, e23
-    real(4) :: ei, cosz, tt, scat, sc31, abslat, t23, t31, t50, t89
+    real(4) :: ei, cosz, tt, scat, sc31, t23, t31, t50, t89
     real(4) :: sc50, par, t53
     real(4) :: dif285t23, dif285t31, epsilon
     real(4) :: dif285t23FG, dif285t31FG
-    integer :: i
 
     data epsilon / 1.E-30 /
 
@@ -3110,10 +3108,10 @@ contains
     integer,       intent(inout) :: obsFlags(:)        ! marqueurs des radiances
                                                        !  satellite, critere et par canal
                                                        !  (chech n2) par satellite, critere et par canal
-    real,  intent(out)   :: cloudLiquidWaterPathObs
-    real,  intent(out)   :: cloudLiquidWaterPathFG
-    real,  intent(out)   :: scatIndexOverWaterObs      ! scattering index over water from observation
-    real,  intent(out)   :: scatIndexOverWaterFG       ! scattering index over water from background
+    real,            intent(out) :: cloudLiquidWaterPathObs
+    real,            intent(out) :: cloudLiquidWaterPathFG
+    real,            intent(out) :: scatIndexOverWaterObs      ! scattering index over water from observation
+    real,            intent(out) :: scatIndexOverWaterFG       ! scattering index over water from background
 
     !locals
     integer, parameter :: maxScanAngleAMSU = 96
@@ -3124,7 +3122,7 @@ contains
                                          !  ilsmOpt = 2 --> use value at central mesh point (obs location)
                                          !  ilsmOpt = 3 --> use AVG value from all 25 mesh points
     integer :: calcLandQualifierIndice, calcTerrainTypeIndice, KCHKPRF
-    integer :: iRej, iNumSeaIce, JI, JJ, kk, INDX
+    integer :: iRej, iNumSeaIce, JI
     integer :: ISFCREJ(8), ICH2OMPREJ(6), B7CHCK(actualNumChannel)
     integer :: ITEST(mwbg_maxNumTest), chanIgnoreInAllskyGenCoeff(6), ICHTOPO(5)
     logical :: waterobs, grossrej, reportHasMissingTb
@@ -3223,7 +3221,7 @@ contains
     !          land or sea-ice).Sets calcTerrainTypeIndice=0 (sea ice) for points where retrieved SeaIce
     !          >=0.55. Does nothing if calcTerrainTypeIndice=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
-    call mwbg_nrlFilterAtms(actualNumChannel, obsTb, ompTb, obsTbBiasCorr, satZenithAngle, obsLat, &
+    call mwbg_nrlFilterAtms(obsTb, ompTb, obsTbBiasCorr, satZenithAngle, obsLat, &
                             calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                             cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                             scatec, scatbg, iNumSeaIce, iRej, SeaIce)
@@ -3236,7 +3234,7 @@ contains
     !          to OPEN WATER (waterobs=true) points.
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
-    call mwbg_flagDataUsingNrlCritAtms(actualNumChannel, obsTb, obsTbBiasCorr, cloudLiquidWaterPathObs, &
+    call mwbg_flagDataUsingNrlCritAtms(obsTb, obsTbBiasCorr, cloudLiquidWaterPathObs, &
                                        scatec, scatbg, SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
                                        iwvreject, cloudobs, precipobs, cldcnt , newInformationFlag, riwv, zdi)
 
@@ -3395,10 +3393,10 @@ contains
     logical,          intent(in) :: RESETQC            ! reset du controle de qualite?
     logical,          intent(in) :: modLSQ             ! If active, recalculate values for land/sea
                                                        !  qualifier and terrain type based on LG/MG
-    logical, intent(in)          :: lastHeader         ! active if last header
+    logical,          intent(in) :: lastHeader         ! active if last header
     integer,allocatable, intent(out) :: qcIndicator(:) ! indicateur controle de qualite tovs par canal
                                                        !  =0 ok, >0 rejet,
-    integer, intent(inout)       :: obsFlags(:)        ! marqueurs des radiances
+    integer,       intent(inout) :: obsFlags(:)        ! marqueurs des radiances
                                                        !  satellite, critere et par canal
                                                        !  (chech n2) par satellite, critere et par canal
     real,            intent(out) :: cloudLiquidWaterPathObs
@@ -3415,11 +3413,12 @@ contains
                                         !   ilsmOpt = 2 --> use value at central mesh point (obs location)
                                         !   ilsmOpt = 3 --> use AVG value from all 25 mesh points
     integer :: calcLandQualifierIndice, calcTerrainTypeIndice, KCHKPRF
-    integer :: iRej, iNumSeaIce, JI, JJ, kk, INDX
+    integer :: iRej, iNumSeaIce, JI
     integer :: ICH2OMPREJ(6), chanIgnoreInAllskyGenCoeff(6), ICHTOPO(3)
     integer :: B7CHCK(actualNumChannel), ITEST(mwbg_maxNumTest)
-    logical :: waterobs, grossrej, reportHasMissingTb, qcRejectLogic(:)
+    logical :: waterobs, grossrej, reportHasMissingTb 
     logical :: cloudobs, iwvreject, precipobs
+    logical, allocatable :: qcRejectLogic(:)
     real(4) :: zdi, scatec, scatbg, SeaIce, riwv, ZCRIT(3)
     real(4), allocatable :: ROGUEFAC(:)
     logical, save :: LLFIRST = .true.
@@ -3510,7 +3509,7 @@ contains
     !          land or sea-ice).Sets calcTerrainTypeIndice=0 (sea ice) for points where retrieved SeaIce
     !          >=0.55. Does nothing if calcTerrainTypeIndice=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
-    call mwbg_nrlFilterMwhs2(actualNumChannel, obsTb, obsTbBiasCorr, satZenithAngle, obsLat, &
+    call mwbg_nrlFilterMwhs2(obsTb, obsTbBiasCorr, satZenithAngle, obsLat, &
                              calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                              cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                              scatec, scatbg, iNumSeaIce, iRej, SeaIce)
@@ -3523,7 +3522,7 @@ contains
     !          to OPEN WATER (waterobs=true) points.
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
-    call mwbg_flagDataUsingNrlCritMwhs2(actualNumChannel, obsTb, obsTbBiasCorr, cloudLiquidWaterPathObs, &
+    call mwbg_flagDataUsingNrlCritMwhs2(obsTb, obsTbBiasCorr, cloudLiquidWaterPathObs, &
                                         scatec, SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
                                         iwvreject, cloudobs, precipobs, cldcnt , newInformationFlag, riwv, zdi)
 
@@ -3815,19 +3814,19 @@ contains
     allocate (MGINTBOX(boxPointNum) , STAT=ier)
     NLAT = (MXLAT-1)/2
     NLON = (MXLON-1)/2
-      boxPointIndex = 0
-      do latIndex = -NLAT, NLAT
+    boxPointIndex = 0
+    do latIndex = -NLAT, NLAT
       XLAT = obsLat + latIndex*DLAT
-        XLAT = MAX(-90.0,MIN(90.0,XLAT))
-        do lonIndex = -NLON, NLON
-          boxPointIndex = boxPointIndex + 1
+      XLAT = MAX(-90.0,MIN(90.0,XLAT))
+      do lonIndex = -NLON, NLON
+        boxPointIndex = boxPointIndex + 1
         XLON = obsLon + lonIndex*DLON
-          if ( XLON < -180. ) XLON = XLON + 360.
-          if ( XLON >  180. ) XLON = XLON - 360.
-          if ( XLON <    0. ) XLON = XLON + 360.
+        if ( XLON < -180. ) XLON = XLON + 360.
+        if ( XLON >  180. ) XLON = XLON - 360.
+        if ( XLON <    0. ) XLON = XLON + 360.
           ZLATBOX(boxPointIndex) = XLAT
           ZLONBOX(boxPointIndex) = XLON
-      end do
+        end do
     end do
     ier = ezsetopt('INTERP_DEGREE','LINEAR')
     ier = gdllsval(gdmt,mtintbox,mt,ZLATBOX,ZLONBOX,boxPointNum)
@@ -3845,36 +3844,36 @@ contains
       end if
     end if
 
-      if (mwbg_debug) then
-        print *, ' ------------------  '
+    if (mwbg_debug) then
+      print *, ' ------------------  '
       print *, ' obsLat,obsLon = ', obsLat, obsLon
-        print *, '   '
-        print *, ' ZLATBOX = '
+      print *, '   '
+      print *, ' ZLATBOX = '
       print *,  (ZLATBOX(boxPointIndex),boxPointIndex=1,boxPointNum)
-        print *, ' ZLONBOX = '
+      print *, ' ZLONBOX = '
       print *,  (ZLONBOX(boxPointIndex),boxPointIndex=1,boxPointNum)
-        print *, ' MGINTBOX = '
+      print *, ' MGINTBOX = '
       print *,  (MGINTBOX(boxPointIndex),boxPointIndex=1,boxPointNum)
-        print *, ' MTINTBOX = '
+      print *, ' MTINTBOX = '
       print *,  (MTINTBOX(boxPointIndex),boxPointIndex=1,boxPointNum)
-        print *, ' GLINTBOX = '
+      print *, ' GLINTBOX = '
       print *,  (GLINTBOX(boxPointIndex),boxPointIndex=1,boxPointNum)
-      end if
+    end if
     modelInterpLandFrac = 0.0
     modelInterpTerrain = 0.0
     modelInterpSeaIce = 0.0
     do boxPointIndex = 1, MXLAT*MXLON
       modelInterpTerrain = MAX(modelInterpTerrain,MTINTBOX(boxPointIndex)/TOPOFACT)
-        if(readGlaceMask) then
+      if(readGlaceMask) then
         modelInterpLandFrac = MAX(modelInterpLandFrac,MGINTBOX(boxPointIndex))
         modelInterpSeaIce = MAX(modelInterpSeaIce,GLINTBOX(boxPointIndex))
-        end if
-      end do
-      if (mwbg_debug) then
+      end if
+    end do
+    if (mwbg_debug) then
       print *, ' modelInterpLandFrac = ', modelInterpLandFrac
       print *, ' modelInterpTerrain = ', modelInterpTerrain
       print *, ' modelInterpSeaIce = ', modelInterpSeaIce
-      end if
+    end if
   end subroutine mwbg_readGeophysicFieldsAndInterpolate
 
   !--------------------------------------------------------------------------
@@ -3983,7 +3982,7 @@ contains
     integer, save :: ig1, ig2, ig3, ig4, ig1lg, ig2lg, ig3lg, ig4lg
     integer :: idum4, idum5, idum6, idum7, idum8, idum9, idum10, idum11
     integer :: idum12, idum13, idum14, idum15, idum16, idum17, idum18
-    integer :: indx, ii, jj, kk, nlat, nlon
+    integer :: indx, ii, jj, nlat, nlon
 
     integer, parameter :: ii_obsloc = ((mxlat * mxlon) / 2) + 1  ! 1D-index of central mesh-point (obs location)
 
@@ -4310,7 +4309,7 @@ contains
     logical, allocatable, intent(out) :: qcRejectLogic(:) ! dim(actualNumChannel) qcRejectLogic = .false. on input
 
     ! Locals
-    integer :: ii, jj, indx1, icount
+    integer :: jj, indx1, icount
     logical :: fail, fail1, fail2
 
     reportHasMissingTb = .false.
@@ -4513,14 +4512,14 @@ contains
     real(4),               intent(in) :: obsLat
     real(4),               intent(in) :: obsLon
     real(4),            intent(inout) :: obsTb(:)
-    real(4),            intent(inout) :: satZenithAngle(:)
+    real(4),            intent(inout) :: satZenithAngle
     logical,              intent(out) :: reportHasMissingTb ! true if Tb(obsTb) are set to missing_value
     logical,               intent(in) :: modLSQ
-    logical, allocatable, intent(out) :: qcRejectLogic(:) ! dim(actualNumChannel)
+    logical, allocatable, intent(inout) :: qcRejectLogic(:) ! dim(actualNumChannel)
                                                           ! qcRejectLogic = .false. on input
 
     ! Locals
-    integer :: ii, jj, indx1, icount
+    integer :: jj, icount
     logical :: fail
 
     reportHasMissingTb = .false.
@@ -4662,7 +4661,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_nrlFilterAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_nrlFilterAtms(actualNumChannel, obsTb, ompTb, obsTbBiasCorr, satZenithAngle, obsLat, &
+  subroutine mwbg_nrlFilterAtms(obsTb, ompTb, obsTbBiasCorr, satZenithAngle, obsLat, &
                                 calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                 si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce)
@@ -4719,7 +4718,6 @@ contains
     implicit none
 
     ! Arguments:
-    integer,    intent(in) ::  actualNumChannel
     integer,   intent(out) ::  iNumSeaIce
     integer,    intent(in) ::  calcLandQualifierIndice
     integer, intent(inout) ::  calcTerrainTypeIndice
@@ -4738,10 +4736,10 @@ contains
     real(4),   intent(out) ::  SeaIce
 
     ! Locals
-    integer :: ier, indx1, ii
+    integer :: ier, indx1
     real(4) :: ice, tb23, tb23FG, tb31, tb31FG, tb50, tb89, tb165
     real(4) :: bcor23, bcor31, bcor50, bcor89, bcor165
-    real(4) :: aa, deltb, abslat, cosz, t23, t23FG, t31, t31FG, t50, t89, t165
+    real(4) :: aa, deltb, cosz, t23, t23FG, t31, t31FG, t50, t89, t165
 
     iNumSeaIce = 0
 
@@ -4877,7 +4875,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_nrlFilterMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_nrlFilterMwhs2(actualNumChannel, obsTb, obsTbBiasCorr, satZenithAngle, obsLat, &
+  subroutine mwbg_nrlFilterMwhs2(obsTb, obsTbBiasCorr, satZenithAngle, obsLat, &
                                  calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                                  cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                  si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce)
@@ -4935,7 +4933,6 @@ contains
     implicit none
 
     ! Arguments:
-    integer,    intent(in) ::  actualNumChannel
     integer,   intent(out) ::  iNumSeaIce
     integer,    intent(in) ::  calcLandQualifierIndice
     integer, intent(inout) ::  calcTerrainTypeIndice
@@ -4953,10 +4950,10 @@ contains
     real(4),   intent(out) ::  SeaIce
 
     ! Locals
-    integer :: ier, indx1, ii
+    integer :: ier, indx1
     real(4) :: ice, tb23, tb23FG, tb31, tb31FG, tb50, tb89, tb165
     real(4) :: bcor23, bcor31, bcor50, bcor89, bcor165
-    real(4) :: aa, deltb, abslat, cosz, t23, t23FG, t31, t31FG, t50, t89, t165
+    real(4) :: aa, deltb, cosz, t23, t23FG, t31, t31FG, t50, t89, t165
 
     iNumSeaIce = 0
 
@@ -5099,7 +5096,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_flagDataUsingNrlCritAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_flagDataUsingNrlCritAtms(actualNumChannel, obsTb, obsTbBiasCorr, cloudLiquidWaterPathObs, &
+  subroutine mwbg_flagDataUsingNrlCritAtms(obsTb, obsTbBiasCorr, cloudLiquidWaterPathObs, &
                                            scatec, scatbg, SeaIce, grossrej, waterobs, useUnbiasedObsForClw, &
                                            iwvreject, cloudobs, precipobs,  cldcnt, newInformationFlag, riwv, zdi)
 
@@ -5119,7 +5116,6 @@ contains
     !                               - 11     Gross error in Tb (any chan.)  (all channels rejected)
 
     ! Arguments
-    integer,    intent(in) :: actualNumChannel
     real(4),    intent(in) :: obsTb(:)
     real(4),    intent(in) :: obsTbBiasCorr(:)
     real(4),    intent(in) :: cloudLiquidWaterPathObs
@@ -5138,7 +5134,7 @@ contains
     real(4),   intent(out) :: riwv
 
     ! Locals
-    integer :: indx, indx1, indx2, ii, n_cld
+    integer :: indx, indx1, n_cld
     real(4) :: ztb_amsub3, bcor_amsub3, ztb_amsub5, bcor_amsub5, ztb183(5)
 
     ! To begin, assume that all obs are good.
@@ -5179,35 +5175,35 @@ contains
     !     precipobs = .true  where ECMWF or BG scattering index > min_threshold (LT)
     !     cloudobs  = .true. where CLW > min_threshold (LT) or if precipobs = .true
 
-    where ( grossrej ) newInformationFlag = IBSET(newInformationFlag,11)
-    where ( scatec > scatec_atms_nrl_LTrej .or. scatbg > scatbg_atms_nrl_LTrej ) precipobs = .true.
-    n_cld = count(cloudLiquidWaterPathObs > clw_atms_nrl_LTrej)
+    if ( grossrej ) newInformationFlag = IBSET(newInformationFlag,11)
+    if ( scatec > scatec_atms_nrl_LTrej .or. scatbg > scatbg_atms_nrl_LTrej ) precipobs = .true.
+    if (cloudLiquidWaterPathObs > clw_atms_nrl_LTrej) n_cld = 1
     cldcnt  = cldcnt  + n_cld
-    where ( (cloudLiquidWaterPathObs > clw_atms_nrl_LTrej) .or. precipobs ) cloudobs = .true.
-    where ( waterobs )  newInformationFlag = IBSET(newInformationFlag,0)
-    where ( iwvreject ) newInformationFlag = IBSET(newInformationFlag,5)
-    where ( precipobs ) newInformationFlag = IBSET(newInformationFlag,4)
-    where ( cloudLiquidWaterPathObs > clw_atms_nrl_LTrej) newInformationFlag = IBSET(newInformationFlag,3)
-    where ( cloudLiquidWaterPathObs > clw_atms_nrl_UTrej) newInformationFlag = IBSET(newInformationFlag,6)
-    where ( scatec > scatec_atms_nrl_UTrej .or. scatbg > scatbg_atms_nrl_UTrej ) newInformationFlag = IBSET(newInformationFlag,8)
-    where ( SeaIce >= 0.55 ) newInformationFlag = IBSET(newInformationFlag,10)
+    if ( (cloudLiquidWaterPathObs > clw_atms_nrl_LTrej) .or. precipobs ) cloudobs = .true.
+    if ( waterobs )  newInformationFlag = IBSET(newInformationFlag,0)
+    if ( iwvreject ) newInformationFlag = IBSET(newInformationFlag,5)
+    if ( precipobs ) newInformationFlag = IBSET(newInformationFlag,4)
+    if ( cloudLiquidWaterPathObs > clw_atms_nrl_LTrej) newInformationFlag = IBSET(newInformationFlag,3)
+    if ( cloudLiquidWaterPathObs > clw_atms_nrl_UTrej) newInformationFlag = IBSET(newInformationFlag,6)
+    if ( scatec > scatec_atms_nrl_UTrej .or. scatbg > scatbg_atms_nrl_UTrej ) newInformationFlag = IBSET(newInformationFlag,8)
+    if ( SeaIce >= 0.55 ) newInformationFlag = IBSET(newInformationFlag,10)
 
-    where ( waterobs .and. (cloudLiquidWaterPathObs == -99.) ) newInformationFlag = IBSET(newInformationFlag,2)
-    where ( riwv == -99.)                                      newInformationFlag = IBSET(newInformationFlag,1)
+    if ( waterobs .and. (cloudLiquidWaterPathObs == -99.) ) newInformationFlag = IBSET(newInformationFlag,2)
+    if ( riwv == -99.)                                      newInformationFlag = IBSET(newInformationFlag,1)
 
     ! Compute the simple AMSU-B Dryness Index zdi for all points = Tb(ch.3)-Tb(ch.5)
     if ( useUnbiasedObsForClw ) then
-      where (.not. grossrej)
+      if (.not. grossrej) then
         zdi = ztb_amsub3 - ztb_amsub5
-      elsewhere
+      else
         zdi = mwbg_realMissing
-      end where
+      end if
     else
-      where (.not. grossrej)
+      if (.not. grossrej) then
         zdi = (ztb_amsub3 - bcor_amsub3) - (ztb_amsub5 - bcor_amsub5)
-      elsewhere
+      else
         zdi = mwbg_realMissing
-      end where
+      end if
     end if
 
   end subroutine mwbg_flagDataUsingNrlCritAtms
@@ -5215,7 +5211,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_flagDataUsingNrlCritMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_flagDataUsingNrlCritMwhs2(actualNumChannel, obsTb, obsTbBiasCorr, cloudLiquidWaterPathObs, &
+  subroutine mwbg_flagDataUsingNrlCritMwhs2(obsTb, obsTbBiasCorr, cloudLiquidWaterPathObs, &
                                             scatec, SeaIce, grossrej, waterobs, useUnbiasedObsForClw, &
                                             iwvreject, cloudobs, precipobs,  cldcnt, newInformationFlag, riwv, zdi)
 
@@ -5232,7 +5228,6 @@ contains
     !                               - 11     Gross error in Tb (any chan.)  (all channels rejected)
 
     ! Arguments
-    integer,    intent(in) :: actualNumChannel
     real(4),    intent(in) :: obsTb(:)
     real(4),    intent(in) :: obsTbBiasCorr(:)
     real(4),    intent(in) :: cloudLiquidWaterPathObs
@@ -5250,7 +5245,7 @@ contains
     real(4),   intent(out) :: riwv
 
     ! Locals
-    integer :: indx, indx1, indx2, ii, n_cld
+    integer :: indx, indx1, n_cld
     real(4) :: ztb_amsub3, bcor_amsub3, ztb_amsub5, bcor_amsub5,  ztb183(5)
 
     ! To begin, assume that all obs are good.
@@ -5291,34 +5286,34 @@ contains
     !     precipobs = .true  where ECMWF or BG scattering index > min_threshold (LT)
     !     cloudobs  = .true. where CLW > min_threshold (LT) or if precipobs = .true
 
-    where ( grossrej ) newInformationFlag = IBSET(newInformationFlag,11)
-    where ( scatec > scatec_mwhs2_nrl_LTrej ) precipobs = .true.
-    n_cld = count(cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej)
+    if ( grossrej ) newInformationFlag = IBSET(newInformationFlag,11)
+    if ( scatec > scatec_mwhs2_nrl_LTrej ) precipobs = .true.
+    if (cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej) n_cld = 1
     cldcnt  = cldcnt  + n_cld
-    where ( (cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej) .or. precipobs ) cloudobs = .true.
-    where ( waterobs )  newInformationFlag = IBSET(newInformationFlag,0)
-    where ( iwvreject ) newInformationFlag = IBSET(newInformationFlag,5)
-    where ( precipobs ) newInformationFlag = IBSET(newInformationFlag,4)
-    where ( cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej) newInformationFlag = IBSET(newInformationFlag,3)
-    where ( cloudLiquidWaterPathObs > clw_mwhs2_nrl_UTrej) newInformationFlag = IBSET(newInformationFlag,6)
-    where ( SeaIce >= 0.55 ) newInformationFlag = IBSET(newInformationFlag,10)
+    if ( (cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej) .or. precipobs ) cloudobs = .true.
+    if ( waterobs )  newInformationFlag = IBSET(newInformationFlag,0)
+    if ( iwvreject ) newInformationFlag = IBSET(newInformationFlag,5)
+    if ( precipobs ) newInformationFlag = IBSET(newInformationFlag,4)
+    if ( cloudLiquidWaterPathObs > clw_mwhs2_nrl_LTrej) newInformationFlag = IBSET(newInformationFlag,3)
+    if ( cloudLiquidWaterPathObs > clw_mwhs2_nrl_UTrej) newInformationFlag = IBSET(newInformationFlag,6)
+    if ( SeaIce >= 0.55 ) newInformationFlag = IBSET(newInformationFlag,10)
 
-    where ( waterobs .and. (cloudLiquidWaterPathObs == -99.) ) newInformationFlag = IBSET(newInformationFlag,2)
-    where ( riwv == -99.)                                      newInformationFlag = IBSET(newInformationFlag,1)
+    if ( waterobs .and. (cloudLiquidWaterPathObs == -99.) ) newInformationFlag = IBSET(newInformationFlag,2)
+    if ( riwv == -99.)                                      newInformationFlag = IBSET(newInformationFlag,1)
 
     ! Compute the simple AMSU-B Dryness Index zdi for all points = Tb(ch.3)-Tb(ch.5)
     if ( useUnbiasedObsForClw ) then
-      where ( .not. grossrej )
+      if ( .not. grossrej ) then
         zdi = ztb_amsub3 - ztb_amsub5
-      elsewhere
+      else
         zdi = mwbg_realMissing
-      end where
+      end if
     else
-      where ( .not. grossrej )
+      if ( .not. grossrej ) then
         zdi = (ztb_amsub3 - bcor_amsub3) - (ztb_amsub5 - bcor_amsub5)
-      elsewhere
+      else
         zdi = mwbg_realMissing
-      end where
+      end if
     end if
 
   end subroutine mwbg_flagDataUsingNrlCritMwhs2
@@ -5368,7 +5363,7 @@ contains
     integer,    intent(in) :: obsChannels(:)
 
     ! Locals
-    integer :: kk, j, ipos, INDXCAN
+    integer :: j, ipos, INDXCAN
     real(4) :: clwObsFGaveraged
     logical, allocatable :: lflagchn(:)
 
@@ -5472,12 +5467,12 @@ contains
     if ( ANY(lflagchn(:)) ) flgcnt = flgcnt + 1
 
     ! RESET scatIndexOverWaterObs array to ECMWF scattering index for output to BURP file
-    scatIndexOverWaterObs(:) = scatec(:)
+    scatIndexOverWaterObs = scatec
     ! Set missing cloudLiquidWaterPathObs and scatIndexOverWaterObs to BURP missing value (mwbg_realMissing)
-    where (cloudLiquidWaterPathObs == -99. ) cloudLiquidWaterPathObs = mwbg_realMissing
-    where (cloudLiquidWaterPathObs == -99. ) cloudLiquidWaterPathFG = mwbg_realMissing
-    where (scatIndexOverWaterObs == -99. ) scatIndexOverWaterObs = mwbg_realMissing
-    scatIndexOverWaterFG(:) = mwbg_realMissing
+    if (cloudLiquidWaterPathObs == -99. ) cloudLiquidWaterPathObs = mwbg_realMissing
+    if (cloudLiquidWaterPathObs == -99. ) cloudLiquidWaterPathFG = mwbg_realMissing
+    if (scatIndexOverWaterObs == -99. ) scatIndexOverWaterObs = mwbg_realMissing
+    scatIndexOverWaterFG = mwbg_realMissing
 
     ! Modify data flag values (set bit 7) for rejected data
     ! In all-sky mode, turn on bit=23 for channels in chanIgnoreInAllskyGenCoeff(:)
@@ -5499,7 +5494,6 @@ contains
         obsFlags(ipos) = IBSET(obsFlags(ipos),23)
       end if
     end do
-
 
     ! Set bit 6 in 24-bit global flags if any data rejected
     if ( ANY(lflagchn(:)) ) obsGlobalMarker = IBSET(obsGlobalMarker,6)
@@ -5669,9 +5663,9 @@ contains
     ! RESET scatIndexOverWaterObs array to Bennartz-Grody scattering index for output to BURP file
     scatIndexOverWaterObs = scatbg
     ! Set missing cloudLiquidWaterPathObs and scatIndexOverWaterObs to BURP missing value (mwbg_realMissing)
-    where (cloudLiquidWaterPathObs == -99. ) cloudLiquidWaterPathObs = mwbg_realMissing
-    where (cloudLiquidWaterPathObs == -99. ) cloudLiquidWaterPathFG = mwbg_realMissing
-    where (scatIndexOverWaterObs == -99. ) scatIndexOverWaterObs = mwbg_realMissing
+    if (cloudLiquidWaterPathObs == -99. ) cloudLiquidWaterPathObs = mwbg_realMissing
+    if (cloudLiquidWaterPathObs == -99. ) cloudLiquidWaterPathFG = mwbg_realMissing
+    if (scatIndexOverWaterObs == -99. ) scatIndexOverWaterObs = mwbg_realMissing
     scatIndexOverWaterFG = mwbg_realMissing
 
     ! Modify data flag values (set bit 7) for rejected data
@@ -6050,7 +6044,7 @@ contains
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, obsFlags, newInformationFlag, &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                scatIndexOverWaterObs, scatIndexOverWaterFG, &
+                                scatIndexOverWaterObs, &
                                 stnId, RESETQC, obsLat)
       else if (instName == 'AMSUB') then
         call mwbg_tovCheckAmsub(landQualifierIndice, obsChannels, obsTb, btClear, obsTbBiasCorr, &
