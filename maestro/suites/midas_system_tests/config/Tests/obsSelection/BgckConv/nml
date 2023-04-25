@@ -1,6 +1,11 @@
  &namObsSelection
    doThinning = .true.
 /
+ &thin_raobs
+   verticalThinningES = .true.
+   ecmwfRejetsES = .true.
+   toleranceFactor = 1.8
+/
  &thin_aircraft
    deltmax = 90
 /

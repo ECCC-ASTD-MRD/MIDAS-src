@@ -4,6 +4,7 @@
  &thin_raobs
    verticalThinningES = .true.
    ecmwfRejetsES = .true.
+   toleranceFactor = 1.8
 /
  &NAMGEM
   rprefinc= 80000.0
