@@ -1512,60 +1512,6 @@ contains
   end subroutine amsuaTest16ExcludeExtremeScattering
 
   !--------------------------------------------------------------------------
-  ! copy1Dimto2DimRealArray
-  !--------------------------------------------------------------------------
-  subroutine copy1Dimto2DimRealArray(oneDimArray, firstDim, secondDim, twoDimArray)
-    !:Purpose: copy 1 dim Real Array into 2D real array given dim1 and dim2 
-    implicit none
-    ! Arguments
-    integer, intent(in)                 :: firstDim
-    integer, intent(in)                 :: secondDim
-    real,    intent(in)                 :: oneDimArray(firstDim*secondDim)
-    real,    intent(inout)              :: twoDimArray(firstDim, secondDim)
-    
-    !locals
-    integer                             :: firstDimIndex 
-    integer                             :: secondDimIndex 
-    integer                             :: productDimIndex 
-
-    ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
-    do secondDimIndex=1,secondDim
-      do firstDimIndex=1,firstDim
-        productDimIndex = (secondDimIndex-1)*firstDim + firstDimIndex 
-        twoDimArray(firstDimIndex,secondDimIndex) = oneDimArray(productDimIndex)
-      end do
-    end do
-
-  end subroutine copy1Dimto2DimRealArray
-
-  !--------------------------------------------------------------------------
-  ! copy1Dimto2DimIntegerArray
-  !--------------------------------------------------------------------------
-  subroutine copy1Dimto2DimIntegerArray(oneDimArray, firstDim, secondDim, twoDimArray)
-    !:Purpose: copy 1 dim Integer Array into 2D Integer array given dim1 and dim2 
-    implicit none
-    ! Arguments
-    integer, intent(in)                 :: firstDim
-    integer, intent(in)                 :: secondDim
-    integer, intent(in)                 :: oneDimArray(firstDim*secondDim)
-    integer, intent(inout)              :: twoDimArray(firstDim, secondDim)
-    
-    !locals
-    integer                             :: firstDimIndex 
-    integer                             :: secondDimIndex 
-    integer                             :: productDimIndex 
-
-    ! copy the original input 1D array to 2D array. The 2D arrays are used in this s/r.
-    do secondDimIndex=1,secondDim
-      do firstDimIndex=1,firstDim
-        productDimIndex = (secondDimIndex-1)*firstDim + firstDimIndex 
-        twoDimArray(firstDimIndex,secondDimIndex) = oneDimArray(productDimIndex)
-      end do
-    end do
-
-  end subroutine copy1Dimto2DimIntegerArray
-
-  !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsua(landQualifierIndice, obsChannels, obsTb, btClear, obsTbBiasCorr, &
