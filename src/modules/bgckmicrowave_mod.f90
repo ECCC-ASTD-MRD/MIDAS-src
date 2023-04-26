@@ -5060,6 +5060,7 @@ contains
 
     ! To begin, assume that all obs are good.
     newInformationFlag = 0
+    n_cld = 0
     cloudobs  = .false.
     iwvreject = .false.
     precipobs = .false.
@@ -5171,6 +5172,7 @@ contains
 
     ! To begin, assume that all obs are good.
     newInformationFlag = 0
+    n_cld = 0
     cloudobs  = .false.
     iwvreject = .false.
     precipobs = .false.
