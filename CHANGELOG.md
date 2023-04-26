@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Test errorStatus returned by some rttov subroutines (#813 and !722)
  * Fix bug in `physicsfunction_mod` that could cause programs to hang (#814 and !723)
    * also sped up `ensPostProcess` when computing global ensemble statistics
  * Corrected Tetens WV saturation curve, controlled through namelist variable (#757 and !720)
