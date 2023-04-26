@@ -29,7 +29,11 @@ module tovs_lin_mod
        rttov_transmission  ,&
        rttov_chanprof      ,&
        rttov_emissivity
-  use rttov_const, only : gas_unit_specconc, sensor_id_mw, surftype_sea
+  use rttov_const, only : &
+      gas_unit_specconc  ,&
+      sensor_id_mw       ,&
+      surftype_sea       ,&
+      errorStatus_success
   use parkind1, only : jpim, jprb
   use verticalCoord_mod
   use tovs_nl_mod
@@ -364,6 +368,10 @@ contains
               chanprof,                     & ! channels and profile numbers
               frequencies,                  & ! array, frequency number for each channel
               lchannel_subset )               ! OPTIONAL array of logical flags to indicate a subset of channels
+        if (errorStatus /= errorStatus_success) then
+          write(*,*) 'tvslin_rttov_tl: fatal error in rttov_scatt_setupindex ', errorStatus
+          call utl_abort('tvslin_rttov_tl')
+        end if
       end if
       deallocate( lchannel_subset )
       
@@ -377,12 +385,12 @@ contains
  
       !  2.3  Compute tl radiance with rttov_tl
       
-      errorstatus   = 0
+      errorStatus = errorStatus_success
       emissivity_tl(:)%emis_in = 0.0d0
 
       if (runObsOperatorWithHydrometeors_tl) then
         call rttov_scatt_tl(                                &
-            errorstatus,                                    & ! out
+            errorStatus,                                    & ! out
             tvs_opts_scatt(sensorIndex),                    & ! in
             nlv_T,                                          & ! in
             chanprof,                                       & ! in
@@ -400,7 +408,7 @@ contains
             radiancedata_tl)                                  ! inout 
       else
         call rttov_parallel_tl(                             &
-            errorstatus,                                    & ! out
+            errorStatus,                                    & ! out
             chanprof,                                       & ! in
             tvs_opts(sensorIndex),                          & ! in
             profiles(sensorTovsIndexes(1:profileCount)),    & ! in
@@ -416,8 +424,8 @@ contains
             nthreads=nthreads )                               ! in
       end if
       
-      if (errorstatus /= 0) then
-        Write(*,*) 'Error in rttov_parallel_tl',errorstatus
+      if (errorStatus /= errorStatus_success) then
+        write(*,*) 'Error in rttov_parallel_tl', errorStatus
         write(*,*) 'temperature           profile=',profiles(sensorTovsIndexes(1)) % t(:)
         write(*,*) 'temperature increment profile=',profilesdata_tl(1) % t(:)
         call utl_abort('tvslin_rttov_tl')
@@ -530,7 +538,7 @@ contains
     integer :: sensorType   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
     
     integer, allocatable :: sensorBodyIndexes(:)
-    integer :: errorstatus 
+    integer :: errorStatus 
     
     real(8), allocatable :: surfem1(:)
     integer, allocatable :: frequencies(:)
@@ -719,6 +727,10 @@ contains
               chanprof,                     &  ! channels and profile numbers
               frequencies,                  &  ! array, frequency number for each channel
               lchannel_subset )                ! OPTIONAL array of logical flags to indicate a subset of channels
+        if (errorStatus /= errorStatus_success) then
+          write(*,*) 'tvslin_rttov_ad: fatal error in rttov_scatt_setupindex ', errorStatus
+          call utl_abort('tvslin_rttov_ad')
+        end if
       end if
       deallocate( lchannel_subset )
       !     get non Hyperspectral IR emissivities
@@ -737,7 +749,7 @@ contains
 
       !  2.3  Compute ad radiance with rttov_ad
 
-      errorstatus  = 0
+      errorStatus = errorStatus_success
       emissivity_ad(:) % emis_in = 0.0d0
       emissivity_ad(:) % emis_out = 0.0d0
   
@@ -776,8 +788,8 @@ contains
             emissivity_ad=emissivity_ad,                    &! inout
             nthreads = nthreads )
       end if
-      if (errorstatus /= 0) then
-        Write(*,*) 'Error in rttov_parallel_ad', errorstatus
+      if (errorStatus /= errorStatus_success) then
+        write(*,*) 'Error in rttov_parallel_ad', errorStatus
         call utl_abort('tvslin_rttov_ad')
       end if
 
