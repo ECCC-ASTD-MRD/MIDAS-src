@@ -455,10 +455,10 @@ module sqliteRead_mod
 
         ! we read the associated header
         if (trim(sqlExtraHeader) == '') then
-	  queryHeader = 'select '//trim(columnsHeader)//' from header where id_obs = ? '
-	else
-	  queryHeader = 'select '//trim(columnsHeader)//' from header where '//trim(sqlExtraHeader)//' and id_obs = ? '
-	end if
+          queryHeader = 'select '//trim(columnsHeader)//' from header where id_obs = ? '
+        else
+          queryHeader = 'select '//trim(columnsHeader)//' from header where '//trim(sqlExtraHeader)//' and id_obs = ? '
+        end if
 
         if (rowIndex == 1) then
           write(*,'(4a)') 'sqlr_readSqlite: first queryHeader    --> ', trim(queryHeader)
@@ -1002,7 +1002,7 @@ module sqliteRead_mod
           itemChar = trim(itemChar)//','// trim(columnName) // ' = ? '
         end if
 
-      end if	
+      end if
     end do
 
     back=.true.
@@ -1026,7 +1026,7 @@ module sqliteRead_mod
       headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
       obsRln = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
       obsNlv = obs_headElem_i(obsdat, OBS_NLV, headerIndex)
-	
+
       BODY: do bodyIndex = obsRln, obsNlv + obsRln - 1
 
         obsFlag = obs_bodyElem_i(obsdat, OBS_FLG, bodyIndex)
@@ -1079,7 +1079,7 @@ module sqliteRead_mod
 
       HEADER2: do headerIndex = 1,obs_numHeader(obsdat)
          
-	terrainType=MPC_missingValue_INT
+        terrainType=MPC_missingValue_INT
         obsIdf = obs_headElem_i(obsdat, OBS_IDF, headerIndex)
         if (obsIdf /= fileNumber) cycle HEADER2
         headPrimaryKey = obs_headPrimaryKey(obsdat, headerIndex)
