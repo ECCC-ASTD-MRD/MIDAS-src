@@ -44,7 +44,7 @@ module bgckmicrowave_mod
   logical :: mwbg_useUnbiasedObsForClw 
 
   integer, parameter :: mwbg_maxScanAngle=98
-  real,    parameter :: mwbg_realMissing=-99. 
+  real(4), parameter :: mwbg_realMissing=-99. 
   integer, parameter :: mwbg_intMissing=-1
 
   ! Module variable
@@ -52,20 +52,20 @@ module bgckmicrowave_mod
   integer, parameter :: mwbg_atmsNumSfcSensitiveChannel = 6
   character(len=128), parameter :: fileMgLg='fstglmg'  ! glace de mer file
   ! Upper limit for CLW (kg/m**2) for Tb rejection over water
-  real,   parameter :: clw_atms_nrl_LTrej=0.175      ! lower trop chans 1-6, 16-20
-  real,   parameter :: clw_atms_nrl_UTrej=0.2        ! upper trop chans 7-9, 21-22
-  real,   parameter :: clw_mwhs2_nrl_LTrej=0.175
-  real,   parameter :: clw_mwhs2_nrl_UTrej=0.2
+  real(4), parameter :: clw_atms_nrl_LTrej=0.175      ! lower trop chans 1-6, 16-20
+  real(4), parameter :: clw_atms_nrl_UTrej=0.2        ! upper trop chans 7-9, 21-22
+  real(4), parameter :: clw_mwhs2_nrl_LTrej=0.175
+  real(4), parameter :: clw_mwhs2_nrl_UTrej=0.2
   ! Other NRL thresholds
-  real,   parameter :: scatec_atms_nrl_LTrej=9.0     ! lower trop chans 1-6, 16-22
-  real,   parameter :: scatec_atms_nrl_UTrej=18.0    ! upper trop chans 7-9
-  real,   parameter :: scatbg_atms_nrl_LTrej=10.0    ! lower trop chans 1-6
-  real,   parameter :: scatbg_atms_nrl_UTrej=15.0    ! upper trop chans 7-9
-  real,   parameter :: scatec_mwhs2_nrl_LTrej=9.0    ! all MWHS-2 channels (over water)
-  real,   parameter :: scatbg_mwhs2_cmc_LANDrej=0.0  ! all MWHS-2 channels (all surfaces)
-  real,   parameter :: scatbg_mwhs2_cmc_ICErej=40.0
-  real,   parameter :: scatbg_mwhs2_cmc_SEA=15.0
-  real,   parameter :: mean_Tb_183Ghz_min=240.0      ! min. value for Mean(Tb) chans. 18-22 
+  real(4), parameter :: scatec_atms_nrl_LTrej=9.0     ! lower trop chans 1-6, 16-22
+  real(4), parameter :: scatec_atms_nrl_UTrej=18.0    ! upper trop chans 7-9
+  real(4), parameter :: scatbg_atms_nrl_LTrej=10.0    ! lower trop chans 1-6
+  real(4), parameter :: scatbg_atms_nrl_UTrej=15.0    ! upper trop chans 7-9
+  real(4), parameter :: scatec_mwhs2_nrl_LTrej=9.0    ! all MWHS-2 channels (over water)
+  real(4), parameter :: scatbg_mwhs2_cmc_LANDrej=0.0  ! all MWHS-2 channels (all surfaces)
+  real(4), parameter :: scatbg_mwhs2_cmc_ICErej=40.0
+  real(4), parameter :: scatbg_mwhs2_cmc_SEA=15.0
+  real(4), parameter :: mean_Tb_183Ghz_min=240.0      ! min. value for Mean(Tb) chans. 18-22 
   
   integer, parameter :: mwbg_maxNumSat  = 13
   integer, parameter :: mwbg_maxNumChan = 100
@@ -81,17 +81,17 @@ module bgckmicrowave_mod
   !                                                          for ATMS 2nd category of tests
 
   ! namelist variables
-  character(len=9)              :: instName                      ! instrument name
-  real                          :: clwQcThreshold                ! 
-  real                          :: cloudyClwThresholdBcorr       !
-  real                          :: minSiOverWaterThreshold       ! min scattering index over water for AMSUB/MHS
-  real                          :: maxSiOverWaterThreshold       ! max scattering index over water for AMSUB/MHS
-  real                          :: cloudySiThresholdBcorr        !
-  logical                       :: useUnbiasedObsForClw          !
-  logical                       :: RESETQC                       ! reset Qc flags option
-  logical                       :: modLSQ                        !
-  logical                       :: debug                         ! debug mode
-  logical                       :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
+  character(len=9)   :: instName                      ! instrument name
+  real(4)            :: clwQcThreshold                ! 
+  real(4)            :: cloudyClwThresholdBcorr       !
+  real(4)            :: minSiOverWaterThreshold       ! min scattering index over water for AMSUB/MHS
+  real(4)            :: maxSiOverWaterThreshold       ! max scattering index over water for AMSUB/MHS
+  real(4)            :: cloudySiThresholdBcorr        !
+  logical            :: useUnbiasedObsForClw          !
+  logical            :: RESETQC                       ! reset Qc flags option
+  logical            :: modLSQ                        !
+  logical            :: debug                         ! debug mode
+  logical            :: skipTestArr(mwbg_maxNumTest)  ! array to set to skip the test
 
 
   namelist /nambgck/instName, clwQcThreshold, &
@@ -212,16 +212,11 @@ contains
       channelval = obsChannels(nChannelIndex)
       if ( obsTb(nChannelIndex) /= mwbg_realMissing ) then
         if ( obsTbBiasCorr(nChannelIndex) /= mwbg_realMissing ) then
-          if ( channelval == 28 ) tb23 = obsTb(nChannelIndex) &
-                - obsTbBiasCorr(nChannelIndex)
-          if ( channelval == 29 ) tb31 = obsTb(nChannelIndex) &
-                - obsTbBiasCorr(nChannelIndex)
-          if ( channelval == 30 ) tb50 = obsTb(nChannelIndex) &
-                - obsTbBiasCorr(nChannelIndex)
-          if ( channelval == 32 ) tb53 = obsTb(nChannelIndex) &
-                - obsTbBiasCorr(nChannelIndex)
-          if ( channelval == 42 ) tb89 = obsTb(nChannelIndex) &
-                - obsTbBiasCorr(nChannelIndex)
+          if ( channelval == 28 ) tb23 = obsTb(nChannelIndex) - obsTbBiasCorr(nChannelIndex)
+          if ( channelval == 29 ) tb31 = obsTb(nChannelIndex) - obsTbBiasCorr(nChannelIndex)
+          if ( channelval == 30 ) tb50 = obsTb(nChannelIndex) - obsTbBiasCorr(nChannelIndex)
+          if ( channelval == 32 ) tb53 = obsTb(nChannelIndex) - obsTbBiasCorr(nChannelIndex)
+          if ( channelval == 42 ) tb89 = obsTb(nChannelIndex) - obsTbBiasCorr(nChannelIndex)
         else
           if ( channelval == 28 ) tb23 = obsTb(nChannelIndex)
           if ( channelval == 29 ) tb31 = obsTb(nChannelIndex)
@@ -230,16 +225,11 @@ contains
           if ( channelval == 42 ) tb89 = obsTb(nChannelIndex)
         end if
 
-        if ( channelval == 28 ) tb23FG = obsTb(nChannelIndex) - &
-                                                        ompTb(nChannelIndex)
-        if ( channelval == 29 ) tb31FG = obsTb(nChannelIndex) - &
-                                                        ompTb(nChannelIndex)
-        if ( channelval == 30 ) tb50FG = obsTb(nChannelIndex) - &
-                                                        ompTb(nChannelIndex)
-        if ( channelval == 32 ) tb53FG = obsTb(nChannelIndex) - &
-                                                        ompTb(nChannelIndex)
-        if ( channelval == 42 ) tb89FG = obsTb(nChannelIndex) - &
-                                                        ompTb(nChannelIndex)
+        if ( channelval == 28 ) tb23FG = obsTb(nChannelIndex) - ompTb(nChannelIndex)
+        if ( channelval == 29 ) tb31FG = obsTb(nChannelIndex) - ompTb(nChannelIndex)
+        if ( channelval == 30 ) tb50FG = obsTb(nChannelIndex) - ompTb(nChannelIndex)
+        if ( channelval == 32 ) tb53FG = obsTb(nChannelIndex) - ompTb(nChannelIndex)
+        if ( channelval == 42 ) tb89FG = obsTb(nChannelIndex) - ompTb(nChannelIndex)
       else
         if ( channelval == 28 ) tb23 = 0.
         if ( channelval == 29 ) tb31 = 0.
@@ -744,9 +734,9 @@ contains
     integer,          intent(in) :: obsChannels(actualNumChannel) ! observations channels
     integer,          intent(in) :: sensorIndex                   ! numero de satellite (i.e. indice) 
     character(len=9), intent(in) :: stnId                         ! identificateur du satellite
-    real,             intent(in) :: obsTb(actualNumChannel)       ! radiances 
-    real,             intent(in) :: GROSSMIN(:)                   ! Gross val min 
-    real,             intent(in) :: GROSSMAX(:)                   ! Gross val max 
+    real(4),          intent(in) :: obsTb(actualNumChannel)       ! radiances 
+    real(4),          intent(in) :: GROSSMIN(:)                   ! Gross val min 
+    real(4),          intent(in) :: GROSSMAX(:)                   ! Gross val max 
     integer,       intent(inout) :: obsFlags(actualNumChannel)    ! marqueur de radiance 
     integer,       intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
     ! Locals
@@ -1638,8 +1628,8 @@ contains
                                                                 !   FOR AMSUA just fill with zeros
     !locals
     integer, parameter :: maxScanAngleAMSU = 30 
-    real, parameter    :: cloudyClwThreshold = 0.3
-    real, parameter    :: ZANGL = 117.6/maxScanAngleAMSU
+    real(4), parameter :: cloudyClwThreshold = 0.3
+    real(4), parameter :: ZANGL = 117.6/maxScanAngleAMSU
     
     integer :: KCHKPRF, JI, err, rain, snow
     integer :: ICLWREJ(6), ISFCREJ(6), ISFCREJ2(4), ISCATREJ(7), channelForTopoFilter(2)
@@ -2336,24 +2326,24 @@ contains
     implicit none
 
     ! Arguments:
-    integer, intent(out) :: ier             ! error return code: 0 ok, 1 input parameter out of range.
-    real(4),  intent(in) :: tb23            ! 23Ghz brightness temperature (K)
-    real(4),  intent(in) :: tb31            ! 31Ghz brightness temperature (K)
-    real(4),  intent(in) :: tb50            ! 50Ghz brightness temperature (K)
-    real(4),  intent(in) :: tb53            ! 53Ghz brightness temperature (K)
-    real(4),  intent(in) :: tb89            ! 89Ghz brightness temperature (K)
-    real(4),  intent(in) :: tb23FG          ! 23Ghz brightness temperature from background (K)
-    real(4),  intent(in) :: tb31FG          ! 31Ghz brightness temperature from background (K)
-    real(4),  intent(in) :: satZenithAngle  ! satellite zenith angle (deg.)
-    real(4),  intent(in) :: obsLat          ! latitude (deg.)
-    integer,  intent(in) :: landQualifierIndice ! land/sea indicator (0=land;1=ocean)
-    real(4), intent(out) :: ice             ! sea ice concentration (0-100%)
-    real(4), intent(out) :: tpw             ! total precipitable water (0-70mm)
+    integer, intent(out) :: ier                     ! error return code: 0 ok, 1 input parameter out of range.
+    real(4),  intent(in) :: tb23                    ! 23Ghz brightness temperature (K)
+    real(4),  intent(in) :: tb31                    ! 31Ghz brightness temperature (K)
+    real(4),  intent(in) :: tb50                    ! 50Ghz brightness temperature (K)
+    real(4),  intent(in) :: tb53                    ! 53Ghz brightness temperature (K)
+    real(4),  intent(in) :: tb89                    ! 89Ghz brightness temperature (K)
+    real(4),  intent(in) :: tb23FG                  ! 23Ghz brightness temperature from background (K)
+    real(4),  intent(in) :: tb31FG                  ! 31Ghz brightness temperature from background (K)
+    real(4),  intent(in) :: satZenithAngle          ! satellite zenith angle (deg.)
+    real(4),  intent(in) :: obsLat                  ! latitude (deg.)
+    integer,  intent(in) :: landQualifierIndice     ! land/sea indicator (0=land;1=ocean)
+    real(4), intent(out) :: ice                     ! sea ice concentration (0-100%)
+    real(4), intent(out) :: tpw                     ! total precipitable water (0-70mm)
     real(4), intent(out) :: cloudLiquidWaterPathObs ! retrieved cloud liquid water from observation (0-3mm)
     real(4), intent(out) :: cloudLiquidWaterPathFG  ! retrieved cloud liquid water from background (0-3mm)
-    integer, intent(out) :: rain            ! rain identification (0=no rain; 1=rain)
-    integer, intent(out) :: snow            ! snow cover and glacial ice identification:
-                                            ! (0=no snow; 1=snow; 2=glacial ice)
+    integer, intent(out) :: rain                    ! rain identification (0=no rain; 1=rain)
+    integer, intent(out) :: snow                    ! snow cover and glacial ice identification:
+                                                    ! (0=no snow; 1=snow; 2=glacial ice)
     real(4), intent(out) :: scatIndexOverLandObs    ! scattering index over land
     real(4), intent(out) :: scatIndexOverWaterObs   ! scattering index over water
 
@@ -2444,7 +2434,7 @@ contains
             else
               ei = 0.95
             end if
-            ice = 100*(e23-0.45)/(ei-0.45) ! sea-ice concentration within fov (0-100%) 
+            ice = 100 * (e23 - 0.45) / (ei - 0.45) ! sea-ice concentration within fov (0-100%) 
             ice = min(100.,max(0.,ice))/100.   !jh (0.-1.)
           end if
         end if
@@ -3088,7 +3078,7 @@ contains
 
     implicit none
     !Arguments
-    integer,          intent(in) :: actualNumChannel    ! nombre de canaux des observations
+    integer,          intent(in) :: actualNumChannel        ! nombre de canaux des observations
     real(4),          intent(in) :: obsLat
     real(4),          intent(in) :: obsLon
     integer,          intent(in) :: landQualifierIndice
@@ -3097,26 +3087,26 @@ contains
     integer,          intent(in) :: obsQcFlag2(:)
     integer,          intent(in) :: obsQcFlag1(:)
     integer,       intent(inout) :: obsGlobalMarker
-    integer,          intent(in) :: satScanPosition    ! position sur le "scan"
-    integer,          intent(in) :: obsChannels(:)     ! canaux des observations
-    integer,          intent(in) :: sensorIndex        ! numero de satellite (i.e. indice)
-    real(4),       intent(inout) :: obsTb(:)           ! radiances
-    real(4),          intent(in) :: obsTbBiasCorr(:)   ! correction aux radiances
-    real(4),          intent(in) :: ompTb(:)           ! residus (o-p)
-    real(4),          intent(in) :: modelInterpTerrain ! topographie du modele
-    integer,         intent(out) :: newInformationFlag ! flag to identify all obs pts in report
-                                                       !  as being over land/ice, cloudy, bad IWV
-    character(len=9), intent(in) :: stnId              ! identificateur du satellite
-    logical,          intent(in) :: RESETQC            ! reset du controle de qualite?
-    integer, allocatable, intent(out) :: qcIndicator(:)! indicateur controle de qualite tovs par canal 
-                                                       !  =0 ok, >0 rejet,
-    integer,       intent(inout) :: obsFlags(:)        ! marqueurs des radiances
-                                                       !  satellite, critere et par canal
-                                                       !  (chech n2) par satellite, critere et par canal
-    real,            intent(out) :: cloudLiquidWaterPathObs
-    real,            intent(out) :: cloudLiquidWaterPathFG
-    real,            intent(out) :: scatIndexOverWaterObs      ! scattering index over water from observation
-    real,            intent(out) :: scatIndexOverWaterFG       ! scattering index over water from background
+    integer,          intent(in) :: satScanPosition         ! position sur le "scan"
+    integer,          intent(in) :: obsChannels(:)          ! canaux des observations
+    integer,          intent(in) :: sensorIndex             ! numero de satellite (i.e. indice)
+    real(4),       intent(inout) :: obsTb(:)                ! radiances
+    real(4),          intent(in) :: obsTbBiasCorr(:)        ! correction aux radiances
+    real(4),          intent(in) :: ompTb(:)                ! residus (o-p)
+    real(4),          intent(in) :: modelInterpTerrain      ! topographie du modele
+    integer,         intent(out) :: newInformationFlag      ! flag to identify all obs pts in report
+                                                            !  as being over land/ice, cloudy, bad IWV
+    character(len=9), intent(in) :: stnId                   ! identificateur du satellite
+    logical,          intent(in) :: RESETQC                 ! reset du controle de qualite?
+    integer, allocatable, intent(out) :: qcIndicator(:)     ! indicateur controle de qualite tovs par canal 
+                                                            !  =0 ok, >0 rejet,
+    integer,       intent(inout) :: obsFlags(:)             ! marqueurs des radiances
+                                                            !  satellite, critere et par canal
+                                                            !  (chech n2) par satellite, critere et par canal
+    real(4),         intent(out) :: cloudLiquidWaterPathObs
+    real(4),         intent(out) :: cloudLiquidWaterPathFG
+    real(4),         intent(out) :: scatIndexOverWaterObs   ! scattering index over water from observation
+    real(4),         intent(out) :: scatIndexOverWaterFG    ! scattering index over water from background
 
     !locals
     integer, parameter :: maxScanAngleAMSU = 96
@@ -3378,36 +3368,36 @@ contains
 
     implicit none
     !Arguments
-    integer,          intent(in) :: actualNumChannel   ! nombre de canaux des observations
+    integer,          intent(in) :: actualNumChannel        ! nombre de canaux des observations
     real(4),          intent(in) :: obsLat
     real(4),          intent(in) :: obsLon
     integer,          intent(in) :: landQualifierIndice
     integer,          intent(in) :: terrainTypeIndice
     real(4),       intent(inout) :: satZenithAngle
     integer,       intent(inout) :: obsGlobalMarker
-    integer,          intent(in) :: satScanPosition    ! position sur le "scan"
-    integer,          intent(in) :: obsChannels(:)     ! canaux des observations
-    integer,          intent(in) :: sensorIndex        ! numero de satellite (i.e. indice)
-    real(4),       intent(inout) :: obsTb(:)           ! radiances
-    real(4),          intent(in) :: obsTbBiasCorr(:)   ! correction aux radiances
-    real(4),          intent(in) :: ompTb(:)           ! residus (o-p)
-    real(4),          intent(in) :: modelInterpTerrain ! topographie du modele
-    integer,         intent(out) :: newInformationFlag ! flag to identify all obs pts in report
-                                                       !  as being over land/ice, cloudy, bad IWV
-    character(len=9), intent(in) :: stnId              ! identificateur du satellite
-    logical,          intent(in) :: RESETQC            ! reset du controle de qualite?
-    logical,          intent(in) :: modLSQ             ! If active, recalculate values for land/sea
-                                                       !  qualifier and terrain type based on LG/MG
-    logical,          intent(in) :: lastHeader         ! active if last header
-    integer,allocatable, intent(out) :: qcIndicator(:) ! indicateur controle de qualite tovs par canal
-                                                       !  =0 ok, >0 rejet,
-    integer,       intent(inout) :: obsFlags(:)        ! marqueurs des radiances
-                                                       !  satellite, critere et par canal
-                                                       !  (chech n2) par satellite, critere et par canal
-    real,            intent(out) :: cloudLiquidWaterPathObs
-    real,            intent(out) :: cloudLiquidWaterPathFG
-    real,            intent(out) :: scatIndexOverWaterObs ! scattering index over water from observation
-    real,            intent(out) :: scatIndexOverWaterFG  ! scattering index over water from background
+    integer,          intent(in) :: satScanPosition         ! position sur le "scan"
+    integer,          intent(in) :: obsChannels(:)          ! canaux des observations
+    integer,          intent(in) :: sensorIndex             ! numero de satellite (i.e. indice)
+    real(4),       intent(inout) :: obsTb(:)                ! radiances
+    real(4),          intent(in) :: obsTbBiasCorr(:)        ! correction aux radiances
+    real(4),          intent(in) :: ompTb(:)                ! residus (o-p)
+    real(4),          intent(in) :: modelInterpTerrain      ! topographie du modele
+    integer,         intent(out) :: newInformationFlag      ! flag to identify all obs pts in report
+                                                            !  as being over land/ice, cloudy, bad IWV
+    character(len=9), intent(in) :: stnId                   ! identificateur du satellite
+    logical,          intent(in) :: RESETQC                 ! reset du controle de qualite?
+    logical,          intent(in) :: modLSQ                  ! If active, recalculate values for land/sea
+                                                            !  qualifier and terrain type based on LG/MG
+    logical,          intent(in) :: lastHeader              ! active if last header
+    integer,allocatable, intent(out) :: qcIndicator(:)      ! indicateur controle de qualite tovs par canal
+                                                            !  =0 ok, >0 rejet,
+    integer,       intent(inout) :: obsFlags(:)             ! marqueurs des radiances
+                                                            !  satellite, critere et par canal
+                                                            !  (chech n2) par satellite, critere et par canal
+    real(4),         intent(out) :: cloudLiquidWaterPathObs
+    real(4),         intent(out) :: cloudLiquidWaterPathFG
+    real(4),         intent(out) :: scatIndexOverWaterObs   ! scattering index over water from observation
+    real(4),         intent(out) :: scatIndexOverWaterFG    ! scattering index over water from background
 
     !locals
     integer, parameter :: maxScanAngleAMSU = 98
@@ -3665,56 +3655,36 @@ contains
     !         Then Interpolate Those variables to observation location
     !Arguments:
     character(*), intent(in)  :: instName            ! Instrument Name
-    real,         intent(in)  :: obsLat              ! Obseravtion Lats
-    real,         intent(in)  :: obsLon              ! Observation Lons
-    real,         intent(out) :: modelInterpLandFrac ! model interpolated land fraction.
-    real,         intent(out) :: modelInterpTerrain  ! topographie filtree (en metres) et interpolees
-    real,         intent(out) :: modelInterpSeaIce   ! Glace de mer interpolees au pt d'obs.
+    real(4),      intent(in)  :: obsLat              ! Obseravtion Lats
+    real(4),      intent(in)  :: obsLon              ! Observation Lons
+    real(4),      intent(out) :: modelInterpLandFrac ! model interpolated land fraction.
+    real(4),      intent(out) :: modelInterpTerrain  ! topographie filtree (en metres) et interpolees
+    real(4),      intent(out) :: modelInterpSeaIce   ! Glace de mer interpolees au pt d'obs.
 
     ! Locals:
-    real, allocatable, save  :: GL(:)                ! Modele Glace de Mer (GL)
-    real, allocatable, save  :: MG(:)                ! Modele Masque Terre-Mer (MG)
-    real, allocatable, save  :: MT(:)                ! Modele Topographie (MT)
-    real,              save  :: TOPOFACT             ! Facteur x topo pour avoir des unites en metre
-    logical,           save  :: ifFirstCall = .True. ! If .True. we read GL, MT and MG
-    integer,           save  ::  gdmt                ! topo interpolation param
-    integer,           save  ::  gdmg                ! mask terre-mer interpolation param
-    integer,           save  ::  gdgl                ! glace interpolation param
-    integer                  ::  gdllsval
-    integer                  :: IUNGEO
-    logical                  :: readGlaceMask
-    integer                  :: ier, irec
-    integer                  :: ezqkdef, ezsetopt
-    integer                  :: FSTINF,FSTPRM,FCLOS
-    integer                  :: FSTLIR,FSTFRM, FNOM, FSTOUV
-    integer                  :: NI, NJ, NK, IG1, IG2, IG3, IG4
-    integer                  :: IDUM1,IDUM2,IDUM3,IDUM4
-    integer                  :: IDUM5,IDUM6,IDUM7,IDUM8
-    integer                  :: IDUM9,IDUM10,IDUM11,IDUM12,IDUM13
-    integer                  :: IDUM14,IDUM15,IDUM16,IDUM17,IDUM18
-    character(len=12)        :: ETIKXX
-    character(len=4)         :: CLNOMVAR
-    character(len=4)         :: NOMVXX
-    character(len=2)         :: TYPXX
-    character(len=1)         :: GRTYP
-    integer                  :: NLAT
-    integer                  :: NLON
-    integer, PARAMETER       :: MXLON = 5
-    integer, PARAMETER       :: MXLAT = 5
-    integer, PARAMETER       :: MXELM = 40
-    real,    PARAMETER       :: DLAT = 0.4
-    real,    PARAMETER       :: DLON = 0.6
-    real                     :: XLAT
-    real                     :: XLON
-    real, allocatable        :: ZLATBOX (:)
-    real, allocatable        :: ZLONBOX (:)
-    real, allocatable        :: MGINTBOX(:)
-    real, allocatable        :: MTINTBOX(:)
-    real, allocatable        :: GLINTBOX(:)
-    integer                  :: boxPointIndex
-    integer                  :: latIndex
-    integer                  :: lonIndex
-    integer                  :: boxPointNum
+    integer, parameter :: MXLON = 5, MXLAT = 5, MXELM = 40
+    real(4), parameter :: DLAT = 0.4, DLON = 0.6
+    real(4), allocatable, save  :: GL(:)   ! Modele Glace de Mer (GL)
+    real(4), allocatable, save  :: MG(:)   ! Modele Masque Terre-Mer (MG)
+    real(4), allocatable, save  :: MT(:)   ! Modele Topographie (MT)
+    integer, save  ::  gdmt                ! topo interpolation param
+    integer, save  ::  gdmg                ! mask terre-mer interpolation param
+    integer, save  ::  gdgl                ! glace interpolation param
+    real(4), save  :: TOPOFACT             ! Facteur x topo pour avoir des unites en metre
+    logical, save  :: ifFirstCall = .True. ! If .True. we read GL, MT and MG
+    integer :: gdllsval, IUNGEO 
+    integer :: ier, irec, ezqkdef, ezsetopt, FSTINF,FSTPRM,FCLOS, FSTLIR,FSTFRM, FNOM, FSTOUV
+    integer :: NI, NJ, NK, IG1, IG2, IG3, IG4, IDUM1, IDUM2, IDUM3, IDUM4, IDUM5, IDUM6, IDUM7, IDUM8
+    integer :: IDUM9, IDUM10, IDUM11, IDUM12, IDUM13, IDUM14, IDUM15, IDUM16, IDUM17, IDUM18
+    integer :: NLAT, NLON, boxPointIndex, latIndex, lonIndex, boxPointNum
+    character(len=12) :: ETIKXX
+    character(len=4)  :: CLNOMVAR
+    character(len=4)  :: NOMVXX
+    character(len=2)  :: TYPXX
+    character(len=1)  :: GRTYP
+    real(4) :: XLAT, XLON
+    real(4), allocatable :: ZLATBOX(:), ZLONBOX(:), MGINTBOX(:), MTINTBOX(:), GLINTBOX(:)
+    logical :: readGlaceMask
 
     ! STEP 1: READ MT, GL and MG from the FST FILE
     readGlaceMask = .True.
@@ -5708,12 +5678,12 @@ contains
     implicit none
 
     ! Arguments:
-    real, intent(in) :: cldPredThresh1  ! first cloud predictor threshold
-    real, intent(in) :: cldPredThresh2  ! second cloud predictor threshold
-    real, intent(in) :: errThresh1      ! sigmaO corresponding to first cloud predictor threshold
-    real, intent(in) :: errThresh2      ! sigmaO corresponding to second cloud predictor threshold
-    real, intent(in) :: cldPredUsed     ! cloud predictor for the obs
-    real :: sigmaObsErrUsed             ! estimated sigmaO for the obs
+    real(4), intent(in) :: cldPredThresh1  ! first cloud predictor threshold
+    real(4), intent(in) :: cldPredThresh2  ! second cloud predictor threshold
+    real(4), intent(in) :: errThresh1      ! sigmaO corresponding to first cloud predictor threshold
+    real(4), intent(in) :: errThresh2      ! sigmaO corresponding to second cloud predictor threshold
+    real(4), intent(in) :: cldPredUsed     ! cloud predictor for the obs
+    real(4)             :: sigmaObsErrUsed ! estimated sigmaO for the obs
 
     if (cldPredUsed <= cldPredThresh1) then
       sigmaObsErrUsed = errThresh1
@@ -5745,11 +5715,11 @@ contains
     integer,             intent(in) :: sensorIndex             ! tvs_sensorIndex
     integer,             intent(in) :: headerIndex             ! current header index
     integer,             intent(in) :: obsFlags(:)             ! data flags
-    real,                intent(in) :: obsTb(:)                ! obs Tb
-    real,                intent(in) :: cloudLiquidWaterPathObs ! obs CLW
-    real,                intent(in) :: cloudLiquidWaterPathFG  ! trial CLW
-    real,                intent(in) :: scatIndexOverWaterObs   ! atmospheric scatering index from observation
-    real,                intent(in) :: scatIndexOverWaterFG    ! atmospheric scatering index from background
+    real(4),             intent(in) :: obsTb(:)                ! obs Tb
+    real(4),             intent(in) :: cloudLiquidWaterPathObs ! obs CLW
+    real(4),             intent(in) :: cloudLiquidWaterPathFG  ! trial CLW
+    real(4),             intent(in) :: scatIndexOverWaterObs   ! atmospheric scatering index from observation
+    real(4),             intent(in) :: scatIndexOverWaterFG    ! atmospheric scatering index from background
     integer,             intent(in) :: newInformationFlag      ! information flag used with satplot
     integer,             intent(in) :: obsGlobalMarker         ! information flag used with satplot
     ! Locals
