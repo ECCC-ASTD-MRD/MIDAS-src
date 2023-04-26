@@ -2397,6 +2397,10 @@ contains
     !3) Compute parameters:
     if ( ier == 0 ) then
       cosz   = cosd(satZenithAngle)
+      t23 = tb23
+      t31 = tb31
+      t50 = tb50
+      t53 = tb53
       dif285t23  =max(285.-t23,epsilon)
       dif285t23FG=max(285.-tb23FG,epsilon)
       dif285t31  =max(285.-t31,epsilon)
@@ -2408,6 +2412,7 @@ contains
       end if
 
       if (.not. chan15Missing) then
+        t89 = tb89
         ! scattering indices:
         scatIndexOverWaterObs = -113.2 + (2.41 - 0.0049 * t23) * t23 + 0.454 * t31 - t89 
         scatIndexOverLandObs = t23 - t89
