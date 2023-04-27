@@ -54,6 +54,9 @@ module obsFiles_mod
 
 contains
 
+  !--------------------------------------------------------------------------
+  ! obsf_setup
+  !--------------------------------------------------------------------------
   subroutine obsf_setup(dateStamp_out, obsFileMode_in)
 
     implicit none
@@ -100,7 +103,9 @@ contains
 
   end subroutine obsf_setup
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_filesSplit
+  !--------------------------------------------------------------------------
   function obsf_filesSplit() result(obsFilesSplit_out)
     implicit none
 
@@ -113,7 +118,9 @@ contains
         
   end function obsf_filesSplit
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_readFiles
+  !--------------------------------------------------------------------------
   subroutine obsf_readFiles( obsSpaceData )
 
     implicit none
@@ -163,7 +170,9 @@ contains
   
   end subroutine obsf_readFiles
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_writeFiles
+  !--------------------------------------------------------------------------
   subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt, writeDiagFiles_opt, ensObs_opt)
     implicit none
 
@@ -292,7 +301,9 @@ contains
 
   end subroutine obsf_writeFiles
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_cleanObsFiles
+  !--------------------------------------------------------------------------
   subroutine obsf_cleanObsFiles()
     implicit none
 
@@ -329,7 +340,9 @@ contains
 
   end subroutine obsf_cleanObsFiles 
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_writeHX
+  !--------------------------------------------------------------------------
   subroutine obsf_writeHX(obsSpaceData, HXens_mpiglobal)
     implicit none
 
@@ -357,7 +370,9 @@ contains
 
   end subroutine obsf_writeHX
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_writeAsciDump
+  !--------------------------------------------------------------------------
   subroutine obsf_writeAsciDump(obsSpaceData)
 
     implicit none
@@ -394,7 +409,9 @@ contains
 
   end subroutine obsf_writeAsciDump
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_setupFileNames
+  !--------------------------------------------------------------------------
   subroutine obsf_setupFileNames()
 
     implicit none
@@ -718,7 +735,9 @@ contains
 
   end subroutine obsf_setupFileNames
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_determineFileType
+  !--------------------------------------------------------------------------
   subroutine obsf_determineFileType( obsFileType )
 
     implicit none
@@ -753,6 +772,9 @@ contains
 
   end subroutine obsf_determineFileType
 
+  !--------------------------------------------------------------------------
+  ! obsf_determineSplitFileType
+  !--------------------------------------------------------------------------
   subroutine obsf_determineSplitFileType( obsFileType, fileName )
 
     implicit none
@@ -796,7 +818,9 @@ contains
 
   end subroutine obsf_determineSplitFileType
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_getFileName
+  !--------------------------------------------------------------------------
   function obsf_getFileName(obsfam,fileFound_opt) result(filename)
     !
     ! :Purpose: Returns the observations file name assigned to the calling processor.
@@ -980,7 +1004,6 @@ contains
 
   end function obsf_obsSub_update
 
-
   !--------------------------------------------------------------------------
   ! obsf_addCloudParametersAndEmissivity
   !--------------------------------------------------------------------------
@@ -1017,7 +1040,6 @@ contains
     end do
 
   end subroutine obsf_addCloudParametersAndEmissivity
-
 
   !--------------------------------------------------------------------------
   ! obsf_updateMissingObsFlags
