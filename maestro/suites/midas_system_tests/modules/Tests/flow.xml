@@ -7,7 +7,6 @@
   <SUBMITS sub_name="oMinusF"/>
   <SUBMITS sub_name="randomPert"/>
   <SUBMITS sub_name="ensembleH"/>
-  <SUBMITS sub_name="ensDiagnostics"/>
   <SUBMITS sub_name="prepcma"/>
   <SUBMITS sub_name="obsImpact"/>
   <SUBMITS sub_name="diagHBHt"/>
@@ -18,6 +17,7 @@
   <SUBMITS sub_name="var1D"/>
   <SUBMITS sub_name="analysisErrorOI"/>
   <SUBMITS sub_name="SST"/>
+  <SUBMITS sub_name="adjointTest"/>
   
   <FAMILY  name="var">
     <SUBMITS sub_name="EnVar"/>
@@ -464,14 +464,6 @@
     </FAMILY>
   </FAMILY>
 
-  <FAMILY  name="ensDiagnostics">
-    <SUBMITS sub_name="balance"/>
-    <FAMILY  name="balance">
-      <SUBMITS sub_name="UnitTest"/>
-      <MODULE  name="UnitTest"/>
-    </FAMILY>
-  </FAMILY>
-
   <FAMILY  name="prepcma">
     <SUBMITS sub_name="UnitTest"/>
     <MODULE  name="UnitTest"/>
@@ -588,6 +580,11 @@
       <SUBMITS sub_name="UnitTest"/>
       <MODULE  name="UnitTest"/>
     </FAMILY>
+  </FAMILY>
+  
+  <FAMILY  name="adjointTest">
+    <SUBMITS sub_name="UnitTest"/>
+    <MODULE  name="UnitTest"/>
   </FAMILY>
 
 </MODULE>

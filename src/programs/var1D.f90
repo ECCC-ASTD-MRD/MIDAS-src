@@ -16,7 +16,119 @@
 
 program midas_var1D
   !
-  ! :Purpose: Main program for one dimensional variational minimization
+  !:Purpose: Main program for one dimensional variational minimization
+  !
+  !          ---
+  !
+  !:Algorithm: This program performs a similar data assimilation procedure as the var program,
+  !            except without taking into account the horizontal or temporal dimensions.
+  !            The assimilation is performed separately at each horizontal location and time where
+  !            observations are present. The B matrix can be either an explicit representation of
+  !            the covariances produced by the program extractBmatrixFor1Dvar or from an ensemble
+  !            (controlled by the namelists). The resulting analysis and analysis increment at the
+  !            observation locations/times are output in standard files on a "Y" grid.
+  !
+  !            --
+  !
+  !:File I/O: The required input files and produced output files are listed as follows.
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files (NWP application)        Description of file
+  !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``flnml_static``                               In - The "static" namelist that should not be modified
+  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
+  ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
+  ! ``Bmatrix_sea.bin``                            In - 1DVar Bmatrix file over sea (output from extractBmatrixFor1DVar) 
+  ! ``Bmatrix_land.bin``                           In - 1DVar Bmatrix file over land (output from extractBmatrixFor1DVar)
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
+  ! ``obserr``                                     In - Observation error statistics
+  ! ``rttov_h2o_limits.dat``                       In - minimum and maximum humidity profile to clip analysis
+  ! ``pm1q``                                       In/Out - Preconditioning file (Hessian of the cost function)
+  ! ``rebm_$MMMm`` (e.g. ``rebm_180m``)            Out - Analysis increment on Y grid
+  ! ``anlm_$MMMm``                                 Out - Analysis on Y grid
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task 
+  ! Remainder are files related to radiance obs:
+  ! ``stats_tovs``                                 In - Observation error file for radiances
+  ! ``stats_tovs_symmetricObsErr``                 In - user-defined symmetric TOVS errors for all sky
+  ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
+  ! ``rtcoef_$PLATFORM_$SENSOR.H5``                In - RTTOV coefficient file HDF-5 format 
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient file ASCII format 
+  ! ``ozoneclim98``                                In - ozone climatology standard file (Fortuin and Kelder)
+  !============================================== ==============================================================
+  !
+  !           --
+  !
+  !:Synopsis: Below is a summary of the ``var1D`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Initialize temporal grid
+  !
+  !               - Initialize observation file names and set date stamp
+  !
+  !               - Setup horizontal and vertical grid objects for "analysis
+  !                 grid" from ``analysisgrid`` file
+  !
+  !               - Setup ``obsSpaceData`` object and read observations from
+  !                 files: ``inn_setupObs``
+  !
+  !               - Setup ``columnData`` module
+  !
+  !               - Setup the observation error statistics in ``obsSpaceData``
+  !                 object: ``oer_setObsErrors``
+  !
+  !               - Setup the gridStateVector module (initialize list of analyzed variables)
+  !
+  !               - Get horizontal and vertical grid descriptors from trial fields: ``inn_getHcoVcoFromTrlmFile``,
+  !                 and allocate a gridStateVector objects 
+  !
+  !               - Read the trials: ``gio_readTrials``
+  !
+  !               - Setup the 1DVar B matrix: ``bmat1D_bsetup``
+  !
+  !               - Setup the ``gridVariableTransforms`` and ``minimization`` modules
+  !
+  !               - Horizontally interpolate high-resolution stateVectorUpdate to trial columns: ``inn_setupColumnsOnTrlLev``
+  !
+  !               - Interpolate trial columns to analysis levels and setup for linearized H: ``inn_setupColumnsOnAnlIncLev``
+  !
+  !               - Compute observation innovations and prepare obsSpaceData for minimization: ``inn_computeInnovation``
+  !
+  !             - **Minimization:**
+  !
+  !               - Do the minimization ``min_minimize`` to obtain ``controlVectorIncr``
+  !
+  !               - Get 1DVar increment from ``controlVectorIncr`` to ``columnAnlInc``: ``bmat1D_get1DvarIncrement``
+  !               - Transfer increment to ``stateVectorIncr``: ``var1D_transferColumnToYGrid``
+  !
+  !               - Write increment to file: ``inc_writeIncrement``
+  !
+  !             - **Final step:**
+  !
+  !               - Release resources
+  !
+  !               - Write hessian if requested to: ``min_writeHessian``
+  !
+  !               - Write updated observation files: ``obsf_writeFiles``
+  !
+  !           --
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#var1d>`_
+  !          that can affect the ``var1D`` program.
+  !
+  !          - The B matrix used by the ``var1D`` program is controlled by the namelist block
+  !            ``&nambmat1D`` of module bmatrix1DVar_mod
+  !              * scaleFactorHI scaling factors for HI variances
+  !              * scaleFactorHIHumidity scaling factors for HI humidity variances
+  !              * scaleFactorENs scaling factors for Ens variances
+  !              * scaleFactorEnsHumidity scaling factors for Ens humidity variances
+  !              * nEns number of ensemble members for the ensemble part of  B matrix (negative means no ensemble)
+  !              * vLocalize vertical localization length scale for the ensemble part of B matrix
+  !              * includeAnlVar list of variable for the B matrix
+  !              * numIncludeAnlVar number of variables in  includeAnlVar (to be removed later)
+  !
+  !           --
   !
   use version_mod
   use codePrecision_mod
@@ -35,7 +147,6 @@ program midas_var1D
   use obsFiles_mod
   use minimization_mod
   use innovation_mod
-  use minimization_mod
   use obsErrors_mod
   use gridVariableTransforms_mod
   use increment_mod
@@ -43,7 +154,6 @@ program midas_var1D
   use var1D_mod
   use bMatrix1Dvar_mod
  
-
   implicit none
 
   integer :: istamp, exdb, exfin

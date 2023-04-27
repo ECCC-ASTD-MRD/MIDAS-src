@@ -16,9 +16,185 @@
 
 program midas_obsSelection
   !
-  ! :Purpose: Main program for O-F computations, background check, and thinning
+  !:Purpose: Main program for background check, and thinning of all observation types.
   !
-  !           (O-F => Observation minus Forecast, i.e. y-H(x))
+  !          ---
+  !
+  !:Algorithm: For background check of each observation type, several quality control tests 
+  !            specific to that observation type are performed on each available observation
+  !            to determine if the observation meets the standard to be assimilated later.
+  !            Observation flags are modified for rejected observations as well as for the 
+  !            assimilated observations of inferior quality.The thinning is performed afterwards 
+  !            to reduce the number of observation data for assimilation. This is to reduce the 
+  !            1) computational cost, and 2) observation error correlation during 
+  !            assimilation stage. The background-checked thinned observations are written
+  !            to new files, ready for assimilation.
+  !
+  !            --
+  !
+  !            The computed bias correction values are applied to the observation before the 
+  !            background check step for certain observation types (e.g. radiances). One of quality
+  !            control tests during background check is the ``rogue check`` which is the allowed
+  !            distance of the observation from the background state. Innovation vector  
+  !            ``y-H(xb)`` is required to measure this distance. The innovations are 
+  !            computed at the beginning of the program before the background check starts.
+  !
+  !            --
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files                        Description of file
+  !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters that user may modify
+  ! ``flnml_static``                               In - The "static" namelist that should not be modified
+  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
+  ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
+  ! ``obserr``                                     In - Observation error statistics
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
+  ! Remainder are files related to radiance obs:
+  ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of difference sensors
+  ! ``stats_tovs``                                 In - Satellite radiance observation errors
+  ! ``stats_tovs_symmetricObsErr``                 In - User-defined symmetric TOVS errors for all sky
+  ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
+  ! ``dynbcor.coeffs.$SENSOR.*.coeffs_$SENSOR``    In - Dynamic bias correction file
+  ! ``ceres_global.std``                           In - High-res surface type and water fraction for radiance obs
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
+  ! ``rttov_h2o_limits.dat``                       In - Min/max humidity limits applied to analysis
+  ! ``ozoneclim98``                                In - Ozone climatology
+  !============================================== ==============================================================
+  !
+  !           --
+  !
+  !:Synopsis: Below is a summary of the ``obsSelection`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Read the NAMOBSSELECTION namelist and check/modify some values.
+  !
+  !               - Various modules are setup: ``obsFiles_mod``, ``timeCoord_mod``.
+  !
+  !               - Setup horizontal and vertical grid objects for "analysis
+  !                 grid" from ``analysisgrid`` file.
+  !
+  !               - Setup ``obsSpaceData`` object and read observations from
+  !                 files: ``inn_setupObs``.
+  !
+  !               - Compute and update the stored surface type for some satellite
+  !                 radiance instruments. 
+  !
+  !               - Setup ``columnData`` module (read list of analysis variables 
+  !                 from namelist) and allocate column object for storing trial 
+  !                 on analysis levels.
+  !
+  !               - Setup the observation error statistics in ``obsSpaceData``
+  !                 object: ``oer_setObsErrors``
+  !
+  !               - Setup ``gridStateVector`` module to initialize the gridstatevector 
+  !                 objects.
+  !
+  !               - Applying optional bias corrections to some observation types.
+  !
+  !               - Setup horizontal and vertical grid objects for "trial grid" from
+  !                 first trial file: ``trlm_01``.
+  !
+  !               - Allocate a stateVector object on the trial grid and then
+  !                 read the trials: ``gio_readTrials``.
+  !
+  !             - **Computation**
+  !
+  !               - Compute ``columnTrlOnTrlLev`` and ``columnTrlOnAnlIncLev`` from
+  !                 background state: ``inn_setupColumnsOnTrlLev``,
+  !                 ``inn_setupColumnsOnAnlIncLev``.
+  !
+  !               - Compute innovation from background state: ``inn_computeInnovation``.
+  !
+  !               - Do background check for conventional observation: 
+  !                 ``bgck_bgCheck_conv``.
+  !
+  !               - Update radiance bias correction in ``obsSpaceData`` and apply 
+  !                 the bias corrections to the observations and innovations for
+  !                 radiances: ``bcs_calcBias``, ``bcs_applyBiasCorrection``.
+  !
+  !               - Perform background check for multiple observation types.
+  !             
+  !               - If thinning was requested: 
+  !
+  !                 - add some cloud parameters and set missing observation flags in 
+  !                   observation files (specific for radiances) and 
+  !
+  !                 - perform thinning for different observation types.
+  !
+  !               - Write the final background-checked bias corrected results (either
+  !                 thinned or not thinned) into the observation file.
+  ! 
+  !               - If thinning was requested, remove observations which were flagged 
+  !                 not to be assimilated from the observation file.
+  !
+  !             --
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#obsSelection>`_
+  !          that can affect the ``obsSelection`` program.
+  !
+  !          * The use of ``obsSelection`` program is controlled by the namelist block
+  !           ``&NAMOBSSELECTION`` read by the ``obsSelection`` program.
+  !
+  !          * Some of the other relevant namelist blocks used to configure the
+  !            ``obsSelection`` are listed in the following table:
+  ! 
+  !=========================== ========================= =========================================
+  ! Module                      Namelist                  Description of what is controlled
+  !=========================== ========================= =========================================
+  ! ``midas_obsSelection``      ``NAMOBSSELECTION``       whether thinning is performed or not.
+  ! ``biasCorrectionConv_mod``  ``NAMBIASCONV``           variables to perform bias correction 
+  !                                                       for conventional observations.
+  ! ``biasCorrectionConv_mod``  ``NAMSONDETYPES``         additional variables to perform bias 
+  !                                                       correction for radiosondes conventional 
+  !                                                       observations.
+  ! ``backgroundCheck_mod``     ``NAMBGCKCONV``           variables to perform background check 
+  !                                                       for conventional observations.
+  ! ``SSTbias_mod``             ``NAMSSTBIASESTIMATE``    variables to perform bias estimation 
+  !                                                       and bias correction for satellite SST.
+  ! ``biasCorrectionSat_mod``   ``NAMBIASSAT``            variables to perform bias correction 
+  !                                                       for satellite radiances.
+  ! ``multi_ir_bgck_mod``       ``NAMBGCKIR``             Variables to perform background check 
+  !                                                       for hyperspectral infrared radiances.
+  ! ``bgckmicrowave_mod``       ``NAMBGCK``               Variables to perform background check 
+  !                                                       for microwave radiances.
+  ! ``bgckcsr_mod``             ``NAMCSR``                Variables To perform background check 
+  !                                                       for CSR radiances.
+  ! ``bgckssmis_mod``           ``NAMBGCK``               Variables to perform background check 
+  !                                                       for SSMIS radiances.
+  ! ``bgckOcean_mod``           ``NAMOCEANBGCHECK``       Variables to perform background check 
+  !                                                       for ocean data.
+  ! ``bgckOcean_mod``           ``NAMICEBGCHECK``         Variables to perform background check 
+  !                                                       for SST data.
+  ! ``burpread_mod``            ``NAMADDTOBURP``          element IDs to add to the BURP file
+  ! ``thinning_mod``            ``THIN_HYPER``            variables to perform thinning on 
+  !                                                       hyperspectral infrared radiances.
+  ! ``thinning_mod``            ``THIN_TOVS``             variables to perform thinning on 
+  !                                                       microwave radiances.
+  ! ``thinning_mod``            ``thin_csr``              variables to perform thinning on 
+  !                                                       CSR radiances.
+  ! ``thinning_mod``            ``thin_raobs``            variables to perform thinning on 
+  !                                                       radiosonde observations.
+  ! ``thinning_mod``            ``thin_scat``             variables to perform thinning on 
+  !                                                       scatterometer wind observations.
+  ! ``thinning_mod``            ``thin_aircraft``         variables to perform thinning on 
+  !                                                       aircraft observations.
+  ! ``thinning_mod``            ``thin_surface``          variables to perform thinning on 
+  !                                                       surface observations.
+  ! ``thinning_mod``            ``thin_gbgps``            variables to perform thinning on 
+  !                                                       ground-based GPS observations.
+  ! ``thinning_mod``            ``thin_gpsro``            variables to perform thinning on 
+  !                                                       GPS radio-occultation observations.
+  ! ``thinning_mod``            ``thin_aladin``           variables to perform thinning on 
+  !                                                       aladin wind observations.
+  ! ``thinning_mod``            ``thin_aladin``           variables to perform thinning on 
+  !                                                       aladin wind observations.
+  ! ``timeCoord_mod``           ``NAMTIME``               assimilation time window length, 
+  !                                                       temporal resolution of the background 
+  !                                                       state.
+  !=========================== ========================= =========================================
   !
   use version_mod
   use codePrecision_mod

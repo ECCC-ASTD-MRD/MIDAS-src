@@ -16,8 +16,71 @@
 
 program midas_adjointTest
   !
-  ! :Purpose: Main program for adjoint test applications: 
-  !           <x,L(y)> = <L^T(x),y>
+  !:Purpose: Main program for adjoint test applications, i.e., testing if the identity
+  !          :math:`<x,L(y)> = <L^T(x),y>` is respected.
+  !
+  !:Algorithm: Initialize a random grid-point space statevector :math:`x` and a random
+  !            control vector :math:`y`.  Compute :math:`L(y)` by the action of a linear
+  !            operator and compute the inner product :math:`<x,L(y)>`.  Then compute
+  !            :math:`L^T(x)` through the action of the corresponding adjoint operator
+  !            and the inner product :math:`<L^T(x),y>`.  Verify if both inner products
+  !            are equal.
+  !
+  !            --
+  !
+  !:File I/O: The required input files vary according to the application (see options below).
+  !
+  !================================================= ==============================================================
+  ! Input and Output Files (square root covariances)  Description of file
+  !================================================= ==============================================================
+  ! ``flnml``                                         In - Main namelist file with parameters user may modify
+  ! ``trlm_01``                                       In - Background state (a.k.a. trial) file
+  ! ``analysisgrid``                                  In - File defining grid for computing the analysis increment
+  ! ``bgcov``                                         In - Static (i.e. NMC) B matrix file for NWP fields
+  ! ``ensemble/$YYYYMMDDHH_006_$NNNN``                In - Ensemble member files defining ensemble B matrix
+  ! ``innerProd.txt``                                 Out - Results of inner products and their difference
+  !================================================= ==============================================================
+  !
+  !:Synopsis: There are several flavors of tests that can be run. The choice is configured
+  !           in the namelist block ``NAMADT`` with the variable ``test`` (see below).
+  !           All tests follow this general synopsis:
+  !
+  !           - initialize with gaussian noise (``rng_gaussian()``) a statevector
+  !             :math:`x` and a control vector :math:`y`.
+  !
+  !           - apply the corresponding square root operator on :math:`y` to obtain :math:`Ly`
+  !
+  !           - compute the inner product :math:`<x ,Ly>`
+  !
+  !           - apply the corresponding square root adjoint operator on :math:`x` to
+  !             obtain :math:`L^T(x)`
+  !
+  !           - compute the inner product :math:`<L^Tx,y>`
+  !
+  !           - print :math:`<x,L(y)>`, :math:`<L^T(x),y>` and their relative difference
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#adjointtest>`_
+  !          that can affect the ``adjointTest`` program.
+  !
+  !          * As described in the algorithm section, four different tests are implemented.
+  !            The test that is conducted is chosen through the namelist variable
+  !            `&NAMADT Test` that can be either
+  !
+  !             * **'Bhi'** : test the adjoint of the square root of the homogeneous and
+  !               isotropic covariance matrix.  The namelist block `&NAMBHI` will
+  !               configure the covariance matrix properties.
+  !
+  !             * **'Bens'** : test the adjoint of the square root of the ensemble covariance
+  !               matrix.  The namelist block `&NAMBEN` will configure the covariance
+  !               matrix properties.
+  !
+  !             * **'loc'** : test the adjoint of the square root of localized covariance
+  !               matrix.
+  !
+  !             * **'advEns'** : test the adjoint of the advection operator on ensemble
+  !
+  !             * **'advGSV'** : test the adjoint of the advection operator on a single
+  !               statevector
   !
   use version_mod
   use codePrecision_mod
@@ -53,7 +116,9 @@ program midas_adjointTest
   real(8), allocatable ::  controlVector1(:)
   real(8), allocatable ::  controlVector2(:)
 
-  integer :: get_max_rss, ierr, cvDim
+  integer :: get_max_rss, ierr, cvDim, nulnam, fnom, fclos
+  character(len=20) ::  test ! adjoint test type ('Bhi','Bens','advEns','advGSV','loc')
+  NAMELIST /NAMADT/test
 
   call ver_printNameAndVersion('adjointTest','Various tests of adjoint codes')
 
@@ -108,39 +173,50 @@ program midas_adjointTest
   !- 1.11 Variable transforms
   call gvt_Setup(hco_anl, hco_core, vco_anl)
 
+  !- 1.12 Test selection
+  test = 'Bhi' ! default test 
+
+  if ( .not. utl_isNamelistPresent('NAMADT','./flnml') ) then
+    if (mmpi_myid == 0) then
+      write(*,*) 'midas-adjointTest: namadt is missing in the namelist. '&
+                 //'The default values will be taken.'
+    end if
+  else
+    nulnam=0
+    ierr=fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
+    read(nulnam, nml=namadt, iostat=ierr)
+    if(ierr.ne.0) call utl_abort('midas-adjointTest: Error reading namelist')
+    if( mmpi_myid == 0 ) write(*,nml=namadt)
+    ierr=fclos(nulnam)
+  end if
+
   !
   !- 2.  The tests
   !
  
-  !- 2.1 Bhi
-  !write(*,*)
-  !write(*,*) '> midas-adjointTest: Bhi'
-  !call check_bhi
-
-  !- 2.2 Bens
   write(*,*)
-  write(*,*) '> midas-adjointTest: Bens'
-  call check_bens
-
-  !- 2.3 AdvectionENS
-  !write(*,*)
-  !write(*,*) '> midas-adjointTest: AdvectionENS'
-  !call check_advectionENS
-
-  !- 2.4 AdvectionGSV
-  !write(*,*)
-  !write(*,*) '> midas-adjointTest: AdvectionGSV'
-  !call check_advectionGSV
-
-  !- 2.5 Localization
-  !write(*,*)
-  !write(*,*) '> midas-adjointTest: Localization'
-  !call check_loc
-
-  !- 2.6 Localization
-  !write(*,*)
-  !write(*,*) '> midas-adjointTest: Addmem'
-  !call check_addmem
+  write(*,*) '> midas-adjointTest: '//test
+  if ( test == 'Bhi') then
+    !- 2.1 Bhi
+    call check_bhi
+  else if ( test == 'Bens') then  
+    !- 2.2 Bens
+    call check_bens
+  else if ( test == 'advEns') then
+    !- 2.3 AdvectionENS
+    call check_advectionENS
+  else if ( test == 'advGSV') then 
+    !- 2.4 AdvectionGSV
+    call check_advectionGSV
+  else if ( test == 'loc') then
+    !- 2.5 Localization
+    call check_loc 
+  !else if ( test == 'addMem') then
+  !  !- 2.6 Localization
+  !  call check_addmem
+  else
+    call utl_abort('midas-adjointTest: inexistant test label ('//test//')')
+  end if
 
   !
   !- 3.  Ending
@@ -163,6 +239,7 @@ contains
     integer :: seed, kIndex, stepIndex, latIndex, lonIndex, cvIndex
     real(8), pointer :: field4d_r8(:,:,:,:), field3d_Ly_r8(:,:,:), field3d_x_r8(:,:,:)
 
+    call gvt_setupRefFromTrialFiles('HU')
     if (hco_anl%global) then
       call bhi_Setup( hco_anl, vco_anl, & ! IN
                       cvdim )             ! OUT
@@ -253,7 +330,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd ('Bhi')
+    call checkAndOutputInnerProd
     
     deallocate(controlVector2)
     deallocate(controlVector1)
@@ -274,6 +351,7 @@ contains
     integer, allocatable :: cvDimPerInstance(:)
     real(8), pointer :: field4d_Ly_r8(:,:,:,:), field4d_x_r8(:,:,:,:)
 
+    call gvt_setupRefFromTrialFiles('HU')
     call ben_Setup( hco_anl, hco_core, vco_anl, & ! IN
                     cvdimPerInstance )  ! OUT
 
@@ -336,7 +414,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 
     ! Results
-    call checkInnerProd ('Bens')
+    call checkAndOutputInnerProd
     
     deallocate(controlVector2)
     deallocate(controlVector1)
@@ -472,7 +550,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd ('Loc')
+    call checkAndOutputInnerProd
     
     deallocate(controlVector2)
     deallocate(controlVector1)
@@ -614,7 +692,7 @@ contains
 !!$    write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
 !!$    
 !!$    ! Results
-!!$    call checkInnerProd ('addMem')
+!!$    call checkAndOutputInnerProd
 !!$    
 !!$    call gsv_deallocate(statevector_LTx)
 !!$    call gsv_deallocate(statevector_y)
@@ -763,7 +841,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd ('advection')
+    call checkAndOutputInnerProd
 
     call gsv_deallocate(statevector_x)
     call gsv_deallocate(statevector_Ly)
@@ -895,7 +973,7 @@ contains
     write(*,*) "<Lt(x) ,y   > global= ",innerProduct2_global
     
     ! Results
-    call checkInnerProd ('advection')
+    call checkAndOutputInnerProd
 
     call gsv_deallocate(statevector_x)
     call gsv_deallocate(statevector_Ly)
@@ -930,21 +1008,32 @@ contains
   !--------------------------------------------------------------------------
   !- Inner product comparison
   !--------------------------------------------------------------------------
-  subroutine checkInnerProd (testName)
+  subroutine checkAndOutputInnerProd()
     implicit none
-    character(len=*) :: testName
+
+    integer :: fun
 
     if ( mmpi_myid == 0 ) then
+      open(newunit=fun, file="innerProd.txt", status="new", action="write")
+      write(fun,'(A20)') test
+      write(fun, '(G23.16)') innerProduct1_global
+      write(fun, '(G23.16)') innerProduct2_global
+      write(fun, '(G23.16)') innerProduct2_global-innerProduct1_global
       write(*,*)
       if ( innerProduct2_global + innerProduct1_global /= 0.d0 ) then
-        write(*,'(A20,1X,A,1X,G23.16)') testName, ": InnerProd Difference(%) = ", &
+        write(fun, '(G23.16,A1)') 100.d0 * (abs(innerProduct2_global-innerProduct1_global) &
+                                          /(0.5d0*(innerProduct2_global+innerProduct1_global)) ), &
+                                  '%'
+        write(*,'(A20,1X,A,1X,G23.16)') test, ": InnerProd Difference(%) = ", &
              100.d0 * (abs(innerProduct2_global-innerProduct1_global) / &
              (0.5d0*(innerProduct2_global+innerProduct1_global)) )
       else
+        write(fun, '(A23)') 'InnerProduct = 0 ERROR'
         write(*,*) 'InnerProduct = 0 !!! Obviously, something went wrong...'
       end if
+      close(fun)
     end if
 
-  end subroutine checkInnerProd
+  end subroutine checkAndOutputInnerProd
 
 end program midas_adjointTest

@@ -16,12 +16,58 @@
 
 program midas_thinning
   !
-  ! :Purpose: Thinning program to reduce the number of observation data
+  !:Purpose: The thinning program reduces the density of observations for the purpose of
+  !          assimilation.
   !
-  ! :Method:  Set bit 11 of *flag* according to an observation-type-specific
-  !           algorithm.  Then remove all observations from SQL and/or burp files
-  !           for which bit 11 is set. So far, most NWP obs types except radiosonde
-  !           ssmis are treated.
+  !
+  !:Algorithm: After setting up the ``obsSpace_data`` object, the thinning program calls
+  !            the ``filt_suprep`` routine which rejects certain observations based on
+  !            blacklists and other checks. 
+  !
+  !            -- 
+  !
+  !            Specific routines are then called for thinning each observation types. 
+  !            These routines are found in ``thinning_mod`` and are controlled by the 
+  !            following namelists:
+  !
+  !            |
+  !
+  !            ======================= ====== 
+  !             Namelist                    
+  !            ======================= ====== 
+  !             ``thn_surface``
+  !             ``thn_raobs``
+  !             ``thn_aircraft``
+  !             ``thn_satwind``
+  !             ``thn_gpsro``
+  !             ``thn_gbgps``
+  !             ``thn_aladin``
+  !             ``thn_csr``
+  !             ``thn_scat``
+  !             ``thn_tovs``
+  !             ``thn_hyper``
+  !             ``thn_thinSatSST``
+  !            ======================= ====== 
+  !
+  !            |
+  !
+  !            Observations that are rejected by the thinning routines have their 11th bit *flag* set. 
+  !            In a subsequent step, these observations are removed from observation files. 
+  !
+  !            |
+  !
+  !
+  !:File I/O: 
+  !
+  !           ============================================== ================================================================
+  !            Input and Output Files (NWP applicaton)        Description of file
+  !           ============================================== ================================================================
+  !            ``flnml``                                      In - Main namelist file with parameters user may modify
+  !            ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state -> necessary for observations in pressure
+  !                                                           coordinates. 
+  !            Observation Files                              In/Out - Sqlite/Burp observation files for different families. 
+  !           ============================================== ================================================================
+  !
   !
   use version_mod
   use ramDisk_mod

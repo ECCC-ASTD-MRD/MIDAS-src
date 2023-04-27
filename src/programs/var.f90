@@ -69,8 +69,15 @@ program midas_var
   !
   !            --
   !
+  !:File I/O: The required input files and produced output files can vary
+  !           according to the application. Below are tables of files for
+  !           typical NWP 4D-EnVar (e.g. GDPS) and sea ice or SST 3D-Var
+  !           applications.
+  !
+  !           --
+  !
   !============================================== ==============================================================
-  ! Input and Output Files                         Description of file
+  ! Input and Output Files (NWP applicaton)        Description of file
   !============================================== ==============================================================
   ! ``flnml``                                      In - Main namelist file with parameters user may modify
   ! ``flnml_static``                               In - The "static" namelist that should not be modified
@@ -80,7 +87,6 @@ program midas_var
   ! ``bgchemcov``                                  In - Static B matrix file for chemistry fields
   ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Ensemble member files defining ensemble B matrix
   ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
-  ! ``obscov``                                     In - Observation error statistics
   ! ``obserr``                                     In - Observation error statistics
   ! ``obsinfo_chm``                                In - Something needed for chemistry assimilation?
   ! ``preconin``                                   In - Preconditioning file (Hessian of the cost function)
@@ -89,18 +95,32 @@ program midas_var
   ! ``anlm_$MMMm``                                 Out - Analysis on the trial grid
   ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
   ! Remainder are files related to radiance obs:
-  ! ``stats_$SENSOR_assim``                        In - 
-  ! ``stats_tovs``                                 In - 
-  ! ``stats_tovs_symmetricObsErr``                 In - 
+  ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of difference sensors
+  ! ``stats_tovs``                                 In - Satellite radiance observation errors
+  ! ``stats_tovs_symmetricObsErr``                 In - User-defined symmetric TOVS errors for all sky
   ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
-  ! ``bcif_$SENSOR``                               In - 
-  ! ``ceres_global.std``                           In - 
-  ! ``champ_fd_181x91``                            In - 
-  ! ``coeff_file_$SENSOR``                         In - 
-  ! ``dynbcor.coeffs.$SENSOR.$MOREINFO``           In - 
-  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - 
-  ! ``rttov_h2o_limits.dat``                       In - 
-  ! ``ozoneclim98``                                In - 
+  ! ``ceres_global.std``                           In - High-res surface type and water fraction for radiance obs
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
+  ! ``rttov_h2o_limits.dat``                       In - Min/max humidity limits applied to analysis
+  ! ``ozoneclim98``                                In - Ozone climatology
+  !============================================== ==============================================================
+  !
+  !           --
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files (SST or Sea ice)        Description of file
+  !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
+  ! ``analysisgrid``                               In - File defining grid for computing the analysis increment
+  ! ``sea_ice_obs-err``                            In - Observation error statistics (sea ice only)
+  ! ``bgstddev``                                   In - Background error stddev
+  ! ``diffusmod.std``                              In - Normalization factor for diffusion operator correlations
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
+  ! ``rebm_$MMMm`` (e.g. ``rebm_180m``)            Out - Analysis increment on the (low-res) analysis grid
+  ! ``rehm_$MMMm``                                 Out - Analysis increment on the (high-res) trial grid
+  ! ``anlm_$MMMm``                                 Out - Analysis on the trial grid
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
   !============================================== ==============================================================
   !
   !           --
@@ -205,12 +225,12 @@ program midas_var
   !
   !          * Either algorithm can be used in combination with "First guess at
   !            appropriate time" (i.e. FGAT) which is controlled by the namelist
-  !            variable ``DSTEPOBS`` (in ``NAMTIM``) that specifies the length
+  !            variable ``DSTEPOBS`` (in ``NAMTIME``) that specifies the length
   !            of time (in hours) between times when the background state is
   !            used to compute the innovation (i.e. O-B).
   !
   !          * Similarly, the choice between 3D-EnVar and 4D-EnVar is controlled
-  !            by the namelist variable ``DSTEPOBSINC`` (also in ``&NAMTIM``)
+  !            by the namelist variable ``DSTEPOBSINC`` (also in ``&NAMTIME``)
   !            which specifies the length of time (in hours) between times when
   !            the analysis increment is computed. In the context of EnVar, if
   !            this is less than the assimilation time window, then the
@@ -221,20 +241,20 @@ program midas_var
   !          * Some of the other relevant namelist blocks used to configure the
   !            variational analysis are listed in the following table:
   ! 
-  !======================== =========== ==============================================================
-  ! Module                   Namelist    Description of what is controlled
-  !======================== =========== ==============================================================
-  ! ``minimization_mod``     ``NAMMIN``  maximum number of iterations, convergence criteria and many
-  !                                      additional parameters for controlling the minimization
-  ! ``timeCoord_mod``        ``NAMTIM``  assimilation time window length, temporal resolution of
-  !                                      the background state and increment
-  ! ``bMatrixEnsemble_mod``  ``NAMBEN``  weight and other parameters for ensemble-based B matrix
-  !                                      component
-  ! ``bMatrixHI_mod``        ``NAMBHI``  weight and other parameters for the climatological B matrix
-  !                                      component based on homogeneous-isotropic covariances
-  !                                      represented in spectral space
-  ! Other B matrix modules   various     weight and other parameters for each type of B matrix
-  !======================== =========== ==============================================================
+  !======================== ============ ==============================================================
+  ! Module                   Namelist     Description of what is controlled
+  !======================== ============ ==============================================================
+  ! ``minimization_mod``     ``NAMMIN``   maximum number of iterations, convergence criteria and many
+  !                                       additional parameters for controlling the minimization
+  ! ``timeCoord_mod``        ``NAMTIME``  assimilation time window length, temporal resolution of
+  !                                       the background state and increment
+  ! ``bMatrixEnsemble_mod``  ``NAMBEN``   weight and other parameters for ensemble-based B matrix
+  !                                       component
+  ! ``bMatrixHI_mod``        ``NAMBHI``   weight and other parameters for the climatological B matrix
+  !                                       component based on homogeneous-isotropic covariances
+  !                                       represented in spectral space
+  ! Other B matrix modules   various      weight and other parameters for each type of B matrix
+  !======================== ============ ==============================================================
   !
   use version_mod
   use codePrecision_mod

@@ -1,0 +1,27 @@
+&NAMADT
+   TEST = 'Bhi'  
+/
+&NAMBHI
+   NTRUNC  = 270,
+   SCALEFACTOR = 100*1.0D0
+/
+ &NAMBEN
+  NENS = 16
+  SCALEFACTOR = 100*0.5d0
+  huMinValue = 1.0D-7
+/
+ &NAMTIME
+  DSTEPOBS = 0.25d0
+  DSTEPOBSINC = 6.0d0
+  DATE =  2014062000
+/
+ &NAMSTATE
+   addHeightSfcOffset = .false.
+   RHUMIN  = 1.0D-07
+   ANLVAR(1)   ='UU'
+   ANLVAR(2)   ='VV'
+   ANLVAR(3)   ='TT'
+   ANLVAR(4)   ='HU'
+   ANLVAR(5)   ='P0'
+   ANLVAR(6)   ='TG'
+/

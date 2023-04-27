@@ -16,8 +16,144 @@
 
 program midas_diagHBHt
   !
-  ! :Purpose: Main program for computing background error variance in observation
-  !           space.
+  !:Purpose: Main program for computing a single random realization of
+  !          background error in observation space, stored in ``obs_hbht``. This
+  !          can then be used by python or other scripts to compute the
+  !          background error variance (consistent with the specified B matrix)
+  !          in observation space for comparison with the innovation variance
+  !          and observation error variance.
+  !
+  !          --
+  !
+  !:Algorithm: The random realization of background error in observation space
+  !            is computed following these steps:
+  !
+  !            1. Compute random values for the control vector with each element
+  !               drawn from independent Gaussian distribution with variance of one
+  !               and bias of zero.
+  !            
+  !            2. Multiply random vector by sqrt of B matrix.
+  !
+  !            3. Apply observation operator to obtain random perturbation in
+  !               observation space.
+  !
+  !            --
+  !
+  !:File I/O: The required input files and produced output files can vary
+  !           according to the application. Below are tables of files for
+  !           typical NWP 4D-EnVar (e.g. GDPS) and sea ice or SST 3D-Var
+  !           applications.
+  !
+  !           --
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files (for NWP application)   Description of file
+  !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``flnml_static``                               In - The "static" namelist that should not be modified
+  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
+  ! ``analysisgrid``                               In - File defining grid for computing the random gridded perturbation
+  ! ``bgcov``                                      In - Static (i.e. NMC) B matrix file for NWP fields
+  ! ``bgchemcov``                                  In - Static B matrix file for chemistry fields
+  ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Ensemble member files defining ensemble B matrix
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
+  ! ``obserr``                                     In - Observation error statistics
+  ! ``obsinfo_chm``                                In - Something needed for chemistry assimilation?
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
+  ! Remainder are files related to radiance obs:
+  ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of different sensors
+  ! ``stats_tovs``                                 In - Satellite radiance observation errors
+  ! ``stats_tovs_symmetricObsErr``                 In - User-defined symmetric TOVS errors for all sky
+  ! ``ceres_global.std``                           In - High-res surface type and water fraction for radiance obs
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
+  ! ``ozoneclim98``                                In - Ozone climatology
+  !============================================== ==============================================================
+  !
+  !           --
+  !
+  !:Synopsis: Below is a summary of the ``diagHBHt`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Setup horizontal and vertical grid objects for "analysis
+  !                 grid" from ``analysisgrid`` file and for "trial grid" from
+  !                 first trial file: ``trlm_01``.
+  !
+  !               - Setup ``obsSpaceData`` object and read observations from
+  !                 files: ``inn_setupObs``.
+  !
+  !               - Setup ``columnData`` and ``gridStateVector`` modules (read
+  !                 list of analysis variables from namelist) and allocate column
+  !                 object for storing trial on analysis levels.
+  !
+  !               - Setup the observation error statistics in ``obsSpaceData``
+  !                 object: ``oer_setObsErrors``.
+  !
+  !               - Allocate a stateVector object on the trial grid and then
+  !                 read the trials: ``gio_readTrials``.
+  !
+  !               - Setup the B matrices: ``bmat_setup``.
+  !
+  !               - Setup the ``gridVariableTransforms``.
+  !
+  !             - **Calculation**
+  !
+  !               - Compute ``columnTrlOnTrlLev`` and ``columnTrlOnAnlIncLev``
+  !                 from trials: ``inn_setupColumnsOnTrlLev``,
+  !                 ``inn_setupColumnsOnAnlIncLev``
+  !
+  !               - Compute innovation from updated state:
+  !                 ``inn_computeInnovation``.
+  !
+  !               - Compute an MPI global random vector, then extract only
+  !                 portion needed for this MPI task (to reduce sensitivity of
+  !                 results to MPI topology).
+  !
+  !               - Multiply random vector by sqrt of B matrix with resulting
+  !                 gridded state random perturbation in ``statevector``.
+  !
+  !               - Apply linearized observation operators to the random gridded
+  !                 state: ``s2c_tl`` and ``oop_Htl`` with final result in
+  !                 observation space: ``obs_work`` column of ``obsSpaceData``.
+  !
+  !               - Copy result from ``obs_work`` to ``obs_hbht`` column.
+  !
+  !             - **Final steps**, after the outer loop:
+  !
+  !               - Various final steps, including: update the observation files
+  !                 (``obsf_writeFiles``).
+  !
+  !           --
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#diaghbht>`_
+  !          that can affect the ``diagHBHt`` program.
+  !
+  !          * The choice of what B matrix is used for the calculation is
+  !            controlled for each individual B matrix component through it's
+  !            own namelist block. The weights for all B matrix components are
+  !            zero be default and can be set to a nonzero value through the
+  !            namelist variable ``SCALEFACTOR`` in the namelist block for each
+  !            corresponding fortran module.
+  !
+  !          * All other namelist blocks related to observations are relevant
+  !            for the diagHBHt calculation, including ``NAMFILT`` and
+  !            ``NAMTOV``.
+  !
+  !          * Some of the other relevant namelist blocks used to configure the
+  !            diagHBHt calculation are listed in the following table:
+  ! 
+  !======================== ============ ==============================================================
+  ! Module                   Namelist     Description of what is controlled
+  !======================== ============ ==============================================================
+  ! ``timeCoord_mod``        ``NAMTIME``  assimilation time window length, temporal resolution of
+  !                                       the background state and increment (i.e. perturbation)
+  ! ``bMatrixEnsemble_mod``  ``NAMBEN``   weight and other parameters for ensemble-based B matrix
+  !                                       component
+  ! ``bMatrixHI_mod``        ``NAMBHI``   weight and other parameters for the climatological B matrix
+  !                                       component based on homogeneous-isotropic covariances
+  !                                       represented in spectral space
+  ! Other B matrix modules   various      weight and other parameters for each type of B matrix
+  !======================== ============ ==============================================================
   !
   use version_mod
   use codePrecision_mod
@@ -96,7 +232,7 @@ program midas_diagHBHt
 
   ! Horizontally interpolate trials to trial columns
   call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core, &
-                                   stateVectorTrialHighRes )
+                                 stateVectorTrialHighRes )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
@@ -254,7 +390,13 @@ contains
 
   end subroutine var_setup
 
+  !--------------------------------------------------------------------------
+  ! diagHBHt
+  !--------------------------------------------------------------------------
   subroutine diagHBHt(columnTrlOnAnlIncLev, obsSpaceData)
+    !
+    !:Purpose: Main calculations of HBHt
+    !
     implicit none
 
     type(struct_obs),        intent(inout) :: obsSpaceData         ! Observation-related data
@@ -302,7 +444,7 @@ contains
     !- Initialize random number generator
     ierr = newdate(tim_getDatestamp(), dateprnt, timeprnt, -3)
     nrandseed=100*dateprnt + int(timeprnt/100.0) 
-    write(*,*) 'diagHBHt: Random seed set to ',nrandseed ; call flush(6)
+    write(*,*) 'diagHBHt: Random seed set to ',nrandseed
     call rng_setup(nrandseed)
     ! Generate a random vector from N(0,1)
     do jj = 1, cvm_nvadim_mpiglobal
@@ -317,27 +459,28 @@ contains
     call bmat_sqrtB(local_random_vector,local_dimension,statevector)
     !- 2.2 Interpolation to the observation horizontal locations
 
-    call s2c_tl( statevector,           & ! IN
-                 columnAnlInc,                & ! OUT (H_horiz EnsPert)
+    call s2c_tl( statevector,                        & ! IN
+                 columnAnlInc,                       & ! OUT (H_horiz EnsPert)
                  columnTrlOnAnlIncLev, obsSpaceData )  ! IN
     !- 2.3 Interpolation to observation space
     call oop_Htl(columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,min_nsim=1)
 
-  !- Copy from OBS_WORK to OBS_HPHT
+    !- Copy from OBS_WORK to OBS_HPHT
 
     do index_body = 1, obs_numBody(obsSpaceData)
-      call obs_bodySet_r(obsSpaceData,OBS_HPHT,index_body,obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body) )
+      call obs_bodySet_r(obsSpaceData,OBS_HPHT,index_body, &
+                         obs_bodyElem_r(obsSpaceData,OBS_WORK,index_body) )
     end do
-  !
-  !- 3.  Ending/Deallocation
-  !
+    !
+    !- 3.  Ending/Deallocation
+    !
     deallocate(random_vector, stat=istat)
     deallocate(local_random_vector, stat=istat)
     call col_deallocate(columnAnlInc)
     call gsv_deallocate(statevector)
     write(*,*)
-    write(*,*) 'Computing perturbations for randomized HBHT evaluation END' ; call flush(6)
+    write(*,*) 'Computing perturbations for randomized HBHT evaluation END'
 
-end subroutine diagHBHt
+  end subroutine diagHBHt
 
 end program midas_diagHBHt

@@ -15,9 +15,146 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 program midas_ensPostProcess
-  ! :Purpose: Post-processing program for the local ensemble transform Kalman filter (LETKF).
-  !           Many aspects of this program are controlled throught the namelist
-  !           block namEnsPostProc defined in epp_postProcess.
+  !
+  !:Purpose: Post-processing program for the local ensemble transform Kalman filter (LETKF).
+  !          Many aspects of this program are controlled throught the namelist block
+  !          namEnsPostProc defined in epp_postProcess.
+  !
+  !          ---
+  !
+  !:Algorithm: The ``ensPostProcess`` program performs several post-processing tasks of
+  !            LETK ensemble analyses and the ensemble trials. The following tasks are
+  !            performed based on the namelist options.
+  !
+  !              - **Mean and std**: Ensemble mean and standard deviation are computed
+  !                upon reading the ensemble members and after the processes which may
+  !                alter the mean or the standard deviation.
+  !
+  !              - **RTPP**: Relaxation to the prior perturbation will relax the analysis
+  !                perturbation to the trial perturbation with a given amount (:math:`\alpha`) in the namelist.
+  !                It can be formulated as:
+  !                :math:`x^a_i \leftarrow \overline{x^a} + (1-\alpha)(\overline{x^a}-x^a_i)+\alpha(\overline{x^b}-x^b_i)`
+  !
+  !                More details for the RTPP can be found in paper:
+  !                `Impacts of Initial Estimate and Observation Availability on Convective-Scale
+  !                Data Assimilation with an Ensemble Kalman Filter
+  !                <https://journals.ametsoc.org/view/journals/mwre/132/5/1520-0493_2004_132_1238_ioieao_2.0.co_2.xml>`_
+  !
+  !              - **RTPS**: Relaxation to the prior spread will relax the analysis ensemble spread (i.e. standard
+  !                deviation) to the trial ensemble spread with a given amount (:math:`\alpha`) in the namelist.
+  !                With the ensemble spread of analysis (:math:`\sigma^a`)
+  !                and trial (:math:`\sigma^b`), it can be formulated as:
+  !                :math:`x^a_i \leftarrow \overline{x^a} + (\overline{x^a}-x^a_i)(1+\alpha(\sigma^b-\sigma^a)/\sigma^a)`
+  !
+  !                More details for the RTPS can be found in paper:
+  !                `Evaluating Methods to Account for System Errors in Ensemble Data Assimilation
+  !                <https://journals.ametsoc.org/view/journals/mwre/140/9/mwr-d-11-00276.1.xml>`_
+  !
+  !              - **Humidity limits**: Impose the saturation limits and RTTOV limits
+  !                on the humidity for each member.
+  !
+  !              - **Recenter**: The ensemble analyses from the LETKF are recentered
+  !                around the EnVar analysis based on the input coefficent.
+  !                It is also called hybrid gain algorithm and more details can be found in
+  !                paper:
+  !                `Using the hybrid gain algorithm to sample data assimilation uncertainty
+  !                <https://rmets.onlinelibrary.wiley.com/doi/10.1002/qj.3426>`_
+  !
+  !              - **Subsample**: Select 20 ensemble members for the medium range forecasts.
+  !
+  !              - **Random perturbation**: Generate homogeneous and isotropic random perturbations
+  !                and add them to the ensemble analyses.
+  !
+  !              - **Analysis increments**: After all the processes above, the analysis incrememnts are
+  !                computed at the central time for all the members including the control member and
+  !                the subsampled 20 members.
+  !
+  !              - **Mask analysis increments**: For LAM grid, the analysis increments in the blending
+  !                area are masked out.
+  !
+  !            --
+  !
+  !============================================= ==============================================================
+  ! Input and Output Files                        Description of file
+  !============================================= ==============================================================
+  ! ``flnml``                                     In - Main namelist file with parameters user may modify
+  ! ``ensemble_trial/$YYYYMMDDHH_006_$NNNN``      In - Background ensemble member files
+  ! ``ensemble_anal/$YYYYMMDDHH_000_$NNNN``       In - Analysis ensemble member files
+  ! ``bgcov``                                     In - Bnmc matrix for the random perturbations
+  ! ``analysis_grid``                             In - Horizontal grid file on which the random perturbations
+  !                                               are generated
+  ! ``$YYYYMMDDHH_recentering_analysis``          In - Analysis from EnVar for recentering the ensemble analyses
+  ! ``analinc_mask``                              In - Mask file for masking the analysis increments for LAM grid
+  ! ``$YYYYMMDDHH_000_inc_$NNNN``                 Out - Ensemble analysis increments for trials
+  ! ``$YYYYMMDDHH_000_$NNNN``                     Out - Ensemble analyses recentered and perturbed
+  ! ``$YYYYMMDDHH_000_$NNNN_raw``                 Out - Ensemble analyses from LETKF
+  ! ``$YYYYMMDDHH_000_analmean``                  Out - Mean ensemble analysis without perturbation
+  ! ``$YYYYMMDDHH_000_analrms``                   Out - Analysis ensemble spread (i.e. standard deviation) without perturbation
+  ! ``$YYYYMMDDHH_000_analrms_ascii``             Out - Global average of  ``$YYYYMMDDHH_000_analrms``
+  ! ``$YYYYMMDDHH_000_analpertmean``              Out - Mean ensemble analysis with perturbation and recentering
+  ! ``$YYYYMMDDHH_000_analpertrms``               Out - Analysis ensemble spread with perturbation and recentering
+  ! ``$YYYYMMDDHH_000_analpertrms_ascii``         Out - Global average of  ``$YYYYMMDDHH_000_analpertrms``
+  ! ``$YYYYMMDDHH_006_trialmean``                 Out - Mean ensemble trial for all time levels
+  ! ``$YYYYMMDDHH_006_trialrms``                  Out - Trial ensemble spread at 6H
+  ! ``$YYYYMMDDHH_006_trialrms_ascii``            Out - Global average of ``$YYYYMMDDHH_006_trialrms``
+  ! ``subspace/$YYYYMMDDHH_000_inc_$NNNN``        Out - Subsampled ensemble analysis increments for progs
+  ! ``subspace/$YYYYMMDDHH_000_$NNNN``            Out - Subsampled ensemble analyses recentered and perturbed
+  ! ``subspace_unpert/$YYYYMMDDHH_000_$NNNN``     Out - Unperturbed subsampled ensemble analyses recentered
+  !============================================= ==============================================================
+  !
+  !            --
+  !
+  !:Synopsis: Below is a summary of the ``ensPostProcess`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Read the NAMLETKF namelist and check/modify some values.
+  !
+  !               - Various modules are setup: ``gridStateVector_mod``, ``timeCoord_mod`` (and set up dates
+  !                 and ``dateStampList`` variables for both trials and increments/analyses).
+  !
+  !               - Setup horizontal and vertical grid objects from first
+  !                 ensemble member file.
+  !
+  !               - Allocate varaibles and read ensemble analyses and trials
+  !
+  !             - **Ensemble postprocess:**
+  !
+  !               - Compute ensemble mean and spread (i.e. standard deviation) for analysis and trial
+  !
+  !               - Perform RTPP and RTPS and recompute analysis spread
+  !
+  !               - Recenter ensemble mean and recompute analysis mean and spread
+  !
+  !               - Apply humidity saturation limit and RTTOV HU limit and recompute analysis mean
+  !
+  !               - Subsample ensemble analysis
+  !
+  !               - Add random perturbation to the analyses and compute perturbed analysis spread
+  !
+  !               - Add random perturbation to the subsampled analyses and recenter subsampled mean to the
+  !                 global mean.
+  !
+  !               - Compute analysis increments for all analyses and subsampled analyses including the ensemble mean
+  !
+  !               - Mask LAM analysis increments are recompute the ensemble analyses by adding the increments
+  !                 to the trials
+  !
+  !               - Writing the outputs.
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#ensPostProcess>`_
+  !          that can affect the ``ensPostProcess`` program.
+  !
+  !========================== ========================== ==============================================================
+  ! Program/Module             Namelist                   Description of what is controlled
+  !========================== ========================== ==============================================================
+  ! ``midas_ensPostProcess``   ``NAMENSPOSTPROC``         Number of ensemble members and read, write control of trials
+  !                                                       and analyses and horizontal interpolation degree
+  ! ``enspostprocess_mod``     ``NAMENSPOSTPROCMODULE``   Control the postprocess algorithms
+  ! ``timeCoord_mod``          ``NAMTIME``                Temporal resolution of the background state and the analysis
+  !========================== ========================== ==============================================================
+  !
+
   use version_mod
   use midasMpi_mod
   use fileNames_mod

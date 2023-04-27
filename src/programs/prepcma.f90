@@ -16,10 +16,93 @@
 
 program midas_prepcma
   !
-  ! :Purpose: Read observation files that are in bgckalt format (i.e. output from
-  !           the background check) and transform them to the ObsSpaceData
-  !           format. All observations will collected in a single ObsSpaceData
-  !           structure. The structure is output in binary format.
+  !:Purpose: Read the observation files (usually after output by the background check) 
+  !          and apply further quality control and thinning for use by the ``LETKF`` program 
+  !
+  !          ---
+  !
+  !:Algorithm: After reading the observation files that have been processed by the background check,
+  !            the ``prepcma`` program rejects more observations based on the
+  !            various flags and conditions. It also performs further thinnings
+  !            on the data types of aircraft (AI), scatterometer (SC),
+  !            satellite winds (SW) and some radiance (TO). The rejection and thinning
+  !            are controlled by the options in the namelist of ``NAMPREPCMA``.
+  !            
+  !            ---
+  !
+  !:File I/O: The required input files and produced output files are listed as follows. 
+  !
+  !          --
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files                         Description of file
+  !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``flnml_static``                               In - The "static" namelist that should not be modified
+  ! ``obserr``                                     In - Observation error statistics
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family"
+  ! ``stats_tovs``                                 In - Satellite radiance observation errors
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files 
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - final observation file for each family
+  !============================================== ==============================================================
+  !
+  !          ---
+  !
+  !:Synopsis: Below is a summary of the ``prepcma`` program calling sequence:
+  !
+  !           - **Initial setups:**
+  !            
+  !             - Read the NAMPREPCMA namelist and check/modify some values.            
+  !
+  !             - ``filt_setup``: set up list of elements to be assimilated and flags for rejection
+  !                              
+  !             - ``obsf_setup``: get observation file names and datestamp
+  !
+  !           - **Computation:**
+  !
+  !             - ``obsf_readFiles``: get the observations 
+  !
+  !             - ``filt_suprep``: select the elements to assimilate and apply rejection flags 
+  !
+  !             - ``oer_setObsErrors``: initialize obs error covariances and set flag 
+  !
+  !             - ``oti_setup``: reject any observations outside the data assimilation window
+  !
+  !             - ``enkf_rejectHighLatIR``: reject all IR radiance observation in arctic and antarctic
+  !
+  !             - ``enkf_modifyAmsubObsError``: modify the obs error stddev for AMSUB in the tropics 
+  !
+  !             - ``thinning_fam``: perform thinning for aircraft (AI), scatterometer (SC),
+  !                                 satellite winds (SW) and some radiance (TO)
+  !
+  !           - **Final steps:**
+  !
+  !             - ``obsf_writeFiles``: write to burp/sqlite files 
+  !
+  !             - ``obsf_printFiles``: print to ascci file and to unformatted files
+  !
+  !          ---
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#prepcma>`_
+  !          that can affect the ``prepcma`` program.
+  !
+  !          * Some of the relevant namelist blocks used to configure the
+  !            prepcma are listed in the following table:
+  !
+  !          --
+  !   
+  !=================== ====================== ===========================================
+  ! Program/Module     Namelist               Description of what is controlled
+  !=================== ====================== ===========================================
+  ! ``midas_prepcma``  ``NAMPREPCMA``         parameters for CMA format and others 
+  !                                           to modify, reject and thinning some  
+  !                                           observation data 
+  ! ``timeCoord_mod``  ``NAMTIME``            assimilation time window length, temporal
+  !                                           resolution of the background state and the 
+  !                                           analysis
+  ! ``tovs_nl_mod``    ``NAMTOV``             The list of satellite and instrument
+  !=================== ====================== ===========================================
+  !
   !
   use version_mod
   use obsSpaceData_mod

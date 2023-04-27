@@ -15,11 +15,163 @@
 !-------------------------------------- LICENCE END --------------------------------------
 
 program midas_letkf
-  ! :Purpose: Main program for the local ensemble transform Kalman filter (LETKF).
-  !           Note that the actual calculation of the analyses is in the
-  !           subroutine enkf_LETKFanalyses.
-  !           Many aspects of this program are controlled throught the namelist
-  !           block NAMLETKF.
+  !
+  !:Purpose: Main program for the local ensemble transform Kalman filter
+  !          (LETKF). Several different variations of the LETKF algorithm have
+  !          been implemented. Note that the actual calculation of the analyses
+  !          is in the subroutine ``enkf_LETKFanalyses``. Many aspects of this
+  !          program are controlled through the namelist block NAMLETKF.
+  !
+  !          ---
+  !
+  !:Algorithm: The ``letkf`` programs implements several variations of the LETKF
+  !            ensemble data assimilation algorithm. The following variations
+  !            can be chosen through the namelist:
+  !
+  !              - **LETKF**: standard LETKF
+  !
+  !              - **CVLETKF**: LETKF with deterministic approach to cross validation using
+  !                the "gain form" (currently operational)
+  !
+  !              - **CVLETKF-PERTOBS**: LETKF with stochastic approach to cross validation
+  !
+  !              - **LETKF-Gain**: standard LETKF, but using the "gain form"
+  !
+  !              - **LETKF-Gain-ME**: standard LETKF, but using the "modulated ensemble" and "gain
+  !                form" to account for vertical localization
+  !
+  !              - **CVLETKF-ME**: LETKF with deterministic approach to cross validation using
+  !                the "modulated ensemble" and "gain form" to account for
+  !                vertical localization
+  !
+  !            More detail on the LETKF algorithms with and without cross
+  !            validation (deterministic and stochastic) can be found in the
+  !            paper:
+  !            `LETKF with cross validation <https://journals.ametsoc.org/view/journals/mwre/148/6/MWR-D-19-0402.1.xml>`_
+  !
+  !            --
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files (NWP applicaton)        Description of file
+  !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``flnml_static``                               In - The "static" namelist that should not be modified
+  ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Background ensemble member files
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
+  ! ``obserr``                                     In - Observation error statistics
+  ! ``$YYYYMMDDHH_000_$NNNN``                      Out - Analysis ensemble member files
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
+  ! Remainder are files related to radiance obs:
+  ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of difference sensors
+  ! ``stats_tovs``                                 In - Satellite radiance observation errors
+  ! ``stats_tovs_symmetricObsErr``                 In - User-defined symmetric TOVS errors for all sky
+  ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
+  ! ``ceres_global.std``                           In - High-res surface type and water fraction for radiance obs
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
+  ! ``rttov_h2o_limits.dat``                       In - Min/max humidity limits applied to analysis
+  ! ``ozoneclim98``                                In - Ozone climatology
+  !============================================== ==============================================================
+  !
+  !           --
+  !
+  !:Synopsis: Below is a summary of the ``letkf`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Read the NAMLETKF namelist and check/modify some values.
+  !
+  !               - Various modules are setup: ``obsFiles_mod``,
+  !                 ``gridStateVector_mod``, ``timeCoord_mod`` (and set up dates
+  !                 and ``dateStampList`` variables for both trials and
+  !                 increments/analyses).
+  !
+  !               - Setup horizontal and vertical grid objects from first
+  !                 ensemble member file and determine if this is an NWP or
+  !                 ocean application.
+  !
+  !               - Setup ``obsSpaceData`` object and read observations from
+  !                 files: ``inn_setupObs``.
+  !
+  !               - Setup the observation error statistics in ``obsSpaceData``
+  !                 object: ``oer_setObsErrors``.
+  !
+  !               - Allocate and some setup of objects for
+  !                 ``ensembleObservations_mod``.
+  !
+  !               - Allocate objects for ``column_mod`` and
+  !                 ``gridStateVector_mod``.
+  !
+  !               - Allocate ensemble object and read trial ensemble:
+  !                 ``ens_readEnsemble``.
+  !
+  !               - Optionally, read a deterministic state for recentering the
+  !                 trial ensemble before the analysis (for special applications
+  !                 using LETKF for deterministic analysis).
+  !
+  !               - Compute ensemble mean: ``ens_computeMean``.
+  !
+  !             - **LETKF computations:**
+  !
+  !               - Loop over trial members, computing innovation for each, with
+  !                 resulting :math:`H(xb)` being stored in ``ensObs`` objects both for
+  !                 original ensemble and, optionally, for the modulated
+  !                 ensemble members.
+  !
+  !               - Compute some additional quantities in ``ensObs`` objects based
+  !                 on :math:`H(xb)` values.
+  !
+  !               - Compute :math:`y-H(xb)` for trial ensemble mean.
+  !
+  !               - Additional observation quality control procedures based on
+  !                 quantities computed from trial ensemble.
+  !
+  !               - Gather ``ensObs`` quantities from all MPI tasks onto all MPI
+  !                 tasks.
+  !
+  !               - Allocate and prepare objects for ``ensembleStateVector_mod``
+  !                 used to store the trial and analysis ensembles with
+  !                 temporal resolution of analysis (can be same as temporal
+  !                 resolution for innovation calculation or only a single time
+  !                 step).
+  !
+  !               - Setup information for interpolating weights from coarse grid
+  !                 to the full model grid: ``enkf_setupInterpInfo``.
+  !
+  !               - Perform LETKF analysis to compute the analysis ensemble:
+  !                 ``enkf_LETKFanalyses``
+  !
+  !             - **Final steps:**
+  !
+  !               - Optionally, compute :math:`H(xa)` for each member and put values in
+  !                 ``ensObs`` object for later output to diag SQLite files.
+  !
+  !               - Write out (update) the observation files: ``obsf_writeFiles``.
+  !
+  !               - Compute :math:`y-H(xa)` for ensemble mean analysis, stored in
+  !                 ``obsSpaceData``.
+  !
+  !               - Optionally, do post-processing of the analysis ensemble (same
+  !                 functionality as the ``ensPostProcess`` program), or just
+  !                 write out the raw analysis ensemble (for later processing by
+  !                 ``ensPostProcess``).
+  !
+  !           --
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#letkf>`_
+  !          that can affect the ``letkf`` program.
+  !
+  !          * Some of the other relevant namelist blocks used to configure the
+  !            letkf analysis are listed in the following table:
+  ! 
+  !======================== ============== ==============================================================
+  ! Program/Module           Namelist       Description of what is controlled
+  !======================== ============== ==============================================================
+  ! ``midas_letkf``          ``NAMLETKF``   LETKF algorithm, number of ensemble members and
+  !                                         additional parameters for controlling the LETKF analysis
+  ! ``timeCoord_mod``        ``NAMTIME``    assimilation time window length, temporal resolution of
+  !                                         the background state and the analysis
+  !======================== ============== ==============================================================
+  !
   use version_mod
   use midasMpi_mod
   use mathPhysConstants_mod

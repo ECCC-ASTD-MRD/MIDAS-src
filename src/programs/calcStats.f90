@@ -16,9 +16,74 @@
 
 program midas_calcstats
   !
-  ! :Purpose: Main program for computing background-error covariance file
-  !           based on homogeneous and isotropic correlations.
+  !:Purpose: Swiss-knife type program originally used only for computing background-error covariances
+  !          (**B**) based on homogeneous and isotropic (HI) correlations that was extended with time
+  !          to compute various statistics and diagnostics from an ensemble of background-error estimates
   !
+  !          ---
+  !
+  !:Algorithm: The ``calcStats`` program performs various types of statistics and diagnostics based on
+  !            two modes defined through namelist options.
+  !
+  !              - **BHI**: Compute HI **B**. The approach for  limited-area applications is based on a bi-Fourier
+  !                         spectral representation and the CVT described in <https://doi.org/10.1175/2010WAF2222401.1>.
+  !                         For global applications, two formulations based on sperical-harmonics spectral representation
+  !                         are available and controlled controlled by ``NAMCOMPUTEBHI``: 1) the legacy CVT formulation
+  !                         described in <https://doi.org/10.1175/MWR-D-11-00097.1> and refereces therein,
+  !                         and 2) an experimental-only formulation that mimics the CVT model used in the limited-area mode.
+  !              - **TOOLBOX**: The swiss-knife component of this program controlled by ``NAMTOOLBOX`` from the
+  !                global and LAM calcstats-related modules. Compute various statistics and diagnostics from
+  !                an ensemble of background-error estimates in model-variable and/or control-variable space,
+  !                such as:
+  !                - HI vertical correlations
+  !                - HI horizontal correlation functions
+  !                - Variances
+  !                - Local correlations
+  !                - Optimal covariance localization radii
+  !                - Power spectra
+  !                Note that the above options are not all available in both global and limited-area
+  !                applications.
+  !            ---
+  !
+  !============================================= ==============================================================
+  ! Input and Output Files                        Description of file
+  !============================================= ==============================================================
+  ! ``flnml``                                     In - Main namelist file with parameters user may modify
+  ! ``ensemble/$YYYYMMDDHH_$HHH_$NNNN``           In - Background-error estimates
+  ! ``various``                                   Out - Too many to be listed here
+  !============================================= ==============================================================
+  !
+  !            --
+  !
+  !:Synopsis: Below is a summary of the ``calcStats`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Read the NAMCONF and NAMENS namelist
+  !
+  !               - Setup horizontal and vertical grid objects using the first ensemble member
+  !
+  !               - Various modules are setup: ``gridStateVector_mod``, ``timeCoord_mod`` and ``bmatrix_mod``
+  !
+  !             - **Statistics and Diagnostics:**
+  !
+  !               - Intialize the module for global or limited-area applications
+  !
+  !               - Select the appropriate master routine based on the chosen mode
+  !
+  !               - The I/O and number crunching is performed within the global and limited-area modules
+  !
+  !
+  !======================== ============ ==============================================================
+  ! Module                   Namelist     Description of what is controlled
+  !======================== ============ ==============================================================
+  ! ``timeCoord_mod``        ``NAMTIME``  date of validity of the ensemble of background-error estimates
+  !                                       the background state and increment
+  ! ``calcstatslglb_mod``    ``mode-dependent``  Too many to be listed here
+  ! ``calcstatslam_mod``     ``mode-dependent``  Too many to be listed here
+  !======================== ============ ==============================================================
+  !
+ 
   use version_mod
   use midasMpi_mod
   use fileNames_mod

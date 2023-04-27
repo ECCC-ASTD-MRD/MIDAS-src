@@ -16,10 +16,110 @@
 
 program midas_randomPert
   !
-  ! :Purpose: Main program for generating an ensemble of random perturbations
-  !           based on the B matrix (can be homogeneous/isotropic or
-  !           ensemble-based).
+  !:Purpose: Main program for generating an ensemble of random perturbations,
+  !          based on the B matrix (can be homogeneous and isotropic, ensemble-based
+  !          or a weighted sum of covariance matrices).
   !
+  !          ---
+  !
+  !:Algorithm: Uses a gaussian pseudorandom generator to produce an ensemble
+  !            of control vectors.  These control vectors are transformed into
+  !            pertubations in physical space, through the action of the square-root
+  !            of the background-error covariance matrix.  The ensemble of perturbations
+  !            can then be debiased and some smoothing can be applied.
+  !            The perturbations thus obtained can then be interpolated and added
+  !            to a provided ensemble mean and/or be mixed with some previous time
+  !            perturbations.
+  !
+  !            ---
+  !
+  !:File I/O:
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files                         Description of file
+  !============================================== ==============================================================
+  ! ``analysisgrid``                               In - File defining grid on which perturbations are generated
+  ! ``targetgrid``                                 In - File defining destination ensemble grid
+  ! ``bgcov``                                      In - Static (i.e. NMC) B matrix file for NWP fields
+  ! ``seaIceAnalysis``                             In - Sea-ice analysis, to set under-ice perturbations to zero
+  ! ``pert_$YYYYMMDDHH_000_$NNNN``                 In - Previous date perturbations, when ensemble not provided
+  ! ``$YYYYMMDDHH_006_$NNNN``                      In/Out - Ensemble member files
+  ! ``pert_$YYYYMMDDHH_000_$NNNN``                 Out - Output perturbations
+  !============================================== ==============================================================
+  !
+  !
+  !:Synopsis: Below is a summary of the ``randomPert`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Initialize the horizontal and vertical grid objects; for the
+  !                 generation of the perturbations from ``analysisgrid`` and
+  !                 for the ensemble output from ``targetgrid``.
+  !
+  !               - Setup the B matrices: ``bmat_setup``.
+  !
+  !               - Allocate arrays and a stateVector object on the ``analysisgrid``,
+  !                 to receive the perturbations and first statistical moments.
+  !
+  !               - Initialize the pseudorandom generator : ``rng_setup``.
+  !
+  !             - **Generation of the ensemble of perturbations**.
+  !               Iterate until the number of required perturbations (``NENS``)
+  !               is generated:
+  !
+  !               - Generate a random control vector from a unit variance gaussian
+  !                 distribution: ``rng_gaussian``.
+  !
+  !               - Transform control vector to physical space perturbation using
+  !                 ``bmat_sqrtB``.
+  !
+  !             - **Unbias the ensemble of perturbations** if ``REMOVE_MEAN`` is true.
+  !
+  !             - **Smooth variances** if ``smoothVariances`` is true.
+  !
+  !             - **Read ensemble mean** if ``readEnsMean`` is true:
+  !
+  !               - Allocate a stateVector object on the ``targetgrid``, and then
+  !                 read the ensemble mean using ``gio_readFromFile``.
+  !
+  !               - if ``setPertZeroUnderIce`` is true, allocate a stateVector
+  !                 object and read sea-ice analysis using ``gio_readFromFile``.
+  !                 Where the ice fraction is higher than ``iceFractionThreshold``,
+  !                 the perturbations are set to zero.
+  !
+  !             - **Read and debias previous date perturbations** if
+  !               ``previousDateFraction`` is higher than zero.
+  !
+  !             - **Final steps**:
+  !
+  !               - Allocate a statevector object on the ``targetgrid``, copy ocean
+  !                 mask and interpolate perturbations using ``int_interp_gsv``
+  !
+  !               - If ``previousDateFraction`` higher than zero, average previous
+  !                 date perturbations with the ones generated for the present date.
+  !
+  !               - If ``readEnsMean`` is true, add the ensemble mean to the perturbations.
+  !
+  !               - Write the perturbations using ``gio_writeToFile``.  If ``readEnsMean``
+  !                 is true, write the ensemble mean as well.
+  !
+  !               ---
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#randompert>`_
+  !          that can affect the ``randomPert`` program.
+  !
+  !         * ``&NAMENKF`` define specific parameters to configure the ``randomPert``
+  !           program and is read by the program.
+  !
+  !         * The background-error covariance matrix contributions are defined through
+  !           the namelists ``&NAMBHI``, for the homogeneous and isotropic part,
+  !           and ``&NAMBEN`` for the ensemble part.  When the matrix is a weighted
+  !           sum, it is important to make sure to define the ``SCALEFACTOR`` values.
+  !           Note that it would be also possible to define contributions from
+  !           ``&NAMBDIFF`` for diffusion correlations and ``&NAMBCHM`` for homogeneous
+  !           and isotropic chemical constituents covariances.
+  !
+
   use version_mod
   use midasMpi_mod
   use ramDisk_mod
@@ -312,8 +412,10 @@ program midas_randomPert
     do levIndex = 1, nkgdim
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
-          ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) = real(field(lonIndex, latIndex, levIndex), 4)
-          gdmean(lonIndex, latIndex, levIndex) = gdmean(lonIndex, latIndex, levIndex) + field(lonIndex, latIndex, levIndex)
+          ensemble_r4(lonIndex, latIndex, levIndex, memberIndex) &
+               = real(field(lonIndex, latIndex, levIndex), 4)
+          gdmean(lonIndex, latIndex, levIndex) &
+               = gdmean(lonIndex, latIndex, levIndex) + field(lonIndex, latIndex, levIndex)
         end do
       end do
     end do
@@ -330,7 +432,8 @@ program midas_randomPert
     do levIndex = 1, nkgdim
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
-          gdmean(lonIndex, latIndex, levIndex) = gdmean(lonIndex, latIndex, levIndex) / real(NENS, 8)
+          gdmean(lonIndex, latIndex, levIndex) &
+               = gdmean(lonIndex, latIndex, levIndex) / real(NENS, 8)
         end do
       end do
     end do
@@ -366,8 +469,8 @@ program midas_randomPert
       do levIndex = 1, nkgdim
         do latIndex = myLatBega, myLatEnda
           do lonIndex = myLonBega, myLonEnda
-               pturb_var(lonIndex, latIndex, levIndex) = pturb_var(lonIndex, latIndex, levIndex) +  &
-                   real(ensemble_r4(lonIndex, latIndex, levIndex, memberIndex), 8)**2
+               pturb_var(lonIndex, latIndex, levIndex) = pturb_var(lonIndex, latIndex, levIndex) &
+                   + real(ensemble_r4(lonIndex, latIndex, levIndex, memberIndex), 8)**2
           end do
         end do
       end do
@@ -378,7 +481,8 @@ program midas_randomPert
     do levIndex = 1, nkgdim
       do latIndex = myLatBega, myLatEnda
         do lonIndex = myLonBega, myLonEnda
-          pturb_var(lonIndex, latIndex, levIndex) = pturb_var(lonIndex, latIndex, levIndex) / real(NENS, 8)
+          pturb_var(lonIndex, latIndex, levIndex) &
+               = pturb_var(lonIndex, latIndex, levIndex) / real(NENS, 8)
         end do
       end do
     end do
@@ -532,8 +636,8 @@ program midas_randomPert
           do lonIndex = myLonBegt, myLonEndt
             ensemblePreviousDate_r4(lonIndex, latIndex, levIndex, memberIndex) = &
                  real(field(lonIndex, latIndex, levIndex), 4)
-            gdmean(lonIndex, latIndex, levIndex) = gdmean(lonIndex, latIndex, levIndex) + &
-                                                   field(lonIndex, latIndex, levIndex)
+            gdmean(lonIndex, latIndex, levIndex) = gdmean(lonIndex, latIndex, levIndex) &
+                                                   + field(lonIndex, latIndex, levIndex)
           end do
         end do
       end do
@@ -546,7 +650,8 @@ program midas_randomPert
     do levIndex = 1, nkgdim
       do latIndex = myLatBegt, myLatEndt
         do lonIndex = myLonBegt, myLonEndt
-          gdmean(lonIndex, latIndex, levIndex) = gdmean(lonIndex, latIndex, levIndex) / real(NENS, 8)
+          gdmean(lonIndex, latIndex, levIndex) = gdmean(lonIndex, latIndex, levIndex) &
+                                                 / real(NENS, 8)
         end do
       end do
     end do

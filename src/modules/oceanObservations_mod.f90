@@ -17,7 +17,7 @@
 module oceanObservations_mod
   ! MODULE oceanObservations_mod (prefix='oobs' category='1. High-level functionality')
   !
-  ! :Purpose: storage for ocean observations related subroutines
+  !:Purpose: storage for ocean observations related subroutines
   !
   use midasMpi_mod
   use utilities_mod
@@ -57,9 +57,9 @@ module oceanObservations_mod
   subroutine oobs_pseudoSST(hco, vco, iceFractionThreshold, outputSST, outputFreshWaterST, &
                             iceThinning, outputFileName, etiket, seaWaterThreshold)
     !
-    !: Purpose: to generate pseudo SST data  
+    !:Purpose: to generate pseudo SST data  
     !           
-    
+   
     implicit none
     
     ! Arguments
@@ -207,8 +207,8 @@ module oceanObservations_mod
                                  etiket, datePrint, timePrint, &
                                  seaWaterFraction, seaWaterThreshold, inlandWaterPoints)
     !
-    !: Purpose: pseudo SST data are put into obsSpaceData  
-    !           and written into an SQLite file
+    !:Purpose: pseudo SST data are put into obsSpaceData  
+    !          and written into an SQLite file
     
     implicit none
     

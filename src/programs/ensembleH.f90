@@ -16,8 +16,111 @@
 
 program midas_ensembleH
   !
-  ! :Purpose: Main program for applying the observation operator to an ensemble
-  !           of states as the first step for most EnKF algorithms.
+  !:Purpose: Main program for applying the observation operator to an ensemble
+  !          of states to compute the innovations and store them in eob*_HX binary files. The
+  !          ``LETKF`` program can read these binary files instead of computing the innovations.
+  !
+  !          ---
+  !
+  !:Algorithm: The background (a.k.a trial) ensemble members are read and the non-linear 
+  !            observation operators are applied to each ensemble member:
+  !            :math:`H(xb_{i})`,
+  !            the innovations are computed: 
+  !            :math:`y-H(xb_{i})`,
+  !            and stored in unformatted binary files. ``ensembleH`` has the ability 
+  !            to compute innovations for a batch of ensemble members when the member 
+  !            indices are sequential. 
+  !
+  !            --
+  !
+  !============================================== ==============================================================
+  ! Input and Output Files                        Description of file
+  !============================================== ==============================================================
+  ! ``flnml``                                      In - Main namelist file with parameters user may modify
+  ! ``flnml_static``                               In - The "static" namelist that should not be modified
+  ! ``trlm_$NN`` (e.g. ``trlm_01``)                In - Background state (a.k.a. trial) files for each timestep
+  ! ``ensemble/$YYYYMMDDHH_006_$NNNN``             In - Background ensemble member files
+  ! ``obsfiles_$FAM/obs$FAM_$NNNN_$NNNN``          In - Observation file for each "family" and MPI task
+  ! ``obserr``                                     In - Observation error statistics
+  ! ``$YYYYMMDDHH_000_$NNNN``                      Out - Analysis ensemble member files
+  ! ``obsfiles_$FAM.updated/obs$FAM_$NNNN_$NNNN``  Out - Updated obs file for each "family" and MPI task
+  ! Remainder are files related to radiance obs:
+  ! ``stats_$SENSOR_assim``                        In - Satellite radiance observation errors of difference sensors
+  ! ``stats_tovs``                                 In - Satellite radiance observation errors
+  ! ``stats_tovs_symmetricObsErr``                 In - User-defined symmetric TOVS errors for all sky
+  ! ``Cmat_$PLATFORM_$SENSOR.dat``                 In - Inter-channel observation-error correlations
+  ! ``ceres_global.std``                           In - High-res surface type and water fraction for radiance obs
+  ! ``rtcoef_$PLATFORM_$SENSOR.dat``               In - RTTOV coefficient files
+  ! ``rttov_h2o_limits.dat``                       In - Min/max humidity limits applied to analysis
+  ! ``ozoneclim98``                                In - Ozone climatology
+  !============================================== ==============================================================
+  !
+  !           --
+  !
+  !:Synopsis: Below is a summary of the ``ensembleH`` program calling sequence:
+  !
+  !             - **Initial setups:**
+  !
+  !               - Read the NAMENSEMBLEH namelist and check/modify some values.
+  !
+  !               - Various modules are setup: ``obsFiles_mod``,
+  !                 ``gridStateVector_mod``, ``timeCoord_mod`` (and set up dates
+  !                 and ``dateStampList`` variables for both trials and
+  !                 increments/analyses).
+  !
+  !               - Setup horizontal and vertical grid objects from first
+  !                 ensemble member file.
+  !
+  !               - Setup ``obsSpaceData`` object and read observations from
+  !                 files: ``inn_setupObs``.
+  !
+  !               - Setup the observation error statistics in ``obsSpaceData``
+  !                 object: ``oer_setObsErrors``.
+  !
+  !               - Allocate objects for ``column_mod``.
+  !
+  !               - Allocate and some setup of objects for
+  !                 ``ensembleObservations_mod``.
+  !
+  !               - Allocate some objects for ``gridStateVector_mod``.
+  !
+  !               - Allocate ensemble object and read background ensemble members:
+  !                 ``ens_readEnsemble``.
+  !
+  !             - **Computation**
+  !
+  !               - Option to read ensemble mean from file (``gio_readFromFile``) or 
+  !                 compute ensemble mean (``ens_computeMean``)
+  !
+  !               - Loop over background ensemble members, computing innovation for each, 
+  !                 with resulting ``H(xb)`` being stored in ``ensObs`` objects both for
+  !                 original ensemble and, optionally, for the modulated
+  !                 ensemble members.
+  !
+  !               - store the local ``ensObs`` object to binary file.
+  !
+  !             --
+  !  
+  !
+  !:Options: `List of namelist blocks <../namelists_in_each_program.html#ensembleH>`_
+  !          that can affect the ``ensembleH`` program.
+  !
+  !          * The use of ``ensembleH`` program is controlled by the namelist block
+  !           ``&NAMENSEMBLEH`` read by the ``ensembleH`` program.
+  !
+  !          * Some of the other relevant namelist blocks used to configure the
+  !            ``ensembleH`` are listed in the following table:
+  ! 
+  !===================== ================== ===============================================================
+  ! Program/Module        Namelist           Description of what is controlled
+  !===================== ================== ===============================================================
+  ! ``midas_ensembleh``   ``NAMENSEMBLEH``   number of ensemble members, additional parameters to control
+  !                                          generating modulated members from original ensembles, 
+  !                                          the member number the current batch starts with, number of 
+  !                                          members in the batch, option to read ensemble mean from file.
+  ! ``timeCoord_mod``     ``NAMTIME``        assimilation time window length, temporal resolution of
+  !                                          the background state.
+  !===================== ================== ===============================================================
   !
   use version_mod
   use midasMpi_mod
