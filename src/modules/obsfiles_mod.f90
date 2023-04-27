@@ -150,7 +150,11 @@ contains
       obsFamilyType = obsf_familyTypeMpiUniqueList(fileIndex)
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
       inquire(file=trim(fileNameFull),exist=fileExists)
-      if (.not. fileExists) cycle
+
+      if (.not. fileExists .and. obsFileType == 'BURP') then
+        call brpr_setHeadBodyPrimaryKeyColumns(obsSpaceData, obsFamilyType)
+        cycle
+      end if
 
       call obsf_determineSplitFileType( obsFileType, fileNameFull )
       if ( obsFileType == 'BURP' )   then

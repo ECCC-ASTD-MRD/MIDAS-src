@@ -29,7 +29,7 @@ private
 ! public procedures
 public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume, brpr_addCloudParametersandEmissivity
 public :: brpr_addElementsToBurp, brpr_updateMissingObsFlags, brpr_burpClean
-
+public :: brpr_setHeadBodyPrimaryKeyColumns
 
 integer, parameter :: maxItems = 20
 integer, parameter :: maxElements = 20
@@ -3372,7 +3372,7 @@ CONTAINS
 
     call cleanup()
 
-    call setHeadBodyPrimaryKeyColumns(obsdat, familyType)
+    call brpr_setHeadBodyPrimaryKeyColumns(obsdat, familyType)
 
     numHeader = obs_numHeader(obsdat)
     write(*,*)' file   Nobs SUM = ',trim(brp_file),numHeader,SUM
@@ -3411,9 +3411,9 @@ CONTAINS
   end subroutine brpr_readBurp
 
   !--------------------------------------------------------------------------
-  ! setHeadBodyPrimaryKeyColumns
+  ! brpr_setHeadBodyPrimaryKeyColumns
   !--------------------------------------------------------------------------
-  subroutine setHeadBodyPrimaryKeyColumns(obsDat, obsFamily)
+  subroutine brpr_setHeadBodyPrimaryKeyColumns(obsDat, obsFamily)
     !
     ! :Purpose: Set header/body primary keys in obsSpaceData that 
     !           will ensure unique values over all mpi tasks.
@@ -3432,7 +3432,7 @@ CONTAINS
     integer(8) :: headerPrimaryKey, bodyPrimaryKey
     integer, allocatable :: allNumHeader(:), allNumBody(:)
 
-    if (mmpi_myid == 0) write(*,*) 'setHeadBodyPrimaryKeyColumns: start'
+    if (mmpi_myid == 0) write(*,*) 'brpr_setHeadBodyPrimaryKeyColumns: start'
 
     numHeader = 0
     numBody = 0
@@ -3474,9 +3474,9 @@ CONTAINS
       end do BODY
     end do HEADER
 
-    if (mmpi_myid == 0) write(*,*) 'setHeadBodyPrimaryKeyColumns: end'
+    if (mmpi_myid == 0) write(*,*) 'brpr_setHeadBodyPrimaryKeyColumns: end'
 
-  end subroutine setHeadBodyPrimaryKeyColumns
+  end subroutine brpr_setHeadBodyPrimaryKeyColumns
 
   !--------------------------------------------------------------------------
   ! WRITE_BODY
