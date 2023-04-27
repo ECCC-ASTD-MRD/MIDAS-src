@@ -400,15 +400,18 @@ contains
     implicit none
 
     ! locals
-    character(len=20)   :: clvalu(jpfiles)
+    integer,  parameter :: prefixLenFilename = 20
+    character(len=prefixLenFilename) :: clvalu(jpfiles), baseFileName(jpfiles)
+    character(len=prefixLenFilename) :: baseFileNameUnique(jpfiles)
     character(len=2)    :: cfami(jpfiles)
     character(len=4)    :: cmyidx, cmyidy
     character(len=9)    :: cmyid
     character(len=256)  :: obsDirectory
     character(len=maxLengthFilename) :: fileName   !! the length should be more than len(obsDirectory)+1+len(clvalu)+1+len(cmyid)
     character(len=256)               :: fileNamefull
+    character(len=prefixLenFilename), allocatable :: baseFileNameAllMpi(:,:)
     logical :: fileExists
-    integer :: fileIndex
+    integer :: fileIndex, fileIndex2, procIndex, numUniqueName, ierr
 
     write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
     write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
@@ -642,6 +645,7 @@ contains
 
     obsf_nfiles = 0
     obsf_cfilnam(1) = 'DUMMY_FILE_NAME'
+    baseFileName(:) = ''
 
     do fileIndex = 1, jpfiles 
 
@@ -658,12 +662,52 @@ contains
 
       if ( fileExists ) then
         obsf_nfiles=obsf_nfiles + 1
+        baseFileName(obsf_nfiles) = trim(clvalu(fileIndex))
         obsf_cfilnam(obsf_nfiles) = fileNameFull
         obsf_cfamtyp(obsf_nfiles) = cfami(fileIndex)
       end if
 
     end do
 
+    ! Create a unique list of obs files across all mpi tasks without duplicates
+    allocate(baseFileNameAllMpi(jpfiles,mmpi_nprocs))
+    baseFileNameAllMpi(:,:) = ''
+    call mmpi_allgather_string(baseFileName, baseFileNameAllMpi, &
+                                jpfiles, prefixLenFilename, mmpi_nprocs, &
+                                "GRID", ierr)
+
+    baseFileNameUnique(:) = ''
+    numUniqueName = 1
+    baseFileNameUnique(numUniqueName) = baseFileNameAllMpi(1,1)
+    do fileIndex = 1, jpfiles 
+      loopProc: do procIndex = 1, mmpi_nprocs
+        if (trim((baseFileNameAllMpi(fileIndex,procIndex))) == '') cycle loopProc
+
+        do fileIndex2 = 1, numUniqueName
+          if (.not. trim(baseFileNameUnique(fileIndex2)) == trim(baseFileNameAllMpi(fileIndex,procIndex))) then
+            numUniqueName = numUniqueName + 1
+            baseFileNameUnique(numUniqueName) = baseFileNameAllMpi(fileIndex,procIndex)
+            exit loopProc
+          end if
+        end do
+
+      end do loopProc
+    end do
+
+    if (mmpi_myid == 0) then
+      write(*,*) 'obsf_setupFileNames: baseFileNameAllMpi=' 
+      do fileIndex = 1, jpfiles
+        if (trim((baseFileNameAllMpi(fileIndex,1))) == '') cycle
+
+        write(*,'(1X,A20)' ) baseFileNameAllMpi(fileIndex,1)
+      end do
+    end if
+
+    write(*,*) 'obsf_setupFileNames: numUniqueName=', numUniqueName, ', baseFileNameUnique='
+    do fileIndex = 1, numUniqueName
+      write(*,'(1X,A20)' ) baseFileNameUnique(fileIndex)
+    end do
+    
     write(*,*) ' '
     write(*,*)'obsf_setupFileNames: Number of observation files is :', obsf_nfiles
     write(*,*)'Type  Name '
