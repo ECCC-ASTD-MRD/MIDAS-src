@@ -51,7 +51,7 @@ module obsFiles_mod
   character(len=maxLengthFilename) :: obsf_cfilnam(jpfiles)
   character(len=familyTypeLen)     :: obsf_cfamtyp(jpfiles)
   character(len=48)  :: obsFileMode
-  character(len=maxLengthFilename) :: obsf_baseFileNameUnique(jpfiles)
+  character(len=maxLengthFilename) :: obsf_baseFileNameMpiUniqueList(jpfiles)
   character(len=familyTypeLen)     :: obsf_familyTypeMpiUniqueList(jpfiles)
 
 contains
@@ -734,19 +734,20 @@ contains
                                 "GRID", ierr)
 
     ! Create a unique list of obs filenames/familytype across all mpi tasks without duplicates
-    obsf_baseFileNameUnique(:) = ''
+    obsf_baseFileNameMpiUniqueList(:) = ''
     obsf_familyTypeMpiUniqueList(:) = ''
     numUniqueName = 1
-    obsf_baseFileNameUnique(numUniqueName) = baseFileNameAllMpi(1,1)
+    obsf_baseFileNameMpiUniqueList(numUniqueName) = baseFileNameAllMpi(1,1)
     obsf_familyTypeMpiUniqueList(numUniqueName) = familyTypeAllMpi(1,1)
     do fileIndex = 1, jpfiles 
       loopProc: do procIndex = 1, mmpi_nprocs
         if (trim((baseFileNameAllMpi(fileIndex,procIndex))) == '') cycle loopProc
 
         do fileIndex2 = 1, numUniqueName
-          if (.not. trim(obsf_baseFileNameUnique(fileIndex2)) == trim(baseFileNameAllMpi(fileIndex,procIndex))) then
+          if (.not. trim(obsf_baseFileNameMpiUniqueList(fileIndex2)) == &
+              trim(baseFileNameAllMpi(fileIndex,procIndex))) then
             numUniqueName = numUniqueName + 1
-            obsf_baseFileNameUnique(numUniqueName) = baseFileNameAllMpi(fileIndex,procIndex)
+            obsf_baseFileNameMpiUniqueList(numUniqueName) = baseFileNameAllMpi(fileIndex,procIndex)
             obsf_familyTypeMpiUniqueList(numUniqueName) = familyTypeAllMpi(fileIndex,procIndex)
             exit loopProc
           end if
@@ -773,7 +774,7 @@ contains
     write(*,*) '----  ---- '
     do fileIndex = 1, numUniqueName
       write(*,'(1X,A2,1X,A60)' ) trim(obsf_familyTypeMpiUniqueList(fileIndex)), &
-                                  trim(obsf_baseFileNameUnique(fileIndex))
+                                  trim(obsf_baseFileNameMpiUniqueList(fileIndex))
     end do
 
   end subroutine setObsFilesMpiUniqueList
