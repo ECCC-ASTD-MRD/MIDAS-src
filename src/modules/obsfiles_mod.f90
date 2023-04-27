@@ -44,13 +44,15 @@ module obsFiles_mod
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
 
-  integer, parameter :: jpfiles=150
-  integer, parameter :: maxLengthFilename=1060
+  integer, parameter :: jpfiles = 150
+  integer, parameter :: maxLengthFilename = 1060
+  integer, parameter :: familyTypeLen = 2
   integer :: obsf_nfiles
   character(len=maxLengthFilename) :: obsf_cfilnam(jpfiles)
-  character(len=2)   :: obsf_cfamtyp(jpfiles)
+  character(len=familyTypeLen)     :: obsf_cfamtyp(jpfiles)
   character(len=48)  :: obsFileMode
   character(len=maxLengthFilename) :: obsf_baseFileNameUnique(jpfiles)
+  character(len=familyTypeLen)     :: obsf_familyTypeMpiUniqueList(jpfiles)
 
 contains
 
@@ -705,7 +707,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine setObsFilesMpiUniqueList(baseFileName)
     !
-    ! :Purpose: Create a unique list of obs files across all mpi tasks.
+    ! :Purpose: Create a unique list of obs filenames/familyTypes across all mpi tasks.
     !
     implicit none
 
@@ -715,17 +717,28 @@ contains
     ! Locals:
     integer :: fileIndex, fileIndex2, procIndex, numUniqueName, ierr
     character(len=maxLengthFilename), allocatable :: baseFileNameAllMpi(:,:)
+    character(len=familyTypeLen), allocatable :: familyTypeAllMpi(:,:)
 
-    ! Create a unique list of obs files across all mpi tasks without duplicates
+    ! Communicate filenames across all mpi tasks
     allocate(baseFileNameAllMpi(jpfiles,mmpi_nprocs))
     baseFileNameAllMpi(:,:) = ''
     call mmpi_allgather_string(baseFileName, baseFileNameAllMpi, &
                                 jpfiles, maxLengthFilename, mmpi_nprocs, &
                                 "GRID", ierr)
 
+    ! Communicate familyTypes across all mpi tasks
+    allocate(familyTypeAllMpi(jpfiles,mmpi_nprocs))
+    familyTypeAllMpi(:,:) = ''
+    call mmpi_allgather_string(obsf_cfamtyp, familyTypeAllMpi, &
+                                jpfiles, familyTypeLen, mmpi_nprocs, &
+                                "GRID", ierr)
+
+    ! Create a unique list of obs filenames/familytype across all mpi tasks without duplicates
     obsf_baseFileNameUnique(:) = ''
+    obsf_familyTypeMpiUniqueList(:) = ''
     numUniqueName = 1
     obsf_baseFileNameUnique(numUniqueName) = baseFileNameAllMpi(1,1)
+    obsf_familyTypeMpiUniqueList(numUniqueName) = familyTypeAllMpi(1,1)
     do fileIndex = 1, jpfiles 
       loopProc: do procIndex = 1, mmpi_nprocs
         if (trim((baseFileNameAllMpi(fileIndex,procIndex))) == '') cycle loopProc
@@ -734,6 +747,7 @@ contains
           if (.not. trim(obsf_baseFileNameUnique(fileIndex2)) == trim(baseFileNameAllMpi(fileIndex,procIndex))) then
             numUniqueName = numUniqueName + 1
             obsf_baseFileNameUnique(numUniqueName) = baseFileNameAllMpi(fileIndex,procIndex)
+            obsf_familyTypeMpiUniqueList(numUniqueName) = familyTypeAllMpi(fileIndex,procIndex)
             exit loopProc
           end if
         end do
@@ -742,17 +756,24 @@ contains
     end do
 
     if (mmpi_myid == 0) then
-      write(*,*) 'setObsFilesMpiUniqueList: baseFileNameAllMpi=' 
+      write(*,*) 'setObsFilesMpiUniqueList: all mpi familType/filename before creating unique list:' 
+      write(*,*)'Type  Name '
+      write(*,*)'----  ---- '
       do fileIndex = 1, jpfiles
         if (trim((baseFileNameAllMpi(fileIndex,1))) == '') cycle
 
-        write(*,'(4X,A60)' ) trim(baseFileNameAllMpi(fileIndex,1))
+        write(*,'(1X,A2,1X,A60)' ) trim(familyTypeAllMpi(fileIndex,1)), &
+                                    trim(baseFileNameAllMpi(fileIndex,1))
       end do
     end if
 
-    write(*,*) 'setObsFilesMpiUniqueList: numUniqueName=', numUniqueName, ', obsf_baseFileNameUnique='
+    write(*,*) 'setObsFilesMpiUniqueList: numUniqueName=', numUniqueName
+    write(*,*) 'setObsFilesMpiUniqueList: familyType/filename in unique list:'
+    write(*,*) 'Type  Name '
+    write(*,*) '----  ---- '
     do fileIndex = 1, numUniqueName
-      write(*,'(4X,A60)' ) trim(obsf_baseFileNameUnique(fileIndex))
+      write(*,'(1X,A2,1X,A60)' ) trim(obsf_familyTypeMpiUniqueList(fileIndex)), &
+                                  trim(obsf_baseFileNameUnique(fileIndex))
     end do
 
   end subroutine setObsFilesMpiUniqueList
