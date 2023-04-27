@@ -172,7 +172,7 @@ module sqliteRead_mod
     character(len=256), allocatable :: listElemArray(:)
     integer, allocatable            :: listElemArrayInteger(:)
     integer                  :: numberBodyRows, numberBodyColumns, numberIDsRows, numberIDsColumns
-    integer                  :: columnIndex, idObs, idData
+    integer                  :: columnIndex
 
     integer, parameter :: lenSqlName    = 60
     character(len=lenSqlName), allocatable :: headSqlNames(:), bodySqlNames(:)
@@ -735,10 +735,6 @@ module sqliteRead_mod
 
     end do BODY
     call fSQL_commit(db)
-
-    ! determine initial idData,idObs to ensure unique values across mpi tasks
-    ! This is just to finish rpn_comm_allgather in brpr_readBurp -> getInitialIdObsData.
-    !call getInitialIdObsData(obsDat, familyType, idObs, idData)
 
     numHeader = obs_numHeader(obsdat)
     numBody   = obs_numBody(obsdat)

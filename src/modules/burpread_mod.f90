@@ -1933,7 +1933,6 @@ CONTAINS
     integer                :: iclass,NCHANAVHRR,NCLASSAVHRR,ichan,iobs,inorm
     integer                :: infot
     integer                :: ILEMZBCOR, ILEMTBCOR, ILEMHBCOR
-    integer                :: idObs, idData
     
     
     LISTE_INFO(1:31) = (/ &
@@ -3373,8 +3372,7 @@ CONTAINS
 
     call cleanup()
 
-    call getInitialIdObsData(obsDat, familyType, idObs, idData)
-    call setPrimarykeysInObsDat(obsDat, familyType, idObs, idData)
+    call setHeadBodyPrimaryKeyColumns(obsdat, familyType)
 
     numHeader = obs_numHeader(obsdat)
     write(*,*)' file   Nobs SUM = ',trim(brp_file),numHeader,SUM
@@ -3413,26 +3411,28 @@ CONTAINS
   end subroutine brpr_readBurp
 
   !--------------------------------------------------------------------------
-  ! getInitialIdObsData
+  ! setHeadBodyPrimaryKeyColumns
   !--------------------------------------------------------------------------
-  subroutine getInitialIdObsData(obsDat, obsFamily, idObs, idData)
+  subroutine setHeadBodyPrimaryKeyColumns(obsDat, obsFamily)
     !
-    ! :Purpose: Compute initial value for idObs and idData for each obsFamily
-    !           that will ensure unique values over all mpi tasks.
+    ! :Purpose: Set header/body primary keys in obsSpaceData that 
+    !           will ensure unique values over all mpi tasks.
     !
     implicit none
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsDat
     character(len=*), intent(in)    :: obsFamily    
-    integer         , intent(out)   :: idObs
-    integer         , intent(out)   :: idData
 
     ! locals:
-    integer               :: headerIndex, numHeader, numBody, ierr
-    integer, allocatable  :: allNumHeader(:), allNumBody(:)
+    integer    :: initialHeaderindex, initialBodyindex
+    integer    :: headerIndex, bodyIndex
+    integer    :: bodyIndexBegin, bodyIndexEnd
+    integer    :: numHeader, numBody, ierr
+    integer(8) :: headerPrimaryKey, bodyPrimaryKey
+    integer, allocatable :: allNumHeader(:), allNumBody(:)
 
-    write(*,*) 'getInitialIdObsData burpread_mod: start'
+    if (mmpi_myid == 0) write(*,*) 'setHeadBodyPrimaryKeyColumns: start'
 
     numHeader = 0
     numBody = 0
@@ -3446,68 +3446,22 @@ CONTAINS
     end do HEADERCOUNT
     allocate(allNumHeader(mmpi_nprocs))
     allocate(allNumBody(mmpi_nprocs))
-    write(*,*) 'getInitialIdObsData burpread_mod: mmpi_myid=', mmpi_myid, ', numHeader=', numHeader, ', numBody=', numBody
     call rpn_comm_allgather(numHeader,1,'mpi_integer',       &
                             allNumHeader,1,'mpi_integer','GRID',ierr)
     call rpn_comm_allgather(numBody,1,'mpi_integer',       &
                             allNumBody,1,'mpi_integer','GRID',ierr)
     if (mmpi_myid > 0) then
-      idObs = sum(allNumHeader(1:mmpi_myid))
-      idData = sum(allNumBody(1:mmpi_myid))
+      initialHeaderindex = sum(allNumHeader(1:mmpi_myid))
+      initialBodyindex = sum(allNumBody(1:mmpi_myid))
     else
-      idObs = 0
-      idData = 0
+      initialHeaderindex = 0
+      initialBodyindex = 0
     end if
     deallocate(allNumHeader)
     deallocate(allNumBody)
 
-    write(*,*) 'getInitialIdObsData burpread_mod: end'
-
-  end subroutine getInitialIdObsData
-
-  !--------------------------------------------------------------------------
-  ! setPrimarykeysInObsDat
-  !--------------------------------------------------------------------------
-  subroutine setPrimarykeysInObsDat(obsDat, obsFamily, idObs, idData)
-    !
-    ! :Purpose: Set primary header/body primary keys in obsSpaceData for each
-    !           obsFamily that will ensure unique values over all mpi tasks.
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_obs), intent(inout) :: obsDat
-    character(len=*), intent(in)    :: obsFamily    
-    integer         , intent(in)    :: idObs
-    integer         , intent(in)    :: idData
-
-    ! locals:
-    integer    :: numHeaders, headerIndex, bodyIndex
-    integer    :: bodyIndexBegin, bodyIndexEnd
-    integer    :: numHeader, numBody, ierr
-    integer(8) :: headerPrimaryKey, bodyPrimaryKey
-    integer, allocatable :: allNumHeader(:), allNumBody(:)
-
-    ! check if any obs exist for this file, if not return
-    numHeaders = 0
-    call obs_set_current_header_list(obsDat, obsFamily)
-    HEADERCOUNT: do
-      headerIndex = obs_getHeaderIndex(obsDat)
-      if (headerIndex < 0) exit HEADERCOUNT
-      numHeaders = numHeaders + 1
-    end do HEADERCOUNT
-    if (numHeaders == 0) return
-
-    write(*,*) 'setPrimarykeysInObsDat: start'
-
-    headerPrimaryKey = idObs
-    bodyPrimaryKey = idData
-    call obs_set_current_header_list(obsDat, obsFamily)
-    HEADER: do 
-      headerIndex = obs_getHeaderIndex(obsDat)
-      if (headerIndex < 0) exit HEADER
-
-      headerPrimaryKey = headerPrimaryKey + 1
+    HEADER: do headerIndex = 1, obs_numHeader(obsdat)
+      headerPrimaryKey = initialHeaderindex + headerIndex
       call obs_setHeadPrimaryKey(obsdat, headerIndex, headerPrimaryKey)
 
       bodyIndexBegin = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
@@ -3515,14 +3469,14 @@ CONTAINS
                     obs_headElem_i(obsdat, OBS_NLV, headerIndex) - 1
 
       BODY: do bodyIndex = bodyIndexBegin, bodyIndexEnd
-        bodyPrimaryKey = bodyPrimaryKey + 1
+        bodyPrimaryKey = initialBodyindex + bodyIndex
         call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey)
       end do BODY
     end do HEADER
 
-    write(*,*) 'setPrimarykeysInObsDat: end'
+    if (mmpi_myid == 0) write(*,*) 'setHeadBodyPrimaryKeyColumns: end'
 
-  end subroutine setPrimarykeysInObsDat
+  end subroutine setHeadBodyPrimaryKeyColumns
 
   !--------------------------------------------------------------------------
   ! WRITE_BODY
