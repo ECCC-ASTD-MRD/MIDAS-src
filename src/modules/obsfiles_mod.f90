@@ -45,13 +45,12 @@ module obsFiles_mod
   logical           :: initialized = .false.
 
   integer, parameter :: jpfiles=150
-  integer, parameter :: prefixLenFilename = 20
   integer, parameter :: maxLengthFilename=1060
   integer :: obsf_nfiles
   character(len=maxLengthFilename) :: obsf_cfilnam(jpfiles)
   character(len=2)   :: obsf_cfamtyp(jpfiles)
   character(len=48)  :: obsFileMode
-  character(len=prefixLenFilename) :: obsf_baseFileNameUnique(jpfiles)
+  character(len=maxLengthFilename) :: obsf_baseFileNameUnique(jpfiles)
 
 contains
 
@@ -418,12 +417,15 @@ contains
     implicit none
 
     ! locals
-    character(len=prefixLenFilename) :: clvalu(jpfiles), baseFileName(jpfiles)
+    character(len=20) :: clvalu(jpfiles)
     character(len=2)    :: cfami(jpfiles)
     character(len=4)    :: cmyidx, cmyidy
     character(len=9)    :: cmyid
     character(len=256)  :: obsDirectory
-    character(len=maxLengthFilename) :: fileName   !! the length should be more than len(obsDirectory)+1+len(clvalu)+1+len(cmyid)
+    character(len=maxLengthFilename) :: fileName, baseFileNameNoMyId  ! the length should be more than 
+                                                                      ! len(obsDirectory)+1+len(clvalu)+1+len(cmyid)
+    character(len=maxLengthFilename) :: baseFileName(jpfiles)
+
     character(len=256)               :: fileNamefull
     logical :: fileExists
     integer :: fileIndex
@@ -665,19 +667,21 @@ contains
     do fileIndex = 1, jpfiles 
 
       if(clvalu(fileIndex) == '') exit
-      fileName = trim(obsDirectory) // '/' // trim(clvalu(fileIndex)) // '_' // trim(cmyid)
+
+      baseFileNameNoMyId = trim(obsDirectory) // '/' // trim(clvalu(fileIndex))
+      fileName = trim(baseFileNameNoMyId) // '_' // trim(cmyid)
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
 
       inquire(file=trim(fileNameFull),exist=fileExists)
       if (.not. fileExists ) then
-        fileName=trim(obsDirectory)//'/'//trim(clvalu(fileIndex))
+        fileName=trim(baseFileNameNoMyId)
         fileNameFull = ram_fullWorkingPath(fileName, noAbort_opt=.true.)
         inquire(file=trim(fileNameFull), exist=fileExists)
       end if
 
       if ( fileExists ) then
         obsf_nfiles=obsf_nfiles + 1
-        baseFileName(obsf_nfiles) = trim(clvalu(fileIndex))
+        baseFileName(obsf_nfiles) = trim(baseFileNameNoMyId)
         obsf_cfilnam(obsf_nfiles) = fileNameFull
         obsf_cfamtyp(obsf_nfiles) = cfami(fileIndex)
       end if
@@ -710,13 +714,13 @@ contains
 
     ! Locals:
     integer :: fileIndex, fileIndex2, procIndex, numUniqueName, ierr
-    character(len=prefixLenFilename), allocatable :: baseFileNameAllMpi(:,:)
+    character(len=maxLengthFilename), allocatable :: baseFileNameAllMpi(:,:)
 
     ! Create a unique list of obs files across all mpi tasks without duplicates
     allocate(baseFileNameAllMpi(jpfiles,mmpi_nprocs))
     baseFileNameAllMpi(:,:) = ''
     call mmpi_allgather_string(baseFileName, baseFileNameAllMpi, &
-                                jpfiles, prefixLenFilename, mmpi_nprocs, &
+                                jpfiles, maxLengthFilename, mmpi_nprocs, &
                                 "GRID", ierr)
 
     obsf_baseFileNameUnique(:) = ''
@@ -742,13 +746,13 @@ contains
       do fileIndex = 1, jpfiles
         if (trim((baseFileNameAllMpi(fileIndex,1))) == '') cycle
 
-        write(*,'(1X,A20)' ) baseFileNameAllMpi(fileIndex,1)
+        write(*,'(4X,A60)' ) trim(baseFileNameAllMpi(fileIndex,1))
       end do
     end if
 
     write(*,*) 'setObsFilesMpiUniqueList: numUniqueName=', numUniqueName, ', obsf_baseFileNameUnique='
     do fileIndex = 1, numUniqueName
-      write(*,'(1X,A20)' ) obsf_baseFileNameUnique(fileIndex)
+      write(*,'(4X,A60)' ) trim(obsf_baseFileNameUnique(fileIndex))
     end do
 
   end subroutine setObsFilesMpiUniqueList
