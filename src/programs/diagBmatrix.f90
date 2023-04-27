@@ -41,7 +41,7 @@ program midas_diagBmatrix
   !============================================= ==============================================================
   ! ``flnml``                                     In - Main namelist file with parameters user may modify
   ! ``ensemble/$YYYYMMDDHH_$HHH_$NNNN``           In - Background ensemble member files
-  ! ``bgcov``                                     In - **B**nmc matrix for the random perturbations
+  ! ``bgcov``                                     In - **B** nmc matrix for the random perturbations
   ! ``analysis_grid``                             In - Horizontal grid file on which the random perturbations
   !                                                    are generated
   ! ``trlm_$NN`` (e.g. ``trlm_01``)               In - Background state (a.k.a. trial) files for each timestep
@@ -71,19 +71,19 @@ program midas_diagBmatrix
   !               - For each variables and prescribed pseudo-obs positions:
   !                       1) create a Dirac delta distribution (zero everywhere except at obs location).
   !                          This is equivalent to impose (O-F / sigma_obs) = 1 at one location.
-  !                       2) apply **B**^(1/2)^T **B**^1/2 and output the results into a file
+  !                       2) apply **B** ^(1/2)^T **B** ^1/2 and output the results into a file
   !                       3) normalize the results by the value at the pseudo-obs position
   !                          and output to a file
   !
   !               - If bMatrixEnsemble_mod is activated, for each prescribed pseudo-obs positions:
   !                       1) create a Dirac delta distribution
-  !                       2) apply **L**^(1/2)^T **L**^1/2 and output the results into a file
+  !                       2) apply **L** ^(1/2)^T **L** ^1/2 and output the results into a file
   !
   !             - **Implied variances:**
   !
   !               - For each member of the chosen random ensemble size:
   !                       1) create a random control vector
-  !                       2) apply **B**^1/2
+  !                       2) apply **B** ^1/2
   !                       3) store the resulting 3D state in randomEns
   !
   !               - Compute and remove the ensemble mean

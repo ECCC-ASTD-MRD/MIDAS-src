@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added documentation (interpreted by sphinx) for each program (#738 and !683)
  * Add new variable toleranceFactor to thin_raobs namelist (#763 and !724)
  * Addition of new variables maxSwath, maxPerSwath to the namIceBGcheck namelist (#806 and !715)
 
@@ -434,7 +435,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
  * Fix near-surface extrapolation in GPSRO ObsOperator, caused large erroneous values and an abort (#460 and !433).
-   * The change in !433	can infrequently cause differences in resulting analyses
+   * The change in !433 can infrequently cause differences in resulting analyses
  * Remove many MIDAS function calls from write statements to avoid recursive I/O (#459 and !427)
 
 ## [3.6.1]
@@ -831,8 +832,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
    compatibility on new machines (ppp3/4, banting/daley) - note, only
    the latest version of the reference results are available on the
    new machines (#234 and !244)
-	* This work is aimed to be introduced in a new release branch
-	`v_3.4` which origins from `v_3.3.5`.
+ * This work is aimed to be introduced in a new release branch
+   `v_3.4` which origins from `v_3.3.5`.
 
 ## [3.3.5]
 

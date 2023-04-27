@@ -20,9 +20,9 @@ program midas_gencoeff
   !
   !          ---
   !
-  !:Algorithm:    O-A are computed from input analysis fields resulting from a stand alone
-  !               3DVar analysis assimilating only anchoring observations (considered as "trials")
-  !               and bgckalt files. 
+  !:Algorithm: O-A are computed from input analysis fields resulting from a stand alone
+  !            3DVar analysis assimilating only anchoring observations (considered as "trials")
+  !            and bgckalt files. 
   !         
   !            --
   !
@@ -97,8 +97,6 @@ program midas_gencoeff
   !
   !           --
   !
-  !
-  !           --
   !:Options: `List of namelist blocks <../namelists_in_each_program.html#genCoeff>`_
   !          that can affect the ``genCoeff`` program.
   !

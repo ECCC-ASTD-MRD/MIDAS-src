@@ -115,18 +115,18 @@ program midas_obsimpact
   !                                  error norm defined as: 
   !                                  :math:`(C*(e_{t}^{fa}+e_{t}^{fb}))`.
   !
-  !             - ``bmat_sqrtBT``: Compute the variable vhat for minimization in HFSO mode.             
-  !                                       :math:`vhat=B_{t}^{T/2}*C*(e_{t}^{fa}+e_{t}^{fb})` 
+  !             - ``bmat_sqrtBT``: Compute the variable :math:`\hat{v}` for minimization in HFSO mode.             
+  !                                       :math:`\hat{v}=B_{t}^{T/2}*C*(e_{t}^{fa}+e_{t}^{fb})` 
   !
   !             - ``minimize``: Do the minimization to apply the adjoint of the 4D-EnVar assimilation  
-  !                             to vhat with the result being ahat.
+  !                             to :math:`\hat{v}` with the result being :math:`\hat{a}`.
   !
-  !             - ``bmat_sqrt``: Compute :math:`B^{1/2}*ahat` .
+  !             - ``bmat_sqrt``: Compute :math:`B^{1/2}*\hat{a}` .
   !
-  !             - ``s2c_tl``, ``oop_Htl``: Apply the observation operators :math:`H*B^{1/2}*ahat` .
+  !             - ``s2c_tl``, ``oop_Htl``: Apply the observation operators :math:`H*B^{1/2}*\hat{a}` .
   !
   !             - ``rmat_RsqrtInverseAllObs``: Multiply by the inverse of the observation error variances
-  !                                                    :math:`R^{-1}*H*B^{1/2}*ahat` 
+  !                                                    :math:`R^{-1}*H*B^{1/2}*\hat{a}` 
   !
   !             - ``obs_bodySet_r``: Multiply the resulting sensitivity value by the innovation and put  
   !                                  the result in the ``obsSpaceDate`` column ``OBS_FSO`` so it can be stored in

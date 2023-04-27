@@ -117,7 +117,7 @@ program midas_pseudoSSTobs
   ! 
   !          *  ``seaWaterThreshold`` a threshold to distinguish sea and fresh water
   !
-  !           --
+  !          --
   !
   !========================== ================ ==============================================================
   ! Module                    Namelist         Description of what is controlled
