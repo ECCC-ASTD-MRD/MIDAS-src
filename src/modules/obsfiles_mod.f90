@@ -53,6 +53,7 @@ module obsFiles_mod
   character(len=48)  :: obsFileMode
   character(len=maxLengthFilename) :: obsf_baseFileNameMpiUniqueList(jpfiles)
   character(len=familyTypeLen)     :: obsf_familyTypeMpiUniqueList(jpfiles)
+  character(len=9) :: obsf_myIdExt
 
 contains
 
@@ -422,10 +423,9 @@ contains
     character(len=20) :: clvalu(jpfiles)
     character(len=2)    :: cfami(jpfiles)
     character(len=4)    :: cmyidx, cmyidy
-    character(len=9)    :: cmyid
     character(len=256)  :: obsDirectory
     character(len=maxLengthFilename) :: fileName, baseFileNameNoMyId  ! the length should be more than 
-                                                                      ! len(obsDirectory)+1+len(clvalu)+1+len(cmyid)
+                                                                      ! len(obsDirectory)+1+len(clvalu)+1+len(obsf_myIdExt)
     character(len=maxLengthFilename) :: baseFileName(jpfiles)
 
     character(len=256)               :: fileNamefull
@@ -434,7 +434,7 @@ contains
 
     write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
     write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
-    cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
+    obsf_myIdExt  = trim(cmyidx) // '_' // trim(cmyidy)
 
     clvalu(:)=''
     ! file names only for burp
@@ -671,7 +671,7 @@ contains
       if(clvalu(fileIndex) == '') exit
 
       baseFileNameNoMyId = trim(obsDirectory) // '/' // trim(clvalu(fileIndex))
-      fileName = trim(baseFileNameNoMyId) // '_' // trim(cmyid)
+      fileName = trim(baseFileNameNoMyId) // '_' // trim(obsf_myIdExt)
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
 
       inquire(file=trim(fileNameFull),exist=fileExists)
