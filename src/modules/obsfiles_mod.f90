@@ -47,7 +47,7 @@ module obsFiles_mod
   integer, parameter :: jpfiles = 150
   integer, parameter :: maxLengthFilename = 1060
   integer, parameter :: familyTypeLen = 2
-  integer :: obsf_nfiles
+  integer :: obsf_nfiles, obsf_numMpiUniqueList
   character(len=maxLengthFilename) :: obsf_cfilnam(jpfiles)
   character(len=familyTypeLen)     :: obsf_cfamtyp(jpfiles)
   character(len=48)  :: obsFileMode
@@ -715,7 +715,7 @@ contains
     character(len=*), intent(in) :: baseFileName(:)
 
     ! Locals:
-    integer :: fileIndex, fileIndex2, procIndex, numUniqueName, ierr
+    integer :: fileIndex, fileIndex2, procIndex, ierr
     character(len=maxLengthFilename), allocatable :: baseFileNameAllMpi(:,:)
     character(len=familyTypeLen), allocatable :: familyTypeAllMpi(:,:)
 
@@ -736,19 +736,19 @@ contains
     ! Create a unique list of obs filenames/familytype across all mpi tasks without duplicates
     obsf_baseFileNameMpiUniqueList(:) = ''
     obsf_familyTypeMpiUniqueList(:) = ''
-    numUniqueName = 1
-    obsf_baseFileNameMpiUniqueList(numUniqueName) = baseFileNameAllMpi(1,1)
-    obsf_familyTypeMpiUniqueList(numUniqueName) = familyTypeAllMpi(1,1)
+    obsf_numMpiUniqueList = 1
+    obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameAllMpi(1,1)
+    obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeAllMpi(1,1)
     do fileIndex = 1, jpfiles 
       loopProc: do procIndex = 1, mmpi_nprocs
         if (trim((baseFileNameAllMpi(fileIndex,procIndex))) == '') cycle loopProc
 
-        do fileIndex2 = 1, numUniqueName
+        do fileIndex2 = 1, obsf_numMpiUniqueList
           if (.not. trim(obsf_baseFileNameMpiUniqueList(fileIndex2)) == &
               trim(baseFileNameAllMpi(fileIndex,procIndex))) then
-            numUniqueName = numUniqueName + 1
-            obsf_baseFileNameMpiUniqueList(numUniqueName) = baseFileNameAllMpi(fileIndex,procIndex)
-            obsf_familyTypeMpiUniqueList(numUniqueName) = familyTypeAllMpi(fileIndex,procIndex)
+            obsf_numMpiUniqueList = obsf_numMpiUniqueList + 1
+            obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameAllMpi(fileIndex,procIndex)
+            obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeAllMpi(fileIndex,procIndex)
             exit loopProc
           end if
         end do
@@ -768,11 +768,11 @@ contains
       end do
     end if
 
-    write(*,*) 'setObsFilesMpiUniqueList: numUniqueName=', numUniqueName
+    write(*,*) 'setObsFilesMpiUniqueList: obsf_numMpiUniqueList=', obsf_numMpiUniqueList
     write(*,*) 'setObsFilesMpiUniqueList: familyType/filename in unique list:'
     write(*,*) 'Type  Name '
     write(*,*) '----  ---- '
-    do fileIndex = 1, numUniqueName
+    do fileIndex = 1, obsf_numMpiUniqueList
       write(*,'(1X,A2,1X,A60)' ) trim(obsf_familyTypeMpiUniqueList(fileIndex)), &
                                   trim(obsf_baseFileNameMpiUniqueList(fileIndex))
     end do
