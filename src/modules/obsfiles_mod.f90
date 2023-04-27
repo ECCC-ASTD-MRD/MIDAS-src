@@ -134,31 +134,42 @@ contains
     ! locals
     integer           :: fileIndex
     character(len=10) :: obsFileType
+    character(len=maxLengthFilename) :: fileName
+    character(len=256) :: fileNamefull
+    character(len=familyTypeLen) :: obsFamilyType
+    logical :: fileExists
 
     if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
 
     call obsf_determineFileType(obsFileType)
 
     ! for every splitted file, the file type is defined separately 
-    do fileIndex = 1, obsf_nfiles
-      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+    do fileIndex = 1, obsf_numMpiUniqueList
+
+      fileName = trim(obsf_baseFileNameMpiUniqueList(fileIndex)) // '_' // trim(obsf_myIdExt)
+      obsFamilyType = obsf_familyTypeMpiUniqueList(fileIndex)
+      fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
+      inquire(file=trim(fileNameFull),exist=fileExists)
+      if (.not. fileExists) cycle
+
+      call obsf_determineSplitFileType( obsFileType, fileNameFull )
       if ( obsFileType == 'BURP' )   then
         ! Add extra bias correction elements to conventional and TO files
         ! Bias correction elements for AI are added at the derivate file stage
-        if ( obsf_cfamtyp(fileIndex) == 'TO' ) then
-          call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
+        if ( obsFamilyType == 'TO' ) then
+          call brpr_addElementsToBurp(fileNameFull, obsFamilyType, beSilent_opt=.false.)
         else 
-          if ( bcc_biasActive(obsf_cfamtyp(fileIndex)) ) then
-            call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
+          if ( bcc_biasActive(obsFamilyType) ) then
+            call brpr_addElementsToBurp(fileNameFull, obsFamilyType, beSilent_opt=.false.)
           end if
         end if
-        call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        call brpf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndex )
       end if
       if ( obsFileType == 'SQLITE' ) then
-        call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        call sqlf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndex )
       end if
       if ( obsFileType == 'OBSDB' ) then
-        call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        call odbf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndex )
       end if
     end do
 
@@ -673,8 +684,8 @@ contains
       baseFileNameNoMyId = trim(obsDirectory) // '/' // trim(clvalu(fileIndex))
       fileName = trim(baseFileNameNoMyId) // '_' // trim(obsf_myIdExt)
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
-
       inquire(file=trim(fileNameFull),exist=fileExists)
+
       if (.not. fileExists ) then
         fileName=trim(baseFileNameNoMyId)
         fileNameFull = ram_fullWorkingPath(fileName, noAbort_opt=.true.)
