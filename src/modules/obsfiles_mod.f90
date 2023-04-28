@@ -151,8 +151,8 @@ contains
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
       inquire(file=trim(fileNameFull),exist=fileExists)
 
-      if (.not. fileExists .and. obsFileType == 'BURP') then
-        call brpr_setHeadBodyPrimaryKeyColumns(obsSpaceData, obsFamilyType)
+      if (.not. fileExists) then
+        if (obsFileType == 'BURP') call brpr_setHeadBodyPrimaryKeyColumns(obsSpaceData, obsFamilyType)
         cycle
       end if
 
