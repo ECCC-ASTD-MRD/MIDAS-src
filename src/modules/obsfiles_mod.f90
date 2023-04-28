@@ -132,7 +132,7 @@ contains
     type(struct_obs)  :: obsSpaceData
 
     ! locals
-    integer           :: fileIndex
+    integer           :: fileIndex, fileIndexMpiLocal
     character(len=10) :: obsFileType
     character(len=maxLengthFilename) :: fileName
     character(len=256) :: fileNamefull
@@ -156,6 +156,11 @@ contains
         cycle
       end if
 
+      ! get fileIndex on mpi local
+      do fileIndexMpiLocal = 1, obsf_nfiles
+        if (trim(obsf_cfilnam(fileIndexMpiLocal)) == fileNamefull) exit
+      end do
+
       call obsf_determineSplitFileType( obsFileType, fileNameFull )
       if ( obsFileType == 'BURP' )   then
         ! Add extra bias correction elements to conventional and TO files
@@ -167,13 +172,13 @@ contains
             call brpr_addElementsToBurp(fileNameFull, obsFamilyType, beSilent_opt=.false.)
           end if
         end if
-        call brpf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndex )
+        call brpf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
       end if
       if ( obsFileType == 'SQLITE' ) then
-        call sqlf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndex )
+        call sqlf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
       end if
       if ( obsFileType == 'OBSDB' ) then
-        call odbf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndex )
+        call odbf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
       end if
     end do
 
