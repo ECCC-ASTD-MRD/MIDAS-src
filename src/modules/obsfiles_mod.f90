@@ -759,21 +759,24 @@ contains
     obsf_numMpiUniqueList = 1
     obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameAllMpi(1,1)
     obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeAllMpi(1,1)
-    do fileIndex = 1, jpfiles 
-      loopProc: do procIndex = 1, mmpi_nprocs
-        if (trim((baseFileNameAllMpi(fileIndex,procIndex))) == '') cycle loopProc
+    do procIndex = 1, mmpi_nprocs
+      loopFilename: do fileIndex = 1, jpfiles 
+        if (trim((baseFileNameAllMpi(fileIndex,procIndex))) == '') cycle loopFilename
 
+        ! cycle if filename already exists in the unique list
         do fileIndex2 = 1, obsf_numMpiUniqueList
-          if (.not. trim(obsf_baseFileNameMpiUniqueList(fileIndex2)) == &
+          if (trim(obsf_baseFileNameMpiUniqueList(fileIndex2)) == &
               trim(baseFileNameAllMpi(fileIndex,procIndex))) then
-            obsf_numMpiUniqueList = obsf_numMpiUniqueList + 1
-            obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameAllMpi(fileIndex,procIndex)
-            obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeAllMpi(fileIndex,procIndex)
-            exit loopProc
+            cycle loopFilename
           end if
         end do
+        
+        ! add the filename to the unique list
+        obsf_numMpiUniqueList = obsf_numMpiUniqueList + 1
+        obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameAllMpi(fileIndex,procIndex)
+        obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeAllMpi(fileIndex,procIndex)
 
-      end do loopProc
+      end do loopFilename
     end do
 
     if (mmpi_myid == 0) then
