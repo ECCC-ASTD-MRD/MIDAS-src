@@ -3460,8 +3460,14 @@ CONTAINS
     deallocate(allNumHeader)
     deallocate(allNumBody)
 
-    HEADER: do headerIndex = 1, obs_numHeader(obsdat)
-      headerPrimaryKey = initialHeaderindex + headerIndex
+    headerPrimaryKey = initialHeaderindex
+    bodyPrimaryKey = initialBodyindex
+    call obs_set_current_header_list(obsdat, obsFamily)
+    HEADER: do 
+      headerIndex = obs_getHeaderIndex(obsdat)
+      if (headerIndex < 0) exit HEADER
+
+      headerPrimaryKey = headerPrimaryKey + 1
       call obs_setHeadPrimaryKey(obsdat, headerIndex, headerPrimaryKey)
 
       bodyIndexBegin = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
@@ -3469,7 +3475,7 @@ CONTAINS
                     obs_headElem_i(obsdat, OBS_NLV, headerIndex) - 1
 
       BODY: do bodyIndex = bodyIndexBegin, bodyIndexEnd
-        bodyPrimaryKey = initialBodyindex + bodyIndex
+        bodyPrimaryKey = bodyPrimaryKey + 1
         call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey)
       end do BODY
     end do HEADER
