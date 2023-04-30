@@ -3372,7 +3372,7 @@ CONTAINS
 
     call cleanup()
 
-    call brpr_setHeadBodyPrimaryKeyColumns(obsdat, familyType)
+    !call brpr_setHeadBodyPrimaryKeyColumns(obsdat, familyType)
 
     numHeader = obs_numHeader(obsdat)
     write(*,*)' file   Nobs SUM = ',trim(brp_file),numHeader,SUM
@@ -3462,6 +3462,10 @@ CONTAINS
 
     headerPrimaryKey = initialHeaderindex
     bodyPrimaryKey = initialBodyindex
+    write(*,*) 'brpr_setHeadBodyPrimaryKeyColumns: initialHeaderIndex=', initialHeaderindex , &
+                ', numHeader=', numHeader, ', initialBodyindex=', initialBodyindex, &
+                ', numBody=', numBody
+
     call obs_set_current_header_list(obsdat, obsFamily)
     HEADER: do 
       headerIndex = obs_getHeaderIndex(obsdat)

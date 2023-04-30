@@ -152,7 +152,7 @@ contains
       inquire(file=trim(fileNameFull),exist=fileExists)
 
       if (.not. fileExists) then
-        if (obsFileType == 'BURP') call brpr_setHeadBodyPrimaryKeyColumns(obsSpaceData, obsFamilyType)
+        !if (obsFileType == 'BURP') call brpr_setHeadBodyPrimaryKeyColumns(obsSpaceData, obsFamilyType)
         cycle
       end if
 
