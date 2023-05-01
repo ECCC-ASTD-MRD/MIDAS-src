@@ -1,6 +1,7 @@
  &thin_gbgps
    deltemps = 8
    deldist = 50
+   rejectNoZTDScore = .true.
 /
  &NAMTIME
    DSTEPOBS = 0.25d0
