@@ -20,12 +20,6 @@
   NLISTFLG(6)=12
 /
  &NAMBDIFF
-  corr_len = 200*-1
-  stab     = 200*0.2
-  nsamp    = 200*5000
-  SCALEFACTOR = 200*1.0
-  stddevMode = 'GD2D'
-  useImplicit = 200*.false.
 /
  &NAMBHI
 /
@@ -64,25 +58,16 @@
  &namSQLInsert
 /
  &NAMMIN
-   NVAMAJ   = 30,
-   NITERMAX = 50,
-   NSIMMAX  = 100,
-   REPSG    = 1.0D-5,
-   LGRTEST  = .FALSE.,
-   LWRTHESS = .FALSE.,
-   LVARQC   = .FALSE.,
-   NWOQCV   = 5
-/
- &NAMINC
-   hInterpolationDegree = 'CUBIC'
-   etiket_rebm ='XXXXXX'
-   SSTSpread = .true.
-   SSTSpreadMaxBoxSize = 2
-   SSTSubgrid = Yin
 /
  &NAMCODTYP
 /
-
  &NAMAER
-   maxAnalysisErrorStdDev = 1.0
+   maxAnalysisErrorStdDev = 2.5
+   propagateAnalysisError = .true.
+   propagateDSLO = .false.
+   errorGrowth = 0.01
+   analysisEtiket = 'ANALYSIS'
+   analErrorStdEtiket = 'A-ER STD DEV'
+   bckgErrorStdEtiket = 'B-ER STD DEV'
+   hoursSinceLastAnalysis = 24
 /

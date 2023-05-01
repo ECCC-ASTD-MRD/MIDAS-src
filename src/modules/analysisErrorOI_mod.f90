@@ -25,16 +25,15 @@ module analysisErrorOI_mod
   use verticalCoord_mod
   use obsOperators_mod
   use message_mod
+  use oceanMask_mod
+  use timeCoord_mod
 
   implicit none
 
   private
 
   ! public subroutines and functions
-  public :: aer_analysisError, aer_daysSinceLastObs
-
-  ! public variables
-  public :: aer_backgroundEtiket
+  public :: aer_analysisError
 
   type struct_neighborhood
    integer          :: numObs
@@ -57,15 +56,12 @@ module analysisErrorOI_mod
   real(8) :: interpWeight(maxNumLocalGridptsSearch)
   integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)
 
-  character(len=12), parameter :: aer_backgroundEtiket = 'B-ER STD DEV'
-  character(len=12), parameter :: aer_analysisEtiket = 'A-ER STD DEV'
-
 contains
 
   !--------------------------------------------------------------------------
   ! aer_analysisError
   !--------------------------------------------------------------------------
-  subroutine aer_analysisError(obsSpaceData, hco_ptr, vco_ptr, trlmFileName)
+  subroutine aer_analysisError(obsSpaceData, hco_ptr, vco_ptr)
     !
     ! :Purpose: Calculate analysis-error variance.
     !
@@ -75,7 +71,6 @@ contains
     type(struct_obs), intent(in) :: obsSpaceData
     type(struct_hco), pointer    :: hco_ptr
     type(struct_vco), pointer    :: vco_ptr
-    character(len=*), intent(in) :: trlmFileName
 
     ! Local Variables
     integer :: fnom, fclos, nulnam, ierr
@@ -112,34 +107,52 @@ contains
     real(kdkind), allocatable :: positionArray(:,:)
     real(8),      allocatable :: latInRad(:,:), lonInRad(:,:)
 
-    character(len=*), parameter :: myName = 'aer_analysisError'
-    character(len=*), parameter :: correlationLengthFileName = './bgstddev'
-    character(len=4), pointer   :: anlVar(:)
-    type(struct_gsv)            :: statevector
-    real(4), pointer            :: field3D_r4_ptr(:,:,:)
-
-    type(struct_columnData) :: column
-    type(struct_columnData) :: columng
-
+    character(len=4), pointer :: analysisVariable(:)
+    type(struct_gsv)          :: statevector
+    real(4), pointer          :: field3D_r4_ptr(:,:,:)
+    type(struct_columnData)   :: column
+    type(struct_columnData)   :: columng
+    type(struct_ocm)          :: oceanMask
     real(8) :: leadTimeInHours
 
-    ! namelist variables:
-    real(8) :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
-    namelist /namaer/ maxAnalysisErrorStdDev
+    character(len=20) :: errorStddev_input  ! input  filename for analysed and "trial" std error and DSLO fields
+    character(len=20) :: errorStddev_output ! output filename for analysed and "trial" std error and DSLO fields
 
-    if( mmpi_nprocs > 1 ) then
-      write(*,*) 'mmpi_nprocs = ',mmpi_nprocs
+    ! namelist variables:
+    real(8)           :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
+    logical           :: propagateAnalysisError ! propagate analysis error or not
+    logical           :: propagateDSLO          ! propagate Days Since Last Obs field or not
+    real(4)           :: errorGrowth            ! seaice: fraction of ice per hour, SST: estimated growth
+    character(len=12) :: analysisEtiket         ! analysis field etiket in a standard file
+    character(len=12) :: analErrorStdEtiket     ! analysis error standard deviation field etiket in the input/output standard files
+    character(len=12) :: bckgErrorStdEtiket     ! background error standard deviation field etiket in the input/output standard files
+    integer           :: hoursSinceLastAnalysis ! number of hours since the last analysis
+
+    namelist /namaer/ maxAnalysisErrorStdDev, propagateAnalysisError, propagateDSLO, &
+                      errorGrowth, analysisEtiket, analErrorStdEtiket, &
+                      bckgErrorStdEtiket, hoursSinceLastAnalysis 
+
+    if(mmpi_nprocs > 1) then
+      write(*,*) 'mmpi_nprocs = ', mmpi_nprocs
       call utl_abort('aer_analysisError: this version of the code should only be used with one mpi task.')
     end if
-    if( mmpi_myid > 0 ) return
+    if(mmpi_myid > 0) return
 
     write(*,*) '**********************************************************'
     write(*,*) '** aer_analysisError: Calculate analysis-error variance **'
     write(*,*) '**********************************************************'
 
-    ! Read the namelist
-    ! default values
+    ! default namelist variable values
     maxAnalysisErrorStdDev = 1.0d0
+    propagateAnalysisError = .false.
+    propagateDSLO = .false.
+    errorGrowth = 1.0
+    analysisEtiket = ''
+    analErrorStdEtiket = 'A-ER STD DEV'
+    bckgErrorStdEtiket = 'B-ER STD DEV'
+    hoursSinceLastAnalysis = 6
+
+    ! read the namelist
     if (.not. utl_isNamelistPresent('namaer','./flnml')) then
       if (mmpi_myid == 0) then
         call msg('aer_analysisError:', ' namaer is missing in the namelist.')
@@ -150,66 +163,93 @@ contains
       nulnam = 0
       ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
       read(nulnam, nml = namaer, iostat = ierr)
-      if ( ierr /= 0 ) call utl_abort('aer_analysisError:: Error reading namelist')
+      if (ierr /= 0) call utl_abort('aer_analysisError:: Error reading namelist')
       ierr = fclos(nulnam)
     end if
     write(*, nml = namaer)
 
-    nullify(anlVar)
-    call gsv_varNamesList(anlVar)
+    nullify(analysisVariable)
+    call gsv_varNamesList(analysisVariable)
     
-    if (size(anlVar) > 1) then
-      call utl_abort('aer_analysisError: Check namelist NAMSTATE. ANLVAR is greater than 1.')
+    if (size(analysisVariable) > 1) then
+      call utl_abort('aer_analysisError: Check namelist NAMSTATE. analysisVariable is greater than 1.')
     end if
 
-    if (anlVar(1) == 'GL') then
+    if (analysisVariable(1) == 'GL') then
       call msg('aer_analysisError:', ' computing seaice analysis error...')
-    else if(anlVar(1) == 'TM') then
+    else if(analysisVariable(1) == 'TM') then
       call msg('aer_analysisError:', ' computing SST analysis error...')
     else
       call utl_abort('aer_analysisError:: The current code does not work with '&
-                     //trim(anlVar(1))//' analysis variable.')
-    end if      
-    
+                     //trim(analysisVariable(1))//' analysis variable.')
+    end if
+
     call gsv_allocate(stateVectorBkGnd, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
                       mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
-                      varNames_opt = (/anlVar(1)/), dataKind_opt = 8 )
+                      varNames_opt = (/analysisVariable(1)/), dataKind_opt = 8)
     call gsv_allocate(stateVectorAnal,  1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
-                      varNames_opt = (/anlVar(1)/), dataKind_opt = 8 )
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                      varNames_opt = (/analysisVariable(1)/), dataKind_opt = 8)
 
-    call gio_readFromFile(stateVectorBkGnd, trlmFileName, aer_backgroundEtiket, 'P@')
+    if (propagateAnalysisError) then     
 
-    leadTimeInHours = real(stateVectorBkGnd%deet * stateVectorBkGnd%npasList(1),8) / 3600.0d0
-    call incdatr(stateVectorAnal%dateOriginList(1), stateVectorBkGnd%dateOriginList(1), &
-                 leadTimeInHours)
+      errorStddev_input  = 'anl_errorstdev'
+      errorStddev_output = 'trl_errorstdev'
+
+      call msg('aer_analysisError:', &
+               ' analysis error std is read from: '//trim(errorStddev_input))
+      
+      call ocm_readMaskFromFile (oceanMask, hco_ptr, vco_ptr, errorStddev_input)
+      call aer_propagateAnalysisError (stateVectorBkGnd, oceanMask, &
+                                       analysisVariable(1), &
+                                       analErrorStdEtiket, &
+                                       bckgErrorStdEtiket, &
+                                       analysisEtiket, errorGrowth, &
+                                       hco_ptr, vco_ptr, &
+                                       errorStddev_input, errorStddev_output)
+
+    else
+
+      errorStddev_input  = 'trl_errorstdev'
+      errorStddev_output = 'anl_errorstdev'
+
+      call msg('aer_analysisError:', &
+               ' trial error std field is read from: '//trim(errorStddev_input))
+      call gio_readFromFile(stateVectorBkGnd, errorStddev_input, bckgErrorStdEtiket, &
+                            'E@', containsFullField_opt = .false.)
+    end if
+
+    leadTimeInHours = real(stateVectorBkGnd%deet * stateVectorBkGnd%npasList(1), 8) / 3600.0d0
+    call incdatr(stateVectorAnal%dateOriginList(1), stateVectorBkGnd%dateOriginList(1), leadTimeInHours)
 
     call gsv_copyMask(stateVectorBkGnd, stateVectorAnal)
-    stateVectorAnal%etiket = aer_analysisEtiket
+    stateVectorAnal%etiket = analErrorStdEtiket
 
     call col_setVco(column, vco_ptr)
-    call col_allocate(column,  obs_numHeader(obsSpaceData), varNames_opt=(/anlVar(1)/))
+    call col_allocate(column,  obs_numHeader(obsSpaceData), varNames_opt=(/analysisVariable(1)/))
     call col_setVco(columng, vco_ptr)
-    call col_allocate(columng, obs_numHeader(obsSpaceData), varNames_opt=(/anlVar(1)/))
+    call col_allocate(columng, obs_numHeader(obsSpaceData), varNames_opt=(/analysisVariable(1)/))
     call s2c_tl(statevectorBkGnd, column, columng, obsSpaceData)
 
     ni = stateVectorBkGnd%hco%ni
     nj = stateVectorBkGnd%hco%nj
 
     allocate(lonInRad(ni, nj), latInRad(ni, nj))
-    allocate(Lcorr( ni, nj ))
+    allocate(Lcorr(ni, nj))
 
-    write(*,*) 'aer_analysisError: Correlation length scale 2D field will be read from the file: ', &
-               correlationLengthFileName
+    ! get correlation length scale field
+    write(*,*) 'aer_analysisError: get correlation length scale field...'
     call gsv_allocate(statevector, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
                       dataKind_opt = 4, hInterpolateDegree_opt = 'LINEAR', &
-                      varNames_opt = (/anlVar(1)/))
+                      varNames_opt = (/analysisVariable(1)/))
     call gsv_zero(statevector)
-    call gio_readFromFile(statevector, correlationLengthFileName, 'CORRLEN', ' ', &
+    call gio_readFromFile(statevector, './bgstddev', 'CORRLEN', ' ', &
                           unitConversion_opt = .false.)
 
-    call gsv_getField(statevector, field3D_r4_ptr, anlVar(1))
+    call gsv_getField(statevector, field3D_r4_ptr, analysisVariable(1))
     ! Convert from km to meters
     Lcorr(:,:) = 1000.0d0 * real(field3D_r4_ptr(:, :, 1), 8)
+
     write(*,*) 'aer_analysisError: min/max correlation length scale 2D field: ', &
                minval(Lcorr(:,:) ), maxval(Lcorr(:,:))
     call gsv_deallocate(statevector)
@@ -256,7 +296,8 @@ contains
     allocate(influentObs(ni, nj))
     allocate(     numObs(ni, nj))
 
-    call findObs(obsSpaceData, stateVectorBkGnd, numObs)
+    call msg('aer_analysisError:', ' looking for observations...')
+    call findObs(obsSpaceData, stateVectorBkGnd, numObs, analysisVariable(1))
 
     ! Memory allocation
 
@@ -273,7 +314,8 @@ contains
     ! This is not efficient to go through all observations twice
     ! but it saves lot of memory space.
 
-    call findObs(obsSpaceData, stateVectorBkGnd, numObs)
+    call msg('aer_analysisError:', ' go through all observations a second time...')
+    call findObs(obsSpaceData, stateVectorBkGnd, numObs, analysisVariable(1))
 
     deallocate(numObs)
 
@@ -281,13 +323,12 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss() / 1024, 'Mb'
 
     ! Calculate analysis-error one analysis variable (grid point) at a time
-
-    call gsv_getField(stateVectorBkGnd, bkGndErrorStdDev_ptr, anlVar(1))
-    call gsv_getField(stateVectorAnal,  analysisErrorStdDev_ptr, anlVar(1))
+    call gsv_getField(stateVectorBkGnd, bkGndErrorStdDev_ptr, analysisVariable(1))
+    call gsv_getField(stateVectorAnal,  analysisErrorStdDev_ptr, analysisVariable(1))
 
     ! Initialisation
     do stepIndex = 1, stateVectorBkGnd%numStep
-      do levIndex = 1, gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname(anlVar(1)))
+      do levIndex = 1, gsv_getNumLev(stateVectorBkGnd, vnl_varLevelFromVarname(analysisVariable(1)))
         do latIndex = 1, nj
           do lonIndex = 1, ni
             analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
@@ -301,7 +342,7 @@ contains
 
     STEP: do stepIndex = 1, stateVectorBkGnd%numStep
       LEVEL: do levIndex = 1, &
-                           gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname(anlVar(1)))
+                           gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname(analysisVariable(1)))
 
         !$omp parallel do default(shared) schedule(dynamic) private(obsOperator, Bmatrix, &
         !$omp        PHiA, innovCovariance, innovCovarianceInverse, obsErrorVariance, &
@@ -341,9 +382,9 @@ contains
               headerIndex = influentObs(lonIndex, latIndex)%headerIndex(influentObsIndex)
               bodyIndex   = influentObs(lonIndex, latIndex)%bodyIndex(influentObsIndex)
 
-              if (anlVar(1) == 'GL') then
+              if (analysisVariable(1) == 'GL') then
                 scaling = oop_iceScaling(obsSpaceData, bodyIndex)
-              else if (anlVar(1) == 'TM') then
+              else if (analysisVariable(1) == 'TM') then
                 scaling = 1.0d0
               end if	
 
@@ -431,9 +472,9 @@ contains
               headerIndex = influentObs(lonIndex, latIndex)%headerIndex(influentObsIndex)
               bodyIndex   = influentObs(lonIndex, latIndex)%bodyIndex(influentObsIndex)
 
-              if (anlVar(1) == 'GL') then
+              if (analysisVariable(1) == 'GL') then
                 scaling = oop_iceScaling(obsSpaceData, bodyIndex)
-              else if (anlVar(1) == 'TM') then
+              else if (analysisVariable(1) == 'TM') then
                 scaling = 1.0d0
               end if
 
@@ -479,7 +520,7 @@ contains
                             write(*,*) 'varIndex2 statei statej = ',statei(varIndex2), &
                                                                     statej(varIndex2)
                           end do
-                          call utl_abort( myName//': not found in state vect.' )
+                          call utl_abort('aer_analysisError: not found in state vect.')
                         end if
 
                       end if
@@ -517,8 +558,8 @@ contains
                                               latInRad(xIndex1, yIndex1), &
                                               lonInRad(xIndex1, yIndex1))
                   Bmatrix(varIndex1,varIndex2) = bkGndErrorStdDev_ptr(xIndex2, yIndex2, levIndex, stepIndex) * &
-                                     bkGndErrorStdDev_ptr(xIndex1, yIndex1, levIndex, stepIndex) &
-                                     * exp(-0.5 * (distance / Lcorr(xIndex2, yIndex2))**2)
+                                                 bkGndErrorStdDev_ptr(xIndex1, yIndex1, levIndex, stepIndex) * &
+                                                 exp(-0.5 * (distance / Lcorr(xIndex2, yIndex2))**2)
                 end if
 
                 ! symmetric matrix !
@@ -542,8 +583,8 @@ contains
 
             !  covariance matrix of the innovation (HPHT + R)
 
-            allocate(innovCovariance(numInfluentObs,numInfluentObs), &
-                     innovCovarianceInverse(numInfluentObs,numInfluentObs))
+            allocate(innovCovariance(numInfluentObs, numInfluentObs), &
+                     innovCovarianceInverse(numInfluentObs, numInfluentObs))
 
             do influentObsIndex = 1, numInfluentObs
 
@@ -565,7 +606,8 @@ contains
             ! Inverse of the covariance matrix of the innovation
 
             innovCovarianceInverse(:,:) = innovCovariance(:,:)
-            call utl_matInverse(innovCovarianceInverse, numInfluentObs, printInformation_opt = .false.)
+            call utl_matInverse(innovCovarianceInverse, numInfluentObs, &
+                                printInformation_opt = .false.)
 
             ! Kalman gain; this is the row corresponding to the analysis variable
 
@@ -607,7 +649,7 @@ contains
             if(analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) > &
                   bkGndErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex)) then
               write(*,*) 'aer_analysisError: analysis-error Std dev. = ', &
-                         analysisErrorStdDev_ptr(lonIndex,latIndex,levIndex,stepIndex), &
+                         analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), &
                          ' is larger than background-error ', &
                          'Std dev. is kept at = ', &
                          bkGndErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex)
@@ -629,50 +671,62 @@ contains
     end do STEP
 
     deallocate(influentObs)
-    deallocate( Lcorr )
+    deallocate(Lcorr)
     deallocate(lonInRad, latInRad)
 
-    call gio_writeToFile(stateVectorAnal, './anlm_000m', '', typvar_opt = 'A@', &
-                         containsFullField_opt=.true. )
+    ! update dateStamp from env variable
+    call gsv_modifyDate(stateVectorAnal, tim_getDateStamp(), &
+                        modifyDateOrigin_opt = .true.)
+    ! save analysis error
+    call gio_writeToFile(stateVectorAnal, errorStddev_output, &
+                         analErrorStdEtiket, &
+                         typvar_opt = 'E@', &
+                         containsFullField_opt = .false.)
 
     call col_deallocate(columng)
     call col_deallocate(column)
     call gsv_deallocate(stateVectorBkGnd)
     call gsv_deallocate(stateVectorAnal)
 
+    if (analysisVariable(1) == 'GL') then
+      ! Update the Days Since Last Obs
+      call aer_daysSinceLastObs(obsSpaceData, hco_ptr, vco_ptr, &
+                                errorStddev_input, errorStddev_output, &
+                                analysisVariable(1), propagateDSLO, &
+                                hoursSinceLastAnalysis)
+    end if
+
   end subroutine aer_analysisError
 
   !---------------------------------------------------------
   ! findObs
   !---------------------------------------------------------
-  subroutine findObs(obsSpaceData, stateVectorBkGnd, numObs)
+  subroutine findObs(obsSpaceData, stateVectorBkGnd, numObs, variableName)
     !
-    !:Purpose: Find all observations used for the local analysis.
+    !:Purpose: Find all observations used for the analysis.
     !
     implicit none
 
     ! Arguments
     type(struct_obs), intent(in)  :: obsSpaceData
     type(struct_gsv), intent(in)  :: stateVectorBkGnd
-    integer,          intent(out) :: numObs(ni,nj)
+    integer,          intent(out) :: numObs(ni,nj)    ! number of observations found
+    character(len=*), intent(in)  :: variableName     ! 'GL' for seaice or 'TM' for SST
 
     ! Local variables
-    integer :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex, kIndex, stepIndex, &
-               procIndex
+    integer :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
+    integer :: procIndex, kIndex, stepIndex
     integer :: gridptCount, gridpt, numLocalGridptsFoundSearch
-
     integer :: lonIndex, latIndex, resultsIndex, gridIndex
     type(kdtree2_result) :: searchResults(maxNumLocalGridptsSearch)
     real(kdkind)         :: refPosition(3), maxRadiusSquared
-    real(4) :: footprintRadius_r4 ! (metres)
+    real(4) :: footprintRadius_r4 ! (metres) used for seaice observations only
     real(4) :: influenceRadius_r4 ! (metres)
-
     real(8) :: obsLonInRad, obsLatInRad, maxLcorr
 
     call utl_tmg_start(122,'--AnalErrOI_FindObs')
 
-    maxLcorr = maxval( Lcorr(:,:) )
-
+    maxLcorr = maxval(Lcorr(:,:))
     numObs(:,:) = 0
 
     HEADER_LOOP: do headerIndex = 1, obs_numHeader(obsSpaceData)
@@ -682,37 +736,42 @@ contains
 
       BODY_LOOP: do bodyIndex = bodyIndexBeg, bodyIndexEnd
 
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) &
-             cycle BODY_LOOP
+        if (obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex) /= obs_assimilated) cycle BODY_LOOP
 
-        footprintRadius_r4 = s2c_getFootprintRadius(obsSpaceData, stateVectorBkGnd, &
-                                                    headerIndex)
-        influenceRadius_r4 = max(0.0, footprintRadius_r4) + maxLcorr
+        if (trim(variableName) == 'GL') then
+          footprintRadius_r4 = s2c_getFootprintRadius(obsSpaceData, stateVectorBkGnd, headerIndex)
+          influenceRadius_r4 = max(0.0, footprintRadius_r4) + maxLcorr
+        else if (trim(variableName) == 'TM') then 
+          influenceRadius_r4 = maxLcorr
+        else
+          call utl_abort('findObs: The current code does not work with '&
+                         //trim(variableName)//' analysis variable.')
+        end if      
 
-        if ( maxLcorr == 0.0d0 ) then
+        if (maxLcorr == 0.0d0) then
 
           do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
             do stepIndex = 1, stateVectorBkGnd%numStep
               do procIndex = 1, mmpi_nprocs
 
-                call s2c_getWeightsAndGridPointIndexes(headerIndex, &
-                     kIndex, stepIndex, procIndex, interpWeight, obsLatIndex, &
-                     obsLonIndex, gridptCount)
+                call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, &
+                                                       procIndex, interpWeight, obsLatIndex, &
+                                                       obsLonIndex, gridptCount)
 
                 GRIDPT_LOOP: do gridpt = 1, gridptCount
 
-                  if ( interpWeight(gridpt) == 0.0d0 ) cycle GRIDPT_LOOP
+                  if (interpWeight(gridpt) == 0.0d0) cycle GRIDPT_LOOP
 
                   lonIndex = obsLonIndex(gridpt)
                   latIndex = obsLatIndex(gridpt)
 
-                  numObs(lonIndex,latIndex) = numObs(lonIndex,latIndex) + 1
-                  if(associated(influentObs(lonIndex,latIndex)%bodyIndex)) then
-                    if(numObs(lonIndex,latIndex) > influentObs(lonIndex,latIndex)%numObs) then
+                  numObs(lonIndex, latIndex) = numObs(lonIndex, latIndex) + 1
+                  if(associated(influentObs(lonIndex, latIndex)%bodyIndex)) then
+                    if(numObs(lonIndex, latIndex) > influentObs(lonIndex, latIndex)%numObs) then
                       call utl_abort('findObs: Array too small')
                     end if
-                    influentObs(lonIndex,latIndex)%headerIndex(numObs(lonIndex,latIndex)) = headerIndex
-                    influentObs(lonIndex,latIndex)%bodyIndex(numObs(lonIndex,latIndex)) = bodyIndex
+                    influentObs(lonIndex, latIndex)%headerIndex(numObs(lonIndex, latIndex)) = headerIndex
+                    influentObs(lonIndex, latIndex)%bodyIndex(numObs(lonIndex, latIndex)) = bodyIndex
                   end if
 
                 end do GRIDPT_LOOP
@@ -725,48 +784,46 @@ contains
 
           ! Determine the grid point nearest the observation.
 
-          obsLonInRad = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex)
-          obsLatInRad = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex)
+          obsLonInRad = obs_headElem_r(obsSpaceData, obs_lon, headerIndex)
+          obsLatInRad = obs_headElem_r(obsSpaceData, obs_lat, headerIndex)
 
           ! do the search
           maxRadiusSquared = real(influenceRadius_r4, 8) ** 2
           refPosition(:) = kdtree2_3dPosition(obsLonInRad, obsLatInRad)
-          call kdtree2_r_nearest(tp=tree, qv=refPosition, r2=maxRadiusSquared, &
-               nfound=numLocalGridptsFoundSearch, &
-               nalloc=maxNumLocalGridptsSearch, &
-               results=searchResults)
+          call kdtree2_r_nearest(tp = tree, qv = refPosition, r2 = maxRadiusSquared, &
+                                 nfound = numLocalGridptsFoundSearch, &
+                                 nalloc = maxNumLocalGridptsSearch, &
+                                 results = searchResults)
 
-          if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch ) then
+          if (numLocalGridptsFoundSearch > maxNumLocalGridptsSearch) then
             call utl_abort('findObs: parameter maxNumLocalGridptsSearch must be increased')
           end if
 
           do resultsIndex = 1, numLocalGridptsFoundSearch
 
             gridIndex = searchResults(resultsIndex)%idx
-            if ( gridIndex < 1 .or. &
-                 gridIndex > stateVectorBkGnd%hco%ni * stateVectorBkGnd%hco%nj ) then
-              write(*,*) 'analysisErrorStdDev: gridIndex=', gridIndex
+            if (gridIndex < 1 .or. &
+                gridIndex > stateVectorBkGnd%hco%ni * stateVectorBkGnd%hco%nj) then
+              write(*,*) 'analysisErrorStdDev: gridIndex = ', gridIndex
               call utl_abort('findObs: gridIndex out of bound.')
             end if
 
             latIndex = (gridIndex - 1) / stateVectorBkGnd%hco%ni + 1
             lonIndex = gridIndex - (latIndex - 1) * stateVectorBkGnd%hco%ni
-            if ( lonIndex < 1 .or. lonIndex > stateVectorBkGnd%hco%ni .or. &
-                 latIndex < 1 .or. latIndex > stateVectorBkGnd%hco%nj ) then
-              write(*,*) 'analysisErrorStdDev: lonIndex=', lonIndex, &
-                                            ', latIndex=', latIndex
+            if (lonIndex < 1 .or. lonIndex > stateVectorBkGnd%hco%ni .or. &
+                latIndex < 1 .or. latIndex > stateVectorBkGnd%hco%nj) then
+              write(*,*) 'analysisErrorStdDev: lonIndex = ', lonIndex, &
+                                            ', latIndex = ', latIndex
               call utl_abort('findObs: lonIndex/latIndex out of bound.')
             end if
 
-            numObs(lonIndex,latIndex) = numObs(lonIndex,latIndex) + 1
-            if(associated(influentObs(lonIndex,latIndex)%bodyIndex)) then
-              if(numObs(lonIndex,latIndex) > influentObs(lonIndex,latIndex)%numObs) then
+            numObs(lonIndex, latIndex) = numObs(lonIndex, latIndex) + 1
+            if (associated(influentObs(lonIndex, latIndex)%bodyIndex)) then
+              if (numObs(lonIndex, latIndex) > influentObs(lonIndex, latIndex)%numObs) then
                 call utl_abort('findObs: Array too small in subroutine findObs')
               end if
-              influentObs(lonIndex,latIndex)%headerIndex(numObs(lonIndex,latIndex)) = &
-                          headerIndex
-              influentObs(lonIndex,latIndex)%bodyIndex(numObs(lonIndex,latIndex)) = &
-                          bodyIndex
+              influentObs(lonIndex, latIndex)%headerIndex(numObs(lonIndex, latIndex)) = headerIndex
+              influentObs(lonIndex, latIndex)%bodyIndex(numObs(lonIndex, latIndex)) = bodyIndex
             end if
 
           end do
@@ -784,61 +841,66 @@ contains
   !---------------------------------------------------------
   ! aer_daysSinceLastObs
   !---------------------------------------------------------
-  subroutine aer_daysSinceLastObs(obsSpaceData, hco_ptr, vco_ptr, trlmFileName)
+  subroutine aer_daysSinceLastObs(obsSpaceData, hco_ptr, vco_ptr, &
+                                  inputFileName, outputFileName, &
+                                  variableName, propagateDSLO, &
+                                  hoursSinceLastAnalysis)
     !
     !:Purpose: Update the field "days since last obs" with the newly assimilated obs.
     !
     implicit none
 
     ! Arguments
-    type(struct_obs), intent(in)  :: obsSpaceData
+    type(struct_obs), intent(in) :: obsSpaceData
     type(struct_hco), pointer    :: hco_ptr
     type(struct_vco), pointer    :: vco_ptr
-    character(len=*), intent(in) :: trlmFileName
+    character(len=*), intent(in) :: inputFileName  ! input file name
+    character(len=*), intent(in) :: outputFileName ! output file name
+    character(len=*), intent(in) :: variableName
+    logical         , intent(in) :: propagateDSLO  ! propagate (increase) Days Since Last Obs in time
+    integer         , intent(in) :: hoursSinceLastAnalysis
 
     ! Local Variables
     type(struct_gsv) :: stateVectorBkGnd
     type(struct_gsv) :: stateVectorAnal
-    real(8), pointer :: bkGndDaysSinceLastObs_ptr(:,:,:,:), analysisDaysSinceLastObs_ptr(:,:,:,:)
-
+    real(8), pointer :: bkGndDaysSinceLastObs_ptr(:,:,:,:)
+    real(8), pointer :: analysisDaysSinceLastObs_ptr(:,:,:,:)
     integer :: stepIndex, levIndex, lonIndex, latIndex, headerIndex
     integer :: bodyIndexBeg, bodyIndexEnd, bodyIndex, kIndex, procIndex
-
     integer :: gridptCount, gridpt
-
-    character(len=*), parameter :: myName = 'aer_daysSinceLastObs'
-
-    character(len=2 ) :: typvar
-    character(len=12) :: etiket
 
     type(struct_columnData) :: column
     type(struct_columnData) :: columng
 
     real(8) :: leadTimeInHours
 
-    if( mmpi_nprocs > 1 ) then
-      write(*,*) 'mmpi_nprocs = ',mmpi_nprocs
-      call utl_abort( myName// &
-                      ': this version of the code should only be used with one mpi task.')
+    if(mmpi_nprocs > 1) then
+      write(*,*) 'mmpi_nprocs = ', mmpi_nprocs
+      call utl_abort('aer_daysSinceLastObs: this version of the code should only be used with one mpi task.')
     end if
-    if( mmpi_myid > 0 ) return
+    if(mmpi_myid > 0) return
 
     write(*,*) '**********************************************************'
-    write(*,*) '** '//myName//': Update the days since last obs **'
+    write(*,*) '** aer_daysSinceLastObs: Update the days since last obs **'
     write(*,*) '**********************************************************'
 
-    call gsv_allocate( stateVectorBkGnd, 1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
-                       mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
-                       varNames_opt=(/'DSLO'/), dataKind_opt=8 )
-    call gsv_allocate( stateVectorAnal,  1, hco_ptr, vco_ptr, dateStamp_opt=-1, &
-                       varNames_opt=(/'DSLO'/), dataKind_opt=8 )
+    write(*,*) 'aer_daysSinceLastObs: input variable: ', trim(variableName)
 
-    etiket = '            '
-    typvar = 'P@'
+    call gsv_allocate(stateVectorBkGnd, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                      varNames_opt=(/'DSLO'/), dataKind_opt = 8)
+    call gsv_allocate(stateVectorAnal,  1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
+                      varNames_opt = (/'DSLO'/), dataKind_opt = 8)
 
-    call gio_readFromFile( stateVectorBkGnd, trlmFileName, etiket, typvar )
+    if (propagateDSLO) then
+      call aer_propagateDSLO(stateVectorBkGnd, trim(variableName), &
+                             inputFileName, outputFileName, &
+                             hoursSinceLastAnalysis, hco_ptr, vco_ptr)
+    else
+      call gio_readFromFile(stateVectorBkGnd, inputFileName, '', 'P@')
+    end if
 
-    leadTimeInHours = real(stateVectorBkGnd%deet*stateVectorBkGnd%npasList(1),8)/3600.0d0
+    leadTimeInHours = real(stateVectorBkGnd%deet * stateVectorBkGnd%npasList(1), 8) / 3600.0d0
     call incdatr(stateVectorAnal%dateOriginList(1), stateVectorBkGnd%dateOriginList(1), &
                  leadTimeInHours)
 
@@ -854,16 +916,16 @@ contains
     ni = stateVectorBkGnd%hco%ni
     nj = stateVectorBkGnd%hco%nj
 
-    call gsv_getField(stateVectorBkGnd, bkGndDaysSinceLastObs_ptr, 'DSLO')
-    call gsv_getField(stateVectorAnal,  analysisDaysSinceLastObs_ptr, 'DSLO')
+    call gsv_getField(stateVectorBkGnd,    bkGndDaysSinceLastObs_ptr, 'DSLO')
+    call gsv_getField(stateVectorAnal , analysisDaysSinceLastObs_ptr, 'DSLO')
 
     ! Initialisation
     do stepIndex = 1, stateVectorBkGnd%numStep
       do levIndex = 1, gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname('DSLO'))
         do latIndex = 1, nj
           do lonIndex = 1, ni
-            analysisDaysSinceLastObs_ptr(lonIndex,latIndex,levIndex,stepIndex) = &
-               bkGndDaysSinceLastObs_ptr(lonIndex,latIndex,levIndex,stepIndex)
+            analysisDaysSinceLastObs_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
+               bkGndDaysSinceLastObs_ptr(lonIndex, latIndex, levIndex, stepIndex)
           end do
         end do
       end do
@@ -871,12 +933,12 @@ contains
 
     HEADER_LOOP: do headerIndex = 1, obs_numHeader(obsSpaceData)
 
-      bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
-      bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
+      bodyIndexBeg = obs_headElem_i(obsSpaceData, obs_rln, headerIndex)
+      bodyIndexEnd = obs_headElem_i(obsSpaceData, obs_nlv, headerIndex) + bodyIndexBeg - 1
 
       BODY_LOOP: do bodyIndex = bodyIndexBeg, bodyIndexEnd
 
-        if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) /= obs_assimilated ) then
+        if (obs_bodyElem_i(obsSpaceData, obs_ass, bodyIndex) /= obs_assimilated) then
           cycle BODY_LOOP
         end if
 
@@ -884,19 +946,19 @@ contains
           do stepIndex = 1, stateVectorBkGnd%numStep
             do procIndex = 1, mmpi_nprocs
 
-              call s2c_getWeightsAndGridPointIndexes(headerIndex, &
-                   kIndex, stepIndex, procIndex, interpWeight, obsLatIndex, &
-                   obsLonIndex, gridptCount)
+              call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, &
+                                                     procIndex, interpWeight, obsLatIndex, &
+                                                     obsLonIndex, gridptCount)
 
               GRIDPT_LOOP: do gridpt = 1, gridptCount
 
-                if ( interpWeight(gridpt) == 0.0d0 ) cycle GRIDPT_LOOP
+                if (interpWeight(gridpt) == 0.0d0) cycle GRIDPT_LOOP
 
                 lonIndex = obsLonIndex(gridpt)
                 latIndex = obsLatIndex(gridpt)
 
-                do levIndex = 1, gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname('DSLO'))
-                  analysisDaysSinceLastObs_ptr(lonIndex,latIndex,levIndex,stepIndex) = 0.0
+                do levIndex = 1, gsv_getNumLev(stateVectorBkGnd, vnl_varLevelFromVarname('DSLO'))
+                  analysisDaysSinceLastObs_ptr(lonIndex, latIndex, levIndex, stepIndex) = 0.0
                 end do
 
               end do GRIDPT_LOOP
@@ -909,14 +971,194 @@ contains
 
     end do HEADER_LOOP
 
-    call gio_writeToFile( stateVectorAnal, './anlm_000m', '', typvar_opt='A@', &
-                          containsFullField_opt=.true. )
+    call gio_writeToFile(stateVectorAnal, outputFileName, '', typvar_opt = 'A@', &
+                         containsFullField_opt = .false. )
 
-    call col_deallocate( columng )
-    call col_deallocate( column )
-    call gsv_deallocate( stateVectorBkGnd )
-    call gsv_deallocate( stateVectorAnal )
+    call col_deallocate(columng)
+    call col_deallocate(column)
+    call gsv_deallocate(stateVectorBkGnd)
+    call gsv_deallocate(stateVectorAnal)
 
   end subroutine aer_daysSinceLastObs
+
+  !---------------------------------------------------------
+  ! aer_propagateAnalysisError
+  !---------------------------------------------------------
+  subroutine aer_propagateAnalysisError(stateVector, oceanMask, variableName, &
+                                        analErrorStdEtiket, bckgErrorStdEtiket, &
+                                        analysisEtiket, errorGrowth, &
+                                        hco_ptr, vco_ptr, &
+                                        inputFileName, outputFileName)
+    !
+    !:Purpose: read analysis error standard deviation field and propagate it forward in time
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_gsv), intent(inout) :: stateVector        ! Input: analysis std error; Output: background std error. 
+    type(struct_ocm), intent(in)    :: oceanMask          ! ocean-land mask (1=water, 0=land)
+    character(len=*), intent(in)    :: variableName       ! variable name
+    character(len=*), intent(in)    :: analErrorStdEtiket ! analysis error std etiket in the input std file 
+    character(len=*), intent(in)    :: bckgErrorStdEtiket ! background error std etiket in the output std file 
+    character(len=*), intent(in)    :: analysisEtiket     ! analysis etiket in the input std file 
+    real(4)         , intent(in)    :: errorGrowth        ! seaice: fraction of ice per hour, SST: estimated growth
+    type(struct_hco), pointer       :: hco_ptr            ! horizontal coordinates structure, pointer
+    type(struct_vco), pointer       :: vco_ptr            ! vertical coordinates structure, pointer
+    character(len=*), intent(in)    :: inputFileName      ! input file name
+    character(len=*), intent(in)    :: outputFileName     ! file name where to save results
+
+    ! locals:
+    integer :: latIndex, lonIndex, localLatIndex, localLonIndex 
+    real(8), pointer :: stateVectorStdError_ptr(:,:,:)
+    type(struct_gsv) :: stateVectorAnalysis
+    real(8), pointer :: stateVectorAnalysis_ptr(:,:,:)
+    real(4) :: totalLocalVariance
+    integer :: pointCount
+
+    write(*,*) ''
+    write(*,*) 'aer_propagateAnalysisError: propagate analysis error forward in time for: ', &
+               trim(variableName)
+    
+    ! read analysis error standard deviation field
+    call msg('aer_propagateAnalysisError:', ' reading analysis error field...')
+    call gio_readFromFile(stateVector, inputFileName, analErrorStdEtiket, &
+                          'E@', containsFullField_opt = .false.)
+    call gsv_getField(stateVector, stateVectorStdError_ptr)
+
+    ! read analysis
+    call msg('aer_propagateAnalysisError:', ' reading analysis field...')
+    call gsv_allocate(stateVectorAnalysis, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
+                      mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
+                      varNames_opt = (/trim(variableName)/), dataKind_opt = 8)
+    call gio_readFromFile(stateVectorAnalysis, './anlm_000m', analysisEtiket, &
+                          'A@', containsFullField_opt = .true.)
+    call gsv_getField(stateVectorAnalysis, stateVectorAnalysis_ptr)
+    
+    ! calculation in variance unit
+    stateVectorStdError_ptr(:,:,1) = stateVectorStdError_ptr(:,:,1)**2 
+
+    pointCount = 0
+    totalLocalVariance = 0.0d0
+
+    do latIndex = 1, hco_ptr%nj
+      do lonIndex = 1, hco_ptr%ni
+
+        OCEANPOINTS: if (oceanMask%mask(lonIndex, latIndex, 1)) then
+          do localLatIndex = latIndex - 1, latIndex + 1
+            if (localLatIndex >= 1 .and. localLatIndex <= hco_ptr%nj) then
+              do localLonIndex = lonIndex - 1,  lonIndex + 1
+                if (localLonIndex >= 1 .and. localLonIndex <= hco_ptr%ni) then
+                  if (oceanMask%mask(localLonIndex, localLatIndex, 1) .and. &
+                      (localLonIndex /= lonIndex .or. localLatIndex /= latIndex)) then
+
+                    pointCount = pointCount + 1
+                    totalLocalVariance = totalLocalVariance + &
+                                         (stateVectorAnalysis_ptr(localLonIndex, localLatIndex, 1) - &
+                                          stateVectorAnalysis_ptr(lonIndex, latIndex, 1))**2
+
+                  end if
+                end if
+              end do
+            end if
+          end do
+        end if OCEANPOINTS
+
+        if (pointCount > 0) then
+          totalLocalVariance = totalLocalVariance / real(pointCount)
+          if (stateVectorStdError_ptr(lonIndex, latIndex,1) < totalLocalVariance) then
+            stateVectorStdError_ptr(lonIndex, latIndex, 1) = totalLocalVariance
+          end if
+        end if
+
+      end do
+    end do
+
+    call gsv_deallocate(stateVectorAnalysis)
+
+    ! Back to standard deviation
+    stateVectorStdError_ptr(:, :, 1) = sqrt(stateVectorStdError_ptr(:, :, 1))
+
+    ! Add the standard deviation increment
+    do latIndex = 1, hco_ptr%nj
+      do lonIndex = 1, hco_ptr%ni
+        if (trim(variableName) == 'GL') then
+          stateVectorStdError_ptr(lonIndex, latIndex, 1) = &
+                     min(stateVectorStdError_ptr(lonIndex, latIndex, 1) + &
+                         errorGrowth * tim_dstepobs, 1.0)
+        else if (trim(variableName) == 'TM') then
+          stateVectorStdError_ptr(lonIndex, latIndex, 1) = &
+                         stateVectorStdError_ptr(lonIndex, latIndex, 1) + &
+                         errorGrowth * tim_dstepobs / 2.0
+        end if
+      end do
+    end do
+
+    ! zap analysis error etiket with background error etiket
+    stateVector%etiket = bckgErrorStdEtiket
+
+    ! update dateStamp from env variable
+    call gsv_modifyDate(stateVector, tim_getDateStamp(), &
+                        modifyDateOrigin_opt = .true.)
+
+    ! save background error (increased analysis error)
+    call gio_writeToFile(stateVector, outputFileName, &
+                         bckgErrorStdEtiket, typvar_opt = 'E@', &
+                         containsFullField_opt = .false.)
+
+  end subroutine aer_propagateAnalysisError
+
+  !---------------------------------------------------------
+  ! aer_propagateDSLO
+  !---------------------------------------------------------
+  subroutine aer_propagateDSLO(stateVectorErrorStd, variableName, &
+                               inputFileName, outputFileName, &
+                               hoursSinceLastAnalysis, hco_ptr, vco_ptr)
+    !
+    !:Purpose: propagate the field "days since last obs" in time.
+    !
+    implicit none
+
+    ! Arguments
+    type(struct_gsv), intent(inout) :: stateVectorErrorStd    ! read "analysed" state into it and increase it using 
+                                                              ! hoursSinceLastAnalysis to make a background field 
+    character(len=*), intent(in)    :: variableName           ! variable name ('GL' or 'TM') 
+    character(len=*), intent(in)    :: inputFileName          ! input  file name
+    character(len=*), intent(in)    :: outputFileName         ! output file name
+    integer         , intent(in)    :: hoursSinceLastAnalysis ! hours since last analysis (namelist variable)
+    type(struct_hco), pointer       :: hco_ptr
+    type(struct_vco), pointer       :: vco_ptr
+
+    ! locals
+    real(8), pointer :: analysisDaysSinceLastObs_ptr(:,:,:)
+    real(8) :: daysSinceLastAnalysis
+    integer :: latIndex, lonIndex
+
+    write(*,*) 'aer_propagateDSLO: propagating in time the Days Since Last Obs field...'
+    write(*,*) 'aer_propagateDSLO: hours since last analysis: ', hoursSinceLastAnalysis
+
+    daysSinceLastAnalysis = real(hoursSinceLastAnalysis, 8) / 24.0d0
+
+    ! get DSLO field
+    call gio_readFromFile(stateVectorErrorStd, inputFileName, '', 'A@')
+    call gsv_getField(stateVectorErrorStd, analysisDaysSinceLastObs_ptr)
+
+    ! Add number of days since last obs
+    do latIndex = 1, hco_ptr%nj
+      do lonIndex = 1, hco_ptr%ni
+        analysisDaysSinceLastObs_ptr(lonIndex, latIndex, 1) = analysisDaysSinceLastObs_ptr(lonIndex, latIndex, 1) + &
+                                                              daysSinceLastAnalysis
+      end do
+    end do
+
+    ! update dateStamp from env variable
+    call gsv_modifyDate(stateVectorErrorStd, tim_getDateStamp(), &
+                        modifyDateOrigin_opt = .true.)
+
+    ! save increased DSLO field into an fst-file
+    call gio_writeToFile(stateVectorErrorStd, outputFileName, &
+                         '', typvar_opt = 'P@', &
+                         containsFullField_opt = .false.)
+
+  end subroutine aer_propagateDSLO
 
 end module analysisErrorOI_mod
