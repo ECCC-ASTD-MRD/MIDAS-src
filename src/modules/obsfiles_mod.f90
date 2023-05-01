@@ -33,6 +33,7 @@ module obsFiles_mod
   use sqliteFiles_mod
   use sqliteUtilities_mod
   use obsdbFiles_mod
+  use obsDiagFiles_mod
   use bufr_mod
   use obsSubSpaceData_mod
   use obsUtil_mod
@@ -262,7 +263,8 @@ contains
     end if
 
     if (lwritediagsql) then 
-       call sqlf_writeSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag, ensObs_opt=ensObs_opt )
+      call diaf_writeAllSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, &
+                                     addFSOdiag, ensObs_opt=ensObs_opt)
     end if
 
     if ( present(asciDumpObs_opt) ) then

@@ -290,7 +290,7 @@ end module IndexListDepot_mod
 
 
 module ObsColumnNames_mod
-  ! MODULE obsColumnNames_mod (prefix='obs' category='7. Low-level data objects and utilities')
+  ! MODULE obsColumnNames_mod (prefix='ocn' category='7. Low-level data objects and utilities')
   !
   ! :Purpose: This module simply groups together many fortran paramters that
   !           serve as column names for ObsSpaceData_mod.

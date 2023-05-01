@@ -26,7 +26,6 @@
    outputFreshWaterST = 273.2
    seaiceThinning = 5
    outputFileName = 'obssst_pseudo'
-   etiket = 'MIDAS'
    seaWaterThreshold = 0.1
 /      
  &NAMSQLsfc

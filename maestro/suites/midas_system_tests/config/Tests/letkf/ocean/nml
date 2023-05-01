@@ -47,7 +47,7 @@
   NLISTFLG(5)=11
   NLISTFLG(6)=12
 /
- &NAMSQLsfc
+ &NAMSQLsst
    listElem="22042, 7025"
    sqlNull=" and obsvalue is not null "  
 / 

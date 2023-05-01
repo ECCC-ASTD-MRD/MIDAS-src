@@ -24,7 +24,7 @@
  &NAMRADVEL 
    maxRangeInterp = 15000.0D0,
 /
- &NAMSQLradvel
+ &NAMSQLradar
   listElem="21014"
   sqlNull=" and obsvalue is not null "
 / 

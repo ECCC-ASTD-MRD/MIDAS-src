@@ -454,8 +454,8 @@ contains
 
     call odbf_setup()
 
-    call odbf_getColumnValuesDate(headDateValues, headTimeValues, fileName=trim(fileName), &
-                                  tableName=headTableName, sqlColumnName=headDateSqlName)
+    call sqlu_getColumnValuesDateStr(headDateValues, headTimeValues, fileName=trim(fileName), &
+                                     tableName=headTableName, sqlColumnName=headDateSqlName)
 
     validDate = MPC_missingValue_INT 
     validTime = MPC_missingValue_INT 
@@ -548,13 +548,13 @@ contains
     call odbf_getPrimaryKeys(headPrimaryKey, bodyPrimaryKey, bodyHeadKey, &
                              fileName=trim(fileName))
 
-    call odbf_getColumnValuesDate(headDateValues, headTimeValues, fileName=trim(fileName), &
-                                  tableName=headTableName, sqlColumnName=headDateSqlName)
-    call odbf_getColumnValuesChar(headCharValues, fileName=trim(fileName), &
+    call sqlu_getColumnValuesDateStr(headDateValues, headTimeValues, fileName=trim(fileName), &
+                                     tableName=headTableName, sqlColumnName=headDateSqlName)
+    call sqlu_getColumnValuesChar(headCharValues, fileName=trim(fileName), &
                                   tableName=headTableName, sqlColumnNames=headCharSqlNames)
-    call odbf_getColumnValuesNum (headValues, fileName=trim(fileName), &
+    call sqlu_getColumnValuesNum (headValues, fileName=trim(fileName), &
                                   tableName=headTableName, sqlColumnNames=headSqlNames)
-    call odbf_getColumnValuesNum (bodyValues, fileName=trim(fileName), &
+    call sqlu_getColumnValuesNum (bodyValues, fileName=trim(fileName), &
                                   tableName=bodyTableName, sqlColumnNames=bodySqlNames)
     numRowsBodyTable = size(bodyValues,1)
     numRowsHeadTable = size(headValues,1)
@@ -945,74 +945,6 @@ contains
   end subroutine odbf_getPrimaryKeys
 
   !--------------------------------------------------------------------------
-  ! odbf_getColumnValuesDate
-  !--------------------------------------------------------------------------
-  subroutine odbf_getColumnValuesDate(columnDateValues, columnTimeValues, fileName, &
-                                      tableName, sqlColumnName)
-    !
-    ! :Purpose: Read the column values from obsDB file for the specified table
-    !           and column names.
-    !
-    implicit none
-
-    ! arguments:
-    integer, allocatable, intent(out) :: columnDateValues(:)
-    integer, allocatable, intent(out) :: columnTimeValues(:)
-    character(len=*),     intent(in)  :: sqlColumnName
-    character(len=*),     intent(in)  :: fileName
-    character(len=*),     intent(in)  :: tableName
-
-    ! locals:
-    integer              :: numRows, numColumns, rowIndex
-    character(len=20), allocatable :: columnValuesStr(:,:)
-    character(len=3000)  :: query
-    type(fSQL_STATUS)    :: stat ! sqlite error status
-    type(fSQL_DATABASE)  :: db   ! sqlite file handle
-    type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
-
-    ! open the obsDB file
-    call fSQL_open( db, trim(fileName), status=stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getColumnValuesDate: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'odbf_getColumnValuesDate: fSQL_open' )
-    end if
-
-    ! Get the date and time
-
-    ! build the sqlite query
-    query = "select strftime('%Y%m%d'," // trim(sqlColumnName) // &
-            "), strftime('%H%M'," // trim(sqlColumnName) // ") " // &
-            "from " // trim(tableName) // ";"
-    write(*,*) 'odbf_getColumnValuesDate: query ---> ', trim(query)
-
-    ! read the values from the file
-    call fSQL_prepare( db, trim(query), stmt, status=stat )
-    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
-                        mode=FSQL_CHAR, status=stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getColumnValuesDate: fSQL_get_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_getColumnValuesDate: problem with fSQL_get_many')
-    end if
-    write(*,*) 'odbf_getColumnValuesDate: numRows = ', numRows, ', numColumns = ', numColumns
-    allocate( columnValuesStr(numRows,2) )
-    call fSQL_fill_matrix( stmt, columnValuesStr )
-    allocate( columnDateValues(numRows) )
-    allocate( columnTimeValues(numRows) )
-    do rowIndex = 1, numRows
-      read(columnValuesStr(rowIndex,1),*) columnDateValues(rowIndex)
-      read(columnValuesStr(rowIndex,2),*) columnTimeValues(rowIndex)
-    end do
-
-    deallocate(columnValuesStr)
-
-    ! close the obsDB file
-    call fSQL_free_mem( stmt )
-    call fSQL_finalize( stmt )
-    call fSQL_close( db, stat ) 
-
-  end subroutine odbf_getColumnValuesDate
-
-  !--------------------------------------------------------------------------
   ! odbf_setSurfaceType
   !--------------------------------------------------------------------------
   subroutine odbf_setSurfaceType(obsdat, headIndexBegin, fileName, tableName)
@@ -1067,126 +999,6 @@ contains
     call fSQL_close( db, stat ) 
 
   end subroutine odbf_setSurfaceType
-
-  !--------------------------------------------------------------------------
-  ! odbf_getColumnValuesChar
-  !--------------------------------------------------------------------------
-  subroutine odbf_getColumnValuesChar(columnValues, fileName, tableName, &
-                                      sqlColumnNames)
-    !
-    ! :Purpose: Read the column values from obsDB file for the specified table
-    !           and column names.
-    !
-    implicit none
-
-    ! arguments:
-    character(len=50), allocatable, intent(out) :: columnValues(:,:)
-    character(len=*),               intent(in)  :: sqlColumnNames(:)
-    character(len=*),               intent(in)  :: fileName
-    character(len=*),               intent(in)  :: tableName
-
-    ! locals:
-    integer :: numRows, numColumns, columnIndex
-    character(len=3000)      :: query
-    type(fSQL_STATUS)        :: stat ! sqlite error status
-    type(fSQL_DATABASE)      :: db   ! sqlite file handle
-    type(fSQL_STATEMENT)     :: stmt ! precompiled sqlite statements
-
-    ! open the obsDB file
-    call fSQL_open( db, trim(fileName), status=stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getColumnValuesChar: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'odbf_getColumnValuesChar: fSQL_open' )
-    end if
-
-    ! build the sqlite query
-    query = 'select'
-    numColumns = size(sqlColumnNames)
-    do columnIndex = 1, numColumns
-      query = trim(query) // ' ' // trim(sqlColumnNames(columnIndex))
-      if (columnIndex < numColumns) query = trim(query) // ','
-    end do
-    query = trim(query) // ' from ' // trim(tableName) // ';'
-    write(*,*) 'odbf_getColumnValuesChar: query ---> ', trim(query)
-
-    ! read the values from the file
-    call fSQL_prepare( db, trim(query), stmt, status=stat )
-    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
-                        mode=FSQL_CHAR, status=stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getColumnValuesChar: fSQL_get_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_getColumnValuesChar: problem with fSQL_get_many')
-    end if
-    write(*,*) 'odbf_getColumnValuesChar: numRows = ', numRows, ', numColumns = ', numColumns
-    allocate( columnValues(numRows, numColumns) )
-    call fSQL_fill_matrix( stmt, columnValues )
-
-    ! close the obsDB file
-    call fSQL_free_mem( stmt )
-    call fSQL_finalize( stmt )
-    call fSQL_close( db, stat ) 
-
-  end subroutine odbf_getColumnValuesChar
-
-  !--------------------------------------------------------------------------
-  ! odbf_getColumnValuesNum
-  !--------------------------------------------------------------------------
-  subroutine odbf_getColumnValuesNum(columnValues, fileName, tableName, &
-                                     sqlColumnNames)
-    !
-    ! :Purpose: Read the column values from obsDB file for the specified table
-    !           and column names.
-    !
-    implicit none
-
-    ! arguments:
-    real(8), allocatable, intent(out) :: columnValues(:,:)
-    character(len=*),     intent(in)  :: sqlColumnNames(:)
-    character(len=*),     intent(in)  :: fileName
-    character(len=*),     intent(in)  :: tableName
-
-    ! locals:
-    integer :: numRows, numColumns, columnIndex
-    character(len=3000)       :: query
-    type(fSQL_STATUS)         :: stat ! sqlite error status
-    type(fSQL_DATABASE)       :: db   ! sqlite file handle
-    type(fSQL_STATEMENT)      :: stmt ! precompiled sqlite statements
-
-    ! open the obsDB file
-    call fSQL_open( db, trim(fileName), status=stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getColumnValuesNum: fSQL_open: ', fSQL_errmsg(stat)
-      call utl_abort( 'odbf_getColumnValuesNum: fSQL_open' )
-    end if
-
-    ! build the sqlite query
-    query = 'select'
-    numColumns = size(sqlColumnNames)
-    do columnIndex = 1, numColumns
-      query = trim(query) // ' ' // trim(sqlColumnNames(columnIndex))
-      if (columnIndex < numColumns) query = trim(query) // ','
-    end do
-    query = trim(query) // ' from ' // trim(tableName) // ';'
-    write(*,*) 'odbf_getColumnValuesNum: query ---> ', trim(query)
-
-    ! read the values from the file
-    call fSQL_prepare( db, trim(query) , stmt, status=stat )
-    call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, mode=FSQL_REAL8, &
-                        real8_missing=MPC_missingValue_R8, status=stat )
-    if ( fSQL_error(stat) /= FSQL_OK ) then
-      write(*,*) 'odbf_getColumnValuesNum: fSQL_get_many: ', fSQL_errmsg(stat)
-      call utl_abort('odbf_getColumnValuesNum: problem with fSQL_get_many')
-    end if
-    write(*,*) 'odbf_getColumnValuesNum: numRows = ', numRows, ', numColumns = ', numColumns
-    allocate( columnValues(numRows, numColumns) )
-    call fSQL_fill_matrix( stmt, columnValues )
-
-    ! close the obsDB file
-    call fSQL_free_mem( stmt )
-    call fSQL_finalize( stmt )
-    call fSQL_close( db, stat ) 
-
-  end subroutine odbf_getColumnValuesNum
 
   !--------------------------------------------------------------------------
   ! odbf_copyToObsSpaceHeadChar

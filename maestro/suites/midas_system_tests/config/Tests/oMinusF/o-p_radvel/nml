@@ -169,7 +169,7 @@
   listElem="11001,11002"
   sqlNull=" and obsvalue is not null and vcoord is not null "
 /
- &NAMSQLradvel
+ &NAMSQLradar
   listElem="21014"
   sqlNull=" and obsvalue is not null "
 /

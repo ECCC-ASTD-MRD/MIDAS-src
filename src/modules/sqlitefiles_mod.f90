@@ -31,13 +31,12 @@ module sqliteFiles_mod
   use obsVariableTransforms_mod
   use timeCoord_mod
   use ensembleObservations_mod
-  use sqliteUtilities_mod
 
   implicit none
   save
   private
   public :: sqlf_getDateStamp, sqlf_updateFile, sqlf_readFile, sqlf_cleanFile
-  public :: sqlf_writeSqlDiagFiles, sqlf_addCloudParametersandEmissivity
+  public :: sqlf_addCloudParametersandEmissivity
   
   type(fSQL_DATABASE) :: db         ! type for SQLIte  file handle
   type(FSQL_STATUS)   :: statusSqlite
@@ -262,24 +261,5 @@ module sqliteFiles_mod
     call sqlr_addCloudParametersandEmissivity(db, obsSpaceData,fileIndex)
     call fSQL_close(db, statusSqlite)
   end subroutine sqlf_addCloudParametersandEmissivity
-
-  !--------------------------------------------------------------------------
-  ! sqlf_writeSqlDiagFiles
-  !--------------------------------------------------------------------------
-  subroutine sqlf_writeSqlDiagFiles(obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag, ensObs_opt)
-    implicit none
-    ! arguments
-    type (struct_obs), intent(inout) :: obsSpaceData
-    character(len=*), intent(in)     :: sfFileName ! fileName acronym used for surface obs file
-    logical                          :: onlyAssimObs, addFSOdiag
-    type(struct_eob), optional       :: ensObs_opt ! object for trial and analysis members in obsspace
-
-    call utl_tmg_start(15,'----WriteSqlDiagFiles')
-    
-    call sqlr_writeAllSqlDiagFiles( obsSpaceData, sfFileName, onlyAssimObs, addFSOdiag, ensObs_opt)
-    
-    call utl_tmg_stop(15)
-
-  end subroutine sqlf_writeSqlDiagFiles
 
 end module sqliteFiles_mod

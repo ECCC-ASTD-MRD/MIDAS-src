@@ -1,8 +1,7 @@
- &NAMSQLamsua
+ &NAMSQLTOVS
   listElem='12163' ,
   sqlExtraHeader='' ,
   sqlNull='' ,
-  sqlLimit='' ,
 /
  &NAMBMAT1D
   scalefactorHI=200*1.0

@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Improve code for treating "rdb" format SQLite files (#773 and !718)
+   * may require some changes to the namelist
  * Cleaning up `bgckmicrowave_mod` (#779 and !719)
  * Read the namelist file only on first call in some subroutines to speed up `letkf` (#811 and !721)
  * The program `calcstats` now uses only two main modes: BHI and TOOLBOX (#796 and !717)
@@ -293,7 +295,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * Fix use of `sqlExtraHeader` for filtering the reading of SQLite obs (#630 and !588)
  * Fix wind vector rotation to avoid abort when grid point is at the equator (#567 and !564)
  * Fix bug causing zero radiance bias correction when all coefficients missing (#562 and !555)
- * Fix for correctly handling situation where sensor is missing in NAMTOVSINST (#592 and !553) 
+ * Fix for correctly handling situation where sensor is missing in NAMTOVSINST (#592 and !553)
  * Augment width write format for Jo contributions (#591 and !552)
  * Fix some infrequent listing `mv` error in `midas_build` after an interrupted build (#590)
  * Fix non monotonic pressure profiles in slantpath mode for radiance observations (#564 and !543)
@@ -762,7 +764,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
  * New script to automatically generate module dependencies: `make_src_files.sh` (#149 and !136)
  * Removal of constraints on spectral truncation and number of levels relative to the MPI topology (#135 and !135)
  * New functionality: now able to read various types of sea ice data (family =*GL*) (#127 and !131)
- 
+
 ### Changed
 
  * Update the expected execution timings for the ones on HPCR-U1 (#298 and !291)

@@ -188,15 +188,10 @@
   BITEMLIST(2)='COR',
   TYPE_RESUME='BGCKALT'
 /
-  &NAMSQLiasi
+  &NAMSQLTOVS
   listElem='12163'
   sqlNull=" and obsvalue is not null "
   sqlExtraHeader="  "
-/
-  &NAMSQLairs
-  listElem='12163'
-  sqlNull=" and obsvalue is not null "
-  sqlExtraHeader="     "
 /
   &NAMSQLUPDATE
   itemUpdateList(1)='OMP'

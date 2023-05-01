@@ -34,15 +34,11 @@
    saveAuxFields = .True.
    bgTermZeroBias = 0.95
 /
- &NAMSQLsfc
+ &NAMSQLsst
    listElem='22042'
-   sqlNull=' and obsvalue is not null '  
-/
-&namReadSSTSat
-   listElem='22042'
-   sqlExtraDat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","METO-C","NOAA19","NPP","AMSR2")) '
    sqlNull=' and obsvalue is not null '
-   sqlExtraHeader=' id_stn in ("METO-A","METO-B","METO-C","NOAA19","NPP","AMSR2") '
+   sqlExtraDat_sat=' and id_obs in (select id_obs from header where id_stn in ("METO-A","METO-B","METO-C","NOAA19","NPP","AMSR2")) '
+   sqlExtraHeader_sat=' id_stn in ("METO-A","METO-B","METO-C","NOAA19","NPP","AMSR2") '
 /
  &namSQLUpdate
 /
