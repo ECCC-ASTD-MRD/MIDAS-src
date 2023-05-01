@@ -118,6 +118,7 @@ program midas_analysisErrorOI
   integer :: ierr, dateStampFromObs
   integer :: get_max_rss
   character(len=48) :: obsMpiStrategy, varMode
+  character, parameter :: myName = 'analysisErrorOI'
 
   type(struct_obs)       , target :: obsSpaceData
   type(struct_columnData), target :: trlColumnOnAnlLev
@@ -183,7 +184,7 @@ program midas_analysisErrorOI
   !- Initialize the Analysis grid
   !
   call msg(myName,'Set hco parameters for analysis grid', mpiAll_opt=.false.)
-  call hco_SetupFromFile(hco_anl, trlmFileName, aer_backgroundEtiket) ! IN
+  call hco_SetupFromFile(hco_anl, './analysisgrid', '') ! IN
 
   !
   !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
