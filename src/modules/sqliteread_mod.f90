@@ -432,7 +432,7 @@ module sqliteRead_mod
     ! 
     ! for each row of the body table (which has already been read)
     !
-    !   if this if the first id_data associated with a given id_obs
+    !   if this is the first id_data associated with a given id_obs
     !     -> read associated header and write to obsSpaceData
     !
     !   -> write body entry in obsSpaceData
