@@ -29,7 +29,6 @@ private
 ! public procedures
 public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume, brpr_addCloudParametersandEmissivity
 public :: brpr_addElementsToBurp, brpr_updateMissingObsFlags, brpr_burpClean
-public :: brpr_setHeadBodyPrimaryKeyColumns
 
 integer, parameter :: maxItems = 20
 integer, parameter :: maxElements = 20
@@ -3407,84 +3406,6 @@ CONTAINS
     end subroutine handle_error
 
   end subroutine brpr_readBurp
-
-  !--------------------------------------------------------------------------
-  ! brpr_setHeadBodyPrimaryKeyColumns
-  !--------------------------------------------------------------------------
-  subroutine brpr_setHeadBodyPrimaryKeyColumns(obsDat, obsFamily)
-    !
-    ! :Purpose: Set header/body primary keys in obsSpaceData that 
-    !           will ensure unique values over all mpi tasks.
-    !
-    implicit none
-
-    ! Arguments:
-    type(struct_obs), intent(inout) :: obsDat
-    character(len=*), intent(in)    :: obsFamily    
-
-    ! locals:
-    integer    :: initialHeaderindex, initialBodyindex
-    integer    :: headerIndex, bodyIndex
-    integer    :: bodyIndexBegin, bodyIndexEnd
-    integer    :: numHeader, numBody, ierr
-    integer(8) :: headerPrimaryKey, bodyPrimaryKey
-    integer, allocatable :: allNumHeader(:), allNumBody(:)
-
-    if (mmpi_myid == 0) write(*,*) 'brpr_setHeadBodyPrimaryKeyColumns: start'
-
-    numHeader = 0
-    numBody = 0
-    call obs_set_current_header_list(obsdat, obsFamily)
-    HEADERCOUNT: do
-      headerIndex = obs_getHeaderIndex(obsdat)
-      if (headerIndex < 0) exit HEADERCOUNT
-      
-      numHeader = numHeader + 1
-      numBody = numBody + obs_headElem_i(obsdat, OBS_NLV, headerIndex)
-    end do HEADERCOUNT
-    allocate(allNumHeader(mmpi_nprocs))
-    allocate(allNumBody(mmpi_nprocs))
-    call rpn_comm_allgather(numHeader,1,'mpi_integer',       &
-                            allNumHeader,1,'mpi_integer','GRID',ierr)
-    call rpn_comm_allgather(numBody,1,'mpi_integer',       &
-                            allNumBody,1,'mpi_integer','GRID',ierr)
-    if (mmpi_myid > 0) then
-      initialHeaderindex = sum(allNumHeader(1:mmpi_myid))
-      initialBodyindex = sum(allNumBody(1:mmpi_myid))
-    else
-      initialHeaderindex = 0
-      initialBodyindex = 0
-    end if
-    deallocate(allNumHeader)
-    deallocate(allNumBody)
-
-    headerPrimaryKey = initialHeaderindex
-    bodyPrimaryKey = initialBodyindex
-    write(*,*) 'brpr_setHeadBodyPrimaryKeyColumns: initialHeaderIndex=', initialHeaderindex , &
-                ', numHeader=', numHeader, ', initialBodyindex=', initialBodyindex, &
-                ', numBody=', numBody
-
-    call obs_set_current_header_list(obsdat, obsFamily)
-    HEADER: do 
-      headerIndex = obs_getHeaderIndex(obsdat)
-      if (headerIndex < 0) exit HEADER
-
-      headerPrimaryKey = headerPrimaryKey + 1
-      call obs_setHeadPrimaryKey(obsdat, headerIndex, headerPrimaryKey)
-
-      bodyIndexBegin = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
-      bodyIndexEnd = bodyIndexBegin + &
-                    obs_headElem_i(obsdat, OBS_NLV, headerIndex) - 1
-
-      BODY: do bodyIndex = bodyIndexBegin, bodyIndexEnd
-        bodyPrimaryKey = bodyPrimaryKey + 1
-        call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey)
-      end do BODY
-    end do HEADER
-
-    if (mmpi_myid == 0) write(*,*) 'brpr_setHeadBodyPrimaryKeyColumns: end'
-
-  end subroutine brpr_setHeadBodyPrimaryKeyColumns
 
   !--------------------------------------------------------------------------
   ! WRITE_BODY
