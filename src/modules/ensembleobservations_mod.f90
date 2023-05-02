@@ -20,6 +20,8 @@ MODULE ensembleObservations_mod
   use earthConstants_mod
   use bufr_mod
   use codePrecision_mod
+  use codtyp_mod
+  use obsfamilylist_mod
   implicit none
   save
   private
@@ -28,15 +30,21 @@ MODULE ensembleObservations_mod
   public :: struct_eob
 
   ! public procedures
-  public :: eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
+  public :: eob_init, eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
   public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setPsvObsErrInv
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_setAssFlag, eob_copy, eob_zero
   public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord, eob_setSimObsVal, eob_setSimObsErrInv
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc, eob_setMeanOMP
   public :: eob_removeObsNearLand, eob_readFromFiles, eob_writeToFiles
 
-  integer, parameter :: maxNumLocalObsSearch = 500000
-  integer,external   :: get_max_rss
+  integer, parameter   :: maxNumLocalObsSearch = 500000
+  integer,external     :: get_max_rss
+  logical              :: eob_initialized = .false.
+  logical              :: simObsAssim, psvObsAssim
+  integer              :: numSimObsFam
+  integer              :: numPsvObsFam
+  integer              :: numSimCodTyp(ofl_numFamily), numPsvCodTyp(ofl_numFamily)
+  integer, allocatable :: simCodTyp(:,:), psvCodTyp(:,:)
 
   type struct_eob
     logical                       :: allocated      = .false.
@@ -61,13 +69,113 @@ MODULE ensembleObservations_mod
 
   type(kdtree2), pointer :: tree => null()
 
+  ! namelist variables
+  character(len=2)  :: simObsFamily(ofl_numFamily) ! observation families for simulation (for obs impact)
+  character(len=2)  :: psvObsFamily(ofl_numFamily) ! observation families for passive assimilation
+  character(len=codtyp_name_length) :: simCodTypName(ofl_numFamily,codtyp_maxNumber) ! codtyp for simulated obs family
+  character(len=codtyp_name_length) :: psvCodTypName(ofl_numFamily,codtyp_maxNumber) ! codtyp for passive obs family
+  namelist /NAMENSOBS/simObsFamily, psvObsFamily, simCodTypName, psvCodTypName
+
+  public eob_initialized, simObsAssim
+
 CONTAINS
+
+  !--------------------------------------------------------------------------
+  ! eob_init
+  !--------------------------------------------------------------------------
+  subroutine eob_init()
+    !
+    !: Purpsoe: To initialize the NAMENSOBS namelist variables
+    !
+    implicit none
+
+    ! Local variables:
+    integer :: nulnam, ierr, obsfamidx, codtypidx
+    integer, external :: fnom, fclos
+
+    write(*,*) 'eob_init: starting'
+
+    ! default values for namelist variables
+    simObsFamily(:)    = ''
+    simCodTypName(:,:) = ''
+    psvObsFamily(:)    = ''
+    psvCodTypName(:,:) = ''
+
+    ! read namelist
+    if (utl_isNamelistPresent('namensobs','./flnml')) then
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namensobs,iostat=ierr)
+      if (ierr /= 0) call utl_abort('eob_init: Error reading namelist namensobs')
+      ierr=fclos(nulnam)
+
+      ! initialize number of entries to 0
+      numSimObsFam = 0
+      numPsvObsFam = 0
+      numSimCodTyp(:) = 0
+      numPsvCodTyp(:) = 0
+
+      do obsfamidx = 1, ofl_numFamily
+        if ( trim(simObsFamily(obsfamidx) ) /= '' ) then
+          numSimObsFam = numSimObsFam + 1
+        end if
+        if ( trim(psvObsFamily(obsfamidx) ) /= '' ) then
+          numPsvObsFam = numPsvObsFam + 1
+        end if
+
+        if ( numSimObsFam == obsfamidx ) then
+          ! simulated observation family specified for current
+          ! obsfamidx; check to see if any codtypname specified
+          do codtypidx = 1, codtyp_maxNumber
+            if ( trim(simCodTypName(obsfamidx,codtypidx)) /= '' ) then
+              numSimCodTyp(obsfamidx) = numSimCodTyp(obsfamidx) + 1
+              if (.not. allocated( simCodTyp ) ) then
+                allocate( simCodTyp(ofl_numFamily,codtyp_maxNumber) )
+                simCodTyp(:,:) = -999
+              end if
+              ! store CodTyp for simulated obs family
+              simCodTyp(obsfamidx,codtypidx) = codtyp_get_codtyp(simCodTypName(obsfamidx,codtypidx))
+            end if
+          end do
+        end if
+
+        if ( numPsvObsFam == obsfamidx )  then
+          ! passive observation family specified for current
+          ! obsfamidx; check to see if any codtypname specified
+          do codtypidx = 1, codtyp_maxNumber
+            if ( trim(psvCodTypName(obsfamidx,codtypidx)) /= '' ) then
+              numPsvCodTyp(obsfamidx) = numPsvCodTyp(obsfamidx) + 1
+              if (.not. allocated( psvCodTyp ) ) then
+                allocate( psvCodTyp(ofl_numFamily,codtyp_maxNumber) )
+                psvCodTyp(:,:) = -999
+              end if
+              ! store CodTyp for passive obs family
+              psvCodTyp(obsfamidx,codtypidx) = codtyp_get_codtyp(psvCodTypName(obsfamidx,codtypidx))
+            end if
+          end do
+        end if
+      end do
+    else
+      write(*,*)
+      write(*,*) 'eob_init: namensobs is missing in the namelist. The default value will be taken.'
+    end if
+
+    write(*,*) 'eob_init: numSimObsFam: ', numSimObsFam
+    write(*,*) 'eob_init: numPsvObsFam: ', numPsvObsFam
+    write(*,*) 'eob_init: numSimCodTyp: ', numSimCodTyp
+    write(*,*) 'eob_init: numPsvCodTyp: ', numPsvCodTyp
+
+    if ( numSimObsFam > 0 ) simObsAssim = .true.
+    if ( numPsvObsFam > 0 ) psvObsAssim = .true.
+    eob_initialized = .true. ! update that namelist has been read
+
+  end subroutine eob_init
 
   !--------------------------------------------------------------------------
   ! eob_allocate
   !--------------------------------------------------------------------------
   subroutine eob_allocate(ensObs, numMembers, numObs, obsSpaceData, &
-                          fileMemberIndex1_opt, simObsAssim_opt)
+                          fileMemberIndex1_opt)
     !
     ! :Purpose: Allocate an ensObs object
     !
@@ -79,10 +187,6 @@ CONTAINS
     integer                 , intent(in)    :: numObs
     type(struct_obs), target, intent(in)    :: obsSpaceData
     integer, optional       , intent(in)    :: fileMemberIndex1_opt
-    logical, optional       , intent(in)    :: simObsAssim_opt
-
-    ! locals
-    logical :: simObsAssim
 
     if ( ensObs%allocated ) then
       write(*,*) 'eob_allocate: this object is already allocated, deallocating first.'
@@ -91,11 +195,7 @@ CONTAINS
 
     if ( present(fileMemberIndex1_opt) ) ensObs%fileMemberIndex1 = fileMemberIndex1_opt
 
-    if ( present(simObsAssim_opt) ) then
-      simObsAssim = simObsAssim_opt
-    else
-      simObsAssim = .false.
-    end if
+    if ( .not.eob_initialized ) call eob_init()
 
     ensObs%obsSpaceData  => obsSpaceData
     ensObs%numMembers    = numMembers
@@ -229,9 +329,6 @@ CONTAINS
 
     write(*,*) 'eob_clean: reducing numObs from ', ensObs%numObs, ' to ', numObsClean
     call eob_allocate(ensObsClean, ensObs%numMembers, numObsClean, ensObs%obsSpaceData)
-    if ( allocated(ensObs%obsErrInv_sim) ) then
-      allocate(ensObsClean%obsErrInv_sim(numObsClean))
-    end if
     if ( allocated(ensObs%Ya_r4) ) then
       allocate(ensObsClean%Ya_r4(ensObs%numMembers,numObsClean))
     end if
@@ -343,9 +440,6 @@ CONTAINS
     if ( allocated(ensObsClean%Ya_r4) ) then
       allocate(ensObs_mpiglobal%Ya_r4(ensObsClean%numMembers,numObs_mpiglobal))
     end if
-    if ( allocated(ensObsClean%obsErrInv_sim) ) then
-      allocate(ensObs_mpiglobal%obsErrInv_sim(numObs_mpiglobal))
-    end if  
     if ( allocated(ensObsClean%randPert_r4) ) then
       allocate(ensObs_mpiglobal%randPert_r4(ensObsClean%numMembers,numObs_mpiglobal))
     end if
@@ -816,12 +910,18 @@ CONTAINS
       end if
     end do
 
+    ! read namelist if necessary and calculate obs error inverse for
+    ! simulated and passived observations
+    if ( .not.eob_initialized) call eob_init()
+    if ( simObsAssim ) call eob_setSimObsErrInv(ensObs)
+    if ( psvObsAssim ) call eob_setPsvObsErrInv(ensObs)
+
   end subroutine eob_setobsErrInv
 
   !--------------------------------------------------------------------------
   ! eob_setSimObsErrInv
   !--------------------------------------------------------------------------
-  subroutine eob_setSimObsErrInv(ensObs, simObsFamily, simtvs_opt)
+  subroutine eob_setSimObsErrInv(ensObs)
     !
     !:Purpose:  Computes the inverse of the observation error variance 
     !           if simulating any observations. Stores this in
@@ -830,30 +930,14 @@ CONTAINS
     implicit none
 
     ! arguments
-    type(struct_eob),  intent(inout)        :: ensObs
-    character(len=2),  intent(in)           :: simObsFamily(:)
-    character(len=64), optional, intent(in) :: simtvs_opt(:)
+    type(struct_eob),  intent(inout) :: ensObs
 
     ! locals
-    integer              :: obsIndex, headerIndex, tvsidx
-    integer              :: instrum, instrumentCode
-    integer, allocatable :: simtvsint(:)
-    logical              :: simtvs
-    character(2)         :: obsfam_curr
+    integer       :: obsIndex, headerIndex
+    integer       :: codtyp, obsfamidx
+    character(2)  :: obsfam_curr
 
-    if ( present( simtvs_opt) ) then
-      simtvs = .true.
-      ! get IDs from names, and store in simtvsint
-      allocate ( simtvsint(size(simtvs_opt)) )
-      simtvsint(:) = -999
-      do tvsidx = 1, size(simtvs_opt)
-        if ( simtvs_opt(tvsidx) /= '' ) then
-          simtvsint(tvsidx) = tvs_getinstrumentID(simtvs_opt(tvsidx))
-        end if
-      end do
-    else
-      simtvs = .false.
-    end if
+    write(*,*) 'eob_setsimObsErrInv: starting'
 
     call obs_extractObsRealBodyColumn(ensObs%obsErrInv_sim, ensObs%obsSpaceData, OBS_OER)
     do obsIndex = 1, ensObs%numObs
@@ -867,13 +951,15 @@ CONTAINS
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
       obsfam_curr = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
       if ( ANY( simObsFamily == obsfam_curr ) ) then
-        if ( ( simtvs ) .and. ( obsfam_curr == 'TO') ) then
-          ! see if any specified TOVS instrument is for current observation
-          instrumentCode = obs_headElem_i(ensObs%obsSpaceData, OBS_INS, headerIndex)
-          call tvs_mapinstrum(instrumentCode, instrum)
-          if ( ANY( simtvsint == instrum ) ) ensObs%obsErrInv_sim(obsIndex) = 0.0d0
+        obsfamidx = utl_findloc(simObsFamily(:), obsfam_curr)
+        if ( numSimCodTyp(obsfamidx) > 0 ) then
+          ! codtyp is specified for current obs family so
+          ! see if current observation matches codtyp
+          codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
+          if ( ANY( simCodTyp(obsfamidx,:) == codtyp ) ) ensObs%obsErrInv_sim(obsIndex) = 0.0d0
         else
-          ! simulated observation families don't include TOVS, or no instrument specified
+          ! simulated observation family doesn't include any codtyp so set
+          ! error inverse to 0 independent of current observation's codtyp
           ensObs%obsErrInv_sim(obsIndex) = 0.0d0
         end if
       end if 
@@ -884,66 +970,41 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_setPsvObsErrInv
   !--------------------------------------------------------------------------
-  subroutine eob_setPsvObsErrInv(ensObs, psvObsFamily, psvtvs_opt, simObsAssim_opt)
+  subroutine eob_setPsvObsErrInv(ensObs)
     !
     !:Purpose:  Updates the inverse of the observation error variance  
     !           for passive osbervations and stores this in ensObs%obsErrInv.
     !           This is done assuming that ensObs%obsErrInv was already set.
-    !           Additionaly if simObsAssim_opt=.true, then it is assumed that
-    !           ensObs%obsErrInv_sim was already set as well.
     !
     implicit none
 
     ! arguments
-    type(struct_eob),  intent(inout)        :: ensObs
-    character(len=2),  intent(in)           :: psvObsFamily(:)
-    character(len=64), optional, intent(in) :: psvtvs_opt(:)
-    logical, optional, intent(in)           :: simObsAssim_opt
-
+    type(struct_eob),  intent(inout) :: ensObs
+    
     ! locals
-    integer              :: obsIndex, headerIndex, tvsidx
-    integer              :: instrum, instrumentCode
-    integer, allocatable :: psvtvsint(:)
-    logical              :: psvtvs, simObsAssim
-    character(2)         :: obsfam_curr
-
-    if ( present( psvtvs_opt ) ) then
-      psvtvs = .true.
-      ! get IDs from names, and store in simtvsint
-      allocate( psvtvsint(size(psvtvs_opt)) )
-      psvtvsint(:) = -999
-      do tvsidx = 1, size(psvtvs_opt)
-        if ( psvtvs_opt(tvsidx) /= '' ) then
-          psvtvsint(tvsidx) = tvs_getinstrumentID(psvtvs_opt(tvsidx))
-        end if
-      end do
-    else
-      psvtvs = .false.
-    end if
-
-    if ( present( simObsAssim_opt ) ) then
-      simObsAssim = simObsAssim_opt
-    else
-      simObsAssim = .false.
-    end if
+    integer       :: obsIndex, headerIndex
+    integer       :: codtyp, obsfamidx
+    character(2)  :: obsfam_curr
 
     do obsIndex = 1, ensObs%numObs
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
       obsfam_curr = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      ! update obs error inverse to 0 if current observation is passive
       if ( ANY(psvObsFamily == obsfam_curr ) ) then
-        ! update obs error inverse for passive obs
-        if ( ( psvtvs ) .and. ( obsfam_curr == 'TO' ) ) then
-          ! see if any specified TOVS instrument matches current observation
-          instrumentCode = obs_headElem_i(ensObs%obsSpaceData, OBS_INS, headerIndex)
-          call tvs_mapinstrum(instrumentCode, instrum)
-          if ( ANY( psvtvsint == instrum ) ) then
+        obsfamidx = utl_findloc(psvObsFamily(:), obsfam_curr)
+        if ( numPsvCodTyp(obsfamidx) > 0 ) then
+          ! codtyp is specified for current obs family so
+          ! see if current observation matches codtyp
+          codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
+          if ( ANY( psvCodTyp(obsfamidx,:) == codtyp ) ) then
             ensObs%obsErrInv(obsIndex) = 0.0d0
             if ( simObsAssim ) then
               ensObs%obsErrInv_sim(obsIndex) = 0.0d0
             end if
           end if
         else
-          ! passive observation familes don't include TOVS, or no instrument specified          
+          ! passive observation family doesn't include any codtyp so set
+          ! error inverse to 0 independent of current observation codtyp
           ensObs%obsErrInv(obsIndex) = 0.0d0
           if ( simObsAssim ) then
             ensObs%obsErrInv_sim(obsIndex) = 0.0d0
@@ -1182,26 +1243,33 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_setSimObsVal
   !--------------------------------------------------------------------------
-  subroutine eob_setSimObsVal(ensObs, simObsFamily)
+  subroutine eob_setSimObsVal(ensObs)
     !
-    ! :Purpose: Set the observed value for the observation family
-    !           provided to the background ensemble mean in observation space.
+    ! :Purpose: Set the observed value for simulated observations to
+    !           the background ensemble mean in observation space.
     !
     implicit none
 
     ! Arguments:
     type(struct_eob) , intent(inout)  :: ensObs
-    character(len=2),  intent(in)     :: simObsFamily(:)
 
     ! Locals:
-    integer :: obsIndex
-    integer :: headerIndex
+    integer       :: obsIndex, headerIndex
+    integer       :: codtyp, codtypidx, obsfamidx
+    character(2)  :: obsfam_curr   
 
     ! Loop through observations and set y to mean(H(x)) if y is in obs family of interest
     do obsIndex = 1, ensObs%numObs
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
-      if ( ANY( simObsFamily == obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex) ) ) then
-        ensObs%obsvalue(obsIndex) = ensObs%meanYb(ObsIndex)
+      obsfam_curr = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      if ( ANY( simObsFamily == obsfam_curr ) ) then
+        obsfamidx = utl_findloc(simObsFamily(:), obsfam_curr)
+        if ( numSimCodTyp(obsfamidx) > 0 ) then
+          codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
+          if ( ANY( simCodTyp(obsfamidx,:) == codtyp ) ) ensObs%obsvalue(obsIndex) = ensObs%meanYb(ObsIndex)
+        else
+          ensObs%obsvalue(obsIndex) = ensObs%meanYb(ObsIndex)
+        end if
       end if
     end do
 

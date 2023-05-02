@@ -60,7 +60,7 @@ contains
                                 stateVectorMeanAnl, &
                                 wInterpInfo, maxNumLocalObs,  &
                                 hLocalize, hLocalizePressure, vLocalize,  &
-                                mpiDistribution, numRetainedEigen, simObsAssim)
+                                mpiDistribution, numRetainedEigen)
     ! :Purpose: Local subroutine containing the code for computing
     !           the LETKF analyses for all ensemble members, ensemble
     !           mean.
@@ -82,7 +82,6 @@ contains
     real(8)                     :: vLocalize
     character(len=*)            :: mpiDistribution
     integer                     :: numRetainedEigen
-    logical                     :: simObsAssim
 
     ! Locals
     integer :: nEns, nEnsPerSubEns, nEnsPerSubEns_mod, nEnsIndependentPerSubEns

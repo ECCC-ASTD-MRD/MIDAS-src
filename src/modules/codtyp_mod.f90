@@ -23,8 +23,11 @@ module codtyp_mod
   integer                           :: icod (codtyp_maxNumber)  ! codes for new additions to standard codtype list
   namelist /NAMCODTYP/ cnames, icod
 
-  public :: codtyp_get_codtyp,codtyp_get_name
-  public :: codtyp_name_length
+  ! public variables (parameters)
+  public :: codtyp_name_length, codtyp_maxNumber
+
+  ! public procedures
+  public :: codtyp_get_codtyp, codtyp_get_name
 
 contains
 

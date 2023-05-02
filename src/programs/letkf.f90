@@ -181,7 +181,6 @@ program midas_letkf
   use innovation_mod
   use enkf_mod
   use ensPostProcess_mod
-  use obsfamilylist_mod
   implicit none
 
   type(struct_obs), target  :: obsSpaceData
@@ -220,9 +219,7 @@ program midas_letkf
   logical :: nwpFields   ! indicates if fields are on momentum and thermo levels
   logical :: oceanFields ! indicates if fields are on depth levels
   logical :: useModulatedEns ! using modulated ensembles is requested by setting numRetainedEigen
-  logical :: simObsAssim ! indicates if doing simulation experiments for any obs family(ies)
-  logical :: psvObsAssim ! indicates if doing passive simulation for any obs family(ies) 
-  
+
   ! interpolation information for weights (in enkf_mod)
   type(struct_enkfInterpInfo) :: wInterpInfo
 
@@ -257,10 +254,6 @@ program midas_letkf
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   character(len=12) :: etiket_anl        ! etiket for output files
-  character(len=2)  :: simObsFamily(ofl_numFamily) ! observation family(ies) for simulation assimilation
-  character(len=2)  :: psvObsFamily(ofl_numFamily) ! observation family(ies) for passive assimilation
-  character(len=64) :: psvTvsInstrument(tvs_maxNumberOfSensors) ! TOVS instrument names for passive obs (e.g., amsua, amsub)
-  character(len=64) :: simTvsInstrument(tvs_maxNumberOfSensors) ! TOVS instrument names for simulated obs (e.g., amsua, amsub)
   
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName, randomShuffleSubEns,  &
@@ -270,7 +263,7 @@ program midas_letkf
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                      obsTimeInterpType, mpiDistribution, etiket_anl, &
                      readEnsObsFromFile, writeLocalEnsObsToFile, &
-                     numRetainedEigen, debug, simObsFamily, psvObsFamily, simTvsInstrument, psvTvsInstrument
+                     numRetainedEigen, debug
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -328,10 +321,6 @@ program midas_letkf
   writeLocalEnsObsToFile   = .false.
   numRetainedEigen         = 0
   debug                    = .false.
-  simObsFamily(:)          = ''
-  simTvsInstrument(:)      = ''
-  psvObsFamily(:)          = ''
-  psvTvsInstrument(:)      = ''
   
   !- 1.2 Read the namelist
   nulnam = 0
@@ -387,20 +376,6 @@ program midas_letkf
     'letkf with modulated ensembles')
   end if
 
-  ! logical if simulating any observations
-  if ( ANY( simObsFamily /= '' ) ) then
-    simObsAssim = .true.
-  else
-    simObsAssim = .false.
-  end if
-
-  ! logical if passively assimilating any observations
-  if ( ANY( psvObsFamily /= '' ) ) then
-    psvObsAssim = .true.
-  else
-    psvObsAssim = .false.
-  end if
-  
   !
   !- 2.  Initialization
   !
@@ -464,16 +439,17 @@ program midas_letkf
   ! Call suprep again to filter out channels according to 'util' column of stats_tovs
   call filt_suprep(obsSpaceData)
 
+  ! initialize ensembleobservations_mod
+  if ( .not.eob_initialized ) call eob_init()
+  
   ! Allocate vectors for storing HX values
-  call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData, &
-                    simObsAssim_opt=simObsAssim)
+  call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
   if ( outputEnsObs ) allocate(ensObs%Ya_r4(ensObs%numMembers,ensObs%numObs))
   call eob_zero(ensObs)
   if ( useModulatedEns ) then
     nEnsGain = nEns * numRetainedEigen
     allocate(ensObsGain)
-    call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData, &
-                      simObsAssim_opt=simObsAssim)
+    call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData)
     call eob_zero(ensObsGain)
   else
     ensObsGain => ensObs
@@ -704,10 +680,8 @@ program midas_letkf
   call eob_setMeanOMP(ensObs)
   if ( useModulatedEns ) call eob_setMeanOMP(ensObsGain)
 
-  ! If doing observation simulation experiment, set y for family of interest to mean(H(x))
-  if ( simObsAssim ) then
-    call eob_setSimObsVal(ensObs, simObsFamily)
-  end if
+  ! Set y for family of interest to mean(H(x)) if doing simulated observations
+  if ( simObsAssim ) call eob_setSimObsVal(ensObs)
 
   ! Set vertical location for all obs for vertical localization (based on ensemble mean pressure and height)
   if (vLocalize > 0.0d0) then
@@ -753,34 +727,6 @@ program midas_letkf
   call utl_tmg_start(141,'----Barr')
   call rpn_comm_barrier('GRID',ierr)
   call utl_tmg_stop(141)
-
-  ! Compute other obs error inverse (ensObs%obsErrInv_sim) if doing simulated observation 
-  ! experiments
-  if ( simObsAssim ) then
-    if ( ANY( simTvsInstrument /= '' ) ) then
-      call eob_setSimObsErrInv(ensObs, simObsFamily, simTvsInstrument)
-      if ( useModulatedEns ) call eob_setSimObsErrInv(ensObsGain, simObsFamily, &
-                                                      simtvs_opt=simTvsInstrument)
-    else
-      call eob_setSimObsErrInv(ensObs, simObsFamily)
-      if ( useModulatedEns ) call eob_setSimObsErrInv(ensObsGain, simObsFamily)
-    end if
-  end if
-
-  ! Update values in normal obs error inverse (ensObs%obsErrInv) if doing passive assimilation
-  if ( psvObsAssim ) then
-    if ( ANY( psvTvsInstrument /= '' ) ) then
-      call eob_setPsvObsErrInv(ensObs, psvObsFamily, psvTvsInstrument, &
-                               simObsAssim_opt=simObsAssim)
-      if ( useModulatedEns ) call eob_setPsvObsErrInv(ensObsGain, psvObsFamily, &
-                                                      psvtvs_opt=psvTvsInstrument, &
-                                                      simObsAssim_opt=simObsAssim)
-    else
-      call eob_setPsvObsErrInv(ensObs, psvObsFamily, simObsAssim_opt=simObsAssim)
-      if ( useModulatedEns ) call eob_setPsvObsErrInv(ensObsGain, psvObsFamily, &
-                                                      simObsAssim_opt=simObsAssim)
-    end if
-  end if
 
   ! Clean and globally communicate obs-related data to all mpi tasks
   call eob_allGather(ensObs,ensObs_mpiglobal)
@@ -830,7 +776,7 @@ program midas_letkf
                           stateVectorMeanAnl, &
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, &
-                          mpiDistribution, numRetainedEigen, simObsAssim)
+                          mpiDistribution, numRetainedEigen)
 
   !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
   if ( outputEnsObs ) then
