@@ -187,7 +187,9 @@ contains
         numBodyRead = 0
       end if ! if (fileExists)
 
-      if (obsFileType == 'BURP') call setHeadBodyPrimaryKeyColumns(obsSpaceData, obsFamilyType)
+      if (obsFileType == 'BURP') then
+        call setHeadBodyPrimaryKeyColumns(obsSpaceData, numHeaderRead, numBodyRead)
+      end if
       
     end do
 
@@ -1257,7 +1259,7 @@ contains
   !--------------------------------------------------------------------------
   ! setHeadBodyPrimaryKeyColumns
   !--------------------------------------------------------------------------
-  subroutine setHeadBodyPrimaryKeyColumns(obsDat, obsFamily)
+  subroutine setHeadBodyPrimaryKeyColumns(obsDat, numHeaderRead, numBodyRead)
     !
     ! :Purpose: Set header/body primary keys in obsSpaceData that 
     !           will ensure unique values over all mpi tasks.
@@ -1266,67 +1268,59 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsDat
-    character(len=*), intent(in)    :: obsFamily    
+    integer, intent(in) :: numHeaderRead
+    integer, intent(in) :: numBodyRead
 
     ! locals:
     integer    :: initialHeaderindex, initialBodyindex
+    integer    :: numHeaders, numBodies
     integer    :: headerIndex, bodyIndex
-    integer    :: bodyIndexBegin, bodyIndexEnd
-    integer    :: numHeader, numBody, ierr
+    integer    :: headerIndexBegin, headerIndexEnd, bodyIndexBegin, bodyIndexEnd
+    integer    :: ierr
     integer(8) :: headerPrimaryKey, bodyPrimaryKey
-    integer, allocatable :: allNumHeader(:), allNumBody(:)
+    integer, allocatable :: allNumHeaderRead(:), allNumBodyRead(:)
 
     if (mmpi_myid == 0) write(*,*) 'setHeadBodyPrimaryKeyColumns: start'
+    call getNumHeadersBodies(obsDat, numHeaders, numBodies)
 
-    numHeader = 0
-    numBody = 0
-    call obs_set_current_header_list(obsdat, obsFamily)
-    HEADERCOUNT: do
-      headerIndex = obs_getHeaderIndex(obsdat)
-      if (headerIndex < 0) exit HEADERCOUNT
-      
-      numHeader = numHeader + 1
-      numBody = numBody + obs_headElem_i(obsdat, OBS_NLV, headerIndex)
-    end do HEADERCOUNT
-    allocate(allNumHeader(mmpi_nprocs))
-    allocate(allNumBody(mmpi_nprocs))
-    call rpn_comm_allgather(numHeader,1,'mpi_integer',       &
-                            allNumHeader,1,'mpi_integer','GRID',ierr)
-    call rpn_comm_allgather(numBody,1,'mpi_integer',       &
-                            allNumBody,1,'mpi_integer','GRID',ierr)
+    write(*,*) 'setHeadBodyPrimaryKeyColumns: numHeaders=', numHeaders, ', numBodies=', numBodies
+    write(*,*) 'setHeadBodyPrimaryKeyColumns: numHeaderRead=', numHeaderRead, &
+                ', numBodyRead=', numBodyRead
+
+    allocate(allNumHeaderRead(mmpi_nprocs))
+    allocate(allNumBodyRead(mmpi_nprocs))
+    call rpn_comm_allgather(numHeaderRead,1,'mpi_integer',       &
+                            allNumHeaderRead,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(numBodyRead,1,'mpi_integer',       &
+                            allNumBodyRead,1,'mpi_integer','GRID',ierr)
     if (mmpi_myid > 0) then
-      initialHeaderindex = sum(allNumHeader(1:mmpi_myid))
-      initialBodyindex = sum(allNumBody(1:mmpi_myid))
+      initialHeaderindex = sum(allNumHeaderRead(1:mmpi_myid))
+      initialBodyindex = sum(allNumBodyRead(1:mmpi_myid))
     else
       initialHeaderindex = 0
       initialBodyindex = 0
     end if
-    deallocate(allNumHeader)
-    deallocate(allNumBody)
+    deallocate(allNumHeaderRead)
+    deallocate(allNumBodyRead)
 
-    headerPrimaryKey = initialHeaderindex
-    bodyPrimaryKey = initialBodyindex
     write(*,*) 'setHeadBodyPrimaryKeyColumns: initialHeaderIndex=', initialHeaderindex , &
-                ', numHeader=', numHeader, ', initialBodyindex=', initialBodyindex, &
-                ', numBody=', numBody
+                ', initialBodyindex=', initialBodyindex
 
-    call obs_set_current_header_list(obsdat, obsFamily)
-    HEADER: do 
-      headerIndex = obs_getHeaderIndex(obsdat)
-      if (headerIndex < 0) exit HEADER
-
+    headerIndexBegin = numHeaders - numHeaderRead + 1
+    headerIndexEnd = numHeaders
+    headerPrimaryKey = initialHeaderindex
+    do headerIndex = headerIndexBegin, headerIndexEnd
       headerPrimaryKey = headerPrimaryKey + 1
       call obs_setHeadPrimaryKey(obsdat, headerIndex, headerPrimaryKey)
-
-      bodyIndexBegin = obs_headElem_i(obsdat, OBS_RLN, headerIndex)
-      bodyIndexEnd = bodyIndexBegin + &
-                    obs_headElem_i(obsdat, OBS_NLV, headerIndex) - 1
-
-      BODY: do bodyIndex = bodyIndexBegin, bodyIndexEnd
-        bodyPrimaryKey = bodyPrimaryKey + 1
-        call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey)
-      end do BODY
-    end do HEADER
+    end do
+        
+    bodyIndexBegin = numBodies - numBodyRead + 1
+    bodyIndexEnd = numBodies
+    bodyPrimaryKey = initialBodyindex
+    do bodyIndex = bodyIndexBegin, bodyIndexEnd
+      bodyPrimaryKey = bodyPrimaryKey + 1
+      call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey)
+    end do
 
     if (mmpi_myid == 0) write(*,*) 'setHeadBodyPrimaryKeyColumns: end'
 
