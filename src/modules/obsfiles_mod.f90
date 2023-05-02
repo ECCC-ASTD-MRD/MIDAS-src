@@ -132,7 +132,8 @@ contains
     type(struct_obs)  :: obsSpaceData
 
     ! locals
-    integer           :: fileIndex, fileIndexMpiLocal
+    integer :: fileIndex, fileIndexMpiLocal, numHeaders, numBodies
+    integer :: numHeaderBefore, numBodyBefore, numHeaderRead, numBodyRead
     character(len=10) :: obsFileType
     character(len=maxLengthFilename) :: fileName
     character(len=256) :: fileNamefull
@@ -168,7 +169,12 @@ contains
               call brpr_addElementsToBurp(fileNameFull, obsFamilyType, beSilent_opt=.false.)
             end if
           end if
+
+          call getNumHeadersBodies(obsSpaceData, numHeaderBefore, numBodyBefore)
           call brpf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
+          call getNumHeadersBodies(obsSpaceData, numHeaders, numBodies)
+          numHeaderRead = numHeaders - numHeaderBefore
+          numBodyRead = numBodies - numBodyBefore
         end if
         if ( obsFileType == 'SQLITE' ) then
           call sqlf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
@@ -176,6 +182,9 @@ contains
         if ( obsFileType == 'OBSDB' ) then
           call odbf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
         end if
+      else
+        numHeaderRead = 0
+        numBodyRead = 0
       end if ! if (fileExists)
 
       if (obsFileType == 'BURP') call brpr_setHeadBodyPrimaryKeyColumns(obsSpaceData, obsFamilyType)
@@ -1226,5 +1235,23 @@ contains
     end if
 
   end subroutine obsf_copyObsDirectory
+  
+  !--------------------------------------------------------------------------
+  ! getNumHeadersBodies
+  !--------------------------------------------------------------------------
+  subroutine getNumHeadersBodies(obsSpaceData, numHeaders, numBodies)
+    !
+    ! :Purpose: Get number of local headers/bodies from obsSpaceData.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_obs), intent(in) :: obsSpaceData
+    integer, intent(out) :: numHeaders, numBodies
+
+    numHeaders = obs_numHeader(obsSpaceData)
+    numBodies = obs_numBody(obsSpaceData)
+
+  end subroutine getNumHeadersBodies
 
 end module obsFiles_mod
