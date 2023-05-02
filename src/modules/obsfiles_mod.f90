@@ -151,35 +151,35 @@ contains
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
       inquire(file=trim(fileNameFull),exist=fileExists)
 
-      if (.not. fileExists) then
-        !if (obsFileType == 'BURP') call brpr_setHeadBodyPrimaryKeyColumns(obsSpaceData, obsFamilyType)
-        cycle
-      end if
+      if (fileExists) then
+        ! get fileIndex on mpi local
+        do fileIndexMpiLocal = 1, obsf_nfiles
+          if (trim(obsf_cfilnam(fileIndexMpiLocal)) == fileNamefull) exit
+        end do
 
-      ! get fileIndex on mpi local
-      do fileIndexMpiLocal = 1, obsf_nfiles
-        if (trim(obsf_cfilnam(fileIndexMpiLocal)) == fileNamefull) exit
-      end do
-
-      call obsf_determineSplitFileType( obsFileType, fileNameFull )
-      if ( obsFileType == 'BURP' )   then
-        ! Add extra bias correction elements to conventional and TO files
-        ! Bias correction elements for AI are added at the derivate file stage
-        if ( obsFamilyType == 'TO' ) then
-          call brpr_addElementsToBurp(fileNameFull, obsFamilyType, beSilent_opt=.false.)
-        else 
-          if ( bcc_biasActive(obsFamilyType) ) then
+        call obsf_determineSplitFileType( obsFileType, fileNameFull )
+        if ( obsFileType == 'BURP' )   then
+          ! Add extra bias correction elements to conventional and TO files
+          ! Bias correction elements for AI are added at the derivate file stage
+          if ( obsFamilyType == 'TO' ) then
             call brpr_addElementsToBurp(fileNameFull, obsFamilyType, beSilent_opt=.false.)
+          else 
+            if ( bcc_biasActive(obsFamilyType) ) then
+              call brpr_addElementsToBurp(fileNameFull, obsFamilyType, beSilent_opt=.false.)
+            end if
           end if
+          call brpf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
         end if
-        call brpf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
-      end if
-      if ( obsFileType == 'SQLITE' ) then
-        call sqlf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
-      end if
-      if ( obsFileType == 'OBSDB' ) then
-        call odbf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
-      end if
+        if ( obsFileType == 'SQLITE' ) then
+          call sqlf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
+        end if
+        if ( obsFileType == 'OBSDB' ) then
+          call odbf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
+        end if
+      end if ! if (fileExists)
+
+      if (obsFileType == 'BURP') call brpr_setHeadBodyPrimaryKeyColumns(obsSpaceData, obsFamilyType)
+      
     end do
 
     ! abort if NAMTOV does not exist but there are radiance observation files

@@ -3372,8 +3372,6 @@ CONTAINS
 
     call cleanup()
 
-    !call brpr_setHeadBodyPrimaryKeyColumns(obsdat, familyType)
-
     numHeader = obs_numHeader(obsdat)
     write(*,*)' file   Nobs SUM = ',trim(brp_file),numHeader,SUM
 
