@@ -1670,10 +1670,10 @@ contains
     logical              :: midasTableExists
     logical, save        :: nmlAlreadyRead = .false.
     character(len=6), parameter     :: midasTableType = 'header' !Define the type of MIDAS table: header/body
-    
+    integer, parameter   :: maxItemNumber = 15
     ! namelist variables
-    integer,          save :: numberUpdateItems  ! number of items to use from the list
-    character(len=4), save :: updateItemList(15) ! obsSpace column names used to update the file
+    integer,          save :: numberUpdateItems             ! MUST NOT BE INCLUDED IN NAMELIST!
+    character(len=4), save :: updateItemList(maxItemNumber) ! obsSpace column names used to update the file
 
     namelist/namObsDbMIDASHeaderUpdate/ numberUpdateItems, updateItemList
 
@@ -1689,7 +1689,7 @@ contains
 
       ! set default values of namelist variables
       updateItemList(:) = ''
-      numberUpdateItems = 0
+      numberUpdateItems = MPC_missingValue_INT
 
       ! Read the namelist for directives
       nulnam = 0
@@ -1697,7 +1697,14 @@ contains
       read(nulnam, nml=namObsDbMIDASHeaderUpdate, iostat=ierr)
       if ( ierr /= 0 ) call utl_abort('odbf_insertInMidasHeaderTable: Error reading namelist')
       ierr = fclos(nulnam)
-
+      if ( numberUpdateItems /= MPC_missingValue_INT) then
+        call utl_abort('odbf_updateMidasHeaderTable: check namObsDbMIDASHeaderUpdate namelist section: numberUpdateItems should be removed')
+      end if
+      numberUpdateItems = 0
+      do updateItemIndex = 1, maxItemNumber
+        if (trim(updateItemList(updateItemIndex)) == '') exit
+        numberUpdateItems = numberUpdateItems + 1
+      end do
       if ( mmpi_myid == 0 ) then
         write(*, nml=namObsDbMIDASHeaderUpdate)
       end if
@@ -1897,10 +1904,10 @@ contains
     logical              :: midasTableExists
     logical, save        :: nmlAlreadyRead = .false.
     character(len=6), parameter  :: midasTableType='body' ! Define the type of MIDAS table: header/body
-    
+    integer, parameter   :: maxItemNumber = 15
     ! namelist variables
-    integer,          save :: numberUpdateItems  ! number of items to use from the list
-    character(len=4), save :: updateItemList(15) ! obsSpace column names used to update the file
+    integer,          save :: numberUpdateItems             ! MUST NOT BE INCLUDED IN NAMELIST!
+    character(len=4), save :: updateItemList(maxItemNumber) ! obsSpace column names used to update the file
 
     namelist/namObsDbMIDASBodyUpdate/ numberUpdateItems, updateItemList
 
@@ -1916,7 +1923,7 @@ contains
 
       ! set default values of namelist variables
       updateItemList(:) = ''
-      numberUpdateItems = 0
+      numberUpdateItems = MPC_missingValue_INT
 
       ! Read the namelist for directives
       nulnam = 0
@@ -1924,7 +1931,14 @@ contains
       read(nulnam, nml=namObsDbMIDASBodyUpdate, iostat=ierr)
       if ( ierr /= 0 ) call utl_abort('odbf_insertInMidasBodyTable: Error reading namelist')
       ierr = fclos(nulnam)
-
+      if (numberUpdateItems /=  MPC_missingValue_INT) then
+        call utl_abort('odbf_updateMidasBodyTable: check namObsDbMIDASBodyUpdate namelist section: numberUpdateItems should be removed')
+      end if
+      numberUpdateItems = 0
+      do updateItemIndex = 1, maxItemNumber
+        if (trim(updateItemList(updateItemIndex)) == '') exit
+        numberUpdateItems = numberUpdateItems + 1
+      end do
       ! Add "FLG" to the updateItemList to ensure it is always updated
       numberUpdateItems = numberUpdateItems + 1
       updateItemList(numberUpdateItems) = 'FLG'
