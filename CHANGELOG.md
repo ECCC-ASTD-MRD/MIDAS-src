@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Simplify `bgckmicrowave_mod` considering treatment of 1 obs at a time (#779 and !725)
  * Improve code for treating "rdb" format SQLite files (#773 and !718)
    * may require some changes to the namelist
  * Cleaning up `bgckmicrowave_mod` (#779 and !719)
