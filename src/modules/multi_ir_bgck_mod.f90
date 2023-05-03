@@ -61,13 +61,14 @@ module multi_ir_bgck_mod
 
   integer, parameter :: bitflag = 29
 
+  real(8),parameter ::  albedoThresholdQC= 0.25d0 ! max albedo allowed over the water 
+
   real(8),parameter :: seuilalb_static(NIR,0:2)= reshape( (/ 70.0,67.0,50.0, &
                                                              40.0,37.0,37.0, &
                                                              70.0,57.0,40. /),(/3,3/) ) 
   real(8),parameter :: seuilalb_homog(NIR,0:2)= reshape( (/ 15.0,18.0,13.0, &
                                                             9.0,10.0,10.0, &
                                                             18.0,16.0,10.0 /),(/3,3/) )
-  
   real(8) :: seuilbt_homog(NVIS+1:nChanAVHRR,0:2,1:2)= reshape( (/5.d0, 4.d0, 4.d0, 4.d0, 3.d0, 3.d0, &
                                                                   5.d0, 4.d0, 4.d0, 5.d0, 5.d0, 5.d0, &
                                                                   4.d0, 3.d0, 3.d0, 5.d0, 5.d0, 5.d0/), (/3,3,2/) )
@@ -833,7 +834,7 @@ contains
                sunAzimuthAnglePresent .and. satelliteZenithAnglePresent) then 
             anisot = 1.d0
             
-            if (albedo < 0.17d0) then
+            if (albedo < albedoThresholdQC) then
               deltaphi = abs(satelliteAzimuthAngle - sunAzimuthAngle )
               if (deltaphi > 180.d0) deltaphi = 360.d0 - deltaphi
               call visocn(sunZenithAngle,satelliteZenithAngle,deltaphi,anisot,zlamb,zcloud,IER)
@@ -1097,7 +1098,7 @@ contains
 
               else if ( ksurf == 1 ) then
                 if ( pcnt_wat < 0.99d0 .or. pcnt_reg < 0.97d0 .or. &
-                     ice > 0.001d0 .or. albedo >= 0.17d0 .or. emi_sfc(channelIndex) < 0.9d0 ) then
+                     ice > 0.001d0 .or. albedo >= albedoThresholdQC .or. emi_sfc(channelIndex) < 0.9d0 ) then
                   rejflag(channelIndex,11) = 1   
                   rejflag(channelIndex,19) = 1   
                 end if
