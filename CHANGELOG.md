@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * Option to output obsDB files from scratch (#778 and !)
+ * Option to output obsDB files from scratch (#778 and !727)
  * I/O filenames are changed for `analysisErrorOI` (#804 and !726)
  * Add `:Purpose:` and description for arguments to all subroutines in `bgckmicrowave_mod` (#779 and !735)
  * Remove subroutines that copy from/to `obsSpaceData` in `bgckmicrowave_mod` (#779 and !730)
