@@ -93,7 +93,7 @@ contains
     integer :: flagIndex, elementIndex
 
     character(len=35) :: CREASON(-10:13)
-    data creason/'PASSIVE                   ', &
+    data creason/'PASSIVE                           ', &
          'SIMULATED                         ', &
          'JACOBIAN IMPORTANT ABOVE MODEL TOP', &
          'ABS OROGRAPH-PHI                  ', &
