@@ -92,8 +92,10 @@ contains
     integer :: fnom, fclos
     integer :: flagIndex, elementIndex
 
-    character(len=35) :: CREASON(-8:13)
-    data creason/'JACOBIAN IMPORTANT ABOVE MODEL TOP', &
+    character(len=35) :: CREASON(-10:13)
+    data creason/'PASSIVE                   ', &
+         'SIMULATED                         ', &
+         'JACOBIAN IMPORTANT ABOVE MODEL TOP', &
          'ABS OROGRAPH-PHI                  ', &
          'MASQUE TERRE-MER                  ', &
          'OROGRAPHIE                        ', &

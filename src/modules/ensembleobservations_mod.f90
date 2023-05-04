@@ -57,7 +57,7 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: lat(:), lon(:)   ! lat/lon of observation
     real(8), allocatable          :: vertLocation(:)  ! in ln(pres) or meters, used for localization
     real(8), allocatable          :: obsErrInv(:)     ! inverse of obs error variances
-    real(8), allocatable          :: obsErrInv_sim(:) ! like obsErrInv, but for use in EDA-based obs simulation experiments
+    real(8), allocatable          :: obsErrInv_sim(:) ! like obsErrInv, used when simulating observations
     real(4), allocatable          :: Yb_r4(:,:)       ! background ensemble perturbation in obs space
     real(4), allocatable          :: Ya_r4(:,:)       ! analysis ensemble perturbation in obs space    
     real(4), allocatable          :: randPert_r4(:,:) ! unbiased random perturbations with covariance equal to R
@@ -70,10 +70,10 @@ MODULE ensembleObservations_mod
   type(kdtree2), pointer :: tree => null()
 
   ! namelist variables
-  character(len=2)  :: simObsFamily(ofl_numFamily) ! observation families for simulation (for obs impact)
+  character(len=2)  :: simObsFamily(ofl_numFamily) ! observation families for simulation
   character(len=2)  :: psvObsFamily(ofl_numFamily) ! observation families for passive assimilation
-  character(len=codtyp_name_length) :: simCodTypName(ofl_numFamily,codtyp_maxNumber) ! codtyp for simulated obs family
-  character(len=codtyp_name_length) :: psvCodTypName(ofl_numFamily,codtyp_maxNumber) ! codtyp for passive obs family
+  character(len=codtyp_name_length) :: simCodTypName(ofl_numFamily,codtyp_maxNumber) ! codtyp names for sim. obs families
+  character(len=codtyp_name_length) :: psvCodTypName(ofl_numFamily,codtyp_maxNumber) ! codtyp names for psv. obs families
   namelist /NAMENSOBS/simObsFamily, psvObsFamily, simCodTypName, psvCodTypName
 
   public eob_initialized, simObsAssim
@@ -85,7 +85,7 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine eob_init()
     !
-    !: Purpsoe: To initialize the NAMENSOBS namelist variables
+    !: Purpsoe: This subroutine reads the namelist section NAMENSOBS for this module. 
     !
     implicit none
 
@@ -109,7 +109,7 @@ CONTAINS
       if (ierr /= 0) call utl_abort('eob_init: Error reading namelist namensobs')
       ierr=fclos(nulnam)
 
-      ! initialize number of entries to 0
+      ! initialize number of non-empty chars in namelist variable arrays to 0
       numSimObsFam = 0
       numPsvObsFam = 0
       numSimCodTyp(:) = 0
@@ -125,7 +125,7 @@ CONTAINS
 
         if ( numSimObsFam == obsfamidx ) then
           ! simulated observation family specified for current
-          ! obsfamidx; check to see if any codtypname specified
+          ! obsfamidx; check to see if any codtyp names specified
           do codtypidx = 1, codtyp_maxNumber
             if ( trim(simCodTypName(obsfamidx,codtypidx)) /= '' ) then
               numSimCodTyp(obsfamidx) = numSimCodTyp(obsfamidx) + 1
@@ -141,7 +141,7 @@ CONTAINS
 
         if ( numPsvObsFam == obsfamidx )  then
           ! passive observation family specified for current
-          ! obsfamidx; check to see if any codtypname specified
+          ! obsfamidx; check to see if any codtyp names specified
           do codtypidx = 1, codtyp_maxNumber
             if ( trim(psvCodTypName(obsfamidx,codtypidx)) /= '' ) then
               numPsvCodTyp(obsfamidx) = numPsvCodTyp(obsfamidx) + 1
@@ -933,15 +933,16 @@ CONTAINS
     type(struct_eob),  intent(inout) :: ensObs
 
     ! locals
-    integer       :: obsIndex, headerIndex
+    integer       :: obsIndex, headerIndex, bodyIndex
     integer       :: codtyp, obsfamidx
     character(2)  :: obsfam_curr
+    logical       :: simflag = .false.
 
-    write(*,*) 'eob_setsimObsErrInv: starting'
+    write(*,*) 'eob_setSimObsErrInv: starting'
 
     call obs_extractObsRealBodyColumn(ensObs%obsErrInv_sim, ensObs%obsSpaceData, OBS_OER)
     do obsIndex = 1, ensObs%numObs
-      ! initially, set to standard obs errors
+      ! initially, set inverse using standard obs errors
       if(ensObs%obsErrInv_sim(obsIndex) > 0.0d0) then
         ensObs%obsErrInv_sim(obsIndex) = 1.0d0/(ensObs%obsErrInv_sim(obsIndex)**2)
       else
@@ -953,16 +954,33 @@ CONTAINS
       if ( ANY( simObsFamily == obsfam_curr ) ) then
         obsfamidx = utl_findloc(simObsFamily(:), obsfam_curr)
         if ( numSimCodTyp(obsfamidx) > 0 ) then
-          ! codtyp is specified for current obs family so
-          ! see if current observation matches codtyp
+          ! at least 1 codtype is specified for current obs family so
+          ! see if current observation matches any of those codtypes
           codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
-          if ( ANY( simCodTyp(obsfamidx,:) == codtyp ) ) ensObs%obsErrInv_sim(obsIndex) = 0.0d0
+          if ( ANY( simCodTyp(obsfamidx,:) == codtyp ) ) then
+            ensObs%obsErrInv_sim(obsIndex) = 0.0d0
+            simflag = .true.
+          end if
         else
-          ! simulated observation family doesn't include any codtyp so set
-          ! error inverse to 0 independent of current observation's codtyp
+          ! simulated observation family doesn't include any codtype so set
+          ! error inverse to 0 irrespective of current observation's codtype
           ensObs%obsErrInv_sim(obsIndex) = 0.0d0
+          simflag = .true.
         end if
-      end if 
+        ! loop over all body indices for the current headerIndex and set OBS_FLG
+        ! to indicate simulated observation
+        if ( simflag ) then
+          call obs_set_current_body_list( ensObs%obsSpaceData, headerIndex )
+          BODY: do
+            bodyIndex = obs_getBodyIndex( ensObs%obsSpaceData )
+            if ( bodyIndex < 0 ) exit BODY
+            call obs_bodySet_i(ensObs%obsSpaceData,OBS_FLG,bodyIndex, &
+                               ibset(obs_bodyElem_i(ensObs%obsSpaceData,OBS_FLG,bodyIndex),22))
+          end do BODY
+        end if
+      end if
+      ! reset flag-change logical to default values for next obs
+      simflag = .false.
     end do
 
   end subroutine eob_setSimObsErrInv
@@ -982,9 +1000,10 @@ CONTAINS
     type(struct_eob),  intent(inout) :: ensObs
     
     ! locals
-    integer       :: obsIndex, headerIndex
+    integer       :: obsIndex, headerIndex, bodyIndex
     integer       :: codtyp, obsfamidx
     character(2)  :: obsfam_curr
+    logical       :: psvflag = .false.
 
     do obsIndex = 1, ensObs%numObs
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
@@ -993,24 +1012,43 @@ CONTAINS
       if ( ANY(psvObsFamily == obsfam_curr ) ) then
         obsfamidx = utl_findloc(psvObsFamily(:), obsfam_curr)
         if ( numPsvCodTyp(obsfamidx) > 0 ) then
-          ! codtyp is specified for current obs family so
-          ! see if current observation matches codtyp
+          ! at least 1 codtype is specified for current obs family so
+          ! see if current observation matches any of those codtypes
           codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
           if ( ANY( psvCodTyp(obsfamidx,:) == codtyp ) ) then
             ensObs%obsErrInv(obsIndex) = 0.0d0
+            psvflag = .true.
             if ( simObsAssim ) then
+              ! simulation functionality active as well so update
+              ! that obs error inverse to 0 as well for this observation
               ensObs%obsErrInv_sim(obsIndex) = 0.0d0
             end if
           end if
         else
-          ! passive observation family doesn't include any codtyp so set
-          ! error inverse to 0 independent of current observation codtyp
+          ! passive observation family doesn't include any codtype so set
+          ! error inverse to 0 irrespective of current observation codtype
           ensObs%obsErrInv(obsIndex) = 0.0d0
+          psvflag = .true.
           if ( simObsAssim ) then
+            ! simulation functionality active as well so update
+            ! that obs error inverse to 0 as well for this observation
             ensObs%obsErrInv_sim(obsIndex) = 0.0d0
           end if
-        end if 
+        end if
+        ! loop over all body indices for the current headerIndex and set OBS_FLG
+        ! to indicate simulated or passive observation
+        if ( psvflag ) then
+          call obs_set_current_body_list( ensObs%obsSpaceData, headerIndex )
+          BODY: do
+            bodyIndex = obs_getBodyIndex( ensObs%obsSpaceData )
+            if ( bodyIndex < 0 ) exit BODY
+            if ( psvflag ) call obs_bodySet_i(ensObs%obsSpaceData,OBS_FLG,bodyIndex, &
+                                              ibset(obs_bodyElem_i(ensObs%obsSpaceData,OBS_FLG,bodyIndex),23))
+          end do BODY
+        end if     
       end if
+      ! reset flag-change logicals to default values for next obs
+      psvflag = .false.
     end do
 
   end subroutine eob_setPsvObsErrInv
@@ -1255,7 +1293,7 @@ CONTAINS
 
     ! Locals:
     integer       :: obsIndex, headerIndex
-    integer       :: codtyp, codtypidx, obsfamidx
+    integer       :: codtyp, obsfamidx
     character(2)  :: obsfam_curr   
 
     ! Loop through observations and set y to mean(H(x)) if y is in obs family of interest
@@ -1265,9 +1303,13 @@ CONTAINS
       if ( ANY( simObsFamily == obsfam_curr ) ) then
         obsfamidx = utl_findloc(simObsFamily(:), obsfam_curr)
         if ( numSimCodTyp(obsfamidx) > 0 ) then
+          ! at least 1 codtype is specified for current obs family so
+          ! see if current observation matches any of those codtypes          
           codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
           if ( ANY( simCodTyp(obsfamidx,:) == codtyp ) ) ensObs%obsvalue(obsIndex) = ensObs%meanYb(ObsIndex)
         else
+          ! simulated observation family doesn't include any codtype
+          ! so set irrespective of current observation's codtype
           ensObs%obsvalue(obsIndex) = ensObs%meanYb(ObsIndex)
         end if
       end if

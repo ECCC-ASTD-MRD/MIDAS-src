@@ -14,8 +14,6 @@
    outputEnsObs          = .true.
    obsTimeInterpType     = 'LINEAR'
    mpiDistribution       = 'TILES'
-   edaObsImpact          = .true.
-   edaObsFamily          = 'UA'
 /
  &namEnsPostProcModule
    alphaRTPP             = 0.40D0
@@ -25,6 +23,11 @@
    imposeRttovHuLimits   = .true.
    useOptionTableRecenter = .true.
    useAnalIncMask        = .true.
+/
+ &NAMENSOBS
+   simObsFamily(1)     = 'UA'
+   psvObsFamily(1)     = 'TO'
+   psvCodTypName(1,1)  = 'amsua'
 /
  &NAMWRITEDIAG
    lWriteDiagSql   = .true.
