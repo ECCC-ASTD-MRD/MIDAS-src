@@ -12,6 +12,7 @@
  &thin_gbgps
    deltemps = 8
    deldist = 50
+   rejectNoZTDScore = .true.
 /
  &thin_gpsro
    heightMin     = 0.0d0

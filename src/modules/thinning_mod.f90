@@ -330,8 +330,9 @@ contains
     integer :: deltemps     ! number of time bins between adjacent observations
     integer :: deldist      ! minimal distance in km between adjacent observations
     logical :: removeUncorrected ! remove obs that are not bias corrected (bit 6)
-
-    namelist /thin_gbgps/deltemps, deldist, removeUncorrected
+    logical :: rejectNoZTDScore ! reject GB-GPS obs if no ZTD quality score available
+   
+    namelist /thin_gbgps/deltemps, deldist, rejectNoZTDScore, removeUncorrected
 
     ! return if no gb-gps obs
     if (.not. obs_famExist(obsdat,'GP')) return
@@ -340,6 +341,7 @@ contains
     deltemps     = 8
     deldist      = 50
     removeUncorrected = .false.
+    rejectNoZTDScore = .false.
 
     ! Read the namelist for GbGps observations (if it exists)
     if (utl_isNamelistPresent('thin_gbgps','./flnml')) then
@@ -358,7 +360,7 @@ contains
     end if
 
     call utl_tmg_start(114,'--ObsThinning')
-    call thn_gbgpsByDistance(obsdat, deltemps, deldist, removeUncorrected)
+    call thn_gbgpsByDistance(obsdat, deltemps, deldist, removeUncorrected, rejectNoZTDScore)
     call utl_tmg_stop(114)
 
   end subroutine thn_thinGbGps
@@ -3217,7 +3219,7 @@ contains
   !--------------------------------------------------------------------------
   ! thn_gbGpsByDistance
   !--------------------------------------------------------------------------
-  subroutine thn_gbGpsByDistance(obsdat, deltemps, deldist, removeUncorrected)
+  subroutine thn_gbGpsByDistance(obsdat, deltemps, deldist, removeUncorrected, rejectNoZTDScore)
     !
     ! :Purpose: Original method for thinning GB-GPS data by the distance method.
     !           Set bit 11 of OBS_FLG on observations that are to be rejected.
@@ -3229,6 +3231,7 @@ contains
     integer,          intent(in)    :: deltemps
     integer,          intent(in)    :: deldist
     logical,          intent(in)    :: removeUncorrected
+    logical,          intent(in)    :: rejectNoZTDScore
 
     ! Local parameters:
     real(4), parameter :: normZtdScore = 50.0 ! normalization factor for zdscores
@@ -3437,10 +3440,13 @@ contains
           quality(headerIndex) = nullValue
         end if
       end if
+
       ! ZTD quality is unknown (missing ztd score)
       if (ztdScore == 999.0) then
         ztdScoreCount = ztdScoreCount + 1
-        quality(headerIndex) = 9999
+        if ( rejectNoZTDScore ) then
+          quality(headerIndex) = 9999
+        end if
       end if
 
     end do HEADER1

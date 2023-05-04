@@ -8,9 +8,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Add new variable `rejectNoZTDScore` to `thin_gbgps` namelist (#815 and !729)
  * Added documentation (interpreted by sphinx) for each program (#738 and !683)
- * Add new variable toleranceFactor to thin_raobs namelist (#763 and !724)
- * Addition of new variables maxSwath, maxPerSwath to the namIceBGcheck namelist (#806 and !715)
+ * Add new variable `toleranceFactor` to `thin_raobs` namelist (#763 and !724)
+ * Addition of new variables `maxSwath`, `maxPerSwath` to the `namIceBGcheck` namelist (#806 and !715)
 
 ### Changed
 
@@ -26,7 +27,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Test errorStatus returned by some rttov subroutines (#813 and !722)
+ * Test `errorStatus` returned by some rttov subroutines (#813 and !722)
  * Fix bug in `physicsfunction_mod` that could cause programs to hang (#814 and !723)
    * also sped up `ensPostProcess` when computing global ensemble statistics
  * Corrected Tetens WV saturation curve, controlled through namelist variable (#757 and !720)
