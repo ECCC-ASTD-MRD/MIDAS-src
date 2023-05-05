@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Updated threshold value of albedo used in quality-control of hyperspectral radiances (#735 and !728)
+   * Minor impact on results
  * Simplify `bgckmicrowave_mod` considering treatment of 1 obs at a time (#779 and !725)
  * Improve code for treating "rdb" format SQLite files (#773 and !718)
    * may require some changes to the namelist
