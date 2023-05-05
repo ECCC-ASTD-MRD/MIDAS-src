@@ -5878,6 +5878,39 @@ contains
   end subroutine getObsFlags
 
   !--------------------------------------------------------------------------
+  ! getObsTb
+  !--------------------------------------------------------------------------
+  subroutine getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
+    !
+    ! :Purpose: Get flags from obsSpaceData.
+    !                                 
+    implicit none
+
+    ! Arguments:
+    type(struct_obs),     intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,                 intent(in) :: headerIndex  ! current header Index 
+    integer,                 intent(in) :: sensorIndex  ! sensor index
+    real(4), allocatable, intent(inout) :: obsTb(:)     ! brightness temperature (btyp=9248/9264,ele=12163)
+
+    ! Locals:
+    integer :: actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd, currentChannelNumber
+
+    actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
+    call utl_reAllocate(obsTb, actualNumChannel)
+
+    obsTb(:) = mwbg_realMissing
+
+    bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+    bodyIndexEnd = bodyIndexbeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
+    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexEnd
+      currentChannelNumber = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)) - &
+                              tvs_channelOffset(sensorIndex)
+      obsTb(currentChannelNumber) = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
+    end do BODY
+
+  end subroutine getObsTb
+
+  !--------------------------------------------------------------------------
   ! updateObsFlags
   !--------------------------------------------------------------------------
   subroutine updateObsFlags(obsSpaceData, headerIndex, sensorIndex, obsFlags)
@@ -5904,6 +5937,34 @@ contains
     end do BODY
 
   end subroutine updateObsFlags
+
+  !--------------------------------------------------------------------------
+  ! updateObsTb
+  !--------------------------------------------------------------------------
+  subroutine updateObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
+    !
+    ! :Purpose: Update flags in obsSpaceData.
+    !                                 
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,             intent(in) :: sensorIndex  ! sensor index
+    real(4),             intent(in) :: obsTb(:)     ! brightness temperature (btyp=9248/9264,ele=12163)
+
+    ! Locals:
+    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, currentChannelNumber
+
+    bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
+    bodyIndexEnd = bodyIndexbeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
+    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexEnd
+      currentChannelNumber = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)) - &
+                              tvs_channelOffset(sensorIndex)
+      call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, obsTb(currentChannelNumber))
+    end do BODY
+
+  end subroutine updateObsTb
 
   !--------------------------------------------------------------------------
   ! mwbg_updateObsSpaceAfterQc
@@ -6128,7 +6189,6 @@ contains
     integer, allocatable  :: obsQcFlag1(:)            ! Obs Quality flag 1
     integer, allocatable  :: obsQcFlag2(:)            ! Obs Quality flag 2 
     integer, allocatable  :: obsChannels(:)           ! obsTb channels
-    integer, allocatable  :: obsFlags(:)              ! obs. flag
     integer               :: satOrbit                 ! orbit
     integer               :: obsGlobalMarker          ! global marker
     integer, allocatable  :: qcIndicator(:)           ! indicateur controle de qualite tovs par canal 
