@@ -833,7 +833,7 @@ contains
   ! amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
   subroutine amsuaTest12GrodyClwCheck(obsChannels, sensorIndex, actualNumChannel, stnId, &
-                                      cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, landQualifierIndice, &
+                                      landQualifierIndice, &
                                       ICLWREJ, qcIndicator, headerIndex, obsSpaceData)
 
     !:Purpose:                    12) test 12: Grody cloud liquid water check (partial)
@@ -845,8 +845,6 @@ contains
     integer,          intent(in) :: obsChannels(actualNumChannel) ! observations channels
     integer,          intent(in) :: sensorIndex                   ! numero de satellite (i.e. indice) 
     character(len=9), intent(in) :: stnId                         ! identificateur du satellite
-    real(4),          intent(in) :: cloudLiquidWaterPathObs       ! retrieved cloud liquid water from observation
-    real(4),          intent(in) :: cloudLiquidWaterPathFG        ! retrieved cloud liquid water from background
     integer,          intent(in) :: landQualifierIndice           ! land sea qualifyer 
     integer,          intent(in) :: ICLWREJ(:)
     integer,       intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
@@ -856,11 +854,14 @@ contains
     integer :: channelval, nChannelIndex, testIndex, INDXCAN 
     integer, allocatable :: obsFlags(:)
     real(4) :: clwUsedForQC, clwObsFGaveraged
+    real(4) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     logical :: surfTypeIsWater, cldPredMissing
 
     testIndex = 12
 
     call getObsFlags(obsSpaceData, headerIndex, sensorIndex, obsFlags)
+    cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
+    cloudLiquidWaterPathFG = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
 
     if ( tvs_mwAllskyAssim ) then
       clwObsFGaveraged = 0.5 * (cloudLiquidWaterPathObs + cloudLiquidWaterPathFG)
@@ -1241,7 +1242,7 @@ contains
   ! amsuaTest14RogueCheck
   !--------------------------------------------------------------------------
   subroutine amsuaTest14RogueCheck(obsChannels, sensorIndex, actualNumChannel, stnId, ROGUEFAC, &
-                                   landQualifierIndice, ompTb, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                                   landQualifierIndice, ompTb, &
                                    ISFCREJ, qcIndicator, headerIndex, obsSpaceData)
 
     !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
@@ -1258,8 +1259,6 @@ contains
     character(len=9), intent(in) :: stnId                         ! identificateur du satellite
     real(4),          intent(in) :: ROGUEFAC(:)                   ! rogue factor 
     integer,          intent(in) :: landQualifierIndice           ! land/sea identifier
-    real(4),          intent(in) :: cloudLiquidWaterPathObs       ! retrieved cloud liquid water from observation
-    real(4),          intent(in) :: cloudLiquidWaterPathFG        ! retrieved cloud liquid water from background
     real(4),          intent(in) :: ompTb(actualNumChannel)       ! radiance o-p 
     integer,          intent(in) :: ISFCREJ(:)
     integer,       intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
@@ -1270,12 +1269,15 @@ contains
     integer, allocatable :: obsFlags(:)
     real(4) :: XCHECKVAL, clwThresh1, clwThresh2, errThresh1, errThresh2
     real(4) :: sigmaObsErrUsed, clwObsFGaveraged
+    real(4) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     logical :: SFCREJCT, surfTypeIsWater
 
     testIndex = 14
     surfTypeIsWater = (landQualifierIndice == 1)
 
     call getObsFlags(obsSpaceData, headerIndex, sensorIndex, obsFlags)
+    cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
+    cloudLiquidWaterPathFG = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
 
     SFCREJCT = .FALSE.
     do nChannelIndex = 1, actualNumChannel
@@ -1637,7 +1639,6 @@ contains
                                 satScanPosition, modelInterpLandFrac, modelInterpTerrain, &
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle, &
                                 obsGlobalMarker, newInformationFlag, &
-                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                 scatIndexOverWaterObs, &
                                 stnId, RESETQC, obsLat, headerIndex, obsSpaceData)
   
@@ -1684,8 +1685,6 @@ contains
     logical,              intent(in) :: RESETQC                 ! reset du controle de qualite?
     integer, allocatable, intent(out):: qcIndicator(:)          ! indicateur controle de qualite tovs par canal 
                                                                 !  =0 ok, >0 rejet
-    real(4),             intent(out) :: cloudLiquidWaterPathObs ! retrieved cloud liquid water from observation 
-    real(4),             intent(out) :: cloudLiquidWaterPathFG  ! retrieved cloud liquid water from background 
     real(4),             intent(out) :: scatIndexOverWaterObs   ! scattering index over water from observation
     integer,             intent(out) :: newInformationFlag      ! ATMS Information flag (newInformationFlag) values 
                                                                 !   (new BURP element 025174 in header)
@@ -1761,8 +1760,8 @@ contains
     !  Run Grody AMSU-A algorithms.
     call grody (err, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
                 satZenithAngle, obsLat, landQualifierIndice, ice, tpw, &
-                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                rain, snow, scatIndexOverLandObs, scatIndexOverWaterObs)   
+                rain, snow, scatIndexOverLandObs, scatIndexOverWaterObs, &
+                headerIndex, obsSpaceData)   
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
@@ -1837,7 +1836,7 @@ contains
     ! 12) test 12: Grody cloud liquid water check (partial)
     ! For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
     call amsuaTest12GrodyClwCheck (obsChannels, sensorIndex, actualNumChannel, stnId, &
-                                   cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, landQualifierIndice, &
+                                   landQualifierIndice, &
                                    ICLWREJ, qcIndicator, headerIndex, obsSpaceData)
 
     ! 13) test 13: Grody scattering index check (partial)
@@ -1850,7 +1849,7 @@ contains
     ! Les observations, dont le residu (O-P) depasse par un facteur (roguefac) l'erreur totale des TOVS.
     ! N.B.: a reject by any of the 3 surface channels produces the rejection of AMSUA-A channels 1-5 and 15. 
     call amsuaTest14RogueCheck (obsChannels, sensorIndex, actualNumChannel, stnId, ROGUEFAC, &
-                                landQualifierIndice, ompTb, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                                landQualifierIndice, ompTb, &
                                 ISFCREJ, qcIndicator, headerIndex, obsSpaceData)
 
     ! 15) test 15: Channel Selection using array oer_tovutil(chan,sat)
@@ -1903,7 +1902,6 @@ contains
                                 satScanPosition, modelInterpLandFrac, modelInterpTerrain, &
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle, &
                                 obsGlobalMarker, newInformationFlag, &
-                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                 scatIndexOverWaterObs, scatIndexOverWaterFG, stnId, RESETQC, &
                                 headerIndex, obsSpaceData)
   
@@ -1949,8 +1947,6 @@ contains
     logical,               intent(in) :: RESETQC                ! reset du controle de qualite?
     integer, allocatable, intent(out) :: qcIndicator(:)         ! indicateur controle de qualite tovs par canal 
                                                                 !           =0 ok, >0 rejet,
-    real(4),              intent(out) :: cloudLiquidWaterPathObs! retrieved cloud liquid water from observation 
-    real(4),              intent(out) :: cloudLiquidWaterPathFG ! retrieved cloud liquid water from background 
     real(4),              intent(out) :: scatIndexOverWaterObs  ! scattering index over water from observation
     real(4),              intent(out) :: scatIndexOverWaterFG   ! scattering index over water from background
     integer,              intent(out) :: newInformationFlag     ! ATMS Information flag (newInformationFlag) values 
@@ -2032,7 +2028,7 @@ contains
     call bennartz (err, tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
                    satZenithAngle, landQualifierIndice, scatIndexOverLandObs, &
                    scatIndexOverWaterObs, scatIndexOverWaterFG, &
-                   cloudLiquidWaterPathObs, cloudLiquidWaterPathFG)
+                   headerIndex, obsSpaceData)
 
     ! 10) test 10: RTTOV reject check (single)
     ! Rejected datum flag has bit #9 on.
@@ -2398,8 +2394,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine GRODY (ier, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
                     satZenithAngle, obsLat, landQualifierIndice, ice, tpw, &
-                    cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                    rain, snow, scatIndexOverLandObs, scatIndexOverWaterObs)
+                    rain, snow, scatIndexOverLandObs, scatIndexOverWaterObs, &
+                    headerIndex, obsSpaceData)
     !:Purpose: Compute the following parameters using 5 AMSU-A channels:
     !          - sea ice, 
     !          - total precipitable water, 
@@ -2426,13 +2422,13 @@ contains
     integer,  intent(in) :: landQualifierIndice     ! land/sea indicator (0=land;1=ocean)
     real(4), intent(out) :: ice                     ! sea ice concentration (0-100%)
     real(4), intent(out) :: tpw                     ! total precipitable water (0-70mm)
-    real(4), intent(out) :: cloudLiquidWaterPathObs ! retrieved cloud liquid water from observation (0-3mm)
-    real(4), intent(out) :: cloudLiquidWaterPathFG  ! retrieved cloud liquid water from background (0-3mm)
     integer, intent(out) :: rain                    ! rain identification (0=no rain; 1=rain)
     integer, intent(out) :: snow                    ! snow cover and glacial ice identification:
                                                     ! (0=no snow; 1=snow; 2=glacial ice)
     real(4), intent(out) :: scatIndexOverLandObs    ! scattering index over land
     real(4), intent(out) :: scatIndexOverWaterObs   ! scattering index over water
+    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,             intent(in) :: headerIndex  ! current header Index 
 
     ! Locals:
     real(4) :: df1, df2, df3, a, b, c, d, e23
@@ -2440,6 +2436,8 @@ contains
     real(4) :: sc50, par, t53
     real(4) :: dif285t23, dif285t31, epsilon
     real(4) :: dif285t23FG, dif285t31FG
+    real(4) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
+    integer :: codtyp
 
     data epsilon / 1.E-30 /
 
@@ -2627,6 +2625,12 @@ contains
 
     end if
 
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+    call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, cloudLiquidWaterPathObs)
+    if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+      call obs_headSet_r(obsSpaceData, OBS_CLWB, headerIndex, cloudLiquidWaterPathFG)
+    end if
+
     if (mwbg_DEBUG) then
       write(*,*) 'GRODY: tb23, tb31, tb50, tb89, satZenithAngle, obsLat, landQualifierIndice = ', &
                 tb23, tb31, tb50, tb89, satZenithAngle, obsLat, landQualifierIndice
@@ -2642,7 +2646,7 @@ contains
   subroutine bennartz (ier, tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
                        satZenithAngle, landQualifierIndice, scatIndexOverLandObs, &
                        scatIndexOverWaterObs, scatIndexOverWaterFG, &
-                       cloudLiquidWaterPathObs, cloudLiquidWaterPathFG)
+                       headerIndex, obsSpaceData)
 
     !:Purpose: Compute the following parameters using 2 AMSU-B channels:
     !          - scattering index (over land and ocean).*
@@ -2665,8 +2669,11 @@ contains
     real(4), intent(out) :: scatIndexOverLandObs    ! scattering index over land
     real(4), intent(out) :: scatIndexOverWaterObs   ! scattering index over water from observation
     real(4), intent(out) :: scatIndexOverWaterFG    ! scattering index over water from background
-    real(4), intent(out) :: cloudLiquidWaterPathObs ! obs cloud liquid water content (not computed for NOW)
-    real(4), intent(out) :: cloudLiquidWaterPathFG  ! first guess cloud liquid water content (not computed for NOW)
+    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,             intent(in) :: headerIndex  ! current header Index
+    ! Locals:
+    real(4) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
+    integer :: codtyp
 
     ! Notes: In the case where an output parameter cannot be calculated, the
     !        value of this parameter is to to the missing value, i.e. -99.
@@ -2707,6 +2714,12 @@ contains
       write(*,*) 'bennartz: ier, scatIndexOverLandObs, scatIndexOverWaterObs, scatIndexOverWaterFG=', &
                   ier, scatIndexOverLandObs, scatIndexOverWaterObs, scatIndexOverWaterFG
     end if ! if (ier == 0)
+
+    codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
+    call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, cloudLiquidWaterPathObs)
+    if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
+      call obs_headSet_r(obsSpaceData, OBS_CLWB, headerIndex, cloudLiquidWaterPathFG)
+    end if
 
   end subroutine bennartz
 
@@ -2875,7 +2888,7 @@ contains
   ! atmsTest4RogueCheck
   !--------------------------------------------------------------------------
   subroutine atmsTest4RogueCheck(itest, obsChannels, sensorIndex, actualNumChannel, stnId, ROGUEFAC, &
-                                 waterobs, ompTb, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                                 waterobs, ompTb, &
                                  newInformationFlag, ISFCREJ, ICH2OMPREJ, &
                                  B7CHCK, qcIndicator, headerIndex, obsSpaceData)
 
@@ -2898,8 +2911,6 @@ contains
     real(4),          intent(in) :: ROGUEFAC(:)                   ! rogue factor 
     logical,          intent(in) :: waterobs                      ! open water obs
     real(4),          intent(in) :: ompTb(actualNumChannel)       ! radiance o-p 
-    real(4),          intent(in) :: cloudLiquidWaterPathObs
-    real(4),          intent(in) :: cloudLiquidWaterPathFG
     integer,          intent(in) :: newInformationFlag            ! data flag newInformationFlag  
     integer,          intent(in) :: ISFCREJ(:)
     integer,          intent(in) :: ICH2OMPREJ(:)
@@ -2913,12 +2924,15 @@ contains
     integer, allocatable :: obsFlags(:)
     real(4) :: XCHECKVAL, clwThresh1, clwThresh2, errThresh1, errThresh2
     real(4) :: sigmaObsErrUsed, clwObsFGaveraged 
+    real(4) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     logical :: SFCREJCT, CH2OMPREJCT, IBIT 
 
     testIndex = 4
     if ( itest(testIndex) /= 1 ) return
 
     call getObsFlags(obsSpaceData, headerIndex, sensorIndex, obsFlags)
+    cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
+    cloudLiquidWaterPathFG = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
 
     SFCREJCT = .FALSE.
     CH2OMPREJCT = .FALSE.
@@ -3022,7 +3036,7 @@ contains
   ! Mwhs2Test4RogueCheck
   !--------------------------------------------------------------------------
   subroutine Mwhs2Test4RogueCheck(itest, obsChannels, sensorIndex, actualNumChannel, stnId, ROGUEFAC, &
-                                  waterobs, ompTb, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                                  waterobs, ompTb, &
                                   newInformationFlag, ICH2OMPREJ, B7CHCK, qcIndicator, &
                                   headerIndex, obsSpaceData)
 
@@ -3043,8 +3057,6 @@ contains
     real(4),          intent(in) :: ROGUEFAC(:)                   ! rogue factor
     logical,          intent(in) :: waterobs                      ! open water obs
     real(4),          intent(in) :: ompTb(actualNumChannel)       ! radiance o-p
-    real(4),          intent(in) :: cloudLiquidWaterPathObs
-    real(4),          intent(in) :: cloudLiquidWaterPathFG
     integer,          intent(in) :: newInformationFlag            ! data flag newInformationFlag
     integer,          intent(in) :: ICH2OMPREJ(:)
     integer,       intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
@@ -3057,12 +3069,15 @@ contains
     integer, allocatable :: obsFlags(:)
     real(4) :: XCHECKVAL, clwThresh1, clwThresh2, sigmaThresh1, sigmaThresh2
     real(4) :: sigmaObsErrUsed, clwObsFGaveraged
+    real(4) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     logical :: CH2OMPREJCT, IBIT
 
     testIndex = 4
     if ( itest(testIndex) /= 1 ) return
 
     call getObsFlags(obsSpaceData, headerIndex, sensorIndex, obsFlags)
+    cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
+    cloudLiquidWaterPathFG = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
 
     CH2OMPREJCT = .FALSE.
     do nChannelIndex = 1, actualNumChannel
@@ -3195,7 +3210,6 @@ contains
                                obsQcFlag2, obsQcFlag1, obsChannels, obsTbBiasCorr, ompTb, qcIndicator, &
                                actualNumChannel, sensorIndex, newInformationFlag, &
                                satScanPosition, modelInterpTerrain, obsGlobalMarker, &
-                               cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                scatIndexOverWaterObs, scatIndexOverWaterFG, &
                                stnId, RESETQC, headerIndex, obsSpaceData)
 
@@ -3227,8 +3241,6 @@ contains
     logical,          intent(in) :: RESETQC                 ! reset du controle de qualite?
     integer, allocatable, intent(out) :: qcIndicator(:)     ! indicateur controle de qualite tovs par canal 
                                                             !  =0 ok, >0 rejet
-    real(4),         intent(out) :: cloudLiquidWaterPathObs
-    real(4),         intent(out) :: cloudLiquidWaterPathFG
     real(4),         intent(out) :: scatIndexOverWaterObs   ! scattering index over water from observation
     real(4),         intent(out) :: scatIndexOverWaterFG    ! scattering index over water from background
 
@@ -3345,7 +3357,6 @@ contains
     !###############################################################################
     call mwbg_nrlFilterAtms(ompTb, obsTbBiasCorr, satZenithAngle, obsLat, &
                             calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
-                            cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                             scatec, scatbg, iNumSeaIce, iRej, SeaIce, &
                             headerIndex, sensorIndex, obsSpaceData)
 
@@ -3357,7 +3368,7 @@ contains
     !          to OPEN WATER (waterobs=true) points.
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
-    call mwbg_flagDataUsingNrlCritAtms(obsTbBiasCorr, cloudLiquidWaterPathObs, &
+    call mwbg_flagDataUsingNrlCritAtms(obsTbBiasCorr, &
                                        scatec, scatbg, SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
                                        iwvreject, cloudobs, precipobs, cldcnt , newInformationFlag, riwv, zdi, &
                                        headerIndex, sensorIndex, obsSpaceData)
@@ -3374,7 +3385,7 @@ contains
     !            for ch.20-22 over land)
     !###############################################################################
     call mwbg_reviewAllCritforFinalFlagsAtms(actualNumChannel, qcRejectLogic, grossrej, waterobs, &
-                                             precipobs, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg, &
+                                             precipobs, scatec, scatbg, &
                                              scatIndexOverWaterObs, scatIndexOverWaterFG, iwvreject, riwv, &
                                              obsGlobalMarker, zdi, newInformationFlag, drycnt, landcnt, &
                                              rejcnt, iwvcnt, pcpcnt, flgcnt, &
@@ -3422,7 +3433,7 @@ contains
     !  OVER OPEN WATER
     !    ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
     call atmsTest4RogueCheck (itest, obsChannels, sensorIndex, actualNumChannel, stnId, ROGUEFAC, &
-                              waterobs, ompTb, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                              waterobs, ompTb, &
                               newInformationFlag, ISFCREJ, ICH2OMPREJ, &
                               B7CHCK, qcIndicator, headerIndex, obsSpaceData)
 
@@ -3495,7 +3506,6 @@ contains
                                 actualNumChannel, sensorIndex, &
                                 newInformationFlag, satScanPosition, &
                                 modelInterpTerrain, obsGlobalMarker, &
-                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                 scatIndexOverWaterObs, scatIndexOverWaterFG, &
                                 stnId, RESETQC, modLSQ, lastHeader, &
                                 headerIndex, obsSpaceData)
@@ -3528,8 +3538,6 @@ contains
     logical,          intent(in) :: lastHeader              ! active if last header
     integer,allocatable, intent(out) :: qcIndicator(:)      ! indicateur controle de qualite tovs par canal
                                                             !  =0 ok, >0 rejet,
-    real(4),         intent(out) :: cloudLiquidWaterPathObs
-    real(4),         intent(out) :: cloudLiquidWaterPathFG
     real(4),         intent(out) :: scatIndexOverWaterObs   ! scattering index over water from observation
     real(4),         intent(out) :: scatIndexOverWaterFG    ! scattering index over water from background
 
@@ -3643,7 +3651,6 @@ contains
     !###############################################################################
     call mwbg_nrlFilterMwhs2(obsTbBiasCorr, satZenithAngle, obsLat, &
                              calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
-                             cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                              scatec, scatbg, iNumSeaIce, iRej, SeaIce, &
                              headerIndex, sensorIndex, obsSpaceData)
 
@@ -3655,7 +3662,7 @@ contains
     !          to OPEN WATER (waterobs=true) points.
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
-    call mwbg_flagDataUsingNrlCritMwhs2(obsTbBiasCorr, cloudLiquidWaterPathObs, &
+    call mwbg_flagDataUsingNrlCritMwhs2(obsTbBiasCorr, &
                                         scatec, SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
                                         iwvreject, cloudobs, precipobs, cldcnt , newInformationFlag, riwv, zdi, &
                                         headerIndex, sensorIndex, obsSpaceData)
@@ -3672,7 +3679,7 @@ contains
     !            for ch.11-13 over land)
     !###############################################################################
     call mwbg_reviewAllCritforFinalFlagsMwhs2(actualNumChannel, qcRejectLogic, grossrej, calcTerrainTypeIndice, waterobs, &
-                                              precipobs, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg, &
+                                              precipobs, scatec, scatbg, &
                                               scatIndexOverWaterObs, scatIndexOverWaterFG, iwvreject, riwv, &
                                               obsGlobalMarker, zdi, newInformationFlag, allcnt, drycnt, landcnt, &
                                               rejcnt, iwvcnt, pcpcnt, flgcnt, &
@@ -3718,7 +3725,7 @@ contains
     !  OVER OPEN WATER
     !    ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
     call Mwhs2Test4RogueCheck (itest, obsChannels, sensorIndex, actualNumChannel, stnId, ROGUEFAC, &
-                              waterobs, ompTb, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
+                              waterobs, ompTb, &
                               newInformationFlag, ICH2OMPREJ, B7CHCK, qcIndicator, &
                               headerIndex, obsSpaceData)
 
@@ -4805,7 +4812,6 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_nrlFilterAtms(ompTb, obsTbBiasCorr, satZenithAngle, obsLat, &
                                 calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
-                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                 si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce, &
                                 headerIndex, sensorIndex, obsSpaceData)
     !OBJET          Compute the following parameters using 5 ATMS channels:
@@ -4871,8 +4877,6 @@ contains
     real(4),    intent(in) ::  obsTbBiasCorr(:)
     real(4),    intent(in) ::  satZenithAngle
     real(4),    intent(in) ::  obsLat
-    real(4),   intent(out) ::  cloudLiquidWaterPathObs
-    real(4),   intent(out) ::  cloudLiquidWaterPathFG
     real(4),   intent(out) ::  si_ecmwf
     real(4),   intent(out) ::  si_bg
     real(4),   intent(out) ::  SeaIce
@@ -4885,6 +4889,7 @@ contains
     real(4) :: ice, tb23, tb23FG, tb31, tb31FG, tb50, tb89, tb165
     real(4) :: bcor23, bcor31, bcor50, bcor89, bcor165
     real(4) :: aa, deltb, cosz, t23, t23FG, t31, t31FG, t50, t89, t165
+    real(4) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(4), allocatable :: obsTb(:)
 
     iNumSeaIce = 0
@@ -5009,6 +5014,9 @@ contains
 
     end if ! if ( ier == 0 )
 
+    call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, cloudLiquidWaterPathObs)
+    call obs_headSet_r(obsSpaceData, OBS_CLWB, headerIndex, cloudLiquidWaterPathFG)
+
     if ( mwbg_debug ) then
       write(*,*) ' '
       write(*,*) ' tb23,tb23FG,tb31,tb31FG,tb50,tb89,tb165,satZenithAngle,obsLat, calcLandQualifierIndice = ', &
@@ -5024,7 +5032,6 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_nrlFilterMwhs2(obsTbBiasCorr, satZenithAngle, obsLat, &
                                  calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
-                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                  si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce, &
                                  headerIndex, sensorIndex, obsSpaceData)
     !OBJET          Compute the following parameters using 2 MWHS2 channels:
@@ -5090,8 +5097,6 @@ contains
     real(4),    intent(in) ::  obsTbBiasCorr(:)
     real(4),    intent(in) ::  satZenithAngle
     real(4),    intent(in) ::  obsLat
-    real(4),   intent(out) ::  cloudLiquidWaterPathObs
-    real(4),   intent(out) ::  cloudLiquidWaterPathFG
     real(4),   intent(out) ::  si_ecmwf
     real(4),   intent(out) ::  si_bg
     real(4),   intent(out) ::  SeaIce
@@ -5104,6 +5109,7 @@ contains
     real(4) :: ice, tb23, tb23FG, tb31, tb31FG, tb50, tb89, tb165
     real(4) :: bcor23, bcor31, bcor50, bcor89, bcor165
     real(4) :: aa, deltb, cosz, t23, t23FG, t31, t31FG, t50, t89, t165
+    real(4) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(4), allocatable :: obsTb(:)
 
     iNumSeaIce = 0
@@ -5142,7 +5148,7 @@ contains
     ! 1) Initialise parameters:
     ice      = mwbg_realMissing
     cloudLiquidWaterPathObs = mwbg_realMissing
-    cloudLiquidWaterPathFG    = mwbg_realMissing
+    cloudLiquidWaterPathFG  = mwbg_realMissing
     si_ecmwf = mwbg_realMissing
     si_bg    = mwbg_realMissing
     SeaIce   = 0.0
@@ -5236,6 +5242,9 @@ contains
 
     end if ! if ( ier == 0 )
 
+    call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, cloudLiquidWaterPathObs)
+    call obs_headSet_r(obsSpaceData, OBS_CLWB, headerIndex, cloudLiquidWaterPathFG)
+
     if ( mwbg_debug ) then
       write(*,*) ' '
       write(*,*) ' tb23,tb23FG,tb31,tb31FG,tb50,tb89,tb165,satZenithAngle,obsLat, calcLandQualifierIndice = ', &
@@ -5249,7 +5258,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_flagDataUsingNrlCritAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_flagDataUsingNrlCritAtms(obsTbBiasCorr, cloudLiquidWaterPathObs, &
+  subroutine mwbg_flagDataUsingNrlCritAtms(obsTbBiasCorr, &
                                            scatec, scatbg, SeaIce, grossrej, waterobs, useUnbiasedObsForClw, &
                                            iwvreject, cloudobs, precipobs,  cldcnt, newInformationFlag, riwv, zdi, &
                                            headerIndex, sensorIndex, obsSpaceData)
@@ -5271,7 +5280,6 @@ contains
 
     ! Arguments
     real(4),    intent(in) :: obsTbBiasCorr(:)
-    real(4),    intent(in) :: cloudLiquidWaterPathObs
     real(4),    intent(in) :: scatec
     real(4),    intent(in) :: scatbg
     real(4),    intent(in) :: SeaIce
@@ -5292,6 +5300,7 @@ contains
     ! Locals
     integer :: indx, indx1, n_cld
     real(4) :: ztb_amsub3, bcor_amsub3, ztb_amsub5, bcor_amsub5, ztb183(5)
+    real(4) :: cloudLiquidWaterPathObs
     real(4), allocatable :: obsTb(:)
 
     ! To begin, assume that all obs are good.
@@ -5305,6 +5314,7 @@ contains
     ! Extract Tb for channels 22 (AMSU-B 3) and 18 (AMSU-B 5) for Dryness Index (DI)
 
     call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
+    cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
 
     indx1 = 1
     ztb_amsub3 = obsTb(indx1+21)
@@ -5371,7 +5381,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_flagDataUsingNrlCritMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_flagDataUsingNrlCritMwhs2(obsTbBiasCorr, cloudLiquidWaterPathObs, &
+  subroutine mwbg_flagDataUsingNrlCritMwhs2(obsTbBiasCorr, &
                                             scatec, SeaIce, grossrej, waterobs, useUnbiasedObsForClw, &
                                             iwvreject, cloudobs, precipobs,  cldcnt, newInformationFlag, riwv, zdi, &
                                             headerIndex, sensorIndex, obsSpaceData)
@@ -5390,7 +5400,6 @@ contains
 
     ! Arguments
     real(4),             intent(in) :: obsTbBiasCorr(:)
-    real(4),             intent(in) :: cloudLiquidWaterPathObs
     real(4),             intent(in) :: scatec
     real(4),             intent(in) :: SeaIce
     logical,             intent(in) :: useUnbiasedObsForClw
@@ -5410,6 +5419,7 @@ contains
     ! Locals
     integer :: indx, indx1, n_cld
     real(4) :: ztb_amsub3, bcor_amsub3, ztb_amsub5, bcor_amsub5,  ztb183(5)
+    real(4) :: cloudLiquidWaterPathObs
     real(4), allocatable :: obsTb(:)
 
     ! To begin, assume that all obs are good.
@@ -5423,6 +5433,7 @@ contains
     ! Extract Tb for channels 11 (AMSU-B 3) and 15 (AMSU-B 5) for Dryness Index (DI)
 
     call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
+    cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
 
     indx1 = 1
     ztb_amsub3 = obsTb(indx1+10)
@@ -5489,7 +5500,7 @@ contains
   ! mwbg_reviewAllCritforFinalFlagsAtms
   !--------------------------------------------------------------------------
   subroutine mwbg_reviewAllCritforFinalFlagsAtms(actualNumChannel, qcRejectLogic, grossrej, waterobs, &
-                                                 precipobs, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg, &
+                                                 precipobs, scatec, scatbg, &
                                                  scatIndexOverWaterObs, scatIndexOverWaterFG, iwvreject, riwv, &
                                                  obsGlobalMarker, zdi, newInformationFlag, drycnt, landcnt, &
                                                  rejcnt, iwvcnt, pcpcnt, flgcnt, &
@@ -5506,8 +5517,6 @@ contains
     ! Arguments
     integer,    intent(in) :: actualNumChannel
     logical,    intent(in) :: qcRejectLogic(:)
-    real(4), intent(inout) :: cloudLiquidWaterPathObs
-    real(4), intent(inout) :: cloudLiquidWaterPathFG
     real(4),    intent(in) :: scatbg
     real(4),    intent(in) :: scatec
     real(4),   intent(out) :: scatIndexOverWaterObs
@@ -5535,10 +5544,12 @@ contains
     ! Locals
     integer :: j, ipos, INDXCAN
     integer, allocatable :: obsFlags(:)
-    real(4) :: clwObsFGaveraged
+    real(4) :: clwObsFGaveraged, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     logical, allocatable :: lflagchn(:)
 
     call getObsFlags(obsSpaceData, headerIndex, sensorIndex, obsFlags)
+    cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
+    cloudLiquidWaterPathFG = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
 
     ! Allocation
     call utl_reAllocate(lflagchn,actualNumChannel)
@@ -5672,6 +5683,8 @@ contains
     if ( ANY(lflagchn(:)) ) obsGlobalMarker = IBSET(obsGlobalMarker,6)
 
     call updateObsFlags(obsSpaceData, headerIndex, sensorIndex, obsFlags)
+    call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, cloudLiquidWaterPathObs)
+    call obs_headSet_r(obsSpaceData, OBS_CLWB, headerIndex, cloudLiquidWaterPathFG)
 
   end subroutine mwbg_reviewAllCritforFinalFlagsAtms
 
@@ -5679,7 +5692,7 @@ contains
   ! mwbg_reviewAllCritforFinalFlagsMwhs2
   !--------------------------------------------------------------------------
   subroutine mwbg_reviewAllCritforFinalFlagsMwhs2(actualNumChannel, qcRejectLogic, grossrej, calcTerrainTypeIndice, waterobs, &
-                                                  precipobs, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg, &
+                                                  precipobs, scatec, scatbg, &
                                                   scatIndexOverWaterObs, scatIndexOverWaterFG, iwvreject, riwv, &
                                                   obsGlobalMarker, zdi, newInformationFlag, allcnt, drycnt, landcnt, &
                                                   rejcnt, iwvcnt, pcpcnt, flgcnt, &
@@ -5696,8 +5709,6 @@ contains
     ! Arguments
     integer,    intent(in) :: actualNumChannel
     logical,    intent(in) :: qcRejectLogic(:)
-    real(4), intent(inout) :: cloudLiquidWaterPathObs
-    real(4), intent(inout) :: cloudLiquidWaterPathFG
     real(4),    intent(in) :: scatec
     real(4),    intent(in) :: scatbg
     real(4),   intent(out) :: scatIndexOverWaterObs
@@ -5727,10 +5738,13 @@ contains
     ! Locals
     integer :: j, ipos, INDXCAN
     integer, allocatable :: obsFlags(:)
-    real(4) :: clwObsFGaveraged, scatbg_rej
+    real(4) :: clwObsFGaveraged, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
+    real(4) :: scatbg_rej
     logical, allocatable :: lflagchn(:)
 
     call getObsFlags(obsSpaceData, headerIndex, sensorIndex, obsFlags)
+    cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
+    cloudLiquidWaterPathFG = obs_headElem_r(obsSpaceData, OBS_CLWB, headerIndex)
 
     ! Allocation
     call utl_reAllocate(lflagchn, actualNumChannel)
@@ -5875,6 +5889,8 @@ contains
     if ( ANY(lflagchn(:)) ) obsGlobalMarker = IBSET(obsGlobalMarker,6)
 
     call updateObsFlags(obsSpaceData, headerIndex, sensorIndex, obsFlags)
+    call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, cloudLiquidWaterPathObs)
+    call obs_headSet_r(obsSpaceData, OBS_CLWB, headerIndex, cloudLiquidWaterPathFG)
 
   end subroutine mwbg_reviewAllCritforFinalFlagsMwhs2
 
@@ -6034,7 +6050,6 @@ contains
   ! mwbg_updateObsSpaceAfterQc
   !--------------------------------------------------------------------------
   subroutine mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, &
-                                        cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                         scatIndexOverWaterObs, scatIndexOverWaterFG, &
                                         obsGlobalMarker, newInformationFlag)
 
@@ -6045,8 +6060,6 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData            ! obspaceData Object
     integer,             intent(in) :: sensorIndex             ! tvs_sensorIndex
     integer,             intent(in) :: headerIndex             ! current header index
-    real(4),             intent(in) :: cloudLiquidWaterPathObs ! obs CLW
-    real(4),             intent(in) :: cloudLiquidWaterPathFG  ! trial CLW
     real(4),             intent(in) :: scatIndexOverWaterObs   ! atmospheric scatering index from observation
     real(4),             intent(in) :: scatIndexOverWaterFG    ! atmospheric scatering index from background
     integer,             intent(in) :: newInformationFlag      ! information flag used with satplot
@@ -6055,11 +6068,6 @@ contains
     integer :: bodyIndex, currentChannelNumber, codtyp
 
     codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
-    call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, cloudLiquidWaterPathObs)
-
-    if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
-      call obs_headSet_r(obsSpaceData, OBS_CLWB, headerIndex, cloudLiquidWaterPathFG)
-    end if
 
     if (scatIndexOverWaterObs /= mwbg_realMissing) then
       call obs_headSet_r(obsSpaceData, OBS_SIO, headerIndex, scatIndexOverWaterObs)
@@ -6077,7 +6085,7 @@ contains
     
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag)
     call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalMarker)
-    
+
   end subroutine mwbg_updateObsSpaceAfterQc  
    
   !--------------------------------------------------------------------------
@@ -6247,8 +6255,6 @@ contains
                                                       !  =0 ok, >0 rejet,
     integer               :: newInformationFlag       ! ATMS Information flag (newInformationFlag) values 
                                                       !   (new BURP element  025174 in header). FOR AMSUA 
-    real                  :: cloudLiquidWaterPathObs  ! cloud liquid water path from observation.
-    real                  :: cloudLiquidWaterPathFG   ! cloud liquid water path from background.
     real                  :: scatIndexOverWaterObs    ! scattering index from observation.
     real                  :: scatIndexOverWaterFG     ! scattering index from background.
     integer, external     :: exdb, exfin, fnom, fclos
@@ -6331,7 +6337,6 @@ contains
                                 satScanPosition, modelInterpLandFrac, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, newInformationFlag, &
-                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                 scatIndexOverWaterObs, &
                                 stnId, RESETQC, obsLat, headerIndex, obsSpaceData)
       else if (instName == 'AMSUB') then
@@ -6340,7 +6345,6 @@ contains
                                 satScanPosition, modelInterpLandFrac, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
                                 obsGlobalMarker, newInformationFlag,        & 
-                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG,       &
                                 scatIndexOverWaterObs, scatIndexOverWaterFG, stnId, RESETQC, &
                                 headerIndex, obsSpaceData)
       else if (instName == 'ATMS') then
@@ -6348,7 +6352,6 @@ contains
                                obsQcFlag2, obsQcFlag1, obsChannels, obsTbBiasCorr, ompTb, qcIndicator, &
                                actualNumChannel, sensorIndex, newInformationFlag, &
                                satScanPosition, modelInterpTerrain, obsGlobalMarker, &
-                               cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                scatIndexOverWaterObs, scatIndexOverWaterFG, &
                                stnId, RESETQC, headerIndex, obsSpaceData)
       else if (instName == 'MWHS2') then
@@ -6357,7 +6360,6 @@ contains
                                 actualNumChannel, sensorIndex,          &
                                 newInformationFlag, satScanPosition,   &
                                 modelInterpTerrain, obsGlobalMarker, &
-                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                 scatIndexOverWaterObs, scatIndexOverWaterFG, &
                                 stnId, RESETQC, modLSQ, lastHeader, &
                                 headerIndex, obsSpaceData)
@@ -6376,7 +6378,6 @@ contains
       ! STEP 6) Update Flags and obs in obsspace data
       !###############################################################################
       call mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, &
-                                      cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                       scatIndexOverWaterObs, scatIndexOverWaterFG, &
                                       obsGlobalMarker, newInformationFlag)
 
