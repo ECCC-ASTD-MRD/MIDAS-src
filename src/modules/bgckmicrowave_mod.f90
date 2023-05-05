@@ -159,9 +159,10 @@ contains
   !--------------------------------------------------------------------------
   ! extractParamForGrodyRun
   !--------------------------------------------------------------------------  
-  subroutine extractParamForGrodyRun(obsChannels, obsTb, ompTb, obsTbBiasCorr, actualNumChannel, &
+  subroutine extractParamForGrodyRun(obsChannels, ompTb, obsTbBiasCorr, actualNumChannel, &
                                      tb23,   tb31,   tb50,   tb53,   tb89, &
-                                     tb23FG, tb31FG, tb50FG, tb53FG, tb89FG)
+                                     tb23FG, tb31FG, tb50FG, tb53FG, tb89FG, &
+                                     headerIndex, sensorIndex, obsSpaceData)
 
     !:Purpose: Compute  Grody parameters by extracting tb for required channels:
     !          - 23 Ghz = AMSU-A 1 = channel #28
@@ -173,7 +174,6 @@ contains
     ! Arguments
     integer, intent(in)  :: actualNumChannel                ! nombre de canaux des observations 
     integer, intent(in)  :: obsChannels(actualNumChannel)   ! observations channels
-    real(4), intent(in)  :: obsTb(actualNumChannel)         ! radiances
     real(4), intent(in)  :: ompTb(actualNumChannel)         ! radiances o-p
     real(4), intent(in)  :: obsTbBiasCorr(actualNumChannel) ! correction aux radiances
     real(4), intent(out) :: tb23                            ! radiance frequence 23 Ghz   
@@ -186,9 +186,15 @@ contains
     real(4), intent(out) :: tb50FG                          ! radiance frequence 50 Ghz  
     real(4), intent(out) :: tb53FG                          ! radiance frequence 53 Ghz  
     real(4), intent(out) :: tb89FG                          ! radiance frequence 89 Ghz        
+    type(struct_obs), intent(inout) :: obsSpaceData         ! obspaceData Object
+    integer,             intent(in) :: headerIndex          ! current header Index 
+    integer,             intent(in) :: sensorIndex          ! numero de satellite (i.e. indice) 
 
     ! Locals
     integer :: channelval, nChannelIndex
+    real(4), allocatable :: obsTb(:)
+
+    call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
 
     do nChannelIndex=1,actualNumChannel
       channelval = obsChannels(nChannelIndex)
@@ -232,9 +238,10 @@ contains
   !--------------------------------------------------------------------------
   ! extractParamForBennartzRun
   !--------------------------------------------------------------------------  
-  subroutine extractParamForBennartzRun(obsChannels, obsTb, btClear, ompTb, obsTbBiasCorr, actualNumChannel, &
+  subroutine extractParamForBennartzRun(obsChannels, btClear, ompTb, obsTbBiasCorr, actualNumChannel, &
                                         tb89, tb150, tb1831, tb1832, tb1833, &
-                                        tb89FG, tb150FG, tb89FgClear, tb150FgClear)
+                                        tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
+                                        headerIndex, sensorIndex, obsSpaceData)
 
     !:Purpose: Extract Parameters required to run bennaertz for required channels:
     !          extract required channels:        
@@ -245,7 +252,6 @@ contains
     ! Arguments
     integer,  intent(in) :: actualNumChannel                ! nombre de canaux des observations 
     integer,  intent(in) :: obsChannels(actualNumChannel)   ! observations channels
-    real(4),  intent(in) :: obsTb(actualNumChannel)         ! radiances
     real(4),  intent(in) :: btClear(actualNumChannel)       ! clear-sky radiances from background
     real(4),  intent(in) :: ompTb(actualNumChannel)         ! radiances o-p
     real(4),  intent(in) :: obsTbBiasCorr(actualNumChannel) ! correction aux radiances
@@ -258,8 +264,14 @@ contains
     real(4), intent(out) :: tb150FG                         ! 150GHz radiance from background
     real(4), intent(out) :: tb89FgClear                     ! 89GHz clear-sky radiance from background
     real(4), intent(out) :: tb150FgClear                    ! 150GHz clear-sky radiance from background
+    type(struct_obs), intent(inout) :: obsSpaceData         ! obspaceData Object
+    integer,             intent(in) :: headerIndex          ! current header Index 
+    integer,             intent(in) :: sensorIndex          ! numero de satellite (i.e. indice)
     ! Locals
     integer :: nChannelIndex, channelval
+    real(4), allocatable :: obsTb(:)
+
+    call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
 
     do nChannelIndex = 1, actualNumChannel
       channelval = obsChannels(nChannelIndex)
@@ -765,7 +777,7 @@ contains
   ! amsuABTest11RadianceGrossValueCheck
   !--------------------------------------------------------------------------
   subroutine amsuABTest11RadianceGrossValueCheck(obsChannels, sensorIndex, actualNumChannel, stnId, &
-                                                 obsTb, GROSSMIN, GROSSMAX, qcIndicator, &
+                                                 GROSSMIN, GROSSMAX, qcIndicator, &
                                                  headerIndex, obsSpaceData)
 
     !:Purpose:                     11) test 11: Radiance observation "Gross" check (single) 
@@ -777,7 +789,6 @@ contains
     integer,          intent(in) :: obsChannels(actualNumChannel) ! observations channels
     integer,          intent(in) :: sensorIndex                   ! numero de satellite (i.e. indice) 
     character(len=9), intent(in) :: stnId                         ! identificateur du satellite
-    real(4),          intent(in) :: obsTb(actualNumChannel)       ! radiances 
     real(4),          intent(in) :: GROSSMIN(:)                   ! Gross val min 
     real(4),          intent(in) :: GROSSMAX(:)                   ! Gross val max 
     integer,       intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
@@ -786,11 +797,13 @@ contains
     ! Locals
     integer :: nChannelIndex, testIndex, GROSSERROR
     integer, allocatable :: obsFlags(:)
+    real(4), allocatable :: obsTb(:)
 
     testIndex = 11
     GROSSERROR = .FALSE.
 
     call getObsFlags(obsSpaceData, headerIndex, sensorIndex, obsFlags)
+    call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
 
     do nChannelIndex = 1, actualNumChannel
       if (obsChannels(nChannelIndex) /= 20 .and. obsChannels(nChannelIndex) >= 1 .and. &
@@ -1544,7 +1557,7 @@ contains
   ! amsuaTest16ExcludeExtremeScattering
   !--------------------------------------------------------------------------
   subroutine amsuaTest16ExcludeExtremeScattering(obsChannels, sensorIndex, actualNumChannel, stnId, &
-                                                 landQualifierIndice, obsTb, btClear, ompTb, qcIndicator, &
+                                                 landQualifierIndice, btClear, ompTb, qcIndicator, &
                                                  headerIndex, obsSpaceData)
     !:Purpose: Exclude radiances affected extreme scattering in deep convective region.
     !          For channel 5, if BT_cld-BT_clr < -0.5 OR O-BT_clr < -0.5, reject channels 4-5.
@@ -1555,7 +1568,6 @@ contains
     integer,          intent(in) :: sensorIndex                   ! numero de satellite (i.e. indice) 
     character(len=9), intent(in) :: stnId                         ! identificateur du satellite
     integer,          intent(in) :: landQualifierIndice           ! land sea identifier
-    real(4),          intent(in) :: obsTb(actualNumChannel)       ! radiance o
     real(4),          intent(in) :: btClear(actualNumChannel)     ! clear-radiance o
     real(4),          intent(in) :: ompTb(actualNumChannel)       ! radiance o-p 
     integer,       intent(inout) :: qcIndicator(actualNumChannel) ! indicateur du QC par canal
@@ -1565,6 +1577,7 @@ contains
     integer :: channelval, nChannelIndex, testIndex, INDXCAN 
     integer, allocatable :: obsFlags(:)
     real(4) :: BTcloudy, simulatedCloudEffect, observedCloudEffect
+    real(4), allocatable :: obsTb(:)
     logical :: surfTypeIsWater, rejectLowPeakingChannels
 
     integer, dimension(2), parameter :: lowPeakingChannelsList = (/ 31, 32 /)
@@ -1574,6 +1587,7 @@ contains
     if (.not. (tvs_mwAllskyAssim .and. surfTypeIsWater)) return 
 
     call getObsFlags(obsSpaceData, headerIndex, sensorIndex, obsFlags)
+    call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
 
     rejectLowPeakingChannels = .false.
     loopChannel2: do nChannelIndex = 1, actualNumChannel
@@ -1618,7 +1632,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsua
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsua(landQualifierIndice, obsChannels, obsTb, btClear, obsTbBiasCorr, &
+  subroutine mwbg_tovCheckAmsua(landQualifierIndice, obsChannels, btClear, obsTbBiasCorr, &
                                 ompTb, qcIndicator, actualNumChannel, sensorIndex, &
                                 satScanPosition, modelInterpLandFrac, modelInterpTerrain, &
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle, &
@@ -1658,7 +1672,6 @@ contains
     integer,              intent(in) :: actualNumChannel        ! nombre de canaux des observations 
     integer,              intent(in) :: headerIndex             ! current header Index 
     integer,              intent(in) :: sensorIndex             ! numero de satellite (i.e. indice)
-    real(4),              intent(in) :: obsTb(:)                ! radiances
     real(4),              intent(in) :: btClear(:)              ! clear-sky radiances
     real(4),              intent(in) :: obsTbBiasCorr(:)        ! correction aux radiances
     real(4),              intent(in) :: ompTb(:)                ! residus (o-p)
@@ -1740,9 +1753,10 @@ contains
     end if
 
     ! Grody parameters are   extract required channels:
-    call extractParamForGrodyRun (obsChannels, obsTb, ompTb, obsTbBiasCorr, actualNumChannel, &
+    call extractParamForGrodyRun (obsChannels, ompTb, obsTbBiasCorr, actualNumChannel, &
                                   tb23,   tb31,   tb50,   tb53,   tb89, &
-                                  tb23FG, tb31FG, tb50FG, tb53FG, tb89FG)
+                                  tb23FG, tb31FG, tb50FG, tb53FG, tb89FG, &
+                                  headerIndex, sensorIndex, obsSpaceData)
     
     !  Run Grody AMSU-A algorithms.
     call grody (err, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
@@ -1817,7 +1831,7 @@ contains
     ! 11) test 11: Radiance observation "Gross" check (single) 
     !  Change this test from full to single. jh nov 2000.
     call amsuABTest11RadianceGrossValueCheck (obsChannels, sensorIndex, actualNumChannel, stnId, &
-                                              obsTb, GROSSMIN, GROSSMAX, qcIndicator, &
+                                              GROSSMIN, GROSSMAX, qcIndicator, &
                                               headerIndex, obsSpaceData)
 
     ! 12) test 12: Grody cloud liquid water check (partial)
@@ -1856,7 +1870,7 @@ contains
 
     ! 16) test 16: exclude radiances affected by extreme scattering in deep convective region in all-sky mode.
     call amsuaTest16ExcludeExtremeScattering(obsChannels, sensorIndex, actualNumChannel, stnId, &
-                                             landQualifierIndice, obsTb, btClear, ompTb, qcIndicator, &
+                                             landQualifierIndice, btClear, ompTb, qcIndicator, &
                                              headerIndex, obsSpaceData) 
 
     !  Synthese de la controle de qualite au niveau de chaque point
@@ -1884,7 +1898,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_tovCheckAmsub
   !--------------------------------------------------------------------------
-  subroutine mwbg_tovCheckAmsub(landQualifierIndice, obsChannels, obsTb, btClear, obsTbBiasCorr, &
+  subroutine mwbg_tovCheckAmsub(landQualifierIndice, obsChannels, btClear, obsTbBiasCorr, &
                                 ompTb, qcIndicator, actualNumChannel, sensorIndex, &
                                 satScanPosition, modelInterpLandFrac, modelInterpTerrain, &
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle, &
@@ -1924,7 +1938,6 @@ contains
     integer,               intent(in) :: actualNumChannel       ! nombre de canaux des observations 
     integer,               intent(in) :: headerIndex            ! current header Index 
     integer,               intent(in) :: sensorIndex            ! numero de satellite (i.e. indice)
-    real(4),               intent(in) :: obsTb(:)               ! radiances from observation
     real(4),               intent(in) :: btClear(:)             ! clear-sky radiances from background
     real(4),               intent(in) :: obsTbBiasCorr(:)       ! correction aux radiances
     real(4),               intent(in) :: ompTb(:)               ! residus (o-p)
@@ -2010,9 +2023,10 @@ contains
     end if
 
     ! Bennartz parameters are   extract required channels:
-    call extractParamForBennartzRun (obsChannels, obsTb, btClear, ompTb, obsTbBiasCorr, actualNumChannel, &
+    call extractParamForBennartzRun (obsChannels, btClear, ompTb, obsTbBiasCorr, actualNumChannel, &
                                      tb89, tb150, tb1831, tb1832, tb1833, &
-                                     tb89FG, tb150FG, tb89FgClear, tb150FgClear)
+                                     tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
+                                     headerIndex, sensorIndex, obsSpaceData)
     
     !  Run Bennartz AMSU-B algorithms.
     call bennartz (err, tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
@@ -2090,7 +2104,7 @@ contains
     ! 11) test 11: Radiance observation "Gross" check (single) 
     !  Change this test from full to single. jh nov 2000.
     call amsuABTest11RadianceGrossValueCheck (obsChannels, sensorIndex, actualNumChannel, stnId, &
-                                              obsTb, GROSSMIN, GROSSMAX, qcIndicator, &
+                                              GROSSMIN, GROSSMAX, qcIndicator, &
                                               headerIndex, obsSpaceData)
 
     ! 12) test 12:  Dryness index check 
@@ -3178,7 +3192,7 @@ contains
   ! mwbg_tovCheckAtms 
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAtms(obsLat, obsLon, landQualifierIndice, terrainTypeIndice, satZenithAngle, &
-                               obsQcFlag2, obsQcFlag1, obsChannels, obsTb, obsTbBiasCorr, ompTb, qcIndicator, &
+                               obsQcFlag2, obsQcFlag1, obsChannels, obsTbBiasCorr, ompTb, qcIndicator, &
                                actualNumChannel, sensorIndex, newInformationFlag, &
                                satScanPosition, modelInterpTerrain, obsGlobalMarker, &
                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
@@ -3204,7 +3218,6 @@ contains
     integer,          intent(in) :: obsChannels(:)          ! canaux des observations
     integer,          intent(in) :: headerIndex             ! current header Index 
     integer,          intent(in) :: sensorIndex             ! numero de satellite (i.e. indice)
-    real(4),       intent(inout) :: obsTb(:)                ! radiances
     real(4),          intent(in) :: obsTbBiasCorr(:)        ! correction aux radiances
     real(4),          intent(in) :: ompTb(:)                ! residus (o-p)
     real(4),          intent(in) :: modelInterpTerrain      ! topographie du modele
@@ -3308,15 +3321,17 @@ contains
     !###############################################################################
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.
     !###############################################################################
-    call mwbg_grossValueCheck(actualNumChannel, obsTb, obsTbBiasCorr, 50., 380., grossrej)
+    call mwbg_grossValueCheck(actualNumChannel, obsTbBiasCorr, 50., 380., grossrej, &
+                              headerIndex, sensorIndex, obsSpaceData)
 
     !###############################################################################
     ! STEP 3 ) Preliminary QC checks --> set qcRejectLogic(actualNumChannel)=.true.
     !          for data that fail QC
     !###############################################################################
-    call mwbg_firstQcCheckAtms(satZenithAngle, landQualifierIndice, terrainTypeIndice, obsLat, obsLon, obsTb, satScanPosition, &
+    call mwbg_firstQcCheckAtms(satZenithAngle, landQualifierIndice, terrainTypeIndice, obsLat, obsLon, satScanPosition, &
                                actualNumChannel, qcRejectLogic, grossrej, calcLandQualifierIndice, calcTerrainTypeIndice, &
-                               obsQcFlag1, obsQcFlag2, obsChannels, reportHasMissingTb)
+                               obsQcFlag1, obsQcFlag2, obsChannels, reportHasMissingTb, &
+                               headerIndex, sensorIndex, obsSpaceData)
 
     if ( reportHasMissingTb ) numReportWithMissingTb = numReportWithMissingTb + 1
     !  Exclude problem points from further calculations
@@ -3328,10 +3343,11 @@ contains
     !          land or sea-ice).Sets calcTerrainTypeIndice=0 (sea ice) for points where retrieved SeaIce
     !          >=0.55. Does nothing if calcTerrainTypeIndice=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
-    call mwbg_nrlFilterAtms(obsTb, ompTb, obsTbBiasCorr, satZenithAngle, obsLat, &
+    call mwbg_nrlFilterAtms(ompTb, obsTbBiasCorr, satZenithAngle, obsLat, &
                             calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                             cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                            scatec, scatbg, iNumSeaIce, iRej, SeaIce)
+                            scatec, scatbg, iNumSeaIce, iRej, SeaIce, &
+                            headerIndex, sensorIndex, obsSpaceData)
 
     seaIcePointNum = seaIcePointNum + iNumSeaIce
     clwMissingPointNum = clwMissingPointNum + iRej
@@ -3341,9 +3357,10 @@ contains
     !          to OPEN WATER (waterobs=true) points.
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
-    call mwbg_flagDataUsingNrlCritAtms(obsTb, obsTbBiasCorr, cloudLiquidWaterPathObs, &
+    call mwbg_flagDataUsingNrlCritAtms(obsTbBiasCorr, cloudLiquidWaterPathObs, &
                                        scatec, scatbg, SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
-                                       iwvreject, cloudobs, precipobs, cldcnt , newInformationFlag, riwv, zdi)
+                                       iwvreject, cloudobs, precipobs, cldcnt , newInformationFlag, riwv, zdi, &
+                                       headerIndex, sensorIndex, obsSpaceData)
 
     !###############################################################################
     ! STEP 6 ) ! Review all the checks previously made to determine which obs are to be
@@ -3474,7 +3491,7 @@ contains
   ! mwbg_tovCheckMwhs2
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckMwhs2(obsLat, obsLon, landQualifierIndice, terrainTypeIndice, satZenithAngle, &
-                                obsChannels, obsTb, obsTbBiasCorr, ompTb, qcIndicator, &
+                                obsChannels, obsTbBiasCorr, ompTb, qcIndicator, &
                                 actualNumChannel, sensorIndex, &
                                 newInformationFlag, satScanPosition, &
                                 modelInterpTerrain, obsGlobalMarker, &
@@ -3499,7 +3516,6 @@ contains
     integer,          intent(in) :: obsChannels(:)          ! canaux des observations
     integer,          intent(in) :: headerIndex             ! current header Index 
     integer,          intent(in) :: sensorIndex             ! numero de satellite (i.e. indice)
-    real(4),       intent(inout) :: obsTb(:)                ! radiances
     real(4),          intent(in) :: obsTbBiasCorr(:)        ! correction aux radiances
     real(4),          intent(in) :: ompTb(:)                ! residus (o-p)
     real(4),          intent(in) :: modelInterpTerrain      ! topographie du modele
@@ -3603,15 +3619,17 @@ contains
     !###############################################################################
     ! STEP 2 ) Check for values of TB that are missing or outside physical limits.
     !###############################################################################
-    call mwbg_grossValueCheck(actualNumChannel, obsTb, obsTbBiasCorr, 50., 380., grossrej)
+    call mwbg_grossValueCheck(actualNumChannel, obsTbBiasCorr, 50., 380., grossrej, &
+                              headerIndex, sensorIndex, obsSpaceData)
 
     !###############################################################################
     ! STEP 3 ) Preliminary QC checks --> set qcRejectLogic(actualNumChannel)=.true.
     !          for data that fail QC
     !###############################################################################
-    call mwbg_firstQcCheckMwhs2(satZenithAngle, landQualifierIndice, terrainTypeIndice, obsLat, obsLon, obsTb, satScanPosition, &
+    call mwbg_firstQcCheckMwhs2(satZenithAngle, landQualifierIndice, terrainTypeIndice, obsLat, obsLon, satScanPosition, &
                                 actualNumChannel, qcRejectLogic, calcLandQualifierIndice, calcTerrainTypeIndice, &
-                                obsChannels, reportHasMissingTb, modLSQ)
+                                obsChannels, reportHasMissingTb, modLSQ, &
+                                headerIndex, sensorIndex, obsSpaceData)
 
     if ( reportHasMissingTb ) numReportWithMissingTb = numReportWithMissingTb + 1
     !  Exclude problem points from further calculations
@@ -3623,10 +3641,11 @@ contains
     !          land or sea-ice).Sets calcTerrainTypeIndice=0 (sea ice) for points where retrieved SeaIce
     !          >=0.55. Does nothing if calcTerrainTypeIndice=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
-    call mwbg_nrlFilterMwhs2(obsTb, obsTbBiasCorr, satZenithAngle, obsLat, &
+    call mwbg_nrlFilterMwhs2(obsTbBiasCorr, satZenithAngle, obsLat, &
                              calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                              cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                             scatec, scatbg, iNumSeaIce, iRej, SeaIce)
+                             scatec, scatbg, iNumSeaIce, iRej, SeaIce, &
+                             headerIndex, sensorIndex, obsSpaceData)
 
     seaIcePointNum = seaIcePointNum + iNumSeaIce
     clwMissingPointNum = clwMissingPointNum + iRej
@@ -3636,9 +3655,10 @@ contains
     !          to OPEN WATER (waterobs=true) points.
     ! Points with SeaIce>0.55 are set to sea-ice points (waterobs --> false)
     !###############################################################################
-    call mwbg_flagDataUsingNrlCritMwhs2(obsTb, obsTbBiasCorr, cloudLiquidWaterPathObs, &
+    call mwbg_flagDataUsingNrlCritMwhs2(obsTbBiasCorr, cloudLiquidWaterPathObs, &
                                         scatec, SeaIce, grossrej, waterobs, mwbg_useUnbiasedObsForClw, &
-                                        iwvreject, cloudobs, precipobs, cldcnt , newInformationFlag, riwv, zdi)
+                                        iwvreject, cloudobs, precipobs, cldcnt , newInformationFlag, riwv, zdi, &
+                                        headerIndex, sensorIndex, obsSpaceData)
 
     !###############################################################################
     ! STEP 6 ) ! Review all the checks previously made to determine which obs are to be
@@ -4324,25 +4344,30 @@ contains
   ! mwbg_grossValueCheck  
   !--------------------------------------------------------------------------
 
-  subroutine mwbg_grossValueCheck(actualNumChannel, obsTb, obsTbBiasCorr, ztbThresholdMin, ztbThresholdMax, grossrej)
+  subroutine mwbg_grossValueCheck(actualNumChannel, obsTbBiasCorr, ztbThresholdMin, ztbThresholdMax, grossrej, &
+                                  headerIndex, sensorIndex, obsSpaceData)
 
     !:Purpose: Check Tbs for values that are missing or outside physical limits.
     !          **NOTE: REJECT ALL CHANNELS OF ONE IS FOUND TO BE BAD.
     implicit none
 
     ! Arguments
-    integer,  intent(in) :: actualNumChannel ! number of ichannels
-    real(4),  intent(in) :: obsTb(:)         ! radiances
-    real(4),  intent(in) :: obsTbBiasCorr(:) ! Bias correction
-    real(4),  intent(in) :: ztbThresholdMin  ! ztb threshold for rejection
-    real(4),  intent(in) :: ztbThresholdMax  ! ztb threshold for rejection
-    logical, intent(out) :: grossrej         ! logical array defining which obs are to be rejected
+    integer,  intent(in) :: actualNumChannel        ! number of ichannels
+    real(4),  intent(in) :: obsTbBiasCorr(:)        ! Bias correction
+    real(4),  intent(in) :: ztbThresholdMin         ! ztb threshold for rejection
+    real(4),  intent(in) :: ztbThresholdMax         ! ztb threshold for rejection
+    logical, intent(out) :: grossrej                ! logical array defining which obs are to be rejected
+    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
+    integer,             intent(in) :: headerIndex  ! current header Index 
+    integer,             intent(in) :: sensorIndex  ! numero de satellite (i.e. indice)
 
     ! Locals
     integer :: channel
     real(4), allocatable :: ztb(:) ! biased or unbiased radiances
+    real(4), allocatable :: obsTb(:)
 
     call utl_reAllocate(ztb, actualNumChannel)
+    call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
     
     grossrej = .true.
     if ( mwbg_useUnbiasedObsForClw ) then
@@ -4366,9 +4391,10 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_firstQcCheckAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_firstQcCheckAtms(satZenithAngle, landQualifierIndice, terrainTypeIndice, obsLat, obsLon, obsTb, satScanPosition, &
+  subroutine mwbg_firstQcCheckAtms(satZenithAngle, landQualifierIndice, terrainTypeIndice, obsLat, obsLon, satScanPosition, &
                                    actualNumChannel, qcRejectLogic, grossrej, calcLandQualifierIndice, calcTerrainTypeIndice, &
-                                   obsQcFlag1, obsQcFlag2, obsChannels, reportHasMissingTb)
+                                   obsQcFlag1, obsQcFlag2, obsChannels, reportHasMissingTb, &
+                                   headerIndex, sensorIndex, obsSpaceData)
     !  :Purpose: This routine performs basic quality control checks on the data. It sets array
     !            qcRejectLogic(actualNumChannel) elements to .true. to flag data with failed checks.
     !
@@ -4404,17 +4430,22 @@ contains
     logical,    intent(in) :: grossrej        ! true if 1 or more Tb fail gross error check
     real(4),    intent(in) :: obsLat
     real(4),    intent(in) :: obsLon
-    real(4), intent(inout) :: obsTb(:)
     real(4), intent(inout) :: satZenithAngle
     logical,   intent(out) :: reportHasMissingTb ! true if Tb(obsTb) are set to missing_value
     logical, allocatable, intent(out) :: qcRejectLogic(:) ! dim(actualNumChannel) qcRejectLogic = .false. on input
+    type(struct_obs), intent(inout) :: obsSpaceData       ! obspaceData Object
+    integer,             intent(in) :: headerIndex        ! current header Index 
+    integer,             intent(in) :: sensorIndex        ! numero de satellite (i.e. indice)
 
     ! Locals
     integer :: jj, indx1, icount
+    real(4), allocatable :: obsTb(:)
     logical :: fail, fail1, fail2
 
     reportHasMissingTb = .false.
     call utl_reAllocate(qcRejectLogic, actualNumChannel)
+    call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
+
     qcRejectLogic(:) = .false.  ! Flag for preliminary QC checks
     ! Global rejection checks
 
@@ -4571,14 +4602,17 @@ contains
     !write(*,*) 'mwbg_firstQcCheckAtms: Number of data processed and flagged = ', &
     !           actualNumChannel, count(qcRejectLogic)
 
+    call updateObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
+
   end subroutine mwbg_firstQcCheckAtms
 
   !--------------------------------------------------------------------------
   ! mwbg_firstQcCheckMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_firstQcCheckMwhs2(satZenithAngle, landQualifierIndice, terrainTypeIndice, obsLat, obsLon, obsTb, satScanPosition, &
+  subroutine mwbg_firstQcCheckMwhs2(satZenithAngle, landQualifierIndice, terrainTypeIndice, obsLat, obsLon, satScanPosition, &
                                     actualNumChannel, qcRejectLogic, calcLandQualifierIndice, calcTerrainTypeIndice, &
-                                    obsChannels, reportHasMissingTb, modLSQ)
+                                    obsChannels, reportHasMissingTb, modLSQ, &
+                                    headerIndex, sensorIndex, obsSpaceData)
     !  :Purpose: This routine performs basic quality control checks on the data. It sets array
     !            qcRejectLogic(actualNumChannel) elements to .true. to flag data with failed checks. Check 1
     !            (for landQualifierIndice,terrainTypeIndice) and check 5 are skipped if modlsqtt=.true., 
@@ -4612,19 +4646,24 @@ contains
     integer,               intent(in) :: calcTerrainTypeIndice
     real(4),               intent(in) :: obsLat
     real(4),               intent(in) :: obsLon
-    real(4),            intent(inout) :: obsTb(:)
     real(4),            intent(inout) :: satZenithAngle
     logical,              intent(out) :: reportHasMissingTb ! true if Tb(obsTb) are set to missing_value
     logical,               intent(in) :: modLSQ
     logical, allocatable, intent(inout) :: qcRejectLogic(:) ! dim(actualNumChannel)
-                                                          ! qcRejectLogic = .false. on input
+                                                            !   qcRejectLogic = .false. on input
+    type(struct_obs), intent(inout) :: obsSpaceData         ! obspaceData Object
+    integer,             intent(in) :: headerIndex          ! current header Index 
+    integer,             intent(in) :: sensorIndex          ! numero de satellite (i.e. indice)
 
     ! Locals
     integer :: jj, icount
+    real(4), allocatable :: obsTb(:)
     logical :: fail
 
     reportHasMissingTb = .false.
     call utl_reAllocate(qcRejectLogic, actualNumChannel)
+    call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
+
     qcRejectLogic(:) = .false.  ! Flag for preliminary QC checks
     ! Global rejection checks
 
@@ -4757,15 +4796,18 @@ contains
       end if
     end if
 
+    call updateObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
+
   end subroutine mwbg_firstQcCheckMwhs2
 
   !--------------------------------------------------------------------------
   ! mwbg_nrlFilterAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_nrlFilterAtms(obsTb, ompTb, obsTbBiasCorr, satZenithAngle, obsLat, &
+  subroutine mwbg_nrlFilterAtms(ompTb, obsTbBiasCorr, satZenithAngle, obsLat, &
                                 calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                                 cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce)
+                                si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce, &
+                                headerIndex, sensorIndex, obsSpaceData)
     !OBJET          Compute the following parameters using 5 ATMS channels:
     !                  - sea ice,
     !                  - cloud liquid water from observation (cloudLiquidWaterPathObs),
@@ -4825,7 +4867,6 @@ contains
     integer,   intent(out) ::  iRej
     logical,    intent(in) ::  grossrej
     logical, intent(inout) ::  waterobs
-    real(4),    intent(in) ::  obsTb(:)
     real(4),    intent(in) ::  ompTb(:)
     real(4),    intent(in) ::  obsTbBiasCorr(:)
     real(4),    intent(in) ::  satZenithAngle
@@ -4835,14 +4876,20 @@ contains
     real(4),   intent(out) ::  si_ecmwf
     real(4),   intent(out) ::  si_bg
     real(4),   intent(out) ::  SeaIce
+    type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
+    integer,             intent(in) :: headerIndex      ! current header Index 
+    integer,             intent(in) :: sensorIndex      ! numero de satellite (i.e. indice)
 
     ! Locals
     integer :: ier, indx1
     real(4) :: ice, tb23, tb23FG, tb31, tb31FG, tb50, tb89, tb165
     real(4) :: bcor23, bcor31, bcor50, bcor89, bcor165
     real(4) :: aa, deltb, cosz, t23, t23FG, t31, t31FG, t50, t89, t165
+    real(4), allocatable :: obsTb(:)
 
     iNumSeaIce = 0
+
+    call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
 
     ! extract required channels:
     !  23 Ghz = AMSU-A 1 = ATMS channel 1
@@ -4852,7 +4899,6 @@ contains
     !  89 Ghz = AMSU-A15 = ATMS channel 16
     ! 150 Ghz = AMSU-B 2 = ATMS channel 17
     !
-
     indx1 = 1
     tb23    = obsTb(indx1)
     tb23FG  = obsTb(indx1) - ompTb(indx1)
@@ -4976,10 +5022,11 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_nrlFilterMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_nrlFilterMwhs2(obsTb, obsTbBiasCorr, satZenithAngle, obsLat, &
+  subroutine mwbg_nrlFilterMwhs2(obsTbBiasCorr, satZenithAngle, obsLat, &
                                  calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                                  cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
-                                 si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce)
+                                 si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce, &
+                                 headerIndex, sensorIndex, obsSpaceData)
     !OBJET          Compute the following parameters using 2 MWHS2 channels:
     !                  - sea ice,
     !                  - cloud liquid water from observation (cloudLiquidWaterPathObs),
@@ -5040,7 +5087,6 @@ contains
     integer,   intent(out) ::  iRej
     logical,    intent(in) ::  grossrej
     logical, intent(inout) ::  waterobs
-    real(4),    intent(in) ::  obsTb(:)
     real(4),    intent(in) ::  obsTbBiasCorr(:)
     real(4),    intent(in) ::  satZenithAngle
     real(4),    intent(in) ::  obsLat
@@ -5049,14 +5095,20 @@ contains
     real(4),   intent(out) ::  si_ecmwf
     real(4),   intent(out) ::  si_bg
     real(4),   intent(out) ::  SeaIce
+    type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
+    integer,             intent(in) :: headerIndex     ! current header Index 
+    integer,             intent(in) :: sensorIndex     ! numero de satellite (i.e. indice)
 
     ! Locals
     integer :: ier, indx1
     real(4) :: ice, tb23, tb23FG, tb31, tb31FG, tb50, tb89, tb165
     real(4) :: bcor23, bcor31, bcor50, bcor89, bcor165
     real(4) :: aa, deltb, cosz, t23, t23FG, t31, t31FG, t50, t89, t165
+    real(4), allocatable :: obsTb(:)
 
     iNumSeaIce = 0
+
+    call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
 
     !! extract required channels:  ATMS ch.   MWHS-2 ch.
     !!   23 Ghz = AMSU-A 1 =        1          n/a
@@ -5197,9 +5249,10 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_flagDataUsingNrlCritAtms
   !--------------------------------------------------------------------------
-  subroutine mwbg_flagDataUsingNrlCritAtms(obsTb, obsTbBiasCorr, cloudLiquidWaterPathObs, &
+  subroutine mwbg_flagDataUsingNrlCritAtms(obsTbBiasCorr, cloudLiquidWaterPathObs, &
                                            scatec, scatbg, SeaIce, grossrej, waterobs, useUnbiasedObsForClw, &
-                                           iwvreject, cloudobs, precipobs,  cldcnt, newInformationFlag, riwv, zdi)
+                                           iwvreject, cloudobs, precipobs,  cldcnt, newInformationFlag, riwv, zdi, &
+                                           headerIndex, sensorIndex, obsSpaceData)
 
     !:Purpose:                       Set the  Information flag (newInformationFlag) values (new BURP element 025174 in header)
     !                                BIT    Meaning
@@ -5217,7 +5270,6 @@ contains
     !                               - 11     Gross error in Tb (any chan.)  (all channels rejected)
 
     ! Arguments
-    real(4),    intent(in) :: obsTb(:)
     real(4),    intent(in) :: obsTbBiasCorr(:)
     real(4),    intent(in) :: cloudLiquidWaterPathObs
     real(4),    intent(in) :: scatec
@@ -5233,10 +5285,14 @@ contains
     integer,   intent(out) :: newInformationFlag
     real(4),   intent(out) :: zdi
     real(4),   intent(out) :: riwv
+    type(struct_obs), intent(inout) :: obsSpaceData      ! obspaceData Object
+    integer,             intent(in) :: headerIndex       ! current header Index 
+    integer,             intent(in) :: sensorIndex       ! numero de satellite (i.e. indice)
 
     ! Locals
     integer :: indx, indx1, n_cld
     real(4) :: ztb_amsub3, bcor_amsub3, ztb_amsub5, bcor_amsub5, ztb183(5)
+    real(4), allocatable :: obsTb(:)
 
     ! To begin, assume that all obs are good.
     newInformationFlag = 0
@@ -5247,6 +5303,8 @@ contains
 
     ! Extract Tb for channels 16 (AMSU-B 1) and 17 (AMSU-B 2) for Bennartz SI
     ! Extract Tb for channels 22 (AMSU-B 3) and 18 (AMSU-B 5) for Dryness Index (DI)
+
+    call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
 
     indx1 = 1
     ztb_amsub3 = obsTb(indx1+21)
@@ -5313,9 +5371,10 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_flagDataUsingNrlCritMwhs2
   !--------------------------------------------------------------------------
-  subroutine mwbg_flagDataUsingNrlCritMwhs2(obsTb, obsTbBiasCorr, cloudLiquidWaterPathObs, &
+  subroutine mwbg_flagDataUsingNrlCritMwhs2(obsTbBiasCorr, cloudLiquidWaterPathObs, &
                                             scatec, SeaIce, grossrej, waterobs, useUnbiasedObsForClw, &
-                                            iwvreject, cloudobs, precipobs,  cldcnt, newInformationFlag, riwv, zdi)
+                                            iwvreject, cloudobs, precipobs,  cldcnt, newInformationFlag, riwv, zdi, &
+                                            headerIndex, sensorIndex, obsSpaceData)
 
     !:Purpose:                       Set the  Information flag (newInformationFlag) values (new BURP element 025174 in header)
     !                                BIT    Meaning
@@ -5330,25 +5389,28 @@ contains
     !                               - 11     Gross error in Tb (any chan.)  (all channels rejected)
 
     ! Arguments
-    real(4),    intent(in) :: obsTb(:)
-    real(4),    intent(in) :: obsTbBiasCorr(:)
-    real(4),    intent(in) :: cloudLiquidWaterPathObs
-    real(4),    intent(in) :: scatec
-    real(4),    intent(in) :: SeaIce
-    logical,    intent(in) :: useUnbiasedObsForClw
-    logical,    intent(in) :: grossrej
-    logical,    intent(in) :: waterobs
-    integer, intent(inout) :: cldcnt
-    logical,   intent(out) :: cloudobs
-    logical,   intent(out) :: iwvreject
-    logical,   intent(out) :: precipobs
-    integer,   intent(out) :: newInformationFlag
-    real(4),   intent(out) :: zdi
-    real(4),   intent(out) :: riwv
+    real(4),             intent(in) :: obsTbBiasCorr(:)
+    real(4),             intent(in) :: cloudLiquidWaterPathObs
+    real(4),             intent(in) :: scatec
+    real(4),             intent(in) :: SeaIce
+    logical,             intent(in) :: useUnbiasedObsForClw
+    logical,             intent(in) :: grossrej
+    logical,             intent(in) :: waterobs
+    integer,          intent(inout) :: cldcnt
+    logical,            intent(out) :: cloudobs
+    logical,            intent(out) :: iwvreject
+    logical,            intent(out) :: precipobs
+    integer,            intent(out) :: newInformationFlag
+    real(4),            intent(out) :: zdi
+    real(4),            intent(out) :: riwv
+    type(struct_obs), intent(inout) :: obsSpaceData           ! obspaceData Object
+    integer,             intent(in) :: headerIndex            ! current header Index 
+    integer,             intent(in) :: sensorIndex            ! numero de satellite (i.e. indice)
 
     ! Locals
     integer :: indx, indx1, n_cld
     real(4) :: ztb_amsub3, bcor_amsub3, ztb_amsub5, bcor_amsub5,  ztb183(5)
+    real(4), allocatable :: obsTb(:)
 
     ! To begin, assume that all obs are good.
     newInformationFlag = 0
@@ -5359,6 +5421,8 @@ contains
 
     ! Extract Tb for channels 1 (AMSU-B 1) and 10 (AMSU-B 2) for Bennartz SI
     ! Extract Tb for channels 11 (AMSU-B 3) and 15 (AMSU-B 5) for Dryness Index (DI)
+
+    call getObsTb(obsSpaceData, headerIndex, sensorIndex, obsTb)
 
     indx1 = 1
     ztb_amsub3 = obsTb(indx1+10)
@@ -5969,7 +6033,7 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_updateObsSpaceAfterQc
   !--------------------------------------------------------------------------
-  subroutine mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, obsTb, &
+  subroutine mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, &
                                         cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                         scatIndexOverWaterObs, scatIndexOverWaterFG, &
                                         obsGlobalMarker, newInformationFlag)
@@ -5981,7 +6045,6 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData            ! obspaceData Object
     integer,             intent(in) :: sensorIndex             ! tvs_sensorIndex
     integer,             intent(in) :: headerIndex             ! current header index
-    real(4),             intent(in) :: obsTb(:)                ! obs Tb
     real(4),             intent(in) :: cloudLiquidWaterPathObs ! obs CLW
     real(4),             intent(in) :: cloudLiquidWaterPathFG  ! trial CLW
     real(4),             intent(in) :: scatIndexOverWaterObs   ! atmospheric scatering index from observation
@@ -5989,7 +6052,7 @@ contains
     integer,             intent(in) :: newInformationFlag      ! information flag used with satplot
     integer,             intent(in) :: obsGlobalMarker         ! information flag used with satplot
     ! Locals
-    integer :: bodyIndex, obsNumCurrentLoc, bodyIndexbeg, currentChannelNumber, codtyp
+    integer :: bodyIndex, currentChannelNumber, codtyp
 
     codtyp = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
     call obs_headSet_r(obsSpaceData, OBS_CLWO, headerIndex, cloudLiquidWaterPathObs)
@@ -6014,13 +6077,7 @@ contains
     
     call obs_headSet_i(obsSpaceData, OBS_INFG, headerIndex, newInformationFlag)
     call obs_headSet_i(obsSpaceData, OBS_ST1, headerIndex, obsGlobalMarker)
-    bodyIndexbeg        = obs_headElem_i( obsSpaceData, OBS_RLN, headerIndex )
-    obsNumCurrentLoc    = obs_headElem_i( obsSpaceData, OBS_NLV, headerIndex )
-    BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
-      currentChannelNumber=nint(obs_bodyElem_r( obsSpaceData,  OBS_PPP, bodyIndex ))-tvs_channelOffset(sensorIndex)
-      call obs_bodySet_r(obsSpaceData, OBS_VAR,   bodyIndex, obsTb(currentChannelNumber))
-    end do BODY
-
+    
   end subroutine mwbg_updateObsSpaceAfterQc  
    
   !--------------------------------------------------------------------------
@@ -6030,7 +6087,7 @@ contains
                                       satIdentifier, satZenithAngle, landQualifierIndice, &
                                       terrainTypeIndice, obsLat, obsLon, &
                                       satScanPosition, obsQcFlag1, satOrbit, & 
-                                      obsGlobalMarker, stnId, obsTb, btClear, &
+                                      obsGlobalMarker, stnId, btClear, &
                                       obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels, &
                                       sensorIndex, actualNumChannel, obsSpaceData)
     
@@ -6052,7 +6109,6 @@ contains
     integer,              intent(out) :: satOrbit            ! orbit number
     integer,              intent(out) :: obsGlobalMarker     ! global Marqueur Data
     character(len=*),     intent(out) :: stnId               ! Platform Name
-    real   , allocatable, intent(out) :: obsTb(:)            ! brightness temperature (btyp=9248/9264,ele=12163) 
     real   , allocatable, intent(out) :: btClear(:)          ! clear brightness temperature (btyp=9248/9264,ele=btClearElementId)
     real   , allocatable, intent(out) :: obsTbBiasCorr(:)    ! bias correction 
     real   , allocatable, intent(out) :: ompTb(:)            ! OMP values
@@ -6091,7 +6147,6 @@ contains
     ! Allocate Header elements
     call utl_reAllocate(obsQcFlag1, 3)
     ! Allocate Body elements
-    call utl_reAllocate(obsTb, actualNumChannel)
     call utl_reAllocate(btClear, actualNumChannel)
     call utl_reAllocate(ompTb, actualNumChannel)
     call utl_reAllocate(obsTbBiasCorr, actualNumChannel)
@@ -6099,7 +6154,6 @@ contains
     call utl_reAllocate(obsQcFlag2, actualNumChannel)
 
     !Initialization
-    obsTb(:) = mwbg_realMissing
     btClear(:) = mwbg_realMissing
     ompTb(:) = mwbg_realMissing
     obsTbBiasCorr(:) = mwbg_realMissing
@@ -6137,7 +6191,6 @@ contains
     BODY: do bodyIndex =  bodyIndexbeg, bodyIndexbeg + obsNumCurrentLoc - 1
       currentChannelNumber = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex)) - &
                              tvs_channelOffset(sensorIndex)
-      obsTb(currentChannelNumber) = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
       if (tvs_isInstrumAllskyTtAssim(tvs_getInstrumentId(codtyp_get_name(codtyp))) .or. &
           tvs_isInstrumAllskyHuAssim(tvs_getInstrumentId(codtyp_get_name(codtyp)))) then
         btClear(currentChannelNumber) = obs_bodyElem_r(obsSpaceData,  OBS_BTCL, bodyIndex)
@@ -6181,7 +6234,6 @@ contains
     real(4)               :: satZenithAngle           ! sat. satZenithAngle angle
     integer               :: landQualifierIndice      ! land qualifyer
     integer               :: terrainTypeIndice        ! terrain type
-    real(4), allocatable  :: obsTb(:)                 ! temperature de brillance
     real(4), allocatable  :: btClear(:)               ! clear-sky BT
     real(4), allocatable  :: ompTb(:)                 ! o-p temperature de "
     real(4), allocatable  :: obsTbBiasCorr(:)         ! bias correction fo obsTb
@@ -6260,7 +6312,7 @@ contains
                                    satIdentifier, satZenithAngle,landQualifierIndice, &
                                    terrainTypeIndice, obsLat, obsLon,      &
                                    satScanPosition, obsQcFlag1, satOrbit,             &
-                                   obsGlobalMarker, stnId, obsTb, btClear,    &
+                                   obsGlobalMarker, stnId, btClear,    &
                                    obsTbBiasCorr, ompTb, obsQcFlag2, obsChannels,     &
                                    sensorIndex, actualNumChannel, obsSpaceData)
 
@@ -6274,7 +6326,7 @@ contains
       !###############################################################################
 
       if (instName == 'AMSUA') then
-        call mwbg_tovCheckAmsua(landQualifierIndice, obsChannels, obsTb, btClear, obsTbBiasCorr, &
+        call mwbg_tovCheckAmsua(landQualifierIndice, obsChannels, btClear, obsTbBiasCorr, &
                                 ompTb, qcIndicator, actualNumChannel, sensorIndex, &
                                 satScanPosition, modelInterpLandFrac, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
@@ -6283,7 +6335,7 @@ contains
                                 scatIndexOverWaterObs, &
                                 stnId, RESETQC, obsLat, headerIndex, obsSpaceData)
       else if (instName == 'AMSUB') then
-        call mwbg_tovCheckAmsub(landQualifierIndice, obsChannels, obsTb, btClear, obsTbBiasCorr, &
+        call mwbg_tovCheckAmsub(landQualifierIndice, obsChannels, btClear, obsTbBiasCorr, &
                                 ompTb, qcIndicator, actualNumChannel, sensorIndex, &
                                 satScanPosition, modelInterpLandFrac, modelInterpTerrain,&
                                 modelInterpSeaIce, terrainTypeIndice, satZenithAngle,     &
@@ -6293,7 +6345,7 @@ contains
                                 headerIndex, obsSpaceData)
       else if (instName == 'ATMS') then
         call mwbg_tovCheckAtms(obsLat, obsLon, landQualifierIndice, terrainTypeIndice, satZenithAngle,   &
-                               obsQcFlag2, obsQcFlag1, obsChannels, obsTb, obsTbBiasCorr, ompTb, qcIndicator, &
+                               obsQcFlag2, obsQcFlag1, obsChannels, obsTbBiasCorr, ompTb, qcIndicator, &
                                actualNumChannel, sensorIndex, newInformationFlag, &
                                satScanPosition, modelInterpTerrain, obsGlobalMarker, &
                                cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
@@ -6301,7 +6353,7 @@ contains
                                stnId, RESETQC, headerIndex, obsSpaceData)
       else if (instName == 'MWHS2') then
         call mwbg_tovCheckMwhs2(obsLat, obsLon, landQualifierIndice, terrainTypeIndice, satZenithAngle,  &
-                                obsChannels, obsTb, obsTbBiasCorr, ompTb, qcIndicator,   &
+                                obsChannels, obsTbBiasCorr, ompTb, qcIndicator,   &
                                 actualNumChannel, sensorIndex,          &
                                 newInformationFlag, satScanPosition,   &
                                 modelInterpTerrain, obsGlobalMarker, &
@@ -6323,7 +6375,7 @@ contains
       !###############################################################################
       ! STEP 6) Update Flags and obs in obsspace data
       !###############################################################################
-      call mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, obsTb, &
+      call mwbg_updateObsSpaceAfterQc(obsSpaceData, sensorIndex, headerIndex, &
                                       cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, &
                                       scatIndexOverWaterObs, scatIndexOverWaterFG, &
                                       obsGlobalMarker, newInformationFlag)
