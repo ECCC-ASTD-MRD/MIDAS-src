@@ -6312,25 +6312,23 @@ contains
   end subroutine updateObsTb
    
   !--------------------------------------------------------------------------
-  !  mwbg_readObsFromObsSpace
+  !  ifTovsExist
   !--------------------------------------------------------------------------
-  subroutine mwbg_readObsFromObsSpace(instName, headerIndex, &
-                                      sensorIndex, obsSpaceData)
+  function ifTovsExist(headerIndex, sensorIndex, obsSpaceData) result(sensorIndexFound)
     
-    !:Purpose: copy headers and bodies from obsSpaceData object to arrays
+    !:Purpose: Check obs is among the sensors.
 
     implicit None
 
     !Arguments
-    character(len=9),      intent(in) :: InstName            ! Instrument Name
     integer,               intent(in) :: headerIndex         ! current header Index 
     integer,              intent(out) :: sensorIndex         ! find tvs_sensor index corresponding to current obs
     type(struct_obs),   intent(inout) :: obsSpaceData        ! obspaceData Object
+    logical :: sensorIndexFound
 
     ! Locals
     integer :: channelIndex
-    integer :: iplatform, instrum, isat, iplatf, instr, codtyp
-    logical :: sensorIndexFound
+    integer :: iplatform, instrum, isat, iplatf, instr
 
    ! find tvs_sensor index corresponding to current obs
     iplatf      = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex )
@@ -6348,9 +6346,8 @@ contains
          exit
       end if
     end do
-    if ( .not. sensorIndexFound ) call utl_abort('mwbg_readObsFromObsSpace: sensor Index not found') 
 
-  end subroutine mwbg_readObsFromObsSpace 
+  end function ifTovsExist 
 
   !--------------------------------------------------------------------------
   ! mwbg_mwbg_bgCheckMW
@@ -6377,7 +6374,7 @@ contains
                                                       !  =0 ok, >0 rejet,
     real                  :: scatIndexOverWaterFG     ! scattering index from background.
     integer, external     :: exdb, exfin, fnom, fclos
-    logical               :: mwDataPresent
+    logical               :: mwDataPresent, sensorIndexFound
     logical               :: lastHeader               ! active while reading last report
 
     call utl_tmg_start(118,'--BgckMicrowave')
@@ -6429,31 +6426,24 @@ contains
           cycle HEADER
         end if
       end if
-      !###############################################################################
-      ! STEP 1) read obs from obsSpacedata to start QC                               !
-      !###############################################################################
+ 
+      sensorIndexFound = ifTovsExist(headerIndex, sensorIndex, obsSpaceData)
+      if ( .not. sensorIndexFound ) call utl_abort('midas-bgckMW: sensor Index not found') 
 
-      call mwbg_readObsFromObsSpace(instName, headerIndex,                            &
-                                   sensorIndex, obsSpaceData)
-
-      !###############################################################################
-      ! STEP 3) Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
-      !###############################################################################
-      call mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpTerrain,     &
+      ! STEP 1: Interpolation de le champ MX(topogrpahy), MG et GL aux pts TOVS.
+      call mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpTerrain, &
                                                   modelInterpLandFrac, modelInterpSeaIce, &
                                                   headerIndex, obsSpaceData)
-      !###############################################################################
-      ! STEP 4) Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
-      !###############################################################################
 
+      ! STEP 2: Controle de qualite des TOVS. Data QC flags (obsFlags) are modified here!
       if (instName == 'AMSUA') then
         call mwbg_tovCheckAmsua(qcIndicator, sensorIndex, &
-                                modelInterpLandFrac, modelInterpTerrain,&
+                                modelInterpLandFrac, modelInterpTerrain, &
                                 modelInterpSeaIce, &
                                 RESETQC, headerIndex, obsSpaceData)
       else if (instName == 'AMSUB') then
         call mwbg_tovCheckAmsub(qcIndicator, sensorIndex, &
-                                modelInterpLandFrac, modelInterpTerrain,&
+                                modelInterpLandFrac, modelInterpTerrain, &
                                 modelInterpSeaIce, &
                                 RESETQC, &
                                 headerIndex, obsSpaceData)
@@ -6463,8 +6453,8 @@ contains
                                modelInterpTerrain, &
                                RESETQC, headerIndex, obsSpaceData)
       else if (instName == 'MWHS2') then
-        call mwbg_tovCheckMwhs2(qcIndicator,   &
-                                sensorIndex,          &
+        call mwbg_tovCheckMwhs2(qcIndicator, &
+                                sensorIndex, &
                                 modelInterpTerrain, &
                                 RESETQC, modLSQ, lastHeader, &
                                 headerIndex, obsSpaceData)
@@ -6472,17 +6462,15 @@ contains
         write(*,*) 'midas-bgckMW: instName = ', instName
         call utl_abort('midas-bgckMW: unknown instName')
       end if
-      !###############################################################################
-      ! STEP 5) Accumuler Les statistiques sur les rejets
-      !###############################################################################
-      call mwbg_qcStats(obsSpaceData, instName, qcIndicator, sensorIndex,       &
+
+      ! STEP 3: Accumuler Les statistiques sur les rejets
+      call mwbg_qcStats(obsSpaceData, instName, qcIndicator, sensorIndex, &
                         tvs_satelliteName(1:tvs_nsensors), &
                         .FALSE.)
     end do HEADER
-    !###############################################################################
-    ! STEP 6) Print the statistics in listing file 
-    !###############################################################################
-    call mwbg_qcStats(obsSpaceData, instName, qcIndicator, sensorIndex,              &
+
+    ! STEP 4: Print the statistics in listing file 
+    call mwbg_qcStats(obsSpaceData, instName, qcIndicator, sensorIndex, &
                       tvs_satelliteName(1:tvs_nsensors), & 
                       .TRUE.)
 
@@ -6491,4 +6479,3 @@ contains
   end subroutine mwbg_bgCheckMW 
 
 end module bgckmicrowave_mod
-
