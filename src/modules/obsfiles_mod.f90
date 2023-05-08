@@ -34,7 +34,7 @@ module obsFiles_mod
   private
 
   ! public variables
-  public :: obsf_nfiles, obsf_cfilnam
+  public :: obsf_nfiles, obsf_fileName
 
   ! public procedures
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
@@ -48,7 +48,7 @@ module obsFiles_mod
   integer, parameter :: maxLengthFilename = 1060
   integer, parameter :: familyTypeLen = 2
   integer :: obsf_nfiles, obsf_numMpiUniqueList
-  character(len=maxLengthFilename) :: obsf_cfilnam(maxNumObsfiles)
+  character(len=maxLengthFilename) :: obsf_fileName(maxNumObsfiles)
   character(len=familyTypeLen)     :: obsf_cfamtyp(maxNumObsfiles)
   character(len=48)  :: obsFileMode
   character(len=maxLengthFilename) :: obsf_baseFileNameMpiUniqueList(maxNumObsfiles)
@@ -93,11 +93,11 @@ contains
     ! Do some setup of observation files
     !
     if ( obsFileType == 'BURP' ) then
-      call brpf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+      call brpf_getDateStamp( dateStamp_out, obsf_fileName(1) )
     else if ( obsFileType == 'OBSDB' ) then
-      call odbf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+      call odbf_getDateStamp( dateStamp_out, obsf_fileName(1) )
     else if ( obsFileType == 'SQLITE' ) then
-      call sqlf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+      call sqlf_getDateStamp( dateStamp_out, obsf_fileName(1) )
     else
       dateStamp_out = -1
     end if
@@ -155,7 +155,7 @@ contains
       if (fileExists) then
         ! get fileIndex on mpi local
         do fileIndexMpiLocal = 1, obsf_nfiles
-          if (trim(obsf_cfilnam(fileIndexMpiLocal)) == fileNamefull) exit
+          if (trim(obsf_fileName(fileIndexMpiLocal)) == fileNamefull) exit
         end do
 
         call obsf_determineSplitFileType( obsFileType, fileNameFull )
@@ -270,16 +270,16 @@ contains
       if (trim(obsFileMode) /= 'prepcma') call obsu_updateSourceVariablesFlag(obsSpaceData)
 
       do fileIndex = 1, obsf_nfiles
-        call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+        call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
 
         if ( obsFileType == 'BURP'   ) then
-          call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
+          call brpf_updateFile( obsSpaceData, obsf_fileName(fileIndex), obsf_cfamtyp(fileIndex), &
                                 fileIndex )
         else if ( obsFileType == 'OBSDB' ) then
-          call odbf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
+          call odbf_updateFile( obsSpaceData, obsf_fileName(fileIndex), &
                                 obsf_cfamtyp(fileIndex), fileIndex )
         else if ( obsFileType == 'SQLITE' ) then
-          call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
+          call sqlf_updateFile( obsSpaceData, obsf_fileName(fileIndex), &
                                 obsf_cfamtyp(fileIndex), fileIndex )
         end if
       end do
@@ -301,7 +301,7 @@ contains
 
         ! update obsDB files
         do fileIndex = 1, obsf_nfiles
-          fullName = trim(obsf_cfilnam(fileIndex))
+          fullName = trim(obsf_fileName(fileIndex))
           baseNameIndexBeg = index(fullName,'/',back=.true.)
           baseName = fullName(baseNameIndexBeg+1:)
 
@@ -361,14 +361,14 @@ contains
     call utl_tmg_start(23, '----ObsFileClean')
 
     do fileIndex = 1, obsf_nfiles
-      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
 
       if ( obsFileType == 'BURP' ) then
-        call brpr_burpClean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+        call brpr_burpClean( obsf_fileName(fileIndex), obsf_cfamtyp(fileIndex) )
       else if ( obsFileType == 'OBSDB' ) then
-        call obdf_clean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+        call obdf_clean( obsf_fileName(fileIndex), obsf_cfamtyp(fileIndex) )
       else if ( obsFileType == 'SQLITE' ) then
-        call sqlf_cleanFile( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+        call sqlf_cleanFile( obsf_fileName(fileIndex), obsf_cfamtyp(fileIndex) )
       end if
     end do
 
@@ -696,7 +696,7 @@ contains
     obsDirectory = 'obs'
 
     obsf_nfiles = 0
-    obsf_cfilnam(1) = 'DUMMY_FILE_NAME'
+    obsf_fileName(1) = 'DUMMY_FILE_NAME'
     baseFileName(:) = ''
 
     do fileIndex = 1, maxNumObsfiles 
@@ -717,7 +717,7 @@ contains
       if ( fileExists ) then
         obsf_nfiles=obsf_nfiles + 1
         baseFileName(obsf_nfiles) = trim(baseFileNameNoMyId)
-        obsf_cfilnam(obsf_nfiles) = fileNameFull
+        obsf_fileName(obsf_nfiles) = fileNameFull
         obsf_cfamtyp(obsf_nfiles) = familyName(fileIndex)
       end if
 
@@ -730,7 +730,7 @@ contains
     write(*,*)'Type  Name '
     write(*,*)'----  ---- '
     do fileIndex = 1, obsf_nfiles
-      write(*,'(1X,A2,1X,A60)' ) obsf_cfamtyp(fileIndex), trim(obsf_cfilnam(fileIndex))
+      write(*,'(1X,A2,1X,A60)' ) obsf_cfamtyp(fileIndex), trim(obsf_fileName(fileIndex))
     end do
 
   end subroutine obsf_setupFileNames
@@ -845,7 +845,7 @@ contains
 
     write(*,*) 'obsf_determineFileType: read obs file that exists on mpi task id: ', procID
 
-    if ( mmpi_myid == procID ) call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(1) )
+    if ( mmpi_myid == procID ) call obsf_determineSplitFileType( obsFileType, obsf_fileName(1) )
 
     call rpn_comm_bcastc(obsFileType , len(obsFileType), 'MPI_CHARACTER', procID, 'GRID', ierr)
     write(*,*) 'obsf_determineFileType: obsFileType = ', obsFileType
@@ -924,7 +924,7 @@ contains
    
     do ifile=1,obsf_nfiles
        if (obsfam == obsf_cfamtyp(ifile)) then
-          filename = obsf_cfilnam(ifile)
+          filename = obsf_fileName(ifile)
           numFound = numFound + 1
           exit
        end if
@@ -1104,11 +1104,11 @@ contains
 
     do fileIndex = 1, obsf_nfiles
 
-      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
       if ( trim(obsFileType) == 'SQLITE' )  then
-        call sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
+        call sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_fileName(fileIndex))
       else if ( trim(obsFileType) == 'BURP' ) then 
-        call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
+        call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_fileName(fileIndex) ) )
       else if ( trim(obsFileType) == 'OBSDB' ) then
         ! The variables updated here for other file types are added/updated in ObsDb files using a
         ! seperate subroutine called odbf_updateMidasHeaderTable which is called when writing everything else.
@@ -1166,13 +1166,13 @@ contains
 
     FILELOOP: do fileIndex = 1, obsf_nfiles
       if ( obsf_cfamtyp(fileIndex) /= 'TO' ) cycle FILELOOP
-      write(*,*) 'INPUT FILE TO  obsf_updateMissingObsFlags = ', trim( obsf_cfilnam(fileIndex) )
-      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      write(*,*) 'INPUT FILE TO  obsf_updateMissingObsFlags = ', trim( obsf_fileName(fileIndex) )
+      call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
       if ( trim(obsFileType) /= 'BURP' ) then
         write(*,*) 'obsFileType = ',obsFileType
         write(*,*) 'obsf_updateMissingObsFlags: WARNING this s/r is currently only compatible with BURP files'
       else
-        call brpr_updateMissingObsFlags( trim( obsf_cfilnam(fileIndex) ) )
+        call brpr_updateMissingObsFlags( trim( obsf_fileName(fileIndex) ) )
       end if
     end do FILELOOP
 
@@ -1206,7 +1206,7 @@ contains
       if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
 
       do fileIndex = 1, obsf_nfiles
-        fullName = trim( obsf_cfilnam(fileIndex) )
+        fullName = trim( obsf_fileName(fileIndex) )
         baseNameIndexBeg = index(fullName,'/',back=.true.)
         baseName = fullName(baseNameIndexBeg+1:)
         write(*,*) 'obsf_copyObsDirectory: Copying file ', trim(baseName)
@@ -1220,7 +1220,7 @@ contains
       if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
 
       do fileIndex = 1, obsf_nfiles
-        fullName = trim( obsf_cfilnam(fileIndex) )
+        fullName = trim( obsf_fileName(fileIndex) )
         baseNameIndexBeg = index(fullName,'/',back=.true.)
         baseName = fullName(baseNameIndexBeg+1:)
         write(*,*) 'obsf_copyObsDirectory: Copying file ', trim(baseName)
