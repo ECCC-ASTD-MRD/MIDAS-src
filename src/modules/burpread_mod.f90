@@ -6,7 +6,6 @@ module  burpread_mod
   !           obsSpaceData object.
   !
 
-use midasMpi_mod
 use codePrecision_mod
 use bufr_mod
 use burp_module
