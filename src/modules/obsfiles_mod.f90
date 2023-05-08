@@ -155,7 +155,10 @@ contains
       if (fileExists) then
         ! get fileIndex on mpi local
         do fileIndexMpiLocal = 1, obsf_nfiles
-          if (trim(obsf_fileName(fileIndexMpiLocal)) == fileNamefull) exit
+          if (trim(obsf_fileName(fileIndexMpiLocal)) == fileNamefull .and. &
+              trim(obsf_familyType(fileIndexMpiLocal)) == obsFamilyType) then
+            exit
+          end if
         end do
 
         call obsf_determineSplitFileType( obsFileType, fileNameFull )
