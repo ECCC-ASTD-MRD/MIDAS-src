@@ -49,7 +49,7 @@ module obsFiles_mod
   integer, parameter :: familyTypeLen = 2
   integer :: obsf_nfiles, obsf_numMpiUniqueList
   character(len=maxLengthFilename) :: obsf_fileName(maxNumObsfiles)
-  character(len=familyTypeLen)     :: obsf_cfamtyp(maxNumObsfiles)
+  character(len=familyTypeLen)     :: obsf_familyType(maxNumObsfiles)
   character(len=48)  :: obsFileMode
   character(len=maxLengthFilename) :: obsf_baseFileNameMpiUniqueList(maxNumObsfiles)
   character(len=familyTypeLen)     :: obsf_familyTypeMpiUniqueList(maxNumObsfiles)
@@ -197,7 +197,7 @@ contains
 
     ! abort if NAMTOV does not exist but there are radiance observation files
     if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') .and. &
-        any(obsf_cfamtyp(:) == 'TO') ) then
+        any(obsf_familyType(:) == 'TO') ) then
       call utl_abort('obsf_readFiles: Namelist block NAMTOV is missing but there are radiance observation files')
     end if
 
@@ -273,14 +273,14 @@ contains
         call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
 
         if ( obsFileType == 'BURP'   ) then
-          call brpf_updateFile( obsSpaceData, obsf_fileName(fileIndex), obsf_cfamtyp(fileIndex), &
+          call brpf_updateFile( obsSpaceData, obsf_fileName(fileIndex), obsf_familyType(fileIndex), &
                                 fileIndex )
         else if ( obsFileType == 'OBSDB' ) then
           call odbf_updateFile( obsSpaceData, obsf_fileName(fileIndex), &
-                                obsf_cfamtyp(fileIndex), fileIndex )
+                                obsf_familyType(fileIndex), fileIndex )
         else if ( obsFileType == 'SQLITE' ) then
           call sqlf_updateFile( obsSpaceData, obsf_fileName(fileIndex), &
-                                obsf_cfamtyp(fileIndex), fileIndex )
+                                obsf_familyType(fileIndex), fileIndex )
         end if
       end do
 
@@ -306,7 +306,7 @@ contains
           baseName = fullName(baseNameIndexBeg+1:)
 
           call odbf_updateFile(obsSpaceData, trim(fileNameDir)//'obsDB/'//trim(baseName), &
-                               obsf_cfamtyp(fileIndex), fileIndex)
+                               obsf_familyType(fileIndex), fileIndex)
         end do        
       end if
 
@@ -364,11 +364,11 @@ contains
       call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
 
       if ( obsFileType == 'BURP' ) then
-        call brpr_burpClean( obsf_fileName(fileIndex), obsf_cfamtyp(fileIndex) )
+        call brpr_burpClean( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
       else if ( obsFileType == 'OBSDB' ) then
-        call obdf_clean( obsf_fileName(fileIndex), obsf_cfamtyp(fileIndex) )
+        call obdf_clean( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
       else if ( obsFileType == 'SQLITE' ) then
-        call sqlf_cleanFile( obsf_fileName(fileIndex), obsf_cfamtyp(fileIndex) )
+        call sqlf_cleanFile( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
       end if
     end do
 
@@ -718,7 +718,7 @@ contains
         obsf_nfiles=obsf_nfiles + 1
         baseFileName(obsf_nfiles) = trim(baseFileNameNoMyId)
         obsf_fileName(obsf_nfiles) = fileNameFull
-        obsf_cfamtyp(obsf_nfiles) = familyName(fileIndex)
+        obsf_familyType(obsf_nfiles) = familyName(fileIndex)
       end if
 
     end do
@@ -730,7 +730,7 @@ contains
     write(*,*)'Type  Name '
     write(*,*)'----  ---- '
     do fileIndex = 1, obsf_nfiles
-      write(*,'(1X,A2,1X,A60)' ) obsf_cfamtyp(fileIndex), trim(obsf_fileName(fileIndex))
+      write(*,'(1X,A2,1X,A60)' ) obsf_familyType(fileIndex), trim(obsf_fileName(fileIndex))
     end do
 
   end subroutine obsf_setupFileNames
@@ -762,7 +762,7 @@ contains
     ! Communicate familyTypes across all mpi tasks
     allocate(familyTypeAllMpi(maxNumObsfiles,mmpi_nprocs))
     familyTypeAllMpi(:,:) = ''
-    call mmpi_allgather_string(obsf_cfamtyp, familyTypeAllMpi, &
+    call mmpi_allgather_string(obsf_familyType, familyTypeAllMpi, &
                                 maxNumObsfiles, familyTypeLen, mmpi_nprocs, &
                                 "GRID", ierr)
 
@@ -923,7 +923,7 @@ contains
     numFound = 0
    
     do ifile=1,obsf_nfiles
-       if (obsfam == obsf_cfamtyp(ifile)) then
+       if (obsfam == obsf_familyType(ifile)) then
           filename = obsf_fileName(ifile)
           numFound = numFound + 1
           exit
@@ -1165,7 +1165,7 @@ contains
     if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
 
     FILELOOP: do fileIndex = 1, obsf_nfiles
-      if ( obsf_cfamtyp(fileIndex) /= 'TO' ) cycle FILELOOP
+      if ( obsf_familyType(fileIndex) /= 'TO' ) cycle FILELOOP
       write(*,*) 'INPUT FILE TO  obsf_updateMissingObsFlags = ', trim( obsf_fileName(fileIndex) )
       call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
       if ( trim(obsFileType) /= 'BURP' ) then
