@@ -756,15 +756,15 @@ contains
     allocate(baseFileNameAllMpi(maxNumObsfiles,mmpi_nprocs))
     baseFileNameAllMpi(:,:) = ''
     call mmpi_allgather_string(baseFileName, baseFileNameAllMpi, &
-                                maxNumObsfiles, maxLengthFilename, mmpi_nprocs, &
-                                "GRID", ierr)
+                               maxNumObsfiles, maxLengthFilename, mmpi_nprocs, &
+                               "GRID", ierr)
 
     ! Communicate familyTypes across all mpi tasks
     allocate(familyTypeAllMpi(maxNumObsfiles,mmpi_nprocs))
     familyTypeAllMpi(:,:) = ''
     call mmpi_allgather_string(obsf_familyType, familyTypeAllMpi, &
-                                maxNumObsfiles, familyTypeLen, mmpi_nprocs, &
-                                "GRID", ierr)
+                               maxNumObsfiles, familyTypeLen, mmpi_nprocs, &
+                               "GRID", ierr)
 
     ! Create a unique list of obs filenames/familytype across all mpi tasks without duplicates
     obsf_baseFileNameMpiUniqueList(:) = ''
@@ -800,7 +800,7 @@ contains
         if (trim((baseFileNameAllMpi(fileIndex,1))) == '') cycle
 
         write(*,'(1X,A2,1X,A60)' ) trim(familyTypeAllMpi(fileIndex,1)), &
-                                    trim(baseFileNameAllMpi(fileIndex,1))
+                                   trim(baseFileNameAllMpi(fileIndex,1))
       end do
     end if
 
@@ -810,7 +810,7 @@ contains
     write(*,*) '----  ---- '
     do fileIndex = 1, obsf_numMpiUniqueList
       write(*,'(1X,A2,1X,A60)' ) trim(obsf_familyTypeMpiUniqueList(fileIndex)), &
-                                  trim(obsf_baseFileNameMpiUniqueList(fileIndex))
+                                 trim(obsf_baseFileNameMpiUniqueList(fileIndex))
     end do
 
   end subroutine setObsFilesMpiUniqueList
