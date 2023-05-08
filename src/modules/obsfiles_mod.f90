@@ -422,18 +422,18 @@ contains
     ! locals
     character(len=25) :: fileNameAsciDump
     integer :: unitAsciDump, ierr, fnom, fclos
-    character(len=4)    :: cmyidx, cmyidy
-    character(len=9)    :: cmyid
+    character(len=4)    :: myIdxStr, myIdyStr
+    character(len=9)    :: myIdStr
 
     write(*,*) 'obsf_writeAsciDump: Starting'
 
     ! determine the file name depending on if obs data is mpi local or global
     if ( obs_mpiLocal(obsSpaceData) ) then
       ! separate file per mpi task
-      write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
-      write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
-      cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
-      fileNameAsciDump = 'obsout_asci_' // trim(cmyid)
+      write(myIdyStr,'(I4.4)') (mmpi_myidy + 1)
+      write(myIdxStr,'(I4.4)') (mmpi_myidx + 1)
+      myIdStr  = trim(myIdxStr) // '_' // trim(myIdyStr)
+      fileNameAsciDump = 'obsout_asci_' // trim(myIdStr)
     else
       ! only task 0 write the global data
       if ( mmpi_myid > 0 ) return
@@ -458,19 +458,18 @@ contains
     ! locals
     character(len=20) :: namePrefix(maxNumObsfiles)
     character(len=2) :: familyName(maxNumObsfiles)
-    character(len=4) :: cmyidx, cmyidy
+    character(len=4) :: myIdxStr, myIdyStr
     character(len=256):: obsDirectory
     character(len=maxLengthFilename) :: fileName, baseFileName  ! the length should be more than 
-                                                                      ! len(obsDirectory)+1+len(namePrefix)+1+len(obsf_myIdExt)
+                                                                ! len(obsDirectory)+1+len(namePrefix)+1+len(obsf_myIdExt)
     character(len=maxLengthFilename) :: baseFileNameList(maxNumObsfiles)
-
     character(len=256)               :: fileNamefull
     logical :: fileExists
     integer :: fileIndex
 
-    write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
-    write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
-    obsf_myIdExt  = trim(cmyidx) // '_' // trim(cmyidy)
+    write(myIdyStr,'(I4.4)') (mmpi_myidy + 1)
+    write(myIdxStr,'(I4.4)') (mmpi_myidx + 1)
+    obsf_myIdExt  = trim(myIdxStr) // '_' // trim(myIdyStr)
 
     namePrefix(:)=''
     ! file names only for burp
@@ -574,8 +573,8 @@ contains
     namePrefix(97) = 'brpsst'
     namePrefix(98) = 'obsal'
     namePrefix(99) = 'obsradar'
-    namePrefix(100) = 'obssst_insitu'
-    namePrefix(101) = 'obshydro'
+    namePrefix(100)= 'obssst_insitu'
+    namePrefix(101)= 'obshydro'
     namePrefix(102)= 'obsmwhs2'
     namePrefix(103)= 'brpmwhs2'
     namePrefix(104)= 'obssarwinds'
@@ -685,8 +684,8 @@ contains
     familyName(97)  = 'TM'
     familyName(98)  = 'AL'
     familyName(99)  = 'RA'
-    familyName(100)  = 'TM'
-    familyName(101)  = 'HY'
+    familyName(100) = 'TM'
+    familyName(101) = 'HY'
     familyName(102) = 'TO'
     familyName(103) = 'TO'
     familyName(104) = 'SF'
