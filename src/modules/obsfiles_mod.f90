@@ -457,9 +457,9 @@ contains
     character(len=2) :: familyName(maxNumObsfiles)
     character(len=4) :: cmyidx, cmyidy
     character(len=256):: obsDirectory
-    character(len=maxLengthFilename) :: fileName, baseFileNameNoMyId  ! the length should be more than 
+    character(len=maxLengthFilename) :: fileName, baseFileName  ! the length should be more than 
                                                                       ! len(obsDirectory)+1+len(namePrefix)+1+len(obsf_myIdExt)
-    character(len=maxLengthFilename) :: baseFileName(maxNumObsfiles)
+    character(len=maxLengthFilename) :: baseFileNameList(maxNumObsfiles)
 
     character(len=256)               :: fileNamefull
     logical :: fileExists
@@ -697,33 +697,33 @@ contains
 
     obsf_nfiles = 0
     obsf_fileName(1) = 'DUMMY_FILE_NAME'
-    baseFileName(:) = ''
+    baseFileNameList(:) = ''
 
     do fileIndex = 1, maxNumObsfiles 
 
       if(namePrefix(fileIndex) == '') exit
 
-      baseFileNameNoMyId = trim(obsDirectory) // '/' // trim(namePrefix(fileIndex))
-      fileName = trim(baseFileNameNoMyId) // '_' // trim(obsf_myIdExt)
+      baseFileName = trim(obsDirectory) // '/' // trim(namePrefix(fileIndex))
+      fileName = trim(baseFileName) // '_' // trim(obsf_myIdExt)
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
       inquire(file=trim(fileNameFull),exist=fileExists)
 
       if (.not. fileExists ) then
-        fileName=trim(baseFileNameNoMyId)
+        fileName=trim(baseFileName)
         fileNameFull = ram_fullWorkingPath(fileName, noAbort_opt=.true.)
         inquire(file=trim(fileNameFull), exist=fileExists)
       end if
 
       if ( fileExists ) then
         obsf_nfiles=obsf_nfiles + 1
-        baseFileName(obsf_nfiles) = trim(baseFileNameNoMyId)
+        baseFileNameList(obsf_nfiles) = trim(baseFileName)
         obsf_fileName(obsf_nfiles) = fileNameFull
         obsf_familyType(obsf_nfiles) = familyName(fileIndex)
       end if
 
     end do
 
-    call setObsFilesMpiUniqueList(baseFileName)
+    call setObsFilesMpiUniqueList(baseFileNameList)
     
     write(*,*) ' '
     write(*,*)'obsf_setupFileNames: Number of observation files is :', obsf_nfiles
@@ -738,31 +738,31 @@ contains
   !--------------------------------------------------------------------------
   ! setObsFilesMpiUniqueList
   !--------------------------------------------------------------------------
-  subroutine setObsFilesMpiUniqueList(baseFileName)
+  subroutine setObsFilesMpiUniqueList(baseFileNameList)
     !
     ! :Purpose: Create a unique list of obs filenames/familyTypes across all mpi tasks.
     !
     implicit none
 
     ! Arguments
-    character(len=*), intent(in) :: baseFileName(:)
+    character(len=*), intent(in) :: baseFileNameList(:)
 
     ! Locals:
     integer :: fileIndex, fileIndex2, procIndex, ierr
-    character(len=maxLengthFilename), allocatable :: baseFileNameAllMpi(:,:)
-    character(len=familyTypeLen), allocatable :: familyTypeAllMpi(:,:)
+    character(len=maxLengthFilename), allocatable :: baseFileNameListAllMpi(:,:)
+    character(len=familyTypeLen), allocatable :: familyTypeListAllMpi(:,:)
 
     ! Communicate filenames across all mpi tasks
-    allocate(baseFileNameAllMpi(maxNumObsfiles,mmpi_nprocs))
-    baseFileNameAllMpi(:,:) = ''
-    call mmpi_allgather_string(baseFileName, baseFileNameAllMpi, &
+    allocate(baseFileNameListAllMpi(maxNumObsfiles,mmpi_nprocs))
+    baseFileNameListAllMpi(:,:) = ''
+    call mmpi_allgather_string(baseFileNameList, baseFileNameListAllMpi, &
                                maxNumObsfiles, maxLengthFilename, mmpi_nprocs, &
                                "GRID", ierr)
 
     ! Communicate familyTypes across all mpi tasks
-    allocate(familyTypeAllMpi(maxNumObsfiles,mmpi_nprocs))
-    familyTypeAllMpi(:,:) = ''
-    call mmpi_allgather_string(obsf_familyType, familyTypeAllMpi, &
+    allocate(familyTypeListAllMpi(maxNumObsfiles,mmpi_nprocs))
+    familyTypeListAllMpi(:,:) = ''
+    call mmpi_allgather_string(obsf_familyType, familyTypeListAllMpi, &
                                maxNumObsfiles, familyTypeLen, mmpi_nprocs, &
                                "GRID", ierr)
 
@@ -770,24 +770,24 @@ contains
     obsf_baseFileNameMpiUniqueList(:) = ''
     obsf_familyTypeMpiUniqueList(:) = ''
     obsf_numMpiUniqueList = 1
-    obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameAllMpi(1,1)
-    obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeAllMpi(1,1)
+    obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameListAllMpi(1,1)
+    obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeListAllMpi(1,1)
     do procIndex = 1, mmpi_nprocs
       loopFilename: do fileIndex = 1, maxNumObsfiles 
-        if (trim((baseFileNameAllMpi(fileIndex,procIndex))) == '') cycle loopFilename
+        if (trim((baseFileNameListAllMpi(fileIndex,procIndex))) == '') cycle loopFilename
 
         ! cycle if filename already exists in the unique list
         do fileIndex2 = 1, obsf_numMpiUniqueList
           if (trim(obsf_baseFileNameMpiUniqueList(fileIndex2)) == &
-              trim(baseFileNameAllMpi(fileIndex,procIndex))) then
+              trim(baseFileNameListAllMpi(fileIndex,procIndex))) then
             cycle loopFilename
           end if
         end do
         
         ! add the filename to the unique list
         obsf_numMpiUniqueList = obsf_numMpiUniqueList + 1
-        obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameAllMpi(fileIndex,procIndex)
-        obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeAllMpi(fileIndex,procIndex)
+        obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameListAllMpi(fileIndex,procIndex)
+        obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeListAllMpi(fileIndex,procIndex)
 
       end do loopFilename
     end do
@@ -797,10 +797,10 @@ contains
       write(*,*)'Type  Name '
       write(*,*)'----  ---- '
       do fileIndex = 1, maxNumObsfiles
-        if (trim((baseFileNameAllMpi(fileIndex,1))) == '') cycle
+        if (trim((baseFileNameListAllMpi(fileIndex,1))) == '') cycle
 
-        write(*,'(1X,A2,1X,A60)' ) trim(familyTypeAllMpi(fileIndex,1)), &
-                                   trim(baseFileNameAllMpi(fileIndex,1))
+        write(*,'(1X,A2,1X,A60)' ) trim(familyTypeListAllMpi(fileIndex,1)), &
+                                   trim(baseFileNameListAllMpi(fileIndex,1))
       end do
     end if
 
