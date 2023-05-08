@@ -44,15 +44,15 @@ module obsFiles_mod
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
 
-  integer, parameter :: jpfiles = 150
+  integer, parameter :: maxNumObsfiles = 150
   integer, parameter :: maxLengthFilename = 1060
   integer, parameter :: familyTypeLen = 2
   integer :: obsf_nfiles, obsf_numMpiUniqueList
-  character(len=maxLengthFilename) :: obsf_cfilnam(jpfiles)
-  character(len=familyTypeLen)     :: obsf_cfamtyp(jpfiles)
+  character(len=maxLengthFilename) :: obsf_cfilnam(maxNumObsfiles)
+  character(len=familyTypeLen)     :: obsf_cfamtyp(maxNumObsfiles)
   character(len=48)  :: obsFileMode
-  character(len=maxLengthFilename) :: obsf_baseFileNameMpiUniqueList(jpfiles)
-  character(len=familyTypeLen)     :: obsf_familyTypeMpiUniqueList(jpfiles)
+  character(len=maxLengthFilename) :: obsf_baseFileNameMpiUniqueList(maxNumObsfiles)
+  character(len=familyTypeLen)     :: obsf_familyTypeMpiUniqueList(maxNumObsfiles)
   character(len=9) :: obsf_myIdExt
 
 contains
@@ -453,13 +453,13 @@ contains
     implicit none
 
     ! locals
-    character(len=20) :: namePrefix(jpfiles)
-    character(len=2) :: familyName(jpfiles)
+    character(len=20) :: namePrefix(maxNumObsfiles)
+    character(len=2) :: familyName(maxNumObsfiles)
     character(len=4) :: cmyidx, cmyidy
     character(len=256):: obsDirectory
     character(len=maxLengthFilename) :: fileName, baseFileNameNoMyId  ! the length should be more than 
                                                                       ! len(obsDirectory)+1+len(namePrefix)+1+len(obsf_myIdExt)
-    character(len=maxLengthFilename) :: baseFileName(jpfiles)
+    character(len=maxLengthFilename) :: baseFileName(maxNumObsfiles)
 
     character(len=256)               :: fileNamefull
     logical :: fileExists
@@ -699,7 +699,7 @@ contains
     obsf_cfilnam(1) = 'DUMMY_FILE_NAME'
     baseFileName(:) = ''
 
-    do fileIndex = 1, jpfiles 
+    do fileIndex = 1, maxNumObsfiles 
 
       if(namePrefix(fileIndex) == '') exit
 
@@ -753,17 +753,17 @@ contains
     character(len=familyTypeLen), allocatable :: familyTypeAllMpi(:,:)
 
     ! Communicate filenames across all mpi tasks
-    allocate(baseFileNameAllMpi(jpfiles,mmpi_nprocs))
+    allocate(baseFileNameAllMpi(maxNumObsfiles,mmpi_nprocs))
     baseFileNameAllMpi(:,:) = ''
     call mmpi_allgather_string(baseFileName, baseFileNameAllMpi, &
-                                jpfiles, maxLengthFilename, mmpi_nprocs, &
+                                maxNumObsfiles, maxLengthFilename, mmpi_nprocs, &
                                 "GRID", ierr)
 
     ! Communicate familyTypes across all mpi tasks
-    allocate(familyTypeAllMpi(jpfiles,mmpi_nprocs))
+    allocate(familyTypeAllMpi(maxNumObsfiles,mmpi_nprocs))
     familyTypeAllMpi(:,:) = ''
     call mmpi_allgather_string(obsf_cfamtyp, familyTypeAllMpi, &
-                                jpfiles, familyTypeLen, mmpi_nprocs, &
+                                maxNumObsfiles, familyTypeLen, mmpi_nprocs, &
                                 "GRID", ierr)
 
     ! Create a unique list of obs filenames/familytype across all mpi tasks without duplicates
@@ -773,7 +773,7 @@ contains
     obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameAllMpi(1,1)
     obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeAllMpi(1,1)
     do procIndex = 1, mmpi_nprocs
-      loopFilename: do fileIndex = 1, jpfiles 
+      loopFilename: do fileIndex = 1, maxNumObsfiles 
         if (trim((baseFileNameAllMpi(fileIndex,procIndex))) == '') cycle loopFilename
 
         ! cycle if filename already exists in the unique list
@@ -796,7 +796,7 @@ contains
       write(*,*) 'setObsFilesMpiUniqueList: all mpi familType/filename before creating unique list:' 
       write(*,*)'Type  Name '
       write(*,*)'----  ---- '
-      do fileIndex = 1, jpfiles
+      do fileIndex = 1, maxNumObsfiles
         if (trim((baseFileNameAllMpi(fileIndex,1))) == '') cycle
 
         write(*,'(1X,A2,1X,A60)' ) trim(familyTypeAllMpi(fileIndex,1)), &
