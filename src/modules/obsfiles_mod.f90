@@ -1252,7 +1252,7 @@ contains
     integer(8) :: headerPrimaryKey, bodyPrimaryKey
     integer, allocatable :: allNumHeaderRead(:), allNumBodyRead(:)
 
-    if (mmpi_myid == 0) write(*,*) 'setHeadBodyPrimaryKeyColumns: start'
+    write(*,*) 'setHeadBodyPrimaryKeyColumns: start'
     numHeaders = obs_numHeader(obsSpaceData)
     numBodies = obs_numBody(obsSpaceData)
      
@@ -1295,7 +1295,7 @@ contains
       call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey)
     end do
 
-    if (mmpi_myid == 0) write(*,*) 'setHeadBodyPrimaryKeyColumns: end'
+    write(*,*) 'setHeadBodyPrimaryKeyColumns: end'
 
   end subroutine setHeadBodyPrimaryKeyColumns
 
