@@ -792,18 +792,6 @@ contains
       end do loopFilename
     end do
 
-    if (mmpi_myid == 0) then
-      write(*,*) 'setObsFilesMpiUniqueList: all mpi familType/filename before creating unique list:' 
-      write(*,*)'Type  Name '
-      write(*,*)'----  ---- '
-      do fileIndex = 1, maxNumObsfiles
-        if (trim((baseFileNameListAllMpi(fileIndex,1))) == '') cycle
-
-        write(*,'(1X,A2,1X,A60)' ) trim(familyTypeListAllMpi(fileIndex,1)), &
-                                   trim(baseFileNameListAllMpi(fileIndex,1))
-      end do
-    end if
-
     write(*,*) 'setObsFilesMpiUniqueList: obsf_numMpiUniqueList=', obsf_numMpiUniqueList
     write(*,*) 'setObsFilesMpiUniqueList: familyType/filename in unique list:'
     write(*,*) 'Type  Name '
