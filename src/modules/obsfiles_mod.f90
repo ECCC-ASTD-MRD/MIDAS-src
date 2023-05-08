@@ -170,9 +170,11 @@ contains
             end if
           end if
 
-          call getNumHeadersBodies(obsSpaceData, numHeaderBefore, numBodyBefore)
+          numHeaderBefore = obs_numHeader(obsSpaceData)
+          numBodyBefore = obs_numBody(obsSpaceData)
           call brpf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
-          call getNumHeadersBodies(obsSpaceData, numHeaders, numBodies)
+          numHeaders = obs_numHeader(obsSpaceData)
+          numBodies = obs_numBody(obsSpaceData)
           numHeaderRead = numHeaders - numHeaderBefore
           numBodyRead = numBodies - numBodyBefore
         end if
@@ -1237,24 +1239,6 @@ contains
     end if
 
   end subroutine obsf_copyObsDirectory
-  
-  !--------------------------------------------------------------------------
-  ! getNumHeadersBodies
-  !--------------------------------------------------------------------------
-  subroutine getNumHeadersBodies(obsSpaceData, numHeaders, numBodies)
-    !
-    ! :Purpose: Get number of local headers/bodies from obsSpaceData.
-    !
-    implicit none
-
-    ! arguments
-    type(struct_obs), intent(in) :: obsSpaceData
-    integer, intent(out) :: numHeaders, numBodies
-
-    numHeaders = obs_numHeader(obsSpaceData)
-    numBodies = obs_numBody(obsSpaceData)
-
-  end subroutine getNumHeadersBodies
 
   !--------------------------------------------------------------------------
   ! setHeadBodyPrimaryKeyColumns
@@ -1281,8 +1265,9 @@ contains
     integer, allocatable :: allNumHeaderRead(:), allNumBodyRead(:)
 
     if (mmpi_myid == 0) write(*,*) 'setHeadBodyPrimaryKeyColumns: start'
-    call getNumHeadersBodies(obsDat, numHeaders, numBodies)
-
+    numHeaders = obs_numHeader(obsSpaceData)
+    numBodies = obs_numBody(obsSpaceData)
+     
     write(*,*) 'setHeadBodyPrimaryKeyColumns: numHeaders=', numHeaders, ', numBodies=', numBodies
     write(*,*) 'setHeadBodyPrimaryKeyColumns: numHeaderRead=', numHeaderRead, &
                 ', numBodyRead=', numBodyRead
