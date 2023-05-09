@@ -67,18 +67,11 @@ module bgckmicrowave_mod
   real(4), parameter :: scatbg_mwhs2_cmc_SEA=15.0
   real(4), parameter :: mean_Tb_183Ghz_min=240.0      ! min. value for Mean(Tb) chans. 18-22 
   
-  integer, parameter :: mwbg_maxNumSat  = 13
   integer, parameter :: mwbg_maxNumChan = 100
   integer, parameter :: mwbg_maxNumTest = 16
 
-  integer            :: rejectionCodArray (mwbg_maxNumTest, &
-                                           mwbg_maxNumChan, &
-                                           mwbg_maxNumSat) ! number of rejection 
-  !                                                          per sat. per channl per test
-  integer            :: rejectionCodArray2 (mwbg_maxNumTest, &
-                                           mwbg_maxNumChan, &
-                                           mwbg_maxNumSat) ! number of rejection per channl per test
-  !                                                          for ATMS 2nd category of tests
+  integer, allocatable :: rejectionCodArray(:,:,:)    ! number of rejection per sat. per channl per test
+  integer, allocatable :: rejectionCodArray2(:,:,:)   ! number of rejection per channl per test for ATMS 2nd category of tests
 
   ! namelist variables
   character(len=9)   :: instName                      ! instrument name
@@ -139,6 +132,10 @@ contains
     mwbg_minSiOverWaterThreshold = minSiOverWaterThreshold
     mwbg_maxSiOverWaterThreshold = maxSiOverWaterThreshold
     mwbg_cloudySiThresholdBcorr = cloudySiThresholdBcorr
+
+    ! Allocation
+    allocate(rejectionCodArray(mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors))
+    allocate(rejectionCodArray2(mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors))
 
   end subroutine mwbg_init 
 
@@ -2049,18 +2046,18 @@ contains
     logical,           intent(in) :: LDprint                      ! mode: imprimer ou cumuler?
     !Locals
     integer :: numSats, JI, JJ, JK, INTOTOBS, INTOTACC
-    integer, allocatable, save :: INTOT(:)    ! INTOT(mwbg_maxNumSat)
-    integer, allocatable, save :: INTOTRJF(:) ! INTOTRJF(mwbg_maxNumSat)
-    integer, allocatable, save :: INTOTRJP(:) ! INTOTRJP(mwbg_maxNumSat)
+    integer, allocatable, save :: INTOT(:)    ! INTOT(tvs_nsensors)
+    integer, allocatable, save :: INTOTRJF(:) ! INTOTRJF(tvs_nsensors)
+    integer, allocatable, save :: INTOTRJP(:) ! INTOTRJP(tvs_nsensors)
     logical :: FULLREJCT, FULLACCPT
     logical, save :: LLFIRST = .true.
 
     ! Initialize
     if ( LLFIRST ) then
-      call utl_reallocate(INTOT, mwbg_maxNumSat)
-      call utl_reallocate(INTOTRJF, mwbg_maxNumSat)
-      call utl_reallocate(INTOTRJP, mwbg_maxNumSat)
-      do JJ = 1, mwbg_maxNumSat
+      call utl_reallocate(INTOT, tvs_nsensors)
+      call utl_reallocate(INTOTRJF, tvs_nsensors)
+      call utl_reallocate(INTOTRJP, tvs_nsensors)
+      do JJ = 1, tvs_nsensors
         INTOTRJF(JJ) = 0
         INTOTRJP(JJ) = 0
         INTOT(JJ)  = 0
