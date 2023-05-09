@@ -134,8 +134,8 @@ contains
     mwbg_cloudySiThresholdBcorr = cloudySiThresholdBcorr
 
     ! Allocation
-    allocate(rejectionCodArray(mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors))
-    allocate(rejectionCodArray2(mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors))
+    call utl_reAllocate(rejectionCodArray, mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors)
+    call utl_reAllocate(rejectionCodArray2, mwbg_maxNumTest, mwbg_maxNumChan, tvs_nsensors)
 
   end subroutine mwbg_init 
 
