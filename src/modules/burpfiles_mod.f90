@@ -660,24 +660,25 @@ contains
     
     ! Check presence of data to update
     if (obsdata%nrep <= 0) then
-       write(*,*) 'brpf_obsSub_update: Skipped due to absence of data to update.'
-       return
+      write(*,*) 'brpf_obsSub_update: Skipped due to absence of data to update.'
+      return
     end if
     
     ! Identify dimensions for the input data    
     ndim=obsdata%ndim
     dim1=obsdata%dim1
     if (ndim == 1) then
-       dim2=1
+      dim2=1
     else
-       dim2=obsdata%dim2
+      dim2=obsdata%dim2
     end if
     
     if (size(varno) < dim2) call utl_abort('brpf_obsSub_update: Number of BUFR elements not sufficient. ' // &
-                                          trim(utl_str(size(varno))) // ' vs ' // trim(utl_str(dim2)))
+                                           trim(utl_str(size(varno))) // ' vs ' // trim(utl_str(dim2)))
 
-    if (code_len < oss_obsdata_code_len()) call utl_abort('brpf_obsSub_update: Length of code string' &
-                                          // ' needs to be increased to ' // trim(utl_str(oss_obsdata_code_len())))
+    if (code_len < oss_obsdata_code_len()) call utl_abort('brpf_obsSub_update: Length of code string' // &
+                                                          ' needs to be increased to ' // &
+                                                          trim(utl_str(oss_obsdata_code_len())))
      
     ! initialize burp file, report, and block system resources
     call BURP_Init(brp, iostat=error)
@@ -705,44 +706,44 @@ contains
     obsdata%irep=1
     REPORTS1: do
 
-       ref_rpt = BURP_Find_Report(brp, REPORT=rep, SEARCH_FROM=ref_rpt, IOSTAT=error)
-       if (ref_rpt<0) exit REPORTS1
+      ref_rpt = BURP_Find_Report(brp, REPORT=rep, SEARCH_FROM=ref_rpt, IOSTAT=error)
+      if (ref_rpt<0) exit REPORTS1
 
-       ncount=ncount+1
-       address(ncount)=ref_rpt
+      ncount=ncount+1
+      address(ncount)=ref_rpt
 
-       call BURP_Get_Property(rep, STNID=stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon)
+      call BURP_Get_Property(rep, STNID=stnid, DATE=date, TEMPS=time, LATI=ilat, LONG=ilon)
 
-       if (stnid(1:2) == '>>') cycle REPORTS1
+      if (stnid(1:2) == '>>') cycle REPORTS1
 
-       ! Get unique identifier for search from input data
-       code = oss_obsdata_get_header_code(ilon,ilat,date,time,stnid)
+      ! Get unique identifier for search from input data
+      code = oss_obsdata_get_header_code(ilon,ilat,date,time,stnid)
        
-       ! Determine if replacement/additional data likely present for this report
-       if (dim1 == 1.and.dim2 == 1) then
-          new_vals(1,1,ncount)=real(oss_obsdata_get_element(obsdata,trim(code),1,stat_opt=istat))
-       else if (dim2 == 1) then
-          new_vals(:,1,ncount)=real(oss_obsdata_get_array1d(obsdata,trim(code),stat_opt=istat))
-       else 
-          new_vals(:,:,ncount)=real(oss_obsdata_get_array2d(obsdata,trim(code),stat_opt=istat))
-       end if
+      ! Determine if replacement/additional data likely present for this report
+      if (dim1 == 1.and.dim2 == 1) then
+        new_vals(1,1,ncount)=real(oss_obsdata_get_element(obsdata,trim(code),1,stat_opt=istat))
+      else if (dim2 == 1) then
+        new_vals(:,1,ncount)=real(oss_obsdata_get_array1d(obsdata,trim(code),stat_opt=istat))
+      else 
+        new_vals(:,:,ncount)=real(oss_obsdata_get_array2d(obsdata,trim(code),stat_opt=istat))
+      end if
 
-       if (istat == 0) then
-          if (present(multi_opt)) then
-             ! loop through blocks to find first data block
-             ref_blk = 0
-             BLOCKS1: do
-                ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)          
-                if (ref_blk<0) exit BLOCKS1
-                if (IS_Burp_Btyp('DATA',BLOCK=blk)) then
-                   if (IS_Burp_Btyp(trim(multi_opt),BLOCK=blk)) modify(ncount) = .true.
-                   exit BLOCKS1
-                end if
-             end do BLOCKS1
-          else
-             modify(ncount) = .true.
-          end if
-       end if
+      if (istat == 0) then
+        if (present(multi_opt)) then
+          ! loop through blocks to find first data block
+          ref_blk = 0
+          BLOCKS1: do
+            ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)          
+            if (ref_blk<0) exit BLOCKS1
+            if (IS_Burp_Btyp('DATA',BLOCK=blk)) then
+              if (IS_Burp_Btyp(trim(multi_opt),BLOCK=blk)) modify(ncount) = .true.
+              exit BLOCKS1
+            end if
+          end do BLOCKS1
+        else
+          modify(ncount) = .true.
+        end if
+      end if
 
     end do REPORTS1
     
@@ -754,57 +755,63 @@ contains
     ! second loop through reports to include the new information to the file    
     REPORTS2: do k=1,ncount
     
-       call BURP_Get_Report(brp, REPORT=rep, REF=address(k), IOSTAT=error)
+      call BURP_Get_Report(brp, REPORT=rep, REF=address(k), IOSTAT=error)
        
-       ! Copy report header
-       Call BURP_Copy_Header(TO=rep_new,FROM=rep)
-       Call BURP_Init_Report_Write(brp,rep_new,IOSTAT=error)
+      ! Copy report header
+      Call BURP_Copy_Header(TO=rep_new,FROM=rep)
+      Call BURP_Init_Report_Write(brp,rep_new,IOSTAT=error)
 
-       ! loop through blocks
-       ref_blk = 0
-       BLOCKS: do
-          
+      ! Ignore resume records in BLOCKS do loop
+      call BURP_Get_Property(rep, STNID=stnid)
+
+      if (stnid(1:2) == '>>') then                  
+        write(*,*) 'brpf_obsSub_update: reading resume record, skip reading blocks'
+      else
+        ! loop through blocks
+        ref_blk = 0
+        BLOCKS: do
+              
           ref_blk = BURP_Find_Block(rep, BLOCK=blk, SEARCH_FROM=ref_blk, IOSTAT=error)          
           if (ref_blk<0) exit BLOCKS
-          
+              
           if (modify(k)) then
 
-             call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
+            call BURP_Get_Property(blk, NELE=nele, NVAL=nval, BKSTP=ref_bkstp, IOSTAT=error)
 
-             blk_found = IS_Burp_Btyp(trim(block_type),BLOCK=blk) .and. dim1 == nval
-             if (present(bkstp_opt)) blk_found = blk_found .and. bkstp_opt == ref_bkstp
+            blk_found = IS_Burp_Btyp(trim(block_type),BLOCK=blk) .and. dim1 == nval
+            if (present(bkstp_opt)) blk_found = blk_found .and. bkstp_opt == ref_bkstp
 
-             if (blk_found) then
-                ! Block to be modified has been found, add new data to block.
-                ! If the varno is already in the block, the new data will overwrite the
-                ! existing data, otherwise will append the new data to the block.
+            if (blk_found) then
+              ! Block to be modified has been found, add new data to block.
+              ! If the varno is already in the block, the new data will overwrite the
+              ! existing data, otherwise will append the new data to the block.
 
-                do iele=1,dim2
-                   ivar = BURP_Find_Element(blk, ELEMENT=varno(iele), IOSTAT=error)           
-                   if (ivar < 0) then
-                      ivar=nele+1
-                      call BURP_Resize_Block(blk,ADD_NELE=1,IOSTAT=error)
-                      call BURP_Set_Element(blk,NELE_IND=ivar,ELEMENT=varno(iele),IOSTAT=error)
-                   end if
-                
-                   do ilev=1,nval 
-                      call BURP_Set_Rval(blk,NELE_IND=ivar,NVAL_IND=ilev,NT_IND=1,RVAL=new_vals(ilev,iele,k),IOSTAT=error)                 
-                   end do
+              do iele=1,dim2
+                ivar = BURP_Find_Element(blk, ELEMENT=varno(iele), IOSTAT=error)           
+                if (ivar < 0) then
+                  ivar=nele+1
+                  call BURP_Resize_Block(blk,ADD_NELE=1,IOSTAT=error)
+                  call BURP_Set_Element(blk,NELE_IND=ivar,ELEMENT=varno(iele),IOSTAT=error)
+                end if
+                    
+                do ilev=1,nval 
+                  call BURP_Set_Rval(blk,NELE_IND=ivar,NVAL_IND=ilev,NT_IND=1,RVAL=new_vals(ilev,iele,k),IOSTAT=error)                 
                 end do
-        
-             end if
+              end do
+
+            end if
           end if
-          
+              
           ! The call to BURP_Write_Block has ENCODE_BLOCK and CONVERT_BLOCK set
           ! to .true. in all cases, including when the block has not been
           ! modified, due to problems that can occur when writing blocks
           ! containing negative integers with datyp=4.
           call BURP_Write_Block(rep_new, BLOCK=blk, ENCODE_BLOCK=.true., CONVERT_BLOCK=.true., IOSTAT=error)
-         
-       end do BLOCKS
-       
-       call BURP_Delete_Report(brp,rep,IOSTAT=error)
-       call BURP_Write_Report(brp,rep_new,IOSTAT=error) 
+             
+        end do BLOCKS
+      end if
+      call BURP_Delete_Report(brp,rep,IOSTAT=error)
+      call BURP_Write_Report(brp,rep_new,IOSTAT=error) 
   
     end do REPORTS2
         
