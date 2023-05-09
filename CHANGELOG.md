@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Dynamic allocation of some arrays in `bgckmicrowave_mod` to prevent abort when more than 13 instrument (#822 and !731)
  * Test `errorStatus` returned by some rttov subroutines (#813 and !722)
  * Fix bug in `physicsfunction_mod` that could cause programs to hang (#814 and !723)
    * also sped up `ensPostProcess` when computing global ensemble statistics
