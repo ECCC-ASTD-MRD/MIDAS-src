@@ -1255,8 +1255,8 @@ contains
     integer, allocatable :: allNumHeaderRead(:), allNumBodyRead(:)
 
     write(*,*) 'setHeadBodyPrimaryKeyColumns: start'
-    numHeaders = obs_numHeader(obsSpaceData)
-    numBodies = obs_numBody(obsSpaceData)
+    numHeaders = obs_numHeader(obsDat)
+    numBodies = obs_numBody(obsDat)
      
     write(*,*) 'setHeadBodyPrimaryKeyColumns: numHeaders=', numHeaders, ', numBodies=', numBodies
     write(*,*) 'setHeadBodyPrimaryKeyColumns: numHeaderRead=', numHeaderRead, &
