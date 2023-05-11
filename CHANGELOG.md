@@ -42,7 +42,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
- * (Nothing yet)
+ * Remove LICENSE information from each source file (#823 and !733)
 
 ## [3.9.0-rc1]
 

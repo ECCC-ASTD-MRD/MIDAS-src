@@ -1,7 +1,7 @@
 !
 !(c) Matthew Kennel, Institute for Nonlinear Science (2004)
 !
-! Licensed under the Academic Free License version 1.1 found in file LICENSE
+! Licensed under the Academic Free License version 1.1 found in file LICENSE_kdtree2.txt
 ! with additional provisions found in that same file.
 !
 module kdtree2_precision_mod
