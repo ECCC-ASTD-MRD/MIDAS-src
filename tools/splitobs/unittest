@@ -1771,7 +1771,7 @@ function sqlite_add_column {
     elif [ "${__sqlite_add_column_fam__}" = airs ]; then
         ## insert columns 'FANION_QUAL_CAL', 'FANION_QUAL_FOV' and 'FSO' in 'data' table
 	__sqlite_add_column_status__=0
-	echo "alter table data add column FANION_QUAL_CAL integer; alter table data add column FANION_QUAL_FOV integer; alter table data add column BIAS_CORR real; alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+	echo "alter table data add column FANION_QUAL_CAL integer; alter table data add column FANION_QUAL_FOV integer; alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
 	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
 	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
 	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
@@ -1780,7 +1780,7 @@ function sqlite_add_column {
     elif [ "${__sqlite_add_column_fam__}" = csr ]; then
         ## insert columns 'FANION_QUAL_CAL', 'FANION_QUAL_FOV' and 'FSO' in 'data' table
 	__sqlite_add_column_status__=0
-	echo "alter table data add column BIAS_CORR real; alter table data add column FSO real; alter table header add column azimuth real; alter table header add column solar_azimuth real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+	echo "alter table data add column FSO real; alter table header add column azimuth real; alter table header add column solar_azimuth real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
 	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
 	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
 	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
@@ -1789,8 +1789,8 @@ function sqlite_add_column {
     elif [ "${__sqlite_add_column_fam__}" = to_amsua -o "${__sqlite_add_column_fam__}" = to_amsub -o "${__sqlite_add_column_fam__}" = ssmis ]; then
         ## insert columns 'FANION_QUAL_CAL', 'FANION_QUAL_FOV' and 'FSO' in 'data' table
 	__sqlite_add_column_status__=0
-        __sqlite_add_column_request__="alter table data add column BIAS_CORR real;"
-        for __sqlite_add_column_column__ in FSO scattering_index cloud_liquid_water; do
+        __sqlite_add_column_request__="alter table data add column FSO real;"
+        for __sqlite_add_column_column__ in scattering_index cloud_liquid_water; do
             __sqlite_add_column_request__="${__sqlite_add_column_request__} alter table header add column ${__sqlite_add_column_column__} real;"
         done
         __sqlite_add_column_column__=info_flag
@@ -1804,16 +1804,67 @@ function sqlite_add_column {
 	    return 1
 	fi
         unset __sqlite_add_column_request__
+    elif [ "${__sqlite_add_column_fam__}" = ai ]; then
+        ## we must insert column 'FSO' and 'BIAS_CORR' in 'data' table
+
+        ## We will firt insert the column 'BIAS_CORR' between 'OBSVALUE' and 'FLAG'
+        __sqlite_add_column_column_names__=$(echo "PRAGMA table_info(DATA);" | ${sqlite3} ${__sqlite_add_column_filein__} | awk -F'|' '{print $2}' | tr '\n' ' ')
+        __sqlite_add_column_column_names_with_new_columns__=$(echo ${__sqlite_add_column_column_names__} | sed 's/OBSVALUE FLAG/OBSVALUE BIAS_CORR FLAG/')
+        ## And append 'FSO'
+        __sqlite_add_column_column_names_with_new_columns__="${__sqlite_add_column_column_names_with_new_columns__} FSO"
+
+        __sqlite_add_column_columns_definition__=
+        for column in ${__sqlite_add_column_column_names_with_new_columns__}; do
+            ## extract the type of the column
+            column_type=$(echo "PRAGMA table_info(DATA);" | ${sqlite3} ${__sqlite_add_column_filein__} | awk -F'|' "\$2 == \"${column}\" {print \$3}")
+            ## if the column_type is empty then we must define it:
+            if [ -z "${column_type}" ]; then
+                column_type=REAL
+            fi
+            if [ -n "${__sqlite_add_column_columns_definition__}" ]; then
+                __sqlite_add_column_columns_definition__="${__sqlite_add_column_columns_definition__}, ${column} ${column_type}"
+            else
+                __sqlite_add_column_columns_definition__="${column} ${column_type}"
+            fi
+            unset column_type
+        done
+        unset column
+
+        ## We will reinsert other tables to keep the order of the tables the same
+        for table in $(echo .tables | ${sqlite3} ${__sqlite_add_column_filein__}); do
+            if [ "${table}" = DATA ]; then
+	        __sqlite_add_column_status__=0
+                __sqlite_add_column_column_names_comma__=$(echo ${__sqlite_add_column_column_names__} | sed 's/  */, /g')
+                #cat <<EOF
+                ${sqlite3} ${__sqlite_add_column_fileout__} << EOF || __sqlite_add_column_status__=1
+CREATE TABLE dataWithAddedColumns (${__sqlite_add_column_columns_definition__});
+INSERT INTO dataWithAddedColumns (${__sqlite_add_column_column_names_comma__}) SELECT ${__sqlite_add_column_column_names_comma__} FROM data;
+DROP TABLE DATA;
+ALTER TABLE dataWithAddedColumns RENAME TO DATA;
+EOF
+            else
+                __sqlite_add_column_columns_definition_tmp__=$(echo "PRAGMA table_info(${table});" | ${sqlite3} ${__sqlite_add_column_filein__} | awk -F'|' '{printf "%s %s,", $2, $3}' | sed 's/,$//' | tr '\n' ' ')
+                #cat <<EOF
+                ${sqlite3} ${__sqlite_add_column_fileout__} << EOF || __sqlite_add_column_status__=1
+DROP TABLE ${table};
+create table ${table} (${__sqlite_add_column_columns_definition_tmp__});
+attach '${__sqlite_add_column_filein__}' as dbin;
+insert into ${table} select * from dbin.${table};
+detach dbin;
+EOF
+            fi
+        done
+        unset __sqlite_add_column_column_names_with_new_columns__ __sqlite_add_column_columns_definition__ __sqlite_add_column_column_names_comma__
     else
-        ## insert column 'FSO' and 'BIAS_CORR' in 'data' table
+        ## insert column 'FSO' in 'data' table
 	__sqlite_add_column_status__=0
-	echo "alter table data add column BIAS_CORR real; alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+	echo "alter table data add column FSO real;" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
 	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
 	    echo "Function sqlite_add_column: cannot add column in 'data' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
 	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
 	    return 1
 	fi
-    fi  ## Fin du 'elif [ "${__sqlite_add_column_fam__}" = ai ]'
+    fi  ## Fin du 'else' associe au 'elif [ "${__sqlite_add_column_fam__}" = ai ]'
 
     unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
 
