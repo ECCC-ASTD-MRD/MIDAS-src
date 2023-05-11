@@ -4622,12 +4622,11 @@ contains
     integer,             intent(in) :: sensorIndex        ! numero de satellite (i.e. indice)
 
     ! Locals
-    integer :: jj, indx1, icount, landQualifierIndice, terrainTypeIndice, satScanPosition, actualNumChannel
+    integer :: indx1, icount, landQualifierIndice, terrainTypeIndice, satScanPosition, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset, channelIndex
-    integer :: obsQcFlag1(3)
-    integer, allocatable :: obsChannels(:), obsQcFlag2(:)
-    real(4) :: obsLat, obsLon, satZenithAngle
-    real(4), allocatable :: obsTb(:)
+    integer :: obsQcFlag1(3), obsQcFlag2
+    integer, allocatable :: obsChannels(:)
+    real(4) :: obsLat, obsLon, satZenithAngle, obsTb
     logical :: fail, fail1, fail2
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
@@ -4664,16 +4663,9 @@ contains
     end if
 
     call utl_reAllocate(obsChannels, actualNumChannel)
-    call utl_reAllocate(obsTb, actualNumChannel)
-    call utl_reAllocate(obsQcFlag2, actualNumChannel)
-    BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
-      obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
-      obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
-
-      obsChannels(obsChanNum) = obsChanNumWithOffset
-      obsTb(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
-      obsQcFlag2(obsChanNum) = obs_bodyElem_i(obsSpaceData, OBS_QCF2, bodyIndex)
-    end do BODY
+    do channelIndex = 1, actualNumChannel
+      obsChannels(channelIndex) = channelIndex + tvs_channelOffset(sensorIndex)
+    end do
 
     qcRejectLogic(:) = .false.  ! Flag for preliminary QC checks
     ! Global rejection checks
@@ -4750,12 +4742,13 @@ contains
       satZenithAngle = mwbg_realMissing
       reportHasMissingTb = .true.
     end if
-    do jj = 1, actualNumChannel
-      if ( fail ) then
-          qcRejectLogic(jj) = .true.
-          obsTb(jj) = mwbg_realMissing
-      end if
-    end do
+    if ( fail ) then
+      qcRejectLogic(:) = .true.
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        obsTb = mwbg_realMissing
+        call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, obsTb)
+      end do
+    end if
 
     ! 4) Lat,lon check
     ! Check for undecoded BURP file integer values of lat,lon = 0,0
@@ -4768,12 +4761,13 @@ contains
       icount =  icount + 1
       reportHasMissingTb = .true.
     end if
-    do jj = 1, actualNumChannel
-      if ( fail ) then
-          qcRejectLogic(jj) = .true.
-          obsTb(jj) = mwbg_realMissing
-      end if
-    end do
+    if ( fail ) then
+      qcRejectLogic(:) = .true.
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        obsTb = mwbg_realMissing
+        call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, obsTb)
+      end do
+    end if
     if ( icount > 0 ) write(*,*) 'WARNING: Bad lat,lon pair(s) detected. Number of locations = ', icount
 
     icount = 0
@@ -4783,12 +4777,13 @@ contains
       icount =  icount + 1
       reportHasMissingTb = .true.
     end if
-    do jj = 1, actualNumChannel
-      if ( fail ) then
-          qcRejectLogic(jj) = .true.
-          obsTb(jj) = mwbg_realMissing
-      end if
-    end do
+    if ( fail ) then
+      qcRejectLogic(:) = .true.
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        obsTb = mwbg_realMissing
+        call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, obsTb)
+      end do
+    end if
     if ( icount > 0 ) write(*,*) 'WARNING: Lat or lon out of range! Number of locations = ', icount
 
     !  5) Change in land/sea qualifier or terrain-type based on MG,LG fields
@@ -4818,16 +4813,21 @@ contains
       fail1 = .true.
       if ( grossrej ) write(*,*) ' NOTE: grossrej is also true for this point!'
     end if
-    do jj = 1, actualNumChannel
+
+    do bodyIndex = bodyIndexBeg, bodyIndexEnd
+      obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
+      obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
+      obsQcFlag2 = obs_bodyElem_i(obsSpaceData, OBS_QCF2, bodyIndex)
+
       fail2 = .false.
-      if ( obsQcFlag2(jj) >= 4 ) then
-        !write(*,*) 'WARNING: DATA BLOCK QC flag ele33081 = ', obsQcFlag2(jj)
-        !write(*,*) '    Lat, lon, channel = ', obsLat, obsLon, obsChannels(jj)
+      if ( obsQcFlag2 >= 4 ) then
+        !write(*,*) 'WARNING: DATA BLOCK QC flag ele33081 = ', obsQcFlag2
+        !write(*,*) '    Lat, lon, channel = ', obsLat, obsLon, obsChanNum
         fail2 = .true.
         fail = .true.
         !if ( (.not. fail1) .and. grossrej ) write(*,*) ' NOTE: grossrej is also true for this point!'
       end if
-      if ( fail2 .or. fail1 ) qcRejectLogic(jj) = .true.
+      if ( fail2 .or. fail1 ) qcRejectLogic(obsChanNum) = .true.
     end do
     if ( fail ) write(*,*) 'WARNING: DATA BLOCK QC flag ele33081 >= 4 for one or more channels! lat, lon = ', obsLat, obsLon
 
@@ -4835,11 +4835,6 @@ contains
     !           actualNumChannel, count(qcRejectLogic)
 
     call obs_headSet_r(obsSpaceData, OBS_SZA, headerIndex, satZenithAngle)
-    BODY2: do bodyIndex = bodyIndexBeg, bodyIndexEnd
-      obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
-      obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)    
-      call obs_bodySet_r(obsSpaceData, OBS_VAR, bodyIndex, obsTb(obsChanNum))
-    end do BODY2
 
   end subroutine mwbg_firstQcCheckAtms
 
