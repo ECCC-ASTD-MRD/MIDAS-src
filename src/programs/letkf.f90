@@ -439,9 +439,6 @@ program midas_letkf
   ! Call suprep again to filter out channels according to 'util' column of stats_tovs
   call filt_suprep(obsSpaceData)
 
-  ! initialize ensembleobservations_mod
-  if ( .not.eob_initialized ) call eob_init()
-  
   ! Allocate vectors for storing HX values
   call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
   if ( outputEnsObs ) allocate(ensObs%Ya_r4(ensObs%numMembers,ensObs%numObs))
@@ -681,7 +678,7 @@ program midas_letkf
   if ( useModulatedEns ) call eob_setMeanOMP(ensObsGain)
 
   ! Set y for family of interest to mean(H(x)) if doing simulated observations
-  if ( simObsAssim ) call eob_setSimObsVal(ensObs)
+  call eob_setSimObsVal(ensObs)
 
   ! Set vertical location for all obs for vertical localization (based on ensemble mean pressure and height)
   if (vLocalize > 0.0d0) then

@@ -92,9 +92,11 @@ contains
     integer :: fnom, fclos
     integer :: flagIndex, elementIndex
 
-    character(len=35) :: CREASON(-10:13)
+    character(len=35) :: CREASON(-12:13)
     data creason/'PASSIVE                           ', &
          'SIMULATED                         ', &
+         'CLOUD EFFECTED RADIANCE           ', &
+         'REJECT BY RAW TO BURP             ', &
          'JACOBIAN IMPORTANT ABOVE MODEL TOP', &
          'ABS OROGRAPH-PHI                  ', &
          'MASQUE TERRE-MER                  ', &
