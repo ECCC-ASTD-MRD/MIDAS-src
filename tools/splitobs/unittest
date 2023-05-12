@@ -32,6 +32,7 @@ GRIDS=${GRIDS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/grids}
 CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20230414
 RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20230414
 RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20230414
+PY39_SSM_DOMAIN=eccc/cmd/cmds/env/python/py39_2022.05.24_rhel-8-icelake-64
 
 DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}
 DIFF_METHOD_FOR_SQL_FILES=${DIFF_METHOD_FOR_SQL_FILES:-SQL}
@@ -59,7 +60,7 @@ burpdiff=${burpdiff:-$(which burpdiff 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTIL
 burp2rdb=${burp2rdb:-$(which burp2rdb 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burp2rdb))}
 rdbgen=${rdbgen:-$(which rdbgen 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which rdbgen))}
 sqlite=${sqlite:-$(which d.sqlite 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which d.sqlite))}
-sqlite3=${sqlite3:-$(which sqlite3)}
+sqlite3=${sqlite3:-$(. ssmuse-sh -p ${PY39_SSM_DOMAIN} 1>/dev/null && which sqlite3)}
 fstcomp=${fstcomp:-$(which fstcomp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which fstcomp))}
 editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
 
@@ -1873,7 +1874,7 @@ EOF
         unset __sqlite_add_column_columns_definition__ __sqlite_add_column_column_names_comma__
     elif [ "${__sqlite_add_column_fam__}" = sw ]; then
         ## remove 'ID_SAT', INSTRUMENT and 'AZIMUTH' columns and add those columns in 'header' table
-        __sqlite_add_column_sqlrequest__="alter table header drop column ID_SAT; alter table header drop column INSTRUMENT; alter table header drop column AZIMUTH;"
+        __sqlite_add_column_sqlrequest__="alter table header drop column ID_SAT;\nalter table header drop column INSTRUMENT;\nalter table header drop column AZIMUTH;"
         for column in SEGMENT_SIZE_AT_NADIR_X_DIR SEGMENT_SIZE_AT_NADIR_Y_DIR QI_CONFIDENCE QI_ALT_CONFIDENCE QI_WITHOUT_REFER_PREDICTION\
                                                   HEIGHT_ASSIGNMENT_METHOD LAND_SEA TERRAIN_TYPE; do
             if [ "${column}" = HEIGHT_ASSIGNMENT_METHOD -o "${column}" = LAND_SEA -o "${column}" = TERRAIN_TYPE ]; then
@@ -1881,13 +1882,13 @@ EOF
             else
                 column_type=real
             fi
-            __sqlite_add_column_sqlrequest__="${__sqlite_add_column_sqlrequest__} alter table header add column ${column} ${column_type};"
+            __sqlite_add_column_sqlrequest__="${__sqlite_add_column_sqlrequest__}\nalter table header add column ${column} ${column_type};"
             unset column_type
         done
         unset column
 
 	__sqlite_add_column_status__=0
-        echo "${__sqlite_add_column_sqlrequest__}" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
+        printf "${__sqlite_add_column_sqlrequest__}" | ${sqlite3} ${__sqlite_add_column_fileout__} || __sqlite_add_column_status__=1
 	if [ "${__sqlite_add_column_status__}" -ne 0 ]; then
 	    echo "Function sqlite_add_column: cannot add column in 'header' table in output file '${__sqlite_add_column_fileout__}' (PWD=${PWD})!"
 	    unset __sqlite_add_column_fam__ __sqlite_add_column_filein__ __sqlite_add_column_fileout__ __sqlite_add_column_status__
