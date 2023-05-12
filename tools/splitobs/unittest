@@ -1787,10 +1787,16 @@ function sqlite_add_column {
 	    return 1
 	fi
     elif [ "${__sqlite_add_column_fam__}" = to_amsua -o "${__sqlite_add_column_fam__}" = to_amsub -o "${__sqlite_add_column_fam__}" = ssmis ]; then
-        ## insert columns 'FANION_QUAL_CAL', 'FANION_QUAL_FOV' and 'FSO' in 'data' table
+        if [ "${__sqlite_add_column_fam__}" = to_amsua -o "${__sqlite_add_column_fam__}" = to_amsub ]; then
+            ## The columns to add to the header table for 'to_amsu*'
+            __sqlite_add_column_header_columns__="scattering_index scattering_index_fg cloud_liquid_water_obs cloud_liquid_water_trials"
+        else
+            ## The columns to add to the header table for 'ssmis'
+            __sqlite_add_column_header_columns__="scattering_index cloud_liquid_water"
+        fi
 	__sqlite_add_column_status__=0
         __sqlite_add_column_request__="alter table data add column FSO real;"
-        for __sqlite_add_column_column__ in scattering_index cloud_liquid_water; do
+        for __sqlite_add_column_column__ in ${__sqlite_add_column_header_columns__}; do
             __sqlite_add_column_request__="${__sqlite_add_column_request__} alter table header add column ${__sqlite_add_column_column__} real;"
         done
         __sqlite_add_column_column__=info_flag
