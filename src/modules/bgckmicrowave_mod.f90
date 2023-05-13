@@ -5372,7 +5372,7 @@ contains
 
     ! Locals
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
-    integer :: ier, indx1, actualNumChannel
+    integer :: ier, actualNumChannel
     real(8) :: ice, tb23, tb23FG, tb31, tb31FG, tb50, tb89, tb165
     real(8) :: bcor23, bcor31, bcor50, bcor89, bcor165
     real(8) :: aa, deltb, cosz, t23, t23FG, t31, t31FG, t50, t89, t165
@@ -5381,6 +5381,7 @@ contains
     real(8), allocatable :: obsTb(:), obsTbBiasCorr(:)
 
     iNumSeaIce = 0
+    iRej = 0
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
@@ -5396,15 +5397,17 @@ contains
     if (obsLon > 180.0d0) obsLon = obsLon - 360.0d0
     obsLat = obsLat * MPC_DEGREES_PER_RADIAN_R8
 
-    call utl_reAllocate(obsTb, actualNumChannel)
-    call utl_reAllocate(obsTbBiasCorr, actualNumChannel)
-    BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
-      obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
-      obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
+    if (.not. grossrej) then
+      call utl_reAllocate(obsTb, actualNumChannel)
+      call utl_reAllocate(obsTbBiasCorr, actualNumChannel)
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
+        obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
-      obsTb(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
-      obsTbBiasCorr(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex)
-    end do BODY
+        obsTb(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
+        obsTbBiasCorr(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex)
+      end do
+    end if
 
     !! extract required channels:  ATMS ch.   MWHS-2 ch.
     !!   23 Ghz = AMSU-A 1 =        1          n/a
@@ -5419,7 +5422,6 @@ contains
     !   Extract Tb for channels 1 (AMSU-B 1) and 10 (AMSU-B 2) for Bennartz SI
     !   Extract Tb for channels 22 (AMSU-B 3) and 18 (AMSU-B 5) for Dryness Index (DI)
 
-    indx1 = 1
     tb23    = mwbg_realMissing
     tb23FG  = mwbg_realMissing
     bcor23  = mwbg_realMissing
@@ -5428,12 +5430,10 @@ contains
     bcor31  = mwbg_realMissing
     tb50    = mwbg_realMissing
     bcor50  = mwbg_realMissing
-    tb89    = obsTb(indx1)
-    bcor89  = obsTbBiasCorr(indx1)
-    tb165   = obsTb(indx1+9)
-    bcor165 = obsTbBiasCorr(indx1+9)
-
-    ier = 0
+    tb89    = mwbg_realMissing
+    bcor89  = mwbg_realMissing
+    tb165   = mwbg_realMissing
+    bcor165 = mwbg_realMissing   
 
     ! 1) Initialise parameters:
     ice      = mwbg_realMissing
@@ -5453,6 +5453,13 @@ contains
     ! Skip computations for points where all data are rejected  (bad Tb ANY channel)
     if ( grossrej ) then
       ier = 1
+    else
+      ier = 0
+
+      tb89    = obsTb(1)
+      bcor89  = obsTbBiasCorr(1)
+      tb165   = obsTb(10)
+      bcor165 = obsTbBiasCorr(10)
     end if
 
     ! 3) Compute parameters:
@@ -5720,7 +5727,7 @@ contains
     integer,             intent(in) :: sensorIndex            ! numero de satellite (i.e. indice)
 
     ! Locals
-    integer :: indx, indx1, n_cld, newInformationFlag, actualNumChannel
+    integer :: indx, n_cld, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     real(8) :: ztb_amsub3, bcor_amsub3, ztb_amsub5, bcor_amsub5,  ztb183(5)
     real(8) :: cloudLiquidWaterPathObs
@@ -5742,33 +5749,33 @@ contains
 
     cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
 
-    call utl_reAllocate(obsTb, actualNumChannel)
-    call utl_reAllocate(obsTbBiasCorr, actualNumChannel)
-    BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
-      obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
-      obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
+    if (.not. grossrej) then
+      call utl_reAllocate(obsTb, actualNumChannel)
+      call utl_reAllocate(obsTbBiasCorr, actualNumChannel)
+      do bodyIndex = bodyIndexBeg, bodyIndexEnd
+        obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
+        obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
 
-      obsTb(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
-      obsTbBiasCorr(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex)
-    end do BODY
+        obsTb(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_VAR, bodyIndex)
+        obsTbBiasCorr(obsChanNum) = obs_bodyElem_r(obsSpaceData, OBS_BCOR, bodyIndex)
+      end do
 
-    indx1 = 1
-    ztb_amsub3 = obsTb(indx1+10)
-    bcor_amsub3 = obsTbBiasCorr(indx1+10)
-    ztb_amsub5 = obsTb(indx1+14)
-    bcor_amsub5 = obsTbBiasCorr(indx1+14)
+      ztb_amsub3 = obsTb(11)
+      bcor_amsub3 = obsTbBiasCorr(11)
+      ztb_amsub5 = obsTb(15)
+      bcor_amsub5 = obsTbBiasCorr(15)
+    end if
 
     ! Flag data using NRL criteria
 
     ! Compute Mean 183 Ghz [ch. 11-15] Tb (riwv)
     riwv = -99.0d0
-    indx1 = 1
     if (.not. grossrej) then
       do indx = 1, 5
-        if (obsTbBiasCorr(indx1+indx+9) == mwbg_realMissing .or. useUnbiasedObsForClw) then
-          ztb183(indx) = obsTb(indx1+indx+9)
+        if (obsTbBiasCorr(indx+10) == mwbg_realMissing .or. useUnbiasedObsForClw) then
+          ztb183(indx) = obsTb(indx+10)
         else
-          ztb183(indx) = obsTb(indx1+indx+9) - obsTbBiasCorr(indx1+indx+9)
+          ztb183(indx) = obsTb(indx+10) - obsTbBiasCorr(indx+10)
         end if
       end do
       riwv  = sum(ztb183) / 5.0d0
