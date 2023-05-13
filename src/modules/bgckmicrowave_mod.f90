@@ -2569,7 +2569,7 @@ contains
     logical chan15Missing 
     !
     ! Notes: In the case where an output parameter cannot be calculated, the
-    !        value of this parameter is to to the missing value, i.e. -99.
+    !        value of this parameter is to mwbg_realMissing
 
     satZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex) 
     landQualifierIndice = obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex) 
@@ -2818,7 +2818,7 @@ contains
     satZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex) 
 
     ! Notes: In the case where an output parameter cannot be calculated, the
-    !        value of this parameter is to to the missing value, i.e. -99.
+    !        value of this parameter is to mwbg_realMissing
 
     ! 1) Initialise output parameters
     scatIndexOverLandObs = mwbg_realMissing
@@ -3539,7 +3539,7 @@ contains
 
     !###############################################################################
     ! STEP 4 ) mwbg_nrlFilterAtms returns cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg and also does sea-ice
-    !          detection missing value for  cloudLiquidWaterPathObs, scatec, scatbg  is -99.0 (e.g. over
+    !          detection missing value for cloudLiquidWaterPathObs, scatec, scatbg is mwbg_realMissing (e.g. over
     !          land or sea-ice).Sets calcTerrainTypeIndice=0 (sea ice) for points where retrieved SeaIce
     !          >=0.55. Does nothing if calcTerrainTypeIndice=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
@@ -3811,7 +3811,7 @@ contains
 
     !###############################################################################
     ! STEP 4 ) mwbg_nrlFilterMwhs2 returns cloudLiquidWaterPathObs, cloudLiquidWaterPathFG, scatec, scatbg and also does sea-ice
-    !          detection missing value for  cloudLiquidWaterPathObs, scatec, scatbg  is -99.0 (e.g. over
+    !          detection missing value for cloudLiquidWaterPathObs, scatec, scatbg is mwbg_realMissing (e.g. over
     !          land or sea-ice).Sets calcTerrainTypeIndice=0 (sea ice) for points where retrieved SeaIce
     !          >=0.55. Does nothing if calcTerrainTypeIndice=0 (sea ice) and retrieved SeaIce<0.55.
     !###############################################################################
@@ -5071,7 +5071,7 @@ contains
     !                   and calcTerrainTypeIndice (terrainTypeIndice or terrain type) is changed accordingly
     !                - cloudLiquidWaterPathObs are missing when out-of-range parameters/Tb detected or grossrej = .true.
     !                - cloudLiquidWaterPathObs and si only computed over open water away from coasts and sea-ice
-    !                - cloudLiquidWaterPathObs and si = -99.0 where value cannot be computed.
+    !                - cloudLiquidWaterPathObs and si = mwbg_realMissing where value cannot be computed.
     !
     !REFERENCES     Ben Ruston, NRL Monterey
     !                  JCSDA Seminar 12/12/12: Impact of NPP Satellite Assimilation in the U.S. Navy Global Modeling System
@@ -5107,7 +5107,7 @@ contains
     !
     !
     ! Notes: In the case where an output parameter cannot be calculated, the
-    !        value of this parameter is set to the missing value, i.e. -99.
+    !        value of this parameter is set to mwbg_realMissing
     !
     implicit none
 
@@ -5330,7 +5330,7 @@ contains
     !                - cloudLiquidWaterPathObs are missing when out-of-range parameters/Tb detected or grossrej = .true.
     !                - cloudLiquidWaterPathObs and si_ecmwf only computed over open water away from coasts and sea-ice
     !                - si_bg is computed for all points
-    !                - cloudLiquidWaterPathObs and si = -99.0 where value cannot be computed.
+    !                - cloudLiquidWaterPathObs and si = mwbg_realMissing where value cannot be computed.
     !
     !REFERENCES     Ben Ruston, NRL Monterey
     !                  JCSDA Seminar 12/12/12: Impact of NPP Satellite Assimilation in the U.S. Navy Global Modeling System
@@ -5366,7 +5366,7 @@ contains
     !
     !
     ! Notes: In the case where an output parameter cannot be calculated, the
-    !        value of this parameter is set to the missing value, i.e. -99.
+    !        value of this parameter is set to mwbg_realMissing
     !
     implicit none
 
@@ -5650,7 +5650,7 @@ contains
     ! Flag data using NRL criteria
 
     ! Compute Mean 183 Ghz [ch. 18-22] Tb (riwv)
-    riwv = -99.0
+    riwv = mwbg_realMissing
     if (.not. grossrej) then
       do indx = 1, 5
         if (obsTbBiasCorr(indx+10) == mwbg_realMissing .or. useUnbiasedObsForClw) then
@@ -5682,8 +5682,10 @@ contains
     if ( scatec > scatec_atms_nrl_UTrej .or. scatbg > scatbg_atms_nrl_UTrej ) newInformationFlag = IBSET(newInformationFlag,8)
     if ( SeaIce >= 0.55d0 ) newInformationFlag = IBSET(newInformationFlag,10)
 
-    if (waterobs .and. cloudLiquidWaterPathObs == -99.0d0) newInformationFlag = IBSET(newInformationFlag,2)
-    if (riwv == -99.0d0)                                   newInformationFlag = IBSET(newInformationFlag,1)
+    if (waterobs .and. cloudLiquidWaterPathObs == mwbg_realMissing) then
+      newInformationFlag = IBSET(newInformationFlag,2)
+    end if
+    if (riwv == mwbg_realMissing) newInformationFlag = IBSET(newInformationFlag,1)
 
     ! Compute the simple AMSU-B Dryness Index zdi for all points = Tb(ch.3)-Tb(ch.5)
     if ( useUnbiasedObsForClw ) then
@@ -5781,7 +5783,7 @@ contains
     ! Flag data using NRL criteria
 
     ! Compute Mean 183 Ghz [ch. 11-15] Tb (riwv)
-    riwv = -99.0d0
+    riwv = mwbg_realMissing
     if (.not. grossrej) then
       do indx = 1, 5
         if (obsTbBiasCorr(indx+10) == mwbg_realMissing .or. useUnbiasedObsForClw) then
@@ -5812,8 +5814,10 @@ contains
     if ( cloudLiquidWaterPathObs > clw_mwhs2_nrl_UTrej) newInformationFlag = IBSET(newInformationFlag,6)
     if ( SeaIce >= 0.55d0 ) newInformationFlag = IBSET(newInformationFlag,10)
 
-    if (waterobs .and. cloudLiquidWaterPathObs == -99.0d0) newInformationFlag = IBSET(newInformationFlag,2)
-    if (riwv == -99.0d0)                                   newInformationFlag = IBSET(newInformationFlag,1)
+    if (waterobs .and. cloudLiquidWaterPathObs == mwbg_realMissing) then
+      newInformationFlag = IBSET(newInformationFlag,2)
+    end if
+    if (riwv == mwbg_realMissing) newInformationFlag = IBSET(newInformationFlag,1)
 
     ! Compute the simple AMSU-B Dryness Index zdi for all points = Tb(ch.3)-Tb(ch.5)
     if ( useUnbiasedObsForClw ) then
@@ -5928,17 +5932,17 @@ contains
 
       ! OVER WATER,
       !    in clear-sky mode:
-      !    -- reject ch. 5-6, if CLW > clw_atms_nrl_LTrej or CLW = -99.0
+      !    -- reject ch. 5-6, if CLW > clw_atms_nrl_LTrej or CLW = mwbg_realMissing
       !    in all-sky mode:
-      !    -- reject ch. 5-6, if CLW > mwbg_clwQcThreshold or CLW = -99.0
+      !    -- reject ch. 5-6, if CLW > mwbg_clwQcThreshold or CLW = mwbg_realMissing
       !
-      !    -- reject ch. 1-4, if CLW > clw_atms_nrl_LTrej or CLW = -99.0
-      !    -- reject ch. 16-20 if CLW > clw_atms_nrl_LTrej or CLW = -99.0
-      !    -- reject ch. 7-9, 21-22 if CLW > clw_atms_nrl_UTrej or CLW = -99.0
-      !    -- reject ch. 1-6, 16-22 if scatec > 9  or scatec = -99.0
-      !    -- reject ch. 7-9        if scatec > 18 or scatec = -99.0
-      !    -- reject ch. 1-6        if scatbg > 10 or scatbg = -99.0
-      !    -- reject ch. 7-9        if scatbg > 15 or scatbg = -99.0
+      !    -- reject ch. 1-4, if CLW > clw_atms_nrl_LTrej or CLW = mwbg_realMissing
+      !    -- reject ch. 16-20 if CLW > clw_atms_nrl_LTrej or CLW = mwbg_realMissing
+      !    -- reject ch. 7-9, 21-22 if CLW > clw_atms_nrl_UTrej or CLW = mwbg_realMissing
+      !    -- reject ch. 1-6, 16-22 if scatec > 9  or scatec = mwbg_realMissing
+      !    -- reject ch. 7-9        if scatec > 18 or scatec = mwbg_realMissing
+      !    -- reject ch. 1-6        if scatbg > 10 or scatbg = mwbg_realMissing
+      !    -- reject ch. 7-9        if scatbg > 15 or scatbg = mwbg_realMissing
       !    -- reject ch. 16-22      if iwvreject = .true.   [ Mean 183 Ghz [ch. 18-22] Tb < 240K ]
 
         if ( cloudLiquidWaterPathObs > clw_atms_nrl_LTrej )  then
@@ -5963,12 +5967,12 @@ contains
         if ( scatbg > scatbg_atms_nrl_LTrej ) lflagchn(1:mwbg_atmsNumSfcSensitiveChannel) = .true.
         if ( scatbg > scatbg_atms_nrl_UTrej ) lflagchn(7:9) = .true.
         if ( iwvreject ) lflagchn(16:22) = .true.
-        if ( cloudLiquidWaterPathObs == -99.0d0 ) then
+        if ( cloudLiquidWaterPathObs == mwbg_realMissing ) then
           newInformationFlag = IBSET(newInformationFlag,2)
           lflagchn(1:9)   = .true.
           lflagchn(16:22) = .true.
         end if
-        if ( riwv == -99.0d0 ) then     ! riwv = mean_Tb_183Ghz
+        if ( riwv == mwbg_realMissing ) then     ! riwv = mean_Tb_183Ghz
           newInformationFlag = IBSET(newInformationFlag,1)
           lflagchn(16:22) = .true.
         end if
@@ -5987,10 +5991,8 @@ contains
 
     ! RESET scatIndexOverWaterObs array to ECMWF scattering index for output to BURP file
     scatIndexOverWaterObs = scatec
-    ! Set missing cloudLiquidWaterPathObs and scatIndexOverWaterObs to BURP missing value (mwbg_realMissing)
-    if (cloudLiquidWaterPathObs == -99.0d0) cloudLiquidWaterPathObs = mwbg_realMissing
-    if (cloudLiquidWaterPathObs == -99.0d0) cloudLiquidWaterPathFG = mwbg_realMissing
-    if (scatIndexOverWaterObs == -99.0d0) scatIndexOverWaterObs = mwbg_realMissing
+    ! Set missing cloudLiquidWaterPathFG and scatIndexOverWaterFG to BURP missing value (mwbg_realMissing)
+    if (cloudLiquidWaterPathObs == mwbg_realMissing) cloudLiquidWaterPathFG = mwbg_realMissing
     scatIndexOverWaterFG = mwbg_realMissing
 
     ! Modify data flag values (set bit 7) for rejected data
@@ -6156,13 +6158,13 @@ contains
       !-----------------------------------------------------------------
       ! PLACEHOLDER VALUES FOR ALLSKY ASSIM, SINCE NOT IMPLEMENTED YET
       !    in clear-sky mode:
-      !    -- reject ch. 1, if CLW > clw_mwhs2_nrl_LTrej or CLW = -99.0
+      !    -- reject ch. 1, if CLW > clw_mwhs2_nrl_LTrej or CLW = mwbg_realMissing
       !    in all-sky mode:
-      !    -- reject ch. 1, if CLW > mwbg_clwQcThreshold or CLW = -99.0
+      !    -- reject ch. 1, if CLW > mwbg_clwQcThreshold or CLW = mwbg_realMissing
       !-----------------------------------------------------------------
       !    -- reject ch. 1, 10, 13-15 if CLW > clw_mwhs2_nrl_LTrej
       !    -- reject ch. 11-12 if CLW > clw_mwhs2_nrl_UTrej
-      !    -- reject ch. 1, 10-15 if scatec > 9  or scatec = -99.0
+      !    -- reject ch. 1, 10-15 if scatec > 9  or scatec = mwbg_realMissing
       !    -- reject ch. 1, 10-15 if iwvreject = .true.   [ Mean 183 Ghz [ch. 11-15] Tb < 240K ]
       !    -- reject all channels if scatbg exceeds CMC SEA threshold for AMSU-B
 
@@ -6186,7 +6188,7 @@ contains
           lflagchn(1) = .true.
           lflagchn(10:15) = .true.
         end if
-        if ( riwv == -99.0d0 ) then     ! riwv = mean_Tb_183Ghz
+        if ( riwv == mwbg_realMissing ) then     ! riwv = mean_Tb_183Ghz
           newInformationFlag = IBSET(newInformationFlag,1)
           lflagchn(1) = .true.
           lflagchn(10:15) = .true.
@@ -6211,10 +6213,8 @@ contains
 
     ! RESET scatIndexOverWaterObs array to Bennartz-Grody scattering index for output to BURP file
     scatIndexOverWaterObs = scatbg
-    ! Set missing cloudLiquidWaterPathObs and scatIndexOverWaterObs to BURP missing value (mwbg_realMissing)
-    if (cloudLiquidWaterPathObs == -99.0d0) cloudLiquidWaterPathObs = mwbg_realMissing
-    if (cloudLiquidWaterPathObs == -99.0d0) cloudLiquidWaterPathFG = mwbg_realMissing
-    if (scatIndexOverWaterObs == -99.0d0) scatIndexOverWaterObs = mwbg_realMissing
+    ! Set missing cloudLiquidWaterPathFG and scatIndexOverWaterFG to BURP missing value (mwbg_realMissing)
+    if (cloudLiquidWaterPathObs == mwbg_realMissing) cloudLiquidWaterPathFG = mwbg_realMissing
     scatIndexOverWaterFG = mwbg_realMissing
 
     ! Modify data flag values (set bit 7) for rejected data
