@@ -83,8 +83,8 @@ contains
 
   subroutine mwbg_init()
     !
-    !:Purpose: This subroutine reads the namelist section NAMBGCK
-    !          for the module.
+    ! :Purpose: This subroutine reads the namelist section NAMBGCK for the module.
+    !
     implicit none
 
     ! Locals:
@@ -128,19 +128,17 @@ contains
   ! ISRCHEQI function
   !--------------------------------------------------------------------------
   function ISRCHEQI(KLIST, KENTRY) result(ISRCHEQI_out)
-    !OBJET          Rechercher un element dans une liste (valeurs entieres).
-    !ARGUMENTS      - indx    - output -  position de l'element recherche:
-    !                                   =0, element introuvable,
-    !                                   >0, position de l'element trouve,
-    !               - klist   - input  -  la liste
-    !               - kentry  - input  -  l'element recherche
-
+    !
+    ! :Purpose: Search integer value in an array and retunr the index.
+    !
     implicit none
     
     ! Arguments:
-    integer, intent(in) ::  KLIST(:)
-    integer, intent(in) ::  KENTRY
-    integer :: ISRCHEQI_out
+    integer, intent(in) ::  KLIST(:) ! integer array
+    integer, intent(in) ::  KENTRY   ! searched element 
+    integer :: ISRCHEQI_out          ! index of the search element in the list
+                                     ! =0, element not found
+                                     ! >0 index of the found element
 
     ! Locals:
     integer :: KLEN, JI
@@ -162,14 +160,16 @@ contains
   subroutine extractParamForGrodyRun(tb23,   tb31,   tb50,   tb53,   tb89, &
                                      tb23FG, tb31FG, tb50FG, tb53FG, tb89FG, &
                                      headerIndex, sensorIndex, obsSpaceData)
-
-    !:Purpose: Compute  Grody parameters by extracting tb for required channels:
-    !          - 23 Ghz = AMSU-A 1 = channel #28
-    !          - 31 Ghz = AMSU-A 2 = channel #29
-    !          - 50 Ghz = AMSU-A 3 = channel #30
-    !          - 53 Ghz = AMSU-A 5 = channel #32
-    !          - 89 Ghz = AMSU-A15 = channel #42
+    !
+    ! :Purpose: Compute  Grody parameters by extracting tb for required channels:
+    !           23 Ghz = AMSU-A 1 = channel #28
+    !           31 Ghz = AMSU-A 2 = channel #29
+    !           50 Ghz = AMSU-A 3 = channel #30
+    !           53 Ghz = AMSU-A 5 = channel #32
+    !           89 Ghz = AMSU-A15 = channel #42
+    !
     implicit none
+
     ! Arguments
     real(8), intent(out) :: tb23                            ! radiance frequence 23 Ghz   
     real(8), intent(out) :: tb31                            ! radiance frequence 31 Ghz
@@ -252,12 +252,12 @@ contains
   subroutine extractParamForBennartzRun(tb89, tb150, tb1831, tb1832, tb1833, &
                                         tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
                                         headerIndex, sensorIndex, obsSpaceData)
-
-    !:Purpose: Extract Parameters required to run bennaertz for required channels:
-    !          extract required channels:        
-    !          89 Ghz = AMSU-B 1 = channel #43
-    !         150 Ghz = AMSU-B 2 = channel #44
-
+    !
+    ! :Purpose: Extract Parameters required to run bennaertz for required channels:
+    !           extract required channels:        
+    !           89 Ghz = AMSU-B 1 = channel #43
+    !           150 Ghz = AMSU-B 2 = channel #44
+    !
     implicit none
     ! Arguments
     real(8), intent(out) :: tb89                            ! 89GHz radiance from observation
@@ -346,9 +346,10 @@ contains
   ! amsuABTest10RttovRejectCheck
   !--------------------------------------------------------------------------
   subroutine amsuABTest10RttovRejectCheck(sensorIndex, RESETQC, qcIndicator, headerIndex, obsSpaceData)
-
-    !:Purpose:               10) test 10: RTTOV reject check (single)
-    !                        Rejected datum flag has bit #9 on.
+    !
+    ! :Purpose: test 10: RTTOV reject check (single).
+    !           Rejected datum flag has bit #9 on.
+    !
 
     implicit none
     ! Arguments
@@ -402,10 +403,11 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuABTest1TopographyCheck(sensorIndex, modelInterpTerrain, channelForTopoFilter, altitudeForTopoFilter, &
                                         qcIndicator, headerIndex, obsSpaceData)
-
-    !:Purpose:               1) test 1: Topography check (partial)
-    !                        Channel 6 is rejected for topography >  250m.
-    !                        Channel 7 is rejected for topography > 2000m.
+    !
+    ! :Purpose: test 1: Topography check (partial)
+    !           Channel 6 is rejected for topography >  250m.
+    !           Channel 7 is rejected for topography > 2000m.
+    !
 
     implicit none
     ! Arguments
@@ -470,9 +472,10 @@ contains
   ! amsuABTest2LandSeaQualifierCheck 
   !--------------------------------------------------------------------------
   subroutine amsuABTest2LandSeaQualifierCheck(sensorIndex, qcIndicator, headerIndex, obsSpaceData)
-
-    !:Purpose:                      2) test 2: "Land/sea qualifier" code check (full)
-    !                                  allowed values are: 0 land, 1 sea, 2 coast.
+    !
+    ! :Purpose: test 2: "Land/sea qualifier" code check (full)
+    !           allowed values are: 0 land, 1 sea, 2 coast.
+    !
 
     implicit none
     ! Arguments
@@ -520,9 +523,10 @@ contains
   !  amsuABTest3TerrainTypeCheck
   !--------------------------------------------------------------------------
   subroutine amsuABTest3TerrainTypeCheck(sensorIndex, qcIndicator, headerIndex, obsSpaceData)
-
-    !:Purpose:                     3) test 3: "Terrain type" code check (full)
-    !                                 allowed values are: -1 missing, 0 sea-ice, 1 snow on land.
+    !
+    ! :Purpose: test 3: "Terrain type" code check (full)
+    !           allowed values are: -1 missing, 0 sea-ice, 1 snow on land.
+    !
 
     implicit none
     ! Arguments
@@ -574,9 +578,11 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuABTest4FieldOfViewCheck(sensorIndex, maxScanAngleAMSU, qcIndicator, &
                                          headerIndex, obsSpaceData)
+    !
+    ! :Purpose: test 4: Field of view number check (full)
+    !           Field of view acceptable range is [1,maxScanAngleAMSU] for AMSU footprints.
+    !
 
-    !:Purpose:                          4) test 4: Field of view number check (full)
-    !                                      Field of view acceptable range is [1,maxScanAngleAMSU]  for AMSU footprints.
     implicit none
     ! Arguments
     integer,          intent(in) :: sensorIndex      ! numero de satellite (i.e. indice) 
@@ -623,9 +629,11 @@ contains
   ! amsuABTest5ZenithAngleCheck 
   !--------------------------------------------------------------------------
   subroutine amsuABTest5ZenithAngleCheck(sensorIndex, qcIndicator, headerIndex, obsSpaceData)
+    !
+    ! :Purpose: test 5: Satellite zenith angle check (full)
+    !           Satellite zenith angle acceptable range is [0.,60.].
+    !
 
-    !:Purpose:                   5) test 5: Satellite zenith angle check (full)
-    !                               Satellite zenith angle acceptable range is [0.,60.].
     implicit none
     ! Arguments
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
@@ -677,10 +685,11 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuABTest6ZenAngleAndFovConsistencyCheck(sensorIndex, ZANGL, maxScanAngleAMSU, qcIndicator, &
                                                        headerIndex, obsSpaceData)
-
-    !:Purpose:                            6) test 6: "Sat. zenith angle"/"field of view" consistency check.  (full)
-    !                                        Acceptable difference between "Satellite zenith angle"  and
-    !                                       "approximate angle computed from field of view number" is 1.8 degrees.
+    !
+    ! :Purpose: test 6: "Sat. zenith angle"/"field of view" consistency check.  (full)
+    !           Acceptable difference between "Satellite zenith angle"  and
+    !           "approximate angle computed from field of view number" is 1.8 degrees.
+    !
 
     implicit none
     ! Arguments
@@ -739,13 +748,13 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck(sensorIndex, modelInterpLandFrac, &
                                                                         qcIndicator, headerIndex, obsSpaceData)
-
-    !:Purpose: test 7: "Land/sea qual."/"model land/sea" consistency check (full)
-    !          Acceptable conditions are:
-    !            - both over ocean (landQualifierIndice=1; mg<0.01), new threshold 0.20, jh dec 2000,
-    !            - both over land  (landQualifierIndice=0; mg>0.80), new threshold 0.50, jh dec 2000.
-    !            - Other conditions are unacceptable.
-
+    !
+    ! :Purpose: test 7: "Land/sea qual."/"model land/sea" consistency check (full)
+    !           Acceptable conditions are:
+    !           - both over ocean (landQualifierIndice=1; mg<0.01), new threshold 0.20, jh dec 2000,
+    !           - both over land  (landQualifierIndice=0; mg>0.80), new threshold 0.50, jh dec 2000.
+    !           - Other conditions are unacceptable.
+    !
 
     implicit none
     ! Arguments
@@ -797,9 +806,10 @@ contains
   !  amsuABTest9UncorrectedTbCheck
   !--------------------------------------------------------------------------
   subroutine amsuABTest9UncorrectedTbCheck(sensorIndex, RESETQC, qcIndicator, headerIndex, obsSpaceData)
-
-    !:Purpose:                  9) test 9: Uncorrected Tb check (single)
-    !                              Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
+    !
+    ! :Purpose: test 9: Uncorrected Tb check (single)
+    !           Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
+    !
 
     implicit none
     ! Arguments
@@ -851,9 +861,10 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuABTest11RadianceGrossValueCheck(sensorIndex, GROSSMIN, GROSSMAX, qcIndicator, &
                                                  headerIndex, obsSpaceData)
-
-    !:Purpose:                     11) test 11: Radiance observation "Gross" check (single) 
-    !                                               Change this test from full to single. jh nov 2000.
+    !
+    ! :Purpose: test 11: Radiance observation "Gross" check (single) 
+    !           Change this test from full to single. jh nov 2000.
+    !
 
     implicit none
     ! Arguments
@@ -913,9 +924,10 @@ contains
   ! amsuaTest12GrodyClwCheck
   !--------------------------------------------------------------------------
   subroutine amsuaTest12GrodyClwCheck(sensorIndex, ICLWREJ, qcIndicator, headerIndex, obsSpaceData)
-
-    !:Purpose:                    12) test 12: Grody cloud liquid water check (partial)
-    !                                 For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
+    !
+    ! :Purpose: test 12: Grody cloud liquid water check (partial)
+    !           For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
+    !
 
     implicit none
     ! Arguments
@@ -1030,12 +1042,13 @@ contains
   !-------------------------------------------------------------------------
   subroutine amsubTest12DrynessIndexCheck(sensorIndex, tb1831, tb1833, modelInterpSeaIce, qcIndicator, &
                                           headerIndex, obsSpaceData, skipTestArr_opt)
-
-    !:Purpose:  12) test 12: Dryness index check
+    !
+    ! :Purpose: test 12: Dryness index check
     !           The difference between channels AMSUB-3 and AMSUB-5 is used as an indicator
     !           of "dryness" of the atmosphere. In extreme dry conditions, channels AMSUB-3 4 and 5
     !           are sensitive to the surface.
     !           Therefore, various thresholds are used to reject channels AMSUB-3 4 and 5 over land and ice
+    !
 
     implicit none
 
@@ -1136,9 +1149,10 @@ contains
   ! amsuaTest13GrodyScatteringIndexCheck
   !--------------------------------------------------------------------------
   subroutine amsuaTest13GrodyScatteringIndexCheck(sensorIndex, ISCATREJ, qcIndicator, headerIndex, obsSpaceData)
-
-    !:Purpose:                  13) test 13: Grody scattering index check (partial)
-    !                               For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
+    !
+    ! :Purpose: test 13: Grody scattering index check (partial)
+    !           For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
+    !
 
     implicit none
     ! Arguments
@@ -1202,11 +1216,11 @@ contains
   subroutine amsubTest13BennartzScatteringIndexCheck(sensorIndex, scatIndexOverLandObs, modelInterpSeaIce, &
                                                      qcIndicator, chanIgnoreInAllskyGenCoeff, &
                                                      headerIndex, obsSpaceData, skipTestArr_opt)
-
-    !:Purpose:                  13) test 13: Bennartz scattering index check (full)
-    !                               For Scattering Index > 40 sea ice
-    !                                                    > 15 sea
-    !                                                    > 0 land reject all AMSUB Channels
+    !
+    ! :Purpose: test 13: Bennartz scattering index check (full)
+    !           For Scattering Index > 40 sea ice:
+    !           > 15 sea
+    !           > 0 land reject all AMSUB Channels
     !
 
     implicit none
@@ -1371,12 +1385,13 @@ contains
   ! amsuaTest14RogueCheck
   !--------------------------------------------------------------------------
   subroutine amsuaTest14RogueCheck(sensorIndex, ROGUEFAC, ISFCREJ, qcIndicator, headerIndex, obsSpaceData)
-
-    !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
-    !                                  (single/full). Les observations, dont le residu (O-P) 
-    !                                  depasse par un facteur (roguefac) l'erreur totale des TOVS.
-    !                                  N.B.: a reject by any of the 3 surface channels produces the 
-    !                                  rejection of AMSUA-A channels 1-5 and 15.
+    !
+    ! :Purpose: test 14: "Rogue check" for (O-P) Tb residuals out of range.
+    !           (single/full). Les observations, dont le residu (O-P) 
+    !           depasse par un facteur (roguefac) l'erreur totale des TOVS.
+    !           N.B.: a reject by any of the 3 surface channels produces the 
+    !           rejection of AMSUA-A channels 1-5 and 15.
+    !
 
     implicit none
     ! Arguments
@@ -1487,11 +1502,10 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsubTest14RogueCheck(sensorIndex, ROGUEFAC, ICH2OMPREJ, qcIndicator, &
                                    headerIndex, obsSpaceData, skipTestArr_opt)
-
-    !:Purpose:                     14) test 14: "Rogue check" for (O-P) Tb residuals out of range.
-    !                                  (single)
-    !                                 Also, remove CH2,3,4,5 if CH2 |O-P|>5K           (partial) 
-    !                                  
+    !
+    ! :Purpose: test 14: "Rogue check" for (O-P) Tb residuals out of range. (single)
+    !           Also, remove CH2,3,4,5 if CH2 |O-P|>5K (partial)
+    !
 
     implicit none
 
@@ -1632,14 +1646,14 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuABTest15ChannelSelectionWithTovutil(sensorIndex, modelInterpSeaIce, ISFCREJ2, qcIndicator, &
                                                      headerIndex, obsSpaceData)
-
-    !:Purpose: test 15: Channel Selection using array oer_tovutil(chan,sat)
-    !          oer_tovutil = 0 (blacklisted), 1 (assmilate), 2 (assimilate over open water only)
-    !          We also set QC flag bits 7 and 9 ON for channels with oer_tovutil=2
-    !          over land or sea-ice and we set QC flag bits 7 and 9 ON for channels
-    !          1-3,15 over land or sea-ice REGARDLESS of oer_tovutil value 
-    !          (but oer_tovutil=0 always for these unassimilated channels).
-
+    !
+    ! :Purpose: test 15: Channel Selection using array oer_tovutil(chan,sat)
+    !           oer_tovutil = 0 (blacklisted), 1 (assmilate), 2 (assimilate over open water only)
+    !           We also set QC flag bits 7 and 9 ON for channels with oer_tovutil=2
+    !           over land or sea-ice and we set QC flag bits 7 and 9 ON for channels
+    !           1-3,15 over land or sea-ice REGARDLESS of oer_tovutil value 
+    !           (but oer_tovutil=0 always for these unassimilated channels).
+    !
 
     implicit none
     ! Arguments
@@ -1722,8 +1736,11 @@ contains
   ! amsuaTest16ExcludeExtremeScattering
   !--------------------------------------------------------------------------
   subroutine amsuaTest16ExcludeExtremeScattering(sensorIndex, qcIndicator, headerIndex, obsSpaceData)
-    !:Purpose: Exclude radiances affected extreme scattering in deep convective region.
-    !          For channel 5, if BT_cld-BT_clr < -0.5 OR O-BT_clr < -0.5, reject channels 4-5.
+    !
+    ! :Purpose: Exclude radiances affected extreme scattering in deep convective region.
+    !           For channel 5, if BT_cld-BT_clr < -0.5 OR O-BT_clr < -0.5, reject channels 4-5.
+    !
+    implicit none
 
     ! Arguments
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
@@ -1810,28 +1827,28 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsua(qcIndicator, sensorIndex, modelInterpLandFrac, modelInterpTerrain, &
                                 modelInterpSeaIce, RESETQC, headerIndex, obsSpaceData)
-  
-    !:Purpose:          Effectuer le controle de qualite des radiances tovs.
     !
-    !NOTES  
-    !               Quinze tests sont effectues menant aux erreurs suivantes:
-    !                  - 1) topography reject,
-    !                  - 2) invalid land/sea qualifier,
-    !                  - 3) invalid terrain type,
-    !                  - 4) invalid field of view number,
-    !                  - 5) satellite zenith angle out of range,
-    !                  - 6) inconsistent field of view and sat. zenith angle,
-    !                  - 7) inconsistent land/sea qualifier and model mask,
-    !                  - 8) inconsistent terrain type and model ice, (NOT USED)
-    !                  - 9) uncorrected radiance,
-    !                  - 10) rejected by RTTOV,
-    !                  - 11) radiance gross check failure,
-    !                  - 12) cloud liquid water reject,
-    !                  - 13) scattering index reject,
-    !                  - 14) radiance residual rogue check failure,
-    !                  - 15) channel reject (channel selection).
-    !                  - **) set terrain type to sea ice given certain conditions
-    implicit none 
+    ! :Purpose: Effectuer le controle de qualite des radiances tovs.
+    !           Quinze tests sont effectues menant aux erreurs suivantes:
+    !           - 1) topography reject,
+    !           - 2) invalid land/sea qualifier,
+    !           - 3) invalid terrain type,
+    !           - 4) invalid field of view number,
+    !           - 5) satellite zenith angle out of range,
+    !           - 6) inconsistent field of view and sat. zenith angle,
+    !           - 7) inconsistent land/sea qualifier and model mask,
+    !           - 8) inconsistent terrain type and model ice, (NOT USED)
+    !           - 9) uncorrected radiance,
+    !           - 10) rejected by RTTOV,
+    !           - 11) radiance gross check failure,
+    !           - 12) cloud liquid water reject,
+    !           - 13) scattering index reject,
+    !           - 14) radiance residual rogue check failure,
+    !           - 15) channel reject (channel selection).
+    !           - **) set terrain type to sea ice given certain conditions
+    !
+    implicit none
+
     !Arguments:
     type(struct_obs),  intent(inout) :: obsSpaceData            ! obspaceData Object
     integer,              intent(in) :: headerIndex             ! current header Index 
@@ -2037,28 +2054,28 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAmsub(qcIndicator, sensorIndex, modelInterpLandFrac, modelInterpTerrain, &
                                 modelInterpSeaIce, RESETQC, headerIndex, obsSpaceData)
-  
-    !:Purpose:          Effectuer le controle de qualite des radiances tovs.
     !
-    !NOTES  
-    !               Quinze tests sont effectues menant aux erreurs suivantes:
-    !                  - 1) topography reject,
-    !                  - 2) invalid land/sea qualifier,
-    !                  - 3) invalid terrain type,
-    !                  - 4) invalid field of view number,
-    !                  - 5) satellite zenith angle out of range,
-    !                  - 6) inconsistent field of view and sat. zenith angle,
-    !                  - 7) inconsistent land/sea qualifier and model mask,
-    !                  - 8) inconsistent terrain type and model ice
-    !                  - 9) uncorrected radiance,
-    !                  - 10) rejected by RTTOV,
-    !                  - 11) radiance gross check failure,
-    !                  - 12) drynes index reject
-    !                  - 13) scattering index reject,
-    !                  - 14) radiance residual rogue check failure,
-    !                  - 15) channel reject (channel selection).
-    !                  - **) set terrain type to sea ice given certain conditions
+    ! :Purpose: Effectuer le controle de qualite des radiances tovs.
+    !           Quinze tests sont effectues menant aux erreurs suivantes:
+    !           - 1) topography reject,
+    !           - 2) invalid land/sea qualifier,
+    !           - 3) invalid terrain type,
+    !           - 4) invalid field of view number,
+    !           - 5) satellite zenith angle out of range,
+    !           - 6) inconsistent field of view and sat. zenith angle,
+    !           - 7) inconsistent land/sea qualifier and model mask,
+    !           - 8) inconsistent terrain type and model ice
+    !           - 9) uncorrected radiance,
+    !           - 10) rejected by RTTOV,
+    !           - 11) radiance gross check failure,
+    !           - 12) drynes index reject
+    !           - 13) scattering index reject,
+    !           - 14) radiance residual rogue check failure,
+    !           - 15) channel reject (channel selection).
+    !           - **) set terrain type to sea ice given certain conditions
+    !
     implicit none 
+
     !Arguments:
     type(struct_obs),   intent(inout) :: obsSpaceData           ! obspaceData Object
     integer,               intent(in) :: headerIndex            ! current header Index 
@@ -2271,12 +2288,12 @@ contains
   ! mwbg_qcStats
   !--------------------------------------------------------------------------
   subroutine mwbg_qcStats(obsSpaceData, instName, qcIndicator, sensorIndex, &
-                          satelliteId, &
-                          LDprint)
-
-    !:Purpose:          Cumuler ou imprimer des statistiques decriptives
-    !                   des rejets tovs.
+                          satelliteId, LDprint)
+    !
+    ! :Purpose: Cumuler ou imprimer des statistiques decriptives des rejets tovs.
+    !
     implicit none 
+
     !Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData               ! obspaceData Object
     character(*),      intent(in) :: instName                     ! Instrument Name
@@ -2450,11 +2467,14 @@ contains
   ! resetQcC
   !--------------------------------------------------------------------------
   subroutine resetQcCases(RESETQC, KCHKPRF, headerIndex, obsSpaceData)
-    !:Purpose:        allumer la bit (6) indiquant que l'observation a un element
-    !                 rejete par le controle de qualite de l'AO.
-    !                 N.B.: si on est en mode resetqc, on remet le marqueur global a
-    !                 sa valeur de defaut, soit 1024,  avant de faire la mise a jour.
+    !
+    ! :Purpose: allumer la bit (6) indiquant que l'observation a un element
+    !           rejete par le controle de qualite de l'AO.
+    !           N.B.: si on est en mode resetqc, on remet le marqueur global a
+    !           sa valeur de defaut, soit 1024,  avant de faire la mise a jour.
+    !
     implicit none
+
     ! Arguments:
     logical,             intent(in) :: RESETQC      ! reset the quality control flags before adding the new ones ?
     integer,             intent(in) :: KCHKPRF      ! indicateur global controle de qualite tovs. Code:
@@ -2477,13 +2497,15 @@ contains
   ! setTerrainTypeToSeaIce
   !--------------------------------------------------------------------------
   subroutine setTerrainTypeToSeaIce(modelInterpSeaIce, headerIndex, obsSpaceData)
-
-    !:Purpose:       Dans les conditions suivantes:
-    !                1) l'indicateur terre/mer indique l'ocean (landQualifierIndice=1),
-    !                2) le "terrain type" est manquant (terrainTypeIndice=-1),
-    !                3) le modele indique de la glace (gl >= 0.01),
-    !                on specifie "sea ice" pour le "terrain type" (terrainTypeIndice=0).
+    !
+    ! :Purpose: Dans les conditions suivantes:
+    !           1) l'indicateur terre/mer indique l'ocean (landQualifierIndice=1),
+    !           2) le "terrain type" est manquant (terrainTypeIndice=-1),
+    !           3) le modele indique de la glace (gl >= 0.01),
+    !           on specifie "sea ice" pour le "terrain type" (terrainTypeIndice=0).
+    !
     implicit none 
+    
     ! Arguments:
     real(8),    intent(in) :: modelInterpSeaIce      ! sea ice
     type(struct_obs), intent(inout) :: obsSpaceData  ! obspaceData Object
@@ -2520,15 +2542,17 @@ contains
                     ice, tpw, &
                     rain, snow, scatIndexOverLandObs, &
                     headerIndex, obsSpaceData)
-    !:Purpose: Compute the following parameters using 5 AMSU-A channels:
-    !          - sea ice, 
-    !          - total precipitable water, 
-    !          - cloud liquid water, 
-    !          - ocean/land rain, 
-    !          - snow cover/glacial ice,
-    !          - scattering index (sur la terre et sur l'eau).
-    !          The four channels used are: 23Ghz, 31Ghz, 50Ghz and 89Ghz.
-    !          REGERENCES     N. Grody, NOAA/NESDIS, ....
+    !
+    ! :Purpose: Compute the following parameters using 5 AMSU-A channels:
+    !           - sea ice, 
+    !           - total precipitable water, 
+    !           - cloud liquid water, 
+    !           - ocean/land rain, 
+    !           - snow cover/glacial ice,
+    !           - scattering index (sur la terre et sur l'eau).
+    !           The four channels used are: 23Ghz, 31Ghz, 50Ghz and 89Ghz.
+    !           REGERENCES N. Grody, NOAA/NESDIS, ....
+    !
 
     implicit none
 
@@ -2784,15 +2808,17 @@ contains
   subroutine bennartz (ier, tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
                        scatIndexOverLandObs, &
                        headerIndex, obsSpaceData)
-
-    !:Purpose: Compute the following parameters using 2 AMSU-B channels:
-    !          - scattering index (over land and ocean).*
-    !          The two channels used are: 89Ghz, 150Ghz.
-    !          REGERENCES     Bennartz, R., A. Thoss, A. Dybbroe and D. B. Michelson, 
-    !                         1999: Precipitation Analysis from AMSU, Nowcasting SAF, 
-    !                         Swedish Meteorologicali and Hydrological Institute, 
-    !                         Visiting Scientist Report, November 1999.
+    !
+    ! :Purpose: Compute the following parameters using 2 AMSU-B channels:
+    !           - scattering index (over land and ocean).*
+    !           The two channels used are: 89Ghz, 150Ghz.
+    !           REGERENCES: Bennartz, R., A. Thoss, A. Dybbroe and D. B. Michelson, 
+    !           1999: Precipitation Analysis from AMSU, Nowcasting SAF, 
+    !           Swedish Meteorologicali and Hydrological Institute, 
+    !           Visiting Scientist Report, November 1999.
+    !
     implicit none
+
     ! arguments: 
     integer, intent(out) :: ier                     ! error return code:
     real(8),  intent(in) :: tb89                    ! 89Ghz AMSU-B brightness temperature (K)
@@ -2881,11 +2907,12 @@ contains
   !--------------------------------------------------------------------------
   subroutine atmsMwhs2Test1Flagbit7Check (itest, sensorIndex, qcIndicator, &
                                           B7CHCK, headerIndex, obsSpaceData)
-
-    !:Purpose:               1) test 1: Check flag bit 7 on from the first bgckAtms/bgckMwhs2 program
-    !                        Includes observations flagged for cloud liquid water, scattering index,
-    !                        dryness index plus failure of several QC checks.
-
+    !
+    ! :Purpose: test 1: Check flag bit 7 on from the first bgckAtms/bgckMwhs2 program
+    !           Includes observations flagged for cloud liquid water, scattering index,
+    !           dryness index plus failure of several QC checks.
+    !
+    implicit none
 
     ! Arguments
     integer,          intent(in) :: itest(:)        ! test number
@@ -2938,8 +2965,10 @@ contains
   subroutine atmsMwhs2Test2TopographyCheck(itest, sensorIndex, &
                                            modelInterpTerrain, ICHTOPO, ZCRIT, B7CHCK, qcIndicator, &
                                            headerIndex, obsSpaceData)
-
-    !:Purpose:               1) test 2: Topography check (partial)
+    !
+    ! :Purpose: test 2: Topography check (partial)
+    !
+    implicit none
 
     ! Arguments
     integer,          intent(in) :: itest(:)           ! test number
@@ -3001,10 +3030,12 @@ contains
   !--------------------------------------------------------------------------
   subroutine atmsMwhs2Test3UncorrectedTbCheck(itest, sensorIndex, RESETQC, B7CHCK, qcIndicator, &
                                               headerIndex, obsSpaceData)
-
-    !:Purpose:                       Test 3: Uncorrected Tb check (single)
-    !                                Uncorrected datum (flag bit #6 off). 
-    !                                In this case switch bit 11 ON.
+    !
+    ! :Purpose: Test 3: Uncorrected Tb check (single)
+    !           Uncorrected datum (flag bit #6 off). 
+    !           In this case switch bit 11 ON.
+    !
+    implicit none
 
     ! Arguments
     integer,          intent(in) :: itest(:)        ! test number
@@ -3061,16 +3092,17 @@ contains
   !--------------------------------------------------------------------------
   subroutine atmsTest4RogueCheck(itest, sensorIndex, ROGUEFAC, waterobs, ISFCREJ, ICH2OMPREJ, &
                                  B7CHCK, qcIndicator, headerIndex, obsSpaceData)
-
-    !:Purpose:                         test 4: "Rogue check" for (O-P) Tb residuals out of range.
-    !                                  (single/full).
-    !                                  Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial) 
-    !                                  Les observations, dont le residu (O-P) 
-    !                                  depasse par un facteur (roguefac) l'erreur totale des TOVS.
-    !                                  N.B.: a reject by any of the 3 amsua surface channels 1-3 produces the 
-    !                                  rejection of ATMS sfc/tropospheric channels 1-6 and 16-17.
-    !                                  OVER OPEN WATER
-    !                                  ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
+    !
+    ! :Purpose: test 4: "Rogue check" for (O-P) Tb residuals out of range (single/full).
+    !           Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial) 
+    !           Les observations, dont le residu (O-P) 
+    !           depasse par un facteur (roguefac) l'erreur totale des TOVS.
+    !           N.B.: a reject by any of the 3 amsua surface channels 1-3 produces the 
+    !           rejection of ATMS sfc/tropospheric channels 1-6 and 16-17.
+    !           OVER OPEN WATER
+    !           ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
+    !
+    implicit none
 
     ! Arguments
     integer,          intent(in) :: itest(:)        ! test number
@@ -3231,14 +3263,15 @@ contains
   !--------------------------------------------------------------------------
   subroutine Mwhs2Test4RogueCheck(itest, sensorIndex, ROGUEFAC, waterobs, ICH2OMPREJ, &
                                   B7CHCK, qcIndicator, headerIndex, obsSpaceData)
-
-    !:Purpose:                         test 4: "Rogue check" for (O-P) Tb residuals out of range.
-    !                                  (single/full).
-    !                                  Also, over WATER remove CH.10-15 if CH.10 |O-P|>5K (full)
-    !                                  Les observations, dont le residu (O-P)
-    !                                  depasse par un facteur (roguefac) l'erreur totale des TOVS.
-    !                                  OVER OPEN WATER
-    !                                  ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
+    !
+    ! :Purpose: test 4: "Rogue check" for (O-P) Tb residuals out of range (single/full).
+    !           Also, over WATER remove CH.10-15 if CH.10 |O-P|>5K (full)
+    !           Les observations, dont le residu (O-P)
+    !           depasse par un facteur (roguefac) l'erreur totale des TOVS.
+    !           OVER OPEN WATER
+    !           ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
+    !
+    implicit none
 
     ! Arguments
     integer,          intent(in) :: itest(:)        ! test number
@@ -3365,9 +3398,11 @@ contains
   !--------------------------------------------------------------------------
   subroutine atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, sensorIndex, qcIndicator, &
                                                         headerIndex, obsSpaceData)
-
-    !:Purpose: test 5: Channel selection using array oer_tovutil(chan,sat)
-    !          oer_tovutil = 0 (blacklisted), 1 (assmilate)
+    !
+    ! :Purpose: test 5: Channel selection using array oer_tovutil(chan,sat)
+    !           oer_tovutil = 0 (blacklisted), 1 (assmilate)
+    !
+    implicit none
 
     ! Arguments
     integer,          intent(in) :: itest(:)        ! test number
@@ -3414,8 +3449,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckAtms(qcIndicator, sensorIndex, modelInterpTerrain, &
                                RESETQC, headerIndex, obsSpaceData)
-
-    !:Purpose:                   Effectuer le controle de qualite des radiances tovs.
+    !
+    ! :Purpose: Effectuer le controle de qualite des radiances tovs.
     !
 
     implicit none
@@ -3686,8 +3721,9 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_tovCheckMwhs2(qcIndicator, sensorIndex, modelInterpTerrain, &
                                 RESETQC, modLSQ, lastHeader, headerIndex, obsSpaceData)
-
-    !:Purpose:                   Effectuer le controle de qualite des radiances tovs.
+    !
+    ! :Purpose: Effectuer le controle de qualite des radiances tovs.
+    !
 
     implicit none
     !Arguments
@@ -3958,16 +3994,17 @@ contains
   subroutine mwbg_readGeophysicFieldsAndInterpolate(instName, modelInterpTerrain, &
                                                     modelInterpLandFrac, modelInterpSeaIce, &
                                                     headerIndex, obsSpaceData)
-
+    !
+    ! :Purpose: Reads Modele Geophysical variables and save for the first time
+    !           TOPOGRAPHIE (MF ou MX):
+    !           MF est la topographie filtree avec unites en metres (filtered ME).
+    !           MX est la topographie filtree avec unites en m2/s2  (geopotential topography).
+    !           Glace de Mer (GL)
+    !           Masque Terre-Mer (MG)
+    !           Then Interpolate Those variables to observation location
+    !
     implicit none
 
-    !:Purpose: Reads Modele Geophysical variables and save for the first time
-    !         TOPOGRAPHIE (MF ou MX):
-    !             MF est la topographie filtree avec unites en metres (filtered ME).
-    !             MX est la topographie filtree avec unites en m2/s2  (geopotential topography).
-    !         Glace de Mer (GL)
-    !         Masque Terre-Mer (MG)
-    !         Then Interpolate Those variables to observation location
     !Arguments:
     character(*), intent(in)  :: instName            ! Instrument Name
     real(8),      intent(out) :: modelInterpLandFrac ! model interpolated land fraction.
@@ -4176,13 +4213,13 @@ contains
   !--------------------------------------------------------------------------
   subroutine atmsMwhs2landIceMask(calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, ilsmOpt, &
                                   headerIndex, obsSpaceData)
-    ! Adapted from: land_ice_mask_ssmis.ftn90 of mwbg_ssmis (D. Anselmo, S. Macpherson)
     !
-    ! Object:   This routine sets waterobs array by performing a land/ice proximity check using
+    ! :Purpose: This routine sets waterobs array by performing a land/ice proximity check using
     !           using analysis MG and LG (or GL) fields used by the model which produces the trial field.
     !           The purpose of this check is to remove obs that reside close to coasts or ice,
     !           and so whose TBs may be contaminated.
     !           The GEM Global (glbhyb2) analysis contains MG and LG fields (on different grids).
+    !           Adapted from: land_ice_mask_ssmis.ftn90 of mwbg_ssmis (D. Anselmo, S. Macpherson)
     !
     !           NOTE: The 0.1 deg binary ice field check from land_ice_mask_ssmis.ftn90
     !           was removed. The land/sea qualifier (calcLandQualifierIndice) and terrain type (calcTerrainTypeIndice) 
@@ -4198,67 +4235,67 @@ contains
     !                   from land that is permitted for an obs to be retained
     !
     !
-    !      Maximum FOV             x---x---x---x---x     ^
-    !         = 75km x 75km        |   |   |   |   |     |
-    !         for Meso-sphere CHs  x---x---x---x---x     |
-    !         = 74km x 47km        |   |   |   |   |     |
-    !         for 19 GHz           x---x---o---x---x     | = 4*rlat_km
-    !                              |   |   |   |   |     | = 4*40 km
-    !                           ^  x---x---x---x---x     | = 160 km = 80 km north & south
-    !                   rlat_km |  |   |   |   |   |     |
-    !                           v  x---x---x---x---x     v
-    !                                          <--->
-    !                                         rlon_km
+    !           Maximum FOV             x---x---x---x---x     ^
+    !              = 75km x 75km        |   |   |   |   |     |
+    !              for Meso-sphere CHs  x---x---x---x---x     |
+    !              = 74km x 47km        |   |   |   |   |     |
+    !              for 19 GHz           x---x---o---x---x     | = 4*rlat_km
+    !                                   |   |   |   |   |     | = 4*40 km
+    !                                ^  x---x---x---x---x     | = 160 km = 80 km north & south
+    !                        rlat_km |  |   |   |   |   |     |
+    !                                v  x---x---x---x---x     v
+    !                                               <--->
+    !                                              rlon_km
+    !     
+    !                                   <--------------->
+    !                                      = 4*rlon_km
+    !                                      = 4*40 km
+    !                                      = 160 km = 80 km east & west
+    !     
+    !     
+    !                    MG value = 1.0  ==>  LAND       MG value = 0.0  ==>  OCEAN
+    !                    LG value = 1.0  ==>  ICE        LG value = 0.0  ==>  NO ICE
     !
-    !                              <--------------->
-    !                                 = 4*rlon_km
-    !                                 = 4*40 km
-    !                                 = 160 km = 80 km east & west
+    !           Variable Definitions
+    !           --------------------
+    !           - obsLat     : input  -  lat
+    !           - obsLon     : input  -  lon
+    !           - calcLandQualifierIndice  : in/out -  array holding land/sea qualifier values for all obs
+    !                                  pts of report (0 = land, 1 = sea)
+    !           - calcTerrainTypeIndice  : in/out -  array holding terrain-type values for all obs pts
+    !                                  of current report (-1 land/open water, 0 = ice)
+    !           - waterobs   : output -  logical array identifying for each obs in current report
+    !                                  whether it is over open water, far from coast/ice
+    !           - ilsmOpt    : input  -  option for "interpolated" value of MG, LG at each location
+    !                                  1 = use MAX value taken from all mesh grid points
+    !                                  2 = use CENTRAL mesh point value (value at obs location)
+    !                                  3 = use AVG value of all mesh grid points    
+    !           - mxlat      : internal-  number of grid pts in lat. direction for mesh
+    !           - mxlon      : internal-  number of grid pts in lon. direction for mesh
+    !           - rlat_km    : internal-  spacing desired between mesh grid points in km
+    !                                     along lat. direction
+    !           - rlon_km    : internal-  spacing desired between mesh grid points in km
+    !                                     along lon. direction
+    !           - dlat       : internal-  spacing between mesh grid points along lon. direction
+    !                                     in degrees computed from rlat_km
+    !           - dlon       : internal-  spacing between mesh grid points along lon. direction
+    !                                     in degrees computed from rlon_km
+    !           - rkm_per_deg : internal- distance in km per degree
+    !                                     = Earth radius * PI/180.0
+    !                                     = 6371.01 km * PI/180.0
+    !                                     = 111.195 km
+    !           - nlat,nlon  : internal-  used to define the lat/lon of the grid pts of mesh
+    !           - zlatbox    : internal-  lat values at all grid pts of mesh for all obs pts
+    !           - zlonbox    : internal-  lon values at all grid pts of mesh for all obs pts
+    !           - latmesh    : internal-  lat values at all grid pts of mesh for 1 obs pt
+    !           - lonmesh    : internal-  lon values at all grid pts of mesh for 1 obs pt
+    !           - mgintob    : internal-  interpolated MG values at all grid pts of mesh for 1 obs pt
+    !           - lgintob    : internal-  interpolated LG values at all grid pts of mesh for 1 obs pt
+    !           - mgintrp    : internal-  max. interpolated MG value on mesh for all obs pts
+    !           - lgintrp    : internal-  max. interpolated LG value on mesh for all obs pts
+    !           - MGthresh   : internal-  maximum allowable land fraction for obs to be kept
+    !           - LGthresh   : internal-  maximum allowable ice  fraction for obs to be kept
     !
-    !
-    !               MG value = 1.0  ==>  LAND       MG value = 0.0  ==>  OCEAN
-    !               LG value = 1.0  ==>  ICE        LG value = 0.0  ==>  NO ICE
-    !
-    !--------------------------------------------------------------------
-    !  Variable Definitions
-    !  --------------------
-    ! - obsLat     : input  -  lat
-    ! - obsLon     : input  -  lon
-    ! - calcLandQualifierIndice  : in/out -  array holding land/sea qualifier values for all obs
-    !                        pts of report (0 = land, 1 = sea)
-    ! - calcTerrainTypeIndice  : in/out -  array holding terrain-type values for all obs pts
-    !                        of current report (-1 land/open water, 0 = ice)
-    ! - waterobs   : output -  logical array identifying for each obs in current report
-    !                        whether it is over open water, far from coast/ice
-    ! - ilsmOpt    : input  -  option for "interpolated" value of MG, LG at each location
-    !                        1 = use MAX value taken from all mesh grid points
-    !                        2 = use CENTRAL mesh point value (value at obs location)
-    !                        3 = use AVG value of all mesh grid points    
-    ! - mxlat      : internal-  number of grid pts in lat. direction for mesh
-    ! - mxlon      : internal-  number of grid pts in lon. direction for mesh
-    ! - rlat_km    : internal-  spacing desired between mesh grid points in km
-    !                           along lat. direction
-    ! - rlon_km    : internal-  spacing desired between mesh grid points in km
-    !                           along lon. direction
-    ! - dlat       : internal-  spacing between mesh grid points along lon. direction
-    !                           in degrees computed from rlat_km
-    ! - dlon       : internal-  spacing between mesh grid points along lon. direction
-    !                           in degrees computed from rlon_km
-    ! - rkm_per_deg : internal- distance in km per degree
-    !                           = Earth radius * PI/180.0
-    !                           = 6371.01 km * PI/180.0
-    !                           = 111.195 km
-    ! - nlat,nlon  : internal-  used to define the lat/lon of the grid pts of mesh
-    ! - zlatbox    : internal-  lat values at all grid pts of mesh for all obs pts
-    ! - zlonbox    : internal-  lon values at all grid pts of mesh for all obs pts
-    ! - latmesh    : internal-  lat values at all grid pts of mesh for 1 obs pt
-    ! - lonmesh    : internal-  lon values at all grid pts of mesh for 1 obs pt
-    ! - mgintob    : internal-  interpolated MG values at all grid pts of mesh for 1 obs pt
-    ! - lgintob    : internal-  interpolated LG values at all grid pts of mesh for 1 obs pt
-    ! - mgintrp    : internal-  max. interpolated MG value on mesh for all obs pts
-    ! - lgintrp    : internal-  max. interpolated LG value on mesh for all obs pts
-    ! - MGthresh   : internal-  maximum allowable land fraction for obs to be kept
-    ! - LGthresh   : internal-  maximum allowable ice  fraction for obs to be kept
     implicit none
 
     ! Arguments:
@@ -4461,7 +4498,9 @@ contains
   ! mwbg_computeMwhs2SurfaceType
   !--------------------------------------------------------------------------
   subroutine mwbg_computeMwhs2SurfaceType(obsSpaceData)
+    !
     ! :Purpose: Compute surface type element and update obsSpaceData.
+    !
 
     implicit none
 
@@ -4529,9 +4568,10 @@ contains
   !--------------------------------------------------------------------------
 
   subroutine mwbg_grossValueCheck(ztbThresholdMin, ztbThresholdMax, grossrej, headerIndex, sensorIndex, obsSpaceData)
-
-    !:Purpose: Check Tbs for values that are missing or outside physical limits.
-    !          **NOTE: REJECT ALL CHANNELS OF ONE IS FOUND TO BE BAD.
+    !
+    ! :Purpose: Check Tbs for values that are missing or outside physical limits.
+    !           REJECT ALL CHANNELS OF ONE IS FOUND TO BE BAD.
+    !
     implicit none
 
     ! Arguments
@@ -4588,26 +4628,26 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_firstQcCheckAtms(qcRejectLogic, grossrej, calcLandQualifierIndice, calcTerrainTypeIndice, &
                                    reportHasMissingTb, headerIndex, sensorIndex, obsSpaceData)
+    !
     !  :Purpose: This routine performs basic quality control checks on the data. It sets array
     !            qcRejectLogic(actualNumChannel) elements to .true. to flag data with failed checks.
+    !            The 6 QC checks are:
+    !            - 1) Invalid land/sea qualifier or terrain type,
+    !            - 2) Invalid field of view number,
+    !            - 3) Satellite zenith angle missing or out of range, (> 75 deg),
+    !            - 4) lat,lon check (lat,lon = O(-90.), 0(-180.))
+    !            - 5) Change in (computed) calcLandQualifierIndice,calcTerrainTypeIndice from (input) 
+    !            landQualifierIndice,terrainTypeIndice (from MG,LG fields).
+    !            landQualifierIndice= 0,1 (from hi-res land/sea mask interpolated to obs point [CMDA])
+    !            terrainTypeIndice=-1,0 (from hi-res ice analysis  interpolated to obs point [CMDA])
+    !            calcLandQualifierIndice= 0,1 (from max interp MG (0.0 to 1.0) in box surrounding obs point)
+    !            calcTerrainTypeIndice=-1,0 (from max interp LG (0.0 to 1.0) in box surrounding obs point)
+    !            - 6) ATMS quality flag check (qual. flag elements 33078,33079,33080,33081)
     !
-    !  The 6 QC checks are:
-    !                 - 1) Invalid land/sea qualifier or terrain type,
-    !                 - 2) Invalid field of view number,
-    !                 - 3) Satellite zenith angle missing or out of range, (> 75 deg),
-    !                 - 4) lat,lon check (lat,lon = O(-90.), 0(-180.))
-    !                 - 5) Change in (computed) calcLandQualifierIndice,calcTerrainTypeIndice from (input) 
-    !                      landQualifierIndice,terrainTypeIndice (from MG,LG fields).
-    !                      landQualifierIndice= 0,1 (from hi-res land/sea mask interpolated to obs point [CMDA])
-    !                      terrainTypeIndice=-1,0 (from hi-res ice analysis  interpolated to obs point [CMDA])
-    !                      calcLandQualifierIndice= 0,1 (from max interp MG (0.0 to 1.0) in box surrounding obs point)
-    !                      calcTerrainTypeIndice=-1,0 (from max interp LG (0.0 to 1.0) in box surrounding obs point)
-    !                 - 6) ATMS quality flag check (qual. flag elements 33078,33079,33080,33081)
-
+    !           In most cases, qcRejectLogic(actualNumChannel) is set to .true. for all channels at point ii
+    !           if the check detects a problem. In addition, Tb (obsTb) is set to missing_value
+    !           for checks 3 and 4 fails.
     !
-    !  In most cases, qcRejectLogic(actualNumChannel) is set to .true. for all channels at point ii
-    !  if the check detects a problem. In addition, Tb (obsTb) is set to missing_value
-    !  for checks 3 and 4 fails.
     implicit none
 
     ! Arguments
@@ -4842,27 +4882,28 @@ contains
   !--------------------------------------------------------------------------
   subroutine mwbg_firstQcCheckMwhs2(qcRejectLogic, calcLandQualifierIndice, calcTerrainTypeIndice, &
                                     reportHasMissingTb, modLSQ, headerIndex, sensorIndex, obsSpaceData)
-    !  :Purpose: This routine performs basic quality control checks on the data. It sets array
-    !            qcRejectLogic(actualNumChannel) elements to .true. to flag data with failed checks. Check 1
-    !            (for landQualifierIndice,terrainTypeIndice) and check 5 are skipped if modlsqtt=.true., 
-    !            as the original values will be replaced in output file by calcLandQualifierIndice,calcTerrainTypeIndice.
     !
-    !  The 5 QC checks are:
-    !                 - 1) Invalid land/sea qualifier or terrain type,
-    !                 - 2) Invalid field of view number,
-    !                 - 3) Satellite zenith angle missing or out of range, (> 75 deg),
-    !                 - 4) lat,lon check (lat,lon = O(-90.), 0(-180.))
-    !                 - 5) Change in (computed) calcLandQualifierIndice,calcTerrainTypeIndice 
-    !                      from (input) landQualifierIndice,terrainTypeIndice (from MG,LG fields).
-    !                      landQualifierIndice= 0,1 (from hi-res land/sea mask interpolated to obs point [CMDA])
-    !                      terrainTypeIndice=-1,0 (from hi-res ice analysis  interpolated to obs point [CMDA])
-    !                      calcLandQualifierIndice= 0,1 (from max interp MG (0.0 to 1.0) in box surrounding obs point)
-    !                      calcTerrainTypeIndice=-1,0 (from max interp LG (0.0 to 1.0) in box surrounding obs point)
-
+    ! :Purpose: This routine performs basic quality control checks on the data. It sets array
+    !           qcRejectLogic(actualNumChannel) elements to .true. to flag data with failed checks. Check 1
+    !           (for landQualifierIndice,terrainTypeIndice) and check 5 are skipped if modlsqtt=.true., 
+    !           as the original values will be replaced in output file by calcLandQualifierIndice,calcTerrainTypeIndice.
     !
-    !  In most cases, qcRejectLogic(ii,actualNumChannel) is set to .true. for all channels at point ii
-    !  if the check detects a problem. In addition, Tb (obsTb) is set to missing_value
-    !  for checks 3 and 4 fails.
+    !           The 5 QC checks are:
+    !           - 1) Invalid land/sea qualifier or terrain type,
+    !           - 2) Invalid field of view number,
+    !           - 3) Satellite zenith angle missing or out of range, (> 75 deg),
+    !           - 4) lat,lon check (lat,lon = O(-90.), 0(-180.))
+    !           - 5) Change in (computed) calcLandQualifierIndice,calcTerrainTypeIndice 
+    !           from (input) landQualifierIndice,terrainTypeIndice (from MG,LG fields).
+    !           landQualifierIndice= 0,1 (from hi-res land/sea mask interpolated to obs point [CMDA])
+    !           terrainTypeIndice=-1,0 (from hi-res ice analysis  interpolated to obs point [CMDA])
+    !           calcLandQualifierIndice= 0,1 (from max interp MG (0.0 to 1.0) in box surrounding obs point)
+    !           calcTerrainTypeIndice=-1,0 (from max interp LG (0.0 to 1.0) in box surrounding obs point)
+    !
+    !           In most cases, qcRejectLogic(ii,actualNumChannel) is set to .true. for all channels at point ii
+    !           if the check detects a problem. In addition, Tb (obsTb) is set to missing_value
+    !           for checks 3 and 4 fails.
+    !
     implicit none
 
     ! Arguments
@@ -5063,71 +5104,45 @@ contains
   subroutine mwbg_nrlFilterAtms(calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                                 si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce, &
                                 headerIndex, sensorIndex, obsSpaceData)
-    !OBJET          Compute the following parameters using 5 ATMS channels:
-    !                  - sea ice,
-    !                  - cloud liquid water from observation (cloudLiquidWaterPathObs),
-    !                  - cloud liquid water from first guess (cloudLiquidWaterPathFG),
-    !                  - 2 scattering indices (si) (ECMWF, Bennartz-Grody)
-    !               The five channels used are: 23Ghz, 31Ghz, 50Ghz, 89Ghz, and 165Ghz.
     !
-    !NOTES*
-    !                - open water points are converted to sea-ice points if sea ice concentration >= 0.55
-    !                   and calcTerrainTypeIndice (terrainTypeIndice or terrain type) is changed accordingly
-    !                - cloudLiquidWaterPathObs are missing when out-of-range parameters/Tb detected or grossrej = .true.
-    !                - cloudLiquidWaterPathObs and si only computed over open water away from coasts and sea-ice
-    !                - cloudLiquidWaterPathObs and si = mwbg_realMissing where value cannot be computed.
+    ! :Purpose: Compute the following parameters using 5 ATMS channels:
+    !           - sea ice,
+    !           - cloud liquid water from observation (cloudLiquidWaterPathObs),
+    !           - cloud liquid water from first guess (cloudLiquidWaterPathFG),
+    !           - 2 scattering indices (si) (ECMWF, Bennartz-Grody)
+    !           The five channels used are: 23Ghz, 31Ghz, 50Ghz, 89Ghz, and 165Ghz.
     !
-    !REFERENCES     Ben Ruston, NRL Monterey
-    !                  JCSDA Seminar 12/12/12: Impact of NPP Satellite Assimilation in the U.S. Navy Global Modeling System
+    !           NOTES:
+    !           - open water points are converted to sea-ice points if sea ice concentration >= 0.55
+    !           and calcTerrainTypeIndice (terrainTypeIndice or terrain type) is changed accordingly
+    !           - cloudLiquidWaterPathObs are missing when out-of-range parameters/Tb detected or grossrej = .true.
+    !           - cloudLiquidWaterPathObs and si only computed over open water away from coasts and sea-ice
+    !           - cloudLiquidWaterPathObs and si = mwbg_realMissing where value cannot be computed.
     !
+    !           REFERENCES: Ben Ruston, NRL Monterey
+    !           JCSDA Seminar 12/12/12: Impact of NPP Satellite Assimilation in the U.S. Navy Global Modeling System
     !
-    !ARGUMENTS      - ier         - output - error return code for each location:
-    !                                        0, ok,
-    !                                        1, input parameter out of range or grossrej=.true.
-    !               - tb23            - input  -  23Ghz brightness temperature (K) -- ch. 1
-    !               - tb23FG          - input  -  23Ghz brightness temperature (K) from first guess -- ch. 1
-    !               - tb31            - input  -  31Ghz brightness temperature (K) -- ch. 2
-    !               - tb31FG          - input  -  31Ghz brightness temperature (K) from first guess -- ch. 2
-    !               - tb50            - input  -  50Ghz brightness temperature (K) -- ch. 3
-    !               - tb89            - input  -  89Ghz brightness temperature (K) -- ch. 16
-    !               - tb165           - input  -  165Ghz brightness temperature (K) -- ch. 17
-    !               - satZenithAngle  - input  -  satellite zenith angle (deg.)
-    !               - obsLat          - input  -  latitude (deg.)
-    !               - calcLandQualifierIndice - input  -  land/sea indicator (0=land, 1=ocean)
-    !               - calcTerrainTypeIndice   - in/out -  terrain type (0=ice, -1 otherwise)
-    !               - waterobs    - in/out -  .true. if open water point (away from coasts and sea-ice)
-    !               - grossrej    - input  -  .true. if any channel had a gross error from mwbg_grossValueCheck
-    !               - cloudLiquidWaterPathObs - output -  cloud liquid water from observation (kg/m**2) from tb23 & tb31
-    !               - cloudLiquidWaterPathFG  - output -  cloud liquid water from first guess (kg/m**2) from tb23FG & tb31FG
-    !               - si_ecmwf    - output -  ECMWF scattering index from tb89 & tb165
-    !               - si_bg       - output -  Bennartz-Grody scattering index from tb89 & tb165
-    !               - iNumSeaIce  - in/out -  running counter for number of open water points
-    !                                         with sea-ice detected (from algorithm)
-    !               - iRej        - in/out -  running counter for number of locations with bad
-    !                                         satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
-    !               - SeaIce      - output -  computed sea-ice fraction from tb23 & tb50
-    !
-    !               - ice         - internal -  sea ice
-    !
-    !
-    ! Notes: In the case where an output parameter cannot be calculated, the
-    !        value of this parameter is set to mwbg_realMissing
+    !           Notes: In the case where an output parameter cannot be calculated, the
+    !           value of this parameter is set to mwbg_realMissing
     !
     implicit none
 
     ! Arguments:
-    integer,   intent(out) :: iNumSeaIce
-    integer,    intent(in) :: calcLandQualifierIndice
-    integer, intent(inout) :: calcTerrainTypeIndice
-    integer,   intent(out) :: iRej
-    logical,    intent(in) :: grossrej
-    logical, intent(inout) :: waterobs
-    real(8),   intent(out) :: si_ecmwf
-    real(8),   intent(out) :: si_bg
-    real(8),   intent(out) :: SeaIce
-    type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
-    integer,             intent(in) :: headerIndex      ! current header Index 
-    integer,             intent(in) :: sensorIndex      ! numero de satellite (i.e. indice)
+    integer,   intent(out) :: iNumSeaIce              ! running counter for number of open water points
+                                                      !  with sea-ice detected (from algorithm)
+    integer,    intent(in) :: calcLandQualifierIndice ! land/sea indicator (0=land, 1=ocean)
+    integer, intent(inout) :: calcTerrainTypeIndice   ! terrain type (0=ice, -1 otherwise)
+    integer,   intent(out) :: iRej                    ! running counter for number of locations with bad
+                                                      !  satZenithAngle, obsLat, calcLandQualifierIndice, 
+                                                      !  or with grossrej=true
+    logical,    intent(in) :: grossrej                ! .true. if any channel had a gross error from mwbg_grossValueCheck
+    logical, intent(inout) :: waterobs                ! .true. if open water point (away from coasts and sea-ice)
+    real(8),   intent(out) :: si_ecmwf                ! ECMWF scattering index from tb89 & tb165
+    real(8),   intent(out) :: si_bg                   ! Bennartz-Grody scattering index from tb89 & tb165
+    real(8),   intent(out) :: SeaIce                  ! computed sea-ice fraction from tb23 & tb50
+    type(struct_obs), intent(inout) :: obsSpaceData   ! obspaceData Object
+    integer,             intent(in) :: headerIndex    ! current header Index 
+    integer,             intent(in) :: sensorIndex    ! numero de satellite (i.e. indice)
 
     ! Locals
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
@@ -5324,69 +5339,43 @@ contains
   subroutine mwbg_nrlFilterMwhs2(calcLandQualifierIndice, calcTerrainTypeIndice, waterobs, grossrej, &
                                  si_ecmwf, si_bg, iNumSeaIce, iRej, SeaIce, &
                                  headerIndex, sensorIndex, obsSpaceData)
-    !OBJET          Compute the following parameters using 2 MWHS2 channels:
-    !                  - sea ice,
-    !                  - cloud liquid water from observation (cloudLiquidWaterPathObs),
-    !                  - cloud liquid water from first guess (cloudLiquidWaterPathFG),
-    !                  - 2 scattering indices (si) (ECMWF, Bennartz-Grody)
-    !               The two channels used are: 89Ghz, and 165Ghz.
     !
-    !NOTES*
-    !                - open water points are converted to sea-ice points if sea ice concentration >= 0.55
-    !                   and calcTerrainTypeIndice (terrainTypeIndice or terrain type) is changed accordingly
-    !                - cloudLiquidWaterPathObs are missing when out-of-range parameters/Tb detected or grossrej = .true.
-    !                - cloudLiquidWaterPathObs and si_ecmwf only computed over open water away from coasts and sea-ice
-    !                - si_bg is computed for all points
-    !                - cloudLiquidWaterPathObs and si = mwbg_realMissing where value cannot be computed.
+    ! :Purpose: Compute the following parameters using 2 MWHS2 channels:
+    !           - sea ice,
+    !           - cloud liquid water from observation (cloudLiquidWaterPathObs),
+    !           - cloud liquid water from first guess (cloudLiquidWaterPathFG),
+    !           - 2 scattering indices (si) (ECMWF, Bennartz-Grody)
+    !           The two channels used are: 89Ghz, and 165Ghz.
     !
-    !REFERENCES     Ben Ruston, NRL Monterey
-    !                  JCSDA Seminar 12/12/12: Impact of NPP Satellite Assimilation in the U.S. Navy Global Modeling System
+    !           NOTES:
+    !           - open water points are converted to sea-ice points if sea ice concentration >= 0.55
+    !           and calcTerrainTypeIndice (terrainTypeIndice or terrain type) is changed accordingly
+    !           - cloudLiquidWaterPathObs are missing when out-of-range parameters/Tb detected or grossrej = .true.
+    !           - cloudLiquidWaterPathObs and si_ecmwf only computed over open water away from coasts and sea-ice
+    !           - si_bg is computed for all points
+    !           - cloudLiquidWaterPathObs and si = mwbg_realMissing where value cannot be computed.
     !
+    !           REFERENCES: Ben Ruston, NRL Monterey
+    !           JCSDA Seminar 12/12/12: Impact of NPP Satellite Assimilation in the U.S. Navy Global Modeling System
     !
-    !ARGUMENTS      - ier         - output - error return code for each location:
-    !                                        0, ok,
-    !                                        1, input parameter out of range or grossrej=.true.
-    !               - tb23            - input  -  23Ghz brightness temperature (K) -- ch. 1 [missing for MWHS-2]
-    !               - tb23FG          - input  -  23Ghz brightness temperature (K) from first guess -- ch. 1
-    !               - tb31            - input  -  31Ghz brightness temperature (K) -- ch. 2 [missing for MWHS-2]
-    !               - tb31FG          - input  -  31Ghz brightness temperature (K) from first guess -- ch. 2
-    !               - tb50            - input  -  50Ghz brightness temperature (K) -- ch. 3 [missing for MWHS-2]
-    !               - tb89            - input  -  89Ghz brightness temperature (K) -- ch. 16
-    !               - tb165           - input  -  165Ghz brightness temperature (K) -- ch. 17
-    !               - satZenithAngle  - input  -  satellite zenith angle (deg.)
-    !               - obsLat          - input  -  latitude (deg.)
-    !               - calcLandQualifierIndice   - input  -  land/sea indicator (0=land, 1=ocean)
-    !               - calcTerrainTypeIndice     - in/out -  terrain type (0=ice, -1 otherwise)
-    !               - waterobs    - in/out -  .true. if open water point (away from coasts and sea-ice)
-    !               - grossrej    - input  -  .true. if any channel had a gross error from mwbg_grossValueCheck
-    !               - cloudLiquidWaterPathObs - output -  cloud liquid water from observation (kg/m**2) from tb23 & tb31
-    !               - cloudLiquidWaterPathFG  - output -  cloud liquid water from first guess (kg/m**2) from tb23FG & tb31FG
-    !               - si_ecmwf    - output -  ECMWF scattering index from tb89 & tb165
-    !               - si_bg       - output -  Bennartz-Grody scattering index from tb89 & tb165
-    !               - iNumSeaIce  - in/out -  running counter for number of open water points
-    !                                         with sea-ice detected (from algorithm)
-    !               - iRej        - in/out -  running counter for number of locations with bad
-    !                                         satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
-    !               - SeaIce      - output -  computed sea-ice fraction from tb23 & tb50
-    !
-    !               - ice         - internal -  sea ice
-    !
-    !
-    ! Notes: In the case where an output parameter cannot be calculated, the
-    !        value of this parameter is set to mwbg_realMissing
+    !           Notes: In the case where an output parameter cannot be calculated, the
+    !           value of this parameter is set to mwbg_realMissing
     !
     implicit none
 
     ! Arguments:
-    integer,   intent(out) ::  iNumSeaIce
-    integer,    intent(in) ::  calcLandQualifierIndice
-    integer, intent(inout) ::  calcTerrainTypeIndice
-    integer,   intent(out) ::  iRej
-    logical,    intent(in) ::  grossrej
-    logical, intent(inout) ::  waterobs
-    real(8),   intent(out) ::  si_ecmwf
-    real(8),   intent(out) ::  si_bg
-    real(8),   intent(out) ::  SeaIce
+    integer,   intent(out) ::  iNumSeaIce              ! running counter for number of open water points
+                                                       !   with sea-ice detected (from algorithm)
+    integer,    intent(in) ::  calcLandQualifierIndice ! land/sea indicator (0=land, 1=ocean)
+    integer, intent(inout) ::  calcTerrainTypeIndice   ! terrain type (0=ice, -1 otherwise)
+    integer,   intent(out) ::  iRej                    ! running counter for number of locations with bad
+                                                       !   satZenithAngle, obsLat, calcLandQualifierIndice, 
+                                                       !   or with grossrej=true
+    logical,    intent(in) ::  grossrej                ! .true. if any channel had a gross error from mwbg_grossValueCheck
+    logical, intent(inout) ::  waterobs                ! .true. if open water point (away from coasts and sea-ice)
+    real(8),   intent(out) ::  si_ecmwf                ! ECMWF scattering index from tb89 & tb165
+    real(8),   intent(out) ::  si_bg                   ! Bennartz-Grody scattering index from tb89 & tb165
+    real(8),   intent(out) ::  SeaIce                  ! computed sea-ice fraction from tb23 & tb50
     type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
     integer,             intent(in) :: headerIndex     ! current header Index 
     integer,             intent(in) :: sensorIndex     ! numero de satellite (i.e. indice)
@@ -5581,21 +5570,23 @@ contains
   subroutine mwbg_flagDataUsingNrlCritAtms(scatec, scatbg, SeaIce, grossrej, waterobs, useUnbiasedObsForClw, &
                                            iwvreject, cloudobs, precipobs,  cldcnt, riwv, zdi, &
                                            headerIndex, sensorIndex, obsSpaceData)
-
-    !:Purpose:                       Set the  Information flag (newInformationFlag) values (new BURP element 025174 in header)
-    !                                BIT    Meaning
-    !                                - 0     off=land or sea-ice, on=open water away from coast
-    !                                - 1     Mean 183 Ghz [ch. 18-22] is missing
-    !                                - 2     CLW is missing (over water)
-    !                                - 3     CLW > clw_atms_nrl_LTrej (0.175 kg/m2) (cloudobs)
-    !                                - 4     scatec/scatbg > Lower Troposphere limit 9/10 (precipobs)
-    !                                - 5     Mean 183 Ghz [ch. 18-22] Tb < 240K
-    !                                - 6     CLW > clw_atms_nrl_UTrej (0.200 kg/m2)
-    !                                - 7     Dryness Index rejection (for ch. 22)
-    !                                - 8     scatec/scatbg > Upper Troposphere limit 18/15
-    !                                - 9     Dryness Index rejection (for ch. 21)
-    !                               - 10     Sea ice > 0.55 detected
-    !                               - 11     Gross error in Tb (any chan.)  (all channels rejected)
+    ! 
+    ! :Purpose: Set the  Information flag (newInformationFlag) values (new BURP element 025174 in header)
+    !           BIT    Meaning
+    !           - 0     off=land or sea-ice, on=open water away from coast
+    !           - 1     Mean 183 Ghz [ch. 18-22] is missing
+    !           - 2     CLW is missing (over water)
+    !           - 3     CLW > clw_atms_nrl_LTrej (0.175 kg/m2) (cloudobs)
+    !           - 4     scatec/scatbg > Lower Troposphere limit 9/10 (precipobs)
+    !           - 5     Mean 183 Ghz [ch. 18-22] Tb < 240K
+    !           - 6     CLW > clw_atms_nrl_UTrej (0.200 kg/m2)
+    !           - 7     Dryness Index rejection (for ch. 22)
+    !           - 8     scatec/scatbg > Upper Troposphere limit 18/15
+    !           - 9     Dryness Index rejection (for ch. 21)
+    !           - 10     Sea ice > 0.55 detected
+    !           - 11     Gross error in Tb (any chan.)  (all channels rejected)
+    !
+    implicit none
 
     ! Arguments
     real(8),    intent(in) :: scatec
@@ -5723,18 +5714,20 @@ contains
   subroutine mwbg_flagDataUsingNrlCritMwhs2(scatec, SeaIce, grossrej, waterobs, useUnbiasedObsForClw, &
                                             iwvreject, cloudobs, precipobs,  cldcnt, riwv, zdi, &
                                             headerIndex, sensorIndex, obsSpaceData)
-
-    !:Purpose:                       Set the  Information flag (newInformationFlag) values (new BURP element 025174 in header)
-    !                                BIT    Meaning
-    !                                - 0     off=land or sea-ice, on=open water away from coast
-    !                                - 1     Mean 183 Ghz [ch. 18-22] is missing
-    !                                - 2     CLW is missing (over water)
-    !                                - 3     CLW > clw_mwhs2_nrl_LTrej (0.175 kg/m2) (cloudobs)
-    !                                - 4     scatec > Lower Troposphere limit 9/10 (precipobs)
-    !                                - 5     Mean 183 Ghz [ch. 18-22] Tb < 240K
-    !                                - 6     CLW > clw_mwhs2_nrl_UTrej (0.200 kg/m2)
-    !                               - 10     Sea ice > 0.55 detected
-    !                               - 11     Gross error in Tb (any chan.)  (all channels rejected)
+    !
+    !:Purpose: Set the  Information flag (newInformationFlag) values (new BURP element 025174 in header)
+    !          BIT    Meaning
+    !          - 0     off=land or sea-ice, on=open water away from coast
+    !          - 1     Mean 183 Ghz [ch. 18-22] is missing
+    !          - 2     CLW is missing (over water)
+    !          - 3     CLW > clw_mwhs2_nrl_LTrej (0.175 kg/m2) (cloudobs)
+    !          - 4     scatec > Lower Troposphere limit 9/10 (precipobs)
+    !          - 5     Mean 183 Ghz [ch. 18-22] Tb < 240K
+    !          - 6     CLW > clw_mwhs2_nrl_UTrej (0.200 kg/m2)
+    !          - 10     Sea ice > 0.55 detected
+    !          - 11     Gross error in Tb (any chan.)  (all channels rejected)
+    !
+    implicit none
 
     ! Arguments
     real(8),             intent(in) :: scatec
@@ -5861,14 +5854,17 @@ contains
                                                  rejcnt, iwvcnt, pcpcnt, flgcnt, &
                                                  chanIgnoreInAllskyGenCoeff, &
                                                  headerIndex, sensorIndex, obsSpaceData)
+    !
+    ! :Purpose: Review all the checks previously made to determine which obs are to be accepted
+    !           for assimilation and which are to be flagged for exclusion (lflagchn).
+    !           - grossrej()  = .true. if any channel had a gross error at the point
+    !           - cloudobs()  = .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
+    !           - precipobs() = .true. if precip. detected through NRL scattering indices
+    !           - waterobs()  = .true. if open water point
+    !           - iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
+    !
+    implicit none
 
-    !:Purpose:                   Review all the checks previously made to determine which obs are to be accepted
-    !                            for assimilation and which are to be flagged for exclusion (lflagchn).
-    !                            - grossrej()  = .true. if any channel had a gross error at the point
-    !                            - cloudobs()  = .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
-    !                            - precipobs() = .true. if precip. detected through NRL scattering indices
-    !                            - waterobs()  = .true. if open water point
-    !                            - iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
     ! Arguments
     logical,    intent(in) :: qcRejectLogic(:)
     real(8),    intent(in) :: scatbg
@@ -6071,14 +6067,17 @@ contains
                                                   rejcnt, iwvcnt, pcpcnt, flgcnt, &
                                                   chanIgnoreInAllskyGenCoeff, &
                                                   headerIndex, sensorIndex, obsSpaceData)
+    !
+    ! :Purpose: Review all the checks previously made to determine which obs are to be accepted
+    !           for assimilation and which are to be flagged for exclusion (lflagchn).
+    !           - grossrej()  = .true. if any channel had a gross error at the point
+    !           - cloudobs()  = .true. if CLW > clw_mwhs2_nrl_LTrej (0.175) or precipobs
+    !           - precipobs() = .true. if precip. detected through NRL scattering indices
+    !           - waterobs()  = .true. if open water point
+    !           - iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
+    !
+    implicit none
 
-    !:Purpose:                   Review all the checks previously made to determine which obs are to be accepted
-    !                            for assimilation and which are to be flagged for exclusion (lflagchn).
-    !                            - grossrej()  = .true. if any channel had a gross error at the point
-    !                            - cloudobs()  = .true. if CLW > clw_mwhs2_nrl_LTrej (0.175) or precipobs
-    !                            - precipobs() = .true. if precip. detected through NRL scattering indices
-    !                            - waterobs()  = .true. if open water point
-    !                            - iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
     ! Arguments
     logical,    intent(in) :: qcRejectLogic(:)
     real(8),    intent(in) :: scatec
@@ -6319,9 +6318,9 @@ contains
   !  ifTovsExist
   !--------------------------------------------------------------------------
   function ifTovsExist(headerIndex, sensorIndex, obsSpaceData) result(sensorIndexFound)
-    
-    !:Purpose: Check obs is among the sensors.
-
+    !
+    ! :Purpose: Check obs is among the sensors.
+    !
     implicit None
 
     !Arguments
@@ -6357,9 +6356,9 @@ contains
   ! mwbg_mwbg_bgCheckMW
   !--------------------------------------------------------------------------
   subroutine mwbg_bgCheckMW( obsSpaceData )
-
-    !:Purpose:        Do the quality control for ATMS, AMSUA, AMSUB and MWHS2
-
+    !
+    ! :Purpose: Do the quality control for ATMS, AMSUA, AMSUB and MWHS2
+    !
     implicit None
 
     !Arguments
@@ -6463,14 +6462,12 @@ contains
 
       ! STEP 3: Accumuler Les statistiques sur les rejets
       call mwbg_qcStats(obsSpaceData, instName, qcIndicator, sensorIndex, &
-                        tvs_satelliteName(1:tvs_nsensors), &
-                        .FALSE.)
+                        tvs_satelliteName(1:tvs_nsensors), .FALSE.)
     end do HEADER
 
     ! STEP 4: Print the statistics in listing file 
     call mwbg_qcStats(obsSpaceData, instName, qcIndicator, sensorIndex, &
-                      tvs_satelliteName(1:tvs_nsensors), & 
-                      .TRUE.)
+                      tvs_satelliteName(1:tvs_nsensors), .TRUE.)
 
     call utl_tmg_stop(118)
 
