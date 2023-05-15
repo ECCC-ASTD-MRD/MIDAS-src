@@ -91,7 +91,7 @@ CONTAINS
     implicit none
 
     ! Local variables:
-    integer :: nulnam, ierr, obsfamIndex, codtypidx
+    integer :: nulnam, ierr, obsfamIndex, codtypIndex
     integer, external :: fnom, fclos
     logical, save :: eob_initialized = .false.
 
@@ -129,34 +129,34 @@ CONTAINS
       end do
 
       do obsfamIndex = 1, ofl_numFamily
-        if (numSimObsFam == obsfamIndex) then
+        if (trim(simObsFamily(obsfamIndex)) /= '') then
           ! simulated observation family specified for current
           ! obsfamIndex; check to see if any codtyp names specified
-          do codtypidx = 1, codtyp_maxNumber
-            if (trim(simCodTypName(obsfamIndex,codtypidx)) /= '') then
+          do codtypIndex = 1, codtyp_maxNumber
+            if (trim(simCodTypName(obsfamIndex,codtypIndex)) /= '') then
               numSimCodTyp(obsfamIndex) = numSimCodTyp(obsfamIndex) + 1
               if (.not. allocated(simCodTyp)) then
                 allocate(simCodTyp(numSimObsFam,codtyp_maxNumber))
                 simCodTyp(:,:) = -999
               end if
               ! store CodTyp for simulated obs family
-              simCodTyp(obsfamIndex,codtypidx) = codtyp_get_codtyp(simCodTypName(obsfamIndex,codtypidx))
+              simCodTyp(obsfamIndex,codtypIndex) = codtyp_get_codtyp(simCodTypName(obsfamIndex,codtypIndex))
             end if
           end do
         end if
 
-        if (numPsvObsFam == obsfamIndex)  then
+        if (trim(psvObsFamily(obsfamIndex)) /= '')  then
           ! passive observation family specified for current
           ! obsfamIndex; check to see if any codtyp names specified
-          do codtypidx = 1, codtyp_maxNumber
-            if (trim(psvCodTypName(obsfamIndex,codtypidx)) /= '') then
+          do codtypIndex = 1, codtyp_maxNumber
+            if (trim(psvCodTypName(obsfamIndex,codtypIndex)) /= '') then
               numPsvCodTyp(obsfamIndex) = numPsvCodTyp(obsfamIndex) + 1
               if (.not. allocated(psvCodTyp)) then
                 allocate(psvCodTyp(numPsvObsFam,codtyp_maxNumber))
                 psvCodTyp(:,:) = -999
               end if
               ! store CodTyp for passive obs family
-              psvCodTyp(obsfamIndex,codtypidx) = codtyp_get_codtyp(psvCodTypName(obsfamIndex,codtypidx))
+              psvCodTyp(obsfamIndex,codtypIndex) = codtyp_get_codtyp(psvCodTypName(obsfamIndex,codtypIndex))
             end if
           end do
         end if
@@ -428,8 +428,8 @@ CONTAINS
     call eob_clean(ensObs,ensObsClean)
 
     call rpn_comm_allgather(ensObsClean%numObs, 1, 'mpi_integer',  &
-                             allNumObs, 1, 'mpi_integer', &
-                             'GRID', ierr)
+                            allNumObs, 1, 'mpi_integer', &
+                            'GRID', ierr)
     numObs_mpiglobal = sum(allNumObs(:))
 
     if (ensObs_mpiglobal%allocated) then
@@ -1276,11 +1276,11 @@ CONTAINS
           ! at least 1 codtype is specified for current obs family so
           ! see if current observation matches any of those codtypes          
           codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
-          if (ANY(simCodTyp(obsfamIndex,:) == codtyp)) ensObs%obsvalue(obsIndex) = ensObs%meanYb(ObsIndex)
+          if (ANY(simCodTyp(obsfamIndex,:) == codtyp)) ensObs%obsvalue(obsIndex) = ensObs%meanYb(obsIndex)
         else
           ! simulated observation family doesn't include any codtype
           ! so set irrespective of current observation's codtype
-          ensObs%obsvalue(obsIndex) = ensObs%meanYb(ObsIndex)
+          ensObs%obsvalue(obsIndex) = ensObs%meanYb(obsIndex)
         end if
       end if
     end do

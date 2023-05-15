@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added functionality for passive assimilation of specified observations (#810 and !734)
+   * also simulation functionality is now activated in an analogous fashion
  * Add new variable `rejectNoZTDScore` to `thin_gbgps` namelist (#815 and !729)
  * Added documentation (interpreted by sphinx) for each program (#738 and !683)
  * Add new variable `toleranceFactor` to `thin_raobs` namelist (#763 and !724)
