@@ -31,9 +31,9 @@ MODULE ensembleObservations_mod
 
   ! public procedures
   public :: eob_init, eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
-  public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setPsvObsErrInv
+  public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_setAssFlag, eob_copy, eob_zero
-  public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord, eob_setSimObsVal, eob_setSimObsErrInv
+  public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord, eob_setSimObsVal
   public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc, eob_setMeanOMP
   public :: eob_removeObsNearLand, eob_readFromFiles, eob_writeToFiles
 
