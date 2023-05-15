@@ -1862,7 +1862,7 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    call utl_reAllocate(ROGUEFAC, actualNumChannel+tvs_channelOffset(sensorIndex))
+    allocate(ROGUEFAC(actualNumChannel+tvs_channelOffset(sensorIndex)))
     ROGUEFAC(:) =(/ 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
                     4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
                     4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, 2.0d0, 2.0d0, &
@@ -1873,7 +1873,7 @@ contains
     ISCATREJ(:) = (/ 28, 29, 30, 31, 32, 33, 42 /)
     ISFCREJ2(:) = (/ 28, 29, 30, 42 /)
 
-    call utl_reAllocate(GROSSMIN, actualNumChannel+tvs_channelOffset(sensorIndex))
+    allocate(GROSSMIN(actualNumChannel+tvs_channelOffset(sensorIndex)))
     GROSSMIN(:) = (/ 200.0d0, 190.0d0, 190.0d0, 180.0d0, 180.0d0, 180.0d0, 170.0d0, &
                      170.0d0, 180.0d0, 170.0d0, 170.0d0, 170.0d0, 180.0d0, 180.0d0, &
                      180.0d0, 180.0d0, 170.0d0, 180.0d0, 180.0d0, 000.0d0, 120.0d0, &
@@ -1881,7 +1881,7 @@ contains
                      120.0d0, 160.0d0, 190.0d0, 190.0d0, 200.0d0, 190.0d0, 180.0d0, &
                      180.0d0, 180.0d0, 180.0d0, 190.0d0, 190.0d0, 200.0d0, 130.0d0 /)
 
-    call utl_reAllocate(GROSSMAX, actualNumChannel+tvs_channelOffset(sensorIndex))
+    allocate(GROSSMAX(actualNumChannel+tvs_channelOffset(sensorIndex)))
     GROSSMAX(:) = (/ 270.0d0, 250.0d0, 250.0d0, 250.0d0, 260.0d0, 280.0d0, 290.0d0, &
                      320.0d0, 300.0d0, 320.0d0, 300.0d0, 280.0d0, 320.0d0, 300.0d0, &
                      290.0d0, 280.0d0, 330.0d0, 350.0d0, 350.0d0, 000.0d0, 310.0d0, &
@@ -1892,7 +1892,8 @@ contains
     altitudeForTopoFilter(:) = (/ 250.0d0, 2000.0d0/)
 
     ! Allocation
-    call utl_reAllocate(qcIndicator, actualNumChannel)
+    allocate(qcIndicator(actualNumChannel))
+    qcIndicator(:) = 0
 
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
@@ -1901,7 +1902,6 @@ contains
     end if
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
     newInformationFlag = 0
-    qcIndicator(:) = 0
     if ( RESETQC ) then
       BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsFlags = 0
@@ -2086,7 +2086,7 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    call utl_reAllocate(ROGUEFAC, actualNumChannel+tvs_channelOffset(sensorIndex))
+    allocate(ROGUEFAC(actualNumChannel+tvs_channelOffset(sensorIndex)))
     ROGUEFAC(:) =(/ 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
                     4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, &
                     4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, 2.0d0, 2.0d0, &
@@ -2096,7 +2096,7 @@ contains
     ISFCREJ(:) = (/ 43, 44 /)
     ISFCREJ2(:) = (/ 43 /)
     ICH2OMPREJ(:) = (/ 44, 45, 46, 47 /)
-    call utl_reAllocate(GROSSMIN, actualNumChannel+tvs_channelOffset(sensorIndex))
+    allocate(GROSSMIN(actualNumChannel+tvs_channelOffset(sensorIndex)))
     GROSSMIN(:) = (/ 200.0d0, 190.0d0, 190.0d0, 180.0d0, 180.0d0, 180.0d0, 170.0d0, &
                      170.0d0, 180.0d0, 170.0d0, 170.0d0, 170.0d0, 180.0d0, 180.0d0, &
                      180.0d0, 180.0d0, 170.0d0, 180.0d0, 180.0d0, 000.0d0, 120.0d0, &
@@ -2104,7 +2104,7 @@ contains
                      120.0d0, 160.0d0, 190.0d0, 190.0d0, 200.0d0, 190.0d0, 180.0d0, &
                      180.0d0, 180.0d0, 180.0d0, 190.0d0, 190.0d0, 200.0d0, 130.0d0, &
                      130.0d0, 130.0d0, 130.0d0, 130.0d0, 130.0d0 /)
-    call utl_reAllocate(GROSSMAX, actualNumChannel+tvs_channelOffset(sensorIndex))
+    allocate(GROSSMAX(actualNumChannel+tvs_channelOffset(sensorIndex)))
     GROSSMAX(:) = (/ 270.0d0, 250.0d0, 250.0d0, 250.0d0, 260.0d0, 280.0d0, 290.0d0, &
                      320.0d0, 300.0d0, 320.0d0, 300.0d0, 280.0d0, 320.0d0, 300.0d0, &
                      290.0d0, 280.0d0, 330.0d0, 350.0d0, 350.0d0, 000.0d0, 310.0d0, &
@@ -2120,7 +2120,8 @@ contains
     chanIgnoreInAllskyGenCoeff(:) = (/43, 44, 45, 46, 47/)
 
     ! Allocation
-    call utl_reAllocate(qcIndicator, actualNumChannel)
+    allocate(qcIndicator(actualNumChannel))
+    qcIndicator(:) = 0
 
     ! Initialisation, la premiere fois seulement!
     if (LLFIRST) then
@@ -2129,7 +2130,6 @@ contains
     end if
     ! fill newInformationFlag with zeros ONLY for consistency with ATMS
     newInformationFlag = 0
-    qcIndicator(:) = 0
     if ( RESETQC ) then
       BODY: do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsFlags = 0
@@ -2296,20 +2296,17 @@ contains
 
     ! Initialize
     if ( LLFIRST ) then
-      call utl_reallocate(INTOT, tvs_nsensors)
-      call utl_reallocate(INTOTRJF, tvs_nsensors)
-      call utl_reallocate(INTOTRJP, tvs_nsensors)
-      do JJ = 1, tvs_nsensors
-        INTOTRJF(JJ) = 0
-        INTOTRJP(JJ) = 0
-        INTOT(JJ)  = 0
-      end do
+      allocate(INTOT(tvs_nsensors))
+      allocate(INTOTRJF(tvs_nsensors))
+      allocate(INTOTRJP(tvs_nsensors))
+      INTOTRJF(:) = 0
+      INTOTRJP(:) = 0
+      INTOT(:)  = 0
       LLFIRST = .false.
     end if
     
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    call utl_reAllocate(obsChannels, actualNumChannel)
-
+    allocate(obsChannels(actualNumChannel))
     do channelIndex = 1, actualNumChannel
       obsChannels(channelIndex) = channelIndex + tvs_channelOffset(sensorIndex)
     end do
@@ -3466,7 +3463,7 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    call utl_reAllocate(ROGUEFAC, actualNumChannel+tvs_channelOffset(sensorIndex))
+    allocate(ROGUEFAC(actualNumChannel+tvs_channelOffset(sensorIndex)))
     ROGUEFAC(:) = (/2.0d0, 2.0d0, 2.0d0, 3.0d0, 3.0d0, 4.0d0, 4.0d0, 4.0d0, &
                     4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 2.0d0, &
                     2.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0/)
@@ -3583,8 +3580,8 @@ contains
     !###############################################################################
 
     ! allocations
-    call utl_reAllocate(qcIndicator, actualNumChannel)
-    call utl_reAllocate(B7CHCK, actualNumChannel)
+    allocate(qcIndicator(actualNumChannel))
+    allocate(B7CHCK(actualNumChannel))
     !  Initialisations
     qcIndicator(:) = 0
     B7CHCK(:) = 0
@@ -3742,7 +3739,7 @@ contains
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    call utl_reAllocate(ROGUEFAC, actualNumChannel+tvs_channelOffset(sensorIndex))
+    allocate(ROGUEFAC(actualNumChannel+tvs_channelOffset(sensorIndex)))
     ROGUEFAC(:) = (/2.0d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, 9.9d0, &
                     9.9d0, 2.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0, 4.0d0/)
     if ( tvs_mwAllskyAssim ) ROGUEFAC(1:3) = 9.9d0
@@ -3855,8 +3852,8 @@ contains
     !###############################################################################
 
     ! allocations
-    call utl_reAllocate(qcIndicator, actualNumChannel)
-    call utl_reAllocate(B7CHCK, actualNumChannel)
+    allocate(qcIndicator(actualNumChannel))
+    allocate(B7CHCK(actualNumChannel))
     !  Initialisations
     qcIndicator(:) = 0
     B7CHCK(:) = 0
@@ -4325,12 +4322,18 @@ contains
     obsLat = obsLat * MPC_DEGREES_PER_RADIAN_R8
 
     ! Allocate space for arrays holding values on mesh grid pts.
-    call utl_reAllocate(latmesh, mxlat*mxlon)
-    call utl_reAllocate(lonmesh, mxlat*mxlon)
-    call utl_reAllocate(mgintob, mxlat*mxlon)
-    call utl_reAllocate(lgintob, mxlat*mxlon)
-    call utl_reAllocate(zlatbox, mxlat*mxlon)
-    call utl_reAllocate(zlonbox, mxlat*mxlon)
+    allocate(latmesh(mxlat*mxlon))
+    allocate(lonmesh(mxlat*mxlon))
+    allocate(mgintob(mxlat*mxlon))
+    allocate(lgintob(mxlat*mxlon))
+    allocate(zlatbox(mxlat*mxlon))
+    allocate(zlonbox(mxlat*mxlon))
+    latmesh(:) = 0.0
+    lonmesh(:) = 0.0
+    mgintob(:) = 0.0
+    lgintob(:) = 0.0
+    zlatbox(:) = 0.0
+    zlonbox(:) = 0.0
 
     ! Open FST file.
     iungeo = 0
@@ -4546,7 +4549,8 @@ contains
     real(8), allocatable :: ztb(:) ! biased or unbiased radiances
 
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    call utl_reAllocate(ztb, actualNumChannel)
+    allocate(ztb(actualNumChannel))
+    ztb(:) = mwbg_realMissing
 
     bodyIndexBeg = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
     bodyIndexEnd = bodyIndexBeg + obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) - 1
@@ -4629,7 +4633,8 @@ contains
 
     reportHasMissingTb = .false.
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    call utl_reAllocate(qcRejectLogic, actualNumChannel)
+    allocate(qcRejectLogic(actualNumChannel))
+    qcRejectLogic(:) = .false.  ! Flag for preliminary QC checks
 
     landQualifierIndice = obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex) 
     satZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex) 
@@ -4657,12 +4662,11 @@ contains
       obsQcFlag1(3) = obs_headElem_i(obsSpaceData, OBS_AQF3, headerIndex) 
     end if
 
-    call utl_reAllocate(obsChannels, actualNumChannel)
+    allocate(obsChannels(actualNumChannel))
     do channelIndex = 1, actualNumChannel
       obsChannels(channelIndex) = channelIndex + tvs_channelOffset(sensorIndex)
     end do
 
-    qcRejectLogic(:) = .false.  ! Flag for preliminary QC checks
     ! Global rejection checks
 
     ! Check if number of channels is correct
@@ -4885,7 +4889,8 @@ contains
 
     reportHasMissingTb = .false.
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    call utl_reAllocate(qcRejectLogic, actualNumChannel)
+    allocate(qcRejectLogic(actualNumChannel))
+    qcRejectLogic(:) = .false.  ! Flag for preliminary QC checks
 
     landQualifierIndice = obs_headElem_i(obsSpaceData, OBS_STYP, headerIndex) 
     satZenithAngle = obs_headElem_r(obsSpaceData, OBS_SZA, headerIndex) 
@@ -4906,12 +4911,11 @@ contains
     ! If terrain type is missing, set it to -1 for the QC programs
     if (terrainTypeIndice == 99) terrainTypeIndice = mwbg_intMissing
 
-    call utl_reAllocate(obsChannels, actualNumChannel)
+    allocate(obsChannels(actualNumChannel))
     do channelIndex = 1, actualNumChannel
       obsChannels(channelIndex) = channelIndex + tvs_channelOffset(sensorIndex)
     end do
 
-    qcRejectLogic(:) = .false.  ! Flag for preliminary QC checks
     ! Global rejection checks
 
     ! Check if number of channels is correct
@@ -5156,9 +5160,12 @@ contains
     obsLat = obsLat * MPC_DEGREES_PER_RADIAN_R8
 
     if (.not. grossrej) then
-      call utl_reAllocate(ompTb, actualNumChannel)
-      call utl_reAllocate(obsTb, actualNumChannel)
-      call utl_reAllocate(obsTbBiasCorr, actualNumChannel)
+      allocate(ompTb(actualNumChannel))
+      allocate(obsTb(actualNumChannel))
+      allocate(obsTbBiasCorr(actualNumChannel))
+      ompTb(:) = mwbg_realMissing
+      obsTb(:) = mwbg_realMissing
+      obsTbBiasCorr(:) = mwbg_realMissing
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
@@ -5412,8 +5419,10 @@ contains
     obsLat = obsLat * MPC_DEGREES_PER_RADIAN_R8
 
     if (.not. grossrej) then
-      call utl_reAllocate(obsTb, actualNumChannel)
-      call utl_reAllocate(obsTbBiasCorr, actualNumChannel)
+      allocate(obsTb(actualNumChannel))
+      allocate(obsTbBiasCorr(actualNumChannel))
+      obsTb(:) = mwbg_realMissing
+      obsTbBiasCorr(:) = mwbg_realMissing
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
@@ -5629,8 +5638,10 @@ contains
     cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
 
     if (.not. grossrej) then
-      call utl_reAllocate(obsTb, actualNumChannel)
-      call utl_reAllocate(obsTbBiasCorr, actualNumChannel)
+      allocate(obsTb(actualNumChannel))
+      allocate(obsTbBiasCorr(actualNumChannel))
+      obsTb(:) = mwbg_realMissing
+      obsTbBiasCorr(:) = mwbg_realMissing
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
@@ -5762,8 +5773,10 @@ contains
     cloudLiquidWaterPathObs = obs_headElem_r(obsSpaceData, OBS_CLWO, headerIndex)
 
     if (.not. grossrej) then
-      call utl_reAllocate(obsTb, actualNumChannel)
-      call utl_reAllocate(obsTbBiasCorr, actualNumChannel)
+      allocate(obsTb(actualNumChannel))
+      allocate(obsTbBiasCorr(actualNumChannel))
+      obsTb(:) = mwbg_realMissing
+      obsTbBiasCorr(:) = mwbg_realMissing
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
         obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
@@ -5891,7 +5904,7 @@ contains
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
 
     ! Allocation
-    call utl_reAllocate(lflagchn,actualNumChannel)
+    allocate(lflagchn(actualNumChannel))
 
     lflagchn(:) = qcRejectLogic(:)  ! initialize with flags set in mwbg_firstQcCheckAtms
     ! Reject all channels if gross Tb error detected in any channel or other problems
@@ -6103,7 +6116,7 @@ contains
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
 
     ! Allocation
-    call utl_reAllocate(lflagchn, actualNumChannel)
+    allocate(lflagchn(actualNumChannel))
 
     lflagchn(:) = qcRejectLogic(:)  ! initialize with flags set in mwbg_firstQcCheckMwhs2
     allcnt = allcnt + 1  ! Counting total number of observations
