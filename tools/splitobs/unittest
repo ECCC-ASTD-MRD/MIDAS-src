@@ -59,7 +59,6 @@ reflex=${reflex:-$(which reflex 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_D
 burpdiff=${burpdiff:-$(which burpdiff 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burpdiff))}
 burp2rdb=${burp2rdb:-$(which burp2rdb 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which burp2rdb))}
 rdbgen=${rdbgen:-$(which rdbgen 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which rdbgen))}
-sqlite=${sqlite:-$(which d.sqlite 2>/dev/null || (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN} 1>/dev/null && which d.sqlite))}
 sqlite3=${sqlite3:-$(. ssmuse-sh -p ${PY39_SSM_DOMAIN} 1>/dev/null && which sqlite3)}
 fstcomp=${fstcomp:-$(which fstcomp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which fstcomp))}
 editbrp=${editbrp:-$(which editbrp 2>/dev/null || (. ssmuse-sh -d ${RPN_UTILS_SSM_DOMAIN} 1>/dev/null && which editbrp))}
@@ -1531,17 +1530,17 @@ EOF
 		esac
 		cat > sqldir <<EOF
 PRAGMA temp_store = MEMORY;
-.nullvalue NULL;
-.mode tabs;
-select id_stn,lat,lon,date,time,omp,obsvalue,vcoord,flag${satel_elem} from header natural join data order by concat(id_stn,lat,lon,date,time,delay);
+.nullvalue NULL
+.mode tabs
+select id_stn,lat,lon,date,time,omp,obsvalue,vcoord,flag${satel_elem} from header natural join data order by id_stn || lat || lon || date || time || delay;
 EOF
 
-		cat sqldir | (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN}; ${sqlite} -noheader file1.sql) | sort -n > file1.sqllist || rm file1.sqllist
+		cat sqldir | ${sqlite3} -noheader file1.sql | sort -n > file1.sqllist || rm file1.sqllist
 		if [ ! -s file1.sqllist ]; then
 		    say "Problem with SQL request for file ${file}" 1 || return 1
 		    not_validating="problem"
 		else
-		    cat sqldir | (. ssmuse-sh -d ${CMDA_UTILS_SSM_DOMAIN}; ${sqlite} -noheader file2.sql) | sort -n > file2.sqllist || rm file2.sqllist
+		    cat sqldir | ${sqlite3} -noheader file2.sql | sort -n > file2.sqllist || rm file2.sqllist
 		    if [ ! -s file2.sqllist ]; then
 			say "Problem with SQL request for file ${file2}" 1 || return 1
 			not_validating="problem"
@@ -1623,9 +1622,9 @@ function check_subdomains {
 
     cat > sqldir <<EOF
 PRAGMA temp_store = MEMORY;
-.nullvalue NULL;
-.mode tabs;
-select lat,lon,date,time,omp,obsvalue,vcoord from header natural join data order by concat(id_stn,lat,lon,date,time,delay);
+.nullvalue NULL
+.mode tabs
+select lat,lon,date,time,omp,obsvalue,vcoord from header natural join data order by id_stn || lat || lon || date || time || delay;
 EOF
 
     npex=$1
@@ -1643,7 +1642,7 @@ EOF
 	if [ ! -s file.sql ]; then
 	    say "Problem with burp2rdb with file ${file}" 1 || return 1
 	else
-	    cat sqldir | ${sqlite} -noheader file.sql > file.sqllist || rm file.sqllist
+	    cat sqldir | ${sqlite3} -noheader file.sql > file.sqllist || rm file.sqllist
 	    if [ ! -s file.sqllist ]; then
 		say "Problem with SQL request for file ${file}" 1 || return 1
 	    else
