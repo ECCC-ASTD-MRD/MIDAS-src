@@ -218,7 +218,7 @@ program midas_letkf
 
   logical :: nwpFields   ! indicates if fields are on momentum and thermo levels
   logical :: oceanFields ! indicates if fields are on depth levels
-  logical :: useModulatedEns ! using modulated ensembles is requested by setting numRetainedEigen.
+  logical :: useModulatedEns ! using modulated ensembles is requested by setting numRetainedEigen
 
   ! interpolation information for weights (in enkf_mod)
   type(struct_enkfInterpInfo) :: wInterpInfo
@@ -247,7 +247,6 @@ program midas_letkf
   logical  :: outputEnsObs         ! to write trial and analysis ensemble members in observation space to sqlite 
   logical  :: debug                ! debug option to print values to the listings.
   logical  :: readEnsObsFromFile   ! instead of computing innovations, read ensObs%Yb from file.
-  logical  :: edaObsImpact         ! perform EDA-based observation simulation experiment (if true, also set edaObsFamily)
   real(8)  :: hLocalize(4)         ! horizontal localization radius (in km)
   real(8)  :: hLocalizePressure(3) ! pressures where horizontal localization changes (in hPa)
   real(8)  :: vLocalize            ! vertical localization radius (units: ln(Pressure in Pa) or meters)
@@ -255,7 +254,7 @@ program midas_letkf
   character(len=20) :: obsTimeInterpType ! type of time interpolation to obs time
   character(len=20) :: mpiDistribution   ! type of mpiDistribution for weight calculation ('ROUNDROBIN' or 'TILES')
   character(len=12) :: etiket_anl        ! etiket for output files
-  character(len=2)  :: edaObsFamily      ! family for EDA-based observation simulation experiment ('UA', 'AI', etc.)
+  
   NAMELIST /NAMLETKF/algorithm, ensPostProcessing, recenterInputEns, nEns, numSubEns, &
                      ensPathName, randomShuffleSubEns,  &
                      hLocalize, hLocalizePressure, vLocalize, minDistanceToLand,  &
@@ -263,8 +262,8 @@ program midas_letkf
                      modifyAmsubObsError, backgroundCheck, huberize, rejectHighLatIR, rejectRadNearSfc,  &
                      ignoreEnsDate, outputOnlyEnsMean, outputEnsObs,  & 
                      obsTimeInterpType, mpiDistribution, etiket_anl, &
-                     readEnsObsFromFile, edaObsImpact, writeLocalEnsObsToFile, &
-                     numRetainedEigen, debug, edaObsFamily
+                     readEnsObsFromFile, writeLocalEnsObsToFile, &
+                     numRetainedEigen, debug
 
   ! Some high-level configuration settings
   midasMode = 'analysis'
@@ -294,37 +293,35 @@ program midas_letkf
   !
 
   !- 1.1 Setting default namelist variable values
-  algorithm             = 'LETKF'
-  ensPostProcessing     = .false.
-  recenterInputEns      = .false.
-  ensPathName           = 'ensemble'
-  nEns                  = 10
-  numSubEns             = 2
-  randomShuffleSubEns   = .false.
-  maxNumLocalObs        = 1000
-  weightLatLonStep      = 1
-  modifyAmsubObsError   = .false.
-  backgroundCheck       = .false.
-  huberize              = .false.
-  rejectHighLatIR       = .false.
-  rejectRadNearSfc      = .false.
-  ignoreEnsDate         = .false.
-  outputOnlyEnsMean     = .false.
-  outputEnsObs          = .false.
-  hLocalize(:)          = -1.0D0
-  hLocalizePressure     = (/14.0D0, 140.0D0, 400.0D0/)
-  vLocalize             = -1.0D0
-  minDistanceToLand     = -1.0D0
-  obsTimeInterpType     = 'LINEAR'
-  mpiDistribution       = 'ROUNDROBIN'
-  etiket_anl            = 'ENS_ANL'
-  readEnsObsFromFile    = .false.
-  edaObsImpact          = .false.
-  edaObsFamily          = 'XX'
-  writeLocalEnsObsToFile = .false.
-  numRetainedEigen      = 0
-  debug                 = .false.
-
+  algorithm                = 'LETKF'
+  ensPostProcessing        = .false.
+  recenterInputEns         = .false.
+  ensPathName              = 'ensemble'
+  nEns                     = 10
+  numSubEns                = 2
+  randomShuffleSubEns      = .false.
+  maxNumLocalObs           = 1000
+  weightLatLonStep         = 1
+  modifyAmsubObsError      = .false.
+  backgroundCheck          = .false.
+  huberize                 = .false.
+  rejectHighLatIR          = .false.
+  rejectRadNearSfc         = .false.
+  ignoreEnsDate            = .false.
+  outputOnlyEnsMean        = .false.
+  outputEnsObs             = .false.
+  hLocalize(:)             = -1.0D0
+  hLocalizePressure        = (/14.0D0, 140.0D0, 400.0D0/)
+  vLocalize                = -1.0D0
+  minDistanceToLand        = -1.0D0
+  obsTimeInterpType        = 'LINEAR'
+  mpiDistribution          = 'ROUNDROBIN'
+  etiket_anl               = 'ENS_ANL'
+  readEnsObsFromFile       = .false.
+  writeLocalEnsObsToFile   = .false.
+  numRetainedEigen         = 0
+  debug                    = .false.
+  
   !- 1.2 Read the namelist
   nulnam = 0
   ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
@@ -377,12 +374,6 @@ program midas_letkf
   if ( .not. all(hLocalize(2:4) == hLocalize(1)) .and. useModulatedEns ) then
     call utl_abort('midas-letkf: Varying horizontal localization lengthscales is NOT allowed in ' // &
     'letkf with modulated ensembles')
-  end if
-
-  ! make sure that edaObsFamily is defined if edaObsImpact is .true.
-  if ( ( edaObsImpact ) .and. trim(edaObsFamily) == 'XX' ) then
-    call utl_abort('midas-letkf: edaObsFamily is XX, but should be ' // &
-         'one of e.g. UA, AI etc., since edaObsImpact is set to .true.')
   end if
 
   !
@@ -449,15 +440,13 @@ program midas_letkf
   call filt_suprep(obsSpaceData)
 
   ! Allocate vectors for storing HX values
-  call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData, &
-                    edaObsImpact_opt=edaObsImpact)
+  call eob_allocate(ensObs, nEns, obs_numBody(obsSpaceData), obsSpaceData)
   if ( outputEnsObs ) allocate(ensObs%Ya_r4(ensObs%numMembers,ensObs%numObs))
   call eob_zero(ensObs)
   if ( useModulatedEns ) then
     nEnsGain = nEns * numRetainedEigen
     allocate(ensObsGain)
-    call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData, &
-                      edaObsImpact_opt=edaObsImpact)
+    call eob_allocate(ensObsGain, nEnsGain, obs_numBody(obsSpaceData), obsSpaceData)
     call eob_zero(ensObsGain)
   else
     ensObsGain => ensObs
@@ -688,10 +677,8 @@ program midas_letkf
   call eob_setMeanOMP(ensObs)
   if ( useModulatedEns ) call eob_setMeanOMP(ensObsGain)
 
-  ! If doing observation simulation experiment, set y for family of interest to mean(H(x))
-  if ( edaObsImpact ) then
-    call eob_setSimulatedObs(ensObs, edaObsFamily)
-  end if
+  ! Set y for family of interest to mean(H(x)) if doing simulated observations
+  call eob_setSimObsVal(ensObs)
 
   ! Set vertical location for all obs for vertical localization (based on ensemble mean pressure and height)
   if (vLocalize > 0.0d0) then
@@ -738,13 +725,6 @@ program midas_letkf
   call rpn_comm_barrier('GRID',ierr)
   call utl_tmg_stop(141)
 
-  ! For EDA-based observation simulation experiments, calculate an inverse of obs error
-  ! variance with variance values inflated for the simulated observations
-  if ( edaObsImpact ) then
-    call eob_setSimObsErrInv(ensObs, edaObsFamily)
-    if ( useModulatedEns ) call eob_setSimObsErrInv(ensObsGain, edaObsFamily)
-  end if
-
   ! Clean and globally communicate obs-related data to all mpi tasks
   call eob_allGather(ensObs,ensObs_mpiglobal)
   if ( useModulatedEns ) then
@@ -785,7 +765,7 @@ program midas_letkf
   !
   !- 5. Main calculation of ensemble analyses
   !
-  
+
   !- 5.1 Call to perform LETKF
   call enkf_LETKFanalyses(algorithm, numSubEns, randomShuffleSubEns,  &
                           ensembleAnl, ensembleTrl, &
@@ -793,7 +773,7 @@ program midas_letkf
                           stateVectorMeanAnl, &
                           wInterpInfo, maxNumLocalObs,  &
                           hLocalize, hLocalizePressure, vLocalize, &
-                          mpiDistribution, numRetainedEigen, edaObsImpact)
+                          mpiDistribution, numRetainedEigen)
 
   !- 5.2 Loop over all analysis members and compute H(Xa_member) (if output is desired) 
   if ( outputEnsObs ) then

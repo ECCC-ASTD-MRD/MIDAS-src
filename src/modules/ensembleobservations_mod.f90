@@ -20,6 +20,8 @@ MODULE ensembleObservations_mod
   use earthConstants_mod
   use bufr_mod
   use codePrecision_mod
+  use codtyp_mod
+  use obsfamilylist_mod
   implicit none
   save
   private
@@ -28,15 +30,23 @@ MODULE ensembleObservations_mod
   public :: struct_eob
 
   ! public procedures
-  public :: eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
-  public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv, eob_setSimObsErrInv, eob_setMeanOMP
+  public :: eob_init, eob_allocate, eob_deallocate, eob_allGather, eob_getLocalBodyIndices
+  public :: eob_setYb, eob_setYa, eob_setDeterYb, eob_setLatLonObs, eob_setObsErrInv
   public :: eob_setHPHT, eob_calcAndRemoveMeanYb, eob_setVertLocation, eob_setAssFlag, eob_copy, eob_zero
-  public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord, eob_setSimulatedObs
-  public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc
+  public :: eob_calcRandPert, eob_setSigiSigo, eob_setTypeVertCoord, eob_setSimObsVal
+  public :: eob_backgroundCheck, eob_huberNorm, eob_rejectRadNearSfc, eob_setMeanOMP
   public :: eob_removeObsNearLand, eob_readFromFiles, eob_writeToFiles
 
-  integer, parameter :: maxNumLocalObsSearch = 500000
-  integer,external   :: get_max_rss
+  ! public variables
+  public :: eob_simObsAssim
+
+  integer, parameter   :: maxNumLocalObsSearch = 500000
+  integer, external    :: get_max_rss
+  logical              :: eob_simObsAssim, psvObsAssim
+  integer              :: numSimObsFam
+  integer              :: numPsvObsFam
+  integer              :: numSimCodTyp(ofl_numFamily), numPsvCodTyp(ofl_numFamily)
+  integer, allocatable :: simCodTyp(:,:), psvCodTyp(:,:)
 
   type struct_eob
     logical                       :: allocated      = .false.
@@ -49,7 +59,7 @@ MODULE ensembleObservations_mod
     real(8), allocatable          :: lat(:), lon(:)   ! lat/lon of observation
     real(8), allocatable          :: vertLocation(:)  ! in ln(pres) or meters, used for localization
     real(8), allocatable          :: obsErrInv(:)     ! inverse of obs error variances
-    real(8), allocatable          :: obsErrInv_eda(:) ! like obsErrInv, but for use in EDA-based obs simulation experiments
+    real(8), allocatable          :: obsErrInv_sim(:) ! like obsErrInv, used when simulating observations
     real(4), allocatable          :: Yb_r4(:,:)       ! background ensemble perturbation in obs space
     real(4), allocatable          :: Ya_r4(:,:)       ! analysis ensemble perturbation in obs space    
     real(4), allocatable          :: randPert_r4(:,:) ! unbiased random perturbations with covariance equal to R
@@ -61,13 +71,111 @@ MODULE ensembleObservations_mod
 
   type(kdtree2), pointer :: tree => null()
 
+  ! namelist variables
+  character(len=2)  :: simObsFamily(ofl_numFamily) ! observation families for simulation
+  character(len=2)  :: psvObsFamily(ofl_numFamily) ! observation families for passive assimilation
+  character(len=codtyp_name_length) :: simCodTypName(ofl_numFamily,codtyp_maxNumber) ! codtyp names for sim. obs families
+  character(len=codtyp_name_length) :: psvCodTypName(ofl_numFamily,codtyp_maxNumber) ! codtyp names for psv. obs families
+  namelist /NAMENSOBS/simObsFamily, psvObsFamily, simCodTypName, psvCodTypName
+
+
 CONTAINS
+
+  !--------------------------------------------------------------------------
+  ! eob_init
+  !--------------------------------------------------------------------------
+  subroutine eob_init()
+    !
+    !: Purpsoe: This subroutine reads the namelist section NAMENSOBS for this module. 
+    !
+    implicit none
+
+    ! Local variables:
+    integer :: nulnam, ierr, obsfamIndex, codtypIndex
+    integer, external :: fnom, fclos
+    logical, save :: eob_initialized = .false.
+
+    if (eob_initialized) return
+    write(*,*) 'eob_init: starting'
+    eob_initialized = .true.
+
+    ! default values for namelist variables
+    simObsFamily(:)    = ''
+    simCodTypName(:,:) = ''
+    psvObsFamily(:)    = ''
+    psvCodTypName(:,:) = ''
+
+    ! for tracking the number of non-empty chars in namelist variable arrays;
+    ! these are used in loops in various subroutines
+    numSimObsFam = 0
+    numPsvObsFam = 0
+    numSimCodTyp(:) = 0
+    numPsvCodTyp(:) = 0
+
+    ! read namelist
+    if (utl_isNamelistPresent('namensobs','./flnml')) then
+      nulnam=0
+      ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
+      read(nulnam,nml=namensobs,iostat=ierr)
+      if (ierr /= 0) call utl_abort('eob_init: Error reading namelist namensobs')
+      ierr=fclos(nulnam)
+      do obsfamIndex = 1, ofl_numFamily
+        if (trim(simObsFamily(obsfamIndex)) /= '') then
+          numSimObsFam = numSimObsFam + 1
+        end if
+        if (trim(psvObsFamily(obsfamIndex)) /= '') then
+          numPsvObsFam = numPsvObsFam + 1
+        end if
+      end do
+
+      do obsfamIndex = 1, ofl_numFamily
+        if (trim(simObsFamily(obsfamIndex)) /= '') then
+          ! simulated observation family specified for current
+          ! obsfamIndex; check to see if any codtyp names specified
+          do codtypIndex = 1, codtyp_maxNumber
+            if (trim(simCodTypName(obsfamIndex,codtypIndex)) /= '') then
+              numSimCodTyp(obsfamIndex) = numSimCodTyp(obsfamIndex) + 1
+              if (.not. allocated(simCodTyp)) then
+                allocate(simCodTyp(numSimObsFam,codtyp_maxNumber))
+                simCodTyp(:,:) = -999
+              end if
+              ! store CodTyp for simulated obs family
+              simCodTyp(obsfamIndex,codtypIndex) = codtyp_get_codtyp(simCodTypName(obsfamIndex,codtypIndex))
+            end if
+          end do
+        end if
+
+        if (trim(psvObsFamily(obsfamIndex)) /= '')  then
+          ! passive observation family specified for current
+          ! obsfamIndex; check to see if any codtyp names specified
+          do codtypIndex = 1, codtyp_maxNumber
+            if (trim(psvCodTypName(obsfamIndex,codtypIndex)) /= '') then
+              numPsvCodTyp(obsfamIndex) = numPsvCodTyp(obsfamIndex) + 1
+              if (.not. allocated(psvCodTyp)) then
+                allocate(psvCodTyp(numPsvObsFam,codtyp_maxNumber))
+                psvCodTyp(:,:) = -999
+              end if
+              ! store CodTyp for passive obs family
+              psvCodTyp(obsfamIndex,codtypIndex) = codtyp_get_codtyp(psvCodTypName(obsfamIndex,codtypIndex))
+            end if
+          end do
+        end if
+      end do
+    else
+      write(*,*)
+      write(*,*) 'eob_init: namensobs is missing in the namelist. The default value will be taken.'
+    end if
+
+    eob_simObsAssim = numSimObsFam > 0
+    psvObsAssim = numPsvObsFam > 0
+
+  end subroutine eob_init
 
   !--------------------------------------------------------------------------
   ! eob_allocate
   !--------------------------------------------------------------------------
   subroutine eob_allocate(ensObs, numMembers, numObs, obsSpaceData, &
-                          fileMemberIndex1_opt, edaObsImpact_opt)
+                          fileMemberIndex1_opt)
     !
     ! :Purpose: Allocate an ensObs object
     !
@@ -79,38 +187,30 @@ CONTAINS
     integer                 , intent(in)    :: numObs
     type(struct_obs), target, intent(in)    :: obsSpaceData
     integer, optional       , intent(in)    :: fileMemberIndex1_opt
-    logical, optional       , intent(in)    :: edaObsImpact_opt
 
-    ! locals
-    logical :: edaObsImpact
-
-    if ( ensObs%allocated ) then
+    if (ensObs%allocated) then
       write(*,*) 'eob_allocate: this object is already allocated, deallocating first.'
-      call eob_deallocate( ensObs )
+      call eob_deallocate(ensObs)
     end if
 
-    if ( present(fileMemberIndex1_opt) ) ensObs%fileMemberIndex1 = fileMemberIndex1_opt
+    if (present(fileMemberIndex1_opt)) ensObs%fileMemberIndex1 = fileMemberIndex1_opt
 
-    if ( present(edaObsImpact_opt) ) then
-      edaObsImpact = edaObsImpact_opt
-    else
-      edaObsImpact = .false.
-    end if
+    call eob_init()
 
     ensObs%obsSpaceData  => obsSpaceData
     ensObs%numMembers    = numMembers
     ensObs%numObs        = numObs
 
-    allocate( ensObs%lat(ensObs%numObs) )
-    allocate( ensObs%lon(ensObs%numObs) )
-    allocate( ensObs%vertLocation(ensObs%numObs) )
-    allocate( ensObs%obsValue(ensObs%numObs) )
-    allocate( ensObs%obsErrInv(ensObs%numObs) )
-    if ( edaObsImpact ) allocate( ensObs%obsErrInv_eda(ensObs%numObs) )
-    allocate( ensObs%Yb_r4(ensObs%numMembers,ensObs%numObs) )
-    allocate( ensObs%meanYb(ensObs%numObs) )
-    allocate( ensObs%deterYb(ensObs%numObs) )
-    allocate( ensObs%assFlag(ensObs%numObs) )
+    allocate(ensObs%lat(ensObs%numObs))
+    allocate(ensObs%lon(ensObs%numObs))
+    allocate(ensObs%vertLocation(ensObs%numObs))
+    allocate(ensObs%obsValue(ensObs%numObs))
+    allocate(ensObs%obsErrInv(ensObs%numObs))
+    if (eob_simObsAssim) allocate(ensObs%obsErrInv_sim(ensObs%numObs))
+    allocate(ensObs%Yb_r4(ensObs%numMembers,ensObs%numObs))
+    allocate(ensObs%meanYb(ensObs%numObs))
+    allocate(ensObs%deterYb(ensObs%numObs))
+    allocate(ensObs%assFlag(ensObs%numObs))
 
     ensObs%allocated = .true.
 
@@ -121,26 +221,26 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! eob_deallocate
   !--------------------------------------------------------------------------
-  subroutine eob_deallocate( ensObs )
+  subroutine eob_deallocate(ensObs)
     implicit none
 
     ! arguments
     type(struct_eob), intent(inout) :: ensObs
 
-    if ( .not. ensObs%allocated ) return
+    if (.not. ensObs%allocated) return
 
-    deallocate( ensObs%lat )
-    deallocate( ensObs%lon )
-    deallocate( ensObs%vertLocation )
-    deallocate( ensObs%obsValue )
-    deallocate( ensObs%obsErrInv )
-    if ( allocated(ensObs%obsErrInv_eda) ) deallocate( ensObs%obsErrInv_eda)
-    deallocate( ensObs%Yb_r4 )
-    if ( allocated(ensObs%Ya_r4) ) deallocate( ensObs%Ya_r4 )
-    if ( allocated(ensObs%randPert_r4) ) deallocate( ensObs%randPert_r4 )
-    deallocate( ensObs%meanYb )
-    deallocate( ensObs%deterYb )
-    deallocate( ensObs%assFlag )
+    deallocate(ensObs%lat)
+    deallocate(ensObs%lon)
+    deallocate(ensObs%vertLocation)
+    deallocate(ensObs%obsValue)
+    deallocate(ensObs%obsErrInv)
+    if (allocated(ensObs%obsErrInv_sim)) deallocate(ensObs%obsErrInv_sim)
+    deallocate(ensObs%Yb_r4)
+    if (allocated(ensObs%Ya_r4)) deallocate(ensObs%Ya_r4)
+    if (allocated(ensObs%randPert_r4)) deallocate(ensObs%randPert_r4)
+    deallocate(ensObs%meanYb)
+    deallocate(ensObs%deterYb)
+    deallocate(ensObs%assFlag)
 
     ensObs%allocated = .false.
 
@@ -167,10 +267,10 @@ CONTAINS
     ensObs%vertLocation(:)  = 0.0d0
     ensObs%obsValue(:)      = 0.0d0
     ensObs%obsErrInv(:)     = 0.0d0
-    if ( allocated(ensObs%obsErrInv_eda) ) ensObs%obsErrInv_eda(:) = 0.0
+    if (allocated(ensObs%obsErrInv_sim)) ensObs%obsErrInv_sim(:) = 0.0
     ensObs%Yb_r4(:,:)       = 0.0
-    if ( allocated(ensObs%Ya_r4) ) ensObs%Ya_r4(:,:) = 0.0
-    if ( allocated(ensObs%randPert_r4) ) ensObs%randPert_r4(:,:) = 0.0
+    if (allocated(ensObs%Ya_r4)) ensObs%Ya_r4(:,:) = 0.0
+    if (allocated(ensObs%randPert_r4)) ensObs%randPert_r4(:,:) = 0.0
     ensObs%meanYb(:)        = 0.0d0
     ensObs%deterYb(:)       = 0.0d0
     ensObs%assFlag(:)       = 0
@@ -229,13 +329,10 @@ CONTAINS
 
     write(*,*) 'eob_clean: reducing numObs from ', ensObs%numObs, ' to ', numObsClean
     call eob_allocate(ensObsClean, ensObs%numMembers, numObsClean, ensObs%obsSpaceData)
-    if ( allocated(ensObs%obsErrInv_eda) ) then
-      allocate(ensObsClean%obsErrInv_eda(numObsClean))
-    end if
-    if ( allocated(ensObs%Ya_r4) ) then
+    if (allocated(ensObs%Ya_r4)) then
       allocate(ensObsClean%Ya_r4(ensObs%numMembers,numObsClean))
     end if
-    if ( allocated(ensObs%randPert_r4) ) then
+    if (allocated(ensObs%randPert_r4)) then
       allocate(ensObsClean%randPert_r4(ensObs%numMembers,numObsClean))
     end if
 
@@ -247,14 +344,14 @@ CONTAINS
         ensObsClean%lon(obsCleanIndex)           = ensObs%lon(obsIndex)
         ensObsClean%vertLocation(obsCleanIndex)  = ensObs%vertLocation(obsIndex)
         ensObsClean%obsErrInv(obsCleanIndex)     = ensObs%obsErrInv(obsIndex)
-        if ( allocated(ensObs%obsErrInv_eda) ) then
-          ensObsClean%obsErrInv_eda(obsCleanIndex) = ensObs%obsErrInv_eda(obsIndex)
+        if (allocated(ensObs%obsErrInv_sim)) then
+          ensObsClean%obsErrInv_sim(obsCleanIndex) = ensObs%obsErrInv_sim(obsIndex)
         end if 
         ensObsClean%Yb_r4(:,obsCleanIndex)       = ensObs%Yb_r4(:,obsIndex)
-        if ( allocated(ensObs%Ya_r4) ) then
+        if (allocated(ensObs%Ya_r4)) then
           ensObsClean%Ya_r4(:,obsCleanIndex) = ensObs%Ya_r4(:,obsIndex)
         end if
-        if ( allocated(ensObs%randPert_r4) ) then
+        if (allocated(ensObs%randPert_r4)) then
           ensObsClean%randPert_r4(:,obsCleanIndex) = ensObs%randPert_r4(:,obsIndex)
         end if
         ensObsClean%meanYb(obsCleanIndex)        = ensObs%meanYb(obsIndex)
@@ -280,16 +377,16 @@ CONTAINS
     ensObsOut%lon(:)           = ensObsIn%lon(:)
     ensObsOut%vertLocation(:)  = ensObsIn%vertLocation(:)
     ensObsOut%obsErrInv(:)     = ensObsIn%obsErrInv(:)
-    if (allocated(ensObsIn%obsErrInv_eda) ) then
-      ensObsOut%obsErrInv(:) = ensObsIn%obsErrInv_eda(:)
+    if (allocated(ensObsIn%obsErrInv_sim)) then
+      ensObsOut%obsErrInv(:) = ensObsIn%obsErrInv_sim(:)
     end if
     ensObsOut%Yb_r4(:,:)       = ensObsIn%Yb_r4(:,:)
-    if ( allocated(ensObsIn%Ya_r4) ) then
-      allocate( ensObsOut%Ya_r4(ensObsIn%numMembers,ensObsIn%numObs) )
+    if (allocated(ensObsIn%Ya_r4)) then
+      allocate( ensObsOut%Ya_r4(ensObsIn%numMembers,ensObsIn%numObs))
       ensObsOut%Ya_r4(:,:) = ensObsIn%Ya_r4(:,:)
     end if
-    if ( allocated(ensObsIn%randPert_r4) ) then
-      allocate( ensObsOut%randPert_r4(ensObsIn%numMembers,ensObsIn%numObs) )
+    if (allocated(ensObsIn%randPert_r4)) then
+      allocate(ensObsOut%randPert_r4(ensObsIn%numMembers,ensObsIn%numObs))
       ensObsOut%randPert_r4(:,:) = ensObsIn%randPert_r4(:,:)
     end if
     ensObsOut%meanYb(:)        = ensObsIn%meanYb(:)
@@ -330,9 +427,9 @@ CONTAINS
     call eob_setAssFlag(ensObs)
     call eob_clean(ensObs,ensObsClean)
 
-    call rpn_comm_allgather( ensObsClean%numObs, 1, 'mpi_integer',  &
-                             allNumObs, 1, 'mpi_integer', &
-                             'GRID', ierr )
+    call rpn_comm_allgather(ensObsClean%numObs, 1, 'mpi_integer',  &
+                            allNumObs, 1, 'mpi_integer', &
+                            'GRID', ierr)
     numObs_mpiglobal = sum(allNumObs(:))
 
     if (ensObs_mpiglobal%allocated) then
@@ -340,18 +437,15 @@ CONTAINS
     end if
     call eob_allocate(ensObs_mpiglobal, ensObsClean%numMembers, numObs_mpiglobal, ensObsClean%obsSpaceData, &
                       fileMemberIndex1_opt=ensObs%fileMemberIndex1)
-    if ( allocated(ensObsClean%Ya_r4) ) then
+    if (allocated(ensObsClean%Ya_r4)) then
       allocate(ensObs_mpiglobal%Ya_r4(ensObsClean%numMembers,numObs_mpiglobal))
     end if
-    if ( allocated(ensObsClean%obsErrInv_eda) ) then
-      allocate(ensObs_mpiglobal%obsErrInv_eda(numObs_mpiglobal))
-    end if  
-    if ( allocated(ensObsClean%randPert_r4) ) then
+    if (allocated(ensObsClean%randPert_r4)) then
       allocate(ensObs_mpiglobal%randPert_r4(ensObsClean%numMembers,numObs_mpiglobal))
     end if
     ensObs_mpiglobal%typeVertCoord = ensObsClean%typeVertCoord
 
-    if ( mmpi_myid == 0 ) then
+    if (mmpi_myid == 0) then
       displs(1) = 0
       do procIndex = 2, mmpi_nprocs
         displs(procIndex) = displs(procIndex-1) + allNumObs(procIndex-1)
@@ -360,48 +454,48 @@ CONTAINS
       displs(:) = 0
     end if
 
-    call rpn_comm_gatherv( ensObsClean%lat, ensObsClean%numObs, 'mpi_real8', &
-                           ensObs_mpiglobal%lat, allNumObs, displs, 'mpi_real8',  &
-                           0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObsClean%lon, ensObsClean%numObs, 'mpi_real8', &
-                           ensObs_mpiglobal%lon, allNumObs, displs, 'mpi_real8',  &
-                           0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObsClean%vertLocation, ensObsClean%numObs, 'mpi_real8', &
-                           ensObs_mpiglobal%vertLocation, allNumObs, displs, 'mpi_real8',  &
-                           0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObsClean%obsValue, ensObsClean%numObs, 'mpi_real8', &
-                           ensObs_mpiglobal%obsValue, allNumObs, displs, 'mpi_real8',  &
-                           0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObsClean%obsErrInv, ensObsClean%numObs, 'mpi_real8', &
-                           ensObs_mpiglobal%obsErrInv, allNumObs, displs, 'mpi_real8',  &
-                           0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObsClean%meanYb, ensObsClean%numObs, 'mpi_real8', &
-                           ensObs_mpiglobal%meanYb, allNumObs, displs, 'mpi_real8',  &
-                           0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObsClean%deterYb, ensObsClean%numObs, 'mpi_real8', &
-                           ensObs_mpiglobal%deterYb, allNumObs, displs, 'mpi_real8',  &
-                           0, 'GRID', ierr )
-    call rpn_comm_gatherv( ensObsClean%assFlag, ensObsClean%numObs, 'mpi_integer', &
-                           ensObs_mpiglobal%assFlag, allNumObs, displs, 'mpi_integer',  &
-                           0, 'GRID', ierr )
-    if ( allocated(ensObsClean%obsErrInv_eda) ) then
-      call rpn_comm_gatherv( ensObsClean%obsErrInv_eda, ensObsClean%numObs, 'mpi_real8', &
-                             ensObs_mpiglobal%obsErrInv_eda, allNumObs, displs, 'mpi_real8',  &
-                             0, 'GRID', ierr )
+    call rpn_comm_gatherv(ensObsClean%lat, ensObsClean%numObs, 'mpi_real8', &
+                          ensObs_mpiglobal%lat, allNumObs, displs, 'mpi_real8',  &
+                          0, 'GRID', ierr)
+    call rpn_comm_gatherv(ensObsClean%lon, ensObsClean%numObs, 'mpi_real8', &
+                          ensObs_mpiglobal%lon, allNumObs, displs, 'mpi_real8',  &
+                          0, 'GRID', ierr)
+    call rpn_comm_gatherv(ensObsClean%vertLocation, ensObsClean%numObs, 'mpi_real8', &
+                          ensObs_mpiglobal%vertLocation, allNumObs, displs, 'mpi_real8',  &
+                          0, 'GRID', ierr)
+    call rpn_comm_gatherv(ensObsClean%obsValue, ensObsClean%numObs, 'mpi_real8', &
+                          ensObs_mpiglobal%obsValue, allNumObs, displs, 'mpi_real8',  &
+                          0, 'GRID', ierr)
+    call rpn_comm_gatherv(ensObsClean%obsErrInv, ensObsClean%numObs, 'mpi_real8', &
+                          ensObs_mpiglobal%obsErrInv, allNumObs, displs, 'mpi_real8',  &
+                          0, 'GRID', ierr)
+    call rpn_comm_gatherv(ensObsClean%meanYb, ensObsClean%numObs, 'mpi_real8', &
+                          ensObs_mpiglobal%meanYb, allNumObs, displs, 'mpi_real8',  &
+                          0, 'GRID', ierr)
+    call rpn_comm_gatherv(ensObsClean%deterYb, ensObsClean%numObs, 'mpi_real8', &
+                          ensObs_mpiglobal%deterYb, allNumObs, displs, 'mpi_real8',  &
+                          0, 'GRID', ierr)
+    call rpn_comm_gatherv(ensObsClean%assFlag, ensObsClean%numObs, 'mpi_integer', &
+                          ensObs_mpiglobal%assFlag, allNumObs, displs, 'mpi_integer',  &
+                          0, 'GRID', ierr)
+    if (allocated(ensObsClean%obsErrInv_sim)) then
+      call rpn_comm_gatherv(ensObsClean%obsErrInv_sim, ensObsClean%numObs, 'mpi_real8', &
+                            ensObs_mpiglobal%obsErrInv_sim, allNumObs, displs, 'mpi_real8',  &
+                            0, 'GRID', ierr)
     end if
     do memberIndex = 1, ensObsClean%numMembers
-      call rpn_comm_gatherv( ensObsClean%Yb_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
-                             ensObs_mpiglobal%Yb_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                             0, 'GRID', ierr )
-      if ( allocated(ensObsClean%Ya_r4) ) then
-        call rpn_comm_gatherv( ensObsClean%Ya_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
+      call rpn_comm_gatherv(ensObsClean%Yb_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
+                            ensObs_mpiglobal%Yb_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
+                            0, 'GRID', ierr)
+      if (allocated(ensObsClean%Ya_r4)) then
+        call rpn_comm_gatherv(ensObsClean%Ya_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
                               ensObs_mpiglobal%Ya_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                              0, 'GRID', ierr )
+                              0, 'GRID', ierr)
       end if
-      if ( allocated(ensObsClean%randPert_r4) ) then
-        call rpn_comm_gatherv( ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
+      if (allocated(ensObsClean%randPert_r4)) then
+        call rpn_comm_gatherv(ensObsClean%randPert_r4(memberIndex,:), ensObsClean%numObs, 'mpi_real4', &
                               ensObs_mpiglobal%randPert_r4(memberIndex,:), allNumObs, displs, 'mpi_real4',  &
-                              0, 'GRID', ierr )
+                              0, 'GRID', ierr)
       end if
     end do
 
@@ -415,8 +509,8 @@ CONTAINS
                         0, 'GRID', ierr)
     call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                         0, 'GRID', ierr)
-    if ( allocated(ensObs_mpiglobal%obsErrInv_eda) ) then
-      call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv_eda, ensObs_mpiglobal%numObs, 'mpi_real8',  &
+    if (allocated(ensObs_mpiglobal%obsErrInv_sim)) then
+      call rpn_comm_bcast(ensObs_mpiglobal%obsErrInv_sim, ensObs_mpiglobal%numObs, 'mpi_real8',  &
                           0, 'GRID', ierr)
     end if 
     call rpn_comm_bcast(ensObs_mpiglobal%meanYb, ensObs_mpiglobal%numObs, 'mpi_real8',  &
@@ -428,17 +522,17 @@ CONTAINS
     do memberIndex = 1, ensObsClean%numMembers
       call rpn_comm_bcast(ensObs_mpiglobal%Yb_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                           0, 'GRID', ierr)
-      if ( allocated(ensObs_mpiglobal%Ya_r4) ) then
+      if (allocated(ensObs_mpiglobal%Ya_r4)) then
         call rpn_comm_bcast(ensObs_mpiglobal%Ya_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                             0, 'GRID', ierr)
       end if
-      if ( allocated(ensObs_mpiglobal%randPert_r4) ) then
+      if (allocated(ensObs_mpiglobal%randPert_r4)) then
         call rpn_comm_bcast(ensObs_mpiglobal%randPert_r4(memberIndex,:), ensObs_mpiglobal%numObs, 'mpi_real4',  &
                             0, 'GRID', ierr)        
       end if
     end do
 
-    call eob_deallocate( ensObsClean )
+    call eob_deallocate(ensObsClean)
 
     write(*,*) 'eob_allGather: total number of obs to be assimilated =', sum(ensObs_mpiglobal%assFlag(:))
 
@@ -816,40 +910,114 @@ CONTAINS
       end if
     end do
 
+    ! read namelist if necessary and calculate obs error inverse for
+    ! passive and simulated observations
+    call eob_init()
+    if (psvObsAssim) call eob_setPsvObsErrInv(ensObs)
+    if (eob_simObsAssim) call eob_setSimObsErrInv(ensObs)
+
   end subroutine eob_setobsErrInv
 
   !--------------------------------------------------------------------------
-  ! eob_setSimObsErrInv
+  ! eob_setPsvObsErrInv
   !--------------------------------------------------------------------------
-  subroutine eob_setSimObsErrInv(ensObs, edaObsFamily)
+  subroutine eob_setPsvObsErrInv(ensObs)
     !
-    !:Purpose:  Computes the inverse of the observation error variance for observation
-    !           simulation experiments. For the observation family being simulated,
-    !           the observation error is inflated by setting the inverse to 0.
+    !:Purpose:  Updates the inverse of the observation error variance  
+    !           for passive osbervations and stores this in ensObs%obsErrInv.
+    !           This is done assuming that ensObs%obsErrInv was already set.
     !
     implicit none
 
     ! arguments
-    type(struct_eob), intent(inout)  :: ensObs
-    character(len=*), intent(in)     :: edaObsFamily
+    type(struct_eob),  intent(inout) :: ensObs
+    
+    ! locals
+    integer       :: obsIndex, headerIndex
+    integer       :: codtyp, obsfamIndex
+    character(2)  :: obsfamCurrent
+    logical       :: psvFlag
+
+    do obsIndex = 1, ensObs%numObs
+      psvFlag = .false.
+      headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
+      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      ! update obs error inverse to 0 if current observation is passive
+      if (ANY(psvObsFamily == obsfamCurrent)) then
+        obsfamIndex = utl_findloc(psvObsFamily(:), obsfamCurrent)
+        if (numPsvCodTyp(obsfamIndex) > 0) then
+          ! at least 1 codtype is specified for current obs family so
+          ! see if current observation matches any of those codtypes
+          codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
+          if (ANY(psvCodTyp(obsfamIndex,:) == codtyp)) then
+            ensObs%obsErrInv(obsIndex) = 0.0d0
+            psvFlag = .true.
+          end if
+        else
+          ! passive observation family doesn't include any codtype so set
+          ! error inverse to 0 irrespective of current observation codtype
+          ensObs%obsErrInv(obsIndex) = 0.0d0
+          psvFlag = .true.
+        end if
+        ! set OBS_FLG to indicate passive observation
+        if (psvFlag) call obs_bodySet_i(ensObs%obsSpaceData,OBS_FLG,obsIndex, &
+                                        ibset(obs_bodyElem_i(ensObs%obsSpaceData,OBS_FLG,obsIndex),25))
+      end if
+    end do
+
+  end subroutine eob_setPsvObsErrInv
+
+  !--------------------------------------------------------------------------
+  ! eob_setSimObsErrInv
+  !--------------------------------------------------------------------------
+  subroutine eob_setSimObsErrInv(ensObs)
+    !
+    !:Purpose:  Computes the inverse of the observation error variance if
+    !           simulating any observations. Stores this in
+    !           ensObs%obsErrInv_sim.
+    !
+    implicit none
+
+    ! arguments
+    type(struct_eob),  intent(inout) :: ensObs
 
     ! locals
-    integer :: obsIndex, headerIndex
+    integer       :: obsIndex, headerIndex
+    integer       :: codtyp, obsfamIndex
+    character(2)  :: obsfamCurrent
+    logical       :: simFlag
 
-    call obs_extractObsRealBodyColumn(ensObs%obsErrInv_eda, ensObs%obsSpaceData, OBS_OER)
+    write(*,*) 'eob_setSimObsErrInv: starting'
+
+    ! set to copy of regular obs error inverse
+    ensObs%obsErrInv_sim(:) = ensObs%obsErrInv(:)
+
+    ! loop through all observations, and update the obs error inverse
+    ! to a value of 0 for simulated observations
     do obsIndex = 1, ensObs%numObs
+      simFlag = .false.
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
-      if ( obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex) == edaObsFamily ) then
-        ! update obs error inverse for simulated obs
-        ensObs%obsErrInv_eda(obsIndex) = 0.0d0       
-      else
-        ! update obs error inverse for assimilated obs
-        if(ensObs%obsErrInv_eda(obsIndex) > 0.0d0) then
-          ensObs%obsErrInv_eda(obsIndex) = 1.0d0/(ensObs%obsErrInv_eda(obsIndex)**2)
+      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      if (ANY(simObsFamily == obsfamCurrent)) then
+        obsfamIndex = utl_findloc(simObsFamily(:), obsfamCurrent)
+        if (numSimCodTyp(obsfamIndex) > 0) then
+          ! at least 1 codtype is specified for current obs family so
+          ! see if current observation matches any of those codtypes
+          codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
+          if (ANY(simCodTyp(obsfamIndex,:) == codtyp)) then
+            ensObs%obsErrInv_sim(obsIndex) = 0.0d0
+            simFlag = .true.
+          end if
         else
-          ensObs%obsErrInv_eda(obsIndex) = 0.0d0
-        end if        
-      end if      
+          ! simulated observation family doesn't include any codtype so set
+          ! error inverse to 0 irrespective of current observation's codtype
+          ensObs%obsErrInv_sim(obsIndex) = 0.0d0
+          simFlag = .true.
+        end if
+        ! set OBS_FLG to indicate simulated observation
+        if (simFlag) call obs_bodySet_i(ensObs%obsSpaceData,OBS_FLG,obsIndex, &
+                                        ibset(obs_bodyElem_i(ensObs%obsSpaceData,OBS_FLG,obsIndex),24))
+      end if
     end do
 
   end subroutine eob_setSimObsErrInv
@@ -1080,32 +1248,44 @@ CONTAINS
   end subroutine eob_setYa
 
   !--------------------------------------------------------------------------
-  ! eob_setSimulatedObs
+  ! eob_setSimObsVal
   !--------------------------------------------------------------------------
-  subroutine eob_setSimulatedObs(ensObs, edaObsFamily)
+  subroutine eob_setSimObsVal(ensObs)
     !
-    ! :Purpose: Set the observed value for the observation family
-    !           provided to the background ensemble mean in observation space.
+    ! :Purpose: Set the observed value for simulated observations to
+    !           the background ensemble mean in observation space.
     !
     implicit none
 
     ! Arguments:
     type(struct_eob) , intent(inout)  :: ensObs
-    character(len=*), intent(in)     :: edaObsFamily
 
     ! Locals:
-    integer :: obsIndex
-    integer :: headerIndex
+    integer       :: obsIndex, headerIndex
+    integer       :: codtyp, obsfamIndex
+    character(2)  :: obsfamCurrent
 
+    if (.not. eob_simObsAssim) return
     ! Loop through observations and set y to mean(H(x)) if y is in obs family of interest
     do obsIndex = 1, ensObs%numObs
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
-      if ( obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex) == edaObsFamily ) then
-        ensObs%obsvalue(obsIndex) = ensObs%meanYb(ObsIndex)
+      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      if (ANY(simObsFamily == obsfamCurrent)) then
+        obsfamIndex = utl_findloc(simObsFamily(:), obsfamCurrent)
+        if (numSimCodTyp(obsfamIndex) > 0) then
+          ! at least 1 codtype is specified for current obs family so
+          ! see if current observation matches any of those codtypes          
+          codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
+          if (ANY(simCodTyp(obsfamIndex,:) == codtyp)) ensObs%obsvalue(obsIndex) = ensObs%meanYb(obsIndex)
+        else
+          ! simulated observation family doesn't include any codtype
+          ! so set irrespective of current observation's codtype
+          ensObs%obsvalue(obsIndex) = ensObs%meanYb(obsIndex)
+        end if
       end if
     end do
 
-  end subroutine eob_setSimulatedObs
+  end subroutine eob_setSimObsVal
   
   !--------------------------------------------------------------------------
   ! eob_setDeterYb
