@@ -136,9 +136,7 @@ contains
     ! Arguments:
     integer, intent(in) ::  KLIST(:) ! integer array
     integer, intent(in) ::  KENTRY   ! searched element 
-    integer :: ISRCHEQI_out          ! index of the search element in the list
-                                     ! =0, element not found
-                                     ! >0 index of the found element
+    integer :: ISRCHEQI_out          ! index of the search element in the list (=0, element not found; >0 index of the found element)
 
     ! Locals:
     integer :: KLEN, JI
@@ -162,11 +160,16 @@ contains
                                      headerIndex, sensorIndex, obsSpaceData)
     !
     ! :Purpose: Compute  Grody parameters by extracting tb for required channels:
-    !           23 Ghz = AMSU-A 1 = channel #28
-    !           31 Ghz = AMSU-A 2 = channel #29
-    !           50 Ghz = AMSU-A 3 = channel #30
-    !           53 Ghz = AMSU-A 5 = channel #32
-    !           89 Ghz = AMSU-A15 = channel #42
+    !
+    !           - 23 Ghz = AMSU-A 1 = channel #28
+    !
+    !           - 31 Ghz = AMSU-A 2 = channel #29
+    !
+    !           - 50 Ghz = AMSU-A 3 = channel #30
+    !
+    !           - 53 Ghz = AMSU-A 5 = channel #32
+    !
+    !           - 89 Ghz = AMSU-A15 = channel #42
     !
     implicit none
 
@@ -254,9 +257,10 @@ contains
                                         headerIndex, sensorIndex, obsSpaceData)
     !
     ! :Purpose: Extract Parameters required to run bennaertz for required channels:
-    !           extract required channels:        
-    !           89 Ghz = AMSU-B 1 = channel #43
-    !           150 Ghz = AMSU-B 2 = channel #44
+    !
+    !           - 89 Ghz = AMSU-B 1 = channel #43
+    !
+    !           - 150 Ghz = AMSU-B 2 = channel #44
     !
     implicit none
     ! Arguments
@@ -749,11 +753,14 @@ contains
   subroutine amsuABTest7landSeaQualifyerAndModelLandSeaConsistencyCheck(sensorIndex, modelInterpLandFrac, &
                                                                         qcIndicator, headerIndex, obsSpaceData)
     !
-    ! :Purpose: test 7: "Land/sea qual."/"model land/sea" consistency check (full)
+    ! :Purpose: test 7: "Land/sea qual."/"model land/sea" consistency check (full). 
     !           Acceptable conditions are:
+    !
     !           - both over ocean (landQualifierIndice=1; mg<0.01), new threshold 0.20, jh dec 2000,
+    !
     !           - both over land  (landQualifierIndice=0; mg>0.80), new threshold 0.50, jh dec 2000.
-    !           - Other conditions are unacceptable.
+    !
+    !           All other conditions are unacceptable.
     !
 
     implicit none
@@ -807,7 +814,7 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuABTest9UncorrectedTbCheck(sensorIndex, RESETQC, qcIndicator, headerIndex, obsSpaceData)
     !
-    ! :Purpose: test 9: Uncorrected Tb check (single)
+    ! :Purpose: test 9: Uncorrected Tb check (single).
     !           Uncorrected datum (flag bit #6 off). In this case switch bit 11 ON.
     !
 
@@ -862,7 +869,7 @@ contains
   subroutine amsuABTest11RadianceGrossValueCheck(sensorIndex, GROSSMIN, GROSSMAX, qcIndicator, &
                                                  headerIndex, obsSpaceData)
     !
-    ! :Purpose: test 11: Radiance observation "Gross" check (single) 
+    ! :Purpose: test 11: Radiance observation "Gross" check (single). 
     !           Change this test from full to single. jh nov 2000.
     !
 
@@ -925,7 +932,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuaTest12GrodyClwCheck(sensorIndex, ICLWREJ, qcIndicator, headerIndex, obsSpaceData)
     !
-    ! :Purpose: test 12: Grody cloud liquid water check (partial)
+    ! :Purpose: test 12: Grody cloud liquid water check (partial).
+    !
     !           For Cloud Liquid Water > clwQcThreshold, reject AMSUA-A channels 1-5 and 15.
     !
 
@@ -1043,7 +1051,7 @@ contains
   subroutine amsubTest12DrynessIndexCheck(sensorIndex, tb1831, tb1833, modelInterpSeaIce, qcIndicator, &
                                           headerIndex, obsSpaceData, skipTestArr_opt)
     !
-    ! :Purpose: test 12: Dryness index check
+    ! :Purpose: test 12: Dryness index check.
     !           The difference between channels AMSUB-3 and AMSUB-5 is used as an indicator
     !           of "dryness" of the atmosphere. In extreme dry conditions, channels AMSUB-3 4 and 5
     !           are sensitive to the surface.
@@ -1150,7 +1158,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine amsuaTest13GrodyScatteringIndexCheck(sensorIndex, ISCATREJ, qcIndicator, headerIndex, obsSpaceData)
     !
-    ! :Purpose: test 13: Grody scattering index check (partial)
+    ! :Purpose: test 13: Grody scattering index check (partial).
+    !
     !           For Scattering Index > 9, reject AMSUA-A channels 1-6 and 15.
     !
 
@@ -1217,10 +1226,14 @@ contains
                                                      qcIndicator, chanIgnoreInAllskyGenCoeff, &
                                                      headerIndex, obsSpaceData, skipTestArr_opt)
     !
-    ! :Purpose: test 13: Bennartz scattering index check (full)
-    !           For Scattering Index > 40 sea ice:
-    !           > 15 sea
-    !           > 0 land reject all AMSUB Channels
+    ! :Purpose: test 13: Bennartz scattering index check (full).
+    !           For Scattering Index: 
+    !
+    !           - > 40 sea ice, 
+    !
+    !           - > 15 sea,
+    !
+    !           - > 0 land reject all AMSUB Channels
     !
 
     implicit none
@@ -1389,6 +1402,7 @@ contains
     ! :Purpose: test 14: "Rogue check" for (O-P) Tb residuals out of range.
     !           (single/full). Les observations, dont le residu (O-P) 
     !           depasse par un facteur (roguefac) l'erreur totale des TOVS.
+    !
     !           N.B.: a reject by any of the 3 surface channels produces the 
     !           rejection of AMSUA-A channels 1-5 and 15.
     !
@@ -1647,11 +1661,19 @@ contains
   subroutine amsuABTest15ChannelSelectionWithTovutil(sensorIndex, modelInterpSeaIce, ISFCREJ2, qcIndicator, &
                                                      headerIndex, obsSpaceData)
     !
-    ! :Purpose: test 15: Channel Selection using array oer_tovutil(chan,sat)
-    !           oer_tovutil = 0 (blacklisted), 1 (assmilate), 2 (assimilate over open water only)
-    !           We also set QC flag bits 7 and 9 ON for channels with oer_tovutil=2
-    !           over land or sea-ice and we set QC flag bits 7 and 9 ON for channels
-    !           1-3,15 over land or sea-ice REGARDLESS of oer_tovutil value 
+    ! :Purpose: test 15: Channel Selection using array oer_tovutil(chan,sat):
+    !
+    !           - = 0 blacklisted, 
+    !
+    !           - = 1 assmilate, 
+    !
+    !           - = 2 assimilate over open water only
+    !
+    !           We set QC flag bits 7 and 9 ON for channels with oer_tovutil=2
+    !           over land or sea-ice.
+    !
+    !           We set QC flag bits 7 and 9 ON for channels
+    !           1-3, 15 over land or sea-ice REGARDLESS of oer_tovutil value 
     !           (but oer_tovutil=0 always for these unassimilated channels).
     !
 
@@ -1829,42 +1851,58 @@ contains
                                 modelInterpSeaIce, RESETQC, headerIndex, obsSpaceData)
     !
     ! :Purpose: Effectuer le controle de qualite des radiances tovs.
+    !
     !           Quinze tests sont effectues menant aux erreurs suivantes:
+    !
     !           - 1) topography reject,
+    !
     !           - 2) invalid land/sea qualifier,
+    !
     !           - 3) invalid terrain type,
+    !
     !           - 4) invalid field of view number,
+    !
     !           - 5) satellite zenith angle out of range,
+    !
     !           - 6) inconsistent field of view and sat. zenith angle,
+    !
     !           - 7) inconsistent land/sea qualifier and model mask,
+    !
     !           - 8) inconsistent terrain type and model ice, (NOT USED)
+    !
     !           - 9) uncorrected radiance,
+    !
     !           - 10) rejected by RTTOV,
+    !
     !           - 11) radiance gross check failure,
+    !
     !           - 12) cloud liquid water reject,
+    !
     !           - 13) scattering index reject,
+    !
     !           - 14) radiance residual rogue check failure,
+    !
     !           - 15) channel reject (channel selection).
+    !
     !           - **) set terrain type to sea ice given certain conditions
     !
     implicit none
 
     !Arguments:
-    type(struct_obs),  intent(inout) :: obsSpaceData            ! obspaceData Object
-    integer,              intent(in) :: headerIndex             ! current header Index 
-    integer,              intent(in) :: sensorIndex             ! numero de satellite (i.e. indice)
-    real(8),              intent(in) :: modelInterpLandFrac     ! masque terre/mer du modele
-    real(8),              intent(in) :: modelInterpTerrain      ! topographie du modele
-    real(8),              intent(in) :: modelInterpSeaIce       ! etendue de glace du modele
-    logical,              intent(in) :: RESETQC                 ! reset du controle de qualite?
-    integer, allocatable, intent(out):: qcIndicator(:)          ! indicateur controle de qualite tovs par canal 
-                                                                !  =0 ok, >0 rejet
+    type(struct_obs),  intent(inout) :: obsSpaceData        ! obspaceData Object
+    integer,              intent(in) :: headerIndex         ! current header Index 
+    integer,              intent(in) :: sensorIndex         ! numero de satellite (i.e. indice)
+    real(8),              intent(in) :: modelInterpLandFrac ! masque terre/mer du modele
+    real(8),              intent(in) :: modelInterpTerrain  ! topographie du modele
+    real(8),              intent(in) :: modelInterpSeaIce   ! etendue de glace du modele
+    logical,              intent(in) :: RESETQC             ! reset du controle de qualite?
+    integer, allocatable, intent(out):: qcIndicator(:)      ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
     !locals
     integer, parameter :: maxScanAngleAMSU = 30 
     real(8), parameter :: cloudyClwThreshold = 0.3d0
     real(8), parameter :: ZANGL = 117.6/maxScanAngleAMSU
     
-    integer :: KCHKPRF, JI, err, rain, snow, newInformationFlag, actualNumChannel
+    integer :: KCHKPRF, JI, rain, snow, newInformationFlag, actualNumChannel
     integer :: ICLWREJ(6), ISFCREJ(6), ISFCREJ2(4), ISCATREJ(7), channelForTopoFilter(2)
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
     real(8), allocatable :: GROSSMIN(:), GROSSMAX(:), ROGUEFAC(:)
@@ -1932,7 +1970,7 @@ contains
                                   headerIndex, sensorIndex, obsSpaceData)
     
     !  Run Grody AMSU-A algorithms.
-    call grody (err, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
+    call grody (tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
                 ice, tpw, &
                 rain, snow, scatIndexOverLandObs, &
                 headerIndex, obsSpaceData)   
@@ -2056,41 +2094,57 @@ contains
                                 modelInterpSeaIce, RESETQC, headerIndex, obsSpaceData)
     !
     ! :Purpose: Effectuer le controle de qualite des radiances tovs.
+    !
     !           Quinze tests sont effectues menant aux erreurs suivantes:
+    !
     !           - 1) topography reject,
+    !
     !           - 2) invalid land/sea qualifier,
+    !
     !           - 3) invalid terrain type,
+    !
     !           - 4) invalid field of view number,
+    !
     !           - 5) satellite zenith angle out of range,
+    !
     !           - 6) inconsistent field of view and sat. zenith angle,
+    !
     !           - 7) inconsistent land/sea qualifier and model mask,
+    !
     !           - 8) inconsistent terrain type and model ice
+    !
     !           - 9) uncorrected radiance,
+    !
     !           - 10) rejected by RTTOV,
+    !
     !           - 11) radiance gross check failure,
+    !
     !           - 12) drynes index reject
+    !
     !           - 13) scattering index reject,
+    !
     !           - 14) radiance residual rogue check failure,
+    !
     !           - 15) channel reject (channel selection).
+    !
     !           - **) set terrain type to sea ice given certain conditions
     !
     implicit none 
 
     !Arguments:
-    type(struct_obs),   intent(inout) :: obsSpaceData           ! obspaceData Object
-    integer,               intent(in) :: headerIndex            ! current header Index 
-    integer,               intent(in) :: sensorIndex            ! numero de satellite (i.e. indice)
-    real(8),               intent(in) :: modelInterpLandFrac    ! masque terre/mer du modele
-    real(8),               intent(in) :: modelInterpTerrain     ! topographie du modele
-    real(8),               intent(in) :: modelInterpSeaIce      ! etendue de glace du modele
-    logical,               intent(in) :: RESETQC                ! reset du controle de qualite?
-    integer, allocatable, intent(out) :: qcIndicator(:)         ! indicateur controle de qualite tovs par canal 
-                                                                !           =0 ok, >0 rejet,
+    type(struct_obs),   intent(inout) :: obsSpaceData        ! obspaceData Object
+    integer,               intent(in) :: headerIndex         ! current header Index 
+    integer,               intent(in) :: sensorIndex         ! numero de satellite (i.e. indice)
+    real(8),               intent(in) :: modelInterpLandFrac ! masque terre/mer du modele
+    real(8),               intent(in) :: modelInterpTerrain  ! topographie du modele
+    real(8),               intent(in) :: modelInterpSeaIce   ! etendue de glace du modele
+    logical,               intent(in) :: RESETQC             ! reset du controle de qualite?
+    integer, allocatable, intent(out) :: qcIndicator(:)      ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
     !locals
     integer, parameter  :: maxScanAngleAMSU = 90 
     real(8), parameter  :: ZANGL =  117.6d0 / maxScanAngleAMSU
     
-    integer :: KCHKPRF, JI, err, newInformationFlag, actualNumChannel
+    integer :: KCHKPRF, JI, newInformationFlag, actualNumChannel
     integer :: ISFCREJ(2), ICH2OMPREJ(4), ISFCREJ2(1), chanIgnoreInAllskyGenCoeff(5), channelForTopoFilter(3)
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsFlags
     real(8), allocatable :: GROSSMIN(:), GROSSMAX(:), ROGUEFAC(:)
@@ -2160,7 +2214,7 @@ contains
                                      headerIndex, sensorIndex, obsSpaceData)
     
     !  Run Bennartz AMSU-B algorithms.
-    call bennartz (err, tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
+    call bennartz (tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
                    scatIndexOverLandObs, &
                    headerIndex, obsSpaceData)
 
@@ -2295,13 +2349,12 @@ contains
     implicit none 
 
     !Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData               ! obspaceData Object
-    character(*),      intent(in) :: instName                     ! Instrument Name
-    integer,           intent(in) :: qcIndicator(:)               ! indicateur controle de qualite tovs par canal 
-                                                                  !  =0 ok, >0 rejet,
-    integer,           intent(in) :: sensorIndex                  ! numero d'identificateur du satellite
-    character(len=15), intent(in) :: satelliteId(:)               ! identificateur du satellite
-    logical,           intent(in) :: LDprint                      ! mode: imprimer ou cumuler?
+    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
+    character(*),      intent(in) :: instName       ! Instrument Name
+    integer,           intent(in) :: qcIndicator(:) ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
+    integer,           intent(in) :: sensorIndex    ! numero d'identificateur du satellite
+    character(len=15), intent(in) :: satelliteId(:) ! identificateur du satellite
+    logical,           intent(in) :: LDprint        ! mode: imprimer ou cumuler?
     !Locals
     integer :: numSats, JI, JJ, JK, INTOTOBS, INTOTACC, actualNumChannel, channelIndex
     integer, allocatable, save :: INTOT(:)    ! INTOT(tvs_nsensors)
@@ -2470,6 +2523,7 @@ contains
     !
     ! :Purpose: allumer la bit (6) indiquant que l'observation a un element
     !           rejete par le controle de qualite de l'AO.
+    !
     !           N.B.: si on est en mode resetqc, on remet le marqueur global a
     !           sa valeur de defaut, soit 1024,  avant de faire la mise a jour.
     !
@@ -2499,9 +2553,13 @@ contains
   subroutine setTerrainTypeToSeaIce(modelInterpSeaIce, headerIndex, obsSpaceData)
     !
     ! :Purpose: Dans les conditions suivantes:
+    !
     !           1) l'indicateur terre/mer indique l'ocean (landQualifierIndice=1),
+    !
     !           2) le "terrain type" est manquant (terrainTypeIndice=-1),
+    !
     !           3) le modele indique de la glace (gl >= 0.01),
+    !
     !           on specifie "sea ice" pour le "terrain type" (terrainTypeIndice=0).
     !
     implicit none 
@@ -2538,26 +2596,33 @@ contains
   !--------------------------------------------------------------------------
   ! GRODY
   !--------------------------------------------------------------------------
-  subroutine GRODY (ier, tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
+  subroutine GRODY (tb23, tb31, tb50, tb53, tb89, tb23FG, tb31FG, &
                     ice, tpw, &
                     rain, snow, scatIndexOverLandObs, &
                     headerIndex, obsSpaceData)
     !
     ! :Purpose: Compute the following parameters using 5 AMSU-A channels:
-    !           - sea ice, 
-    !           - total precipitable water, 
-    !           - cloud liquid water, 
-    !           - ocean/land rain, 
-    !           - snow cover/glacial ice,
-    !           - scattering index (sur la terre et sur l'eau).
-    !           The four channels used are: 23Ghz, 31Ghz, 50Ghz and 89Ghz.
-    !           REGERENCES N. Grody, NOAA/NESDIS, ....
     !
+    !           - sea ice, 
+    !
+    !           - total precipitable water, 
+    !
+    !           - cloud liquid water, 
+    !
+    !           - ocean/land rain, 
+    !
+    !           - <snow> cover/glacial ice,   
+    !
+    !           - scattering index (sur la terre et sur l'eau).  
+    !
+    !           The four channels used are: 23Ghz, 31Ghz, 50Ghz and 89Ghz.  
+    !
+    !           REGERENCES N. Grody, NOAA/NESDIS, ....  
+    !  
 
     implicit none
 
     ! Arguments:
-    integer, intent(out) :: ier                     ! error return code: 0 ok, 1 input parameter out of range.
     real(8),  intent(in) :: tb23                    ! 23Ghz brightness temperature (K)
     real(8),  intent(in) :: tb31                    ! 31Ghz brightness temperature (K)
     real(8),  intent(in) :: tb50                    ! 50Ghz brightness temperature (K)
@@ -2568,8 +2633,7 @@ contains
     real(8), intent(out) :: ice                     ! sea ice concentration (0-100%)
     real(8), intent(out) :: tpw                     ! total precipitable water (0-70mm)
     integer, intent(out) :: rain                    ! rain identification (0=no rain; 1=rain)
-    integer, intent(out) :: snow                    ! snow cover and glacial ice identification:
-                                                    ! (0=no snow; 1=snow; 2=glacial ice)
+    integer, intent(out) :: snow                    ! snow cover and glacial ice identification: 0=no snow; 1=snow; 2=glacial ice
     real(8), intent(out) :: scatIndexOverLandObs    ! scattering index over land
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
@@ -2583,7 +2647,7 @@ contains
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(8) :: scatIndexOverWaterObs, landQualifierIndice
     real(8) :: obsLat, obsLon, satZenithAngle
-    integer :: codtyp
+    integer :: codtyp, ier
 
     data epsilon / 1.E-30 /
 
@@ -2805,13 +2869,16 @@ contains
   !------------------------------------------------------------------------------------
   ! bennartz
   !------------------------------------------------------------------------------------
-  subroutine bennartz (ier, tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
+  subroutine bennartz (tb89, tb150, tb89FG, tb150FG, tb89FgClear, tb150FgClear, &
                        scatIndexOverLandObs, &
                        headerIndex, obsSpaceData)
     !
     ! :Purpose: Compute the following parameters using 2 AMSU-B channels:
-    !           - scattering index (over land and ocean).*
+    !
+    !           - scattering index (over land and ocean).
+    !
     !           The two channels used are: 89Ghz, 150Ghz.
+    !
     !           REGERENCES: Bennartz, R., A. Thoss, A. Dybbroe and D. B. Michelson, 
     !           1999: Precipitation Analysis from AMSU, Nowcasting SAF, 
     !           Swedish Meteorologicali and Hydrological Institute, 
@@ -2819,8 +2886,7 @@ contains
     !
     implicit none
 
-    ! arguments: 
-    integer, intent(out) :: ier                     ! error return code:
+    ! Arguments:
     real(8),  intent(in) :: tb89                    ! 89Ghz AMSU-B brightness temperature (K)
     real(8),  intent(in) :: tb150                   ! 150Ghz AMSU-B brightness temperature (K)
     real(8),  intent(in) :: tb89FG                  ! 89Ghz AMSU-B brightness temperature from background (K)
@@ -2830,8 +2896,9 @@ contains
     real(8), intent(out) :: scatIndexOverLandObs    ! scattering index over land
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index
+
     ! Locals:
-    integer :: landQualifierIndice
+    integer :: landQualifierIndice, ier
     real(8) :: cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
     real(8) :: scatIndexOverWaterObs, scatIndexOverWaterFG
     real(8) :: satZenithAngle
@@ -3097,10 +3164,11 @@ contains
     !           Also, over WATER remove CH.17-22 if CH.17 |O-P|>5K (partial) 
     !           Les observations, dont le residu (O-P) 
     !           depasse par un facteur (roguefac) l'erreur totale des TOVS.
+    !
     !           N.B.: a reject by any of the 3 amsua surface channels 1-3 produces the 
     !           rejection of ATMS sfc/tropospheric channels 1-6 and 16-17.
-    !           OVER OPEN WATER
-    !           ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
+    !
+    !           OVER OPEN WATER ch. 17 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 17-22.
     !
     implicit none
 
@@ -3268,8 +3336,8 @@ contains
     !           Also, over WATER remove CH.10-15 if CH.10 |O-P|>5K (full)
     !           Les observations, dont le residu (O-P)
     !           depasse par un facteur (roguefac) l'erreur totale des TOVS.
-    !           OVER OPEN WATER
-    !           ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
+    !
+    !           OVER OPEN WATER ch. 10 Abs(O-P) > 5K produces rejection of all ATMS amsub channels 10-15.
     !
     implicit none
 
@@ -3399,8 +3467,11 @@ contains
   subroutine atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, sensorIndex, qcIndicator, &
                                                         headerIndex, obsSpaceData)
     !
-    ! :Purpose: test 5: Channel selection using array oer_tovutil(chan,sat)
-    !           oer_tovutil = 0 (blacklisted), 1 (assmilate)
+    ! :Purpose: test 5: Channel selection using array oer_tovutil(chan,sat):
+    !                                                        
+    !           - = 0 blacklisted, 
+    !
+    !           - = 1 assmilate
     !
     implicit none
 
@@ -3455,13 +3526,12 @@ contains
 
     implicit none
     !Arguments
-    type(struct_obs), intent(inout) :: obsSpaceData         ! obspaceData Object
-    integer,          intent(in) :: headerIndex             ! current header Index 
-    integer,          intent(in) :: sensorIndex             ! numero de satellite (i.e. indice)
-    real(8),          intent(in) :: modelInterpTerrain      ! topographie du modele
-    logical,          intent(in) :: RESETQC                 ! reset du controle de qualite?
-    integer, allocatable, intent(out) :: qcIndicator(:)     ! indicateur controle de qualite tovs par canal 
-                                                            !  =0 ok, >0 rejet
+    type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
+    integer,          intent(in) :: headerIndex         ! current header Index 
+    integer,          intent(in) :: sensorIndex         ! numero de satellite (i.e. indice)
+    real(8),          intent(in) :: modelInterpTerrain  ! topographie du modele
+    logical,          intent(in) :: RESETQC             ! reset du controle de qualite?
+    integer, allocatable, intent(out) :: qcIndicator(:) ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
     !locals
     integer, parameter :: maxScanAngleAMSU = 96
     integer, parameter :: ilsmOpt = 1    ! OPTION for values of MG (land/sea mask) and LG (ice) 
@@ -3727,17 +3797,14 @@ contains
 
     implicit none
     !Arguments
-    type(struct_obs), intent(inout) :: obsSpaceData         ! obspaceData Object
-    integer,          intent(in) :: headerIndex             ! current header Index 
-    integer,          intent(in) :: sensorIndex             ! numero de satellite (i.e. indice)
-    real(8),          intent(in) :: modelInterpTerrain      ! topographie du modele
-                                                            !  as being over land/ice, cloudy, bad IWV
-    logical,          intent(in) :: RESETQC                 ! reset du controle de qualite?
-    logical,          intent(in) :: modLSQ                  ! If active, recalculate values for land/sea
-                                                            !  qualifier and terrain type based on LG/MG
-    logical,          intent(in) :: lastHeader              ! active if last header
-    integer,allocatable, intent(out) :: qcIndicator(:)      ! indicateur controle de qualite tovs par canal
-                                                            !  =0 ok, >0 rejet,
+    type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
+    integer,          intent(in) :: headerIndex         ! current header Index 
+    integer,          intent(in) :: sensorIndex         ! numero de satellite (i.e. indice)
+    real(8),          intent(in) :: modelInterpTerrain  ! topographie du modele as being over land/ice, cloudy, bad IWV
+    logical,          intent(in) :: RESETQC             ! reset du controle de qualite?
+    logical,          intent(in) :: modLSQ              ! If active, recalculate values for land/sea  qualifier and terrain type based on LG/MG
+    logical,          intent(in) :: lastHeader          ! active if last header
+    integer,allocatable, intent(out) :: qcIndicator(:)  ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
     !locals
     integer, parameter :: maxScanAngleAMSU = 98
     integer, parameter :: ilsmOpt = 2   ! OPTION for values of MG (land/sea mask) and LG (ice) 
@@ -3997,10 +4064,15 @@ contains
     !
     ! :Purpose: Reads Modele Geophysical variables and save for the first time
     !           TOPOGRAPHIE (MF ou MX):
-    !           MF est la topographie filtree avec unites en metres (filtered ME).
-    !           MX est la topographie filtree avec unites en m2/s2  (geopotential topography).
-    !           Glace de Mer (GL)
-    !           Masque Terre-Mer (MG)
+    !
+    !           - MF est la topographie filtree avec unites en metres (filtered ME).
+    !
+    !           - MX est la topographie filtree avec unites en m2/s2  (geopotential topography).
+    !
+    !           - Glace de Mer (GL)
+    !
+    !           - Masque Terre-Mer (MG)
+    !
     !           Then Interpolate Those variables to observation location
     !
     implicit none
@@ -4287,10 +4359,7 @@ contains
     implicit none
 
     ! Arguments:
-    integer,             intent(in) :: ilsmOpt                ! option for "interpolated" value of MG, LG at each location
-                                                              !   1 = use MAX value taken from all mesh grid points
-                                                              !   2 = use CENTRAL mesh point value (value at obs location)
-                                                              !   3 = use AVG value of all mesh grid points    
+    integer,             intent(in) :: ilsmOpt                ! option for "interpolated" value of MG, LG at each location, 1 = use MAX value taken from all mesh grid points, 2 = use CENTRAL mesh point value (value at obs location), 3 = use AVG value of all mesh grid points
     integer,            intent(out) :: calcLandQualifierIndice! land/sea qualifier (0 = land, 1 = sea)
     integer,            intent(out) :: calcTerrainTypeIndice  ! terrain-type (-1 land/open water, 0 = ice)
     logical,            intent(out) :: waterobs               ! if obs over open water, far from coast/ice
@@ -4620,20 +4689,32 @@ contains
   subroutine mwbg_firstQcCheckAtms(qcRejectLogic, grossrej, calcLandQualifierIndice, calcTerrainTypeIndice, &
                                    reportHasMissingTb, headerIndex, sensorIndex, obsSpaceData)
     !
-    !  :Purpose: This routine performs basic quality control checks on the data. It sets array
-    !            qcRejectLogic(actualNumChannel) elements to .true. to flag data with failed checks.
-    !            The 6 QC checks are:
-    !            - 1) Invalid land/sea qualifier or terrain type,
-    !            - 2) Invalid field of view number,
-    !            - 3) Satellite zenith angle missing or out of range, (> 75 deg),
-    !            - 4) lat,lon check (lat,lon = O(-90.), 0(-180.))
-    !            - 5) Change in (computed) calcLandQualifierIndice,calcTerrainTypeIndice from (input) 
-    !            landQualifierIndice,terrainTypeIndice (from MG,LG fields).
-    !            landQualifierIndice= 0,1 (from hi-res land/sea mask interpolated to obs point [CMDA])
-    !            terrainTypeIndice=-1,0 (from hi-res ice analysis  interpolated to obs point [CMDA])
-    !            calcLandQualifierIndice= 0,1 (from max interp MG (0.0 to 1.0) in box surrounding obs point)
-    !            calcTerrainTypeIndice=-1,0 (from max interp LG (0.0 to 1.0) in box surrounding obs point)
-    !            - 6) ATMS quality flag check (qual. flag elements 33078,33079,33080,33081)
+    ! :Purpose: This routine performs basic quality control checks on the data. It sets array
+    !           qcRejectLogic(actualNumChannel) elements to .true. to flag data with failed checks.
+    !
+    !           The 6 QC checks are:
+    !
+    !           - 1) Invalid land/sea qualifier or terrain type,
+    !
+    !           - 2) Invalid field of view number,
+    !
+    !           - 3) Satellite zenith angle missing or out of range, (> 75 deg),
+    !
+    !           - 4) lat,lon check (lat,lon = O(-90.), 0(-180.))
+    !
+    !           - 5) Change in (computed) calcLandQualifierIndice,calcTerrainTypeIndice from (input) 
+    !
+    !           - 6) ATMS quality flag check (qual. flag elements 33078,33079,33080,33081)
+    !
+    !           landQualifierIndice,terrainTypeIndice (from MG,LG fields).
+    !
+    !           landQualifierIndice= 0,1 (from hi-res land/sea mask interpolated to obs point [CMDA])
+    !
+    !           terrainTypeIndice=-1,0 (from hi-res ice analysis  interpolated to obs point [CMDA])
+    !
+    !           calcLandQualifierIndice= 0,1 (from max interp MG (0.0 to 1.0) in box surrounding obs point)
+    !
+    !           calcTerrainTypeIndice=-1,0 (from max interp LG (0.0 to 1.0) in box surrounding obs point)
     !
     !           In most cases, qcRejectLogic(actualNumChannel) is set to .true. for all channels at point ii
     !           if the check detects a problem. In addition, Tb (obsTb) is set to missing_value
@@ -4644,9 +4725,9 @@ contains
     ! Arguments
     integer,    intent(in) :: calcLandQualifierIndice     ! land/sea qualifier (0 = land, 1 = sea)
     integer,    intent(in) :: calcTerrainTypeIndice       ! terrain-type (-1 land/open water, 0 = ice)
-    logical,    intent(in) :: grossrej                    ! true if 1 or more Tb fail gross error check
-    logical,   intent(out) :: reportHasMissingTb          ! true if Tb(obsTb) are set to missing_value
-    logical, allocatable, intent(out) :: qcRejectLogic(:) ! dim(actualNumChannel) qcRejectLogic = .false. on input
+    logical,    intent(in) :: grossrej                    ! .true. if 1 or more Tb fail gross error check
+    logical,   intent(out) :: reportHasMissingTb          ! .true. if Tb(obsTb) are set to missing_value
+    logical, allocatable, intent(out) :: qcRejectLogic(:) ! qcRejectLogic = .false. on input
     type(struct_obs), intent(inout) :: obsSpaceData       ! obspaceData Object
     integer,             intent(in) :: headerIndex        ! current header Index 
     integer,             intent(in) :: sensorIndex        ! numero de satellite (i.e. indice)
@@ -4880,15 +4961,25 @@ contains
     !           as the original values will be replaced in output file by calcLandQualifierIndice,calcTerrainTypeIndice.
     !
     !           The 5 QC checks are:
+    !
     !           - 1) Invalid land/sea qualifier or terrain type,
+    !
     !           - 2) Invalid field of view number,
+    !
     !           - 3) Satellite zenith angle missing or out of range, (> 75 deg),
+    !
     !           - 4) lat,lon check (lat,lon = O(-90.), 0(-180.))
+    !
     !           - 5) Change in (computed) calcLandQualifierIndice,calcTerrainTypeIndice 
+    !
     !           from (input) landQualifierIndice,terrainTypeIndice (from MG,LG fields).
+    !
     !           landQualifierIndice= 0,1 (from hi-res land/sea mask interpolated to obs point [CMDA])
+    !
     !           terrainTypeIndice=-1,0 (from hi-res ice analysis  interpolated to obs point [CMDA])
+    !
     !           calcLandQualifierIndice= 0,1 (from max interp MG (0.0 to 1.0) in box surrounding obs point)
+    !
     !           calcTerrainTypeIndice=-1,0 (from max interp LG (0.0 to 1.0) in box surrounding obs point)
     !
     !           In most cases, qcRejectLogic(ii,actualNumChannel) is set to .true. for all channels at point ii
@@ -4901,10 +4992,8 @@ contains
     integer,               intent(in) :: calcLandQualifierIndice! land/sea qualifier (0 = land, 1 = sea)
     integer,               intent(in) :: calcTerrainTypeIndice  ! terrain-type (-1 land/open water, 0 = ice)
     logical,              intent(out) :: reportHasMissingTb     ! true if Tb(obsTb) are set to missing_value
-    logical,               intent(in) :: modLSQ                 ! If active, recalculate values for land/sea
-                                                                !   qualifier and terrain type based on LG/MG
-    logical, allocatable, intent(inout) :: qcRejectLogic(:)     ! dim(actualNumChannel)
-                                                                !   qcRejectLogic = .false. on input
+    logical,               intent(in) :: modLSQ                 ! If active, recalculate values for land/sea qualifier and terrain type based on LG/MG
+    logical, allocatable, intent(inout) :: qcRejectLogic(:)     ! qcRejectLogic = .false. on input
     type(struct_obs), intent(inout) :: obsSpaceData             ! obspaceData Object
     integer,             intent(in) :: headerIndex              ! current header Index 
     integer,             intent(in) :: sensorIndex              ! numero de satellite (i.e. indice)
@@ -5098,18 +5187,27 @@ contains
                                 headerIndex, sensorIndex, obsSpaceData)
     !
     ! :Purpose: Compute the following parameters using 5 ATMS channels:
+    !
     !           - sea ice,
+    !
     !           - cloud liquid water from observation (cloudLiquidWaterPathObs),
+    !
     !           - cloud liquid water from first guess (cloudLiquidWaterPathFG),
+    !
     !           - 2 scattering indices (si) (ECMWF, Bennartz-Grody)
+    !
     !           The five channels used are: 23Ghz, 31Ghz, 50Ghz, 89Ghz, and 165Ghz.
     !
     !           NOTES:
+    !
     !           - open water points are converted to sea-ice points if sea ice concentration >= 0.55
-    !           and calcTerrainTypeIndice (terrainTypeIndice or terrain type) is changed accordingly
-    !           - cloudLiquidWaterPathObs are missing when out-of-range parameters/Tb detected or grossrej = .true.
-    !           - cloudLiquidWaterPathObs and si only computed over open water away from coasts and sea-ice
-    !           - cloudLiquidWaterPathObs and si = mwbg_realMissing where value cannot be computed.
+    !           and <calcTerrainTypeIndice> (terrainTypeIndice or terrain type) is changed accordingly
+    !
+    !           - <cloudLiquidWaterPathObs> are missing when out-of-range parameters/Tb detected or grossrej = .true.
+    !
+    !           - <cloudLiquidWaterPathObs> and si only computed over open water away from coasts and sea-ice
+    !
+    !           - <cloudLiquidWaterPathObs> and si = mwbg_realMissing where value cannot be computed.
     !
     !           REFERENCES: Ben Ruston, NRL Monterey
     !           JCSDA Seminar 12/12/12: Impact of NPP Satellite Assimilation in the U.S. Navy Global Modeling System
@@ -5120,13 +5218,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer,   intent(out) :: iNumSeaIce              ! running counter for number of open water points
-                                                      !  with sea-ice detected (from algorithm)
+    integer,   intent(out) :: iNumSeaIce              ! running counter for number of open water points with sea-ice detected (from algorithm)
     integer,    intent(in) :: calcLandQualifierIndice ! land/sea indicator (0=land, 1=ocean)
     integer, intent(inout) :: calcTerrainTypeIndice   ! terrain type (0=ice, -1 otherwise)
-    integer,   intent(out) :: iRej                    ! running counter for number of locations with bad
-                                                      !  satZenithAngle, obsLat, calcLandQualifierIndice, 
-                                                      !  or with grossrej=true
+    integer,   intent(out) :: iRej                    ! running counter for number of locations with bad satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
     logical,    intent(in) :: grossrej                ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical, intent(inout) :: waterobs                ! .true. if open water point (away from coasts and sea-ice)
     real(8),   intent(out) :: si_ecmwf                ! ECMWF scattering index from tb89 & tb165
@@ -5333,19 +5428,29 @@ contains
                                  headerIndex, sensorIndex, obsSpaceData)
     !
     ! :Purpose: Compute the following parameters using 2 MWHS2 channels:
+    !
     !           - sea ice,
+    !
     !           - cloud liquid water from observation (cloudLiquidWaterPathObs),
+    !
     !           - cloud liquid water from first guess (cloudLiquidWaterPathFG),
+    !
     !           - 2 scattering indices (si) (ECMWF, Bennartz-Grody)
+    !
     !           The two channels used are: 89Ghz, and 165Ghz.
     !
     !           NOTES:
+    !
     !           - open water points are converted to sea-ice points if sea ice concentration >= 0.55
     !           and calcTerrainTypeIndice (terrainTypeIndice or terrain type) is changed accordingly
-    !           - cloudLiquidWaterPathObs are missing when out-of-range parameters/Tb detected or grossrej = .true.
-    !           - cloudLiquidWaterPathObs and si_ecmwf only computed over open water away from coasts and sea-ice
-    !           - si_bg is computed for all points
-    !           - cloudLiquidWaterPathObs and si = mwbg_realMissing where value cannot be computed.
+    !
+    !           - <cloudLiquidWaterPathObs> are missing when out-of-range parameters/Tb detected or grossrej = .true.
+    !
+    !           - <cloudLiquidWaterPathObs> and <si_ecmwf> only computed over open water away from coasts and sea-ice
+    !
+    !           - <si_bg> is computed for all points
+    !
+    !           - <cloudLiquidWaterPathObs> and si = mwbg_realMissing where value cannot be computed.
     !
     !           REFERENCES: Ben Ruston, NRL Monterey
     !           JCSDA Seminar 12/12/12: Impact of NPP Satellite Assimilation in the U.S. Navy Global Modeling System
@@ -5356,13 +5461,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer,   intent(out) ::  iNumSeaIce              ! running counter for number of open water points
-                                                       !   with sea-ice detected (from algorithm)
+    integer,   intent(out) ::  iNumSeaIce              ! running counter for number of open water points with sea-ice detected (from algorithm)
     integer,    intent(in) ::  calcLandQualifierIndice ! land/sea indicator (0=land, 1=ocean)
     integer, intent(inout) ::  calcTerrainTypeIndice   ! terrain type (0=ice, -1 otherwise)
-    integer,   intent(out) ::  iRej                    ! running counter for number of locations with bad
-                                                       !   satZenithAngle, obsLat, calcLandQualifierIndice, 
-                                                       !   or with grossrej=true
+    integer,   intent(out) ::  iRej                    ! running counter for number of locations with bad satZenithAngle, obsLat, calcLandQualifierIndice, or with grossrej=true
     logical,    intent(in) ::  grossrej                ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical, intent(inout) ::  waterobs                ! .true. if open water point (away from coasts and sea-ice)
     real(8),   intent(out) ::  si_ecmwf                ! ECMWF scattering index from tb89 & tb165
@@ -5564,19 +5666,32 @@ contains
                                            headerIndex, sensorIndex, obsSpaceData)
     ! 
     ! :Purpose: Set the  Information flag (newInformationFlag) values (new BURP element 025174 in header)
-    !           BIT    Meaning
+    !
+    !           BIT     Meaning
+    !
     !           - 0     off=land or sea-ice, on=open water away from coast
+    !
     !           - 1     Mean 183 Ghz [ch. 18-22] is missing
+    !
     !           - 2     CLW is missing (over water)
+    !
     !           - 3     CLW > clw_atms_nrl_LTrej (0.175 kg/m2) (cloudobs)
+    !
     !           - 4     scatec/scatbg > Lower Troposphere limit 9/10 (precipobs)
+    !
     !           - 5     Mean 183 Ghz [ch. 18-22] Tb < 240K
+    !
     !           - 6     CLW > clw_atms_nrl_UTrej (0.200 kg/m2)
+    !
     !           - 7     Dryness Index rejection (for ch. 22)
+    !
     !           - 8     scatec/scatbg > Upper Troposphere limit 18/15
+    !
     !           - 9     Dryness Index rejection (for ch. 21)
-    !           - 10     Sea ice > 0.55 detected
-    !           - 11     Gross error in Tb (any chan.)  (all channels rejected)
+    !
+    !           - 10    Sea ice > 0.55 detected
+    !
+    !           - 11    Gross error in Tb (any chan.) (all channels rejected)
     !
     implicit none
 
@@ -5589,8 +5704,7 @@ contains
     logical,    intent(in) :: waterobs              ! if obs over open-water
     integer, intent(inout) :: cldcnt                ! Number of water point covered by cloud
     logical,   intent(out) :: cloudobs              ! .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
-    logical,   intent(out) :: iwvreject             ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry
-                                                    !   for ch.20-22 over land)
+    logical,   intent(out) :: iwvreject             ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
     logical,   intent(out) :: precipobs             ! .true. if precip. detected through NRL scattering indices
     real(8),   intent(out) :: zdi                   ! simple AMSU-B Dryness Index Tb(ch.3)-Tb(ch.5)
     real(8),   intent(out) :: riwv                  ! Mean 183 Ghz [ch. 18-22] Tb
@@ -5708,17 +5822,27 @@ contains
                                             iwvreject, cloudobs, precipobs,  cldcnt, riwv, zdi, &
                                             headerIndex, sensorIndex, obsSpaceData)
     !
-    !:Purpose: Set the  Information flag (newInformationFlag) values (new BURP element 025174 in header)
-    !          BIT    Meaning
+    ! :Purpose: Set the  Information flag (newInformationFlag) values (new BURP element 025174 in header)
+    !
+    !          - BIT   Meaning
+    !
     !          - 0     off=land or sea-ice, on=open water away from coast
+    !
     !          - 1     Mean 183 Ghz [ch. 18-22] is missing
+    !
     !          - 2     CLW is missing (over water)
+    !
     !          - 3     CLW > clw_mwhs2_nrl_LTrej (0.175 kg/m2) (cloudobs)
+    !
     !          - 4     scatec > Lower Troposphere limit 9/10 (precipobs)
+    !
     !          - 5     Mean 183 Ghz [ch. 18-22] Tb < 240K
+    !
     !          - 6     CLW > clw_mwhs2_nrl_UTrej (0.200 kg/m2)
-    !          - 10     Sea ice > 0.55 detected
-    !          - 11     Gross error in Tb (any chan.)  (all channels rejected)
+    !
+    !          - 10    Sea ice > 0.55 detected
+    !
+    !          - 11    Gross error in Tb (any chan.)  (all channels rejected)
     !
     implicit none
 
@@ -5730,8 +5854,7 @@ contains
     logical,             intent(in) :: waterobs             ! if obs over open-water
     integer,          intent(inout) :: cldcnt               ! Number of water point covered by cloud
     logical,            intent(out) :: cloudobs             ! .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
-    logical,            intent(out) :: iwvreject            ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry
-                                                            !   for ch.20-22 over land)
+    logical,            intent(out) :: iwvreject            ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
     logical,            intent(out) :: precipobs            ! .true. if precip. detected through NRL scattering indices
     real(8),            intent(out) :: zdi                  ! simple AMSU-B Dryness Index Tb(ch.3)-Tb(ch.5)
     real(8),            intent(out) :: riwv                 ! Mean 183 Ghz [ch. 18-22] Tb
@@ -5851,11 +5974,16 @@ contains
     !
     ! :Purpose: Review all the checks previously made to determine which obs are to be accepted
     !           for assimilation and which are to be flagged for exclusion (lflagchn).
-    !           - grossrej()  = .true. if any channel had a gross error at the point
-    !           - cloudobs()  = .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
-    !           - precipobs() = .true. if precip. detected through NRL scattering indices
-    !           - waterobs()  = .true. if open water point
-    !           - iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
+    !
+    !           - <grossrej>  = .true. if any channel had a gross error at the point
+    !
+    !           - <cloudobs>  = .true. if CLW > clw_atms_nrl_LTrej (0.175) or precipobs
+    !
+    !           - <precipobs> = .true. if precip. detected through NRL scattering indices
+    !
+    !           - <waterobs>  = .true. if open water point
+    !
+    !           - <iwvreject> = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
     !
     implicit none
 
@@ -5865,8 +5993,7 @@ contains
     real(8),    intent(in) :: scatec                        ! ECMWF scattering index from tb89 & tb165
     logical,    intent(in) :: grossrej                      ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,    intent(in) :: waterobs                      ! if obs over open-water
-    logical,    intent(in) :: iwvreject                     ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry
-                                                            !   for ch.20-22 over land)
+    logical,    intent(in) :: iwvreject                     ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
     logical,    intent(in) :: precipobs                     ! .true. if precip. detected through NRL scattering indices
     real(8),    intent(in) :: zdi                           ! simple AMSU-B Dryness Index Tb(ch.3)-Tb(ch.5)
     real(8),    intent(in) :: riwv                          ! Mean 183 Ghz [ch. 18-22] Tb
@@ -6065,11 +6192,16 @@ contains
     !
     ! :Purpose: Review all the checks previously made to determine which obs are to be accepted
     !           for assimilation and which are to be flagged for exclusion (lflagchn).
-    !           - grossrej()  = .true. if any channel had a gross error at the point
-    !           - cloudobs()  = .true. if CLW > clw_mwhs2_nrl_LTrej (0.175) or precipobs
-    !           - precipobs() = .true. if precip. detected through NRL scattering indices
-    !           - waterobs()  = .true. if open water point
-    !           - iwvreject() = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
+    !
+    !           - <grossrej>  = .true. if any channel had a gross error at the point
+    !
+    !           - <cloudobs>  = .true. if CLW > clw_mwhs2_nrl_LTrej (0.175) or precipobs
+    !
+    !           - <precipobs> = .true. if precip. detected through NRL scattering indices
+    !
+    !           - <waterobs>  = .true. if open water point
+    !
+    !           - <iwvreject> = .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
     !
     implicit none
 
@@ -6079,8 +6211,7 @@ contains
     real(8),    intent(in) :: scatbg                        ! Bennartz-Grody scattering index from tb89 & tb165
     logical,    intent(in) :: grossrej                      ! .true. if any channel had a gross error from mwbg_grossValueCheck
     logical,    intent(in) :: waterobs                      ! if obs over open-water
-    logical,    intent(in) :: iwvreject                     ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry
-                                                            !   for ch.20-22 over land)
+    logical,    intent(in) :: iwvreject                     ! .true. if Mean 183 Ghz [ch. 18-22] Tb < 240K (too dry for ch.20-22 over land)
     logical,    intent(in) :: precipobs                     ! .true. if precip. detected through NRL scattering indices
     real(8),    intent(in) :: zdi                           ! simple AMSU-B Dryness Index Tb(ch.3)-Tb(ch.5)
     real(8),    intent(in) :: riwv                          ! Mean 183 Ghz [ch. 18-22] Tb
