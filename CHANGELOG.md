@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * Add `:Purpose:` and description for arguments to all subroutines in `bgckmicrowave_mod` (#779 and !735)
  * Remove subroutines that copy from/to `obsSpaceData` in `bgckmicrowave_mod` (#779 and !730)
    * Minor impact on results. Change in 2nd decimal of CLW/SI values of some obs due to `r4` -> `r8` switch.
  * Updated threshold value of albedo used in quality-control of hyperspectral radiances (#735 and !728)
