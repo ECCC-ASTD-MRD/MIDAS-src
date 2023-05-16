@@ -125,34 +125,6 @@ contains
   end subroutine mwbg_init 
 
   !--------------------------------------------------------------------------
-  ! ISRCHEQI function
-  !--------------------------------------------------------------------------
-  function ISRCHEQI(KLIST, KENTRY) result(ISRCHEQI_out)
-    !
-    ! :Purpose: Search integer value in an array and retunr the index.
-    !
-    implicit none
-    
-    ! Arguments:
-    integer, intent(in) ::  KLIST(:) ! integer array
-    integer, intent(in) ::  KENTRY   ! searched element 
-    integer :: ISRCHEQI_out          ! index of the search element in the list (=0, element not found; >0 index of the found element)
-
-    ! Locals:
-    integer :: KLEN, JI
-
-    ISRCHEQI_out = 0
-    klen = size(KLIST)
-    do JI = 1, KLEN
-       if ( KLIST(JI) == KENTRY ) then
-          ISRCHEQI_out = JI
-          return
-       end if
-    end do
-
-  end function ISRCHEQI
-
-  !--------------------------------------------------------------------------
   ! extractParamForGrodyRun
   !--------------------------------------------------------------------------  
   subroutine extractParamForGrodyRun(tb23,   tb31,   tb50,   tb53,   tb89, &
@@ -980,7 +952,7 @@ contains
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-          INDXCAN = ISRCHEQI(ICLWREJ,obsChanNumWithOffset)
+          INDXCAN = utl_findloc(ICLWREJ(:),obsChanNumWithOffset)
           if ( INDXCAN /= 0 )  then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
             obsFlags = OR(obsFlags,2**9)
@@ -1006,7 +978,7 @@ contains
           obsChanNumWithOffset = nint(obs_bodyElem_r(obsSpaceData, OBS_PPP, bodyIndex))
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
-          INDXCAN = ISRCHEQI(ICLWREJ,obsChanNumWithOffset)
+          INDXCAN = utl_findloc(ICLWREJ(:),obsChanNumWithOffset)
 
           if ( INDXCAN /= 0 ) then
             obsFlags = OR(obsFlags,2**23)
@@ -1029,7 +1001,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
         
-        INDXCAN = ISRCHEQI(ICLWREJ,obsChanNumWithOffset)
+        INDXCAN = utl_findloc(ICLWREJ(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 .and. oer_useStateDepSigmaObs(obsChanNumWithOffset,sensorIndex) ) then
           qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
           obsFlags = OR(obsFlags,2**9)
@@ -1198,7 +1170,7 @@ contains
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-          INDXCAN = ISRCHEQI(ISCATREJ,obsChanNumWithOffset)
+          INDXCAN = utl_findloc(ISCATREJ(:),obsChanNumWithOffset)
           if ( INDXCAN /= 0 )  then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
             obsFlags = OR(obsFlags,2**9)
@@ -1346,7 +1318,7 @@ contains
           obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
           obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-          chanIndex = ISRCHEQI(chanIgnoreInAllskyGenCoeff(:),obsChanNumWithOffset)
+          chanIndex = utl_findloc(chanIgnoreInAllskyGenCoeff(:),obsChanNumWithOffset)
           if (chanIndex == 0) cycle BODY2
           obsFlags = OR(obsFlags,2**23)
 
@@ -1494,7 +1466,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-        INDXCAN = ISRCHEQI(ISFCREJ,obsChanNumWithOffset)
+        INDXCAN = utl_findloc(ISFCREJ(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 )  then
           if ( qcIndicator(obsChanNum) /= testIndex ) then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
@@ -1638,7 +1610,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-        INDXCAN = ISRCHEQI(ICH2OMPREJ,obsChanNumWithOffset)
+        INDXCAN = utl_findloc(ICH2OMPREJ(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 )  then
           if ( qcIndicator(obsChanNum) /= testIndex ) then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
@@ -1714,7 +1686,7 @@ contains
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-      INDXCAN = ISRCHEQI (ISFCREJ2,obsChanNumWithOffset)
+      INDXCAN = utl_findloc(ISFCREJ2(:),obsChanNumWithOffset)
       if ( INDXCAN /= 0 )  then
         if (landQualifierIndice  == 0 .or. ITRN == 0)  then
           obsFlags = OR(obsFlags,2**9)
@@ -1823,7 +1795,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)      
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-        INDXCAN = ISRCHEQI(lowPeakingChannelsList,obsChanNumWithOffset)
+        INDXCAN = utl_findloc(lowPeakingChannelsList(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 )  then
           qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
           obsFlags = OR(obsFlags,2**9)
@@ -3066,7 +3038,7 @@ contains
       obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
       obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
           
-      INDXTOPO = ISRCHEQI(ICHTOPO,obsChanNumWithOffset)
+      INDXTOPO = utl_findloc(ICHTOPO(:),obsChanNumWithOffset)
       if ( INDXTOPO > 0 ) then
         if (modelInterpTerrain >= ZCRIT(INDXTOPO)) then
           qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
@@ -3275,7 +3247,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-        INDXCAN = ISRCHEQI(ISFCREJ,obsChanNumWithOffset)
+        INDXCAN = utl_findloc(ISFCREJ(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 ) then
           if ( qcIndicator(obsChanNum) /= testIndex ) then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
@@ -3304,7 +3276,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-        INDXCAN = ISRCHEQI(ICH2OMPREJ,obsChanNumWithOffset)
+        INDXCAN = utl_findloc(ICH2OMPREJ(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 )  then
           if ( qcIndicator(obsChanNum) /= testIndex ) then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
@@ -3440,7 +3412,7 @@ contains
         obsChanNum = obsChanNumWithOffset - tvs_channelOffset(sensorIndex)
         obsFlags = obs_bodyElem_i(obsSpaceData, OBS_FLG, bodyIndex)
 
-        INDXCAN = ISRCHEQI(ICH2OMPREJ,obsChanNumWithOffset)
+        INDXCAN = utl_findloc(ICH2OMPREJ(:),obsChanNumWithOffset)
         if ( INDXCAN /= 0 )  then
           if ( qcIndicator(obsChanNum) /= testIndex ) then
             qcIndicator(obsChanNum) = MAX(qcIndicator(obsChanNum),testIndex)
@@ -6140,7 +6112,7 @@ contains
 
       if (lflagchn(obsChanNum)) obsFlags = IBSET(obsFlags,7)
 
-      INDXCAN = ISRCHEQI(chanIgnoreInAllskyGenCoeff,obsChanNumWithOffset)
+      INDXCAN = utl_findloc(chanIgnoreInAllskyGenCoeff(:),obsChanNumWithOffset)
       if (tvs_mwAllskyAssim .and. waterobs .and. INDXCAN /= 0 .and. &
           (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
            cloudLiquidWaterPathObs == mwbg_realMissing .or. &
@@ -6370,7 +6342,7 @@ contains
 
       if (lflagchn(obsChanNum)) obsFlags = IBSET(obsFlags,7)
 
-      INDXCAN = ISRCHEQI(chanIgnoreInAllskyGenCoeff,obsChanNumWithOffset)
+      INDXCAN = utl_findloc(chanIgnoreInAllskyGenCoeff(:),obsChanNumWithOffset)
       if (tvs_mwAllskyAssim .and. waterobs .and. INDXCAN /= 0 .and. &
           (clwObsFGaveraged > mwbg_cloudyClwThresholdBcorr .or. &
            cloudLiquidWaterPathObs == mwbg_realMissing .or. &
