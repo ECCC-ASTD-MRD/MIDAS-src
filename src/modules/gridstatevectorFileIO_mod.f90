@@ -557,6 +557,7 @@ module gridStateVectorFileIO_mod
     real(4), pointer :: field_r4_ptr(:,:,:,:)
     real(8), pointer :: field_r8_ptr(:,:,:,:)
     real(4), pointer :: gd2d_file_r4(:,:), gd2d_r4_UV_ptr(:,:,:)
+    real(8), pointer :: gd2d_r8_UV_ptr(:,:,:)
     real(8), pointer :: heightSfc_ptr(:,:)
     real(4), allocatable :: gd2d_var_r4(:,:)
 
@@ -926,16 +927,40 @@ module gridStateVectorFileIO_mod
             ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file, &
                           datestamplist(stepIndex), etiket_in, ip1, -1, -1,  &
                           typvar_in, 'VV')
-            call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, kIndex)
-            gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni, 1:gsv_getHco(statevector)%nj, stepIndex) &
-                 = gd2d_file_r4(1:gsv_getHco(statevector)%ni, 1:gsv_getHco(statevector)%nj)
+
+            if (statevector%dataKind == 4) then
+              call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, kIndex)
+              gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni, &
+                             1:gsv_getHco(statevector)%nj, stepIndex) &
+                 = gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
+                                1:gsv_getHco(statevector)%nj)
+            else
+              call gsv_getFieldUV(statevector, gd2d_r8_UV_ptr, kIndex)
+              gd2d_r8_UV_ptr(1:gsv_getHco(statevector)%ni, &
+                             1:gsv_getHco(statevector)%nj, stepIndex) &
+                 = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
+                                     1:gsv_getHco(statevector)%nj), 8)
+            end if
+
           else if (varName == 'VV') then
             ierr = fstlir(gd2d_file_r4(:,:), nulfile, ni_file, nj_file, nk_file,  &
                           datestamplist(stepIndex), etiket_in, ip1, -1, -1,  &
                           typvar_in, 'UU')
-            call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, kIndex)
-            gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni, 1:gsv_getHco(statevector)%nj, stepIndex) &
-                 = gd2d_file_r4(1:gsv_getHco(statevector)%ni, 1:gsv_getHco(statevector)%nj)
+
+            if (statevector%dataKind == 4) then
+              call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, kIndex)
+              gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni, &
+                             1:gsv_getHco(statevector)%nj, stepIndex) &
+                   = gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
+                                  1:gsv_getHco(statevector)%nj)
+            else
+              call gsv_getFieldUV(statevector, gd2d_r8_UV_ptr, kIndex)
+              gd2d_r8_UV_ptr(1:gsv_getHco(statevector)%ni, &
+                             1:gsv_getHco(statevector)%nj, stepIndex) &
+                   = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
+                                       1:gsv_getHco(statevector)%nj), 8)
+            end if
+
           end if
         end if
 

@@ -115,8 +115,8 @@ contains
     type(struct_ocm)          :: oceanMask
     real(8) :: leadTimeInHours
 
-    character(len=20) :: errorStddev_input  ! input  filename for analysed and "trial" std error and DSLO fields
-    character(len=20) :: errorStddev_output ! output filename for analysed and "trial" std error and DSLO fields
+    character(len=20), parameter :: errorStddev_input  = 'errorstdev_in'  ! input  filename
+    character(len=20), parameter :: errorStddev_output = 'errorstdev_out' ! output filename
 
     ! namelist variables:
     real(8)           :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
@@ -192,13 +192,8 @@ contains
                       varNames_opt = (/analysisVariable(1)/), dataKind_opt = 8)
 
     if (propagateAnalysisError) then     
-
-      errorStddev_input  = 'anl_errorstdev'
-      errorStddev_output = 'trl_errorstdev'
-
       call msg('aer_analysisError:', &
                ' analysis error std is read from: '//trim(errorStddev_input))
-      
       call ocm_readMaskFromFile (oceanMask, hco_ptr, vco_ptr, errorStddev_input)
       call aer_propagateAnalysisError (stateVectorBkGnd, oceanMask, &
                                        analysisVariable(1), &
@@ -207,12 +202,7 @@ contains
                                        analysisEtiket, errorGrowth, &
                                        hco_ptr, vco_ptr, &
                                        errorStddev_input, errorStddev_output)
-
     else
-
-      errorStddev_input  = 'trl_errorstdev'
-      errorStddev_output = 'anl_errorstdev'
-
       call msg('aer_analysisError:', &
                ' trial error std field is read from: '//trim(errorStddev_input))
       call gio_readFromFile(stateVectorBkGnd, errorStddev_input, bckgErrorStdEtiket, &
@@ -339,10 +329,9 @@ contains
     end do
 
     ! Only variables assigned within or by the loop can be private.
-
     STEP: do stepIndex = 1, stateVectorBkGnd%numStep
-      LEVEL: do levIndex = 1, &
-                           gsv_getNumLev(stateVectorBkGnd,vnl_varLevelFromVarname(analysisVariable(1)))
+      LEVEL: do levIndex = 1, gsv_getNumLev(stateVectorBkGnd, &
+                                            vnl_varLevelFromVarname(analysisVariable(1)))
 
         !$omp parallel do default(shared) schedule(dynamic) private(obsOperator, Bmatrix, &
         !$omp        PHiA, innovCovariance, innovCovarianceInverse, obsErrorVariance, &
@@ -360,14 +349,14 @@ contains
             numInfluentObs = influentObs(lonIndex, latIndex)%numObs
 
             if (numInfluentObs == 0 .or. &
-                .not. stateVectorBkGnd%oceanMask%mask(lonIndex, latIndex, levIndex)) cycle
+                .not. stateVectorBkGnd%oceanMask%mask(lonIndex, latIndex, levIndex)) cycle XINDEX
 
             ! form the observation-error covariance (diagonal) matrix
 
             allocate(obsErrorVariance(numInfluentObs))
 
             do influentObsIndex = 1, numInfluentObs
-              bodyIndex = influentObs(lonIndex,latIndex)%bodyIndex(influentObsIndex)
+              bodyIndex = influentObs(lonIndex, latIndex)%bodyIndex(influentObsIndex)
               obsErrorVariance(influentObsIndex) = (obs_bodyElem_r(obsSpaceData, OBS_OER, &
                                                                    bodyIndex))**2
             end do
@@ -377,7 +366,8 @@ contains
             numVariables = 0
             statei(:) = 0
             statej(:) = 0
-            do influentObsIndex = 1, numInfluentObs
+
+            INFLUENTOBSCYCLE: do influentObsIndex = 1, numInfluentObs
 
               headerIndex = influentObs(lonIndex, latIndex)%headerIndex(influentObsIndex)
               bodyIndex   = influentObs(lonIndex, latIndex)%bodyIndex(influentObsIndex)
@@ -388,52 +378,46 @@ contains
                 scaling = 1.0d0
               end if	
 
-              if (scaling /= 0.0d0) then
+              if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE
+              KINDEXCYCLE: do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
+                PROCINDEXCYCLE: do procIndex = 1, mmpi_nprocs
 
-                do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
-                  do procIndex = 1, mmpi_nprocs
+                  call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, &
+                       stepIndex, procIndex, interpWeight, obsLatIndex, obsLonIndex, &
+                       gridptCount)
 
-                    call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, &
-                         stepIndex, procIndex, interpWeight, obsLatIndex, obsLonIndex, &
-                         gridptCount)
+                  GRIDPTCYCLE: do gridpt = 1, gridptCount
 
-                    do gridpt = 1, gridptCount
+                    !if (interpWeight(gridpt) /= 0.0d0) then
+                    if (interpWeight(gridpt) == 0.0d0) cycle GRIDPTCYCLE
 
-                      if (interpWeight(gridpt) /= 0.0d0) then
+                    xStateIndex = obsLonIndex(gridpt)
+                    yStateIndex = obsLatIndex(gridpt)
 
-                        xStateIndex = obsLonIndex(gridpt)
-                        yStateIndex = obsLatIndex(gridpt)
-
-                        found = .false.
-                        do varIndex2=1, numVariables
-                          if(xStateIndex == statei(varIndex2) .and. &
-                             yStateIndex == statej(varIndex2)) then
-                            found = .true.
-                            exit
-                          end if
-                        end do
-                        if(.not. found) then
-                          numVariables = numVariables + 1
-                          if(numVariables > maxvar) then
-                            call utl_abort('aer_analysisError: Structure state'// &
-                                 ' too small in subroutine'// &
-                                 ' analysis_error_mod'// &
-                                 ' Increase maxvar')
-                          end if
-                          statei(numVariables) = xStateIndex
-                          statej(numVariables) = yStateIndex
-                        end if
-
+                    found = .false.
+                    do varIndex2=1, numVariables
+                      if(xStateIndex == statei(varIndex2) .and. &
+                         yStateIndex == statej(varIndex2)) then
+                        found = .true.
+                        exit
                       end if
-
                     end do
 
-                  end do
-                end do
+                    if (found) cycle GRIDPTCYCLE
 
-              end if
+                    numVariables = numVariables + 1
+                    if(numVariables > maxvar) then
+                      call utl_abort('aer_analysisError: Structure state'// &
+                    	             ' too small in subroutine'// &
+                    	             ' analysis_error_mod. Increase maxvar')
+                    end if
+                    statei(numVariables) = xStateIndex
+                    statej(numVariables) = yStateIndex
 
-            end do
+                  end do GRIDPTCYCLE
+                end do PROCINDEXCYCLE
+              end do KINDEXCYCLE
+            end do INFLUENTOBSCYCLE
 
             ! make sure that current analysis variable is part of the state
             ! vector even if it does not participate in obs calculation
@@ -447,6 +431,7 @@ contains
                 exit
               end if
             end do
+
             if(.not. found) then
               numVariables = numVariables + 1
               if(numVariables > maxvar) then
@@ -467,7 +452,7 @@ contains
 
             varIndex2 = 0
 
-            do influentObsIndex = 1, numInfluentObs
+            INFLUENTOBSCYCLE2: do influentObsIndex = 1, numInfluentObs
 
               headerIndex = influentObs(lonIndex, latIndex)%headerIndex(influentObsIndex)
               bodyIndex   = influentObs(lonIndex, latIndex)%bodyIndex(influentObsIndex)
@@ -478,61 +463,56 @@ contains
                 scaling = 1.0d0
               end if
 
-              if (scaling /= 0.0d0) then
+              if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE2
 
-                do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
-                  do procIndex = 1, mmpi_nprocs
+              KINDEXCYCLE2: do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
+                PROCINDEXCYCLE2: do procIndex = 1, mmpi_nprocs
 
-                    call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, &
-                         stepIndex, procIndex, interpWeight, obsLatIndex, obsLonIndex, &
-                         gridptCount)
+                  call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, &
+                       stepIndex, procIndex, interpWeight, obsLatIndex, obsLonIndex, &
+                       gridptCount)
 
-                    do gridpt = 1, gridptCount
+                  GRIDPTCYCLE2: do gridpt = 1, gridptCount
 
-                      if (interpWeight(gridpt) /= 0.0d0) then
+                    if (interpWeight(gridpt) == 0.0d0) cycle GRIDPTCYCLE2
 
-                        xStateIndex = obsLonIndex(gridpt)
-                        yStateIndex= obsLatIndex(gridpt)
+                    xStateIndex = obsLonIndex(gridpt)
+                    yStateIndex= obsLatIndex(gridpt)
 
-                        found = .false.
-                        do while (.not. found)
-                          if(varIndex2 < numVariables) then
-                            varIndex2 = varIndex2 + 1
-                          else
-                            varIndex2 = 1
-                          end if
-                          if(xStateIndex == statei(varIndex2) .and. &
-                             yStateIndex == statej(varIndex2)) then
-                            found = .true.
-                            obsOperator(varIndex2, influentObsIndex) = scaling * &
-                                                                       interpWeight(gridpt)
-                          end if
-                        end do
-                        if(.not. found) then
-                          write(*,*) 'xStateIndex = ', xStateIndex
-                          write(*,*) 'yStateIndex = ', yStateIndex
-                          write(*,*) 'lonIndex = ', lonIndex
-                          write(*,*) 'latIndex = ', latIndex
-                          write(*,*) 'gridptCount = ', gridptCount
-                          write(*,*) 'gridpt = ', gridpt
-                          write(*,*) 'numVariables = ', numVariables
-                          do varIndex2=1, numVariables
-                            write(*,*) 'varIndex2 statei statej = ',statei(varIndex2), &
-                                                                    statej(varIndex2)
-                          end do
-                          call utl_abort('aer_analysisError: not found in state vect.')
-                        end if
-
+                    found = .false.
+                    do while (.not. found)
+                      if(varIndex2 < numVariables) then
+                        varIndex2 = varIndex2 + 1
+                      else
+                        varIndex2 = 1
                       end if
-
+                      if(xStateIndex == statei(varIndex2) .and. &
+                         yStateIndex == statej(varIndex2)) then
+                        found = .true.
+                        obsOperator(varIndex2, influentObsIndex) = scaling * &
+                        					   interpWeight(gridpt)
+                      end if
                     end do
 
-                  end do
-                end do
+                    if(found) cycle GRIDPTCYCLE2
 
-              end if
+                    write(*,*) 'xStateIndex = ', xStateIndex
+                    write(*,*) 'yStateIndex = ', yStateIndex
+                    write(*,*) 'lonIndex = ', lonIndex
+                    write(*,*) 'latIndex = ', latIndex
+                    write(*,*) 'gridptCount = ', gridptCount
+                    write(*,*) 'gridpt = ', gridpt
+                    write(*,*) 'numVariables = ', numVariables
+                    do varIndex2=1, numVariables
+                      write(*,*) 'varIndex2 statei statej = ',statei(varIndex2), &
+                    					      statej(varIndex2)
+                    end do
+                    call utl_abort('aer_analysisError: not found in state vect.')
 
-            end do
+                  end do GRIDPTCYCLE2
+                end do PROCINDEXCYCLE2
+              end do KINDEXCYCLE2
+            end do INFLUENTOBSCYCLE2
 
             ! form the background-error covariance matrix
 
@@ -658,8 +638,15 @@ contains
                    maxAnalysisErrorStdDev)
             end if
 
-            deallocate(Bmatrix, obsErrorVariance, innovCovariance, &
-                       innovCovarianceInverse, obsOperator, PH, PHiA, KH, IKH)
+            deallocate(Bmatrix)
+            deallocate(obsErrorVariance)
+            deallocate(innovCovariance)
+            deallocate(innovCovarianceInverse)
+            deallocate(obsOperator)
+            deallocate(PH)
+            deallocate(PHiA)
+            deallocate(KH)
+            deallocate(IKH)
             deallocate(influentObs(lonIndex, latIndex)%headerIndex)
             deallocate(influentObs(lonIndex, latIndex)%bodyIndex)
 
@@ -672,7 +659,8 @@ contains
 
     deallocate(influentObs)
     deallocate(Lcorr)
-    deallocate(lonInRad, latInRad)
+    deallocate(lonInRad)
+    deallocate(latInRad)
 
     ! update dateStamp from env variable
     call gsv_modifyDate(stateVectorAnal, tim_getDateStamp(), &
