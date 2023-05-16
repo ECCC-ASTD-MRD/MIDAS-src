@@ -13,7 +13,7 @@ module utilities_mod
 
   ! public procedures
   public :: utl_fstlir,  utl_fstlir_r4, utl_fstecr
-  public :: utl_findArrayIndex, utl_matSqrt, utl_matInverse, utl_eigenDecomp
+  public :: utl_matSqrt, utl_matInverse, utl_eigenDecomp
   public :: utl_pseudo_inverse
   public :: utl_writeStatus, utl_getfldprm, utl_abort, utl_checkAllocationStatus
   public :: utl_stopAndWait4Debug
@@ -208,34 +208,6 @@ contains
     vfstecr=ikey
 
   end function utl_fstecr
-
-
-  function utl_findArrayIndex( klist, klen, kentry ) result(isrcheq)
-    !
-    !:Purpose: Find entry in list.
-    !
-    implicit none
-
-    ! Arguments:
-    INTEGER :: ISRCHEQ      ! Index of entry: (0, not found, >0, found)
-    INTEGER :: KENTRY       ! Entry.
-    integer :: KLEN         ! Dimension of input list.
-    INTEGER :: KLIST(KLEN)  ! Input list.
-
-    ! locals:
-    integer :: JI
-    
-
-    ISRCHEQ = 0
-    DO JI=1,KLEN
-       IF ( KLIST(JI) .EQ. KENTRY ) THEN
-          ISRCHEQ = JI
-          RETURN
-       END IF
-    END DO
-
-  end function utl_findArrayIndex
-
 
   subroutine utl_matsqrt(matrix, rank, exponentSign, printInformation_opt )
     ! 

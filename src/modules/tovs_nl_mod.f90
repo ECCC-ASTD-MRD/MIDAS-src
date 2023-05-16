@@ -5455,7 +5455,7 @@ contains
     channelNumber = nint(obs_bodyElem_r(obsSpaceData,OBS_PPP,bodyIndex))
     channelNumber = max( 0 , min( channelNumber , tvs_maxChannelNumber + 1))
     channelNumber = channelNumber - tvs_channelOffset(sensorIndex)
-    channelIndex = utl_findArrayIndex(tvs_ichan(:,sensorIndex),tvs_nchan(sensorIndex),channelNumber)
+    channelIndex = utl_findloc(tvs_ichan(:,sensorIndex),channelNumber)
 
   end subroutine tvs_getChannelNumIndexFromPPP
 

@@ -1153,7 +1153,7 @@ CONTAINS
         channelIndex = nint(obsPPP(obsIndex))
         channelIndex = max(0,min(channelIndex,tvs_maxChannelNumber+1))
         channelIndex = channelIndex - tvs_channelOffset(nosensor)
-        channelIndex = utl_findArrayIndex(tvs_ichan(:,nosensor), tvs_nchan(nosensor), channelIndex)
+        channelIndex = utl_findloc(tvs_ichan(:,nosensor), channelIndex)
         if (channelIndex > 0 .and. ensObs%assFlag(obsIndex)==1) then
           call max_transmission(tvs_transmission(tovsIndex), numTovsLevels, &
                                 channelIndex, profiles(tovsIndex)%p, ensObs%vertLocation(obsIndex))
