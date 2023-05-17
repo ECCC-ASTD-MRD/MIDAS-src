@@ -75,10 +75,11 @@ contains
     ! Local Variables
     integer :: fnom, fclos, nulnam, ierr
 
-    type(struct_gsv) :: stateVectorBkGnd
-    type(struct_gsv) :: stateVectorAnal
+    type(struct_gsv) :: stateVectorAnlErrorStd    ! state vector for analysis error std deviation
+    type(struct_gsv) :: stateVectorTrlErrorStd    ! state vector for background error std deviation
+    real(8), pointer :: anlErrorStdDev_ptr(:,:,:,:) ! pointer for analysis error std deviation
+    real(8), pointer :: trlErrorStdDev_ptr(:,:,:,:) ! pointer for background error std deviation
     integer, allocatable :: numObs(:,:)
-    real(8), pointer :: bkGndErrorStdDev_ptr(:,:,:,:), analysisErrorStdDev_ptr(:,:,:,:)
 
     real(8), allocatable :: obsOperator(:,:), Bmatrix(:,:), PHiA(:), &
                             innovCovariance(:,:), obsErrorVariance(:), &
@@ -108,15 +109,16 @@ contains
     real(8),      allocatable :: latInRad(:,:), lonInRad(:,:)
 
     character(len=4), pointer :: analysisVariable(:)
-    type(struct_gsv)          :: statevector
+    type(struct_gsv)          :: statevectorLcorr
     real(4), pointer          :: field3D_r4_ptr(:,:,:)
     type(struct_columnData)   :: column
     type(struct_columnData)   :: columng
     type(struct_ocm)          :: oceanMask
     real(8) :: leadTimeInHours
 
-    character(len=20), parameter :: errorStddev_input  = 'errorstdev_in'  ! input  filename
-    character(len=20), parameter :: errorStddev_output = 'errorstdev_out' ! output filename
+    character(len=20), parameter :: errorStddev_input  = 'errorstdev_in'        ! input  filename for anl ot trl error standard deviation
+    character(len=20), parameter :: anlErrorStddev_output = 'anlerrorstdev_out' ! output filename for anl error std deviation
+    character(len=20), parameter :: trlErrorStddev_output = 'trlerrorstdev_out' ! output filename for trl (background) error std deviation
 
     ! namelist variables:
     real(8)           :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
@@ -127,10 +129,10 @@ contains
     character(len=12) :: analErrorStdEtiket     ! analysis error standard deviation field etiket in the input/output standard files
     character(len=12) :: bckgErrorStdEtiket     ! background error standard deviation field etiket in the input/output standard files
     integer           :: hoursSinceLastAnalysis ! number of hours since the last analysis
-
+    logical           :: saveTrlStdField        ! to save trial standard deviation field or not
     namelist /namaer/ maxAnalysisErrorStdDev, propagateAnalysisError, propagateDSLO, &
                       errorGrowth, analysisEtiket, analErrorStdEtiket, &
-                      bckgErrorStdEtiket, hoursSinceLastAnalysis 
+                      bckgErrorStdEtiket, hoursSinceLastAnalysis, saveTrlStdField 
 
     if(mmpi_nprocs > 1) then
       write(*,*) 'mmpi_nprocs = ', mmpi_nprocs
@@ -151,7 +153,8 @@ contains
     analErrorStdEtiket = 'A-ER STD DEV'
     bckgErrorStdEtiket = 'B-ER STD DEV'
     hoursSinceLastAnalysis = 6
-
+    saveTrlStdField = .false.
+    
     ! read the namelist
     if (.not. utl_isNamelistPresent('namaer','./flnml')) then
       if (mmpi_myid == 0) then
@@ -184,68 +187,92 @@ contains
                      //trim(analysisVariable(1))//' analysis variable.')
     end if
 
-    call gsv_allocate(stateVectorBkGnd, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
+    call gsv_allocate(stateVectorAnlErrorStd, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
                       mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
                       varNames_opt = (/analysisVariable(1)/), dataKind_opt = 8)
-    call gsv_allocate(stateVectorAnal,  1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
+    call gsv_getField(stateVectorAnlErrorStd, anlErrorStdDev_ptr)
+    call gsv_allocate(stateVectorTrlErrorStd, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
                       mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
                       varNames_opt = (/analysisVariable(1)/), dataKind_opt = 8)
+    call gsv_getField(stateVectorTrlErrorStd, trlErrorStdDev_ptr)
 
     if (propagateAnalysisError) then     
       call msg('aer_analysisError:', &
-               ' analysis error std is read from: '//trim(errorStddev_input))
+               ' analysis error std field is read from: '//trim(errorStddev_input))    
+      call gio_readFromFile(stateVectorAnlErrorStd, errorStddev_input, ' ', &
+                            'E@', containsFullField_opt = .false.)
+      
+      ! initialize trl error std deviation field:
+      trlErrorStdDev_ptr(:,:,:,:) = anlErrorStdDev_ptr(:,:,:,:)
+
       call ocm_readMaskFromFile (oceanMask, hco_ptr, vco_ptr, errorStddev_input)
-      call aer_propagateAnalysisError (stateVectorBkGnd, oceanMask, &
+      call aer_propagateAnalysisError (stateVectorTrlErrorStd, oceanMask, &
                                        analysisVariable(1), &
-                                       analErrorStdEtiket, &
-                                       bckgErrorStdEtiket, &
                                        analysisEtiket, errorGrowth, &
-                                       hco_ptr, vco_ptr, &
-                                       errorStddev_input, errorStddev_output)
+                                       hco_ptr, vco_ptr)
+
+      if (saveTrlStdField) then
+        ! zap analysis error etiket with background error etiket
+        stateVectorTrlErrorStd%etiket = bckgErrorStdEtiket
+        
+        ! copy mask from analysis error std deviation field to trl error std field
+        call gsv_copyMask(stateVectorAnlErrorStd, stateVectorTrlErrorStd)
+        
+        ! update dateStamp from env variable
+        call gsv_modifyDate(stateVectorTrlErrorStd, tim_getDateStamp(), &
+                            modifyDateOrigin_opt = .true.)
+
+        ! save background error (increased analysis error) standard deviation field
+        call gio_writeToFile(stateVectorTrlErrorStd, trlErrorStddev_output, &
+                             bckgErrorStdEtiket, typvar_opt = 'E@', &
+                             containsFullField_opt = .false.)
+      end if
+
     else
       call msg('aer_analysisError:', &
                ' trial error std field is read from: '//trim(errorStddev_input))
-      call gio_readFromFile(stateVectorBkGnd, errorStddev_input, bckgErrorStdEtiket, &
+      call gio_readFromFile(stateVectorTrlErrorStd, errorStddev_input, ' ', &
                             'E@', containsFullField_opt = .false.)
+      call gsv_copyMask(stateVectorTrlErrorStd, stateVectorAnlErrorStd)
     end if
 
-    leadTimeInHours = real(stateVectorBkGnd%deet * stateVectorBkGnd%npasList(1), 8) / 3600.0d0
-    call incdatr(stateVectorAnal%dateOriginList(1), stateVectorBkGnd%dateOriginList(1), leadTimeInHours)
+    leadTimeInHours = real(stateVectorTrlErrorStd%deet * stateVectorTrlErrorStd%npasList(1), 8) / 3600.0d0
+    call incdatr(stateVectorAnlErrorStd%dateOriginList(1), &
+                 stateVectorTrlErrorStd%dateOriginList(1), leadTimeInHours)
 
-    call gsv_copyMask(stateVectorBkGnd, stateVectorAnal)
-    stateVectorAnal%etiket = analErrorStdEtiket
+    stateVectorAnlErrorStd%etiket = analErrorStdEtiket
 
     call col_setVco(column, vco_ptr)
     call col_allocate(column,  obs_numHeader(obsSpaceData), varNames_opt=(/analysisVariable(1)/))
     call col_setVco(columng, vco_ptr)
     call col_allocate(columng, obs_numHeader(obsSpaceData), varNames_opt=(/analysisVariable(1)/))
-    call s2c_tl(statevectorBkGnd, column, columng, obsSpaceData)
+    call s2c_tl(stateVectorTrlErrorStd, column, columng, obsSpaceData)
 
-    ni = stateVectorBkGnd%hco%ni
-    nj = stateVectorBkGnd%hco%nj
+    ni = stateVectorTrlErrorStd%hco%ni
+    nj = stateVectorTrlErrorStd%hco%nj
 
-    allocate(lonInRad(ni, nj), latInRad(ni, nj))
+    allocate(lonInRad(ni, nj))
+    allocate(latInRad(ni, nj))
     allocate(Lcorr(ni, nj))
 
     ! get correlation length scale field
     write(*,*) 'aer_analysisError: get correlation length scale field...'
-    call gsv_allocate(statevector, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
+    call gsv_allocate(statevectorLcorr, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
                       dataKind_opt = 4, hInterpolateDegree_opt = 'LINEAR', &
                       varNames_opt = (/analysisVariable(1)/))
-    call gsv_zero(statevector)
-    call gio_readFromFile(statevector, './bgstddev', 'CORRLEN', ' ', &
+    call gsv_zero(statevectorLcorr)
+    call gio_readFromFile(statevectorLcorr, './bgstddev', 'CORRLEN', ' ', &
                           unitConversion_opt = .false.)
-
-    call gsv_getField(statevector, field3D_r4_ptr, analysisVariable(1))
+    call gsv_getField(statevectorLcorr, field3D_r4_ptr, analysisVariable(1))
     ! Convert from km to meters
     Lcorr(:,:) = 1000.0d0 * real(field3D_r4_ptr(:, :, 1), 8)
 
     write(*,*) 'aer_analysisError: min/max correlation length scale 2D field: ', &
                minval(Lcorr(:,:) ), maxval(Lcorr(:,:))
-    call gsv_deallocate(statevector)
+    call gsv_deallocate(statevectorLcorr)
 
     ! create kdtree
-    write(*,*) 'aer_analysisError: start creating kdtree for stateVectorBkGnd'
+    write(*,*) 'aer_analysisError: start creating kdtree for stateVectorTrlErrorStd'
     write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
 
     allocate(positionArray(3, ni * nj))
@@ -253,30 +280,23 @@ contains
     gridIndex = 0
     do latIndex = 1, nj
       do lonIndex = 1, ni
-
         gridIndex = gridIndex + 1
-        latInRad(lonIndex,latIndex) = real( &
-                                      stateVectorBkGnd%hco%lat2d_4(lonIndex, latIndex), 8)
-        lonInRad(lonIndex,latIndex) = real( &
-                                      stateVectorBkGnd%hco%lon2d_4(lonIndex, latIndex), 8)
-
-        positionArray(:,gridIndex) = kdtree2_3dPosition(lonInRad(lonIndex, latIndex), &
+        latInRad(lonIndex, latIndex) = real(stateVectorTrlErrorStd%hco%lat2d_4(lonIndex, latIndex), 8)
+        lonInRad(lonIndex, latIndex) = real(stateVectorTrlErrorStd%hco%lon2d_4(lonIndex, latIndex), 8)
+        positionArray(:, gridIndex) = kdtree2_3dPosition(lonInRad(lonIndex, latIndex), &
                                                         latInRad(lonIndex, latIndex))
-
       end do
     end do
 
-    write(*,*) 'aer_analysisError: latInRad min/max: ', minval(latInRad(:,:)), &
-                                                        maxval(latInRad(:,:))
-    write(*,*) 'aer_analysisError: lonInRad min/max: ', minval(lonInRad(:,:)), &
-                                                        maxval(lonInRad(:,:))
+    write(*,*) 'aer_analysisError: latInRad min/max: ', minval(latInRad(:,:)), maxval(latInRad(:,:))
+    write(*,*) 'aer_analysisError: lonInRad min/max: ', minval(lonInRad(:,:)), maxval(lonInRad(:,:))
 
     nullify(tree)
     tree => kdtree2_create(positionArray, sort = .false., rearrange = .true.) 
 
     deallocate(positionArray)
 
-    write(*,*) 'aer_analysisError: done creating kdtree for stateVectorBkGnd'
+    write(*,*) 'aer_analysisError: done creating kdtree for stateVectorTrlErrorStd'
     write(*,*) 'Memory Used: ', get_max_rss() / 1024, 'Mb'
 
     ! Go through all observations a first time to get
@@ -284,10 +304,10 @@ contains
     ! in order to allocate memory appropriately.
 
     allocate(influentObs(ni, nj))
-    allocate(     numObs(ni, nj))
+    allocate(numObs(ni, nj))
 
     call msg('aer_analysisError:', ' looking for observations...')
-    call findObs(obsSpaceData, stateVectorBkGnd, numObs, analysisVariable(1))
+    call findObs(obsSpaceData, stateVectorTrlErrorStd, numObs, analysisVariable(1))
 
     ! Memory allocation
 
@@ -305,7 +325,7 @@ contains
     ! but it saves lot of memory space.
 
     call msg('aer_analysisError:', ' go through all observations a second time...')
-    call findObs(obsSpaceData, stateVectorBkGnd, numObs, analysisVariable(1))
+    call findObs(obsSpaceData, stateVectorTrlErrorStd, numObs, analysisVariable(1))
 
     deallocate(numObs)
 
@@ -313,24 +333,14 @@ contains
     write(*,*) 'Memory Used: ',get_max_rss() / 1024, 'Mb'
 
     ! Calculate analysis-error one analysis variable (grid point) at a time
-    call gsv_getField(stateVectorBkGnd, bkGndErrorStdDev_ptr, analysisVariable(1))
-    call gsv_getField(stateVectorAnal,  analysisErrorStdDev_ptr, analysisVariable(1))
 
     ! Initialisation
-    do stepIndex = 1, stateVectorBkGnd%numStep
-      do levIndex = 1, gsv_getNumLev(stateVectorBkGnd, vnl_varLevelFromVarname(analysisVariable(1)))
-        do latIndex = 1, nj
-          do lonIndex = 1, ni
-            analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
-               bkGndErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex)
-          end do
-        end do
-      end do
-    end do
+    anlErrorStdDev_ptr(:,:,:,:) = trlErrorStdDev_ptr(:,:,:,:)
+    call msg('aer_analysisError:', ' analysis error std field initialization...OK')
 
     ! Only variables assigned within or by the loop can be private.
-    STEP: do stepIndex = 1, stateVectorBkGnd%numStep
-      LEVEL: do levIndex = 1, gsv_getNumLev(stateVectorBkGnd, &
+    STEP: do stepIndex = 1, stateVectorTrlErrorStd%numStep
+      LEVEL: do levIndex = 1, gsv_getNumLev(stateVectorTrlErrorStd, &
                                             vnl_varLevelFromVarname(analysisVariable(1)))
 
         !$omp parallel do default(shared) schedule(dynamic) private(obsOperator, Bmatrix, &
@@ -349,7 +359,7 @@ contains
             numInfluentObs = influentObs(lonIndex, latIndex)%numObs
 
             if (numInfluentObs == 0 .or. &
-                .not. stateVectorBkGnd%oceanMask%mask(lonIndex, latIndex, levIndex)) cycle XINDEX
+                .not. stateVectorTrlErrorStd%oceanMask%mask(lonIndex, latIndex, levIndex)) cycle XINDEX
 
             ! form the observation-error covariance (diagonal) matrix
 
@@ -379,12 +389,12 @@ contains
               end if	
 
               if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE
-              KINDEXCYCLE: do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
+              KINDEXCYCLE: do kIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
                 PROCINDEXCYCLE: do procIndex = 1, mmpi_nprocs
 
-                  call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, &
-                       stepIndex, procIndex, interpWeight, obsLatIndex, obsLonIndex, &
-                       gridptCount)
+                  call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, procIndex, &
+                                                         interpWeight, obsLatIndex, obsLonIndex, &
+                                                         gridptCount)
 
                   GRIDPTCYCLE: do gridpt = 1, gridptCount
 
@@ -465,12 +475,12 @@ contains
 
               if (scaling == 0.0d0) cycle INFLUENTOBSCYCLE2
 
-              KINDEXCYCLE2: do kIndex = stateVectorBkGnd%mykBeg, stateVectorBkGnd%mykEnd
+              KINDEXCYCLE2: do kIndex = stateVectorTrlErrorStd%mykBeg, stateVectorTrlErrorStd%mykEnd
                 PROCINDEXCYCLE2: do procIndex = 1, mmpi_nprocs
 
-                  call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, &
-                       stepIndex, procIndex, interpWeight, obsLatIndex, obsLonIndex, &
-                       gridptCount)
+                  call s2c_getWeightsAndGridPointIndexes(headerIndex, kIndex, stepIndex, procIndex, &
+                                                         interpWeight, obsLatIndex, obsLonIndex, &
+                                                         gridptCount)
 
                   GRIDPTCYCLE2: do gridpt = 1, gridptCount
 
@@ -531,14 +541,12 @@ contains
                 yIndex1 = statej(varIndex1)
 
                 if(xIndex2 == xIndex1 .and. yIndex2 == yIndex1) then
-                  Bmatrix(varIndex1,varIndex2) = bkGndErrorStdDev_ptr(xIndex1, yIndex1, levIndex, stepIndex)**2
+                  Bmatrix(varIndex1,varIndex2) = trlErrorStdDev_ptr(xIndex1, yIndex1, levIndex, stepIndex)**2
                 else if(Lcorr(xIndex2,yIndex2) > 0.0d0) then
-                  distance = phf_calcDistance(latInRad(xIndex2, yIndex2), &
-                                              lonInRad(xIndex2, yIndex2), &
-                                              latInRad(xIndex1, yIndex1), &
-                                              lonInRad(xIndex1, yIndex1))
-                  Bmatrix(varIndex1,varIndex2) = bkGndErrorStdDev_ptr(xIndex2, yIndex2, levIndex, stepIndex) * &
-                                                 bkGndErrorStdDev_ptr(xIndex1, yIndex1, levIndex, stepIndex) * &
+                  distance = phf_calcDistance(latInRad(xIndex2, yIndex2), lonInRad(xIndex2, yIndex2), &
+                                              latInRad(xIndex1, yIndex1), lonInRad(xIndex1, yIndex1))
+                  Bmatrix(varIndex1,varIndex2) = trlErrorStdDev_ptr(xIndex2, yIndex2, levIndex, stepIndex) * &
+                                                 trlErrorStdDev_ptr(xIndex1, yIndex1, levIndex, stepIndex) * &
                                                  exp(-0.5 * (distance / Lcorr(xIndex2, yIndex2))**2)
                 end if
 
@@ -615,26 +623,26 @@ contains
 
             IKH(currentAnalVarIndex) = 1.0d0 - KH(currentAnalVarIndex)
 
-            analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
-                 sqrt( dot_product (IKH, Bmatrix(:, currentAnalVarIndex)) )
+            anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
+                 sqrt(dot_product (IKH, Bmatrix(:, currentAnalVarIndex)))
 
-            if(analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) < 0.0) then
+            if(anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) < 0.0) then
               write(*,*) 'aer_analysisError: negative analysis-error Std dev. = ', &
-                         analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), &
+                         anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), &
                          ' reset to zero at grid point (',lonIndex, latIndex,')'
-              analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
-                   max(analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), 0.0)
+              anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
+                   max(anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), 0.0)
             end if
 
-            if(analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) > &
-                  bkGndErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex)) then
+            if(anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) > &
+               trlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex)) then
               write(*,*) 'aer_analysisError: analysis-error Std dev. = ', &
-                         analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), &
+                         anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), &
                          ' is larger than background-error ', &
                          'Std dev. is kept at = ', &
-                         bkGndErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex)
-              analysisErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
-                   min(bkGndErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), &
+                         trlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex)
+              anlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex) = &
+                   min(trlErrorStdDev_ptr(lonIndex, latIndex, levIndex, stepIndex), &
                    maxAnalysisErrorStdDev)
             end if
 
@@ -663,26 +671,29 @@ contains
     deallocate(latInRad)
 
     ! update dateStamp from env variable
-    call gsv_modifyDate(stateVectorAnal, tim_getDateStamp(), &
+    call gsv_modifyDate(stateVectorAnlErrorStd, tim_getDateStamp(), &
                         modifyDateOrigin_opt = .true.)
+
     ! save analysis error
-    call gio_writeToFile(stateVectorAnal, errorStddev_output, &
-                         analErrorStdEtiket, &
-                         typvar_opt = 'E@', &
+    call msg('aer_analysisError:', ' writing analysis error std field to output file...')
+    call gio_writeToFile(stateVectorAnlErrorStd, anlErrorStddev_output, &
+                         analErrorStdEtiket, typvar_opt = 'E@', &
                          containsFullField_opt = .false.)
 
     call col_deallocate(columng)
     call col_deallocate(column)
-    call gsv_deallocate(stateVectorBkGnd)
-    call gsv_deallocate(stateVectorAnal)
+    call gsv_deallocate(stateVectorAnlErrorStd)
+    call gsv_deallocate(stateVectorTrlErrorStd)
 
     if (analysisVariable(1) == 'GL') then
       ! Update the Days Since Last Obs
       call aer_daysSinceLastObs(obsSpaceData, hco_ptr, vco_ptr, &
-                                errorStddev_input, errorStddev_output, &
+                                errorStddev_input, anlErrorStddev_output, &
                                 analysisVariable(1), propagateDSLO, &
                                 hoursSinceLastAnalysis)
     end if
+    
+    call msg('aer_analysisError:', ' finished.')
 
   end subroutine aer_analysisError
 
@@ -972,28 +983,21 @@ contains
   !---------------------------------------------------------
   ! aer_propagateAnalysisError
   !---------------------------------------------------------
-  subroutine aer_propagateAnalysisError(stateVector, oceanMask, variableName, &
-                                        analErrorStdEtiket, bckgErrorStdEtiket, &
-                                        analysisEtiket, errorGrowth, &
-                                        hco_ptr, vco_ptr, &
-                                        inputFileName, outputFileName)
+  subroutine aer_propagateAnalysisError(stateVectorErrorStd, oceanMask, variableName, &
+                                        analysisEtiket, errorGrowth, hco_ptr, vco_ptr)
     !
     !:Purpose: read analysis error standard deviation field and propagate it forward in time
     !
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: stateVector        ! Input: analysis std error; Output: background std error. 
-    type(struct_ocm), intent(in)    :: oceanMask          ! ocean-land mask (1=water, 0=land)
-    character(len=*), intent(in)    :: variableName       ! variable name
-    character(len=*), intent(in)    :: analErrorStdEtiket ! analysis error std etiket in the input std file 
-    character(len=*), intent(in)    :: bckgErrorStdEtiket ! background error std etiket in the output std file 
-    character(len=*), intent(in)    :: analysisEtiket     ! analysis etiket in the input std file 
-    real(4)         , intent(in)    :: errorGrowth        ! seaice: fraction of ice per hour, SST: estimated growth
-    type(struct_hco), pointer       :: hco_ptr            ! horizontal coordinates structure, pointer
-    type(struct_vco), pointer       :: vco_ptr            ! vertical coordinates structure, pointer
-    character(len=*), intent(in)    :: inputFileName      ! input file name
-    character(len=*), intent(in)    :: outputFileName     ! file name where to save results
+    type(struct_gsv), intent(inout) :: stateVectorErrorStd ! Input: analysis std error; Output: background std error. 
+    type(struct_ocm), intent(in)    :: oceanMask           ! ocean-land mask (1=water, 0=land)
+    character(len=*), intent(in)    :: variableName        ! variable name
+    character(len=*), intent(in)    :: analysisEtiket      ! analysis etiket in the input std file 
+    real(4)         , intent(in)    :: errorGrowth         ! seaice: fraction of ice per hour, SST: estimated growth
+    type(struct_hco), pointer       :: hco_ptr             ! horizontal coordinates structure, pointer
+    type(struct_vco), pointer       :: vco_ptr             ! vertical coordinates structure, pointer
 
     ! locals:
     integer :: latIndex, lonIndex, localLatIndex, localLonIndex 
@@ -1007,13 +1011,7 @@ contains
     write(*,*) 'aer_propagateAnalysisError: propagate analysis error forward in time for: ', &
                trim(variableName)
     
-    ! read analysis error standard deviation field
-    call msg('aer_propagateAnalysisError:', ' reading analysis error field...')
-    call gio_readFromFile(stateVector, inputFileName, analErrorStdEtiket, &
-                          'E@', containsFullField_opt = .false.)
-    call gsv_getField(stateVector, stateVectorStdError_ptr)
-
-    ! read analysis
+    ! read analysis itself (seaice concentration or SST analysis)
     call msg('aer_propagateAnalysisError:', ' reading analysis field...')
     call gsv_allocate(stateVectorAnalysis, 1, hco_ptr, vco_ptr, dateStamp_opt = -1, &
                       mpi_local_opt = .true., mpi_distribution_opt = 'Tiles', &
@@ -1021,6 +1019,9 @@ contains
     call gio_readFromFile(stateVectorAnalysis, './anlm_000m', analysisEtiket, &
                           'A@', containsFullField_opt = .true.)
     call gsv_getField(stateVectorAnalysis, stateVectorAnalysis_ptr)
+
+    ! initialize pointer for the error standard deviation field    
+    call gsv_getField(stateVectorErrorStd, stateVectorStdError_ptr)
     
     ! calculation in variance unit
     stateVectorStdError_ptr(:,:,1) = stateVectorStdError_ptr(:,:,1)**2 
@@ -1080,18 +1081,6 @@ contains
         end if
       end do
     end do
-
-    ! zap analysis error etiket with background error etiket
-    stateVector%etiket = bckgErrorStdEtiket
-
-    ! update dateStamp from env variable
-    call gsv_modifyDate(stateVector, tim_getDateStamp(), &
-                        modifyDateOrigin_opt = .true.)
-
-    ! save background error (increased analysis error)
-    call gio_writeToFile(stateVector, outputFileName, &
-                         bckgErrorStdEtiket, typvar_opt = 'E@', &
-                         containsFullField_opt = .false.)
 
   end subroutine aer_propagateAnalysisError
 

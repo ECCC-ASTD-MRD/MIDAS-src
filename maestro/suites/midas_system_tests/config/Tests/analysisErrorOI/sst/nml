@@ -66,4 +66,5 @@
    analErrorStdEtiket = 'A-ER STD DEV'
    bckgErrorStdEtiket = 'B-ER STD DEV'
    hoursSinceLastAnalysis = 24
+   saveTrlStdField = .true.
 /
