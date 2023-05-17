@@ -67,4 +67,5 @@
    bckgErrorStdEtiket = 'B-ER STD DEV'
    hoursSinceLastAnalysis = 24
    saveTrlStdField = .true.
+   inputTypeVar = 'E@'
 /

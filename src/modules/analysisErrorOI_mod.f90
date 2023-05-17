@@ -130,9 +130,10 @@ contains
     character(len=12) :: bckgErrorStdEtiket     ! background error standard deviation field etiket in the input/output standard files
     integer           :: hoursSinceLastAnalysis ! number of hours since the last analysis
     logical           :: saveTrlStdField        ! to save trial standard deviation field or not
+    character(len=2)  :: inputTypeVar           ! typvar of the analysis error field in the input file 
     namelist /namaer/ maxAnalysisErrorStdDev, propagateAnalysisError, propagateDSLO, &
                       errorGrowth, analysisEtiket, analErrorStdEtiket, &
-                      bckgErrorStdEtiket, hoursSinceLastAnalysis, saveTrlStdField 
+                      bckgErrorStdEtiket, hoursSinceLastAnalysis, saveTrlStdField, inputTypeVar
 
     if(mmpi_nprocs > 1) then
       write(*,*) 'mmpi_nprocs = ', mmpi_nprocs
@@ -154,6 +155,7 @@ contains
     bckgErrorStdEtiket = 'B-ER STD DEV'
     hoursSinceLastAnalysis = 6
     saveTrlStdField = .false.
+    inputTypeVar = 'A@'
     
     ! read the namelist
     if (.not. utl_isNamelistPresent('namaer','./flnml')) then
@@ -200,7 +202,7 @@ contains
       call msg('aer_analysisError:', &
                ' analysis error std field is read from: '//trim(errorStddev_input))    
       call gio_readFromFile(stateVectorAnlErrorStd, errorStddev_input, ' ', &
-                            'E@', containsFullField_opt = .false.)
+                            inputTypeVar, containsFullField_opt = .false.)
       
       ! initialize trl error std deviation field:
       trlErrorStdDev_ptr(:,:,:,:) = anlErrorStdDev_ptr(:,:,:,:)
@@ -224,7 +226,7 @@ contains
 
         ! save background error (increased analysis error) standard deviation field
         call gio_writeToFile(stateVectorTrlErrorStd, trlErrorStddev_output, &
-                             bckgErrorStdEtiket, typvar_opt = 'E@', &
+                             bckgErrorStdEtiket, typvar_opt = inputTypeVar, &
                              containsFullField_opt = .false.)
       end if
 
@@ -232,7 +234,7 @@ contains
       call msg('aer_analysisError:', &
                ' trial error std field is read from: '//trim(errorStddev_input))
       call gio_readFromFile(stateVectorTrlErrorStd, errorStddev_input, ' ', &
-                            'E@', containsFullField_opt = .false.)
+                            inputTypeVar, containsFullField_opt = .false.)
       call gsv_copyMask(stateVectorTrlErrorStd, stateVectorAnlErrorStd)
     end if
 
@@ -677,7 +679,7 @@ contains
     ! save analysis error
     call msg('aer_analysisError:', ' writing analysis error std field to output file...')
     call gio_writeToFile(stateVectorAnlErrorStd, anlErrorStddev_output, &
-                         analErrorStdEtiket, typvar_opt = 'E@', &
+                         analErrorStdEtiket, typvar_opt = inputTypeVar, &
                          containsFullField_opt = .false.)
 
     call col_deallocate(columng)
