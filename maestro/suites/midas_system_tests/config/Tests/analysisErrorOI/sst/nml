@@ -68,4 +68,5 @@
    hoursSinceLastAnalysis = 24
    saveTrlStdField = .true.
    inputTypeVar = 'E@'
+   outputTypeVar = 'E@'
 /

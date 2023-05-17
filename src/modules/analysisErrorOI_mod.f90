@@ -131,9 +131,10 @@ contains
     integer           :: hoursSinceLastAnalysis ! number of hours since the last analysis
     logical           :: saveTrlStdField        ! to save trial standard deviation field or not
     character(len=2)  :: inputTypeVar           ! typvar of the analysis error field in the input file 
+    character(len=2)  :: outputTypeVar          ! typvar of the analysis error field for the output file 
     namelist /namaer/ maxAnalysisErrorStdDev, propagateAnalysisError, propagateDSLO, &
-                      errorGrowth, analysisEtiket, analErrorStdEtiket, &
-                      bckgErrorStdEtiket, hoursSinceLastAnalysis, saveTrlStdField, inputTypeVar
+                      errorGrowth, analysisEtiket, analErrorStdEtiket, bckgErrorStdEtiket, &
+                      hoursSinceLastAnalysis, saveTrlStdField, inputTypeVar, outputTypeVar
 
     if(mmpi_nprocs > 1) then
       write(*,*) 'mmpi_nprocs = ', mmpi_nprocs
@@ -155,7 +156,8 @@ contains
     bckgErrorStdEtiket = 'B-ER STD DEV'
     hoursSinceLastAnalysis = 6
     saveTrlStdField = .false.
-    inputTypeVar = 'A@'
+    inputTypeVar = 'P@'
+    outputTypeVar = 'A@'
     
     ! read the namelist
     if (.not. utl_isNamelistPresent('namaer','./flnml')) then
@@ -226,7 +228,7 @@ contains
 
         ! save background error (increased analysis error) standard deviation field
         call gio_writeToFile(stateVectorTrlErrorStd, trlErrorStddev_output, &
-                             bckgErrorStdEtiket, typvar_opt = inputTypeVar, &
+                             bckgErrorStdEtiket, typvar_opt = outputTypeVar, &
                              containsFullField_opt = .false.)
       end if
 
@@ -679,7 +681,7 @@ contains
     ! save analysis error
     call msg('aer_analysisError:', ' writing analysis error std field to output file...')
     call gio_writeToFile(stateVectorAnlErrorStd, anlErrorStddev_output, &
-                         analErrorStdEtiket, typvar_opt = inputTypeVar, &
+                         analErrorStdEtiket, typvar_opt = outputTypeVar, &
                          containsFullField_opt = .false.)
 
     call col_deallocate(columng)
