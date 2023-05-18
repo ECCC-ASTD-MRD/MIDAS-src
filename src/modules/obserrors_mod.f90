@@ -581,8 +581,8 @@ contains
     !  all the satellites specified in the namelist.
     !
     do JL = 1, tvs_nsensors
-      IPLF = utl_findArrayIndex(IPLATFORM  , INUMSAT, tvs_platforms  (JL))
-      ISAT =  utl_findArrayIndex(ISATID     , INUMSAT, tvs_satellites (JL))
+      IPLF = utl_findloc(IPLATFORM(:) , tvs_platforms(JL))
+      ISAT =  utl_findloc(ISATID(:), tvs_satellites(JL))
       if (IPLF == 0 .OR. ISAT == 0) THEN
         write(*,'(A,I3)') 'oer_readObsErrorsTOVS: Observation errors not defined for sensor #', JL
         call utl_abort ('oer_readObsErrorsTOVS')

@@ -108,6 +108,7 @@ A Sphinx-interpreted region is the comment section that immediately follows a me
     * `..` 
     * trailing underscore; e.g. `myVar_` 
 * Do not indent your comments; start all comments in the same column.
+* Do not split the comments for subroutine variable declaration between multiple lines. Sphinx process only the first line.
 * Do not give Sphinx a red herring. Consider the following code: 
   ```fortran
   subroutine hbht_compute(columng, columnhr)
@@ -118,6 +119,7 @@ A Sphinx-interpreted region is the comment section that immediately follows a me
                              )
   ```
   Comments like this are allowed but, because of the line continuations, Sphinx does not verify that the comments are associated with the subroutine `hbht_compute`. 
+  * If the first word in a line in `:Purpose:` block is subroutine argument, Sphinx mixes up `:Purpose:` block and subroutine argument at this line. Put the word in `<`,`>` to avoid it.
 
 ## 3- Things to Do
 
@@ -129,3 +131,4 @@ A Sphinx-interpreted region is the comment section that immediately follows a me
 
 * use `intent` for all subroutine arguments. Do not put this information in the comments 
 * Do not put revision or author information in the comments. This information is now stored in git, and is accessed there more efficiently.
+* Start the text on a new line in `:Purpose:` block by using a line which only contains `!`.
