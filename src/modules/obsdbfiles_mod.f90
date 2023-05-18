@@ -603,7 +603,6 @@ contains
     !- 1.3 Set some other quantities in obsSpaceData Header table
 
     do headIndex = headIndexBegin, headIndexEnd
-      call obs_headSet_i(obsdat, OBS_SEN, headIndex, nint(MPC_missingValue_R8))
       call obs_headSet_i(obsdat, OBS_ONM, headIndex, headIndex)
       call obs_headSet_i(obsdat, OBS_OTP, headIndex, fileIndex)
       call obs_headSet_i(obsdat, OBS_IDF, headIndex, fileIndex)
