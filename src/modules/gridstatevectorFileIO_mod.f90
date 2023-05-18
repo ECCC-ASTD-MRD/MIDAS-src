@@ -139,7 +139,7 @@ module gridStateVectorFileIO_mod
     if (.not. foundVarNameInFile) then
       varname = 'TM'
       if (gsv_varExist( statevector_out, varname) .and. &
-          utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+          utl_varNamePresentInFile(varname, fileName_opt = trim(fileName))) &
         foundVarNameInFile = .true.
     end if   
 
@@ -1848,11 +1848,12 @@ module gridStateVectorFileIO_mod
     integer :: stepIndex, stepIndexBeg, stepIndexEnd, kIndex
 
     real(4), pointer :: field_r4_ptr(:,:,:,:), fieldUV_r4_ptr(:,:,:)
+    real(8), pointer :: field_r8_ptr(:,:,:,:), fieldUV_r8_ptr(:,:,:)
     real(8)          :: multFactor
 
     character(len=4) :: varName
 
-    if ( present(stepIndex_opt) ) then
+    if (present(stepIndex_opt)) then
       stepIndexBeg = stepIndex_opt
       stepIndexEnd = stepIndex_opt
     else
@@ -1860,25 +1861,29 @@ module gridStateVectorFileIO_mod
       stepIndexEnd = statevector%numStep
     end if
 
-    call gsv_getField(statevector,field_r4_ptr)
+    if (statevector%dataKind == 4) then
+      call gsv_getField(statevector, field_r4_ptr)
+    else
+      call gsv_getField(statevector, field_r8_ptr)
+    end if
 
     step_loop: do stepIndex = stepIndexBeg, stepIndexEnd
 
       ! Do unit conversion for all variables
-      do kIndex = statevector%mykBeg, statevector%mykEnd
-        varName = gsv_getVarNameFromK(statevector,kIndex)
+      KINDEXCYCLE: do kIndex = statevector%mykBeg, statevector%mykEnd
+        varName = gsv_getVarNameFromK(statevector, kIndex)
 
-        if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
+        if (trim(varName) == 'UU' .or. trim(varName) == 'VV') then
           multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
-        else if ( trim(varName) == 'P0' .or. trim(varName) == 'P0LS' ) then
+        else if (trim(varName) == 'P0' .or. trim(varName) == 'P0LS') then
           multFactor = mpc_pa_per_mbar_r8 ! hPa -> Pa
-        else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' ) then 
-          if ( gsv_conversionVarKindCHtoMicrograms ) then
-            if ( trim(varName) == 'TO3' .or. trim(varName) == 'O3L' ) then
+        else if (vnl_varKindFromVarname(trim(varName)) == 'CH') then 
+          if (gsv_conversionVarKindCHtoMicrograms) then
+            if (trim(varName) == 'TO3' .or. trim(varName) == 'O3L') then
               ! Convert from volume mixing ratio to micrograms/kg
               ! Standard ozone input would not require this conversion as it is already in micrograms/kg
-              multFactor = 1.0d9*vnl_varMassFromVarName(trim(varName)) &
-                           /mpc_molar_mass_dry_air_r8 ! vmr -> micrograms/kg
+              multFactor = 1.0d9 * vnl_varMassFromVarName(trim(varName)) / &
+                           mpc_molar_mass_dry_air_r8 ! vmr -> micrograms/kg
             else
               multFactor = 1.0d0 ! no conversion
             end if
@@ -1889,51 +1894,89 @@ module gridStateVectorFileIO_mod
           multFactor = 1.0d0 ! no conversion
         end if
 
-        if ( multFactor /= 1.0d0 ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = real( multFactor * field_r4_ptr(:,:,kIndex,stepIndex), 4 )
+        if (multFactor /= 1.0d0) then
+          if (statevector%dataKind == 4) then
+            field_r4_ptr(:,:, kIndex, stepIndex) = real(multFactor * field_r4_ptr(:,:, kIndex, stepIndex), 4)
+          else
+            field_r8_ptr(:,:, kIndex, stepIndex) = real(multFactor * field_r8_ptr(:,:, kIndex, stepIndex), 8)
+          end if
         end if
 
-        if ( trim(varName) == 'TT' .and. containsFullField ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) +  &
-                                                     mpc_k_c_degree_offset_r8, 4 )
+        if (trim(varName) == 'TT' .and. containsFullField) then
+          if (statevector%dataKind == 4) then
+            field_r4_ptr(:,:, kIndex, stepIndex) = real(field_r4_ptr(:,:, kIndex, stepIndex) +  &
+                                                        mpc_k_c_degree_offset_r8, 4)
+          else
+            field_r8_ptr(:,:, kIndex, stepIndex) = real(field_r8_ptr(:,:, kIndex, stepIndex) +  &
+                                                        mpc_k_c_degree_offset_r8, 8)
+          end if
         end if
 
-        if ( trim(varName) == 'TM' .and. containsFullField ) then
-          where (field_r4_ptr(:,:,kIndex,stepIndex) < 100.0)
-            field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + &
-                                                       mpc_k_c_degree_offset_r8, 4 )
-          end where
+        if (trim(varName) == 'TM' .and. containsFullField) then
+          if (statevector%dataKind == 4) then
+            where (field_r4_ptr(:,:, kIndex, stepIndex) < 100.0)
+              field_r4_ptr(:,:, kIndex, stepIndex) = real(field_r4_ptr(:,:, kIndex, stepIndex) + &
+                                                          mpc_k_c_degree_offset_r8, 4)
+            end where
+          else
+            where (field_r8_ptr(:,:, kIndex, stepIndex) < 100.0)
+              field_r8_ptr(:,:, kIndex, stepIndex) = real(field_r8_ptr(:,:, kIndex, stepIndex) + &
+                                                          mpc_k_c_degree_offset_r8, 8)
+            end where
+          end if
         end if
 
-        if ( trim(varName) == 'VIS' .and. containsFullField ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = min(field_r4_ptr(:,:,kIndex,stepIndex),mpc_maximum_vis_r4)
+        if (trim(varName) == 'VIS' .and. containsFullField) then
+          if (statevector%dataKind == 4) then
+            field_r4_ptr(:,:, kIndex, stepIndex) = min(field_r4_ptr(:,:, kIndex, stepIndex), mpc_maximum_vis_r4)
+          else
+            field_r8_ptr(:,:, kIndex, stepIndex) = min(field_r8_ptr(:,:, kIndex, stepIndex), mpc_maximum_vis_r8)
+          end if
         end if
 
-        if ( vnl_varKindFromVarname(trim(varName)) == 'CH' .and. containsFullField ) then 
-          if ( gsv_minValVarKindCH(vnl_varListIndex(varName)) > 1.01*mpc_missingValue_r8 ) &
-            field_r4_ptr(:,:,kIndex,stepIndex) = max( field_r4_ptr(:,:,kIndex,stepIndex), &
-              real(gsv_minValVarKindCH(vnl_varListIndex(trim(varName)))) )
+        if (vnl_varKindFromVarname(trim(varName)) == 'CH' .and. containsFullField) then 
+          if (gsv_minValVarKindCH(vnl_varListIndex(varName)) > 1.01 * mpc_missingValue_r8) then
+            if (statevector%dataKind == 4) then
+              field_r4_ptr(:,:, kIndex, stepIndex) = max(field_r4_ptr(:,:, kIndex, stepIndex), &
+                                                         real(gsv_minValVarKindCH(vnl_varListIndex(trim(varName)))))
+            else
+              field_r8_ptr(:,:, kIndex, stepIndex) = max(field_r8_ptr(:,:, kIndex, stepIndex), &
+                                                         real(gsv_minValVarKindCH(vnl_varListIndex(trim(varName)))))
+            end if
+          end if
         end if
 
-        if ( trim(varName) == 'PR' .and. containsFullField ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = max(field_r4_ptr(:,:,kIndex,stepIndex),0.0)
+        if (trim(varName) == 'PR' .and. containsFullField) then
+          if (statevector%dataKind == 4) then
+            field_r4_ptr(:,:, kIndex, stepIndex) = max(field_r4_ptr(:,:, kIndex, stepIndex), 0.0)
+          else
+            field_r8_ptr(:,:, kIndex, stepIndex) = max(field_r8_ptr(:,:, kIndex, stepIndex), 0.0)
+          end if
         end if
-      end do
+      end do KINDEXCYCLE
 
       ! Do unit conversion for extra copy of winds, if present
-      if ( statevector%extraUVallocated ) then
+      IFWINDS: if (statevector%extraUVallocated) then
         multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
 
-        !$OMP PARALLEL DO PRIVATE (kIndex, fieldUV_r4_ptr)
-        do kIndex = statevector%myUVkBeg, statevector%myUVkEnd
-          nullify(fieldUV_r4_ptr)
-          call gsv_getFieldUV(statevector,fieldUV_r4_ptr,kIndex)
-          fieldUV_r4_ptr(:,:,stepIndex) =  &
-               real( multFactor * fieldUV_r4_ptr(:,:,stepIndex), 4)
-        end do
-        !$OMP END PARALLEL DO
-
-      end if
+        if (statevector%dataKind == 4) then
+          !$OMP PARALLEL DO PRIVATE (kIndex, fieldUV_r4_ptr)
+          do kIndex = statevector%myUVkBeg, statevector%myUVkEnd
+            nullify(fieldUV_r4_ptr)
+            call gsv_getFieldUV(statevector, fieldUV_r4_ptr, kIndex)
+            fieldUV_r4_ptr(:,:, stepIndex) = real(multFactor * fieldUV_r4_ptr(:,:, stepIndex), 4)
+          end do
+          !$OMP END PARALLEL DO
+        else
+          !$OMP PARALLEL DO PRIVATE (kIndex, fieldUV_r8_ptr)
+          do kIndex = statevector%myUVkBeg, statevector%myUVkEnd
+            nullify(fieldUV_r8_ptr)
+            call gsv_getFieldUV(statevector, fieldUV_r8_ptr, kIndex)
+            fieldUV_r8_ptr(:,:, stepIndex) = real(multFactor * fieldUV_r8_ptr(:,:, stepIndex), 8)
+          end do
+          !$OMP END PARALLEL DO
+        end if
+      end if IFWINDS
 
     end do step_loop
 

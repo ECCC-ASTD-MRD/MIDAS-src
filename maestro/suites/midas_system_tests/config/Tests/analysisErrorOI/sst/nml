@@ -63,8 +63,8 @@
    propagateDSLO = .false.
    errorGrowth = 0.01
    analysisEtiket = 'ANALYSIS'
-   analErrorStdEtiket = 'A-ER STD DEV'
-   bckgErrorStdEtiket = 'B-ER STD DEV'
+   anlErrorStdEtiket = 'A-ER STD DEV'
+   trlErrorStdEtiket = 'B-ER STD DEV'
    hoursSinceLastAnalysis = 24
    saveTrlStdField = .true.
    inputTypeVar = 'E@'
