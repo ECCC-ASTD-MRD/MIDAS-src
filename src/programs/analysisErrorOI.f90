@@ -116,7 +116,6 @@ program midas_analysisErrorOI
 
   integer :: istamp, exdb, exfin
   integer :: ierr, dateStampFromObs
-  integer :: get_max_rss
   character(len=48) :: obsMpiStrategy, varMode
   character, parameter :: myName = 'analysisErrorOI'
 
