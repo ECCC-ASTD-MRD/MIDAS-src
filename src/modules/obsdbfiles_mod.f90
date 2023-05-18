@@ -570,6 +570,12 @@ contains
     bodyIndexBegin = obs_numBody(obsdat) + 1
     headIndexBegin = obs_numHeader(obsdat) + 1
 
+    do headTableIndex = 1, numRowsHeadTable
+      headIndex = headTableIndex + headIndexBegin - 1
+      call obs_headSet_i(obsdat, OBS_SEN, headIndex, nint(MPC_missingValue_R8))
+    end do
+
+
     ! Set the columns related to surface type
     call odbf_setSurfaceType(obsdat, headIndexBegin, fileName=trim(fileName), &
                              tableName=headTableName)
@@ -960,7 +966,7 @@ contains
     end if
 
     ! build the sqlite query
-    query = 'select mask_mer(lat,lon) from ' // trim(tableName) // ';'
+    query = 'select mask_mer(lat,lon), mask_glace_clim(lat,lon) from ' // trim(tableName) // ';'
     write(*,*) 'odbf_setSurfaceType: query ---> ', trim(query)
 
     ! read the values from the query result
@@ -975,7 +981,15 @@ contains
     do headTableIndex = 1, numRows
       headIndex = headTableIndex + headIndexBegin - 1
       call obs_headSet_i(obsdat, OBS_STYP, headIndex, columnValues(headTableIndex,1))
-      call obs_headSet_i(obsdat, OBS_TTYP, headIndex, -1) ! Not sea ice
+      
+      if (columnValues(headTableIndex,1)==1 .and. columnValues(headTableIndex,2)==1) then
+        ! set terrain type to 0 over water with sea ice
+        call obs_headSet_i(obsdat, OBS_TTYP, headIndex, 0)
+      else
+        ! otherwise set terrain type to -1
+        call obs_headSet_i(obsdat, OBS_TTYP, headIndex, -1)
+      end if
+
     end do
 
     ! close the obsDB file

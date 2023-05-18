@@ -34,6 +34,7 @@
    updateItemList(10)='ZTGM'
    updateItemList(11)='ZPS'
    updateItemList(12)='STYP'
+   updateItemList(13)='TTYP'
 /
  &NAMDIMO
    NMXOBS=400000,
