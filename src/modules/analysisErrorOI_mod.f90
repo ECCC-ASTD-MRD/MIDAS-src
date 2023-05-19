@@ -56,13 +56,12 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_obs), intent(in) :: obsSpaceData
-    type(struct_hco), pointer    :: hco_ptr
-    type(struct_vco), pointer    :: vco_ptr
+    type(struct_obs), intent(in) :: obsSpaceData ! observation data structure
+    type(struct_hco), pointer    :: hco_ptr      ! horizontal grid definition
+    type(struct_vco), pointer    :: vco_ptr      ! vertical grid definition
 
-    ! Local Variables
+    ! Locals
     integer :: fnom, fclos, nulnam, ierr
-
     type(struct_gsv) :: stateVectorAnlErrorStd      ! state vector for analysis error std deviation
     type(struct_gsv) :: stateVectorTrlErrorStd      ! state vector for background error std deviation
     real(8), pointer :: anlErrorStdDev_ptr(:,:,:,:) ! pointer for analysis error std deviation
@@ -84,14 +83,14 @@ contains
     
     ! namelist variables:
     real(8)           :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
-    logical           :: propagateAnalysisError ! propagate analysis error or not
-    logical           :: propagateDSLO          ! propagate Days Since Last Obs field or not
+    logical           :: propagateAnalysisError ! choose to propagate analysis error
+    logical           :: propagateDSLO          ! choose to propagate Days Since Last Obs field
     real(4)           :: errorGrowth            ! seaice: fraction of ice per hour, SST: estimated growth
     character(len=12) :: analysisEtiket         ! analysis field etiket in a standard file
-    character(len=12) :: anlErrorStdEtiket     ! analysis error standard deviation field etiket in the input/output standard files
-    character(len=12) :: trlErrorStdEtiket     ! background error standard deviation field etiket in the input/output standard files
+    character(len=12) :: anlErrorStdEtiket      ! analysis error standard deviation field etiket in the input/output standard files
+    character(len=12) :: trlErrorStdEtiket      ! background error standard deviation field etiket in the input/output standard files
     integer           :: hoursSinceLastAnalysis ! number of hours since the last analysis
-    logical           :: saveTrlStdField        ! to save trial standard deviation field or not
+    logical           :: saveTrlStdField        ! choose to save trial standard deviation field
     character(len=2)  :: inputTypeVar           ! typvar of the analysis error field in the input file 
     character(len=2)  :: outputTypeVar          ! typvar of the analysis error field for the output file 
     namelist /namaer/ maxAnalysisErrorStdDev, propagateAnalysisError, propagateDSLO, &
@@ -316,14 +315,14 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_obs), intent(in)       :: obsSpaceData
-    type(struct_gsv), intent(in)       :: stateVectorTrlErrorStd
+    type(struct_obs), intent(in)       :: obsSpaceData     ! observation data structure
+    type(struct_gsv), intent(in)       :: stateVectorTrlErrorStd ! state containing background error stddev
     integer,          intent(out)      :: numObs(:,:)      ! number of observations found
     character(len=*), intent(in)       :: variableName     ! 'GL' for seaice or 'TM' for SST
-    real(8)         , intent(in)       :: Lcorr(:,:)
-    type(struct_neighborhood), pointer :: influentObs(:,:)
+    real(8)         , intent(in)       :: Lcorr(:,:)       ! horizontal background-error correlation length scale
+    type(struct_neighborhood), pointer :: influentObs(:,:) ! details about observations to use in update
 
-    ! Local variables
+    ! Locals
     integer :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
     integer :: procIndex, kIndex, stepIndex
     integer :: gridptCount, gridpt, numLocalGridptsFoundSearch
@@ -495,27 +494,23 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_obs), intent(in) :: obsSpaceData
-    type(struct_hco), pointer    :: hco_ptr
-    type(struct_vco), pointer    :: vco_ptr
+    type(struct_obs), intent(in) :: obsSpaceData   ! observation data structure
+    type(struct_hco), pointer    :: hco_ptr        ! horizontal grid definition
+    type(struct_vco), pointer    :: vco_ptr        ! vertical grid definition
     character(len=*), intent(in) :: inputFileName  ! input file name
     character(len=*), intent(in) :: outputFileName ! output file name
-    character(len=*), intent(in) :: variableName
+    character(len=*), intent(in) :: variableName   ! name of variable being treated
     logical         , intent(in) :: propagateDSLO  ! propagate (increase) Days Since Last Obs in time
-    integer         , intent(in) :: hoursSinceLastAnalysis
+    integer         , intent(in) :: hoursSinceLastAnalysis ! number of hours between analysis times
 
-    ! Local Variables
-    type(struct_gsv) :: stateVectorTrlDSLO
-    type(struct_gsv) :: stateVectorAnlDSLO
-    real(8), pointer :: trlDSLO_ptr(:,:,:,:)
-    real(8), pointer :: anlDSLO_ptr(:,:,:,:)
+    ! Locals
+    type(struct_gsv) :: stateVectorTrlDSLO, stateVectorAnlDSLO
+    real(8), pointer :: trlDSLO_ptr(:,:,:,:), anlDSLO_ptr(:,:,:,:)
     integer :: stepIndex, levIndex, lonIndex, latIndex, headerIndex
     integer :: bodyIndexBeg, bodyIndexEnd, bodyIndex, kIndex, procIndex
     integer :: gridptCount, gridpt
-    type(struct_columnData) :: column
-    type(struct_columnData) :: columng
-    real(8) :: leadTimeInHours
-    real(8) :: interpWeight(maxNumLocalGridptsSearch)
+    type(struct_columnData) :: column, columng
+    real(8) :: leadTimeInHours, interpWeight(maxNumLocalGridptsSearch)
     integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)
 
     if(mmpi_nprocs > 1) then
@@ -642,13 +637,11 @@ contains
     type(struct_hco), pointer       :: hco_ptr             ! horizontal coordinates structure, pointer
     type(struct_vco), pointer       :: vco_ptr             ! vertical coordinates structure, pointer
 
-    ! locals:
-    integer :: latIndex, lonIndex, localLatIndex, localLonIndex 
-    real(8), pointer :: stateVectorStdError_ptr(:,:,:)
+    ! Locals
     type(struct_gsv) :: stateVectorAnalysis
-    real(8), pointer :: stateVectorAnalysis_ptr(:,:,:)
+    integer :: latIndex, lonIndex, localLatIndex, localLonIndex, pointCount 
+    real(8), pointer :: stateVectorStdError_ptr(:,:,:), stateVectorAnalysis_ptr(:,:,:)
     real(4) :: totalLocalVariance
-    integer :: pointCount
 
     write(*,*) ''
     write(*,*) 'aer_propagateAnalysisError: propagate analysis error forward in time for: ', &
@@ -738,14 +731,13 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_gsv), intent(inout) :: stateVectorErrorStd    ! read "analysed" state into it and increase it using 
-                                                              ! hoursSinceLastAnalysis to make a background field 
-    character(len=*), intent(in)    :: inputFileName          ! input  file name
+    type(struct_gsv), intent(inout) :: stateVectorErrorStd    ! read "analysed" state into it and increase it by hoursSinceLastAnalysis
+    character(len=*), intent(in)    :: inputFileName          ! input file name
     character(len=*), intent(in)    :: outputFileName         ! output file name
     integer         , intent(in)    :: hoursSinceLastAnalysis ! hours since last analysis (namelist variable)
-    type(struct_hco), pointer       :: hco_ptr
+    type(struct_hco), pointer       :: hco_ptr                ! horizontal grid definition
 
-    ! locals
+    ! Locals
     real(8), pointer :: analysisDaysSinceLastObs_ptr(:,:,:)
     real(8) :: daysSinceLastAnalysis
     integer :: latIndex, lonIndex
@@ -795,28 +787,26 @@ contains
     type(struct_gsv)         , intent(in)    :: stateVectorTrlErrorStd ! state vector for background error std deviation
     character(len=*)         , intent(in)    :: analysisVariable       ! variable name ('GL' or 'TM') 
     real(8)                  , intent(in)    :: maxAnalysisErrorStdDev ! maximum limit imposed on analysis error stddev
-    type(struct_neighborhood), pointer       :: influentObs(:,:)
-    real(8)                  , intent(in)    :: Lcorr(:,:)
+    type(struct_neighborhood), pointer       :: influentObs(:,:)       ! details about observations to use in update
+    real(8)                  , intent(in)    :: Lcorr(:,:)             ! horizontal background-error length scale
 
-    ! locals
+    ! Locals
     integer :: latIndex, lonIndex, stepIndex, levIndex, kIndex
     integer :: numInfluentObs, bodyIndex, numVariables
     integer :: influentObsIndex2, influentObsIndex
     integer :: xStateIndex, yStateIndex, procIndex
     integer :: xIndex1, yIndex1, xIndex2, yIndex2
     integer :: gridptCount, gridpt, headerIndex
-    real(8) :: distance
     integer :: varIndex1, varIndex2, currentAnalVarIndex, ni, nj
-    integer, parameter :: maxvar = 15000
     real(8), allocatable :: latInRad(:,:), lonInRad(:,:)
     real(8), pointer     :: anlErrorStdDev_ptr(:,:,:,:)  ! pointer for analysis error std deviation
     real(8), pointer     :: trlErrorStdDev_ptr(:,:,:,:)  ! pointer for background error std deviation
-    real(8), allocatable :: obsOperator(:,:), Bmatrix(:,:), PHiA(:), &
-                            innovCovariance(:,:), obsErrorVariance(:), &
-                            PH(:,:), KH(:), IKH(:), innovCovarianceInverse(:,:)
-    integer :: statei(maxvar)    ! Model grid coordinate i of neighbors
-    integer :: statej(maxvar)    ! Model grid coordinate j of neighbors
-    real(8) :: scaling
+    real(8), allocatable :: obsOperator(:,:), Bmatrix(:,:), PHiA(:)
+    real(8), allocatable :: innovCovariance(:,:), obsErrorVariance(:)
+    real(8), allocatable :: PH(:,:), KH(:), IKH(:), innovCovarianceInverse(:,:)
+    integer, parameter :: maxvar = 15000
+    integer :: statei(maxvar), statej(maxvar) ! Model grid coordinate i,j of neighbors
+    real(8) :: scaling, distance
     logical :: found
     real(8) :: interpWeight(maxNumLocalGridptsSearch)
     integer :: obsLatIndex(maxNumLocalGridptsSearch), obsLonIndex(maxNumLocalGridptsSearch)

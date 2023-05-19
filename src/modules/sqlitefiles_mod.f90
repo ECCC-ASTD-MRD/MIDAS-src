@@ -15,7 +15,6 @@ module sqliteFiles_mod
   use obsUtil_mod
   use obsVariableTransforms_mod
   use timeCoord_mod
-  use ensembleObservations_mod
 
   implicit none
   save

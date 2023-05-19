@@ -30,7 +30,6 @@ module innovation_mod
   use bufr_mod
   use statetocolumn_mod
   use biascorrectionSat_mod
-  use columnVariableTransforms_mod
   use rmatrix_mod
   use costFunction_mod
   use varqc_mod
