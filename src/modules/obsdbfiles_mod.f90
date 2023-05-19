@@ -981,7 +981,7 @@ contains
       headIndex = headTableIndex + headIndexBegin - 1
       call obs_headSet_i(obsdat, OBS_STYP, headIndex, columnValues(headTableIndex,1))
       
-      if (columnValues(headTableIndex,1)==1 .and. columnValues(headTableIndex,2)==1) then
+      if ( columnValues(headTableIndex,1) == 1 .and. columnValues(headTableIndex,2) == 1 ) then
         ! set terrain type to 0 over water with sea ice
         call obs_headSet_i(obsdat, OBS_TTYP, headIndex, 0)
       else
