@@ -543,7 +543,7 @@ contains
                                   tableName=bodyTableName, sqlColumnNames=bodySqlNames)
     numRowsBodyTable = size(bodyValues,1)
     numRowsHeadTable = size(headValues,1)
-
+    write(*,*) 'ZQ_numRowsHeadTable', numRowsHeadTable
     ! For debugging, print first 10 rows of each local table to the listing
     do headTableIndex = 1, min(10, numRowsHeadTable)
       write(*,*) 'odbf_readFile: headKeyValues  = ', headPrimaryKey(headTableIndex)
@@ -577,8 +577,8 @@ contains
 
 
     ! Set the columns related to surface type
-    call odbf_setSurfaceType(obsdat, headIndexBegin, fileName=trim(fileName), &
-                             tableName=headTableName)
+    call odbf_setSurfaceType(obsdat, headIndexBegin, numRowsHeadTable, &
+                             fileName=trim(fileName), tableName=headTableName)
 
     ! Header date/time values
     call odbf_copyToObsSpaceHeadDate(obsdat, headDateValues, headTimeValues, &
@@ -937,7 +937,7 @@ contains
   !--------------------------------------------------------------------------
   ! odbf_setSurfaceType
   !--------------------------------------------------------------------------
-  subroutine odbf_setSurfaceType(obsdat, headIndexBegin, fileName, tableName)
+  subroutine odbf_setSurfaceType(obsdat, headIndexBegin, numRowsHeadTable, fileName, tableName)
     !
     ! :Purpose: Set the surface type based on lat-lon and some external mask files.
     !
@@ -946,8 +946,10 @@ contains
     ! arguments:
     type(struct_obs), intent(inout) :: obsdat
     integer,          intent(in)    :: headIndexBegin
+    integer,          intent(in)    :: numRowsHeadTable
     character(len=*), intent(in)    :: fileName
     character(len=*), intent(in)    :: tableName
+
 
     ! locals:
     integer              :: numRows, numColumns, headTableIndex, headIndex
@@ -972,7 +974,12 @@ contains
     call fSQL_prepare( db, trim(query), stmt, status=stat )
     call fSQL_get_many( stmt, nrows=numRows, ncols=numColumns, &
                         mode=FSQL_INT, status=stat )
-    write(*,*) 'odbf_setSurfaceType: numRows = ', numRows, ', numColumns = ', numColumns
+
+    if ( numRows /= numRowsHeadTable ) then
+      write(*,*) 'odbf_setSurfaceType: numRows = ', numRows, ', numRowsHeadTable = ', numRowsHeadTable
+      call utl_abort( 'odbf_setSurfaceType: Number of rows found in mask query is not equal to total number of rows in head table' )
+    end if
+
     allocate( columnValues(numRows, numColumns) )
     call fSQL_fill_matrix( stmt, columnValues )
 
