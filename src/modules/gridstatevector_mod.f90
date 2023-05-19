@@ -2797,7 +2797,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_getField main routine and wrappers for r4 and r8
   !--------------------------------------------------------------------------
-  subroutine gsv_getFieldWrapper_r4(statevector,field_r4,varName_opt)
+  subroutine gsv_getFieldWrapper_r4(statevector, field_r4, varName_opt)
     !
     ! :Purpose: Returns a pointer to the 4D data array. 
     !           Wrapper for the kind 4 real.
@@ -2810,11 +2810,11 @@ module gridStateVector_mod
     character(len=*), optional, intent(in)    :: varName_opt
 
     if (statevector%dataKind /= 4) call utl_abort('gsv_getFieldWrapper_r4: wrong dataKind')
-    call gsv_getField_r48(statevector,field_r4=field_r4,varName_opt=varName_opt)
+    call gsv_getField_r48(statevector, field_r4 = field_r4, varName_opt = varName_opt)
 
   end subroutine gsv_getFieldWrapper_r4
 
-  subroutine gsv_getFieldWrapper_r8(statevector,field_r8,varName_opt)
+  subroutine gsv_getFieldWrapper_r8(statevector, field_r8, varName_opt)
     !
     ! :Purpose: Returns a pointer to the 4D data array. 
     !           Wrapper for the kind 8 real.
@@ -2827,7 +2827,7 @@ module gridStateVector_mod
     character(len=*), optional, intent(in)    :: varName_opt
 
     if (statevector%dataKind /= 8) call utl_abort('gsv_getFieldWrapper_r8: wrong dataKind')
-    call gsv_getField_r48(statevector,field_r8=field_r8,varName_opt=varName_opt)
+    call gsv_getField_r48(statevector, field_r8 = field_r8, varName_opt = varName_opt)
 
   end subroutine gsv_getFieldWrapper_r8
 

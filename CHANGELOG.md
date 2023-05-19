@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added analysis error estimation for SST in `analysisErrorOI` (#804 and !726)
  * Added functionality in the letkf for passive assimilation of specified observations (#810 and !734)
    * also simulation functionality is now activated in an analogous fashion
  * Add new variable `rejectNoZTDScore` to `thin_gbgps` namelist (#815 and !729)
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
+ * I/O filenames are changed for `analysisErrorOI` (#804 and !726)
  * Add `:Purpose:` and description for arguments to all subroutines in `bgckmicrowave_mod` (#779 and !735)
  * Remove subroutines that copy from/to `obsSpaceData` in `bgckmicrowave_mod` (#779 and !730)
    * Minor impact on results. Change in 2nd decimal of CLW/SI values of some obs due to `r4` -> `r8` switch.

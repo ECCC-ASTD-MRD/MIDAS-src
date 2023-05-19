@@ -16,7 +16,6 @@ module calcHeightAndPressure_mod
   !           and momentum levels and labeled `Z_T` (`P_T`) and `Z_M` (`P_M`).
   !
   use codePrecision_mod
-  use midasMpi_mod
   use mathPhysConstants_mod
   use earthConstants_mod
   use physicsFunctions_mod
@@ -25,7 +24,6 @@ module calcHeightAndPressure_mod
   use columnData_mod
   use utilities_mod
   use message_mod
-  use varnamelist_mod
   use gps_mod
   use HorizontalCoord_mod
   use Vgrid_Descriptors

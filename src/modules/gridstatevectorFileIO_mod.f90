@@ -139,7 +139,7 @@ module gridStateVectorFileIO_mod
     if (.not. foundVarNameInFile) then
       varname = 'TM'
       if (gsv_varExist( statevector_out, varname) .and. &
-          utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+          utl_varNamePresentInFile(varname, fileName_opt = trim(fileName))) &
         foundVarNameInFile = .true.
     end if   
 
@@ -479,9 +479,9 @@ module gridStateVectorFileIO_mod
   !--------------------------------------------------------------------------
   ! readFromFileOnly
   !--------------------------------------------------------------------------
-  subroutine readFromFileOnly(statevector_out, fileName,  &
-             etiket_in, typvar_in, stepIndex, unitConversion,  &
-             readHeightSfc, containsFullField)
+  subroutine readFromFileOnly(statevector_out, fileName, etiket_in, typvar_in, &
+                              stepIndex, unitConversion, readHeightSfc, &
+                              containsFullField)
     !
     ! :Purpose: Read an RPN standard file and put the contents into a
     !           stateVector object.  Wrapper subroutine
@@ -493,23 +493,20 @@ module gridStateVectorFileIO_mod
     character(len=*), intent(in)    :: fileName
     character(len=*), intent(in)    :: etiket_in
     character(len=*), intent(in)    :: typvar_in
-    integer,          intent(in)    :: stepIndex
-    logical,          intent(in)    :: unitConversion
-    logical,          intent(in)    :: readHeightSfc
-    logical,          intent(in)    :: containsFullField
+    integer         , intent(in)    :: stepIndex
+    logical         , intent(in)    :: unitConversion
+    logical         , intent(in)    :: readHeightSfc
+    logical         , intent(in)    :: containsFullField
 
     write(*,*) ''
     write(*,*) 'readFromFileOnly: Do simple reading with no interpolation and no mpi redistribution'
 
-    if ( statevector_out%dataKind /= 4) then
-      call utl_abort('readFromFileOnly: Only compatible with dataKind=4')
-    end if
+    call gio_readFile(statevector_out, filename, etiket_in, typvar_in,  &
+                      containsFullField, readHeightSfc_opt = readHeightSfc, &
+                      stepIndex_opt = stepIndex)
 
-    call gio_readFile( statevector_out, filename, etiket_in, typvar_in,  &
-                       containsFullField, readHeightSfc_opt=readHeightSfc, stepIndex_opt=stepIndex )
-
-    if ( unitConversion ) then
-      call gio_fileUnitsToStateUnits( statevector_out, containsFullField, stepIndex_opt=stepIndex )
+    if (unitConversion) then
+      call gio_fileUnitsToStateUnits(statevector_out, containsFullField, stepIndex_opt = stepIndex)
     end if
 
     write(*,*) 'readFromFileOnly: END'
@@ -558,7 +555,9 @@ module gridStateVectorFileIO_mod
     character(len=12) :: etiket_var
 
     real(4), pointer :: field_r4_ptr(:,:,:,:)
+    real(8), pointer :: field_r8_ptr(:,:,:,:)
     real(4), pointer :: gd2d_file_r4(:,:), gd2d_r4_UV_ptr(:,:,:)
+    real(8), pointer :: gd2d_r8_UV_ptr(:,:,:)
     real(8), pointer :: heightSfc_ptr(:,:)
     real(4), allocatable :: gd2d_var_r4(:,:)
 
@@ -571,19 +570,19 @@ module gridStateVectorFileIO_mod
     logical :: foundVarNameInFile, ignoreDate
 
     write(*,*) 'gio_readFile: starting'
-    write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
+    write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     call readNml()
 
     vco_file => gsv_getVco(statevector)
 
-    if ( statevector%mpi_distribution /= 'VarsLevs' .and. &
-         statevector%mpi_local ) then
+    if (statevector%mpi_distribution /= 'VarsLevs' .and. &
+        statevector%mpi_local) then
       call utl_abort('gio_readFile: statevector must have ' //   &
                      'complete horizontal fields on each mpi task.')
     end if
 
-    if ( present(stepIndex_opt) ) then
+    if (present(stepIndex_opt)) then
       stepIndexBeg = stepIndex_opt
       stepIndexEnd = stepIndex_opt
     else
@@ -591,7 +590,7 @@ module gridStateVectorFileIO_mod
       stepIndexEnd = statevector%numStep
     end if
 
-    if ( present(ignoreDate_opt) ) then
+    if (present(ignoreDate_opt)) then
       ignoreDate = ignoreDate_opt
     else
       ignoreDate = .false.
@@ -609,8 +608,8 @@ module gridStateVectorFileIO_mod
 
     !- Open input field
     nulfile = 0
-    write(*,*) 'gio_readFile: file name = ',trim(fileName)
-    ierr = fnom(nulfile,trim(fileName),'RND+OLD+R/O',0)
+    write(*,*) 'gio_readFile: file name = ', trim(fileName)
+    ierr = fnom(nulfile, trim(fileName), 'RND+OLD+R/O', 0)
 
     if (ierr >= 0) then
       ierr  =  fstouv(nulfile,'RND+OLD')
@@ -637,8 +636,8 @@ module gridStateVectorFileIO_mod
           if (trim(typvar_in) /= "") then
             typvar_var(2:2) = '@'
             ikey = fstinf(nulfile, ni_file, nj_file, nk_file,  &
-                 -1, etiket_in, &
-                 -1, -1, -1, typvar_var, varName)
+                          -1, etiket_in, &
+                          -1, -1, -1, typvar_var, varName)
           end if
           if (ikey < 0) then
             write(*,*) 'gio_readFile: etiket_in = ', etiket_in
@@ -653,11 +652,10 @@ module gridStateVectorFileIO_mod
           call utl_abort('gio_readFile: Dimensions of surface height not consistent')
         end if
 
-        allocate(gd2d_file_r4(ni_file,nj_file))
+        allocate(gd2d_file_r4(ni_file, nj_file))
         gd2d_file_r4(:,:) = 0.0d0
-        ierr = fstlir(gd2d_file_r4(:,:), nulfile, ni_file, nj_file, nk_file,  &
-                      -1,etiket_in,ip1,-1,-1,  &
-                      typvar_var,varName)
+        ierr = fstlir(gd2d_file_r4(:,:), nulfile, ni_file, nj_file, nk_file, &
+                      -1, etiket_in, ip1, -1, -1, typvar_var,varName)
         if (ierr < 0) then
           write(*,*) 'ip1 = ', ip1
           write(*,*) 'etiket_in = ', etiket_in
@@ -665,27 +663,28 @@ module gridStateVectorFileIO_mod
           call utl_abort('gio_readFile: Problem with reading surface height from file')
         end if
         heightSfc_ptr => gsv_getHeightSfc(statevector)
-        heightSfc_ptr = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj),8)*10.0d0
+        heightSfc_ptr = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
+                                          1:gsv_getHco(statevector)%nj), 8) * 10.0d0
         deallocate(gd2d_file_r4)
       end if
     end if
 
     nullify(hco_file)
     nullify(gd2d_file_r4)
-    if ( statevector%mykCount > 0 ) then
+    if (statevector%mykCount > 0) then
       if (statevector%hco%global) then
 
         foundVarNameInFile = .false.
         do varIndex = 1, vnl_numvarmax
           varName = vnl_varNameList(varIndex)
 
-          if (.not. gsv_varExist(statevector,varName)) cycle
+          if (.not. gsv_varExist(statevector, varName)) cycle
 
           ! make sure variable is in the file
-          if ( .not. utl_varNamePresentInFile(varName,fileName_opt=trim(fileName)) ) cycle
+          if (.not. utl_varNamePresentInFile(varName, fileName_opt = trim(fileName))) cycle
 
           ! adopt a variable on the full/dynamic LAM grid
-          if ( (trim(varName) == 'TM'   .or. trim(varName) == 'MG' ) ) cycle
+          if ((trim(varName) == 'TM' .or. trim(varName) == 'MG')) cycle
 
           foundVarNameInFile = .true.
 
@@ -693,23 +692,23 @@ module gridStateVectorFileIO_mod
         end do
 
         ! special case when only TM (Surface Temperature) is in the file:
-        if ( .not. foundVarNameInFile ) then
+        if (.not. foundVarNameInFile) then
           varname = 'TM'
-          if (gsv_varExist( statevector, varname ) .and. &
-              utl_varNamePresentInFile( varname, fileName_opt = trim( fileName ))) &
+          if (gsv_varExist(statevector, varname) .and. &
+              utl_varNamePresentInFile(varname, fileName_opt = trim(fileName))) &
             foundVarNameInFile = .true.
         end if   
 
         ! to be safe for situations where, e.g. someone wants to only read MG from a file
         if (.not. foundVarNameInFile) then
           varname = 'P0'
-          if (utl_varNamePresentInFile( varname, fileName_opt = trim( fileName))) &
+          if (utl_varNamePresentInFile(varname, fileName_opt = trim( fileName))) &
             foundVarNameInFile = .true.
         end if
 
         if (.not. foundVarNameInFile) call utl_abort('gio_readFile: NO variable is in the file')
 
-        call hco_setupFromFile(hco_file, filename, ' ', 'INPUTFILE', varName_opt=varName)
+        call hco_setupFromFile(hco_file, filename, ' ', 'INPUTFILE', varName_opt = varName)
 
       else
         ! In LAM mode, force the input file dimensions to be always identical to the input statevector dimensions
@@ -719,40 +718,45 @@ module gridStateVectorFileIO_mod
         if (interpToPhysicsGrid) then
           var_loop: do varIndex = 1, vnl_numvarmax
             varName = vnl_varNameList(varIndex)
-            if (.not. gsv_varExist(statevector,varName)) cycle var_loop
+            if (.not. gsv_varExist(statevector, varName)) cycle var_loop
             if (.not. vnl_isPhysicsVar(varName)) cycle var_loop
-            if (utl_varNamePresentInFile(varName, fileName_opt=filename) .and. &
+            if (utl_varNamePresentInFile(varName, fileName_opt = filename) .and. &
                .not. associated(statevector%hco_physics)) then
               write(*,*) 'gio_readFile: set up physics grid using the variable:', varName
               call hco_SetupFromFile(statevector%hco_physics, filename, ' ', &
-                                     'INPUTFILE', varName_opt=varName)
+                                     'INPUTFILE', varName_opt = varName)
               exit var_loop
             end if
           end do var_loop
         end if
 
       end if
-      allocate(gd2d_file_r4(hco_file%ni,hco_file%nj))
+      allocate(gd2d_file_r4(hco_file%ni, hco_file%nj))
       gd2d_file_r4(:,:) = 0.0
     end if
 
     ! Read all other fields needed for this MPI task
-    call gsv_getField(statevector,field_r4_ptr)
+    if (statevector%dataKind == 4) then
+      call gsv_getField(statevector, field_r4_ptr)
+    else
+      call gsv_getField(statevector, field_r8_ptr)
+    end if
+
     do stepIndex = stepIndexBeg, stepIndexEnd
       k_loop: do kIndex = statevector%mykBeg, statevector%mykEnd
-        varName = gsv_getVarNameFromK(statevector,kIndex)
-        levIndex = gsv_getLevFromK(statevector,kIndex)
+        varName = gsv_getVarNameFromK(statevector, kIndex)
+        levIndex = gsv_getLevFromK(statevector, kIndex)
 
-        if (.not.gsv_varExist(statevector,varName)) cycle k_loop
+        if (.not.gsv_varExist(statevector, varName)) cycle k_loop
 
         ! Check that the wanted field is present in the file
-        if (utl_varNamePresentInFile(varName,fileUnit_opt=nulfile)) then
+        if (utl_varNamePresentInFile(varName, fileUnit_opt = nulfile)) then
           varNameToRead = varName
         else
           select case (trim(varName))
           case ('LVIS')
             varNameToRead = 'VIS'
-          case ('Z_T','Z_M','P_T','P_M')
+          case ('Z_T', 'Z_M', 'P_T', 'P_M')
             cycle k_loop
           case ('LPR')
             varNameToRead = 'PR'
@@ -786,7 +790,7 @@ module gridStateVectorFileIO_mod
         typvar_var = typvar_in
 
         ! Make sure that the input variable has the same grid size than hco_file
-        ikey = fstinf(nulfile, ni_var, nj_var, nk_var,         &
+        ikey = fstinf(nulfile, ni_var, nj_var, nk_var,     &
                       datestamplist(stepIndex), etiket_in, &
                       -1, -1, -1, typvar_var, varNameToRead)
 
@@ -822,9 +826,9 @@ module gridStateVectorFileIO_mod
         end if
 
         if (ni_var == hco_file%ni .and. nj_var == hco_file%nj) then
-          ierr = fstlir(gd2d_file_r4(:,:),nulfile,ni_file, nj_file, nk_file,  &
-                        datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                        typvar_var,varNameToRead)
+          ierr = fstlir(gd2d_file_r4(:,:), nulfile, ni_file, nj_file, nk_file,  &
+                        datestamplist(stepIndex), etiket_in, ip1, -1, -1,  &
+                        typvar_var, varNameToRead)
         else
           ! Special cases for variables that are on a different horizontal grid in LAM (e.g. TG)
           write(*,*)
@@ -850,16 +854,16 @@ module gridStateVectorFileIO_mod
 
           EZscintID_var  = ezqkdef(ni_var, nj_var, grtyp_var, ig1_var, ig2_var, ig3_var, ig4_var, nulfile) ! IN
 
-          allocate(gd2d_var_r4(ni_var,nj_var))
+          allocate(gd2d_var_r4(ni_var, nj_var))
           gd2d_var_r4(:,:) = 0.0
 
-          ierr = fstlir(gd2d_var_r4(:,:),nulfile,ni_var, nj_var, nk_var,  &
-                        datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                        typvar_in,varNameToRead)
+          ierr = fstlir(gd2d_var_r4(:,:), nulfile, ni_var, nj_var, nk_var,  &
+                        datestamplist(stepIndex), etiket_in, ip1, -1, -1,  &
+                        typvar_in, varNameToRead)
 
-          ierr = ezdefset(hco_file%EZscintID,EZscintID_var)
-          ierr = int_hInterpScalar( gd2d_file_r4, gd2d_var_r4, &
-                                    interpDegree='NEAREST', extrapDegree_opt='NEUTRAL' )
+          ierr = ezdefset(hco_file%EZscintID, EZscintID_var)
+          ierr = int_hInterpScalar(gd2d_file_r4, gd2d_var_r4, &
+                                   interpDegree = 'NEAREST', extrapDegree_opt = 'NEUTRAL')
 
           ! read the corresponding mask if it exists
           if (typvar_var(2:2) == '@') then
@@ -871,15 +875,40 @@ module gridStateVectorFileIO_mod
         end if
 
         if (varNameToRead == varName .or. .not. containsFullField) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)
+
+          if (statevector%dataKind == 4) then
+            field_r4_ptr(:,:, kIndex, stepIndex) = gd2d_file_r4(1:statevector%hco%ni, 1:statevector%hco%nj)
+          else
+            field_r8_ptr(:,:, kIndex, stepIndex) = real(gd2d_file_r4(1:statevector%hco%ni, 1:statevector%hco%nj), 8)
+          end if
+
         else
+
           select case (trim(varName))
           case ('LVIS')
-            field_r4_ptr(:,:,kIndex,stepIndex) = &
-                 log(max(min(gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj),mpc_maximum_vis_r4),mpc_minimum_vis_r4))
+
+            if (statevector%dataKind == 4) then
+              field_r4_ptr(:,:, kIndex, stepIndex) = &
+                 log(max(min(gd2d_file_r4(1:statevector%hco%ni, 1:statevector%hco%nj), &
+                         mpc_maximum_vis_r4), mpc_minimum_vis_r4))
+            else
+              field_r8_ptr(:,:, kIndex, stepIndex) = real(&
+                 log(max(min(gd2d_file_r4(1:statevector%hco%ni, 1:statevector%hco%nj), &
+                         mpc_maximum_vis_r4), mpc_minimum_vis_r4)), 8)
+            end if 
+
           case ('LPR')
-            field_r4_ptr(:,:,kIndex,stepIndex) = &
-                 log(mpc_minimum_pr_r4 + max(0.0,gd2d_file_r4(1:statevector%hco%ni,1:statevector%hco%nj)))
+
+            if (statevector%dataKind == 4) then
+              field_r4_ptr(:,:, kIndex, stepIndex) = &
+                 log(mpc_minimum_pr_r4 + max(0.0, gd2d_file_r4(1:statevector%hco%ni, &
+                                                               1:statevector%hco%nj)))
+            else
+              field_r8_ptr(:,:, kIndex, stepIndex) = real(&
+                 log(mpc_minimum_pr_r4 + max(0.0, gd2d_file_r4(1:statevector%hco%ni, &
+                                                               1:statevector%hco%nj))), 8)
+            end if
+
           case default
             call utl_abort('gio_readFile: Oups! This should not happen... Check the code.')
           end select
@@ -895,19 +924,43 @@ module gridStateVectorFileIO_mod
         ! then we re-read the corresponding UV component and store it
         if (statevector%extraUVallocated) then
           if (varName == 'UU') then
-            ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
-                          datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                          typvar_in,'VV')
-            call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, kIndex)
-            gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj, stepIndex) &
-                 = gd2d_file_r4(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj)
+            ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file, &
+                          datestamplist(stepIndex), etiket_in, ip1, -1, -1,  &
+                          typvar_in, 'VV')
+
+            if (statevector%dataKind == 4) then
+              call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, kIndex)
+              gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni, &
+                             1:gsv_getHco(statevector)%nj, stepIndex) &
+                 = gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
+                                1:gsv_getHco(statevector)%nj)
+            else
+              call gsv_getFieldUV(statevector, gd2d_r8_UV_ptr, kIndex)
+              gd2d_r8_UV_ptr(1:gsv_getHco(statevector)%ni, &
+                             1:gsv_getHco(statevector)%nj, stepIndex) &
+                 = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
+                                     1:gsv_getHco(statevector)%nj), 8)
+            end if
+
           else if (varName == 'VV') then
-            ierr = fstlir(gd2d_file_r4(:,:),nulfile, ni_file, nj_file, nk_file,  &
-                          datestamplist(stepIndex),etiket_in,ip1,-1,-1,  &
-                          typvar_in,'UU')
-            call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, kIndex)
-            gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj, stepIndex) &
-                 = gd2d_file_r4(1:gsv_getHco(statevector)%ni,1:gsv_getHco(statevector)%nj)
+            ierr = fstlir(gd2d_file_r4(:,:), nulfile, ni_file, nj_file, nk_file,  &
+                          datestamplist(stepIndex), etiket_in, ip1, -1, -1,  &
+                          typvar_in, 'UU')
+
+            if (statevector%dataKind == 4) then
+              call gsv_getFieldUV(statevector, gd2d_r4_UV_ptr, kIndex)
+              gd2d_r4_UV_ptr(1:gsv_getHco(statevector)%ni, &
+                             1:gsv_getHco(statevector)%nj, stepIndex) &
+                   = gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
+                                  1:gsv_getHco(statevector)%nj)
+            else
+              call gsv_getFieldUV(statevector, gd2d_r8_UV_ptr, kIndex)
+              gd2d_r8_UV_ptr(1:gsv_getHco(statevector)%ni, &
+                             1:gsv_getHco(statevector)%nj, stepIndex) &
+                   = real(gd2d_file_r4(1:gsv_getHco(statevector)%ni, &
+                                       1:gsv_getHco(statevector)%nj), 8)
+            end if
+
           end if
         end if
 
@@ -921,7 +974,7 @@ module gridStateVectorFileIO_mod
 
     ierr = fstfrm(nulfile)
     ierr = fclos(nulfile)        
-    if ( associated(gd2d_file_r4) ) deallocate(gd2d_file_r4)
+    if (associated(gd2d_file_r4)) deallocate(gd2d_file_r4)
 
     ! Read in an oceanMask if it is present in the file
     call gio_readMaskFromFile(statevector, trim(filename))
@@ -1795,11 +1848,12 @@ module gridStateVectorFileIO_mod
     integer :: stepIndex, stepIndexBeg, stepIndexEnd, kIndex
 
     real(4), pointer :: field_r4_ptr(:,:,:,:), fieldUV_r4_ptr(:,:,:)
+    real(8), pointer :: field_r8_ptr(:,:,:,:), fieldUV_r8_ptr(:,:,:)
     real(8)          :: multFactor
 
     character(len=4) :: varName
 
-    if ( present(stepIndex_opt) ) then
+    if (present(stepIndex_opt)) then
       stepIndexBeg = stepIndex_opt
       stepIndexEnd = stepIndex_opt
     else
@@ -1807,25 +1861,29 @@ module gridStateVectorFileIO_mod
       stepIndexEnd = statevector%numStep
     end if
 
-    call gsv_getField(statevector,field_r4_ptr)
+    if (statevector%dataKind == 4) then
+      call gsv_getField(statevector, field_r4_ptr)
+    else
+      call gsv_getField(statevector, field_r8_ptr)
+    end if
 
     step_loop: do stepIndex = stepIndexBeg, stepIndexEnd
 
       ! Do unit conversion for all variables
-      do kIndex = statevector%mykBeg, statevector%mykEnd
-        varName = gsv_getVarNameFromK(statevector,kIndex)
+      KINDEXCYCLE: do kIndex = statevector%mykBeg, statevector%mykEnd
+        varName = gsv_getVarNameFromK(statevector, kIndex)
 
-        if ( trim(varName) == 'UU' .or. trim(varName) == 'VV') then
+        if (trim(varName) == 'UU' .or. trim(varName) == 'VV') then
           multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
-        else if ( trim(varName) == 'P0' .or. trim(varName) == 'P0LS' ) then
+        else if (trim(varName) == 'P0' .or. trim(varName) == 'P0LS') then
           multFactor = mpc_pa_per_mbar_r8 ! hPa -> Pa
-        else if ( vnl_varKindFromVarname(trim(varName)) == 'CH' ) then 
-          if ( gsv_conversionVarKindCHtoMicrograms ) then
-            if ( trim(varName) == 'TO3' .or. trim(varName) == 'O3L' ) then
+        else if (vnl_varKindFromVarname(trim(varName)) == 'CH') then 
+          if (gsv_conversionVarKindCHtoMicrograms) then
+            if (trim(varName) == 'TO3' .or. trim(varName) == 'O3L') then
               ! Convert from volume mixing ratio to micrograms/kg
               ! Standard ozone input would not require this conversion as it is already in micrograms/kg
-              multFactor = 1.0d9*vnl_varMassFromVarName(trim(varName)) &
-                           /mpc_molar_mass_dry_air_r8 ! vmr -> micrograms/kg
+              multFactor = 1.0d9 * vnl_varMassFromVarName(trim(varName)) / &
+                           mpc_molar_mass_dry_air_r8 ! vmr -> micrograms/kg
             else
               multFactor = 1.0d0 ! no conversion
             end if
@@ -1836,51 +1894,89 @@ module gridStateVectorFileIO_mod
           multFactor = 1.0d0 ! no conversion
         end if
 
-        if ( multFactor /= 1.0d0 ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = real( multFactor * field_r4_ptr(:,:,kIndex,stepIndex), 4 )
+        if (multFactor /= 1.0d0) then
+          if (statevector%dataKind == 4) then
+            field_r4_ptr(:,:, kIndex, stepIndex) = real(multFactor * field_r4_ptr(:,:, kIndex, stepIndex), 4)
+          else
+            field_r8_ptr(:,:, kIndex, stepIndex) = real(multFactor * field_r8_ptr(:,:, kIndex, stepIndex), 8)
+          end if
         end if
 
-        if ( trim(varName) == 'TT' .and. containsFullField ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) +  &
-                                                     mpc_k_c_degree_offset_r8, 4 )
+        if (trim(varName) == 'TT' .and. containsFullField) then
+          if (statevector%dataKind == 4) then
+            field_r4_ptr(:,:, kIndex, stepIndex) = real(field_r4_ptr(:,:, kIndex, stepIndex) +  &
+                                                        mpc_k_c_degree_offset_r8, 4)
+          else
+            field_r8_ptr(:,:, kIndex, stepIndex) = real(field_r8_ptr(:,:, kIndex, stepIndex) +  &
+                                                        mpc_k_c_degree_offset_r8, 8)
+          end if
         end if
 
-        if ( trim(varName) == 'TM' .and. containsFullField ) then
-          where (field_r4_ptr(:,:,kIndex,stepIndex) < 100.0)
-            field_r4_ptr(:,:,kIndex,stepIndex) = real( field_r4_ptr(:,:,kIndex,stepIndex) + &
-                                                       mpc_k_c_degree_offset_r8, 4 )
-          end where
+        if (trim(varName) == 'TM' .and. containsFullField) then
+          if (statevector%dataKind == 4) then
+            where (field_r4_ptr(:,:, kIndex, stepIndex) < 100.0)
+              field_r4_ptr(:,:, kIndex, stepIndex) = real(field_r4_ptr(:,:, kIndex, stepIndex) + &
+                                                          mpc_k_c_degree_offset_r8, 4)
+            end where
+          else
+            where (field_r8_ptr(:,:, kIndex, stepIndex) < 100.0)
+              field_r8_ptr(:,:, kIndex, stepIndex) = real(field_r8_ptr(:,:, kIndex, stepIndex) + &
+                                                          mpc_k_c_degree_offset_r8, 8)
+            end where
+          end if
         end if
 
-        if ( trim(varName) == 'VIS' .and. containsFullField ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = min(field_r4_ptr(:,:,kIndex,stepIndex),mpc_maximum_vis_r4)
+        if (trim(varName) == 'VIS' .and. containsFullField) then
+          if (statevector%dataKind == 4) then
+            field_r4_ptr(:,:, kIndex, stepIndex) = min(field_r4_ptr(:,:, kIndex, stepIndex), mpc_maximum_vis_r4)
+          else
+            field_r8_ptr(:,:, kIndex, stepIndex) = min(field_r8_ptr(:,:, kIndex, stepIndex), mpc_maximum_vis_r8)
+          end if
         end if
 
-        if ( vnl_varKindFromVarname(trim(varName)) == 'CH' .and. containsFullField ) then 
-          if ( gsv_minValVarKindCH(vnl_varListIndex(varName)) > 1.01*mpc_missingValue_r8 ) &
-            field_r4_ptr(:,:,kIndex,stepIndex) = max( field_r4_ptr(:,:,kIndex,stepIndex), &
-              real(gsv_minValVarKindCH(vnl_varListIndex(trim(varName)))) )
+        if (vnl_varKindFromVarname(trim(varName)) == 'CH' .and. containsFullField) then 
+          if (gsv_minValVarKindCH(vnl_varListIndex(varName)) > 1.01 * mpc_missingValue_r8) then
+            if (statevector%dataKind == 4) then
+              field_r4_ptr(:,:, kIndex, stepIndex) = max(field_r4_ptr(:,:, kIndex, stepIndex), &
+                                                         real(gsv_minValVarKindCH(vnl_varListIndex(trim(varName)))))
+            else
+              field_r8_ptr(:,:, kIndex, stepIndex) = max(field_r8_ptr(:,:, kIndex, stepIndex), &
+                                                         real(gsv_minValVarKindCH(vnl_varListIndex(trim(varName)))))
+            end if
+          end if
         end if
 
-        if ( trim(varName) == 'PR' .and. containsFullField ) then
-          field_r4_ptr(:,:,kIndex,stepIndex) = max(field_r4_ptr(:,:,kIndex,stepIndex),0.0)
+        if (trim(varName) == 'PR' .and. containsFullField) then
+          if (statevector%dataKind == 4) then
+            field_r4_ptr(:,:, kIndex, stepIndex) = max(field_r4_ptr(:,:, kIndex, stepIndex), 0.0)
+          else
+            field_r8_ptr(:,:, kIndex, stepIndex) = max(field_r8_ptr(:,:, kIndex, stepIndex), 0.0)
+          end if
         end if
-      end do
+      end do KINDEXCYCLE
 
       ! Do unit conversion for extra copy of winds, if present
-      if ( statevector%extraUVallocated ) then
+      IFWINDS: if (statevector%extraUVallocated) then
         multFactor = mpc_m_per_s_per_knot_r8 ! knots -> m/s
 
-        !$OMP PARALLEL DO PRIVATE (kIndex, fieldUV_r4_ptr)
-        do kIndex = statevector%myUVkBeg, statevector%myUVkEnd
-          nullify(fieldUV_r4_ptr)
-          call gsv_getFieldUV(statevector,fieldUV_r4_ptr,kIndex)
-          fieldUV_r4_ptr(:,:,stepIndex) =  &
-               real( multFactor * fieldUV_r4_ptr(:,:,stepIndex), 4)
-        end do
-        !$OMP END PARALLEL DO
-
-      end if
+        if (statevector%dataKind == 4) then
+          !$OMP PARALLEL DO PRIVATE (kIndex, fieldUV_r4_ptr)
+          do kIndex = statevector%myUVkBeg, statevector%myUVkEnd
+            nullify(fieldUV_r4_ptr)
+            call gsv_getFieldUV(statevector, fieldUV_r4_ptr, kIndex)
+            fieldUV_r4_ptr(:,:, stepIndex) = real(multFactor * fieldUV_r4_ptr(:,:, stepIndex), 4)
+          end do
+          !$OMP END PARALLEL DO
+        else
+          !$OMP PARALLEL DO PRIVATE (kIndex, fieldUV_r8_ptr)
+          do kIndex = statevector%myUVkBeg, statevector%myUVkEnd
+            nullify(fieldUV_r8_ptr)
+            call gsv_getFieldUV(statevector, fieldUV_r8_ptr, kIndex)
+            fieldUV_r8_ptr(:,:, stepIndex) = real(multFactor * fieldUV_r8_ptr(:,:, stepIndex), 8)
+          end do
+          !$OMP END PARALLEL DO
+        end if
+      end if IFWINDS
 
     end do step_loop
 

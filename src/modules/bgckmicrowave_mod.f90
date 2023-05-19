@@ -2264,15 +2264,13 @@ contains
   !--------------------------------------------------------------------------
   ! mwbg_qcStats
   !--------------------------------------------------------------------------
-  subroutine mwbg_qcStats(obsSpaceData, instName, qcIndicator, sensorIndex, &
-                          satelliteId, LDprint)
+  subroutine mwbg_qcStats(instName, qcIndicator, sensorIndex, satelliteId, LDprint)
     !
     !:Purpose: Cumuler ou imprimer des statistiques decriptives des rejets tovs.
     !
     implicit none 
 
     !Arguments:
-    type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     character(*),      intent(in) :: instName       ! Instrument Name
     integer,           intent(in) :: qcIndicator(:) ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
     integer,           intent(in) :: sensorIndex    ! numero d'identificateur du satellite
@@ -3373,7 +3371,7 @@ contains
   !--------------------------------------------------------------------------
   ! atmsMwhs2Test5ChannelSelectionUsingTovutil
   !--------------------------------------------------------------------------
-  subroutine atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, sensorIndex, qcIndicator, &
+  subroutine atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, sensorIndex, &
                                                         headerIndex, obsSpaceData)
     !
     !:Purpose: test 5: Channel selection using array oer_tovutil(chan,sat):
@@ -3385,7 +3383,6 @@ contains
     ! Arguments
     integer,          intent(in) :: itest(:)        ! test number
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
-    integer,          intent(in) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
     ! Locals
@@ -3635,7 +3632,7 @@ contains
     ! 5) test 5: Channel selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
     !                1 (assmilate)
-    call atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, sensorIndex, qcIndicator, &
+    call atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, sensorIndex, &
                                                     headerIndex, obsSpaceData)
 
     !  Synthese de la controle de qualite au niveau de chaque point
@@ -3903,7 +3900,7 @@ contains
     ! 5) test 5: Channel selection using array oer_tovutil(chan,sat)
     !  oer_tovutil = 0 (blacklisted)
     !                1 (assmilate)
-    call atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, sensorIndex, qcIndicator, &
+    call atmsMwhs2Test5ChannelSelectionUsingTovutil(itest, sensorIndex, &
                                                     headerIndex, obsSpaceData)
 
     !  Synthese de la controle de qualite au niveau de chaque point
@@ -4890,7 +4887,7 @@ contains
 
     ! Locals
     integer :: icount, landQualifierIndice, terrainTypeIndice, satScanPosition, actualNumChannel
-    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset, channelIndex
+    integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, channelIndex
     integer, allocatable :: obsChannels(:)
     real(8) :: obsLat, obsLon, satZenithAngle
     real(8) :: obsTb
@@ -5850,7 +5847,7 @@ contains
     integer,             intent(in) :: sensorIndex          ! numero de satellite (i.e. indice) 
 
     ! Locals
-    integer :: j, INDXCAN, codtyp, obsGlobalMarker, newInformationFlag, actualNumChannel
+    integer :: INDXCAN, codtyp, obsGlobalMarker, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     integer :: obsFlags
     real(8) :: clwObsFGaveraged, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
@@ -6065,7 +6062,7 @@ contains
     integer,             intent(in) :: sensorIndex          ! numero de satellite (i.e. indice) 
 
     ! Locals
-    integer :: j, ipos, INDXCAN, codtyp, obsGlobalMarker, newInformationFlag, actualNumChannel
+    integer :: INDXCAN, codtyp, obsGlobalMarker, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     integer :: obsFlags
     real(8) :: clwObsFGaveraged, cloudLiquidWaterPathObs, cloudLiquidWaterPathFG
@@ -6293,7 +6290,6 @@ contains
     logical :: sensorIndexFound
 
     ! Locals
-    integer :: channelIndex
     integer :: iplatform, instrum, isat, iplatf, instr
 
    ! find tvs_sensor index corresponding to current obs
@@ -6334,11 +6330,8 @@ contains
     real(8)               :: modelInterpTerrain       ! topo in standard file interpolated to obs point
     real(8)               :: modelInterpSeaIce        ! Glace de mer " "
     real(8)               :: modelInterpLandFrac      ! model interpolated land fraction
-    real(8)               :: obsLat                   ! obs. point latitudes
-    real(8)               :: obsLon                   ! obs. point longitude
     integer, allocatable  :: qcIndicator(:)           ! indicateur controle de qualite tovs par canal 
                                                       !  =0 ok, >0 rejet,
-    real                  :: scatIndexOverWaterFG     ! scattering index from background.
     integer, external     :: exdb, exfin, fnom, fclos
     logical               :: mwDataPresent, sensorIndexFound
     logical               :: lastHeader               ! active while reading last report
@@ -6424,12 +6417,12 @@ contains
       end if
 
       ! STEP 3: Accumuler Les statistiques sur les rejets
-      call mwbg_qcStats(obsSpaceData, instName, qcIndicator, sensorIndex, &
+      call mwbg_qcStats(instName, qcIndicator, sensorIndex, &
                         tvs_satelliteName(1:tvs_nsensors), .FALSE.)
     end do HEADER
 
     ! STEP 4: Print the statistics in listing file 
-    call mwbg_qcStats(obsSpaceData, instName, qcIndicator, sensorIndex, &
+    call mwbg_qcStats(instName, qcIndicator, sensorIndex, &
                       tvs_satelliteName(1:tvs_nsensors), .TRUE.)
 
     call utl_tmg_stop(118)

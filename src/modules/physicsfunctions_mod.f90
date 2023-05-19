@@ -8,7 +8,6 @@ module physicsFunctions_mod
   use MathPhysConstants_mod
   use earthConstants_mod
   use utilities_mod
-  use midasMpi_mod
   use message_mod
   
   implicit none
@@ -44,7 +43,6 @@ module physicsFunctions_mod
      !             - 'Tetens_2018' completes the update to the intended 2018 specification.
      !
      integer            :: NULNAM,IERR,FNOM,FCLOS
-     character(len=256) :: NAMFILE
      logical            :: validOption
      NAMELIST /NAMPHY/ saturationCurve
 

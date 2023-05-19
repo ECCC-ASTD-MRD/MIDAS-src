@@ -116,10 +116,8 @@ program midas_analysisErrorOI
 
   integer :: istamp, exdb, exfin
   integer :: ierr, dateStampFromObs
-  integer :: get_max_rss
   character(len=48) :: obsMpiStrategy, varMode
-  character(len=20) :: trlmFileName
-  character(len=15), parameter :: myName = 'analysisErrorOI'
+  character, parameter :: myName = 'analysisErrorOI'
 
   type(struct_obs)       , target :: obsSpaceData
   type(struct_columnData), target :: trlColumnOnAnlLev
@@ -128,7 +126,7 @@ program midas_analysisErrorOI
 
   istamp = exdb('ANALYSISERROROI','DEBUT','NON')
 
-  call ver_printNameAndVersion(myName,'Program to calculate the analysis-error standard deviation for sea ice using OI.')
+  call ver_printNameAndVersion('analysisErrorOI', 'Program to calculate the analysis-error standard deviation using OI.')
 
   ! MPI initialization
   call mmpi_initialize
@@ -155,7 +153,7 @@ program midas_analysisErrorOI
   call tim_setup()
 
   if (tim_nstepobs > 1 .or. tim_nstepobsinc > 1) then
-    call utl_abort(myName//': The program assumes only one time step.')
+    call utl_abort('analysisErrorOI: The program assumes only one time step.')
   end if
 
   !
@@ -166,7 +164,7 @@ program midas_analysisErrorOI
     if (dateStampFromObs > 0) then
       call tim_setDateStamp(dateStampFromObs)
     else
-      call utl_abort(myName//': DateStamp was not set')
+      call utl_abort('analysisErrorOI: DateStamp was not set')
     end if
   end if
 
@@ -181,19 +179,17 @@ program midas_analysisErrorOI
   call gsv_setup
   call msg_memUsage(myName)
 
-  trlmFileName = './trlm_01'
-
   !
   !- Initialize the Analysis grid
   !
   call msg(myName,'Set hco parameters for analysis grid', mpiAll_opt=.false.)
-  call hco_SetupFromFile(hco_anl, trlmFileName, aer_backgroundEtiket) ! IN
+  call hco_SetupFromFile(hco_anl, './analysisgrid', '') ! IN
 
   !
   !- Initialisation of the analysis grid vertical coordinate from analysisgrid file
   !
-  call vco_SetupFromFile( vco_anl,        & ! OUT
-                          './analysisgrid') ! IN
+  call vco_SetupFromFile(vco_anl,        & ! OUT
+                         './analysisgrid') ! IN
 
   call col_setVco(trlColumnOnAnlLev,vco_anl)
   call msg_memUsage(myName)
@@ -213,7 +209,7 @@ program midas_analysisErrorOI
   !
   !- Memory allocation for background column data
   !
-  call col_allocate(trlColumnOnAnlLev,obs_numheader(obsSpaceData),mpiLocal_opt=.true.)
+  call col_allocate(trlColumnOnAnlLev, obs_numheader(obsSpaceData), mpiLocal_opt = .true.)
 
   !
   !- Initialize the observation error covariances
@@ -222,15 +218,14 @@ program midas_analysisErrorOI
   call msg_memUsage(myName)
 
   ! Sea ice concentration
-  call filt_iceConcentration(obsSpaceData, beSilent=.false.)
-  call filt_backScatAnisIce(obsSpaceData, beSilent=.false.)
-  call oer_setErrBackScatAnisIce(obsSpaceData, beSilent=.false.)
+  if (obs_famExist(obsSpaceData, 'GL')) then
+    call filt_iceConcentration(obsSpaceData, beSilent = .false.)
+    call filt_backScatAnisIce(obsSpaceData, beSilent = .false.)
+    call oer_setErrBackScatAnisIce(obsSpaceData, beSilent = .false.)
+  end if
 
-  ! Compute the analysis-error
-  call aer_analysisError(obsSpaceData, hco_anl, vco_anl, trlmFileName)
-
-  ! Update the Days Since Last Obs
-  call aer_daysSinceLastObs(obsSpaceData, hco_anl, vco_anl, trlmFileName)
+  ! Compute the analysis error
+  call aer_analysisError(obsSpaceData, hco_anl, vco_anl)
 
   ! Now write out the observation data files
   if ( .not. obsf_filesSplit() ) then 
