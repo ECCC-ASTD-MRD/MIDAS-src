@@ -613,13 +613,6 @@ contains
     if ( vLocalize <= 0.0d0 .and. (nLevInc_M > 1 .or. nLevInc_T > 1) ) then
       call utl_abort('bmat1D_setubBEns: Invalid VERTICAL localization length scale')
     end if     
-      
-    !- 1.7 Setup the localization
-    if ( vco_in%Vcode == 5002 .or. vco_in%Vcode == 5005 ) then
-      pSurfRef = 101000.D0
-      call czp_fetch1DLevels(vco_in, pSurfRef, profM_opt=pressureProfileInc_M)
-      deallocate(pressureProfileInc_M)
-    end if
   
     call ens_allocate(ensPerts,  &
          nEns, numStep, &
