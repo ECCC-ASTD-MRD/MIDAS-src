@@ -135,7 +135,7 @@ contains
            datestamp_opt=tim_getDatestamp(), mpi_local_opt=.false., &
            dataKind_opt=pre_incrReal, allocHeight_opt=.false., allocPressure_opt=.false., &
            besilent_opt=.false.)
-      write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'	
+      write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
     end if
 
     write(*,*) 'var1D_transferColumnToYGrid: start of lat-lon dissemination'

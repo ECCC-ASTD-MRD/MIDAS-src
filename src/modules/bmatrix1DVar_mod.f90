@@ -150,7 +150,7 @@ contains
         call utl_tmg_stop(54)
         write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
       case default
-        call utl_abort( 'bmat1D_bSetup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
+        call utl_abort('bmat1D_bSetup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)))
       end select
 
       !- 1.2 Append the info to the B matrix info arrays and setup the proper control sub-vectors
@@ -237,8 +237,8 @@ contains
       firstCall = .false.
     end if
 
-    if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Starting'
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Starting'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     do levelIndex = 1, vco_maxNumLevels
       if( scaleFactorHI(levelIndex) > 0.0d0 ) then 
@@ -392,8 +392,8 @@ contains
     cvDim_mpilocal = cvDim_out
     initialized = .true.
 
-    if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Exiting'
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Exiting'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   end subroutine bmat1D_setupBHi
 
@@ -443,11 +443,11 @@ contains
     character(len=4), allocatable :: varNameFromVarLevIndex(:)
     character(len=2) :: varLevel
 
-    if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-    if ( nEns <= 0 ) then
-      if ( mmpi_myid == 0 ) write(*,*) 'bmat1D_setupBEns: no Ensemble members, skipping rest of setup'
+    if (nEns <= 0) then
+      if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: no Ensemble members, skipping rest of setup'
       cvdim_out = 0
       return
     end if
@@ -490,7 +490,7 @@ contains
 
     !- Do we need to read all the vertical levels from the ensemble?
     useAnlLevelsOnly = vco_subsetOrNot(vco_in, vco_file)
-    if ( useAnlLevelsOnly ) then
+    if (useAnlLevelsOnly) then
       write(*,*)
       write(*,*) 'bmat1D_setupBEns: only the analysis levels will be read in the ensemble '
       vco_ens  => vco_in ! the ensemble target grid is the analysis grid
@@ -618,14 +618,14 @@ contains
          nEns, numStep, &
          hco_ens,  &
          vco_ens, dateStampList, &
-         hco_core_opt = hco_in, &  ! to generalize later hco_in => hco_core
+         hco_core_opt = hco_in, &
          varNames_opt = bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar), &
          hInterpolateDegree_opt = hInterpolationDegree)
     write(*,*) 'Read ensemble members'
     call ens_readEnsemble(ensPerts, ensPathName, biPeriodic=.false., &
                           varNames_opt = bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar))
     
-    allocate( ensColumns(nEns))
+    allocate(ensColumns(nEns))
     call gsv_allocate(stateVector, numstep, hco_ens, vco_ens, &
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -640,16 +640,16 @@ contains
       call ens_copyMember(ensPerts, stateVector, memberIndex)
       write(*,*) 'interpolate member ', memberIndex
       call col_setVco(ensColumns(memberIndex), vco_ens)
-      call col_allocate(ensColumns(memberIndex), obs_numheader(obsSpaceData),  &
+      call col_allocate(ensColumns(memberIndex), obs_numheader(obsSpaceData), &
                         mpiLocal_opt=.true., setToZero_opt=.true.)
-      call s2c_nl( stateVector, obsSpaceData, ensColumns(memberIndex), hco_in, &
-                   timeInterpType='NEAREST' )
+      call s2c_nl(stateVector, obsSpaceData, ensColumns(memberIndex), hco_in, &
+                  timeInterpType='NEAREST' )
       call gsv_add(statevector, statevectorMean, scaleFactor_opt=(1.d0/nEns))
     end do
     call col_setVco(meanColumn, vco_ens)
-    call col_allocate(meanColumn, obs_numheader(obsSpaceData),  &
+    call col_allocate(meanColumn, obs_numheader(obsSpaceData), &
             mpiLocal_opt=.true., setToZero_opt=.true.)
-    call s2c_nl( stateVectorMean, obsSpaceData, meanColumn, hco_in, &
+    call s2c_nl(stateVectorMean, obsSpaceData, meanColumn, hco_in, &
             timeInterpType='NEAREST' )
 
     call gsv_deallocate(stateVector)
@@ -663,7 +663,7 @@ contains
     write(*,*) 'bmat1D_setupBEns: nkgdim', nkgdim
     cvDim_out = nkgdim * var1D_validHeaderCount
 
-    currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1) )
+    currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1))
     allocate (levIndexFromVarLevIndex(nkgdim))
     allocate (varNameFromVarLevIndex(nkgdim))
     allocate (multFactor(nkgdim))
@@ -692,7 +692,7 @@ contains
       end do
     end do
     
-    call ens_deallocate( ensPerts )
+    call ens_deallocate(ensPerts)
     allocate(bSqrtEns(var1D_validHeaderCount,nkgdim,nkgdim))
     bSqrtEns(:,:,:) = 0.d0
     allocate(lineVector(1,nkgdim))
@@ -736,7 +736,7 @@ contains
           do varLevIndex2 = 1, nkgdim
             !-  do Schurr product with 5'th order function
             logP2 = log(meanPressureProfile(varLevIndex2))
-            zr = abs(logP2  -  logP1)
+            zr = abs(logP2 - logP1)
             bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) = &
                 bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) * lfn_response(zr, vLocalize)
           end do
@@ -756,8 +756,8 @@ contains
     cvDim_mpilocal = cvDim_out
     initialized = .true.
     
-    if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   end subroutine bmat1D_setupBEns
   
