@@ -420,7 +420,7 @@ contains
     type(struct_hco), pointer :: hco_ens => null()
     type(struct_gsv)          :: stateVector, stateVectorMean
     integer, allocatable :: dateStampList(:)
-    character(len=12) :: hInterpolationDegree ! select degree of horizontal interpolation (if needed)
+    character(len=12) :: hInterpolationDegree='LINEAR' ! select degree of horizontal interpolation (if needed)
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
     integer :: levIndex1
     integer :: varLevIndex, varLevIndex1, varLevIndex2 
@@ -434,7 +434,6 @@ contains
     integer :: ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
     integer :: nLevEns_M, nLevEns_T
     integer :: nLevInc_M, nLevInc_T
-    integer :: topLevIndex_M, topLevIndex_T
     integer, external :: newdate
     character(len=4), pointer :: varNames(:)
     real(8) :: logP1, logP2
@@ -538,8 +537,6 @@ contains
     nLevEns_T = vco_ens%nLev_T
     nLevInc_M = vco_in%nLev_M
     nLevInc_T = vco_in%nLev_T
-    topLevIndex_M = nLevInc_M-nLevEns_M+1
-    topLevIndex_T = nLevInc_T-nLevEns_T+1
 
     if (vco_in%Vcode == 5002) then
       if ( (nLevEns_T /= (nLevEns_M+1)) .and. (nLevEns_T /= 1 .or. nLevEns_M /= 1) ) then
@@ -632,8 +629,7 @@ contains
          varNames_opt = bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar), &
          hInterpolateDegree_opt = hInterpolationDegree)
     write(*,*) 'Read ensemble members'
-    call ens_readEnsemble(ensPerts, ensPathName, biPeriodic=.false.,       &
-                          vco_file_opt = vco_ens,                          &
+    call ens_readEnsemble(ensPerts, ensPathName, biPeriodic=.false., &
                           varNames_opt = bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar))
     
     allocate( ensColumns(nEns))
