@@ -566,7 +566,7 @@ contains
 
     if (nLevEns_M < nLevInc_M) then
       if (mmpi_myid == 0) write(*,*) 'bmat1D_setubBEns: ensemble has less levels than increment'
-      if (mmpi_myid == 0) write(*,*) '                      some levels near top will have zero increment'
+      if (mmpi_myid == 0) write(*,*) '                  some levels near top will have zero increment'
     end if
 
     !- 1.4 Bmatrix Weight
@@ -705,7 +705,7 @@ contains
         currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex)
         lineVector(1,:) = currentProfile(levIndexFromVarLevIndex(:)) - meanProfile(levIndexFromVarLevIndex(:))
         lineVector(1,:) = lineVector(1,:) * multFactor(:)
-        bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) + &
+        bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) + &
             matmul(transpose(lineVector),lineVector)
       end do
     end do
@@ -719,7 +719,7 @@ contains
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,meanPressureProfile,levIndex1,varLevIndex1,varLevIndex2,varLevel,levIndexColumn,logP1,logP2,zr)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
-      bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) / (nEns - 1)
+      bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) / (nEns - 1)
       if (vLocalize > 0.0d0) then
         do varLevIndex1 = 1, nkgdim
           levIndex1 = levIndexFromVarLevIndex(varLevIndex1)
@@ -737,12 +737,12 @@ contains
             !-  do Schurr product with 5'th order function
             logP2 = log(meanPressureProfile(varLevIndex2))
             zr = abs(logP2  -  logP1)
-            bSqrtEns(headerIndex, varLevIndex2, varLevIndex1) = &
-                 bSqrtEns(headerIndex, varLevIndex2, varLevIndex1) * lfn_response(zr, vLocalize)
+            bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) = &
+                bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) * lfn_response(zr, vLocalize)
           end do
         end do
       end if
-      call utl_matsqrt(bSqrtEns(headerIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
+      call utl_matsqrt(bSqrtEns(columnIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
     !$OMP END PARALLEL DO
 
@@ -912,7 +912,7 @@ contains
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn)
     do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
-      oneDProfile(:) = matmul(bSqrtEns(headerIndex, :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
+      oneDProfile(:) = matmul(bSqrtEns(columnIndex, :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
       offset = 0
       do varIndex = 1, bmat1D_numIncludeAnlVar
         currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_includeAnlVar(varIndex))
@@ -974,7 +974,7 @@ contains
       end if
       controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) =  &
              controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) + &
-             matmul(bSqrtEns(headerIndex,:,:), oneDProfile)
+             matmul(bSqrtEns(columnIndex,:,:), oneDProfile)
     end do
     !$OMP END PARALLEL DO
 
