@@ -25,6 +25,7 @@ module calcStatsGlb_mod
   use timeCoord_mod
   use gridVariableTransforms_mod
   use gridBinning_mod
+  use verticalModes_mod
   implicit none
   save
   private
@@ -523,16 +524,22 @@ module calcStatsGlb_mod
     type(struct_gsv) :: statevector_template
 
     type(struct_gbi) :: gbi_zonalMean
+
+    type(struct_vms) :: vModes
     
     integer :: variableType
  
     logical :: ensContainsFullField
     logical :: makeBiPeriodic
     logical :: doSpectralFilter
+    logical :: vertmodes_useCorrelations
+
+    real(8) :: vertmodes_lengthScale
     
     character(len=60) :: tool
 
-    NAMELIST /NAMTOOLBOX/tool, ensContainsFullField, doSpectralFilter
+    NAMELIST /NAMTOOLBOX/tool, ensContainsFullField, doSpectralFilter, vertmodes_useCorrelations, &
+         vertmodes_lengthScale
 
     write(*,*)
     write(*,*) 'csg_toolbox'
@@ -541,9 +548,11 @@ module calcStatsGlb_mod
     !
     !- Set options
     !
-    variableType = modelSpace     ! hardwired
-    ensContainsFullField = .true. ! default value
-    doSpectralFilter     = .true.
+    variableType              = modelSpace ! hardwired
+    ensContainsFullField      = .true.     ! default value
+    doSpectralFilter          = .true.
+    vertmodes_useCorrelations = .false.
+    vertmodes_lengthScale     = 3.d0
     
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -693,6 +702,33 @@ module calcStatsGlb_mod
       call calcPowerSpec(ensPerts_ptr, & ! IN
                          powerSpec)      ! OUT
       call writePowerSpec(powerSpec, modelSpace) ! IN
+
+    case ('VERTICALMODES')
+      write(*,*)
+      write(*,*) 'Computing vertical modes'
+
+      if (doSpectralFilter) then
+        call ens_removeGlobalMean(ensPerts)
+        call spectralFilter2(ensPerts,          & ! IN
+                             ensPerts_ptr,      & ! OUT
+                             waveBandIndex_opt=1) ! IN
+      end if
+      if (vertmodes_useCorrelations) then
+        call ens_computeStdDev(ensPerts_ptr)
+        call ens_normalize(ensPerts_ptr)
+      end if
+
+      call vms_computeModesFromEns(ensPerts_ptr, & ! IN
+                                   vModes)         ! OUT
+      call vms_writeModes(vModes)
+
+    case ('VERTICALMODES_FROMFUNCTION')
+      write(*,*)
+      write(*,*) 'Computing vertical modes from a correlation function'
+
+      call vms_computeModesFromFunction(vco_ens, vertmodes_lengthScale, & ! IN
+                                        vModes)                           ! OUT
+      call vms_writeModes(vModes)
       
     case default
       write(*,*)

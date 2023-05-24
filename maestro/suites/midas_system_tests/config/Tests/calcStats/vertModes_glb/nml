@@ -1,0 +1,22 @@
+ &NAMCONF
+   MODE   = 'TOOLBOX'
+/
+&NAMTOOLBOX
+   TOOL   = 'VERTICALMODES_FROMFUNCTION'
+   ensContainsFullField = .true.
+   vertmodes_lengthScale = 4.d0
+/
+&NAMSTATE
+   ANLVAR(1)   ='TT'
+   ANLVAR(2)   ='HU'
+   ANLVAR(3)   ='UU'
+   ANLVAR(4)   ='VV' 
+/
+ &NAMENS
+   NENS=256
+/
+ &NAMCALCSTATS_GLB
+   NTRUNC=380
+/
+ &NAMTIME
+/
