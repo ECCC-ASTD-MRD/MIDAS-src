@@ -564,17 +564,40 @@ contains
       write(*,*) 'odbf_readFile: bodyValues = ', bodyValues(bodyTableIndex,:)
     end do
 
-    !- 1.2 Copy values from local tables into obsSpaceData
+    
 
     ! Starting point for adding rows to obsSpaceData
     bodyIndexBegin = obs_numBody(obsdat) + 1
     headIndexBegin = obs_numHeader(obsdat) + 1
 
+    !- 1.2 Initialize header and body columns as 'missing'
+
+    ! Set a bunch of obsSpaceData header columns to 'missing'
     do headTableIndex = 1, numRowsHeadTable
       headIndex = headTableIndex + headIndexBegin - 1
       call obs_headSet_i(obsdat, OBS_SEN, headIndex, nint(MPC_missingValue_R8))
+      call obs_headSet_i(obsdat, OBS_INS, headIndex, nint(MPC_missingValue_R8))
     end do
 
+    ! Set a bunch of obsSpaceData body columns to 'missing'
+    do bodyTableIndex = 1, numRowsBodyTable
+      bodyIndex = bodyTableIndex + bodyIndexBegin -1
+      if ( obs_columnActive_RB(obsdat, OBS_OMA) )  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, obs_missingValue_R)
+      if ( obs_columnActive_RB(obsdat, OBS_OMA0))  call obs_bodySet_r(obsdat, OBS_OMA0, bodyIndex, obs_missingValue_R)
+      if ( obs_columnActive_RB(obsdat, OBS_OMP) )  call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, obs_missingValue_R)
+      if ( obs_columnActive_RB(obsdat, OBS_OMP6))  call obs_bodySet_r(obsdat, OBS_OMP6, bodyIndex, obs_missingValue_R)
+      if ( obs_columnActive_RB(obsdat, OBS_OER) )  call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, obs_missingValue_R)
+      if ( obs_columnActive_RB(obsdat, OBS_HPHT) ) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, obs_missingValue_R)
+      if ( obs_columnActive_RB(obsdat, OBS_HAHT))  call obs_bodySet_r(obsdat, OBS_HAHT, bodyIndex, obs_missingValue_R)
+      if ( obs_columnActive_RB(obsdat, OBS_WORK) ) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, obs_missingValue_R)
+      if ( obs_columnActive_RB(obsdat, OBS_SIGI))  call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, obs_missingValue_R)
+      if ( obs_columnActive_RB(obsdat, OBS_SIGO))  call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, obs_missingValue_R)
+      if ( obs_columnActive_RB(obsdat, OBS_ZHA ))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, obs_missingValue_R)
+      if ( obs_columnActive_RB(obsdat, OBS_SEM ))  call obs_bodySet_r(obsdat, OBS_SEM , bodyIndex, obs_missingValue_R)
+      if ( obs_columnActive_RB(obsdat, OBS_BCOR))  call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, obs_missingValue_R)
+    end do
+    
+    !- 1.3 Copy values from local tables into obsSpaceData
 
     ! Set the columns related to surface type
     call odbf_setSurfaceType(obsdat, headIndexBegin, numRowsHeadTable, &
@@ -600,7 +623,7 @@ contains
     bodyIndexEnd = obs_numBody(obsdat)
     headIndexEnd = obs_numHeader(obsdat)
 
-    !- 1.3 Set some other quantities in obsSpaceData Header table
+    !- 1.4 Set some other quantities in obsSpaceData Header table
 
     do headIndex = headIndexBegin, headIndexEnd
       call obs_headSet_i(obsdat, OBS_ONM, headIndex, headIndex)
@@ -616,7 +639,7 @@ contains
       end if
     end do
 
-    !- 1.4 Read values written during previous MIDAS program executions
+    !- 1.5 Read values written during previous MIDAS program executions
 
     call odbf_readMidasBodyTable(obsdat, trim(fileName), familyType, fileIndex)
 
@@ -629,23 +652,6 @@ contains
       call ovt_adjustHumGZ             (obsdat, headIndexBegin, headIndexEnd )
       call obsu_computeVertCoordSurfObs(obsdat, headIndexBegin, headIndexEnd )
     end if
-
-    ! Set a bunch of obsSpaceData body columns to 'missing'
-    do bodyIndex = bodyIndexBegin, bodyIndexEnd
-      if ( obs_columnActive_RB(obsdat, OBS_OMA) )  call obs_bodySet_r(obsdat, OBS_OMA , bodyIndex, obs_missingValue_R)
-      if ( obs_columnActive_RB(obsdat, OBS_OMA0))  call obs_bodySet_r(obsdat, OBS_OMA0, bodyIndex, obs_missingValue_R)
-      if ( obs_columnActive_RB(obsdat, OBS_OMP) )  call obs_bodySet_r(obsdat, OBS_OMP , bodyIndex, obs_missingValue_R)
-      if ( obs_columnActive_RB(obsdat, OBS_OMP6))  call obs_bodySet_r(obsdat, OBS_OMP6, bodyIndex, obs_missingValue_R)
-      if ( obs_columnActive_RB(obsdat, OBS_OER) )  call obs_bodySet_r(obsdat, OBS_OER , bodyIndex, obs_missingValue_R)
-      if ( obs_columnActive_RB(obsdat, OBS_HPHT) ) call obs_bodySet_r(obsdat, OBS_HPHT, bodyIndex, obs_missingValue_R)
-      if ( obs_columnActive_RB(obsdat, OBS_HAHT))  call obs_bodySet_r(obsdat, OBS_HAHT, bodyIndex, obs_missingValue_R)
-      if ( obs_columnActive_RB(obsdat, OBS_WORK) ) call obs_bodySet_r(obsdat, OBS_WORK, bodyIndex, obs_missingValue_R)
-      if ( obs_columnActive_RB(obsdat, OBS_SIGI))  call obs_bodySet_r(obsdat, OBS_SIGI, bodyIndex, obs_missingValue_R)
-      if ( obs_columnActive_RB(obsdat, OBS_SIGO))  call obs_bodySet_r(obsdat, OBS_SIGO, bodyIndex, obs_missingValue_R)
-      if ( obs_columnActive_RB(obsdat, OBS_ZHA ))  call obs_bodySet_r(obsdat, OBS_ZHA , bodyIndex, obs_missingValue_R)
-      if ( obs_columnActive_RB(obsdat, OBS_SEM ))  call obs_bodySet_r(obsdat, OBS_SEM , bodyIndex, obs_missingValue_R)
-      if ( obs_columnActive_RB(obsdat, OBS_BCOR))  call obs_bodySet_r(obsdat, OBS_BCOR, bodyIndex, obs_missingValue_R)
-    end do
 
     ! For GP family, initialize OBS_OER to element 15032 (ZTD formal error) 
     ! for all ZTD observations (element 15031)
@@ -937,7 +943,8 @@ contains
   !--------------------------------------------------------------------------
   ! odbf_setSurfaceType
   !--------------------------------------------------------------------------
-  subroutine odbf_setSurfaceType(obsdat, headIndexBegin, numRowsHeadTable, fileName, tableName)
+  subroutine odbf_setSurfaceType(obsdat, headIndexBegin, numRowsHeadTable, &
+                                 fileName, tableName)
     !
     ! :Purpose: Set the surface type based on lat-lon and some external mask files.
     !
@@ -967,7 +974,8 @@ contains
     end if
 
     ! build the sqlite query
-    query = 'select mask_mer(lat,lon), mask_glace_clim(lat,lon) from ' // trim(tableName) // ';'
+    query = 'select mask_mer(lat,lon), mask_glace_clim(lat,lon) from '&
+             // trim(tableName) // ';'
     write(*,*) 'odbf_setSurfaceType: query ---> ', trim(query)
 
     ! read the values from the query result
@@ -976,8 +984,10 @@ contains
                         mode=FSQL_INT, status=stat )
 
     if ( numRows /= numRowsHeadTable ) then
-      write(*,*) 'odbf_setSurfaceType: numRows = ', numRows, ', numRowsHeadTable = ', numRowsHeadTable
-      call utl_abort( 'odbf_setSurfaceType: Number of rows found in mask query is not equal to total number of rows in head table' )
+      write(*,*) 'odbf_setSurfaceType: numRows = ', numRows, &
+                 ', numRowsHeadTable = ', numRowsHeadTable
+      call utl_abort( 'odbf_setSurfaceType: Number of rows found in mask query is &
+                       not equal to total number of rows in head table' )
     end if
 
     allocate( columnValues(numRows, numColumns) )
