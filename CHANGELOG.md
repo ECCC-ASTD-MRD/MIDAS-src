@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+ * Added AMSU-A to Obsdb module (#527 and !736)
  * Added analysis error estimation for SST in `analysisErrorOI` (#804 and !726)
  * Added functionality in the letkf for passive assimilation of specified observations (#810 and !734)
    * also simulation functionality is now activated in an analogous fashion
