@@ -1,9 +1,9 @@
  &NAMBGCK
-  instName = 'ATMS'
+  instName = 'AMSUA'
   debug = .false.
   RESETQC = .false.
   clwQcThreshold = 0.6
-  useUnbiasedObsForClw =.true.
+  useUnbiasedObsForClw =.false.
   cloudyClwThresholdBcorr = 0.05,
 /
  &namObsSelection
@@ -38,12 +38,12 @@
 /
  &NAMDIMO
    NMXOBS=400000,
-   NDATAMX=7000000,
+   NDATAMX=7000000,    
 /
  &NAMTIME
   DSTEPOBS = 3.0D0
 /
- &NAMFILT
+&NAMFILT
   NLIST(1)=12062,
   NLIST(2)=12063,
   NLIST(3)=12163,
@@ -61,14 +61,31 @@
    ANLVAR(4)   ='HU'
    ANLVAR(5)   ='P0'
    ANLVAR(6)   ='TG'
+   ANLVAR(7)   ='LWCR'
 /
  &NAMTOV
-   CSATID(1)        = 'NPP',
-   CINSTRUMENTID(1) = 'ATMS',
-   CSATID(2)        = 'NOAA20',
-   CINSTRUMENTID(2) = 'ATMS',
+   CSATID(1)        = 'NOAA15',
+   CINSTRUMENTID(1) = 'AMSUA',
+   CSATID(2)        = 'NOAA16',
+   CINSTRUMENTID(2) = 'AMSUA',
+   CSATID(3)        = 'AQUA',
+   CINSTRUMENTID(3) = 'AMSUA',
+   CSATID(4)        = 'NOAA18',
+   CINSTRUMENTID(4) = 'AMSUA',
+   CSATID(5)        = 'METOP-3',
+   CINSTRUMENTID(5) = 'AMSUA',
+   CSATID(6)        = 'METOP-2',
+   CINSTRUMENTID(6) = 'AMSUA',
+   CSATID(7)        = 'METOP-1',
+   CINSTRUMENTID(7) = 'AMSUA',
+   CSATID(8)       = 'NOAA19',
+   CINSTRUMENTID(8)= 'AMSUA',
    LDBGTOV    = .FALSE.,
    CRTMODL    = 'RTTOV',
+   mwAllskyAssim = .true.,
+   INSTRUMENTNAMESUSINGCLW(1) = 'amsua'
+   MWINSTRUMUSINGCLW_TL = .true.
+   cloudScaleFactor = 0.5D0
    regLimitExtrap=.false.
 /
  &NAMCODTYP
@@ -133,8 +150,8 @@
     nbscan(14)=1
     cglobal(14)="OUI"
 /
- &NAMOER
-  mwAllskyTtInflateByOmp = .false.,
-  mwAllskyTtInflateByClwDiff = .false.,
-  readOldSymmetricObsErrFile = .false.,
+&NAMOER
+  mwAllskyTtInflateByOmp = .true.,
+  mwAllskyTtInflateByClwDiff = .true.,
 /
+
