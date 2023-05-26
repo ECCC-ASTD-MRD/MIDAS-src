@@ -183,7 +183,7 @@ contains
     
     do instrumentIndex = 1, maxNumInst
       do channelIndex = 1, maxPassiveChannels
-        if  (passiveChannelList(instrumentIndex,channelIndex) > 0) then
+        if (passiveChannelList(instrumentIndex,channelIndex) > 0) then
           passiveChannelNumber(instrumentIndex) = passiveChannelNumber(instrumentIndex) + 1
         end if
       end do
@@ -2455,7 +2455,7 @@ contains
                 else 
                   ! corrected data that passed all QC and selection excluding cloud/sfc affected obs
                   condition =  .not. btest(flag, 9) .and. .not. btest(flag, 11) .and.  .not. btest(flag, 8) .and. .not. btest(flag, 23) .and. .not. btest(flag, 19) 
-                   !' AND (FLAG & 2560 = 0) AND (FLAG & 256 = 0) AND (FLAG & 8388608 = 0) AND (FLAG & 524288 = 0)'
+                  !' AND (FLAG & 2560 = 0) AND (FLAG & 256 = 0) AND (FLAG & 8388608 = 0) AND (FLAG & 524288 = 0)'
                 end if
               else! OFFLINE MODE --> Want all observations except data rejected for any reason other than innovation rogue check
                 !   Assumes that type S or N correction has been applied to all data/channels (all data "corrected")
