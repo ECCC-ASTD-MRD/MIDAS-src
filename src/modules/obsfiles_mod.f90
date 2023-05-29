@@ -291,7 +291,7 @@ contains
         call obsf_writeHX(obsSpaceData, HXens_mpiglobal_opt)
       end if
 
-      if (obsFileType /= 'OBSDB' .and. writeObsDb) then
+      if (writeObsDb) then
         ! Create destination directory
         fileNameDir = trim(ram_getRamDiskDir())
         if (fileNameDir == ' ') then
