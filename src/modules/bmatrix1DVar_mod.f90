@@ -61,7 +61,7 @@ module bmatrix1DVar_mod
   logical          :: bmatActive    (numBmatMax)
   type(struct_columnData), allocatable :: ensColumns(:)
   type(struct_columnData) :: meanColumn
-  type(struct_ens) :: ensPerts
+  type(struct_ens) :: ensembles
 
   ! Namelist variables
   integer          :: nEns                             ! ensemble size
@@ -614,7 +614,7 @@ contains
       call utl_abort('bmat1D_setubBEns: Invalid VERTICAL localization length scale')
     end if     
   
-    call ens_allocate(ensPerts,  &
+    call ens_allocate(ensembles,  &
          nEns, numStep, &
          hco_ens,  &
          vco_ens, dateStampList, &
@@ -622,7 +622,7 @@ contains
          varNames_opt = bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar), &
          hInterpolateDegree_opt = hInterpolationDegree)
     write(*,*) 'Read ensemble members'
-    call ens_readEnsemble(ensPerts, ensPathName, biPeriodic=.false., &
+    call ens_readEnsemble(ensembles, ensPathName, biPeriodic=.false., &
                           varNames_opt = bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar))
     
     allocate(ensColumns(nEns))
@@ -635,9 +635,10 @@ contains
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true.)
+    call gsv_zero(stateVectorMean)
     do memberIndex = 1, nEns
       write(*,*) 'Copy member ', memberIndex
-      call ens_copyMember(ensPerts, stateVector, memberIndex)
+      call ens_copyMember(ensembles, stateVector, memberIndex)
       write(*,*) 'interpolate member ', memberIndex
       call col_setVco(ensColumns(memberIndex), vco_ens)
       call col_allocate(ensColumns(memberIndex), obs_numheader(obsSpaceData), &
@@ -667,32 +668,32 @@ contains
     allocate (levIndexFromVarLevIndex(nkgdim))
     allocate (varNameFromVarLevIndex(nkgdim))
     allocate (multFactor(nkgdim))
-    varLevIndex = 0
+    varLevIndex1 = 0
     do varIndex = 1, bmat1D_numIncludeAnlVar
-      levIndex1 = 0
-      do levIndex = 1, size(currentProfile)
-        if ( trim( col_getVarNameFromK(meanColumn,levIndex) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
-          varLevIndex = varLevIndex + 1
-          levIndex1 = levIndex1 + 1
-          levIndexFromVarLevIndex(varLevIndex) = levIndex
-          varNameFromVarLevIndex(varLevIndex) = trim( bmat1D_includeAnlVar(varIndex) )
-          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndex(varLevIndex))
+      levIndex = 0
+      do varLevIndex2 = 1, size(currentProfile)
+        if ( trim( col_getVarNameFromK(meanColumn,varLevIndex2) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
+          varLevIndex1 = varLevIndex1 + 1
+          levIndex = levIndex + 1
+          levIndexFromVarLevIndex(varLevIndex1) = varlevIndex2
+          varNameFromVarLevIndex(varLevIndex1) = trim( bmat1D_includeAnlVar(varIndex) )
+          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndex(varLevIndex1))
           if ( varLevel == 'MM' ) then      ! Momentum
-            multFactor(varLevIndex) = scaleFactor_M(levIndex1)
+            multFactor(varLevIndex1) = scaleFactor_M(levIndex)
           else if ( varLevel == 'TH' ) then ! Thermo
-            multFactor(varLevIndex) = scaleFactor_T(levIndex1)
+            multFactor(varLevIndex1) = scaleFactor_T(levIndex)
           else                              ! SF
-            multFactor(varLevIndex) = scaleFactor_SF
+            multFactor(varLevIndex1) = scaleFactor_SF
           end if
-          if (varNameFromVarLevIndex(varLevIndex) == 'HU') then
-            multFactor(varLevIndex) = multFactor(varLevIndex) * scaleFactorEnsHumidity(levIndex1)
+          if (varNameFromVarLevIndex(varLevIndex1) == 'HU') then
+            multFactor(varLevIndex1) = multFactor(varLevIndex1) * scaleFactorEnsHumidity(levIndex)
           end if
-          if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndex, levIndex
+          if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndex1, levIndex
         end if
       end do
     end do
     
-    call ens_deallocate(ensPerts)
+    call ens_deallocate(ensembles)
     allocate(bSqrtEns(var1D_validHeaderCount,nkgdim,nkgdim))
     bSqrtEns(:,:,:) = 0.d0
     allocate(lineVector(1,nkgdim))
