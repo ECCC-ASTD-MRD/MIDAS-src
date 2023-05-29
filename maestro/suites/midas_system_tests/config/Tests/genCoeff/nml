@@ -30,6 +30,17 @@
     cinst(6)="IASI"		
     nbscan(6)=1
     cglobal(6)="NON"
+    passiveChannelList(6,1)=285
+    passiveChannelList(6,2)=309
+    passiveChannelList(6,3)=320
+    passiveChannelList(6,4)=332
+    passiveChannelList(6,5)=363
+    passiveChannelList(6,6)=433
+    passiveChannelList(6,7)=442
+    passiveChannelList(6,8)=459
+    passiveChannelList(6,9)=705
+    passiveChannelList(6,10)=1090
+    passiveChannelList(6,11)=7475
     cinst(7)="METS7"		
     nbscan(7)=1
     cglobal(7)="OUI"

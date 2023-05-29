@@ -77,7 +77,7 @@ module biasCorrectionSat_mod
   integer, parameter    :: NumPredictorsBcif = 6
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
-  integer, parameter    :: maxPassiveChannels = 10
+  integer, parameter    :: maxPassiveChannels = 15
   
   real(8), allocatable  :: trialHeight300m1000(:)
   real(8), allocatable  :: trialHeight50m200(:)
