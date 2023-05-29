@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Introduction of variable `passiveChannelList` in namelist section NAMBIASSAT (#824 and !737)
 
 ### Changed
 

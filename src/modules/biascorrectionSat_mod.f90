@@ -77,6 +77,7 @@ module biasCorrectionSat_mod
   integer, parameter    :: NumPredictorsBcif = 6
   integer, parameter    :: maxfov = 120
   integer, parameter    :: maxNumInst = 25
+  integer, parameter    :: maxPassiveChannels = 15
   
   real(8), allocatable  :: trialHeight300m1000(:)
   real(8), allocatable  :: trialHeight50m200(:)
@@ -87,6 +88,7 @@ module biasCorrectionSat_mod
   integer               :: nobs
   integer, external     :: fnom, fclos 
   character(len=2), parameter  :: predTab(0:7) = [ "SB", "KK","T1", "T2", "T3", "T4", "SV", "TG"]
+  integer               :: passiveChannelNumber(maxNumInst)
   ! Namelist variables
   character(len=5) :: biasMode  ! "varbc" for varbc, "reg" to compute bias correction coefficients by regression, "apply" to compute and apply bias correction
   logical  :: biasActive        ! logical variable to activate the module
@@ -103,7 +105,8 @@ module biasCorrectionSat_mod
   real(8)  :: bg_stddev(NumPredictors) ! background error for predictors ("varbc" mode)
   character(len=7) :: cinst(maxNumInst)   ! to read the bcif file for each instrument in cinst
   character(len=3) :: cglobal(maxNumInst) ! a "global" parameter and
-  integer          :: nbscan( maxNumInst)  ! the number of scan positions are necessary
+  integer          :: nbscan(maxNumInst)  ! the number of scan positions are necessary
+  integer          :: passiveChannelList(maxNumInst, maxPassiveChannels)
   ! To understand the meaning of the following parameters controling filtering,
   ! please see  https://wiki.cmc.ec.gc.ca/images/f/f6/Unified_SatRad_Dyn_bcor_v19.pdf pages 20-22
   logical  :: offlineMode   ! flag to select offline mode for bias correction computation
@@ -114,7 +117,7 @@ module biasCorrectionSat_mod
   logical  :: dumpToSqliteAfterThinning  ! option to output all usefull parameters to sqlite files after thinning
   namelist /nambiassat/ biasActive, biasMode, bg_stddev, removeBiasCorrection, refreshBiasCorrection
   namelist /nambiassat/ centerPredictors, scanBiasCorLength, mimicSatbcor, weightedEstimate
-  namelist /nambiassat/ cglobal, cinst, nbscan, filterObs, outstats, outCoeffCov
+  namelist /nambiassat/ cglobal, cinst, nbscan, passiveChannelList, filterObs, outstats, outCoeffCov
   namelist /nambiassat/ offlineMode, allModeSsmis, allModeTovs, allModeCsr, allModeHyperIr
   namelist /nambiassat/ dumpToSqliteAfterThinning, outOmFPredCov
 contains
@@ -131,7 +134,8 @@ contains
     ! Locals:
     integer  :: ierr, nulnam
     logical, save :: firstCall = .true.
-
+    integer :: instrumentIndex, channelIndex
+    
     if (.not. firstCall) return
     firstCall = .false.
 
@@ -158,6 +162,8 @@ contains
     allModeCsr = .true.
     allModeHyperIr = .false.
     dumpToSqliteAfterThinning = .false.
+    passiveChannelNumber(:) = 0
+    passiveChannelList(:,:) = -1
     !
     ! read in the namelist NAMBIASSAT
     if (utl_isNamelistPresent('nambiassat', './flnml')) then
@@ -174,6 +180,14 @@ contains
 
     bcs_mimicSatbcor = mimicSatbcor
     doRegression = (trim(biasMode) == "reg")
+    
+    do instrumentIndex = 1, maxNumInst
+      do channelIndex = 1, maxPassiveChannels
+        if (passiveChannelList(instrumentIndex,channelIndex) > 0) then
+          passiveChannelNumber(instrumentIndex) = passiveChannelNumber(instrumentIndex) + 1
+        end if
+      end do
+    end do
 
   end subroutine bcs_readConfig
 
@@ -2269,16 +2283,28 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData
 
     ! Locals:
-    integer :: bodyIndex, headerIndex
+    integer :: bodyIndex, headerIndex, instrumentIndex, sensorIndex
+    integer, allocatable :: instrumentList(:)
     integer :: assim, flag, codtyp, channelNumber
-    integer :: isatBufr, instBufr, iplatform, isat, inst, idsat, i, chanIndx
+    integer :: isatBufr, instBufr, iplatform, isat, inst, idsat, chanIndx
     logical :: lHyperIr, lGeo, lSsmis, lTovs
     logical :: condition, condition1, condition2, channelIsAllsky
-
+    logical :: channelIsPassive
+    
     if (.not. filterObs) return
 
     if (mmpi_myid == 0) write(*,*) 'bcs_filterObs: start'
 
+    allocate(instrumentList(tvs_nsensors))
+    instrumentList(:) = -1
+    do sensorIndex = 1, tvs_nsensors
+      do instrumentIndex = 1,  maxNumInst
+        if (trim(tvs_instrumentName(sensorIndex)) == trim(cinst(instrumentIndex)))    then
+          instrumentList(sensorIndex) = instrumentIndex
+        end if
+      end do
+    end do
+    
     call obs_set_current_header_list(obsSpaceData, 'TO')
     HEADER: do
       headerIndex = obs_getHeaderIndex(obsSpaceData)
@@ -2290,7 +2316,7 @@ contains
       lGeo = .false.
       lSsmis = .false.
       lTovs = .false.
-
+ 
       select case (codtyp_get_name(codtyp))
       case("ssmis")
         lSsmis = .true.
@@ -2309,11 +2335,11 @@ contains
       call tvs_mapInstrum(instBufr, inst)
 
       idsat = -1
-      do i = 1, tvs_nsensors
-         if (tvs_platforms(i) == iplatform .and.  &
-             tvs_satellites(i) == isat     .and.  &
-             tvs_instruments(i) == inst)     then
-          idsat = i
+      do sensorIndex = 1, tvs_nsensors
+        if (tvs_platforms(sensorIndex) == iplatform .and.  &
+            tvs_satellites(sensorIndex) == isat     .and.  &
+            tvs_instruments(sensorIndex) == inst)   then
+          idsat = sensorIndex
           exit
         end if
       end do
@@ -2333,9 +2359,11 @@ contains
             oer_useStateDepSigmaObs(channelNumber, idsat)) then
           channelIsAllsky = .true.
         end if
-
+        channelIsPassive = .false.
+        if (passiveChannelNumber(instrumentList(idsat)) > 0) then
+          channelIsPassive = (utl_findloc(passiveChannelList(instrumentList(idsat),1:passiveChannelNumber(instrumentList(idsat))), channelNumber) > 0)
+        end if
         assim = obs_bodyElem_i(obsSpaceData, OBS_ASS, bodyIndex)
-
         if (assim == obs_notAssimilated) then
           call bcs_getChannelIndex(obsSpaceData, idsat, chanIndx, bodyIndex)
           if (chanIndx > 0) then
@@ -2346,7 +2374,7 @@ contains
               !   Bit 11 is ON for data that are unselected by UTIL or for uncorrected data (or both).
               !   Data rejected by first QC program satqc_ssmi(s) have bit 7 switched ON only (in addition to bit 9) as
               !   rogue/topo checks are skipped. So if bit 16 (rogue) is ON, bit 7 must be off.
-              if (.not. offlineMode) then
+              if (.not. offlineMode .and. .not. channelIsPassive) then
                 if (allModeSsmis) then
                   !  FLAG test: all good data (corrected/selected or not) that have passed all QC (bit 9 OFF)
                   condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'
@@ -2357,7 +2385,8 @@ contains
                   !  FLAG test: corrected/selected good data that have passed QC (bits 9,11 OFF) --> data to be assimilated
                   condition = .not. btest(flag, 9) .and. .not. btest(flag, 11)       !' AND (FLAG & 512 = 0) AND (FLAG & 2048 = 0)'
                 end if
-              else   ! OFFLINE MODE --> want all observations except data rejected for any reason other than rogue innovation check
+              else
+                ! OFFLINE MODE --> want all observations except data rejected for any reason other than rogue innovation check
                 condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'  
                 ! all good data that passed all QC    
                 ! "good" data that failed rogue check [bit 9 ON, bit 7 OFF, bit 18 OFF]
@@ -2371,7 +2400,7 @@ contains
               !    so bit 11 = unselected channel (like bit 8 for AIRS/IASI)
               !  Bit 9 is set for all other rejections including rogue (9+16) and topography (9+18).
               !  In addition, bit 7 is set for channels with bad data or data that should not be assimilated.
-              if (.not. offlineMode) then
+              if (.not. offlineMode .and. .not. channelIsPassive) then
                 if (allModeTovs) then
                   !  FLAG test: all data (selected or not) that have passed QC (bit 9 OFF)
                   condition1 = .not. btest(flag, 9) !' AND (FLAG & 512 = 0)'
@@ -2391,11 +2420,11 @@ contains
                 condition = condition1 .or. condition2
               end if
               if (channelIsAllsky) condition = condition .and. .not. btest(flag, 23)
-            else if(lGeo) then   !  AIRS, IASI, CSR, CRIS  
-              ! CSR case!    No flag check        =                all data that have passed QC/filtering
+            else if(lGeo) then  ! CSR case
+              !    No flag check        =                all data that have passed QC/filtering
               !  (FLAG & 2048 = 0)      = bit 11 OFF --> corrected/selected data that have passed QC/filtering
-              if (allModeCsr .or. offlineMode) then
-                condition = .true. !
+              if (allModeCsr .or. offlineMode .or. channelIsPassive) then
+                condition = .true.
               else        
                 condition = .not. btest(flag, 18) ! ' AND (FLAG & 2048 = 0)' 
               endif
@@ -2415,7 +2444,7 @@ contains
               !    bit  9 ON: erroneous/suspect data (9), data failed O-P check (9+16)
               !    bit 11 ON: cloud (11+23), surface (11+19), model top transmittance (11+21), shortwave channel+daytime (11+7)
               !               not bias corrected (11) (with bit 6 OFF)
-              if (.not. offlineMode) then
+              if (.not. offlineMode .and. .not. channelIsPassive) then
                 if (allModeHyperIr) then        
                   ! good data that have passed all QC (bits 9 and 7,19,21,23 OFF), corrected/selected or not
                   condition1  = .not. btest(flag, 9) .and. .not. btest(flag, 7) .and. .not. btest(flag, 19) .and. .not. btest(flag, 21) .and. .not. btest(flag, 23) !' AND (FLAG & 512 = 0) AND (FLAG & 11010176 = 0)'
@@ -2446,6 +2475,8 @@ contains
         end if
       end do BODY
     end do HEADER
+
+    deallocate(instrumentList)
  
   end subroutine bcs_filterObs
 
