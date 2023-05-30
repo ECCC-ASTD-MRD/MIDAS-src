@@ -99,13 +99,15 @@ if [ "${fasttmp}" = yes ]; then
                     bfile=${file##*/}
                     fam=$(extract_family ${file})
                     if [ "${obsDir}" == "obsDB" ]; then
-                        updated_dir=obsDBfiles_${fam}.updated
-                    else 
-                        if [ "${prefix}" = brp ]; then
-                            updated_dir=burpfiles_${fam}.updated
-                        else
-                            updated_dir=${prefix}files_${fam}.updated
-                        fi
+                        bfile2=$(echo ${bfile} | sed "s/^${prefix}/odb/g")
+                    else
+                        bfile2=${bfile}
+                    fi
+
+                    if [ "${prefix}" = brp ]; then
+                        updated_dir=burpfiles_${fam}.updated
+                    else
+                        updated_dir=${prefix}files_${fam}.updated
                     fi
                     while [ ! -d "${updated_dir}" ]; do
                         if [ "${MP_CHILD}" -eq 0 ]; then
@@ -114,7 +116,7 @@ if [ "${fasttmp}" = yes ]; then
                         fi
                         /bin/sleep 1
                     done
-                    /bin/cp ${file} ${updated_dir}
+                    /bin/cp ${file} ${updated_dir}/${bfile2}
                     /bin/rm -f ${obsDir}/${bfile}
                 fi
             done
@@ -135,13 +137,15 @@ else
                     bfile=${file##*/}
                     fam=$(extract_family ${file})
                     if [ "${obsDir}" == "obsDB" ]; then
-                        updated_dir=obsDBfiles_${fam}.updated
-                    else                     
-                        if [ "${prefix}" = brp ]; then
-                            updated_dir=burpfiles_${fam}.updated
-                        else
-                            updated_dir=${prefix}files_${fam}.updated
-                        fi
+                        bfile2=$(echo ${bfile} | sed "s/^${prefix}/odb/g")
+                    else
+                        bfile2=${bfile}
+                    fi                    
+                    
+                    if [ "${prefix}" = brp ]; then
+                        updated_dir=burpfiles_${fam}.updated
+                    else
+                        updated_dir=${prefix}files_${fam}.updated
                     fi
                     while [ ! -d "${updated_dir}" ]; do
                         if [ "${MP_CHILD}" -eq 0 ]; then
@@ -150,7 +154,7 @@ else
                         fi
                         /bin/sleep 1
                     done
-                    /bin/mv ${file} ${updated_dir}/${bfile}
+                    /bin/mv ${file} ${updated_dir}/${bfile2}
                 fi
             done
         done
