@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Fix bug in Fortran documentation page related to the search bar (#817 and !738)
 
 ### Removed
 
@@ -55,7 +55,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * Fix bug in Fortran documentation page related to the search bar (#817 and !738)
  * Skip reading resume record blocks in `brpf_obsSub_update` (#746 and !732)
  * Dynamic allocation of some arrays in `bgckmicrowave_mod` to prevent abort when more than 13 instrument (#822 and !731)
  * Test `errorStatus` returned by some rttov subroutines (#813 and !722)
