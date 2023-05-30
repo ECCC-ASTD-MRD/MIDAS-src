@@ -7,8 +7,13 @@
     :copyright: Copyright 2007-2014 by the Sphinx team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 #}
-{%- extends "basic2/layout.html" %}
+{%- extends "basic/layout.html" %}
 
+{%- block header %}
+  <div>
+    <img src="{{ pathto('_static/MIDAS_header.png', 1) }}" alt="MIDAS" />
+  </div>
+{% endblock %}
 {# put the sidebar before the body #}
 {% block sidebar1 %}{{ sidebar() }}{% endblock %}
 {% block sidebar2 %}{% endblock %}
