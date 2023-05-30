@@ -159,6 +159,10 @@ else
             done
         done
     done
+    
+    if [ -d ./obsDB -a -z "$(ls -A ./obsDB)" ]; then
+        /bin/rm -rf ./obsDB
+    fi
 fi
 
 if [ "${fasttmp}" = yes ]; then
