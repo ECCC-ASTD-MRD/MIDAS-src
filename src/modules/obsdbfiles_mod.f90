@@ -1903,7 +1903,6 @@ contains
     integer              :: maxNumBodyAllMpi(mmpi_nprocs), obsSpaceColIndexSourceArr(15)
     real(8)              :: updateValue_r, obsValue, obsPPP, obsVAR
     character(len=4)     :: obsSpaceColumnName
-    character(len=lenSqlName) :: sqlColumnName, vnmSqlName, pppSqlName, varSqlName
     character(len=3000)  :: query, queryCreateTable, queryInsertInTable, queryForValues
     character(len=5000)  :: tableInsertColumnList
     character(len=20)        :: sqlDataType
@@ -1945,12 +1944,18 @@ contains
         if (trim(updateItemList(updateItemIndex)) == '') exit
         numberUpdateItems = numberUpdateItems + 1
       end do
-      ! Add "FLG" to the updateItemList to ensure it is always updated
+      ! Add FLG/VNM/PPP/VAR to the updateItemList to ensure there are updated from obsSpaceData
       numberUpdateItems = numberUpdateItems + 1
       updateItemList(numberUpdateItems) = 'FLG'
+      numberUpdateItems = numberUpdateItems + 1
+      updateItemList(numberUpdateItems) = 'VNM'
+      numberUpdateItems = numberUpdateItems + 1
+      updateItemList(numberUpdateItems) = 'PPP'
+      numberUpdateItems = numberUpdateItems + 1
+      updateItemList(numberUpdateItems) = 'VAR'    
 
       if ( mmpi_myid == 0 ) then
-        write(*,*) 'odbf_insertInMidasBodyTable: NOTE: the FLG column is always added to update list'
+        write(*,*) 'odbf_insertInMidasBodyTable: NOTE: the FLG/VNM/PPP/VAR columns are always added to update list'
         write(*, nml=namObsDbMIDASBodyUpdate)
       end if
     end if ! not nmlAlreadyRead
@@ -1960,11 +1965,6 @@ contains
                  'MIDAS Body Output Table will not be updated.'
       return
     end if
-
-    ! some sql column names
-    vnmSqlName = odbf_midasTabColFromObsSpaceName('VNM', midasBodyNamesList)
-    pppSqlName = odbf_midasTabColFromObsSpaceName('PPP', midasBodyNamesList)
-    varSqlName = odbf_midasTabColFromObsSpaceName('VAR', midasBodyNamesList)
 
     ! check if midasTable already exists in the file
     midasTableExists = sqlu_sqlTableExists(fileName, midasBodyTableName)
@@ -2012,9 +2012,7 @@ contains
       ! set the primary key, keys to main obsDB tables and other basic info
       query = 'insert into ' // trim(midasBodyTableName) // '(' // &
               trim(midasBodyKeySqlName) // ',' // trim(obsHeadKeySqlName) // ',' // &
-              trim(obsBodyKeySqlName)  // ',' // trim(vnmSqlname)     // ',' // &
-              trim(pppSqlName)      // ',' // trim(varSqlname)     // &
-              ') values(?,?,?,?,?,?);'
+              trim(obsBodyKeySqlName)  // ') values(?,?,?);'
       write(*,*) 'odbf_insertInMidasBodyTable: query = ', trim(query)
       call fSQL_prepare(db, query, stmt, stat)
       call fSQL_begin(db)
@@ -2039,12 +2037,6 @@ contains
           call fSQL_bind_param(stmt, PARAM_INDEX=2, INT8_VAR=obsIdo)
           obsIdd  = obs_bodyPrimaryKey(obsdat, bodyIndex)
           call fSQL_bind_param(stmt, PARAM_INDEX=3, INT8_VAR=obsIdd)
-          obsVarNo = obs_bodyElem_i(obsdat, obs_vnm, bodyIndex)
-          call fSQL_bind_param(stmt, PARAM_INDEX=4, INT_VAR=obsVarNo)
-          obsPPP = obs_bodyElem_r(obsdat, obs_ppp, bodyIndex)
-          call fSQL_bind_param(stmt, PARAM_INDEX=5, REAL8_VAR=obsPPP)
-          obsVAR = obs_bodyElem_r(obsdat, obs_var, bodyIndex)
-          call fSQL_bind_param(stmt, PARAM_INDEX=6, REAL8_VAR=obsVAR)
 
           call fSQL_exec_stmt(stmt)
 
@@ -2723,12 +2715,7 @@ contains
       query = 'create table table_tmp as select ' // new_line('A') // &
               '  ' // trim(midasBodyTableName) // '.' // trim(midasBodyKeySqlName) // ', ' // new_line('A') // &
               '  ' // trim(midasBodyTableName) // '.' // trim(obsHeadKeySqlName) // ', ' // new_line('A') // &
-              '  ' // trim(midasBodyTableName) // '.' // trim(obsBodyKeySqlName) // ', ' // new_line('A')
-      do columnIndex = 1, numBodyMidasTableRequired
-        query = trim(query) // '  ' // trim(midasBodyTableName) // '.' // trim(midasBodyNamesList(1,columnIndex))
-        if (columnIndex < numBodyMidasTableRequired) query = trim(query) // ', '
-        query = trim(query) // new_line('A')
-      end do
+              '  ' // trim(midasBodyTableName) // '.' // trim(obsBodyKeySqlName) // new_line('A')
       query = trim(query) // '  ' // trim(tableInsertColumnList) // '  from ' // new_line('A') // &
               '  ' // trim(inputTableName) // ' inner join ' // trim(midasBodyTableName) // ' on ' // new_line('A') // &
               '  ' // trim(inputTableName) // '.' // trim(obsBodyKeySqlName) // '=' // &
