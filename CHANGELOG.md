@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
- * (Nothing yet)
+ * Added imposed maximum value of the error standard deviation trial field and a scaling factor for Lcorr (#832 and !740)
+ * Introduction of variable `passiveChannelList` in namelist section NAMBIASSAT (#824 and !737)
 
 ### Changed
 
