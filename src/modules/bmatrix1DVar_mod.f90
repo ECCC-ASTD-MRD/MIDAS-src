@@ -214,6 +214,7 @@ contains
     character(len=4), allocatable :: includeAnlVarHi(:)
     integer :: extractDate, locationIndex, varIndex, numIncludeAnlVarHi
     integer :: shiftLevel, varLevIndex, varLevIndex1, varLevIndex2
+    integer :: varLevIndexBmat
     logical, save :: firstCall=.true.
     real(8), allocatable :: bMatrix(:,:), multFactor(:)
 
@@ -284,27 +285,27 @@ contains
     else
       shiftLevel = 0
     end if
-    varLevIndex = 0
+    varLevIndexBmat = 0
     do varIndex = 1, bmat1D_numIncludeAnlVar
       select case(bmat1D_includeAnlVar(varIndex))
         case('TT')
           do levelIndex = 1, vco_1Dvar%nLev_T
-            varLevIndex = varLevIndex + 1
-            multFactor(varLevIndex) = scaleFactorHI(levelIndex)
+            varLevIndexBmat = varLevIndexBmat + 1
+            multFactor(varLevIndexBmat) = scaleFactorHI(levelIndex)
           end do
         case('HU')
           do levelIndex = 1, vco_1Dvar%nLev_T
-            varLevIndex = varLevIndex + 1
-            multFactor(varLevIndex)= scaleFactorHIHumidity(levelIndex) * scaleFactorHI(levelIndex)
+            varLevIndexBmat = varLevIndexBmat + 1
+            multFactor(varLevIndexBmat)= scaleFactorHIHumidity(levelIndex) * scaleFactorHI(levelIndex)
           end do
         case('UU','VV')
           do levelIndex = 1, vco_1Dvar%nLev_M
-            varLevIndex = varLevIndex + 1
-            multFactor(varLevIndex) = scaleFactorHI(levelIndex+shiftLevel)
+            varLevIndexBmat = varLevIndexBmat + 1
+            multFactor(varLevIndexBmat) = scaleFactorHI(levelIndex+shiftLevel)
           end do
         case('P0','TG')
-          varLevIndex = varLevIndex + 1
-          multFactor(varLevIndex) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
+          varLevIndexBmat = varLevIndexBmat + 1
+          multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
         case default
           call utl_abort('bmat1D_setupBHi: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
         end select
@@ -423,7 +424,8 @@ contains
     character(len=12) :: hInterpolationDegree='LINEAR' ! select degree of horizontal interpolation (if needed)
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
     integer :: levIndex1
-    integer :: varLevIndex, varLevIndex1, varLevIndex2 
+    integer :: varLevIndex, varLevIndex1, varLevIndex2
+    integer :: varLevIndexBmat, varLevIndexCol
     integer :: numStep, levIndexColumn
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
     real(8) :: scaleFactor_SF, ZR
@@ -439,8 +441,8 @@ contains
     real(8) :: logP1, logP2
     real(8), pointer :: currentProfile(:), meanProfile(:)
     real(8), allocatable :: lineVector(:,:), meanPressureProfile(:), multFactor(:)
-    integer, allocatable :: levIndexFromVarLevIndex(:)
-    character(len=4), allocatable :: varNameFromVarLevIndex(:)
+    integer, allocatable :: varLevColFromVarLevBmat(:)
+    character(len=4), allocatable :: varNameFromVarLevIndexBmat(:)
     character(len=2) :: varLevel
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
@@ -665,30 +667,30 @@ contains
     cvDim_out = nkgdim * var1D_validHeaderCount
 
     currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1))
-    allocate (levIndexFromVarLevIndex(nkgdim))
-    allocate (varNameFromVarLevIndex(nkgdim))
+    allocate (varLevColFromVarLevBmat(nkgdim))
+    allocate (varNameFromVarLevIndexBmat(nkgdim))
     allocate (multFactor(nkgdim))
-    varLevIndex1 = 0
+    varLevIndexBmat = 0
     do varIndex = 1, bmat1D_numIncludeAnlVar
       levIndex = 0
-      do varLevIndex2 = 1, size(currentProfile)
-        if ( trim( col_getVarNameFromK(meanColumn,varLevIndex2) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
-          varLevIndex1 = varLevIndex1 + 1
+      do varLevIndexCol = 1, size(currentProfile)
+        if ( trim( col_getVarNameFromK(meanColumn,varLevIndexCol) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
+          varLevIndexBmat = varLevIndexBmat + 1
           levIndex = levIndex + 1
-          levIndexFromVarLevIndex(varLevIndex1) = varlevIndex2
-          varNameFromVarLevIndex(varLevIndex1) = trim( bmat1D_includeAnlVar(varIndex) )
-          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndex(varLevIndex1))
+          varLevColFromVarLevBmat(varLevIndexBmat) = varLevIndexCol
+          varNameFromVarLevIndexBmat(varLevIndexBmat) = trim( bmat1D_includeAnlVar(varIndex) )
+          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndexBmat(varLevIndexBmat))
           if ( varLevel == 'MM' ) then      ! Momentum
-            multFactor(varLevIndex1) = scaleFactor_M(levIndex)
+            multFactor(varLevIndexBmat) = scaleFactor_M(levIndex)
           else if ( varLevel == 'TH' ) then ! Thermo
-            multFactor(varLevIndex1) = scaleFactor_T(levIndex)
+            multFactor(varLevIndexBmat) = scaleFactor_T(levIndex)
           else                              ! SF
-            multFactor(varLevIndex1) = scaleFactor_SF
+            multFactor(varLevIndexBmat) = scaleFactor_SF
           end if
-          if (varNameFromVarLevIndex(varLevIndex1) == 'HU') then
-            multFactor(varLevIndex1) = multFactor(varLevIndex1) * scaleFactorEnsHumidity(levIndex)
+          if (varNameFromVarLevIndexBmat(varLevIndexBmat) == 'HU') then
+            multFactor(varLevIndexBmat) = multFactor(varLevIndexBmat) * scaleFactorEnsHumidity(levIndex)
           end if
-          if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndex1, levIndex
+          if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndexBmat, levIndex
         end if
       end do
     end do
@@ -704,7 +706,7 @@ contains
       meanProfile => col_getColumn(meanColumn, headerIndex)
       do memberIndex = 1, nEns
         currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex)
-        lineVector(1,:) = currentProfile(levIndexFromVarLevIndex(:)) - meanProfile(levIndexFromVarLevIndex(:))
+        lineVector(1,:) = currentProfile(varLevColFromVarLevBmat(:)) - meanProfile(varLevColFromVarLevBmat(:))
         lineVector(1,:) = lineVector(1,:) * multFactor(:)
         bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) + &
             matmul(transpose(lineVector),lineVector)
@@ -722,18 +724,18 @@ contains
       headerIndex = var1D_validHeaderIndex(columnIndex)
       bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) / (nEns - 1)
       if (vLocalize > 0.0d0) then
-        do varLevIndex1 = 1, nkgdim
-          levIndex1 = levIndexFromVarLevIndex(varLevIndex1)
-          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndex(varLevIndex1))
+        do varLevIndexBmat = 1, nkgdim
+          varLevIndexCol = varLevColFromVarLevBmat(varLevIndexBmat)
+          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndexBmat(varLevIndexBmat))
           if (varLevel=='SF') then
-            meanPressureProfile(varLevIndex1) = col_getElem(meanColumn, 1, headerIndex, 'P0')
+            meanPressureProfile(varLevIndexBmat) = col_getElem(meanColumn, 1, headerIndex, 'P0')
           else
-            levIndexColumn = col_getLevIndexFromVarLevIndex(meanColumn, levIndex1)
-            meanPressureProfile(varLevIndex1) = col_getPressure(meanColumn, levIndexColumn, headerIndex, varLevel)
+            levIndexColumn = col_getLevIndexFromVarLevIndex(meanColumn, varLevIndexCol)
+            meanPressureProfile(varLevIndexBmat) = col_getPressure(meanColumn, levIndexColumn, headerIndex, varLevel)
           end if
         end do
-        do varLevIndex1 = 1, nkgdim
-          logp1 = log(meanPressureProfile(varLevIndex1))
+        do varLevIndex1 = 1, nkgdim 
+          logP1 = log(meanPressureProfile(varLevIndex1))
           do varLevIndex2 = 1, nkgdim
             !-  do Schurr product with 5'th order function
             logP2 = log(meanPressureProfile(varLevIndex2))
@@ -747,8 +749,9 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    deallocate(levIndexFromVarLevIndex) 
-    deallocate(varNameFromVarLevIndex)
+    
+    deallocate(varLevColFromVarLevBmat) 
+    deallocate(varNameFromVarLevIndexBmat)
     deallocate(meanPressureProfile)
     call col_deallocate(meanColumn)
     do memberIndex = 1, nEns
