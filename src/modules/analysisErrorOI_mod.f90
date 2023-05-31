@@ -177,6 +177,10 @@ contains
                                        analysisEtiket, errorGrowth, &
                                        hco_ptr, vco_ptr)
 
+      ! impose maximum value on trial error standard deviation field
+      trlErrorStdDev_ptr(:,:,:,:) = min(trlErrorStdDev_ptr(:,:,:,:), &
+                                        maxAnalysisErrorStdDev)
+
       if (saveTrlStdField) then
         ! zap analysis error etiket with background error etiket
         stateVectorTrlErrorStd%etiket = trlErrorStdEtiket
