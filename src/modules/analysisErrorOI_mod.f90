@@ -93,9 +93,11 @@ contains
     logical           :: saveTrlStdField        ! choose to save trial standard deviation field
     character(len=2)  :: inputTypeVar           ! typvar of the analysis error field in the input file 
     character(len=2)  :: outputTypeVar          ! typvar of the analysis error field for the output file 
+    real(4)           :: multFactorLcorr        ! multiplication scaling factor to increase the correlation length scale field
     namelist /namaer/ maxAnalysisErrorStdDev, propagateAnalysisError, propagateDSLO, &
                       errorGrowth, analysisEtiket, anlErrorStdEtiket, trlErrorStdEtiket, &
-                      hoursSinceLastAnalysis, saveTrlStdField, inputTypeVar, outputTypeVar
+                      hoursSinceLastAnalysis, saveTrlStdField, inputTypeVar, outputTypeVar, &
+                      multFactorLcorr
 
     if(mmpi_nprocs > 1) then
       write(*,*) 'mmpi_nprocs = ', mmpi_nprocs
@@ -119,6 +121,7 @@ contains
     saveTrlStdField = .false.
     inputTypeVar = 'P@'
     outputTypeVar = 'A@'
+    multFactorLcorr = 1.0
     
     ! read the namelist
     if (.not. utl_isNamelistPresent('namaer','./flnml')) then
@@ -230,6 +233,10 @@ contains
     call gio_readFromFile(statevectorLcorr, './bgstddev', 'CORRLEN', ' ', &
                           unitConversion_opt = .false.)
     call gsv_getField(statevectorLcorr, field3D_r4_ptr, analysisVariable(1))
+
+    ! apply multiplication scaling factor
+    field3D_r4_ptr(:, :, 1) = field3D_r4_ptr(:, :, 1) * multFactorLcorr
+
     ! Convert from km to meters
     Lcorr(:,:) = 1000.0d0 * real(field3D_r4_ptr(:, :, 1), 8)
 
