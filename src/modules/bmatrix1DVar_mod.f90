@@ -719,7 +719,7 @@ contains
     allocate(meanPressureProfile(nkgdim))
     call lfn_Setup('FifthOrder')
 
-    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,meanPressureProfile,levIndex1,varLevIndex1,varLevIndex2,varLevel,levIndexColumn,logP1,logP2,zr)
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,meanPressureProfile,varLevIndexBmat,varLevIndexCol,varLevIndex1,varLevIndex2,varLevel,levIndexColumn,logP1,logP2,zr)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) / (nEns - 1)
