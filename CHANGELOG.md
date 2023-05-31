@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
+ * Fix `ssm/post-install` to set `CMCCONST` if it is not already set (#831 and !739)
  * Fix bug in Fortran documentation page related to the search bar (#817 and !738)
 
 ### Removed
