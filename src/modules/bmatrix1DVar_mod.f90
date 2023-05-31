@@ -213,7 +213,7 @@ contains
     character(len=17) :: oneDBmatSea  = './Bmatrix_sea.bin'
     character(len=4), allocatable :: includeAnlVarHi(:)
     integer :: extractDate, locationIndex, varIndex, numIncludeAnlVarHi
-    integer :: shiftLevel, varLevIndex, varLevIndex1, varLevIndex2
+    integer :: shiftLevel, varLevIndex1, varLevIndex2
     integer :: varLevIndexBmat
     logical, save :: firstCall=.true.
     real(8), allocatable :: bMatrix(:,:), multFactor(:)
@@ -424,7 +424,7 @@ contains
     character(len=12) :: hInterpolationDegree='LINEAR' ! select degree of horizontal interpolation (if needed)
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
     integer :: levIndex1
-    integer :: varLevIndex, varLevIndex1, varLevIndex2
+    integer :: varLevIndex1, varLevIndex2
     integer :: varLevIndexBmat, varLevIndexCol
     integer :: numStep, levIndexColumn
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
