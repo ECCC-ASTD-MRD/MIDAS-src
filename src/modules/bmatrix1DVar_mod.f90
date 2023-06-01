@@ -423,7 +423,6 @@ contains
     integer, allocatable :: dateStampList(:)
     character(len=12) :: hInterpolationDegree='LINEAR' ! select degree of horizontal interpolation (if needed)
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
-    integer :: levIndex1
     integer :: varLevIndex1, varLevIndex2
     integer :: varLevIndexBmat, varLevIndexCol
     integer :: numStep, levIndexColumn
@@ -444,6 +443,7 @@ contains
     integer, allocatable :: varLevColFromVarLevBmat(:)
     character(len=4), allocatable :: varNameFromVarLevIndexBmat(:)
     character(len=2) :: varLevel
+    logical :: debug=.false.
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -612,9 +612,9 @@ contains
     call mmpi_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
     !- 1.6 Localization
-    if ( vLocalize <= 0.0d0 .and. (nLevInc_M > 1 .or. nLevInc_T > 1) ) then
-      call utl_abort('bmat1D_setubBEns: Invalid VERTICAL localization length scale')
-    end if     
+    !if ( vLocalize <= 0.0d0 .and. (nLevInc_M > 1 .or. nLevInc_T > 1) ) then
+    !  call utl_abort('bmat1D_setubBEns: Invalid VERTICAL localization length scale')
+    !end if     
   
     call ens_allocate(ensembles,  &
          nEns, numStep, &
@@ -700,19 +700,37 @@ contains
     bSqrtEns(:,:,:) = 0.d0
     allocate(lineVector(1,nkgdim))
 
-    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,memberIndex,meanProfile,currentProfile,lineVector)
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,memberIndex,meanProfile,currentProfile,lineVector,varLevIndex1,varLevIndex2)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       meanProfile => col_getColumn(meanColumn, headerIndex)
       do memberIndex = 1, nEns
         currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex)
-        lineVector(1,:) = currentProfile(varLevColFromVarLevBmat(:)) - meanProfile(varLevColFromVarLevBmat(:))
-        lineVector(1,:) = lineVector(1,:) * multFactor(:)
-        bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) + &
-            matmul(transpose(lineVector),lineVector)
+        if (debug) then
+          do varLevIndex1 = 1, nkgdim
+            lineVector(1,varLevIndex1) = currentProfile(varLevColFromVarLevBmat(varLevIndex1)) - meanProfile(varLevColFromVarLevBmat(varLevIndex1))
+          end do
+          do varLevIndex1 = 1, nkgdim
+            do varLevIndex2 = 1, nkgdim
+              bSqrtEns(columnIndex,varLevIndex2,varLevIndex1) = bSqrtEns(columnIndex,varLevIndex2,varLevIndex1) + &
+                  lineVector(1,varLevIndex2) * lineVector(1,varLevIndex1)  
+            end do
+          end do
+          else
+            lineVector(1,:) = currentProfile(varLevColFromVarLevBmat(:)) - meanProfile(varLevColFromVarLevBmat(:))
+            lineVector(1,:) = lineVector(1,:) * multFactor(:)
+            bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) + &
+                matmul(transpose(lineVector),lineVector)
+          end if
       end do
     end do
     !$OMP END PARALLEL DO
+    if (debug) then
+      do varlevIndex1 =1, nkgdim
+        write(*,*) "AA", varlevIndex1, minval(bSqrtEns(:,varlevIndex1,varlevIndex1)/(nEns - 1)), &
+            maxval(bSqrtEns(:,varlevIndex1,varlevIndex1)/(nEns - 1))
+      end do
+    end if
 
     deallocate(lineVector)
     deallocate(multFactor)
@@ -745,11 +763,20 @@ contains
           end do
         end do
       end if
-      call utl_matsqrt(bSqrtEns(columnIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
+      !call utl_matsqrt(bSqrtEns(columnIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
     !$OMP END PARALLEL DO
 
-    
+    do columnIndex = 1, var1D_validHeaderCount
+      call utl_matsqrt(bSqrtEns(columnIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
+    end do
+
+    if (debug) then
+      do varlevIndex1 =1, nkgdim
+        write(*,*) "BB", varlevIndex1, minval(bSqrtEns(:,varlevIndex1,varlevIndex1)) , &
+            maxval(bSqrtEns(:,varlevIndex1,varlevIndex1))
+      end do
+    end if
     deallocate(varLevColFromVarLevBmat) 
     deallocate(varNameFromVarLevIndexBmat)
     deallocate(meanPressureProfile)
@@ -762,6 +789,7 @@ contains
     
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0 .and. debug) call utl_abort('SYLVAIN')
 
   end subroutine bmat1D_setupBEns
   
