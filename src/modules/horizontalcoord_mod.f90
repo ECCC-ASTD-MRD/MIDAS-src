@@ -797,7 +797,15 @@ contains
     equal = equal .and. (hco1%xlat2_yan ==  hco2%xlat2_yan)
     equal = equal .and. (hco1%xlon2_yan ==  hco2%xlon2_yan)
     if (.not. equal) then
-      write(*,*) 'hco_equal: rotation not equal'
+      write(*,*) 'hco_equal: rotation not equal: ', hco1%rotated, hco2%rotated
+      write(*,*) 'hco_equal: xlat1: ', hco1%xlat1, hco2%xlat1
+      write(*,*) 'hco_equal: xlat2: ', hco1%xlat2, hco2%xlat2
+      write(*,*) 'hco_equal: xlon1: ', hco1%xlon1, hco2%xlon1
+      write(*,*) 'hco_equal: xlon2: ', hco1%xlon2, hco2%xlon2
+      write(*,*) 'hco_equal: xlat1_yan: ', hco1%xlat1_yan, hco2%xlat1_yan
+      write(*,*) 'hco_equal: xlat2_yan: ', hco1%xlat2_yan, hco2%xlat2_yan
+      write(*,*) 'hco_equal: xlon1_yan: ', hco1%xlon1_yan, hco2%xlon1_yan
+      write(*,*) 'hco_equal: xlon2_yan: ', hco1%xlon2_yan, hco2%xlon2_yan
       return
     end if
     
