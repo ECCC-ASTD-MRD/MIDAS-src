@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
  * Added namelist variable to scale Lcorr and apply max limit to trial error stddev for analysisErrorOI (#832 and !740)
- * Introduction of variable `passiveChannelList` in namelist section NAMBIASSAT (#824 and !737)
 
 ### Changed
 
