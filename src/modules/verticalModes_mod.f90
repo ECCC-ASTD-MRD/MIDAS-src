@@ -17,9 +17,10 @@
 module verticalModes_mod
   ! MODULE verticalModes_mod (prefix='vms' category='4. Data Object transformations')
   !
-  ! :Purpose: To 1) compute empirical orthogonal functions (EOFs) of ensemble-derived
-  !           vertical background-error covariances matrices (i.e., the so-called vertical
-  !           modes) and to 2) project back or forth ensemble pertubations onto these modes.
+  ! :Purpose: To 1) compute empirical orthogonal functions (EOFs) from either ensemble-derived
+  !           vertical background-error covariances matrices or a prescribed vertical correlation
+  !           function (i.e., the so-called vertical modes) and to 2) project back or forth
+  !           ensemble pertubations onto these modes.
   !           Therefore, capablity #2 behaves like a spectral transform but in the vertical
   !           dimension.
   !
@@ -40,9 +41,9 @@ module verticalModes_mod
   
   ! Public derived type
   public :: struct_vms
-  ! Public dubroutines
+  ! Public subroutines
   public :: vms_computeModesFromEns, vms_computeModesFromFunction
-  public :: vms_writeModes !, vms_readModes, vms_transform
+  public :: vms_writeModes, vms_transform
 
   type :: struct_oneVar3d
     integer :: nLev
@@ -50,7 +51,8 @@ module verticalModes_mod
     real(8), allocatable :: autoCovariance(:,:)
     real(8), allocatable :: eigenVectors(:,:)
     real(8), allocatable :: eigenValues(:)
-    real(8), allocatable :: zeroCrossing(:)
+    real(8), allocatable :: Tmatrix(:,:)
+    real(8), allocatable :: Umatrix(:,:)
   end type struct_oneVar3d
   
   type :: struct_vms
@@ -60,14 +62,15 @@ module verticalModes_mod
     logical :: initialized = .false.
   end type struct_vms
 
-  ! Namelist variables:
-
 contains
 
   !--------------------------------------------------------------------------
   ! vms_setup
   !--------------------------------------------------------------------------
   subroutine vms_setup(varNamesList, vco, vModes)
+    !
+    ! :Purpose: To setup the vModes structure
+    !
     implicit none
 
     character(len=4), intent(in)    :: varNamesList(:)
@@ -103,7 +106,8 @@ contains
         allocate(vModes%allVar3d(var3dIndex)%autoCovariance(nLev,nLev))
         allocate(vModes%allVar3d(var3dIndex)%eigenVectors(nLev,nLev))
         allocate(vModes%allVar3d(var3dIndex)%eigenValues(nLev))
-        allocate(vModes%allVar3d(var3dIndex)%zeroCrossing(nLev))
+        allocate(vModes%allVar3d(var3dIndex)%Tmatrix(nLev,nLev))
+        allocate(vModes%allVar3d(var3dIndex)%Umatrix(nLev,nLev))
         vModes%allVar3d(var3dIndex)%nLev = nLev
       end if
     end do
@@ -119,10 +123,13 @@ contains
   ! vms_computeModesFromEns
   !--------------------------------------------------------------------------
   subroutine vms_computeModesFromEns(ensPerts,vModes)
+    !
+    ! :Purpose: To compute vertical modes from ensemble-derived
+    !           vertical background-error covariances matrices
+    !
     implicit none
-
-    type(struct_ens) :: ensPerts
-    type(struct_vms) :: vModes
+    type(struct_ens)                :: ensPerts
+    type(struct_vms), intent(inout) :: vModes
 
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
@@ -229,12 +236,16 @@ contains
   !--------------------------------------------------------------------------
   ! vms_computeModesFromFunction
   !--------------------------------------------------------------------------
-  subroutine vms_computeModesFromFunction(vco,lengthScale,vModes)
+  subroutine vms_computeModesFromFunction(vco, lengthScaleTop, lengthScaleBot, &
+                                          vModes)
+    !
+    ! :Purpose: To compute vertical modes from a prescribed correlation function
+    !
     implicit none
-
     
-    type(struct_vco), pointer, intent(in)    :: vco
-    real(8)         , intent(in)    :: lengthScale
+    type(struct_vco), pointer, intent(in)  :: vco
+    real(8)         , intent(in)    :: lengthScaleTop
+    real(8)         , intent(in)    :: lengthScaleBot
     type(struct_vms), intent(inout) :: vModes
 
     real(8) :: pSurfRef, distance, correl
@@ -246,8 +257,11 @@ contains
     integer :: levIndex, levIndex1, levIndex2
     integer :: var3dIndex
 
-    character(len=4) :: varNamesList(2)
+    real(8) :: lengthScaleGradient
+    real(8) :: lengthScaleLev1, lengthScaleLev2, lengthScaleAvg
     
+    character(len=4) :: varNamesList(2)
+
     !
     !- Structure initialization
     !
@@ -280,35 +294,56 @@ contains
       else
         vertLocation => vertLocation_TH
       end if
+
+      lengthScaleGradient = (lengthScaleTop-lengthScaleBot) / &
+                            (vertLocation(1)-vertLocation(vModes%allVar3d(var3dIndex)%nLev))
       
       do levIndex1 = 1, vModes%allVar3d(var3dIndex)%nLev
         do levIndex2 = 1, vModes%allVar3d(var3dIndex)%nLev
           distance = abs(vertLocation(levIndex2) - vertLocation(levIndex1))
-          correl = lfn_response(distance,lengthScale)
+
+          lengthScaleLev1 = lengthScaleGradient * &
+               (vertLocation(levIndex1)-vertLocation(vModes%allVar3d(var3dIndex)%nLev)) + &
+               lengthScaleBot
+          lengthScaleLev2 = lengthScaleGradient * &
+               (vertLocation(levIndex2)-vertLocation(vModes%allVar3d(var3dIndex)%nLev)) + &
+               lengthScaleBot
+          lengthScaleAvg = (lengthScaleLev1+lengthScaleLev2)/2.d0
+
+          if (levIndex1 == 1 .and. mmpi_myid == 0) then
+            write(*,*) 'vms_computeModesFromFunction: function length scale (', &
+                        levIndex2,') = ', lengthScaleAvg
+          end if
+ 
+          correl = lfn_response(distance,lengthScaleAvg)
           vModes%allVar3d(var3dIndex)%autoCovariance(levIndex1,levIndex2) = correl
         end do
       end do
-      
+
     end do
-      
+
     !
     !- Compute the eigenvectors and eigenvalue
     !
     call vms_computeModes(vModes)
 
   end subroutine vms_computeModesFromFunction
-  
+
   !--------------------------------------------------------------------------
   ! vms_computeModes
   !--------------------------------------------------------------------------
   subroutine vms_computeModes(vModes)
+    !
+    ! :Purpose: Compute vertical modes from the vertical covariances matrices
+    !           contained in the vModes structure.
+    !
     implicit none
 
-    type(struct_vms) :: vModes
+    type(struct_vms), intent(inout) :: vModes
 
     real(8) :: tolerance
     
-    integer :: var3dIndex
+    integer :: levIndex1, levIndex2, var3dIndex
     integer :: matrixRank
     
     !
@@ -316,6 +351,8 @@ contains
     !
     tolerance = 1.0D-50
     do var3dIndex = 1, vModes%nVar3d
+
+      !- Compute the eigenvectors and eigenvalue
       call utl_eigenDecomp(vModes%allVar3d(var3dIndex)%autoCovariance, & ! IN
                            vModes%allVar3d(var3dIndex)%eigenValues,    & ! OUT
                            vModes%allVar3d(var3dIndex)%eigenVectors,   & ! OUT
@@ -327,15 +364,156 @@ contains
         write(*,*) 'nLev       =', vModes%allVar3d(var3dIndex)%nLev
         call utl_abort('vms_computeModes: vertical matrix is rank deficient')
       end if
-      !call findNumZeroCrossing(vModes)
+
+      !- Setup the U matrix, to go from vertical mode space to grid point space
+      do levIndex2 = 1, vModes%allVar3d(var3dIndex)%nLev
+        do levIndex1 = 1, vModes%allVar3d(var3dIndex)%nLev
+          vModes%allVar3d(var3dIndex)%Umatrix(levIndex1,levIndex2) = &
+               vModes%allVar3d(var3dIndex)%eigenVectors(levIndex1,levIndex2) !* &
+               !sqrt(vModes%allVar3d(var3dIndex)%eigenValues(levIndex2))
+        end do
+      end do
+
+      !- Compute the T matrix, i.e., the inverse of the U matrix,
+      !  to go from grid point space to vertical mode space
+      !    Note: The inverse of an orthogonal matrix is simply its transpose
+      do levIndex2 = 1, vModes%allVar3d(var3dIndex)%nLev
+        do levIndex1 = 1, vModes%allVar3d(var3dIndex)%nLev
+          vModes%allVar3d(var3dIndex)%Tmatrix(levIndex2,levIndex1) = &
+               vModes%allVar3d(var3dIndex)%eigenVectors(levIndex1,levIndex2) !/ &
+               !sqrt(vModes%allVar3d(var3dIndex)%eigenValues(levIndex2))
+        end do
+      end do
+ 
     end do
     
   end subroutine vms_computeModes
+
+  !--------------------------------------------------------------------------
+  ! vms_transform
+  !--------------------------------------------------------------------------
+  subroutine vms_transform(vModes, VertModesState, GridState, &
+                           TransformDirection, lonBeg, lonEnd, &
+                           latBeg, latEnd, nLev, varName)
+    !
+    ! :Purpose: To project back or forth ensemble pertubations onto the vertical
+    !           modes contained in the vModes structure.
+    !
+    implicit none
+
+    type(struct_vms), intent(in)    :: vModes
+
+    integer,          intent(in)    :: lonBeg, lonEnd, latBeg, latEnd
+                                     ! horizontal dimension bounds
+    integer,          intent(in)    :: nLev
+    
+    real(8),          intent(inout) :: VertModesState(lonBeg:lonEnd,latBeg:latEnd,nLev)
+                                     ! 3D vertical modes coefficients
+    real(8),          intent(inout) :: GridState(lonBeg:lonEnd,latBeg:latEnd,nLev)
+                                     ! 3D field in grid point space
+
+    character(len=*), intent(in)    :: TransformDirection
+                                     ! VertModesToGridPoint or
+                                     ! GridPointToVertModes
+
+    character(len=*), intent(in)    :: varName
+
+    integer :: latIndex, lonIndex, nMode
+    integer :: varIndexAssociated, varIndex
+
+    !
+    !- 1.  Find the appropriate modes for the provided varName
+    !
+    varIndexAssociated = -1
+
+    ! Search for a match in varName
+    do varIndex = 1, vModes%nVar3d
+      if (vModes%allVar3d(varIndex)%varName == varName) then
+        varIndexAssociated = varIndex
+        exit
+      end if
+    end do
+
+    ! Search for a match in level type (MM or TH)
+    if (varIndexAssociated == -1) then
+      if (vnl_varLevelFromVarName(varName) == 'MM') then
+        do varIndex = 1, vModes%nVar3d
+          if (vModes%allVar3d(varIndex)%varName == 'P_M') then
+            varIndexAssociated = varIndex
+            exit
+          end if
+        end do
+      else if (vnl_varLevelFromVarName(varName) == 'TH') then
+        do varIndex = 1, vModes%nVar3d
+          if (vModes%allVar3d(varIndex)%varName == 'P_T') then
+            varIndexAssociated = varIndex
+            exit
+          end if
+        end do
+      else
+        write(*,*) trim(vModes%allVar3d(varIndex)%varName), vnl_varLevelFromVarName(varName)
+        call utl_abort('vms_transform: varName is not on momentum or thermodynamic levels')
+      end if
+    end if
+
+    if (varIndexAssociated == -1) then
+      write(*,*)
+      write(*,*) 'varName in input', trim(varName)
+      write(*,*) 'varNames found in vModes'
+      do varIndex = 1, vModes%nVar3d
+        write(*,*) ' ... ', trim(vModes%allVar3d(varIndex)%varName)
+      end do
+      call utl_abort('vms_transform: could not match varName with any modes')
+    end if
+
+    if (nLev /= vModes%allVar3d(varIndexAssociated)%nLev) then
+      call utl_abort('vms_transform: the number of levels are not consistent')
+    end if
+    nMode = nLev
+    
+    !
+    !- 2.  Do the transform
+    !
+    select case (trim(TransformDirection))
+    case ('GridPointToVertModes')
+
+      !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex)
+      do latIndex = latBeg, latEnd
+        do lonIndex = lonBeg, lonEnd
+          vertModesState(lonIndex,latIndex,1:nMode) = &
+               matmul(vModes%allVar3d(varIndexAssociated)%Tmatrix(1:nMode,1:nLev), &
+                      gridState(lonIndex,latIndex,1:nLev))
+        end do
+      end do
+      !$OMP END PARALLEL DO
+      
+    case ('VertModesToGridPoint')
+
+      !$OMP PARALLEL DO PRIVATE (latIndex,lonIndex)
+      do latIndex = latBeg, latEnd
+        do lonIndex = lonBeg, lonEnd
+          gridState(lonIndex,latIndex,1:nLev) = &
+               matmul(vModes%allVar3d(varIndexAssociated)%Umatrix(1:nLev,1:nMode), &
+                      vertModesState(lonIndex,latIndex,1:nMode))
+        end do
+      end do
+      !$OMP END PARALLEL DO
+      
+    case default
+       write(*,*)
+       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
+       call utl_abort('vms_transform')
+    end select
+    
+  end subroutine vms_transform
   
   !--------------------------------------------------------------------------
   ! vms_writeModes
   !--------------------------------------------------------------------------
   subroutine vms_writeModes(vModes)
+    !
+    ! :Purpose: To write the content of the provided vModes structure
+    !
     implicit none
 
     type(struct_vms) :: vModes

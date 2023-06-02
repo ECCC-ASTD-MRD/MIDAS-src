@@ -2,9 +2,10 @@
    MODE   = 'TOOLBOX'
 /
 &NAMTOOLBOX
-   TOOL   = 'VERTICALMODES_FROMFUNCTION'
+   TOOL = 'VERTMODES_SPEC'
    ensContainsFullField = .true.
-   vertmodes_lengthScale = 4.d0
+   ctrlVarHumidity = 'HU'
+   vertmodes_lengthScale = 6.d0
 /
 &NAMSTATE
    ANLVAR(1)   ='TT'
@@ -17,6 +18,7 @@
 /
  &NAMCALCSTATS_GLB
    NTRUNC=380
+   !vertWaveBandPeaks = 30,15,5
 /
  &NAMTIME
 /
