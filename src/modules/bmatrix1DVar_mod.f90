@@ -425,7 +425,7 @@ contains
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
     integer :: varLevIndex1, varLevIndex2
     integer :: varLevIndexBmat, varLevIndexCol
-    integer :: numStep, levIndexColumn
+    integer :: numStep, levIndexColumn, ierr
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
     real(8) :: scaleFactor_SF, ZR
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
@@ -436,9 +436,8 @@ contains
     integer :: nLevEns_M, nLevEns_T
     integer :: nLevInc_M, nLevInc_T
     integer, external :: newdate
-    character(len=4), pointer :: varNames(:)
     real(8) :: logP1, logP2
-    real(8), pointer :: currentProfile(:), meanProfile(:)
+    real(8), pointer :: currentProfile(:), meanProfile(:), heightSfc(:,:)
     real(8), allocatable :: lineVector(:,:), meanPressureProfile(:), multFactor(:)
     integer, allocatable :: varLevColFromVarLevBmat(:)
     character(len=4), allocatable :: varNameFromVarLevIndexBmat(:)
@@ -476,19 +475,8 @@ contains
     end if
 
     !- 1.3 Vertical levels
-    if ( mmpi_myid == 0 ) then
-      call fln_ensfileName(ensFileName, ensPathName, memberIndex_opt=1)
-      write(*,*) 'before vco_SetupFromFile'
-      call vco_SetupFromFile(vco_file, ensFileName)
-      call gsv_allocate(stateVector, numStep, hco_in, vco_in,  &
-           hInterpolateDegree_opt='LINEAR', &
-           dataKind_opt=4, &
-           dateStamp_opt=tim_getDateStamp(), beSilent_opt=.false.)
-      call gio_readFromFile(stateVector, ensFileName, '', '')
-      call gsv_varNamesList(varNames, stateVector)
-      write(*,*) 'bmat1D_setupBEns: variable names : ', varNames
-    end if
-    call vco_mpiBcast(vco_file)
+    call fln_ensfileName(ensFileName, ensPathName, memberIndex_opt=1)
+    call vco_SetupFromFile(vco_file, ensFileName)
 
     !- Do we need to read all the vertical levels from the ensemble?
     useAnlLevelsOnly = vco_subsetOrNot(vco_in, vco_file)
@@ -626,7 +614,7 @@ contains
     write(*,*) 'Read ensemble members'
     call ens_readEnsemble(ensembles, ensPathName, biPeriodic=.false., &
                           varNames_opt = bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar))
-    
+
     allocate(ensColumns(nEns))
     call gsv_allocate(stateVector, numstep, hco_ens, vco_ens, &
                      dateStamp_opt=tim_getDateStamp(),  &
@@ -640,20 +628,26 @@ contains
     call gsv_zero(stateVectorMean)
     do memberIndex = 1, nEns
       write(*,*) 'Copy member ', memberIndex
+      call gsv_zero(stateVector)
       call ens_copyMember(ensembles, stateVector, memberIndex)
+
+      heightSfc => gsv_getHeightSfc(stateVector)
+      write(*,*) 'min/max heightSfc = ', minval(heightSfc), maxval(heightSfc)
+
       write(*,*) 'interpolate member ', memberIndex
       call col_setVco(ensColumns(memberIndex), vco_ens)
       call col_allocate(ensColumns(memberIndex), obs_numheader(obsSpaceData), &
                         mpiLocal_opt=.true., setToZero_opt=.true.)
       call s2c_nl(stateVector, obsSpaceData, ensColumns(memberIndex), hco_in, &
-                  timeInterpType='NEAREST' )
+                  timeInterpType='NEAREST', dealloc_opt=.false. )
       call gsv_add(statevector, statevectorMean, scaleFactor_opt=(1.d0/nEns))
     end do
+
     call col_setVco(meanColumn, vco_ens)
     call col_allocate(meanColumn, obs_numheader(obsSpaceData), &
-            mpiLocal_opt=.true., setToZero_opt=.true.)
+                      mpiLocal_opt=.true., setToZero_opt=.true.)
     call s2c_nl(stateVectorMean, obsSpaceData, meanColumn, hco_in, &
-            timeInterpType='NEAREST' )
+                timeInterpType='NEAREST' )
 
     call gsv_deallocate(stateVector)
     call gsv_deallocate(stateVectorMean)
@@ -708,7 +702,8 @@ contains
         currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex)
         if (debug) then
           do varLevIndex1 = 1, nkgdim
-            lineVector(1,varLevIndex1) = currentProfile(varLevColFromVarLevBmat(varLevIndex1)) - meanProfile(varLevColFromVarLevBmat(varLevIndex1))
+            lineVector(1,varLevIndex1) = currentProfile(varLevColFromVarLevBmat(varLevIndex1)) - &
+                 meanProfile(varLevColFromVarLevBmat(varLevIndex1))
           end do
           do varLevIndex1 = 1, nkgdim
             do varLevIndex2 = 1, nkgdim
@@ -716,21 +711,20 @@ contains
                   lineVector(1,varLevIndex2) * lineVector(1,varLevIndex1)  
             end do
           end do
-          else
-            lineVector(1,:) = currentProfile(varLevColFromVarLevBmat(:)) - meanProfile(varLevColFromVarLevBmat(:))
-            lineVector(1,:) = lineVector(1,:) * multFactor(:)
-            bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) + &
+        else
+          lineVector(1,:) = currentProfile(varLevColFromVarLevBmat(:)) - meanProfile(varLevColFromVarLevBmat(:))
+          lineVector(1,:) = lineVector(1,:) * multFactor(:)
+          bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) + &
                 matmul(transpose(lineVector),lineVector)
-          end if
+        end if
       end do
     end do
     !$OMP END PARALLEL DO
-    if (debug) then
-      do varlevIndex1 =1, nkgdim
-        write(*,*) "AA", varlevIndex1, minval(bSqrtEns(:,varlevIndex1,varlevIndex1)/(nEns - 1)), &
-            maxval(bSqrtEns(:,varlevIndex1,varlevIndex1)/(nEns - 1))
-      end do
-    end if
+
+    do varlevIndex1 =1, nkgdim
+      write(*,*) 'bmat1D_setupBEns: variance = ', varlevIndex1, &
+                 sum(bSqrtEns(:,varlevIndex1,varlevIndex1))/real((nEns-1)*var1D_validHeaderCount)
+    end do
 
     deallocate(lineVector)
     deallocate(multFactor)
@@ -767,16 +761,16 @@ contains
     end do
     !$OMP END PARALLEL DO
 
+    do varlevIndex1 =1, nkgdim
+      write(*,*) 'bmat1D_setupBEns: variance (after localization) = ', varlevIndex1, &
+                 sum(bSqrtEns(:,varlevIndex1,varlevIndex1))/real(var1D_validHeaderCount)
+    end do
+
+    write(*,*) 'bmat1D_setupBEns: computing matrix sqrt'
     do columnIndex = 1, var1D_validHeaderCount
       call utl_matsqrt(bSqrtEns(columnIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
 
-    if (debug) then
-      do varlevIndex1 =1, nkgdim
-        write(*,*) "BB", varlevIndex1, minval(bSqrtEns(:,varlevIndex1,varlevIndex1)) , &
-            maxval(bSqrtEns(:,varlevIndex1,varlevIndex1))
-      end do
-    end if
     deallocate(varLevColFromVarLevBmat) 
     deallocate(varNameFromVarLevIndexBmat)
     deallocate(meanPressureProfile)
@@ -787,9 +781,8 @@ contains
     cvDim_mpilocal = cvDim_out
     initialized = .true.
     
-    if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
-    if (mmpi_myid == 0 .and. debug) call utl_abort('SYLVAIN')
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
 
   end subroutine bmat1D_setupBEns
   
