@@ -2688,12 +2688,12 @@ contains
     implicit none
 
     ! arguments:
-    character(len=*), intent(in) :: fileName
-    character(len=*), intent(in) :: midasTableName
-    character(len=*), intent(in) :: midasColumnNameList(:)
-    character(len=*), intent(in) :: jointColumnName
-    character(len=*), intent(in) :: tableInsertColumnList
-    character(len=*), intent(in) :: inputTableName
+    character(len=*), intent(in) :: fileName              ! obsDB filename
+    character(len=*), intent(in) :: midasTableName        ! name of original midas table to add column to
+    character(len=*), intent(in) :: midasColumnNameList(:)! list of columns in original midas table
+    character(len=*), intent(in) :: jointColumnName       ! name of column used to match original midas table and temporary table
+    character(len=*), intent(in) :: tableInsertColumnList ! char of "tempTable.column1, tempTable.column2, .." to add to original midas table
+    character(len=*), intent(in) :: inputTableName        ! name of tempTable
 
     ! locals:
     type(fSQL_STATUS)   :: stat ! sqlite error status
