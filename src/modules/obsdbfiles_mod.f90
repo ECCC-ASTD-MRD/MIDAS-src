@@ -1950,15 +1950,15 @@ contains
         if (trim(updateItemList(updateItemIndex)) == '') exit
         numberUpdateItems = numberUpdateItems + 1
       end do
-      ! Add FLG/VNM/PPP/VAR to the updateItemList to ensure there are updated from obsSpaceData
-      numberUpdateItems = numberUpdateItems + 1
-      updateItemList(numberUpdateItems) = 'FLG'
+      ! Add VNM/PPP/VAR/FLG to the updateItemList to ensure they are included in the sqlite table with values from obsSpaceData
       numberUpdateItems = numberUpdateItems + 1
       updateItemList(numberUpdateItems) = 'VNM'
       numberUpdateItems = numberUpdateItems + 1
       updateItemList(numberUpdateItems) = 'PPP'
       numberUpdateItems = numberUpdateItems + 1
       updateItemList(numberUpdateItems) = 'VAR'    
+      numberUpdateItems = numberUpdateItems + 1
+      updateItemList(numberUpdateItems) = 'FLG'      
 
       if ( mmpi_myid == 0 ) then
         write(*,*) 'odbf_insertInMidasBodyTable: NOTE: the FLG/VNM/PPP/VAR columns are always added to update list'
