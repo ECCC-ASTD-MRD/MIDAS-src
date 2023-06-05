@@ -70,6 +70,7 @@ module obsdbFiles_mod
    
   ! Other constants
   logical, parameter :: setObsFlagZero = .true.
+  character(len=20)  :: combinedTableName = 'combinedTable'
 
   ! NAMELIST variables
   integer :: numElemIdList                ! MUST NOT BE INCLUDED IN NAMELIST!
@@ -1801,7 +1802,7 @@ contains
     tableInsertColumnList = ''
     obsSpaceColIndexSourceArr(:) = mpc_missingValue_int
     call getCreateTableInsertQueries(numberUpdateItems, updateItemList, midasTableType, &
-                                     'combinedTable', queryCreateTable, queryInsertInTable, &
+                                     queryCreateTable, queryInsertInTable, &
                                      tableInsertColumnList, obsSpaceColIndexSourceArr(:))
 
     ! Create the table
@@ -1866,7 +1867,7 @@ contains
     midasColumnNameList(1) = trim(midasHeadKeySqlName)
     midasColumnNameList(2) = trim(obsHeadKeySqlName)
     call mergeTableInMidasTables(fileName, midasHeadTableName, midasColumnNameList, &
-                                 obsHeadKeySqlName, tableInsertColumnList, 'combinedTable')
+                                 obsHeadKeySqlName, tableInsertColumnList)
 
     write(*,*)
     write(*,*) 'odbf_insertInMidasHeaderTable: finished'
@@ -2071,7 +2072,7 @@ contains
     tableInsertColumnList = ''
     obsSpaceColIndexSourceArr(:) = mpc_missingValue_int
     call getCreateTableInsertQueries(numberUpdateItems, updateItemList, midasTableType, &
-                                     'combinedTable', queryCreateTable, queryInsertInTable, &
+                                     queryCreateTable, queryInsertInTable, &
                                      tableInsertColumnList, obsSpaceColIndexSourceArr(:))
 
     ! Create the table
@@ -2156,7 +2157,7 @@ contains
     midasColumnNameList(2) = trim(obsHeadKeySqlName)
     midasColumnNameList(3) = trim(obsBodyKeySqlName)
     call mergeTableInMidasTables(fileName, midasBodyTableName, midasColumnNameList, &
-                                 obsBodyKeySqlName, tableInsertColumnList, 'combinedTable')
+                                 obsBodyKeySqlName, tableInsertColumnList)
 
     write(*,*)
     write(*,*) 'odbf_insertInMidasBodyTable: finished'
@@ -2592,7 +2593,7 @@ contains
   ! getCreateTableInsertQueries
   !--------------------------------------------------------------------------
   subroutine getCreateTableInsertQueries(numberUpdateItems, updateItemList, midasTableType, &
-                                         outputTableName, queryCreateTable, queryInsertInTable, &
+                                         queryCreateTable, queryInsertInTable, &
                                          tableInsertColumnList, obsSpaceColIndexSourceArr)
     !
     ! :Purpose: Generate the queries for creating the table and insert columns into it.
@@ -2600,14 +2601,13 @@ contains
     implicit none
 
     ! arguments:
-    integer, intent(in)          :: numberUpdateItems
-    character(len=4), intent(in) :: updateItemList(:)
-    character(len=*), intent(in) :: midasTableType
-    character(len=*), intent(in) :: outputTableName
-    character(len=*), intent(inout) :: queryCreateTable
-    character(len=*), intent(inout) :: queryInsertInTable
-    character(len=*), intent(inout) :: tableInsertColumnList
-    integer         , intent(inout) :: obsSpaceColIndexSourceArr(:)
+    integer, intent(in)          :: numberUpdateItems               ! number of items in update list
+    character(len=4), intent(in) :: updateItemList(:)               ! update list
+    character(len=*), intent(in) :: midasTableType                  ! table type: 'header' or 'body'
+    character(len=*), intent(inout) :: queryCreateTable             ! query to create table
+    character(len=*), intent(inout) :: queryInsertInTable           ! query to insert new columns in the table
+    character(len=*), intent(inout) :: tableInsertColumnList        ! char of "combinedTableName.column1, combinedTableName.column2, .."
+    integer         , intent(inout) :: obsSpaceColIndexSourceArr(:) ! list of obsSpaceData columnIndex for items in update list
 
     ! locals:
     integer :: updateItemIndex, ierr
@@ -2636,17 +2636,17 @@ contains
 
       if (updateItemIndex == 1) then
         if (midasTableType == 'header') then
-          queryCreateTable = 'create table '// trim(outputTableName) // '(' // new_line('A') // &
+          queryCreateTable = 'create table '// trim(combinedTableName) // '(' // new_line('A') // &
                              '  ' // trim(obsHeadKeySqlName) // ' integer ' // new_line('A')
 
-          queryInsertInTable = 'insert into '// trim(outputTableName) // '(' // new_line('A') // &
+          queryInsertInTable = 'insert into '// trim(combinedTableName) // '(' // new_line('A') // &
                                '  ' // trim(obsHeadKeySqlName) // new_line('A')
 
         else if (midasTableType == 'body') then
-          queryCreateTable = 'create table '// trim(outputTableName) // '(' // new_line('A') // &
+          queryCreateTable = 'create table '// trim(combinedTableName) // '(' // new_line('A') // &
                              '  ' // trim(obsBodyKeySqlName) // ' integer ' // new_line('A')
 
-          queryInsertInTable = 'insert into '// trim(outputTableName) // '(' // new_line('A') // &
+          queryInsertInTable = 'insert into '// trim(combinedTableName) // '(' // new_line('A') // &
                                '  ' // trim(obsBodyKeySqlName) // new_line('A')                              
         end if ! if (midasTableType == 'header')
 
@@ -2669,7 +2669,7 @@ contains
       end if
 
       tableInsertColumnList = trim(tableInsertColumnList) // ', '// &
-                              trim(outputTableName) // '.' // trim(sqlColumnName) // new_line('A')
+                              trim(combinedTableName) // '.' // trim(sqlColumnName) // new_line('A')
       obsSpaceColIndexSourceArr(updateItemIndex) = obsSpaceColIndexSource
     end do ! do updateItemIndex
 
@@ -2679,7 +2679,7 @@ contains
   ! mergeTableInMidasTables
   !--------------------------------------------------------------------------
   subroutine mergeTableInMidasTables(fileName, midasTableName, midasColumnNameList, &
-                                     jointColumnName, tableInsertColumnList, inputTableName)
+                                     jointColumnName, tableInsertColumnList)
     !
     ! :Purpose: In a series of join/drop/alter merge input table and midasTable
     !           to create a new midasTable which contains the original columns plus 
@@ -2692,8 +2692,7 @@ contains
     character(len=*), intent(in) :: midasTableName        ! name of original midas table to add column to
     character(len=*), intent(in) :: midasColumnNameList(:)! list of columns in original midas table
     character(len=*), intent(in) :: jointColumnName       ! name of column used to match original midas table and temporary table
-    character(len=*), intent(in) :: tableInsertColumnList ! char of "tempTable.column1, tempTable.column2, .." to add to original midas table
-    character(len=*), intent(in) :: inputTableName        ! name of tempTable
+    character(len=*), intent(in) :: tableInsertColumnList ! char of "combinedTableName.column1, combinedTableName.column2, .." to add to original midas table
 
     ! locals:
     type(fSQL_STATUS)   :: stat ! sqlite error status
@@ -2730,8 +2729,8 @@ contains
     end do
 
     query = trim(query) // trim(tableInsertColumnList) // '  from ' // new_line('A') // &
-            '  ' // trim(inputTableName) // ' inner join ' // trim(midasTableName) // ' on ' // new_line('A') // &
-            '  ' // trim(inputTableName) // '.' // trim(jointColumnName) // '=' // &
+            '  ' // trim(combinedTableName) // ' inner join ' // trim(midasTableName) // ' on ' // new_line('A') // &
+            '  ' // trim(combinedTableName) // '.' // trim(jointColumnName) // '=' // &
             trim(midasTableName) // '.' // trim(jointColumnName) // ';'
    
     write(*,*) 'mergeTableInMidasTables: query ---> ', trim(query)
@@ -2752,7 +2751,7 @@ contains
     end if
 
     ! Drop the inputTable
-    query = 'drop table ' // trim(inputTableName) // ';'
+    query = 'drop table ' // trim(combinedTableName) // ';'
     write(*,*) 'mergeTableInMidasTables: query ---> ', trim(query)
     call fSQL_do_many(db, query, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
