@@ -28,10 +28,10 @@ install : # defining default target
 
 splitobs_rhel-8-icelake-64: version.h $(SRC)
 	. r.load.dot eccc/mrd/rpn/code-tools/ENV/cdt-1.6.2/SCIENCE/inteloneapi-2022.1.2; \
-	make splitobs_libs_20230414
+	make splitobs_libs
 
-splitobs_libs_20230414: version.h $(SRC)
-	. r.load.dot eccc/mrd/rpn/libs/20230414;  \
+splitobs_libs: version.h $(SRC)
+	. r.load.dot eccc/mrd/rpn/libs/20230531;  \
 	. ssmuse-sh -d eccc/cmd/cmda/libs/20230414/${COMP_ARCH}; \
 	make splitobs
 

@@ -30,8 +30,8 @@ REFERENCE=${REFERENCE:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/v001/res
 GRIDS=${GRIDS:-/home/sanl000/data/ppp5/UnitTests/midas/splitobs/grids}
 
 CMDA_UTILS_SSM_DOMAIN=eccc/cmd/cmda/utils/20230414
-RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20230414
-RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20230414
+RPN_UTILS_SSM_DOMAIN=eccc/mrd/rpn/utils/20230531
+RPN_LIBS_SSM_DOMAIN=eccc/mrd/rpn/libs/20230531
 PY39_SSM_DOMAIN=eccc/cmd/cmds/env/python/py39_2022.05.24_rhel-8-icelake-64
 
 DIFF_METHOD_FOR_BURP_FILES=${DIFF_METHOD_FOR_BURP_FILES:-liburp}
