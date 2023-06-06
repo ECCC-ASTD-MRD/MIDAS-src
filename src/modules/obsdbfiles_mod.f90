@@ -1673,7 +1673,6 @@ contains
     character(len=5000)  :: tableInsertColumnList
     character(len=20)    :: sqlDataType
     character(len=lenSqlName) :: sqlColumnName
-    character(len=lenSqlName) :: midasColumnNameList(2)
     character(len=4)     :: obsSpaceColumnName
     logical              :: midasTableExists
     logical, save        :: nmlAlreadyRead = .false.
@@ -1862,11 +1861,8 @@ contains
     ! close the obsDB file
     call fSQL_close(db, stat)
 
-    midasColumnNameList(:) = ''
-    midasColumnNameList(1) = trim(midasHeadKeySqlName)
-    midasColumnNameList(2) = trim(obsHeadKeySqlName)
-    call mergeTableInMidasTables(fileName, midasHeadTableName, midasColumnNameList, &
-                                 obsHeadKeySqlName, tableInsertColumnList)
+    call mergeTableInMidasTables(fileName, midasHeadTableName, obsHeadKeySqlName, &
+                                 tableInsertColumnList)
 
     write(*,*)
     write(*,*) 'odbf_insertInMidasHeaderTable: finished'
@@ -1910,7 +1906,6 @@ contains
     character(len=3000)  :: query, queryCreateTable, queryInsertInTable, queryForValues
     character(len=5000)  :: tableInsertColumnList
     character(len=20)        :: sqlDataType
-    character(len=lenSqlName) :: midasColumnNameList(3)
     logical              :: midasTableExists
     logical, save        :: nmlAlreadyRead = .false.
     character(len=6), parameter  :: midasTableType='body' ! Define the type of MIDAS table: header/body
@@ -2150,12 +2145,8 @@ contains
     ! close the obsDB file
     call fSQL_close(db, stat)
 
-    midasColumnNameList(:) = ''
-    midasColumnNameList(1) = trim(midasBodyKeySqlName)
-    midasColumnNameList(2) = trim(obsHeadKeySqlName)
-    midasColumnNameList(3) = trim(obsBodyKeySqlName)
-    call mergeTableInMidasTables(fileName, midasBodyTableName, midasColumnNameList, &
-                                 obsBodyKeySqlName, tableInsertColumnList)
+    call mergeTableInMidasTables(fileName, midasBodyTableName, obsBodyKeySqlName, &
+                                 tableInsertColumnList)
 
     write(*,*)
     write(*,*) 'odbf_insertInMidasBodyTable: finished'
@@ -2473,8 +2464,8 @@ contains
   !--------------------------------------------------------------------------
   ! mergeTableInMidasTables
   !--------------------------------------------------------------------------
-  subroutine mergeTableInMidasTables(fileName, midasTableName, midasColumnNameList, &
-                                     jointColumnName, tableInsertColumnList)
+  subroutine mergeTableInMidasTables(fileName, midasTableName, jointColumnName, &
+                                     tableInsertColumnList)
     !
     ! :Purpose: In a series of join/drop/alter merge input table and midasTable
     !           to create a new midasTable which contains the original columns plus 
@@ -2485,14 +2476,13 @@ contains
     ! arguments:
     character(len=*), intent(in) :: fileName              ! obsDB filename
     character(len=*), intent(in) :: midasTableName        ! name of original midas table to add column to
-    character(len=*), intent(in) :: midasColumnNameList(:)! list of columns in original midas table
     character(len=*), intent(in) :: jointColumnName       ! name of column used to match original midas table and temporary table
     character(len=*), intent(in) :: tableInsertColumnList ! char of "combinedTableName.column1, combinedTableName.column2, .." to add to original midas table
 
     ! locals:
     type(fSQL_STATUS)   :: stat ! sqlite error status
     type(fSQL_DATABASE) :: db   ! sqlite file handle
-    integer             :: columnIndex, numMidasColumnList
+    integer             :: columnIndex
     character(len=3000) :: query
 
     write(*,*)
@@ -2506,22 +2496,8 @@ contains
       call utl_abort('mergeTableInMidasTables: fSQL_open')
     end if
 
-    numMidasColumnList = size(midasColumnNameList)
-    if (numMidasColumnList < 2) then
-      call utl_abort('mergeTableInMidasTables: midasColumnNameList has smaller than 2 entries')
-    end if
-
     ! Combine midasTable + inputTable -> table_tmp
-    query = 'create table table_tmp as select ' // new_line('A')
-    do columnIndex = 1, numMidasColumnList
-      if (trim(midasColumnNameList(columnIndex)) == '') exit
-      
-      if (columnIndex == 1) then
-        query = trim(query) // '  ' // trim(midasTableName) // '.' // trim(midasColumnNameList(columnIndex)) // new_line('A')
-      else
-        query = trim(query) // ', ' // trim(midasTableName) // '.' // trim(midasColumnNameList(columnIndex)) // new_line('A')
-      end if
-    end do
+    query = 'create table table_tmp as select ' // trim(midasTableName) // '.*' // new_line('A')
 
     query = trim(query) // trim(tableInsertColumnList) // '  from ' // new_line('A') // &
             '  ' // trim(combinedTableName) // ' inner join ' // trim(midasTableName) // ' on ' // new_line('A') // &
