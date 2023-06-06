@@ -58,7 +58,7 @@ obsfile_y=$(/usr/bin/printf "%0.4d" ${obsfile_y})
 obsfile_x=$(/usr/bin/printf "%0.4d" ${obsfile_x})
 
 if [ -d obsBeforeThinning ]; then
-    for prefix in brp obs sql dia; do
+    for prefix in brp obs sql dia odb; do
         for file in ./obsBeforeThinning/${prefix}*_${obsfile_x}_${obsfile_y}; do
             if [ -f "${file}" ]; then
                 if [[ "${file}" = *.num_headers ]]; then
@@ -86,83 +86,57 @@ if [ -d obsBeforeThinning ]; then
 fi
 
 if [ "${fasttmp}" = yes ]; then
-    for obsDir in obs obsDB; do
-        if [ ! -d "${FASTTMPDIR}/${obsDir}" ]; then
-            continue
-        fi
-        for prefix in brp obs sql dia bcr; do
-            for file in ${FASTTMPDIR}/${obsDir}/${prefix}*; do
-                if [ -f "${file}" ]; then
-                    if [[ "${file}" = *.num_headers ]]; then
-                        continue
-                    fi
-                    bfile=${file##*/}
-                    fam=$(extract_family ${file})
-                    if [ "${obsDir}" == "obsDB" ]; then
-                        bfile2=$(echo ${bfile} | sed "s/^${prefix}/odb/g")
-                    else
-                        bfile2=${bfile}
-                    fi
-
-                    if [ "${prefix}" = brp ]; then
-                        updated_dir=burpfiles_${fam}.updated
-                    else
-                        updated_dir=${prefix}files_${fam}.updated
-                    fi
-                    while [ ! -d "${updated_dir}" ]; do
-                        if [ "${MP_CHILD}" -eq 0 ]; then
-                            /bin/mkdir ${updated_dir}
-                            break
-                        fi
-                        /bin/sleep 1
-                    done
-                    /bin/cp ${file} ${updated_dir}/${bfile2}
-                    /bin/rm -f ${obsDir}/${bfile}
+    for prefix in brp obs sql dia bcr odb; do
+        for file in ${FASTTMPDIR}/obs/${prefix}*; do
+            if [ -f "${file}" ]; then
+                if [[ "${file}" = *.num_headers ]]; then
+                    continue
                 fi
-            done
+                bfile=${file##*/}
+                fam=$(extract_family ${file})
+                if [ "${prefix}" = brp ]; then
+                    updated_dir=burpfiles_${fam}.updated
+                else
+                    updated_dir=${prefix}files_${fam}.updated
+                fi
+                while [ ! -d "${updated_dir}" ]; do
+                    if [ "${MP_CHILD}" -eq 0 ]; then
+                        /bin/mkdir ${updated_dir}
+                        break
+                    fi
+                    /bin/sleep 1
+                done
+                /bin/cp ${file} ${updated_dir}
+                /bin/rm -f obs/${bfile}
+            fi
         done
     done
 else
-    for obsDir in obs obsDB; do
-        if [ ! -d "./${obsDir}" ]; then
-            continue
-        fi
-        for prefix in brp obs sql dia bcr; do
-            for file in ./${obsDir}/${prefix}*_${obsfile_x}_${obsfile_y}; do
-                if [ -f "${file}" ]; then
-                    if [[ "${file}" = *.num_headers ]]; then
-                        /bin/rm ${file}
-                        continue
-                    fi
-                    bfile=${file##*/}
-                    fam=$(extract_family ${file})
-                    if [ "${obsDir}" == "obsDB" ]; then
-                        bfile2=$(echo ${bfile} | sed "s/^${prefix}/odb/g")
-                    else
-                        bfile2=${bfile}
-                    fi                    
-                    
-                    if [ "${prefix}" = brp ]; then
-                        updated_dir=burpfiles_${fam}.updated
-                    else
-                        updated_dir=${prefix}files_${fam}.updated
-                    fi
-                    while [ ! -d "${updated_dir}" ]; do
-                        if [ "${MP_CHILD}" -eq 0 ]; then
-                            /bin/mkdir "${updated_dir}"
-                            break
-                        fi
-                        /bin/sleep 1
-                    done
-                    /bin/mv ${file} ${updated_dir}/${bfile2}
+    for prefix in brp obs sql dia bcr odb; do
+        for file in ./obs/${prefix}*_${obsfile_x}_${obsfile_y}; do
+            if [ -f "${file}" ]; then
+                if [[ "${file}" = *.num_headers ]]; then
+                    /bin/rm ${file}
+                    continue
                 fi
-            done
+                bfile=${file##*/}
+                fam=$(extract_family ${file})
+                if [ "${prefix}" = brp ]; then
+                    updated_dir=burpfiles_${fam}.updated
+                else
+                    updated_dir=${prefix}files_${fam}.updated
+                fi
+                while [ ! -d "${updated_dir}" ]; do
+                    if [ "${MP_CHILD}" -eq 0 ]; then
+                        /bin/mkdir "${updated_dir}"
+                        break
+                    fi
+                    /bin/sleep 1
+                done
+                /bin/mv ${file} ${updated_dir}/${bfile}
+            fi
         done
     done
-    
-    if [ -d ./obsDB -a -z "$(ls -A ./obsDB)" ]; then
-        /bin/rm -rf ./obsDB
-    fi
 fi
 
 if [ "${fasttmp}" = yes ]; then

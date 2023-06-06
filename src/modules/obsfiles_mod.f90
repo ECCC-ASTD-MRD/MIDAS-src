@@ -225,7 +225,8 @@ contains
     ! locals
     integer           :: fileIndex, fnom, fclos, nulnam, ierr
     integer           :: status, baseNameIndexBeg
-    character(len=200) :: baseName, fullName, fileNameDir
+    character(len=maxLengthFilename) :: baseNameNoPrefix, baseName, fullName, fullNameWithPath, fileNameDir
+    character(len=256):: obsDirectory
     character(len=10) :: obsFileType, sfFileName
     character(len=*), parameter :: myName = 'obsf_writeFiles'
     character(len=*), parameter :: myWarning = myName //' WARNING: '
@@ -291,24 +292,30 @@ contains
         call obsf_writeHX(obsSpaceData, HXens_mpiglobal_opt)
       end if
 
+      ! write obsDB files in the same directory with odb prefix
       if (writeObsDb) then
-        ! Create destination directory
         fileNameDir = trim(ram_getRamDiskDir())
         if (fileNameDir == ' ') then
           write(*,*) 'obsf_writeFiles: WARNING! Writing obsDB to current working path ' // &
                      'instead of ramdisk'
         end if
 
-        if (mmpi_myid == 0) status = clib_mkdir_r(trim(fileNameDir)//'obsDB')
         if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
 
         ! update obsDB files
         do fileIndex = 1, obsf_nfiles
           fullName = trim(obsf_fileName(fileIndex))
           baseNameIndexBeg = index(fullName,'/',back=.true.)
-          baseName = fullName(baseNameIndexBeg+1:)
 
-          call odbf_updateFile(obsSpaceData, trim(fileNameDir)//'obsDB/'//trim(baseName), &
+          obsDirectory = 'obs'
+
+          ! change the prefix to odb
+          baseNameNoPrefix = fullName(baseNameIndexBeg+1+3:)
+          baseName = 'odb' // trim(baseNameNoPrefix)
+
+          fullNameWithPath = trim(fileNameDir) // trim(obsDirectory) // '/'//trim(baseName)
+          
+          call odbf_updateFile(obsSpaceData, fullNameWithPath, &
                                obsf_familyType(fileIndex), fileIndex)
         end do        
       end if
