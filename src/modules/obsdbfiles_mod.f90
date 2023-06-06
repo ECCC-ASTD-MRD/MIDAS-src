@@ -1945,12 +1945,11 @@ contains
         numberUpdateItems = numberUpdateItems + 1
       end do
       ! Add VNM/PPP/VAR/FLG to the updateItemList to ensure they are included in the sqlite table with values from obsSpaceData
-      numberUpdateItems = numberUpdateItems + 1
-      updateItemList(numberUpdateItems) = 'VNM'
-      numberUpdateItems = numberUpdateItems + 1
-      updateItemList(numberUpdateItems) = 'PPP'
-      numberUpdateItems = numberUpdateItems + 1
-      updateItemList(numberUpdateItems) = 'VAR'    
+      do columnIndex = 1, numBodyMidasTableRequired
+        numberUpdateItems = numberUpdateItems + 1
+        updateItemList(numberUpdateitems) = trim(midasBodyNamesList(2,columnIndex))
+      end do
+         
       numberUpdateItems = numberUpdateItems + 1
       updateItemList(numberUpdateItems) = 'FLG'      
 
