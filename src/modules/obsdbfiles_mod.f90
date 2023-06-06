@@ -1673,7 +1673,7 @@ contains
     character(len=5000)  :: tableInsertColumnList
     character(len=20)    :: sqlDataType
     character(len=lenSqlName) :: sqlColumnName
-    character(len=lenSqlName) :: midasColumnNameList(5)
+    character(len=lenSqlName) :: midasColumnNameList(2)
     character(len=4)     :: obsSpaceColumnName
     logical              :: midasTableExists
     logical, save        :: nmlAlreadyRead = .false.
@@ -1788,10 +1788,9 @@ contains
       call fSQL_close(db, stat) 
     else
       write(*,*) 'odbf_insertInMidasHeaderTable: the midas header output table already exists, ' // &
-                 'will just update its values'
+                 'proceed to join with temporary table that has new columns.'
     end if ! .not.midasTableExists
 
-    ! now that the table exists, we can update the selected columns
     ! open the obsDB file
     call fSQL_open(db, trim(fileName), stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -1805,7 +1804,7 @@ contains
                                      queryCreateTable, queryInsertInTable, &
                                      tableInsertColumnList, obsSpaceColIndexSourceArr(:))
 
-    ! Create the table
+    ! Create a temporary table with new columns and values from obsSpaceData
     write(*,*) 'odbf_insertInMidasHeaderTable: queryCreateTable   -->', trim(queryCreateTable)
     call fSQL_do_many(db, queryCreateTable, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -1911,7 +1910,7 @@ contains
     character(len=3000)  :: query, queryCreateTable, queryInsertInTable, queryForValues
     character(len=5000)  :: tableInsertColumnList
     character(len=20)        :: sqlDataType
-    character(len=lenSqlName) :: midasColumnNameList(5)
+    character(len=lenSqlName) :: midasColumnNameList(3)
     logical              :: midasTableExists
     logical, save        :: nmlAlreadyRead = .false.
     character(len=6), parameter  :: midasTableType='body' ! Define the type of MIDAS table: header/body
@@ -2057,12 +2056,11 @@ contains
       call fSQL_close(db, stat) 
 
     else
-
       write(*,*) 'odbf_insertInMidasBodyTable: the midas body output table already exists, ' // &
-                 'will just update its values'
-
+                 'proceed to join with temporary table that has new columns.'
     end if ! .not.midasTableExists
 
+    ! open the obsDB file
     call fSQL_open(db, trim(fileName), status=stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
       write(*,*) 'odbf_insertInMidasBodyTable: fSQL_open: ', fSQL_errmsg(stat)
@@ -2075,7 +2073,7 @@ contains
                                      queryCreateTable, queryInsertInTable, &
                                      tableInsertColumnList, obsSpaceColIndexSourceArr(:))
 
-    ! Create the table
+    ! Create a temporary table with new columns and values from obsSpaceData
     write(*,*) 'odbf_insertInMidasBodyTable: queryCreateTable   -->', trim(queryCreateTable)
     call fSQL_do_many(db, queryCreateTable, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -2262,197 +2260,6 @@ contains
     call fSQL_close(db, stat) 
 
   end subroutine odbf_createMidasBodyTable
-
-  !--------------------------------------------------------------------------
-  ! odbf_addColumnsMidasTable
-  !--------------------------------------------------------------------------
-  subroutine odbf_addColumnsMidasTable(midasTableType, fileName, midasTableName, midasNamesList, &
-                                       obsHeadKeySqlName, obsBodyKeySqlName,                     &
-                                       numberUpdateItems, updateItemList,                        &
-                                       midasTableKeySqlName, numMidasTableRequired_opt)
-    !
-    ! :Purpose: Add additional MIDAS columns into the table. This is done by first
-    !           creating a temporary table that includes the additional MIDAS columns.
-    !           The columns from the updated compulsory table (created by odbf_createMidasHeaderTable
-    !           or odbf_createMidasBodyTable) are added into the temporary table. This
-    !           temporary table then replaces the compulsory table.
-    implicit none
-    
-    ! arguments:
-    character(len=*), intent(in)             :: midasTableType
-    character(len=*), intent(in)             :: fileName
-    character(len=*), intent(in)             :: midasTableName
-    character(len=*), intent(in)             :: midasNamesList(:,:)
-    character(len=*), intent(in)             :: obsHeadKeySqlName
-    character(len=*), intent(in)             :: obsBodyKeySqlName
-    integer, intent(in)                      :: numberUpdateItems
-    character(len=4), intent(in)             :: updateItemList(:)
-    character(len=*), intent(in)             :: midasTableKeySqlName
-    integer, optional, intent(in)            :: numMidasTableRequired_opt
-
-    ! locals:
-    type(fSQL_STATUS)                :: stat ! sqlite error status
-    type(fSQL_DATABASE)              :: db   ! sqlite file handle
-    logical, allocatable             :: midasColumnExists(:)
-    character(len=3000)              :: query
-    character(len=5000)              :: tableInsertColumnList
-    character(len=lenSqlName)        :: sqlColumnName, vnmSqlName, pppSqlName
-    character(len=20)                :: sqlDataType
-    character(len=4)                 :: obsSpaceColumnName
-    integer                          :: updateItemIndex, columnIndex, obsColumnIndex
-    integer                          :: obsSpaceColIndexSource, ierr
-    
-    ! check which columns to be updated already exist in the table
-    allocate(midasColumnExists(numberUpdateItems))
-    do updateItemIndex = 1, numberUpdateItems
-      sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasNamesList)
-      midasColumnExists(updateItemIndex) = sqlu_sqlColumnExists(fileName, midasTableName, sqlColumnName)
-    end do
-
-    if ( all(midasColumnExists(:)) ) then
-      write(*,*) 'odbf_addColumnsMidasTable: No additional columns need to be added to this table'
-    else
-      write(*,*) 'odbf_addColumnsMidasTable: Additional MIDAS ' // trim(midasTableType) // ' columns will be created'
-
-      ! open the obsDB file
-      call fSQL_open(db, trim(fileName), stat)
-      if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'odbf_addColumnsMidasTable: fSQL_open: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_addColumnsMidasTable: fSQL_open')
-      end if
-
-      ! Create Temporary table
-      if ( midasTableType == 'header' ) then
-        query = 'create table ' // trim(midasHeadTableName) // '_tmp' // ' (' // new_line('A') // &
-                '  ' // trim(midasTableKeySqlName) // ' integer primary key,' // new_line('A') // &
-                '  ' // trim(obsHeadKeySqlName) // ' integer,' // new_line('A')
-      
-        tableInsertColumnList = trim(midasTableKeySqlName) //', '// trim(obsHeadKeySqlName)
-
-      else if ( midasTableType == 'body' ) then
-        query = 'create table ' // trim(midasTableName) // '_tmp' // ' (' // new_line('A') // &
-                '  ' // trim(midasTableKeySqlName) // ' integer primary key,' // new_line('A') // &
-                '  ' // trim(obsHeadKeySqlName) // ' integer,' // new_line('A') // &
-                '  ' // trim(obsBodyKeySqlName) // ' integer,' // new_line('A')
-
-        tableInsertColumnList = trim(midasTableKeySqlName) //', '// trim(obsHeadKeySqlName) //', '// &
-                                trim(obsBodyKeySqlName) // ', '
-
-        do columnIndex = 1, numMidasTableRequired_opt
-          obsColumnIndex = obs_columnIndexFromName(trim(midasNamesList(2,columnIndex)))
-
-          if (obs_columnDataType(obsColumnIndex) == 'real') then
-            sqlDataType = 'double'
-          else
-            sqlDataType = 'integer'
-          end if
-          query = trim(query) // '  ' // trim(midasNamesList(1,columnIndex)) // &
-                  ' ' // trim(sqlDataType)
-          query = trim(query) // ', '
-          query = trim(query) // new_line('A')
-
-          tableInsertColumnList = trim(tableInsertColumnList) // trim(midasNamesList(1,columnIndex))
-          if (columnIndex < numMidasTableRequired_opt) tableInsertColumnList = trim(tableInsertColumnList) // ', '
-        end do ! do columnIndex
-      end if ! if ( midasTableType == 'header' )
-
-      ! Add columns to the temporary table
-      do updateItemIndex = 1, numberUpdateItems
-      
-        ! get obsSpaceData column index for source of updated sql column
-        obsSpaceColumnName = updateItemList(updateItemIndex)
-        ierr = clib_toUpper(obsSpaceColumnName)
-        obsSpaceColIndexSource = obs_columnIndexFromName(trim(obsSpaceColumnName))
-
-        sqlColumnName = odbf_midasTabColFromObsSpaceName(updateItemList(updateItemIndex), midasNamesList)
-        write(*,*) 'odbf_addColumnsMidasTable: updating '// trim(midasTableName)//' column: ', trim(sqlColumnName)
-        write(*,*) 'odbf_addColumnsMidasTable: with contents of obsSpaceData column: ', &
-                   trim(obsSpaceColumnName)
-
-        ! add column to sqlite table
-        if (.not. midasColumnExists(updateItemIndex)) then
-          if (obs_columnDataType(obsSpaceColIndexSource) == 'real') then
-            sqlDataType = 'double'
-          else
-            sqlDataType = 'integer'
-          end if
-          query = trim(query) // '  ' // trim(sqlColumnName) // ' ' // trim(sqlDataType)
-            
-          if (updateItemIndex < numberUpdateItems) query = trim(query) // ', '
-          query = trim(query) // new_line('A')
-        end if
-      end do ! do updateItemIndex
-
-      query = trim(query) // ');'
-      write(*,*) 'odbf_addColumnsMidasTable: query ---> ', trim(query)
-      call fSQL_do_many(db, query, stat)
-      if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_addColumnsMidasTable: Problem with fSQL_do_many')
-      end if
-
-      ! Copy the content of orginal table into temporary table
-      query = 'insert into ' // trim(midasTableName) // '_tmp'  // &
-              '(' // trim(tableInsertColumnList) // ')'//&
-              '  select ' // &
-              trim(tableInsertColumnList) //&
-              ' from ' // trim(midasTableName) //';'
-
-      write(*,*) 'odbf_addColumnsMidasTable: query ---> ', trim(query)
-      call fSQL_do_many(db, query, stat)
-      if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_addColumnsMidasTable: Problem with fSQL_do_many')
-      end if
-
-      ! Drop the orginal table 
-      query = 'drop table '// trim(midasTableName) //';'
-      write(*,*) 'odbf_addColumnsMidasTable: query ---> ', trim(query)
-      call fSQL_do_many(db, query, stat)
-      if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_addColumnsMidasTable: Problem with fSQL_do_many')
-      end if
-
-      ! Rename temporary table to the name of the orginal table
-      query = 'alter table '// trim(midasTableName) //'_tmp' // &
-              ' rename to ' // trim(midasTableName) // ';'
-
-      write(*,*) 'odbf_addColumnsMidasTable: query ---> ', trim(query)
-      call fSQL_do_many(db, query, stat)
-      if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_addColumnsMidasTable: Problem with fSQL_do_many')
-      end if
-
-      ! create an index for the new table - necessary to speed up the update
-      if (trim(midasTableType) == 'header') then
-        query = 'create index idx_midasHeaderTable on ' // &
-                trim(midasTableName) // &
-                '(' // trim(obsHeadKeySqlName) // ');'
-
-      else if (trim(midasTableType) == 'body' ) then
-        vnmSqlName = odbf_midasTabColFromObsSpaceName('VNM', midasBodyNamesList)
-        pppSqlName = odbf_midasTabColFromObsSpaceName('PPP', midasBodyNamesList)
-        query = 'create index idx_midasBodyTable on ' // &
-                trim(midasTableName) // &
-                '(' // trim(obsBodyKeySqlName) // ');'
-      end if
-      
-      write(*,*) 'odbf_addColumnsMidasTable: query --->', trim(query)
-      call fSQL_do_many(db, query, stat)
-      if ( fSQL_error(stat) /= FSQL_OK ) then
-        write(*,*) 'fSQL_do_many: ', fSQL_errmsg(stat)
-        call utl_abort('odbf_addColumnsMidasTable: Problem with fSQL_do_many')
-      end if
-
-      call fSQL_close(db, stat)
-
-    end if ! if ( all(midasColumnExists(:)) )
-
-    deallocate(midasColumnExists)
-
-  end subroutine odbf_addColumnsMidasTable
 
   !--------------------------------------------------------------------------
   ! obdf_clean
