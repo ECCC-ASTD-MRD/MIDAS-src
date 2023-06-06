@@ -2236,20 +2236,8 @@ contains
     query = 'create table ' // trim(midasBodyTableName) // ' (' // new_line('A') // &
             '  ' // trim(midasBodyKeySqlName) // ' integer primary key,' // new_line('A') // &
             '  ' // trim(obsHeadKeySqlName) // ' integer,' // new_line('A') // &
-            '  ' // trim(obsBodyKeySqlName) // ' integer,' // new_line('A')
-    do columnIndex = 1, numBodyMidasTableRequired
-      obsColumnIndex = obs_columnIndexFromName(trim(midasBodyNamesList(2,columnIndex)))
-      if (obs_columnDataType(obsColumnIndex) == 'real') then
-        sqlDataType = 'double'
-      else
-        sqlDataType = 'integer'
-      end if
-      query = trim(query) // '  ' // trim(midasBodyNamesList(1,columnIndex)) // &
-              ' ' // trim(sqlDataType)
-      if (columnIndex < numBodyMidasTableRequired) query = trim(query) // ', '
-      query = trim(query) // new_line('A')
-    end do ! do columnIndex
-    query = trim(query) // ');'
+            '  ' // trim(obsBodyKeySqlName) // ' integer );'
+
     write(*,*) myName//': query = ', trim(query)
     call fSQL_do_many(db, query, stat)
     if ( fSQL_error(stat) /= FSQL_OK ) then
