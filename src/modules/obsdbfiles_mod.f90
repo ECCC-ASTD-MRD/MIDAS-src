@@ -1669,11 +1669,8 @@ contains
     integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
     integer              :: maxNumHeaderAllMpi(mmpi_nprocs), obsSpaceColIndexSourceArr(15)
     real(8)              :: updateValue_r
-    character(len=3000)  :: query, queryCreateTable, queryInsertInTable, queryForValues
+    character(len=3000)  :: query, queryCreateTable, queryInsertInTable
     character(len=5000)  :: tableInsertColumnList
-    character(len=20)    :: sqlDataType
-    character(len=lenSqlName) :: sqlColumnName
-    character(len=4)     :: obsSpaceColumnName
     logical              :: midasTableExists
     logical, save        :: nmlAlreadyRead = .false.
     character(len=6), parameter     :: midasTableType = 'header' !Define the type of MIDAS table: header/body
@@ -1897,15 +1894,13 @@ contains
     type(fSQL_STATEMENT) :: stmt ! precompiled sqlite statements
     integer(8)           :: obsIdo, obsIdd
     integer              :: columnParamIndex, columnIndex
-    integer              :: obsIdf, obsVarNo, midasKey, updateItemIndex, updateValue_i
+    integer              :: obsIdf, midasKey, updateItemIndex, updateValue_i
     integer              :: headIndex, bodyIndex, bodyIndexBegin, bodyIndexEnd, maxNumBody
     integer              :: obsSpaceColIndexSource, fnom, fclos, nulnam, ierr
     integer              :: maxNumBodyAllMpi(mmpi_nprocs), obsSpaceColIndexSourceArr(15)
-    real(8)              :: updateValue_r, obsValue, obsPPP, obsVAR
-    character(len=4)     :: obsSpaceColumnName
-    character(len=3000)  :: query, queryCreateTable, queryInsertInTable, queryForValues
+    real(8)              :: updateValue_r, obsValue
+    character(len=3000)  :: query, queryCreateTable, queryInsertInTable
     character(len=5000)  :: tableInsertColumnList
-    character(len=20)        :: sqlDataType
     logical              :: midasTableExists
     logical, save        :: nmlAlreadyRead = .false.
     character(len=6), parameter  :: midasTableType='body' ! Define the type of MIDAS table: header/body
@@ -2209,9 +2204,7 @@ contains
     character(len=*),              intent(in)  :: fileName
 
     ! locals:
-    integer :: columnIndex, obsColumnIndex
     character(len=3000)      :: query
-    character(len=20)        :: sqlDataType
     type(fSQL_STATUS)        :: stat ! sqlite error status
     type(fSQL_DATABASE)      :: db   ! sqlite file handle
     character(len=*), parameter :: myName = 'odbf_createMidasBodyTable'
@@ -2481,7 +2474,6 @@ contains
     ! locals:
     type(fSQL_STATUS)   :: stat ! sqlite error status
     type(fSQL_DATABASE) :: db   ! sqlite file handle
-    integer             :: columnIndex
     character(len=3000) :: query
 
     write(*,*)
