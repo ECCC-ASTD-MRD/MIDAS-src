@@ -166,7 +166,7 @@ module oceanObservations_mod
                                seaWaterFraction, seaWaterThreshold, inlandWaterPoints)
     else 
     
-      call obs_initialize(obsData, numHeader_max = 0, numBody_max = 0, mpi_local= .true.)
+      call obs_initialize(obsData, numHeader_max_opt = 0, numBody_max_opt = 0, mpi_local_opt = .true.)
       call sqlr_writeEmptyPseudoSSTobsFile(obsData, 'SF', outputFileName)   
 
     end if
@@ -229,7 +229,8 @@ module oceanObservations_mod
     write(*,*) myName//': and in every point for inland waters, where sea water fraction <= ', seaWaterThreshold
     write(*,*) myName//': number of inland waters points: ', inlandWaterPoints  
     
-    call obs_initialize(obsData, numHeader_max = pseudoObsDimension, numBody_max = pseudoObsDimension, mpi_local= .true.)
+    call obs_initialize(obsData, numHeader_max_opt = pseudoObsDimension, &
+                        numBody_max_opt = pseudoObsDimension, mpi_local_opt = .true.)
     codeType = codtyp_get_codtyp('pseudosfc')
     
     headerIndex = 1

@@ -141,7 +141,7 @@ contains
    end subroutine ild_finalize
 
 
-   function ild_get_empty_index_list( depot, private_list ) &
+   function ild_get_empty_index_list( depot, private_list_opt ) &
                                                          result(empty_index_list)
       !
       ! :Purpose: From the given depot, return an index-list structure that contains
@@ -151,21 +151,21 @@ contains
       !
       !           If the list is being used within an OMP block, the ObsSpaceData
       !           client is responsible for holding a pointer to its own list.  This
-      !           is supplied as the parameter, private_list.
+      !           is supplied as the parameter, private_list_opt.
       !
       implicit none
 
-      type(struct_index_list), pointer                     :: empty_index_list  ! the returned list
-      type(struct_index_list_depot), intent(inout), target :: depot             ! the depot containing the list
-      type(struct_index_list), pointer, intent(inout), optional :: private_list ! used instead of depot (for OMP blocks)
+      type(struct_index_list), pointer                     :: empty_index_list      ! the returned list
+      type(struct_index_list_depot), intent(inout), target :: depot                 ! the depot containing the list
+      type(struct_index_list), pointer, intent(inout), optional :: private_list_opt ! used instead of depot (for OMP blocks)
 
       nullify(empty_index_list)
 
-      if(present(private_list)) then
+      if(present(private_list_opt)) then
          ! This is an OMP thread
-         if(associated(private_list)) then
+         if(associated(private_list_opt)) then
             ! Memory has already been assigned for that thread.  Re-use it.
-            empty_index_list => private_list ! Set the return pointer
+            empty_index_list => private_list_opt ! Set the return pointer
          end if
       end if
 
@@ -191,7 +191,7 @@ contains
    end function ild_get_empty_index_list
 
 
-   function ild_get_next_index_depot(depot, no_advance) result(next_index)
+   function ild_get_next_index_depot(depot, no_advance_opt) result(next_index)
       !
       ! :Purpose: From the given depot, increment the index to the current element,
       !           and return the element itself, the new current element.
@@ -201,7 +201,7 @@ contains
       integer :: next_index                                                ! the returned index
       type(struct_index_list_depot), intent(inout), target :: depot        ! the depot containing the list
                                                                            ! if present, do not increment
-      logical, intent(in), optional                        :: no_advance   ! current_element, just return next one
+      logical, intent(in), optional                        :: no_advance_opt ! current_element, just return next one
       type(struct_index_list), pointer                     :: current_list ! current list of the depot
       integer                                              :: next_element ! next element of the current list
 
@@ -210,7 +210,7 @@ contains
                                         ! Obtain the next element from the list
       next_element = current_list%current_element + 1
       next_index = current_list%indices(next_element)
-      if(.not. present(no_advance) .and. next_index /= -1) then
+      if(.not. present(no_advance_opt) .and. next_index /= -1) then
                                         ! Increment the current element
          current_list%current_element = next_element
       end if
@@ -218,7 +218,7 @@ contains
    end function ild_get_next_index_depot
 
 
-   function ild_get_next_index_private(private_list, no_advance) &
+   function ild_get_next_index_private(private_list, no_advance_opt) &
                                                                result(next_index)
       !
       ! :Purpose:  From the given list, increment the index to the current element, and
@@ -228,14 +228,14 @@ contains
       integer :: next_index                                           ! the returned index
       type(struct_index_list), pointer, intent(inout) :: private_list ! the list of interest
                                                                       ! if present, do not increment
-      logical, intent(in), optional                   :: no_advance   ! current_element, just return next one
+      logical, intent(in), optional                   :: no_advance_opt ! current_element, just return next one
       integer                                         :: next_element ! next element of the list
 
                                         ! Obtain the next element from the list
       next_element = private_list%current_element + 1
       next_index = private_list%indices(next_element)
 
-      if(.not. present(no_advance) .and. next_index /= -1) then
+      if(.not. present(no_advance_opt) .and. next_index /= -1) then
                                         ! Increment the current element
          private_list%current_element = next_element
       end if
@@ -767,7 +767,7 @@ contains
 
 
    function odc_activeIndexFromColumnIndex(odc_flavour,column_index_in, &
-                                           recompute) result(active_index_out)
+                                           recompute_opt) result(active_index_out)
       !
       ! :Purpose: The list of active columns is only a subset of all possible
       !           columns.  Return the index into the list of active columns, given
@@ -776,15 +776,15 @@ contains
       implicit none
       type(struct_odc_flavour), intent(inout) :: odc_flavour
       integer                 , intent(in)    :: column_index_in
-      logical, optional       , intent(in)    :: recompute
+      logical, optional       , intent(in)    :: recompute_opt
       integer                                 :: active_index_out
 
       integer :: active_index, &
                  column_index
       character(len=100) :: message
 
-      if(present(recompute)) then
-         if(recompute) odc_flavour%activeIndexFromColumnIndex_defined=.false.
+      if(present(recompute_opt)) then
+         if(recompute_opt) odc_flavour%activeIndexFromColumnIndex_defined=.false.
       endif
 
       if(.not. odc_flavour%activeIndexFromColumnIndex_defined) then
@@ -876,9 +876,9 @@ contains
       ! force the recalculation of indices to go between activeColumnIndex and
       ! columnIndex
       active_index=odc_activeIndexFromColumnIndex(odc_flavour,column_index, &
-                                                  recompute=.true.)
+                                                  recompute_opt=.true.)
       dummy_index =odc_columnIndexFromActiveIndex(odc_flavour,active_index, &
-                                                  recompute=.true.)
+                                                  recompute_opt=.true.)
    end subroutine odc_activateColumn
 
 
@@ -1159,7 +1159,7 @@ contains
 
 
    function odc_columnIndexFromActiveIndex(odc_flavour,active_index_in, &
-                                           recompute) result(column_index_out)
+                                           recompute_opt) result(column_index_out)
       !
       ! :Purpose: The list of active columns is only a subset of all possible
       !           columns.  Return the index into the list of all columns, given
@@ -1169,14 +1169,14 @@ contains
       implicit none
       type(struct_odc_flavour), intent(inout) :: odc_flavour
       integer                 , intent(in)    :: active_index_in
-      logical, optional       , intent(in)    :: recompute
+      logical, optional       , intent(in)    :: recompute_opt
       integer                                 :: column_index_out
 
       integer :: active_index, &
                  column_index
 
-      if(present(recompute)) then
-         if(recompute) odc_flavour%columnIndexFromActiveIndex_defined=.false.
+      if(present(recompute_opt)) then
+         if(recompute_opt) odc_flavour%columnIndexFromActiveIndex_defined=.false.
       endif
 
       if(.not. odc_flavour%columnIndexFromActiveIndex_defined) then
@@ -1695,7 +1695,7 @@ contains
    end subroutine obs_abort
 
 
-   subroutine obs_allocate(obsdat, numHeader_max, numBody_max, silent)
+   subroutine obs_allocate(obsdat, numHeader_max, numBody_max, silent_opt)
       !
       ! :Purpose: Allocate arrays according to the parameters, numHeader_max and
       !           numBody_max.  This is a private method.
@@ -1705,9 +1705,9 @@ contains
       type(struct_obs), intent(inout) :: obsdat
       integer,          intent(in)    :: numHeader_max
       integer,          intent(in)    :: numBody_max
-      logical, optional,intent(in)    :: silent
+      logical, optional,intent(in)    :: silent_opt
 
-      logical :: silent_
+      logical :: silent
       integer :: column_index
 
       if(obsdat%allocated) then
@@ -1716,13 +1716,13 @@ contains
       endif
       obsdat%allocated=.true.
 
-      if(present(silent)) then
-         silent_  = silent
+      if(present(silent_opt)) then
+         silent  = silent_opt
       else
-         silent_  = .false.
+         silent  = .false.
       end if
 
-      if(.not. silent_) then
+      if(.not. silent) then
          write(*,*) ' DIMENSIONS OF OBSERVATION ARRAYS:'
          write(*,*) ' numHeader_max = ',numHeader_max,'  numBody_max = ', &
                     numBody_max
@@ -1942,7 +1942,7 @@ contains
    end subroutine obs_bodySet_r8
 
 
-   subroutine obs_class_initialize(obsColumnMode_in, myip)
+   subroutine obs_class_initialize(obsColumnMode_in)
       !
       ! :Purpose: Set observation-data class variables.
       !      Set variables that take the same value for all instances of the
@@ -1950,10 +1950,7 @@ contains
       !
       implicit none
       ! mode controlling the subset of columns that are activated in all objects
-      character(len=*), intent(in), optional :: obsColumnMode_in
-      integer, intent(in), optional :: myip
-
-      integer :: myip_
+      character(len=*), intent(in)  :: obsColumnMode_in
 
       ! The 'save' makes this a CLASS-CONSTANT variable
       character(len=12), save :: obsColumnMode_class = '            '
@@ -1961,19 +1958,8 @@ contains
       INITIALIZED: if(.not. obs_class_initialized) then
          obs_class_initialized = .true.
 
-         if(present(myip)) then
-            myip_ = myip
-         else
-            ! Make an assumption:  cause every processor to write much to stdout
-            myip_ = 0
-         end if
-
          ! Determine which columns will be initially active
-         if(present(obsColumnMode_in)) then
-            obsColumnMode_class=trim(obsColumnMode_in)
-         else
-            obsColumnMode_class='ALL '
-         endif
+         obsColumnMode_class=trim(obsColumnMode_in)
 
          write(*,*)'OBS_CLASS_INITIALIZE: obsColumnMode=', &
                    trim(obsColumnMode_class)
@@ -1987,14 +1973,12 @@ contains
          write(*,*) 'obs_class_initialize: already called before, not ' &
                     // 're-activating columns'
          write(*,*) 'obs_class_initialize: !!! WARNING WARNING WARNING!!!'
-         if(present(obsColumnMode_in)) then
-            if(trim(obsColumnMode_in) /= trim(obsColumnMode_class)) then
-               call obs_abort('obs_class_initialize: called with different '&
-                            //'value of obsColumnMode than during first call: '&
-                            // trim(obsColumnMode_class) // ' /= ' &
-                            // trim(obsColumnMode_in))
-               return
-            endif
+         if(trim(obsColumnMode_in) /= trim(obsColumnMode_class)) then
+            call obs_abort('obs_class_initialize: called with different '&
+                         //'value of obsColumnMode than during first call: '&
+                         // trim(obsColumnMode_class) // ' /= ' &
+                         // trim(obsColumnMode_in))
+            return
          endif
       endif INITIALIZED
    end subroutine obs_class_initialize
@@ -3469,7 +3453,7 @@ contains
    end function obs_getBodyIndex_private
 
 
-   function obs_getFamily(obsdat,headerIndex_in,bodyIndex)
+   function obs_getFamily(obsdat,headerIndex_opt,bodyIndex_opt)
       !
       ! :Purpose:
       !      Return the family for the indicated header, or else for the
@@ -3477,16 +3461,17 @@ contains
       !
       implicit none
 
-      character(len=2)             :: obs_getFamily
-      type(struct_obs), intent(in) :: obsdat
-      integer,optional, intent(in) :: headerIndex_in,bodyIndex
+      character(len=2)              :: obs_getFamily
+      type(struct_obs), intent(in)  :: obsdat
+      integer, optional, intent(in) :: headerIndex_opt
+      integer, optional, intent(in) :: bodyIndex_opt
 
       integer          :: headerIndex
 
-      if(present(headerIndex_in)) then
-         headerIndex=headerIndex_in
-      elseif(present(bodyIndex)) then
-         headerIndex=obs_bodyElem_i(obsdat,OBS_HIND,bodyIndex)
+      if(present(headerIndex_opt)) then
+         headerIndex=headerIndex_opt
+      elseif(present(bodyIndex_opt)) then
+         headerIndex=obs_bodyElem_i(obsdat,OBS_HIND,bodyIndex_opt)
       else
          call obs_abort('OBS_GETFAMILY: Header or Body index must be specified!')
          return
@@ -3669,8 +3654,8 @@ contains
    end subroutine obs_headSet_r8
 
 
-   subroutine obs_initialize(obsdat, numHeader_max, numBody_max, mpi_local, &
-                             silent)
+   subroutine obs_initialize(obsdat, numHeader_max_opt, numBody_max_opt, mpi_local_opt, &
+                             silent_opt)
       !
       ! :Purpose: Set an observation-data module to a known state.
       !      Initialize object variables, and allocate arrays according to the
@@ -3680,13 +3665,13 @@ contains
                                         ! instance of obsSpaceData
       type(struct_obs),intent(inout):: obsdat !inout allows detection of 2nd call
                                         ! number of header elements allocated
-      integer, optional, intent(in) :: numHeader_max
+      integer, optional, intent(in) :: numHeader_max_opt
                                         ! total no. of body elements allocated
-      integer, optional, intent(in) :: numBody_max
-      logical, optional, intent(in) :: mpi_local
-      logical, optional, intent(in) :: silent
+      integer, optional, intent(in) :: numBody_max_opt
+      logical, optional, intent(in) :: mpi_local_opt
+      logical, optional, intent(in) :: silent_opt
 
-      logical :: silent_
+      logical :: silent
       integer :: nulnam,fnom,fclos,ierr
 
       character(len=120) :: message
@@ -3715,16 +3700,16 @@ contains
       obsdat%numBody       = 0
       obsdat%numBody_max   = 0
 
-      if(present(mpi_local)) then
-         obsdat%mpi_local  = mpi_local
+      if(present(mpi_local_opt)) then
+         obsdat%mpi_local  = mpi_local_opt
       else
          obsdat%mpi_local  = .false.
       end if
 
-      if(present(silent)) then
-         silent_  = silent
+      if(present(silent_opt)) then
+         silent  = silent_opt
       else
-         silent_  = .false.
+         silent  = .false.
       end if
 
       nullify(obsdat%headerIndex_mpiglobal)
@@ -3733,10 +3718,10 @@ contains
       !
       ! DETERMINE THE ARRAY DIMENSIONS
       !
-      if(present(numHeader_max)) then
+      if(present(numHeader_max_opt)) then
          ! numBody_max is necessarily also present
-         nmxobs = numHeader_max
-         ndatamx = numBody_max
+         nmxobs = numHeader_max_opt
+         ndatamx = numBody_max_opt
 
       else
          ! Initialize with bad values
@@ -3768,9 +3753,8 @@ contains
       !
       ! ALLOCATE
       !
-      call obs_allocate(obsdat, nmxobs, ndatamx, silent_)
+      call obs_allocate(obsdat, nmxobs, ndatamx, silent)
 
-      return
    end subroutine obs_initialize
 
 
@@ -4657,8 +4641,8 @@ contains
       numHeader_mpimessage = maxval(numHeaderPE_mpiglobal(:))
       numBody_mpimessage   = maxval(numBodyPE_mpiglobal(:))
 
-      call obs_initialize(obsdat_tmp,numHeader_out,  &
-                          numBody_out,mpi_local=.true.)
+      call obs_initialize(obsdat_tmp,numHeader_max_opt=numHeader_out,  &
+                          numBody_max_opt=numBody_out,mpi_local_opt=.true.)
       obsdat_tmp%numHeader = numHeader_out
       obsdat_tmp%numBody   = numBody_out
 
@@ -5066,7 +5050,7 @@ contains
 
 
    subroutine obs_set_current_body_list_from_family(obsdat, family, &
-      list_is_empty, current_list)
+      list_is_empty_opt, current_list_opt)
       !
       ! :Purpose:
       !      Create a row_index list from the indicated family and place it in
@@ -5075,8 +5059,8 @@ contains
       implicit none
       type(struct_obs), intent(inout), target :: obsdat
       character(len=*), intent(in) :: family
-      logical, intent(out), optional :: list_is_empty
-      type(struct_index_list), pointer, intent(out), optional :: current_list
+      logical, intent(out), optional :: list_is_empty_opt
+      type(struct_index_list), pointer, intent(out), optional :: current_list_opt
 
       type(struct_index_list_depot), pointer :: depot
       type(struct_index_list), pointer :: index_list
@@ -5087,10 +5071,10 @@ contains
       depot => obsdat%body_index_list_depot
 
       ! Search for an existing list
-      if(present(current_list)) then
-         if(associated(current_list)) then
-            if (current_list%family == family) then
-               index_list => current_list
+      if(present(current_list_opt)) then
+         if(associated(current_list_opt)) then
+            if (current_list_opt%family == family) then
+               index_list => current_list_opt
             end if ! family matches
          end if ! associated
 
@@ -5107,9 +5091,9 @@ contains
       if (.not. associated(index_list)) then
 
          ! Acquire memory for the list
-         if(present(current_list)) then
+         if(present(current_list_opt)) then
             ! This is an OMP thread. Re-use the same physical memory for the list
-            index_list => ild_get_empty_index_list(depot, current_list)
+            index_list => ild_get_empty_index_list(depot, current_list_opt)
          else
             index_list => ild_get_empty_index_list(depot)
          end if
@@ -5143,20 +5127,20 @@ contains
       index_list%current_element = 0    ! Set pointer to the start of the list
       depot%current_list => index_list  ! Note the current list
 
-      if(present(list_is_empty)) then
+      if(present(list_is_empty_opt)) then
          ! Return whether the list is empty
-         list_is_empty = (ild_get_next_index(depot, no_advance=.true.) < 0)
+         list_is_empty_opt = (ild_get_next_index(depot, no_advance_opt=.true.) < 0)
       end if
 
-      if(present(current_list)) then
+      if(present(current_list_opt)) then
          ! Return a pointer to the current list
-         current_list => index_list
+         current_list_opt => index_list
       end if
    end subroutine obs_set_current_body_list_from_family
 
 
    subroutine obs_set_current_body_list_from_header(obsdat, header, &
-      list_is_empty, current_list)
+      list_is_empty_opt, current_list_opt)
       !
       ! :Purpose:
       !      Create a row_index list from the indicated header and place it in
@@ -5165,8 +5149,8 @@ contains
       implicit none
       type(struct_obs), intent(inout), target :: obsdat
       integer, intent(in) :: header
-      logical, intent(out), optional :: list_is_empty
-      type(struct_index_list), pointer, intent(out), optional :: current_list
+      logical, intent(out), optional :: list_is_empty_opt
+      type(struct_index_list), pointer, intent(out), optional :: current_list_opt
 
       type(struct_index_list_depot), pointer :: depot
       type(struct_index_list), pointer :: index_list
@@ -5177,10 +5161,10 @@ contains
       depot => obsdat%body_index_list_depot
 
       ! Search for an existing list
-      if(present(current_list)) then
-         if(associated(current_list)) then
-            if (current_list%header == header) then
-               index_list => current_list
+      if(present(current_list_opt)) then
+         if(associated(current_list_opt)) then
+            if (current_list_opt%header == header) then
+               index_list => current_list_opt
             end if ! header matches
          end if ! associated
 
@@ -5197,9 +5181,9 @@ contains
       if (.not. associated(index_list)) then
 
          ! Acquire memory for the list
-         if(present(current_list)) then
+         if(present(current_list_opt)) then
             ! This is an OMP thread. Re-use the same physical memory for the list
-            index_list => ild_get_empty_index_list(depot, current_list)
+            index_list => ild_get_empty_index_list(depot, current_list_opt)
          else
             index_list => ild_get_empty_index_list(depot)
          end if
@@ -5224,19 +5208,19 @@ contains
       index_list%current_element = 0    ! Set pointer to the start of the list
       depot%current_list => index_list  ! Note the current list
 
-      if(present(list_is_empty)) then
+      if(present(list_is_empty_opt)) then
          ! Return whether the list is empty
-         list_is_empty = (ild_get_next_index(depot, no_advance=.true.) < 0)
+         list_is_empty_opt = (ild_get_next_index(depot, no_advance_opt=.true.) < 0)
       end if
 
-      if(present(current_list)) then
+      if(present(current_list_opt)) then
          ! Return a pointer to the current list
-         current_list => index_list
+         current_list_opt => index_list
       end if
    end subroutine obs_set_current_body_list_from_header
 
 
-   subroutine obs_set_current_body_list_all(obsdat, list_is_empty, current_list)
+   subroutine obs_set_current_body_list_all(obsdat, list_is_empty_opt, current_list_opt)
       !
       ! :Purpose:
       !      Create a row_index list containing all bodies and place it in the
@@ -5244,8 +5228,8 @@ contains
       !
       implicit none
       type(struct_obs), intent(inout), target :: obsdat
-      logical, intent(out), optional :: list_is_empty
-      type(struct_index_list), pointer, intent(out), optional :: current_list
+      logical, intent(out), optional :: list_is_empty_opt
+      type(struct_index_list), pointer, intent(out), optional :: current_list_opt
 
       type(struct_index_list_depot), pointer :: depot
       type(struct_index_list), pointer :: index_list
@@ -5256,11 +5240,11 @@ contains
       depot => obsdat%body_index_list_depot
 
       ! Search for an existing list
-      if(present(current_list)) then
-         if(associated(current_list)) then
-            if (      current_list%header == -1 &
-                .and. current_list%family == '  ') then
-               index_list => current_list
+      if(present(current_list_opt)) then
+         if(associated(current_list_opt)) then
+            if (      current_list_opt%header == -1 &
+                .and. current_list_opt%family == '  ') then
+               index_list => current_list_opt
             end if ! null header and family
          end if ! associated
 
@@ -5278,9 +5262,9 @@ contains
       if (.not. associated(index_list)) then
 
          ! Acquire memory for the list
-         if(present(current_list)) then
+         if(present(current_list_opt)) then
             ! This is an OMP thread. Re-use the same physical memory for the list
-            index_list => ild_get_empty_index_list(depot, current_list)
+            index_list => ild_get_empty_index_list(depot, current_list_opt)
          else
             index_list => ild_get_empty_index_list(depot)
          end if
@@ -5314,14 +5298,14 @@ contains
       index_list%current_element = 0    ! Set pointer to the start of the list
       depot%current_list => index_list  ! Note the current list
 
-      if(present(list_is_empty)) then
+      if(present(list_is_empty_opt)) then
          ! Return whether the list is empty
-         list_is_empty = (ild_get_next_index(depot, no_advance=.true.) < 0)
+         list_is_empty_opt = (ild_get_next_index(depot, no_advance_opt=.true.) < 0)
       end if
 
-      if(present(current_list)) then
+      if(present(current_list_opt)) then
          ! Return a pointer to the current list
-         current_list => index_list
+         current_list_opt => index_list
       end if
    end subroutine obs_set_current_body_list_all
 
@@ -5453,7 +5437,7 @@ contains
       implicit none
       type(struct_obs), intent(inout) :: obsdat
       integer(8),       intent(in)    :: primaryKey
-      integer,optional, intent(in)    :: headerIndex
+      integer,          intent(in)    :: headerIndex
 
       obsdat%headerPrimaryKey(headerIndex) = primaryKey
       if(headerIndex == (obsdat%numHeader+1)) then
@@ -5463,23 +5447,24 @@ contains
    end subroutine obs_setHeadPrimaryKey
 
 
-   subroutine obs_setFamily(obsdat,Family_in,headerIndex_in,bodyIndex)
+   subroutine obs_setFamily(obsdat,Family_in,headerIndex_opt,bodyIndex_opt)
       !
       ! :Purpose:
       !      Set to the indicated value the family for the indicated header, or
       !      else for the indicated body.
       !
       implicit none
-      type(struct_obs), intent(inout) :: obsdat
-      character(len=*), intent(in)    :: Family_in
-      integer,optional, intent(in)    :: headerIndex_in,bodyIndex
+      type(struct_obs),  intent(inout) :: obsdat
+      character(len=*),  intent(in)    :: Family_in
+      integer, optional, intent(in)    :: headerIndex_opt
+      integer, optional, intent(in)    :: bodyIndex_opt
 
       integer          :: headerIndex
 
-      if(present(headerIndex_in)) then
-         headerIndex=headerIndex_in
-      elseif(present(bodyIndex)) then
-         headerIndex=obs_bodyElem_i(obsdat,OBS_HIND,bodyIndex)
+      if(present(headerIndex_opt)) then
+         headerIndex = headerIndex_opt
+      elseif(present(bodyIndex_opt)) then
+         headerIndex = obs_bodyElem_i(obsdat,OBS_HIND,bodyIndex_opt)
       else
          call obs_abort('OBS_SETFAMILY: Header or Body index must be specified!')
          return
@@ -5716,7 +5701,7 @@ contains
 
      ! check if family exists in local MPI process
      do index_header = 1,obs_numheader(obsdat)
-        if (obs_getFamily(obsdat,index_header) == family) then
+        if (obs_getFamily(obsdat,headerIndex_opt=index_header) == family) then
            famExist = .true.
            exit
         end if

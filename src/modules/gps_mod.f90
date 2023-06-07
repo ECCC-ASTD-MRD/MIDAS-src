@@ -777,7 +777,7 @@ contains
 !modgps04profile
 
   subroutine gps_struct1sw(ngpslev,rLat,rLon,rAzm,rMT,Rad,geoid,    &
-       rP0,rPP,rDP,rTT,rHU,rUU,rVV,prf,printHeight)
+       rP0,rPP,rDP,rTT,rHU,rUU,rVV,prf,printHeight_opt)
     implicit none
  
     ! Arguments:
@@ -795,7 +795,7 @@ contains
     real(dp)        , intent(in)  :: rHU (ngpssize)
     real(dp)        , intent(in)  :: rUU (ngpssize)
     real(dp)        , intent(in)  :: rVV (ngpssize)
-    logical         , optional    :: printHeight
+    logical         , optional    :: printHeight_opt
 
     type(gps_profile), intent(out) :: prf
 
@@ -916,12 +916,12 @@ contains
        prf%gst(i) = prf%gst(i+1) + z
     end do
 
-    if ( present(printHeight) ) then
-      if ( printHeight ) then
+    if ( present(printHeight_opt) ) then
+      if ( printHeight_opt ) then
         write(*,*) 'gps_struct1sw, height='
         write(*,*) prf%gst(1:ngpslev)%Var
 
-        printHeight = .false.
+        printHeight_opt = .false.
       end if
     end if
 

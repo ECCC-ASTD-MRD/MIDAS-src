@@ -807,13 +807,15 @@ module physicsFunctions_mod
     !
     implicit none
 
-    integer, intent(in) :: nmodlev                   ! Number of model levels
-    real(8), intent(in) :: pressmod(nmodlev)         ! Model pressure array (Pa)
-    real(8), intent(in) :: tt(nmodlev)               ! Model temperature (Kelvin)
-    real(8), intent(in) :: height(nmodlev)           ! Model height (m)
-    real(8), intent(in), optional :: hu_opt(nmodlev) ! Model specific humidity
-    real(8) :: tropo_press                           ! Tropopause level in Pa (output)
-  
+    ! Arguments:
+    integer, intent(in)           :: nmodlev           ! Number of model levels
+    real(8), intent(in)           :: pressmod(nmodlev) ! Model pressure array (Pa)
+    real(8), intent(in)           :: tt(nmodlev)       ! Model temperature (Kelvin)
+    real(8), intent(in)           :: height(nmodlev)   ! Model height (m)
+    real(8), intent(in), optional :: hu_opt(nmodlev)   ! Model specific humidity
+    real(8) :: tropo_press                             ! Tropopause level in Pa (output)
+
+    ! Locals:
     integer :: itop,i,k,ilaps
     real(8) :: hu_ppmv1,hu_ppmv2,hu_ppmv3,xlaps,tropo_press_hu
     real(8), parameter :: press_min=6000.         ! Min tropoause pressure 60 hPa.; equivalent to ~ 20km
@@ -1223,7 +1225,7 @@ module physicsFunctions_mod
   ! PHF_HEIGHT2GEOPOTENTIAL
   !--------------------------------------------------------------------------
   subroutine phf_height2geopotential(altitude, latitude, geopotential, &
-                                     printHeight)
+                                     printHeight_opt)
     !
     !:Purpose: Geopotential energy at a given point.
     !          Result is based on the WGS84 approximate expression for the
@@ -1239,7 +1241,7 @@ module physicsFunctions_mod
     real(8), allocatable :: alt500m(:), gravity500m(:)
     real(8)           :: delAlt, aveGravity, sLat, gravity, gravityM1
     integer           :: i, ilev 
-    logical, optional :: printHeight
+    logical, optional :: printHeight_opt
     
 
     nlev = size(altitude)
@@ -1290,12 +1292,12 @@ module physicsFunctions_mod
       gravityM1 = gravity
     enddo
 
-    if ( present(printHeight) ) then
-      if ( printHeight ) then
+    if ( present(printHeight_opt) ) then
+      if ( printHeight_opt ) then
         write(*,*) 'phf_height2geopotential, Z_T:'
         write(*,*) geopotential(:)
 
-        printHeight = .false.
+        printHeight_opt = .false.
       endif
     endif
 

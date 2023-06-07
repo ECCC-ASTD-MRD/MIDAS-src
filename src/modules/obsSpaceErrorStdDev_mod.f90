@@ -1226,7 +1226,7 @@ module obsSpaceErrorStdDev_mod
     ! loop over all body rows
     BODY: do bodyIndex = 1, obs_numbody( lobsSpaceData )
 
-      cfam = obs_getFamily( lobsSpaceData, bodyIndex = bodyIndex )
+      cfam = obs_getFamily( lobsSpaceData, bodyIndex_opt = bodyIndex )
       if( cfam == 'SF'.or. cfam == 'TM' .or. cfam == 'UA' .or. cfam  == 'SC' .or. cfam == 'GP' .or. cfam == 'GL' ) then
 
         ! Process all data within the domain of the model (excluding GB-GPS ZTD data)

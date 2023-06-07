@@ -374,13 +374,13 @@ contains
     implicit none
 
     ! Arguments
-    type(struct_columnData),    intent(in)    :: columnTrlOnTrlLev
-    type(struct_obs),           intent(inout) :: obsSpaceData
-    logical,                    intent(in)    :: beSilent
-    character(len=*), optional, intent(in)    :: cdfam ! family of observation
-    integer,                    intent(in)    :: destObsColumn
+    type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
+    type(struct_obs),        intent(inout) :: obsSpaceData
+    logical,                 intent(in)    :: beSilent
+    integer,                 intent(in)    :: destObsColumn
+    character(len=*),        intent(in)    :: cdfam ! family of observation
 
-    ! locals
+    ! Locals
     integer :: headerIndex,bodyIndex,ilyr,bufrCode,levIndexTop,levIndexBot
     integer :: bodyIndexStart,bodyIndexEnd,bodyIndex2
     integer :: found  ! a group of bit flags
@@ -409,12 +409,7 @@ contains
 
     if (.not.beSilent) write(*,*) "Entering subroutine oop_zzz_nl"
 
-    if (present(cdfam)) then
-      call obs_set_current_body_list(obsSpaceData, cdfam, list_is_empty)
-    else
-      if (.not.beSilent) write(*,*) 'oop_zzz_nl: WARNING, no family specified, assuming AL'
-      call obs_set_current_body_list(obsSpaceData, 'AL', list_is_empty)
-    endif
+    call obs_set_current_body_list(obsSpaceData, cdfam, list_is_empty)
 
     if (list_is_empty)then
       return
@@ -2106,7 +2101,7 @@ contains
 
       !$OMP PARALLEL DO PRIVATE(bodyIndex, bufrCode, varName, headerIndex, anlIncValueBot)
       BODY: do bodyIndex = 1, obs_numBody( obsSpaceData )
-        if ( obs_getFamily(obsSpaceData, bodyIndex=bodyIndex) /= 'TM' ) cycle BODY
+        if ( obs_getFamily(obsSpaceData, bodyIndex_opt=bodyIndex) /= 'TM' ) cycle BODY
 
         bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
         if ( bufrCode /= bufr_sst ) cycle BODY
@@ -2335,7 +2330,7 @@ contains
               
             else 
 
-              cfam = obs_getfamily(obsSpaceData,headerIndex)
+              cfam = obs_getfamily(obsSpaceData,headerIndex_opt=headerIndex)
               write(*,*) 'CANNOT ASSIMILATE OBSERVATION!!!', &
                          'bufrCode =', bufrCode, 'cfam =',  cfam
               call utl_abort('oop_HheightCoordObs')
@@ -2863,7 +2858,7 @@ contains
 
       !$OMP PARALLEL DO PRIVATE(bodyIndex, bufrCode, varName, headerIndex, residual, columnTG)
       BODY: do bodyIndex = 1, obs_numBody( obsSpaceData )
-        if ( obs_getFamily(obsSpaceData, bodyIndex=bodyIndex) /= 'TM' ) cycle BODY
+        if ( obs_getFamily(obsSpaceData, bodyIndex_opt=bodyIndex) /= 'TM' ) cycle BODY
 
         bufrCode = obs_bodyElem_i( obsSpaceData, OBS_VNM, bodyIndex )
         if ( bufrCode /= bufr_sst ) cycle BODY
@@ -3290,7 +3285,7 @@ contains
 
             else
               
-              cfam = obs_getfamily(obsSpaceData,headerIndex)
+              cfam = obs_getfamily(obsSpaceData,headerIndex_opt=headerIndex)
               write(*,*) 'CANNOT ASSIMILATE OBSERVATION!!!', &
                          'bufrCode =', bufrCode, 'cfam =',  cfam
               call utl_abort('oop_HTheighCoordObs')

@@ -194,7 +194,7 @@ program midas_prepcma
 
   !- Allocate obsSpaceData
   call obs_class_initialize('ENKFMIDAS')
-  call obs_initialize( obsSpaceData, mpi_local=obsf_filesSplit() )
+  call obs_initialize( obsSpaceData, mpi_local_opt=obsf_filesSplit() )
 
   !- Read observations
   call utl_tmg_start(11,'----ReadObsFiles')

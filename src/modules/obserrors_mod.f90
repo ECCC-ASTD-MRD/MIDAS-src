@@ -1092,7 +1092,7 @@ contains
 
       idata    = obs_headElem_i(obsSpaceData, OBS_RLN, headerIndex)
       idatend  = obs_headElem_i(obsSpaceData, OBS_NLV, headerIndex) + idata - 1
-      cfam     = obs_getFamily (obsSpaceData, headerIndex)
+      cfam     = obs_getFamily (obsSpaceData, headerIndex_opt=headerIndex)
       zlat     = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex)
       zlon     = obs_headElem_r(obsSpaceData, OBS_LON, headerIndex)
       codeType = obs_headElem_i(obsSpaceData, OBS_ITY, headerIndex)
@@ -2014,7 +2014,7 @@ contains
     !
     obsIndex = 0
     HEADER_UU: do headerIndex = 1, obs_numheader(obsSpaceData)
-      if (obs_getFamily(obsSpaceData,headerIndex) /= 'SW') cycle HEADER_UU
+      if (obs_getFamily(obsSpaceData,headerIndex_opt=headerIndex) /= 'SW') cycle HEADER_UU
       bodyIndexBeg   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
       do bodyIndex = bodyIndexBeg, bodyIndexEnd
@@ -2028,7 +2028,7 @@ contains
 
     obsIndex = 0
     HEADER_VV: do headerIndex = 1, obs_numheader(obsSpaceData)
-      if (obs_getFamily(obsSpaceData,headerIndex) /= 'SW') cycle HEADER_VV
+      if (obs_getFamily(obsSpaceData,headerIndex_opt=headerIndex) /= 'SW') cycle HEADER_VV
       bodyIndexBeg   = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
       bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1
       do bodyIndex = bodyIndexBeg, bodyIndexEnd

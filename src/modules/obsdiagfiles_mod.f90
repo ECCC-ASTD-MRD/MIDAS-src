@@ -562,7 +562,7 @@ module obsDiagFiles_mod
     allocate(obsFamilyListMpiLocal(obsFamilyListSizeMax))
     obsFamilyListMpiLocal(:) = 'XX'
     HEADER: do headerIndex = 1, obs_numHeader(obsdat)
-      currentObsFamily = obs_getFamily(obsdat, headerIndex) 
+      currentObsFamily = obs_getFamily(obsdat, headerIndex_opt=headerIndex) 
       if (any(obsFamilyListMpiLocal(:) == currentObsFamily)) cycle HEADER
       obsFamilyListSizeMpiLocal = obsFamilyListSizeMpiLocal + 1
       obsFamilyListMpiLocal(obsFamilyListSizeMpiLocal) = currentObsFamily
