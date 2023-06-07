@@ -29,7 +29,6 @@ private
 public :: brpr_readBurp, brpr_updateBurp, brpr_getTypeResume, brpr_addCloudParametersandEmissivity
 public :: brpr_addElementsToBurp, brpr_updateMissingObsFlags, brpr_burpClean
 
-
 integer, parameter :: maxItems = 20
 integer, parameter :: maxElements = 20
 ! Namelist variables
@@ -492,7 +491,7 @@ CONTAINS
       OBS_START=1
       SAVE_OBS=1
       DO Jo=1,obs_numHeader(obsdat)
-        filen= obs_headElem_i(obsdat,OBS_OTP,Jo)
+        filen= obs_headElem_i(obsdat,OBS_IDF,Jo)
         if ( filen == filenumb) then
           OBS_START=Jo
           SAVE_OBS=Jo
@@ -3407,7 +3406,9 @@ CONTAINS
 
   end subroutine brpr_readBurp
 
-
+  !--------------------------------------------------------------------------
+  ! WRITE_BODY
+  !--------------------------------------------------------------------------
   FUNCTION WRITE_BODY(obsdat,FAMTYP, ELEV,VERTCOORD,VCOORD_TYPE, &
                       obsvalue,qcflag,NELE,NVAL,LISTE_ELE,dataQcFlagLEV, &
                       dataCloudFracLEV, ROLAT,ROLON, SURF_EMIS_opt,BiasCorrection_opt)
@@ -3645,8 +3646,7 @@ CONTAINS
     call obs_headSet_i(obsdat,OBS_ITY,nobs,CODTYP)
     call obs_headSet_i(obsdat,OBS_ST1,nobs,STATUS)
     call obs_headSet_r(obsdat,OBS_ALT,nobs,ELEV)
-    !call obs_headSet_i(obsdat,OBS_IDF,nobs,FILENUMB)
-    call obs_headSet_i(obsdat,OBS_OTP,nobs,FILENUMB)
+    call obs_headSet_i(obsdat,OBS_IDF,nobs,FILENUMB)
     call obs_set_c(obsdat,'STID',nobs,STNID )
     if ( present(phase_opt) .and. &
          obs_columnActive_IH(obsdat,OBS_PHAS) ) then
@@ -4170,7 +4170,7 @@ CONTAINS
           if (headerIndex < 0) exit HEADER0
 
           if  (obs_headElem_i(obsSpaceData,OBS_ITY,headerIndex) == idatyp .and.  &
-               obs_headElem_i(obsSpaceData,OBS_OTP,headerIndex) == fileIndex) then
+               obs_headElem_i(obsSpaceData,OBS_IDF,headerIndex) == fileIndex) then
             reportsToUpdate(reportIndex) = .true.
             if (idata2 == -1) idata2 = headerIndex
             cycle REPORTS0
@@ -4394,8 +4394,8 @@ CONTAINS
 
                 if ( goodprof(tIndex) == 1 ) then
 
-                  if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
-                    headElem_i = obs_headElem_i(obsSpaceData,OBS_OTP,idata2)
+                  if ( obs_headElem_i(obsSpaceData,OBS_IDF,idata2)  /= fileIndex) then
+                    headElem_i = obs_headElem_i(obsSpaceData,OBS_IDF,idata2)
                     write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
@@ -4476,8 +4476,8 @@ CONTAINS
 
                 if ( goodprof(tIndex) == 1 ) then
 
-                  if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata3)  /= fileIndex) then
-                    headElem_i = obs_headElem_i(obsSpaceData,OBS_OTP,idata3)
+                  if ( obs_headElem_i(obsSpaceData,OBS_IDF,idata3)  /= fileIndex) then
+                    headElem_i = obs_headElem_i(obsSpaceData,OBS_IDF,idata3)
                     write(*,*) "File Inconsistency emissivity block", &
                          headElem_i, fileIndex, idata3
                     write(*,*) "Should not happen..."
@@ -4632,8 +4632,8 @@ CONTAINS
 
                 if ( goodprof(tIndex) == 1 ) then
 
-                  if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
-                    headElem_i = obs_headElem_i(obsSpaceData,OBS_OTP,idata2)
+                  if ( obs_headElem_i(obsSpaceData,OBS_IDF,idata2)  /= fileIndex) then
+                    headElem_i = obs_headElem_i(obsSpaceData,OBS_IDF,idata2)
                     write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
@@ -4724,8 +4724,8 @@ CONTAINS
 
                 if ( goodprof(tIndex) == 1 ) then
 
-                  if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
-                    headElem_i = obs_headElem_i(obsSpaceData,OBS_OTP,idata2)
+                  if ( obs_headElem_i(obsSpaceData,OBS_IDF,idata2)  /= fileIndex) then
+                    headElem_i = obs_headElem_i(obsSpaceData,OBS_IDF,idata2)
                     write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
@@ -4878,8 +4878,8 @@ CONTAINS
 
                 if ( goodprof(tIndex) == 1 ) then
 
-                  if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
-                    headElem_i = obs_headElem_i(obsSpaceData,OBS_OTP,idata2)
+                  if ( obs_headElem_i(obsSpaceData,OBS_IDF,idata2)  /= fileIndex) then
+                    headElem_i = obs_headElem_i(obsSpaceData,OBS_IDF,idata2)
                     write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')
@@ -5033,8 +5033,8 @@ CONTAINS
 
                 if ( goodprof(tIndex) == 1 ) then
 
-                  if ( obs_headElem_i(obsSpaceData,OBS_OTP,idata2)  /= fileIndex) then
-                    headElem_i = obs_headElem_i(obsSpaceData,OBS_OTP,idata2)
+                  if ( obs_headElem_i(obsSpaceData,OBS_IDF,idata2)  /= fileIndex) then
+                    headElem_i = obs_headElem_i(obsSpaceData,OBS_IDF,idata2)
                     write(*,*) "File Inconsistency ", headElem_i, fileIndex
                     write(*,*) "Should not happen..."
                     call utl_abort('brpr_addCloudParametersandEmissivity')

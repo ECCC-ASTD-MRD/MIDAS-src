@@ -303,8 +303,7 @@ module ObsColumnNames_mod
                                              ! unique(within obsdat), possibly
    integer, parameter, public :: OBS_ONM = OBS_RLN+1  ! ordered, station id number
    integer, parameter, public :: OBS_INS = OBS_ONM+1  ! instrument ID  
-   integer, parameter, public :: OBS_OTP = OBS_INS+1  ! observation Type (file index)
-   integer, parameter, public :: OBS_ITY = OBS_OTP+1  ! code: instrument & retrieval type
+   integer, parameter, public :: OBS_ITY = OBS_INS+1  ! code: instrument & retrieval type
    integer, parameter, public :: OBS_SAT = OBS_ITY+1  ! satellite code 
    integer, parameter, public :: OBS_TEC = OBS_SAT+1  ! satellite processing technique
    integer, parameter, public :: OBS_SEN = OBS_TEC+1  ! satellite sensor code
@@ -367,7 +366,7 @@ module ObsColumnNames_mod
    ! INTEGER-HEADER COLUMN NAMES
    !
    character(len=4), target :: ocn_ColumnNameList_IH(NHDR_INT_BEG:NHDR_INT_END) = &
-      (/ 'RLN ','ONM ','INS ','OTP ','ITY ','SAT ','TEC ','SEN ','DAT ','ETM ', &  
+      (/ 'RLN ','ONM ','INS ','ITY ','SAT ','TEC ','SEN ','DAT ','ETM ', &  
          'NLV ','PAS ','REG ','IP  ','IPF ','IPC ','IPT ', &  
          'ST1 ','IDF ','GQF ','GQL ','NCO2','STYP','ROQF', &
          'SWQ1','SWQ2','SWMT','SWLS','SWGA','SWHA','CHM ','FOV ', &
@@ -998,15 +997,14 @@ contains
       elseif(trim(obsColumnMode) == 'ENKF') then COLUMN_MODE
 
          hdr_int_column_list= &
-            (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
-              OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP, OBS_PAS, OBS_REG, OBS_IP,  &
-              OBS_ST1, OBS_IDF, OBS_SEN, &
-              OBS_GQF, OBS_GQL, OBS_ROQF, (0,ii=21,100) /)
+            (/OBS_RLN , OBS_ONM , OBS_INS , OBS_ITY , OBS_SAT , OBS_TEC , OBS_DAT , &
+              OBS_ETM , OBS_NLV , OBS_STYP, OBS_PAS , OBS_REG , OBS_IP  , OBS_ST1 , &
+              OBS_IDF , OBS_SEN , OBS_GQF , OBS_GQL , OBS_ROQF,(0,ii=20,100) /)
 
          hdr_real_column_list= &
-            (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
-              OBS_GEOI,OBS_CLF,OBS_SUN,OBS_SZA,OBS_AZA,OBS_SAZ, &
-              OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, (0,ii=18,100)/)
+            (/OBS_LAT , OBS_LON , OBS_ALT , OBS_BX  , OBS_BY  , OBS_BZ  , OBS_TRAD, &
+              OBS_GEOI, OBS_CLF , OBS_SUN , OBS_SZA , OBS_AZA , OBS_SAZ , OBS_RZAM, &
+              OBS_RELE, OBS_RANS, OBS_RANE, (0,ii=18,100)/)
 
          bdy_int_column_list(:)    = 0
          bdy_int_column_list(1:size(odc_ENKF_bdy_int_column_list)) = &
@@ -1043,25 +1041,24 @@ contains
       elseif(trim(obsColumnMode) == 'ENKFMIDAS') then COLUMN_MODE
 
          hdr_int_column_list= &
-            (/OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC, &
-              OBS_DAT, OBS_ETM, OBS_NLV, OBS_STYP,OBS_PAS, OBS_REG, OBS_IP,  &
-              OBS_ST1, OBS_IDF, OBS_SEN, &
-              OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA, &
-              OBS_GQF, OBS_GQL, OBS_ROQF, OBS_TTYP, (0,ii=28,100) /)
+            (/OBS_RLN , OBS_ONM , OBS_INS , OBS_ITY , OBS_SAT , OBS_TEC , OBS_DAT , &
+              OBS_ETM , OBS_NLV , OBS_STYP, OBS_PAS , OBS_REG , OBS_IP  , OBS_ST1 , &
+              OBS_IDF , OBS_SEN , OBS_SWQ1, OBS_SWQ2, OBS_SWMT, OBS_SWLS, OBS_SWGA, &
+              OBS_SWHA, OBS_GQF , OBS_GQL , OBS_ROQF, OBS_TTYP, (0,ii=27,100) /)
 
          hdr_real_column_list= &
-            (/OBS_LAT, OBS_LON, OBS_ALT, OBS_BX,  OBS_BY,  OBS_BZ, OBS_TRAD, &
-              OBS_GEOI,OBS_CLF, OBS_SUN, OBS_SZA, OBS_AZA, OBS_SAZ, &
-              OBS_RZAM, OBS_RELE, OBS_RANS, OBS_RANE, (0,ii=18,100)/)
+            (/OBS_LAT , OBS_LON , OBS_ALT , OBS_BX  , OBS_BY  , OBS_BZ  , OBS_TRAD, &
+              OBS_GEOI, OBS_CLF , OBS_SUN , OBS_SZA , OBS_AZA , OBS_SAZ , OBS_RZAM, &
+              OBS_RELE, OBS_RANS, OBS_RANE, (0,ii=18,100)/)
 
          bdy_int_column_list= &
-            (/OBS_VNM, OBS_FLG, OBS_ASS, OBS_HIND,OBS_VCO, OBS_LYR, &
-              OBS_XTR, OBS_QCF2, OBS_CLA, (0,ii=10,100) /)
+            (/OBS_VNM , OBS_FLG , OBS_ASS , OBS_HIND, OBS_VCO , OBS_LYR , OBS_XTR , &
+              OBS_QCF2, OBS_CLA , (0,ii=10,100) /)
 
          bdy_real_column_list= &
-            (/OBS_PPP, OBS_SEM, OBS_VAR, OBS_OMP, OBS_OMA, OBS_OMAM, OBS_OER, OBS_HPHT,&
-              OBS_HAHT,OBS_ZHA, OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, OBS_WORK, OBS_PRM,&
-              OBS_JOBS, OBS_BCOR,OBS_LOND,OBS_LATD, (0,ii=21,100) /)
+            (/OBS_PPP , OBS_SEM , OBS_VAR , OBS_OMP , OBS_OMA , OBS_OMAM, OBS_OER , &
+              OBS_HPHT, OBS_HAHT, OBS_ZHA , OBS_OMP6, OBS_OMA0, OBS_SIGI, OBS_SIGO, &
+              OBS_WORK, OBS_PRM , OBS_JOBS, OBS_BCOR, OBS_LOND, OBS_LATD, (0,ii=21,100) /)
 
          do list_index=1,COLUMN_LIST_SIZE
             column_index = hdr_int_column_list(list_index)
@@ -1563,10 +1560,10 @@ module ObsSpaceData_mod
 
    ! PARAMETERS INHERITED FROM ObsColumnNames_mod (make them public)
    !    integer-header column numbers
-   public :: OBS_RLN, OBS_ONM, OBS_INS, OBS_OTP, OBS_ITY, OBS_SAT, OBS_TEC
+   public :: OBS_RLN, OBS_ONM, OBS_INS, OBS_IDF, OBS_ITY, OBS_SAT, OBS_TEC
    public :: OBS_DAT, OBS_ETM, OBS_NLV, OBS_PAS, OBS_REG, OBS_IP , OBS_SEN
    public :: OBS_IPF, OBS_IPC, OBS_IPT
-   public :: OBS_ST1, OBS_IDF
+   public :: OBS_ST1 
    public :: OBS_GQF, OBS_GQL
    public :: OBS_NCO2,OBS_STYP,OBS_ROQF
    public :: OBS_SWQ1,OBS_SWQ2,OBS_SWMT,OBS_SWLS,OBS_SWGA,OBS_SWHA
@@ -2807,7 +2804,7 @@ contains
       type(struct_obs), intent(in) :: obsdata
       integer,      intent(in)  :: kobs, kulout
 
-      integer :: obsRLN, obsONM, obsDAT, obsETM, obsINS, obsOTP, obsITY
+      integer :: obsRLN, obsONM, obsDAT, obsETM, obsINS, obsIDF, obsITY
       integer :: obsNLV, obsPAS, obsREG, obsIP
       real(pre_obsReal) ::obsLAT, obsLON, obsALT, obsBX, obsBY, obsBZ, obsAZA
 
@@ -2825,7 +2822,7 @@ contains
       obsDAT = obs_headElem_i(obsdata, OBS_DAT, kobs)
       obsETM = obs_headElem_i(obsdata, OBS_ETM, kobs)
       obsINS = obs_headElem_i(obsdata, OBS_INS, kobs)
-      obsOTP = obs_headElem_i(obsdata, OBS_OTP, kobs)
+      obsIDF = obs_headElem_i(obsdata, OBS_IDF, kobs)
       obsITY = obs_headElem_i(obsdata, OBS_ITY, kobs)
       obsLAT = obs_headElem_r(obsdata, OBS_LAT, kobs)
       obsLON = obs_headElem_r(obsdata, OBS_LON, kobs)
@@ -2835,7 +2832,7 @@ contains
       obsBZ  = obs_headElem_r(obsdata, OBS_BZ , kobs)
       obsAZA = obs_headElem_r(obsdata, OBS_AZA, kobs)
       write(kulout,fmt=9200) obsRLN, obsONM, obsDAT, obsETM, &
-           obsINS, obsOTP, obsITY, obsLAT, obsLON, obsALT, &
+           obsINS, obsIDF, obsITY, obsLAT, obsLON, obsALT, &
            obsBX , obsBY , obsBZ , obsAZA
 
       obsNLV = obs_headElem_i(obsdata, OBS_NLV, kobs)
@@ -4128,7 +4125,7 @@ contains
       integer         , intent(in), optional :: unitout_opt ! variable output unit facilitates unit testing
 
       integer :: unitout_
-      integer :: obsRLN, obsONM, obsINS, obsOTP, obsITY
+      integer :: obsRLN, obsONM, obsINS, obsIDF, obsITY
       integer :: obsDAT, obsETM, obsNLV, obsST1, obsSTYP, obsTTYP
       real(pre_obsReal) :: obsLON, obsLAT, obsALT
       character(len=12) :: stnid
@@ -4151,7 +4148,7 @@ contains
       obsRLN = obs_headElem_i(obsdata,OBS_RLN,index_hd)
       obsONM = obs_headElem_i(obsdata,OBS_ONM,index_hd)
       obsINS = obs_headElem_i(obsdata,OBS_INS,index_hd)
-      obsOTP = obs_headElem_i(obsdata,OBS_OTP,index_hd)
+      obsIDF = obs_headElem_i(obsdata,OBS_IDF,index_hd)
       obsITY = obs_headElem_i(obsdata,OBS_ITY,index_hd)
       obsLAT = obs_headElem_r(obsdata,OBS_LAT,index_hd)
       obsLON = obs_headElem_r(obsdata,OBS_LON,index_hd)
@@ -4163,7 +4160,7 @@ contains
       obsTTYP= obs_headElem_i(obsdata,OBS_TTYP,index_hd)
       obsST1 = obs_headElem_i(obsdata,OBS_ST1,index_hd)
       stnid  = obs_elem_c(obsdata,'STID',index_hd)
-      write(unitout_,fmt=9200) obsRLN, obsONM, obsINS, obsOTP, obsITY, &
+      write(unitout_,fmt=9200) obsRLN, obsONM, obsINS, obsIDF, obsITY, &
            obsLAT, obsLON, obsDAT, obsETM, stnid, obsALT, obsNLV, &
            obsSTYP, obsTTYP, obsST1
 

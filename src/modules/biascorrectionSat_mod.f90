@@ -785,11 +785,11 @@ contains
     allocate(stmtCoeffs(tovsFileNameListSize))
     allocate(first(tovsFileNameListSize))
     first(:) = .true.
-    allocate(fileIndexes(size(obsf_cfilnam)))
+    allocate(fileIndexes(size(obsf_fileName)))
     fileIndexes(:) = -1
     do fileIndex = 1, tovsFileNameListSize
-      do searchIndex = 1, size(obsf_cfilnam)
-        if (index(trim(obsf_cfilnam(searchIndex)), trim(tovsFileNameList(fileIndex))) >0) then
+      do searchIndex = 1, size(obsf_fileName)
+        if (index(trim(obsf_fileName(searchIndex)), trim(tovsFileNameList(fileIndex))) >0) then
           fileIndexes(searchIndex) = fileIndex
         end if
       end do
@@ -829,7 +829,7 @@ contains
         cycle HEADER
       end if
       iobs = iobs + 1
-      fileIndex = fileIndexes(obs_headElem_i(obsSpaceData, OBS_OTP, headerIndex))
+      fileIndex = fileIndexes(obs_headElem_i(obsSpaceData, OBS_IDF, headerIndex))
       indxtovs = tvs_tovsIndex(headerIndex)
       if (indxtovs < 0) cycle HEADER
       sensorIndex = tvs_lsensor(indxTovs)

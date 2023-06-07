@@ -34,7 +34,7 @@ module obsFiles_mod
   private
 
   ! public variables
-  public :: obsf_nfiles, obsf_cfilnam
+  public :: obsf_nfiles, obsf_fileName
 
   ! public procedures
   public :: obsf_setup, obsf_filesSplit, obsf_determineFileType, obsf_determineSplitFileType
@@ -44,16 +44,22 @@ module obsFiles_mod
   logical           :: obsFilesSplit
   logical           :: initialized = .false.
 
-  integer, parameter :: jpfiles=150
-  integer, parameter :: maxLengthFilename=1060
-  integer :: obsf_nfiles
-  character(len=maxLengthFilename) :: obsf_cfilnam(jpfiles)
-  character(len=2)   :: obsf_cfamtyp(jpfiles)
-
+  integer, parameter :: maxNumObsfiles = 150
+  integer, parameter :: maxLengthFilename = 1060
+  integer, parameter :: familyTypeLen = 2
+  integer :: obsf_nfiles, obsf_numMpiUniqueList
+  character(len=maxLengthFilename) :: obsf_fileName(maxNumObsfiles)
+  character(len=familyTypeLen)     :: obsf_familyType(maxNumObsfiles)
   character(len=48)  :: obsFileMode
+  character(len=maxLengthFilename) :: obsf_baseFileNameMpiUniqueList(maxNumObsfiles)
+  character(len=familyTypeLen)     :: obsf_familyTypeMpiUniqueList(maxNumObsfiles)
+  character(len=9) :: obsf_myIdExt
 
 contains
 
+  !--------------------------------------------------------------------------
+  ! obsf_setup
+  !--------------------------------------------------------------------------
   subroutine obsf_setup(dateStamp_out, obsFileMode_in)
 
     implicit none
@@ -87,11 +93,11 @@ contains
     ! Do some setup of observation files
     !
     if ( obsFileType == 'BURP' ) then
-      call brpf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+      call brpf_getDateStamp( dateStamp_out, obsf_fileName(1) )
     else if ( obsFileType == 'OBSDB' ) then
-      call odbf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+      call odbf_getDateStamp( dateStamp_out, obsf_fileName(1) )
     else if ( obsFileType == 'SQLITE' ) then
-      call sqlf_getDateStamp( dateStamp_out, obsf_cfilnam(1) )
+      call sqlf_getDateStamp( dateStamp_out, obsf_fileName(1) )
     else
       dateStamp_out = -1
     end if
@@ -100,7 +106,9 @@ contains
 
   end subroutine obsf_setup
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_filesSplit
+  !--------------------------------------------------------------------------
   function obsf_filesSplit() result(obsFilesSplit_out)
     implicit none
 
@@ -113,7 +121,9 @@ contains
         
   end function obsf_filesSplit
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_readFiles
+  !--------------------------------------------------------------------------
   subroutine obsf_readFiles( obsSpaceData )
 
     implicit none
@@ -122,39 +132,75 @@ contains
     type(struct_obs)  :: obsSpaceData
 
     ! locals
-    integer           :: fileIndex
+    integer :: fileIndex, fileIndexMpiLocal, numHeaders, numBodies
+    integer :: numHeaderBefore, numBodyBefore, numHeaderRead, numBodyRead
     character(len=10) :: obsFileType
+    character(len=maxLengthFilename) :: fileName
+    character(len=256) :: fileNamefull
+    character(len=familyTypeLen) :: obsFamilyType
+    logical :: fileExists
 
     if ( .not.initialized ) call utl_abort('obsf_readFiles: obsFiles_mod not initialized!')
 
     call obsf_determineFileType(obsFileType)
 
     ! for every splitted file, the file type is defined separately 
-    do fileIndex = 1, obsf_nfiles
-      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
-      if ( obsFileType == 'BURP' )   then
-        ! Add extra bias correction elements to conventional and TO files
-        ! Bias correction elements for AI are added at the derivate file stage
-        if ( obsf_cfamtyp(fileIndex) == 'TO' ) then
-          call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
-        else 
-          if ( bcc_biasActive(obsf_cfamtyp(fileIndex)) ) then
-            call brpr_addElementsToBurp(obsf_cfilnam(fileIndex),  obsf_cfamtyp(fileIndex), beSilent_opt=.false.)
+    do fileIndex = 1, obsf_numMpiUniqueList
+
+      fileName = trim(obsf_baseFileNameMpiUniqueList(fileIndex)) // '_' // trim(obsf_myIdExt)
+      obsFamilyType = obsf_familyTypeMpiUniqueList(fileIndex)
+      fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
+      inquire(file=trim(fileNameFull),exist=fileExists)
+
+      if (fileExists) then
+        ! get fileIndex on mpi local
+        do fileIndexMpiLocal = 1, obsf_nfiles
+          if (trim(obsf_fileName(fileIndexMpiLocal)) == fileNamefull .and. &
+              trim(obsf_familyType(fileIndexMpiLocal)) == obsFamilyType) then
+            exit
           end if
+        end do
+
+        call obsf_determineSplitFileType( obsFileType, fileNameFull )
+        if ( obsFileType == 'BURP' )   then
+          ! Add extra bias correction elements to conventional and TO files
+          ! Bias correction elements for AI are added at the derivate file stage
+          if ( obsFamilyType == 'TO' ) then
+            call brpr_addElementsToBurp(fileNameFull, obsFamilyType, beSilent_opt=.false.)
+          else 
+            if ( bcc_biasActive(obsFamilyType) ) then
+              call brpr_addElementsToBurp(fileNameFull, obsFamilyType, beSilent_opt=.false.)
+            end if
+          end if
+
+          numHeaderBefore = obs_numHeader(obsSpaceData)
+          numBodyBefore = obs_numBody(obsSpaceData)
+          call brpf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
+          numHeaders = obs_numHeader(obsSpaceData)
+          numBodies = obs_numBody(obsSpaceData)
+          numHeaderRead = numHeaders - numHeaderBefore
+          numBodyRead = numBodies - numBodyBefore
         end if
-        call brpf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
+        if ( obsFileType == 'SQLITE' ) then
+          call sqlf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
+        end if
+        if ( obsFileType == 'OBSDB' ) then
+          call odbf_readFile( obsSpaceData, fileNameFull, obsFamilyType, fileIndexMpiLocal )
+        end if
+      else
+        numHeaderRead = 0
+        numBodyRead = 0
+      end if ! if (fileExists)
+
+      if (obsFileType == 'BURP') then
+        call setHeadBodyPrimaryKeyColumns(obsSpaceData, numHeaderRead, numBodyRead)
       end if
-      if ( obsFileType == 'SQLITE' ) then
-        call sqlf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
-      end if
-      if ( obsFileType == 'OBSDB' ) then
-        call odbf_readFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), fileIndex )
-      end if
+      
     end do
 
     ! abort if NAMTOV does not exist but there are radiance observation files
     if ( .not. utl_isNamelistPresent('NAMTOV','./flnml') .and. &
-        any(obsf_cfamtyp(:) == 'TO') ) then
+        any(obsf_familyType(:) == 'TO') ) then
       call utl_abort('obsf_readFiles: Namelist block NAMTOV is missing but there are radiance observation files')
     end if
 
@@ -163,7 +209,9 @@ contains
   
   end subroutine obsf_readFiles
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_writeFiles
+  !--------------------------------------------------------------------------
   subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt, writeDiagFiles_opt, ensObs_opt)
     implicit none
 
@@ -176,6 +224,9 @@ contains
   
     ! locals
     integer           :: fileIndex, fnom, fclos, nulnam, ierr
+    integer           :: status, baseNameIndexBeg
+    character(len=maxLengthFilename) :: baseNameNoPrefix, baseName, fullName, fullNameWithPath, fileNameDir
+    character(len=256):: obsDirectory
     character(len=10) :: obsFileType, sfFileName
     character(len=*), parameter :: myName = 'obsf_writeFiles'
     character(len=*), parameter :: myWarning = myName //' WARNING: '
@@ -184,8 +235,9 @@ contains
     logical :: lwritediagsql ! choose to write 'diag' sqlite observation files
     logical :: onlyAssimObs  ! choose to not include unassimilated obs in 'diag' sqlite files
     logical :: addFSOdiag    ! choose to include FSO column in body table
+    logical :: writeObsDb    ! write obDB file from scratch
 
-    namelist /namwritediag/lwritediagsql,onlyAssimObs,addFSOdiag
+    namelist /namwritediag/ lwritediagsql, onlyAssimObs, addFSOdiag, writeObsDb
 
     call utl_tmg_start(10,'--Observations')
 
@@ -197,6 +249,7 @@ contains
     lwritediagsql = .false.
     onlyAssimObs = .false.
     addFSOdiag = .false.
+    writeObsDb = .false.
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=namwritediag,iostat=ierr)
     if (ierr /= 0) write(*,*) myWarning//' namwritediag is missing in the namelist. The default value will be taken.'
@@ -221,22 +274,50 @@ contains
       if (trim(obsFileMode) /= 'prepcma') call obsu_updateSourceVariablesFlag(obsSpaceData)
 
       do fileIndex = 1, obsf_nfiles
-        call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+        call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
 
         if ( obsFileType == 'BURP'   ) then
-          call brpf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex), &
+          call brpf_updateFile( obsSpaceData, obsf_fileName(fileIndex), obsf_familyType(fileIndex), &
                                 fileIndex )
         else if ( obsFileType == 'OBSDB' ) then
-          call odbf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
-                                obsf_cfamtyp(fileIndex), fileIndex )
+          call odbf_updateFile( obsSpaceData, obsf_fileName(fileIndex), &
+                                obsf_familyType(fileIndex), fileIndex )
         else if ( obsFileType == 'SQLITE' ) then
-          call sqlf_updateFile( obsSpaceData, obsf_cfilnam(fileIndex), &
-                                obsf_cfamtyp(fileIndex), fileIndex )
+          call sqlf_updateFile( obsSpaceData, obsf_fileName(fileIndex), &
+                                obsf_familyType(fileIndex), fileIndex )
         end if
       end do
 
       if ( present(HXens_mpiglobal_opt) .and. mmpi_myid == 0 ) then
         call obsf_writeHX(obsSpaceData, HXens_mpiglobal_opt)
+      end if
+
+      ! write obsDB files in the same directory with odb prefix
+      if (writeObsDb) then
+        fileNameDir = trim(ram_getRamDiskDir())
+        if (fileNameDir == ' ') then
+          write(*,*) 'obsf_writeFiles: WARNING! Writing obsDB to current working path ' // &
+                     'instead of ramdisk'
+        end if
+
+        if (obsf_filesSplit()) call rpn_comm_barrier('GRID',status)
+
+        ! update obsDB files
+        do fileIndex = 1, obsf_nfiles
+          fullName = trim(obsf_fileName(fileIndex))
+          baseNameIndexBeg = index(fullName,'/',back=.true.)
+
+          obsDirectory = 'obs'
+
+          ! change the prefix to odb
+          baseNameNoPrefix = fullName(baseNameIndexBeg+1+3:)
+          baseName = 'odb' // trim(baseNameNoPrefix)
+
+          fullNameWithPath = trim(fileNameDir) // trim(obsDirectory) // '/'//trim(baseName)
+          
+          call odbf_updateFile(obsSpaceData, fullNameWithPath, &
+                               obsf_familyType(fileIndex), fileIndex)
+        end do        
       end if
 
     end if
@@ -266,7 +347,9 @@ contains
 
   end subroutine obsf_writeFiles
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_cleanObsFiles
+  !--------------------------------------------------------------------------
   subroutine obsf_cleanObsFiles()
     implicit none
 
@@ -288,14 +371,14 @@ contains
     call utl_tmg_start(23, '----ObsFileClean')
 
     do fileIndex = 1, obsf_nfiles
-      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
 
       if ( obsFileType == 'BURP' ) then
-        call brpr_burpClean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+        call brpr_burpClean( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
       else if ( obsFileType == 'OBSDB' ) then
-        call obdf_clean( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+        call obdf_clean( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
       else if ( obsFileType == 'SQLITE' ) then
-        call sqlf_cleanFile( obsf_cfilnam(fileIndex), obsf_cfamtyp(fileIndex) )
+        call sqlf_cleanFile( obsf_fileName(fileIndex), obsf_familyType(fileIndex) )
       end if
     end do
 
@@ -303,7 +386,9 @@ contains
 
   end subroutine obsf_cleanObsFiles 
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_writeHX
+  !--------------------------------------------------------------------------
   subroutine obsf_writeHX(obsSpaceData, HXens_mpiglobal)
     implicit none
 
@@ -331,7 +416,9 @@ contains
 
   end subroutine obsf_writeHX
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_writeAsciDump
+  !--------------------------------------------------------------------------
   subroutine obsf_writeAsciDump(obsSpaceData)
 
     implicit none
@@ -342,18 +429,18 @@ contains
     ! locals
     character(len=25) :: fileNameAsciDump
     integer :: unitAsciDump, ierr, fnom, fclos
-    character(len=4)    :: cmyidx, cmyidy
-    character(len=9)    :: cmyid
+    character(len=4)    :: myIdxStr, myIdyStr
+    character(len=9)    :: myIdStr
 
     write(*,*) 'obsf_writeAsciDump: Starting'
 
     ! determine the file name depending on if obs data is mpi local or global
     if ( obs_mpiLocal(obsSpaceData) ) then
       ! separate file per mpi task
-      write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
-      write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
-      cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
-      fileNameAsciDump = 'obsout_asci_' // trim(cmyid)
+      write(myIdyStr,'(I4.4)') (mmpi_myidy + 1)
+      write(myIdxStr,'(I4.4)') (mmpi_myidx + 1)
+      myIdStr  = trim(myIdxStr) // '_' // trim(myIdyStr)
+      fileNameAsciDump = 'obsout_asci_' // trim(myIdStr)
     else
       ! only task 0 write the global data
       if ( mmpi_myid > 0 ) return
@@ -368,287 +455,366 @@ contains
 
   end subroutine obsf_writeAsciDump
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_setupFileNames
+  !--------------------------------------------------------------------------
   subroutine obsf_setupFileNames()
 
     implicit none
 
     ! locals
-    character(len=20)   :: clvalu(jpfiles)
-    character(len=2)    :: cfami(jpfiles)
-    character(len=4)    :: cmyidx, cmyidy
-    character(len=9)    :: cmyid
-    character(len=256)  :: obsDirectory
-    character(len=maxLengthFilename) :: fileName   !! the length should be more than len(obsDirectory)+1+len(clvalu)+1+len(cmyid)
+    character(len=20) :: namePrefix(maxNumObsfiles)
+    character(len=2) :: familyName(maxNumObsfiles)
+    character(len=4) :: myIdxStr, myIdyStr
+    character(len=256):: obsDirectory
+    character(len=maxLengthFilename) :: fileName, baseFileName  ! the length should be more than 
+                                                                ! len(obsDirectory)+1+len(namePrefix)+1+len(obsf_myIdExt)
+    character(len=maxLengthFilename) :: baseFileNameList(maxNumObsfiles)
     character(len=256)               :: fileNamefull
     logical :: fileExists
     integer :: fileIndex
 
-    write(cmyidy,'(I4.4)') (mmpi_myidy + 1)
-    write(cmyidx,'(I4.4)') (mmpi_myidx + 1)
-    cmyid  = trim(cmyidx) // '_' // trim(cmyidy)
+    write(myIdyStr,'(I4.4)') (mmpi_myidy + 1)
+    write(myIdxStr,'(I4.4)') (mmpi_myidx + 1)
+    obsf_myIdExt  = trim(myIdxStr) // '_' // trim(myIdyStr)
 
-    clvalu(:)=''
+    namePrefix(:)=''
     ! file names only for burp
-    clvalu( 1) = 'brpuan'
-    clvalu( 2) = 'brpuas'
-    clvalu( 3) = 'brpai'
-    clvalu( 4) = 'brpain'
-    clvalu( 5) = 'brpais'
-    clvalu( 6) = 'brpaie'
-    clvalu( 7) = 'brpaiw'
-    clvalu( 8) = 'brpsfc'
-    clvalu( 9) = 'brpsf'
-    clvalu(10) = 'brptov'
-    clvalu(11) = 'brpssmis'
-    clvalu(12) = 'brpairs'
-    clvalu(13) = 'brpto_amsua'
-    clvalu(14) = 'brpto_amsua_allsky'
-    clvalu(15) = 'brpto_amsub'
-    clvalu(16) = 'brpto_amsub_allsky'
-    clvalu(17) = 'brpcsr'
-    clvalu(18) = 'brpiasi'
-    clvalu(19) = 'brpatms'
-    clvalu(20) = 'brpatms_allsky'
-    clvalu(21) = 'brpcris'
-    clvalu(22) = 'brpcrisfsr'
-    clvalu(23) = 'brpcrisfsr1'
-    clvalu(24) = 'brpcrisfsr2'
-    clvalu(25) = 'brpcrisfsr3'
-    clvalu(26) = 'brpcrisfsr4'
-    clvalu(27) = 'brpsw'
-    clvalu(28) = 'brpswgoes9'
-    clvalu(29) = 'brpswgoese'
-    clvalu(30) = 'brpswgoesw'
-    clvalu(31) = 'brpswmodis'
-    clvalu(32) = 'brpswmtsate'
-    clvalu(33) = 'brpswmtsatw'
-    clvalu(34) = 'brpgo'
-    clvalu(35) = 'brpsc'
-    clvalu(36) = 'brppr'
-    clvalu(37) = 'brpro'
-    clvalu(38) = 'brphum'
-    clvalu(39) = 'brpsat'
-    clvalu(40) = 'brpssm'
-    clvalu(41) = 'brpgp'
-    clvalu(42) = 'brpch'
-    clvalu(43) = 'brpua'
+    namePrefix( 1) = 'brpuan'
+    namePrefix( 2) = 'brpuas'
+    namePrefix( 3) = 'brpai'
+    namePrefix( 4) = 'brpain'
+    namePrefix( 5) = 'brpais'
+    namePrefix( 6) = 'brpaie'
+    namePrefix( 7) = 'brpaiw'
+    namePrefix( 8) = 'brpsfc'
+    namePrefix( 9) = 'brpsf'
+    namePrefix(10) = 'brptov'
+    namePrefix(11) = 'brpssmis'
+    namePrefix(12) = 'brpairs'
+    namePrefix(13) = 'brpto_amsua'
+    namePrefix(14) = 'brpto_amsua_allsky'
+    namePrefix(15) = 'brpto_amsub'
+    namePrefix(16) = 'brpto_amsub_allsky'
+    namePrefix(17) = 'brpcsr'
+    namePrefix(18) = 'brpiasi'
+    namePrefix(19) = 'brpatms'
+    namePrefix(20) = 'brpatms_allsky'
+    namePrefix(21) = 'brpcris'
+    namePrefix(22) = 'brpcrisfsr'
+    namePrefix(23) = 'brpcrisfsr1'
+    namePrefix(24) = 'brpcrisfsr2'
+    namePrefix(25) = 'brpcrisfsr3'
+    namePrefix(26) = 'brpcrisfsr4'
+    namePrefix(27) = 'brpsw'
+    namePrefix(28) = 'brpswgoes9'
+    namePrefix(29) = 'brpswgoese'
+    namePrefix(30) = 'brpswgoesw'
+    namePrefix(31) = 'brpswmodis'
+    namePrefix(32) = 'brpswmtsate'
+    namePrefix(33) = 'brpswmtsatw'
+    namePrefix(34) = 'brpgo'
+    namePrefix(35) = 'brpsc'
+    namePrefix(36) = 'brppr'
+    namePrefix(37) = 'brpro'
+    namePrefix(38) = 'brphum'
+    namePrefix(39) = 'brpsat'
+    namePrefix(40) = 'brpssm'
+    namePrefix(41) = 'brpgp'
+    namePrefix(42) = 'brpch'
+    namePrefix(43) = 'brpua'
     ! new general file names for burp and sqlite
-    clvalu(44) = 'obsua'
-    clvalu(45) = 'obsuan'
-    clvalu(46) = 'obsuas'
-    clvalu(47) = 'obsai'
-    clvalu(48) = 'obsain'
-    clvalu(49) = 'obsais'
-    clvalu(50) = 'obsaie'
-    clvalu(51) = 'obsaiw'
-    clvalu(52) = 'obssfc'
-    clvalu(53) = 'obssf'
-    clvalu(54) = 'obstov'
-    clvalu(55) = 'obsssmis'
-    clvalu(56) = 'obsairs'
-    clvalu(57) = 'obsto_amsua'
-    clvalu(58) = 'obsto_amsua_allsky'
-    clvalu(59) = 'obsto_amsub'
-    clvalu(60) = 'obsto_amsub_allsky'
-    clvalu(61) = 'obscsr'
-    clvalu(62) = 'obsiasi'
-    clvalu(63) = 'obsatms'
-    clvalu(64) = 'obsatms_allsky'
-    clvalu(65) = 'obscris'
-    clvalu(66) = 'obscrisfsr'
-    clvalu(67) = 'obscrisfsr1'
-    clvalu(68) = 'obscrisfsr2'
-    clvalu(69) = 'obscrisfsr3'
-    clvalu(70) = 'obscrisfsr4'
-    clvalu(71) = 'obssw'
-    clvalu(72) = 'obsswgoes9'
-    clvalu(73) = 'obsswgoese'
-    clvalu(74) = 'obsswgoesw'
-    clvalu(75) = 'obsswmodis'
-    clvalu(76) = 'obsswmtsate'
-    clvalu(77) = 'obsswmtsatw'
-    clvalu(78) = 'obsgo'
-    clvalu(79) = 'obssc'
-    clvalu(80) = 'obspr'
-    clvalu(81) = 'obsro'
-    clvalu(82) = 'obshum'
-    clvalu(83) = 'obssat'
-    clvalu(84) = 'obsssm'
-    clvalu(85) = 'obsgp'
-    clvalu(86) = 'obsch'
-    clvalu(87) = 'obsgl_ssmi'
-    clvalu(88) = 'obsgl_ssmis'
-    clvalu(89) = 'obsgl_amsr2'
-    clvalu(90) = 'obsgl_ascat'
-    clvalu(91) = 'obsgl_avhrr'
-    clvalu(92) = 'obsgl_cisA'
-    clvalu(93) = 'obsgl_cisI'
-    clvalu(94) = 'obsgl_cisL'
-    clvalu(95) = 'obsgl_cisR'
-    clvalu(96) = 'cmaheader' ! file name for CMA format used by EnKF
-    clvalu(97) = 'brpsst'
-    clvalu(98) = 'obsal'
-    clvalu(99) = 'obsradar'
-    clvalu(100)= 'obssst_insitu'
-    clvalu(101)= 'obshydro'
-    clvalu(102)= 'obsmwhs2'
-    clvalu(103)= 'brpmwhs2'
-    clvalu(104)= 'obssarwinds'
-    clvalu(105)= 'obssst_avhrr'
-    clvalu(106)= 'obssst_amsr2'
-    clvalu(107)= 'obssst_viirs'
-    clvalu(108)= 'obssst_pseudo'
-    clvalu(109)= 'obssst'
+    namePrefix(44) = 'obsua'
+    namePrefix(45) = 'obsuan'
+    namePrefix(46) = 'obsuas'
+    namePrefix(47) = 'obsai'
+    namePrefix(48) = 'obsain'
+    namePrefix(49) = 'obsais'
+    namePrefix(50) = 'obsaie'
+    namePrefix(51) = 'obsaiw'
+    namePrefix(52) = 'obssfc'
+    namePrefix(53) = 'obssf'
+    namePrefix(54) = 'obstov'
+    namePrefix(55) = 'obsssmis'
+    namePrefix(56) = 'obsairs'
+    namePrefix(57) = 'obsto_amsua'
+    namePrefix(58) = 'obsto_amsua_allsky'
+    namePrefix(59) = 'obsto_amsub'
+    namePrefix(60) = 'obsto_amsub_allsky'
+    namePrefix(61) = 'obscsr'
+    namePrefix(62) = 'obsiasi'
+    namePrefix(63) = 'obsatms'
+    namePrefix(64) = 'obsatms_allsky'
+    namePrefix(65) = 'obscris'
+    namePrefix(66) = 'obscrisfsr'
+    namePrefix(67) = 'obscrisfsr1'
+    namePrefix(68) = 'obscrisfsr2'
+    namePrefix(69) = 'obscrisfsr3'
+    namePrefix(70) = 'obscrisfsr4'
+    namePrefix(71) = 'obssw'
+    namePrefix(72) = 'obsswgoes9'
+    namePrefix(73) = 'obsswgoese'
+    namePrefix(74) = 'obsswgoesw'
+    namePrefix(75) = 'obsswmodis'
+    namePrefix(76) = 'obsswmtsate'
+    namePrefix(77) = 'obsswmtsatw'
+    namePrefix(78) = 'obsgo'
+    namePrefix(79) = 'obssc'
+    namePrefix(80) = 'obspr'
+    namePrefix(81) = 'obsro'
+    namePrefix(82) = 'obshum'
+    namePrefix(83) = 'obssat'
+    namePrefix(84) = 'obsssm'
+    namePrefix(85) = 'obsgp'
+    namePrefix(86) = 'obsch'
+    namePrefix(87) = 'obsgl_ssmi'
+    namePrefix(88) = 'obsgl_ssmis'
+    namePrefix(89) = 'obsgl_amsr2'
+    namePrefix(90) = 'obsgl_ascat'
+    namePrefix(91) = 'obsgl_avhrr'
+    namePrefix(92) = 'obsgl_cisA'
+    namePrefix(93) = 'obsgl_cisI'
+    namePrefix(94) = 'obsgl_cisL'
+    namePrefix(95) = 'obsgl_cisR'
+    namePrefix(96) = 'cmaheader' ! file name for CMA format used by EnKF
+    namePrefix(97) = 'brpsst'
+    namePrefix(98) = 'obsal'
+    namePrefix(99) = 'obsradar'
+    namePrefix(100)= 'obssst_insitu'
+    namePrefix(101)= 'obshydro'
+    namePrefix(102)= 'obsmwhs2'
+    namePrefix(103)= 'brpmwhs2'
+    namePrefix(104)= 'obssarwinds'
+    namePrefix(105)= 'obssst_avhrr'
+    namePrefix(106)= 'obssst_amsr2'
+    namePrefix(107)= 'obssst_viirs'
+    namePrefix(108)= 'obssst_pseudo'
+    namePrefix(109)= 'obssst'
 
-    cfami(:)   = ''
-    cfami( 1)  = 'UA'
-    cfami( 2)  = 'UA'
-    cfami( 3)  = 'AI'
-    cfami( 4)  = 'AI'
-    cfami( 5)  = 'AI'
-    cfami( 6)  = 'AI'
-    cfami( 7)  = 'AI'
-    cfami( 8)  = 'SF'
-    cfami( 9)  = 'SF'
-    cfami(10)  = 'TO'
-    cfami(11)  = 'TO'
-    cfami(12)  = 'TO'
-    cfami(13)  = 'TO'
-    cfami(14)  = 'TO'
-    cfami(15)  = 'TO'
-    cfami(16)  = 'TO'
-    cfami(17)  = 'TO'
-    cfami(18)  = 'TO'
-    cfami(19)  = 'TO'
-    cfami(20)  = 'TO'
-    cfami(21)  = 'TO'
-    cfami(22)  = 'TO'
-    cfami(23)  = 'TO'
-    cfami(24)  = 'TO'
-    cfami(25)  = 'TO'
-    cfami(26)  = 'TO'
-    cfami(27)  = 'SW'
-    cfami(28)  = 'SW'
-    cfami(29)  = 'SW'
-    cfami(30)  = 'SW'
-    cfami(31)  = 'SW'
-    cfami(32)  = 'SW'
-    cfami(33)  = 'SW'
-    cfami(34)  = 'GO'
-    cfami(35)  = 'SC'
-    cfami(36)  = 'PR'
-    cfami(37)  = 'RO'
-    cfami(38)  = 'HU'
-    cfami(39)  = 'ST'
-    cfami(40)  = 'MI'
-    cfami(41)  = 'GP'
-    cfami(42)  = 'CH'
-    cfami(43)  = 'UA'
-    cfami(44)  = 'UA'
-    cfami(45)  = 'UA'
-    cfami(46)  = 'UA'
-    cfami(47)  = 'AI'
-    cfami(48)  = 'AI'
-    cfami(49)  = 'AI'
-    cfami(50)  = 'AI'
-    cfami(51)  = 'AI'
-    cfami(52)  = 'SF'
-    cfami(53)  = 'SF'
-    cfami(54)  = 'TO'
-    cfami(55)  = 'TO'
-    cfami(56)  = 'TO'
-    cfami(57)  = 'TO'
-    cfami(58)  = 'TO'
-    cfami(59)  = 'TO'
-    cfami(60)  = 'TO'
-    cfami(61)  = 'TO'
-    cfami(62)  = 'TO'
-    cfami(63)  = 'TO'
-    cfami(64)  = 'TO'
-    cfami(65)  = 'TO'
-    cfami(66)  = 'TO'
-    cfami(67)  = 'TO'
-    cfami(68)  = 'TO'
-    cfami(69)  = 'TO'
-    cfami(70)  = 'TO'
-    cfami(71)  = 'SW'
-    cfami(72)  = 'SW'
-    cfami(73)  = 'SW'
-    cfami(74)  = 'SW'
-    cfami(75)  = 'SW'
-    cfami(76)  = 'SW'
-    cfami(77)  = 'SW'
-    cfami(78)  = 'GO'
-    cfami(79)  = 'SC'
-    cfami(80)  = 'PR'
-    cfami(81)  = 'RO'
-    cfami(82)  = 'HU'
-    cfami(83)  = 'ST'
-    cfami(84)  = 'MI'
-    cfami(85)  = 'GP'
-    cfami(86)  = 'CH'
-    cfami(87)  = 'GL'
-    cfami(88)  = 'GL'
-    cfami(89)  = 'GL'
-    cfami(90)  = 'GL'
-    cfami(91)  = 'GL'
-    cfami(92)  = 'GL'
-    cfami(93)  = 'GL'
-    cfami(94)  = 'GL'
-    cfami(95)  = 'GL'
-    cfami(96)  = 'XX' ! dummy family type for CMA, since it contains all families
-    cfami(97)  = 'TM'
-    cfami(98)  = 'AL'
-    cfami(99)  = 'RA'
-    cfami(100) = 'TM'
-    cfami(101) = 'HY'
-    cfami(102) = 'TO'
-    cfami(103) = 'TO'
-    cfami(104) = 'SF'
-    cfami(105) = 'TM'
-    cfami(106) = 'TM'
-    cfami(107) = 'TM'
-    cfami(108) = 'TM'
-    cfami(109) = 'TM'
+    familyName(:)   = ''
+    familyName( 1)  = 'UA'
+    familyName( 2)  = 'UA'
+    familyName( 3)  = 'AI'
+    familyName( 4)  = 'AI'
+    familyName( 5)  = 'AI'
+    familyName( 6)  = 'AI'
+    familyName( 7)  = 'AI'
+    familyName( 8)  = 'SF'
+    familyName( 9)  = 'SF'
+    familyName(10)  = 'TO'
+    familyName(11)  = 'TO'
+    familyName(12)  = 'TO'
+    familyName(13)  = 'TO'
+    familyName(14)  = 'TO'
+    familyName(15)  = 'TO'
+    familyName(16)  = 'TO'
+    familyName(17)  = 'TO'
+    familyName(18)  = 'TO'
+    familyName(19)  = 'TO'
+    familyName(20)  = 'TO'
+    familyName(21)  = 'TO'
+    familyName(22)  = 'TO'
+    familyName(23)  = 'TO'
+    familyName(24)  = 'TO'
+    familyName(25)  = 'TO'
+    familyName(26)  = 'TO'
+    familyName(27)  = 'SW'
+    familyName(28)  = 'SW'
+    familyName(29)  = 'SW'
+    familyName(30)  = 'SW'
+    familyName(31)  = 'SW'
+    familyName(32)  = 'SW'
+    familyName(33)  = 'SW'
+    familyName(34)  = 'GO'
+    familyName(35)  = 'SC'
+    familyName(36)  = 'PR'
+    familyName(37)  = 'RO'
+    familyName(38)  = 'HU'
+    familyName(39)  = 'ST'
+    familyName(40)  = 'MI'
+    familyName(41)  = 'GP'
+    familyName(42)  = 'CH'
+    familyName(43)  = 'UA'
+    familyName(44)  = 'UA'
+    familyName(45)  = 'UA'
+    familyName(46)  = 'UA'
+    familyName(47)  = 'AI'
+    familyName(48)  = 'AI'
+    familyName(49)  = 'AI'
+    familyName(50)  = 'AI'
+    familyName(51)  = 'AI'
+    familyName(52)  = 'SF'
+    familyName(53)  = 'SF'
+    familyName(54)  = 'TO'
+    familyName(55)  = 'TO'
+    familyName(56)  = 'TO'
+    familyName(57)  = 'TO'
+    familyName(58)  = 'TO'
+    familyName(59)  = 'TO'
+    familyName(60)  = 'TO'
+    familyName(61)  = 'TO'
+    familyName(62)  = 'TO'
+    familyName(63)  = 'TO'
+    familyName(64)  = 'TO'
+    familyName(65)  = 'TO'
+    familyName(66)  = 'TO'
+    familyName(67)  = 'TO'
+    familyName(68)  = 'TO'
+    familyName(69)  = 'TO'
+    familyName(70)  = 'TO'
+    familyName(71)  = 'SW'
+    familyName(72)  = 'SW'
+    familyName(73)  = 'SW'
+    familyName(74)  = 'SW'
+    familyName(75)  = 'SW'
+    familyName(76)  = 'SW'
+    familyName(77)  = 'SW'
+    familyName(78)  = 'GO'
+    familyName(79)  = 'SC'
+    familyName(80)  = 'PR'
+    familyName(81)  = 'RO'
+    familyName(82)  = 'HU'
+    familyName(83)  = 'ST'
+    familyName(84)  = 'MI'
+    familyName(85)  = 'GP'
+    familyName(86)  = 'CH'
+    familyName(87)  = 'GL'
+    familyName(88)  = 'GL'
+    familyName(89)  = 'GL'
+    familyName(90)  = 'GL'
+    familyName(91)  = 'GL'
+    familyName(92)  = 'GL'
+    familyName(93)  = 'GL'
+    familyName(94)  = 'GL'
+    familyName(95)  = 'GL'
+    familyName(96)  = 'XX' ! dummy family type for CMA, since it contains all families
+    familyName(97)  = 'TM'
+    familyName(98)  = 'AL'
+    familyName(99)  = 'RA'
+    familyName(100) = 'TM'
+    familyName(101) = 'HY'
+    familyName(102) = 'TO'
+    familyName(103) = 'TO'
+    familyName(104) = 'SF'
+    familyName(105) = 'TM'
+    familyName(106) = 'TM'
+    familyName(107) = 'TM'
+    familyName(108) = 'TM'
+    familyName(109) = 'TM'
 
     obsDirectory = 'obs'
 
     obsf_nfiles = 0
-    obsf_cfilnam(1) = 'DUMMY_FILE_NAME'
+    obsf_fileName(1) = 'DUMMY_FILE_NAME'
+    baseFileNameList(:) = ''
 
-    do fileIndex = 1, jpfiles 
+    do fileIndex = 1, maxNumObsfiles 
 
-      if(clvalu(fileIndex) == '') exit
-      fileName = trim(obsDirectory) // '/' // trim(clvalu(fileIndex)) // '_' // trim(cmyid)
+      if(namePrefix(fileIndex) == '') exit
+
+      baseFileName = trim(obsDirectory) // '/' // trim(namePrefix(fileIndex))
+      fileName = trim(baseFileName) // '_' // trim(obsf_myIdExt)
       fileNameFull = ram_fullWorkingPath(fileName,noAbort_opt=.true.)
-
       inquire(file=trim(fileNameFull),exist=fileExists)
+
       if (.not. fileExists ) then
-        fileName=trim(obsDirectory)//'/'//trim(clvalu(fileIndex))
+        fileName=trim(baseFileName)
         fileNameFull = ram_fullWorkingPath(fileName, noAbort_opt=.true.)
         inquire(file=trim(fileNameFull), exist=fileExists)
       end if
 
       if ( fileExists ) then
         obsf_nfiles=obsf_nfiles + 1
-        obsf_cfilnam(obsf_nfiles) = fileNameFull
-        obsf_cfamtyp(obsf_nfiles) = cfami(fileIndex)
+        baseFileNameList(obsf_nfiles) = trim(baseFileName)
+        obsf_fileName(obsf_nfiles) = fileNameFull
+        obsf_familyType(obsf_nfiles) = familyName(fileIndex)
       end if
 
     end do
 
+    call setObsFilesMpiUniqueList(baseFileNameList)
+    
     write(*,*) ' '
     write(*,*)'obsf_setupFileNames: Number of observation files is :', obsf_nfiles
     write(*,*)'Type  Name '
     write(*,*)'----  ---- '
     do fileIndex = 1, obsf_nfiles
-      write(*,'(1X,A2,1X,A60)' ) obsf_cfamtyp(fileIndex), trim(obsf_cfilnam(fileIndex))
+      write(*,'(1X,A2,1X,A60)' ) obsf_familyType(fileIndex), trim(obsf_fileName(fileIndex))
     end do
 
   end subroutine obsf_setupFileNames
 
+  !--------------------------------------------------------------------------
+  ! setObsFilesMpiUniqueList
+  !--------------------------------------------------------------------------
+  subroutine setObsFilesMpiUniqueList(baseFileNameList)
+    !
+    ! :Purpose: Create a unique list of obs filenames/familyTypes across all mpi tasks.
+    !
+    implicit none
 
+    ! Arguments
+    character(len=*), intent(in) :: baseFileNameList(:)
+
+    ! Locals:
+    integer :: fileIndex, fileIndex2, procIndex, ierr
+    character(len=maxLengthFilename), allocatable :: baseFileNameListAllMpi(:,:)
+    character(len=familyTypeLen), allocatable :: familyTypeListAllMpi(:,:)
+
+    ! Communicate filenames across all mpi tasks
+    allocate(baseFileNameListAllMpi(maxNumObsfiles,mmpi_nprocs))
+    baseFileNameListAllMpi(:,:) = ''
+    call mmpi_allgather_string(baseFileNameList, baseFileNameListAllMpi, &
+                               maxNumObsfiles, maxLengthFilename, mmpi_nprocs, &
+                               "GRID", ierr)
+
+    ! Communicate familyTypes across all mpi tasks
+    allocate(familyTypeListAllMpi(maxNumObsfiles,mmpi_nprocs))
+    familyTypeListAllMpi(:,:) = ''
+    call mmpi_allgather_string(obsf_familyType, familyTypeListAllMpi, &
+                               maxNumObsfiles, familyTypeLen, mmpi_nprocs, &
+                               "GRID", ierr)
+
+    ! Create a unique list of obs filenames/familytype across all mpi tasks without duplicates
+    obsf_baseFileNameMpiUniqueList(:) = ''
+    obsf_familyTypeMpiUniqueList(:) = ''
+    obsf_numMpiUniqueList = 1
+    obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameListAllMpi(1,1)
+    obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeListAllMpi(1,1)
+    do procIndex = 1, mmpi_nprocs
+      loopFilename: do fileIndex = 1, maxNumObsfiles 
+        if (trim((baseFileNameListAllMpi(fileIndex,procIndex))) == '') cycle loopFilename
+
+        ! cycle if filename already exists in the unique list
+        do fileIndex2 = 1, obsf_numMpiUniqueList
+          if (trim(obsf_baseFileNameMpiUniqueList(fileIndex2)) == &
+              trim(baseFileNameListAllMpi(fileIndex,procIndex))) then
+            cycle loopFilename
+          end if
+        end do
+        
+        ! add the filename to the unique list
+        obsf_numMpiUniqueList = obsf_numMpiUniqueList + 1
+        obsf_baseFileNameMpiUniqueList(obsf_numMpiUniqueList) = baseFileNameListAllMpi(fileIndex,procIndex)
+        obsf_familyTypeMpiUniqueList(obsf_numMpiUniqueList) = familyTypeListAllMpi(fileIndex,procIndex)
+
+      end do loopFilename
+    end do
+
+    write(*,*) 'setObsFilesMpiUniqueList: obsf_numMpiUniqueList=', obsf_numMpiUniqueList
+    write(*,*) 'setObsFilesMpiUniqueList: familyType/filename in unique list:'
+    write(*,*) 'Type  Name '
+    write(*,*) '----  ---- '
+    do fileIndex = 1, obsf_numMpiUniqueList
+      write(*,'(1X,A2,1X,A60)' ) trim(obsf_familyTypeMpiUniqueList(fileIndex)), &
+                                 trim(obsf_baseFileNameMpiUniqueList(fileIndex))
+    end do
+
+  end subroutine setObsFilesMpiUniqueList
+    
+  !--------------------------------------------------------------------------
+  ! obsf_determineFileType
+  !--------------------------------------------------------------------------
   subroutine obsf_determineFileType( obsFileType )
 
     implicit none
@@ -676,13 +842,16 @@ contains
 
     write(*,*) 'obsf_determineFileType: read obs file that exists on mpi task id: ', procID
 
-    if ( mmpi_myid == procID ) call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(1) )
+    if ( mmpi_myid == procID ) call obsf_determineSplitFileType( obsFileType, obsf_fileName(1) )
 
     call rpn_comm_bcastc(obsFileType , len(obsFileType), 'MPI_CHARACTER', procID, 'GRID', ierr)
     write(*,*) 'obsf_determineFileType: obsFileType = ', obsFileType
 
   end subroutine obsf_determineFileType
 
+  !--------------------------------------------------------------------------
+  ! obsf_determineSplitFileType
+  !--------------------------------------------------------------------------
   subroutine obsf_determineSplitFileType( obsFileType, fileName )
 
     implicit none
@@ -726,7 +895,9 @@ contains
 
   end subroutine obsf_determineSplitFileType
 
-
+  !--------------------------------------------------------------------------
+  ! obsf_getFileName
+  !--------------------------------------------------------------------------
   function obsf_getFileName(obsfam,fileFound_opt) result(filename)
     !
     ! :Purpose: Returns the observations file name assigned to the calling processor.
@@ -749,8 +920,8 @@ contains
     numFound = 0
    
     do ifile=1,obsf_nfiles
-       if (obsfam == obsf_cfamtyp(ifile)) then
-          filename = obsf_cfilnam(ifile)
+       if (obsfam == obsf_familyType(ifile)) then
+          filename = obsf_fileName(ifile)
           numFound = numFound + 1
           exit
        end if
@@ -910,7 +1081,6 @@ contains
 
   end function obsf_obsSub_update
 
-
   !--------------------------------------------------------------------------
   ! obsf_addCloudParametersAndEmissivity
   !--------------------------------------------------------------------------
@@ -931,11 +1101,11 @@ contains
 
     do fileIndex = 1, obsf_nfiles
 
-      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
       if ( trim(obsFileType) == 'SQLITE' )  then
-        call sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_cfilnam(fileIndex))
+        call sqlf_addCloudParametersandEmissivity(obsSpaceData, fileIndex, obsf_fileName(fileIndex))
       else if ( trim(obsFileType) == 'BURP' ) then 
-        call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_cfilnam(fileIndex) ) )
+        call brpr_addCloudParametersandEmissivity(obsSpaceData, fileIndex, trim( obsf_fileName(fileIndex) ) )
       else if ( trim(obsFileType) == 'OBSDB' ) then
         ! The variables updated here for other file types are added/updated in ObsDb files using a
         ! seperate subroutine called odbf_updateMidasHeaderTable which is called when writing everything else.
@@ -947,7 +1117,6 @@ contains
     end do
 
   end subroutine obsf_addCloudParametersAndEmissivity
-
 
   !--------------------------------------------------------------------------
   ! obsf_updateMissingObsFlags
@@ -993,14 +1162,14 @@ contains
     if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
 
     FILELOOP: do fileIndex = 1, obsf_nfiles
-      if ( obsf_cfamtyp(fileIndex) /= 'TO' ) cycle FILELOOP
-      write(*,*) 'INPUT FILE TO  obsf_updateMissingObsFlags = ', trim( obsf_cfilnam(fileIndex) )
-      call obsf_determineSplitFileType( obsFileType, obsf_cfilnam(fileIndex) )
+      if ( obsf_familyType(fileIndex) /= 'TO' ) cycle FILELOOP
+      write(*,*) 'INPUT FILE TO  obsf_updateMissingObsFlags = ', trim( obsf_fileName(fileIndex) )
+      call obsf_determineSplitFileType( obsFileType, obsf_fileName(fileIndex) )
       if ( trim(obsFileType) /= 'BURP' ) then
         write(*,*) 'obsFileType = ',obsFileType
         write(*,*) 'obsf_updateMissingObsFlags: WARNING this s/r is currently only compatible with BURP files'
       else
-        call brpr_updateMissingObsFlags( trim( obsf_cfilnam(fileIndex) ) )
+        call brpr_updateMissingObsFlags( trim( obsf_fileName(fileIndex) ) )
       end if
     end do FILELOOP
 
@@ -1034,7 +1203,7 @@ contains
       if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
 
       do fileIndex = 1, obsf_nfiles
-        fullName = trim( obsf_cfilnam(fileIndex) )
+        fullName = trim( obsf_fileName(fileIndex) )
         baseNameIndexBeg = index(fullName,'/',back=.true.)
         baseName = fullName(baseNameIndexBeg+1:)
         write(*,*) 'obsf_copyObsDirectory: Copying file ', trim(baseName)
@@ -1048,7 +1217,7 @@ contains
       if ( .not.obsf_filesSplit() .and. mmpi_myid /= 0 ) return
 
       do fileIndex = 1, obsf_nfiles
-        fullName = trim( obsf_cfilnam(fileIndex) )
+        fullName = trim( obsf_fileName(fileIndex) )
         baseNameIndexBeg = index(fullName,'/',back=.true.)
         baseName = fullName(baseNameIndexBeg+1:)
         write(*,*) 'obsf_copyObsDirectory: Copying file ', trim(baseName)
@@ -1067,5 +1236,76 @@ contains
     end if
 
   end subroutine obsf_copyObsDirectory
+
+  !--------------------------------------------------------------------------
+  ! setHeadBodyPrimaryKeyColumns
+  !--------------------------------------------------------------------------
+  subroutine setHeadBodyPrimaryKeyColumns(obsDat, numHeaderRead, numBodyRead)
+    !
+    ! :Purpose: Set header/body primary keys in obsSpaceData that 
+    !           will ensure unique values over all mpi tasks.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_obs), intent(inout) :: obsDat
+    integer, intent(in) :: numHeaderRead
+    integer, intent(in) :: numBodyRead
+
+    ! locals:
+    integer    :: initialHeaderindex, initialBodyindex
+    integer    :: numHeaders, numBodies
+    integer    :: headerIndex, bodyIndex
+    integer    :: headerIndexBegin, headerIndexEnd, bodyIndexBegin, bodyIndexEnd
+    integer    :: ierr
+    integer(8) :: headerPrimaryKey, bodyPrimaryKey
+    integer, allocatable :: allNumHeaderRead(:), allNumBodyRead(:)
+
+    write(*,*) 'setHeadBodyPrimaryKeyColumns: start'
+    numHeaders = obs_numHeader(obsDat)
+    numBodies = obs_numBody(obsDat)
+     
+    write(*,*) 'setHeadBodyPrimaryKeyColumns: numHeaders=', numHeaders, ', numBodies=', numBodies
+    write(*,*) 'setHeadBodyPrimaryKeyColumns: numHeaderRead=', numHeaderRead, &
+                ', numBodyRead=', numBodyRead
+
+    allocate(allNumHeaderRead(mmpi_nprocs))
+    allocate(allNumBodyRead(mmpi_nprocs))
+    call rpn_comm_allgather(numHeaderRead,1,'mpi_integer',       &
+                            allNumHeaderRead,1,'mpi_integer','GRID',ierr)
+    call rpn_comm_allgather(numBodyRead,1,'mpi_integer',       &
+                            allNumBodyRead,1,'mpi_integer','GRID',ierr)
+    if (mmpi_myid > 0) then
+      initialHeaderindex = sum(allNumHeaderRead(1:mmpi_myid))
+      initialBodyindex = sum(allNumBodyRead(1:mmpi_myid))
+    else
+      initialHeaderindex = 0
+      initialBodyindex = 0
+    end if
+    deallocate(allNumHeaderRead)
+    deallocate(allNumBodyRead)
+
+    write(*,*) 'setHeadBodyPrimaryKeyColumns: initialHeaderIndex=', initialHeaderindex , &
+                ', initialBodyindex=', initialBodyindex
+
+    headerIndexBegin = numHeaders - numHeaderRead + 1
+    headerIndexEnd = numHeaders
+    headerPrimaryKey = initialHeaderindex
+    do headerIndex = headerIndexBegin, headerIndexEnd
+      headerPrimaryKey = headerPrimaryKey + 1
+      call obs_setHeadPrimaryKey(obsdat, headerIndex, headerPrimaryKey)
+    end do
+        
+    bodyIndexBegin = numBodies - numBodyRead + 1
+    bodyIndexEnd = numBodies
+    bodyPrimaryKey = initialBodyindex
+    do bodyIndex = bodyIndexBegin, bodyIndexEnd
+      bodyPrimaryKey = bodyPrimaryKey + 1
+      call obs_setBodyPrimaryKey(obsdat, bodyIndex, bodyPrimaryKey)
+    end do
+
+    write(*,*) 'setHeadBodyPrimaryKeyColumns: end'
+
+  end subroutine setHeadBodyPrimaryKeyColumns
 
 end module obsFiles_mod
