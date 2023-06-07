@@ -1602,14 +1602,9 @@ contains
     character(len=*),  intent(in)    :: fileName, familyType
     integer,           intent(in)    :: fileIndex
 
-    ! Locals:
-    logical                          :: fileExists
-
     call utl_tmg_start(14,'----UpdateObsDBfile')
     
-    ! prepare to create obsDB from scratch if the file does not exist
-    inquire(file=trim(fileName), exist=fileExists)
-    if (.not. fileExists) call odbf_setup()
+    call odbf_setup()
 
     ! Check if the Midas Header Table needs to be updated, specified from namelist
     if ( .not. utl_isNamelistPresent('namObsDbMIDASHeaderUpdate','./flnml') ) then
