@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
- * (Nothing yet)
+ * Change optional argument variable names to include `_opt` suffix (#834 and !742)
 
 ### Fixed
 
