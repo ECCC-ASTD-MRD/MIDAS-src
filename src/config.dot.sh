@@ -143,8 +143,8 @@ echo "... loading eccc/mrd/rpn/libs/20230531"
 echo "... loading hdf5"
 . ssmuse-sh -d main/opt/hdf5-netcdf4/serial/static/${COMP_ARCH}/01
 
-echo "... loading eccc/cmd/cmda/libs/20230414/${COMP_ARCH}"
-. ssmuse-sh -d eccc/cmd/cmda/libs/20230414/${COMP_ARCH}
+echo "... loading eccc/cmd/cmda/libs/20230531/${COMP_ARCH}"
+. ssmuse-sh -d eccc/cmd/cmda/libs/20230531/${COMP_ARCH}
 
 echo "... loading main/opt/perftools/perftools-2.0/${COMP_ARCH}"
 . ssmuse-sh -x main/opt/perftools/perftools-2.0/${COMP_ARCH}
