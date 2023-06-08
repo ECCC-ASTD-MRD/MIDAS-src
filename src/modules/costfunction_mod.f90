@@ -147,7 +147,7 @@ contains
       pjo   = pjo + pjo_1
 
       ! subcomponents of observation cost function (diagnostic only)
-      select case(obs_getFamily(lobsSpaceData, bodyIndex = bodyIndex))
+      select case(obs_getFamily(lobsSpaceData, bodyIndex_opt = bodyIndex))
       case('UA')
         dljoraob    = dljoraob    + pjo_1
       case('AI')

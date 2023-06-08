@@ -95,7 +95,7 @@ program midas_thinning
 
   !- Allocate obsSpaceData
   call obs_class_initialize('ALL')
-  call obs_initialize(obsSpaceData, mpi_local = .true.)
+  call obs_initialize(obsSpaceData, mpi_local_opt = .true.)
 
   !- Setup obsFilter_mod
   call filt_setup('bgck')

@@ -479,7 +479,7 @@ module fsoi_mod
         pfso_1 = obs_bodyElem_r(obsSpaceData,OBS_FSO,bodyIndex)
         if ( obs_bodyElem_i(obsSpaceData,OBS_ASS,bodyIndex) == 1 ) then
           ! FSO for each family
-          if (obs_getFamily(obsSpaceData,bodyIndex=bodyIndex) == familyList(familyIndex) ) then
+          if (obs_getFamily(obsSpaceData,bodyIndex_opt=bodyIndex) == familyList(familyIndex) ) then
             tfso(familyIndex) = tfso(familyIndex) + pfso_1
             numAss_local(familyIndex) = numAss_local(familyIndex) + 1
           end if

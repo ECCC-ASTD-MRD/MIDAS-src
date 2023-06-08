@@ -301,7 +301,7 @@ module gridStateVector_mod
   !--------------------------------------------------------------------------
   ! gsv_varNamesList
   !--------------------------------------------------------------------------
-  subroutine gsv_varNamesList(varNames,statevector)
+  subroutine gsv_varNamesList(varNames,statevector_opt)
     !
     ! :Purpose: Lists all variables present in the statevector 
     !
@@ -309,7 +309,7 @@ module gridStateVector_mod
     
     ! Arguments:
     character(len=4), pointer,  intent(inout) :: varNames(:)
-    type(struct_gsv), optional, intent(in)    :: statevector
+    type(struct_gsv), optional, intent(in)    :: statevector_opt
     
     ! Locals:
     integer :: varLevIndex, varNumberIndex, varIndex, numFound
@@ -323,9 +323,9 @@ module gridStateVector_mod
     !- 1. How many variables do we have?
     !
     numFound = 0
-    if (present(statevector)) then
+    if (present(statevector_opt)) then
       do varIndex = 1, vnl_numvarmax
-        if (gsv_varExist(statevector,vnl_varNameList(varIndex))) numFound = numFound + 1
+        if (gsv_varExist(statevector_opt,vnl_varNameList(varIndex))) numFound = numFound + 1
       end do
     else
       do varIndex = 1, vnl_numvarmax
@@ -340,10 +340,10 @@ module gridStateVector_mod
     varNames(:) = ''
 
     varNumberIndex = 0
-    if (present(statevector)) then
+    if (present(statevector_opt)) then
       !- 2.1 List the variables based on the varLevIndex ordering
-      do varLevIndex = 1, statevector%nk
-        varName = gsv_getVarNameFromK(statevector,varLevIndex)
+      do varLevIndex = 1, statevector_opt%nk
+        varName = gsv_getVarNameFromK(statevector_opt,varLevIndex)
         if (.not. ANY(varNames(:) == varName)) then
           varNumberIndex = varNumberIndex + 1
           varNames(varNumberIndex) = varName
@@ -2810,7 +2810,7 @@ module gridStateVector_mod
     character(len=*), optional, intent(in)    :: varName_opt
 
     if (statevector%dataKind /= 4) call utl_abort('gsv_getFieldWrapper_r4: wrong dataKind')
-    call gsv_getField_r48(statevector, field_r4 = field_r4, varName_opt = varName_opt)
+    call gsv_getField_r48(statevector, field_r4_opt = field_r4, varName_opt = varName_opt)
 
   end subroutine gsv_getFieldWrapper_r4
 
@@ -2827,11 +2827,11 @@ module gridStateVector_mod
     character(len=*), optional, intent(in)    :: varName_opt
 
     if (statevector%dataKind /= 8) call utl_abort('gsv_getFieldWrapper_r8: wrong dataKind')
-    call gsv_getField_r48(statevector, field_r8 = field_r8, varName_opt = varName_opt)
+    call gsv_getField_r48(statevector, field_r8_opt = field_r8, varName_opt = varName_opt)
 
   end subroutine gsv_getFieldWrapper_r8
 
-  subroutine gsv_getField_r48(statevector,field_r4,field_r8,varName_opt)
+  subroutine gsv_getField_r48(statevector,field_r4_opt,field_r8_opt,varName_opt)
     !
     ! :Purpose: Returns a pointer to the 4D data array. 
     !           Wrapper pairing the proper real data kind
@@ -2841,8 +2841,8 @@ module gridStateVector_mod
     ! Arguments:
     type(struct_gsv),           intent(in)    :: statevector
     character(len=*), optional, intent(in)    :: varName_opt
-    real(4), pointer, optional, intent(inout) :: field_r4(:,:,:,:)
-    real(8), pointer, optional, intent(inout) :: field_r8(:,:,:,:)
+    real(4), pointer, optional, intent(inout) :: field_r4_opt(:,:,:,:)
+    real(8), pointer, optional, intent(inout) :: field_r8_opt(:,:,:,:)
 
     ! Locals:
     integer                                :: ilev1, ilev2, lon1, lat1, k1
@@ -2859,18 +2859,18 @@ module gridStateVector_mod
         ilev1 = 1 + statevector%varOffset(vnl_varListIndex(varName_opt))
         ilev2 = ilev1 - 1 + statevector%varNumLev(vnl_varListIndex(varName_opt))
         if (gsv_getDataKind(statevector) == 4) then
-          field_r4(lon1:,lat1:,1:,1:) => statevector%gd_r4(:,:,ilev1:ilev2,:)
+          field_r4_opt(lon1:,lat1:,1:,1:) => statevector%gd_r4(:,:,ilev1:ilev2,:)
         else
-          field_r8(lon1:,lat1:,1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,:)
+          field_r8_opt(lon1:,lat1:,1:,1:) => statevector%gd_r8(:,:,ilev1:ilev2,:)
         end if
       else
         call utl_abort('gsv_getField_r48: Unknown variable name! ' // varName_opt)
       end if
     else
       if (gsv_getDataKind(statevector) == 4) then
-        field_r4(lon1:,lat1:,k1:,1:) => statevector%gd_r4(:,:,:,:)
+        field_r4_opt(lon1:,lat1:,k1:,1:) => statevector%gd_r4(:,:,:,:)
       else
-        field_r8(lon1:,lat1:,k1:,1:) => statevector%gd_r8(:,:,:,:)
+        field_r8_opt(lon1:,lat1:,k1:,1:) => statevector%gd_r8(:,:,:,:)
       end if
     end if
 
@@ -2995,7 +2995,7 @@ module gridStateVector_mod
     real(4), pointer, intent(inout) :: field_r4(:,:,:)
     integer,          intent(in)    :: kIndex
 
-    call gsv_getFieldUV_r48(statevector,field_r4=field_r4,kIndex=kIndex)
+    call gsv_getFieldUV_r48(statevector,field_r4_opt=field_r4,kIndex=kIndex)
     
   end subroutine gsv_getFieldUVWrapper_r4
   
@@ -3011,11 +3011,11 @@ module gridStateVector_mod
     real(8), pointer, intent(inout) :: field_r8(:,:,:)
     integer,          intent(in)    :: kIndex
 
-    call gsv_getFieldUV_r48(statevector,field_r8=field_r8,kIndex=kIndex)
+    call gsv_getFieldUV_r48(statevector,field_r8_opt=field_r8,kIndex=kIndex)
     
   end subroutine gsv_getFieldUVWrapper_r8
   
-  subroutine gsv_getFieldUV_r48(statevector,field_r4,field_r8,kIndex)
+  subroutine gsv_getFieldUV_r48(statevector,field_r4_opt,field_r8_opt,kIndex)
     !
     ! :Purpose: Returns a pointer to the UV data array. 
     !           Wrapper pairing the proper real data kind
@@ -3025,8 +3025,8 @@ module gridStateVector_mod
     ! Arguments:
     type(struct_gsv),           intent(in)    :: statevector
     integer,                    intent(in)    :: kIndex
-    real(4), optional, pointer, intent(inout) :: field_r4(:,:,:)
-    real(8), optional, pointer, intent(inout) :: field_r8(:,:,:)
+    real(4), optional, pointer, intent(inout) :: field_r4_opt(:,:,:)
+    real(8), optional, pointer, intent(inout) :: field_r8_opt(:,:,:)
 
     ! Locals:
     integer                                :: lon1,lat1
@@ -3036,10 +3036,10 @@ module gridStateVector_mod
 
     if (gsv_getDataKind(statevector) == 4) then
       if (.not. associated(statevector%gdUV(kIndex)%r4)) call utl_abort('gsv_getFieldUV_r48: data with type r4 not allocated')
-      field_r4(lon1:,lat1:,1:) => statevector%gdUV(kIndex)%r4(:,:,:)
+      field_r4_opt(lon1:,lat1:,1:) => statevector%gdUV(kIndex)%r4(:,:,:)
     else
       if (.not. associated(statevector%gdUV(kIndex)%r8)) call utl_abort('gsv_getFieldUV_r48: data with type r8 not allocated')
-      field_r8(lon1:,lat1:,1:) => statevector%gdUV(kIndex)%r8(:,:,:)
+      field_r8_opt(lon1:,lat1:,1:) => statevector%gdUV(kIndex)%r8(:,:,:)
     end if
 
   end subroutine gsv_getFieldUV_r48

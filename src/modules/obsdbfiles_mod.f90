@@ -1404,7 +1404,7 @@ contains
 
     do headIndex = headIndexBegin, headIndexEnd
 
-      obsFamily = obs_getfamily( obsdat, headIndex )
+      obsFamily = obs_getfamily( obsdat, headerIndex_opt=headIndex )
       bodyIndexStart = obs_headElem_i(obsdat, OBS_RLN, headIndex)
       bodyIndexEnd   = obs_headElem_i(obsdat, OBS_NLV, headIndex) + &
                        bodyIndexStart - 1

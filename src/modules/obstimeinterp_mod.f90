@@ -70,7 +70,7 @@ contains
         bodyIndexBeg = obs_headElem_i(obsSpaceData,OBS_RLN,headerIndex)
         bodyIndexEnd = obs_headElem_i(obsSpaceData,OBS_NLV,headerIndex) + bodyIndexBeg - 1          
         do familyIndex = 1, ofl_numFamily
-          if (obs_getfamily(obsSpaceData,headerIndex) == ofl_familyList(familyIndex)) then
+          if (obs_getfamily(obsSpaceData,headerIndex_opt=headerIndex) == ofl_familyList(familyIndex)) then
             my_inumheader(familyIndex,stepIndex) = my_inumheader(familyIndex,stepIndex)+1
             my_inumheader(familyIndex,nStepObs+1) = my_inumheader(familyIndex,nStepObs+1)+1
             do bodyIndex = bodyIndexBeg, bodyIndexEnd

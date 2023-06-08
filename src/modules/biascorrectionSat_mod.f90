@@ -1829,14 +1829,14 @@ contains
   !-----------------------------------------
   ! bcs_writeBias
   !-----------------------------------------
-  subroutine bcs_writeBias(cv_in)
+  subroutine bcs_writeBias(cv_in_opt)
     !
     ! :Purpose: to write bias increments and coefficients (varBC)
     !
     implicit none
 
     ! Arguments:
-    real(8), optional, intent(in)  :: cv_in(:)
+    real(8), optional, intent(in)  :: cv_in_opt(:)
 
     ! Locals:
     integer  :: iSensor, iChannel, iPredictor, iScan
@@ -1860,11 +1860,11 @@ contains
 
     if (.not. biasActive) return
 
-    if (present(cv_in)) then
+    if (present(cv_in_opt)) then
       nullify(cv_bias)
       if (mmpi_myid == 0) then
         if (cvm_subVectorExists('BIAS')) then
-          cv_bias => cvm_getSubVector(cv_in, 'BIAS')
+          cv_bias => cvm_getSubVector(cv_in_opt, 'BIAS')
           write(*,*) 'bcs_writeBias: maxval(cv_bias) = ', maxval(cv_bias(:))
         else
           write(*,*) 'bcs_writeBias: control vector does not include bias coefficients'

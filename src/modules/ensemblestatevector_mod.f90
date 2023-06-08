@@ -104,10 +104,10 @@ CONTAINS
     type(struct_hco), pointer, optional, intent(in)    :: hco_core_opt
     type(struct_vco), pointer,           intent(in)    :: vco_ens
     integer,                             intent(in)    :: dateStampList(:)
-    character(len=*), optional,          intent(in)    :: varNames_opt(:)
-    integer, optional,                   intent(in)    :: dataKind_opt
-    integer, optional,                   intent(in)    :: fileMemberIndex1_opt
-    character(len=*), optional,          intent(in)    :: hInterpolateDegree_opt
+    character(len=*),          optional, intent(in)    :: varNames_opt(:)
+    integer,                   optional, intent(in)    :: dataKind_opt
+    integer,                   optional, intent(in)    :: fileMemberIndex1_opt
+    character(len=*),          optional, intent(in)    :: hInterpolateDegree_opt
 
     ! Locals:
     integer :: varLevIndex, lon1, lon2, lat1, lat2, k1, k2
@@ -1355,22 +1355,22 @@ CONTAINS
   !--------------------------------------------------------------------------
   ! ens_varNamesList
   !--------------------------------------------------------------------------
-  subroutine ens_varNamesList(varNames,ens)
+  subroutine ens_varNamesList(varNames,ens_opt)
     !
     !:Purpose: Return a list of the variable names that exist in the ensemble.
     !
     implicit none
     
     ! Arguments:
-    type(struct_ens), optional, intent(in)    :: ens
+    type(struct_ens), optional, intent(in)    :: ens_opt
     character(len=4), pointer,  intent(inout) :: varNames(:)
 
     if (associated(varNames)) then
       call utl_abort('ens_varNamesList: varNames must be NULL pointer on input')
     end if
 
-    if (present(ens)) then
-      call gsv_varNamesList(varNames, ens%statevector_work)
+    if (present(ens_opt)) then
+      call gsv_varNamesList(varNames, ens_opt%statevector_work)
     else
       call gsv_varNamesList(varNames)
     end if

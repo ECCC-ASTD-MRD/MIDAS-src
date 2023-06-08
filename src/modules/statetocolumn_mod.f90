@@ -1656,10 +1656,10 @@ contains
     type(struct_hco), pointer  :: hco_core
     character(len=*)           :: timeInterpType
     character(len=*), optional :: varName_opt
-    integer, optional          :: numObsBatches_opt
-    logical, optional          :: dealloc_opt
-    logical, optional          :: moveObsAtPole_opt
-    logical, optional          :: beSilent_opt
+    integer,          optional :: numObsBatches_opt
+    logical,          optional :: dealloc_opt
+    logical,          optional :: moveObsAtPole_opt
+    logical,          optional :: beSilent_opt
 
     ! locals
     type(struct_gsv), save :: stateVector_VarsLevs 
@@ -2701,7 +2701,7 @@ contains
 
     fpr = bilinearFootprint
 
-    obsFamily = obs_getFamily ( obsSpaceData, headerIndex )
+    obsFamily = obs_getFamily ( obsSpaceData, headerIndex_opt=headerIndex )
     if ( obsFamily == 'GL' ) then
 
       cstnid = obs_elem_c ( obsSpaceData, 'STID' , headerIndex )
@@ -3482,7 +3482,7 @@ contains
   ! latlonChecks
   !--------------------------------------------------------------------------
   subroutine latlonChecks( obsSpaceData, hco, headerIndex, rejectOutsideObs, &
-    latLev_T, lonLev_T, latLev_M, lonLev_M, latLev_S, lonLev_S )
+    latLev_T, lonLev_T, latLev_M, lonLev_M, latLev_S_opt, lonLev_S_opt )
     !
     !:Purpose: To check if the obs are inside the domain.
     !
@@ -3490,15 +3490,15 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout)  :: obsSpaceData
-    type(struct_hco), intent(in)  :: hco
-    integer,          intent(in)  :: headerIndex
-    logical,          intent(in)  :: rejectOutsideObs
+    type(struct_hco), intent(in)     :: hco
+    integer,          intent(in)     :: headerIndex
+    logical,          intent(in)     :: rejectOutsideObs
     real(8),          intent(inout)  :: latLev_T(:)
     real(8),          intent(inout)  :: lonLev_T(:)
     real(8),          intent(inout)  :: latLev_M(:)
     real(8),          intent(inout)  :: lonLev_M(:)
-    real(8), intent(inout),optional  :: latLev_S
-    real(8), intent(inout),optional  :: lonLev_S
+    real(8), optional, intent(inout) :: latLev_S_opt
+    real(8), optional, intent(inout) :: lonLev_S_opt
 
     ! Locals:
     integer :: ierr
@@ -3563,9 +3563,9 @@ contains
     end if
 
     !  check if lat/lon of surface level is outside domain.
-    if ( present(latLev_S) .and. present(lonLev_S) .and. .not. rejectHeader ) then
-      lat_r4 = real(latLev_S,4)
-      lon_r4 = real(lonLev_S,4)
+    if ( present(latLev_S_opt) .and. present(lonLev_S_opt) .and. .not. rejectHeader ) then
+      lat_r4 = real(latLev_S_opt,4)
+      lon_r4 = real(lonLev_S_opt,4)
 
       lat_deg_r4 = lat_r4 * MPC_DEGREES_PER_RADIAN_R8
       lon_deg_r4 = lon_r4 * MPC_DEGREES_PER_RADIAN_R8
@@ -3612,9 +3612,9 @@ contains
       latLev_T(:) = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
       lonLev_M(:) = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
       latLev_M(:) = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
-      if (present(lonLev_S) .and. present(latLev_S)) then
-        lonLev_S    = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
-        latLev_S    = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
+      if (present(lonLev_S_opt) .and. present(latLev_S_opt)) then
+        lonLev_S_opt = real(lon_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
+        latLev_S_opt = real(lat_deg_r4 * MPC_RADIANS_PER_DEGREE_R4,8)
       end if
 
     end if

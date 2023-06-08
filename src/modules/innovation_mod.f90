@@ -96,10 +96,10 @@ contains
       read(unitDimFile,*) mxstn
       read(unitDimFile,*) mxobs
       ierr=fclos(unitDimFile)  
-      call obs_initialize(obsSpaceData, numHeader_max=mxstn, numBody_max=mxobs, &
-                          mpi_local=obsf_filesSplit())
+      call obs_initialize(obsSpaceData, numHeader_max_opt=mxstn, numBody_max_opt=mxobs, &
+                          mpi_local_opt=obsf_filesSplit())
     else
-      call obs_initialize(obsSpaceData, mpi_local=obsf_filesSplit())
+      call obs_initialize(obsSpaceData, mpi_local_opt=obsf_filesSplit())
     end if
     write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
@@ -803,7 +803,7 @@ contains
        ! apply scale factor
        do indexFamily = 1,numFamily
           do indexBody = 1,obs_numBody(obsSpaceData)      
-             if (obs_getFamily(obsSpaceData,bodyIndex=indexBody).eq.familyList(indexFamily)) then
+             if (obs_getFamily(obsSpaceData,bodyIndex_opt=indexBody).eq.familyList(indexFamily)) then
                 do indexAnalysis2 = 1,numPerturbations
                    obsPerturbations(indexBody,indexAnalysis2)=obsPerturbations(indexBody,indexAnalysis2)*scaleFactor(indexFamily)
                 end do
