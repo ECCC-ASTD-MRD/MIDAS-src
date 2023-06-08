@@ -977,7 +977,7 @@ CONTAINS
     do obsIndex = 1, ensObs%numObs
       psvFlag = .false.
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
-      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex)
       ! update obs error inverse to 0 if current observation is passive
       if (ANY(psvObsFamily == obsfamCurrent)) then
         obsfamIndex = utl_findloc(psvObsFamily(:), obsfamCurrent)
@@ -1052,7 +1052,7 @@ CONTAINS
     do obsIndex = 1, ensObs%numObs
       simFlag = .false.
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
-      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex)
       ! update obs error inverse for mean update to 0 if current observation is
       ! simulated
       if (ANY(simObsFamily == obsfamCurrent)) then
@@ -1345,7 +1345,7 @@ CONTAINS
     ! Loop through observations and set y to mean(H(x)) if y is in obs family of interest
     do obsIndex = 1, ensObs%numObs
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
-      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex)
       if (ANY(simObsFamily == obsfamCurrent)) then
         obsfamIndex = utl_findloc(simObsFamily(:), obsfamCurrent)
         if ((numSimCodTyp(obsfamIndex) > 0) .and. (numSimVarNum(obsfamIndex) > 0)) then

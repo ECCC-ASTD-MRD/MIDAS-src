@@ -18,7 +18,6 @@ module obsFilter_mod
   use physicsFunctions_mod
   use codtyp_mod
   use radvel_mod
-  use ensembleObservations_mod
   implicit none
   save
   private
