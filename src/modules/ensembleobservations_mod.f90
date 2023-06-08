@@ -22,6 +22,7 @@ MODULE ensembleObservations_mod
   use codePrecision_mod
   use codtyp_mod
   use obsfamilylist_mod
+  use varnamelist_mod
   implicit none
   save
   private
@@ -46,7 +47,9 @@ MODULE ensembleObservations_mod
   integer              :: numSimObsFam
   integer              :: numPsvObsFam
   integer              :: numSimCodTyp(ofl_numFamily), numPsvCodTyp(ofl_numFamily)
+  integer              :: numSimVarNum(vnl_numvarmax), numPsvVarNum(vnl_numvarmax)
   integer, allocatable :: simCodTyp(:,:), psvCodTyp(:,:)
+  integer, allocatable :: simVarNum(:,:), psvVarNum(:,:)
 
   type struct_eob
     logical                       :: allocated      = .false.
@@ -76,7 +79,9 @@ MODULE ensembleObservations_mod
   character(len=2)  :: psvObsFamily(ofl_numFamily) ! observation families for passive assimilation
   character(len=codtyp_name_length) :: simCodTypName(ofl_numFamily,codtyp_maxNumber) ! codtyp names for sim. obs families
   character(len=codtyp_name_length) :: psvCodTypName(ofl_numFamily,codtyp_maxNumber) ! codtyp names for psv. obs families
-  namelist /NAMENSOBS/simObsFamily, psvObsFamily, simCodTypName, psvCodTypName
+  character(len=4) :: simVarName(ofl_numFamily,vnl_numvarmax) ! varName(s) for sim. obs families
+  character(len=4) :: psvVarName(ofl_numFamily,vnl_numvarmax) ! varName(s) for psv. obs families
+  namelist /NAMENSOBS/simObsFamily, psvObsFamily, simCodTypName, psvCodTypName, simVarName, psvVarName
 
 
 CONTAINS
@@ -91,7 +96,7 @@ CONTAINS
     implicit none
 
     ! Local variables:
-    integer :: nulnam, ierr, obsfamIndex, codtypIndex
+    integer :: nulnam, ierr, obsfamIndex, codtypIndex, varnumIndex
     integer, external :: fnom, fclos
     logical, save :: eob_initialized = .false.
 
@@ -102,8 +107,10 @@ CONTAINS
     ! default values for namelist variables
     simObsFamily(:)    = ''
     simCodTypName(:,:) = ''
+    simVarName(:,:)    = ''
     psvObsFamily(:)    = ''
     psvCodTypName(:,:) = ''
+    psvVarName(:,:)    = ''
 
     ! for tracking the number of non-empty chars in namelist variable arrays;
     ! these are used in loops in various subroutines
@@ -111,6 +118,8 @@ CONTAINS
     numPsvObsFam = 0
     numSimCodTyp(:) = 0
     numPsvCodTyp(:) = 0
+    numSimVarNum(:) = 0
+    numPsvVarNum(:) = 0
 
     ! read namelist
     if (utl_isNamelistPresent('namensobs','./flnml')) then
@@ -129,6 +138,7 @@ CONTAINS
       end do
 
       do obsfamIndex = 1, ofl_numFamily
+        ! Simulation functionality section
         if (trim(simObsFamily(obsfamIndex)) /= '') then
           ! simulated observation family specified for current
           ! obsfamIndex; check to see if any codtyp names specified
@@ -142,9 +152,22 @@ CONTAINS
               ! store CodTyp for simulated obs family
               simCodTyp(obsfamIndex,codtypIndex) = codtyp_get_codtyp(simCodTypName(obsfamIndex,codtypIndex))
             end if
-          end do
-        end if
+          end do ! codtypIndex
+          ! also check to see if any varnames specified
+          do varnumIndex = 1, vnl_numvarmax
+            if (trim(simVarName(obsfamIndex,varnumIndex)) /= '') then
+              numSimVarNum(obsfamIndex) = numSimVarNum(obsfamIndex) + 1
+              if (.not. allocated(simVarNum)) then
+                allocate(simVarNum(numSimObsFam,vnl_numvarmax))
+                simVarNum(:,:) = -999
+              end if
+              ! store VarNum for simulated obs family
+              simVarNum(obsfamIndex,varnumIndex) = vnl_varnumFromVarName(simVarName(obsfamIndex,varnumIndex))
+            end if
+          end do ! varnumIndex
+        end if ! simObsFamily
 
+        ! Passive functionality section
         if (trim(psvObsFamily(obsfamIndex)) /= '')  then
           ! passive observation family specified for current
           ! obsfamIndex; check to see if any codtyp names specified
@@ -158,9 +181,22 @@ CONTAINS
               ! store CodTyp for passive obs family
               psvCodTyp(obsfamIndex,codtypIndex) = codtyp_get_codtyp(psvCodTypName(obsfamIndex,codtypIndex))
             end if
-          end do
-        end if
-      end do
+          end do ! codtypIndex
+          ! also check to see if any varnames specified
+          do varnumIndex = 1, vnl_numvarmax
+            if (trim(psvVarName(obsfamIndex,varnumIndex)) /= '') then
+              numPsvVarNum(obsfamIndex) = numPsvVarNum(obsfamIndex) + 1
+              if (.not. allocated(PsvVarNum)) then
+                allocate(psvVarNum(numPsvObsFam,vnl_numvarmax))
+                psvVarNum(:,:) = -999
+              end if
+              ! store VarNum for passive obs family
+              psvVarNum(obsfamIndex,varnumIndex) = vnl_varnumFromVarName(psvVarName(obsfamIndex,varnumIndex))
+            end if
+          end do ! varnumIndex
+        end if ! psvObsFamily
+
+      end do ! obsFamIndex
     else
       write(*,*)
       write(*,*) 'eob_init: namensobs is missing in the namelist. The default value will be taken.'
@@ -934,18 +970,28 @@ CONTAINS
     
     ! locals
     integer       :: obsIndex, headerIndex
-    integer       :: codtyp, obsfamIndex
+    integer       :: codtyp, varnum, obsfamIndex
     character(2)  :: obsfamCurrent
     logical       :: psvFlag
 
     do obsIndex = 1, ensObs%numObs
       psvFlag = .false.
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
-      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex)
       ! update obs error inverse to 0 if current observation is passive
       if (ANY(psvObsFamily == obsfamCurrent)) then
         obsfamIndex = utl_findloc(psvObsFamily(:), obsfamCurrent)
-        if (numPsvCodTyp(obsfamIndex) > 0) then
+        if ((numPsvCodTyp(obsfamIndex) > 0) .and. (numPsvVarNum(obsfamIndex) > 0)) then
+          ! at least 1 codtyp AND varnum specified for current obs family so
+          ! see if current observation matches any of those codtypes AND
+          ! any of those varnums
+          codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
+          varnum = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, obsIndex)
+          if (ANY(psvCodTyp(obsfamIndex,:) == codtyp) .and. ANY(psvVarNum(obsfamIndex,:) == varnum)) then
+            ensObs%obsErrInv(obsIndex) = 0.0d0
+            psvFlag = .true.
+          end if
+        else if (numPsvCodTyp(obsfamIndex) > 0) then
           ! at least 1 codtype is specified for current obs family so
           ! see if current observation matches any of those codtypes
           codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
@@ -953,9 +999,18 @@ CONTAINS
             ensObs%obsErrInv(obsIndex) = 0.0d0
             psvFlag = .true.
           end if
+        else if (numPsvVarNum(obsfamIndex) > 0) then
+          ! at least 1 varnum is specified for current obs family so
+          ! see if current observation matches any of those varnums          
+          varnum = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, obsIndex)
+          if (ANY(psvVarNum(obsfamIndex,:) == varnum)) then
+            ensObs%obsErrInv(obsIndex) = 0.0d0
+            psvFlag = .true.
+          end if
         else
-          ! passive observation family doesn't include any codtype so set
-          ! error inverse to 0 irrespective of current observation codtype
+          ! passive observation family doesn't include any codtype or
+          ! any varnum, so set error inverse to 0 irrespective of current
+          ! observation codtype and varnum
           ensObs%obsErrInv(obsIndex) = 0.0d0
           psvFlag = .true.
         end if
@@ -983,7 +1038,7 @@ CONTAINS
 
     ! locals
     integer       :: obsIndex, headerIndex
-    integer       :: codtyp, obsfamIndex
+    integer       :: codtyp, varnum, obsfamIndex
     character(2)  :: obsfamCurrent
     logical       :: simFlag
 
@@ -997,10 +1052,22 @@ CONTAINS
     do obsIndex = 1, ensObs%numObs
       simFlag = .false.
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
-      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex)
+      ! update obs error inverse for mean update to 0 if current observation is
+      ! simulated
       if (ANY(simObsFamily == obsfamCurrent)) then
         obsfamIndex = utl_findloc(simObsFamily(:), obsfamCurrent)
-        if (numSimCodTyp(obsfamIndex) > 0) then
+        if ((numSimCodTyp(obsfamIndex) > 0) .and. (numSimVarNum(obsfamIndex) > 0)) then
+          ! at least 1 codtyp AND varnum specified for current obs family so
+          ! see if current observation matches any of those codtypes AND
+          ! any of those varnums
+          codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
+          varnum = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, obsIndex)
+          if (ANY(simCodTyp(obsfamIndex,:) == codtyp) .and. ANY(simVarNum(obsfamIndex,:) == varnum)) then
+            ensObs%obsErrInv_sim(obsIndex) = 0.0d0
+            simFlag = .true.
+          end if
+        else if (numSimCodTyp(obsfamIndex) > 0) then
           ! at least 1 codtype is specified for current obs family so
           ! see if current observation matches any of those codtypes
           codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
@@ -1008,9 +1075,18 @@ CONTAINS
             ensObs%obsErrInv_sim(obsIndex) = 0.0d0
             simFlag = .true.
           end if
+        else if (numSimVarNum(obsfamIndex) > 0) then
+          ! at least 1 varnum is specified for current obs family so
+          ! see if current observation matches any of those varnums          
+          varnum = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, obsIndex)
+          if (ANY(simVarNum(obsfamIndex,:) == varnum)) then
+            ensObs%obsErrInv(obsIndex) = 0.0d0
+            simFlag = .true.
+          end if          
         else
-          ! simulated observation family doesn't include any codtype so set
-          ! error inverse to 0 irrespective of current observation's codtype
+          ! simulated observation family doesn't include any codtype or
+          ! any varnum, so set error inverse to 0 irrespective of current
+          ! observation codtype and varnum
           ensObs%obsErrInv_sim(obsIndex) = 0.0d0
           simFlag = .true.
         end if
@@ -1262,21 +1338,39 @@ CONTAINS
 
     ! Locals:
     integer       :: obsIndex, headerIndex
-    integer       :: codtyp, obsfamIndex
+    integer       :: codtyp, varnum, obsfamIndex
     character(2)  :: obsfamCurrent
 
     if (.not. eob_simObsAssim) return
     ! Loop through observations and set y to mean(H(x)) if y is in obs family of interest
     do obsIndex = 1, ensObs%numObs
       headerIndex = obs_bodyElem_i(ensObs%obsSpaceData, OBS_HIND, obsIndex)
-      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex, obsIndex)
+      obsfamCurrent = obs_getFamily(ensObs%obsSpaceData, headerIndex)
       if (ANY(simObsFamily == obsfamCurrent)) then
         obsfamIndex = utl_findloc(simObsFamily(:), obsfamCurrent)
-        if (numSimCodTyp(obsfamIndex) > 0) then
+        if ((numSimCodTyp(obsfamIndex) > 0) .and. (numSimVarNum(obsfamIndex) > 0)) then
+          ! at least 1 codtyp AND varnum specified for current obs family so
+          ! see if current observation matches any of those codtypes AND
+          ! any of those varnums      
+          codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
+          varnum = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, obsIndex)
+          if (ANY(simCodTyp(obsfamIndex,:) == codtyp) .and. ANY(simVarNum(obsfamIndex,:) == varnum)) then
+            ensObs%obsvalue(obsIndex) = ensObs%meanYb(obsIndex)
+          end if
+        else if (numSimCodTyp(obsfamIndex) > 0) then
           ! at least 1 codtype is specified for current obs family so
           ! see if current observation matches any of those codtypes          
           codtyp = obs_headElem_i(ensObs%obsSpaceData, OBS_ITY, headerIndex)
-          if (ANY(simCodTyp(obsfamIndex,:) == codtyp)) ensObs%obsvalue(obsIndex) = ensObs%meanYb(obsIndex)
+          if (ANY(simCodTyp(obsfamIndex,:) == codtyp)) then
+            ensObs%obsvalue(obsIndex) = ensObs%meanYb(obsIndex)
+          end if
+        else if (numSimVarNum(obsfamIndex) > 0) then
+          ! at least 1 varnum is specified for current obs family so
+          ! see if current observation matches any of those varnums          
+          varnum = obs_bodyElem_i(ensObs%obsSpaceData, OBS_VNM, obsIndex)
+          if (ANY(simVarNum(obsfamIndex,:) == varnum)) then
+            ensObs%obsvalue(obsIndex) = ensObs%meanYb(obsIndex)
+          end if   
         else
           ! simulated observation family doesn't include any codtype
           ! so set irrespective of current observation's codtype

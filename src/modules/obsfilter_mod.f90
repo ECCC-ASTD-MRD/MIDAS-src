@@ -59,6 +59,7 @@ module obsFilter_mod
   real(8) :: surfaceBufferZone_Pres   ! height of buffer zone (in Pa) for rejecting obs near sfc
   real(8) :: surfaceBufferZone_Height ! height of buffer zone (in m) for rejecting obs near sfc
   logical :: useEnkfTopoFilt          ! choose to use simpler approach (originally in EnKF) for rejecting obs near sfc
+  logical :: rejectGZforAnalysis      ! whether to reject geopotential height for analysis update
 
 contains
 
@@ -133,7 +134,7 @@ contains
 
     namelist /namfilt/nelems, nlist, nflags, nlistflg, rlimlvhu, discardlandsfcwind, &
          nelems_altDiffMax, list_altDiffMax, value_altDiffMax, surfaceBufferZone_Pres, &
-         surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt
+         surfaceBufferZone_Height, list_topoFilt, useEnkfTopoFilt, rejectGZforAnalysis
 
     filterMode = filterMode_in
 
@@ -155,6 +156,7 @@ contains
     surfaceBufferZone_Height =  400.0d0 ! default value in Metres
 
     useEnkfTopoFilt = .false.
+    rejectGZforAnalysis = .true.
 
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -287,7 +289,7 @@ contains
       !
       llbogus = ( idburp == 150 .or. idburp == 151 .or. idburp == 152 .or. idburp == 153 )
       if  ( (filterMode == 'analysis' .or. filterMode == 'FSO') .and. llok .and. ivnm == BUFR_NEGZ .and. .not.llbogus ) then
-        llok=.false.
+        if (rejectGZforAnalysis) llok=.false.
       end if
       !
       ! Ground-based GPS (GP) data (codtyp 189)

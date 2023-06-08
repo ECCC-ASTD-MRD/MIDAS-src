@@ -22,6 +22,10 @@
    imposeRttovHuLimits   = .true.
    useOptionTableRecenter = .false.
 /
+ &NAMENSOBS
+   psvObsFamily(1)  = 'UA'
+   psvVarName(1,1)  = 'GZ'
+/
  &NAMWRITEDIAG
    lWriteDiagSql   = .true.
    onlyAssimObs    = .true.
@@ -62,6 +66,7 @@
   NLISTFLG(2)=4,
   NLISTFLG(3)=5,
   RLIMLVHU=70.D0,
+  rejectGZforAnalysis=.false.,
 /
  &NAMRMAT
 /
