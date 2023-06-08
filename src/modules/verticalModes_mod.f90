@@ -51,8 +51,7 @@ module verticalModes_mod
     real(8), allocatable :: autoCovariance(:,:)
     real(8), allocatable :: eigenVectors(:,:)
     real(8), allocatable :: eigenValues(:)
-    real(8), allocatable :: Tmatrix(:,:)
-    real(8), allocatable :: Umatrix(:,:)
+    real(8), allocatable :: eigenVectorsInv(:,:)
   end type struct_oneVar3d
   
   type :: struct_vms
@@ -106,8 +105,7 @@ contains
         allocate(vModes%allVar3d(var3dIndex)%autoCovariance(nLev,nLev))
         allocate(vModes%allVar3d(var3dIndex)%eigenVectors(nLev,nLev))
         allocate(vModes%allVar3d(var3dIndex)%eigenValues(nLev))
-        allocate(vModes%allVar3d(var3dIndex)%Tmatrix(nLev,nLev))
-        allocate(vModes%allVar3d(var3dIndex)%Umatrix(nLev,nLev))
+        allocate(vModes%allVar3d(var3dIndex)%eigenVectorsInv(nLev,nLev))
         vModes%allVar3d(var3dIndex)%nLev = nLev
       end if
     end do
@@ -166,7 +164,9 @@ contains
     allocate(latWeight(hco_ens%nj))
     do latIndex = 1, hco_ens%nj
       latWeight(latIndex) = cos(hco_ens%lat(latIndex))
-      write(*,*) latIndex, hco_ens%lat(latIndex), cos(hco_ens%lat(latIndex))
+      if (mmpi_myid == 0) then
+        write(*,*) latIndex, hco_ens%lat(latIndex), cos(hco_ens%lat(latIndex))
+      end if
     end do 
     
     call ens_getLatLonBounds(ensPerts, myLonBeg, myLonEnd, myLatBeg, myLatEnd)
@@ -365,26 +365,16 @@ contains
         call utl_abort('vms_computeModes: vertical matrix is rank deficient')
       end if
 
-      !- Setup the U matrix, to go from vertical mode space to grid point space
-      do levIndex2 = 1, vModes%allVar3d(var3dIndex)%nLev
-        do levIndex1 = 1, vModes%allVar3d(var3dIndex)%nLev
-          vModes%allVar3d(var3dIndex)%Umatrix(levIndex1,levIndex2) = &
-               vModes%allVar3d(var3dIndex)%eigenVectors(levIndex1,levIndex2) !* &
-               !sqrt(vModes%allVar3d(var3dIndex)%eigenValues(levIndex2))
-        end do
-      end do
-
-      !- Compute the T matrix, i.e., the inverse of the U matrix,
-      !  to go from grid point space to vertical mode space
+      !- Compute the inverse of the eigenVector matrix to go from grid point space
+      !  to vertical mode space
       !    Note: The inverse of an orthogonal matrix is simply its transpose
       do levIndex2 = 1, vModes%allVar3d(var3dIndex)%nLev
         do levIndex1 = 1, vModes%allVar3d(var3dIndex)%nLev
-          vModes%allVar3d(var3dIndex)%Tmatrix(levIndex2,levIndex1) = &
-               vModes%allVar3d(var3dIndex)%eigenVectors(levIndex1,levIndex2) !/ &
-               !sqrt(vModes%allVar3d(var3dIndex)%eigenValues(levIndex2))
+          vModes%allVar3d(var3dIndex)%eigenVectorsInv(levIndex2,levIndex1) = &
+               vModes%allVar3d(var3dIndex)%eigenVectors(levIndex1,levIndex2)
         end do
       end do
- 
+
     end do
     
   end subroutine vms_computeModes
@@ -481,7 +471,7 @@ contains
       do latIndex = latBeg, latEnd
         do lonIndex = lonBeg, lonEnd
           vertModesState(lonIndex,latIndex,1:nMode) = &
-               matmul(vModes%allVar3d(varIndexAssociated)%Tmatrix(1:nMode,1:nLev), &
+               matmul(vModes%allVar3d(varIndexAssociated)%eigenVectorsInv(1:nMode,1:nLev), &
                       gridState(lonIndex,latIndex,1:nLev))
         end do
       end do
@@ -493,7 +483,7 @@ contains
       do latIndex = latBeg, latEnd
         do lonIndex = lonBeg, lonEnd
           gridState(lonIndex,latIndex,1:nLev) = &
-               matmul(vModes%allVar3d(varIndexAssociated)%Umatrix(1:nLev,1:nMode), &
+               matmul(vModes%allVar3d(varIndexAssociated)%eigenVectors(1:nLev,1:nMode), &
                       vertModesState(lonIndex,latIndex,1:nMode))
         end do
       end do

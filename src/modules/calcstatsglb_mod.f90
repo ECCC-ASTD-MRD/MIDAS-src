@@ -766,6 +766,7 @@ module calcStatsGlb_mod
       call vms_writeModes(vModes)
 
       do waveBandIndex = 1, nVertWaveBand
+        
         call vertModesFilter(ensPerts,     & ! IN
                              ensPerts_ptr, & ! OUT
                              vModes, waveBandIndex)  ! IN
@@ -3323,7 +3324,10 @@ module calcStatsGlb_mod
     real(8), allocatable :: vertModesState3d(:,:,:)
     real(8), pointer     :: gridState3d(:,:,:)
 
-    real(8), allocatable       :: powerSpec(:,:)
+    real(8), allocatable :: powerSpec(:,:)
+    real(8), allocatable :: latWeight(:) ! Weight given to grid point in the statistic computation
+
+    real(8) :: sumWeight
     
     character(len=4), pointer :: varNamesList(:)
 
@@ -3347,6 +3351,21 @@ module calcStatsGlb_mod
                       datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                         &
                       mpi_distribution_opt='Tiles', dataKind_opt=8 )
 
+    allocate(latWeight(hco_ens%nj))
+    do latIndex = 1, hco_ens%nj
+      latWeight(latIndex) = cos(hco_ens%lat(latIndex))
+      if (mmpi_myid == 0) then
+        write(*,*) latIndex, hco_ens%lat(latIndex), cos(hco_ens%lat(latIndex))
+      end if
+    end do
+
+    sumWeight = 0.d0
+    do latIndex = myLatBeg, myLatEnd
+      do lonIndex = myLonBeg, myLonEnd
+        sumWeight = sumWeight + latWeight(latIndex)
+      end do
+    end do
+    
     !
     !- Vertical modes decomposition and coefficient summation
     !    
@@ -3359,11 +3378,16 @@ module calcStatsGlb_mod
         if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'MM') then
           nLev  = nLevEns_M
           nMode = nLev
-        else
+        else if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'TH') then
           nLev  = nLevEns_T
           nMode = nLev
+        else
+          if (memberIndex == 1) then
+            write(*,*) '   Skipping this variable not on momentum or thermodynamic levels'
+          end if
+          cycle  
         end if
-        
+
         nullify(gridState3d)
         call gsv_getField(gridStateVector_oneMember,gridState3d,varName_opt=varNamesList(varIndex))
 
@@ -3378,8 +3402,9 @@ module calcStatsGlb_mod
         do modeIndex = 1, nMode
           do latIndex = myLatBeg, myLatEnd
             do lonIndex = myLonBeg, myLonEnd
-              powerSpec(varIndex,modeIndex) = powerSpec(varIndex,modeIndex) + &
-                   vertModesState3d(lonIndex,latIndex,modeIndex)**2
+              powerSpec(varIndex,modeIndex) = powerSpec(varIndex,modeIndex) &
+                                            + vertModesState3d(lonIndex,latIndex,modeIndex)**2 &
+                                            * latWeight(latIndex)
             end do
           end do
         end do
@@ -3396,17 +3421,22 @@ module calcStatsGlb_mod
     !- Communicate between all tasks
     !
     call mmpi_allreduce_sumR8_2d(powerSpec, "GRID")
-
+    call mmpi_allreduce_sumreal8scalar(sumWeight, "GRID")
+    
     !
     !- Apply the appropriate scaling
     !
-    powerSpec(:,:) = powerSpec(:,:)/(dble(nEns-1)*dble(ni*nj))
+    powerSpec(:,:) = powerSpec(:,:)/(dble(nEns-1)*sumWeight)
 
     !
     !- Write to file
     !
     if (mmpi_myid == 0) then
       do varIndex = 1, numVar
+
+        if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))) /= 'MM' .and. &
+            vnl_varLevelFromVarName(trim(varNamesList(varIndex))) /= 'TH') cycle
+        
         outfilename = "./vertModesSpec_"//trim(varNamesList(varIndex))//".txt"
         write(*,*) 'calcVertModesSpec, writing ', trim(outfilename)
         open (unit=99,file=outfilename,action="write",status="new")
@@ -3490,16 +3520,20 @@ module calcStatsGlb_mod
       call ens_copyMember(ensPerts_in, gridStateVector_oneMember, memberIndex)
 
       do varIndex = 1, numVar
+
+        nullify(gridState3d)
+        call gsv_getField(gridStateVector_oneMember,gridState3d,varName_opt=varNamesList(varIndex))
+        
         if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'MM') then
           nLev  = nLevEns_M
           nMode = nLev
-        else
+        else if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'TH') then
           nLev  = nLevEns_T
           nMode = nLev
+        else
+          gridState3d(:,:,:) = 0.d0
+          cycle
         end if
-        
-        nullify(gridState3d)
-        call gsv_getField(gridStateVector_oneMember,gridState3d,varName_opt=varNamesList(varIndex))
 
         if (allocated(vertModesState3d)) deallocate(vertModesState3d)
         allocate(vertModesState3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nMode))
