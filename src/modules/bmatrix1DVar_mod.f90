@@ -442,7 +442,6 @@ contains
     integer, allocatable :: varLevColFromVarLevBmat(:)
     character(len=4), allocatable :: varNameFromVarLevIndexBmat(:)
     character(len=2) :: varLevel
-    logical :: debug=.false.
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -694,29 +693,16 @@ contains
     bSqrtEns(:,:,:) = 0.d0
     allocate(lineVector(1,nkgdim))
 
-    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,memberIndex,meanProfile,currentProfile,lineVector,varLevIndex1,varLevIndex2)
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,memberIndex,meanProfile,currentProfile,lineVector)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
       meanProfile => col_getColumn(meanColumn, headerIndex)
       do memberIndex = 1, nEns
         currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex)
-        if (debug) then
-          do varLevIndex1 = 1, nkgdim
-            lineVector(1,varLevIndex1) = currentProfile(varLevColFromVarLevBmat(varLevIndex1)) - &
-                 meanProfile(varLevColFromVarLevBmat(varLevIndex1))
-          end do
-          do varLevIndex1 = 1, nkgdim
-            do varLevIndex2 = 1, nkgdim
-              bSqrtEns(columnIndex,varLevIndex2,varLevIndex1) = bSqrtEns(columnIndex,varLevIndex2,varLevIndex1) + &
-                  lineVector(1,varLevIndex2) * lineVector(1,varLevIndex1)  
-            end do
-          end do
-        else
-          lineVector(1,:) = currentProfile(varLevColFromVarLevBmat(:)) - meanProfile(varLevColFromVarLevBmat(:))
-          lineVector(1,:) = lineVector(1,:) * multFactor(:)
-          bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) + &
-                matmul(transpose(lineVector),lineVector)
-        end if
+        lineVector(1,:) = currentProfile(varLevColFromVarLevBmat(:)) - meanProfile(varLevColFromVarLevBmat(:))
+        lineVector(1,:) = lineVector(1,:) * multFactor(:)
+        bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) + &
+            matmul(transpose(lineVector),lineVector)
       end do
     end do
     !$OMP END PARALLEL DO
