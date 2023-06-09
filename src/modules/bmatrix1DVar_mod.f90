@@ -599,9 +599,9 @@ contains
     call mmpi_setup_lonbands(ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd)
 
     !- 1.6 Localization
-    !if ( vLocalize <= 0.0d0 .and. (nLevInc_M > 1 .or. nLevInc_T > 1) ) then
-    !  call utl_abort('bmat1D_setubBEns: Invalid VERTICAL localization length scale')
-    !end if     
+    if ( vLocalize <= 0.0d0 .and. (nLevInc_M > 1 .or. nLevInc_T > 1) ) then
+      call utl_abort('bmat1D_setubBEns: Invalid VERTICAL localization length scale')
+    end if     
   
     call ens_allocate(ensembles,  &
          nEns, numStep, &
