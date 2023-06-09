@@ -437,7 +437,7 @@ contains
     integer :: nLevInc_M, nLevInc_T
     integer, external :: newdate
     real(8) :: logP1, logP2
-    real(8), pointer :: currentProfile(:), meanProfile(:), heightSfc(:,:)
+    real(8), pointer :: currentProfile(:), meanProfile(:)
     real(8), allocatable :: lineVector(:,:), meanPressureProfile(:), multFactor(:)
     integer, allocatable :: varLevColFromVarLevBmat(:)
     character(len=4), allocatable :: varNameFromVarLevIndexBmat(:)
@@ -629,10 +629,6 @@ contains
       write(*,*) 'Copy member ', memberIndex
       call gsv_zero(stateVector)
       call ens_copyMember(ensembles, stateVector, memberIndex)
-
-      heightSfc => gsv_getHeightSfc(stateVector)
-      write(*,*) 'min/max heightSfc = ', minval(heightSfc), maxval(heightSfc)
-
       write(*,*) 'interpolate member ', memberIndex
       call col_setVco(ensColumns(memberIndex), vco_ens)
       call col_allocate(ensColumns(memberIndex), obs_numheader(obsSpaceData), &
