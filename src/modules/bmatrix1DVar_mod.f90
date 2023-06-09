@@ -703,9 +703,9 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    do varlevIndex1 =1, nkgdim
-      write(*,*) 'bmat1D_setupBEns: variance = ', varlevIndex1, &
-                 sum(bSqrtEns(:,varlevIndex1,varlevIndex1))/real((nEns-1)*var1D_validHeaderCount)
+    do varLevIndexBmat =1, nkgdim
+      write(*,*) 'bmat1D_setupBEns: variance = ', varLevIndexBmat, &
+                 sum(bSqrtEns(:,varLevIndexBmat,varLevIndexBmat))/real((nEns-1)*var1D_validHeaderCount)
     end do
 
     deallocate(lineVector)
@@ -739,13 +739,12 @@ contains
           end do
         end do
       end if
-      !call utl_matsqrt(bSqrtEns(columnIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
     !$OMP END PARALLEL DO
 
-    do varlevIndex1 =1, nkgdim
-      write(*,*) 'bmat1D_setupBEns: variance (after localization) = ', varlevIndex1, &
-                 sum(bSqrtEns(:,varlevIndex1,varlevIndex1))/real(var1D_validHeaderCount)
+    do varLevIndexBmat =1, nkgdim
+      write(*,*) 'bmat1D_setupBEns: variance (after localization) = ', varLevIndexBmat, &
+                 sum(bSqrtEns(:,varLevIndexBmat,varLevIndexBmat))/real(var1D_validHeaderCount)
     end do
 
     write(*,*) 'bmat1D_setupBEns: computing matrix sqrt'
