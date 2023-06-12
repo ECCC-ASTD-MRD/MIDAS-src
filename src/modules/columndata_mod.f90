@@ -207,7 +207,7 @@ contains
   subroutine col_allocate(column, numCol, mpiLocal_opt, beSilent_opt, setToZero_opt, varNames_opt)
     implicit none
 
-      ! arguments
+    ! arguments
     type(struct_columnData)   :: column
     integer, intent(in)       :: numCol
     logical, optional         :: mpiLocal_opt

@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
- * (Nothing yet)
+ * Major bug fixes to the var1D code. Major impact on the results in some configurations (#826 and !743)
 
 ### Removed
 

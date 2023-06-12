@@ -212,12 +212,12 @@ program midas_var1D
   else
     !- Initialize the core (Non-Extended) analysis grid
     if (mmpi_myid == 0) write(*,*) 'midas-var1D: Set hco parameters for core grid'
-    call hco_SetupFromFile( hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
+    call hco_SetupFromFile(hco_core, './analysisgrid', 'COREGRID', 'AnalysisCore' ) ! IN
   end if
 
   ! Initialisation of the analysis grid vertical coordinate from analysisgrid file
-  call vco_SetupFromFile( vco_anl,        & ! OUT
-                          './analysisgrid') ! IN
+  call vco_SetupFromFile(vco_anl,        & ! OUT
+                         './analysisgrid') ! IN
 
   call col_setVco(columnTrlOnAnlIncLev, vco_anl)
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -242,16 +242,16 @@ program midas_var1D
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Reading trials
-  call inn_getHcoVcoFromTrlmFile( hco_trl, vco_trl )
+  call inn_getHcoVcoFromTrlmFile(hco_trl, vco_trl)
   allocHeightSfc = ( vco_trl%Vcode /= 0 )
 
-  call gsv_allocate( stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,  &
-                     dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true., &
-                     mpi_distribution_opt='Tiles', dataKind_opt=pre_incrReal,  &
-                     allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
-                     beSilent_opt=.false. )
-  call gsv_zero( stateVectorTrialHighRes )
-  call gio_readTrials( stateVectorTrialHighRes )
+  call gsv_allocate(stateVectorTrialHighRes, tim_nstepobs, hco_trl, vco_trl,            &
+                    dateStamp_opt=tim_getDateStamp(), mpi_local_opt=.true.,             &
+                    mpi_distribution_opt='Tiles', dataKind_opt=pre_incrReal,            &
+                    allocHeightSfc_opt=allocHeightSfc, hInterpolateDegree_opt='LINEAR', &
+                    beSilent_opt=.false.)
+  call gsv_zero(stateVectorTrialHighRes)
+  call gio_readTrials(stateVectorTrialHighRes)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! Initialize the background-error covariance, also sets up control vector module (cvm)
@@ -264,7 +264,7 @@ program midas_var1D
   ! Set up the minimization module, now that the required parameters are known
   ! NOTE: some global variables remain in minimization_mod that must be initialized before
   !       inn_setupBackgroundColumns
-  call min_setup( cvm_nvadim, hco_anl, oneDVarMode_opt=.true. ) ! IN
+  call min_setup(cvm_nvadim, hco_anl, oneDVarMode_opt=.true.) ! IN
   allocate(controlVectorIncr(cvm_nvadim),stat=ierr)
   if (ierr /= 0) then
     write(*,*) 'midas-var1D: Problem allocating memory for ''controlVectorIncr''',ierr
@@ -274,8 +274,8 @@ program midas_var1D
   write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   ! Horizontally interpolate high-resolution stateVectorUpdate to trial columns
-  call inn_setupColumnsOnTrlLev( columnTrlOnTrlLev, obsSpaceData, hco_core,  &
-                                   stateVectorTrialHighRes )
+  call inn_setupColumnsOnTrlLev(columnTrlOnTrlLev, obsSpaceData, hco_core, &
+                                stateVectorTrialHighRes )
 
   ! Interpolate trial columns to analysis levels and setup for linearized H
   call inn_setupColumnsOnAnlIncLev( columnTrlOnTrlLev,columnTrlOnAnlIncLev )
@@ -296,14 +296,14 @@ program midas_var1D
   call bcs_writebias(controlVectorIncr)
 
   call col_setVco(columnAnlInc, col_getVco(columnTrlOnAnlIncLev))
-  call col_allocate(columnAnlInc,col_getNumCol(columnTrlOnAnlIncLev),mpiLocal_opt=.true.)
+  call col_allocate(columnAnlInc, col_getNumCol(columnTrlOnAnlIncLev), mpiLocal_opt=.true.)
   call col_zero(columnAnlInc)
   ! get final increment
-  call bmat1D_get1DvarIncrement(controlVectorIncr,columnAnlInc,columnTrlOnAnlIncLev,obsSpaceData,cvm_nvadim)
-  call var1D_transferColumnToYGrid( stateVectorIncr, obsSpaceData, columnAnlInc, bmat1D_includeAnlVar)
+  call bmat1D_get1DvarIncrement(controlVectorIncr, columnAnlInc, columnTrlOnAnlIncLev, obsSpaceData, cvm_nvadim)
+  call var1D_transferColumnToYGrid(stateVectorIncr, obsSpaceData, columnAnlInc, bmat1D_includeAnlVar)
 
   ! output the analysis increment
-  call inc_writeIncrement( stateVectorIncr)
+  call inc_writeIncrement(stateVectorIncr)
   write(*,*) 'Memory Used: ',get_max_rss()/1024,'Mb'
 
   ! compute and write the analysis (as well as the increment on the trial grid)

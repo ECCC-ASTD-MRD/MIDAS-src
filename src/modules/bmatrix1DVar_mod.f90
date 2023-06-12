@@ -61,7 +61,7 @@ module bmatrix1DVar_mod
   logical          :: bmatActive    (numBmatMax)
   type(struct_columnData), allocatable :: ensColumns(:)
   type(struct_columnData) :: meanColumn
-  type(struct_ens) :: ensPerts
+  type(struct_ens) :: ensembles
 
   ! Namelist variables
   integer          :: nEns                             ! ensemble size
@@ -150,7 +150,7 @@ contains
         call utl_tmg_stop(54)
         write(*,*) ' bmat1D_bsetup: cvdim= ', cvdim
       case default
-        call utl_abort( 'bmat1D_bSetup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)) )
+        call utl_abort('bmat1D_bSetup: requested bmatrix type does not exist ' // trim(masterBmatTypeList(masterBmatIndex)))
       end select
 
       !- 1.2 Append the info to the B matrix info arrays and setup the proper control sub-vectors
@@ -213,7 +213,8 @@ contains
     character(len=17) :: oneDBmatSea  = './Bmatrix_sea.bin'
     character(len=4), allocatable :: includeAnlVarHi(:)
     integer :: extractDate, locationIndex, varIndex, numIncludeAnlVarHi
-    integer :: shiftLevel, varLevIndex, varLevIndex1, varLevIndex2
+    integer :: shiftLevel, varLevIndex1, varLevIndex2
+    integer :: varLevIndexBmat
     logical, save :: firstCall=.true.
     real(8), allocatable :: bMatrix(:,:), multFactor(:)
 
@@ -237,8 +238,8 @@ contains
       firstCall = .false.
     end if
 
-    if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Starting'
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Starting'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
     do levelIndex = 1, vco_maxNumLevels
       if( scaleFactorHI(levelIndex) > 0.0d0 ) then 
@@ -284,27 +285,27 @@ contains
     else
       shiftLevel = 0
     end if
-    varLevIndex = 0
+    varLevIndexBmat = 0
     do varIndex = 1, bmat1D_numIncludeAnlVar
       select case(bmat1D_includeAnlVar(varIndex))
         case('TT')
           do levelIndex = 1, vco_1Dvar%nLev_T
-            varLevIndex = varLevIndex + 1
-            multFactor(varLevIndex) = scaleFactorHI(levelIndex)
+            varLevIndexBmat = varLevIndexBmat + 1
+            multFactor(varLevIndexBmat) = scaleFactorHI(levelIndex)
           end do
         case('HU')
           do levelIndex = 1, vco_1Dvar%nLev_T
-            varLevIndex = varLevIndex + 1
-            multFactor(varLevIndex)= scaleFactorHIHumidity(levelIndex) * scaleFactorHI(levelIndex)
+            varLevIndexBmat = varLevIndexBmat + 1
+            multFactor(varLevIndexBmat)= scaleFactorHIHumidity(levelIndex) * scaleFactorHI(levelIndex)
           end do
         case('UU','VV')
           do levelIndex = 1, vco_1Dvar%nLev_M
-            varLevIndex = varLevIndex + 1
-            multFactor(varLevIndex) = scaleFactorHI(levelIndex+shiftLevel)
+            varLevIndexBmat = varLevIndexBmat + 1
+            multFactor(varLevIndexBmat) = scaleFactorHI(levelIndex+shiftLevel)
           end do
         case('P0','TG')
-          varLevIndex = varLevIndex + 1
-          multFactor(varLevIndex) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
+          varLevIndexBmat = varLevIndexBmat + 1
+          multFactor(varLevIndexBmat) = scaleFactorHI(max(vco_1Dvar%nLev_T,vco_1Dvar%nLev_M))
         case default
           call utl_abort('bmat1D_setupBHi: unsupported variable ' // bmat1D_includeAnlVar(varIndex))
         end select
@@ -392,8 +393,8 @@ contains
     cvDim_mpilocal = cvDim_out
     initialized = .true.
 
-    if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Exiting'
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBHi: Exiting'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
   end subroutine bmat1D_setupBHi
 
@@ -420,11 +421,11 @@ contains
     type(struct_hco), pointer :: hco_ens => null()
     type(struct_gsv)          :: stateVector, stateVectorMean
     integer, allocatable :: dateStampList(:)
-    character(len=12) :: hInterpolationDegree ! select degree of horizontal interpolation (if needed)
+    character(len=12) :: hInterpolationDegree='LINEAR' ! select degree of horizontal interpolation (if needed)
     integer :: memberIndex, columnIndex, headerIndex, varIndex, levIndex
-    integer :: levIndex1
-    integer :: varLevIndex, varLevIndex1, varLevIndex2 
-    integer :: numStep, levIndexColumn
+    integer :: varLevIndex1, varLevIndex2
+    integer :: varLevIndexBmat, varLevIndexCol
+    integer :: numStep, levIndexColumn, ierr
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
     real(8) :: scaleFactor_SF, ZR
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
@@ -434,21 +435,19 @@ contains
     integer :: ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
     integer :: nLevEns_M, nLevEns_T
     integer :: nLevInc_M, nLevInc_T
-    integer :: topLevIndex_M, topLevIndex_T
     integer, external :: newdate
-    character(len=4), pointer :: varNames(:)
     real(8) :: logP1, logP2
     real(8), pointer :: currentProfile(:), meanProfile(:)
     real(8), allocatable :: lineVector(:,:), meanPressureProfile(:), multFactor(:)
-    integer, allocatable :: levIndexFromVarLevIndex(:)
-    character(len=4), allocatable :: varNameFromVarLevIndex(:)
+    integer, allocatable :: varLevColFromVarLevBmat(:)
+    character(len=4), allocatable :: varNameFromVarLevIndexBmat(:)
     character(len=2) :: varLevel
 
-    if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
 
-    if ( nEns <= 0 ) then
-      if ( mmpi_myid == 0 ) write(*,*) 'bmat1D_setupBEns: no Ensemble members, skipping rest of setup'
+    if (nEns <= 0) then
+      if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: no Ensemble members, skipping rest of setup'
       cvdim_out = 0
       return
     end if
@@ -475,23 +474,12 @@ contains
     end if
 
     !- 1.3 Vertical levels
-    if ( mmpi_myid == 0 ) then
-      call fln_ensfileName(ensFileName, ensPathName, memberIndex_opt=1)
-      write(*,*) 'before vco_SetupFromFile'
-      call vco_SetupFromFile(vco_file, ensFileName)
-      call gsv_allocate(stateVector, numStep, hco_in, vco_in,  &
-           hInterpolateDegree_opt='LINEAR', &
-           dataKind_opt=4, &
-           dateStamp_opt=tim_getDateStamp(), beSilent_opt=.false.)
-      call gio_readFromFile(stateVector, ensFileName, '', '')
-      call gsv_varNamesList(varNames, stateVector)
-      write(*,*) 'bmat1D_setupBEns: variable names : ', varNames
-    end if
-    call vco_mpiBcast(vco_file)
+    call fln_ensfileName(ensFileName, ensPathName, memberIndex_opt=1)
+    call vco_SetupFromFile(vco_file, ensFileName)
 
     !- Do we need to read all the vertical levels from the ensemble?
     useAnlLevelsOnly = vco_subsetOrNot(vco_in, vco_file)
-    if ( useAnlLevelsOnly ) then
+    if (useAnlLevelsOnly) then
       write(*,*)
       write(*,*) 'bmat1D_setupBEns: only the analysis levels will be read in the ensemble '
       vco_ens  => vco_in ! the ensemble target grid is the analysis grid
@@ -538,8 +526,6 @@ contains
     nLevEns_T = vco_ens%nLev_T
     nLevInc_M = vco_in%nLev_M
     nLevInc_T = vco_in%nLev_T
-    topLevIndex_M = nLevInc_M-nLevEns_M+1
-    topLevIndex_T = nLevInc_T-nLevEns_T+1
 
     if (vco_in%Vcode == 5002) then
       if ( (nLevEns_T /= (nLevEns_M+1)) .and. (nLevEns_T /= 1 .or. nLevEns_M /= 1) ) then
@@ -569,7 +555,7 @@ contains
 
     if (nLevEns_M < nLevInc_M) then
       if (mmpi_myid == 0) write(*,*) 'bmat1D_setubBEns: ensemble has less levels than increment'
-      if (mmpi_myid == 0) write(*,*) '                      some levels near top will have zero increment'
+      if (mmpi_myid == 0) write(*,*) '                  some levels near top will have zero increment'
     end if
 
     !- 1.4 Bmatrix Weight
@@ -616,27 +602,19 @@ contains
     if ( vLocalize <= 0.0d0 .and. (nLevInc_M > 1 .or. nLevInc_T > 1) ) then
       call utl_abort('bmat1D_setubBEns: Invalid VERTICAL localization length scale')
     end if     
-      
-    !- 1.7 Setup the localization
-    if ( vco_in%Vcode == 5002 .or. vco_in%Vcode == 5005 ) then
-      pSurfRef = 101000.D0
-      call czp_fetch1DLevels(vco_in, pSurfRef, profM_opt=pressureProfileInc_M)
-      deallocate(pressureProfileInc_M)
-    end if
   
-    call ens_allocate(ensPerts,  &
+    call ens_allocate(ensembles,  &
          nEns, numStep, &
          hco_ens,  &
          vco_ens, dateStampList, &
-         hco_core_opt = hco_in, &  ! to generalize later hco_in => hco_core
+         hco_core_opt = hco_in, &
          varNames_opt = bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar), &
          hInterpolateDegree_opt = hInterpolationDegree)
     write(*,*) 'Read ensemble members'
-    call ens_readEnsemble(ensPerts, ensPathName, biPeriodic=.false.,       &
-                          vco_file_opt = vco_ens,                          &
+    call ens_readEnsemble(ensembles, ensPathName, biPeriodic=.false., &
                           varNames_opt = bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar))
-    
-    allocate( ensColumns(nEns))
+
+    allocate(ensColumns(nEns))
     call gsv_allocate(stateVector, numstep, hco_ens, vco_ens, &
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
@@ -646,22 +624,25 @@ contains
                      dateStamp_opt=tim_getDateStamp(),  &
                      mpi_local_opt=.true., mpi_distribution_opt='Tiles', &
                      dataKind_opt=4, allocHeightSfc_opt=.true.)
+    call gsv_zero(stateVectorMean)
     do memberIndex = 1, nEns
       write(*,*) 'Copy member ', memberIndex
-      call ens_copyMember(ensPerts, stateVector, memberIndex)
+      call gsv_zero(stateVector)
+      call ens_copyMember(ensembles, stateVector, memberIndex)
       write(*,*) 'interpolate member ', memberIndex
       call col_setVco(ensColumns(memberIndex), vco_ens)
-      call col_allocate(ensColumns(memberIndex), obs_numheader(obsSpaceData),  &
+      call col_allocate(ensColumns(memberIndex), obs_numheader(obsSpaceData), &
                         mpiLocal_opt=.true., setToZero_opt=.true.)
-      call s2c_nl( stateVector, obsSpaceData, ensColumns(memberIndex), hco_in, &
-                   timeInterpType='NEAREST' )
+      call s2c_nl(stateVector, obsSpaceData, ensColumns(memberIndex), hco_in, &
+                  timeInterpType='NEAREST', dealloc_opt=.false. )
       call gsv_add(statevector, statevectorMean, scaleFactor_opt=(1.d0/nEns))
     end do
+
     call col_setVco(meanColumn, vco_ens)
-    call col_allocate(meanColumn, obs_numheader(obsSpaceData),  &
-            mpiLocal_opt=.true., setToZero_opt=.true.)
-    call s2c_nl( stateVectorMean, obsSpaceData, meanColumn, hco_in, &
-            timeInterpType='NEAREST' )
+    call col_allocate(meanColumn, obs_numheader(obsSpaceData), &
+                      mpiLocal_opt=.true., setToZero_opt=.true.)
+    call s2c_nl(stateVectorMean, obsSpaceData, meanColumn, hco_in, &
+                timeInterpType='NEAREST' )
 
     call gsv_deallocate(stateVector)
     call gsv_deallocate(stateVectorMean)
@@ -674,36 +655,36 @@ contains
     write(*,*) 'bmat1D_setupBEns: nkgdim', nkgdim
     cvDim_out = nkgdim * var1D_validHeaderCount
 
-    currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1) )
-    allocate (levIndexFromVarLevIndex(nkgdim))
-    allocate (varNameFromVarLevIndex(nkgdim))
+    currentProfile => col_getColumn(meanColumn, var1D_validHeaderIndex(1))
+    allocate (varLevColFromVarLevBmat(nkgdim))
+    allocate (varNameFromVarLevIndexBmat(nkgdim))
     allocate (multFactor(nkgdim))
-    varLevIndex = 0
+    varLevIndexBmat = 0
     do varIndex = 1, bmat1D_numIncludeAnlVar
-      levIndex1 = 0
-      do levIndex = 1, size(currentProfile)
-        if ( trim( col_getVarNameFromK(meanColumn,levIndex) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
-          varLevIndex = varLevIndex + 1
-          levIndex1 = levIndex1 + 1
-          levIndexFromVarLevIndex(varLevIndex) = levIndex
-          varNameFromVarLevIndex(varLevIndex) = trim( bmat1D_includeAnlVar(varIndex) )
-          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndex(varLevIndex))
+      levIndex = 0
+      do varLevIndexCol = 1, size(currentProfile)
+        if ( trim( col_getVarNameFromK(meanColumn,varLevIndexCol) ) == trim( bmat1D_includeAnlVar(varIndex) ) ) then
+          varLevIndexBmat = varLevIndexBmat + 1
+          levIndex = levIndex + 1
+          varLevColFromVarLevBmat(varLevIndexBmat) = varLevIndexCol
+          varNameFromVarLevIndexBmat(varLevIndexBmat) = trim( bmat1D_includeAnlVar(varIndex) )
+          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndexBmat(varLevIndexBmat))
           if ( varLevel == 'MM' ) then      ! Momentum
-            multFactor(varLevIndex) = scaleFactor_M(levIndex1)
+            multFactor(varLevIndexBmat) = scaleFactor_M(levIndex)
           else if ( varLevel == 'TH' ) then ! Thermo
-            multFactor(varLevIndex) = scaleFactor_T(levIndex1)
+            multFactor(varLevIndexBmat) = scaleFactor_T(levIndex)
           else                              ! SF
-            multFactor(varLevIndex) = scaleFactor_SF
+            multFactor(varLevIndexBmat) = scaleFactor_SF
           end if
-          if (varNameFromVarLevIndex(varLevIndex) == 'HU') then
-            multFactor(varLevIndex) = multFactor(varLevIndex) * scaleFactorEnsHumidity(levIndex1)
+          if (varNameFromVarLevIndexBmat(varLevIndexBmat) == 'HU') then
+            multFactor(varLevIndexBmat) = multFactor(varLevIndexBmat) * scaleFactorEnsHumidity(levIndex)
           end if
-          if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndex, levIndex
+          if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns:  bmat1D_includeAnlVar ', bmat1D_includeAnlVar(varIndex), varLevIndexBmat, levIndex
         end if
       end do
     end do
     
-    call ens_deallocate( ensPerts )
+    call ens_deallocate(ensembles)
     allocate(bSqrtEns(var1D_validHeaderCount,nkgdim,nkgdim))
     bSqrtEns(:,:,:) = 0.d0
     allocate(lineVector(1,nkgdim))
@@ -714,51 +695,65 @@ contains
       meanProfile => col_getColumn(meanColumn, headerIndex)
       do memberIndex = 1, nEns
         currentProfile => col_getColumn(ensColumns(memberIndex), headerIndex)
-        lineVector(1,:) = currentProfile(levIndexFromVarLevIndex(:)) - meanProfile(levIndexFromVarLevIndex(:))
+        lineVector(1,:) = currentProfile(varLevColFromVarLevBmat(:)) - meanProfile(varLevColFromVarLevBmat(:))
         lineVector(1,:) = lineVector(1,:) * multFactor(:)
-        bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) + &
+        bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) + &
             matmul(transpose(lineVector),lineVector)
       end do
     end do
     !$OMP END PARALLEL DO
+
+    do varLevIndexBmat =1, nkgdim
+      write(*,*) 'bmat1D_setupBEns: variance = ', varLevIndexBmat, &
+                 sum(bSqrtEns(:,varLevIndexBmat,varLevIndexBmat))/real((nEns-1)*var1D_validHeaderCount)
+    end do
 
     deallocate(lineVector)
     deallocate(multFactor)
     allocate(meanPressureProfile(nkgdim))
     call lfn_Setup('FifthOrder')
 
-    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,meanPressureProfile,levIndex1,varLevIndex1,varLevIndex2,varLevel,levIndexColumn,logP1,logP2,zr)
+    !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,meanPressureProfile,varLevIndexBmat,varLevIndexCol,varLevIndex1,varLevIndex2,varLevel,levIndexColumn,logP1,logP2,zr)
     do columnIndex = 1, var1D_validHeaderCount
       headerIndex = var1D_validHeaderIndex(columnIndex)
-      bSqrtEns(headerIndex,:,:) = bSqrtEns(headerIndex,:,:) / (nEns - 1)
+      bSqrtEns(columnIndex,:,:) = bSqrtEns(columnIndex,:,:) / (nEns - 1)
       if (vLocalize > 0.0d0) then
-        do varLevIndex1 = 1, nkgdim
-          levIndex1 = levIndexFromVarLevIndex(varLevIndex1)
-          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndex(varLevIndex1))
+        do varLevIndexBmat = 1, nkgdim
+          varLevIndexCol = varLevColFromVarLevBmat(varLevIndexBmat)
+          varLevel = vnl_varLevelFromVarname(varNameFromVarLevIndexBmat(varLevIndexBmat))
           if (varLevel=='SF') then
-            meanPressureProfile(varLevIndex1) = col_getElem(meanColumn, 1, headerIndex, 'P0')
+            meanPressureProfile(varLevIndexBmat) = col_getElem(meanColumn, 1, headerIndex, 'P0')
           else
-            levIndexColumn = col_getLevIndexFromVarLevIndex(meanColumn, levIndex1)
-            meanPressureProfile(varLevIndex1) = col_getPressure(meanColumn, levIndexColumn, headerIndex, varLevel)
+            levIndexColumn = col_getLevIndexFromVarLevIndex(meanColumn, varLevIndexCol)
+            meanPressureProfile(varLevIndexBmat) = col_getPressure(meanColumn, levIndexColumn, headerIndex, varLevel)
           end if
         end do
-        do varLevIndex1 = 1, nkgdim
-          logp1 = log(meanPressureProfile(varLevIndex1))
+        do varLevIndex1 = 1, nkgdim 
+          logP1 = log(meanPressureProfile(varLevIndex1))
           do varLevIndex2 = 1, nkgdim
             !-  do Schurr product with 5'th order function
             logP2 = log(meanPressureProfile(varLevIndex2))
-            zr = abs(logP2  -  logP1)
-            bSqrtEns(headerIndex, varLevIndex2, varLevIndex1) = &
-                 bSqrtEns(headerIndex, varLevIndex2, varLevIndex1) * lfn_response(zr, vLocalize)
+            zr = abs(logP2 - logP1)
+            bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) = &
+                bSqrtEns(columnIndex, varLevIndex2, varLevIndex1) * lfn_response(zr, vLocalize)
           end do
         end do
       end if
-      call utl_matsqrt(bSqrtEns(headerIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
     end do
     !$OMP END PARALLEL DO
 
-    deallocate(levIndexFromVarLevIndex) 
-    deallocate(varNameFromVarLevIndex)
+    do varLevIndexBmat =1, nkgdim
+      write(*,*) 'bmat1D_setupBEns: variance (after localization) = ', varLevIndexBmat, &
+                 sum(bSqrtEns(:,varLevIndexBmat,varLevIndexBmat))/real(var1D_validHeaderCount)
+    end do
+
+    write(*,*) 'bmat1D_setupBEns: computing matrix sqrt'
+    do columnIndex = 1, var1D_validHeaderCount
+      call utl_matsqrt(bSqrtEns(columnIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
+    end do
+
+    deallocate(varLevColFromVarLevBmat) 
+    deallocate(varNameFromVarLevIndexBmat)
     deallocate(meanPressureProfile)
     call col_deallocate(meanColumn)
     do memberIndex = 1, nEns
@@ -767,8 +762,8 @@ contains
     cvDim_mpilocal = cvDim_out
     initialized = .true.
     
-    if(mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
-    if(mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
+    if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Exiting'
 
   end subroutine bmat1D_setupBEns
   
@@ -923,7 +918,7 @@ contains
     !$OMP PARALLEL DO PRIVATE (columnIndex,headerIndex,oneDProfile,offset,varIndex,currentColumn)
     do columnIndex = 1, var1D_validHeaderCount 
       headerIndex = var1D_validHeaderIndex(columnIndex)
-      oneDProfile(:) = matmul(bSqrtEns(headerIndex, :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
+      oneDProfile(:) = matmul(bSqrtEns(columnIndex, :, :), controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim))
       offset = 0
       do varIndex = 1, bmat1D_numIncludeAnlVar
         currentColumn => col_getColumn(column, headerIndex, varName_opt=bmat1D_includeAnlVar(varIndex))
@@ -985,7 +980,7 @@ contains
       end if
       controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) =  &
              controlVector_in(1+(columnIndex-1)*nkgdim:columnIndex*nkgdim) + &
-             matmul(bSqrtEns(headerIndex,:,:), oneDProfile)
+             matmul(bSqrtEns(columnIndex,:,:), oneDProfile)
     end do
     !$OMP END PARALLEL DO
 
