@@ -693,22 +693,36 @@ module calcStatsGlb_mod
       write(*,*)
       write(*,*) 'Estimating the optimal covariance localization radii'
 
+      if (nWaveBand > 1 .and. nVertWaveBand > 1) then
+        call utl_abort('csg_toolbox: cannot do horizontal AND vertical scale-decomposition')
+      end if
+
       call ens_removeGlobalMean(ensPerts)
 
-      do waveBandIndex = 1, nWaveBand
-        
-        call spectralFilter2(ensPerts,                      & ! IN
-                             ensPerts_ptr,                  & ! OUT
-                             waveBandIndex_opt=waveBandIndex) ! IN
+      do waveBandIndex = 1, max(nWaveBand,nVertWaveBand)
 
+        if (nVertWaveBand > 1) then
+          if (waveBandIndex == 1) then
+            call vms_computeModesFromFunction(vco_ens, lengthScaleTop, lengthScaleBot, & ! IN
+                                              vModes)                                    ! OUT
+          end if
+          call vertModesFilter(ensPerts,             & ! IN
+                               ensPerts_ptr,         & ! OUT
+                               vModes, waveBandIndex)  ! IN
+        else
+          call spectralFilter2(ensPerts,                      & ! IN
+                               ensPerts_ptr,                  & ! OUT
+                               waveBandIndex_opt=waveBandIndex) ! IN
+        end if
+          
         call ens_computeStdDev(ensPerts_ptr)
        
         if (waveBandIndex == 1) then
           call ens_copyEnsStdDev(ensPerts_ptr, statevector_template) ! IN
           call bmd_setup(statevector_template, hco_ens, nEns, pressureProfile_M, & ! IN
-                         pressureProfile_T, nWaveBand)                             ! IN
+                         pressureProfile_T, max(nWaveBand,nVertWaveBand))          ! IN
         end if
-         
+
         call bmd_localizationRadii(ensPerts_ptr, waveBandIndex_opt=waveBandIndex) ! IN
 
       end do

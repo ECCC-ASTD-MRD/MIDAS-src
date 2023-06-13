@@ -4,21 +4,22 @@
 &NAMTOOLBOX
    TOOL = 'VERTMODES_SPEC'
    ensContainsFullField = .true.
-   ctrlVarHumidity = 'HU'
+   ctrlVarHumidity = 'LQ'
    vertmodes_lengthScale = 6.d0
 /
 &NAMSTATE
    ANLVAR(1)   ='TT'
    ANLVAR(2)   ='HU'
    ANLVAR(3)   ='UU'
-   ANLVAR(4)   ='VV' 
+   ANLVAR(4)   ='VV'
+   ANLVAR(5)   ='P0'
 /
  &NAMENS
    NENS=256
 /
  &NAMCALCSTATS_GLB
    NTRUNC=380
-   !vertWaveBandPeaks = 30,15,5
+   vertWaveBandPeaks = 30,15,5
 /
  &NAMTIME
 /
