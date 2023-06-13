@@ -122,14 +122,14 @@ module varNameList_mod
       !
       ! :Purpose: To get the 3d list index from the variable name
       !
-
       implicit none
 
       ! Arguments:
       character(len=*), intent(in) :: varName
+      ! Result:
       integer                      :: listIndex
       
-      !Local:
+      ! Locals:
       integer                      :: jvar
 
       listIndex=-1
@@ -153,14 +153,14 @@ module varNameList_mod
       !
       ! :Purpose: To get the 2d list index from the variable name
       !
-
       implicit none
 
       ! Arguments:
       character(len=*), intent(in) :: varName
+      ! Result:
       integer                      :: listIndex
 
-      !Local:
+      ! Locals:
       integer                      :: jvar
 
       listIndex=-1
@@ -184,14 +184,14 @@ module varNameList_mod
       !
       ! :Purpose: To get the "Other" list index from the variable name
       !
-
       implicit none
 
       ! Arguments:
       character(len=*), intent(in) :: varName
+      ! Result:
       integer                      :: listIndex
 
-      !Local:
+      ! Locals:
       integer                      :: jvar
 
       listIndex=-1
@@ -218,11 +218,12 @@ module varNameList_mod
 
       implicit none
 
-      !Arguments:
+      ! Arguments:
       character(len=*), intent(in) :: varName
+      ! Result:
       integer                      :: listIndex
 
-      !Local:
+      ! Local:
       integer                      :: jvar
 
       listIndex=-1
@@ -250,9 +251,10 @@ module varNameList_mod
       
       ! Arguments:
       character(len=*), intent(in) :: varName
+      ! Result:
       logical                      :: isValid
       
-      ! Local:
+      ! Local::
       integer                      :: varIndex
 
       isValid = .false.
@@ -272,13 +274,13 @@ module varNameList_mod
       !
       ! :Purpose: To get the variable name from the variable number
       !
-
       implicit none
 
-      !Arguments:
+      ! Arguments:
       integer, intent(in) :: varNumber
       integer, intent(in), optional :: varNumberChm_opt
       character(len=*), intent(in), optional :: modelName_opt
+      ! Result:
       character(len=4)    :: varName
 
       varName='    '
@@ -394,12 +396,12 @@ module varNameList_mod
       !           variable and not units. As consequence, there is a unique
       !           pairing of varNumbers with the varNames from vnl_VarNameList.
       !
-
       implicit none
 
-      !Arguments:
+      ! Arguments:
       character(len=*),  intent(in) :: varName
       character(len=*),  intent(in), optional :: varKind_opt
+      ! Result:
       integer    :: varNumber
       
       varNumber=0
@@ -503,11 +505,12 @@ module varNameList_mod
       !
       implicit none
 
-      !Arguments:
+      ! Arguments:
       character(len=*), intent(in)   :: varName
+      ! Result:
       character(len=4)               :: varLevel
 
-      !Locals:
+      ! Locals:
       integer                :: nulnam, ierr
       integer, external      :: fnom, fclos
       logical, save          :: firstTime = .true.
@@ -557,13 +560,14 @@ module varNameList_mod
       !
       implicit none
 
-      !Arguments:
+      ! Arguments:
       integer, intent(in)           :: varNumber
       integer, intent(in), optional :: varNumberChm_opt
       character(len=*), intent(in), optional :: modelName_opt
+      ! Result:
       character(len=4)              :: varLevel
 
-      !Local:
+      ! Locals:
       character(len=4)              :: varName
 
       varName = vnl_varnameFromVarnum(varNumber,varNumberChm_opt=varNumberChm_opt,modelName_opt=modelName_opt)
@@ -578,11 +582,11 @@ module varNameList_mod
       !
       ! :Purpose: To get variable kind list from the variable number 
       !
-
       implicit none
 
-      !Arguments:
+      ! Arguments:
       character(len=*), intent(in) :: varName
+      ! Result:
       character(len=2) :: varKind
       
       varKind = varKindList(vnl_varListIndex(varName))
@@ -599,11 +603,11 @@ module varNameList_mod
 
       implicit none
 
-      !Arguments:
+      ! Arguments:
       logical :: varExistList(:)
       character(len=4), pointer :: varNames(:)
 
-      !Local:
+      ! Local:
       integer :: varIndex, numFound
 
       if (associated(varNames)) then
@@ -633,11 +637,11 @@ module varNameList_mod
       !
       ! :Purpose: Identifies constituent molar mass from varNum for use in conversions for the CH family.   
       !
-
       implicit none
 
-      !Arguments:
+      ! Arguments:
       integer, intent(in) :: varNumber
+      ! Result:
       real(8)             :: varMass
 
       if ( varNumber == BUFR_NECH_O3 ) then
@@ -680,11 +684,11 @@ module varNameList_mod
       !
       ! :Purpose: Identifies constituent molar mass from varName for use in conversions for the CH family.   
       !
-
       implicit none
 
-      !Arguments:
+      ! Arguments:
       character(len=*),  intent(in) :: varName
+      ! Result:
       real(8)                       :: varMass
 
       if ( varName == 'TO3' .or. varName == 'O3L'  ) then
@@ -731,6 +735,7 @@ module varNameList_mod
 
       ! Arguments:
       character(len=*),  intent(in) :: varName
+      ! Result:
       logical                       :: isPhysicsVar
 
       select case (trim(varName))
@@ -754,6 +759,7 @@ module varNameList_mod
   
       ! Arguments:
       character(len=*), intent(in) :: varName
+      ! Result:
       logical                      :: isCloud
   
       ! Locals:
@@ -781,6 +787,7 @@ module varNameList_mod
       ! Arguments:
       character(len=*),  intent(in) :: varNamesIn(:)
       character(len=*),  intent(in) :: varNameToAdd
+      ! Result:
       character(len=4), pointer     :: varNamesOut(:)
 
       ! Locals:

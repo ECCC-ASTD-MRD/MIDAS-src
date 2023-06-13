@@ -35,7 +35,8 @@ contains
     character(len=*)  :: ensFileName
     character(len=*)  :: ensPathName
     integer, optional :: memberIndex_opt
-    character(len=*),optional  :: ensFileBaseName_opt, ensFileNamePrefix_opt
+    character(len=*),optional :: ensFileBaseName_opt
+    character(len=*),optional :: ensFileNamePrefix_opt
     logical, optional :: shouldExist_opt
     integer, optional :: ensembleFileExtLength_opt
     logical, optional :: copyToRamDisk_opt
@@ -168,7 +169,7 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     character(len=*)  :: ensFileName
     character(len=*)  :: ensPathName
     integer           :: dateStamp
@@ -176,7 +177,7 @@ contains
     character(len=*), optional :: ensFileNamePrefix_opt
     character(len=*), optional :: ensFileNameSuffix_opt
 
-    ! locals
+    ! Locals:
     integer :: imode, ierr, hours, prntdate, prnttime, newdate
     character(len=4)  :: ensNumber
     character(len=10) :: dateStrAnl
@@ -242,7 +243,7 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     character(len=*)  :: ensFileName
     character(len=*)  :: ensPathName
     integer           :: dateStamp
@@ -250,7 +251,7 @@ contains
     character(len=*), optional :: ensFileNamePrefix_opt
     character(len=*), optional :: ensFileNameSuffix_opt
 
-    ! locals
+    ! Locals:
     integer :: imode, ierr, hours, prntdate, prnttime, newdate, dateStampTrl
     character(len=4)  :: ensNumber
     character(len=3)  :: leadTimeStr

@@ -31,8 +31,7 @@ module oceanBackground_mod
                                  nmonthsClim, datestampClim, alphaClim, etiket)
     !
     !: Purpose: to compute SST background   
-    !           xb(t) = (xa(t-1) - xclim(t-1))*alpha + xclim(t)         
-    
+    !           xb(t) = (xa(t-1) - xclim(t-1))*alpha + xclim(t)             
     implicit none
 
     ! Arguments:
@@ -92,7 +91,7 @@ module oceanBackground_mod
     !           2) to interpolate the field in time using the current day (t) in current month (m)    
     !           SST(t) = SST_clim(m) + (t-1)/(ndays-1) * (SST_clim(m+1) - SST_clim(m)),
     !           where ndays is a number of days in current month        
-    
+    !
     implicit none
 
     ! Arguments:
@@ -103,7 +102,7 @@ module oceanBackground_mod
     integer         , intent(in)          :: datestampClim(:) ! datestamps in the climatology file
     real(8)         , intent(inout)       :: output(:,:)      ! interpolated SST field from climatology
   
-    ! locals
+    ! Locals:
     integer          :: hour, day, month, yyyy, ndays, nextMonth
     type(struct_gsv) :: stateVector, stateVector_nextMonth
     real(4), pointer :: clim_ptr(:, :, :), clim_nextMonth_ptr(:, :, :)

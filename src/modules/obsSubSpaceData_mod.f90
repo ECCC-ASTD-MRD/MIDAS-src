@@ -101,9 +101,6 @@ module obsSubSpaceData_mod
 contains
 
 
-!--------------------------------------------------------------------------------------------
-!------------------- OBSDATA functions and routines -----------------------------------------
- 
   subroutine oss_obsdata_alloc(obsdata,nrep,dim1,dim2_opt)
     !
     ! :Purpose: Allocates memory for structure struct_oss_obsdata to hold obs data file information.
@@ -116,7 +113,6 @@ contains
     !      :dim1: first dimension length of the array associated to each observation/report
     !      :dim2: second dimension length of the array associated to each observation/report (optional)
     !
-
     implicit none
 
     ! Arguments:
@@ -152,13 +148,11 @@ contains
 
   end subroutine oss_obsdata_alloc
 
-!-------------------------------------------------------------------------------------------
 
   subroutine oss_obsdata_dealloc(obsdata)
     !
     ! :Purpose: Deallocates memory for structure struct_oss_obsdata
     !
-
     implicit none
 
     ! Arguments:
@@ -170,7 +164,6 @@ contains
 
   end subroutine oss_obsdata_dealloc
 
-!!------------------------------------------------------------------------------------------
 
   function oss_obsdata_get_element( obsdata, code, idim1, stat_opt ) result(element)
     ! 
@@ -184,12 +177,14 @@ contains
     !           :element: retrieved element from obsdata%data1d
     !           :stat:    status code
     !
+    implicit none
 
+    ! Arguments:
     type(struct_oss_obsdata), intent(inout)         :: obsdata
     character(len=*)        , intent(in)            :: code
     integer                 , intent(in)            :: idim1
     integer                 , intent(out), optional :: stat_opt
-
+    ! Result:
     real(8) :: element
     
     ! find obsdata%irep for current observation
@@ -213,7 +208,6 @@ contains
 
   end function oss_obsdata_get_element
 
-!-------------------------------------------------------------------------------------------
 
   function oss_obsdata_get_array1d(obsdata,code,stat_opt) result(array)
     ! 
@@ -225,11 +219,13 @@ contains
     !           :array:   retrieved array from obsdata%data1d of dimension obsdata%dim1
     !           :stat:    search success (0 - found; 1 = no data; 2 = not found)
     !
+    implicit none
 
+    ! Arguments:
     type(struct_oss_obsdata), intent(inout)         :: obsdata
     character(len=*)        , intent(in)            :: code
     integer                 , intent(out), optional :: stat_opt
-
+    ! Result:
     real(8) :: array(obsdata%dim1)
     
     ! find obsdata%irep for current observation
@@ -253,7 +249,6 @@ contains
 
   end function oss_obsdata_get_array1d
 
-!-------------------------------------------------------------------------------------------
 
   function oss_obsdata_get_data1d( obsdata, lon, lat, date, time, stnid, stat_opt ) result(array)
     !
@@ -271,6 +266,7 @@ contains
     !    
     implicit none
 
+    ! Arguments:
     type(struct_oss_obsdata), intent(inout)         :: obsdata
     real(8)                 , intent(in)            :: lon
     real(8)                 , intent(in)            :: lat
@@ -278,9 +274,11 @@ contains
     integer                 , intent(in)            :: time
     character(len=*)        , intent(in)            :: stnid
     integer                 , intent(out), optional :: stat_opt
-
-    character(len=oss_code_len) :: code
+    ! Result:
     real(8) :: array(obsdata%dim1)
+
+    ! Locals:
+    character(len=oss_code_len) :: code
     
     ! Set desired identifier code
     code=oss_obsdata_get_header_code(lon,lat,date,time,stnid) 
@@ -290,7 +288,6 @@ contains
     
   end function oss_obsdata_get_data1d
 
-!-------------------------------------------------------------------------------------------
 
   function oss_obsdata_get_array2d( obsdata, code, stat_opt ) result(array)
     ! 
@@ -303,11 +300,13 @@ contains
     !           :array:   retrieved array from obsdata%data2d of dimension (obsdata%dim1,obsdata%dim2)
     !           :stat:    search success (0 - found; 1 = no data; 2 = not found)
     !
+    implicit none
 
+    ! Arguments:
     type(struct_oss_obsdata), intent(inout)         :: obsdata
     character(len=*)        , intent(in)            :: code
     integer                 , intent(out), optional :: stat_opt
-
+    ! Result:
     real(8) :: array(obsdata%dim1,obsdata%dim2)
     
     ! find obsdata%irep for current observation
@@ -331,7 +330,6 @@ contains
 
   end function oss_obsdata_get_array2d
 
-!-------------------------------------------------------------------------------------------
 
   subroutine obsdata_set_index( obsdata, code, stat_opt )
     ! 
@@ -350,16 +348,16 @@ contains
     !
     ! :Comments: If the optional argument stat_opt is provided and an error occurs, the error code will
     !            be returned and the abort will not be called to allow for error handling.
-    ! 
+    !
+    implicit none
 
+    ! Arguments:
     type(struct_oss_obsdata), intent(inout)         :: obsdata
     character(len=*)        , intent(in)            :: code
     integer                 , intent(out), optional :: stat_opt
 
+    ! Locals:
     integer :: i
-
-    ! Additional declarations for use with obsspace_extra_code_test
-    
     integer :: ref_lat
     
     if ( obsdata%nrep <= 0 ) then
@@ -427,7 +425,6 @@ contains
 
   end subroutine obsdata_set_index
              
-!-------------------------------------------------------------------------------------------
 
   function obsdata_extra_code_test( test_code, ref_code, ref_lat ) result(found)
     ! 
@@ -447,17 +444,19 @@ contains
     !           :ref_code:  reference code
     !           :found:     logical indicating if a match has been found.  
     ! 
-
     implicit none
 
+    ! Arguments:
     character(len=*), intent(in) :: test_code
     character(len=*), intent(in) :: ref_code
     integer         , intent(in) :: ref_lat
-      
+    ! Result:
+    logical :: found
+
+    ! Locals:
     integer, parameter :: lat_lim1=-8900    ! Lat*100
     integer, parameter :: lat_lim2=8900
     integer :: lat
-    logical :: found
           
     if (test_code(6:len_trim(test_code)) /= ref_code(oss_code_latlen+1:len_trim(ref_code))) then
       found=.false.
@@ -476,7 +475,6 @@ contains
 
   end function obsdata_extra_code_test
     
-!-------------------------------------------------------------------------------------------
 
   function obsdata_get_header_code_i( ilon, ilat, date, time, stnid ) result(code)
     ! 
@@ -494,11 +492,15 @@ contains
     !           :stnid: station ID
     !           :code:  unique code
     ! 
-
     implicit none
 
-    integer, intent(in) :: ilon,ilat,date,time
+    ! Arguments:
+    integer, intent(in) :: ilon
+    integer, intent(in) :: ilat
+    integer, intent(in) :: date
+    integer, intent(in) :: time
     character(len=*), intent(in) :: stnid
+    ! Result:
     character(len=oss_code_len) :: code
 
     write(code(1:5),'(I5.5)') ilat
@@ -516,7 +518,6 @@ contains
 
   end function obsdata_get_header_code_i
 
-!-------------------------------------------------------------------------------------------
 
   function obsdata_get_header_code_r( lon, lat, date, time, stnid ) result(code)
     ! 
@@ -534,17 +535,18 @@ contains
     !           :stnid: station ID
     !           :code:  unique code
     ! 
-
     implicit none
 
+    ! Arguments:
     real(8)         , intent(in) :: lon
     real(8)         , intent(in) :: lat
     integer         , intent(in) :: date
     integer         , intent(in) :: time
     character(len=*), intent(in) :: stnid
+    ! Result:
     character(len=oss_code_len)  :: code
 
-    ! locals
+    ! Locals:
     integer :: ilon, ilat
     
     ilon = nint(100*(lon/MPC_RADIANS_PER_DEGREE_R8))
@@ -577,9 +579,9 @@ contains
     !            including those without associated data. This is to ensure that rpn_comm_allgather will work 
     !            in routine obsdata_MPIGather.
     !
-
-    implicit none 
+    implicit none
     
+    ! Arguments:
     type(struct_oss_obsdata), intent(inout)        :: obsdata
     real(8)                 , intent(in)           :: val(:)
     integer                 , intent(in)           :: maxsize
@@ -612,7 +614,6 @@ contains
     
   end subroutine oss_obsdata_add_data1d
 
-!----------------------------------------------------------------------------------------
     
   subroutine oss_obsdata_MPIallgather(obsdata) 
     !
@@ -625,11 +626,12 @@ contains
     !
     !           - Assumes obsdata%dim1 (and obsdata%dim2) the same over all processors.
     !
-
     implicit none
 
+    ! Arguments:
     type(struct_oss_obsdata), intent(inout) :: obsdata
 
+    ! Locals:
     integer, allocatable :: nrep(:)
     character(len=oss_code_len), allocatable :: code_local(:),code_global(:,:)
     real(8), allocatable :: data1d_local(:,:),data1d_global(:,:,:),data2d_local(:,:,:),data2d_global(:,:,:,:)
@@ -742,7 +744,6 @@ contains
  
   end subroutine oss_obsdata_MPIallgather
 
-!-----------------------------------------------------------------------------------
 
   subroutine oss_get_comboIdlist( obsSpaceData, stnid_list, varno_list, unilev_list, num_elements, nset )
     ! 
@@ -761,21 +762,20 @@ contains
     !                    - 2: group by (stnid,bufr)
     !                    - 3: group by (stnid,bufr,multi/uni-level)
     !
-
     implicit none
 
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
 
+    ! Locals:
     integer, parameter :: nmax=100
     integer, intent(out) :: num_elements
     integer, intent(out) :: nset
     integer, intent(out) :: varno_list(nmax)
     character(len=9), intent(out) :: stnid_list(nmax)
     logical, intent(out) :: unilev_list(nmax)
-
     integer :: headerIndex,bodyIndex,vco,nlev_obs,varno
     logical :: all_combos
-
 
     call oss_comboIdlist(all_combos_opt=all_combos)
     
@@ -863,11 +863,11 @@ contains
     !           :unilev_list_opt:  List of unique uni/multi-level identifications
     !           :num_elements_opt: Number of unique elements in *_list arrrays
     !
-   
     implicit none
     
     integer, parameter :: nmax=100, stnid_len=9
 
+    ! Arguments:
     logical                 , intent(in)   , optional :: initialize_opt
     logical                 , intent(in)   , optional :: gather_mpi_opt
     logical                 , intent(in)   , optional :: unilev_add_opt
@@ -880,20 +880,16 @@ contains
     character(len=stnid_len), intent(out)  , optional :: stnid_list_opt(nmax)
     logical                 , intent(out)  , optional :: unilev_list_opt(nmax)
 
-    ! local arrays of unique values
+    ! Locals:
     integer, save :: varno_unique(nmax)
     character(len=stnid_len), save :: stnid_unique(nmax)
     logical, save :: unilev_unique(nmax)
-    
-    ! global arrays of unique values
     integer, allocatable :: num_unique_all(:),varno_unique_all(:,:)
     character(len=stnid_len),allocatable :: stnid_unique_all(:,:)
     logical, allocatable :: unilev_unique_all(:,:)
-
     integer, save :: num_unique ! running count of number of unique elements
     integer, save :: iset=2
     logical, save :: lall_combos=.true.
-
     logical :: same,init
     integer :: i,j,nproc,iproc,ierr
 
@@ -1008,19 +1004,15 @@ contains
     
   end subroutine oss_comboIdList
   
-!----------------------------------------------------------------------------------------
-    
+
   integer function oss_obsdata_code_len()  
     !
     ! :Purpose: Pass on oss_code_len value.
     !
-
     implicit none
     
     oss_obsdata_code_len=oss_code_len
     
    end function oss_obsdata_code_len
 
-!----------------------------------------------------------------------------------------
- 
 end module obsSubSpaceData_mod

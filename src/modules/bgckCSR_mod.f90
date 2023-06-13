@@ -57,18 +57,17 @@ contains
   !----------------------------------------------------------------------------------------
   ! csrbg_bgCheckCSR
   !----------------------------------------------------------------------------------------
-
   subroutine csrbg_bgCheckCSR (obsSpaceData)
-
+    !
     !: Purpose: Effectuer le controle que qualite sur les donnees CSR.  
     !           Modifier les marqueurs de donnees selon le type de rejet.
+    !
     implicit none
 
-    !argument:
+    ! Arguments:
     type(struct_obs),     intent(inout)  :: obsSpaceData           ! obspaceData Object
 
-    ! Locals
-
+    ! Locals:
     real   , allocatable  :: obsTb(:)            ! brightness temperature (btyp=9248/9264,ele=12163)
     real   , allocatable  :: ompTb(:)            ! OMP values
     real   , allocatable  :: satZenithAngle(:)   ! satellite zenith angle (btyp=3072,ele=7024)
@@ -79,9 +78,7 @@ contains
     integer, allocatable  :: obsHour(:)          ! Hour HHMM
     integer               :: sensorIndex         ! find tvs_sensor index corresponding to current obs
     character(len=9)      :: burpFileSatId       ! Platform Name
-
     ! Data derived from elements read in obspace data
-
     logical, allocatable  :: maxAngleReached(:)  ! satellite angle exceed max angle at obs
     logical, allocatable  :: topographicData(:)  ! data flagged as topo data
     logical, allocatable  :: nonCorrectedData(:) ! data non corrected by bias corr
@@ -94,11 +91,7 @@ contains
     integer               :: categorieRejet(7)        
     integer               :: headerIndex 
     integer               :: codtyp
-
     logical               :: csrDataPresent
-
-
-    
 
     categorieRejet(:) = 0
     csrDataPresent = .false.
@@ -166,23 +159,23 @@ contains
     write(*,*) "*******"
 
     call utl_tmg_stop(116)
+
   end subroutine csrbg_bgCheckCSR
 
   !--------------------------------------------------------------------------
   !  csrbg_readObsFromObsSpace
   !--------------------------------------------------------------------------
-
   subroutine csrbg_readObsFromObsSpace(obsSpaceData, headerIndex, obsTb, ompTb, satZenithAngle, obsFlags, cloudAmount, &
                                        obsChannels, sensorIndex, obsDate, obsHour, burpFileSatId, &
                                        maxAngleReached, topographicData, nonCorrectedData, isTbPresent, &
                                        isClearSky, strayLight, goesMidi, isToAssim, ompOutOfRange)
-
+    !
     !:Purpose:        copy headers and bodies from obsSpaceData object to arrays
     !                 compute some parameters from the read variables
-
+    !
     implicit None
 
-    
+    ! Arguments:
     integer , intent(in)                 :: headerIndex         ! current header index
     real   , allocatable, intent(out)    :: obsTb(:)            ! brightness temperature (btyp=9248/9264,ele=12163)
     real   , allocatable, intent(out)    :: ompTb(:)            ! OMP values
@@ -195,9 +188,6 @@ contains
     integer,              intent(out)    :: sensorIndex         ! find tvs_sensor index corresponding to current obs
     character(*),intent(out)             :: burpFileSatId       ! Platform Name
     type(struct_obs),     intent(inout)  :: obsSpaceData        ! obspaceData Object
-
-    ! Data derived from elements read in obspace data
-
     logical, allocatable, intent(out)    :: maxAngleReached(:)     ! satellite angle exceed max angle at obs
     logical, allocatable, intent(out)    :: topographicData(:)  ! data flagged as topo data
     logical, allocatable, intent(out)    :: nonCorrectedData(:) ! data non corrected by bias corr
@@ -208,7 +198,7 @@ contains
     logical, allocatable, intent(out)    :: isToAssim(:)        ! is channel assimilable
     logical, allocatable, intent(out)    :: ompOutOfRange(:)    ! 
   
-    ! Locals
+    ! Locals:
     integer                              :: bodyIndex
     integer                              :: bodyIndexbeg
     integer                              :: headerCompt
@@ -229,8 +219,6 @@ contains
     logical                              :: sensorIndexFound
     logical                              :: indexSatFound
     real                                 :: errorThreshold
-
-
 
     ! find tvs_sensor index corresponding to current obs
 
@@ -254,7 +242,6 @@ contains
 
     ! find actual Number of channels
     actualNumChannel = tvs_coefs(sensorIndex)%coef%fmv_ori_nchn
-    
 
     headerCompt = 1
     numObsToProcess = 1
@@ -343,8 +330,8 @@ contains
       if (satZenithAngle(dataIndex) > 15250) maxAngleReached(dataIndex) = .true.
     end do
 
-    !!! check O-P of Tb and set assim flag for each channel of satellite numsat using stat_iutilst
-    !!! If channel not found in stats file, NO ASSIMILATE flag is set and O-P check is skipped
+    ! check O-P of Tb and set assim flag for each channel of satellite numsat using stat_iutilst
+    ! If channel not found in stats file, NO ASSIMILATE flag is set and O-P check is skipped
     ompOutOfRange(:) = .false.
     isToAssim(:) = .false.
     do  channelIndex=1, numObsToProcess*actualNumChannel
@@ -378,20 +365,18 @@ contains
     
   end subroutine csrbg_readObsFromObsSpace
 
-
   !--------------------------------------------------------------------------
   !  csrbg_csrCheckQc
   !--------------------------------------------------------------------------
-
   subroutine csrbg_csrCheckQc(obsFlags, categorieRejet, maxAngleReached, topographicData, &
                               nonCorrectedData, isTbPresent, isClearSky, strayLight, goesMidi, isToAssim, &
                               ompOutOfRange)
-
+    !
     !:Purpose:        Modify obsFlags
-
+    !
     implicit None
 
-
+    ! Arguments:
     integer,              intent(inout)     :: obsFlags(:)         ! obs Flags to update
     integer,              intent(inout)     :: categorieRejet(7)   ! the 7 categories of rejections
     logical,              intent(in)        :: maxAngleReached(:)  ! satellite angle exceed max angle at obs
@@ -403,14 +388,13 @@ contains
     logical,              intent(in)        :: goesMidi(:)         ! goes noon
     logical,              intent(in)        :: isToAssim(:)        ! is channel assimilable
     logical,              intent(in)        :: ompOutOfRange(:)    ! abs of omp greater than threshold 
-    
-    ! Locals
+
+    ! Locals:
     integer                                 :: currentChannelNumber
     integer                                 :: channelIndex
     integer                                 :: numObsToProcess
     integer                                 :: numData
     integer                                 :: dataIndex
-
 
     numObsToProcess = 1
     currentChannelNumber = size(obsFlags)/numObsToProcess
@@ -477,16 +461,18 @@ contains
   ! csrbg_updateObsSpaceAfterQc
   !--------------------------------------------------------------------------
   subroutine csrbg_updateObsSpaceAfterQc(obsSpaceData, obsFlags, headerIndex, sensorIndex)
-
+    !
     !:Purpose:      Update obspacedata variables (obstTB and obs flags) after QC
+    !
     implicit None
 
-    !Arguments
+    ! Arguments:
     type(struct_obs),     intent(inout)     :: obsSpaceData           ! obspaceData Object
     integer,              intent(in)        :: obsFlags(:)            ! data flags
     integer,              intent(in)        :: sensorIndex            ! sensor Index 
     integer,              intent(in)        :: headerIndex            ! sensor Index 
-    ! Locals
+
+    ! Locals:
     integer                                 :: bodyIndex
     integer                                 :: bodyIndexbeg
     integer                                 :: currentChannelNumber
@@ -500,23 +486,4 @@ contains
 
   end subroutine csrbg_updateObsSpaceAfterQc
 
-
 end module bgckCSR_mod
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

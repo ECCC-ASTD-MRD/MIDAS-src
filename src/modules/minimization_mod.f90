@@ -271,21 +271,16 @@ CONTAINS
       integer              :: nulout = 6
       integer              :: impres
       INTEGER              :: NGRANGE = 10 ! range of powers of 10 used for gradient test
-
       real    :: zzsunused(1)
       integer :: intUnused(1)
-
       real(8),allocatable :: vazg(:)
-
       real(8) :: dlds(1)
       logical :: llvarqc, lrdvatra, llxbar
-
       integer :: itermax, iterdone, itermaxtodo, isimmax, indic, iitnovqc
       integer :: ierr, isimdone, jdata, isimnovqc
       integer :: ibrpstamp, isim3d
       real(8) :: zjsp, zxmin, zeps1
       real(8) :: dlgnorm, dlxnorm
-
       real(8) :: zeps0_000,zdf1_000
       integer :: iterdone_000,isimdone_000
 
@@ -518,6 +513,7 @@ CONTAINS
   subroutine min_writeHessian(vazx)
     implicit none
 
+    ! Arguments:
     real(8) :: vazx(:)
 
     call utl_tmg_start(90,'--Minimization')
@@ -744,11 +740,6 @@ CONTAINS
     !
     !:Purpose: To evaluate the inner product used in the minimization
     !
-    !:Arguments:
-    !    i : KDIM
-    !    i : PX, PY
-    !    o : DDSC
-    !
     implicit none
 
     ! Arguments:
@@ -758,13 +749,13 @@ CONTAINS
     real*8  :: ddsc     ! result of the inner product
 
     ! Locals:
-    INTEGER J
+    integer :: j
 
-    DDSC = 0.D0
+    ddsc = 0.D0
 
     do j=1,nvadim_mpilocal
-      DDSC = DDSC + PX(J)*PY(J)
-    ENDDO
+      ddsc = ddsc + px(j)*py(j)
+    end do
 
     call mmpi_allreduce_sumreal8scalar(ddsc,"GRID")
 
@@ -783,17 +774,17 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer kdim
-    real*8 px(kdim), py(kdim)
+    integer :: kdim
+    real(8) :: px(kdim)
+    real(8) :: py(kdim)
 
-    ! Locals
-    INTEGER JDIM
+    ! Locals:
+    integer :: jdim
 
-    DO JDIM = 1, KDIM
-      PX(JDIM) = PY(JDIM)
-    ENDDO
+    do jdim = 1, kdim
+      px(jdim) = py(jdim)
+    end do
 
-    RETURN
   end subroutine DCANAB
 
 
@@ -808,17 +799,17 @@ CONTAINS
     implicit none
 
     ! Arguments:
-    integer kdim
-    real*8 px(kdim), py(kdim)
+    integer :: kdim
+    real(8) :: px(kdim)
+    real(8) :: py(kdim)
 
     ! Locals:
-    INTEGER JDIM
+    INTEGER :: jdim
 
-    DO JDIM = 1, KDIM
-      PY(JDIM) = PX(JDIM)
-    ENDDO
+    do jdim = 1, kdim
+      py(jdim) = px(jdim)
+    end do
 
-    RETURN
   end subroutine DCANONB
 
 
@@ -851,34 +842,32 @@ CONTAINS
 
     ! Arguments:
     character(len=*) :: cfname ! precon file
-    integer status  ! = 0 if READ, = 1 if WRITE
-    integer nsim    ! Number of simulations in QNA_N1QN3
-    integer kbrpstamp ! Date
-    real*8 :: zeps1    ! Parameter in QNA_N1QN3
-    real*8 :: zdf1     ! Parameter in QNA_N1QN3
-    integer itertot ! Parameter in QNA_N1QN3
-    integer isimtot ! Parameter in QNA_N1QN3
-    integer, target:: iztrl(5)     ! Localisation parameters for Hessian
-    real*8, target :: vatra(nmtra) ! Hessian
-    real*8, target :: vazxbar(nvadim_mpilocal) ! Vazx of previous loop
-    real*8, target :: vazx(nvadim_mpilocal) ! Current state of the minimization
-    logical llxbar  ! read in vaxzbar if dates are compatible
-    logical llvazx  ! Logical to read vazx
-    integer k1gc    ! Minimizer ID (2: m1qn2, 3: m1qn3)
-    integer imode   ! If status=0, set imode=0 (no prec) or 2 (prec)
+    integer          :: status  ! = 0 if READ, = 1 if WRITE
+    integer          :: nsim    ! Number of simulations in QNA_N1QN3
+    integer          :: kbrpstamp ! Date
+    real(8)          :: zeps1    ! Parameter in QNA_N1QN3
+    real(8)          :: zdf1     ! Parameter in QNA_N1QN3
+    integer          :: itertot ! Parameter in QNA_N1QN3
+    integer          :: isimtot ! Parameter in QNA_N1QN3
+    integer, target  :: iztrl(5)     ! Localisation parameters for Hessian
+    real(8), target  :: vatra(nmtra) ! Hessian
+    real(8), target  :: vazxbar(nvadim_mpilocal) ! Vazx of previous loop
+    real(8), target  :: vazx(nvadim_mpilocal) ! Current state of the minimization
+    logical          :: llxbar  ! read in vaxzbar if dates are compatible
+    logical          :: llvazx  ! Logical to read vazx
+    integer          :: k1gc    ! Minimizer ID (2: m1qn2, 3: m1qn3)
+    integer          :: imode   ! If status=0, set imode=0 (no prec) or 2 (prec)
 
     ! Locals:
-    real*4, allocatable :: vatravec_r4_mpiglobal(:)
-    real*4, allocatable :: vatra_r4(:)
-    real*8, allocatable :: vazxbar_mpiglobal(:),vazx_mpiglobal(:)
-
+    real(4), allocatable :: vatravec_r4_mpiglobal(:)
+    real(4), allocatable :: vatra_r4(:)
+    real(8), allocatable :: vazxbar_mpiglobal(:),vazx_mpiglobal(:)
     integer :: ibrpstamp,ireslun, ierr, fnom, fclos
     integer :: nvadim_mpiglobal,nmtra_mpiglobal
     integer :: ivadim, itrunc
     integer :: ivamaj
     integer :: jvec, i1gc,ictrlvec,ii
     integer, dimension(10), target, save :: iztrl_io
-
     character(len=3) :: cl_version
 
     if (status == 0) then
@@ -1099,17 +1088,16 @@ CONTAINS
   implicit none
 
   ! Arguments:
-  external simul ! simulator: return cost function estimate and its gradient
+  external            :: simul ! simulator: return cost function estimate and its gradient
   integer, intent(in) :: na_dim ! Size of the control vector
-  real*8,  intent(in) :: da_x0(na_dim) ! Control vector
+  real(8), intent(in) :: da_x0(na_dim) ! Control vector
   integer, intent(in) :: na_range
 
   ! Locals:
   integer :: nl_indic, nl_j
-  real*8  :: dl_wrk(na_dim),dl_gradj0(na_dim), dl_x(na_dim)
-  real*8  :: dl_J0, dl_J, dl_test, dl_start,dl_end
-  real*8  :: dl_alpha, dl_gnorm0
-
+  real(8) :: dl_wrk(na_dim),dl_gradj0(na_dim), dl_x(na_dim)
+  real(8) :: dl_J0, dl_J, dl_test, dl_start,dl_end
+  real(8) :: dl_alpha, dl_gnorm0
 
   ! 1. Initialize dl_gradj0 at da_x0
   !    ------------------------------------

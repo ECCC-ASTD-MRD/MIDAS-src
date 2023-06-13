@@ -33,10 +33,11 @@ contains
   subroutine brpf_getDateStamp(datestamp, burpFileName)
     implicit none
 
-    ! arguments
+    ! Arguments:
     integer :: dateStamp
     character(len=*), intent(in) :: burpFileName
-    ! locals
+
+    ! Locals:
     integer :: ier, inblks, nulburp, fnom, fclos, numblks
     logical :: isExist_L 
     integer :: ktime, kdate, kdate_recv, ktime_recv, ihandl, ilong
@@ -143,13 +144,13 @@ contains
   subroutine brpf_readFile(obsdat,fileName,familyType,fileIndex)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
     character(len=*) :: fileName
     character(len=*) :: familyType
     integer :: fileIndex
 
-    ! locals
+    ! Locals:
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex
     integer :: numBody, numHeader
     logical :: burp_chem
@@ -224,13 +225,13 @@ contains
   subroutine brpf_updateFile(obsSpaceData,fileName,familyType,fileIndex)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsSpaceData
     character(len=*) :: fileName
     character(len=*) :: familyType
     integer :: fileIndex
 
-    ! locals
+    ! Locals:
     integer :: headerIndex
 
     call utl_tmg_start(12,'----UpdateBurpFile')
@@ -267,101 +268,99 @@ contains
     !            element BUFR_SCALE_EXPONENT if provided.           
     !
     !
-      implicit none
+    implicit none
 
-      ! Arguments      
-      type (struct_obs), intent(inout):: obsdat ! struct_obs instance
-      integer, intent(in) :: headerIndex ! header index in obsdat
-      logical, intent(in) :: forward     ! applies scaling if .true., unapplies scaling if .false.
+    ! Arguments:      
+    type (struct_obs), intent(inout):: obsdat ! struct_obs instance
+    integer, intent(in) :: headerIndex ! header index in obsdat
+    logical, intent(in) :: forward     ! applies scaling if .true., unapplies scaling if .false.
 
-      ! Locals
-      integer  :: bodyIndex,rln,nlv
+    ! Locals:
+    integer  :: bodyIndex,rln,nlv
+    real(pre_obsReal) :: obsv
+    real(pre_obsReal) :: vomp, voma, voer, vhpht, scale
+    integer        :: nexp,iobs,iexp
+    real(pre_obsReal), allocatable :: expnt(:)
 
-      real(pre_obsReal) :: obsv
-      real(pre_obsReal) :: vomp, voma, voer, vhpht, scale
-      integer        :: nexp,iobs,iexp
+    rln = obs_headElem_i(obsdat,OBS_RLN,headerIndex)
+    nlv = obs_headElem_i(obsdat,OBS_NLV,headerIndex)
 
-      real(pre_obsReal), allocatable :: expnt(:)
+    allocate(expnt(nlv))
 
-      rln = obs_headElem_i(obsdat,OBS_RLN,headerIndex)
-      nlv = obs_headElem_i(obsdat,OBS_NLV,headerIndex)
+    ! Count number of power of 10 exponents
+    nexp = 0
+    do bodyIndex = rln, nlv + rln -1
+      if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == bufr_scale_exponent) then
+        nexp = nexp + 1
+        expnt(nexp) = obs_bodyElem_r(obsdat,OBS_VAR,bodyIndex)
+      end if
+    end do
 
-      allocate(expnt(nlv))
+    if (nexp == 0) then
+      deallocate(expnt)
+      return
+    end if
 
-      ! Count number of power of 10 exponents
-      nexp = 0
-      do bodyIndex = rln, nlv + rln -1
-         if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == bufr_scale_exponent) then
-            nexp = nexp + 1
-            expnt(nexp) = obs_bodyElem_r(obsdat,OBS_VAR,bodyIndex)
-         end if
+    if (nexp*2 /= nlv) then
+      ! Skip over obs assuming mantissa was filtered out in brpr_readBurp 
+      ! (not inserted in obsSpaceData) due to quality flags.
+      ! Set exponent quality flag to that of a 'Suspicious element' 
+         
+      do bodyIndex = RLN, NLV + RLN -1
+        call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex, 0.0D0 )
+        call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),02) )
+        call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),04) )
+        call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),09) )
+      end do
+              
+      ! write(*,*) 'NLV =',nlv,' Nexp=',nexp    
+      ! call utl_abort('brpf_setScaleCH: Inconsistent number of exponents')
+      deallocate(expnt)
+      return
+    end if
+
+    if (forward) then
+         
+      ! Apply power of 10 exponents if present
+      iobs = 0
+      do bodyIndex = RLN, NLV + RLN -1
+        if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) /= bufr_scale_exponent) then
+          iobs = iobs + 1
+          obsv = obs_bodyElem_r(obsdat,OBS_VAR,bodyIndex)
+          call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex,obsv*10**(expnt(iobs)) )
+        end if
+      end do
+      
+    else
+             
+      ! Unapply power of 10 exponents if present
+      iobs=0
+      iexp=0
+      do bodyIndex = RLN, NLV + RLN -1
+        if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == bufr_scale_exponent) then
+          ! Store scaling exponents
+          iexp = iexp + 1
+          call obs_bodySet_r(obsdat,OBS_OMP,bodyIndex,expnt(iexp))
+          call obs_bodySet_r(obsdat,OBS_OMA,bodyIndex,expnt(iexp))
+          call obs_bodySet_r(obsdat,OBS_OER,bodyIndex,expnt(iexp))
+          call obs_bodySet_r(obsdat,OBS_HPHT,bodyIndex,expnt(iexp))
+        else
+          iobs=iobs+1
+          obsv=obs_bodyElem_r(obsdat,OBS_VAR,bodyIndex)
+          vomp=obs_bodyElem_r(obsdat,OBS_OMP,bodyIndex)
+          voma=obs_bodyElem_r(obsdat,OBS_OMA,bodyIndex)
+          voer=obs_bodyElem_r(obsdat,OBS_OER,bodyIndex)
+          vhpht=obs_bodyElem_r(obsdat,OBS_HPHT,bodyIndex)
+          scale=10**(-expnt(iobs))
+          call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex,obsv*scale )
+          call obs_bodySet_r(obsdat,OBS_OMP,bodyIndex,vomp*scale )
+          call obs_bodySet_r(obsdat,OBS_OMA,bodyIndex,voma*scale )
+          call obs_bodySet_r(obsdat,OBS_OER,bodyIndex,voer*scale )
+          call obs_bodySet_r(obsdat,OBS_HPHT,bodyIndex,vhpht*scale )
+        end if
       end do
 
-      if (nexp == 0) then
-         deallocate(expnt)
-         return
-      end if
-
-      if (nexp*2 /= nlv) then
-         ! Skip over obs assuming mantissa was filtered out in brpr_readBurp 
-         ! (not inserted in obsSpaceData) due to quality flags.
-         ! Set exponent quality flag to that of a 'Suspicious element' 
-         
-         do bodyIndex = RLN, NLV + RLN -1
-            call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex, 0.0D0 )
-            call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),02) )
-            call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),04) )
-            call obs_bodySet_i(obsdat,OBS_FLG,bodyIndex, ibset(obs_bodyElem_i(obsdat,OBS_FLG,bodyIndex),09) )
-         end do
-              
-         ! write(*,*) 'NLV =',nlv,' Nexp=',nexp    
-         ! call utl_abort('brpf_setScaleCH: Inconsistent number of exponents')
-         deallocate(expnt)
-         return
-      end if
-
-      if (forward) then
-         
-         ! Apply power of 10 exponents if present
-         iobs = 0
-         do bodyIndex = RLN, NLV + RLN -1
-            if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) /= bufr_scale_exponent) then
-               iobs = iobs + 1
-               obsv = obs_bodyElem_r(obsdat,OBS_VAR,bodyIndex)
-               call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex,obsv*10**(expnt(iobs)) )
-            end if
-         end do
-      
-      else
-             
-         ! Unapply power of 10 exponents if present
-         iobs=0
-         iexp=0
-         do bodyIndex = RLN, NLV + RLN -1
-            if (obs_bodyElem_i(obsdat,OBS_VNM,bodyIndex) == bufr_scale_exponent) then
-               ! Store scaling exponents
-               iexp = iexp + 1
-               call obs_bodySet_r(obsdat,OBS_OMP,bodyIndex,expnt(iexp))
-               call obs_bodySet_r(obsdat,OBS_OMA,bodyIndex,expnt(iexp))
-               call obs_bodySet_r(obsdat,OBS_OER,bodyIndex,expnt(iexp))
-               call obs_bodySet_r(obsdat,OBS_HPHT,bodyIndex,expnt(iexp))
-            else
-               iobs=iobs+1
-               obsv=obs_bodyElem_r(obsdat,OBS_VAR,bodyIndex)
-               vomp=obs_bodyElem_r(obsdat,OBS_OMP,bodyIndex)
-               voma=obs_bodyElem_r(obsdat,OBS_OMA,bodyIndex)
-               voer=obs_bodyElem_r(obsdat,OBS_OER,bodyIndex)
-               vhpht=obs_bodyElem_r(obsdat,OBS_HPHT,bodyIndex)
-               scale=10**(-expnt(iobs))
-               call obs_bodySet_r(obsdat,OBS_VAR,bodyIndex,obsv*scale )
-               call obs_bodySet_r(obsdat,OBS_OMP,bodyIndex,vomp*scale )
-               call obs_bodySet_r(obsdat,OBS_OMA,bodyIndex,voma*scale )
-               call obs_bodySet_r(obsdat,OBS_OER,bodyIndex,voer*scale )
-               call obs_bodySet_r(obsdat,OBS_HPHT,bodyIndex,vhpht*scale )
-            end if
-         end do
-                 
-      end if
+    end if
 
   end subroutine brpf_setScaleCH
 
@@ -412,6 +411,7 @@ contains
     integer, intent(in), optional :: bkstp_opt ! bkstp number of requested block
     logical, intent(in), optional :: match_nlev_opt
     integer, intent(in), optional :: codtyp_opt(:) ! optional CODTYP list for search
+    ! Result:
     type(struct_oss_obsdata) :: burp_out   ! struct_oss_obsdata object
     
     ! Locals:
@@ -623,14 +623,13 @@ contains
     integer, intent(in) :: varno(:)
     integer, intent(in), optional :: bkstp_opt ! bkstp number of requested block
     character(len=*), intent(in), optional :: multi_opt
-    !Output:
+    ! Result:
     integer :: nrep_modified ! Number of modified reports
 
     ! Locals:
     integer :: ncount
     logical :: blk_found
     integer, parameter :: LNMX=100000, code_len=90
-
     character(len=9)  :: stnid
     character(len=code_len) :: code    ! Must be at least as large as burp_code_len
     type(burp_file)   :: brp

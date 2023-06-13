@@ -80,7 +80,6 @@ CONTAINS
     real(8)                   :: maxDistance
     real(8), allocatable      :: distance(:)
     character(len=*), parameter :: myName = 'bdiff_setup'
-
     ! namelist variables
     real    :: corr_len( maxNumVars )  ! Horizontal correlation length scale (km)
     real    :: stab( maxNumVars )      ! Stability criteria (definitely < 0.5)
@@ -453,7 +452,6 @@ CONTAINS
     ! Locals:
     real(8) :: gd_in( myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
     real(8) :: gd_out(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
-
     integer :: variableIndex
     character(len=*), parameter :: myName = 'bdiff_bSqrt'
     
@@ -499,7 +497,6 @@ CONTAINS
     ! Locals:
     real(8) :: gd_in( myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
     real(8) :: gd_out(myLonBeg:myLonEnd, myLatBeg:myLatEnd, numvar2d)
-
     integer :: variableIndex
     character(len=*), parameter :: myName = 'bdiff_bSqrtAd'
 

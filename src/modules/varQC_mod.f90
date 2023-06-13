@@ -31,20 +31,19 @@ module varQC_mod
     ! :Purpose: To set certain parameters for the asymmetric check
     !           and for variational quality control
     !
-
     implicit none
 
+    ! Arguments:
     type(struct_obs) :: obsSpaceData ! obsSpaceData object
 
+    ! Locals:
     integer jdata, jjo, idata, idatend, idburp
     integer ityp, iass, iother, jj, istyp, ilev
-
     real(8) zagz, zahu, zatt, zauv, zabt, zabtb, zapn, zaps, zazd, zach, zatm, zaice, zapr
     real(8) zdgz, zdhu, zdtt, zduv, zdbt, zdbtb, zdpn, zdps, zdzd, zdch, zdtm, zdice, zdpr
     real(8) zattra, zauvra, zattsym, zdvis, zavis
     real(8) zslev, zlev, zval, zspdo, zspdf, zofcst, zoval, zdiff, zaasym, zoer
     real(8) zfcst, zlat, zlon, zprior
-
     logical llok
 
     !
@@ -312,8 +311,10 @@ module varQC_mod
     !
     implicit none
 
+    ! Arguments:
     type(struct_obs) :: obsSpaceData ! obsSpaceData object
 
+    ! Locals:
     integer :: index_body,istyp,jj,index_header,ityp,index_body_start
     real*8 :: zgami,zjon,zqcarg,zppost,zlev,zslev
     logical :: lluv
@@ -401,10 +402,13 @@ module varQC_mod
     ! :Purpose: Factorizes Grad(Jo) according to Andersson and Jarvinen
     !           1999, Variational quality control, Q.J.R., 125, pp. 697-722.
     !           It uses the value of (1-Wqc) saved in OBS_QCV in vqc_NlTl
+    !
     implicit none
 
+    ! Arguments:
     type(struct_obs) :: obsSpaceData ! obsSpaceData object
 
+    ! Locals:
     integer :: index_body
     logical :: includeFlag
 
@@ -431,14 +435,15 @@ module varQC_mod
     !           Set QC flags consistent with VARQC decisions
     !           Set global flag indicating report contains rejected observations
     !           as required
-
+    !
     implicit none
 
+    ! Arguments:
     type(struct_obs) :: lobsSpaceData
 
+    ! Locals:
     integer, parameter :: numitem = 16
     integer :: icount( numitem, ofl_numFamily )
-
     integer :: jfam, jitem, headerIndex
     integer :: bodyIndex, bodyIndex2, ISTART,ityp,ISTYP
     integer :: ISPDO,IDIRO,ISPDF,IDIRF,ISPDA,IDIRA,ILEV
@@ -450,10 +455,10 @@ module varQC_mod
     character(len=21) :: CODTYPNAME
     character(len=12) :: stnId
     logical :: LLOK,LLELREJ
-    !
+
     !  ------NOTE----------
     ! CURRENTLY SUPPORTED FAMILIES OF DATA 'UA' 'AI' 'SF' 'HU' 'TO' 'GO' 'GP'
-    !
+
     DATA ZCUT /0.75D0/
     DATA CLITM(1), CLITM(2), CLITM(3), CLITM(4), CLITM(5), CLITM(6)  &
            /'WND',    'WND',    'HGT',    'TMP',    'DPD',   'STNP'/

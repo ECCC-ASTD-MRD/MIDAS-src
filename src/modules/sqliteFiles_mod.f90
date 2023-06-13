@@ -37,11 +37,11 @@ module sqliteFiles_mod
   
     implicit none
     
-    ! arguments
+    ! Arguments:
     integer         , intent(out) :: dateStamp
     character(len=*), intent(in)  :: sqliteFileName
     
-    ! locals
+    ! Locals:
     logical              :: fileExists 
     integer              :: ier, imode, validTime, validDate, validDateRecv, validTimeRecv
     integer              :: newdate
@@ -80,12 +80,14 @@ module sqliteFiles_mod
   !--------------------------------------------------------------------------
   subroutine sqlf_readFile(obsdat, fileName, familyType, fileIndex)
     implicit none
-    ! arguments
+
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
     character(len=*)                 :: fileName
     character(len=*)                 :: familyType
     integer                          :: fileIndex
-    ! locals
+
+    ! Locals:
     integer :: bodyIndex, bodyIndexBegin, bodyIndexEnd, headerIndexBegin, headerIndexEnd, headerIndex
     integer :: numBody, numHeader
     character(len=*), parameter :: my_name = 'sqlf_readFile'
@@ -157,12 +159,14 @@ module sqliteFiles_mod
   !--------------------------------------------------------------------------
   subroutine sqlf_updateFile(obsSpaceData, fileName, familyType, fileIndex)
     implicit none
-    ! arguments
+
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsSpaceData
     character(len=*)                 :: fileName
     character(len=*)                 :: familyType
     integer                          :: fileIndex
-    ! locals
+
+    ! Locals:
     character(len=*), parameter :: myName = 'sqlf_updateFile'
     character(len=*), parameter :: myWarning = '****** '// myName //' WARNING: '
     character(len=*), parameter :: myError   = '******** '// myName //' ERROR: '
@@ -201,11 +205,11 @@ module sqliteFiles_mod
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     character(len=*),  intent(in) :: fileName
     character(len=*),  intent(in) :: familyType
 
-    ! locals
+    ! Locals:
     character(len=*), parameter :: myName = 'sqlf_cleanFile'
 
     write(*,*) myName//': Starting'
@@ -227,12 +231,12 @@ module sqliteFiles_mod
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsSpaceData
     character(len=*),  intent(in) :: fileName
     integer,           intent(in) :: fileIndex
 
-    ! locals
+    ! Locals:
     character(len=*), parameter :: myName  = 'sqlf_addCloudParametersandEmissivity'
     character(len=*), parameter :: myError = '******** '// myName //' ERROR: '
 

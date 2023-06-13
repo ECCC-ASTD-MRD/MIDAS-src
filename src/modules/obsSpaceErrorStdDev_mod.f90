@@ -102,17 +102,15 @@ module obsSpaceErrorStdDev_mod
     
     ! Locals:
     real(8) :: HBHT_static, HBHT_ensemble, HBHT_hybrid
-
     logical :: staticHBHT = .false.
     logical :: staticOMPE = .false.
     logical :: staticHBHT_ch   = .false.
     logical :: staticOMPE_ch   = .false.
     logical :: ensemble = .false.
-
     integer :: index_body
     integer :: fnom, fclos, ierr, nulnam
 
-    ! namelist variables
+    ! Namelist variables:
     character(len=12) :: hybrid_mode ! can be 'WEIGHTED_SUM' or 'MAX_VALUE'
     NAMELIST /NAMHBHT/hybrid_mode
 
@@ -212,7 +210,9 @@ module obsSpaceErrorStdDev_mod
     ! Arguments:
     type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: obsSpaceData  ! observation-space data, output saved in OBS_HPHT column
-    logical, intent(inout)  :: statusHBHT, statusHBHT_ch, statusOMPE_ch
+    logical, intent(inout)  :: statusHBHT
+    logical, intent(inout)  :: statusHBHT_ch
+    logical, intent(inout)  :: statusOMPE_ch
     
     ! Locals:
     integer :: famIndex
@@ -279,472 +279,464 @@ module obsSpaceErrorStdDev_mod
     !
     implicit none
 
-      ! Arguments:
-      type(struct_obs)        :: lobsSpaceData
-      type(struct_columnData) :: columnTrlOnAnlIncLev
-      logical                 :: active
+    ! Arguments:
+    type(struct_obs)        :: lobsSpaceData
+    type(struct_columnData) :: columnTrlOnAnlIncLev
+    logical                 :: active
       
-      ! Locals:
-      type(struct_vco), pointer        :: vco_anl
-      type(struct_columnData) :: column
-      type(struct_gsv)        :: statevector
+    ! Locals:
+    type(struct_vco), pointer        :: vco_anl
+    type(struct_columnData) :: column
+    type(struct_gsv)        :: statevector
+    INTEGER JLAT, JLON, JLEV, JOBS
+    CHARACTER*12 CLETIKET
+    CHARACTER*2 CLTYPVAR
+    CHARACTER*1 CLGRTYP
+    CHARACTER*4 CLNOMVAR
+    INTEGER IULSSF,IDATEO
+    INTEGER FSTPRM,FNOM,FSTOUV
+    INTEGER IKEY,IERR,IDATE
+    REAL*8, allocatable :: ZBUFFER(:,:)
+    real*8, pointer     :: height_column(:), tt_column(:), field_ptr(:,:,:)
+    INTEGER INI,INJ,INK, INPAS, INBITS, IDATYP, IDEET
+    INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
+    INTEGER IUBC,IEXTR1,IEXTR2,IEXTR3
+    integer :: nLev_M,nLev_T,shift_level,Vcode_anl
+    integer :: cvdim
+    real(8), allocatable  :: scaleFactor(:)
 
-      INTEGER JLAT, JLON, JLEV, JOBS
+    !- Get the appropriate Vertical Coordinate
+    vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
-      CHARACTER*12 CLETIKET
-      CHARACTER*2 CLTYPVAR
-      CHARACTER*1 CLGRTYP
-      CHARACTER*4 CLNOMVAR
+    ! Note : Here we can use the global B_hi even if we are in LAM mode since, 
+    !        in BackgroundCheck mode, the only purpose of bhi_setup is to read 
+    !        the scaleFactor and to check the consistency between the vco from 
+    !        analysisgrid and cov file
+    call bhi_setup( hco_anl,vco_anl,           &  ! IN
+                    cvdim,                     &  ! OUT
+                    mode_opt='BackgroundCheck' )  ! IN
 
-      INTEGER IULSSF,IDATEO
-      INTEGER FSTPRM,FNOM,FSTOUV
-      INTEGER IKEY,IERR,IDATE
+    if ( cvdim > 0 ) then
+      write(*,*)
+      write(*,*) 'Computing HBHT from Bnmc - Start'
+      active = .true.
+    else
+      if ( mmpi_myid == 0 ) write(*,*) 'ose_compute_hbht_static: option NOT ACTIVATED'
+      active = .false.
+      return
+    end if
 
-      REAL*8, allocatable :: ZBUFFER(:,:)
-      real*8, pointer     :: height_column(:), tt_column(:), field_ptr(:,:,:)
+    nlev_T = col_getNumLev(columnTrlOnAnlIncLev,'TH')
+    nlev_M = col_getNumLev(columnTrlOnAnlIncLev,'MM')
 
-      INTEGER INI,INJ,INK, INPAS, INBITS, IDATYP, IDEET
-      INTEGER IP1,IP2,IP3,IG1,IG2,IG3,IG4,ISWA,ILENGTH,IDLTF
-      INTEGER IUBC,IEXTR1,IEXTR2,IEXTR3
+    allocate(scaleFactor(max(nLev_M,nLev_T)))
+    call bhi_getScaleFactor(scaleFactor)
 
-      integer :: nLev_M,nLev_T,shift_level,Vcode_anl
+    Vcode_anl = vco_anl%Vcode
+    if ( Vcode_anl == 5001 ) then
+      shift_level = 0
+    else if ( Vcode_anl == 5002) then
+      shift_level = 1
+    else if ( Vcode_anl == 5005 ) then
+      shift_level = 0
+    else
+      write(*,*) 'Vcode_anl = ',Vcode_anl
+      call utl_abort('ose_compute_hbht_static: unknown vertical coordinate type!')
+    end if
 
-      integer :: cvdim
+    allocate(ZBUFFER(HCO_ANL%NI,HCO_ANL%NJ))
 
-      real(8), allocatable  :: scaleFactor(:)
+    call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
+                      allocHeight_opt=.false., allocPressure_opt=.false.)
+    call gsv_zero(statevector)
 
-      !- Get the appropriate Vertical Coordinate
-      vco_anl => col_getVco(columnTrlOnAnlIncLev)
+    call col_setVco(column,col_getVco(columnTrlOnAnlIncLev))
+    call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev))
 
-      ! Note : Here we can use the global B_hi even if we are in LAM mode since, 
-      !        in BackgroundCheck mode, the only purpose of bhi_setup is to read 
-      !        the scaleFactor and to check the consistency between the vco from 
-      !        analysisgrid and cov file
-      call bhi_setup( hco_anl,vco_anl,           &  ! IN
-                      cvdim,                     &  ! OUT
-                      mode_opt='BackgroundCheck' )  ! IN
+    ! Set the value of OBS_LYR required by setfge routines
 
-      if ( cvdim > 0 ) then
-         write(*,*)
-         write(*,*) 'Computing HBHT from Bnmc - Start'
-         active = .true.
-      else
-         if ( mmpi_myid == 0 ) write(*,*) 'ose_compute_hbht_static: option NOT ACTIVATED'
-         active = .false.
-         return
-      end if
+    call oop_vobslyrs(columnTrlOnAnlIncLev,lobsSpaceData,beSilent=.false.)
 
-      nlev_T = col_getNumLev(columnTrlOnAnlIncLev,'TH')
-      nlev_M = col_getNumLev(columnTrlOnAnlIncLev,'MM')
+    ! 1. Opening the statistics file
 
-      allocate(scaleFactor(max(nLev_M,nLev_T)))
-      call bhi_getScaleFactor(scaleFactor)
+    IULSSF=0
+    IERR=FNOM(iulssf,'./bgcov','RND+OLD+R/O',0)
+    IF ( IERR .EQ. 0 ) THEN
+      write(*,*) 'IBGST - File : ./bgcov'
+      write(*,*) ' opened as unit file ',iulssf
+      ierr =  fstouv(iulssf,'RND+OLD')
+    ELSE
+      CALL utl_abort('HBHT_static:NO BACKGROUND STAT FILE!!')
+    ENDIF
 
-      Vcode_anl = vco_anl%Vcode
-      if ( Vcode_anl == 5001 ) then
-        shift_level = 0
-      else if ( Vcode_anl == 5002) then
-        shift_level = 1
-      else if ( Vcode_anl == 5005 ) then
-        shift_level = 0
-      else
-        write(*,*) 'Vcode_anl = ',Vcode_anl
-        call utl_abort('ose_compute_hbht_static: unknown vertical coordinate type!')
-      end if
+    ! 2.1 Background error standard deviations
 
-      allocate(ZBUFFER(HCO_ANL%NI,HCO_ANL%NJ))
+    CLETIKET = 'BGCK_STDDEV'
+    write(*,*) 'HBHT_static: CLETIKET = ',CLETIKET
+    IDATE    = -1
+    IP2      = -1
+    IP3      = -1
+    CLTYPVAR =' '
 
-      call gsv_allocate(statevector, 1, hco_anl, vco_anl, &
-                        allocHeight_opt=.false., allocPressure_opt=.false.)
-      call gsv_zero(statevector)
+    ! READ IN STANDARD DEVIATION FOR EACH OBSERVATION TYPE
 
-      call col_setVco(column,col_getVco(columnTrlOnAnlIncLev))
-      call col_allocate(column,col_getNumCol(columnTrlOnAnlIncLev))
-
-      ! Set the value of OBS_LYR required by setfge routines
-
-      call oop_vobslyrs(columnTrlOnAnlIncLev,lobsSpaceData,beSilent=.false.)
-
-      ! 1. Opening the statistics file
-
-      IULSSF=0
-      IERR=FNOM(iulssf,'./bgcov','RND+OLD+R/O',0)
-      IF ( IERR .EQ. 0 ) THEN
-        write(*,*) 'IBGST - File : ./bgcov'
-        write(*,*) ' opened as unit file ',iulssf
-        ierr =  fstouv(iulssf,'RND+OLD')
-      ELSE
-        CALL utl_abort('HBHT_static:NO BACKGROUND STAT FILE!!')
-      ENDIF
-
-      ! 2.1 Background error standard deviations
-
-      CLETIKET = 'BGCK_STDDEV'
-      write(*,*) 'HBHT_static: CLETIKET = ',CLETIKET
-      IDATE    = -1
-      IP2      = -1
-      IP3      = -1
-      CLTYPVAR =' '
-
-      ! READ IN STANDARD DEVIATION FOR EACH OBSERVATION TYPE
-
-      clnomvar = 'UU'
-      write(*,*) clnomvar 
-      call gsv_getField(statevector,field_ptr,'UU')       
-      do jlev = 1, nlev_M
-         ip1 = vco_anl%ip1_M(jlev)
-         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-         ierr = fstprm(ikey,idateo,ideet,inpas   &
+    clnomvar = 'UU'
+    write(*,*) clnomvar 
+    call gsv_getField(statevector,field_ptr,'UU')       
+    do jlev = 1, nlev_M
+      ip1 = vco_anl%ip1_M(jlev)
+      ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      ierr = fstprm(ikey,idateo,ideet,inpas   &
               ,ini,inj,ink, inbits, idatyp       &
               ,ip1,ip2,ip3,cltypvar,clnomvar,cletiket,clgrtyp   &
               ,ig1,ig2,ig3,ig4,iswa,ilength,idltf   &
               ,iubc,iextr1,iextr2,iextr3)
-         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
-            write(*,*)
-            write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(clnomvar)
-            write(*,*) 'etiket         =', trim(cletiket)
-            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
-            call utl_abort('ose_compute_hbht_static')
-         end if
-         do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
-             end do
-          end do
+      if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+        write(*,*)
+        write(*,*) 'HBHT_static: Invalid dimensions for...'
+        write(*,*) 'nomvar         =', trim(clnomvar)
+        write(*,*) 'etiket         =', trim(cletiket)
+        write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+        write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
+        call utl_abort('ose_compute_hbht_static')
+      end if
+      do jlat = 1, hco_anl%nj
+        do jlon = 1, hco_anl%ni
+          field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
+        end do
       end do
+    end do
 
-      clnomvar = 'VV'
-      write(*,*) clnomvar
-      call gsv_getField(statevector,field_ptr,'VV')
-      do jlev = 1, nlev_M
-         ip1 = vco_anl%ip1_M(jlev)
-         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
-            write(*,*)
-            write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(clnomvar)
-            write(*,*) 'etiket         =', trim(cletiket)
-            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
-            call utl_abort('ose_compute_hbht_static')
-         end if
-
-         do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scalefactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
-            end do
-         end do
-      end do
-
-      clnomvar = 'ES'
-      write(*,*) clnomvar
-      call gsv_getField(statevector,field_ptr,'HU')
-      do jlev = 1, nlev_T
-         ip1 = vco_anl%ip1_T(jlev)
-         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
-            write(*,*)
-            write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(clnomvar)
-            write(*,*) 'etiket         =', trim(cletiket)
-            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-            call utl_abort('ose_compute_hbht_static')
-         end if
-         do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
-            end do
-         end do
-      end do
-
-      ! height is put into TT slot in gridStateVector
-      clnomvar = 'GZ'
-      write(*,*) clnomvar
-      call gsv_getField(statevector,field_ptr,'TT')
-      do jlev = 1, nlev_T
-         ip1 = vco_anl%ip1_T(jlev)
-         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
-            write(*,*)
-            write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(clnomvar)
-            write(*,*) 'etiket         =', trim(cletiket)
-            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-            call utl_abort('ose_compute_hbht_static')
-         end if
-         do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)*ec_rg*10.d0
-            end do
-         end do
-      end do
-
-      call s2c_bgcheck_bilin(column,statevector,lobsSpaceData)
-
-      ! copy height data from TT to height slot in columnData
-      do jobs= 1, col_getNumCol(column)
-         height_column => col_getColumn(column,jobs,'Z_T')
-         tt_column => col_getColumn(column,jobs,'TT')
-         do jlev = 1,col_getNumLev(column,'TH')
-            height_column(jlev)=tt_column(jlev)
-         enddo
-      enddo
-
-      ! SET THE FIRST-GUESS ERRORS FOR CONVENTIONAL DATA ON PRESSURE LEVELS
-      ! --------------------------------------------------------------------
-
-      call setfgefam('AI',column,columnTrlOnAnlIncLev,lobsSpaceData)
-      call setfgefam('SW',column,columnTrlOnAnlIncLev,lobsSpaceData)
-      call setfgefam('UA',column,columnTrlOnAnlIncLev,lobsSpaceData)
-      call setfgefam('SF',column,columnTrlOnAnlIncLev,lobsSpaceData)
-      call setfgefam('HU',column,columnTrlOnAnlIncLev,lobsSpaceData)
-      call setfgefamz('PR',column,columnTrlOnAnlIncLev,lobsSpaceData)
-      call setfgefamz('AL',column,columnTrlOnAnlIncLev,lobsSpaceData)
-      call setfgefamz('RA',column,columnTrlOnAnlIncLev,lobsSpaceData)
-
-      ! SET THE FIRST-GUESS ERRORS FOR RADIO OCCULTATION DATA
-      ! -----------------------------------------------------
-
-      call setfgedif('RO',columnTrlOnAnlIncLev,lobsSpaceData)
-
-      ! DO TEMPERATURE FIRST-GUESS ERROR
-      ! ---------------------------------
-
-      clnomvar = 'TT'
-      write(*,*) clnomvar
-      call gsv_getField(statevector,field_ptr,'TT')
-      do jlev = 1, nlev_T
-         ip1 = vco_anl%ip1_T(jlev)
-         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
-            write(*,*)
-            write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(clnomvar)
-            write(*,*) 'etiket         =', trim(cletiket)
-            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-            call utl_abort('ose_compute_hbht_static')
-         end if
-         do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
-            end do
-         end do
-      end do
-
-      call s2c_bgcheck_bilin(column,statevector,lobsSpaceData)
-      call setfgett(column,columnTrlOnAnlIncLev,lobsSpaceData)
-
-      ! RELOAD DATA TO DO SURFACE FIRST-GUESS ERRORS
-      ! ---------------------------------------------
-
-      clnomvar = 'P0'
-      write(*,*) clnomvar
-      ip1 = -1
+    clnomvar = 'VV'
+    write(*,*) clnomvar
+    call gsv_getField(statevector,field_ptr,'VV')
+    do jlev = 1, nlev_M
+      ip1 = vco_anl%ip1_M(jlev)
       ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
       if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
-         write(*,*)
-         write(*,*) 'HBHT_static: Invalid dimensions for...'
-         write(*,*) 'nomvar         =', trim(CLNOMVAR)
-         write(*,*) 'etiket         =', trim(CLETIKET)
-         write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-         write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, 1
-         call utl_abort('ose_compute_hbht_static')
+        write(*,*)
+        write(*,*) 'HBHT_static: Invalid dimensions for...'
+        write(*,*) 'nomvar         =', trim(clnomvar)
+        write(*,*) 'etiket         =', trim(cletiket)
+        write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+        write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
+        call utl_abort('ose_compute_hbht_static')
       end if
-      call gsv_getField(statevector,field_ptr,'P0')
-      do jlev = 1, ink
-         do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scaleFactor(max(nLev_M,nLev_T))*zbuffer(jlon,jlat)*MPC_PA_PER_MBAR_R8
-            end do
-         end do
-      end do
 
-      clnomvar = 'UU'
-      write(*,*) clnomvar
-      call gsv_getField(statevector,field_ptr,'UU')
-      do jlev = 1, nlev_M
-         ip1 = vco_anl%ip1_M(jlev)
-         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
-            write(*,*)
-            write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(clnomvar)
-            write(*,*) 'etiket         =', trim(cletiket)
-            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
-            call utl_abort('ose_compute_hbht_static')
-         end if
-         do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
-            end do
-         end do
-      end do
-
-      clnomvar = 'VV'
-      write(*,*) clnomvar
-      call gsv_getField(statevector,field_ptr,'VV')
-      do jlev = 1, nlev_M
-         ip1 = vco_anl%ip1_M(jlev)
-         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
-            write(*,*)
-            write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(clnomvar)
-            write(*,*) 'etiket         =', trim(cletiket)
-            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
-            call utl_abort('ose_compute_hbht_static')
-         end if
-         do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
-            end do
-         end do
-      end do
-
-      clnomvar = 'TT'
-      write(*,*) clnomvar
-      call gsv_getField(statevector,field_ptr,'TT')
-      do jlev = 1, nlev_T
-         ip1 = vco_anl%ip1_T(jlev)
-         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
-            write(*,*)
-            write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(clnomvar)
-            write(*,*) 'etiket         =', trim(cletiket)
-            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-            call utl_abort('ose_compute_hbht_static')
-         end if
-         do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
-            end do
-         end do
-      end do
-
-      clnomvar = 'ES'
-      write(*,*) clnomvar
-      call gsv_getField(statevector,field_ptr,'HU')
-      do jlev = 1, nlev_T
-         ip1 = vco_anl%ip1_T(jlev)
-         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
-            write(*,*)
-            write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(clnomvar)
-            write(*,*) 'etiket         =', trim(cletiket)
-            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-            call utl_abort('ose_compute_hbht_static')
-         end if
-         do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
-            end do
-         end do
-      end do
-
-      clnomvar = 'LVIS'
-      if (gsv_varExist(statevector,clnomvar)) then
-        write(*,*) clnomvar
-        call gsv_getField(statevector,field_ptr,clnomvar)
-        do jlev = 1, nlev_T
-          ip1 = vco_anl%ip1_T(jlev)
-          ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-          if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
-            write(*,*)
-            write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(clnomvar)
-            write(*,*) 'etiket         =', trim(cletiket)
-            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-            call utl_abort('ose_compute_hbht_static')
-         end if
-          do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-              field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
-            end do
-          end do
+      do jlat = 1, hco_anl%nj
+        do jlon = 1, hco_anl%ni
+          field_ptr(jlon,jlat,jlev) = scalefactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
         end do
-      end if
+      end do
+    end do
 
-      clnomvar = 'WGE'
-      if (gsv_varExist(statevector,clnomvar)) then
-        write(*,*) clnomvar
-        ip1 = -1
+    clnomvar = 'ES'
+    write(*,*) clnomvar
+    call gsv_getField(statevector,field_ptr,'HU')
+    do jlev = 1, nlev_T
+      ip1 = vco_anl%ip1_T(jlev)
+      ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+        write(*,*)
+        write(*,*) 'HBHT_static: Invalid dimensions for...'
+        write(*,*) 'nomvar         =', trim(clnomvar)
+        write(*,*) 'etiket         =', trim(cletiket)
+        write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+        write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
+        call utl_abort('ose_compute_hbht_static')
+      end if
+      do jlat = 1, hco_anl%nj
+        do jlon = 1, hco_anl%ni
+          field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
+        end do
+      end do
+    end do
+
+    ! height is put into TT slot in gridStateVector
+    clnomvar = 'GZ'
+    write(*,*) clnomvar
+    call gsv_getField(statevector,field_ptr,'TT')
+    do jlev = 1, nlev_T
+      ip1 = vco_anl%ip1_T(jlev)
+      ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+        write(*,*)
+        write(*,*) 'HBHT_static: Invalid dimensions for...'
+        write(*,*) 'nomvar         =', trim(clnomvar)
+        write(*,*) 'etiket         =', trim(cletiket)
+        write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+        write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
+        call utl_abort('ose_compute_hbht_static')
+      end if
+      do jlat = 1, hco_anl%nj
+        do jlon = 1, hco_anl%ni
+          field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)*ec_rg*10.d0
+        end do
+      end do
+    end do
+
+    call s2c_bgcheck_bilin(column,statevector,lobsSpaceData)
+
+    ! copy height data from TT to height slot in columnData
+    do jobs= 1, col_getNumCol(column)
+      height_column => col_getColumn(column,jobs,'Z_T')
+      tt_column => col_getColumn(column,jobs,'TT')
+      do jlev = 1,col_getNumLev(column,'TH')
+        height_column(jlev)=tt_column(jlev)
+      enddo
+    enddo
+
+    ! SET THE FIRST-GUESS ERRORS FOR CONVENTIONAL DATA ON PRESSURE LEVELS
+    ! --------------------------------------------------------------------
+
+    call setfgefam('AI',column,columnTrlOnAnlIncLev,lobsSpaceData)
+    call setfgefam('SW',column,columnTrlOnAnlIncLev,lobsSpaceData)
+    call setfgefam('UA',column,columnTrlOnAnlIncLev,lobsSpaceData)
+    call setfgefam('SF',column,columnTrlOnAnlIncLev,lobsSpaceData)
+    call setfgefam('HU',column,columnTrlOnAnlIncLev,lobsSpaceData)
+    call setfgefamz('PR',column,columnTrlOnAnlIncLev,lobsSpaceData)
+    call setfgefamz('AL',column,columnTrlOnAnlIncLev,lobsSpaceData)
+    call setfgefamz('RA',column,columnTrlOnAnlIncLev,lobsSpaceData)
+
+    ! SET THE FIRST-GUESS ERRORS FOR RADIO OCCULTATION DATA
+    ! -----------------------------------------------------
+
+    call setfgedif('RO',columnTrlOnAnlIncLev,lobsSpaceData)
+
+    ! DO TEMPERATURE FIRST-GUESS ERROR
+    ! ---------------------------------
+
+    clnomvar = 'TT'
+    write(*,*) clnomvar
+    call gsv_getField(statevector,field_ptr,'TT')
+    do jlev = 1, nlev_T
+      ip1 = vco_anl%ip1_T(jlev)
+      ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+        write(*,*)
+        write(*,*) 'HBHT_static: Invalid dimensions for...'
+        write(*,*) 'nomvar         =', trim(clnomvar)
+        write(*,*) 'etiket         =', trim(cletiket)
+        write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+        write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
+        call utl_abort('ose_compute_hbht_static')
+      end if
+      do jlat = 1, hco_anl%nj
+        do jlon = 1, hco_anl%ni
+          field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
+        end do
+      end do
+    end do
+
+    call s2c_bgcheck_bilin(column,statevector,lobsSpaceData)
+    call setfgett(column,columnTrlOnAnlIncLev,lobsSpaceData)
+
+    ! RELOAD DATA TO DO SURFACE FIRST-GUESS ERRORS
+    ! ---------------------------------------------
+
+    clnomvar = 'P0'
+    write(*,*) clnomvar
+    ip1 = -1
+    ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+    if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+      write(*,*)
+      write(*,*) 'HBHT_static: Invalid dimensions for...'
+      write(*,*) 'nomvar         =', trim(CLNOMVAR)
+      write(*,*) 'etiket         =', trim(CLETIKET)
+      write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+      write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, 1
+      call utl_abort('ose_compute_hbht_static')
+    end if
+    call gsv_getField(statevector,field_ptr,'P0')
+    do jlev = 1, ink
+      do jlat = 1, hco_anl%nj
+        do jlon = 1, hco_anl%ni
+          field_ptr(jlon,jlat,jlev) = scaleFactor(max(nLev_M,nLev_T))*zbuffer(jlon,jlat)*MPC_PA_PER_MBAR_R8
+        end do
+      end do
+    end do
+
+    clnomvar = 'UU'
+    write(*,*) clnomvar
+    call gsv_getField(statevector,field_ptr,'UU')
+    do jlev = 1, nlev_M
+      ip1 = vco_anl%ip1_M(jlev)
+      ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+        write(*,*)
+        write(*,*) 'HBHT_static: Invalid dimensions for...'
+        write(*,*) 'nomvar         =', trim(clnomvar)
+        write(*,*) 'etiket         =', trim(cletiket)
+        write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+        write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
+        call utl_abort('ose_compute_hbht_static')
+      end if
+      do jlat = 1, hco_anl%nj
+        do jlon = 1, hco_anl%ni
+          field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
+        end do
+      end do
+    end do
+
+    clnomvar = 'VV'
+    write(*,*) clnomvar
+    call gsv_getField(statevector,field_ptr,'VV')
+    do jlev = 1, nlev_M
+      ip1 = vco_anl%ip1_M(jlev)
+      ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+        write(*,*)
+        write(*,*) 'HBHT_static: Invalid dimensions for...'
+        write(*,*) 'nomvar         =', trim(clnomvar)
+        write(*,*) 'etiket         =', trim(cletiket)
+        write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+        write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_M
+        call utl_abort('ose_compute_hbht_static')
+      end if
+      do jlat = 1, hco_anl%nj
+        do jlon = 1, hco_anl%ni
+          field_ptr(jlon,jlat,jlev) = scaleFactor(jlev+shift_level)*zbuffer(jlon,jlat)*MPC_M_PER_S_PER_KNOT_R8
+        end do
+      end do
+    end do
+
+    clnomvar = 'TT'
+    write(*,*) clnomvar
+    call gsv_getField(statevector,field_ptr,'TT')
+    do jlev = 1, nlev_T
+      ip1 = vco_anl%ip1_T(jlev)
+      ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+        write(*,*)
+        write(*,*) 'HBHT_static: Invalid dimensions for...'
+        write(*,*) 'nomvar         =', trim(clnomvar)
+        write(*,*) 'etiket         =', trim(cletiket)
+        write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+        write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
+        call utl_abort('ose_compute_hbht_static')
+      end if
+      do jlat = 1, hco_anl%nj
+        do jlon = 1, hco_anl%ni
+          field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
+        end do
+      end do
+    end do
+
+    clnomvar = 'ES'
+    write(*,*) clnomvar
+    call gsv_getField(statevector,field_ptr,'HU')
+    do jlev = 1, nlev_T
+      ip1 = vco_anl%ip1_T(jlev)
+      ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+        write(*,*)
+        write(*,*) 'HBHT_static: Invalid dimensions for...'
+        write(*,*) 'nomvar         =', trim(clnomvar)
+        write(*,*) 'etiket         =', trim(cletiket)
+        write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+        write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
+        call utl_abort('ose_compute_hbht_static')
+      end if
+      do jlat = 1, hco_anl%nj
+        do jlon = 1, hco_anl%ni
+          field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
+        end do
+      end do
+    end do
+
+    clnomvar = 'LVIS'
+    if (gsv_varExist(statevector,clnomvar)) then
+      write(*,*) clnomvar
+      call gsv_getField(statevector,field_ptr,clnomvar)
+      do jlev = 1, nlev_T
+        ip1 = vco_anl%ip1_T(jlev)
         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
           write(*,*)
           write(*,*) 'HBHT_static: Invalid dimensions for...'
-          write(*,*) 'nomvar         =', trim(CLNOMVAR)
-          write(*,*) 'etiket         =', trim(CLETIKET)
+          write(*,*) 'nomvar         =', trim(clnomvar)
+          write(*,*) 'etiket         =', trim(cletiket)
           write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-          write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, 1
+          write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
           call utl_abort('ose_compute_hbht_static')
         end if
-        call gsv_getField(statevector,field_ptr,clnomvar)
-        do jlev = 1, ink
-          do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-              field_ptr(jlon,jlat,jlev) = scaleFactor(max(nLev_M,nLev_T))*zbuffer(jlon,jlat)
-            end do
+        do jlat = 1, hco_anl%nj
+          do jlon = 1, hco_anl%ni
+            field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
           end do
         end do
-      end if
-
-      call s2c_bgcheck_bilin(column,statevector,lobsSpaceData)
-
-      ! SET THE FIRST-GUESS ERRORS FOR THE SURFACE DATA
-      ! ------------------------------------------------
-
-      call setfgesurf(column,columnTrlOnAnlIncLev,lobsSpaceData)
-
-      ! READ IN LN Q FIRST-GUESS ERRORS FOR SETFGEGPS
-      ! ---------------------------------------------
-      
-      clnomvar = 'LQ'
-      write(*,*) clnomvar
-      call gsv_getField(statevector,field_ptr,'HU')
-      do jlev = 1, nlev_T
-         ip1 = vco_anl%ip1_T(jlev)
-         ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
-         if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
-            write(*,*)
-            write(*,*) 'HBHT_static: Invalid dimensions for...'
-            write(*,*) 'nomvar         =', trim(clnomvar)
-            write(*,*) 'etiket         =', trim(cletiket)
-            write(*,*) 'Found ni,nj,nk =', ini, inj, ink
-            write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
-            call utl_abort('ose_compute_hbht_static')
-         end if
-         do jlat = 1, hco_anl%nj
-            do jlon = 1, hco_anl%ni
-               field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
-            end do
-         end do
       end do
+    end if
 
-      call s2c_bgcheck_bilin(column,statevector,lobsSpaceData)
+    clnomvar = 'WGE'
+    if (gsv_varExist(statevector,clnomvar)) then
+      write(*,*) clnomvar
+      ip1 = -1
+      ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+        write(*,*)
+        write(*,*) 'HBHT_static: Invalid dimensions for...'
+        write(*,*) 'nomvar         =', trim(CLNOMVAR)
+        write(*,*) 'etiket         =', trim(CLETIKET)
+        write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+        write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, 1
+        call utl_abort('ose_compute_hbht_static')
+      end if
+      call gsv_getField(statevector,field_ptr,clnomvar)
+      do jlev = 1, ink
+        do jlat = 1, hco_anl%nj
+          do jlon = 1, hco_anl%ni
+            field_ptr(jlon,jlat,jlev) = scaleFactor(max(nLev_M,nLev_T))*zbuffer(jlon,jlat)
+          end do
+        end do
+      end do
+    end if
 
-      ! OPTIONAL TEST OF THE GB-GPS ZTD OPERATOR JACOBIAN
-      ! -------------------------------------------------
+    call s2c_bgcheck_bilin(column,statevector,lobsSpaceData)
 
-      if (gps_gb_ltestop) call setfgegps(column,columnTrlOnAnlIncLev,lobsSpaceData)
+    ! SET THE FIRST-GUESS ERRORS FOR THE SURFACE DATA
+    ! ------------------------------------------------
 
-      deallocate(scaleFactor)
-      call col_deallocate(column)
-      deallocate(zbuffer)
+    call setfgesurf(column,columnTrlOnAnlIncLev,lobsSpaceData)
 
-      write(*,*)
-      write(*,*) 'Computing HBHT from Bnmc - END'
+    ! READ IN LN Q FIRST-GUESS ERRORS FOR SETFGEGPS
+    ! ---------------------------------------------
+      
+    clnomvar = 'LQ'
+    write(*,*) clnomvar
+    call gsv_getField(statevector,field_ptr,'HU')
+    do jlev = 1, nlev_T
+      ip1 = vco_anl%ip1_T(jlev)
+      ikey = utl_fstlir(zbuffer,iulssf,ini,inj,ink,idate,cletiket,ip1,ip2,ip3,cltypvar,clnomvar)
+      if (ini /= hco_anl%ni .or. inj /= hco_anl%nj .or. ink /= 1) then
+        write(*,*)
+        write(*,*) 'HBHT_static: Invalid dimensions for...'
+        write(*,*) 'nomvar         =', trim(clnomvar)
+        write(*,*) 'etiket         =', trim(cletiket)
+        write(*,*) 'Found ni,nj,nk =', ini, inj, ink
+        write(*,*) 'Should be      =', hco_anl%ni, hco_anl%nj, nlev_T
+        call utl_abort('ose_compute_hbht_static')
+      end if
+      do jlat = 1, hco_anl%nj
+        do jlon = 1, hco_anl%ni
+          field_ptr(jlon,jlat,jlev) = scaleFactor(jlev)*zbuffer(jlon,jlat)
+        end do
+      end do
+    end do
+
+    call s2c_bgcheck_bilin(column,statevector,lobsSpaceData)
+
+    ! OPTIONAL TEST OF THE GB-GPS ZTD OPERATOR JACOBIAN
+    ! -------------------------------------------------
+
+    if (gps_gb_ltestop) call setfgegps(column,columnTrlOnAnlIncLev,lobsSpaceData)
+
+    deallocate(scaleFactor)
+    call col_deallocate(column)
+    deallocate(zbuffer)
+
+    write(*,*)
+    write(*,*) 'Computing HBHT from Bnmc - END'
       
   end subroutine ose_compute_hbht_static
   
@@ -805,11 +797,8 @@ module obsSpaceErrorStdDev_mod
     ! Locals:
     type(struct_columnData) :: column
     type(struct_gsv)        :: statevector
-
     type(struct_vco), pointer :: vco_anl
-
     real(8), allocatable :: HBHT_ens(:)
-
     integer :: memberIndex, index_body
     integer, allocatable :: cvdim(:)
 
@@ -915,88 +904,87 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    character*2 cdfam
+    character(len=2) :: cdfam
     type(struct_columnData) :: column
     type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs) :: lobsSpaceData
 
     ! Locals:
-      INTEGER IPB,IPT
-      INTEGER INDEX_HEADER,ITYP,IK
-      INTEGER INDEX_BODY
-      REAL*8 ZWB,ZWT, columnElem
-      REAL*8 ZLEV,ZPB,ZPT
-      character(len=4) :: varLevel
+    INTEGER IPB,IPT
+    INTEGER INDEX_HEADER,ITYP,IK
+    INTEGER INDEX_BODY
+    REAL*8 ZWB,ZWT, columnElem
+    REAL*8 ZLEV,ZPB,ZPT
+    character(len=4) :: varLevel
 
-      ! loop over all header indices of the CDFAM family
-      call obs_set_current_header_list(lobsSpaceData,CDFAM)
-      HEADER: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER
+    ! loop over all header indices of the CDFAM family
+    call obs_set_current_header_list(lobsSpaceData,CDFAM)
+    HEADER: do
+      index_header = obs_getHeaderIndex(lobsSpaceData)
+      if (index_header < 0) exit HEADER
 
-         ! loop over all body indices for this index_header
-         call obs_set_current_body_list(lobsSpaceData, index_header)
-         BODY: do 
-            index_body = obs_getBodyIndex(lobsSpaceData)
-            if (index_body < 0) exit BODY
-            !
-            !*    1. Computation of sigmap
-            !     .  -----------------------------
-            !
-            IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated .AND.   &
-                 obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2      ) then
-            IF  (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) THEN
-               ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
-               varLevel = vnl_varLevelFromVarnum(ityp)
-               IK   = col_getNumLev(columnTrlOnAnlIncLev,varLevel)
-               IPB  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
-               if(ITYP .ne. BUFR_NEGZ) then
-                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(column,IPB,INDEX_HEADER))
-               else
-                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getHeight(column,IK,INDEX_HEADER,'TH'))
-               endif
-            ELSE
-               ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
-               varLevel = vnl_varLevelFromVarnum(ityp)
-               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
-               IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
-               IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
-               IPB  = IPT+1
-               ZPT  = col_getPressure(columnTrlOnAnlIncLev,IK,INDEX_HEADER,varLevel)
-               ZPB  = col_getPressure(columnTrlOnAnlIncLev,IK+1,INDEX_HEADER,varLevel)
-               ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
-               ZWT  = 1.0D0 - ZWB
+      ! loop over all body indices for this index_header
+      call obs_set_current_body_list(lobsSpaceData, index_header)
+      BODY: do 
+        index_body = obs_getBodyIndex(lobsSpaceData)
+        if (index_body < 0) exit BODY
+        !
+        !*    1. Computation of sigmap
+        !     .  -----------------------------
+        !
+        IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated .AND.   &
+             obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2      ) then
+          IF  (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) THEN
+            ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
+            varLevel = vnl_varLevelFromVarnum(ityp)
+            IK   = col_getNumLev(columnTrlOnAnlIncLev,varLevel)
+            IPB  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
+            if(ITYP .ne. BUFR_NEGZ) then
+              call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(column,IPB,INDEX_HEADER))
+            else
+              call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getHeight(column,IK,INDEX_HEADER,'TH'))
+            endif
+          ELSE
+            ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
+            varLevel = vnl_varLevelFromVarnum(ityp)
+            ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
+            IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
+            IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
+            IPB  = IPT+1
+            ZPT  = col_getPressure(columnTrlOnAnlIncLev,IK,INDEX_HEADER,varLevel)
+            ZPB  = col_getPressure(columnTrlOnAnlIncLev,IK+1,INDEX_HEADER,varLevel)
+            ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+            ZWT  = 1.0D0 - ZWB
 
-               ! FIRST GUESS ERROR VARIANCE
+            ! FIRST GUESS ERROR VARIANCE
 
-               if(ITYP .ne. BUFR_NEGZ) then
-                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
-                      (ZWB*col_getElem(column,IPB,INDEX_HEADER) + ZWT*col_getElem(column,IPT,INDEX_HEADER)))
-               else
-                 call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
-                      (ZWB*col_getHeight(column,IK+1,INDEX_HEADER,'TH') + ZWT*col_getHeight(column,IK,INDEX_HEADER,'TH')))
-               endif
-               if(obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body).le.0.d0) then
-                 write(*,*) 'SETFGEFAM: CDFAM = ',CDFAM
-                 write(*,*) 'SETFGEFAM: IPB,IPT,ZWB,ZWT,ITYP,ZLEV=',IPB,IPT,ZWB,ZWT,ITYP,ZLEV
-                 columnElem = col_getElem(column,IPB,INDEX_HEADER)
-                 write(*,*) 'SETFGEFAM: column_all(IPB,INDEX_HEADER)=',columnElem
-                 columnElem = col_getElem(column,IPT,INDEX_HEADER)
-                 write(*,*) 'SETFGEFAM: column_all(IPT,INDEX_HEADER)=',columnElem
-                 columnElem = col_getHeight(column,IK+1,INDEX_HEADER,'TH')
-                 write(*,*) 'SETFGEFAM: get_height(IK+1,INDEX_HEADER)=',columnElem
-                 columnElem = col_getHeight(column,IK  ,INDEX_HEADER,'TH')
-                 write(*,*) 'SETFGEFAM: get_height(IK  ,INDEX_HEADER)=',columnElem
-                 CALL utl_abort('SETFGEFAM: First-guess stdev bad value')
-               endif
-            ENDIF
-            ENDIF
+            if(ITYP .ne. BUFR_NEGZ) then
+              call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
+                   (ZWB*col_getElem(column,IPB,INDEX_HEADER) + ZWT*col_getElem(column,IPT,INDEX_HEADER)))
+            else
+              call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
+                   (ZWB*col_getHeight(column,IK+1,INDEX_HEADER,'TH') + ZWT*col_getHeight(column,IK,INDEX_HEADER,'TH')))
+            endif
+            if(obs_bodyElem_r(lobsSpaceData,OBS_HPHT,index_body).le.0.d0) then
+              write(*,*) 'SETFGEFAM: CDFAM = ',CDFAM
+              write(*,*) 'SETFGEFAM: IPB,IPT,ZWB,ZWT,ITYP,ZLEV=',IPB,IPT,ZWB,ZWT,ITYP,ZLEV
+              columnElem = col_getElem(column,IPB,INDEX_HEADER)
+              write(*,*) 'SETFGEFAM: column_all(IPB,INDEX_HEADER)=',columnElem
+              columnElem = col_getElem(column,IPT,INDEX_HEADER)
+              write(*,*) 'SETFGEFAM: column_all(IPT,INDEX_HEADER)=',columnElem
+              columnElem = col_getHeight(column,IK+1,INDEX_HEADER,'TH')
+              write(*,*) 'SETFGEFAM: get_height(IK+1,INDEX_HEADER)=',columnElem
+              columnElem = col_getHeight(column,IK  ,INDEX_HEADER,'TH')
+              write(*,*) 'SETFGEFAM: get_height(IK  ,INDEX_HEADER)=',columnElem
+              CALL utl_abort('SETFGEFAM: First-guess stdev bad value')
+            endif
+          ENDIF
+        ENDIF
 
-         END DO BODY
+      END DO BODY
 
-      END DO HEADER
+    END DO HEADER
 
-      RETURN
   end subroutine setfgefam
 
   !--------------------------------------------------------------------------
@@ -1148,55 +1136,54 @@ module obsSpaceErrorStdDev_mod
     type(struct_obs) :: lobsSpaceData
 
     ! Locals:
-      INTEGER IPB,IPT
-      INTEGER INDEX_HEADER,ITYP,IK
-      INTEGER INDEX_BODY
-      REAL*8 ZWB,ZWT
-      REAL*8 ZLEV,ZPB,ZPT
-      character(len=4) :: varLevel
+    INTEGER IPB,IPT
+    INTEGER INDEX_HEADER,ITYP,IK
+    INTEGER INDEX_BODY
+    REAL*8 ZWB,ZWT
+    REAL*8 ZLEV,ZPB,ZPT
+    character(len=4) :: varLevel
 
-      ! loop over all body rows
-      BODY: do index_body=1,obs_numbody(lobsSpaceData)
+    ! loop over all body rows
+    BODY: do index_body=1,obs_numbody(lobsSpaceData)
 
-         ! 1. Computation of sigmap
-         !    ---------------------
-         
-         IF ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated) .and.    &
-              (obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body).EQ. BUFR_NETT) ) THEN
+      ! 1. Computation of sigmap
+      !    ---------------------
 
-            IF ( (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) .and.    &
-                 (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2) ) THEN
-               ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
-               varLevel = vnl_varLevelFromVarnum(ityp)
-               IK=col_getNumLev(columnTrlOnAnlIncLev,varLevel)-1
-               INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
-               IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
-               IPB  = IPT +1
-               call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(column,IPB,INDEX_HEADER))
-            ELSE
-               INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
-               ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
-               IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
-               IPT  = IK
-               IPB  = IPT+1
-               ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
-               varLevel = vnl_varLevelFromVarnum(ityp)
-               ZPT  = col_getPressure(columnTrlOnAnlIncLev,IK,INDEX_HEADER,varLevel)
-               ZPB  = col_getPressure(columnTrlOnAnlIncLev,IK+1,INDEX_HEADER,varLevel)
-               ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
-               ZWT  = 1.0D0 - ZWB
+      IF ( (obs_bodyElem_i(lobsSpaceData,OBS_ASS,index_body) == obs_assimilated) .and.    &
+           (obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body).EQ. BUFR_NETT) ) THEN
 
-               ! FIRST GUESS ERROR VARIANCE
+        IF ( (obs_bodyElem_i(lobsSpaceData,OBS_XTR,index_body) .NE. 0) .and.    &
+             (obs_bodyElem_i(lobsSpaceData,OBS_VCO,index_body) .EQ. 2) ) THEN
+          ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
+          varLevel = vnl_varLevelFromVarnum(ityp)
+          IK=col_getNumLev(columnTrlOnAnlIncLev,varLevel)-1
+          INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
+          IPT  = IK + col_getOffsetFromVarno(columnTrlOnAnlIncLev,ityp)
+          IPB  = IPT +1
+          call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,col_getElem(column,IPB,INDEX_HEADER))
+        ELSE
+          INDEX_HEADER = obs_bodyElem_i(lobsSpaceData,OBS_HIND,index_body)
+          ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,index_body)
+          IK   = obs_bodyElem_i(lobsSpaceData,OBS_LYR,index_body)
+          IPT  = IK
+          IPB  = IPT+1
+          ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,index_body)
+          varLevel = vnl_varLevelFromVarnum(ityp)
+          ZPT  = col_getPressure(columnTrlOnAnlIncLev,IK,INDEX_HEADER,varLevel)
+          ZPB  = col_getPressure(columnTrlOnAnlIncLev,IK+1,INDEX_HEADER,varLevel)
+          ZWB  = LOG(ZLEV/ZPT)/LOG(ZPB/ZPT)
+          ZWT  = 1.0D0 - ZWB
 
-               call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
-                  (ZWB*col_getElem(column,IPB,INDEX_HEADER,'TT') + ZWT*col_getElem(column,IPT,INDEX_HEADER,'TT')))
-            ENDIF
+          ! FIRST GUESS ERROR VARIANCE
 
-         ENDIF
+          call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,   &
+               (ZWB*col_getElem(column,IPB,INDEX_HEADER,'TT') + ZWT*col_getElem(column,IPT,INDEX_HEADER,'TT')))
+        ENDIF
 
-      END DO BODY
+      ENDIF
 
-      RETURN
+    END DO BODY
+
   end subroutine setfgett
 
   !--------------------------------------------------------------------------
@@ -1210,12 +1197,12 @@ module obsSpaceErrorStdDev_mod
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData) :: column
     type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: lobsSpaceData
 
-    ! Locals
+    ! Locals:
     integer          :: ipb, ipt, idim, headerIndex, ik, bodyIndex, ityp, bodyElem_i
     real(8)          :: zwb, zwt, zlev, zpt, zpb, zhhh, bodyElem_r, colElem1, colElem2
     character(len=2) :: cfam
@@ -1332,244 +1319,239 @@ module obsSpaceErrorStdDev_mod
     implicit none
 
     ! Arguments:
-    character*2 cdfam
+    character(len=2) :: cdfam
     type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: lobsSpaceData
 
     ! Locals:
-      INTEGER INDEX_HEADER, IDATYP, INDEX_BODY, iProfile, varNum
-      REAL*8 zLat, Lat, sLat
-      REAL*8 zLon, Lon
-      REAL*8 zAzm !, Azm
-      INTEGER ISAT
-      REAL*8 Rad, Geo
-      REAL*8, allocatable :: zPP(:)
-      REAL*8, allocatable :: zDP(:)
-      REAL*8, allocatable :: zTT(:)
-      REAL*8, allocatable :: zHU(:)
-      REAL*8, allocatable :: zHT(:)
-      REAL*8, allocatable :: zUU(:)
-      REAL*8, allocatable :: zVV(:)
-      INTEGER JL
-      REAL*8 ZP0, ZMT
-      REAL*8 ZFGE, ZERR
-      INTEGER JV, NGPSLEV, NWNDLEV
-      LOGICAL  ASSIM, LFIRST, FIRSTHEADER
+    INTEGER INDEX_HEADER, IDATYP, INDEX_BODY, iProfile, varNum
+    REAL*8 zLat, Lat, sLat
+    REAL*8 zLon, Lon
+    REAL*8 zAzm !, Azm
+    INTEGER ISAT
+    REAL*8 Rad, Geo
+    REAL*8, allocatable :: zPP(:)
+    REAL*8, allocatable :: zDP(:)
+    REAL*8, allocatable :: zTT(:)
+    REAL*8, allocatable :: zHU(:)
+    REAL*8, allocatable :: zHT(:)
+    REAL*8, allocatable :: zUU(:)
+    REAL*8, allocatable :: zVV(:)
+    INTEGER JL
+    REAL*8 ZP0, ZMT
+    REAL*8 ZFGE, ZERR
+    INTEGER JV, NGPSLEV, NWNDLEV
+    LOGICAL  ASSIM, LFIRST, FIRSTHEADER
+    INTEGER NH, NH1
+    REAL*8 DV (gps_ncvmx)
+    TYPE(GPS_PROFILE)           :: PRF
+    REAL*8       , allocatable :: H   (:),AZMV(:)
+    TYPE(GPS_DIFF), allocatable :: RSTV(:)
+    type(struct_vco), pointer  :: vco_anl
+    real*8, dimension(:), pointer :: dPdPs
 
-      INTEGER NH, NH1
+    WRITE(*,*)'ENTER SETFGEDIFF'
 
-      ! REAL*8 JAC(gps_ncvmx)
-      REAL*8 DV (gps_ncvmx)
-      TYPE(GPS_PROFILE)           :: PRF
-      REAL*8       , allocatable :: H   (:),AZMV(:)
-      TYPE(GPS_DIFF), allocatable :: RSTV(:)
-      type(struct_vco), pointer  :: vco_anl
-      real*8, dimension(:), pointer :: dPdPs
+    ! Initializations
 
-      WRITE(*,*)'ENTER SETFGEDIFF'
+    nullify(dPdPs)
 
-      ! Initializations
+    NGPSLEV=col_getNumLev(columnTrlOnAnlIncLev,'TH')
+    NWNDLEV=col_getNumLev(columnTrlOnAnlIncLev,'MM')
+    LFIRST=.FALSE.
+    if ( .NOT.allocated(ose_vRO_Jacobian) ) then
+      LFIRST = .TRUE.
+      allocate(zPP (NGPSLEV))
+      allocate(zDP (NGPSLEV))
+      allocate(zTT (NGPSLEV))
+      allocate(zHU (NGPSLEV))
+      allocate(zHT (NGPSLEV))
+      allocate(zUU (NGPSLEV))
+      allocate(zVV (NGPSLEV))
 
-      nullify(dPdPs)
+      allocate(ose_vRO_Jacobian(gps_numROProfiles,gps_RO_MAXPRFSIZE,2*NGPSLEV+1))
+      allocate(ose_vRO_lJac    (gps_numROProfiles))
+      ose_vRO_Jacobian = 0.d0
+      ose_vRO_lJac = .False.
 
-      NGPSLEV=col_getNumLev(columnTrlOnAnlIncLev,'TH')
-      NWNDLEV=col_getNumLev(columnTrlOnAnlIncLev,'MM')
-      LFIRST=.FALSE.
-      if ( .NOT.allocated(ose_vRO_Jacobian) ) then
-         LFIRST = .TRUE.
-         allocate(zPP (NGPSLEV))
-         allocate(zDP (NGPSLEV))
-         allocate(zTT (NGPSLEV))
-         allocate(zHU (NGPSLEV))
-         allocate(zHT (NGPSLEV))
-         allocate(zUU (NGPSLEV))
-         allocate(zVV (NGPSLEV))
+      allocate( H    (gps_RO_MAXPRFSIZE) )
+      allocate( AZMV (gps_RO_MAXPRFSIZE) )
+      allocate( RSTV (gps_RO_MAXPRFSIZE) )
+    endif
 
-         allocate(ose_vRO_Jacobian(gps_numROProfiles,gps_RO_MAXPRFSIZE,2*NGPSLEV+1))
-         allocate(ose_vRO_lJac    (gps_numROProfiles))
-         ose_vRO_Jacobian = 0.d0
-         ose_vRO_lJac = .False.
+    vco_anl => col_getVco(columnTrlOnAnlIncLev)
 
-         allocate( H    (gps_RO_MAXPRFSIZE) )
-         allocate( AZMV (gps_RO_MAXPRFSIZE) )
-         allocate( RSTV (gps_RO_MAXPRFSIZE) )
-      endif
+    ! Loop over all header indices of the 'RO' family:
 
-      vco_anl => col_getVco(columnTrlOnAnlIncLev)
+    call obs_set_current_header_list(lobsSpaceData,CDFAM)
+    FIRSTHEADER=.TRUE.
+    HEADER: do
+      index_header = obs_getHeaderIndex(lobsSpaceData)
+      if (index_header < 0) exit HEADER
 
+      ! Process only refractivity data (codtyp 169)
 
-      ! Loop over all header indices of the 'RO' family:
+      IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+      IF ( IDATYP .EQ. 169 ) THEN
+        iProfile = gps_iprofile_from_index(index_header)
+        varNum = gps_vRO_IndexPrf(iProfile, 2)
 
-      call obs_set_current_header_list(lobsSpaceData,CDFAM)
-      FIRSTHEADER=.TRUE.
-      HEADER: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER
+        ! Scan for requested data values of the profile, and count them
 
-         ! Process only refractivity data (codtyp 169)
+        ASSIM = .FALSE.
+        NH = 0
+        call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+        BODY: do
+          INDEX_BODY = obs_getBodyIndex(lobsSpaceData)
+          if (INDEX_BODY < 0) exit BODY
+          IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
+            ASSIM = .TRUE.
+            NH = NH + 1
+          ENDIF
+        ENDDO BODY
 
-         IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-         IF ( IDATYP .EQ. 169 ) THEN
-            iProfile = gps_iprofile_from_index(index_header)
-            varNum = gps_vRO_IndexPrf(iProfile, 2)
+        ! If assimilations are requested, prepare and apply the observation operator
 
-            ! Scan for requested data values of the profile, and count them
-            
-            ASSIM = .FALSE.
-            NH = 0
+        IF (ASSIM) THEN
+          iProfile=gps_iprofile_from_index(INDEX_HEADER)
+
+          ! Profile at the observation location:
+
+          if (.not.ose_vRO_lJac(iProfile)) then
+
+            ! Basic geometric variables of the profile:
+
+            zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+            zLon = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
+            ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
+            Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
+            Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
+            zAzm = obs_headElem_r(lobsSpaceData,OBS_AZA,INDEX_HEADER) / MPC_DEGREES_PER_RADIAN_R8
+            zMT  = col_getHeight(columnTrlOnAnlIncLev,NGPSLEV,INDEX_HEADER,'TH')
+            Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
+            Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
+            !Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
+            sLat = sin(zLat)
+            zMT  = zMT * ec_rg / gps_gravitysrf(sLat)
+            zP0  = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
+
+            ! approximation for dPdPs               
+            if (associated(dPdPs)) then
+              deallocate(dPdPs)
+            end if
+            call czp_fetch1DdPdPs(vco_anl, zP0, profT_opt=dPdPs)
+            zDP(1:NGPSLEV) = dPdPs(1:NGPSLEV)
+
+            DO JL = 1, NGPSLEV
+
+              ! Profile x
+
+              zPP(JL) = col_getPressure(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
+              zTT(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT') - MPC_K_C_DEGREE_OFFSET_R8
+              zHU(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'HU')
+              zHT(JL) = col_getHeight(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
+              zUU(JL) = 0.d0
+              zVV(JL) = 0.d0
+            ENDDO
+            DO JL = 1, NWNDLEV
+              zUU(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'UU')
+              zVV(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'VV')
+            ENDDO
+            zUU(NGPSLEV) = zUU(NWNDLEV)
+            zVV(NGPSLEV) = zUU(NWNDLEV)
+
+            ! GPS profile structure:
+
+            call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
+            !call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,zHT,prf)
+
+            ! Prepare the vector of all the observations:
+
+            NH1 = 0
             call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
-            BODY: do
-               INDEX_BODY = obs_getBodyIndex(lobsSpaceData)
-               if (INDEX_BODY < 0) exit BODY
-               IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
-                  ASSIM = .TRUE.
-                  NH = NH + 1
-               ENDIF
-            ENDDO BODY
+            BODY_2: do
+              INDEX_BODY = obs_getBodyIndex(lobsSpaceData)
+              if (INDEX_BODY < 0) exit BODY_2
+              IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
+                NH1      = NH1 + 1
+                H(NH1)   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+                AZMV(NH1)= zAzm
+              ENDIF
+            ENDDO BODY_2
 
-            ! If assimilations are requested, prepare and apply the observation operator
+            ! Apply the observation operator:
 
-            IF (ASSIM) THEN
-               iProfile=gps_iprofile_from_index(INDEX_HEADER)
-
-               ! Profile at the observation location:
-
-               if (.not.ose_vRO_lJac(iProfile)) then
-
-                  ! Basic geometric variables of the profile:
-
-                  zLat = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
-                  zLon = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
-                  ISAT = obs_headElem_i(lobsSpaceData,OBS_SAT,INDEX_HEADER)
-                  Rad  = obs_headElem_r(lobsSpaceData,OBS_TRAD,INDEX_HEADER)
-                  Geo  = obs_headElem_r(lobsSpaceData,OBS_GEOI,INDEX_HEADER)
-                  zAzm = obs_headElem_r(lobsSpaceData,OBS_AZA,INDEX_HEADER) / MPC_DEGREES_PER_RADIAN_R8
-                  zMT  = col_getHeight(columnTrlOnAnlIncLev,NGPSLEV,INDEX_HEADER,'TH')
-                  Lat  = zLat * MPC_DEGREES_PER_RADIAN_R8
-                  Lon  = zLon * MPC_DEGREES_PER_RADIAN_R8
-                  !Azm  = zAzm * MPC_DEGREES_PER_RADIAN_R8
-                  sLat = sin(zLat)
-                  zMT  = zMT * ec_rg / gps_gravitysrf(sLat)
-                  zP0  = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
-
-                  ! approximation for dPdPs               
-                  if (associated(dPdPs)) then
-                    deallocate(dPdPs)
-                  end if
-                  call czp_fetch1DdPdPs(vco_anl, zP0, profT_opt=dPdPs)
-                  zDP(1:NGPSLEV) = dPdPs(1:NGPSLEV)
-
-                  DO JL = 1, NGPSLEV
-
-                     ! Profile x
-
-                     zPP(JL) = col_getPressure(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
-                     zTT(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT') - MPC_K_C_DEGREE_OFFSET_R8
-                     zHU(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'HU')
-                     zHT(JL) = col_getHeight(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
-                     zUU(JL) = 0.d0
-                     zVV(JL) = 0.d0
-                  ENDDO
-                  DO JL = 1, NWNDLEV
-                     zUU(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'UU')
-                     zVV(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'VV')
-                  ENDDO
-                  zUU(NGPSLEV) = zUU(NWNDLEV)
-                  zVV(NGPSLEV) = zUU(NWNDLEV)
-  
-                  ! GPS profile structure:
-
-                  call gps_struct1sw(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,prf)
-                  !call gps_struct1sw_v2(ngpslev,zLat,zLon,zAzm,zMT,Rad,geo,zP0,zPP,zDP,zTT,zHU,zUU,zVV,zHT,prf)
-
-                  ! Prepare the vector of all the observations:
-
-                  NH1 = 0
-                  call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
-                  BODY_2: do
-                     INDEX_BODY = obs_getBodyIndex(lobsSpaceData)
-                     if (INDEX_BODY < 0) exit BODY_2
-                     IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
-                        NH1      = NH1 + 1
-                        H(NH1)   = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-                        AZMV(NH1)= zAzm
-                     ENDIF
-                  ENDDO BODY_2
-
-                  ! Apply the observation operator:
-
-                  IF (varNum == bufr_nebd) THEN
-                     CALL GPS_BNDOPV1(H, AZMV, NH, PRF, RSTV)
-                  ELSE
-                     CALL GPS_REFOPV (H,       NH, PRF, RSTV)
-                  ENDIF
-                  DO NH1=1,NH
-                     ose_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
-                  ENDDO
-                  ose_vRO_lJac(iProfile) = .True.
-               endif
-
-               ! Local error
-
-               DO JL = 1, NGPSLEV
-                  DV (        JL) = 1.d0
-                  DV (NGPSLEV+JL) = 1.d0
-               ENDDO
-               DV (2*NGPSLEV+1)   = 2.d0
-
-               ! Perform the H(xb)DV operation:
-
-               NH1 = 0
-               call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
-               BODY_3: do
-                  INDEX_BODY = obs_getBodyIndex(lobsSpaceData)
-                  if (INDEX_BODY < 0) exit BODY_3
-                  IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
-                     NH1 = NH1 + 1
-
-                     ! Observation jacobian
-
-!                     JAC = RSTV(NH1)%DVAR
-
-                     ! Evaluate sqrt( H(xb)DV **2 )
-
-                     ZFGE = 0.d0
-                     DO JV = 1, 2*PRF%NGPSLEV+1
-                        ZFGE = ZFGE + (ose_vRO_Jacobian(iProfile,NH1,JV) * DV(JV))**2
-                     ENDDO
-                     ZFGE = SQRT(ZFGE)
-                     ZERR = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
-    
-                     ! FIRST GUESS ERROR VARIANCE
-
-                     call obs_bodySet_r(lobsSpaceData,OBS_HPHT,INDEX_BODY,ZFGE)
-                     IF (FIRSTHEADER) THEN
-11                      FORMAT(A12,2I5,F12.2,3F16.8)
-                        WRITE(*,11)'SETFGEDIFFGE',NH1,NH,H(NH1),RSTV(NH1)%VAR,ZFGE,ZERR
-                     ENDIF
-                  ENDIF
-               ENDDO BODY_3
+            IF (varNum == bufr_nebd) THEN
+              CALL GPS_BNDOPV1(H, AZMV, NH, PRF, RSTV)
+            ELSE
+              CALL GPS_REFOPV (H,       NH, PRF, RSTV)
             ENDIF
-         ENDIF
-         FIRSTHEADER = .FALSE.
-      ENDDO HEADER
+            DO NH1=1,NH
+              ose_vRO_Jacobian(iProfile,NH1,:)= RSTV(NH1)%DVAR(1:2*NGPSLEV+1)
+            ENDDO
+            ose_vRO_lJac(iProfile) = .True.
+          endif
 
-      IF (LFIRST) THEN
-         deallocate( RSTV )
-         deallocate( AZMV )
-         deallocate( H    )
+          ! Local error
 
-         deallocate(zVV)
-         deallocate(zUU)
-         deallocate(zHT)
-         deallocate(zHU)
-         deallocate(zTT)
-         deallocate(zDP)
-         deallocate(zPP)
+          DO JL = 1, NGPSLEV
+            DV (        JL) = 1.d0
+            DV (NGPSLEV+JL) = 1.d0
+          ENDDO
+          DV (2*NGPSLEV+1)   = 2.d0
+
+          ! Perform the H(xb)DV operation:
+
+          NH1 = 0
+          call obs_set_current_body_list(lobsSpaceData, INDEX_HEADER)
+          BODY_3: do
+            INDEX_BODY = obs_getBodyIndex(lobsSpaceData)
+            if (INDEX_BODY < 0) exit BODY_3
+            IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated ) THEN
+              NH1 = NH1 + 1
+
+              ! Observation jacobian
+
+              !                     JAC = RSTV(NH1)%DVAR
+
+              ! Evaluate sqrt( H(xb)DV **2 )
+
+              ZFGE = 0.d0
+              DO JV = 1, 2*PRF%NGPSLEV+1
+                ZFGE = ZFGE + (ose_vRO_Jacobian(iProfile,NH1,JV) * DV(JV))**2
+              ENDDO
+              ZFGE = SQRT(ZFGE)
+              ZERR = obs_bodyElem_r(lobsSpaceData,OBS_OER,INDEX_BODY)
+
+              ! FIRST GUESS ERROR VARIANCE
+
+              call obs_bodySet_r(lobsSpaceData,OBS_HPHT,INDEX_BODY,ZFGE)
+              IF (FIRSTHEADER) THEN
+11              FORMAT(A12,2I5,F12.2,3F16.8)
+                WRITE(*,11)'SETFGEDIFFGE',NH1,NH,H(NH1),RSTV(NH1)%VAR,ZFGE,ZERR
+              ENDIF
+            ENDIF
+          ENDDO BODY_3
+        ENDIF
       ENDIF
+      FIRSTHEADER = .FALSE.
+    ENDDO HEADER
 
-      WRITE(*,*)'EXIT SETFGEDIFF'
-      RETURN
+    IF (LFIRST) THEN
+      deallocate( RSTV )
+      deallocate( AZMV )
+      deallocate( H    )
+
+      deallocate(zVV)
+      deallocate(zUU)
+      deallocate(zHT)
+      deallocate(zHU)
+      deallocate(zTT)
+      deallocate(zDP)
+      deallocate(zPP)
+    ENDIF
+
+    WRITE(*,*)'EXIT SETFGEDIFF'
   end subroutine setfgedif
 
   !--------------------------------------------------------------------------
@@ -1604,95 +1586,87 @@ module obsSpaceErrorStdDev_mod
     ! Locals:
     ! column  contains background errors for control variables on model levels
     ! columnTrlOnAnlIncLev contains lo-res first guess profiles at obs locations
-      type(struct_vco), pointer :: vco_anl
-      REAL*8 ZLAT, Lat
-      REAL*8 ZLON, Lon
-      REAL*8, allocatable :: ZPP(:)
-      REAL*8, allocatable :: ZDP(:)
-      REAL*8, allocatable :: ZTT(:)
-      REAL*8, allocatable :: ZHU(:)
-      REAL*8, allocatable :: zHeight(:)
-      REAL*8, allocatable :: zHeight2(:)
-      REAL*8, allocatable :: ZTTB(:)
-      REAL*8, allocatable :: ZHUB(:)
-      REAL*8, allocatable :: ZQQB(:)
-      REAL*8, allocatable :: ZQQ(:)
-      REAL*8, allocatable :: ZTTB_P(:)
-      REAL*8, allocatable :: ZQQB_P(:)
-      REAL*8, allocatable :: zHeight_P(:)
-      REAL*8, allocatable :: ZPP_P(:)
-      
-      REAL*8 ZP0
-      REAL*8 ZP0B, ZP0B_P
-      REAL*8 ZMT, ZTOP, ZBOT
- 
-      REAL*8 JAC(gps_ncvmx)
-      REAL*8 DX (gps_ncvmx)
+    type(struct_vco), pointer :: vco_anl
+    REAL*8 ZLAT, Lat
+    REAL*8 ZLON, Lon
+    REAL*8, allocatable :: ZPP(:)
+    REAL*8, allocatable :: ZDP(:)
+    REAL*8, allocatable :: ZTT(:)
+    REAL*8, allocatable :: ZHU(:)
+    REAL*8, allocatable :: zHeight(:)
+    REAL*8, allocatable :: zHeight2(:)
+    REAL*8, allocatable :: ZTTB(:)
+    REAL*8, allocatable :: ZHUB(:)
+    REAL*8, allocatable :: ZQQB(:)
+    REAL*8, allocatable :: ZQQ(:)
+    REAL*8, allocatable :: ZTTB_P(:)
+    REAL*8, allocatable :: ZQQB_P(:)
+    REAL*8, allocatable :: zHeight_P(:)
+    REAL*8, allocatable :: ZPP_P(:)
+    REAL*8 ZP0
+    REAL*8 ZP0B, ZP0B_P
+    REAL*8 ZMT, ZTOP, ZBOT
+    REAL*8 JAC(gps_ncvmx)
+    REAL*8 DX (gps_ncvmx)
+    REAL*8 ZLEV, ZTDOBS, ZPSMOD
+    REAL*8 ZLSUM
+    REAL*8 DELTAH_NL, DELTAH_TL
+    REAL*8 PERTFAC, ZTDM
+    REAL*8 ZDZMIN, ZSUMTEST
+    INTEGER INDEX_HEADER, FIRST_HEADER
+    INTEGER IDATYP, ITYP
+    INTEGER IDATA, IDATEND, INDEX_BODY
+    INTEGER JL, NFLEV_T, ILYR, IOBS
+    INTEGER INOBS_OPT, INOBS_JAC, icount, iversion
+    LOGICAL  ASSIM, OK, LSTAG
+    CHARACTER*9  STN_JAC
+    character(len=12) :: stnid
+    CHARACTER(len=4) :: varLevel
+    TYPE(GPS_PROFILEZD)    :: PRF, PRFP
+    TYPE(GPS_DIFF)         :: ZTDopv, ZTDopvP
+    real*8, dimension(:), pointer :: dPdPs
 
-      REAL*8 ZLEV, ZTDOBS, ZPSMOD
-      REAL*8 ZLSUM
-      REAL*8 DELTAH_NL, DELTAH_TL
-      REAL*8 PERTFAC, ZTDM
-      REAL*8 ZDZMIN, ZSUMTEST
+    IF (gps_gb_numZTD .EQ. 0) RETURN
 
-      INTEGER INDEX_HEADER, FIRST_HEADER
-      INTEGER IDATYP, ITYP
-      INTEGER IDATA, IDATEND, INDEX_BODY
-      INTEGER JL, NFLEV_T, ILYR, IOBS
-      INTEGER INOBS_OPT, INOBS_JAC, icount, iversion
+    ! Initializations
 
-      LOGICAL  ASSIM, OK, LSTAG
-      CHARACTER*9  STN_JAC
-      character(len=12) :: stnid
-      
-      CHARACTER(len=4) :: varLevel
-      
-      TYPE(GPS_PROFILEZD)    :: PRF, PRFP
-      TYPE(GPS_DIFF)         :: ZTDopv, ZTDopvP
+    nullify(dPdPs)
 
-      real*8, dimension(:), pointer :: dPdPs
+    NFLEV_T = col_getNumLev(columnTrlOnAnlIncLev,'TH')
+    allocate(ZPP(NFLEV_T))
+    allocate(ZDP(NFLEV_T))
+    allocate(ZTT(NFLEV_T))
+    allocate(ZHU(NFLEV_T))
+    allocate(zHeight(NFLEV_T))
+    allocate(ZTTB(NFLEV_T))
+    allocate(ZHUB(NFLEV_T))
+    allocate(ZQQB(NFLEV_T))
+    allocate(ZQQ(NFLEV_T))
 
-      IF (gps_gb_numZTD .EQ. 0) RETURN
+    ! Number of locations/sites for observation operator test
+    INOBS_OPT = 50
+    ! Number of locations/sites for Jacobian printout
+    INOBS_JAC  = 5
+    ! Factor to multiply background errors for perturbation vector
+    PERTFAC = 0.75d0
 
-      ! Initializations
+    STN_JAC = 'FSL_BRFT '
 
-      nullify(dPdPs)
+    ZDZMIN = gps_gb_DZMIN
 
-      NFLEV_T = col_getNumLev(columnTrlOnAnlIncLev,'TH')
-      allocate(ZPP(NFLEV_T))
-      allocate(ZDP(NFLEV_T))
-      allocate(ZTT(NFLEV_T))
-      allocate(ZHU(NFLEV_T))
-      allocate(zHeight(NFLEV_T))
-      allocate(ZTTB(NFLEV_T))
-      allocate(ZHUB(NFLEV_T))
-      allocate(ZQQB(NFLEV_T))
-      allocate(ZQQ(NFLEV_T))
+    vco_anl => col_getVco(columnTrlOnAnlIncLev)
+    iversion = vco_anl%Vcode
+    if (iversion .eq. 5002) then
+      LSTAG = .TRUE. 
+      WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS STAGGERED'
+      WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
+    else
+      LSTAG = .FALSE.
+      WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS NOT STAGGERED'
+      WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
+    endif
 
-      ! Number of locations/sites for observation operator test
-      INOBS_OPT = 50
-      ! Number of locations/sites for Jacobian printout
-      INOBS_JAC  = 5
-      ! Factor to multiply background errors for perturbation vector
-      PERTFAC = 0.75d0
-
-      STN_JAC = 'FSL_BRFT '
-      
-      ZDZMIN = gps_gb_DZMIN
-
-      vco_anl => col_getVco(columnTrlOnAnlIncLev)
-      iversion = vco_anl%Vcode
-      if (iversion .eq. 5002) then
-         LSTAG = .TRUE. 
-         WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS STAGGERED'
-         WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
-      else
-         LSTAG = .FALSE.
-         WRITE(*,*)'VERTICAL COORD OF ANALYSIS FIELDS IS NOT STAGGERED'
-         WRITE(*,*)'VCODE= ',iversion,' LSTAG= ',LSTAG
-      endif
-
-      IF ( .NOT.gps_gb_LTESTOP ) THEN
+    IF ( .NOT.gps_gb_LTESTOP ) THEN
 
       first_header=-1
       icount = 0
@@ -1700,108 +1674,108 @@ module obsSpaceErrorStdDev_mod
       ! loop over all header indices of the 'GP' family
       call obs_set_current_header_list(lobsSpaceData,'GP')
       HEADER: do
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER
-         if (first_header .eq. -1) first_header = index_header
-     
-               ! Process only zenith delay data (codtyp 189 and BUFR_NEZD)
+        index_header = obs_getHeaderIndex(lobsSpaceData)
+        if (index_header < 0) exit HEADER
+        if (first_header .eq. -1) first_header = index_header
 
-               IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
-               IF ( IDATYP .EQ. 189 ) THEN
+        ! Process only zenith delay data (codtyp 189 and BUFR_NEZD)
 
-                  ! Loop over data in the observations
+        IDATYP = obs_headElem_i(lobsSpaceData,OBS_ITY,INDEX_HEADER)
+        IF ( IDATYP .EQ. 189 ) THEN
 
-                  IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
-                  IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
-                  ASSIM = .FALSE.
+          ! Loop over data in the observations
 
-                  ! Scan for requested assimilations, and count them.
+          IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
+          IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
+          ASSIM = .FALSE.
 
-                  DO INDEX_BODY= IDATA, IDATEND
-                     ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-                     OK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated) )
-                     IF ( OK ) THEN
-                        ASSIM = .TRUE.
-                        ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-                        icount = icount + 1
-                     ENDIF
+          ! Scan for requested assimilations, and count them.
+
+          DO INDEX_BODY= IDATA, IDATEND
+            ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+            OK = ( (ITYP .EQ. BUFR_NEZD) .AND. (obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated) )
+            IF ( OK ) THEN
+              ASSIM = .TRUE.
+              ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+              icount = icount + 1
+            ENDIF
+          ENDDO
+
+          ! If assimilations are requested, apply the AD observation operator
+
+          IF (ASSIM) THEN
+
+            ! LR background profile and background errors at the observation location x :
+
+            Lat  = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+            Lon  = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
+            ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
+            ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
+            ZP0B = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
+            DO JL = 1, NFLEV_T
+              ZPP(JL)  = col_getPressure(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
+              ZTTB(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT')- 273.15d0
+              ZTT(JL)  = col_getElem(column,JL,INDEX_HEADER,'TT')
+              DX(JL)   = ZTT(JL)
+              ZHUB(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'HU')
+              ZQQB(JL) = ZHUB(JL)
+              ZHU(JL)  = col_getElem(column,JL,INDEX_HEADER,'HU')
+              DX(NFLEV_T+JL) = ZHU(JL)
+              zHeight(JL)  = col_getHeight(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
+              DX(2*NFLEV_T+JL) = col_getHeight(column,JL,INDEX_HEADER,'TH')
+            ENDDO
+            ZP0  = col_getElem(column,1,INDEX_HEADER,'P0')
+            DX(3*NFLEV_T+1) = ZP0
+            ZMT  = zHeight(NFLEV_T)
+            CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZHUB,zHeight,gps_gb_LBEVIS,gps_gb_IREFOPT,PRF)
+            CALL gps_ztdopv(ZLEV,PRF,gps_gb_LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,gps_gb_IZTDOP)
+            JAC = ZTDopv%DVar
+
+            DO INDEX_BODY= IDATA, IDATEND
+              ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+              IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated .AND. ITYP.EQ.BUFR_NEZD ) THEN
+
+                ! Observation error    SDERR
+                !                           ZOER = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+
+                ! Observation height (m)
+                ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+
+                ZLSUM  = 0.0d0
+
+                DO JL = 1, 3*NFLEV_T+1
+                  ZLSUM = ZLSUM + (JAC(JL)*DX(JL))**2
+                ENDDO
+                call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,SQRT(ZLSUM))
+
+                IF (icount .LE. INOBS_JAC) THEN
+                  !                           IF ( obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER) .EQ. STN_JAC ) THEN
+                  stnid = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+                  WRITE(*,'(A11,A9)') 'SETFGEGPS: ', stnid
+                  WRITE(*,*) '  ZTD, ZTD FGE = ', ZTDopv%Var, SQRT(ZLSUM)
+                  WRITE(*,'(A11,A9,3(1x,f7.2))')   &
+                       'SETFGEGPS: ',stnid,ZLAT,ZLON,ZLEV
+                  WRITE(*,*) 'JL JACT JACQ FGE_T FGE_LQ QQ'
+                  DO JL = 1, NFLEV_T
+                    WRITE(*,'(1X,I2,5(1x,E13.6))') JL,JAC(JL),JAC(JL+NFLEV_T)/ZQQB(JL),ZTT(JL),ZHU(JL),ZQQB(JL)
                   ENDDO
+                  WRITE(*,*) 'JACPS FGE_PS'
+                  WRITE(*,'(2(1x,E13.6))') JAC(3*NFLEV_T+1), ZP0
+                ENDIF
 
-                  ! If assimilations are requested, apply the AD observation operator
-
-                  IF (ASSIM) THEN
-    
-                     ! LR background profile and background errors at the observation location x :
-
-                     Lat  = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
-                     Lon  = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
-                     ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
-                     ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
-                     ZP0B = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
-                     DO JL = 1, NFLEV_T
-                       ZPP(JL)  = col_getPressure(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
-                       ZTTB(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT')- 273.15d0
-                       ZTT(JL)  = col_getElem(column,JL,INDEX_HEADER,'TT')
-                       DX(JL)   = ZTT(JL)
-                       ZHUB(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'HU')
-                       ZQQB(JL) = ZHUB(JL)
-                       ZHU(JL)  = col_getElem(column,JL,INDEX_HEADER,'HU')
-                       DX(NFLEV_T+JL) = ZHU(JL)
-                       zHeight(JL)  = col_getHeight(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
-                       DX(2*NFLEV_T+JL) = col_getHeight(column,JL,INDEX_HEADER,'TH')
-                     ENDDO
-                     ZP0  = col_getElem(column,1,INDEX_HEADER,'P0')
-                     DX(3*NFLEV_T+1) = ZP0
-                     ZMT  = zHeight(NFLEV_T)
-                     CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZHUB,zHeight,gps_gb_LBEVIS,gps_gb_IREFOPT,PRF)
-                     CALL gps_ztdopv(ZLEV,PRF,gps_gb_LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,gps_gb_IZTDOP)
-                     JAC = ZTDopv%DVar
-
-                     DO INDEX_BODY= IDATA, IDATEND
-                        ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-                        IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated .AND. ITYP.EQ.BUFR_NEZD ) THEN
-
-                           ! Observation error    SDERR
-!                           ZOER = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-
-                           ! Observation height (m)
-                           ZLEV = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-
-                           ZLSUM  = 0.0d0
-
-                           DO JL = 1, 3*NFLEV_T+1
-                             ZLSUM = ZLSUM + (JAC(JL)*DX(JL))**2
-                           ENDDO
-                           call obs_bodySet_r(lobsSpaceData,OBS_HPHT,index_body,SQRT(ZLSUM))
-
-                           IF (icount .LE. INOBS_JAC) THEN
-!                           IF ( obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER) .EQ. STN_JAC ) THEN
-                             stnid = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
-                             WRITE(*,'(A11,A9)') 'SETFGEGPS: ', stnid
-                             WRITE(*,*) '  ZTD, ZTD FGE = ', ZTDopv%Var, SQRT(ZLSUM)
-                             WRITE(*,'(A11,A9,3(1x,f7.2))')   &
-                               'SETFGEGPS: ',stnid,ZLAT,ZLON,ZLEV
-                             WRITE(*,*) 'JL JACT JACQ FGE_T FGE_LQ QQ'
-                             DO JL = 1, NFLEV_T
-                               WRITE(*,'(1X,I2,5(1x,E13.6))') JL,JAC(JL),JAC(JL+NFLEV_T)/ZQQB(JL),ZTT(JL),ZHU(JL),ZQQB(JL)
-                             ENDDO                         
-                             WRITE(*,*) 'JACPS FGE_PS'
-                             WRITE(*,'(2(1x,E13.6))') JAC(3*NFLEV_T+1), ZP0
-                           ENDIF
-
-                        ENDIF
-                     ENDDO
-                  ENDIF
-               ENDIF
+              ENDIF
+            ENDDO
+          ENDIF
+        ENDIF
 
       ENDDO HEADER
-      
-      ENDIF
 
-      !-------------------------------------------------------------------------
+    ENDIF
 
-      IF ( gps_gb_LTESTOP ) THEN
-      
+    !-------------------------------------------------------------------------
+
+    IF ( gps_gb_LTESTOP ) THEN
+
       allocate(ZTTB_P(NFLEV_T))
       allocate(ZQQB_P(NFLEV_T))
       allocate(zHeight2(NFLEV_T))
@@ -1810,117 +1784,117 @@ module obsSpaceErrorStdDev_mod
 
       icount = 0
       ZSUMTEST = 0
-      
+
       ! loop over all header indices of the 'GP' family
       call obs_set_current_header_list(lobsSpaceData,'GP')
       HEADER2: DO
-         index_header = obs_getHeaderIndex(lobsSpaceData)
-         if (index_header < 0) exit HEADER2
-         if (icount > INOBS_OPT ) exit HEADER2
+        index_header = obs_getHeaderIndex(lobsSpaceData)
+        if (index_header < 0) exit HEADER2
+        if (icount > INOBS_OPT ) exit HEADER2
 
-         ! Loop over data in the observations
+        ! Loop over data in the observations
 
-         IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
-         IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
+        IDATA   = obs_headElem_i(lobsSpaceData,OBS_RLN,INDEX_HEADER)
+        IDATEND = obs_headElem_i(lobsSpaceData,OBS_NLV,INDEX_HEADER) + IDATA - 1
 
-         ! LR background profile and background errors at the observation location x :
+        ! LR background profile and background errors at the observation location x :
 
-         Lat  = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
-         Lon  = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
-         ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
-         ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
-         ZP0B = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
+        Lat  = obs_headElem_r(lobsSpaceData,OBS_LAT,INDEX_HEADER)
+        Lon  = obs_headElem_r(lobsSpaceData,OBS_LON,INDEX_HEADER)
+        ZLAT = Lat * MPC_DEGREES_PER_RADIAN_R8
+        ZLON = Lon * MPC_DEGREES_PER_RADIAN_R8
+        ZP0B = col_getElem(columnTrlOnAnlIncLev,1,INDEX_HEADER,'P0')
 
-         ! approximation for dPdPs               
-         if (associated(dPdPs)) then
-           deallocate(dPdPs)
-         end if
-         call czp_fetch1DdPdPs(vco_anl, ZP0B, profT_opt=dPdPs)
-         zDP(1:NFLEV_T) = dPdPs(1:NFLEV_T)
+        ! approximation for dPdPs               
+        if (associated(dPdPs)) then
+          deallocate(dPdPs)
+        end if
+        call czp_fetch1DdPdPs(vco_anl, ZP0B, profT_opt=dPdPs)
+        zDP(1:NFLEV_T) = dPdPs(1:NFLEV_T)
 
-         DO JL = 1, NFLEV_T
-            ZPP(JL)  = col_getPressure(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
-            ZTTB(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT')- 273.15d0
-            ZTT(JL)  = col_getElem(column,JL,INDEX_HEADER,'TT') * PERTFAC
-            ZQQB(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'HU')
-            ZQQ(JL)  = col_getElem(column,JL,INDEX_HEADER,'HU') * PERTFAC
-            zHeight(JL)  = col_getHeight(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
-            zHeight2(JL)  = col_getHeight(column,JL,INDEX_HEADER,'TH') * PERTFAC
-         ENDDO
-         ZP0  = col_getElem(column,1,INDEX_HEADER,'P0') * PERTFAC
-         ZMT  = zHeight(NFLEV_T)
+        DO JL = 1, NFLEV_T
+          ZPP(JL)  = col_getPressure(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
+          ZTTB(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TT')- 273.15d0
+          ZTT(JL)  = col_getElem(column,JL,INDEX_HEADER,'TT') * PERTFAC
+          ZQQB(JL) = col_getElem(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'HU')
+          ZQQ(JL)  = col_getElem(column,JL,INDEX_HEADER,'HU') * PERTFAC
+          zHeight(JL)  = col_getHeight(columnTrlOnAnlIncLev,JL,INDEX_HEADER,'TH')
+          zHeight2(JL)  = col_getHeight(column,JL,INDEX_HEADER,'TH') * PERTFAC
+        ENDDO
+        ZP0  = col_getElem(column,1,INDEX_HEADER,'P0') * PERTFAC
+        ZMT  = zHeight(NFLEV_T)
 
-         DO JL = 1, NFLEV_T
-             DX (      JL) = ZTT(JL)
-             DX (NFLEV_T+JL) = ZQQ(JL)
-             DX (2*NFLEV_T+JL) = zHeight2(JL)
-         ENDDO
-         DX (3*NFLEV_T+1) = ZP0
+        DO JL = 1, NFLEV_T
+          DX (      JL) = ZTT(JL)
+          DX (NFLEV_T+JL) = ZQQ(JL)
+          DX (2*NFLEV_T+JL) = zHeight2(JL)
+        ENDDO
+        DX (3*NFLEV_T+1) = ZP0
 
-         ZTDOBS = -1.0d0
-         DO INDEX_BODY = IDATA, IDATEND
-           ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
-           IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
-           IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated .AND. ITYP .EQ. BUFR_NEZD ) THEN
-             varLevel = vnl_varLevelFromVarnum(ITYP)
-             ZTDOBS  = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
-             ZLEV    = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
-             ILYR    = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
-             ZTOP    = col_getHeight(columnTrlOnAnlIncLev,ILYR,IOBS,varLevel)
-             if ( ILYR .LT. NFLEV_T ) then
-               ZBOT    = col_getHeight(columnTrlOnAnlIncLev,ILYR+1,IOBS,varLevel)
-             else
-               ZBOT    = ZTOP
-             endif
-             icount  = icount + 1
-           ENDIF
-         ENDDO
+        ZTDOBS = -1.0d0
+        DO INDEX_BODY = IDATA, IDATEND
+          ITYP = obs_bodyElem_i(lobsSpaceData,OBS_VNM,INDEX_BODY)
+          IOBS = obs_bodyElem_i(lobsSpaceData,OBS_HIND,INDEX_BODY)
+          IF ( obs_bodyElem_i(lobsSpaceData,OBS_ASS,INDEX_BODY) == obs_assimilated .AND. ITYP .EQ. BUFR_NEZD ) THEN
+            varLevel = vnl_varLevelFromVarnum(ITYP)
+            ZTDOBS  = obs_bodyElem_r(lobsSpaceData,OBS_VAR,INDEX_BODY)
+            ZLEV    = obs_bodyElem_r(lobsSpaceData,OBS_PPP,INDEX_BODY)
+            ILYR    = obs_bodyElem_i(lobsSpaceData,OBS_LYR,INDEX_BODY)
+            ZTOP    = col_getHeight(columnTrlOnAnlIncLev,ILYR,IOBS,varLevel)
+            if ( ILYR .LT. NFLEV_T ) then
+              ZBOT    = col_getHeight(columnTrlOnAnlIncLev,ILYR+1,IOBS,varLevel)
+            else
+              ZBOT    = ZTOP
+            endif
+            icount  = icount + 1
+          ENDIF
+        ENDDO
 
-         IF ( ZTDOBS .GT. 0.d0 ) THEN
-           ! Create the pertubation control vector
-           DO JL = 1, NFLEV_T
-             ZPP_P(JL)  = ZPP(JL)  + ZDP(JL)*ZP0
-             ZTTB_P(JL) = ZTTB(JL) + ZTT(JL)
-             ZQQB_P(JL) = ZQQB(JL) + ZQQ(JL)
-             zHeight_P(JL) = zHeight(JL) + zHeight2(JL)
-           ENDDO
-           ZP0B_P = ZP0B + ZP0
+        IF ( ZTDOBS .GT. 0.d0 ) THEN
+          ! Create the pertubation control vector
+          DO JL = 1, NFLEV_T
+            ZPP_P(JL)  = ZPP(JL)  + ZDP(JL)*ZP0
+            ZTTB_P(JL) = ZTTB(JL) + ZTT(JL)
+            ZQQB_P(JL) = ZQQB(JL) + ZQQ(JL)
+            zHeight_P(JL) = zHeight(JL) + zHeight2(JL)
+          ENDDO
+          ZP0B_P = ZP0B + ZP0
 
-           ! Non-linear observation operator --> delta_H = H(x+delta_x) - H(x)
+          ! Non-linear observation operator --> delta_H = H(x+delta_x) - H(x)
 
-           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZQQB,zHeight,gps_gb_LBEVIS,gps_gb_IREFOPT,PRF)
-           CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZTTB_P,ZQQB_P,zHeight_P,gps_gb_LBEVIS,gps_gb_IREFOPT,PRFP)
-           CALL gps_ztdopv(ZLEV,PRF,gps_gb_LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,gps_gb_IZTDOP)
-           JAC  = ZTDopv%DVar
-           ZTDM = ZTDopv%Var
-           CALL gps_ztdopv(ZLEV,PRFP,gps_gb_LBEVIS,ZDZMIN,ZTDopvP,ZPSMOD,gps_gb_IZTDOP)
-           DELTAH_NL = ZTDopvP%Var - ZTDopv%Var
+          CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B,ZPP,ZTTB,ZQQB,zHeight,gps_gb_LBEVIS,gps_gb_IREFOPT,PRF)
+          CALL gps_structztd_v2(NFLEV_T,Lat,Lon,ZMT,ZP0B_P,ZPP_P,ZTTB_P,ZQQB_P,zHeight_P,gps_gb_LBEVIS,gps_gb_IREFOPT,PRFP)
+          CALL gps_ztdopv(ZLEV,PRF,gps_gb_LBEVIS,ZDZMIN,ZTDopv,ZPSMOD,gps_gb_IZTDOP)
+          JAC  = ZTDopv%DVar
+          ZTDM = ZTDopv%Var
+          CALL gps_ztdopv(ZLEV,PRFP,gps_gb_LBEVIS,ZDZMIN,ZTDopvP,ZPSMOD,gps_gb_IZTDOP)
+          DELTAH_NL = ZTDopvP%Var - ZTDopv%Var
 
-           ! Linear  --> delta_H = dH/dx * delta_x
+          ! Linear  --> delta_H = dH/dx * delta_x
 
-           DELTAH_TL = 0.0d0
-           DO JL = 1, 3*NFLEV_T+1
-             DELTAH_TL = DELTAH_TL + JAC(JL)*DX(JL)
-           ENDDO
+          DELTAH_TL = 0.0d0
+          DO JL = 1, 3*NFLEV_T+1
+            DELTAH_TL = DELTAH_TL + JAC(JL)*DX(JL)
+          ENDDO
 
-           stnid = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
-           WRITE(*,*) 'SETFGEGPS: GPS ZTD OBSOP TEST FOR SITE ', stnid
-           WRITE(*,*) ' '
-           WRITE(*,*) '  DZ (M), MODEL LEVEL ABOVE = ', ZLEV-ZMT, ILYR
-           WRITE(*,*) '  ZLEV (M), ZTOP (M), ZBOT (M) = ', ZLEV, ZTOP, ZBOT
-           WRITE(*,*) '  ZTD OBS (MM)            = ', ZTDOBS*1000.d0
-           WRITE(*,*) '  ZTD_MOD                 = ', ZTDM*1000.d0
-           WRITE(*,*) '  DELTAH_NL, DELTAH_TL = ', DELTAH_NL*1000.d0, DELTAH_TL*1000.d0
-           WRITE(*,*) ' '
-           WRITE(*,*) '  DELTAH_TL/DELTAH_NL = ', DELTAH_TL/DELTAH_NL
-           WRITE(*,*) ' '  
-           
-           ZSUMTEST = ZSUMTEST + (DELTAH_TL/DELTAH_NL)
-           
-         ENDIF
+          stnid = obs_elem_c(lobsSpaceData,'STID',INDEX_HEADER)
+          WRITE(*,*) 'SETFGEGPS: GPS ZTD OBSOP TEST FOR SITE ', stnid
+          WRITE(*,*) ' '
+          WRITE(*,*) '  DZ (M), MODEL LEVEL ABOVE = ', ZLEV-ZMT, ILYR
+          WRITE(*,*) '  ZLEV (M), ZTOP (M), ZBOT (M) = ', ZLEV, ZTOP, ZBOT
+          WRITE(*,*) '  ZTD OBS (MM)            = ', ZTDOBS*1000.d0
+          WRITE(*,*) '  ZTD_MOD                 = ', ZTDM*1000.d0
+          WRITE(*,*) '  DELTAH_NL, DELTAH_TL = ', DELTAH_NL*1000.d0, DELTAH_TL*1000.d0
+          WRITE(*,*) ' '
+          WRITE(*,*) '  DELTAH_TL/DELTAH_NL = ', DELTAH_TL/DELTAH_NL
+          WRITE(*,*) ' '  
+
+          ZSUMTEST = ZSUMTEST + (DELTAH_TL/DELTAH_NL)
+
+        ENDIF
 
       ENDDO HEADER2
-      
+
       WRITE(*,*) ' '
       WRITE(*,*) 'SETFGEGPS: ----- GPS ZTD OBSOP TEST SUMMARY -----'
       WRITE(*,*) '           NUMBER OF TESTS (sites) = ', icount
@@ -1933,20 +1907,19 @@ module obsSpaceErrorStdDev_mod
       deallocate(zHeight_P)
       deallocate(ZPP_P)
 
-      ENDIF
-      !-------------------------------------------------------------------------
+    ENDIF
+    !-------------------------------------------------------------------------
 
-      deallocate(ZPP)
-      deallocate(ZDP)
-      deallocate(ZTT)
-      deallocate(ZHU)
-      deallocate(zHeight)
-      deallocate(ZTTB)
-      deallocate(ZHUB)
-      deallocate(ZQQB)
-      deallocate(ZQQ)
+    deallocate(ZPP)
+    deallocate(ZDP)
+    deallocate(ZTT)
+    deallocate(ZHU)
+    deallocate(zHeight)
+    deallocate(ZTTB)
+    deallocate(ZHUB)
+    deallocate(ZQQB)
+    deallocate(ZQQ)
 
-      RETURN
   end subroutine setfgegps
 
   !------------------ CH obs family OmP error std dev routines --------------
@@ -1963,8 +1936,7 @@ module obsSpaceErrorStdDev_mod
     ! Arguments:
     type(struct_obs) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
 
-    ! Externals:
-    ! Local:
+    ! Locals:
     integer, parameter :: ndim=1
 
     ! Check for the presence of CH observations
@@ -2007,10 +1979,10 @@ module obsSpaceErrorStdDev_mod
     !
     implicit none
 
+    ! Locals:
     integer, external :: fnom, fclos
     integer :: ierr, nulstat
-    logical :: LnewExists
-  
+    logical :: LnewExists  
     character (len=128) :: ligne
     character(len=11) :: AuxObsDataFileCH = 'obsinfo_chm'
     integer :: ipos, stnidIndex, monthIndex, levIndex, ios, isize, icount
@@ -2320,7 +2292,7 @@ module obsSpaceErrorStdDev_mod
     ! Arguments:
     type(struct_obs) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
     
-    ! Local:
+    ! Locals:
     logical :: availableOmP
     integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp, ierr
     integer :: idate, itime, iass, latIndex, levIndex, monthIndex, ibegin, loopIndex, posIndex
@@ -2582,7 +2554,7 @@ module obsSpaceErrorStdDev_mod
     ! Arguments:
     type(struct_obs) :: obsSpaceData ! observation-space data; output saved in OBS_OMPE column
     
-    ! Local:
+    ! Locals:
     integer :: stnidIndex, headerIndex, bodyIndex, bodyIndex_start, bodyIndex_end, icodtyp
     integer :: idate, itime, iass, latIndex, monthIndex, ibegin
     real(8) :: zlat, zlev, OmP_err_stddev, lat

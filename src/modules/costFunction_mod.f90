@@ -41,7 +41,7 @@ contains
     ! Locals:
     integer :: bodyIndex
 
-!$OMP PARALLEL DO PRIVATE(bodyIndex)
+    !$OMP PARALLEL DO PRIVATE(bodyIndex)
     do bodyIndex=1,obs_numbody(lobsSpaceData)
 
       if ( obs_bodyElem_i( lobsSpaceData, OBS_ASS, bodyIndex) == obs_assimilated) then
@@ -54,7 +54,7 @@ contains
       end if
 
     end do
-!$OMP END PARALLEL DO
+    !$OMP END PARALLEL DO
 
   end subroutine cfn_calcJo
 
@@ -367,6 +367,7 @@ contains
     !
     implicit none
 
+    ! Locals:
     integer :: nulnam, ierr
     integer, external :: fnom, fclos
     logical, save :: nmlAlreadyRead = .false.
@@ -409,8 +410,6 @@ contains
     !          prescribed on different lines.
     !
     implicit none
-
-    ! Arguments:
 
     ! Locals:
     integer :: channelIndex

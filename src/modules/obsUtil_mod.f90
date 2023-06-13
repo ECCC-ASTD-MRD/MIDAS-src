@@ -26,10 +26,11 @@ contains
   !--------------------------------------------------------------------------
   subroutine obsu_updateSourceVariablesFlag(obsSpaceData)
     implicit none
-    ! argument
+
+    ! Arguments:
     type(struct_obs) :: obsSpaceData
 
-    ! locals
+    ! Locals:
     integer          :: transformBufrCode, transformBufrCodeExtra
     integer          :: flag, flagExtra, mergedFlag
     integer          :: sourceBufrCode, sourceBufrCodeExtra
@@ -114,10 +115,11 @@ contains
     !           by current analysis.
     !
     implicit none
-    ! argument
+
+    ! Argument:
     type(struct_obs) :: obsSpaceData
 
-    ! local
+    ! Locals:
     integer :: bodyIndex
 
     ! Process all data
@@ -136,10 +138,12 @@ contains
   real function surfvcord( varno, codtyp )
 
     implicit none
-    ! Arguments
+
+    ! Arguments:
     integer    :: varno
     integer    :: codtyp
-    ! locals
+
+    ! Locals:
     character(len=9)  :: family
 
     family = codtypfam(codtyp)
@@ -188,7 +192,10 @@ contains
   !--------------------------------------------------------------------------
   function codtypfam(codtyp) result(family)
     implicit none
+
+    ! Arguments:
     integer          :: codtyp
+    ! Result:
     character(len=9) :: family
 
     if (       codtyp == codtyp_get_codtyp('synopnonauto')   .or. codtyp == codtyp_get_codtyp('synopmobil')      &
@@ -220,19 +227,19 @@ contains
   !--------------------------------------------------------------------------
   ! obsu_computeVertCoordSurfObs
   !--------------------------------------------------------------------------
-  subroutine  obsu_computeVertCoordSurfObs(obsdat, headerIndexStart, headerIndexEnd )
+  subroutine obsu_computeVertCoordSurfObs(obsdat, headerIndexStart, headerIndexEnd )
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
     integer          , intent(in)    :: headerIndexStart
     integer          , intent(in)    :: headerIndexEnd
 
-    ! locals
+    ! Locals:
     integer  :: bodyIndex, headerIndex, bodyIndexStart, bodyIndexEnd
     integer  :: varno, codtyp
-    real           :: sfc_vco, elev
+    real(4)  :: sfc_vco, elev
     real(pre_obsReal) :: ppp
 
     HEADER: do headerIndex = headerIndexStart, headerIndexEnd
@@ -269,16 +276,16 @@ contains
   !--------------------------------------------------------------------------
   ! obsu_setGbgpsError
   !--------------------------------------------------------------------------
-  subroutine  obsu_setGbgpsError(obsdat, headerIndexStart, headerIndexEnd )
+  subroutine obsu_setGbgpsError(obsdat, headerIndexStart, headerIndexEnd )
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type (struct_obs), intent(inout) :: obsdat
     integer          , intent(in)    :: headerIndexStart
     integer          , intent(in)    :: headerIndexEnd
 
-    ! locals
+    ! Locals:
     real(pre_obsReal)    :: obsv
     integer  :: bodyIndex, headerIndex,bodyIndexStart, bodyIndexEnd
     integer  :: varno
@@ -343,7 +350,11 @@ contains
     ! ==================  =============================== 
     !
     implicit none
+
+    ! Arguments:
     integer :: sensor      ! BURP satellite sensor indicator (element #2048)
+
+    ! Locals:
     integer :: instrument  ! BURP satellite instrument       (element #2019)
 
     select case (sensor)

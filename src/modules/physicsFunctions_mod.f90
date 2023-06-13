@@ -42,6 +42,9 @@ module physicsFunctions_mod
      !             - 'Tetens_2018a' is a partial update that missed some functions (active before IC4)
      !             - 'Tetens_2018' completes the update to the intended 2018 specification.
      !
+     implicit none
+
+     ! Locals:
      integer            :: NULNAM,IERR,FNOM,FCLOS
      logical            :: validOption
      NAMELIST /NAMPHY/ saturationCurve
@@ -80,12 +83,14 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FOEW8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOEW8(TTT)
+   real(8) function phf_FOEW8(TTT)
      !
      ! :Purpose: Water vapour saturation pressure (Tetens) - EW or EI as a fct of TT
      !
      implicit none
-     real*8 TTT
+
+     ! Arguments:
+     real(8) :: TTT
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -109,12 +114,14 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FODLE8
    !--------------------------------------------------------------------------
-   real*8 function phf_FODLE8(TTT)
+   real(8) function phf_FODLE8(TTT)
      !
      ! :Purpose: FONCTION CALCULANT LA DERIVEE SELON T DE  LN EW (OU LN EI)
      !
      implicit none
-     real*8 TTT
+
+     ! Arguments:
+     real(8) :: TTT
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -136,12 +143,15 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FOQST8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOQST8(TTT,PRS)
+   real(8) function phf_FOQST8(TTT,PRS)
      !
      ! :Purpose: FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE (QSAT)
      !
      implicit none
-     real*8 TTT,PRS
+
+     ! Arguments:
+     real(8) :: TTT
+     real(8) :: PRS
 
      phf_FOQST8=MPC_EPS1_R8/(MAX(1.D0,PRS/phf_FOEW8(TTT))-MPC_EPS2_R8)
    end function phf_FOQST8
@@ -149,12 +159,15 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FODQS8
    !--------------------------------------------------------------------------
-   real*8 function phf_FODQS8(QST,TTT)
+   real(8) function phf_FODQS8(QST,TTT)
      !
      ! :Purpose: FONCTION CALCULANT LA DERIVEE DE QSAT SELON T
      !
      implicit none
-     real*8 TTT,QST
+
+     ! Arguments:
+     real(8) :: TTT
+     real(8) :: QST
 
      phf_FODQS8=QST*(1.D0+MPC_DELTA_R8*QST)*phf_FODLE8(TTT)
    end function phf_FODQS8
@@ -163,12 +176,15 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FOEFQ8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOEFQ8(QQQ,PRS)
+   real(8) function phf_FOEFQ8(QQQ,PRS)
      !
      ! :Purpose: FONCTION CALCULANT TENSION VAP (EEE) FN DE HUM SP (QQQ) ET PRS
      !
      implicit none
-     real*8 QQQ,PRS
+
+     ! Arguments:
+     real(8) :: QQQ
+     real(8) :: PRS
 
      phf_FOEFQ8= MIN(PRS,(QQQ*PRS) / (MPC_EPS1_R8 + MPC_EPS2_R8*QQQ))
    end function phf_FOEFQ8
@@ -176,12 +192,15 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! FOQFE8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOQFE8(EEE,PRS)
+   real(8) function phf_FOQFE8(EEE,PRS)
      !
      ! :Purpose: FONCTION CALCULANT HUM SP (QQQ) DE TENS. VAP (EEE) ET PRES (PRS)
      !
      implicit none
-     real*8 EEE,PRS
+
+     ! Arguments:
+     real(8) :: EEE
+     real(8) :: PRS
 
      phf_FOQFE8= MIN(1.D0,MPC_EPS1_R8*EEE / (PRS-MPC_EPS2_R8*EEE))
    end function phf_FOQFE8
@@ -189,12 +208,15 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FOTVT8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOTVT8(TTT,QQQ)
+   real(8) function phf_FOTVT8(TTT,QQQ)
      !
      ! :Purpose: FONCTION CALCULANT TEMP VIRT. (TVI) DE TEMP (TTT) ET HUM SP (QQQ)
      !
      implicit none
-     real*8 TTT,QQQ
+
+     ! Arguments:
+     real(8) :: TTT
+     real(8) :: QQQ
 
      phf_FOTVT8= TTT * (1.0D0 + MPC_DELTA_R8*QQQ)
    end function phf_FOTVT8
@@ -202,12 +224,15 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FOTTV8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOTTV8(TVI,QQQ)
+   real(8) function phf_FOTTV8(TVI,QQQ)
      !
      !:Purpose: FONCTION CALCULANT TTT DE TEMP VIRT. (TVI) ET HUM SP (QQQ)
      !
      implicit none
-     real*8 TVI,QQQ
+
+     ! Arguments:
+     real(8) :: TVI
+     real(8) :: QQQ
 
      phf_FOTTV8= TVI / (1.0D0 + MPC_DELTA_R8*QQQ)
    end function phf_FOTTV8
@@ -215,13 +240,17 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FOHR8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOHR8(QQQ,TTT,PRS)
+   real(8) function phf_FOHR8(QQQ,TTT,PRS)
      !
      !:Purpose: FONCTION CALCULANT HUM REL DE HUM SP (QQQ), TEMP (TTT) ET PRES (PRS).
      !          Where HR = E/ESAT
      !
      implicit none
-     real*8 QQQ,TTT,PRS
+
+     ! Arguments:
+     real(8) :: QQQ
+     real(8) :: TTT
+     real(8) :: PRS
 
      phf_FOHR8 = MIN(PRS,phf_FOEFQ8(QQQ,PRS)) / phf_FOEW8(TTT)
    end function phf_FOHR8
@@ -233,12 +262,14 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FOEWA8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOEWA8(TTT)
+   real(8) function phf_FOEWA8(TTT)
      !
      !:Purpose: FONCTION DE VAPEUR SATURANTE (TETENS)
      !
      implicit none
-     real*8 TTT
+
+     ! Arguments:
+     real(8) :: TTT
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -252,12 +283,14 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FODLA8
    !--------------------------------------------------------------------------
-   real*8 function phf_FODLA8(TTT)
+   real(8) function phf_FODLA8(TTT)
      !
      !:Purpose: FONCTION CALCULANT LA DERIVEE SELON T DE LN EW
      !
      implicit none
-     real*8 TTT
+
+     ! Arguments:
+     real(8) :: TTT
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -271,12 +304,15 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! FOQSA8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOQSA8(TTT,PRS)
+   real(8) function phf_FOQSA8(TTT,PRS)
      !
      !:Purpose: FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE
      !
      implicit none
-     real*8 TTT,PRS
+
+     ! Arguments:
+     real(8) :: TTT
+     real(8) :: PRS
 
      phf_FOQSA8=MPC_EPS1_R8/(MAX(1.D0,PRS/phf_FOEWA8(TTT))-MPC_EPS2_R8)
    end function phf_FOQSA8
@@ -284,12 +320,15 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FODQA8
    !--------------------------------------------------------------------------
-   real*8 function phf_FODQA8(QST,TTT)
+   real(8) function phf_FODQA8(QST,TTT)
      !
      !:Purpose: FONCTION CALCULANT LA DERIVEE DE QSAT SELON T
      !
      implicit none
-     real*8 QST,TTT
+
+     ! Arguments:
+     real(8) :: QST
+     real(8) :: TTT
 
      phf_FODQA8=QST*(1.D0+MPC_DELTA_R8*QST)*phf_FODLA8(TTT)
    end function phf_FODQA8
@@ -297,12 +336,16 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FOHRA8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOHRA8(QQQ,TTT,PRS)
+   real(8) function phf_FOHRA8(QQQ,TTT,PRS)
      !
      !:Purpose: FONCTION CALCULANT L'HUMIDITE RELATIVE
      !
      implicit none
-     real*8 QQQ,TTT,PRS
+
+     ! Arguments:
+     real(8) :: QQQ
+     real(8) :: TTT
+     real(8) :: PRS
 
      phf_FOHRA8=MIN(PRS,phf_FOEFQ8(QQQ,PRS))/phf_FOEWA8(TTT)
    end function phf_FOHRA8
@@ -314,13 +357,15 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FOTW8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOTW8(EEE)
+   real(8) function phf_FOTW8(EEE)
      !
      !:Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
      !          SATURANTE PAR RAPPORT A EW.
      !
      implicit none
-     real*8 EEE
+
+     ! Arguments:
+     real(8) :: EEE
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -336,13 +381,15 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FOTI8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOTI8(EEE)
+   real(8) function phf_FOTI8(EEE)
      !
      ! :Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
      !          SATURANTE PAR RAPPORT A EI.
      !
      implicit none
-     real*8 EEE
+
+     ! Arguments:
+     real(8) :: EEE
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -358,13 +405,16 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FODTH8
    !--------------------------------------------------------------------------
-   real*8 function phf_FODTW8(TTT,EEE)
+   real(8) function phf_FODTW8(TTT,EEE)
      !
      ! :Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
      !           VAPEUR SATURANTE (EW).
      !
      implicit none
-     real*8 TTT,EEE
+
+     ! Arguments:
+     real(8) :: TTT
+     real(8) :: EEE
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -378,13 +428,16 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FODTI8
    !--------------------------------------------------------------------------
-   real*8 function phf_FODTI8(TTT,EEE)
+   real(8) function phf_FODTI8(TTT,EEE)
      !
      ! :Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
      !           VAPEUR SATURANTE (EI).
      !
      implicit none
-     real*8 TTT,EEE
+
+     ! Arguments:
+     real(8) :: TTT
+     real(8) :: EEE
 
      if (.not.phf_initialized) call phf_tetens_coefs_switch
 
@@ -398,12 +451,15 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FOTWI8
    !--------------------------------------------------------------------------
-   real*8 function phf_FOTWI8(TTT,EEE)
+   real(8) function phf_FOTWI8(TTT,EEE)
      !
      ! :Purpose: FONCTION DE L'AJUSTEMENT DE LA TEMPERATURE.
      !
      implicit none
-     real*8 TTT,EEE
+
+     ! Arguments:
+     real(8) :: TTT
+     real(8) :: EEE
 
      phf_FOTWI8=MAX(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FOTW8(EEE)  &
                -MIN(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FOTI8(EEE)
@@ -412,12 +468,15 @@ module physicsFunctions_mod
    !--------------------------------------------------------------------------
    ! phf_FODWTI8
    !--------------------------------------------------------------------------
-   real*8 function phf_FODTWI8(TTT,EEE)
+   real(8) function phf_FODTWI8(TTT,EEE)
      !
      ! :Purpose: FONCTION DE L'AJUSTEMENT DE LA DERIVEE DE LA TEMPERATURE.
      !
      implicit none
-     real*8 TTT,EEE
+ 
+     ! Arguments:
+     real(8) :: TTT
+     real(8) :: EEE
 
      phf_FODTWI8=MAX(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FODTW8(TTT,EEE)  &
                 -MIN(0.0D0,SIGN(1.0D0,TTT-MPC_TRIPLE_POINT_R8))*phf_FODTI8(TTT,EEE)
@@ -429,36 +488,45 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOEW8_CMAM
   !--------------------------------------------------------------------------
-  real*8 function phf_FOEW8_CMAM(TTT)  
+  real(8) function phf_FOEW8_CMAM(TTT)  
         !
         !:Purpose: FONCTION DE TENSION DE VAPEUR SATURANTE - EW
         !
         implicit none
-        real*8 TTT
+ 
+        ! Arguments:
+        real(8) :: TTT
+
         phf_FOEW8_CMAM= 100.D0*EXP(21.656D0-5418.D0/TTT)
   end function phf_FOEW8_CMAM
 
   !--------------------------------------------------------------------------
   ! phf_FOEI8_CMAM
   !--------------------------------------------------------------------------
-  real*8 function phf_FOEI8_CMAM(TTT)  
+  real(8) function phf_FOEI8_CMAM(TTT)  
         !
         !:Purpose: FONCTION DE TENSION DE VAPEUR SATURANTE - EI
         !
         implicit none
-        real*8 TTT
+ 
+        ! Arguments:
+        real(8) :: TTT
+
         phf_FOEI8_CMAM= 100.D0*EXP(24.292D0-6141.D0/TTT)
   end function phf_FOEI8_CMAM
 
   !--------------------------------------------------------------------------
   ! phf_FOERAT8_CMAM
   !--------------------------------------------------------------------------
-  real*8 function phf_FOERAT8_CMAM(TTT) 
+  real(8) function phf_FOERAT8_CMAM(TTT) 
         !
         !:Purpose: FONCTION DE LA PROPORTION DE LA CONTRIBUTION DE EW VS EI
         !
         implicit none
-        real*8 TTT
+ 
+        ! Arguments:
+        real(8) :: TTT
+
         phf_FOERAT8_CMAM=MIN(1.0D0,0.0059D0+0.9941D0*EXP(-0.003102D0*  &
             MIN(0.0D0,TTT-MPC_TRIPLE_POINT_R8)**2))
   end function phf_FOERAT8_CMAM
@@ -466,12 +534,15 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOEWI8_CMAM
   !--------------------------------------------------------------------------
-  real*8 function phf_FOEWI8_CMAM(TTT)  
+  real(8) function phf_FOEWI8_CMAM(TTT)  
         !
         !:Purpose: FONCTION DE TENSION DE VAPEUR SATURANTE RESULTANTE - EW et EI
         !
         implicit none
-        real*8 TTT
+ 
+        ! Arguments:
+        real(8) :: TTT
+
         phf_FOEWI8_CMAM = phf_FOEW8_CMAM(TTT)*phf_FOERAT8_CMAM(TTT)  &
                +(1.0D0-phf_FOERAT8_CMAM(TTT))*phf_FOEI8_CMAM(TTT)
   end function phf_FOEWI8_CMAM
@@ -479,12 +550,15 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FODLE8_CMAM
   !--------------------------------------------------------------------------
-  real*8 function phf_FODLE8_CMAM(TTT)  
+  real(8) function phf_FODLE8_CMAM(TTT)  
         !
         !:Purpose: FONCTION DE LA DERIVE DE LN(E) PAR RAPPORT A LA TEMPERATURE
         !
         implicit none
-        real*8 TTT
+
+        ! Arguments:
+        real(8) :: TTT
+
         phf_FODLE8_CMAM= phf_FOERAT8_CMAM(TTT)*5418.D0/TTT/TTT  &
              +(1.0D0-phf_FOERAT8_CMAM(TTT))*6141.D0/TTT/TTT
   end function phf_FODLE8_CMAM
@@ -492,13 +566,17 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOQST8_CMAM
   !--------------------------------------------------------------------------
-  real*8 function phf_FOQST8_CMAM(TTT,PRS) 
+  real(8) function phf_FOQST8_CMAM(TTT,PRS) 
         !
         !:Purpose: FONCTION CALCULANT L'HUMIDITE SPECIFIQUE SATURANTE (QSAT).
         !          PREND EN COMPTE LES PHASES GLACE ET EAU.
         !
         implicit none
-        real*8 TTT,PRS
+ 
+        ! Arguments:
+        real(8) :: TTT
+        real(8) :: PRS
+
         phf_FOQST8_CMAM=MPC_EPS1_R8/(MAX(1.0D0,PRS/  &
                            phf_FOEWI8_CMAM(TTT))-MPC_EPS2_R8)
   end function phf_FOQST8_CMAM
@@ -510,64 +588,82 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOTW8_CMAM
   !--------------------------------------------------------------------------
-  real*8 function phf_FOTW8_CMAM(EEE) 
+  real(8) function phf_FOTW8_CMAM(EEE) 
         !
         !:Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
         !          SATURANTE PAR RAPPORT A EW.
         !
         implicit none
-        real*8 EEE
+ 
+        ! Arguments:
+        real(8) :: EEE
+
         phf_FOTW8_CMAM=5418.D0/(21.656D0-LOG(EEE/100.0D0))
   end function phf_FOTW8_CMAM
 
   !--------------------------------------------------------------------------
   ! phf_FOTI8_CMAM
   !--------------------------------------------------------------------------
-  real*8 function phf_FOTI8_CMAM(EEE) 
+  real(8) function phf_FOTI8_CMAM(EEE) 
         !
         !:Purpose: FONCTION DE LA TEMPERATURE EN FONCTION DE LA TENSION DE VAPEUR
         !          SATURANTE PAR RAPPORT A EI.
         !
         implicit none
-        real*8 EEE
+ 
+        ! Arguments:
+        real(8) :: EEE
+
         phf_FOTI8_CMAM=6141.D0/(24.292D0-LOG(EEE/100.0D0))
   end function phf_FOTI8_CMAM
 
   !--------------------------------------------------------------------------
   ! phf_FODTW8_CMAM
   !--------------------------------------------------------------------------
-  real*8 function phf_FODTW8_CMAM(TTT,EEE) 
+  real(8) function phf_FODTW8_CMAM(TTT,EEE) 
         !
         !:Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
         !          VAPEUR SATURANTE (EW).
         !
         implicit none
-        real*8 TTT,EEE
+ 
+        ! Arguments:
+        real(8) :: TTT
+        real(8) :: EEE
+
         phf_FODTW8_CMAM=TTT/EEE/(21.656D0-LOG(EEE/100.0D0))
   end function phf_FODTW8_CMAM
 
   !--------------------------------------------------------------------------
   ! phf_FODTI8_CMAM
   !--------------------------------------------------------------------------
-  real*8 function phf_FODTI8_CMAM(TTT,EEE) 
+  real(8) function phf_FODTI8_CMAM(TTT,EEE) 
         !
         !:Purpose: FONCTION DE LA DERIVE DE LA TEMPERATURE EN FONCTION DE LA TENSION DE
         !          VAPEUR SATURANTE (EI).
         !
         implicit none
-        real*8 TTT,EEE
+ 
+        ! Arguments:
+        real(8) :: TTT
+        real(8) :: EEE
+
         phf_FODTI8_CMAM=TTT/EEE/(24.292D0-LOG(EEE/100.0D0))
   end function phf_FODTI8_CMAM
 
   !--------------------------------------------------------------------------
   ! phf_FOTWI8_CMAM
   !--------------------------------------------------------------------------
-  real*8 function phf_FOTWI8_CMAM(TTT,EEE) 
+  real(8) function phf_FOTWI8_CMAM(TTT,EEE) 
         !
         !:Purpose: FONCTION DE L'AJUSTEMENT DE LA TEMPERATURE.
         !
         implicit none
-        real*8 TTT,EEE
+ 
+        ! Arguments:
+        real(8) :: TTT
+        real(8) :: EEE
+
         phf_FOTWI8_CMAM= phf_FOERAT8_CMAM(TTT)*phf_FOTW8_CMAM(EEE)+ &
                    (1.0D0-phf_FOERAT8_CMAM(TTT))*phf_FOTI8_CMAM(EEE)
   end function phf_FOTWI8_CMAM
@@ -575,12 +671,16 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FODTWI8_CMAM
   !--------------------------------------------------------------------------
-  real*8 function phf_FODTWI8_CMAM(TTT,EEE) 
+  real(8) function phf_FODTWI8_CMAM(TTT,EEE) 
         !
         !:Purpose: FONCTION DE L'AJUSTEMENT DE LA DERIVEE DE LA TEMPERATURE.
         !
         implicit none
-        real*8 TTT,EEE
+ 
+        ! Arguments:
+        real(8) :: TTT
+        real(8) :: EEE
+
         phf_FODTWI8_CMAM= phf_FOERAT8_CMAM(TTT)*phf_FODTW8_CMAM(TTT,EEE)+  &
                           (1.0D0-phf_FOERAT8_CMAM(TTT))*phf_FODTI8_CMAM(TTT,EEE)
   end function phf_FODTWI8_CMAM
@@ -589,14 +689,17 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOBRANCH
   !--------------------------------------------------------------------------
-  real*8 function phf_FQBRANCH(QQQ)  
+  real(8) function phf_FQBRANCH(QQQ)  
         !
         !:Purpose: function returning 0/1 depending on the minimum q branch condition
         !          as discussed by Brunet (1996) to prevent getting a vapour pressure that exceeds
         !          the total pressure p when q exceeds 1.
         !
         implicit none
-        real*8 QQQ
+ 
+        ! Arguments:
+        real(8) :: QQQ
+
         phf_FQBRANCH= 0.5D0+SIGN(0.5D0,1.D0-(QQQ))
   end function phf_FQBRANCH
 
@@ -610,7 +713,7 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOEFQL
   !--------------------------------------------------------------------------
-   real*8 function phf_FOEFQL(QQL,PRSL,QQQ,PRS,PNETA)  
+   real(8) function phf_FOEFQL(QQL,PRSL,QQQ,PRS,PNETA)  
         !
         !:Purpose: TLM  OF FUNCTION CALCULATING VAPOUR PRESSURE
         !
@@ -627,7 +730,14 @@ module physicsFunctions_mod
         !          * FOEFQL,  PERTURBATION  OF VAPOUR PRESSURE
         !
         implicit none
-        real*8 QQL,PRSL,QQQ,PRS,PNETA
+ 
+        ! Arguments:
+        real(8) :: QQL
+        real(8) :: PRSL
+        real(8) :: QQQ
+        real(8) :: PRS
+        real(8) :: PNETA
+
         phf_FOEFQL= phf_FQBRANCH(QQQ)  &
            * ((QQL*MPC_EPS1_R8*PRS*QQQ/(MPC_EPS1_R8+MPC_EPS2_R8*QQQ)  &
            +  PRSL*PNETA*QQQ)/(MPC_EPS1_R8+MPC_EPS2_R8*QQQ))  &
@@ -637,15 +747,18 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOTVVL
   !--------------------------------------------------------------------------
-   real*8 function phf_fotvvl(qqq,ttt,ttl,plnql) 
+   real(8) function phf_fotvvl(qqq,ttt,ttl,plnql) 
         !
         !:Purpose: Tangent-linear operator of virtual temperature 
         !
         implicit none
-        real*8 qqq   ! backgroud specific humidity
-        real*8 ttt   ! backgroud temperature
-        real*8 ttl   ! temperature increment
-        real*8 plnql ! increment of logarithm specific humidity  (del(ln q))
+  
+        ! Arguments:
+        real(8) :: qqq   ! backgroud specific humidity
+        real(8) :: ttt   ! backgroud temperature
+        real(8) :: ttl   ! temperature increment
+        real(8) :: plnql ! increment of logarithm specific humidity  (del(ln q))
+
         phf_fotvvl=(1 + MPC_DELTA_R8*qqq)*ttl + MPC_DELTA_R8*qqq*ttt*plnql
   end function phf_fotvvl
 
@@ -660,15 +773,18 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOEFQA
   !--------------------------------------------------------------------------
-  real*8 function phf_FOEFQA(PADES,PGAMMA,QQQ,PRS)  
+  real(8) function phf_FOEFQA(PADES,PGAMMA,QQQ,PRS)  
         !
         !:Purpose: ADJOINT OF LN SPECIFIC  HUM (QQQ) DUE TO DEWPOINT DEPRESSION CORRECTIONS
         !
         implicit none
-        real*8 PADES  ! ADJOINT OF DEWPOINT DEPRESSION
-        real*8 PGAMMA ! ADOINT OF VAPOUR PRESSURE RELATIONSHIP
-        real*8 QQQ    ! SPECIFIC HUMIDITY
-        real*8 PRS    ! PRESSURE
+ 
+        ! Arguments:
+        real(8) :: PADES  ! ADJOINT OF DEWPOINT DEPRESSION
+        real(8) :: PGAMMA ! ADOINT OF VAPOUR PRESSURE RELATIONSHIP
+        real(8) :: QQQ    ! SPECIFIC HUMIDITY
+        real(8) :: PRS    ! PRESSURE
+
         phf_FOEFQA= PADES*PGAMMA*MPC_EPS1_R8*PRS*QQQ/  &
                     ((MPC_EPS1_R8+MPC_EPS2_R8*QQQ)*(MPC_EPS1_R8+MPC_EPS2_R8*QQQ))
   end function phf_FOEFQA
@@ -676,15 +792,18 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOEFQPSA
   !--------------------------------------------------------------------------
-  real*8 function phf_FOEFQPSA(PADES,PGAMMA,QQQ,PNETA) 
+  real(8) function phf_FOEFQPSA(PADES,PGAMMA,QQQ,PNETA) 
         !
         !:Purpose: ADJOINT OF SURFACE PRESSURE  DUE TO DEWPOINT DEPRESSION CORRECTIONS
         !
         implicit none
-        real*8 PADES  ! ADJOINT OF DEWPOINT DEPRESSION
-        real*8 PGAMMA ! ADOINT OF VAPOUR PRESSURE RELATIONSHIP
-        real*8 QQQ    ! SPECIFIC HUMIDITY
-        real*8 PNETA  ! VALUE OF NETA
+ 
+        ! Arguments:
+        real(8) :: PADES  ! ADJOINT OF DEWPOINT DEPRESSION
+        real(8) :: PGAMMA ! ADOINT OF VAPOUR PRESSURE RELATIONSHIP
+        real(8) :: QQQ    ! SPECIFIC HUMIDITY
+        real(8) :: PNETA  ! VALUE OF NETA
+
         phf_FOEFQPSA = PADES*PGAMMA*QQQ*PNETA/  &
                        (MPC_EPS1_R8+MPC_EPS2_R8*QQQ)
   end function phf_FOEFQPSA
@@ -692,27 +811,33 @@ module physicsFunctions_mod
   !--------------------------------------------------------------------------
   ! phf_FOTTVa
   !--------------------------------------------------------------------------
-  real*8 function phf_fottva(qqq,tva)  
+  real(8) function phf_fottva(qqq,tva)  
         !
         !:Purpose: Adjoint of temperature due to virtual temperature correction
         !
         implicit none
-        real*8 qqq ! background specific humidity
-        real*8 tva ! adjoint variable of virtual temperature
+ 
+        ! Arguments:
+        real(8) :: qqq ! background specific humidity
+        real(8) :: tva ! adjoint variable of virtual temperature
+
         phf_fottva= (1D0 + MPC_DELTA_R8*qqq)*tva
   end function phf_fottva
 
   !--------------------------------------------------------------------------
   ! phf_FOLNQVA
   !--------------------------------------------------------------------------
-  real*8 function phf_folnqva(qqq,ttt,tva) 
+  real(8) function phf_folnqva(qqq,ttt,tva) 
         !
         !:Purpose:  Adjoint of logarithm of specific humidity due to virtual temperature correction
         !
         implicit none
-        real*8 qqq ! background specific humidity
-        real*8 ttt ! background temperature
-        real*8 tva ! adjoint variable of virtual temperature
+ 
+        ! Arguments:
+        real(8) :: qqq ! background specific humidity
+        real(8) :: ttt ! background temperature
+        real(8) :: tva ! adjoint variable of virtual temperature
+
         phf_folnqva = MPC_DELTA_R8*qqq*ttt*tva
   end function phf_folnqva
 
@@ -727,6 +852,7 @@ module physicsFunctions_mod
     !          in log(p).  
     implicit none
 
+    ! Arguments:
     real(8), intent(in) :: altitude(nlev)      ! altitudes to convert to pressures (m)
     real(8), intent(in) :: rgz_mod(nlev_mod)   ! geopotential heights on model levels (m), assumed to be in decending order
     real(8), intent(in) :: press_mod(nlev_mod) ! pressure on model levels, assumed to be in ascending order
@@ -734,8 +860,10 @@ module physicsFunctions_mod
     integer, intent(in) :: nlev                ! length of altitude array
     integer, intent(in) :: nlev_mod            ! number of model levels
     logical, intent(inout) :: success(nlev)    ! flag indicating success
+    ! Result:
     real(8) :: press(nlev)                     ! converted pressures
 
+    ! Locals:
     real(8) :: rgz(nlev)
     integer :: ilev,ilev_mod
 
@@ -787,9 +915,11 @@ module physicsFunctions_mod
     !
     implicit none
 
+    ! Arguments:
     real(8), intent(in) :: altitude(nlev) ! altitudes (m)
     real(8), intent(in) :: lat            ! latitude (rad)
     integer, intent(in) :: nlev           ! number of levels
+    ! Result:
     real(8) :: rgz(nlev)                  ! geopotential heights (m)
 
     rgz = (ec_rg/9.8) * (1.-2.64D-03*cos(2.*lat)+5.9D-6*cos(2.*lat)**2) * ec_ra*altitude/(ec_ra+altitude)
@@ -813,6 +943,7 @@ module physicsFunctions_mod
     real(8), intent(in)           :: tt(nmodlev)       ! Model temperature (Kelvin)
     real(8), intent(in)           :: height(nmodlev)   ! Model height (m)
     real(8), intent(in), optional :: hu_opt(nmodlev)   ! Model specific humidity
+    ! Result:
     real(8) :: tropo_press                             ! Tropopause level in Pa (output)
 
     ! Locals:
@@ -950,6 +1081,7 @@ module physicsFunctions_mod
     !
     implicit none
 
+    ! Arguments:
     integer, intent(in) :: nmodlev           ! Number of model levels for variables other than uu and vv
     real(8), intent(in) :: pressmod(nmodlev) ! Model pressure array (Pa)
     real(8), intent(in) :: tt(nmodlev)       ! Model temperature (Kelvin)
@@ -957,16 +1089,16 @@ module physicsFunctions_mod
     real(8), optional :: uu_opt(:)           ! Model zonal wind component (m/s)
     real(8), optional :: vv_opt(:)           ! Model meridional wind component (m/s)
     real(8), optional :: hu_opt(nmodlev)     ! Specific humidity
+    ! Result:
     real(8) :: pbl_press                     ! PBL level in Pa (output)
-  
+
+    ! Locals:
     integer :: itop,i,id,igradmax,inv,iRiBmax
     real(8) :: RiB1,RiB2,RiBmax,zs,thetavs,thetavh(nmodlev),us,vs,uv,hus,huh,gradmax,grad
     real(8), parameter :: kappa = 287.04/1004.67  ! R/Cp
     real(8), parameter :: RiB_threshold=0.5, reduced=0.5 
-
     ! Imposed min presssure of PBL height of 200 hPa (extreme; PBL height should normally be under 3km)
     real(8), parameter :: press_min=20000.  
-
     real(8) :: huw(nmodlev)
 
     pbl_press=-1.0
@@ -1140,11 +1272,12 @@ module physicsFunctions_mod
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8) :: lat1, lon1, lat2, lon2
+    ! Result:
     real(8) :: distanceInM
 
-    ! locals
+    ! Locals:
     real(8) :: dlat, dlon, a, c
 
     dlon = lon2 - lon1
@@ -1167,11 +1300,12 @@ module physicsFunctions_mod
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8) :: lat1, lon1, lat2, lon2
+    ! Result:
     real(8) :: distanceInM
 
-    ! locals
+    ! Locals:
     real(8) :: dlat, dlon
 
     dlon = (lon2 - lon1)*cos(lat1)
@@ -1189,9 +1323,13 @@ module physicsFunctions_mod
     !:Purpose: Normal gravity on ellipsoidal surface
     !
     implicit none
+
+    ! Arguments:
     real(8), intent(in)  :: sLat           ! sin of latitude
+    ! Result:
     real(8)              :: phf_gravitysrf ! normal gravity (m/s2)
-    
+
+    ! Locals:
     real(8)              :: ks2
     real(8)              :: e2s
 
@@ -1208,10 +1346,14 @@ module physicsFunctions_mod
     !:Purpose: Normal gravity above the ellipsoidal surface
     !
     implicit none
+
+    ! Arguments:
     real(8), intent(in)  :: sLat           ! sin of latitude
     real(8), intent(in)  :: Altitude       ! altitude (m)
+    ! Result:
     real(8)              :: phf_gravityalt ! Normal gravity (m/s2)
 
+    ! Locals:
     real(8)              :: C1
     real(8)              :: C2
 
@@ -1233,16 +1375,18 @@ module physicsFunctions_mod
     !          integrated with the trapezoidal rule.
     !
     implicit none
+
+    ! Arguments:
     real(8), intent(in)   :: altitude(:)     ! altitude (m)
     real(8), intent(in)   :: latitude        ! latitude (rad)
     real(8), intent(inout):: geopotential(:) ! geopotential (m2/s2)
+    logical, optional :: printHeight_opt
 
+    ! Locals:
     integer           :: nlev, nlev500m
     real(8), allocatable :: alt500m(:), gravity500m(:)
     real(8)           :: delAlt, aveGravity, sLat, gravity, gravityM1
     integer           :: i, ilev 
-    logical, optional :: printHeight_opt
-    
 
     nlev = size(altitude)
     sLat = sin(latitude)

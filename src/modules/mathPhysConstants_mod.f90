@@ -228,7 +228,8 @@ contains
      ! Arguments:
      character(len=*) :: name
      real(4) :: var_r4
-     real(8) :: var_r8, value
+     real(8) :: var_r8
+     real(8) :: value
 
      var_r4 = value
      var_r8 = value

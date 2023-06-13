@@ -50,10 +50,13 @@ contains
     !      Find which model levels to use for the vertical interpolation
     !      of model fields to obs data.
     implicit none
+
+    ! Arguments:
     type(struct_columnData) :: columnTrl
     type(struct_obs) :: obsSpaceData
     logical beSilent
 
+    ! Locals:
     integer :: levIndex,JDATA,NLEV
     real(8) :: ZLEV,ZPT,ZPB
     integer :: IOBS,layerIndex,bufrCode
@@ -252,14 +255,14 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
     character(len=*)        :: cdfam ! family of obsservation
     integer                 :: destObsColumn
 
-    ! locals
+    ! Locals:
     integer :: headerIndex,bodyIndex,ilyr
     integer :: iass,ixtr,ivco,bufrCode,nlev_T
     real(8) :: zvar,zwb,zwt,zexp
@@ -373,14 +376,14 @@ contains
     !     the result will be a corrected P.
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
     type(struct_obs),        intent(inout) :: obsSpaceData
     logical,                 intent(in)    :: beSilent
     integer,                 intent(in)    :: destObsColumn
     character(len=*),        intent(in)    :: cdfam ! family of observation
 
-    ! Locals
+    ! Locals:
     integer :: headerIndex,bodyIndex,ilyr,bufrCode,levIndexTop,levIndexBot
     integer :: bodyIndexStart,bodyIndexEnd,bodyIndex2
     integer :: found  ! a group of bit flags
@@ -402,7 +405,7 @@ contains
     real(8) :: ttbg,  ppbg    ! background T, P at the observation location
     logical :: list_is_empty
 
-    ! namelist variables
+    ! Namelist variables:
     logical :: do_adjust_aladin ! choose to adjust obs value as if it was retrieved using our temp and pressure 
 
     namelist /NAMALADIN_OBS/do_adjust_aladin
@@ -556,14 +559,14 @@ contains
     !            FOR SURFACE DATA (except ground-based GPS zenith delay).
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
     character(len=*)        :: cdfam ! family of observation
     integer                 :: destObsColumn
 
-    ! locals
+    ! Locals:
     integer :: columnLevelIndex, bufrCode, headerIndex, bodyIndex
     integer :: ierr, nulnam, fnom, fclos
     real(8) :: obsValue, trlVirtTemp
@@ -574,7 +577,7 @@ contains
     character(len=4) :: varLevel
     logical, save :: firstCall = .true.
 
-    ! namelist variables
+    ! Namelist variables:
     logical, save :: adjustTemperature ! choose to adjust near-sfc temperature using lapse rate and height difference
 
     namelist /namSurfaceObs/adjustTemperature
@@ -724,14 +727,14 @@ contains
     !           for Sea Surface Temperature (SST) data.
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
     character(len=*)        :: cdfam        ! family of observation
     integer                 :: destObsColumn
 
-    ! locals
+    ! Locals:
     integer          :: bufrCode, headerIndex, bodyIndex
     real(8)          :: obsValue
     character(len=4) :: varName
@@ -786,14 +789,14 @@ contains
     !           for hydrological data
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     logical                 :: beSilent
     character(len=*)        :: cdfam        ! family of observation
     integer                 :: destObsColumn
 
-    ! locals
+    ! Locals:
     integer          :: bufrCode, headerIndex, bodyIndex
     real(8)          :: obsValue
     character(len=4) :: varName
@@ -841,14 +844,14 @@ contains
     !           FOR SEA ICE CONCENTRATION DATA
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
     type(struct_obs)       , intent(inout) :: obsSpaceData
     logical                , intent(in)    :: beSilent
     character(len=*)       , intent(in)    :: cdfam        ! family of observation
     integer                , intent(in)    :: destObsColumn
 
-    ! locals
+    ! Locals:
     integer          :: bufrCode, headerIndex, bodyIndex
     integer          :: obsDate, monthIndex
     integer          :: trackCellNum
@@ -907,14 +910,14 @@ contains
     ! :Purpose: Computation of Jo and OMP for Radar Doppler velocity observations 
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_columnData), intent(in)    :: columnTrlOnTrlLev
     type(struct_obs)       , intent(inout) :: obsSpaceData
     logical                , intent(in)    :: beSilent
     character(len=*)       , intent(in)    :: cdfam        ! family of observation
     integer                , intent(in)    :: destObsColumn
 
-    ! locals
+    ! Locals:
     integer :: bodyIndex, headerIndex, levelIndex, bufrCode
     real(8) :: observedDoppler, simulatedDoppler
     real(8) :: levelAltLow, levelAltHigh
@@ -993,14 +996,14 @@ contains
     !        to TT/HU/P0 through GZ is now attributed to direct dependency of refractivity on GZ.
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     type(struct_vco), pointer :: vco_hr
     logical                 :: beSilent
     integer                 :: destObsColumn
 
-    ! Locals
+    ! Locals:
     real(8) :: pjob, pjo1
     real(8) :: zlat, lat
     real(8) :: zlon, lon
@@ -1240,17 +1243,19 @@ contains
   !--------------------------------------------------------------------------
   subroutine oop_gpsgb_nl( columnTrlOnTrlLev, obsSpaceData, beSilent, &
                            destObsColumn, analysisMode_opt )
+    !
     ! :Purpose: Computation of the residuals to the GB-GPS ZTD observations
+    !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs) :: obsSpaceData
     logical           :: beSilent
     integer           :: destObsColumn
     logical, optional :: analysisMode_opt
 
-    ! Locals
+    ! Locals:
     real(8), allocatable :: zpp (:)
     real(8), allocatable :: ztt (:)
     real(8), allocatable :: zhu (:)
@@ -1613,7 +1618,7 @@ contains
     !              - 'MO': Model state. (CURRENTLY NOT SUPPORTED)
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData) :: columnTrl
     type(struct_obs) :: obsSpaceData
     integer :: datestamp
@@ -1623,11 +1628,10 @@ contains
     integer, optional, intent(in) :: sourceObs_opt ! usually set to OBS_VAR
     integer, optional, intent(in) :: destObs_opt   ! usually set to OBS_OMP
 
-    ! locals
+    ! Locals:
     integer :: jdata, sourceObs, destObs
     logical :: llprint,bgckMode
     character(len=2) :: option
-
     integer :: channelIndex, tovsIndex
     real(pre_obsReal) :: zdtb, obsPRM
     integer :: idatyp, channelNumber
@@ -1754,7 +1758,7 @@ contains
     !           Stores OmP in OBS_OMP in obsSpaceData.
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_columnData) :: columnTrlOnTrlLev
     type(struct_obs)        :: obsSpaceData
     integer                 :: destObsColumn
@@ -1780,12 +1784,15 @@ contains
     !           It returns Hdx in OBS_WORK. Calls the several linear observation operators.
     implicit none
 
-    type(struct_columnData)   :: columnAnlInc, columnTrlOnAnlIncLev
+    ! Arguments:
+    type(struct_columnData)   :: columnAnlInc
+    type(struct_columnData)   :: columnTrlOnAnlIncLev
     type(struct_obs)          :: obsSpaceData
     type(struct_vco), pointer :: vco_anl
     integer, intent(in)       :: min_nsim
     logical, optional         :: initializeLinearization_opt 
 
+    ! Locals:
     logical, save :: initializeLinearization = .true.
 
     if ( mmpi_myid == 0 ) then
@@ -1817,7 +1824,6 @@ contains
 
     call oop_Hro( initializeLinearization_opt=initializeLinearization_opt )
 
-
     if ( gps_gb_numZTD > 0 ) then 
       call oop_Hgp( initializeLinearization_opt=initializeLinearization_opt )
     end if
@@ -1842,9 +1848,10 @@ contains
       !             non-linear operator
       implicit none
 
+      ! Arguments:
       type(struct_columnData) :: columnTrlOnAnlIncLev
 
-      ! locals
+      ! Locals:
       type(struct_vco), pointer :: vco_anl
       integer :: jlev,columnIndex,nlev_T,vcode_anl,status
       real(8) :: zhu,one
@@ -1864,7 +1871,7 @@ contains
 
       ! initialize virtual temperature operator
 
-!$OMP PARALLEL DO PRIVATE(jlev,columnIndex,zhu)
+      !$OMP PARALLEL DO PRIVATE(jlev,columnIndex,zhu)
       do jlev = 1, nlev_T
          do columnIndex=1,col_getNumCol(columnTrlOnAnlIncLev)
             zhu=col_getElem(columnTrlOnAnlIncLev,jlev,columnIndex,'HU')
@@ -1873,7 +1880,7 @@ contains
                  jlev,columnIndex,'TT'),one)
          end do
       end do
-!$OMP END PARALLEL DO
+      !$OMP END PARALLEL DO
 
     end subroutine subasic_obs
 
@@ -1888,6 +1895,7 @@ contains
       !            A linear interpolation in ln(p) is performed.
       implicit none
 
+      ! Locals:
       integer levIndexBot,levIndexTop
       integer headerIndex,INDEX_FAMILY,layerIndex
       integer J,bodyIndex,bufrCode,nlev_T
@@ -1976,7 +1984,8 @@ contains
       !           It returns Hdx in OBS_WORK
       !
       implicit none
-      
+
+      ! Locals:
       integer :: levIndexBot,levIndexTop
       integer :: headerIndex,layerIndex
       integer :: J, bodyIndex, bufrCode, INDEX_FAMILY, nlev, nLev_T
@@ -1989,9 +1998,8 @@ contains
       integer, parameter :: numFamily=5
       character(len=2) :: list_family(numFamily)
       character(len=4) :: varLevel
-      !
+
       !     Temperature lapse rate for extrapolation of height below model surface
-      !
       coeffB   = 1.0d0/(MPC_RGAS_DRY_AIR_R8*temperatureLapseRate/ec_rg)
       !
       !
@@ -2093,6 +2101,7 @@ contains
       !           It returns Hdx in OBS_WORK
       implicit none
 
+      ! Locals:
       integer :: headerIndex, bodyIndex, bufrCode
       real(8) :: anlIncValueBot
       character(len=4) :: varName
@@ -2132,6 +2141,7 @@ contains
       !           It returns Hdx in OBS_WORK
       implicit none
 
+      ! Locals:
       integer :: headerIndex, bodyIndex, bufrCode
       real(8) :: anlIncValueBot
       character(len=4) :: varName
@@ -2166,6 +2176,7 @@ contains
       !           It returns Hdx in OBS_WORK
       implicit none
 
+      ! Locals:
       integer          :: headerIndex, bodyIndex, bufrCode
       integer          :: idate, imonth
       integer          :: trackCellNum
@@ -2204,6 +2215,7 @@ contains
       !          It returns Hdx in OBS_WORK
       implicit none
 
+      ! Locals:
       integer :: datestamp
 
       if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) return
@@ -2215,7 +2227,6 @@ contains
         datestamp = tim_getDatestamp()
         call tvs_fillProfiles(columnTrlOnAnlIncLev, obsSpaceData, datestamp, "tlad", .false.)
       end if
-
 
       !     2.   Compute radiance
       !     .    ----------------
@@ -2233,7 +2244,7 @@ contains
       !           It returns Hdx in OBS_WORK
       implicit none
 
-      ! locals
+      ! Locals:
       integer :: bodyIndex, headerIndex, levelIndex, bufrCode, layerIndex, familyIndex
       integer :: bodyIndexStart, bodyIndexEnd, bodyIndex1
       real(8) :: levelAltLow, levelAltHigh, HDX, Azimuth, obsAltitude
@@ -2349,17 +2360,17 @@ contains
       ! :Purpose: Compute the tangent operator for GPSRO observations.
       !
       implicit none
+
+      ! Arguments:
       logical, optional :: initializeLinearization_opt 
 
+      ! Locals:
       real(8) :: ZMHXL
       real(8) :: DX(gps_ncvmx)
-
       integer :: IDATYP
       integer :: JL, JV, NGPSLEV, NWNDLEV
       integer :: headerIndex, bodyIndex, iProfile
-
       logical :: ASSIM
-
       integer :: NH, NH1
 
       ! Initializations
@@ -2443,14 +2454,15 @@ contains
       ! :Purpose: Compute H'dx for all GPS ZTD observations
       !           oop_Hgp TL of DOBSGPSGB (Jo for GB-GPS ZTD observations)
       implicit none
+
+      ! Arguments:
       logical, optional :: initializeLinearization_opt 
 
+      ! Locals:
       real(8) :: ZHX
       real(8) :: DX(gps_ncvmx)
-
       integer :: headerIndex, bodyIndex
       integer :: JL, NFLEV, status, iztd, icount
-
       logical :: ASSIM
       character(len=12) :: cstnid
 
@@ -2563,11 +2575,13 @@ contains
     ! :Purpose: Call the several adjoint of observation operators
     implicit none
 
+    ! Arguments:
     type(struct_columnData) :: columnAnlInc
     type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: obsSpaceData
     logical, optional       :: initializeLinearization_opt 
 
+    ! Locals:
     type(struct_vco), pointer :: vco_anl
     logical, save :: initializeLinearization = .true.
 
@@ -2620,6 +2634,7 @@ contains
       !           for "UPPER AIR" data files.
       implicit none
 
+      ! Locals:
       integer levIndexBot,levIndexTop,bufrCode
       real(8) ZRES
       real(8) ZWB,ZWT
@@ -2632,7 +2647,7 @@ contains
       integer, parameter :: numFamily=3
       character(len=2) :: list_family(numFamily)
       character(len=4) :: varLevel
-      !
+
       list_family(1) = 'UA'
       list_family(2) = 'AI'
       list_family(3) = 'SW'
@@ -2721,6 +2736,7 @@ contains
       !          vertical interpolation for SURFACE data files.
       implicit none
 
+      ! Locals:
       integer :: levIndexBot,levIndexTop
       real(8) :: ZRES
       real(8) :: ZWB, ZWT,coeffA,coeffB,ZATV,trlVirtTemp
@@ -2849,6 +2865,7 @@ contains
       ! :Purpose: Adjoint of the "vertical" interpolation for SST data
       implicit none
 
+      ! Locals:
       real(8) :: residual
       integer :: headerIndex, bodyIndex, bufrCode 
       real(8), pointer :: columnTG(:)
@@ -2889,6 +2906,7 @@ contains
       ! :Purpose: Adjoint of the "vertical" interpolation for Hydrological data
       implicit none
 
+      ! Locals:
       real(8) :: residual
       integer :: headerIndex, bodyIndex, bufrCode 
       real(8), pointer :: columnHY(:)
@@ -2925,6 +2943,7 @@ contains
       ! :Purpose: Adjoint of the "vertical" interpolation for ICE data
       implicit none
 
+      ! Locals:
       real(8)          :: residual, scaling
       integer          :: headerIndex, bodyIndex, bufrCode
       real(8), pointer :: columnGL(:)
@@ -2962,6 +2981,7 @@ contains
       ! :Purpose: Adjoint of computation of residuals to the tovs observations
       implicit none
 
+      ! Locals:
       integer :: datestamp
 
       if (.not.obs_famExist(obsSpaceData,'TO', localMPI_opt = .true. )) return
@@ -2980,20 +3000,19 @@ contains
       !
       ! :Purpose: Compute the adjoint operator for GPSRO observations.
       implicit none
+
+      ! Arguments:
       logical, optional :: initializeLinearization_opt 
 
+      ! Locals:
       real(8) :: DPJO0(gps_ncvmx)
       real(8) :: DPJO1(gps_ncvmx)
-
       real(8) :: ZINC
-
       real(8), pointer :: tt_column(:),hu_column(:),height_column(:),p_column(:)
       integer :: IDATYP
       integer :: JL, NGPSLEV
       integer :: headerIndex, bodyIndex, iProfile
-
       logical :: ASSIM, LUSE
-
       integer :: NH, NH1
 
       ! Initializations
@@ -3089,19 +3108,18 @@ contains
       !
       ! :Note:  ZTD Jacobians are computed and stored in oop_Hgp (first iter.)
       implicit none
+
+      ! Arguments:
       logical, optional :: initializeLinearization_opt 
 
+      ! Locals:
       real(8) :: DPJO0(gps_ncvmx)
       real(8) :: JAC(gps_ncvmx)
-      ! 
       real(8) :: ZINC
       integer :: JL, NFLEV, iztd
       integer :: headerIndex, bodyIndex, icount
       logical :: ASSIM
-
       real(8), pointer :: tt_column(:),hu_column(:),height_column(:),p_column(:)
-
-      !      WRITE(*,*)'ENTER oop_HTgp'
 
       NFLEV  = col_getNumLev(columnTrlOnAnlIncLev,'TH')
 
@@ -3184,11 +3202,6 @@ contains
 
       end do HEADER
 
-      !      WRITE(*,*) 'oop_HTgp: Number of ZTD data locations processed = ', icount
-
-      !      WRITE(*,*)'EXIT oop_HTgp'
-
-      
     end subroutine oop_HTgp
 
     ! --------------------------------------------------------------------------
@@ -3201,7 +3214,7 @@ contains
       !  delta x is updated by this routine 
       implicit none
 
-      ! locals
+      ! Locals:
       integer :: bodyIndex, headerIndex, levelIndex, bufrCode, familyIndex
       integer :: bodyIndexStart, bodyIndexEnd, bodyIndex1
       real(8) :: levelAltLow, levelAltHigh, azimuth, obsAltitude, HDX 
@@ -3322,12 +3335,14 @@ contains
     !          is permitted and the pressure vector is given.
     implicit none
 
+    ! Arguments:
     real(8), intent(in) :: hu
     real(8), intent(in) :: tt
     real(8), intent(in) :: pressure
-
+    ! Result:
     real(8)             :: es
 
+    ! Locals:
     real(8) :: husat, td
 
     ! get the saturated vapor pressure from specific humidity
@@ -3351,14 +3366,14 @@ contains
     !           is permitted and the pressure vector is given.
     implicit none
 
-    real(8)             :: ES_inc
-
     ! Arguments:
     real(8), intent(in) :: HU_inc
     real(8), intent(in) :: TT_inc
     real(8), intent(in) :: P_inc
     real(8), intent(in) :: HU_trl
     real(8), intent(in) :: PRES_trl
+    ! Result:
+    real(8)             :: ES_inc
 
     ! Locals:
     real(8) :: ZE, ZTD, dTDdE, ZQBRANCH
@@ -3394,8 +3409,15 @@ contains
     !          is permitted and the pressure vector is given.
     implicit none
 
-    real(8), intent(inout) :: HU_inc,TT_inc,P_inc
-    real(8), intent(in)  :: ES_inc,HU_trl,PRES_trl
+    ! Arguments:
+    real(8), intent(inout) :: HU_inc
+    real(8), intent(inout) :: TT_inc
+    real(8), intent(inout) :: P_inc
+    real(8), intent(in)    :: ES_inc
+    real(8), intent(in)    :: HU_trl
+    real(8), intent(in)    :: PRES_trl
+
+    ! Locals:
     real(8) :: ZE,ZTD,dTDdE,ZQBRANCH
     real(8) :: dESdLQ,dESdTT,dESdP
 
@@ -3431,10 +3453,12 @@ contains
     ! :Purpose: Calculating the Jacobians of refractivity for oop_Hro/oop_HTro
     implicit none
 
+    ! Arguments:
     type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: obsSpaceData
     logical, optional       :: initializeLinearization_opt 
 
+    ! Locals:
     real(8) :: zlat, lat
     real(8) :: zlon, lon
     real(8) :: zazm, azm
@@ -3612,36 +3636,31 @@ contains
     ! :Purpose: Calculating the Jacobians of ZTD for oop_Hgp/oop_HTgp
     implicit none
 
+    ! Arguments:
     type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: obsSpaceData
     logical, optional       :: initializeLinearization_opt 
 
+    ! Locals:
     real(8) :: ZLAT, Lat
     real(8) :: ZLON, Lon
     real(8), allocatable :: ZTTB(:)
     real(8), allocatable :: ZHUB(:)
     real(8), allocatable :: zHeight(:)
     real(8), allocatable :: ZPPB(:)
-
     real(8) :: ZP0B, ZPSMOD, ZPWMOD, ZPWMOD2, dZTD
     real(8) :: ZMT
     real(8) :: sfcfield
     real(8) :: dxq1, dxq2, dxq3
-
     real(8) :: ZLEV, ZDZMIN
     real(8) :: JAC(gps_ncvmx)
-
     integer :: headerIndex, bodyIndex
     integer :: JL, NFLEV, iztd, icount, vcode
-
     logical :: ASSIM
-
     type(gps_profilezd) :: PRF, PRF2
     type(gps_diff)      :: ZTDOPV, ZTDOPV2
-
     type(struct_vco), pointer :: vco_anl
     character(len=12) :: cstnid
-
     logical, save :: initializeLinearization = .true.
 
     ! Re-compute the Jacobian for re-linearized state
@@ -3818,11 +3837,12 @@ contains
     !           H(iceConc) = scaling*iceConc + constant
     !
     implicit none
-    real(8) :: scaling
 
     ! Arguments:
     type(struct_obs), intent(in) :: obsSpaceData
     integer,          intent(in) :: bodyIndex
+    ! Result:
+    real(8) :: scaling
 
     ! Locals:
     integer          :: bufrCode

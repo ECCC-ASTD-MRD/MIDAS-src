@@ -60,7 +60,6 @@ contains
     integer :: ilowlvl_M,ilowlvl_T,profileCount,headerIndex,levelIndex,nlv_M,nlv_T
     integer :: profileIndex
     integer :: Vcode
-
     character(len=4) :: ozoneVarName
     logical, allocatable :: surfTypeIsWater(:)
     real(8), pointer :: delTT(:), delHU(:), delP(:)
@@ -491,11 +490,10 @@ contains
     type(struct_columnData) :: columnTrlOnAnlIncLev
     type(struct_obs)        :: obsSpaceData
 
-    ! locals
+    ! Locals:
     type(struct_vco), pointer :: vco_anl
     integer, allocatable :: sensorTovsIndexes(:) 
     integer, allocatable :: sensorHeaderIndexes(:) 
-
     integer :: allocStatus(17)
     integer :: omp_get_num_threads, nthreads
     integer :: nobmax
@@ -511,27 +509,22 @@ contains
     real(8), allocatable :: clw_ad(:,:)
     real(8), allocatable :: ciw_ad(:,:), rf_ad(:,:), sf_ad(:,:)
     logical, allocatable :: surfTypeIsWater(:), lchannel_subset(:,:)
-
-    real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:),  &
-                        tg_column(:),p_column(:),o3_column(:),clw_column(:), &
-                        ciw_column(:), rf_column(:),sf_column(:)
-
+    real(8), pointer :: uu_column(:),vv_column(:),tt_column(:),hu_column(:),ps_column(:)
+    real(8), pointer :: tg_column(:),p_column(:),o3_column(:),clw_column(:)
+    real(8), pointer :: ciw_column(:), rf_column(:),sf_column(:)
     integer :: btCount
     integer :: max_nthreads
     integer :: instrum
     integer :: btIndex, bodyIndex
-    integer :: sensorType   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)
-    
+    integer :: sensorType   ! sensor type (1=infrared; 2=microwave; 3=high resolution, 4=polarimetric)    
     integer, allocatable :: sensorBodyIndexes(:)
-    integer :: errorStatus 
-    
+    integer :: errorStatus
     real(8), allocatable :: surfem1(:)
     integer, allocatable :: frequencies(:)
     type(rttov_emissivity), pointer :: emissivity_local(:)
     type(rttov_emissivity), pointer :: emissivity_ad(:)
     type(rttov_transmission) :: transmission,transmission_ad
-    type(rttov_radiance) :: radiancedata_ad, radiancedata_d
-    
+    type(rttov_radiance) :: radiancedata_ad, radiancedata_d    
     type(rttov_profile), pointer  :: profilesdata_ad(:) ! ad profiles buffer used in rttov calls
     type(rttov_profile), pointer  :: profiles(:)
     type(rttov_profile_cloud), pointer  :: cld_profiles(:)

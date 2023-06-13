@@ -62,13 +62,10 @@ contains
 
     implicit none
 
-    ! Locals
-    integer           :: ierr
-    integer           :: nulnam
-
+    ! Locals:
+    integer           :: ierr, nulnam
     ! External functions
-    integer, external :: fclos
-    integer, external :: fnom
+    integer, external :: fclos, fnom
 
     ! Default values for namelist variables
     debug = .false.
@@ -94,17 +91,16 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer, intent(in)  :: numObsToProcess  ! Number of obs points to process
     logical, intent(in)  :: grossRej(:)      ! Gross rejection indicator
     real,    intent(in)  :: ztb(:)           ! Tbs from input BURP file
     real,    intent(out) :: zta(:)           ! Tas after conversion
 
-    ! Locals
+    ! Locals:
     integer :: hiIndex
     integer :: loIndex
     integer :: obsIndex
-
     real    :: spillCoeffs(ssbg_maxNumChan)  ! Spillover correction coefficients
 
     !  Define spillover correction coefficients
@@ -163,18 +159,16 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer, intent(in)  :: satId                             ! Satellite ID
     real,    intent(in)  :: SSMIS_Ta(ssbg_maxNumChan)         ! SSMIS antenna temperature
     real,    intent(out) :: Remapped_SSMI_Ta(ssbg_maxNumChan) ! Remapped SSMI antenna temperature
 
-    ! Locals
+    ! Locals:
     integer, parameter :: f16_id = 1
     integer, parameter :: f17_id = 2
     integer, parameter :: f18_id = 3
-
     integer(2)         :: channelIndex
-
     real(8)            :: CP(ssbg_maxNumChan)
     real               :: tbx(ssbg_maxNumChan)
 
@@ -196,7 +190,6 @@ contains
     real(8), parameter :: CP_F18(ssbg_maxNumChan)=(/0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, &
                                       -0.773,  -0.688,  -1.031,  -0.632,  -0.411,   0.171,   0.928,   &
                                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0/)
-
 
     ! Initialization
     tbx(1:ssbg_maxNumChan) = SSMIS_Ta(1:ssbg_maxNumChan)
@@ -232,7 +225,7 @@ contains
     real, intent(in)  :: Ta(24) ! Antenna temperature
     real, intent(out) :: Tb(24) ! Brightness temperature
 
-    ! Locals
+    ! Locals:
     real(8), parameter :: AP(24)=(/0.9850,0.9850,0.9850,0.9850,0.9850,0.9790,0.9815,&
                                    0.9949,0.9934,0.9934,0.9934, &
                                    0.9690,0.9690,0.9740,0.9860,0.9860,0.9880,0.9880,&
@@ -271,11 +264,11 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real, intent(in)  :: Ta(:) ! Antenna temperature
     real, intent(out) :: Tb(:) ! Brightness temperature
 
-    ! Locals
+    ! Locals:
     real :: AV19V,AH19V,A019V,AH19H,AV19H,A019H,AV22V,A022V
     real :: AV37V,AH37V,A037V,AH37H,AV37H,A037H
     real :: AV85V,AH85V,A085V,AH85H,AV85H,A085H
@@ -351,20 +344,18 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real, intent(in) :: Tb(24) ! Brightness temperature
     real, intent(out) :: iwv   ! Integrated water vapor (kg/m**2)
 
-    ! Locals
+    ! Locals:
     integer :: precipScreen    ! = 1: possible presence of precipitation does
                                !      not allow retrieval of IWV and CLW.
                                ! = 0: retrieval is possible
-
     real    :: IWV_alishouse   ! estimated total precipitable water, with cubic polynomial correction (=iwv)
     real    :: IWV_alishouse0  ! estimated total precipitable water, without cubic polynomial correction
     real    :: precipThresh
     real    :: tb19v,tb22v,tb37v,tb37h
-
     real    :: ciwv(0:4)
 
     !  Initializations.
@@ -417,15 +408,14 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real,    intent(in)  :: Tb(24)   ! Brightness temperature
     integer, intent(in)  :: sType    ! Surface type
     real,    intent(in)  :: seaIce   ! Sea ice coverage
     real,    intent(out) :: TPW      ! Total precipitable water (mm)
 
-    ! Locals
+    ! Locals:
     integer, parameter :: ocean=0
-
     real :: SCT
     real :: Tb19v, Tb22v, Tb37v, Tb85v
 
@@ -462,14 +452,14 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer, intent(in)  :: ocean    ! Ocean surface type index
     real,    intent(in)  :: Ta(24)   ! Antenna temperature
     integer, intent(in)  :: sType    ! Surface type
     real,    intent(out) :: seaIce   ! Sea ice coverage
     real,    intent(in)  :: latitude ! Latitude of observation
 
-    ! Locals
+    ! Locals:
     real :: Ta19v, Ta19h, Ta22v, Ta37v, Ta37h, Ta85v, Ta85h
 
     ! Extract 7 IMG channels from Ta
@@ -511,7 +501,7 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     character(len=6), intent(in)    :: algOption ! Algorithm option (fweng, fwentz or nsun)
     real,             intent(in)    :: Ta(24)    ! Antenna temperature
     real,             intent(in)    :: Tb(24)    ! Brightness temperature
@@ -520,12 +510,11 @@ contains
     real,             intent(inout) :: IWV       ! Integrated water vapor
     real,             intent(in)    :: latitude  ! Latitude of observation
 
-    ! Locals
+    ! Locals:
     integer,    parameter :: isSeaIce = 1
     integer,    parameter :: ocean  = 0
     integer(4), parameter :: RT = 285
     real,       parameter :: clwLimit = 6.0
-
     real :: ALG1, ALG2, ALG3
     real :: seaIce
     real :: Ta19v, Ta19h, Ta22v, Ta37v, Ta37h, Ta85v, Ta85h
@@ -621,7 +610,7 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,          intent(in)    :: numObsToProcess  ! Number of obs points to process
     real,             intent(in)    :: obsTb(:)         ! Brightness temperature of observations
     character(len=6), intent(in)    :: algOption        ! Algorithm option (fweng, fwentz or nsun)
@@ -636,20 +625,17 @@ contains
     real,             intent(in)    :: obsLatitude(:)   ! Observation latitudes
     integer,          intent(inout) :: numSeaIceObs     ! Number of observations with sea ice
 
-    ! Locals
+    ! Locals:
     real,    parameter :: iwvThresh = 80.0    ! Upper bound for IWV in kg/m**2
     integer, parameter :: ocean  = 0
     integer, parameter :: seaIce = 1
-
     integer            :: hiIndex
     integer            :: loIndex
     integer            :: obsIndex
     integer            :: sType
-
     real               :: clw
     real               :: iwv
     real               :: latitude
-
     real               :: F16TDR(ssbg_maxNumChan)
     real               :: remappedTa(ssbg_maxNumChan)
     real               :: Tb(ssbg_maxNumChan)
@@ -769,13 +755,13 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer, intent(in)    :: firstDim                         ! First dimension
     integer, intent(in)    :: secondDim                        ! Second dimension
     real,    intent(in)    :: oneDimArray(firstDim*secondDim)  ! 1D real array
     real,    intent(inout) :: twoDimArray(firstDim,secondDim)  ! 2D real array
     
-    ! Locals
+    ! Locals:
     integer                :: firstDimIndex
     integer                :: productDimIndex
     integer                :: secondDimIndex
@@ -798,13 +784,13 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer, intent(in)    :: firstDim                         ! First dimension
     integer, intent(in)    :: secondDim                        ! Second dimension
     integer, intent(in)    :: oneDimArray(firstDim*secondDim)  ! 1D integer array
     integer, intent(inout) :: twoDimArray(firstDim,secondDim)  ! 2D integer array
     
-    ! Locals
+    ! Locals:
     integer :: firstDimIndex
     integer :: productDimIndex 
     integer :: secondDimIndex 
@@ -834,7 +820,7 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer, intent(in)  :: numObsToProcess      ! Number of obs points to process
     integer, intent(out) :: ier(numObsToProcess) ! Error return code
     real,    intent(in)  :: tb89(:)              ! 89Ghz AMSU-B brightness temperature (K)
@@ -844,7 +830,7 @@ contains
     real,    intent(out) :: scatL(:)             ! Scattering index over land
     real,    intent(out) :: scatW(:)             ! Scattering index over water
 
-    ! Locals
+    ! Locals:
     ! Notes: In the case where an output parameter cannot be calculated, the
     ! value of this parameter is the missing value, i.e. -99.
     integer :: obsIndex
@@ -903,22 +889,20 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real,              intent(in)  :: obsLatitude(:)    ! Observation latitudes
     real,              intent(in)  :: obsLongitude(:)   ! Observation longitudes
     real, allocatable, intent(out) :: modelInterpTer(:) ! Filtered and interpolated topography (in m)
 
-    ! Locals
+    ! Locals:
     integer, parameter      :: mxLat = 5
     integer, parameter      :: mxLon = 5
     real,    parameter      :: dLat = 0.4
     real,    parameter      :: dLon = 0.6
-
     character(len=12)       :: etikxx
     character(len=1)        :: grtyp
     character(len=4)        :: nomvxx
     character(len=2)        :: typxx
-
     integer                 :: boxPointIndex
     integer                 :: boxPointNum
     integer                 :: dataIndex
@@ -943,18 +927,14 @@ contains
     integer                 :: nLon
     integer                 :: nObsLat
     integer                 :: nObsLon
-
     logical,           save :: ifFirstCall = .true.   ! If .True. we read GL, GZ and MG
-
     real, allocatable, save :: GZ(:)                  ! Modele Topographie (GZ)
     real, allocatable       :: GZIntBox(:,:)
     real, allocatable       :: obsLatBox (:,:)
     real, allocatable       :: obsLonBox (:,:)
-
     real                    :: topoFact               ! Facteur x topo pour avoir des unites en metre
     real                    :: xLat
     real                    :: xLon
-
     ! External functions
     integer, external       :: fclos
     integer, external       :: fnom
@@ -1177,7 +1157,7 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,              intent(in)    :: numObsToProcess     ! Number of obs points to process
     real,                 intent(in)    :: obsLatitude(:)      ! Observation latitudes
     real,                 intent(in)    :: obsLongitude(:)     ! Observation longitudes
@@ -1185,7 +1165,7 @@ contains
     integer, allocatable, intent(out)   :: terrainType(:)      ! Terrain type qualifier
     logical, allocatable, intent(out)   :: waterObs(:)         ! Open water identifier for each obs
 
-    ! Locals
+    ! Locals:
     integer, parameter      :: mxLat=5
     integer, parameter      :: mxLon=5
     real,    parameter      :: LGthresh=0.01
@@ -1194,13 +1174,11 @@ contains
     real,    parameter      :: rKmPerDeg=111.195
     real,    parameter      :: rLatKm=40.0
     real,    parameter      :: rLonKm=40.0
-
     character(len=12)       :: etikxx
     character(len=1)        :: grtyp
     character(len=1)        :: grtyplg
     character(len=4)        :: nomvxx
     character(len=2)        :: typxx
-
     integer                 :: boxPointIndex
     integer                 :: ezQkDef
     integer                 :: ezSetOpt
@@ -1225,9 +1203,7 @@ contains
     integer                 :: nLat
     integer                 :: nLon
     integer                 :: obsIndex
-
     logical,           save :: firstCall=.true.
-
     real, allocatable, save :: lg(:)
     real, allocatable, save :: mg(:)
     real, allocatable       :: latMesh(:)
@@ -1238,7 +1214,6 @@ contains
     real, allocatable       :: mgIntrp(:)
     real, allocatable       :: obsLatBox(:,:)
     real, allocatable       :: obsLonBox(:,:)
-
     real                    :: dLat
     real                    :: dLon
     real                    :: rLatIndex
@@ -1246,7 +1221,6 @@ contains
     real                    :: xLat
     real                    :: xLatRad
     real                    :: xLon
-
     ! External functions
     integer, external       :: fclos
     integer, external       :: fnom
@@ -1448,18 +1422,17 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer, intent(in)               :: numObsToProcess      ! Number of obs points to process
     real,    intent(in)               :: obsLatitude(:)       ! Observation latitudes
     real,    intent(in)               :: obsLongitude(:)      ! Observation longitudes
     integer, intent(out), allocatable :: landSeaQualifier(:)  ! Land/sea indicator (0=land; 1=ocean)
 
-    ! Locals
+    ! Locals:
     character(len=12) :: etikxx
     character(len=1)  :: grtyp
     character(len=4)  :: nomvxx
     character(len=2)  :: typxx
-
     integer           :: ezQkDef
     integer           :: ezSetOpt
     integer           :: gdId
@@ -1475,12 +1448,10 @@ contains
     integer           :: iUnIn
     integer           :: ni, nj, nk
     integer           :: obsIndex
-
     real, allocatable :: xLat(:)
     real, allocatable :: xLon(:)
     real, allocatable :: wenTyp(:)
     real, allocatable :: lm(:)
-
     ! External functions
     integer, external :: fclos
     integer, external :: fnom
@@ -1561,19 +1532,16 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData           ! ObsSpaceData object
 
-    ! Locals
+    ! Locals:
     real, parameter      :: satAzimuthAngle = 210.34
     real, parameter      :: satZenithAngle = 53.1
-
     integer, allocatable :: landSeaQualifier(:)
     integer              :: codtyp
     integer              :: headerIndex
-
     logical              :: ssmisDataPresent
-
     real                 :: obsLatitude(1)
     real                 :: obsLongitude(1)
 
@@ -1624,14 +1592,14 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer, intent(in)               :: numObsToProcess  ! Number of obs points to process
     real,    intent(in)               :: obsTb(:)         ! Brightness temperature of observations
     real,    intent(in)               :: obsTbMin         ! Min(obsTb) threshold for rejection
     real,    intent(in)               :: obsTbMax         ! Max(obsTb) threshold for rejection
     logical, intent(out), allocatable :: grossRej(:)      ! Logical array of obs with gross error (obs to reject)
 
-    ! Locals
+    ! Locals:
     integer :: hiIndex
     integer :: loIndex
     integer :: obsIndex
@@ -1680,19 +1648,17 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_obs),     intent(inout) :: obsSpaceData           ! ObsSpaceData object
     integer,              intent(in)    :: headerIndex            ! Current header index
     logical, allocatable, intent(out)   :: obsToReject(:)         ! Observations that will be rejected
     
-    ! Locals
+    ! Locals:
     ! arrays to get from obsspacedata
     character(len=9)           :: burpFileSatId
-
     integer, allocatable       :: landSeaQualifier(:)
     integer, allocatable       :: terrainType(:)
     integer, allocatable       :: ukRainObs(:)
-
     real,    allocatable       :: obsLatitude(:)
     real,    allocatable       :: obsLongitude(:)
     real,    allocatable       :: obsTb(:)
@@ -1700,10 +1666,7 @@ contains
     real,    allocatable       :: riwv(:)
     real,    allocatable       :: satZenithAngle(:)
     real,    allocatable       :: scatW(:)
-
-    ! temporary arrays
     integer, allocatable       :: ier(:)
-
     integer                    :: actualNumChannel
     integer                    :: bodyIndex
     integer                    :: bodyIndexBeg
@@ -1738,18 +1701,15 @@ contains
     integer                    :: platfId
     integer                    :: refPosObs
     integer                    :: sensorIndex
-
     logical, allocatable       :: cloudObs(:)
     logical, allocatable       :: grossRej(:)
     logical, allocatable       :: iwvReject(:)
     logical, allocatable       :: precipObs(:)
     logical, allocatable       :: rainDetectionUKMethod(:)
     logical, allocatable       :: waterObs(:)
-
     logical,              save :: ifFirstCall = .true.
     logical                    :: sensorIndexFound
     logical                    :: ssmisDataPresent
-
     real,    allocatable       :: amsubDrynessIndex(:)
     real,    allocatable       :: scatL(:)
     real,    allocatable       :: ztb91(:)
@@ -1765,7 +1725,6 @@ contains
       write(*,*) 'WARNING: WILL NOT RUN ssbg_satqcSsmis since no SSMIS DATA is found'
       return
     end if
-
 
     ! find tvs_sensor index corresponding to current obs
 
@@ -2140,16 +2099,15 @@ contains
 
     implicit none
 
-    !Arguments
+    ! Arguments:
     type(struct_obs),     intent(inout) :: obsSpaceData           ! ObsSpaceData object
     integer,              intent(in)    :: headerIndex            ! Current header index
     logical,              intent(in)    :: obsToReject(:)         ! Observations that will be rejected
 
-    ! Locals
+    ! Locals:
     integer, allocatable                :: obsFlags(:)
     integer, allocatable                :: obsGlobalFlag(:)
     integer, allocatable                :: satScanPosition(:)
-
     integer                             :: actualNumChannel
     integer                             :: bodyIndex
     integer                             :: bodyIndexBeg
@@ -2166,7 +2124,6 @@ contains
     integer                             :: platf
     integer                             :: platfId
     integer                             :: sensorIndex
-
     logical                             :: sensorIndexFound
 
     ! find tvs_sensor index corresponding to current obs
@@ -2277,17 +2234,15 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_obs),     intent(inout) :: obsSpaceData      ! ObsSpaceData object
     integer,              intent(in)    :: headerIndex       ! Current header index
     integer, allocatable, intent(out)   :: flagsInovQc(:)    ! Flags for assimilation/rejection of obs
 
-    ! Locals
+    ! Locals:
     character(len=9)     :: burpFileSatId            ! Satellite ID
-
     integer, allocatable :: obsChannels(:)           ! channel numbers
     integer, allocatable :: obsFlags(:)              ! data flags
-
     integer              :: actualNumChannel         ! actual Num channel
     integer              :: bodyIndex
     integer              :: bodyIndexBeg
@@ -2303,10 +2258,8 @@ contains
     integer              :: platf
     integer              :: platfId
     integer              :: sensorIndex              ! find tvs_sensor index corresponding to current obs
-
     logical              :: sensorIndexFound
     logical              :: ssmisDataPresent
-
     real   , allocatable :: modelInterpTer(:)        ! topo in standard file interpolated to obs point
     real   , allocatable :: obsLatitude(:)           ! obs. point latitude
     real   , allocatable :: obsLongitude(:)          ! obs. point longitude
@@ -2450,7 +2403,7 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,          intent(in)    :: obsChannels(:)   ! Channel numbers
     real   ,          intent(in)    :: ompTb(:)         ! Radiance residuals
     integer,          intent(out)   :: flagsInovQc(:)   ! Flags for assimilation/rejection of obs
@@ -2460,10 +2413,9 @@ contains
     character(len=9), intent(in)    :: burpFileSatId    ! Satellite identification in BURP file
     integer,          intent(in)    :: obsFlags(:)      ! Radiance data flags
 
-    ! Locals
+    ! Locals:
     real, parameter :: factorCh1 = 2.0 ! factor for channel 1 O-P for rejection of channels 1-4
     real, parameter :: maxOmpCh8 = 5.0 ! max Abs(O-P) for channel 8 for rejection of channels 8-11 (units = K)
-
     integer         :: chanIndex
     integer         :: chanIndex1
     integer         :: chanIndex4
@@ -2473,7 +2425,6 @@ contains
     integer         :: channelNumber
     integer         :: obsChanIndex
     integer         :: obsIndex
-
     real            :: productRogueSTD
     real            :: rogueFac(ssbg_maxNumChan)
 
@@ -2628,24 +2579,21 @@ contains
 
     implicit none
 
-    !  Arguments
+    ! Arguments:
     real,    intent(in)    :: modelInterpTer(:)  ! Model surface height (m) for each obs
     integer, intent(inout) :: flagsInovQc(:)     ! Flags for assimilation/rejection of obs
     integer, intent(in)    :: actualNumChannel   ! Number of channels
     integer, intent(in)    :: numObsToProcess    ! Number of obs points to process
 
-    !  Locals
+    ! Locals:
     integer, parameter :: nChanCheck=4             ! number of channels to check
-
     integer            :: chanIndex
     integer            :: chanIndex1
     integer            :: checkedChan(nChanCheck)
     integer            :: checkedChanIndex
     integer            :: obsIndex
     integer            :: topoReject
-
     logical            :: debugSupp
-
     real               :: heightLimit
     real               :: topoHeight
     real               :: topoLimit(nChanCheck)
@@ -2716,18 +2664,16 @@ contains
 
     implicit none
 
-    !Arguments
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData    ! ObsSpaceData object
     integer,          intent(in)    :: headerIndex     ! Current header index
     integer,          intent(in)    :: flagsInovQc(:)  ! Flags for assimilation/rejection of obs
 
-    ! Locals
+    ! Locals:
     integer, allocatable :: obsFlags(:)
     integer, allocatable :: obsGlobalFlag(:)
     integer, allocatable :: satScanPosition(:)
-
     logical              :: sensorIndexFound
-
     integer              :: actualNumChannel
     integer              :: bodyIndex
     integer              :: bodyIndexBeg
@@ -2745,7 +2691,7 @@ contains
     integer              :: platfId
     integer              :: sensorIndex
 
-   ! find tvs_sensor index corresponding to current obs
+    ! find tvs_sensor index corresponding to current obs
 
     platf = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex )
     instr = obs_headElem_i( obsSpaceData, OBS_INS, headerIndex )
@@ -2867,14 +2813,12 @@ contains
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_obs),     intent(inout) :: obsSpaceData           ! ObsSpaceData object
 
-    ! Locals
+    ! Locals:
     integer, allocatable                :: flagsInovQc(:)
-
     logical, allocatable                :: obsToReject(:)
-
     integer                             :: codtyp
     integer                             :: dataIndex
     integer                             :: dataIndex1
@@ -2882,10 +2826,8 @@ contains
     integer                             :: indexFlags
     integer                             :: inovQcSize
     integer                             :: statsInovQcFlags(10)
-
     logical                             :: otherDataPresent
     logical                             :: ssmisDataPresent
-
     real                                :: percentInovQcFlags(9)
 
     write(*,*) 'ssbg_bgCheckSSMIS: Starting'

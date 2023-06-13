@@ -55,12 +55,12 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_obs), intent(in) :: obsSpaceData ! observation data structure
     type(struct_hco), pointer    :: hco_ptr      ! horizontal grid definition
     type(struct_vco), pointer    :: vco_ptr      ! vertical grid definition
 
-    ! Locals
+    ! Locals:
     integer :: fnom, fclos, nulnam, ierr
     type(struct_gsv) :: stateVectorAnlErrorStd      ! state vector for analysis error std deviation
     type(struct_gsv) :: stateVectorTrlErrorStd      ! state vector for background error std deviation
@@ -325,7 +325,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_obs), intent(in)       :: obsSpaceData     ! observation data structure
     type(struct_gsv), intent(in)       :: stateVectorTrlErrorStd ! state containing background error stddev
     integer,          intent(out)      :: numObs(:,:)      ! number of observations found
@@ -333,7 +333,7 @@ contains
     real(8)         , intent(in)       :: Lcorr(:,:)       ! horizontal background-error correlation length scale
     type(struct_neighborhood), pointer :: influentObs(:,:) ! details about observations to use in update
 
-    ! Locals
+    ! Locals:
     integer :: headerIndex, bodyIndexBeg, bodyIndexEnd, bodyIndex
     integer :: procIndex, kIndex, stepIndex
     integer :: gridptCount, gridpt, numLocalGridptsFoundSearch
@@ -504,7 +504,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_obs), intent(in) :: obsSpaceData   ! observation data structure
     type(struct_hco), pointer    :: hco_ptr        ! horizontal grid definition
     type(struct_vco), pointer    :: vco_ptr        ! vertical grid definition
@@ -514,7 +514,7 @@ contains
     logical         , intent(in) :: propagateDSLO  ! propagate (increase) Days Since Last Obs in time
     integer         , intent(in) :: hoursSinceLastAnalysis ! number of hours between analysis times
 
-    ! Locals
+    ! Locals:
     type(struct_gsv) :: stateVectorTrlDSLO, stateVectorAnlDSLO
     real(8), pointer :: trlDSLO_ptr(:,:,:,:), anlDSLO_ptr(:,:,:,:)
     integer :: stepIndex, levIndex, lonIndex, latIndex, headerIndex
@@ -639,7 +639,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: stateVectorErrorStd ! Input: analysis std error; Output: background std error. 
     type(struct_ocm), intent(in)    :: oceanMask           ! ocean-land mask (1=water, 0=land)
     character(len=*), intent(in)    :: variableName        ! variable name
@@ -648,7 +648,7 @@ contains
     type(struct_hco), pointer       :: hco_ptr             ! horizontal coordinates structure, pointer
     type(struct_vco), pointer       :: vco_ptr             ! vertical coordinates structure, pointer
 
-    ! Locals
+    ! Locals:
     type(struct_gsv) :: stateVectorAnalysis
     integer :: latIndex, lonIndex, localLatIndex, localLonIndex, pointCount 
     real(8), pointer :: stateVectorStdError_ptr(:,:,:), stateVectorAnalysis_ptr(:,:,:)
@@ -741,14 +741,14 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: stateVectorErrorStd    ! read "analysed" state into it and increase it by hoursSinceLastAnalysis
     character(len=*), intent(in)    :: inputFileName          ! input file name
     character(len=*), intent(in)    :: outputFileName         ! output file name
     integer         , intent(in)    :: hoursSinceLastAnalysis ! hours since last analysis (namelist variable)
     type(struct_hco), pointer       :: hco_ptr                ! horizontal grid definition
 
-    ! Locals
+    ! Locals:
     real(8), pointer :: analysisDaysSinceLastObs_ptr(:,:,:)
     real(8) :: daysSinceLastAnalysis
     integer :: latIndex, lonIndex
@@ -792,7 +792,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_obs)         , intent(in)    :: obsSpaceData           ! obsSpaceData structure
     type(struct_gsv)         , intent(inout) :: stateVectorAnlErrorStd ! state vector for analysis error std deviation
     type(struct_gsv)         , intent(in)    :: stateVectorTrlErrorStd ! state vector for background error std deviation
@@ -801,7 +801,7 @@ contains
     type(struct_neighborhood), pointer       :: influentObs(:,:)       ! details about observations to use in update
     real(8)                  , intent(in)    :: Lcorr(:,:)             ! horizontal background-error length scale
 
-    ! Locals
+    ! Locals:
     integer :: latIndex, lonIndex, stepIndex, levIndex, kIndex
     integer :: numInfluentObs, bodyIndex, numVariables
     integer :: influentObsIndex2, influentObsIndex

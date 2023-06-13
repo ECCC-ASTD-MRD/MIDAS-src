@@ -53,11 +53,11 @@ module obsFamilyList_mod
       !
       ! :Purpose: To identify if input obs family is part of the available list 
       !
-
       implicit none
 
-      !Arguments:
-      character(len=2) :: familyName
+      ! Arguments:
+      character(len=*) :: familyName
+      ! Result:
       logical          :: familyFound
 
       if ( any(ofl_familyList(:) == familyName) ) then

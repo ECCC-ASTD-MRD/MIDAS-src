@@ -39,9 +39,11 @@ contains
     ! :Purpose: to setup var1D module
     !
     implicit none
-    ! arguments:
-    type (struct_obs), intent(in)        :: obsSpaceData
-    ! locals:
+
+    ! Arguments:
+    type (struct_obs), intent(in) :: obsSpaceData
+
+    ! Locals:
     integer :: countGood, headerIndex
     integer :: bodyStart, bodyEnd, bodyIndex
 
@@ -69,7 +71,6 @@ contains
 
   end subroutine var1D_setup
 
-
   !--------------------------------------------------------------------------
   ! var1D_Finalize
   !--------------------------------------------------------------------------
@@ -78,6 +79,7 @@ contains
     ! :Purpose: to deallocate memory used by internal module structures
     !
     implicit none
+
     if (initialized) then
        deallocate( var1D_validHeaderIndex )
     end if
@@ -93,12 +95,14 @@ contains
     !           without interpolation (to be used in 1DVar mode to write increments on Y grid).
     !
     implicit none
-    ! arguments:
+
+    ! Arguments:
     type(struct_gsv), intent(inout)        :: stateVector
     type(struct_obs), intent(in)           :: obsSpaceData
     type(struct_columnData), intent(inout) :: column
     character(len=4), intent(in)           :: varList(:)
-    ! locals:
+
+    ! Locals:
     type(struct_hco), pointer :: hco_yGrid
     integer :: varIndex, globalObsIndex, obsIndex, taskIndex, headerIndex
     integer, allocatable :: var1D_validHeaderCountAllTasks(:), obsOffset(:)

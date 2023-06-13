@@ -51,6 +51,7 @@ contains
                        mpi_distribution_opt, writeBinsToFile_opt)
     implicit none
 
+    ! Arguments:
     type(struct_gbi) :: gbi
     character(len=*),  intent(in) :: binningStrategy
     type(struct_gsv) :: statevector_template
@@ -58,22 +59,18 @@ contains
     character(len=*), optional, intent(in) :: mpi_distribution_opt
     logical, optional, intent(in) :: writeBinsToFile_opt
 
+    ! Locals:
     type(struct_gsv) :: statevector_landSeaTopo
-
     integer :: myLonBeg, myLonEnd
     integer :: myLatBeg, myLatEnd
     integer :: latIndex, lonIndex
-
     real(8) :: binCategory
-
     logical :: allocHeightSfc
     logical :: writeBinsToFile
     logical :: skip
     logical :: mpi_local
-
     real(4), pointer :: bin2d(:,:,:)
     real(4), pointer :: data2d(:,:,:)
-
     character(len=24) :: mpi_distribution
 
     !
@@ -235,6 +232,7 @@ contains
   subroutine gbi_deallocate(gbi)
     implicit none
 
+    ! Arguments:
     type(struct_gbi) :: gbi
 
     call gsv_deallocate(gbi%statevector_bin2d)
@@ -247,20 +245,19 @@ contains
   subroutine gbi_mean_gsv(gbi, statevector_in, statevector_out)
     implicit none
 
+    ! Arguments:
     type(struct_gbi) :: gbi
     type(struct_gsv) :: statevector_in
     type(struct_gsv) :: statevector_out
 
+    ! Locals:
     integer :: myBinCount(gbi%numBins2d)
     integer ::   binCount(gbi%numBins2d)
     real(8) :: myBinSum  (gbi%numBins2d)
     real(8) ::   binMean (gbi%numBins2d)
-
     real(8), pointer :: field4d(:,:,:,:)
     real(8), pointer :: mean4d (:,:,:,:)
-
     real(4), pointer :: bin2d(:,:,:)
-
     integer :: myLonBeg, myLonEnd
     integer :: myLatBeg, myLatEnd
     integer :: latIndex, lonIndex, varLevIndex, stepIndex, binIndex
@@ -342,25 +339,23 @@ contains
   subroutine gbi_stdDev_ens(gbi, ens, statevector)
     implicit none
 
+    ! Arguments:
     type(struct_gbi) :: gbi
     type(struct_ens) :: ens
     type(struct_gsv) :: statevector
 
+    ! Locals:
     integer :: myBinCount(gbi%numBins2d)
     integer :: binCount  (gbi%numBins2d)
     real(8) :: myBinSum  (gbi%numBins2d)
     real(8) :: binStdDev (gbi%numBins2d)
-
     real(4), pointer :: ptr4d_r4 (:,:,:,:)
     real(8), pointer :: stdDev_r8(:,:,:,:)
-
     real(4), pointer :: bin2d(:,:,:)
-
     integer :: myLonBeg, myLonEnd
     integer :: myLatBeg, myLatEnd
     integer :: latIndex, lonIndex, varLevIndex, stepIndex, binIndex, memberIndex
     integer :: nVarLev, nStep, nEns, ier
-
     character(len=4), pointer :: varNamesList(:)
 
     if (mmpi_myid == 0 .and. verbose) then

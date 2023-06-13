@@ -23,7 +23,10 @@ contains
     !
     implicit none
 
+    ! Arguments:
     type(struct_obs) :: obsSpaceData 
+
+    ! Locals:
     integer :: index_body
 
     !$OMP PARALLEL DO PRIVATE(index_body)
@@ -45,7 +48,10 @@ contains
     !
     implicit none
 
+    ! Arguments:
     type(struct_obs) :: obsSpaceData
+
+    ! Locals:
     integer :: index_body
     
     !$OMP PARALLEL DO PRIVATE(index_body)

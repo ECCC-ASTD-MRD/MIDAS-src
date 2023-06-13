@@ -108,7 +108,7 @@ module windRotation_mod
     real(8), intent(in)       :: grd_xlon2    ! Horizontal grid xlon2_yan
     real(8), intent(in)       :: grd_xlat2    ! Horizontal grid xlat2_yan
 
-    ! locals
+    ! Locals:
     integer :: j1, j2
     real(8) :: zxlon1_8,zxlat1_8,zxlon2_8,zxlat2_8
     real(8) :: a_8, b_8, c_8, d_8, xyz1_8(msize), xyz2_8(msize)
@@ -207,6 +207,7 @@ module windRotation_mod
     ! 
     implicit none
 
+    ! Arguments:
     real(8), intent(out) :: F_xyz_8(msize) ! output
     real(8), intent(in)  :: F_lon          ! Input in degrees  
     real(8), intent(in)  :: F_lat          ! Input in degrees
@@ -231,7 +232,7 @@ module windRotation_mod
     integer :: kdimj1                ! second dimension of the first  matrix 
     integer :: kdimj2                ! second dimension of the second matrix
 
-    ! locals
+    ! Locals:
     integer :: ji1,jj2,jj
 
     pmat3(:,:) = 0.d0
@@ -264,7 +265,7 @@ module windRotation_mod
     real(8), intent(in)       :: LonRot       ! Rotated longitude in radians 
     character(*), intent(in)  :: mode         ! ToMetWind or ToRotWind
 
-    ! locals
+    ! Locals:
     integer :: index1, index2
     real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslat, sinlat, coslon, sinlon, ezCoeff_C, ezCoeff_D
     real(8) :: xyz(msize), uvcart(msize)
@@ -332,7 +333,7 @@ module windRotation_mod
     real(8), intent(in)       :: LonRot_in    ! Rotated longitude in radians 
     character(*), intent(in)  :: mode         ! ToMetWind or ToRotWind
 
-    ! locals
+    ! Locals:
     integer :: index1, index2
     real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslon, sinlon, rsinlat
     real(8) :: lat, lon, latRot, lonRot
@@ -418,7 +419,7 @@ module windRotation_mod
     real(8), intent(in)       :: LonRot_in    ! Rotated longitude in radians 
     character(*), intent(in)  :: mode         ! ToMetWind or ToRotWind
 
-    ! locals
+    ! Locals:
     integer :: index1, index2
     real(8) :: coslatr, sinlatr, coslonr, sinlonr, coslon, sinlon, rsinlat
     real(8) :: lat, lon, latRot, lonRot
@@ -501,7 +502,7 @@ module windRotation_mod
     real(8), intent(out)      :: LonOut       ! Output longitude in radians 
     character(*), intent(in)  :: mode         ! ToLatLonRot or ToLatLon
 
-    ! locals
+    ! Locals:
     real(8) :: CartIn(msize),CartOut(msize)
     real(8) :: rLon,rLat
 
@@ -583,9 +584,8 @@ module windRotation_mod
     real(8) :: pvec1(kdimj)      ! input vector
     integer :: kdimi             ! first dimension
     integer :: kdimj             ! second dimension
-    
 
-    ! locals
+    ! Locals:
     integer :: ji,jj
 
     pvec2(:) = 0.0d0

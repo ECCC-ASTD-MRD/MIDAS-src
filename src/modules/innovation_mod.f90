@@ -55,6 +55,7 @@ contains
        innovationMode_in, obsClean_opt )
     !
     !:Purpose: To initialize the observation parameters and constants
+    !
     implicit none
 
     ! Arguments:
@@ -192,19 +193,18 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_columnData)    :: columnTrlOnTrlLev
     type(struct_obs)           :: obsSpaceData
     type(struct_hco), pointer  :: hco_core
     type(struct_gsv)           :: stateVectorUpdateHighRes
     logical         , optional :: deallocInterpInfoNL_opt
 
-    ! locals
+    ! Locals:
     type(struct_vco), pointer :: vco_trl => null()
     integer                   :: ierr, nulnam, fnom, fclos
     logical                   :: deallocInterpInfoNL
     real(8), pointer          :: onecolumn(:)
-
     character(len=20) :: timeInterpType_nl  ! 'NEAREST' or 'LINEAR'
     integer           :: numObsBatches      ! number of batches for calling interp setup
 
@@ -286,12 +286,13 @@ contains
   subroutine inn_setupColumnsOnAnlIncLev(columnTrlOnTrlLev,columnTrlOnAnlIncLev)
     !
     !:Purpose: To create trial data columns on analysis increment levels
+    !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_columnData) :: columnTrlOnAnlIncLev, columnTrlOnTrlLev
 
-    ! locals
+    ! Locals:
     integer :: jvar, jlev, columnIndex
     real(8), pointer :: columnTrlOnAnlIncLev_ptr(:), columnTrlOnTrlLev_ptr(:)
 
@@ -424,6 +425,7 @@ contains
                                     analysisMode_opt )
     !
     !:Purpose: To initialize observation innovations using the nonlinear H
+    !
     implicit none
 
     ! Arguments:
@@ -648,6 +650,7 @@ contains
     !
     !:Purpose: To distribute header indices following the chosen strategy,
     !          current options: "LIKESPLITFILES", "ROUNDROBIN", "LATLONTILES".
+    !
     implicit none
 
     ! Arguments:
@@ -659,10 +662,10 @@ contains
     real(8) :: lat_r8, lon_r8
     real    :: lat_r4, lon_r4
     real    :: xpos_r4, ypos_r4
-
     integer :: numHeaderFile, headerIndex, latIndex, lonIndex, ierr
     integer :: IP, IP_x, IP_y
     integer :: gdxyfll
+
     !
     !- Determine obs_ipc (column) and obs_ipt (tile) according to distribution strategy
     !
@@ -754,8 +757,11 @@ contains
 
     ! Arguments:
     type(struct_obs) :: obsSpaceData
-    integer :: numAnalyses,indexAnalysis,indexBatch
-    integer :: obs_column_index_src,obs_column_index_dest
+    integer :: numAnalyses
+    integer :: indexAnalysis
+    integer :: indexBatch
+    integer :: obs_column_index_src
+    integer :: obs_column_index_dest
 
     ! Locals:
     integer :: numPerturbations
@@ -847,11 +853,11 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_hco), pointer, intent(inout) :: hco_trl
     type(struct_vco), pointer, intent(inout) :: vco_trl
 
-    ! locals
+    ! Locals:
     character(len=4), pointer :: anlVar(:)
 
     write(*,*) 'inn_getHcoVcoFromTrlmFile: START'

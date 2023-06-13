@@ -140,7 +140,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(8), intent(out) :: tb23                    ! radiance frequence 23 Ghz   
     real(8), intent(out) :: tb31                    ! radiance frequence 31 Ghz
     real(8), intent(out) :: tb50                    ! radiance frequence 50 Ghz  
@@ -154,7 +154,8 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
     integer,             intent(in) :: sensorIndex  ! numero de satellite (i.e. indice) 
-    ! Locals
+
+    ! Locals:
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     real(8) :: obsTb, ompTb, obsTbBiasCorr
 
@@ -228,7 +229,8 @@ contains
     !            - 150 Ghz = AMSU-B 2 = channel #44
     !
     implicit none
-    ! Arguments
+
+    ! Arguments:
     real(8), intent(out) :: tb89                    ! 89GHz radiance from observation
     real(8), intent(out) :: tb150                   ! 150GHz radiance from observation
     real(8), intent(out) :: tb1831                  ! 183GHz radiance from observation
@@ -241,7 +243,8 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
     integer,             intent(in) :: sensorIndex  ! numero de satellite (i.e. indice)
-    ! Locals
+
+    ! Locals:
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset, codtyp
     real(8) :: obsTb, btClear, ompTb, obsTbBiasCorr
 
@@ -321,14 +324,14 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,             intent(in) :: sensorIndex    ! numero de satellite (i.e. indice) 
     logical,             intent(in) :: RESETQC        ! yes or not reset QC flag
     integer,          intent(inout) :: qcIndicator(:) ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData   ! obspaceData Object
     integer,             intent(in) :: headerIndex    ! current header Index 
 
-    ! Locals
+    ! Locals:
     integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
@@ -379,7 +382,7 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex             ! numero de satellite (i.e. indice) 
     integer,          intent(in) :: channelForTopoFilter(:) ! channel list for filter
     real(8),          intent(in) :: altitudeForTopoFilter(:)! altitude threshold
@@ -387,7 +390,8 @@ contains
     integer,       intent(inout) :: qcIndicator(:)          ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData         ! obspaceData Object
     integer,             intent(in) :: headerIndex          ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: numFilteringTest, indexFilteringTest, testIndex
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
@@ -447,12 +451,13 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     integer,      intent(inout)  :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
@@ -498,12 +503,13 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, terrainTypeIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
@@ -553,13 +559,14 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex      ! numero de satellite (i.e. indice) 
     integer,          intent(in) :: maxScanAngleAMSU ! max scan angle 
     integer,       intent(inout) :: qcIndicator(:)   ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData  ! obspaceData Object
     integer,             intent(in) :: headerIndex   ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, satScanPosition, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
@@ -604,12 +611,13 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     real(8) :: satZenithAngle
@@ -661,14 +669,15 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex      ! numero de satellite (i.e. indice) 
     real(8),          intent(in) :: ZANGL            ! satellite constant param
     integer,          intent(in) :: maxScanAngleAMSU ! max scan angle 
     integer,       intent(inout) :: qcIndicator(:)   ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData  ! obspaceData Object
     integer,             intent(in) :: headerIndex   ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, satScanPosition, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     real(8) :: APPROXIM, ANGDif, satZenithAngle 
@@ -726,13 +735,14 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex         ! numero de satellite (i.e. indice) 
     real(8),          intent(in) :: modelInterpLandFrac ! model interpolated land fraction
     integer,       intent(inout) :: qcIndicator(:)      ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
     integer,             intent(in) :: headerIndex      ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
@@ -781,13 +791,14 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     logical,          intent(in) :: RESETQC         ! yes or not reset QC flag
     integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
@@ -836,14 +847,15 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     real(8),          intent(in) :: GROSSMIN(:)     ! Gross val min 
     real(8),          intent(in) :: GROSSMAX(:)     ! Gross val max 
     integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, GROSSERROR, actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags 
     real(8) :: obsTb
@@ -900,13 +912,14 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     integer,          intent(in) :: ICLWREJ(:)      ! rejection channel list
     integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, INDXCAN, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     real(8) :: clwUsedForQC, clwObsFGaveraged
@@ -1126,13 +1139,14 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     integer,          intent(in) :: ISCATREJ(:)     ! rejection channel list
     integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, INDXCAN, landQualifierIndice, terrainTypeIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     real(8) :: ZSEUILSCAT, scatIndexOverWaterObs
@@ -1196,7 +1210,7 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex                   ! numero de satellite (i.e. indice) 
     real(8),          intent(in) :: scatIndexOverLandObs          ! scattering index over land
     real(8),          intent(in) :: modelInterpSeaIce             ! glace de mer
@@ -1206,7 +1220,7 @@ contains
     integer,             intent(in) :: headerIndex                ! current header Index
     logical, intent(in), optional:: skipTestArr_opt(:)            ! array to set to skip the test
 
-    ! Locals
+    ! Locals:
     integer :: testIndex, chanIndex, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     real(8) :: ZSEUILSCATICE, ZSEUILSCATL, ZSEUILSCATW
@@ -1367,14 +1381,15 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     real(8),          intent(in) :: ROGUEFAC(:)     ! rogue factor 
     integer,          intent(in) :: ISFCREJ(:)      ! rejection channel list
     integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, INDXCAN, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     real(8) :: XCHECKVAL, clwThresh1, clwThresh2, errThresh1, errThresh2
@@ -1633,14 +1648,15 @@ contains
     !
 
     implicit none
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex       ! numero de satellite (i.e. indice) 
     real(8),          intent(in) :: modelInterpSeaIce ! gl
     integer,          intent(in) :: ISFCREJ2(:)       ! rejection channel list
     integer,       intent(inout) :: qcIndicator(:)    ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData   ! obspaceData Object
     integer,             intent(in) :: headerIndex    ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, ITRN, INDXCAN, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     integer :: terrainTypeIndice
@@ -1719,12 +1735,13 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, INDXCAN, landQualifierIndice, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags, codtyp
     real(8) :: BTcloudy, simulatedCloudEffect, observedCloudEffect
@@ -1827,7 +1844,7 @@ contains
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_obs),  intent(inout) :: obsSpaceData        ! obspaceData Object
     integer,              intent(in) :: headerIndex         ! current header Index 
     integer,              intent(in) :: sensorIndex         ! numero de satellite (i.e. indice)
@@ -2054,7 +2071,7 @@ contains
     !
     implicit none 
 
-    !Arguments:
+    ! Arguments:
     type(struct_obs),   intent(inout) :: obsSpaceData        ! obspaceData Object
     integer,               intent(in) :: headerIndex         ! current header Index 
     integer,               intent(in) :: sensorIndex         ! numero de satellite (i.e. indice)
@@ -2270,13 +2287,14 @@ contains
     !
     implicit none 
 
-    !Arguments:
+    ! Arguments:
     character(*),      intent(in) :: instName       ! Instrument Name
     integer,           intent(in) :: qcIndicator(:) ! indicateur controle de qualite tovs par canal (=0 ok, >0 rejet)
     integer,           intent(in) :: sensorIndex    ! numero d'identificateur du satellite
     character(len=15), intent(in) :: satelliteId(:) ! identificateur du satellite
     logical,           intent(in) :: LDprint        ! mode: imprimer ou cumuler?
-    !Locals
+
+    ! Locals:
     integer :: numSats, JI, JJ, JK, INTOTOBS, INTOTACC, actualNumChannel, channelIndex
     integer, allocatable, save :: INTOT(:)    ! INTOT(tvs_nsensors)
     integer, allocatable, save :: INTOTRJF(:) ! INTOTRJF(tvs_nsensors)
@@ -2455,6 +2473,7 @@ contains
     integer,             intent(in) :: KCHKPRF      ! indicateur global controle de qualite tovs. Code:
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header index
+
     ! Locals:
     integer :: obsGlobalMarker
 
@@ -2485,6 +2504,7 @@ contains
     real(8),    intent(in) :: modelInterpSeaIce      ! sea ice
     type(struct_obs), intent(inout) :: obsSpaceData  ! obspaceData Object
     integer,             intent(in) :: headerIndex   ! current header Index 
+
     ! Locals: 
     integer :: landQualifierIndice, terrainTypeIndice
 
@@ -2888,14 +2908,15 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: itest(:)        ! test number
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     integer,       intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
     integer,       intent(inout) :: qcIndicator(:)  ! indicateur du QC par canal
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
@@ -2944,7 +2965,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: itest(:)           ! test number
     integer,          intent(in) :: sensorIndex        ! numero de satellite (i.e. indice) 
     real(8),          intent(in) :: modelInterpTerrain ! topo aux point d'obs
@@ -2954,7 +2975,8 @@ contains
     integer,       intent(inout) :: B7CHCK(:)          ! bit=7 of channel is on (=1) or off(=0)
     type(struct_obs), intent(inout) :: obsSpaceData    ! obspaceData Object
     integer,             intent(in) :: headerIndex     ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, INDXTOPO, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
@@ -3011,7 +3033,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: itest(:)        ! test number
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     logical,          intent(in) :: RESETQC         ! resetqc logical
@@ -3019,7 +3041,8 @@ contains
     integer,       intent(inout) :: B7CHCK(:)       ! bit=7 of channel is on (=1) or off(=0)
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, IBIT, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
@@ -3079,7 +3102,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: itest(:)        ! test number
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     real(8),          intent(in) :: ROGUEFAC(:)     ! rogue factor 
@@ -3091,7 +3114,7 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index
 
-    ! Locals
+    ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     real(8) :: XCHECKVAL, clwThresh1, clwThresh2, errThresh1, errThresh2
@@ -3248,7 +3271,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: itest(:)        ! test number
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice)
     real(8),          intent(in) :: ROGUEFAC(:)     ! rogue factor
@@ -3259,7 +3282,7 @@ contains
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
 
-    ! Locals
+    ! Locals:
     integer :: testIndex, INDXCAN, newInformationFlag, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     real(8) :: XCHECKVAL, clwThresh1, clwThresh2, sigmaThresh1, sigmaThresh2
@@ -3380,12 +3403,13 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,          intent(in) :: itest(:)        ! test number
     integer,          intent(in) :: sensorIndex     ! numero de satellite (i.e. indice) 
     type(struct_obs), intent(inout) :: obsSpaceData ! obspaceData Object
     integer,             intent(in) :: headerIndex  ! current header Index 
-    ! Locals
+
+    ! Locals:
     integer :: testIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd 
     integer :: obsChanNum, obsChanNumWithOffset, obsFlags
     character(len=9) :: stnId
@@ -3429,7 +3453,7 @@ contains
     !
 
     implicit none
-    !Arguments
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
     integer,          intent(in) :: headerIndex         ! current header Index 
     integer,          intent(in) :: sensorIndex         ! numero de satellite (i.e. indice)
@@ -3700,7 +3724,7 @@ contains
     !
 
     implicit none
-    !Arguments
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData     ! obspaceData Object
     integer,          intent(in) :: headerIndex         ! current header Index 
     integer,          intent(in) :: sensorIndex         ! numero de satellite (i.e. indice)
@@ -3976,7 +4000,7 @@ contains
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     character(*), intent(in)  :: instName            ! Instrument Name
     real(8),      intent(out) :: modelInterpLandFrac ! model interpolated land fraction.
     real(8),      intent(out) :: modelInterpTerrain  ! topographie filtree (en metres) et interpolees
@@ -4257,7 +4281,7 @@ contains
     !
     implicit none
 
-    ! Arguments:
+    ! Arguments::
     integer,             intent(in) :: ilsmOpt                ! option for "interpolated" value of MG, LG at each location, 1 = use MAX value taken from all mesh grid points, 2 = use CENTRAL mesh point value (value at obs location), 3 = use AVG value of all mesh grid points
     integer,            intent(out) :: calcLandQualifierIndice! land/sea qualifier (0 = land, 1 = sea)
     integer,            intent(out) :: calcTerrainTypeIndice  ! terrain-type (-1 land/open water, 0 = ice)
@@ -4274,39 +4298,29 @@ contains
     integer :: idum4, idum5, idum6, idum7, idum8, idum9, idum10, idum11
     integer :: idum12, idum13, idum14, idum15, idum16, idum17, idum18
     integer :: indx, ii, jj, nlat, nlon
-
     integer, parameter :: ii_obsloc = ((mxlat * mxlon) / 2) + 1  ! 1D-index of central mesh-point (obs location)
-
     real(4), parameter :: pi = 3.141592654
     real(4), parameter :: MGthresh = 0.01, LGthresh = 0.01
     real(4), parameter :: rlat_km = 40.0, rlon_km = 40.0
     real(4), parameter :: rkm_per_deg = 111.195
-
     real(4) :: xlat, xlatrad, xlon, rii, rjj
     real(4) :: dlat, dlon, obsLat, obsLon
-
     character(len=12) :: etikxx
     character(len=4)  :: nomvxx
     character(len=2)  :: typxx
     character(len=1), save :: grtyp, grtyplg
-
     logical  :: llg
-
-    ! F90 allocatable arrays:
     real(4), allocatable, save :: mg(:),lg(:)
     real(4), allocatable       :: latmesh(:), lonmesh(:)
     real(4), allocatable       :: mgintob(:), lgintob(:)
     real(4), allocatable       :: zlatbox(:), zlonbox(:)
     real(4) :: mgintrp, lgintrp
-
     ! RMNLIB interpolating functions:
     integer :: ezsetopt, ezqkdef
     integer :: gdllsval, gdid, gdidlg
-
     ! Define FORTRAN FST functions:
     integer, external :: fstinf, fstprm, fstlir, fnom, fclos
-    integer, external :: fstouv, fstfrm, fstinl, fstvoi
-
+    integer, external :: fstouv, fstfrm
     integer :: idum1, idum2, idum3
 
     obsLat = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) 
@@ -4465,6 +4479,7 @@ contains
 
     ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData  ! ObsSpaceData object
+
     ! Locals:
     integer, parameter :: ilsmOpt = 2   ! OPTION for values of MG (land/sea mask) and LG (ice) 
                                         ! at each observation point using values on 5x5 mesh 
@@ -4533,7 +4548,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(8),  intent(in) :: ztbThresholdMin         ! ztb threshold for rejection
     real(8),  intent(in) :: ztbThresholdMax         ! ztb threshold for rejection
     logical, intent(out) :: grossrej                ! logical array defining which obs are to be rejected
@@ -4541,7 +4556,7 @@ contains
     integer,             intent(in) :: headerIndex  ! current header Index 
     integer,             intent(in) :: sensorIndex  ! numero de satellite (i.e. indice)
 
-    ! Locals
+    ! Locals:
     integer :: actualNumChannel, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsChanNum, obsChanNumWithOffset
     real(8) :: obsTb, obsTbBiasCorr
@@ -4615,7 +4630,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,    intent(in) :: calcLandQualifierIndice     ! land/sea qualifier (0 = land, 1 = sea)
     integer,    intent(in) :: calcTerrainTypeIndice       ! terrain-type (-1 land/open water, 0 = ice)
     logical,    intent(in) :: grossrej                    ! .true. if 1 or more Tb fail gross error check
@@ -4625,7 +4640,7 @@ contains
     integer,             intent(in) :: headerIndex        ! current header Index 
     integer,             intent(in) :: sensorIndex        ! numero de satellite (i.e. indice)
 
-    ! Locals
+    ! Locals:
     integer :: indx1, icount, landQualifierIndice, terrainTypeIndice, satScanPosition, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset, channelIndex
     integer :: obsQcFlag1(3), obsQcFlag2
@@ -4875,7 +4890,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,               intent(in) :: calcLandQualifierIndice! land/sea qualifier (0 = land, 1 = sea)
     integer,               intent(in) :: calcTerrainTypeIndice  ! terrain-type (-1 land/open water, 0 = ice)
     logical,              intent(out) :: reportHasMissingTb     ! true if Tb(obsTb) are set to missing_value
@@ -4885,7 +4900,7 @@ contains
     integer,             intent(in) :: headerIndex              ! current header Index 
     integer,             intent(in) :: sensorIndex              ! numero de satellite (i.e. indice)
 
-    ! Locals
+    ! Locals:
     integer :: icount, landQualifierIndice, terrainTypeIndice, satScanPosition, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, channelIndex
     integer, allocatable :: obsChannels(:)
@@ -5108,7 +5123,7 @@ contains
     integer,             intent(in) :: headerIndex    ! current header Index 
     integer,             intent(in) :: sensorIndex    ! numero de satellite (i.e. indice)
 
-    ! Locals
+    ! Locals:
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     integer :: ier, actualNumChannel
     real(8) :: ice, tb23, tb23FG, tb31, tb31FG, tb50, tb89, tb165
@@ -5340,7 +5355,7 @@ contains
     integer,             intent(in) :: headerIndex     ! current header Index 
     integer,             intent(in) :: sensorIndex     ! numero de satellite (i.e. indice)
 
-    ! Locals
+    ! Locals:
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     integer :: ier, actualNumChannel
     real(8) :: ice, tb23, tb23FG, tb31, tb31FG, tb50, tb89, tb165
@@ -5548,7 +5563,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(8),    intent(in) :: scatec                ! ECMWF scattering index from tb89 & tb165
     real(8),    intent(in) :: scatbg                ! Bennartz-Grody scattering index from tb89 & tb165
     real(8),    intent(in) :: SeaIce                ! computed sea-ice fraction from tb23 & tb50
@@ -5565,7 +5580,7 @@ contains
     integer,             intent(in) :: headerIndex  ! current header Index 
     integer,             intent(in) :: sensorIndex  ! numero de satellite (i.e. indice)
 
-    ! Locals
+    ! Locals:
     integer :: indx, n_cld, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     real(8) :: ztb_amsub3, bcor_amsub3, ztb_amsub5, bcor_amsub5, ztb183(5)
@@ -5689,7 +5704,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(8),             intent(in) :: scatec               ! ECMWF scattering index from tb89 & tb165
     real(8),             intent(in) :: SeaIce               ! computed sea-ice fraction from tb23 & tb50
     logical,             intent(in) :: useUnbiasedObsForClw ! use unbiased Tb for CLW calculation
@@ -5705,7 +5720,7 @@ contains
     integer,             intent(in) :: headerIndex          ! current header Index 
     integer,             intent(in) :: sensorIndex          ! numero de satellite (i.e. indice)
 
-    ! Locals
+    ! Locals:
     integer :: indx, n_cld, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     real(8) :: ztb_amsub3, bcor_amsub3, ztb_amsub5, bcor_amsub5,  ztb183(5)
@@ -5825,7 +5840,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     logical,    intent(in) :: qcRejectLogic(:)              ! .true. if channel is rejected
     real(8),    intent(in) :: scatbg                        ! Bennartz-Grody scattering index from tb89 & tb165
     real(8),    intent(in) :: scatec                        ! ECMWF scattering index from tb89 & tb165
@@ -5846,7 +5861,7 @@ contains
     integer,             intent(in) :: headerIndex          ! current header Index 
     integer,             intent(in) :: sensorIndex          ! numero de satellite (i.e. indice) 
 
-    ! Locals
+    ! Locals:
     integer :: INDXCAN, codtyp, obsGlobalMarker, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     integer :: obsFlags
@@ -6038,7 +6053,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     logical,    intent(in) :: qcRejectLogic(:)              ! .true. if channel is rejected
     real(8),    intent(in) :: scatec                        ! ECMWF scattering index from tb89 & tb165
     real(8),    intent(in) :: scatbg                        ! Bennartz-Grody scattering index from tb89 & tb165
@@ -6061,7 +6076,7 @@ contains
     integer,             intent(in) :: headerIndex          ! current header Index 
     integer,             intent(in) :: sensorIndex          ! numero de satellite (i.e. indice) 
 
-    ! Locals
+    ! Locals:
     integer :: INDXCAN, codtyp, obsGlobalMarker, newInformationFlag, actualNumChannel
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, obsChanNum, obsChanNumWithOffset
     integer :: obsFlags
@@ -6258,6 +6273,7 @@ contains
     real(8), intent(in) :: errThresh1      ! sigmaO corresponding to first cloud predictor threshold
     real(8), intent(in) :: errThresh2      ! sigmaO corresponding to second cloud predictor threshold
     real(8), intent(in) :: cldPredUsed     ! cloud predictor for the obs
+    ! Result:
     real(8)             :: sigmaObsErrUsed ! estimated sigmaO for the obs
 
     if (cldPredUsed <= cldPredThresh1) then
@@ -6283,16 +6299,17 @@ contains
     !
     implicit None
 
-    !Arguments
+    ! Arguments:
     integer,               intent(in) :: headerIndex  ! current header Index 
     integer,              intent(out) :: sensorIndex  ! find tvs_sensor index corresponding to current obs
     type(struct_obs),   intent(inout) :: obsSpaceData ! obspaceData Object
+    ! Result:
     logical :: sensorIndexFound
 
-    ! Locals
+    ! Locals:
     integer :: iplatform, instrum, isat, iplatf, instr
 
-   ! find tvs_sensor index corresponding to current obs
+    ! find tvs_sensor index corresponding to current obs
     iplatf      = obs_headElem_i( obsSpaceData, OBS_SAT, headerIndex )
     instr       = obs_headElem_i( obsSpaceData, OBS_INS, headerIndex )
 
@@ -6320,10 +6337,10 @@ contains
     !
     implicit None
 
-    !Arguments
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData   ! obspaceData Object
 
-    ! Locals
+    ! Locals:
     integer               :: headerIndex              ! header Index
     integer               :: sensorIndex              ! satellite index in obserror file
     integer               :: codtyp                   ! codetype

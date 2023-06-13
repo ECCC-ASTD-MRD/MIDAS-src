@@ -43,7 +43,7 @@ contains
     type(struct_obs) :: obsSpaceData
     integer          :: nstepobs
 
-    ! locals
+    ! Locals:
     integer :: stepIndex, headerIndex, familyIndex
     integer :: bodyIndex, bodyIndexBeg, bodyIndexEnd, nsize, ierr
     integer, allocatable :: idataass(:,:), inumheader(:,:)
@@ -278,7 +278,7 @@ contains
   subroutine oti_deallocate(oti)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_oti), pointer :: oti
 
     if (associated(oti%timeInterpWeight)) deallocate(oti%timeInterpWeight)
@@ -296,7 +296,7 @@ contains
     ! Arguments:
     type(struct_oti), pointer :: oti
 
-    ! locals
+    ! Locals:
     integer              :: numHeader, numHeaderMax, numStep, nsize, ierr
     real(8), allocatable :: timeInterpWeightMax(:,:)
 
@@ -352,9 +352,10 @@ contains
 
     ! Arguments:
     type(struct_oti), pointer :: oti
-    real(8)                   :: weight_out
     integer, intent(in)       :: headerIndex
     integer, intent(in)       :: stepObs
+    ! Result:
+    real(8)                   :: weight_out
 
     weight_out = oti%timeInterpWeight(headerIndex, stepObs)
 
@@ -367,10 +368,11 @@ contains
   
     ! Arguments:
     type(struct_oti), pointer :: oti
-    real(8)                   :: weight_out
     integer, intent(in)       :: headerIndex
     integer, intent(in)       :: stepObs
     integer, intent(in)       :: procIndex
+    ! Result:
+    real(8)                   :: weight_out
 
     weight_out = oti%timeInterpWeightMpiGlobal(headerIndex, stepObs, procIndex)
 
@@ -383,8 +385,9 @@ contains
 
     ! Arguments:
     type(struct_oti), pointer :: oti
-    logical                   :: allZero
     integer, intent(in)       :: headerIndex
+    ! Result:
+    logical                   :: allZero
 
     if ( .not.associated(oti%timeInterpWeight) ) then
       call utl_abort('oti_timeInterpWeightAllZero: oti_setup must first be called')
@@ -399,13 +402,13 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_oti), pointer :: oti
     type(struct_obs)          :: obsSpaceData
     integer                   :: headerIndexBeg
     integer                   :: headerIndexEnd
 
-    ! locals
+    ! Locals:
     integer :: headerIndex, bodyIndex, bodyIndexBeg, bodyIndexEnd
     integer :: obsDAT, obsETM
     integer, save :: numWrites = 0

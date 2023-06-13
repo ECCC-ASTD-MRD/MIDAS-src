@@ -44,6 +44,8 @@ module midasMpi_mod
 
   subroutine mmpi_initialize()
     implicit none
+
+    ! Locals:
     integer :: mythread,numthread,omp_get_thread_num,omp_get_num_threads,rpn_comm_mype
     integer :: ierr
     integer :: rpn_comm_comm, rpn_comm_datyp
@@ -105,12 +107,14 @@ module midasMpi_mod
 
     implicit none
 
+    ! Arguments:
     integer, intent(out) :: npex
     integer, intent(out) :: npey
 
+    ! Locals:
     integer :: ierr
-    namelist /ptopo/npex,npey
     integer :: nulnam,fnom,fclos
+    namelist /ptopo/npex,npey
 
     npex=1
     npey=1
@@ -130,9 +134,11 @@ module midasMpi_mod
 
     implicit none
 
+    ! Arguments:
     real(8), intent(inout)       :: sendRecvValue ! value to be summed over all mpi tasks
     character(len=*), intent(in) :: comm          ! rpn_comm communicator
 
+    ! Locals:
     integer :: nsize, ierr, root, rank
     real(8), allocatable :: allvalues(:)
 
@@ -170,9 +176,11 @@ module midasMpi_mod
     !
     implicit none
 
+    ! Arguments:
     real(8)         , intent(inout)  :: sendRecvVector(:) ! 1-D vector to be summed over all mpi tasks
     character(len=*), intent(in)     :: comm              ! rpn_comm communicator
 
+    ! Locals:
     integer :: nprocs_mpi, numElements, ierr, root, rank
     real(8), allocatable :: all_sendRecvVector(:,:)
 
@@ -215,9 +223,11 @@ module midasMpi_mod
     !
     implicit none
 
+    ! Arguments:
     real(8)         , intent(inout)  :: sendRecvVector(:,:) ! 2-D vector to be summed over all mpi tasks
     character(len=*), intent(in)     :: comm                ! rpn_comm communicator
 
+    ! Locals:
     integer :: nprocs_mpi, numElements1, numElements2, ierr, root, rank
     real(8), allocatable :: all_sendRecvVector(:,:,:)
 
@@ -261,11 +271,13 @@ module midasMpi_mod
     !
     implicit none
 
+    ! Arguments:
     real(8)         , intent(in)  :: sendVector(:) ! 1-D vector to be summed over all mpi tasks
     real(8)         , intent(out) :: recvVector(:) ! 1-D vector to be summed over all mpi tasks
     integer         , intent(in)  :: root          ! mpi task id where data is put
     character(len=*), intent(in)  :: comm          ! rpn_comm communicator
 
+    ! Locals:
     integer :: nprocs_mpi, numElements, ierr, rank
     real(8), allocatable :: all_sendRecvVector(:,:)
 
@@ -309,11 +321,13 @@ module midasMpi_mod
     !
     implicit none
 
+    ! Arguments:
     real(8)         , intent(in)  :: sendVector(:,:) ! 2-D vector to be summed over all mpi tasks
     real(8)         , intent(out) :: recvVector(:,:) ! 2-D vector to be summed over all mpi tasks
     integer         , intent(in)  :: root            ! mpi task id where data will be put
     character(len=*), intent(in)  :: comm            ! rpn_comm communicator
 
+    ! Locals:
     integer :: nprocs_mpi, numElements1, numElements2, ierr, rank
     real(8), allocatable :: all_sendRecvVector(:,:,:)
 
@@ -358,11 +372,13 @@ module midasMpi_mod
     !
     implicit none
 
+    ! Arguments:
     real(8)         , intent(in)  :: sendVector(:,:,:) ! 3-D vector to be summed over all mpi tasks
     real(8)         , intent(out) :: recvVector(:,:,:) ! 3-D vector to be summed over all mpi tasks
     integer         , intent(in)  :: root              ! mpi task id where data is put
     character(len=*), intent(in)  :: comm              ! rpn_comm communicator
 
+    ! Locals:
     integer :: nprocs_mpi, numElements1, numElements2, numElements3, ierr, rank
     real(8), allocatable :: all_sendRecvVector(:,:,:,:)
 
@@ -408,6 +424,7 @@ module midasMpi_mod
     !
     implicit none
 
+    ! Arguments:
     character(len=nchar), intent(in) :: str_list(nlist)
     character(len=*)    , intent(in) :: comm
     integer             , intent(in) :: nlist
@@ -416,6 +433,7 @@ module midasMpi_mod
     character(len=nchar), intent(out) :: str_list_all(nlist,nproc)
     integer, intent(out) :: ierr
 
+    ! Locals:
     integer :: num_list(nlist*nchar),num_list_all(nlist*nchar,nproc)
     integer :: ilist,ichar,iproc
               
@@ -449,6 +467,8 @@ module midasMpi_mod
     ! :Purpose: compute parameters that define the mpi distribution of
     !          latitudes over tasks in Y direction (npey)
     implicit none
+
+    ! Arguments:
     integer           :: nj
     integer           :: latPerPE
     integer           :: latPerPEmax
@@ -459,6 +479,7 @@ module midasMpi_mod
     integer, optional :: myLatHalfEnd_opt
     logical, optional :: divisible_opt
 
+    ! Locals:
     integer :: latPerPEmin, ierr
     logical, save :: firstCall = .true.
 
@@ -503,8 +524,11 @@ module midasMpi_mod
     ! :Purpose: use same logic as setup_latbands to compute myidy
     !          corresponding to a latitude grid index
     implicit none
+
+    ! Arguments:
     integer :: latIndex
     integer :: nj
+    ! Result:
     integer :: IP_y
 
     IP_y = (latIndex-1) / floor( real(nj) / real(mmpi_npey) )
@@ -518,6 +542,7 @@ module midasMpi_mod
     !          longitudes over tasks in X direction (npex)
     implicit none
 
+    ! Arguments:
     integer          :: ni
     integer          :: lonPerPE
     integer          :: lonPerPEmax
@@ -525,6 +550,7 @@ module midasMpi_mod
     integer          :: myLonEnd
     logical, optional :: divisible_opt
 
+    ! Locals:
     integer :: lonPerPEmin, ierr
     logical, save :: firstCall = .true.
 
@@ -556,8 +582,10 @@ module midasMpi_mod
     !          corresponding to a longitude grid index
     implicit none
 
+    ! Arguments:
     integer :: lonIndex
     integer :: ni
+    ! Result:
     integer :: IP_x
 
     IP_x = (lonIndex-1) / floor( real(ni) / real(mmpi_npex) )
@@ -570,11 +598,15 @@ module midasMpi_mod
     ! :Purpose: compute parameters that define the mpi distribution of
     !          wavenumber m over tasks in Y direction (npey)
     implicit none
+
+    ! Arguments:
     integer :: ntrunc
     integer :: mymBeg
     integer :: mymEnd
     integer :: mymSkip
     integer :: mymCount
+
+    ! Locals:
     integer :: jm
 
     mymBeg = mmpi_myidy
@@ -595,11 +627,14 @@ module midasMpi_mod
     !          wavenumber n over tasks in X direction (npex)
     implicit none
 
+    ! Arguments:
     integer :: ntrunc
     integer :: mynBeg
     integer :: mynEnd
     integer :: mynSkip
     integer :: mynCount
+
+    ! Locals:
     integer :: jn
 
     mynBeg = mmpi_myidx
@@ -620,10 +655,13 @@ module midasMpi_mod
     !          levels over tasks in X direction (npex)
     implicit none
 
+    ! Arguments:
     integer :: numlevels
     integer :: myLevBeg
     integer :: myLevEnd
     integer :: myLevCount
+
+    ! Locals:
     integer :: jlev
     integer :: jproc
     integer :: factor
@@ -673,10 +711,13 @@ module midasMpi_mod
     !          variables/levels (i.e. 1->nk) over all tasks (nprocs)
     implicit none
 
+    ! Arguments:
     integer :: numk
     integer :: mykBeg
     integer :: mykEnd
     integer :: mykCount
+
+    ! Locals:
     integer :: jk
     integer :: jproc
     integer :: mykCounts(mmpi_nprocs)

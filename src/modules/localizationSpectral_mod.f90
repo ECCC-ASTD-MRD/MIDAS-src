@@ -63,25 +63,23 @@ CONTAINS
                        locMode, horizLengthScale1, horizLengthScale2, vertLengthScale, &
                        cvDim_out, lsp, nEnsOverDimension_out)
     implicit none
-  
-    type(struct_lsp), pointer ::  lsp
 
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
     type(struct_hco), pointer :: hco_loc
+    integer,          intent(in) :: nEns
+    integer,          intent(in) :: nLev
+    integer,          intent(in) :: nTrunc
+    real(8),          intent(in) :: vertLocation(nLev)
+    real(8),          intent(in) :: horizLengthScale1
+    real(8),          intent(in) :: horizLengthScale2
+    real(8),          intent(in) :: vertLengthScale
+    character(len=*), intent(in) :: locType
+    character(len=*), intent(in) :: locMode
+    integer,          intent(out) :: cvDim_out
+    integer,          intent(out) :: nEnsOverDimension_out
 
-    integer, intent(in) :: nEns
-    integer, intent(in) :: nLev
-    integer, intent(in) :: nTrunc
-
-    real(8), intent(in) :: vertLocation(nLev)
-    real(8), intent(in) :: horizLengthScale1
-    real(8), intent(in) :: horizLengthScale2
-    real(8), intent(in) :: vertLengthScale
-
-    character(len=*), intent(in) :: locType, locMode
-
-    integer, intent(out) :: cvDim_out
-    integer, intent(out) :: nEnsOverDimension_out
-
+    ! Locals:
     integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, mymCount, mynCount, mIndex, nIndex, maxMyNla
     integer :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount, ierr
 
@@ -222,17 +220,17 @@ CONTAINS
                                        vertLocation,localizationMode)
     implicit none
 
+    ! Arguments:
     type(struct_lsp), pointer    :: lsp
-
-    real(8), intent(in) :: horizLengthScale1,horizLengthScale2 
-    real(8), intent(in) :: vertLengthScale
-    real(8), intent(in) :: vertLocation(lsp%nLev)
+    real(8),          intent(in) :: horizLengthScale1
+    real(8),          intent(in) :: horizLengthScale2 
+    real(8),          intent(in) :: vertLengthScale
+    real(8),          intent(in) :: vertLocation(lsp%nLev)
     character(len=*), intent(in) :: localizationMode
 
+    ! Locals:
     real(8)  :: zr,zcorr
-
     integer :: levIndex,levIndex1,levIndex2,ierr
-
     real(8) :: horizLengthScaleAll(lsp%nLev)
 
     if (verbose) write(*,*) 'Entering setupLocalizationMatrices'
@@ -312,19 +310,18 @@ CONTAINS
   SUBROUTINE setupGlobalSpectralHLoc(lsp, local_length)
     implicit none
 
-    type(struct_lsp), pointer     :: lsp
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
+    real(8),      intent(in)  :: local_length(lsp%nLev)
 
-    real(8), intent(in)  :: local_length(lsp%nLev)
-
+    ! Locals:
     real(8) ::   zlc,zr,zpole,zcorr
-
     ! NOTE: arrays passed to spectral transform are dimensioned as follows
     !       gd: lat/lon tiles and sp: member index
     real(8) :: sp_mpilocal(lsp%nla_mpilocal,lsp%nphase,lsp%nLev)
     real(8) :: sp_mpiglobal(lsp%nla_mpiglobal,lsp%nphase,lsp%nLev)
     real(8) :: sp_mympiglobal(lsp%nla_mpiglobal,lsp%nphase,lsp%nLev)
     real(8) :: zgd_gst(lsp%myLonBeg:lsp%myLonEnd,lsp%myLatBeg:lsp%myLatEnd,lsp%nLev)
-
     integer :: nIndex,latIndex,lonIndex,levIndex,nsize,ierr
     integer :: ila_mpiglobal,jla_mpilocal,gstID2
 
@@ -411,20 +408,17 @@ CONTAINS
   SUBROUTINE setupLamSpectralHLoc(lsp, local_length)
     implicit none
 
-    type(struct_lsp), pointer     :: lsp
-    
-    real(8), intent(in)  :: local_length(lsp%nLev)
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
+    real(8),      intent(in)  :: local_length(lsp%nLev)
 
+    ! Locals:
     real(8), allocatable :: sp(:,:,:)
     real(8), allocatable :: gd(:,:,:)
     real(8), allocatable :: SumWeight(:)
-
     real(8) :: sum
-
     type(struct_lst)     :: lst_hloc    ! Spectral transform Parameters
-
     integer :: k, p, e, ila, totwvnb
-
     character(len=19)   :: kind
 
     if ( local_length(1) > 0.d0 ) then
@@ -566,18 +560,17 @@ CONTAINS
   SUBROUTINE lsp_Lsqrt(lsp, controlVector, ensAmplitude, stepIndex)
     implicit none
 
-    type(struct_lsp), pointer     :: lsp
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
+    integer,      intent(in)  :: stepIndex
+    real(8),      intent(in)  :: controlVector(lsp%cvDim_mpilocal)
+    type(struct_ens)          :: ensAmplitude
 
-    integer, intent(in)  :: stepIndex
-    real(8), intent(in)  :: controlVector(lsp%cvDim_mpilocal)
-    type(struct_ens)     :: ensAmplitude
-
+    ! Locals:
     integer :: levIndex1,levIndex2,jla,p,memberIndex
     integer :: levIndex, latIndex
     character(len=19) :: kind
-
     real(8) ,allocatable :: sp_hLoc(:,:,:,:),sp_vhLoc(:,:,:,:) 
-
     real(8), pointer :: ensAmplitude_oneLev(:,:,:,:)
 
     allocate(sp_vhLoc(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEnsOverDimension))
@@ -659,11 +652,12 @@ CONTAINS
   SUBROUTINE globalSpectralHLoc(lsp, sp_all, controlVector)
     implicit none
 
-    type(struct_lsp), pointer     :: lsp
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
+    real(8),      intent(in)  :: controlVector(lsp%cvDim_mpilocal)
+    real(8),      intent(out) :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
-    real(8), intent(in)  :: controlVector(lsp%cvDim_mpilocal)
-    real(8), intent(out) :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
-
+    ! Locals:
     integer :: levIndex, mIndex, nIndex, ila_mpilocal, ila_mpiglobal, dimIndex, memberIndex 
 
     if (verbose) write(*,*) 'Entering globalSpectralHloc'
@@ -713,11 +707,12 @@ CONTAINS
   SUBROUTINE lamSpectralHLoc(lsp, sp_all, controlVector)
     implicit none
 
-    type(struct_lsp), pointer     :: lsp
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
+    real(8),      intent(in)  :: controlVector(lsp%cvDim_mpilocal)
+    real(8),      intent(out) :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
-    real(8), intent(in)  :: controlVector(lsp%cvDim_mpilocal)
-    real(8), intent(out) :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
-
+    ! Locals:
     integer :: levIndex,jla, dimIndex, memberIndex, p 
 
     if (verbose) write(*,*) 'Entering lamSpectralHloc'
@@ -755,18 +750,17 @@ CONTAINS
   SUBROUTINE lsp_LsqrtAd(lsp, ensAmplitude, controlVector, stepIndex)
     implicit none
 
-    type(struct_lsp), pointer      :: lsp
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
+    integer,     intent(in)   :: stepIndex
+    real(8),     intent(out)  :: controlVector(lsp%cvDim_mpilocal)
+    type(struct_ens)          :: ensAmplitude
 
-    integer, intent(in)   :: stepIndex
-    real(8), intent(out)  :: controlVector(lsp%cvDim_mpilocal)
-    type(struct_ens)      :: ensAmplitude
-
+    ! Locals:
     integer :: levIndex1,levIndex2,jla,memberIndex,p
     integer :: levIndex
     character(len=19) :: kind
-
     real(8) ,allocatable :: sp_hLoc(:,:,:,:),sp_vhLoc(:,:,:,:)
-
     real(8), pointer :: ensAmplitude_oneLev(:,:,:,:)
 
     if (verbose) write(*,*) 'Entering lsp_LsqrtAd'
@@ -838,11 +832,12 @@ CONTAINS
   SUBROUTINE globalSpectralHLocAd(lsp, sp_all, controlVector)
     implicit none
 
-    type(struct_lsp), pointer       :: lsp
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
+    real(8),    intent(out)   :: controlVector(lsp%cvDim_mpilocal)
+    real(8),    intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
-    real(8), intent(out)   :: controlVector(lsp%cvDim_mpilocal)
-    real(8), intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
-
+    ! Locals:
     integer :: levIndex, mIndex, nIndex, ila_mpilocal, ila_mpiglobal, dimIndex, memberIndex 
 
     if (verbose) write(*,*) 'Entering globalSpectralHLocAd'
@@ -894,11 +889,12 @@ CONTAINS
   SUBROUTINE lamSpectralHLocAd(lsp, sp_all, controlVector)
     implicit none
 
-    type(struct_lsp), pointer       :: lsp
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
+    real(8),    intent(out)   :: controlVector(lsp%cvDim_mpilocal)
+    real(8),    intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
 
-    real(8), intent(out)   :: controlVector(lsp%cvDim_mpilocal)
-    real(8), intent(in)    :: sp_all(lsp%nla_mpilocal,lsp%nphase,lsp%nLev,lsp%nEns)
-
+    ! Locals:
     integer :: jla, levIndex, dimIndex, memberIndex, p
 
     if (verbose) write(*,*) 'Entering lamSpectralHLocAd'
@@ -937,7 +933,8 @@ CONTAINS
   SUBROUTINE lsp_finalize(lsp)
     implicit none
 
-    type(struct_lsp), pointer      :: lsp
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
 
     if (verbose) write(*,*) 'Entering lsp_finalize'
     call lsp_check(lsp)
@@ -953,21 +950,18 @@ CONTAINS
   SUBROUTINE lsp_reduceToMPILocal(lsp,cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    type(struct_lsp), pointer     :: lsp
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
+    real(8),      intent(out) :: cv_mpilocal(lsp%cvDim_mpilocal)
+    real(8),      intent(in)  :: cv_mpiglobal(:)
 
-    real(8), intent(out) :: cv_mpilocal(lsp%cvDim_mpilocal)
-    real(8), intent(in)  :: cv_mpiglobal(:)
-
+    ! Locals:
     real(8), allocatable :: cv_allmaxmpilocal(:,:)
-
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)
-
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
-
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-
     integer :: jproc, cvDim_maxmpilocal
     integer :: dimIndex_mpilocal, dimIndex_mpiglobal, ila_mpilocal, ila_mpiglobal
     integer :: mIndex, nIndex, memberIndex, levIndex, ierr, p, nlaMax
@@ -1186,26 +1180,23 @@ CONTAINS
   SUBROUTINE lsp_reduceToMPILocal_r4(lsp,cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    type(struct_lsp), pointer     :: lsp
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
+    real(4),      intent(out) :: cv_mpilocal(lsp%cvDim_mpilocal)
+    real(4),      intent(in)  :: cv_mpiglobal(:)
 
-    real(4), intent(out) :: cv_mpilocal(lsp%cvDim_mpilocal)
-    real(4), intent(in)  :: cv_mpiglobal(:)
-
+    ! Locals:
     real(4), allocatable :: cv_allmaxmpilocal(:,:)
-
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)
-
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
-
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-
     integer :: jproc, cvDim_maxmpilocal
     integer :: dimIndex_mpilocal, dimIndex_mpiglobal, ila_mpilocal, ila_mpiglobal
     integer :: mIndex, nIndex, memberIndex, levIndex, ierr, p, nlaMax
 
-   if (verbose) write(*,*) 'Entering lsp_reduceToMPILocal_r4'
+    if (verbose) write(*,*) 'Entering lsp_reduceToMPILocal_r4'
     call lsp_check(lsp)
 
     call rpn_comm_allreduce(lsp%cvDim_mpilocal, cvDim_maxmpilocal, &
@@ -1419,22 +1410,19 @@ CONTAINS
   SUBROUTINE lsp_expandToMPIGlobal(lsp,cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    type(struct_lsp), pointer     :: lsp
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
+    real(8),      intent(in)  :: cv_mpilocal(lsp%cvDim_mpilocal)
+    real(8),      intent(out) :: cv_mpiglobal(:)
 
-    real(8), intent(in)  :: cv_mpilocal(lsp%cvDim_mpilocal)
-    real(8), intent(out) :: cv_mpiglobal(:)
-
+    ! Locals:
     real(8), allocatable :: cv_maxmpilocal(:)
     real(8), pointer     :: cv_allmaxmpilocal(:,:) => null()
-
     integer, allocatable :: cvDim_allMpilocal(:)
-
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
-
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-
     integer :: dimIndex_mpilocal, dimIndex_mpiglobal, ila_mpiglobal, ila_mpilocal, cvDim_maxmpilocal
     integer :: mIndex, nIndex, jproc, memberIndex, levIndex, ierr, p, nlaMax
 
@@ -1659,22 +1647,19 @@ CONTAINS
   SUBROUTINE lsp_expandToMPIGlobal_r4(lsp,cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    type(struct_lsp), pointer     :: lsp
+    ! Arguments:
+    type(struct_lsp), pointer :: lsp
+    real(4),      intent(in)  :: cv_mpilocal(lsp%cvDim_mpilocal)
+    real(4),      intent(out) :: cv_mpiglobal(:)
 
-    real(4), intent(in)  :: cv_mpilocal(lsp%cvDim_mpilocal)
-    real(4), intent(out) :: cv_mpiglobal(:)
-
+    ! Locals:
     real(4), allocatable :: cv_maxmpilocal(:)
     real(4), pointer     :: cv_allmaxmpilocal(:,:) => null()
-
     integer, allocatable :: cvDim_allMpilocal(:)
-
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
-
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-
     integer :: dimIndex_mpilocal, dimIndex_mpiglobal, ila_mpiglobal, ila_mpilocal, cvDim_maxmpilocal
     integer :: mIndex, nIndex, jproc, memberIndex, levIndex, ierr, p, nlaMax
 
@@ -1899,6 +1884,7 @@ CONTAINS
   subroutine lsp_check(lsp)
     implicit none
 
+    ! Arguments:
     type(struct_lsp), pointer :: lsp
 
     if ( .not. lsp%initialized) then

@@ -327,6 +327,7 @@ module message_mod
     
         ! Arguments:
         character(len=*), intent(inout) :: line        ! line of text to be processed
+        ! Result:
         character(len=msg_lineLen)      :: shorterLine ! resulting processed line of text
 
         ! Locals:
@@ -360,6 +361,7 @@ module message_mod
     character(len=*), intent(in)  :: stringIn  ! input string to be processed
     logical, optional             :: trim_opt  ! choose to trim the string (possibly inside quotes)
     logical, optional             :: quote_opt ! choose to write preceding and following single quote "'" to insist it is a string
+    ! Result:
     character(len=:), allocatable :: string    ! resulting string that was processed
 
     ! Locals:
@@ -401,6 +403,7 @@ module message_mod
 
     ! Arguments:
     logical,                      intent(in)  :: num    ! input logical variable to be interpreted
+    ! Result:
     character(len=:), allocatable             :: string ! resulting string with logical value
 
     ! Locals:
@@ -422,6 +425,7 @@ module message_mod
 
     ! Arguments:
     integer,                      intent(in)  :: num    ! input integer variable to be interpreted
+    ! Result:
     character(len=:), allocatable             :: string ! resulting string with integer value
 
     ! Locals:
@@ -444,6 +448,7 @@ module message_mod
     ! Arguments:
     real(4),                      intent(in) :: num        ! input real(4) variable to be interpreted
     integer, optional,            intent(in) :: digits_opt ! number of digits to include in output
+    ! Result:
     character(len=:), allocatable            :: string     ! resulting string with variable's value
 
     ! Locals:
@@ -473,6 +478,7 @@ module message_mod
     ! Arguments:
     real(8),                      intent(in) :: num        ! input real(8) variable to be interpreted
     integer, optional,            intent(in) :: digits_opt ! number of digits to include in output
+    ! Result:
     character(len=:), allocatable            :: string     ! resulting string with variable's value
 
     ! Locals:
@@ -499,9 +505,10 @@ module message_mod
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     character(len=*),             intent(in) :: array(:)     ! input character string array
     logical, optional,            intent(in) :: vertical_opt ! choose to represent array vertically (default .false.)
+    ! Result:
     character(len=:), allocatable            :: string       ! resulting string
 
     ! Locals:
@@ -540,9 +547,10 @@ module message_mod
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     logical,           intent(in) :: array(:)     ! input array of logical variables
     logical, optional, intent(in) :: vertical_opt ! choose to represent the array vertically (default .false.)
+    ! Result:
     character(len=:), allocatable :: string       ! resulting string
 
     ! Locals:
@@ -581,9 +589,10 @@ module message_mod
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer,           intent(in) :: array(:)     ! input array of integer variables
     logical, optional, intent(in) :: vertical_opt ! choose to represent the array vertically (defaults .false.)
+    ! Result:
     character(len=:), allocatable :: string       ! resulting string
 
     ! Locals:
@@ -622,10 +631,11 @@ module message_mod
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(4),           intent(in) :: array(:)     ! input array of real(4) variables
     integer, optional, intent(in) :: digits_opt   ! number of digits to include in output 
     logical, optional, intent(in) :: vertical_opt ! choose to represent array vertically (default .false.)
+    ! Result:
     character(len=:), allocatable :: string       ! resulting string
 
     ! Locals:
@@ -664,10 +674,11 @@ module message_mod
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(8),           intent(in) :: array(:)     ! input array of real(4) variables
     integer, optional, intent(in) :: digits_opt   ! number of digits to include in output
     logical, optional, intent(in) :: vertical_opt ! choose to represent array vertically (default .false.)
+    ! Result:
     character(len=:), allocatable :: string       ! resulting string
 
     ! Locals:

@@ -80,24 +80,21 @@ contains
   subroutine lbhi_Setup( hco_anl_in, hco_core_in, vco_anl_in, cvDim_out )
     implicit none
 
+    ! Arguments:
     type(struct_hco), pointer, intent(in)    :: hco_anl_in
     type(struct_hco), pointer, intent(in)    :: hco_core_in
     type(struct_vco), pointer, intent(in)    :: vco_anl_in
     integer,          intent(out)   :: cvDim_out
 
+    ! Locals:
     integer  :: var
-    integer  :: ntrunc
-
     integer  :: iu_bstats = 0
     integer  :: iu_flnml = 0
-
     integer  :: ier, fnom, fstouv, fstfrm, fclos, levIndex, nLev
-
     logical  :: FileExist
-
     type(struct_vco), pointer :: vco_file => null()
+    integer  :: ntrunc
 
-    !namelist
     NAMELIST /NAMBHI/ntrunc,scaleFactor
 
     write(*,*)
@@ -258,18 +255,18 @@ contains
   subroutine lbhi_GetControlVariableInfo( iu_bstats )
     implicit none
 
+    ! Arguments:
     integer, intent(in) :: iu_bstats
 
+    ! Locals:
     integer :: key, fstinf, fstlir, fstlir_s
     integer :: ni, nj, nlev
     integer :: dateo, nk
     integer :: ip1, ip2, ip3
     integer :: var
-
     character(len=4 )      :: nomvar
     character(len=2 )      :: typvar
     character(len=12)      :: etiket
-
     character(len=4), allocatable :: ControlModelVarnameList(:)
     character(len=4), allocatable :: ControlBhiVarnameList  (:)
     character(len=2), allocatable :: ControlVarGridTypeList (:)
@@ -440,6 +437,7 @@ contains
   subroutine lbhi_GetHorizGridInfo()
     implicit none
 
+    ! Locals:
     character(len=4)          :: varName
 
     !
@@ -469,6 +467,7 @@ contains
   subroutine lbhi_ReadStats( iu_bstats )
     implicit none
 
+    ! Arguments:
     integer, intent(in) :: iu_bstats
 
     !
@@ -496,14 +495,14 @@ contains
   subroutine lbhi_ReadBSqrt( iu_bstats )
     implicit none
 
+    ! Arguments:
     integer, intent(in) :: iu_bstats
 
+    ! Locals:
     real(8), allocatable :: bsqrt2d  (:,:)
-
     integer :: key, fstinf, fstinl, totwvnb, infon
     integer, parameter :: nmax=2000
     integer :: liste(nmax)
-
     integer                     :: ip1, ip2, ip3
     integer                     :: ni_t, nj_t, nlev_t, dateo  
     character(len=4 )           :: nomvar
@@ -592,19 +591,18 @@ contains
   subroutine lbhi_ReadGridPointStdDev(iu_bstats)
     implicit none
 
+    ! Locals:
     integer, intent(in) :: iu_bstats
 
+    ! Locals:
     real(8), allocatable :: StdDev2D(:,:)
     real(8), allocatable :: StdDev2D_Regrid(:,:)
-
     integer :: ezdefset, ier
     integer :: ni_t, nj_t, nlev_t, var, k
     integer :: dateo, ip1,ip2,ip3
-
     character(len=4 )      :: nomvar
     character(len=2 )      :: typvar
     character(len=12)      :: etiket
-
     real(8) :: UnitConv
 
     !
@@ -690,12 +688,12 @@ contains
   subroutine lbhi_bSqrt(controlVector_in, statevector, stateVectorRef_opt)
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(8),          intent(in)           :: controlVector_in(cvDim)
     type(struct_gsv), intent(inout)        :: statevector
     type(struct_gsv), intent(in), optional :: statevectorRef_opt
 
-    ! Locals
+    ! Locals:
     real(8), allocatable :: gd_out(:,:,:)
     real(8), allocatable :: hiControlVector(:,:,:)
 
@@ -753,12 +751,12 @@ contains
   subroutine lbhi_bSqrtAdj(statevector, controlVector_out, stateVectorRef_opt)
     implicit none
 
-    ! Arguments
+    ! Arguments:
     real(8),          intent(out)          :: controlVector_out(cvDim)
     type(struct_gsv), intent(inout)        :: statevector
     type(struct_gsv), intent(in), optional :: statevectorRef_opt
 
-    ! Locals
+    ! Locals:
     real(8), allocatable :: gd_in(:,:,:)
     real(8), allocatable :: hiControlVector(:,:,:)
 
@@ -817,16 +815,16 @@ contains
   subroutine lbhi_cv2gd(hiControlVector_in, gd_out)
     implicit none
 
+    ! Arguments:
     real(8), intent(inout) :: hiControlVector_in(lst_bhi%nla, lst_bhi%nphase, nksdim)
     real(8), intent(out)   :: gd_out(myLonBeg:myLonEnd  ,myLatBeg:myLatEnd  ,1:nksdim)
 
+    ! Locals:
     real(8), allocatable :: uphy(:,:,:)
     real(8), allocatable :: vphy(:,:,:)
     real(8), allocatable :: psi(:,:,:)
     real(8), allocatable :: chi(:,:,:)
-
     integer :: kstart, kend, var
-
     character(len=19)   :: kind
 
     !
@@ -921,16 +919,16 @@ contains
   subroutine lbhi_cv2gdAdj(hiControlVector_out, gd_in)
     implicit none
 
+    ! Arguments:
     real(8), intent(out)   :: hiControlVector_out(lst_bhi%nla, lst_bhi%nphase, nksdim)
     real(8), intent(inout) :: gd_in(myLonBeg:myLonEnd, myLatBeg:myLatEnd ,1:nksdim)
 
+    ! Locals:
     real(8), allocatable :: uphy(:,:,:)
     real(8), allocatable :: vphy(:,:,:)
     real(8), allocatable :: psi(:,:,:)
     real(8), allocatable :: chi(:,:,:)
-
     integer :: kstart, kend, var
-
     character(len=19)   :: kind
 
     !
@@ -1022,11 +1020,12 @@ contains
   subroutine lbhi_bSqrtXi(hiControlVector_in)
     implicit none
 
+    ! Arguments:
     real(8), intent(inout) :: hiControlVector_in(lst_bhi%nla, lst_bhi%nphase, nksdim)
 
+    ! Locals:
     real(8), allocatable :: sp_in (:,:,:)
     real(8), allocatable :: sp_out(:,:,:)
-
     integer :: totwvnb, e, k, ila
     integer :: m, n, lda, ldb, ldc
 
@@ -1093,9 +1092,11 @@ contains
   SUBROUTINE lbhi_cain(controlVector_in, hiControlVector_out)
     implicit none
 
+    ! Arguments:
     real(8), intent(in)    :: controlVector_in(cvDim)
     real(8), intent(out)   :: hiControlVector_out(lst_bhi%nla,lst_bhi%nphase,nksdim)
 
+    ! Locals:
     integer :: dim, k, ila, p
 
     dim = 0
@@ -1117,9 +1118,11 @@ contains
   SUBROUTINE lbhi_cainAdj(controlVector_out, hiControlVector_in)
     implicit none
 
+    ! Arguments:
     real(8), intent(out)   :: controlVector_out(cvDim)
     real(8), intent(in )   :: hiControlVector_in(lst_bhi%nla,lst_bhi%nphase,nksdim)
 
+    ! Locals:
     integer :: dim, k, ila, p
 
     dim = 0
@@ -1141,18 +1144,17 @@ contains
   subroutine StatevectorInterface(statevector, gd, Direction)
     implicit none
 
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
     real(8),          intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nksdim)
     character(len=*), intent(in)    :: Direction
 
+    ! Locals:
     integer :: var
     integer :: kgdStart, kgdEnd, i, j, k, kgd, nlev
-
     real(4), pointer :: field_r4(:,:,:)
     real(8), pointer :: field_r8(:,:,:)
-
     character(len=4 )      :: varname
-
     logical :: ToStateVector
 
     select case ( trim(Direction) )
@@ -1252,15 +1254,16 @@ contains
   !--------------------------------------------------------------------------
   SUBROUTINE lbhi_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
     implicit none
+
+    ! Arguments:
     real(8), intent(out) :: cv_mpilocal(cvDim)
     real(8), intent(in)  :: cv_mpiglobal(:)
 
+    ! Locals:
     real(8), allocatable :: cv_allmaxmpilocal(:,:)
-
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)    
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
-
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
 
@@ -1371,15 +1374,16 @@ contains
   !--------------------------------------------------------------------------
   SUBROUTINE lbhi_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
+
+    ! Arguments:
     real(4), intent(out) :: cv_mpilocal(cvDim)
     real(4), intent(in)  :: cv_mpiglobal(:)
 
+    ! Locals:
     real(4), allocatable :: cv_allmaxmpilocal(:,:)
-
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)    
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
-
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
 
@@ -1490,17 +1494,17 @@ contains
   !--------------------------------------------------------------------------
   SUBROUTINE lbhi_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal)
     implicit none
+
+    ! Arguments:
     real(8), intent(in)  :: cv_mpilocal(cvDim)
     real(8), intent(out) :: cv_mpiglobal(:)
 
+    ! Locals:
     real(8), allocatable :: cv_maxmpilocal(:)
     real(8), pointer     :: cv_allmaxmpilocal(:,:) => null()
-
     integer, allocatable :: cvDim_allMpilocal(:)
-
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
-
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
 
@@ -1611,17 +1615,17 @@ contains
   !--------------------------------------------------------------------------
   SUBROUTINE lbhi_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
+
+    ! Arguments:
     real(4), intent(in)  :: cv_mpilocal(cvDim)
     real(4), intent(out) :: cv_mpiglobal(:)
 
+    ! Locals:
     real(4), allocatable :: cv_maxmpilocal(:)
     real(4), pointer     :: cv_allmaxmpilocal(:,:) => null()
-
     integer, allocatable :: cvDim_allMpilocal(:)
-
     integer, allocatable :: ilaGlobal(:), allnlaLocal(:)
     integer, allocatable :: allilaGlobal(:,:)
-
     integer :: k, ila, p, ila_mpiglobal, jdim_mpilocal, jdim_mpiglobal
     integer :: ier, nlaMax, cvDim_maxmpilocal, jproc
 
@@ -1733,6 +1737,7 @@ contains
   subroutine lbhi_Finalize
     implicit none
 
+    ! Locals:
     integer :: var
 
     if (initialized) then

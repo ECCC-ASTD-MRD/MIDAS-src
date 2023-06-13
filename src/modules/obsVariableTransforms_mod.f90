@@ -107,15 +107,13 @@ contains
     !
     implicit none
 
-    ! Argument:
+    ! Arguments:
     integer, intent(in) :: bufrCodeRead(:)          ! The list of bufr code read
 
     ! Locals:
     integer, allocatable :: bufrCodeAssimilated(:)  ! The list of bufr code assimilated
-
     integer :: nBufrCodeRead, nBufrCodeAssimilated
     integer :: readBufrCodeIndex, transformIndex, assimBufrCodeIndex
-
     logical :: variableTransformNeeded, foundTransformation
     logical, save :: firstTime = .true.
 
@@ -194,6 +192,7 @@ contains
 
     ! Arguments:
     integer, intent(in) :: sourceBufrCode ! The input bufr code
+    ! Result:
     logical :: skip                       ! The decision
     
     ! Locals:
@@ -225,9 +224,10 @@ contains
 
     ! Arguments:
     integer, intent(in) :: sourceBufrCode    ! The input source bufr code
-    integer :: destinationBufrCode           ! The returned destination/transform bufr code
     logical, optional :: extra_opt           ! Should we look in the "extra" bufr code list or not
-    
+    ! Result:
+    integer :: destinationBufrCode           ! The returned destination/transform bufr code
+
     ! Locals:
     logical :: extra
     integer :: transformIndex, bufrCodeIndex
@@ -277,9 +277,10 @@ contains
 
     ! Arguments:
     integer, intent(in) :: destinationBufrCode  ! The input destination/transform bufr code
-    integer :: sourceBufrCode                   ! The returned source bufr code
     logical, optional :: extra_opt              ! Should we look in the "extra" bufr code list or not
-    
+    ! Result:
+    integer :: sourceBufrCode                   ! The returned source bufr code
+
     ! Locals:
     logical :: extra
     integer :: transformIndex, destinationBufrCodeIndex
@@ -328,6 +329,7 @@ contains
 
     ! Arguments:
     integer, intent(in) :: sourceBufrCode ! The input source bufr code
+    ! Result:
     logical :: wind                       ! Is this bufr code linked to wind or not
 
     ! Locals:
@@ -359,6 +361,7 @@ contains
 
     ! Arguments:
     integer, intent(in) :: bufrCode    ! The input bufr code
+    ! Result:
     logical :: transformed             ! Is this a bufr code associated to a transform variable or not
 
     ! Locals:
@@ -485,10 +488,8 @@ contains
     integer        :: headerIndex, bodyIndex, bodyIndexStart, bodyIndexEnd, bodyIndex2, bufrCodeAssociated
     integer        :: directionFlag, speedFlag, combinedFlag, uWindFlag, vWindFlag
     integer        :: speedBufrCode, uWindBufrCode, vWindBufrCode, uWindbodyIndex, vWindBodyIndex
-
     logical        :: direction_missing, speed_missing
     logical        :: uWind_present, vWind_present
-
     real(pre_obsReal) :: uWind, vWind, direction, speed
     real(pre_obsReal) :: level_direction, level, level2, level3
 
@@ -692,7 +693,6 @@ contains
     ! Locals:
     integer :: uWindBufrCode, vWindBufrCode, speedBufrCode, directionBufrCode
     integer :: headerIndex, headerIndexStart, headerIndexEnd, windTypeIndex, bodyIndex, bodyIndex2
-
     real(pre_obsReal) :: uWindLevel, speed, direction, uWind, vWind
 
     windType: do windTypeIndex = 1, 2
@@ -1078,7 +1078,6 @@ contains
     ! Locals:
     integer  :: bodyIndex, headerIndex, bodyIndexStart, bodyIndexEnd
     integer  :: bufrCode
-
     real(pre_obsReal), parameter :: ESmax = 30.0
     real(pre_obsReal) :: gz, obsValue
 

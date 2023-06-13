@@ -66,10 +66,8 @@ contains
     integer, allocatable :: cvDimPerInstance(:)
     integer :: cvdim
     integer :: masterBmatIndex, bMatInstanceIndex, nBmatInstance, bmatIndex
-
     character(len=2) :: bMatInstanceIndexString
     character(len=3) :: bMatExtraLabel
-
     logical :: active
 
     call utl_tmg_start(50,'--Bmatrix')
@@ -225,14 +223,14 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     integer                    :: cvdim
     real(8)                    :: controlVector(cvdim)
     type(struct_gsv)           :: statevector
     logical, optional          :: useFSOFcst_opt
     type(struct_gsv), optional :: stateVectorRef_opt
 
-    ! locals
+    ! Locals:
     integer :: bmatIndex
     real(8),pointer :: subVector(:)
     type(struct_gsv) :: statevector_temp
@@ -333,14 +331,14 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer :: cvdim
     real(8) :: controlVector(cvdim)
     type(struct_gsv) :: statevector
     logical,optional :: useFSOFcst_opt
     type(struct_gsv), optional :: stateVectorRef_opt
 
-    ! Locals
+    ! Locals:
     integer :: bmatIndex
     real(8),pointer :: subVector(:)
     type(struct_gsv) :: statevector_temp
@@ -450,11 +448,11 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8), intent(out) :: cv_mpilocal(:)
     real(8), intent(in)  :: cv_mpiglobal(:)
 
-    ! locals
+    ! Locals:
     integer :: bmatIndex
     real(8), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
     real(8), target  :: dummyVector(1)
@@ -513,11 +511,11 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(4), intent(out) :: cv_mpilocal(:)
     real(4), intent(in)  :: cv_mpiglobal(:)
 
-    ! locals
+    ! Locals:
     integer :: bmatIndex
     real(4), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
     real(4), target  :: dummyVector_r4(1)
@@ -577,11 +575,11 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8), intent(in)  :: cv_mpilocal(:)
     real(8), intent(out) :: cv_mpiglobal(:)
 
-    ! locals
+    ! Locals:
     integer :: bmatIndex
     real(8), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
     real(8), target  :: dummyVector(1)
@@ -640,11 +638,11 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(4), intent(in)  :: cv_mpilocal(:)
     real(4), intent(out) :: cv_mpiglobal(:)
 
-    ! locals
+    ! Locals:
     integer :: bmatIndex
     real(4), pointer :: subVector_mpilocal(:), subVector_mpiglobal(:)
     real(4), target  :: dummyVector_r4(1)

@@ -249,11 +249,11 @@ contains
     ! Arguments:
     integer :: latIndex
     integer,optional :: gstID_opt
-    integer :: latIndex2
 
     ! Locals:
     integer :: gstID_l
- 
+    integer :: latIndex2
+
     if(present(gstID_opt)) then
       gstID_l = gstID_opt
     else
@@ -322,7 +322,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: legendreIndex,latIndex,gstID_in
+    integer :: legendreIndex
+    integer :: latIndex
+    integer :: gstID_in
 
     gst_getzleg=gst(gstID_in)%zleg(legendreIndex,latIndex)
 
@@ -338,9 +340,15 @@ contains
 
     ! Arguments:
     integer, pointer :: ilaList(:)
-    integer          :: myNla, maxMyNla
-    integer          :: gstID_in, mymBeg, mymEnd, mymSkip
-    integer          :: mynBeg, mynEnd, mynSkip
+    integer          :: myNla
+    integer          :: maxMyNla
+    integer          :: gstID_in
+    integer          :: mymBeg
+    integer          :: mymEnd
+    integer          :: mymSkip
+    integer          :: mynBeg
+    integer          :: mynEnd
+    integer          :: mynSkip
 
     ! Locals:
     integer          :: jm, jn, ierr
@@ -379,12 +387,18 @@ contains
     !
     !:Purpose: To produce an array to convert an mpiglobal "ila" into an
     !          mpilocal "ila"
+    !
     implicit none
 
     ! Arguments:
     integer, pointer :: ilaList(:)
-    integer          :: gstID_in, mymBeg, mymEnd, mymSkip
-    integer          :: mynBeg, mynEnd, mynSkip
+    integer          :: gstID_in
+    integer          :: mymBeg
+    integer          :: mymEnd
+    integer          :: mymSkip
+    integer          :: mynBeg
+    integer          :: mynEnd
+    integer          :: mynSkip
 
     ! Locals:
     integer          :: jm, jn, myNla
@@ -410,7 +424,9 @@ contains
     implicit none
 
     ! Arguments:
-    integer  :: ni_in, nj_in, ntrunc_in
+    integer  :: ni_in
+    integer  :: nj_in
+    integer  :: ntrunc_in
     integer  :: maxlevels_in
 
     ! Locals:
@@ -987,7 +1003,7 @@ contains
 
     ! Arguments:
     real(8) :: pgd_in(gst(gstID)%maxMyLevCount, gst(gstID)%ni, &
-                          gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
+                      gst(gstID)%myLatBeg:gst(gstID)%myLatEnd)
     real(8) :: pgd_out(gst(gstID)%maxMyLevCount, 2*gst(gstID)%maxmCount, &
                        gst(gstID)%nj)
 
@@ -1592,7 +1608,6 @@ contains
   end subroutine gst_spgd
 
 
-  ! FIRST ATTEMPT AT MODIFICATIONS FOR MPI
   subroutine gst_gdsp(psp,pgd,nflev)
     implicit none
 
@@ -1653,6 +1668,7 @@ contains
   subroutine spgdpar(psp,pgd2,nflev)
     !
     !:Purpose: Inverse spectral transform(PARALLEL LOOP)
+    !
     implicit none
 
     ! Arguments:
@@ -1663,7 +1679,6 @@ contains
 
     ! Locals
     integer :: jj, jj2, jm, jn, ilonr, iloni, jk, jk2, ila, inm
-
     real(8) :: zjm, factor
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
@@ -2540,7 +2555,6 @@ contains
 
     ! Locals
     integer :: jj, jj2, jm, jn, ilonr, iloni, jk, ila, inm
-
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: zfms(gst(gstID)%njlath+1,2, &
@@ -2608,7 +2622,6 @@ contains
 
     ! Locals
     integer :: jj, jj2, jm, jn, ilonr, iloni, jk, ila, inm
-
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: zfms(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
@@ -2675,7 +2688,6 @@ contains
     ! Locals:
     integer :: jj,jj2,jk,ilonr, iloni
     integer :: jm, ila, inm, jn
-
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc, gst(gstID)%njlath)
     real(8) :: dlsp(0:gst(gstID)%ntrunc,2, &
@@ -2770,7 +2782,6 @@ contains
     ! Locals:
     integer :: jj,jj2,jk,ilonr, iloni
     integer :: jm, ila, inm, jn
-
     real(8) :: dlalp(0:gst(gstID)%ntrunc,gst(gstID)%njlath)
     real(8) :: dldalp(0:gst(gstID)%ntrunc, gst(gstID)%njlath)
     real(8) :: dlsp(gst(gstID)%myLevCount,0:gst(gstID)%ntrunc,2)
@@ -2861,7 +2872,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: km, ktrunc, ktruncdim, klath
+    integer :: km
+    integer :: ktrunc
+    integer :: ktruncdim
+    integer :: klath
     real(8) :: pfms(gst(gstID)%njlath+1,2, &
                     gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
     real(8) :: pfma(gst(gstID)%njlath+1,2, &
@@ -2910,7 +2924,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: km, ktrunc, ktruncdim, klath
+    integer :: km
+    integer :: ktrunc
+    integer :: ktruncdim
+    integer :: klath
     real(8) :: pfms(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
     real(8) :: pfma(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
     real(8) :: ddalp(0:ktruncdim,klath)
@@ -2957,7 +2974,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: km, ktrunc, ktruncdim, klath
+    integer :: km
+    integer :: ktrunc
+    integer :: ktruncdim
+    integer :: klath
     real(8) :: pfms(gst(gstID)%njlath+1,2, &
                     gst(gstID)%myLevBeg:gst(gstID)%myLevEnd)
     real(8) :: pfma(gst(gstID)%njlath+1,2, &
@@ -3018,7 +3038,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: km, ktrunc, ktruncdim, klath
+    integer :: km
+    integer :: ktrunc
+    integer :: ktruncdim
+    integer :: klath
     real(8) :: pfms(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
     real(8) :: pfma(gst(gstID)%myLevCount,gst(gstID)%njlath+1,2)
     real(8) :: ddalp(0:ktruncdim,klath)
@@ -3400,8 +3423,11 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: r, nlatp, lr(0:r)
-    real(8) :: p(0:r,0:r,nlatp) , g(0:r,0:r,nlatp) 
+    integer :: r
+    integer :: nlatp
+    integer :: lr(0:r)
+    real(8) :: p(0:r,0:r,nlatp)
+    real(8) :: g(0:r,0:r,nlatp) 
     real(8) :: x(nlatp) 
 
     ! Locals:
@@ -3469,8 +3495,10 @@ contains
     implicit none
 
     ! Arguments:
-    integer :: r, nlatp
-    real(8) :: p(0:r,0:r,nlatp) , g(0:r,0:r,nlatp) 
+    integer :: r
+    integer :: nlatp
+    real(8) :: p(0:r,0:r,nlatp)
+    real(8) :: g(0:r,0:r,nlatp) 
     real(8) :: x(nlatp)
 
     ! Locals:
@@ -3561,9 +3589,9 @@ contains
 
     ! Arguments:
     integer :: gstID_in
-    real(8) :: pf(gst(gstID_in)%nj,klev) ! PF(NJ,KLEV): field in physical space
+    real(8) :: pf(gst(gstID_in)%nj,klev)       ! PF(NJ,KLEV): field in physical space
     real(8) :: pn(0:gst(gstID_in)%ntrunc,klev) ! PN(0:ntrunc, KLEV): spectral coefficients
-    integer :: klev ! number of fields to transform
+    integer :: klev                            ! number of fields to transform
 
     ! Locals:
     integer :: jlat, jn
@@ -3595,9 +3623,9 @@ contains
 
     ! Arguments:
     integer :: gstID_in
-    real(8) :: pf(gst(gstID_in)%nj,klev) ! PF(KNJDIM,KLEVDIM)  : field in physical space
+    real(8) :: pf(gst(gstID_in)%nj,klev)       ! PF(KNJDIM,KLEVDIM)  : field in physical space
     real(8) :: pn(0:gst(gstID_in)%ntrunc,klev) ! PN(0:KNDIM, KLEVDIM): spectral coefficients
-    integer :: klev ! number of fields to transform
+    integer :: klev                            ! number of fields to transform
 
     ! Locals:
     integer :: jlat, jn
@@ -3753,15 +3781,13 @@ contains
     implicit none
 
     ! Arguments:
-    integer n
+    integer :: n
 
     ! Locals:
-    integer l
-    parameter ( l = 3 )
-    integer k( l ) , m
+    integer, parameter :: l = 3
+    integer :: k(l), m
     data m , k / 8 , 2 , 3 , 5 /
-
-    integer i,j
+    integer :: i,j
 
     if ( n.le.m ) n = m + 1
     n = n - 1

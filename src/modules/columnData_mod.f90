@@ -61,6 +61,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_setup
     implicit none
+
+    ! Locals:
     integer :: varIndex, loopIndex
     integer :: fnom,fclos,nulnam,ierr
     integer :: numVar3D, numVar2D, numVarOther
@@ -192,6 +194,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_zero(column)
     implicit none
+
+    ! Arguments:
     type(struct_columnData) :: column
 
     if (column%numCol > 0) then
@@ -207,7 +211,7 @@ contains
   subroutine col_allocate(column, numCol, mpiLocal_opt, beSilent_opt, setToZero_opt, varNames_opt)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_columnData)   :: column
     integer, intent(in)       :: numCol
     logical, optional         :: mpiLocal_opt
@@ -215,7 +219,7 @@ contains
     logical, optional         :: setToZero_opt
     character(len=*),optional :: varNames_opt(:)
 
-    ! locals
+    ! Locals:
     integer :: iloc, varIndex, varIndex2, numVar
     logical :: beSilent, setToZero
 
@@ -340,6 +344,7 @@ contains
   subroutine col_deallocate(column)
     implicit none
 
+    ! Arguments:
     type(struct_columnData) :: column
 
     deallocate(column%varOffset)
@@ -360,6 +365,8 @@ contains
   !--------------------------------------------------------------------------
   recursive function col_varExist(column_opt,varName) result(varExist)
     implicit none
+
+    ! Arguments:
     type(struct_columnData), optional :: column_opt
     character(len=*), intent(in)      :: varName
     logical                           :: varExist 
@@ -399,10 +406,13 @@ contains
   !--------------------------------------------------------------------------
   function col_getOffsetFromVarno(column,varnum,varNumberChm_opt,modelName_opt) result(offset)
     implicit none
+
+    ! Arguments:
     type(struct_columnData) :: column
     integer, intent(in)     :: varnum
     integer, intent(in), optional :: varNumberChm_opt
     character(len=*), intent(in), optional :: modelName_opt
+    ! Result:
     integer                 :: offset
 
     offset=column%varOffset(vnl_varListIndex(vnl_varnameFromVarnum(varnum,varNumberChm_opt=varNumberChm_opt,modelName_opt=modelName_opt)))
@@ -414,9 +424,12 @@ contains
   !--------------------------------------------------------------------------
   function col_getLevIndexFromVarLevIndex(column, varLevIndex) result(levIndex)
     implicit none
+
+    ! Arguments:
     type(struct_columnData) :: column
     integer, intent(in)     :: varLevIndex
     integer                 :: levIndex
+    ! Result:
     integer                 :: varIndex
 
     do varIndex = 1, vnl_numvarmax
@@ -439,9 +452,14 @@ contains
   !--------------------------------------------------------------------------
   function col_getVarNameFromK(column,kIndex) result(varName)
     implicit none
+
+    ! Arguments:
     type(struct_columnData) :: column
     integer, intent(in) :: kIndex
+    ! Result:
     character(len=4)    :: varName
+
+    ! Locals:
     integer             :: varIndex
 
     do varIndex = 1, vnl_numvarmax
@@ -464,10 +482,16 @@ contains
   !--------------------------------------------------------------------------
   function col_getPressure(column,ilev,headerIndex,varLevel) result(pressure)
     implicit none
+
+    ! Arguments:
     type(struct_columnData), intent(in) :: column
-    integer, intent(in)                 :: ilev,headerIndex
+    integer, intent(in)                 :: ilev
+    integer, intent(in)                 :: headerIndex
     character(len=*), intent(in)        :: varLevel
+    ! Result:
     real(8)                             :: pressure
+
+    ! Locals:
     integer                             :: ilev1
 
     if (varLevel == 'TH' .and. col_varExist(column,'P_T')) then
@@ -487,10 +511,16 @@ contains
   !--------------------------------------------------------------------------
   function col_getHeight(column,ilev,headerIndex,varLevel) result(height)
     implicit none
+
+    ! Arguments:
     type(struct_columnData), intent(in) :: column
-    integer, intent(in)                 :: ilev,headerIndex
+    integer, intent(in)                 :: ilev
+    integer, intent(in)                 :: headerIndex
     character(len=*), intent(in)        :: varLevel
+    ! Result:
     real(8)                             :: height
+
+    ! Locals:
     integer                             :: ilev1
 
     if (varLevel == 'TH') then
@@ -518,6 +548,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_setHeightSfc(column,headerIndex,height)
     implicit none
+
+    ! Arguments:
     type(struct_columnData)             :: column
     integer, intent(in)                 :: headerIndex
     real(8), intent(in)                 :: height
@@ -531,9 +563,14 @@ contains
   !--------------------------------------------------------------------------
   function col_getAllColumns(column,varName_opt) result(allColumns)
     implicit none
+
+    ! Arguments:
     type(struct_columnData), intent(in)    :: column
     character(len=*), intent(in), optional :: varName_opt
+    ! Result:
     real(8), pointer                       :: allColumns(:,:)
+
+    ! Locals:
     integer                                :: ilev1,ilev2
 
     if ( column%numCol > 0 ) then
@@ -559,10 +596,15 @@ contains
   !--------------------------------------------------------------------------
   function col_getColumn(column,headerIndex,varName_opt) result(onecolumn)
     implicit none
+
+    ! Arguments:
     type(struct_columnData), intent(in)    :: column
     integer, intent(in)                    :: headerIndex
     character(len=*), intent(in), optional :: varName_opt
+    ! Result:
     real(8), pointer                       :: onecolumn(:)
+
+    ! Locals:
     integer                                :: ilev1,ilev2
 
     if(present(varName_opt)) then
@@ -584,10 +626,13 @@ contains
   !--------------------------------------------------------------------------
   function col_getElem(column,ilev,headerIndex,varName_opt) result(value)
     implicit none
+
+    ! Arguments:
     type(struct_columnData), intent(in)    :: column
     integer, intent(in)                    :: ilev
     integer, intent(in)                    :: headerIndex
     character(len=*), intent(in), optional :: varName_opt
+    ! Result:
     real(8)                                :: value
 
     if(present(varName_opt)) then
@@ -604,9 +649,12 @@ contains
   !--------------------------------------------------------------------------
   function col_getNumLev(column,varLevel,varName_opt) result(nlev)
     implicit none
+
+    ! Arguments:
     type(struct_columnData),    intent(in) :: column
     character(len=*),           intent(in) :: varLevel
     character(len=*), optional, intent(in) :: varName_opt
+    ! Result:
     integer                             :: nlev
 
     nlev = vco_getNumLev(column%vco,varLevel,varName_opt)
@@ -618,7 +666,10 @@ contains
   !--------------------------------------------------------------------------
   function col_getNumCol(column) result(numColumn)
     implicit none
+
+    ! Arguments:
     type(struct_columnData), intent(in) :: column
+    ! Result:
     integer                             :: numColumn
 
     numColumn = column%numCol
@@ -630,7 +681,10 @@ contains
   !--------------------------------------------------------------------------
   function col_getVco(column) result(vco_ptr)
     implicit none
+
+    ! Arguments:
     type(struct_columnData)   :: column
+    ! Result:
     type(struct_vco), pointer :: vco_ptr
 
     vco_ptr => column%vco
@@ -642,6 +696,8 @@ contains
   !--------------------------------------------------------------------------
   subroutine col_setVco(column,vco_ptr)
     implicit none
+
+    ! Arguments:
     type(struct_columnData)   :: column
     type(struct_vco), pointer :: vco_ptr
 

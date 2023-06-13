@@ -47,13 +47,13 @@ module oceanMask_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_ocm),          intent(inout) :: oceanMask
     type(struct_hco), pointer, intent(inout) :: hco
     type(struct_vco),          intent(in)    :: vco
     character(len=*),          intent(in)    :: fileName
 
-    ! locals:
+    ! Locals:
     integer :: nulfile, ierr, ip1, ni_file, nj_file, nk_file
     integer :: ikey, levIndex
     integer :: fnom, fstouv, fclos, fstfrm, fstluk, fstinf, fstsui
@@ -172,15 +172,16 @@ module oceanMask_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_ocm), intent(in) :: oceanMask
     integer,          intent(in) :: levIndex
     real(8),          intent(in) :: lon
     real(8),          intent(in) :: lat
     real(8),          intent(in) :: distanceToLand
+    ! Result:
     logical                      :: farFromLand
 
-    ! locals:
+    ! Locals:
     integer, parameter           :: maxNumLocalGridPointsSearch = 200000
     type(kdtree2), save, pointer :: tree => null()
     integer                      :: ni, nj, xIndex, yIndex, gridIndex
@@ -255,12 +256,12 @@ module oceanMask_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_ocm), intent(in)    :: oceanMask_in
     logical, intent(in), optional   :: beSilent_opt
     type(struct_ocm), intent(inout) :: oceanMask_out
 
-    ! locals
+    ! Locals:
     logical :: beSilent
 
     if ( present(beSilent_opt) ) then
@@ -293,10 +294,10 @@ module oceanMask_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_ocm), intent(inout) :: oceanMask
 
-    ! locals:
+    ! Locals:
     integer                   :: ierr
     type(struct_hco), pointer :: hco_temp
 
@@ -344,7 +345,7 @@ module oceanMask_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_ocm),          intent(inout) :: oceanMask
     type(struct_hco), pointer, intent(inout) :: hco
     integer,                   intent(in)    :: nLev
@@ -367,7 +368,7 @@ module oceanMask_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_ocm), intent(inout) :: oceanMask
 
     if (associated(oceanMask%mask)) then
@@ -390,7 +391,7 @@ module oceanMask_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_ocm), intent(inout) :: oceanMask
     integer,          intent(out)   :: intArray(:,:)
     integer,          intent(in)    :: maskLev
@@ -411,7 +412,7 @@ module oceanMask_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_ocm), intent(inout) :: oceanMask
     integer,          intent(in)    :: intArray(:,:)
     integer,          intent(in)    :: maskLev

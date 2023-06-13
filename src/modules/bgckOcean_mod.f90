@@ -512,8 +512,8 @@ module bgckOcean_mod
 
     implicit none
 
+    ! Result:
     integer             :: obsFlag  ! obs flag
-
     ! Arguments:
     integer, intent(in) :: obsVarno          ! obsVarno, Universal Field-Identity Numbers defined in bufr_mod
     real(8), intent(in) :: bgCheck           ! normalized background departure
@@ -550,12 +550,12 @@ module bgckOcean_mod
 
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout)       :: stateVectorAmplFactor ! state vector to save amplification factor
     integer         , intent(in)          :: dateStamp             ! date stamp
     type(struct_hco), intent(in), pointer :: hco                   ! horizontal trl grid
 
-    ! locals
+    ! Locals:
     type(struct_gsv)          :: stateVector         ! state vector for surface winds
     type(struct_vco), pointer :: vco_winds           ! vertical grid structure for winds
     real(4)         , pointer :: uu_ptr4d(:,:,:,:)   ! pointer to get UU wind component

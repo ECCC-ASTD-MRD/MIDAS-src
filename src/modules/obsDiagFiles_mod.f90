@@ -480,6 +480,7 @@ module obsDiagFiles_mod
     character(len=*)           :: obsFamily
     character(len=*), optional :: sfFileName_opt ! fileName acronym used for surface obs file
     integer, optional          :: codetype_opt
+    ! Result:
     character(len=20)          :: fileName
 
     if (obsFamily == 'TO') then

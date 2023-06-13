@@ -37,6 +37,7 @@ contains
     !
     implicit none
 
+    ! Locals:
     integer :: nulnam,ierr,i,ilen
     character (len=codtyp_name_length) :: ctempo
     integer, external :: fnom,fclos
@@ -315,8 +316,11 @@ contains
     !          NEW information from namelist NAMCODTYP
     !
     implicit none
+
+    ! Arguments:
     character (len=*),intent(in) :: name
 
+    ! Locals:
     integer :: i, ilen
     character (len=codtyp_name_length) :: ctempo
 
@@ -343,8 +347,11 @@ contains
     !          NEW information from namelist NAMCODTYP
     !
     implicit none
+
+    ! Arguments:
     integer,intent(in) :: codtyp
-    
+
+    ! Locals:
     integer :: i
     
     if (.not.initialized) call codtyp_initialize()

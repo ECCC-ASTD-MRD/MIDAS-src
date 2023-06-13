@@ -16,15 +16,18 @@ CONTAINS
 !--------------------------------------------------------------------------
 ! spf_FilterResponseFunction
 !--------------------------------------------------------------------------
-  function spf_FilterResponseFunction(totalWaveNumber, waveBandIndex, waveBandPeaks, nWaveBand ) result(ResponseFunction) 
+  function spf_FilterResponseFunction(totalWaveNumber, waveBandIndex, waveBandPeaks, nWaveBand) result(ResponseFunction) 
     implicit none
 
+    ! Arguments:
     real(8) :: totalWaveNumber
-    real(8) :: ResponseFunction 
     integer :: waveBandIndex
     integer :: nWaveBand
     integer :: waveBandPeaks(:)
+    ! Result:
+    real(8) :: ResponseFunction 
 
+    ! Locals:
     real(8) :: linearResponse, lowerLimit, center, upperLimit
     real(8), parameter :: pi = 2.d0*asin(1.d0)
 

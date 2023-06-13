@@ -800,6 +800,7 @@ contains
     !
     !:Purpose: To perform the vertical interpolation in log of pressure and
     !          and constant value extrapolation of one-dimensional vectors.
+    !
     implicit none
 
     ! Arguments:
@@ -946,6 +947,7 @@ contains
 
     ! Arguments:
     character(len=*), intent(in) :: varName
+    ! Result:
     real(8)                      :: minValue
 
     ! readNameList runs one time during program execution
@@ -981,6 +983,7 @@ contains
 
     ! Arguments:
     character(len=*), intent(in) :: varName
+    ! Result:
     real(8)                      :: maxValue
 
     ! readNameList runs one time during program execution
@@ -1016,6 +1019,7 @@ contains
 
     ! Arguments:
     type(struct_ens), intent(in) :: ensemble
+    ! Result:
     logical                      :: cloudExist
     
     ! Locals:
@@ -1042,6 +1046,7 @@ contains
 
     ! Arguments:
     type(struct_gsv), intent(in) :: stateVector
+    ! Result:
     logical                      :: cloudExist
     
     ! Locals:

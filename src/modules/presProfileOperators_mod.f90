@@ -67,8 +67,7 @@ module presProfileOperators_mod
       INTEGER  JI, JK, JO, profileIndex, IK, IORDER
       REAL(8)     ZPI (0:KNI+1,KNPROF)
       REAL(8)     ZPVI(0:KNI+1,KNPROF)
-      INTEGER  IL  (KNO    ,KNPROF)
-      
+      INTEGER  IL  (KNO    ,KNPROF)      
       REAL(8) ZW1, ZW2
       REAL(8) ZP, XI, ZRT, ZP1, ZP2
 
@@ -171,7 +170,7 @@ module presProfileOperators_mod
   ! ppo_vertInterpWgts
   !--------------------------------------------------------------------------
   subroutine ppo_vertInterpWgts(pressInput,pressTarget,numInputLevs,numTargetLevs, &
-                                 wgts,kstart,kend,method_opt,skipType_opt,outbound_opt,success_opt)
+                                wgts,kstart,kend,method_opt,skipType_opt,outbound_opt,success_opt)
     !
     !:Purpose: Determination of interpolation weights for interpolation to points 
     !          in a profile. Applies interpolation in log(Pressure).
@@ -205,7 +204,6 @@ module presProfileOperators_mod
     real(8), intent(in) :: pressTarget(numTargetLevs) ! target pressure levels assumed to be in ascending order
     character(len=*), intent(in), optional :: method_opt   ! Specified interpolation method
     character(len=*), intent(in), optional :: skipType_opt ! Skipping processing of specific target levels depending on case
-
     integer, intent(inout), optional :: outbound_opt(numTargetLevs) ! Flag indicating if obs outside model vertical range (0 for no)
     logical, intent(inout), optional :: success_opt(numTargetLevs)  ! success of interpolation
     real(8), intent(out) :: wgts(numTargetLevs,numInputLevs) ! Averaging weights
@@ -320,8 +318,7 @@ module presProfileOperators_mod
     integer ,intent(in)  :: kno          ! Number of output levels (destination)
     real(8) ,intent(in)  :: pvo(kno)     ! Vertical levels, pressure (destination)
     real(8) ,intent(out) :: wgts(kno,2)  ! Interpolation weights (destination)
-    integer, intent(out) :: kstart(kno)  ! Index i of pvlev level associated to  pvo(j,1)
-                                         ! pvo(j,2) is for pvlev level i+1
+    integer, intent(out) :: kstart(kno)  ! Index i of pvlev level associated to pvo(j,1); pvo(j,2) is for pvlev level i+1
     logical, intent(out), optional :: validLevel_opt(kno)
     
     ! Locals:
@@ -481,16 +478,14 @@ module presProfileOperators_mod
     !                                
     implicit none
      
-    !Arguments:
+    ! Arguments:
     integer, intent(in)   :: KN1          ! Dimension of PX1
     integer, intent(in)   :: KN2          ! Dimension of other arrays
     real(8), intent(in)   :: PX1(KN1)     ! Levels of output domain (e.g. lnP; in increasing values)
     real(8), intent(in)   :: PX2(KN2)     ! Levels of input domain (e.g. lnP; in increasing values)
-    real(8), intent(out)  :: PZ(KN1,KN2)  ! F(vo): Resultant accumulated weighting factors 
-                                          ! for interpolation from input to output domain
+    real(8), intent(out)  :: PZ(KN1,KN2)  ! Resultant accumulated weighting factors for interp from input to output domain
     integer, intent(out)  :: KSTART(KN1)  ! Start index for relevant PZ row
     integer, intent(out)  :: KEND(KN1)    ! End index of relevant PZ row
-
     real(8), intent(in), optional   :: PZS1_opt(KN1) ! dPX1/dv or perturbation dPX1/dv * delta(v) where PX1(v), e.g. v=Ps    
     real(8), intent(in), optional   :: PZS2_opt(KN2) ! dPX2/dv or perturbation dPX2/dv * delta(v) where PX2(v), e.g. v=Ps
     real(8), intent(out), optional  :: PZDPS_opt(KN1,KN2) ! dF/dv or perturbations (dF/dv)*(v-vo): 
@@ -500,7 +495,7 @@ module presProfileOperators_mod
     logical, intent(in), optional   :: RTTOV_OPT  ! Commented out use of 'zb' when .true. for consistency with RTTOV-9
     logical, intent(in), optional   :: validLevel_opt(kn1) ! Logical indicating validity of each output level
                   
-    !Locals:                
+    ! Locals:                
     logical  :: LGRADP,lgradp1,lgradp2,validLevel(kn1)
     integer  :: J,IC,ISTART,KI
     real(8)  :: Z1(0:KN1+1),ZW1,ZW2,ZSUM,ZB,ZBPS,ZWPS1,ZWPS2,ZDXD
@@ -508,7 +503,6 @@ module presProfileOperators_mod
     real(8)  :: DZ(KN1+1),DZD(KN1+1),DXD(KN2+1)
     real(8)  :: ZPZ(KN2),ZPZD(KN2)
     real(8)  :: WX1,WX2,Y1,Y2,DY,DAD
-
     real(8), parameter :: WGT1=0.0d0, WGT2=1.0d0, WGT3=0.0d0
 
     !- Set integration/averaging range boundaries for output domain.
@@ -953,12 +947,11 @@ module presProfileOperators_mod
     !                           
     implicit none
 
-    !Arguments:                           
+    ! Arguments:                           
     logical, intent(in) :: LGRADPz ! Outpout domain logical indicating if gradient w.r.t. vertical coordinate 
                                    ! independent variable if required
 				   ! i.e. d/dv where P(v) (e.g. v=Ps).
                                    ! True for yes.
-
     logical, intent(in) :: LGRADPx ! Input domain logical indicating if gradient w.r.t. vertical coordinate 
                                    ! independent variable if required
 				   ! i.e. d/dv where P(v) (e.g. v=Ps).
@@ -988,13 +981,13 @@ module presProfileOperators_mod
     !                              ! +pzs1*dw2/dz1 + pzs2*dw2/dz2)
     !                              ! (required when LGRADP*=.true.)
      
-    !Locals:           
-    real(8)  :: y1  ! Upper boundary of integral range (y1<y2)
-    real(8)  :: y2  ! Lower boundary of integral range
-    real (8) :: d1,d2,wx1,wx2,wy1,wy2,dy,dzdd
-    real(8)  :: a1,a2,dxy1,dxy2,dxyd1,dxyd2,c1,c2
-    real(8)  :: dydzdd,dy1z1,dy2z2,d1d1,d1d2
-    integer  :: ibot,itop
+    ! Locals:           
+    real(8) :: y1  ! Upper boundary of integral range (y1<y2)
+    real(8) :: y2  ! Lower boundary of integral range
+    real(8) :: d1,d2,wx1,wx2,wy1,wy2,dy,dzdd
+    real(8) :: a1,a2,dxy1,dxy2,dxyd1,dxyd2,c1,c2
+    real(8) :: dydzdd,dy1z1,dy2z2,d1d1,d1d2
+    integer :: ibot,itop
     real(8) :: zthreshold
 
     !  1. Initialization
@@ -1339,7 +1332,6 @@ module presProfileOperators_mod
     real(8), intent(in)    :: pressInput(numInputLevs) ! Reference input levels
 
     ! Locals:
-
     integer   :: levelIndex
     real(8)   :: zp, zp1, zp2, zp3, zr1, zr2, zr3
 
@@ -1473,11 +1465,9 @@ module presProfileOperators_mod
     integer, intent(in) :: numTargetLevs ! # of target vertical levels
     real(8), intent(in) :: targetLayersTop(numTargetLevs) ! top of target layers
     real(8), intent(in) :: targetLayersBot(numTargetLevs) ! bottom of target layers
-
     real(8), intent(out) :: wgts(numTargetLevs,numInputLevs) ! Averaging weights
     integer, intent(inout) :: kstart(numTargetLevs) ! Index of first relevant original/input level for each target level
     integer, intent(inout) :: kend(numTargetLevs)   ! Index of last relevant original/input level for each target level
-
     character(len=*), intent(in), optional :: skipType_opt ! Skipping processing of specific target layers depending on case
     logical, intent(in), optional  :: dealloc_opt ! Logical indicating if deallocation is desired when done
     real(8), intent(out), optional :: wgts_opt(numTargetLevs,numInputLevs) ! Part of averaging weights not related to resolution
@@ -1489,7 +1479,6 @@ module presProfileOperators_mod
     logical :: success(numTargetLevs)
     character(len=20) :: skipType
     integer, parameter :: ivweights=2  ! Order of Lagrangian interpolation.
-
     integer :: levelIndex,JK,ILMAX2,ILMIN2
     integer :: ILMIN, ILMAX
     real(8) :: zp, zp1, zp2, zp3, zr1, zr2, zr3, ptop, pbtm
@@ -1804,11 +1793,9 @@ module presProfileOperators_mod
     integer, intent(in) :: numTargetLevs ! # of target vertical levels
     real(8), intent(in) :: targetLayersTop(numTargetLevs) ! top of target layers
     real(8), intent(in) :: targetLayersBot(numTargetLevs) ! bottom of target layers
-
     real(8), intent(out)   :: wgts(numTargetLevs,numInputLevs) ! Averaging weights
     integer, intent(inout) :: kstart(numTargetLevs) ! Index of first relevant original/input level for each target level
     integer, intent(inout) :: kend(numTargetLevs)   ! Index of last relevant original/input level for each target level
-
     character(len=*), intent(in), optional :: skipType_opt ! Skipping processing of specific target layers depending on case
     logical, intent(in), optional  :: dealloc_opt ! Logical indicating if deallocation is desired when done
     real(8), intent(out), optional :: wgts_opt(numTargetLevs,numInputLevs) ! Part of averaging weights not related to resolution
@@ -1819,7 +1806,6 @@ module presProfileOperators_mod
     integer :: TargetIndex   
     logical :: success(numTargetLevs)
     character(len=20) :: skipType
-
     integer :: levelIndex,ILMAX2,ILMIN2
     integer :: ILMIN, ILMAX
     real(8) :: SumWeights, TargetLayerThickWgt, ptop, pbtm

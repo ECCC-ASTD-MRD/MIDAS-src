@@ -62,7 +62,7 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_hco), pointer, intent(inout) :: hco_in
     type(struct_hco), pointer, intent(inout) :: hco_core
     type(struct_vco), pointer, intent(inout) :: vco_in
@@ -96,11 +96,11 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     character(len=*), intent(in) :: varName ! reference variable/type used
     character(len=*), optional, intent(in) :: varKind_opt ! additional variable/type information mandatory for some initialization
 
-    ! Locals
+    ! Locals:
     type(struct_gsv) :: statevector_noZnoP
     integer :: varIndex
     
@@ -190,17 +190,15 @@ CONTAINS
     !
     implicit none
    
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout)           :: statevector ! statevector operand of the transformation
     character(len=*), intent(in)              :: transform ! string identifying the requested transformation
     type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
     type(struct_gsv), optional, intent(in)    :: statevectorRef_opt ! reference statevector necessary for some transformation
     logical, optional, intent(in)             :: allowOverWrite_opt
-    character(len=*), optional, intent(in)    :: varName_opt ! additional variable/type information mandatory for some transformation
-    integer, optional, intent(in)             :: maxBoxSize_opt ! additional information required by SSTSpread subroutine
-    character(len=*), optional, intent(in)    :: subgrid_opt    ! additional information required by SSTSpread subroutine: 
-                                                                ! to spread SST values on neighbouring land points of "Yin" or "Yan" subgrid
-
+    character(len=*), optional, intent(in)    :: varName_opt    ! additional variable/type info mandatory for some transformation
+    integer, optional, intent(in)             :: maxBoxSize_opt ! additional info required by SSTSpread
+    character(len=*), optional, intent(in)    :: subgrid_opt    ! additional info required by SSTSpread to spread SST values
 
     ! check stateVector and statevectorOut_opt are on the same grid
     if ( present(stateVectorRef_opt) ) then
@@ -435,7 +433,7 @@ CONTAINS
     !
     implicit none
    
-    ! Arguments
+    ! Arguments:
     type(struct_ens), intent(inout) :: ens ! operand (ensemble of statevector)
     character(len=*), intent(in)    :: transform ! string identifying the requested transformation
     logical, optional, intent(in)   :: allowOverWrite_opt
@@ -478,10 +476,9 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     character(len=*), intent(in) :: varName ! reference variable/type requested 
-
-    ! Locals
+    ! Result:
     type(struct_gsv), pointer  :: statevector_ptr
 
     select case ( trim(varName) )
@@ -518,16 +515,15 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv),  intent(in) :: stateVectorOnTrlGrid ! high spatial/temporal resolution statevector 
     character(len=*),  intent(in) :: varName ! reference variable/type used
     logical, intent(in), optional :: applyLimitOnHU_opt
 
-    ! Locals
+    ! Locals:
     type(struct_gsv)         :: stateVectorLowResTime
     type(struct_gsv)         :: stateVectorLowResTimeSpace
     type(struct_gsv), target :: stateVectorRefHUTT
-
     logical :: allocHeightSfc
     character(len=4), pointer :: varNames(:)
 
@@ -653,12 +649,11 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
 
-    ! Locals
+    ! Locals:
     integer :: lonIndex,latIndex,levIndex,stepIndex
-
     real(8), pointer :: hu_ptr(:,:,:,:), lq_ptr(:,:,:,:)
 
     call gsv_getField(statevector,hu_ptr,'HU')
@@ -688,12 +683,11 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
 
-    ! Locals
+    ! Locals:
     integer :: lonIndex,latIndex,levIndex,stepIndex
-
     real(4), pointer :: hu_ptr_r4(:,:,:,:), lq_ptr_r4(:,:,:,:)
     real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
 
@@ -748,11 +742,11 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_ens), intent(inout) :: ens
     real(8), optional, intent(in)   :: huMinValue_opt
 
-    ! Locals
+    ! Locals:
     integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
     integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd
     character(len=4) :: varName
@@ -800,11 +794,11 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout)         :: statevector
     type(struct_gsv), optional, intent(in)  :: statevectorRef_opt
 
-    ! Locals
+    ! Locals:
     integer :: lonIndex,latIndex,levIndex,stepIndex
     real(8), pointer :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
     real(8), pointer :: hu_trial(:,:,:,:)
@@ -878,11 +872,11 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout)         :: statevector
     type(struct_gsv), optional, intent(in)  :: statevectorRef_opt
 
-    ! Locals
+    ! Locals:
     integer           :: lonIndex,latIndex,levIndex,stepIndex
     real(8), pointer  :: hu_ptr_r8(:,:,:,:), lq_ptr_r8(:,:,:,:)
     real(8), pointer  :: hu_trial(:,:,:,:)
@@ -946,12 +940,12 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout)           :: stateVector
     type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
     logical, optional, intent(in)             :: allowOverWrite_opt
 
-    ! Locals
+    ! Locals:
     integer :: lonIndex,latIndex,levIndex,stepIndex
     logical :: overWriteNeeded
     real(4), pointer :: pr_ptr_r4(:,:,:,:), lpr_ptr_r4(:,:,:,:)
@@ -1081,11 +1075,11 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_ens), intent(inout) :: ens
     logical, optional, intent(in)   :: allowOverWrite_opt
 
-    ! Locals
+    ! Locals:
     integer :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
     integer :: myLatBeg, myLatEnd, myLonBeg, myLonEnd, kIndexLPR, kIndexPR
     logical :: overWriteNeeded
@@ -1151,11 +1145,11 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout)           :: stateVector
     type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
 
-    ! Locals
+    ! Locals:
     integer :: lonIndex,latIndex,levIndex,stepIndex
     real(4), pointer :: pr_ptr_r4(:,:,:,:), lpr_ptr_r4(:,:,:,:)
     real(8), pointer :: pr_ptr_r8(:,:,:,:), lpr_ptr_r8(:,:,:,:)
@@ -1231,12 +1225,12 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout)           :: stateVector
     type(struct_gsv), optional, intent(inout) :: statevectorOut_opt
     logical, optional, intent(in)             :: allowOverWrite_opt
 
-    ! Locals
+    ! Locals:
     integer :: lonIndex,latIndex,levIndex,stepIndex
     logical :: overWriteNeeded
     real(4), pointer :: vis_ptr_r4(:,:,:,:), lvis_ptr_r4(:,:,:,:)
@@ -1352,7 +1346,7 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: stateVector
 
     call czp_calcZandP_tl(statevector, stateVectorRefHeight)
@@ -1370,7 +1364,7 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: stateVector
 
     call czp_calcZandP_ad(statevector, stateVectorRefHeight)
@@ -1386,10 +1380,10 @@ CONTAINS
     !
     implicit none
    
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
 
-    ! Locals
+    ! Locals:
     real(8), pointer  :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
     real(8), pointer  :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
     integer           :: stepIndex
@@ -1430,15 +1424,14 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
 
-    ! Locals
+    ! Locals:
     integer           :: stepIndex
     logical, save     :: firstTime = .true.
     real(8), pointer  :: qr_ptr(:,:,:,:), dd_ptr(:,:,:,:)
     real(8), pointer  :: pp_ptr(:,:,:,:), cc_ptr(:,:,:,:)
-
     type(struct_lst), save :: lst_lapl   ! Spectral transform Parameters for Vort/Div -> Psi/Chi
     integer :: nlev_M
     integer :: nTrunc
@@ -1507,10 +1500,10 @@ CONTAINS
     !
     implicit none
    
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
 
-    ! Locals
+    ! Locals:
     integer               :: stepIndex 
     real(8), pointer      :: uu_ptr(:,:,:,:), vv_ptr(:,:,:,:)
     real(8), pointer      :: psi_ptr(:,:,:,:), chi_ptr(:,:,:,:)
@@ -1518,7 +1511,6 @@ CONTAINS
     real(8)               :: dla2
     integer               :: nlev_M, levIndex
     integer               :: ila_mpiglobal, ila_mpilocal
-
     ! spectral transform configuration (saved)
     integer, save :: gstID = -1
     integer, save :: nla_mpilocal, maxMyNla, ntrunc
@@ -1610,10 +1602,10 @@ CONTAINS
     !
     implicit none
    
-    ! Arguments
+    ! Arguments:
     type(struct_ens), intent(inout) :: ens
 
-    ! Locals
+    ! Locals:
     type(struct_hco), pointer :: hco_ens => null()
     type(struct_gsv)          :: gridStateVector_oneMember
     integer                   :: memberIndex
@@ -1665,10 +1657,10 @@ CONTAINS
     !
     implicit none
    
-    ! Arguments
+    ! Arguments:
     type(struct_ens), intent(inout) :: ens
 
-    ! Locals
+    ! Locals:
     type(struct_hco), pointer :: hco_ens => null()
     type(struct_gsv)          :: gridStateVector_oneMember
     integer                   :: memberIndex
@@ -1724,11 +1716,11 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_ens), intent(inout) :: ens
     character(len=4), intent(in)    :: varName
 
-    ! Locals
+    ! Locals:
     integer           :: lonIndex, latIndex, levIndex, stepIndex, memberIndex
     integer           :: myLatBeg, myLatEnd, myLonBeg, myLonEnd
     character(len=4)  :: varName_ens
@@ -1774,12 +1766,12 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout)         :: statevector
     character(len=*), intent(in)            :: varName
     type(struct_gsv), optional, intent(in)  :: statevectorRef_opt
     
-    ! Locals
+    ! Locals:
     integer           :: lonIndex,latIndex,levIndex,stepIndex,varIndex
     real(8), pointer  :: var_ptr(:,:,:,:), logVar_ptr(:,:,:,:)
     real(8), pointer  :: var_trial(:,:,:,:)
@@ -1827,10 +1819,10 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
     
-    ! Locals
+    ! Locals:
     integer           :: varIndex,lonIndex,latIndex,levIndex,stepIndex
     real(8), pointer  :: var_ptr(:,:,:,:)
     real(8)           :: minVal
@@ -1883,22 +1875,19 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
     type(struct_gsv), intent(in)    :: stateVectorRef
     character(len=*), intent(in)    :: outputVarName   
 
-    ! Locals
+    ! Locals:
     type(struct_gsv) :: statevector_analysis_1step_r8
     type(struct_gsv) :: statevector_trial_1step_r8
-
     real(8), pointer :: analysis_ptr(:,:,:,:), trial_ptr(:,:,:,:)
     real(8), pointer :: input_ptr(:,:,:,:)
     real(8)          :: alpha, factor, correc, rms, maxAbsCorr, basic
-
     integer :: lonIndex, latIndex, levIndex, stepIndex
     integer :: ipass, numPass, numCorrect
-
     logical :: orca12
     character(len=2) :: inputVarName
     
@@ -2126,13 +2115,13 @@ CONTAINS
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: stateVector  ! state vector of SST analysis
     character(len=*), intent(in)    :: variableName ! variable name    
     integer         , intent(in)    :: maxBoxSize   ! maximum box size of SST values spreading
     character(len=*), intent(in)    :: subgrid      ! spread SST values on neighbouring land points of "Yin" or "Yan" subgrid 
 
-    ! locals
+    ! Locals:
     logical, allocatable :: isWaterValue(:,:)              ! .True. for water points, .False. for land points
     logical, allocatable :: updatedIsWaterValue(:,:)       ! If the current value is already updated, set it to .True. 
     real(4), allocatable :: updatedField(:,:)              ! updated surface temperature on land

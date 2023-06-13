@@ -40,8 +40,8 @@ module oMinusF_mod
       !
       ! :Purpose: compute Observation-minus-Forecast (OmF)
       !
-
       implicit none
+
       ! Arguments:
       type(struct_columnData),target, intent(inout)  :: columnTrlOnAnlIncLev
       type(struct_columnData),target, intent(inout)  :: columnTrlOnTrlLev
@@ -51,19 +51,16 @@ module oMinusF_mod
       logical, intent(in) :: addHBHT
       logical, intent(in) :: addSigmaO
 
-      ! locals
+      ! Locals:
       type(struct_vco),       pointer :: vco_anl  => null()
       type(struct_hco),       pointer :: hco_anl  => null()
       type(struct_hco),       pointer :: hco_trl => null()
       type(struct_vco),       pointer :: vco_trl => null()
       type(struct_hco),       pointer :: hco_core => null()
-
       logical           :: allocHeightSfc
-
       character(len=48) :: obsMpiStrategy
       character(len=3)  :: obsColumnMode
       character(len=10) :: trialFileName
-
       integer :: dateStampFromObs, get_max_rss
 
       write(*,*) " ---------------------------------------"
@@ -193,8 +190,8 @@ module oMinusF_mod
       !
       ! :Purpose: compute Observation-minus-Forecast (OmF) for ensembles
       !
-
       implicit none
+
       ! Arguments:
       type(struct_eob), target, intent(inout)  :: ensObs
       type(struct_obs), target, intent(inout)  :: obsSpaceData
@@ -204,26 +201,22 @@ module oMinusF_mod
       logical, intent(in) :: addHBHT
       logical, intent(in) :: addSigmaO
 
-      ! locals
+      ! Locals:
       type(struct_columnData)   :: columTrlOnTrlLev
       type(struct_columnData)   :: columnTrlOnAnlIncLev
       type(struct_ens)          :: ensembleTrl4D
       type(struct_gsv)          :: stateVector4D
       type(struct_gsv)          :: stateVectorWithZandP4D
-      type(struct_gsv)          :: stateVectorHeightSfc      
-      
+      type(struct_gsv)          :: stateVectorHeightSfc            
       type(struct_vco), pointer :: vco_anl  => null()
       type(struct_hco), pointer :: hco_anl  => null()
       type(struct_hco), pointer :: hco_ens  => null()
       type(struct_vco), pointer :: vco_ens  => null()
       type(struct_hco), pointer :: hco_core => null()
-
       character(len=256) :: ensFileName
       character(len=48)  :: obsMpiStrategy
       character(len=3)   :: obsColumnMode
-
-      integer, allocatable :: dateStampList(:)
-      
+      integer, allocatable :: dateStampList(:)      
       integer :: datestamp, get_max_rss, memberIndex
 
       write(*,*) " -----------------------------------------"

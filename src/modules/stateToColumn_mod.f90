@@ -111,11 +111,11 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_obs), intent(inout)       :: obsSpaceData
     type(struct_columnData), intent(inout):: column
 
-    ! locals
+    ! Locals:
     integer, parameter :: numWriteMax = 10
     integer :: headerIndex, bodyIndex, iterationCount, singularIndex, levelIndex
     integer :: pressureVarIndex
@@ -202,12 +202,12 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_obs)          :: obsSpaceData
     type(struct_hco), pointer :: hco_core
     logical                   :: moveObsAtPole
 
-    ! locals
+    ! Locals:
     integer :: headerIndex, ierr
     integer :: idata, idatend, jdata, subGridIndex
     real(4) :: lat_r4, lon_r4, lat_deg_r4, lon_deg_r4
@@ -215,8 +215,6 @@ contains
     real(4) :: xposLowerBoundAnl_r4, xposUpperBoundAnl_r4
     real(8) :: lat_r8, lon_r8
     integer, save :: numWrites = 0
-
-    ! external functions
     integer :: gdllfxy
 
     write(*,*) ' '
@@ -329,7 +327,7 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_interpInfo)    :: interpInfo
     type(struct_obs)           :: obsSpaceData
     type(struct_gsv), target   :: stateVector
@@ -340,7 +338,7 @@ contains
     character(len=*)           :: inputStateVectorType
     logical, optional          :: lastCall_opt
 
-    ! locals
+    ! Locals:
     type(struct_gsv)          :: stateVector_VarsLevs_1Step, stateVector_Tiles_allVar_1Step
     type(struct_gsv)          :: stateVector_Tiles_1Step
     type(struct_gsv), save    :: stateVector_1Step
@@ -377,7 +375,6 @@ contains
     logical :: doSlantPath, SlantTO, SlantRO, SlantRA, firstHeaderSlantPathTO, firstHeaderSlantPathRO, firstHeaderSlantPathRA
     logical :: doSetup3dHeights, lastCall
     logical, save :: nmlAlreadyRead = .false.
-
     type(kdtree2), pointer  :: tree
 
     namelist /nams2c/ slantPath_TO_nl, slantPath_TO_tlad, slantPath_RO_nl, slantPath_RA_nl, calcHeightPressIncrOnColumn
@@ -1180,13 +1177,13 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv), target   :: stateVector_in
     type(struct_obs)           :: obsSpaceData
     type(struct_columnData)    :: columnAnlInc
     type(struct_columnData)    :: columnTrlOnAnlIncLev
 
-    ! locals
+    ! Locals:
     type(struct_gsv)           :: stateVector_VarsLevs
     type(struct_gsv), pointer  :: stateVector
     integer :: kIndex, kIndex2, levIndex, kCount, stepIndex, numStep, mykEndExtended
@@ -1419,13 +1416,13 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv), target   :: stateVector_out
     type(struct_obs)           :: obsSpaceData
     type(struct_columnData)    :: columnAnlInc
     type(struct_columnData)    :: columnTrlOnAnlIncLev
 
-    ! locals
+    ! Locals:
     type(struct_gsv)           :: stateVector_VarsLevs
     type(struct_gsv), pointer  :: stateVector
     integer :: kIndex, kIndex2, kCount, levIndex, stepIndex, numStep, mykEndExtended
@@ -1649,7 +1646,7 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_gsv)           :: stateVector
     type(struct_obs)           :: obsSpaceData
     type(struct_columnData)    :: column
@@ -1661,7 +1658,7 @@ contains
     logical,          optional :: moveObsAtPole_opt
     logical,          optional :: beSilent_opt
 
-    ! locals
+    ! Locals:
     type(struct_gsv), save :: stateVector_VarsLevs 
     integer :: kIndex, kIndex2, kCount, stepIndex, numStep, mykEndExtended
     integer :: headerIndex, headerIndex2, numHeader, numHeaderMax, yourNumHeader
@@ -2042,7 +2039,7 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8)                 :: column_out(:)
     real(4)                 :: field_in(:,:)
     type(struct_interpInfo) :: interpInfo
@@ -2050,7 +2047,7 @@ contains
     integer                 :: procIndex
     integer                 :: kIndex
 
-    ! locals
+    ! Locals:
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
     real(8) :: interpValue, weight
 
@@ -2092,7 +2089,7 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8)                 :: column_out(:)
     real(8)                 :: field_in(:,:)
     type(struct_interpInfo) :: interpInfo
@@ -2100,7 +2097,7 @@ contains
     integer                 :: procIndex
     integer                 :: kIndex
 
-    ! locals
+    ! Locals:
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
     real(8) :: interpValue, weight
 
@@ -2142,7 +2139,7 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8)                 :: column_out(:)
     real(pre_incrReal)      :: field_in(:,:)
     type(struct_interpInfo) :: interpInfo
@@ -2150,7 +2147,7 @@ contains
     integer                 :: procIndex
     integer                 :: kIndex
 
-    ! locals
+    ! Locals:
     integer :: lonIndex, latIndex, gridptIndex, headerIndex, subGridIndex, numColumn
     real(8) :: interpValue, weight
 
@@ -2241,7 +2238,7 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8)                 :: column_out(:)
     character(len=*)        :: varName
     real(4)                 :: fieldUU_in(:,:)
@@ -2251,7 +2248,7 @@ contains
     integer                 :: procIndex
     integer                 :: kIndex
 
-    ! locals
+    ! Locals:
     integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
     integer :: numColumn, subGridIndex
     real(8) :: interpUU(interpInfo%hco%numSubGrid), interpVV(interpInfo%hco%numSubGrid)
@@ -2326,7 +2323,7 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8)                 :: column_out(:)
     character(len=*)        :: varName
     real(pre_incrReal)      :: fieldUU_in(:,:)
@@ -2336,7 +2333,7 @@ contains
     integer                 :: procIndex
     integer                 :: kIndex
 
-    ! locals
+    ! Locals:
     integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
     integer :: numColumn, subGridIndex
     real(8) :: interpUU(interpInfo%hco%numSubGrid), interpVV(interpInfo%hco%numSubGrid)
@@ -2411,7 +2408,7 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     real(8)                 :: column_in(:)
     character(len=*)        :: varName
     real(pre_incrReal)      :: fieldUU_out(:,:)
@@ -2421,7 +2418,7 @@ contains
     integer                 :: procIndex
     integer                 :: kIndex
 
-    ! locals
+    ! Locals:
     integer :: lonIndex, latIndex, indexBeg, indexEnd, gridptIndex, headerIndex
     integer :: numColumn, subGridIndex
     real(8) :: interpUU(interpInfo%hco%numSubGrid), interpVV(interpInfo%hco%numSubGrid)
@@ -2496,12 +2493,12 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_columnData) :: column
     type(struct_gsv) :: statevector
     type(struct_obs) :: obsSpaceData
 
-    ! locals
+    ! Locals:
     integer :: jk, jk2, jgl, headerIndex
     integer :: lonIndex, ila, ierr, subGridIndex
     integer :: extraLongitude
@@ -2510,7 +2507,6 @@ contains
     real(8) :: dldy, dlw1, dlw2, dlw3, dlw4, dldx, ypos, xpos
     real(8), allocatable ::zgd(:,:,:)
     real(8), pointer :: field_ptr(:,:,:)
-
     real(8), pointer :: varColumn(:)
     integer :: varIndex
     character(len=4) :: varName
@@ -2687,14 +2683,15 @@ contains
     !          the returned footprint is zero (default).
     !
     implicit none
-    real(4)                       :: fpr
 
     ! Arguments:
     type(struct_obs), intent(in)  :: obsSpaceData
     type(struct_gsv), intent(in)  :: stateVector
     integer         , intent(in)  :: headerIndex
+    ! Result:
+    real(4)                       :: fpr
 
-    ! locals
+    ! Locals:
     character(len=2)  :: obsFamily
     character(len=12) :: cstnid
     integer           :: codeType
@@ -3108,7 +3105,6 @@ contains
     integer :: ipoint, gridptCount
     integer :: lonIndex, latIndex, resultsIndex, gridIndex
     integer :: lonIndexVec(maxNumLocalGridptsSearch), latIndexVec(maxNumLocalGridptsSearch)
-
     type(kdtree2_result)      :: searchResults(maxNumLocalGridptsSearch)
     real(kdkind)              :: refPosition(3), maxRadiusSquared
     type(kdtree2), pointer    :: tree
@@ -3386,13 +3382,13 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_interpInfo), intent(inout) :: interpInfo
     type(struct_gsv)       , intent(in)    :: stateVector
     integer                , intent(in)    :: headerIndex, kIndex, stepIndex, procIndex
     integer                , intent(out)   :: numGridpt(interpInfo%hco%numSubGrid)
 
-    ! locals
+    ! Locals:
     integer :: depotIndex
     integer :: ierr
     integer :: latIndex, lonIndex
@@ -3507,8 +3503,6 @@ contains
     real(4) :: lon_r4, lat_r4, lon_deg_r4, lat_deg_r4
     real(4) :: xpos_r4, ypos_r4, xpos2_r4, ypos2_r4
     logical :: latlonOutsideGrid, rejectHeader
-
-    ! external functions
     integer :: gdllfxy
 
     ! Allow for periodicity in Longitude for global Gaussian grid
@@ -3630,13 +3624,14 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     type(struct_obs), intent(in)  :: obsSpaceData
-    real(4)                       :: footPrintRadius_r4
     integer         , intent(in)  :: headerIndex
     logical         , intent(in), optional :: beSilent_opt
-    
-    ! local
+    ! Result:
+    real(4)                       :: footPrintRadius_r4
+
+    ! Locals:
     integer :: codtyp, sensorIndex 
     real(8) :: fovAngularDiameter, satHeight, footPrintRadius
     character(len=codtyp_name_length) :: instrumName
@@ -3704,7 +3699,7 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     integer, intent(in)  :: headerIndex
     integer, intent(in)  :: kIndex
     integer, intent(in)  :: stepIndex
@@ -3714,7 +3709,7 @@ contains
     integer, intent(out) :: lonIndex(:)
     integer, intent(out) :: gridptCount
 
-    ! locals
+    ! Locals:
     integer :: indexBeg, indexEnd, gridptIndex
     integer :: subGridIndex, maxGridpt
 
@@ -3765,10 +3760,10 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     character(len=*), intent(in) :: inputStateVectorType
 
-    ! locals
+    ! Locals:
     type(struct_interpInfo), pointer :: interpInfo
     integer :: stepIndex, procIndex, numStep
 

@@ -388,7 +388,6 @@ contains
     character(len=64) :: dynamicCoeffFile, staticCoeffFile
     logical           :: corrected
     integer           :: nfov, npredictors
-
     character(len=10) :: satsDynamic(tvs_nsensors)       ! satellite names
     integer           :: chansDynamic(tvs_nsensors,tvs_maxchannelnumber)    ! channel numbers
     real(8)           :: fovbiasDynamic(tvs_nsensors,tvs_maxchannelnumber,maxfov)! bias as F(fov)
@@ -400,7 +399,6 @@ contains
     character(len=7)  :: cinstrumDynamic      ! string: instrument (e.g. AMSUB) 
     character(len=2)  :: ptypesDynamic(tvs_nsensors,tvs_maxchannelnumber,NumPredictors)
     integer           :: ndataDynamic(tvs_nsensors,tvs_maxchannelnumber)    !number of channels
-
     character(len=10) :: satsStatic(tvs_nsensors)       ! satellite names
     integer           :: chansStatic(tvs_nsensors,tvs_maxchannelnumber)    !channel numbers 
     real(8)           :: fovbiasStatic(tvs_nsensors,tvs_maxchannelnumber,maxfov)!bias as F(fov)
@@ -412,7 +410,6 @@ contains
     character(len=7)  :: cinstrumStatic      ! string: instrument (e.g. AMSUB) 9
     character(len=2)  :: ptypesStatic(tvs_nsensors,tvs_maxchannelnumber,NumPredictors)
     integer           :: ndataStatic(tvs_nsensors,tvs_maxchannelnumber)    ! number of channels
-
 
     if (biasActive .and. biasMode == "apply") then
 
@@ -963,6 +960,8 @@ contains
 
     subroutine handleError(stat, message)
       implicit none
+
+      ! Arguments:
       type(FSQL_STATUS), intent(in)  :: stat
       character(len=*), intent(in) :: message
 
@@ -1470,12 +1469,16 @@ contains
   contains
 
     function logInterpHeight(columnTrlOnTrlLev, headerIndex, p) result(height)
-      !Arguments:
+      implicit none
+
+      ! Arguments:
       type(struct_columnData), intent(inout) :: columnTrlOnTrlLev
       integer, intent(in) :: headerIndex
       real(8), intent(in) :: p
+      ! Result:
       real(8) :: height
-      !Locals
+
+      ! Locals:
       integer :: jk, nlev, ik
       real(8) :: zpt, zpb, zwt, zwb
       real(8), pointer :: col_ptr(:)
@@ -1580,10 +1583,10 @@ contains
   !-----------------------------------
   ! bcs_getPredictors
   !---------------------------------- 
-   subroutine bcs_getPredictors(predictor, headerIndex, obsIndex, chanindx, obsSpaceData)
-     !
-     ! :Purpose: get predictors
-     !
+  subroutine bcs_getPredictors(predictor, headerIndex, obsIndex, chanindx, obsSpaceData)
+    !
+    ! :Purpose: get predictors
+    !
     implicit none
 
     ! Arguments:
@@ -2033,6 +2036,7 @@ contains
     !   if returned nsat = 0, coeff_file was empty
     !   maxpred (input) is max number of predictors
     !   maxsat (input)  is max number of satellites
+
     ! There are three parts in this subroutine, read, update and write out the coeff files
     ! 
     !- 1. read in the background coeff files, this program is read_coeff from genbiascorr
@@ -2948,8 +2952,10 @@ contains
     ! :Purpose: compute and output OmF-predictors covariance and correlation matrices
     !
     implicit none
+
     ! Arguments:
     type(struct_obs), intent(inout)        :: obsSpaceData
+
     ! Locals:
     integer :: sensorIndex, headerIndex, bodyIndex, channelIndex, predictorIndex,predictorIndex2,nchans
     integer :: idatyp, indxtovs, iSensor, chanIndx, Iobs, ierr
@@ -3219,6 +3225,7 @@ contains
 
     ! Arguments:
     character(len=10), intent(in) :: nameIn
+    ! Result:
     character(len=10)             :: nameOut
 
     ! Locals:
@@ -3249,6 +3256,7 @@ contains
     
     ! Arguments:
     character(len=10), intent(in) :: nameIn
+    ! Result:
     character(len=10)             :: nameOut
 
     if (trim(nameIn) == 'MHS') then
@@ -3271,8 +3279,9 @@ contains
   function SatNameinCoeffFile(nameIn) result(nameOut)
     implicit none
 
-    !Arguments:
+    ! Arguments:
     character(len=10), intent(in) :: nameIn
+    ! Result:
     character(len=10)             :: nameOut
 
     if (trim(nameIn) == 'MSG1') then
@@ -3316,6 +3325,7 @@ contains
     integer                      :: xcan, xnpred, chknp
     character(len=1)             :: xbcmode, xbctype
     character(len=2)             :: xpred(numpredictors)
+
     ! Reads channel-specific bias correction (BC) information (predictors) for instrument from BCIF.
     ! Channel 0 values are global or default values (optionally applied to all channels).
     ! Returns BC information for all channels to calling routine.
@@ -3534,6 +3544,7 @@ contains
     integer                        :: iun
     integer                        :: maxsat    
     integer                        :: maxpred 
+
     !   sats(nsat)            = satellite names
     !   chans(nsat,nchan(i))  = channel numbers of each channel of each satellite i
     !   npred(nsat,nchan(i))  = number of predictors for each channel of each satellite i
@@ -3543,7 +3554,6 @@ contains
     !   coeff(i,j,2), ..., coeff(i,j,npred(i,j)) = predictor coefficients
     !   nsat, nchan, nfov, cinstrum (output) are determined from file
     !   if returned nsat = 0, coeff_file was empty
-
 
     inquire(file=trim(coeff_file), exist=fileExists)
     if (fileExists) then
@@ -3742,6 +3752,7 @@ contains
 
     ! Arguments:
     integer, intent(in) :: codeType
+    ! Result:
     character(len=20)   :: fileName
  
     if (codtyp_get_name(codeType) == 'radianceclear') then

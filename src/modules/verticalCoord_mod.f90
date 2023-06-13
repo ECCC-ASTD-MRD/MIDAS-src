@@ -58,10 +58,10 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(inout) :: vco ! Vertical coordinate object
 
-    ! locals:
+    ! Locals:
     integer :: numLev
 
     numLev = vco_getNumLev(vco,'MM')
@@ -82,13 +82,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_vco),pointer,   intent(inout) :: vco          ! Vertical coordinate object 
     character(len=*),           intent(in)    :: templatefile ! Template file
     character(len=*), optional, intent(in)    :: etiket_opt   ! Optional argument etiket
     logical, optional,          intent(in)    :: beSilent_opt ! Optional argument beSilent
 
-    ! locals:
+    ! Locals:
     logical           :: beSilent
     character(len=12) :: etiket
     integer :: nultemplate,ierr
@@ -227,13 +227,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object 
     character(len=*),          intent(in)    :: templatefile ! Template file
     character(len=*),          intent(in)    :: etiket
     logical,                   intent(in)    :: beSilent
 
-    ! locals:
+    ! Locals:
     integer :: Vcode, jlev, nlevMatched, stat, nultemplate, ierr, ikey
     integer :: fnom, fstouv, fstfrm, fclos, fstinf
     integer :: vgd_nlev_M, vgd_nlev_T, ip1_sfc
@@ -459,13 +459,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object 
     character(len=*),          intent(in)    :: templatefile ! Template file
     character(len=*),          intent(in)    :: etiket
     logical,                   intent(in)    :: beSilent
 
-    ! locals:
+    ! Locals:
     integer :: nultemplate, ierr
     integer, parameter :: maxNumRecords = 500
     integer :: recordIndex, numRecords, ikeys(maxNumRecords)
@@ -476,7 +476,6 @@ contains
     integer, parameter :: maxNumDepthLevels = 200
     real(8)            :: depths(maxNumDepthLevels)
     integer            :: ip1_depth(maxNumDepthLevels)
-
     integer :: ideet, inpas, dateStamp_origin, ini, inj, ink, inbits, idatyp
     integer :: ip1, ip2, ip3, ig1, ig2, ig3, ig4, iswa, ilng, idltf, iubc
     integer :: iextra1, iextra2, iextra3
@@ -567,7 +566,7 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(inout) :: vco          ! Vertical coordinate object 
     logical,                   intent(in)    :: beSilent
 
@@ -591,10 +590,10 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(inout) :: vco ! Vertical coordinate object
 
-    ! locals:
+    ! Locals:
     integer :: stat
 
     if ( vco%vgridPresent ) then
@@ -620,14 +619,15 @@ contains
     ! 
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(in)  :: vco         ! Vertical coordinate object
-    character(len=*),          intent(in)  :: varLevel    ! 'TH', 'MM', 'SF', 'SFMM',
-                                                          ! 'SFTH', 'DP', 'SS' or 'OT'
+    character(len=*),          intent(in)  :: varLevel    ! 'TH', 'MM', 'SF', 'SFMM', 'SFTH', 'DP', 'SS' or 'OT'
     character(len=*), optional, intent(in) :: varName_opt ! only needed for varLevel='OT'
+    ! Result:
+    integer :: nlev
 
-    ! locals:
-    integer :: nlev, varListIndex
+    ! Locals:
+    integer :: varListIndex
 
     if (varLevel == 'MM') then
       nlev = vco%nlev_M
@@ -659,10 +659,10 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(inout) :: vco ! vertical coordinate object
 
-    ! locals:
+    ! Locals:
     integer :: ierr, vgd_nlev_M, vgd_nlev_T
     integer :: vgdig1, vgdig2, vgdig3, vgdig4, vgdip1, vgdip2, vgdip3, vgddate
     integer :: vgdtable_dim1, vgdtable_dim2, vgdtable_dim3
@@ -780,10 +780,10 @@ contains
     !
     implicit none
   
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(in) :: vco1 ! vertical coordinate object one
     type(struct_vco), pointer, intent(in) :: vco2 ! vertical coordinate object two
-    ! result:
+    ! Result:
     logical                   :: equal
 
     equal = .true.
@@ -858,13 +858,13 @@ contains
     !
     implicit none
     
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(in)  :: vco_full     ! vertical coordinate object full
     type(struct_vco), pointer, intent(in)  :: vco_template ! vertical coordinate object template
-    ! result:
+    ! Result:
     logical :: subset
 
-    ! locals:
+    ! Locals:
     integer, allocatable :: THlevelWanted(:), MMlevelWanted(:)
 
     !
@@ -924,13 +924,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(in)  :: vco1 ! vertical coordinate object one
     type(struct_vco), pointer, intent(in)  :: vco2 ! vertical coordinate object two
-    ! result:
+    ! Result:
     logical :: equal
 
-    ! locals:
+    ! Locals:
     real(8) :: ptop1, ptop2
     real(8), pointer :: coefA1(:), coefA2(:)
     real(8), pointer :: coefB1(:), coefB2(:)
@@ -1021,13 +1021,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(in) :: vco1       ! vertical coordinate object one
     type(struct_vco), pointer, intent(in) :: vco2       ! vertical coordinate object two
     integer, intent(out) :: THmatchingList(vco1%nlev_T) ! TH matching list
     integer, intent(out) :: MMmatchingList(vco1%nlev_M) ! MM matching list
 
-    ! locals
+    ! Locals:
     integer :: levIndex1, levIndex2
 
     !
@@ -1071,10 +1071,10 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     type(struct_vco), pointer, intent(in) :: vco ! vertical coordinate object
 
-    ! locals:
+    ! Locals:
     character(len=10) :: blk_s
 
     if      (vco%Vcode == 5002) then

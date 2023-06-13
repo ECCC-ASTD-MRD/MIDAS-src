@@ -176,16 +176,13 @@ CONTAINS
     type(struct_hco), pointer, intent(in) :: hco_anl_in
     type(struct_hco), pointer, intent(in) :: hco_core_in
     type(struct_vco), pointer, intent(in) :: vco_anl_in
-
     character(len=*), intent(in), optional :: mode_opt
-
     integer, allocatable, intent(out)      :: cvDimPerInstance(:)
 
     ! Locals:
     integer        :: fnom, fclos, ierr
     integer        :: cvDimStorage(nInstanceMax)
     integer        :: nulnam = 0
-
     ! Namelist variables
     integer             :: nEns                                   ! number of ensemble members
     real(8)             :: scaleFactor(vco_maxNumLevels)             ! level-dependent scaling of variances for all variables 
@@ -402,27 +399,19 @@ CONTAINS
 
     ! Locals:
     type(struct_gsv) :: statevector_ensMean4D, statevector_oneEnsPert4D
-
     type(struct_gbi) :: gbi_horizontalMean, gbi_landSeaTopo
-
     real(8) :: pSurfRef, delT_hour
-
     real(8), allocatable :: advectFactorFSOFcst_M(:),advectFactorAssimWindow_M(:)
-
     real(8),pointer :: vertLocationEns(:), vertLocationFile(:), vertLocationInc(:)
-
     real(4), pointer :: bin2d(:,:,:)
     real(8), pointer :: HeightSfc(:,:)
-
     integer        :: lonPerPE, latPerPE, lonPerPEmax, latPerPEmax
     integer        :: myMemberBeg, myMemberEnd, myMemberCount, maxMyMemberCount
     integer        :: levIndex, jvar, ierr
     integer        :: waveBandIndex, stepIndex
     character(len=256) :: ensFileName
     integer        :: dateStampFSO, ensDateStampOfValidity, idate, itime, newdate
-
     logical        :: EnsTopMatchesAnlTop, useAnlLevelsOnly
-
     character(len=32)   :: direction, directionEnsPerts, directionAnlInc
 
     if (verbose) write(*,*) 'Entering ben_SetupOneInstance'
@@ -1088,6 +1077,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ben_finalize()
     implicit none
+
+    ! Locals:
     integer :: waveBandIndex
     integer :: instanceIndex
 
@@ -1112,9 +1103,12 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ben_getScaleFactor(scaleFactor_out, instanceIndex_opt)
     implicit none
+
+    ! Arguments:
     real(8), intent(out)          :: scaleFactor_out(:)
     integer, optional, intent(in) :: instanceIndex_opt
 
+    ! Locals:
     integer :: levIndex, instanceIndex
 
     if (verbose) write(*,*) 'Entering ben_getScaleFactor'
@@ -1140,7 +1134,10 @@ CONTAINS
     !:Purpose: To return the appropriate instance index
     !
     implicit none
+
+    ! Arguments:
     integer, optional :: instanceIndex_opt
+    ! Result:
     integer :: instanceIndex
 
     if (present(instanceIndex_opt)) then
@@ -1159,7 +1156,11 @@ CONTAINS
     !:Purpose: To return the number of ensemble members
     !
     implicit none
+
+    ! Arguments:
     integer, optional, intent(in) :: instanceIndex_opt
+
+    ! Locals:
     integer :: instanceIndex
 
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
@@ -1174,8 +1175,10 @@ CONTAINS
   subroutine setupEnsemble(instanceIndex)
     implicit none
 
+    ! Arguments:
     integer, intent(in) :: instanceIndex
 
+    ! Locals:
     real(4), pointer     :: ptr4d_r4(:,:,:,:)
     real(8) :: multFactor
     integer :: stepIndex,levIndex,lev,waveBandIndex,memberIndex,varIndex
@@ -1283,6 +1286,7 @@ CONTAINS
                                  undoNormalization_opt, instanceIndex_opt)
     implicit none
 
+    ! Arguments:
     type(struct_gsv) :: statevector
     integer,          intent(in) :: memberIndexWanted
     character(len=*), intent(in) :: upwardExtrapolationMethod
@@ -1290,8 +1294,8 @@ CONTAINS
     logical, optional :: undoNormalization_opt
     integer, optional, intent(in) :: instanceIndex_opt
 
+    ! Locals:
     integer :: instanceIndex
-
     real(8), pointer :: ptr4d_r8(:,:,:,:)
     real(4), pointer :: ensOneLev_r4(:,:,:,:)
     real(8) :: dnens2, scaleFactor_MT
@@ -1434,10 +1438,12 @@ CONTAINS
                             instanceIndex_opt)
     implicit none
 
+    ! Arguments:
     type(struct_gsv) :: statevector
     character(len=*), intent(in) :: upwardExtrapolationMethod
     integer, optional, intent(in) :: instanceIndex_opt
 
+    ! Locals:
     real(8), pointer :: ptr4d_out(:,:,:,:)
     real(8), pointer :: ensOneLev_mean(:,:,:)
     integer :: instanceIndex
@@ -1513,31 +1519,26 @@ CONTAINS
   subroutine ensembleScaleDecomposition(instanceIndex)
     implicit none
 
+    ! Arguments:
     integer, intent(in) :: instanceIndex
 
+    ! Locals:
     integer :: waveBandIndex, memberindex, stepIndex, levIndex, latIndex, lonIndex
     integer :: ila_filter, p, nla_filter, nphase_filter
-
     real(8), allocatable :: ResponseFunction(:,:)
-
     real(8), allocatable :: bandSum(:,:)
     real(8) :: totwvnb_r8
-
     real(8), allocatable :: ensPertSP(:,:,:)
     real(8), allocatable :: ensPertSPfiltered(:,:,:)
     real(8), allocatable :: ensPertGD(:,:,:)
     real(4), pointer     :: ptr4d_r4(:,:,:,:)
-
     integer, allocatable :: nIndex_vec(:)
-
     integer :: nTrunc
     integer :: gstFilterID, mIndex, nIndex, mymBeg, mymEnd, mynBeg, mynEnd, mymSkip, mynSkip
     integer :: mymCount, mynCount
     integer :: waveBandIndexStart, waveBandIndexEnd
     integer :: waveBandIndexLoopStart, waveBandIndexLoopEnd, waveBandIndexLoopDirection
-
     type(struct_lst)    :: lst_ben_filter ! Spectral transform Parameters for filtering
-
     character(len=19)   :: kind
 
     !
@@ -1788,6 +1789,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ben_reduceToMPILocal(cv_mpilocal,cv_mpiglobal,instanceIndex)
     implicit none
+
+    ! Arguments:
     integer, intent(in)  :: instanceIndex
     real(8), intent(out) :: cv_mpilocal(bEns(instanceIndex)%cvDim_mpilocal)
     real(8), intent(in)  :: cv_mpiglobal(:)
@@ -1803,6 +1806,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ben_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal,instanceIndex)
     implicit none
+
+    ! Arguments:
     integer, intent(in)  :: instanceIndex
     real(4), intent(out) :: cv_mpilocal(bEns(instanceIndex)%cvDim_mpilocal)
     real(4), intent(in)  :: cv_mpiglobal(:)
@@ -1818,6 +1823,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ben_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal,instanceIndex)
     implicit none
+
+    ! Arguments:
     integer, intent(in)  :: instanceIndex
     real(8), intent(in)  :: cv_mpilocal(bEns(instanceIndex)%cvDim_mpilocal)
     real(8), intent(out) :: cv_mpiglobal(:)
@@ -1834,6 +1841,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ben_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal,instanceIndex)
     implicit none
+
+    ! Arguments:
     integer, intent(in)  :: instanceIndex
     real(4), intent(in)  :: cv_mpilocal(bEns(instanceIndex)%cvDim_mpilocal)
     real(4), intent(out) :: cv_mpiglobal(:)
@@ -1852,17 +1861,16 @@ CONTAINS
                        useFSOFcst_opt, stateVectorRef_opt)
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer, intent(in) :: instanceIndex
     real(8)          :: controlVector_in(bEns(instanceIndex)%cvDim_mpilocal) 
     type(struct_gsv) :: statevector
     logical,optional :: useFSOFcst_opt
     type(struct_gsv), optional :: statevectorRef_opt
 
-    ! Locals
+    ! Locals:
     type(struct_ens), target  :: ensAmplitude
     type(struct_ens), pointer :: ensAmplitude_ptr
-
     integer   :: ierr, waveBandIndex
     integer   :: numStepAmplitude, amp3dStepIndex
     logical   :: immediateReturn
@@ -1989,17 +1997,16 @@ CONTAINS
                          useFSOFcst_opt, stateVectorRef_opt)
     implicit none
 
-    ! Arguments
+    ! Arguments:
     integer, intent(in)        :: instanceIndex
     real(8)                    :: controlVector_out(bEns(instanceIndex)%cvDim_mpilocal) 
     type(struct_gsv)           :: statevector
     logical, optional          :: useFSOFcst_opt
     type(struct_gsv), optional :: statevectorRef_opt
 
-    ! Locals
+    ! Locals:
     type(struct_ens), target  :: ensAmplitude
     type(struct_ens), pointer :: ensAmplitude_ptr
-
     integer           :: ierr, waveBandIndex
     integer           :: numStepAmplitude,amp3dStepIndex
     logical           :: useFSOFcst
@@ -2110,12 +2117,14 @@ CONTAINS
                           instanceIndex, waveBandIndex, useFSOFcst_opt)
     implicit none
 
+    ! Arguments:
     type(struct_ens)    :: ensAmplitude
     type(struct_gsv)    :: statevector_out
     integer, intent(in) :: instanceIndex
     integer, intent(in) :: waveBandIndex
     logical, optional   :: useFSOFcst_opt
 
+    ! Locals:
     real(8), pointer    :: ensAmplitude_oneLev(:,:,:,:)
     real(8), pointer    :: ensAmplitude_oneLevM1(:,:,:,:), ensAmplitude_oneLevP1(:,:,:,:)
     real(8), allocatable, target :: ensAmplitude_MT(:,:,:,:)
@@ -2126,7 +2135,6 @@ CONTAINS
     real(4), pointer     :: ensMemberAll_r4(:,:,:,:)
     integer     :: lev, lev2, levIndex, stepIndex, stepIndex_amp, latIndex, lonIndex, topLevOffset, memberIndex
     character(len=4)     :: varName
-
     logical             :: useFSOFcst
     integer             :: stepIndex2, stepBeg, stepEnd, numStepAmplitude
 
@@ -2328,12 +2336,14 @@ CONTAINS
                             instanceIndex, waveBandIndex, useFSOFcst_opt)
     implicit none
 
+    ! Arguments:
     type(struct_ens)   :: ensAmplitude
     type(struct_gsv)   :: statevector_in
     integer,intent(in) :: instanceIndex
     integer,intent(in) :: waveBandIndex
     logical,optional   :: useFSOFcst_opt
 
+    ! Locals:
     real(8), pointer    :: ensAmplitude_oneLev(:,:,:,:)
     real(8), pointer    :: ensAmplitude_oneLevM1(:,:,:,:), ensAmplitude_oneLevP1(:,:,:,:)
     real(8), allocatable :: ensAmplitude_MT(:,:)
@@ -2540,15 +2550,14 @@ CONTAINS
   subroutine ensembleDiagnostic(instanceIndex, mode)
     implicit none
 
+    ! Arguments:
     integer, intent(in) :: instanceIndex
     character(len=*), intent(in) :: mode
 
+    ! Locals:
     type(struct_gsv) :: statevector, statevector_temp
-
     integer :: nWaveBandToDiagnose, waveBandIndex, memberIndex
-
     real(8) :: dnens2
-
     character(len=48):: fileName
     character(len=12):: etiket
     character(len=2) :: waveBandNumber
@@ -2658,11 +2667,13 @@ CONTAINS
   subroutine ben_writeAmplitude(ensPathName, ensFileNamePrefix, ip3, instanceIndex_opt)
     implicit none
 
+    ! Arguments:
     character(len=*),  intent(in) :: ensPathName
     character(len=*),  intent(in) :: ensFileNamePrefix
     integer,           intent(in) :: ip3
     integer, optional, intent(in) :: instanceIndex_opt
 
+    ! Locals:
     integer :: instanceIndex
 
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
@@ -2681,6 +2692,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   subroutine ben_setFsoLeadTime(fsoLeadTime_in, instanceIndex_opt)
     implicit none
+
+    ! Arguments:
     real(8)  :: fsoLeadTime_in
     integer, optional, intent(in) :: instanceIndex_opt
     integer :: instanceIndex
@@ -2696,9 +2709,14 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ben_getNumStepAmplitudeAssimWindow(instanceIndex_opt) result(numStepAmplitude)
     implicit none
+
+    ! Arguments:
     integer, optional, intent(in) :: instanceIndex_opt
-    integer :: instanceIndex
+    ! Result:
     integer numStepAmplitude
+
+    ! Locals:
+    integer :: instanceIndex
 
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
 
@@ -2711,9 +2729,14 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ben_getAmplitudeAssimWindow(instanceIndex_opt) result(adv_amplitude)
     implicit none
+
+    ! Arguments:
     integer, optional, intent(in) :: instanceIndex_opt
-    integer :: instanceIndex
+    ! Result:
     type(struct_adv), pointer  :: adv_amplitude
+
+    ! Locals:
+    integer :: instanceIndex
 
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
 
@@ -2726,9 +2749,14 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ben_getAmp3dStepIndexAssimWindow(instanceIndex_opt) result(stepIndex)
     implicit none
+
+    ! Arguments:
     integer, optional, intent(in) :: instanceIndex_opt
-    integer :: instanceIndex
+    ! Result:
     integer  :: stepIndex
+
+    ! Locals:
+    integer :: instanceIndex
 
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
 
@@ -2741,6 +2769,8 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ben_getNumInstance() result(numInstance)
     implicit none
+
+    ! Result:
     integer  :: numInstance
 
     numInstance = nInstance
@@ -2752,9 +2782,14 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ben_getNumLoc(instanceIndex_opt) result(numLoc)
     implicit none
+
+    ! Arguments:
     integer, optional, intent(in) :: instanceIndex_opt
-    integer :: instanceIndex
+    ! Result:
     integer  :: numLoc
+
+    ! Locals:
+    integer :: instanceIndex
 
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
 
@@ -2767,10 +2802,15 @@ CONTAINS
   !--------------------------------------------------------------------------
   function ben_getLoc(locIndex,instanceIndex_opt) result(loc)
     implicit none
+
+    ! Arguments:
     integer, intent(in)  :: locIndex
     integer, optional, intent(in) :: instanceIndex_opt
-    integer :: instanceIndex
+    ! Result:
     type(struct_loc), pointer :: loc
+
+    ! Locals:
+    integer :: instanceIndex
 
     instanceIndex = ben_setInstanceIndex(instanceIndex_opt)
 

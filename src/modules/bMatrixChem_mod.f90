@@ -86,21 +86,20 @@ module bMatrixChem_mod
   ! bchm_setupCH
   !--------------------------------------------------------------------------
   subroutine bchm_setupCH(hco_in,vco_in,cvDim_out)
-   
+    !
     !:Purpose: Acquire constituents backgound error standard deviations (stddev),
     !          spectral space correlations (corns) and related elements
     !          which are read and prepared by lower level module routine
     !          bcsc_setupCH.
     !
-
     implicit none
 
-    !Arguments
+    ! Arguments:
     type(struct_hco), intent(in), pointer :: hco_in
     type(struct_vco), intent(in) ,pointer :: vco_in
     integer, intent(out) :: cvDim_out
 
-    !Locals
+    ! Locals:
     integer :: jn,jm
     integer :: latPerPE, latPerPEmax, lonPerPE, lonPerPEmax, nlev_T_even, ierr
     logical :: covarNeeded
@@ -179,17 +178,17 @@ module bMatrixChem_mod
     !
     !:Purpose: To apply B_CHM^1/2 to a control vector.
     !
-    ! Based on bhi_bsqrt
-    
+    !          Based on bhi_bsqrt
+    !
     implicit none
 
-    !Arguments
+    ! Arguments:
     real(8), intent(inout) :: controlVector_in(cvDim_mpilocal)
     type(struct_gsv), intent(inout) :: statevector
     type(struct_gsv), intent(in) , optional :: stateVectorRef_opt
     
-    !Locals
-    real(8) ,allocatable :: gd_out(:,:,:)
+    ! Locals:
+    real(8), allocatable :: gd_out(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,bgStats%nkgdim)
     character(len=30) :: transform
     integer :: varIndex
@@ -242,17 +241,16 @@ module bMatrixChem_mod
     !
     !:Purpose: To apply adjoint of B_CHM^1/2 to a statevector.
     !
+    !          Based on bhi_bSqrtAd.
     !
-    ! Based on bhi_bSqrtAd.
-    
     implicit none
 
-    !Arguments
+    ! Arguments:
     real(8), intent(inout) :: controlVector_out(cvDim_mpilocal)
     type(struct_gsv), intent(inout) :: statevector
     type(struct_gsv), intent(in), optional :: stateVectorRef_opt
     
-    !Locals
+    ! Locals:
     real(8), allocatable :: gd_in(:,:,:)
     real(8)   :: hiControlVector(nla_mpilocal,2,bgStats%nkgdim)
     character(len=30) :: transform
@@ -309,11 +307,11 @@ module bMatrixChem_mod
     !
     implicit none
 
-    !Arguments
+    ! Arguments:
     real(8), intent(inout) :: controlVector_in(cvDim_mpilocal)
     real(8), intent(inout) :: hiControlVector_out(nla_mpilocal,2,bgStats%nkgdim)
 
-    !Locals
+    ! Locals:
     integer :: jdim, levelIndex, jm, jn, ila_mpilocal, ila_mpiglobal
 
     jdim = 0
@@ -348,11 +346,11 @@ module bMatrixChem_mod
   subroutine bchm_cainAd(hiControlVector_in,controlVector_out)
     implicit none
 
-    !Arguments
+    ! Arguments:
     real(8), intent(inout) :: controlVector_out(cvDim_mpilocal)
     real(8), intent(inout) :: hiControlVector_in(nla_mpilocal,2,bgStats%nkgdim)
 
-    !Locals
+    ! Locals:
     integer :: jdim, levelIndex, jm, jn, ila_mpilocal, ila_mpiglobal
 
     jdim = 0
@@ -386,13 +384,12 @@ module bMatrixChem_mod
   subroutine bchm_spa2gd(hiControlVector_in,gd_out)
     implicit none
 
-    !Arguments
+    ! Arguments:
     real(8), intent(inout) :: hiControlVector_in(nla_mpilocal,2,bgStats%nkgdim)
     real(8), intent(inout) :: gd_out(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
 
-    !Locals
+    ! Locals:
     real(8) :: sp(nla_mpilocal,2,bgStats%nkgdim)
-
     integer :: jn,jm,ila_mpilocal,ila_mpiglobal,icount
     real(8) :: sq2
     real(8) , allocatable :: zsp(:,:,:), zsp2(:,:,:)
@@ -507,17 +504,15 @@ module bMatrixChem_mod
   subroutine bchm_spa2gdad(gd_in,hiControlVector_out)
     implicit none
 
-    !Arguments
+    ! Arguments:
     real(8), intent(inout) :: hiControlVector_out(nla_mpilocal,2,bgStats%nkgdim)
     real(8), intent(inout) :: gd_in(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
 
-    !Locals
+    ! Locals:
     real(8) :: sp(nla_mpilocal,2,bgStats%nkgdim)
-
     integer :: jn, jm, ila_mpilocal, ila_mpiglobal, icount
     real(8) :: sq2
     real(8), allocatable :: zsp(:,:,:), zsp2(:,:,:)
-
     integer :: levelIndex, lonIndex, latIndex
     real(8), target :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
 
@@ -615,11 +610,11 @@ module bMatrixChem_mod
   subroutine bchm_copyToStatevector(statevector,gd)
     implicit none
     
-    !Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
     real(8), intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
     
-    !Locals
+    ! Locals:
     integer :: lonIndex, levelIndex, levelIndex2, latIndex, varIndex, ilev1, ilev2
     real(8), pointer :: field(:,:,:)
 
@@ -647,11 +642,11 @@ module bMatrixChem_mod
   subroutine bchm_copyFromStatevector(statevector,gd)
     implicit none
 
-    !Arguments
+    ! Arguments:
     type(struct_gsv), intent(inout) :: statevector
     real(8), intent(inout) :: gd(myLonBeg:myLonEnd,myLatBeg:myLatEnd,bgStats%nkgdim)
     
-    !Locals
+    ! Locals:
     integer :: lonIndex, levelIndex, levelIndex2, latIndex, varIndex, ilev1, ilev2
     real(8), pointer :: field(:,:,:)
 
@@ -681,17 +676,15 @@ module bMatrixChem_mod
   subroutine bchm_reduceToMPILocal(cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    !Arguments
+    ! Arguments:
     real(8), intent(out) :: cv_mpilocal(cvDim_mpilocal)
     real(8), intent(in)  :: cv_mpiglobal(:)
 
-    !Locals
+    ! Locals:
     real(8), allocatable :: cv_allMaxMpilocal(:,:)
-
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-
     integer :: jproc,cvDim_maxmpilocal,ierr
     integer :: levelIndex,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
@@ -837,17 +830,15 @@ module bMatrixChem_mod
   subroutine bchm_reduceToMPILocal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    !Arguments
+    ! Arguments:
     real(4), intent(out) :: cv_mpilocal(cvDim_mpilocal)
     real(4), intent(in)  :: cv_mpiglobal(:)
 
-    !Locals
+    ! Locals:
     real(4), allocatable :: cv_allMaxMpilocal(:,:)
-
     integer, allocatable :: cvDim_allMpilocal(:), displs(:)
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
     integer, allocatable :: allmBeg(:),allmEnd(:),allmSkip(:)
-
     integer :: jproc,cvDim_maxmpilocal,ierr
     integer :: levelIndex,jn,jm,ila_mpiglobal,jdim_mpilocal,jdim_mpiglobal
 
@@ -993,11 +984,11 @@ module bMatrixChem_mod
   subroutine bchm_expandToMPIGlobal(cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    !Arguments
+    ! Arguments:
     real(8), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
     real(8), intent(out) :: cv_mpiglobal(:)
 
-    !Locals
+    ! Locals:
     real(8), allocatable :: cv_maxmpilocal(:)
     real(8), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)
@@ -1130,11 +1121,11 @@ module bMatrixChem_mod
   subroutine bchm_expandToMPIGlobal_r4(cv_mpilocal,cv_mpiglobal)
     implicit none
 
-    !Arguments
+    ! Arguments:
     real(4), intent(in)  :: cv_mpilocal(cvDim_mpilocal)
     real(4), intent(out) :: cv_mpiglobal(:)
 
-    !Locals
+    ! Locals:
     real(4), allocatable :: cv_maxmpilocal(:)
     real(4), pointer :: cv_allmaxmpilocal(:,:) => null()
     integer, allocatable :: allnBeg(:),allnEnd(:),allnSkip(:)

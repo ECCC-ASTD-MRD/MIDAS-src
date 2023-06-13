@@ -64,11 +64,11 @@ contains
 
     implicit none
 
-    ! arguments
+    ! Arguments:
     integer         , intent(out)           :: dateStamp_out
     character(len=*), intent(in)            :: obsFileMode_in
 
-    ! locals
+    ! Locals:
     character(len=10)                       :: obsFileType
 
     obsFileMode = trim(obsFileMode_in)
@@ -112,7 +112,7 @@ contains
   function obsf_filesSplit() result(obsFilesSplit_out)
     implicit none
 
-    ! arguments
+    ! Result:
     logical :: obsFilesSplit_out
 
     if ( .not.initialized ) call utl_abort('obsf_filesSplit: obsFiles_mod not initialized!')
@@ -125,13 +125,12 @@ contains
   ! obsf_readFiles
   !--------------------------------------------------------------------------
   subroutine obsf_readFiles( obsSpaceData )
-
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_obs)  :: obsSpaceData
 
-    ! locals
+    ! Locals:
     integer :: fileIndex, fileIndexMpiLocal, numHeaders, numBodies
     integer :: numHeaderBefore, numBodyBefore, numHeaderRead, numBodyRead
     character(len=10) :: obsFileType
@@ -215,14 +214,14 @@ contains
   subroutine obsf_writeFiles( obsSpaceData, HXens_mpiglobal_opt, asciDumpObs_opt, writeDiagFiles_opt, ensObs_opt)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_obs)           :: obsSpaceData
     real(8), optional          :: HXens_mpiglobal_opt(:,:)
     logical, optional          :: asciDumpObs_opt
     logical, optional          :: writeDiagFiles_opt
     type(struct_eob), optional :: ensObs_opt          
   
-    ! locals
+    ! Locals:
     integer           :: fileIndex, fnom, fclos, nulnam, ierr
     integer           :: status, baseNameIndexBeg
     character(len=maxLengthFilename) :: baseNameNoPrefix, baseName, fullName, fullNameWithPath, fileNameDir
@@ -231,7 +230,7 @@ contains
     character(len=*), parameter :: myName = 'obsf_writeFiles'
     character(len=*), parameter :: myWarning = myName //' WARNING: '
 
-    ! namelist variables
+    ! Namelist variables:
     logical :: lwritediagsql ! choose to write 'diag' sqlite observation files
     logical :: onlyAssimObs  ! choose to not include unassimilated obs in 'diag' sqlite files
     logical :: addFSOdiag    ! choose to include FSO column in body table
@@ -353,7 +352,7 @@ contains
   subroutine obsf_cleanObsFiles()
     implicit none
 
-    ! locals
+    ! Locals:
     integer           :: fileIndex
     character(len=10) :: obsFileType
 
@@ -392,11 +391,11 @@ contains
   subroutine obsf_writeHX(obsSpaceData, HXens_mpiglobal)
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_obs) :: obsSpaceData
     real(8)          :: HXens_mpiglobal(:,:)
 
-    ! locals
+    ! Locals:
     integer :: unitHX, ierr, headerIndex, fnom, fclos
     character(len=10) :: fileNameHX
 
@@ -420,13 +419,12 @@ contains
   ! obsf_writeAsciDump
   !--------------------------------------------------------------------------
   subroutine obsf_writeAsciDump(obsSpaceData)
-
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_obs) :: obsSpaceData
 
-    ! locals
+    ! Locals:
     character(len=25) :: fileNameAsciDump
     integer :: unitAsciDump, ierr, fnom, fclos
     character(len=4)    :: myIdxStr, myIdyStr
@@ -459,10 +457,9 @@ contains
   ! obsf_setupFileNames
   !--------------------------------------------------------------------------
   subroutine obsf_setupFileNames()
-
     implicit none
 
-    ! locals
+    ! Locals:
     character(len=20) :: namePrefix(maxNumObsfiles)
     character(len=2) :: familyName(maxNumObsfiles)
     character(len=4) :: myIdxStr, myIdyStr
@@ -753,7 +750,7 @@ contains
     !
     implicit none
 
-    ! Arguments
+    ! Arguments:
     character(len=*), intent(in) :: baseFileNameList(:)
 
     ! Locals:
@@ -816,13 +813,12 @@ contains
   ! obsf_determineFileType
   !--------------------------------------------------------------------------
   subroutine obsf_determineFileType( obsFileType )
-
     implicit none
 
-    ! arguments
+    ! Arguments:
     character(len=*)                       :: obsFileType
 
-    ! locals
+    ! Locals:
     integer :: ierr, procID, all_nfiles(0:(mmpi_nprocs-1))
     logical :: fileExists
 
@@ -853,14 +849,13 @@ contains
   ! obsf_determineSplitFileType
   !--------------------------------------------------------------------------
   subroutine obsf_determineSplitFileType( obsFileType, fileName )
-
     implicit none
 
-    ! arguments
+    ! Arguments:
     character(len=*),intent(out) :: obsFileType
     character(len=*),intent(in)  :: fileName
 
-    ! locals
+    ! Locals:
     integer           :: ierr, unitFile
     integer           :: fnom, fclos, wkoffit
     character(len=20) :: fileStart
@@ -909,11 +904,14 @@ contains
     !           :found_opt: logical indicating if a file could be found for the family (optional)
     !
     implicit none
-    ! arguments:
+
+    ! Arguments:
     character(len=2), intent(in) :: obsfam
     logical, intent(out), optional :: fileFound_opt
+    ! Result:
     character(len=maxLengthFilename) :: filename ! file name of associated observations file
-    ! locals:
+
+    ! Locals:
     integer :: numFound, ifile
 
     filename = ""
@@ -968,8 +966,9 @@ contains
     !
     implicit none
 
+    ! Arguments:
     character(len=*), intent(in)           :: obsfam
-    character(len=9), intent(in)           :: stnid
+    character(len=*), intent(in)           :: stnid
     integer         , intent(in)           :: varno
     integer         , intent(in)           :: nlev
     integer         , intent(in)           :: ndim
@@ -978,8 +977,10 @@ contains
     integer         , intent(in), optional :: codtyp_opt(:)
     logical         , intent(in), optional :: match_nlev_opt
     character(len=4), intent(in), optional :: block_opt
+    ! Result:
     type(struct_oss_obsdata)               :: obsdata ! struct_oss_obsdata object
 
+    ! Locals:
     character(len=maxLengthFilename) :: filename
     logical :: fileFound
     character(len=10) :: obsFileType
@@ -1044,14 +1045,17 @@ contains
     !
     implicit none
 
+    ! Arguments:
     type(struct_oss_obsdata), intent(inout) :: obsdata
     character(len=*), intent(in) :: obsfam
     integer, intent(in) :: varno(:)
     integer, intent(in), optional :: bkstp_opt
     character(len=4), intent(in), optional :: block_opt
     character(len=*), intent(in), optional :: multi_opt
+    ! Result:
     integer :: nrep_modified    ! Number of modified reports
 
+    ! Locals:
     integer :: ierr,nrep_modified_global
     character(len=maxLengthFilename) :: filename
     logical :: fileFound
@@ -1089,6 +1093,7 @@ contains
     ! :Purpose: Loop on observation files to add cloud parameters and emissivity
     !
     implicit none
+
     ! Arguments:
     type(struct_obs),  intent(inout)  :: obsSpaceData
 
@@ -1127,6 +1132,7 @@ contains
     !           For now, this is done for only ATMS and AMSUA
     !
     implicit none
+
     ! Arguments:
     type(struct_obs)  :: obsSpaceData
 
@@ -1136,7 +1142,6 @@ contains
     logical           :: toDataPresent
     integer           :: headerIndex
     integer           :: codtyp 
-
 
     toDataPresent = .false.
     call obs_set_current_header_list(obsSpaceData,'TO')
@@ -1184,6 +1189,7 @@ contains
     !           the specified directory
     !
     implicit none
+
     ! Arguments:
     character(len=*) :: directoryInOut
     character(len=*) :: direction
@@ -1252,7 +1258,7 @@ contains
     integer, intent(in) :: numHeaderRead
     integer, intent(in) :: numBodyRead
 
-    ! locals:
+    ! Locals:
     integer    :: initialHeaderindex, initialBodyindex
     integer    :: numHeaders, numBodies
     integer    :: headerIndex, bodyIndex

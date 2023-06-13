@@ -38,18 +38,19 @@ contains
     !
     !:Purpose: Get ozone profile from climatology interpolated to desired P levels
     !
-    IMPLICIT NONE       
+    implicit none
 
+    ! Arguments:
     integer ,intent(in) :: nlev            ! NUMBER OF VERTICAL LEVELS
     integer ,intent(in) :: nprf            ! NUMBER OF PROFILES
     REAL(8),intent(in)  :: ZLAT(NPRF)      ! ARRAY OF LATITUDE (-90S TO 90N)
     REAL(8),intent(in)  :: PLEV(NLEV,NPRF) ! PRESSURE LEVELS (HPA)
     REAL(8),intent(out) :: O3P(NLEV,NPRF)  ! OZONE PROFILES (PPMV)
 
+    ! Locals:
     INTEGER   :: JN, K, NUMLAT
     REAL(8)   :: QO3B(NLEVO3,NPRF)
     REAL(8)   :: PRO3(NLEVO3,NPRF)
-
 
     !* assign default qgas values if need be
 
@@ -76,21 +77,20 @@ contains
     !
     !:Purpose: READ OZONE CLIMATOLOGICAL FIELDS
     !
-    IMPLICIT NONE
+    implicit none
     
-    !Arguments
+    ! Arguments:
     integer            :: datestamp            ! Datestamp
     integer, intent(out), optional :: nlat_opt ! Number of latitudes
     integer, intent(out), optional :: nlev_opt ! Number of vertical levels
     real(8), allocatable, intent(out), optional :: ozone_opt(:,:) ! Ozone field
     real(8), allocatable, intent(out), optional :: press_opt(:)   ! Pressure levels
 
-    !Locals
+    ! Locals:
     INTEGER            :: IJOUR,ITIME,IMONTH,IJ,IER
     CHARACTER(len=100) :: CFILE
     INTEGER            :: NIOZO,NJOZO,NKOZO
     INTEGER, EXTERNAL  :: FNOM,FSTOUV,FSTLIR,FSTFRM,FCLOS,NEWDATE
-
     integer            :: IOZTEST
     integer            :: iv1,iv2,iv3,iv4,iv5,iv6
 
@@ -125,6 +125,5 @@ contains
     endif
     
   end subroutine OZO_READ_CLIMATOLOGY
-
 
 end module ozoneClim_mod

@@ -173,7 +173,6 @@ module sqliteRead_mod
     integer, allocatable            :: listElemArrayInteger(:)
     integer                  :: numberBodyRows, numberBodyColumns, numberIDsRows, numberIDsColumns
     integer                  :: columnIndex
-
     integer, parameter :: lenSqlName    = 60
     character(len=lenSqlName), allocatable :: headSqlNames(:), bodySqlNames(:)
     character(len=lenSqlName), parameter :: headSqlNamesToRead(32) = (/'ID_STN','LAT','LON','CODTYP', &
@@ -797,7 +796,6 @@ module sqliteRead_mod
     type(fSQL_STATUS)        :: stat ! sqlite error status
     type(fSQL_DATABASE)      :: db   ! sqlite file handle
 
-
     ! open the obsDB file
     call fSQL_open( db, trim(fileName), status=stat )
     if ( fSQL_error(stat) /= FSQL_OK ) then
@@ -855,9 +853,9 @@ module sqliteRead_mod
     character(len = 356)        :: itemChar, columnNameChar
     logical                     :: back, nonEmptyColumn, nonEmptyColumn_mpiglobal
     real(4)                     :: romp, obsValue, scaleFactor, columnValue
-
     integer, parameter :: maxNumberUpdate = 15
-    ! namelist variables:
+
+    ! Namelist variables:
     integer          :: numberUpdateItems                    ! MUST NOT BE INCLUDED IN NAMELIST!
     integer          :: numberUpdateItemsRadar               ! MUST NOT BE INCLUDED IN NAMELIST!
     character(len=3) :: itemUpdateList(maxNumberUpdate)      ! List of columns to be updated (e.g.'OMA','OMP')
@@ -1202,7 +1200,7 @@ module sqliteRead_mod
     logical                :: llok    
     integer, parameter     :: maxNumberInsertItems = 15
 
-    ! namelist variables
+    ! Namelist variables
     integer :: itemInsertList(maxNumberInsertItems) ! List of bufr element ids to insert in sql file data table
     integer :: numberInsertItems                    ! MUST NOT BE INCLUDED IN NAMELIST!
 

@@ -102,7 +102,7 @@ CONTAINS
     !
     implicit none
 
-    !Locals:
+    ! Locals:
     integer  :: ierr, nulnam, sondeIndex
     
     if ( initialized ) then
@@ -182,10 +182,10 @@ CONTAINS
     ! :Purpose: Returns a UA bias correction from day and night corrections
     
     implicit none
-    
+
+    ! Result:
     real(8) :: uaCorrection
-    
-    !Arguments:
+    ! Arguments:
     real(8), intent(in)  :: timeOfDayX ! 0.0 (night) <= timeOfDayX <= 1.0 (day), depends on solar_elev
     real(8), intent(in)  :: corrNight  ! night bias correction
     real(8), intent(in)  :: corrDay    ! day bias correction
@@ -246,7 +246,7 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     integer, intent(in)           ::  stnIndex
     integer, intent(in)           ::  sondeTypeIndex
     integer, intent(in)           ::  biasProfileCategory
@@ -258,7 +258,7 @@ CONTAINS
     real(8), intent(out)          ::  corr
     character(len=*), intent(out) ::  sourceCorr
 
-    !Locals:
+    ! Locals:
     real(8) ::  corrProfileStnDay(16), corrProfileStnNight(16), corrProfileStypeDay(16), corrProfileStypeNight(16)
     real(8) ::  corrDay, corrNight
     real(8) ::  weight1, weight2, deltaPressure, pressureAbove, pressureBelow, corrAbove, corrBelow
@@ -462,13 +462,13 @@ CONTAINS
     !           Returns -1 if station is not found in uaStations.
     !
     implicit none
-    
-    integer  :: stationIndexOut
-     
-    !Arguments:
+
+    ! Result:
+    integer  :: stationIndexOut     
+    ! Arguments:
     character(len=*), intent(in)  :: station
 
-    !Locals:
+    ! Locals:
     integer    :: stationIndex
     
     if ( allocated(uaStations) ) then
@@ -495,13 +495,13 @@ CONTAINS
     !           Returns -1 if SondeType is not found in rsTypes.
     !
     implicit none
-    
-    integer  :: sondeIndex
 
-    !Arguments:
+    ! Result:
+    integer  :: sondeIndex
+    ! Arguments:
     character(len=*), intent(in)  :: sondeType
 
-    !Locals:
+    ! Locals:
     integer    :: typeIndex, ntypes
     
     if ( allocated(rsTypes) ) then
@@ -534,12 +534,12 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     integer, intent(in)            :: sondeTypeCode
     character(len=*), intent(out)  :: sondeType
     integer, intent(out)           :: sondeTypeIndex
 
-    !Locals:
+    ! Locals:
     integer  :: typeIndex, ntypes, sondeCode
     
     if ( allocated(rsTypes) ) then
@@ -586,14 +586,14 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     integer, intent(in)  :: date          ! yyyymmdd
     integer, intent(in)  :: time          ! hhmm
     real(8), intent(in)  :: lat           ! radians
     real(8), intent(in)  :: lon           ! radians
     real(8), intent(out) :: solarElev     ! degrees
 
-    !Locals:
+    ! Locals:
     integer :: days(13) = (/0,31,28,31,30,31,30,31,31,30,31,30,31/)
     integer :: leap_years(7) = (/2016,2020,2024,2028,2032,2036,2040/)
     integer :: yy, mmdd, mm, dd, hh, nn, doy
@@ -628,7 +628,8 @@ CONTAINS
     ! :Purpose: Returns the time-of-day x value (0.0(night) <= x <= 1.0(day))
     !
     implicit none
-    !Arguments:
+
+    ! Arguments:
     real(8), intent(in)                ::  solarElev     ! degrees
     real(8), intent(out)               ::  timeOfDayX
     
@@ -651,9 +652,9 @@ CONTAINS
     !
     implicit none
     
-    integer  :: uaPhase 
-    
-    !Arguments:
+    ! Result:
+    integer  :: uaPhase
+    ! Arguments:
     integer, intent(in)   ::  codeType
     
     if (codeType == codtyp_get_codtyp('tempdrop')) then
@@ -673,12 +674,12 @@ CONTAINS
     !
     implicit none
     
-    integer :: latBand
-    
-    !Arguments:
+    ! Result:
+    integer :: latBand    
+    ! Arguments:
     real(8), intent(in) ::  latInRadians 
 
-    !Locals:
+    ! Locals:
     real(8)             ::  latInDegrees
     
     if ( uaNlatBands /= 5 ) then
@@ -716,10 +717,10 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     character(len=*), intent(in) :: biasEstimateFile
 
-    !Locals:
+    ! Locals:
     integer :: ierr, nulcoeff
     integer :: stationIndex, phaseIndex, levelIndex
     real(8) :: biasEstimate, correctionValue
@@ -780,10 +781,10 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_obs)        :: obsSpaceData
 
-    !Locals:
+    ! Locals:
     integer  :: headerIndex, bodyIndex, codtyp
     integer  :: flag, phase, bufrCode
     integer  :: phaseIndex, levelIndex, stationIndex, stationNumber
@@ -963,10 +964,10 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     character(len=*), intent(in) :: biasEstimateFile
 
-    !Locals:
+    ! Locals:
     integer :: ierr, nulcoeff
     integer :: stationIndex
     real(8) :: biasEstimate
@@ -1012,10 +1013,10 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_obs)  :: obsSpaceData
 
-    !Locals:
+    ! Locals:
     integer  :: headerIndex, bodyIndex
     integer  :: flag, bufrCode
     integer  :: stationIndex, stationNumber
@@ -1136,11 +1137,11 @@ CONTAINS
     !
     implicit none
     
-    !Arguments:
+    ! Arguments:
     character(len=*), intent(in) :: biasCorrectionFileName
     integer, intent(in)          :: nGroups
 
-    !Locals:
+    ! Locals:
     integer :: ierr, nulcoeff
     integer :: sondeTypeIndex, group, latBand, levelIndex, groupIndex, maxGroups
     real(8) :: ttBiasNight, ttBiasDay, tdBiasNight, tdBiasDay
@@ -1240,12 +1241,12 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     character(len=*), intent(in) :: biasCorrectionFileName
     integer, intent(in)          :: nProfsMin
     integer, intent(in)          :: nGroups
 
-    !Locals:
+    ! Locals:
     integer :: ierr, nulcoeff, stationIndex, typeIndex
     integer :: group, levelIndex, nProfs, groupIndex, maxGroups
     real(8) :: ttBiasNight, ttBiasDay, tdBiasNight, tdBiasDay
@@ -1343,10 +1344,10 @@ CONTAINS
     !
     implicit none
 
-    !Arguments:
+    ! Arguments:
     type(struct_obs), intent(inout) :: obsSpaceData
 
-    !Locals:
+    ! Locals:
     integer  :: headerIndex, bodyIndex, codtyp
     integer  :: flag, bufrCode, sondeTypeCode, sondeTypeIndex, stnIndex
     integer  :: date, time, latBand, groupIndex, phase
@@ -1665,10 +1666,11 @@ CONTAINS
     ! :Purpose: returns True if bias correction is active for the given conventional observation family
     !
     implicit none
- 
-    character(len=*),intent(in) :: obsFam
-    
+
+    ! Result:
     logical :: biasActive 
+    ! Arguments:
+    character(len=*),intent(in) :: obsFam
 
     if (.not.initialized) call bcc_readConfig()
     

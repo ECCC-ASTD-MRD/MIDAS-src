@@ -33,13 +33,14 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=*),              intent(in)  :: fileName
     character(len=*),              intent(in)  :: tableName
     character(len=*),              intent(in)  :: columnName
+    ! Result:
     logical                                    :: columnExists
 
-    ! locals:
+    ! Locals:
     integer                     :: ierr
     character(len=3000)         :: query, sqliteOutput
     character(len=lenSqlName)   :: upperColumnName
@@ -79,12 +80,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=*),              intent(in)  :: fileName
     character(len=*),              intent(in)  :: tableName
+    ! Result:
     logical                                    :: tableExists
 
-    ! locals:
+    ! Locals:
     integer                     :: ierr
     logical                     :: finished
     character(len=3000)         :: query, sqliteOutput
@@ -131,13 +133,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=*), allocatable, intent(out) :: sqlColumnNames(:)
     character(len=*),              intent(in)  :: fileName
     character(len=*),              intent(in)  :: tableName
     character(len=*),              intent(in)  :: dataType
 
-    ! locals:
+    ! Locals:
     integer :: numRows, numColumns, rowIndex, ierr
     character(len=100), allocatable :: charValues(:,:)
     character(len=200)       :: dataTypeCriteria
@@ -204,14 +206,14 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(8), allocatable, intent(out) :: columnValues(:,:)
     character(len=*),     intent(in)  :: sqlColumnNames(:)
     character(len=*),     intent(in)  :: fileName
     character(len=*),     intent(in)  :: tableName
     character(len=*),     intent(in), optional :: extraQuery_opt
 
-    ! locals:
+    ! Locals:
     integer :: numRows, numColumns, columnIndex
     character(len=3000)       :: query, extraQuery
     type(fSQL_STATUS)         :: stat ! sqlite error status
@@ -273,13 +275,13 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     character(len=50), allocatable, intent(out) :: columnValues(:,:)
     character(len=*),               intent(in)  :: sqlColumnNames(:)
     character(len=*),               intent(in)  :: fileName
     character(len=*),               intent(in)  :: tableName
 
-    ! locals:
+    ! Locals:
     integer :: numRows, numColumns, columnIndex
     character(len=3000)      :: query
     type(fSQL_STATUS)        :: stat ! sqlite error status
@@ -333,14 +335,14 @@ contains
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     integer, allocatable, intent(out) :: columnDateValues(:)
     integer, allocatable, intent(out) :: columnTimeValues(:)
     character(len=*),     intent(in)  :: sqlColumnName
     character(len=*),     intent(in)  :: fileName
     character(len=*),     intent(in)  :: tableName
 
-    ! locals:
+    ! Locals:
     integer              :: numRows, numColumns, rowIndex
     character(len=20), allocatable :: columnValuesStr(:,:)
     character(len=3000)  :: query
@@ -450,12 +452,15 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(fSQL_DATABASE)  :: db    ! type handle for  SQLIte file
     character(len = *)   :: query
-    ! locals
-    character(len = 256) :: sqlu_query, result
-    logical finished
+    ! Result:
+    character(len = 256) :: sqlu_query
+
+    ! Locals:
+    character(len = 256) :: result
+    logical :: finished
     type(fSQL_STATEMENT) :: stmt !  prepared statement for  SQLite
     type(fSQL_STATUS)    :: stat !type error status
 
@@ -480,6 +485,7 @@ contains
   subroutine sqlu_handleError(stat, message)
     implicit none
 
+    ! Arguments:
     type(FSQL_STATUS)  :: stat
     character(len = *) :: message
 

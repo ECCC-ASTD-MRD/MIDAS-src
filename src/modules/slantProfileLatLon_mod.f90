@@ -45,9 +45,9 @@ contains
     ! Arguments:
     type(struct_obs), intent(in) :: obsSpaceData
     type(struct_hco), intent(in) :: hco
-    integer, intent(in)  :: headerIndex
-    real(4), intent(in)  :: height3D_T_r4(:,:,:)
-    real(4), intent(in)  :: height3D_M_r4(:,:,:)
+    integer, intent(in)   :: headerIndex
+    real(4), intent(in)   :: height3D_T_r4(:,:,:)
+    real(4), intent(in)   :: height3D_M_r4(:,:,:)
     real(8), intent(out)  :: latSlantLev_T(:)
     real(8), intent(out)  :: lonSlantLev_T(:)
     real(8), intent(out)  :: latSlantLev_M(:)
@@ -112,9 +112,13 @@ contains
 
     subroutine solveIterativelyForLatLon(heightField2D, latSlant, lonSlant)
       implicit none
-      real(4), intent(in)  :: heightField2D(:,:)
-      real(8), intent(out) :: latSlant, lonSlant
 
+      ! Arguments:
+      real(4), intent(in)  :: heightField2D(:,:)
+      real(8), intent(out) :: latSlant
+      real(8), intent(out) :: lonSlant
+
+      ! Locals:
       logical :: doIteration
       integer :: numIteration
       real(4) :: heightInterp_r4, heightIntersect_r4, heightDiff_r4
@@ -151,6 +155,7 @@ contains
     !          and the slant line-of-sight for radiance observations.
     !
     implicit none
+
     ! Arguments:
     type(struct_obs), intent(in)  :: obsSpaceData
     real(4), intent(in)  :: height_r4
@@ -561,6 +566,7 @@ contains
     real(8), intent(out) :: lonSlantLev_M(:)
     real(8), intent(out) :: latSlantLev_S
     real(8), intent(out) :: lonSlantLev_S
+
     ! Locals:
     real(8) :: antennaLat, antennaLon, latSlant, lonSlant, beamElevation, beamAzimuth
     real(8) :: radarAltitude, beamRangeStart, beamRangeEnd
@@ -621,13 +627,14 @@ contains
     !
     implicit none
     
-    !Argument
+    ! Arguments:
     type(struct_hco), intent(in) :: hco
     real(8), intent(in)          :: antennaLat, antennaLon, beamElevation, beamAzimuth, radarAltitude
     real(8), intent(in)          :: beamRangeStart, beamRangeEnd
     real(4), intent(in)          :: field2d_height(hco%ni,hco%nj)
     real(8), intent(out)         :: latSlant,lonSlant
-    ! Local
+
+    ! Locals:
     real(8)                      :: upper_bound, lower_bound, tolerance
     real(8)                      :: beamHeight, mid, difference_heights, beamDistance
     integer                      :: iteration,maximum_iteration
