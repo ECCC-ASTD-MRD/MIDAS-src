@@ -72,9 +72,10 @@ module bMatrix1DVar_mod
   real(8) :: scaleFactorHIHumidity(vco_maxNumLevels)   ! scaling factors for HI humidity variances
   real(8) :: scaleFactorEns(vco_maxNumLevels)          ! scaling factors for Ens variances
   real(8) :: scaleFactorEnsHumidity(vco_maxNumLevels)  ! scaling factors for Ens humidity variances
-
+  logical :: dumpBmatrixTofile
+  real(8) :: latMin, latMax, lonMin, lonMax
   NAMELIST /NAMBMAT1D/ scaleFactorHI, scaleFactorHIHumidity, scaleFactorENs, scaleFactorEnsHumidity, nEns, &
-       vLocalize, includeAnlVar, numIncludeAnlVar
+       vLocalize, includeAnlVar, numIncludeAnlVar, dumpBmatrixTofile, latMin, latMax, lonMin, lonMax
 
 contains
 
@@ -111,7 +112,12 @@ contains
     vLocalize = -1.d0
     includeAnlVar(:)= ''
     numIncludeAnlVar = MPC_missingValue_INT
-
+    dumpBmatrixTofile = .false.
+    latMin = MPC_missingValue_R8
+    latMax = MPC_missingValue_R8
+    lonMin = MPC_missingValue_R8
+    lonMax = MPC_missingValue_R8
+    
     nulnam = 0
     ierr = fnom(nulnam, './flnml', 'FTN+SEQ+R/O', 0)
     read(nulnam, nml=nambmat1D, iostat=ierr)
@@ -428,7 +434,7 @@ contains
     integer :: varLevIndexBmat, varLevIndexCol
     integer :: numStep, levIndexColumn
     real(8), allocatable :: scaleFactor_M(:), scaleFactor_T(:)
-    real(8) :: scaleFactor_SF, ZR
+    real(8) :: scaleFactor_SF, zr, latitude, longitude
     logical :: useAnlLevelsOnly, EnsTopMatchesAnlTop
     real(8), pointer :: pressureProfileFile_M(:), pressureProfileInc_M(:)
     real(8) :: pSurfRef
@@ -436,13 +442,16 @@ contains
     integer :: ni, lonPerPE, lonPerPEmax, myLonBeg, myLonEnd
     integer :: nLevEns_M, nLevEns_T
     integer :: nLevInc_M, nLevInc_T
-    integer, external :: newdate
+    integer :: nulmat
+    integer :: yyyymmdd, hhmm, countDumped
+    integer, external ::  fnom, fclos, newdate
     real(8) :: logP1, logP2
     real(8), pointer :: currentProfile(:), meanProfile(:)
     real(8), allocatable :: lineVector(:,:), meanPressureProfile(:), multFactor(:)
     integer, allocatable :: varLevColFromVarLevBmat(:)
     character(len=4), allocatable :: varNameFromVarLevIndexBmat(:)
-    character(len=2) :: varLevel
+    character(len=4) :: cmyidx, cmyidy
+    character(len=2) :: varLevel    
 
     if (mmpi_myid == 0) write(*,*) 'bmat1D_setupBEns: Starting'
     if (mmpi_myid == 0) write(*,*) 'Memory Used: ', get_max_rss()/1024, 'Mb'
@@ -747,11 +756,52 @@ contains
       write(*,*) 'bmat1D_setupBEns: variance (after localization) = ', varLevIndexBmat, &
                  sum(bSqrtEns(:,varLevIndexBmat,varLevIndexBmat))/real(var1D_validHeaderCount)
     end do
+    
+    if (dumpBmatrixTofile) then
+      nulmat = 0
+      write(cmyidy,'(i4.4)') (mmpi_myidy + 1)
+      write(cmyidx,'(i4.4)') (mmpi_myidx + 1)
+      ierr = fnom(nulmat, './Bmatrix_' // trim(cmyidx) // '_' // trim(cmyidy), 'FTN+SEQ+UNF', 0)
+      countDumped = 0
+    end if
 
     write(*,*) 'bmat1D_setupBEns: computing matrix sqrt'
     do columnIndex = 1, var1D_validHeaderCount
       call utl_matsqrt(bSqrtEns(columnIndex, :, :), nkgdim, 1.d0, printInformation_opt=.false. )
+      if (dumpBmatrixToFile) then
+        headerIndex = var1D_validHeaderIndex(columnIndex)
+        latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+        longitude =  obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+        if (latitude >= latMin .and. &
+            latitude <= latMax .and. &
+            longitude >= lonMin .and. &
+            longitude <= lonMax) then
+          countDumped = countDumped + 1
+        end if
+      end if
     end do
+    
+    if (dumpBmatrixToFile) then
+      if (countDumped > 0) then
+        ierr = newdate( dateStampList(1+ numstep / 2), yyyymmdd, hhmm, -3)
+        write(*,*) "XX", ierr, yyyymmdd, hhmm
+        write(nulmat) yyyymmdd * 10000 + hhmm, vco_in%nlev_T, vco_in%nlev_M, vco_in%Vcode, &
+            vco_in%ip1_sfc, vco_in%ip1_T_2m, vco_in%ip1_M_10m, bmat1D_numIncludeAnlVar, countDumped, nkgdim
+        write(nulmat) vco_in%ip1_T(:), vco_in%ip1_M(:), bmat1D_includeAnlVar(1:bmat1D_numIncludeAnlVar)
+        do columnIndex = 1, var1D_validHeaderCount
+          headerIndex = var1D_validHeaderIndex(columnIndex)
+          latitude = obs_headElem_r(obsSpaceData, OBS_LAT, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+          longitude =  obs_headElem_r(obsSpaceData, OBS_LON, headerIndex) * MPC_DEGREES_PER_RADIAN_R8
+          if (latitude >= latMin .and. &
+              latitude <= latMax .and. &
+              longitude >= lonMin .and. &
+              longitude <= lonMax) then
+            write(nulmat) latitude, longitude, bSqrtEns(columnIndex, :, :)
+          end if
+        end do
+      end if
+      ierr = fclos(nulmat)
+    end if
 
     deallocate(varLevColFromVarLevBmat) 
     deallocate(varNameFromVarLevIndexBmat)
