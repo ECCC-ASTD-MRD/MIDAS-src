@@ -1084,11 +1084,7 @@ CONTAINS
     call gsv_varNamesList(varNamesInEns, ens%statevector_work)
 
     if (.not. gsv_isAllocated(statevector)) then
-      call gsv_allocate( statevector, numStep,  &
-                         ens%statevector_work%hco, ens%statevector_work%vco,  &
-                         datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true., &
-                         varNames_opt=varNamesInEns, dataKind_opt=8)
-      varNamesInGsv => varNamesInEns
+      call utl_abort('ens_copyMember: statevector not allocated')
     else
       nullify(varNamesInGsv)
       call gsv_varNamesList(varNamesInGsv, statevector)

@@ -25,6 +25,7 @@ module calcStatsGlb_mod
   use timeCoord_mod
   use gridVariableTransforms_mod
   use gridBinning_mod
+  use verticalModes_mod
   implicit none
   save
   private
@@ -60,13 +61,15 @@ module calcStatsGlb_mod
   ! For wave band decomposition
   integer, parameter  :: maxNumLocalLength = 20
   integer             :: nWaveBand
+  integer             :: nVertWaveBand
 
   logical :: initialized = .false.
 
   ! Namelist variables
   integer :: ntrunc
-  integer :: waveBandPeaks(maxNumLocalLength) ! For wave band decomposition
-
+  integer :: waveBandPeaks(maxNumLocalLength) ! For horizontal wave band decomposition
+  integer :: vertWaveBandPeaks(maxNumLocalLength) ! For vertical wave band decomposition
+  
   contains
 
   !--------------------------------------------------------------------------
@@ -77,16 +80,16 @@ module calcStatsGlb_mod
     !:Purpose: Main setup routine for this module
     !
     implicit none
-    ! arguments:
+    ! Arguments:
     integer, intent(in)                     :: nens_in
     type(struct_vco), pointer, intent(in)   :: vco_in
     type(struct_hco), pointer, intent(in)   :: hco_in
-    ! locals:
-    integer :: nulnam, ierr, waveBandIndex, memberIndex
-    integer :: fclos, fnom
+    ! Locals:
+    integer :: waveBandIndex, memberIndex
+    integer :: nulnam, ierr, fclos, fnom
     real(8) :: zps
 
-    NAMELIST /NAMCALCSTATS_GLB/ntrunc,waveBandPeaks
+    NAMELIST /NAMCALCSTATS_GLB/ntrunc,waveBandPeaks,vertWaveBandPeaks
 
     write(*,*)
     write(*,*) 'csg_setup: Starting...'
@@ -105,7 +108,8 @@ module calcStatsGlb_mod
     ! parameters from namelist (date in filename should come directly from sequencer?)
     ntrunc=108
     waveBandPeaks(:) = -1.0d0
-
+    vertWaveBandPeaks(:) = -1.0d0
+    
     nulnam=0
     ierr=fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
     read(nulnam,nml=NAMCALCSTATS_GLB)
@@ -193,9 +197,9 @@ module calcStatsGlb_mod
     nomvar(5,:)   = nomvar2d(1,:)
     
     !
-    !- Wave band decomposition option (available in )
+    !- Horizontal wave band decomposition option
     !
-    nWaveBand = count(waveBandPeaks .ge. 0)
+    nWaveBand = count(waveBandPeaks >= 0)
     if ( nWaveBand < 1 ) then
        nWaveBand = 1
     else if (nWaveBand == 1) then
@@ -203,7 +207,7 @@ module calcStatsGlb_mod
        call utl_abort('calbmatrix_glb')
     else
        write(*,*)
-       write(*,*) 'WaveBand decomposition is ACTIVATED'
+       write(*,*) 'Horizontal waveBand decomposition is ACTIVATED'
     end if
     
     ! Make sure that the wavenumbers are in the correct (decreasing) order
@@ -222,6 +226,28 @@ module calcStatsGlb_mod
     end if
 
     !
+    !- Vertical wave band decomposition option
+    !
+    nVertWaveBand = count(vertWaveBandPeaks >= 0)
+    if ( nVertWaveBand < 1 ) then
+       nVertWaveBand = 1
+    else if (nVertWaveBand == 1) then
+       write(*,*) 'You have specified only ONE waveBandPeaks'
+       call utl_abort('calbmatrix_glb')
+    else
+       write(*,*)
+       write(*,*) 'Vertical waveBand decomposition is ACTIVATED'
+    end if
+    
+    ! Make sure that the wavenumbers are in the correct (decreasing) order
+    do waveBandIndex = 1, nVertWaveBand-1
+       if ( vertWaveBandPeaks(waveBandIndex)-vertWaveBandPeaks(waveBandIndex+1) <= 0 ) then
+          write(*,*) 'csg_setup: vertWaveBandPeaks are not in decreasing mode order'
+          call utl_abort('calbmatrix_glb')
+       end if
+    end do
+    
+    !
     !- Ending
     !
     initialized = .true.
@@ -239,7 +265,7 @@ module calcStatsGlb_mod
     !:Purpose: Master routine for Bhi computation in global mode
     !
     implicit none
-    ! locals:
+    ! Locals:
     integer :: ierr, nulnam
     integer :: fclos, fnom
     character(len=12) :: formulation ! Bhi formulation
@@ -523,16 +549,25 @@ module calcStatsGlb_mod
     type(struct_gsv) :: statevector_template
 
     type(struct_gbi) :: gbi_zonalMean
+    type(struct_gbi) :: gbi_globalMean
+    
+    type(struct_vms) :: vModes
     
     integer :: variableType
  
     logical :: ensContainsFullField
     logical :: makeBiPeriodic
     logical :: doSpectralFilter
+
+    real(8) :: vertModesLengthScale(2)
+    real(8) :: lengthScaleTop, lengthScaleBot
     
     character(len=60) :: tool
-
-    NAMELIST /NAMTOOLBOX/tool, ensContainsFullField, doSpectralFilter
+    character(len=2)  :: wbnum
+    character(len=2)  :: ctrlVarHumidity
+    
+    NAMELIST /NAMTOOLBOX/tool, ensContainsFullField, doSpectralFilter, vertModesLengthScale, &
+                         ctrlVarHumidity
 
     write(*,*)
     write(*,*) 'csg_toolbox'
@@ -541,9 +576,12 @@ module calcStatsGlb_mod
     !
     !- Set options
     !
-    variableType = modelSpace     ! hardwired
-    ensContainsFullField = .true. ! default value
-    doSpectralFilter     = .true.
+    variableType             = modelSpace ! hardwired
+    ensContainsFullField     = .true.     ! default value
+    doSpectralFilter         = .true.
+    vertModesLengthScale(1) = 6.d0
+    vertModesLengthScale(2) = -1.d0
+    ctrlVarHumidity          = 'HU'
     
     nulnam = 0
     ierr = fnom(nulnam,'./flnml','FTN+SEQ+R/O',0)
@@ -552,6 +590,13 @@ module calcStatsGlb_mod
     if (mmpi_myid == 0) write(*,nml=NAMTOOLBOX)
     ierr = fclos(nulnam)
 
+    lengthScaleTop = vertModesLengthScale(1)
+    if (vertModesLengthScale(2) == -1.d0) then
+      lengthScaleBot = lengthScaleTop
+    else
+      lengthScaleBot = vertModesLengthScale(2)
+    end if
+    
     !
     !- Read ensemble
     !
@@ -560,16 +605,24 @@ module calcStatsGlb_mod
     dateStampList(:)  = -1
     call ens_allocate(ensPerts, nEns, numStep, hco_ens, vco_ens, dateStampList)
 
-    if (nWaveBand > 1) then
+    if (nWaveBand > 1 .or. nVertWaveBand > 1) then
       call ens_allocate(ensPertsFilt, nEns, numStep, hco_ens, vco_ens, dateStampList)
       ensPerts_ptr => ensPertsFilt
     else
       ensPerts_ptr => ensPerts
     end if
-    
+
     makeBiPeriodic = .false.
     call ens_readEnsemble(ensPerts, './ensemble', makeBiPeriodic, &
                           containsFullField_opt=ensContainsFullField)
+
+    if ( ctrlVarHumidity == 'LQ' .and. ensContainsFullField ) then
+      call gvt_transform(ensPerts,'HUtoLQ')
+      call ens_modifyVarName(ensPerts, 'HU', 'LQ')
+      if (nWaveBand > 1 .or. nVertWaveBand > 1) then
+        call ens_modifyVarName(ensPerts_ptr, 'HU', 'LQ')
+      end if
+    end if
 
     !
     !- Compute and remove the ensemble mean; compute the stdDev
@@ -640,22 +693,36 @@ module calcStatsGlb_mod
       write(*,*)
       write(*,*) 'Estimating the optimal covariance localization radii'
 
+      if (nWaveBand > 1 .and. nVertWaveBand > 1) then
+        call utl_abort('csg_toolbox: cannot do horizontal AND vertical scale-decomposition')
+      end if
+
       call ens_removeGlobalMean(ensPerts)
 
-      do waveBandIndex = 1, nWaveBand
-        
-        call spectralFilter2(ensPerts,                      & ! IN
-                             ensPerts_ptr,                  & ! OUT
-                             waveBandIndex_opt=waveBandIndex) ! IN
+      do waveBandIndex = 1, max(nWaveBand,nVertWaveBand)
 
+        if (nVertWaveBand > 1) then
+          if (waveBandIndex == 1) then
+            call vms_computeModesFromFunction(vco_ens, lengthScaleTop, lengthScaleBot, & ! IN
+                                              vModes)                                    ! OUT
+          end if
+          call vertModesFilter(ensPerts,             & ! IN
+                               ensPerts_ptr,         & ! OUT
+                               vModes, waveBandIndex)  ! IN
+        else
+          call spectralFilter2(ensPerts,                      & ! IN
+                               ensPerts_ptr,                  & ! OUT
+                               waveBandIndex_opt=waveBandIndex) ! IN
+        end if
+          
         call ens_computeStdDev(ensPerts_ptr)
        
         if (waveBandIndex == 1) then
           call ens_copyEnsStdDev(ensPerts_ptr, statevector_template) ! IN
           call bmd_setup(statevector_template, hco_ens, nEns, pressureProfile_M, & ! IN
-                         pressureProfile_T, nWaveBand)                             ! IN
+                         pressureProfile_T, max(nWaveBand,nVertWaveBand))          ! IN
         end if
-         
+
         call bmd_localizationRadii(ensPerts_ptr, waveBandIndex_opt=waveBandIndex) ! IN
 
       end do
@@ -693,7 +760,74 @@ module calcStatsGlb_mod
       call calcPowerSpec(ensPerts_ptr, & ! IN
                          powerSpec)      ! OUT
       call writePowerSpec(powerSpec, modelSpace) ! IN
-      
+
+    case ('VERTMODES_SPEC')
+      write(*,*)
+      write(*,*) 'Computing vertical modes spectra'
+
+      call vms_computeModesFromFunction(vco_ens, lengthScaleTop, lengthScaleBot, & ! IN
+                                        vModes)                                   ! OUT
+      call vms_writeModes(vModes)
+
+      call calcVertModesSpec(ensPerts_ptr,vModes) ! IN
+
+    case ('VERTMODES_WAVEBAND')
+      write(*,*)
+      write(*,*) 'Computing vertical-scale decomposed ensemble perturbations'
+
+      call vms_computeModesFromFunction(vco_ens, lengthScaleTop, lengthScaleBot, & ! IN
+                                        vModes)                                    ! OUT
+      call vms_writeModes(vModes)
+
+      do waveBandIndex = 1, nVertWaveBand
+        
+        call vertModesFilter(ensPerts,     & ! IN
+                             ensPerts_ptr, & ! OUT
+                             vModes, waveBandIndex)  ! IN
+
+        write(wbnum,'(I2.2)') waveBandIndex
+
+        ! Compute the grid point std dev
+        call ens_computeStdDev(ensPerts_ptr)
+        call ens_copyEnsStdDev(ensPerts_ptr,       & ! IN
+                               statevector_template) ! OUT
+        call gio_writeToFile(statevector_template, './stddev_'//trim(wbnum)//'.fst', 'STD_GRIDP_'//trim(wbnum), &
+                             typvar_opt = 'E', numBits_opt = 32)
+
+        ! Compute the global std dev
+        if (waveBandIndex == 1) then
+          call gbi_setup(gbi_globalMean, 'HorizontalMean', statevector_template, hco_ens)
+        end if
+        call gbi_stdDev(gbi_globalMean, ensPerts_ptr, & ! IN
+                        statevector_template)           ! OUT
+        call gio_writeToFile(statevector_template, './stddev_'//trim(wbnum)//'.fst', 'STD_GLB_'//trim(wbnum), &
+                             typvar_opt = 'E', numBits_opt = 32)
+
+        ! Write the scale-decomposed ensemble perturbations for member=1
+        call ens_copyMember(ensPerts_ptr, stateVector_template, 1)
+        call gio_writeToFile(statevector_template, './ensPert_0001_'//trim(wbnum)//'.fst', 'ENSPERT_'//trim(wbnum), &
+                             numBits_opt = 32)
+        
+      end do
+
+      ! Write the full ensemble perturbations for member=1
+      call ens_copyMember(ensPerts, stateVector_template, 1)
+      call gio_writeToFile(statevector_template, './ensPert_0001.fst', 'ENSPERT', &
+                           numBits_opt = 32)
+
+      ! Compute the grid point std dev for the full perturbations
+      call ens_computeStdDev(ensPerts)
+      call ens_copyEnsStdDev(ensPerts,           & ! IN
+                             statevector_template) ! OUT
+      call gio_writeToFile(statevector_template, './stddev.fst', 'STD_GRIDP', &
+                           typvar_opt = 'E', numBits_opt = 32)
+
+      ! Compute the global std dev for the full perturbations
+      call gbi_stdDev(gbi_globalMean, ensPerts, & ! IN
+                      statevector_template)       ! OUT
+      call gio_writeToFile(statevector_template, './stddev.fst', 'STD_GLB', &
+                           typvar_opt = 'E', numBits_opt = 32)
+
     case default
       write(*,*)
       write(*,*) 'Unknown TOOL in csg_toolbox : ', trim(tool)
@@ -1367,13 +1501,13 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(8), pointer           :: stddevZonAvg(:,:)
     real(8), pointer           :: stddev3d(:,:,:)
     real(8), pointer, optional :: stddevZonAvgUnbal_opt(:,:)
     real(8), pointer, optional :: stddev3dUnbal_opt(:,:,:)
 
-    ! locals:
+    ! Locals:
     type(struct_gsv) :: stateVector
     real(8) :: dfact, zbufyz(nj,max(nLevEns_M,nLevens_T)), zbufy(nj)
     integer :: latIndex, levIndex, ierr, varIndex, varIndexStddev, nLevEns, numVarToWrite
@@ -1510,10 +1644,10 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(8) :: stddevZonAvgBal(:,:),stddev3dBal(:,:,:)
 
-    ! locals:
+    ! Locals:
     type(struct_gsv) :: stateVector
     real(8) :: dfact, zbufyz(nj,max(nLevEns_M,nLevens_T)), zbufy(nj)
     integer :: latIndex, levIndex, ierr, varIndex, nLevEns
@@ -2097,11 +2231,11 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(8), pointer :: fieldsZonAvg_mpiglobal(:,:),fields3D(:,:,:)
     integer :: nlev
 
-    ! locals:
+    ! Locals:
     integer :: lonIndex, latIndex, levIndex, ierr, nsize
     real(8) :: dfact
     real(8), allocatable :: fieldsZonAvg(:,:) 
@@ -2341,10 +2475,10 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(4), pointer             :: ensPerturbations(:,:,:,:)
 
-    ! locals:
+    ! Locals:
     integer :: lonIndex, latIndex, levIndex, ensIndex, numStep
     integer, allocatable :: dateStampList(:)
     real(4), pointer :: field_r4(:,:,:)
@@ -3125,4 +3259,268 @@ module calcStatsGlb_mod
 
   end subroutine calcLocalVertCorrMatrix
 
+  !--------------------------------------------------------------------------
+  ! calcVertModesSpec
+  !--------------------------------------------------------------------------
+  subroutine calcVertModesSpec(ensPerts, vModes)
+    !
+    ! :Purpose: Compute the amplitude of the ensemble perturbations after their
+    !           projection onto the vertical modes. This is the vertical equivalent
+    !           of power spectra in the horizontal.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens), intent(inout)  :: ensPerts
+    type(struct_vms), intent(in)     :: vModes
+
+    ! Locals:
+    type(struct_gsv)     :: gridStateVector_oneMember    
+    real(8), allocatable :: vertModesState3d(:,:,:)
+    real(8), pointer     :: gridState3d(:,:,:)
+    real(8), allocatable :: powerSpec(:,:)
+    real(8), allocatable :: latWeight(:) ! Weight given to grid point in the statistic computation
+    real(8) :: sumWeight
+    character(len=4), pointer :: varNamesList(:)
+    character(len=128) :: outfilename
+    integer :: numVar, nLev, varIndex, memberIndex
+    integer :: nMode, modeIndex, latIndex, lonIndex
+
+    !
+    !- Setup
+    !
+    nullify(varNamesList)
+    call ens_varNamesList(varNamesList,ensPerts)
+    numVar = size(varNamesList)
+
+    allocate(powerSpec(numVar,max(nLevEns_M,nLevEns_T)))
+    powerSpec(:,:)=0.0d0
+    
+    call gsv_allocate(gridStateVector_oneMember, ens_getNumStep(ensPerts), &
+                      ens_getHco(ensPerts), ens_getVco(ensPerts), varNames_opt=varNamesList, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                         &
+                      mpi_distribution_opt='Tiles', dataKind_opt=8 )
+
+    allocate(latWeight(hco_ens%nj))
+    do latIndex = 1, hco_ens%nj
+      latWeight(latIndex) = cos(hco_ens%lat(latIndex))
+      if (mmpi_myid == 0) then
+        write(*,*) latIndex, hco_ens%lat(latIndex), cos(hco_ens%lat(latIndex))
+      end if
+    end do
+
+    sumWeight = 0.d0
+    do latIndex = myLatBeg, myLatEnd
+      do lonIndex = myLonBeg, myLonEnd
+        sumWeight = sumWeight + latWeight(latIndex)
+      end do
+    end do
+    
+    !
+    !- Vertical modes decomposition and coefficient summation
+    !    
+    do memberIndex = 1, nEns
+      write(*,*) 'calcVertModesSpec, member index = ', memberIndex
+      call ens_copyMember(ensPerts, gridStateVector_oneMember, memberIndex)
+
+      do varIndex = 1, numVar
+        write(*,*) 'calcVertModesSpec, varName = ', varIndex, varNamesList(varIndex)
+        if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'MM') then
+          nLev  = nLevEns_M
+          nMode = nLev
+        else if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'TH') then
+          nLev  = nLevEns_T
+          nMode = nLev
+        else
+          if (memberIndex == 1) then
+            write(*,*) '   Skipping this variable not on momentum or thermodynamic levels'
+          end if
+          cycle  
+        end if
+
+        nullify(gridState3d)
+        call gsv_getField(gridStateVector_oneMember,gridState3d,varName_opt=varNamesList(varIndex))
+
+        if (allocated(vertModesState3d)) deallocate(vertModesState3d)
+        allocate(vertModesState3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nMode))
+        
+        call vms_transform(vModes, vertModesState3d, gridState3d, &
+                          'GridPointToVertModes', myLonBeg, myLonEnd, &
+                           myLatBeg, myLatEnd, nLev, varNamesList(varIndex))
+
+        !$OMP PARALLEL DO PRIVATE (modeIndex,latIndex,lonIndex)
+        do modeIndex = 1, nMode
+          do latIndex = myLatBeg, myLatEnd
+            do lonIndex = myLonBeg, myLonEnd
+              powerSpec(varIndex,modeIndex) = powerSpec(varIndex,modeIndex) &
+                                            + vertModesState3d(lonIndex,latIndex,modeIndex)**2 &
+                                            * latWeight(latIndex)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+        
+      end do
+
+    end do
+    
+    deallocate(vertModesState3d)
+    call gsv_deallocate(gridStateVector_oneMember)
+
+    !
+    !- Communicate between all tasks
+    !
+    call mmpi_allreduce_sumR8_2d(powerSpec, "GRID")
+    call mmpi_allreduce_sumreal8scalar(sumWeight, "GRID")
+    
+    !
+    !- Apply the appropriate scaling
+    !
+    powerSpec(:,:) = powerSpec(:,:)/(dble(nEns-1)*sumWeight)
+
+    !
+    !- Write to file
+    !
+    if (mmpi_myid == 0) then
+      do varIndex = 1, numVar
+
+        if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))) /= 'MM' .and. &
+            vnl_varLevelFromVarName(trim(varNamesList(varIndex))) /= 'TH') cycle
+        
+        outfilename = "./vertModesSpec_"//trim(varNamesList(varIndex))//".txt"
+        write(*,*) 'calcVertModesSpec, writing ', trim(outfilename)
+        open (unit=99,file=outfilename,action="write",status="new")
+
+        if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))) == 'MM') then
+          nMode = nLevEns_M
+        else
+          nMode = nLevEns_T
+        end if
+        
+        do modeIndex = 1, nMode
+          write(99,'(I4,2X,E10.4)') modeIndex, powerSpec(varIndex,modeIndex)
+        end do
+        close(unit=99)
+      end do
+    end if
+    
+  end subroutine calcVertModesSpec
+
+  !--------------------------------------------------------------------------
+  ! vertModesFilter
+  !--------------------------------------------------------------------------
+  subroutine vertModesFilter(ensPerts_in, ensPerts_out, vModes, waveBandIndex)
+    !
+    ! :Purpose: Filter the ensemble perturbations to isolate a given vertical
+    !           waveband of vertical modes.
+    !
+    implicit none
+
+    ! Arguments:
+    type(struct_ens), intent(inout) :: ensPerts_in
+    type(struct_ens), intent(inout) :: ensPerts_out
+    type(struct_vms), intent(in)    :: vModes
+    integer,          intent(in)    :: waveBandIndex
+
+    ! Locals:
+    type(struct_gsv)     :: gridStateVector_oneMember    
+    real(8), allocatable :: vertModesState3d(:,:,:)
+    real(8), pointer     :: gridState3d(:,:,:)
+    real(8), allocatable :: ResponseFunction(:)
+    character(len=128) :: outfilename
+    character(len=2)   :: wbnum
+    character(len=4), pointer :: varNamesList(:)
+    integer :: nMode, nModeMax, modeIndex, latIndex, lonIndex
+    integer :: numVar, nLev, varIndex, memberIndex
+
+    !
+    !- 1.  Pre-compute the response function
+    !
+    nModeMax=max(nLevEns_M,nLevEns_T)
+    allocate(ResponseFunction(nModeMax))
+    write(wbnum,'(I2.2)') waveBandIndex
+    outfilename = "./vertResponseFunction_"//wbnum//".txt"
+    if (mmpi_myid == 0) then
+      open (unit=99,file=outfilename,action="write",status="new")
+    end if
+    do modeIndex = 1, nModeMax
+      ResponseFunction(modeIndex) = spf_filterResponseFunction(dble(modeIndex), waveBandIndex, &
+                                                               vertWaveBandPeaks, nVertWaveBand)
+      write(* ,'(I4,2X,F5.3)') modeIndex, ResponseFunction(modeIndex)
+      if (mmpi_myid == 0) then
+        write(99,'(I4,2X,F5.3)') modeIndex, ResponseFunction(modeIndex)
+      end if
+    end do
+    if (mmpi_myid == 0) then
+      close(unit=99)
+    end if
+
+    !
+    !- 2.  Apply Filter
+    !
+    nullify(varNamesList)
+    call ens_varNamesList(varNamesList,ensPerts_in)
+    numVar = size(varNamesList)
+
+    call gsv_allocate(gridStateVector_oneMember, ens_getNumStep(ensPerts_in), &
+                      ens_getHco(ensPerts_in), ens_getVco(ensPerts_in), varNames_opt=varNamesList, &
+                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                         &
+                      mpi_distribution_opt='Tiles', dataKind_opt=8 )
+    
+    do memberIndex = 1, nEns
+      call ens_copyMember(ensPerts_in, gridStateVector_oneMember, memberIndex)
+
+      do varIndex = 1, numVar
+
+        nullify(gridState3d)
+        call gsv_getField(gridStateVector_oneMember,gridState3d,varName_opt=varNamesList(varIndex))
+        
+        if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'MM') then
+          nLev  = nLevEns_M
+          nMode = nLev
+        else if (vnl_varLevelFromVarName(trim(varNamesList(varIndex))).eq.'TH') then
+          nLev  = nLevEns_T
+          nMode = nLev
+        else
+          gridState3d(:,:,:) = 0.d0
+          cycle
+        end if
+
+        if (allocated(vertModesState3d)) deallocate(vertModesState3d)
+        allocate(vertModesState3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nMode))
+
+        !- GridPoint space -> Vertical modes space
+        call vms_transform(vModes, vertModesState3d, gridState3d, &
+                          'GridPointToVertModes', myLonBeg, myLonEnd, &
+                           myLatBeg, myLatEnd, nLev, varNamesList(varIndex))
+
+        !- Filtering
+        !$OMP PARALLEL DO PRIVATE (modeIndex,latIndex,lonIndex)
+        do modeIndex = 1, nMode
+          do latIndex = myLatBeg, myLatEnd
+            do lonIndex = myLonBeg, myLonEnd
+              vertModesState3d(lonIndex,latIndex,modeIndex) = ResponseFunction(modeIndex) * &
+                   vertModesState3d(lonIndex,latIndex,modeIndex)
+            end do
+          end do
+        end do
+        !$OMP END PARALLEL DO
+
+        !- Vertical modes space -> GridPoint space
+        call vms_transform(vModes, vertModesState3d, gridState3d, &
+                          'VertModesToGridPoint', myLonBeg, myLonEnd, &
+                          myLatBeg, myLatEnd, nLev, varNamesList(varIndex))
+
+      end do
+
+      call ens_insertMember(ensPerts_out, gridStateVector_oneMember, memberIndex)
+      
+    end do
+    
+    deallocate(vertModesState3d)
+    call gsv_deallocate(gridStateVector_oneMember)
+    deallocate(ResponseFunction)
+    
+  end subroutine vertModesFilter
+  
 end module calcStatsGlb_mod
