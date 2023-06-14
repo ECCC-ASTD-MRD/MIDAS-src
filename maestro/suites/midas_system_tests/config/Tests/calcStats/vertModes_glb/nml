@@ -5,7 +5,7 @@
    TOOL = 'VERTMODES_SPEC'
    ensContainsFullField = .true.
    ctrlVarHumidity = 'LQ'
-   vertmodes_lengthScale = 6.d0
+   vertModesLengthScale = 6.d0
 /
 &NAMSTATE
    ANLVAR(1)   ='TT'

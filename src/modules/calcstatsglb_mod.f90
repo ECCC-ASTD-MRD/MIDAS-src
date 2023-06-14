@@ -197,9 +197,9 @@ module calcStatsGlb_mod
     nomvar(5,:)   = nomvar2d(1,:)
     
     !
-    !- Horizontal wave band decomposition option (available in )
+    !- Horizontal wave band decomposition option
     !
-    nWaveBand = count(waveBandPeaks .ge. 0)
+    nWaveBand = count(waveBandPeaks >= 0)
     if ( nWaveBand < 1 ) then
        nWaveBand = 1
     else if (nWaveBand == 1) then
@@ -207,7 +207,7 @@ module calcStatsGlb_mod
        call utl_abort('calbmatrix_glb')
     else
        write(*,*)
-       write(*,*) 'Horinzontal waveBand decomposition is ACTIVATED'
+       write(*,*) 'Horizontal waveBand decomposition is ACTIVATED'
     end if
     
     ! Make sure that the wavenumbers are in the correct (decreasing) order
@@ -226,9 +226,9 @@ module calcStatsGlb_mod
     end if
 
     !
-    !- Vertical wave band decomposition option (available in )
+    !- Vertical wave band decomposition option
     !
-    nVertWaveBand = count(vertWaveBandPeaks .ge. 0)
+    nVertWaveBand = count(vertWaveBandPeaks >= 0)
     if ( nVertWaveBand < 1 ) then
        nVertWaveBand = 1
     else if (nVertWaveBand == 1) then
@@ -559,14 +559,14 @@ module calcStatsGlb_mod
     logical :: makeBiPeriodic
     logical :: doSpectralFilter
 
-    real(8) :: vertmodes_lengthScale(2)
+    real(8) :: vertModesLengthScale(2)
     real(8) :: lengthScaleTop, lengthScaleBot
     
     character(len=60) :: tool
     character(len=2)  :: wbnum
     character(len=2)  :: ctrlVarHumidity
     
-    NAMELIST /NAMTOOLBOX/tool, ensContainsFullField, doSpectralFilter, vertmodes_lengthScale, &
+    NAMELIST /NAMTOOLBOX/tool, ensContainsFullField, doSpectralFilter, vertModesLengthScale, &
                          ctrlVarHumidity
 
     write(*,*)
@@ -579,8 +579,8 @@ module calcStatsGlb_mod
     variableType             = modelSpace ! hardwired
     ensContainsFullField     = .true.     ! default value
     doSpectralFilter         = .true.
-    vertmodes_lengthScale(1) = 6.d0
-    vertmodes_lengthScale(2) = -1.d0
+    vertModesLengthScale(1) = 6.d0
+    vertModesLengthScale(2) = -1.d0
     ctrlVarHumidity          = 'HU'
     
     nulnam = 0
@@ -590,11 +590,11 @@ module calcStatsGlb_mod
     if (mmpi_myid == 0) write(*,nml=NAMTOOLBOX)
     ierr = fclos(nulnam)
 
-    lengthScaleTop = vertmodes_lengthScale(1)
-    if (vertmodes_lengthScale(2) == -1.d0) then
+    lengthScaleTop = vertModesLengthScale(1)
+    if (vertModesLengthScale(2) == -1.d0) then
       lengthScaleBot = lengthScaleTop
     else
-      lengthScaleBot = vertmodes_lengthScale(2)
+      lengthScaleBot = vertModesLengthScale(2)
     end if
     
     !
@@ -3260,79 +3260,21 @@ module calcStatsGlb_mod
   end subroutine calcLocalVertCorrMatrix
 
   !--------------------------------------------------------------------------
-  ! testVertModesTransform
-  !--------------------------------------------------------------------------
-  subroutine testVertModesTransform(ensPerts_inout, vModes)
-    implicit none
-
-    type(struct_ens), intent(inout)  :: ensPerts_inout
-    type(struct_vms), intent(in)  :: vModes
-
-    type(struct_gsv)  :: gridStateVector_oneMember
-    
-    real(8), allocatable :: vertModesState3d(:,:,:)
-    real(8), pointer     :: gridState3d(:,:,:)
-    
-    character(len=4), pointer :: varNamesList(:)
-    
-    integer :: numVar, nLev, varIndex, memberIndex
-
-    nullify(varNamesList)
-    call ens_varNamesList(varNamesList,ensPerts_inout)
-    numVar = size(varNamesList)
-
-    call gsv_allocate(gridStateVector_oneMember, ens_getNumStep(ensPerts_inout), &
-                      ens_getHco(ensPerts_inout), ens_getVco(ensPerts_inout), varNames_opt=varNamesList, &
-                      datestamp_opt=tim_getDatestamp(), mpi_local_opt=.true.,                         &
-                      mpi_distribution_opt='Tiles', dataKind_opt=8 )
-    
-    do memberIndex = 1, nEns
-      write(*,*) 'testVertModesTransform, member index = ', memberIndex
-      call ens_copyMember(ensPerts_inout, gridStateVector_oneMember, memberIndex)
-
-      do varIndex = 1, numVar
-
-        write(*,*) 'testVertModesTransform, varName = ', varIndex, varNamesList(varIndex)
-        
-        nullify(gridState3d)
-        call gsv_getField(gridStateVector_oneMember,gridState3d,varName_opt=varNamesList(varIndex))
-
-        if (allocated(vertModesState3d)) deallocate(vertModesState3d)
-
-        nLev = size(gridState3d(myLonBeg,myLatBeg,:))
-        write(*,*) '                           nLev = ', nLev
-        allocate(vertModesState3d(myLonBeg:myLonEnd,myLatBeg:myLatEnd,nLev))
-        
-        call vms_transform(vModes, vertModesState3d, gridState3d, &
-                          'GridPointToVertModes', myLonBeg, myLonEnd, &
-                           myLatBeg, myLatEnd, nLev, varNamesList(varIndex))
-      
-        call vms_transform(vModes, vertModesState3d, gridState3d, &
-                          'VertModesToGridPoint', myLonBeg, myLonEnd, &
-                          myLatBeg, myLatEnd, nLev, varNamesList(varIndex))
-
-      end do
-
-      call ens_insertMember(ensPerts_inout, gridStateVector_oneMember, memberIndex)
-      
-    end do
-    
-    deallocate(vertModesState3d)
-    call gsv_deallocate(gridStateVector_oneMember)
-    
-    write(*,*) 'finished testVertModesTransform filter...'
-
-  end subroutine testVertModesTransform
-
-  !--------------------------------------------------------------------------
   ! calcVertModesSpec
   !--------------------------------------------------------------------------
   subroutine calcVertModesSpec(ensPerts, vModes)
+    !
+    ! :Purpose: Compute the amplitude of the ensemble perturbations after their
+    !           projection onto the vertical modes. This is the vertical equivalent
+    !           of power spectra in the horizontal.
+    !
     implicit none
 
+    ! arguments
     type(struct_ens), intent(inout)  :: ensPerts
-    type(struct_vms), intent(in)  :: vModes
+    type(struct_vms), intent(in)     :: vModes
 
+    ! locals
     type(struct_gsv)  :: gridStateVector_oneMember
     
     real(8), allocatable :: vertModesState3d(:,:,:)
@@ -3474,14 +3416,19 @@ module calcStatsGlb_mod
   ! vertModesFilter
   !--------------------------------------------------------------------------
   subroutine vertModesFilter(ensPerts_in, ensPerts_out, vModes, waveBandIndex)
+    !
+    ! :Purpose: Filter the ensemble perturbations to isolate a given vertical
+    !           waveband of vertical modes.
+    !
     implicit none
 
+    ! arguments
     type(struct_ens), intent(inout) :: ensPerts_in
     type(struct_ens), intent(inout) :: ensPerts_out
     type(struct_vms), intent(in)    :: vModes
-
     integer,          intent(in)    :: waveBandIndex
-    
+
+    ! locals
     type(struct_gsv)  :: gridStateVector_oneMember
     
     real(8), allocatable :: vertModesState3d(:,:,:)

@@ -57,10 +57,12 @@ contains
     !
     implicit none
 
-    character(len=4), intent(in)    :: varNamesList(:)
+    ! arguments
+    character(len=4),          intent(in)    :: varNamesList(:)
     type(struct_vco), pointer, intent(in)    :: vco
-    type(struct_vms), intent(inout) :: vModes
-    
+    type(struct_vms),          intent(inout) :: vModes
+
+    ! locals
     integer :: nLev, varNameIndex, var3dIndex
     
     if (vModes%initialized) return
@@ -111,9 +113,12 @@ contains
     !           vertical background-error covariances matrices
     !
     implicit none
+
+    ! arguments
     type(struct_ens)                :: ensPerts
     type(struct_vms), intent(inout) :: vModes
 
+    ! locals
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
     
@@ -227,12 +232,14 @@ contains
     ! :Purpose: To compute vertical modes from a prescribed correlation function
     !
     implicit none
-    
-    type(struct_vco), pointer, intent(in)  :: vco
-    real(8)         , intent(in)    :: lengthScaleTop
-    real(8)         , intent(in)    :: lengthScaleBot
-    type(struct_vms), intent(inout) :: vModes
 
+    ! arguments
+    type(struct_vco), pointer, intent(in)    :: vco
+    real(8)         ,          intent(in)    :: lengthScaleTop
+    real(8)         ,          intent(in)    :: lengthScaleBot
+    type(struct_vms),          intent(inout) :: vModes
+
+    ! locals
     real(8) :: pSurfRef, distance, correl
 
     real(8), pointer :: vertLocation_MM(:)
@@ -324,8 +331,10 @@ contains
     !
     implicit none
 
+    ! arguments
     type(struct_vms), intent(inout) :: vModes
 
+    ! locals
     real(8) :: tolerance
     
     integer :: levIndex1, levIndex2, var3dIndex
@@ -376,23 +385,21 @@ contains
     !
     implicit none
 
+    ! arguments
     type(struct_vms), intent(in)    :: vModes
-
     integer,          intent(in)    :: lonBeg, lonEnd, latBeg, latEnd
                                      ! horizontal dimension bounds
     integer,          intent(in)    :: nLev
-    
     real(8),          intent(inout) :: VertModesState(lonBeg:lonEnd,latBeg:latEnd,nLev)
                                      ! 3D vertical modes coefficients
     real(8),          intent(inout) :: GridState(lonBeg:lonEnd,latBeg:latEnd,nLev)
                                      ! 3D field in grid point space
-
     character(len=*), intent(in)    :: TransformDirection
                                      ! VertModesToGridPoint or
                                      ! GridPointToVertModes
-
     character(len=*), intent(in)    :: varName
 
+    ! locals
     integer :: latIndex, lonIndex, nMode
     integer :: varIndexAssociated, varIndex
 
@@ -491,8 +498,10 @@ contains
     !
     implicit none
 
+    ! arguments
     type(struct_vms) :: vModes
 
+    ! locals
     integer :: var3dIndex, levIndex1, levIndex2
     integer :: fstouv, fnom, fstfrm, fclos, iunstats, errorID
 
@@ -574,9 +583,9 @@ contains
     implicit none
 
     ! arguments
-    integer, intent(in) :: rank
-    real(8), intent(in) :: matrix2d(rank,rank)
-    integer, intent(in) :: iun
+    integer,          intent(in) :: rank
+    real(8),          intent(in) :: matrix2d(rank,rank)
+    integer,          intent(in) :: iun
     character(len=*), intent(in) :: nomvar_in
     character(len=*), intent(in) :: etiket_in
 
@@ -640,9 +649,9 @@ contains
     implicit none
 
     ! arguments
-    integer, intent(in) :: size
-    real(8), intent(in) :: array(size)
-    integer, intent(in) :: iun
+    integer,          intent(in) :: size
+    real(8),          intent(in) :: array(size)
+    integer,          intent(in) :: iun
     character(len=*), intent(in) :: nomvar_in
     character(len=*), intent(in) :: etiket_in
 
@@ -706,9 +715,9 @@ contains
     implicit none
 
     ! arguments
-    integer, intent(in) :: size
+    integer,          intent(in) :: size
     character(len=4), intent(in) :: array(size)
-    integer, intent(in) :: iun
+    integer,          intent(in) :: iun
     character(len=*), intent(in) :: nomvar_in
     character(len=*), intent(in) :: etiket_in
 
