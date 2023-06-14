@@ -383,12 +383,9 @@ contains
     integer,          intent(in)    :: latBeg
     integer,          intent(in)    :: latEnd
     integer,          intent(in)    :: nLev
-    real(8),          intent(inout) :: VertModesState(lonBeg:lonEnd,latBeg:latEnd,nLev)
-                                     ! 3D vertical modes coefficients
-    real(8),          intent(inout) :: GridState(lonBeg:lonEnd,latBeg:latEnd,nLev)
-                                     ! 3D field in grid point space
-    character(len=*), intent(in)    :: TransformDirection ! VertModesToGridPoint or
-                                                          ! GridPointToVertModes
+    real(8),          intent(inout) :: VertModesState(lonBeg:lonEnd,latBeg:latEnd,nLev) ! 3D vertical modes coefficients
+    real(8),          intent(inout) :: GridState(lonBeg:lonEnd,latBeg:latEnd,nLev) ! 3D field in grid point space
+    character(len=*), intent(in)    :: TransformDirection ! VertModesToGridPoint or GridPointToVertModes
     character(len=*), intent(in)    :: varName
 
     ! Locals:
@@ -474,9 +471,9 @@ contains
       !$OMP END PARALLEL DO
       
     case default
-       write(*,*)
-       write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
-       call utl_abort('vms_transform')
+      write(*,*)
+      write(*,*) 'Error: TranformDirection Unknown ', trim(TransformDirection)
+      call utl_abort('vms_transform')
     end select
     
   end subroutine vms_transform
