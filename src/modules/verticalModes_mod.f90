@@ -115,7 +115,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_ens)                :: ensPerts
+    type(struct_ens), intent(inout) :: ensPerts
     type(struct_vms), intent(inout) :: vModes
 
     ! Locals:
@@ -378,16 +378,17 @@ contains
 
     ! Arguments:
     type(struct_vms), intent(in)    :: vModes
-    integer,          intent(in)    :: lonBeg, lonEnd, latBeg, latEnd
-                                     ! horizontal dimension bounds
+    integer,          intent(in)    :: lonBeg
+    integer,          intent(in)    :: lonEnd
+    integer,          intent(in)    :: latBeg
+    integer,          intent(in)    :: latEnd
     integer,          intent(in)    :: nLev
     real(8),          intent(inout) :: VertModesState(lonBeg:lonEnd,latBeg:latEnd,nLev)
                                      ! 3D vertical modes coefficients
     real(8),          intent(inout) :: GridState(lonBeg:lonEnd,latBeg:latEnd,nLev)
                                      ! 3D field in grid point space
-    character(len=*), intent(in)    :: TransformDirection
-                                     ! VertModesToGridPoint or
-                                     ! GridPointToVertModes
+    character(len=*), intent(in)    :: TransformDirection ! VertModesToGridPoint or
+                                                          ! GridPointToVertModes
     character(len=*), intent(in)    :: varName
 
     ! Locals:
@@ -490,7 +491,7 @@ contains
     implicit none
 
     ! Arguments:
-    type(struct_vms) :: vModes
+    type(struct_vms), intent(in) :: vModes
 
     ! Locals:
     integer :: var3dIndex, levIndex1, levIndex2
