@@ -80,11 +80,11 @@ module calcStatsGlb_mod
     !:Purpose: Main setup routine for this module
     !
     implicit none
-    ! arguments:
+    ! Arguments:
     integer, intent(in)                     :: nens_in
     type(struct_vco), pointer, intent(in)   :: vco_in
     type(struct_hco), pointer, intent(in)   :: hco_in
-    ! locals:
+    ! Locals:
     integer :: waveBandIndex, memberIndex
     integer :: nulnam, ierr, fclos, fnom
     real(8) :: zps
@@ -265,7 +265,7 @@ module calcStatsGlb_mod
     !:Purpose: Master routine for Bhi computation in global mode
     !
     implicit none
-    ! locals:
+    ! Locals:
     integer :: ierr, nulnam
     integer :: fclos, fnom
     character(len=12) :: formulation ! Bhi formulation
@@ -1501,13 +1501,13 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(8), pointer           :: stddevZonAvg(:,:)
     real(8), pointer           :: stddev3d(:,:,:)
     real(8), pointer, optional :: stddevZonAvgUnbal_opt(:,:)
     real(8), pointer, optional :: stddev3dUnbal_opt(:,:,:)
 
-    ! locals:
+    ! Locals:
     type(struct_gsv) :: stateVector
     real(8) :: dfact, zbufyz(nj,max(nLevEns_M,nLevens_T)), zbufy(nj)
     integer :: latIndex, levIndex, ierr, varIndex, varIndexStddev, nLevEns, numVarToWrite
@@ -1644,10 +1644,10 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(8) :: stddevZonAvgBal(:,:),stddev3dBal(:,:,:)
 
-    ! locals:
+    ! Locals:
     type(struct_gsv) :: stateVector
     real(8) :: dfact, zbufyz(nj,max(nLevEns_M,nLevens_T)), zbufy(nj)
     integer :: latIndex, levIndex, ierr, varIndex, nLevEns
@@ -2231,11 +2231,11 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(8), pointer :: fieldsZonAvg_mpiglobal(:,:),fields3D(:,:,:)
     integer :: nlev
 
-    ! locals:
+    ! Locals:
     integer :: lonIndex, latIndex, levIndex, ierr, nsize
     real(8) :: dfact
     real(8), allocatable :: fieldsZonAvg(:,:) 
@@ -2475,10 +2475,10 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    ! arguments:
+    ! Arguments:
     real(4), pointer             :: ensPerturbations(:,:,:,:)
 
-    ! locals:
+    ! Locals:
     integer :: lonIndex, latIndex, levIndex, ensIndex, numStep
     integer, allocatable :: dateStampList(:)
     real(4), pointer :: field_r4(:,:,:)
@@ -3270,25 +3270,19 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens), intent(inout)  :: ensPerts
     type(struct_vms), intent(in)     :: vModes
 
-    ! locals
-    type(struct_gsv)  :: gridStateVector_oneMember
-    
+    ! Locals:
+    type(struct_gsv)     :: gridStateVector_oneMember    
     real(8), allocatable :: vertModesState3d(:,:,:)
     real(8), pointer     :: gridState3d(:,:,:)
-
     real(8), allocatable :: powerSpec(:,:)
     real(8), allocatable :: latWeight(:) ! Weight given to grid point in the statistic computation
-
     real(8) :: sumWeight
-    
     character(len=4), pointer :: varNamesList(:)
-
     character(len=128) :: outfilename
-    
     integer :: numVar, nLev, varIndex, memberIndex
     integer :: nMode, modeIndex, latIndex, lonIndex
 
@@ -3422,24 +3416,20 @@ module calcStatsGlb_mod
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens), intent(inout) :: ensPerts_in
     type(struct_ens), intent(inout) :: ensPerts_out
     type(struct_vms), intent(in)    :: vModes
     integer,          intent(in)    :: waveBandIndex
 
-    ! locals
-    type(struct_gsv)  :: gridStateVector_oneMember
-    
+    ! Locals:
+    type(struct_gsv)     :: gridStateVector_oneMember    
     real(8), allocatable :: vertModesState3d(:,:,:)
     real(8), pointer     :: gridState3d(:,:,:)
     real(8), allocatable :: ResponseFunction(:)
-    
     character(len=128) :: outfilename
-    character(len=2) :: wbnum
-    
+    character(len=2)   :: wbnum
     character(len=4), pointer :: varNamesList(:)
-
     integer :: nMode, nModeMax, modeIndex, latIndex, lonIndex
     integer :: numVar, nLev, varIndex, memberIndex
 

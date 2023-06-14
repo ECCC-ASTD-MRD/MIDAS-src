@@ -57,12 +57,12 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     character(len=4),          intent(in)    :: varNamesList(:)
     type(struct_vco), pointer, intent(in)    :: vco
     type(struct_vms),          intent(inout) :: vModes
 
-    ! locals
+    ! Locals:
     integer :: nLev, varNameIndex, var3dIndex
     
     if (vModes%initialized) return
@@ -114,24 +114,20 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_ens)                :: ensPerts
     type(struct_vms), intent(inout) :: vModes
 
-    ! locals
+    ! Locals:
     type(struct_hco), pointer :: hco_ens
     type(struct_vco), pointer :: vco_ens
-    
-    real(4), pointer  :: ptr4d_1_r4(:,:,:,:)
-    real(4), pointer  :: ptr4d_2_r4(:,:,:,:)
-    
-    real(8), allocatable :: latWeight(:) ! Weight given to grid point in the statistic computation
-    real(8), allocatable :: sumWeight(:,:)
-    
+    real(4),          pointer :: ptr4d_1_r4(:,:,:,:)
+    real(4),          pointer :: ptr4d_2_r4(:,:,:,:)
+    real(8),      allocatable :: latWeight(:) ! Weight given to grid point in the statistic computation
+    real(8),      allocatable :: sumWeight(:,:)
     integer :: varLevIndex1, varLevIndex2, levIndex1, levIndex2
     integer :: lonIndex, latIndex, nEns, memberIndex
     integer :: var3dIndex, myLonBeg, myLonEnd, myLatBeg, myLatEnd
-
     character(len=4), pointer :: varNamesList(:)
     
     !
@@ -233,25 +229,21 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_vco), pointer, intent(in)    :: vco
     real(8)         ,          intent(in)    :: lengthScaleTop
     real(8)         ,          intent(in)    :: lengthScaleBot
     type(struct_vms),          intent(inout) :: vModes
 
-    ! locals
-    real(8) :: pSurfRef, distance, correl
-
+    ! Locals:
     real(8), pointer :: vertLocation_MM(:)
     real(8), pointer :: vertLocation_TH(:)
     real(8), pointer :: vertLocation(:)
-    
-    integer :: levIndex, levIndex1, levIndex2
-    integer :: var3dIndex
-
+    real(8) :: pSurfRef, distance, correl
     real(8) :: lengthScaleGradient
     real(8) :: lengthScaleLev1, lengthScaleLev2, lengthScaleAvg
-    
+    integer :: levIndex, levIndex1, levIndex2
+    integer :: var3dIndex
     character(len=4) :: varNamesList(2)
 
     !
@@ -331,12 +323,11 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_vms), intent(inout) :: vModes
 
-    ! locals
-    real(8) :: tolerance
-    
+    ! Locals:
+    real(8) :: tolerance    
     integer :: levIndex1, levIndex2, var3dIndex
     integer :: matrixRank
     
@@ -385,7 +376,7 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_vms), intent(in)    :: vModes
     integer,          intent(in)    :: lonBeg, lonEnd, latBeg, latEnd
                                      ! horizontal dimension bounds
@@ -399,7 +390,7 @@ contains
                                      ! GridPointToVertModes
     character(len=*), intent(in)    :: varName
 
-    ! locals
+    ! Locals:
     integer :: latIndex, lonIndex, nMode
     integer :: varIndexAssociated, varIndex
 
@@ -498,15 +489,13 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     type(struct_vms) :: vModes
 
-    ! locals
+    ! Locals:
     integer :: var3dIndex, levIndex1, levIndex2
     integer :: fstouv, fnom, fstfrm, fclos, iunstats, errorID
-
     character(len=4), allocatable :: varName3d(:)
-
     character(len=128) :: outfilename
     
     if (.not. vModes%initialized) then
@@ -582,24 +571,20 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     integer,          intent(in) :: rank
     real(8),          intent(in) :: matrix2d(rank,rank)
     integer,          intent(in) :: iun
     character(len=*), intent(in) :: nomvar_in
     character(len=*), intent(in) :: etiket_in
 
-    ! locals
+    ! Locals:
     real(4), allocatable :: workecr(:,:)
-
-    real(4)   :: work
-
-    integer   :: errorID, fstecr
-
+    real(4) :: work
+    integer :: errorID, fstecr
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
-
     character(len=1)  :: grtyp
     character(len=4)  :: nomvar
     character(len=2)  :: typvar
@@ -648,24 +633,20 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     integer,          intent(in) :: size
     real(8),          intent(in) :: array(size)
     integer,          intent(in) :: iun
     character(len=*), intent(in) :: nomvar_in
     character(len=*), intent(in) :: etiket_in
 
-    ! locals
+    ! Locals:
     real(4), allocatable :: workecr(:)
-
-    real(4)   :: work
-
-    integer   :: errorID, fstecr
-
+    real(4) :: work
+    integer :: errorID, fstecr
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
-
     character(len=1)  :: grtyp
     character(len=4)  :: nomvar
     character(len=2)  :: typvar
@@ -714,22 +695,19 @@ contains
     !
     implicit none
 
-    ! arguments
+    ! Arguments:
     integer,          intent(in) :: size
     character(len=4), intent(in) :: array(size)
     integer,          intent(in) :: iun
     character(len=*), intent(in) :: nomvar_in
     character(len=*), intent(in) :: etiket_in
 
-    ! locals
-    real(4)   :: work
-
-    integer   :: errorID, fstecr_s
-
+    ! Locals:
+    real(4) :: work
+    integer :: errorID, fstecr_s
     integer :: dateo, npak, ni, nj, nk
     integer :: ip1, ip2, ip3, deet, npas, datyp
     integer :: ig1 ,ig2 ,ig3 ,ig4
-
     character(len=1)  :: grtyp
     character(len=4)  :: nomvar
     character(len=2)  :: typvar
